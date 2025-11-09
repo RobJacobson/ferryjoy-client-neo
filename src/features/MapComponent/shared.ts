@@ -4,7 +4,6 @@
  */
 
 import type { PropsWithChildren } from "react"
-import { StyleSheet } from "react-native"
 import type { CameraState } from "./cameraState"
 import { DEFAULT_CAMERA_STATE, DEFAULT_MAP_STYLE } from "./utils/mapbox"
 
@@ -24,19 +23,6 @@ export type MapProps = PropsWithChildren<{
 export const DEFAULT_MAP_PROPS: MapProps = {
   mapStyle: DEFAULT_MAP_STYLE,
 }
-
-/**
- * Styles for Map component
- */
-export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: "relative",
-  },
-  map: {
-    flex: 1,
-  },
-})
 
 /**
  * Merge camera state with defaults
