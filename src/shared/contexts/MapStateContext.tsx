@@ -22,9 +22,9 @@ type MapState = {
  * Context value providing current map state for read-only access
  */
 type MapStateContextType = MapState & {
-  updateMapState: (newState: Partial<MapState>) => void
-  updateCameraState: (cameraState: CameraState) => void
   updateMapDimensions: (width: number, height: number) => void
+  // Internal method for updating camera state (used by MapComponents)
+  _updateCameraState: (cameraState: CameraState) => void
   // Convenience getters for backward compatibility
   latitude: number
   longitude: number
@@ -55,21 +55,18 @@ export const MapStateProvider = ({ children }: PropsWithChildren) => {
     },
   })
 
-  const updateMapState = (newState: Partial<MapState>) => {
-    setMapState(prev => ({ ...prev, ...newState }))
-  }
-
-  const updateCameraState = (cameraState: CameraState) => {
-    setMapState(prev => ({
-      ...prev,
-      cameraState,
-    }))
-  }
-
   const updateMapDimensions = (width: number, height: number) => {
     setMapState(prev => ({
       ...prev,
       mapDimensions: { width, height },
+    }))
+  }
+
+  // Internal method for updating camera state (used by MapComponents)
+  const _updateCameraState = (cameraState: CameraState) => {
+    setMapState(prev => ({
+      ...prev,
+      cameraState,
     }))
   }
 
@@ -84,9 +81,8 @@ export const MapStateProvider = ({ children }: PropsWithChildren) => {
     pitch: cameraState.pitch,
     heading: cameraState.heading,
     // Update functions
-    updateMapState,
-    updateCameraState,
     updateMapDimensions,
+    _updateCameraState,
   }
 
   return <MapStateContext value={contextValue}>{children}</MapStateContext>
