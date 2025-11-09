@@ -1,0 +1,25 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "@RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "@RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+      }
+    },
+    "production": {
+      "env": {
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "@RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
