@@ -20,6 +20,7 @@ import { useSetMapController } from "@/shared/contexts/MapController"
 import { webViewStateToCameraState } from "./cameraState"
 import { createMapController, type MapController } from "./MapController"
 import { DEFAULT_MAP_PROPS, type MapProps } from "./shared"
+import { DEFAULT_CAMERA_STATE } from "./utils/mapbox"
 
 export interface MapComponentRef {
   getController: () => MapController | null
@@ -82,6 +83,13 @@ export const MapComponent = forwardRef<MapComponentRef, MapProps>(
       <div ref={containerRef} className="flex-1 relative">
         <MapboxGL
           ref={setMapInstance}
+          initialViewState={{
+            longitude: DEFAULT_CAMERA_STATE.centerCoordinate[0],
+            latitude: DEFAULT_CAMERA_STATE.centerCoordinate[1],
+            zoom: DEFAULT_CAMERA_STATE.zoomLevel,
+            pitch: DEFAULT_CAMERA_STATE.pitch,
+            bearing: DEFAULT_CAMERA_STATE.heading,
+          }}
           style={{ width: "100%", height: "100%" }}
           mapStyle={mapStyle}
           projection="mercator"
