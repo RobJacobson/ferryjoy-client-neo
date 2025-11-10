@@ -22,8 +22,8 @@
  * ```
  */
 
-import MapboxRN from "@rnmapbox/maps"
-import type { ReactElement } from "react"
+import MapboxRN from "@rnmapbox/maps";
+import type { ReactElement } from "react";
 
 /**
  * Native marker component that wraps MapboxRN.MarkerView
@@ -35,6 +35,7 @@ import type { ReactElement } from "react"
  * @param longitude - The longitude coordinate where the marker should be placed
  * @param latitude - The latitude coordinate where the marker should be placed
  * @param children - React elements to be rendered inside the marker
+ * @param zIndex - Optional z-index value to control stacking order of markers
  *
  * @returns A MapboxRN.MarkerView component positioned at the specified coordinates
  *
@@ -59,18 +60,21 @@ export const Marker = ({
   longitude,
   latitude,
   children,
+  zIndex = 1,
 }: {
-  longitude: number
-  latitude: number
-  children: ReactElement
+  longitude: number;
+  latitude: number;
+  children: ReactElement;
+  zIndex?: number;
 }) => {
   return (
     <MapboxRN.MarkerView
       coordinate={[longitude, latitude]}
       anchor={{ x: 0.5, y: 0.5 }}
       allowOverlap={true}
+      style={{ zIndex }}
     >
       {children}
     </MapboxRN.MarkerView>
-  )
-}
+  );
+};

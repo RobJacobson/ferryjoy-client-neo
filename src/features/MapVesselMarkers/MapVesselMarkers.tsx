@@ -18,6 +18,8 @@ type VesselMarkerData = VesselLocation & MapMarkerData;
  */
 const VESSEL_MARKER_CONFIG = {
   ZOOM_THRESHOLD: 8,
+  OUT_OF_SERVICE_Z_INDEX: 1,
+  IN_SERVICE_Z_INDEX: 2,
 } as const;
 
 /**
@@ -26,6 +28,7 @@ const VESSEL_MARKER_CONFIG = {
  * Fetches vessel data from the WsDottie context and renders markers on the map using the generic MapMarkers component.
  * Handles loading states, error states, and visibility based on zoom level.
  * Each vessel is rendered as a MapVesselMarker component with a pink circular indicator.
+ * In-service vessels are rendered with a higher z-index to appear above out-of-service vessels.
  *
  * @param onVesselPress - Optional callback function triggered when a vessel marker is pressed
  *
@@ -53,17 +56,39 @@ export const MapVesselMarkers = ({
   const vesselMarkerData: VesselMarkerData[] | undefined =
     vesselLocations.data?.map(toVesselMarkerData);
 
+  // Separate vessels into in-service and out-of-service groups
+  const inServiceVessels =
+    vesselMarkerData?.filter(vessel => vessel.InService) || [];
+  const outOfServiceVessels =
+    vesselMarkerData?.filter(vessel => !vessel.InService) || [];
+
   return (
-    <MapMarkers
-      data={vesselMarkerData}
-      renderMarker={vessel => (
-        <MapVesselMarker
-          key={vessel.VesselID}
-          vessel={vessel}
-          onPress={onVesselPress}
-        />
-      )}
-    />
+    <>
+      {/* Render out-of-service vessels first with lower z-index */}
+      <MapMarkers
+        data={outOfServiceVessels}
+        renderMarker={vessel => (
+          <MapVesselMarker
+            key={vessel.VesselID}
+            vessel={vessel}
+            onPress={onVesselPress}
+            zIndex={VESSEL_MARKER_CONFIG.OUT_OF_SERVICE_Z_INDEX}
+          />
+        )}
+      />
+      {/* Render in-service vessels second with higher z-index */}
+      <MapMarkers
+        data={inServiceVessels}
+        renderMarker={vessel => (
+          <MapVesselMarker
+            key={vessel.VesselID}
+            vessel={vessel}
+            onPress={onVesselPress}
+            zIndex={VESSEL_MARKER_CONFIG.IN_SERVICE_Z_INDEX}
+          />
+        )}
+      />
+    </>
   );
 };
 
