@@ -3,21 +3,22 @@
  * Provides imperative control methods for both native and web map implementations
  */
 
-import type MapboxRN from "@rnmapbox/maps"
-import type { MapRef } from "react-map-gl/mapbox"
-import { isWeb } from "@/features/MapComponent/shared"
+import { Platform } from "react-native"
 import type { CameraState } from "./cameraState"
 
-// Define a type for the native MapView with the methods we need
-type NativeMapViewWithMethods = MapboxRN.MapView & {
+// Type definitions for map instances
+interface WebMapInstance {
+  flyTo: (options: unknown) => void
+  easeTo: (options: unknown) => void
+  jumpTo: (options: unknown) => void
+  getCenter: () => { lng: number; lat: number } | undefined
+  getZoom: () => number | undefined
+}
+
+interface NativeMapInstance {
   flyTo: (center: [number, number], duration?: number) => void
   easeTo: (center: [number, number], duration?: number) => void
-  setCamera: (options: {
-    centerCoordinate: [number, number]
-    zoomLevel: number
-    heading: number
-    pitch: number
-  }) => void
+  setCamera: (options: unknown) => void
 }
 
 export interface MapController {
@@ -28,82 +29,66 @@ export interface MapController {
   getZoom: () => number | undefined
 }
 
+// Helper function to convert CameraState to web map options
+const toWebMapOptions = (destination: CameraState, duration?: number) => ({
+  center: destination.centerCoordinate,
+  zoom: destination.zoomLevel,
+  bearing: destination.heading,
+  pitch: destination.pitch,
+  duration,
+})
+
+// Helper function to convert CameraState to native map options
+const toNativeMapOptions = (destination: CameraState) => ({
+  centerCoordinate: destination.centerCoordinate,
+  zoomLevel: destination.zoomLevel,
+  heading: destination.heading,
+  pitch: destination.pitch,
+})
+
 export const createMapController = (
-  mapRef: MapRef | MapboxRN.MapView | null
+  mapInstance: unknown
 ): MapController | null => {
-  if (!mapRef) return null
+  if (!mapInstance) return null
+
+  const isWeb = Platform.OS === "web"
 
   if (isWeb) {
-    const webMapRef = mapRef as MapRef
+    // Web implementation
+    const instance = mapInstance as WebMapInstance
+
     return {
-      flyTo: (destination, duration = 1000) => {
-        webMapRef.flyTo({
-          center: [...destination.centerCoordinate] as [number, number],
-          zoom: destination.zoomLevel,
-          bearing: destination.heading,
-          pitch: destination.pitch,
-          duration,
-        })
+      flyTo: (destination, duration) => {
+        instance.flyTo(toWebMapOptions(destination, duration))
       },
-      easeTo: (destination, duration = 500) => {
-        webMapRef.easeTo({
-          center: [...destination.centerCoordinate] as [number, number],
-          zoom: destination.zoomLevel,
-          bearing: destination.heading,
-          pitch: destination.pitch,
-          duration,
-        })
+      easeTo: (destination, duration) => {
+        instance.easeTo(toWebMapOptions(destination, duration))
       },
       jumpTo: destination => {
-        webMapRef.jumpTo({
-          center: [...destination.centerCoordinate] as [number, number],
-          zoom: destination.zoomLevel,
-          bearing: destination.heading,
-          pitch: destination.pitch,
-        })
+        instance.jumpTo(toWebMapOptions(destination))
       },
       getCenter: () => {
-        const center = webMapRef.getCenter()
+        const center = instance.getCenter()
         return center ? [center.lng, center.lat] : undefined
       },
-      getZoom: () => webMapRef.getZoom(),
+      getZoom: () => instance.getZoom(),
     }
   } else {
-    const nativeMapRef = mapRef as NativeMapViewWithMethods
+    // Native implementation
+    const instance = mapInstance as NativeMapInstance
+
     return {
-      flyTo: (destination, duration = 1000) => {
-        nativeMapRef.flyTo(
-          [...destination.centerCoordinate] as [number, number],
-          duration
-        )
+      flyTo: (destination, duration) => {
+        instance.flyTo([...destination.centerCoordinate], duration)
       },
-      easeTo: (destination, duration = 500) => {
-        nativeMapRef.easeTo(
-          [...destination.centerCoordinate] as [number, number],
-          duration
-        )
+      easeTo: (destination, duration) => {
+        instance.easeTo([...destination.centerCoordinate], duration)
       },
       jumpTo: destination => {
-        nativeMapRef.setCamera({
-          centerCoordinate: [...destination.centerCoordinate] as [
-            number,
-            number,
-          ],
-          zoomLevel: destination.zoomLevel,
-          heading: destination.heading,
-          pitch: destination.pitch,
-        })
+        instance.setCamera(toNativeMapOptions(destination))
       },
-      getCenter: () => {
-        // @rnmapbox/maps doesn't provide a direct getCenter method
-        // This would need to be tracked through state updates
-        return undefined
-      },
-      getZoom: () => {
-        // @rnmapbox/maps doesn't provide a direct getZoom method
-        // This would need to be tracked through state updates
-        return undefined
-      },
+      getCenter: () => undefined, // Native limitation
+      getZoom: () => undefined, // Native limitation
     }
   }
 }
