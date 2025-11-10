@@ -8,7 +8,7 @@ export {
   useMapController,
   useSetMapController,
 } from "@/shared/contexts/MapController"
-export { MapComponent, type MapComponentRef } from "./MapComponent"
+export { MapComponent } from "./MapComponent"
 export {
   createMapController,
   type MapController as IMapController,

@@ -4,40 +4,41 @@
  */
 
 import MapboxRN from "@rnmapbox/maps"
-import { useEffect, useRef } from "react"
 import { nativeMapStateToCameraState } from "./cameraState"
 import type { MapViewProps } from "./shared"
+import { DEFAULT_CAMERA_STATE } from "./shared"
 
 export const MapView = ({
   mapStyle,
   onMapReady,
   onCameraChanged,
-  onLayout,
   children,
 }: MapViewProps) => {
-  const mapRef = useRef<MapboxRN.MapView>(null)
-
-  // Initialize map when ready
-  useEffect(() => {
-    if (mapRef.current) {
-      onMapReady(mapRef.current)
+  // Use ref callback to initialize map when ref is set
+  const mapRefCallback = (mapInstance: MapboxRN.MapView | null) => {
+    if (mapInstance) {
+      onMapReady(mapInstance)
     }
-  }, [onMapReady])
+  }
 
   return (
     <MapboxRN.MapView
-      ref={mapRef}
+      ref={mapRefCallback}
       className="flex-1"
       styleURL={mapStyle}
       onCameraChanged={state =>
         onCameraChanged(nativeMapStateToCameraState(state))
       }
-      onLayout={event => {
-        const { width, height } = event.nativeEvent.layout
-        onLayout(width, height)
-      }}
       scaleBarEnabled={false}
     >
+      <MapboxRN.Camera
+        defaultSettings={{
+          centerCoordinate: [...DEFAULT_CAMERA_STATE.centerCoordinate],
+          zoomLevel: DEFAULT_CAMERA_STATE.zoomLevel,
+          heading: DEFAULT_CAMERA_STATE.heading,
+          pitch: DEFAULT_CAMERA_STATE.pitch,
+        }}
+      />
       {children}
     </MapboxRN.MapView>
   )

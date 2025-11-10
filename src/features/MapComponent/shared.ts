@@ -82,6 +82,5 @@ export interface MapViewProps {
   mapStyle?: string
   onMapReady: (mapInstance: unknown) => void
   onCameraChanged: (cameraState: CameraState) => void
-  onLayout: (width: number, height: number) => void
   children: React.ReactNode
 }

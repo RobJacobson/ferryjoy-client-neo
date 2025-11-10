@@ -3,7 +3,8 @@
  * Simple wrapper around react-map-gl
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useRef } from "react"
+import type { MapRef } from "react-map-gl/mapbox"
 import MapboxGL, { MapProvider } from "react-map-gl/mapbox"
 import { webViewStateToCameraState } from "./cameraState"
 import type { MapViewProps } from "./shared"
@@ -13,42 +14,24 @@ export const MapView = ({
   mapStyle,
   onMapReady,
   onCameraChanged,
-  onLayout,
   children,
 }: MapViewProps) => {
-  const [mapInstance, setMapInstance] = useState<unknown>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<MapRef>(null)
 
-  // Initialize map when ready
-  useEffect(() => {
-    if (mapInstance) {
+  // Use onLoad callback to initialize map when ready
+  const handleMapLoad = () => {
+    if (mapRef.current) {
+      // Get the underlying map instance using getMap()
+      const mapInstance = mapRef.current.getMap()
       onMapReady(mapInstance)
     }
-  }, [mapInstance, onMapReady])
-
-  // Handle dimension changes
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const updateDimensions = () => {
-      const width = container.offsetWidth
-      const height = container.offsetHeight
-      onLayout(width, height)
-    }
-
-    updateDimensions()
-    const resizeObserver = new ResizeObserver(updateDimensions)
-    resizeObserver.observe(container)
-
-    return () => resizeObserver.disconnect()
-  }, [onLayout])
+  }
 
   return (
     <MapProvider>
-      <div ref={containerRef} className="flex-1 relative">
+      <div className="flex-1 relative">
         <MapboxGL
-          ref={setMapInstance}
+          ref={mapRef}
           initialViewState={{
             longitude: DEFAULT_CAMERA_STATE.centerCoordinate[0],
             latitude: DEFAULT_CAMERA_STATE.centerCoordinate[1],
@@ -59,6 +42,7 @@ export const MapView = ({
           style={{ width: "100%", height: "100%" }}
           mapStyle={mapStyle}
           projection="mercator"
+          onLoad={handleMapLoad}
           onMove={evt =>
             onCameraChanged(webViewStateToCameraState(evt.viewState))
           }
