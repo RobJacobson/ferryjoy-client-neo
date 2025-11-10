@@ -1,38 +1,127 @@
 /**
  * Shared constants and utilities used across the application
+ *
+ * This module provides shared constants, utilities, and camera state management for MapComponent.
+ * It defines the canonical CameraState type used across the application and provides conversion
+ * functions between different map library formats.
  */
 
-import type { PropsWithChildren } from "react"
-import { Platform } from "react-native"
-import type { CameraState } from "@/features/MapComponent/cameraState"
-
-/**
- * Platform detection utilities
- */
-export const isWeb = Platform.OS === "web"
-export const isNative = Platform.OS === "ios" || Platform.OS === "android"
+import type { MapState as RNMapState } from "@rnmapbox/maps";
+import type { ViewState } from "react-map-gl/mapbox";
 
 /**
- * Seattle coordinates (default map center)
+ * Maximum pitch value allowed for Mapbox maps
+ * @constant {number}
+ * @default 75
  */
-export const SEATTLE_COORDINATES = {
-  longitude: -122.3321,
-  latitude: 47.6062,
-}
+const MAX_PITCH = 75;
 
 /**
- * Default camera state (native format - canonical)
- * Matches MapStateContext for single source of truth
+ * Our CameraState type (canonical format)
+ *
+ * This is the standard camera state format used across the application. It provides
+ * a unified representation of the map's camera position regardless of the underlying
+ * map implementation (native or web).
+ *
+ * @typedef {Object} CameraState
+ * @property {readonly [number, number]} centerCoordinate - The center coordinates as [longitude, latitude]
+ * @property {number} zoomLevel - The current zoom level
+ * @property {number} heading - The compass heading/bearing in degrees (0-360)
+ * @property {number} pitch - The tilt angle in degrees (0-90, where 0 is directly overhead)
  */
-export const DEFAULT_CAMERA_STATE = {
+export type CameraState = {
+  centerCoordinate: readonly [number, number];
+  zoomLevel: number;
+  heading: number;
+  pitch: number;
+};
+
+export const DEFAULT_NATIVE_CAMERA_STATE: CameraState = {
   centerCoordinate: [
-    SEATTLE_COORDINATES.longitude,
-    SEATTLE_COORDINATES.latitude,
+    -122.3321, // Seattle longitude
+    47.6062, // Seattle latitude
   ],
-  zoomLevel: 12, // Better zoom level to show Seattle city properly
-  heading: 0,
+  zoomLevel: 12,
   pitch: 45,
-} as const
+  heading: 0,
+} as const;
+
+/**
+ * Validates and clamps pitch value to valid range
+ *
+ * Ensures that the pitch value is within the valid range for Mapbox maps.
+ * If the pitch is undefined or null, returns the default value of 45 degrees.
+ *
+ * @param {number | undefined} pitch - The pitch value to validate
+ * @returns {number} The validated and clamped pitch value
+ */
+const clampPitch = (pitch: number | undefined): number => {
+  if (pitch === undefined || pitch === null) {
+    return 45; // Default pitch value
+  }
+  // Clamp pitch to valid range (0-MAX_PITCH degrees)
+  return Math.max(0, Math.min(MAX_PITCH, pitch));
+};
+
+/**
+ * Adapter function for native MapState events
+ *
+ * Converts @rnmapbox/maps MapState to our canonical CameraState format.
+ * This function is used to transform camera state events from the native map
+ * implementation into our standardized format.
+ *
+ * @param {RNMapState} state - The MapState object from @rnmapbox/maps
+ * @returns {CameraState} The camera state in our canonical format
+
+ */
+export const nativeMapStateToCameraState = (
+  state: RNMapState
+): CameraState => ({
+  centerCoordinate: [state.properties.center[0], state.properties.center[1]],
+  zoomLevel: state.properties.zoom,
+  heading: state.properties.heading,
+  pitch: clampPitch(state.properties.pitch),
+});
+
+/**
+ * Adapter function for web ViewState events
+ *
+ * Converts react-map-gl ViewState to our canonical CameraState format.
+ * This function is used to transform camera state events from the web map
+ * implementation into our standardized format.
+ *
+ * @param {ViewState} viewState - The ViewState object from react-map-gl
+ * @returns {CameraState} The camera state in our canonical format
+ */
+export const webViewStateToCameraState = (
+  viewState: ViewState
+): CameraState => ({
+  centerCoordinate: [viewState.longitude, viewState.latitude],
+  zoomLevel: viewState.zoom,
+  heading: viewState.bearing || 0,
+  pitch: clampPitch(viewState.pitch),
+});
+
+/**
+ * Adapter function for converting CameraState to web ViewState
+ *
+ * Converts our canonical CameraState format to react-map-gl ViewState.
+ * This function is used to transform our standardized camera state
+ * into the format expected by the web map implementation.
+ *
+ * @param {CameraState} cameraState - The camera state in our canonical format
+ * @returns {ViewState} The ViewState object for react-map-gl
+ */
+export const cameraStateToViewState = (
+  cameraState: CameraState
+): ViewState => ({
+  longitude: cameraState.centerCoordinate[0],
+  latitude: cameraState.centerCoordinate[1],
+  zoom: cameraState.zoomLevel,
+  pitch: cameraState.pitch,
+  bearing: cameraState.heading,
+  padding: { top: 0, bottom: 0, left: 0, right: 0 },
+});
 
 /**
  * Map style URLs
@@ -44,51 +133,22 @@ export const MAP_STYLES = {
   DARK: "mapbox://styles/mapbox/dark-v11",
   SATELLITE: "mapbox://styles/mapbox/satellite-v9",
   SATELLITE_STREETS: "mapbox://styles/mapbox/satellite-streets-v12",
-} as const
+} as const;
 
 /**
  * Default map style
  */
-export const DEFAULT_MAP_STYLE = MAP_STYLES.STREETS
+export const DEFAULT_MAP_STYLE = MAP_STYLES.STREETS;
 
 /**
  * Map component props type
  */
-export type MapProps = PropsWithChildren<{
-  /** Map style URL */
-  mapStyle?: string
-  /** Callback when map camera state changes */
-  onCameraStateChange?: (cameraState: CameraState) => void
-}>
+export type MapProps = {
+  children?: React.ReactNode;
+};
 
-/**
- * Default props for Map component
- */
-export const DEFAULT_MAP_PROPS: MapProps = {
-  mapStyle: DEFAULT_MAP_STYLE,
-}
-
-/**
- * Merge camera state with defaults
- */
-export const mergeCameraState = (
-  userCameraState?: Partial<CameraState>
-): CameraState => ({
-  ...DEFAULT_CAMERA_STATE,
-  ...userCameraState,
-})
-
-export interface MapViewProps {
-  mapStyle?: string
-  onMapReady: (mapInstance: unknown) => void
-  onCameraChanged: (cameraState: CameraState) => void
-  children: React.ReactNode
-}
-
-export interface MapController {
-  flyTo: (destination: CameraState, duration?: number) => void
-  easeTo: (destination: CameraState, duration?: number) => void
-  jumpTo: (destination: CameraState) => void
-  getCenter: () => [number, number] | undefined
-  getZoom: () => number | undefined
-}
+// export interface MapComponentProps {
+//   mapStyle?: string;
+//   cameraState?: CameraState;
+//   children: React.ReactNode;
+// }

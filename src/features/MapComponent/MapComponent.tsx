@@ -1,102 +1,88 @@
-// /**
-//  * Map component for both native and web platforms
-//  *
-//  * This component provides a unified map interface that works on both native (iOS/Android)
-//  * and web platforms. It uses platform-specific MapView implementations internally while
-//  * exposing a consistent API to consumers.
-//  *
-//  * The component follows an uncontrolled pattern where the map manages its own state
-//  * internally, but provides imperative control through the MapController API.
-//  *
-//  * @file Unified map component for cross-platform usage
-//  */
-
-import { useRef } from "react"
-import { View } from "react-native"
-import type { MapProps } from "@/features/MapComponent/shared"
-import { DEFAULT_MAP_PROPS } from "@/features/MapComponent/shared"
-import { useMapState } from "@/shared/contexts"
-import { useSetMapController } from "@/shared/contexts/MapController"
-import type { CameraState } from "./cameraState"
-import { createMapController, type MapController } from "./MapController"
-import { MapView } from "./MapView" // Platform-specific import
-
 /**
- * Map component for both native and web platforms
+ * Native MapComponent implementation
  *
- * This is the main map component that provides a unified interface for rendering maps
- * on both native and web platforms. It handles platform-specific implementations internally
- * while exposing a consistent API.
- *
- * The component manages map initialization and camera state changes.
- * It integrates with the MapController context to provide imperative control via useMapController().
- *
- * @param props - The component props
- * @param props.mapStyle - The map style URL
- * @param props.children - Child components to render on the map
- * @param props.onCameraStateChange - Callback when the map camera state changes
- *
- * @returns The rendered map component
+ * This component provides a React Native wrapper around @rnmapbox/maps for native platforms.
+ * It manages the map's camera state and synchronizes it with the global MapStateContext.
+ * The component handles user interactions like zooming, panning, rotating, and pitch adjustments.
  *
  * @example
- * ```typescript
- * import { MapComponent } from '@/features/MapComponent';
- * import { useMapController } from '@/shared/contexts';
- *
- * // Use the MapComponent in your app
- * <MapComponent mapStyle={mapStyle} onCameraStateChange={handleCameraChange} />
- *
- * // Access controller via context hook
- * const controller = useMapController();
- * controller?.flyTo({ centerCoordinate: [-122.3321, 47.6062], zoomLevel: 12 });
+ * ```tsx
+ * <MapComponent>
+ *   <MapMarker coordinate={[-122.3321, 47.6062]} />
+ * </MapComponent>
  * ```
  */
-export const MapComponent = ({
-  mapStyle = DEFAULT_MAP_PROPS.mapStyle,
-  children,
-  onCameraStateChange,
-}: MapProps) => {
-  const { updateCameraState } = useMapState()
-  const controllerRef = useRef<MapController | null>(null)
-  const setController = useSetMapController()
+
+import type { MapState as RNMapState } from "@rnmapbox/maps";
+import MapboxRN from "@rnmapbox/maps";
+import { useRef } from "react";
+import { View } from "react-native";
+import { useMapState } from "@/shared/contexts";
+import type { MapProps } from "./shared";
+import { nativeMapStateToCameraState } from "./shared";
+
+/**
+ * Native MapComponent for React Native platforms
+ *
+ * Renders a Mapbox map with camera controls and state management.
+ * Automatically updates the global map state when the user interacts with the map.
+ *
+ * @param props - Component props
+ * @param props.children - Child components to render within the map (markers, overlays, etc.)
+ * @returns A React Native View containing the Mapbox map
+ */
+export const MapComponent = ({ children }: MapProps) => {
+  const { cameraState, mapStyle, updateCameraState } = useMapState();
+  const previousCameraStateRef = useRef(cameraState);
 
   /**
-   * Initialize controller when map ref is available
+   * Handles camera change events from Mapbox map
    *
-   * This function is called when the map is ready. It creates a controller
-   * instance and stores it in the global context.
+   * Converts the native MapState to our canonical CameraState format
+   * and updates the global map state context.
    *
-   * @param mapInstance - The platform-specific map instance
+   * @param state - The MapState object from @rnmapbox/maps
    */
-  const handleMapReady = (mapInstance: unknown) => {
-    // Cast needed because Metro bundler resolves to platform-specific createMapController
-    // biome-ignore lint/suspicious/noExplicitAny: Platform-specific type resolution at build time
-    controllerRef.current = createMapController(mapInstance as any)
-    setController(controllerRef.current)
-  }
+  const handleCameraChanged = (state: RNMapState) => {
+    const newCameraState = nativeMapStateToCameraState(state);
 
-  /**
-   * Handle camera state changes
-   *
-   * This function is called when the map's camera state changes. It updates
-   * the global map state and calls the optional user-provided callback.
-   *
-   * @param cameraState - The new camera state
-   */
-  const handleCameraChanged = (cameraState: CameraState) => {
-    updateCameraState(cameraState)
-    onCameraStateChange?.(cameraState)
-  }
+    // Only update if the camera state has actually changed
+    if (
+      newCameraState.centerCoordinate[0] !==
+        previousCameraStateRef.current.centerCoordinate[0] ||
+      newCameraState.centerCoordinate[1] !==
+        previousCameraStateRef.current.centerCoordinate[1] ||
+      newCameraState.zoomLevel !== previousCameraStateRef.current.zoomLevel ||
+      newCameraState.heading !== previousCameraStateRef.current.heading ||
+      newCameraState.pitch !== previousCameraStateRef.current.pitch
+    ) {
+      updateCameraState(newCameraState);
+      previousCameraStateRef.current = newCameraState;
+    }
+  };
 
   return (
     <View className="flex-1 relative">
-      <MapView
-        mapStyle={mapStyle}
-        onMapReady={handleMapReady}
+      <MapboxRN.MapView
+        style={{ flex: 1 }}
+        styleURL={mapStyle}
+        zoomEnabled={true}
+        scrollEnabled={true}
+        pitchEnabled={true}
+        rotateEnabled={true}
         onCameraChanged={handleCameraChanged}
       >
+        <MapboxRN.Camera
+          defaultSettings={{
+            ...cameraState,
+            centerCoordinate: [...cameraState.centerCoordinate] as [
+              number,
+              number,
+            ],
+          }}
+        />
         {children}
-      </MapView>
+      </MapboxRN.MapView>
     </View>
-  )
-}
+  );
+};
