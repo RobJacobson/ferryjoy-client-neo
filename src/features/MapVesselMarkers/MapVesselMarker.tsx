@@ -7,15 +7,15 @@
 
 import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { Text, View } from "@/components/ui";
-import { useMapState } from "@/shared/contexts";
-import { Marker } from "../MapMarkers";
+import { Marker, ScaledMarker } from "../MapMarkers";
 
 /**
  * MapVesselMarker component
  *
  * Renders a single vessel marker with a circular background and vessel identifier.
  * The marker is styled with NativeWind classes to ensure consistent appearance
- * across platforms.
+ * across platforms. The marker now uses perspective scaling and tilting based on
+ * map pitch and position in viewport.
  *
  * @param vessel - The vessel location data containing coordinates and vessel information
  * @param onPress - Optional callback function triggered when the vessel marker is pressed
@@ -36,23 +36,28 @@ import { Marker } from "../MapMarkers";
  */
 export const MapVesselMarker = ({
   vessel,
+  onPress,
 }: {
   vessel: VesselLocation;
   onPress?: (vessel: VesselLocation) => void;
 }) => {
-  const { zoom } = useMapState();
-  const scale = Math.max(0.5, zoom * 0.1); // Ensure minimum scale for visibility
+  const handlePress = () => {
+    if (onPress) {
+      onPress(vessel);
+    }
+  };
 
   return (
     <Marker longitude={vessel.Longitude} latitude={vessel.Latitude}>
-      <View
-        className="bg-pink-500 rounded-full border-2 border-white justify-center items-center w-8 h-8"
-        style={{
-          transform: [{ scale }],
-        }}
+      <ScaledMarker
+        longitude={vessel.Longitude}
+        latitude={vessel.Latitude}
+        onPress={handlePress}
       >
-        <Text className="text-white font-bold text-md">V</Text>
-      </View>
+        <View className="bg-pink-500 rounded-full border-2 border-white justify-center items-center w-16 h-16">
+          <Text className="text-white font-bold text-lg">V</Text>
+        </View>
+      </ScaledMarker>
     </Marker>
   );
 };
