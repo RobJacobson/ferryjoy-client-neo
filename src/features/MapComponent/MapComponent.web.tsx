@@ -8,17 +8,29 @@ import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
 import { useMapState } from "@/shared/contexts";
-import type { MapProps } from "./shared";
-import { cameraStateToViewState, webViewStateToCameraState } from "./shared";
+import type { CameraState, MapProps } from "./shared";
+import {
+  cameraStateToViewState,
+  DEFAULT_NATIVE_CAMERA_STATE,
+  handleCameraStateChange,
+  webViewStateToCameraState,
+} from "./shared";
 
-export const MapComponent = ({ children }: MapProps) => {
-  const { cameraState, mapStyle, updateCameraState } = useMapState();
+export const MapComponent = ({ children, initialCameraState }: MapProps) => {
+  // Only use the update function from context, not the state
+  const { updateCameraState } = useMapState();
   const mapRef = useRef<MapRef>(null);
-  const previousCameraStateRef = useRef(cameraState);
+
+  // Keep track of previous camera state to avoid unnecessary updates
+  const previousCameraStateRef = useRef<CameraState>(
+    initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
+  );
 
   // Convert CameraState to ViewState for map
   const viewState = {
-    ...cameraStateToViewState(cameraState),
+    ...cameraStateToViewState(
+      initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
+    ),
     width: 800,
     height: 600,
   };
@@ -26,20 +38,11 @@ export const MapComponent = ({ children }: MapProps) => {
   // Handle camera changes and update context
   const handleMove = (evt: { viewState: ViewState }) => {
     const newCameraState = webViewStateToCameraState(evt.viewState);
-
-    // Only update if the camera state has actually changed
-    if (
-      newCameraState.centerCoordinate[0] !==
-        previousCameraStateRef.current.centerCoordinate[0] ||
-      newCameraState.centerCoordinate[1] !==
-        previousCameraStateRef.current.centerCoordinate[1] ||
-      newCameraState.zoomLevel !== previousCameraStateRef.current.zoomLevel ||
-      newCameraState.heading !== previousCameraStateRef.current.heading ||
-      newCameraState.pitch !== previousCameraStateRef.current.pitch
-    ) {
-      updateCameraState(newCameraState);
-      previousCameraStateRef.current = newCameraState;
-    }
+    handleCameraStateChange(
+      newCameraState,
+      previousCameraStateRef,
+      updateCameraState
+    );
   };
 
   return (
@@ -48,7 +51,7 @@ export const MapComponent = ({ children }: MapProps) => {
         ref={mapRef}
         viewState={viewState}
         style={{ width: "100%", height: "100%" }}
-        mapStyle={mapStyle}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
         projection="mercator"
         onMove={handleMove}
         reuseMaps

@@ -145,10 +145,90 @@ export const DEFAULT_MAP_STYLE = MAP_STYLES.STREETS;
  */
 export type MapProps = {
   children?: React.ReactNode;
+  initialCameraState?: CameraState;
 };
 
-// export interface MapComponentProps {
-//   mapStyle?: string;
-//   cameraState?: CameraState;
-//   children: React.ReactNode;
-// }
+/**
+ * Throttling utility function to limit the frequency of function calls
+ *
+ * This utility can be used to throttle rapid events like map pan/zoom to improve performance.
+ * It ensures the function is called at most once per specified delay period.
+ *
+ * @param func - The function to throttle
+ * @param delay - The delay in milliseconds between function calls
+ * @returns A throttled version of the function
+ *
+ * @example
+ * ```tsx
+ * const throttledUpdate = useThrottle((newState) => {
+ *   updateCameraState(newState);
+ * }, 100);
+ * ```
+ */
+export const throttle = <T extends (...args: unknown[]) => unknown>(
+  func: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let lastExecTime = 0;
+
+  return (...args: Parameters<T>) => {
+    const currentTime = Date.now();
+
+    if (currentTime - lastExecTime > delay) {
+      func(...args);
+      lastExecTime = currentTime;
+    } else {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      timeoutId = setTimeout(
+        () => {
+          func(...args);
+          lastExecTime = Date.now();
+          timeoutId = null;
+        },
+        delay - (currentTime - lastExecTime)
+      );
+    }
+  };
+};
+
+/**
+ * Handles camera state changes for both native and web map components
+ *
+ * This function checks if the camera state has actually changed and updates the context
+ * if it has. It returns a boolean indicating whether an update was performed.
+ *
+ * @param newCameraState - The new camera state from the map
+ * @param previousCameraStateRef - Ref to the previous camera state
+ * @param updateCameraState - Function to update the context
+ * @returns True if the camera state was updated, false otherwise
+ */
+export const handleCameraStateChange = (
+  newCameraState: CameraState,
+  previousCameraStateRef: React.MutableRefObject<CameraState>,
+  updateCameraState: (cameraState: CameraState) => void
+): boolean => {
+  // Only update if the camera state has actually changed
+  if (
+    newCameraState.centerCoordinate[0] !==
+      previousCameraStateRef.current.centerCoordinate[0] ||
+    newCameraState.centerCoordinate[1] !==
+      previousCameraStateRef.current.centerCoordinate[1] ||
+    newCameraState.zoomLevel !== previousCameraStateRef.current.zoomLevel ||
+    newCameraState.heading !== previousCameraStateRef.current.heading ||
+    newCameraState.pitch !== previousCameraStateRef.current.pitch
+  ) {
+    // Update context state continuously
+    updateCameraState(newCameraState);
+
+    // Update the previous state reference
+    previousCameraStateRef.current = newCameraState;
+
+    return true;
+  }
+
+  return false;
+};

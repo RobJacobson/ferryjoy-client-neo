@@ -18,22 +18,32 @@ import MapboxRN from "@rnmapbox/maps";
 import { useRef } from "react";
 import { View } from "react-native";
 import { useMapState } from "@/shared/contexts";
-import type { MapProps } from "./shared";
-import { nativeMapStateToCameraState } from "./shared";
+import type { CameraState, MapProps } from "./shared";
+import {
+  DEFAULT_NATIVE_CAMERA_STATE,
+  handleCameraStateChange,
+  nativeMapStateToCameraState,
+} from "./shared";
 
 /**
  * Native MapComponent for React Native platforms
  *
  * Renders a Mapbox map with camera controls and state management.
- * Automatically updates the global map state when the user interacts with the map.
+ * Updates the global map state context when the user interacts with the map.
  *
  * @param props - Component props
  * @param props.children - Child components to render within the map (markers, overlays, etc.)
+ * @param props.initialCameraState - Initial camera state for the map (optional)
  * @returns A React Native View containing the Mapbox map
  */
-export const MapComponent = ({ children }: MapProps) => {
-  const { cameraState, mapStyle, updateCameraState } = useMapState();
-  const previousCameraStateRef = useRef(cameraState);
+export const MapComponent = ({ children, initialCameraState }: MapProps) => {
+  // Only use the update function from context, not the state
+  const { updateCameraState } = useMapState();
+
+  // Keep track of previous camera state to avoid unnecessary updates
+  const previousCameraStateRef = useRef<CameraState>(
+    initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
+  );
 
   /**
    * Handles camera change events from Mapbox map
@@ -45,27 +55,18 @@ export const MapComponent = ({ children }: MapProps) => {
    */
   const handleCameraChanged = (state: RNMapState) => {
     const newCameraState = nativeMapStateToCameraState(state);
-
-    // Only update if the camera state has actually changed
-    if (
-      newCameraState.centerCoordinate[0] !==
-        previousCameraStateRef.current.centerCoordinate[0] ||
-      newCameraState.centerCoordinate[1] !==
-        previousCameraStateRef.current.centerCoordinate[1] ||
-      newCameraState.zoomLevel !== previousCameraStateRef.current.zoomLevel ||
-      newCameraState.heading !== previousCameraStateRef.current.heading ||
-      newCameraState.pitch !== previousCameraStateRef.current.pitch
-    ) {
-      updateCameraState(newCameraState);
-      previousCameraStateRef.current = newCameraState;
-    }
+    handleCameraStateChange(
+      newCameraState,
+      previousCameraStateRef,
+      updateCameraState
+    );
   };
 
   return (
     <View className="flex-1 relative">
       <MapboxRN.MapView
         style={{ flex: 1 }}
-        styleURL={mapStyle}
+        styleURL="mapbox://styles/mapbox/streets-v12"
         zoomEnabled={true}
         scrollEnabled={true}
         pitchEnabled={true}
@@ -74,11 +75,11 @@ export const MapComponent = ({ children }: MapProps) => {
       >
         <MapboxRN.Camera
           defaultSettings={{
-            ...cameraState,
-            centerCoordinate: [...cameraState.centerCoordinate] as [
-              number,
-              number,
-            ],
+            ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE),
+            centerCoordinate: [
+              ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE)
+                .centerCoordinate,
+            ] as [number, number],
           }}
         />
         {children}
