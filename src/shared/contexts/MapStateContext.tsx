@@ -7,6 +7,7 @@ import {
   DEFAULT_MAP_STYLE,
   DEFAULT_NATIVE_CAMERA_STATE,
 } from "@/features/MapComponent/shared";
+import type { MapDimensions } from "@/shared/utils/mapProjection";
 
 /**
  * Type definition for the MapState context value
@@ -19,10 +20,14 @@ type MapStateContextType = {
   cameraState: CameraState;
   /** Current map style URL */
   mapStyle: string;
+  /** Current map dimensions in pixels */
+  mapDimensions: MapDimensions;
   /** Method for updating camera state (used by MapComponents) */
   updateCameraState: (cameraState: CameraState) => void;
   /** Method for updating map style */
   updateMapStyle: (mapStyle: string) => void;
+  /** Method for updating map dimensions */
+  updateMapDimensions: (dimensions: MapDimensions) => void;
   /** Convenience getter for zoom level (for components like MapVesselMarkers) */
   zoom: number;
 };
@@ -60,6 +65,10 @@ export const MapStateProvider = ({ children }: PropsWithChildren) => {
     DEFAULT_NATIVE_CAMERA_STATE
   );
   const [mapStyle, setMapStyle] = useState<string>(DEFAULT_MAP_STYLE);
+  const [mapDimensions, setMapDimensions] = useState<MapDimensions>({
+    width: 0,
+    height: 0,
+  });
 
   /**
    * Updates the camera state with new values
@@ -80,14 +89,25 @@ export const MapStateProvider = ({ children }: PropsWithChildren) => {
   };
 
   /**
+   * Updates the map dimensions
+   *
+   * @param dimensions - The new map dimensions to set
+   */
+  const updateMapDimensions = (dimensions: MapDimensions) => {
+    setMapDimensions(dimensions);
+  };
+
+  /**
    * Memoized context value containing all map state and update functions
    */
   const contextValue: MapStateContextType = {
     cameraState,
     mapStyle,
+    mapDimensions,
     // Update functions
     updateCameraState,
     updateMapStyle,
+    updateMapDimensions,
     // Convenience getter for zoom level
     zoom: cameraState.zoomLevel,
   };
