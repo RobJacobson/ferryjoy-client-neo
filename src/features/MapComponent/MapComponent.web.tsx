@@ -97,7 +97,6 @@ export const MapComponent = forwardRef<MapComponentRef, MapProps>(
           projection="mercator"
           onMove={handleMove}
           reuseMaps
-          mapboxAccessToken={process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}
         >
           {children}
         </MapboxGL>

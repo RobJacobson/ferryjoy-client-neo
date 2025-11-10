@@ -49,7 +49,7 @@ function MapInfo() {
 
 ```tsx
 import { useMapController } from "@/features/MapComponent"
-import { SEATTLE_COORDINATES } from "@/features/MapComponent/shared"
+import { SEATTLE_COORDINATES } from "@/shared/contexts/shared"
 
 function MapControls() {
   const mapController = useMapController()
