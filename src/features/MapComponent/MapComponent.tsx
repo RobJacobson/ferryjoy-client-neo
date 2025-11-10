@@ -69,7 +69,9 @@ export const MapComponent = ({
    * @param mapInstance - The platform-specific map instance
    */
   const handleMapReady = (mapInstance: unknown) => {
-    controllerRef.current = createMapController(mapInstance)
+    // Cast needed because Metro bundler resolves to platform-specific createMapController
+    // biome-ignore lint/suspicious/noExplicitAny: Platform-specific type resolution at build time
+    controllerRef.current = createMapController(mapInstance as any)
     setController(controllerRef.current)
   }
 

@@ -84,3 +84,11 @@ export interface MapViewProps {
   onCameraChanged: (cameraState: CameraState) => void
   children: React.ReactNode
 }
+
+export interface MapController {
+  flyTo: (destination: CameraState, duration?: number) => void
+  easeTo: (destination: CameraState, duration?: number) => void
+  jumpTo: (destination: CameraState) => void
+  getCenter: () => [number, number] | undefined
+  getZoom: () => number | undefined
+}
