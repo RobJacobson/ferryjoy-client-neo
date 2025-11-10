@@ -1,11 +1,11 @@
-import "../../global.css";
+import "../../global.css"
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
-import { WsDottieProvider } from "@/shared/contexts";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Stack } from "expo-router"
+import { WsDottieProvider } from "@/shared/contexts"
 
 // Create a client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient()
 
 export default function Layout() {
   return (
@@ -14,5 +14,5 @@ export default function Layout() {
         <Stack />
       </WsDottieProvider>
     </QueryClientProvider>
-  );
+  )
 }
