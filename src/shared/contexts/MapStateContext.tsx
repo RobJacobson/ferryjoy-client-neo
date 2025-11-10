@@ -1,71 +1,118 @@
-import type { PropsWithChildren } from "react"
-import { createContext, useContext, useState } from "react"
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 
-import type { CameraState } from "@/features/MapComponent/cameraState"
-import { DEFAULT_CAMERA_STATE } from "@/features/MapComponent/shared"
+import type { ViewState } from "react-map-gl/mapbox";
+import type { CameraState } from "@/features/MapComponent/shared";
+import {
+  DEFAULT_MAP_STYLE,
+  DEFAULT_NATIVE_CAMERA_STATE,
+} from "@/features/MapComponent/shared";
 
 /**
- * Context value providing current map state
+ * Type definition for the MapState context value
+ *
+ * Provides access to the current map state and methods to update it.
+ * This context is used to share map state across the application.
  */
 type MapStateContextType = {
-  // Current camera state
-  cameraState: CameraState
-  // Method for updating camera state (used by MapComponents)
-  updateCameraState: (cameraState: CameraState) => void
-  // Convenience getters for backward compatibility
-  latitude: number
-  longitude: number
-  zoom: number
-  pitch: number
-  heading: number
-}
+  /** Current camera state including position, zoom, pitch, and heading */
+  cameraState: CameraState;
+  /** Current map style URL */
+  mapStyle: string;
+  /** Method for updating camera state (used by MapComponents) */
+  updateCameraState: (cameraState: CameraState) => void;
+  /** Method for updating map style */
+  updateMapStyle: (mapStyle: string) => void;
+  /** Convenience getter for zoom level (for components like MapVesselMarkers) */
+  zoom: number;
+};
 
 /**
  * React context for sharing map state data across the app.
- * Provides access to current map position, zoom, pitch, and heading.
- * Uses the refactored map's CameraState format for consistency.
+ *
+ * This context provides access to current map position, zoom, pitch, heading, and style.
+ * It uses the CameraState format as the single source of truth for map state.
+ * Components can consume this context using the useMapState hook.
  */
 const MapStateContext = createContext<MapStateContextType | undefined>(
   undefined
-)
+);
 
 /**
- * Provider component that manages map state updates from refactored map components.
- * Initializes with default Seattle coordinates and standard map settings.
+ * Provider component that manages map state updates from map components.
+ *
+ * This component initializes the map with default Seattle coordinates, standard map settings,
+ * and default map style. It provides state management for camera position and map style.
+ *
+ * @example
+ * ```tsx
+ * <MapStateProvider>
+ *   <App />
+ * </MapStateProvider>
+ * ```
+ *
+ * @param props - Component props
+ * @param props.children - Child components that will have access to the map state
+ * @returns A context provider component
  */
 export const MapStateProvider = ({ children }: PropsWithChildren) => {
-  const [cameraState, setCameraState] =
-    useState<CameraState>(DEFAULT_CAMERA_STATE)
+  const [cameraState, setCameraState] = useState<CameraState>(
+    DEFAULT_NATIVE_CAMERA_STATE
+  );
+  const [mapStyle, setMapStyle] = useState<string>(DEFAULT_MAP_STYLE);
 
-  // Method for updating camera state (used by MapComponents)
+  /**
+   * Updates the camera state with new values
+   *
+   * @param newCameraState - The new camera state to set
+   */
   const updateCameraState = (newCameraState: CameraState) => {
-    setCameraState(newCameraState)
-  }
+    setCameraState(newCameraState);
+  };
 
+  /**
+   * Updates the map style with a new style URL
+   *
+   * @param newMapStyle - The new map style URL to set
+   */
+  const updateMapStyle = (newMapStyle: string) => {
+    setMapStyle(newMapStyle);
+  };
+
+  /**
+   * Memoized context value containing all map state and update functions
+   */
   const contextValue: MapStateContextType = {
     cameraState,
-    // Convenience getters
-    latitude: cameraState.centerCoordinate[1],
-    longitude: cameraState.centerCoordinate[0],
-    zoom: cameraState.zoomLevel,
-    pitch: cameraState.pitch,
-    heading: cameraState.heading,
+    mapStyle,
     // Update functions
     updateCameraState,
-  }
+    updateMapStyle,
+    // Convenience getter for zoom level
+    zoom: cameraState.zoomLevel,
+  };
 
-  return <MapStateContext value={contextValue}>{children}</MapStateContext>
-}
+  return <MapStateContext value={contextValue}>{children}</MapStateContext>;
+};
 
 /**
  * Hook to access current map state.
- * Provides map position, zoom, pitch, heading data, and update methods.
- * Must be used within MapStateProvider.
+ *
+ * Provides map position, zoom, pitch, heading data, map style, and update methods.
+ * Must be used within a MapStateProvider component.
+ *
+ * @example
+ * ```tsx
+ * const { cameraState, updateCameraState, mapStyle, updateMapStyle } = useMapState();
+ * ```
+ *
+ * @returns The current map state context value
+ * @throws Error if used outside of MapStateProvider
  */
 export const useMapState = () => {
-  const context = useContext(MapStateContext)
+  const context = useContext(MapStateContext);
   if (context === undefined) {
-    throw new Error("useMapState must be used within MapStateProvider")
+    throw new Error("useMapState must be used within MapStateProvider");
   }
-  return context
-}
+  return context;
+};
