@@ -26,9 +26,9 @@
  * ```
  */
 
-import { Pressable, View } from "react-native"
-import type { VesselLocation } from "ws-dottie/wsf-vessels"
-import { Marker } from "./Marker"
+import { Pressable, View } from "react-native";
+import type { VesselLocation } from "ws-dottie/wsf-vessels";
+import { Marker } from "@/features/MapMarkers";
 
 /**
  * Creates a vessel press handler with logging functionality
@@ -59,12 +59,12 @@ const createVesselPressHandler = (
 ) => {
   return () => {
     // Log vessel information when clicked for debugging and analytics
-    console.log(`Vessel marker clicked: ${vessel.VesselID}`)
+    console.log(`Vessel marker clicked: ${vessel.VesselID}`);
 
     // Call the provided onPress handler if it exists
-    onVesselPress?.(vessel)
-  }
-}
+    onVesselPress?.(vessel);
+  };
+};
 
 /**
  * VesselMarker component that handles business logic for vessel markers
@@ -104,19 +104,19 @@ export const VesselMarker = ({
   onPress,
   children,
 }: {
-  vessel: VesselLocation
-  onPress?: (vessel: VesselLocation) => void
-  children: React.ReactNode
+  vessel: VesselLocation;
+  onPress?: (vessel: VesselLocation) => void;
+  children: React.ReactNode;
 }) => {
-  const handlePress = createVesselPressHandler(vessel, onPress)
+  const handlePress = createVesselPressHandler(vessel, onPress);
 
   // Wrap children in a View to ensure it's a ReactElement
   // This is required because the Marker component expects a ReactElement as children
-  const markerContent = <View>{children}</View>
+  const markerContent = <View>{children}</View>;
 
   return (
     <Marker longitude={vessel.Longitude} latitude={vessel.Latitude}>
       <Pressable onPress={handlePress}>{markerContent}</Pressable>
     </Marker>
-  )
-}
+  );
+};

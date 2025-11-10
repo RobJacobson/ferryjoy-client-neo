@@ -3,30 +3,28 @@
  * Renders vessel markers on map using data from VesselLocations context
  */
 
-import { Text, View } from "react-native"
-import type { VesselLocation } from "ws-dottie/wsf-vessels"
-import { useMapState, useWsDottie } from "@/shared/contexts"
-import { VesselMarker } from "./VesselMarker"
+import { Text, View } from "react-native";
+import type { VesselLocation } from "ws-dottie/wsf-vessels";
+import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
+import { useMapState, useWsDottie } from "@/shared/contexts";
+import { VesselMarker } from "./VesselMarker";
 
 /**
- * Determines whether vessels should be shown based on the current zoom level
- *
- * @param zoom - The current map zoom level
- * @returns True if vessels should be displayed, false otherwise
- *
- * @example
- * ```tsx
- * const showVessels = shouldShowVessels(10); // Returns true
- * const hideVessels = shouldShowVessels(5); // Returns false
- * ```
+ * Extends VesselLocation to conform to MapMarkerData interface
  */
-const shouldShowVessels = (zoom: number): boolean =>
-  zoom >= VESSEL_MARKER_CONFIG.ZOOM_THRESHOLD
+type VesselMarkerData = VesselLocation & MapMarkerData;
+
+/**
+ * Configuration constants for vessel markers
+ */
+const VESSEL_MARKER_CONFIG = {
+  ZOOM_THRESHOLD: 8,
+} as const;
 
 /**
  * MapVesselMarkers component
  *
- * Fetches vessel data from the WsDottie context and renders markers on the map.
+ * Fetches vessel data from the WsDottie context and renders markers on the map using the generic MapMarkers component.
  * Handles loading states, error states, and visibility based on zoom level.
  * Each vessel is rendered as a VesselMarker component with a blue circular indicator.
  *
@@ -48,56 +46,39 @@ const shouldShowVessels = (zoom: number): boolean =>
 export const MapVesselMarkers = ({
   onVesselPress,
 }: {
-  onVesselPress?: (vessel: VesselLocation) => void
+  onVesselPress?: (vessel: VesselLocation) => void;
 }) => {
-  const { zoom } = useMapState()
-  const { vesselLocations } = useWsDottie()
+  const { vesselLocations } = useWsDottie();
 
-  // Handle loading state
-  if (vesselLocations.isLoading) {
-    return null
-  }
-
-  // Handle error state
-  if (vesselLocations.isError) {
-    console.error("Error loading vessel locations:", vesselLocations.error)
-    return null
-  }
-
-  // Handle empty data
-  if (!vesselLocations.data || vesselLocations.data.length === 0) {
-    return null
-  }
-
-  // Only show vessels when zoomed in enough
-  if (!shouldShowVessels(zoom)) {
-    return null
-  }
+  // Transform vessel data to conform to MapMarkerData if needed
+  const vesselMarkerData: VesselMarkerData[] | undefined =
+    vesselLocations.data?.map(vessel => ({
+      ...vessel,
+      id: vessel.VesselID.toString(), // Convert to string for MapMarkerData compatibility
+      longitude: vessel.Longitude,
+      latitude: vessel.Latitude,
+    }));
 
   return (
-    <>
-      {vesselLocations.data.map((vessel: VesselLocation) => {
-        return (
-          <VesselMarker
-            key={`${vessel.VesselID}`}
-            vessel={vessel}
-            onPress={onVesselPress}
-          >
-            <View className="w-5 h-5 bg-blue-500 rounded-full border-2 border-white justify-center items-center">
-              <View className="w-2 h-2 bg-white rounded-full">
-                <Text>Hi!</Text>
-              </View>
+    <MapMarkers
+      data={vesselMarkerData}
+      isLoading={vesselLocations.isLoading}
+      isError={vesselLocations.isError}
+      error={vesselLocations.error}
+      zoomThreshold={VESSEL_MARKER_CONFIG.ZOOM_THRESHOLD}
+      renderMarker={vessel => (
+        <VesselMarker
+          key={vessel.VesselID}
+          vessel={vessel}
+          onPress={onVesselPress}
+        >
+          <View className="w-5 h-5 bg-blue-500 rounded-full border-2 border-white justify-center items-center">
+            <View className="w-2 h-2 bg-white rounded-full">
+              <Text>Hi!</Text>
             </View>
-          </VesselMarker>
-        )
-      })}
-    </>
-  )
-}
-
-/**
- * Configuration constants for vessel markers
- */
-const VESSEL_MARKER_CONFIG = {
-  ZOOM_THRESHOLD: 8,
-} as const
+          </View>
+        </VesselMarker>
+      )}
+    />
+  );
+};
