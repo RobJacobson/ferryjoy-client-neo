@@ -1,0 +1,4 @@
+repository:
+  name: ferryjoy-client-neo
+  description: Ferryjoy Client Neo
+  default_branch: main
