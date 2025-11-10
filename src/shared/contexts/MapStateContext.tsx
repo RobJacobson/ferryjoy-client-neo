@@ -2,10 +2,10 @@ import type { PropsWithChildren } from "react"
 import { createContext, useContext, useState } from "react"
 
 import type { CameraState } from "@/features/MapComponent/cameraState"
-import { DEFAULT_CAMERA_STATE } from "@/features/MapComponent/utils/mapbox"
+import { DEFAULT_CAMERA_STATE } from "@/features/MapComponent/shared"
 
 /**
- * Map state information using the refactored map's CameraState format
+ * Map state information using refactored map's CameraState format
  * Provides a unified interface for both native and web platforms
  */
 type MapState = {

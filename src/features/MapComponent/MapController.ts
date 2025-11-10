@@ -5,8 +5,8 @@
 
 import type MapboxRN from "@rnmapbox/maps"
 import type { MapRef } from "react-map-gl/mapbox"
+import { isWeb } from "@/features/MapComponent/shared"
 import type { CameraState } from "./cameraState"
-import { isWeb } from "./utils/mapbox"
 
 // Define a type for the native MapView with the methods we need
 type NativeMapViewWithMethods = MapboxRN.MapView & {

@@ -6,13 +6,15 @@
 import MapboxRN from "@rnmapbox/maps"
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
 import { View } from "react-native"
-
+import {
+  DEFAULT_CAMERA_STATE,
+  DEFAULT_MAP_PROPS,
+  type MapProps,
+} from "@/features/MapComponent/shared"
 import { useMapState } from "@/shared/contexts"
 import { useSetMapController } from "@/shared/contexts/MapController"
 import { type CameraState, nativeMapStateToCameraState } from "./cameraState"
 import { createMapController, type MapController } from "./MapController"
-import { DEFAULT_MAP_PROPS, type MapProps } from "./shared"
-import { DEFAULT_CAMERA_STATE } from "./utils/mapbox"
 
 export interface MapComponentRef {
   getController: () => MapController | null
@@ -67,16 +69,6 @@ export const MapComponent = forwardRef<MapComponentRef, MapProps>(
           onLayout={handleLayout}
           scaleBarEnabled={false}
         >
-          <MapboxRN.Camera
-            centerCoordinate={
-              [...DEFAULT_CAMERA_STATE.centerCoordinate] as [number, number]
-            }
-            zoomLevel={DEFAULT_CAMERA_STATE.zoomLevel}
-            heading={DEFAULT_CAMERA_STATE.heading}
-            pitch={DEFAULT_CAMERA_STATE.pitch}
-            animationDuration={500}
-            animationMode="flyTo"
-          />
           {children}
         </MapboxRN.MapView>
       </View>

@@ -3,14 +3,14 @@
  * Platform-specific exports handled by Metro bundler
  */
 
-export { MapComponent } from "./MapComponent"
-export type { MapProps, MapComponentRef } from "./shared"
-export { 
-  createMapController,
-  type MapController as IMapController 
-} from "./MapController"
-export { 
+export {
   MapControllerProvider,
   useMapController,
-  useSetMapController
+  useSetMapController,
 } from "@/shared/contexts/MapController"
+export { MapComponent, type MapComponentRef } from "./MapComponent"
+export {
+  createMapController,
+  type MapController as IMapController,
+} from "./MapController"
+export type { MapProps } from "./shared"

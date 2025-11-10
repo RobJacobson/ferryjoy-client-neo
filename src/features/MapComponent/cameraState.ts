@@ -3,13 +3,13 @@
  * Handles camera state management and platform-specific adapters
  */
 
-import type { MapState } from "@rnmapbox/maps"
+import type { MapState as RNMapState } from "@rnmapbox/maps"
 import type { ViewState } from "react-map-gl/mapbox"
 
-const MAX_PITCH = 75 // Max pitch value for Mapbox
+import { DEFAULT_CAMERA_STATE } from "@/features/MapComponent/shared"
 
 /**
- * Native camera state type (canonical format)
+ * Our CameraState type (canonical format)
  * Used as the standard format across the application
  */
 export type CameraState = {
@@ -22,6 +22,8 @@ export type CameraState = {
 /**
  * Validate and clamp pitch value to valid range
  */
+const MAX_PITCH = 75 // Max pitch value for Mapbox
+
 const validatePitch = (pitch: number | undefined): number => {
   if (pitch === undefined || pitch === null) {
     return 45 // Default pitch value
@@ -46,9 +48,11 @@ export const toWebViewState = (cameraState: CameraState) => ({
 
 /**
  * Adapter function for native MapState events
- * Converts @rnmapbox/maps MapState to CameraState format
+ * Converts @rnmapbox/maps MapState to our CameraState format
  */
-export const nativeMapStateToCameraState = (state: MapState): CameraState => ({
+export const nativeMapStateToCameraState = (
+  state: RNMapState
+): CameraState => ({
   centerCoordinate: [state.properties.center[0], state.properties.center[1]],
   zoomLevel: state.properties.zoom,
   heading: state.properties.heading,
@@ -57,7 +61,7 @@ export const nativeMapStateToCameraState = (state: MapState): CameraState => ({
 
 /**
  * Adapter function for web ViewState events
- * Converts react-map-gl ViewState to CameraState format
+ * Converts react-map-gl ViewState to our CameraState format
  */
 export const webViewStateToCameraState = (
   viewState: ViewState
@@ -81,4 +85,3 @@ export const createCameraStateHandler = (
     onCameraStateChange?.(cameraState)
   }
 }
-

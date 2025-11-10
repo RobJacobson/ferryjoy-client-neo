@@ -14,13 +14,15 @@ import MapboxGL, {
   type MapRef,
   type ViewStateChangeEvent,
 } from "react-map-gl/mapbox"
-
+import {
+  DEFAULT_CAMERA_STATE,
+  DEFAULT_MAP_PROPS,
+  type MapProps,
+} from "@/features/MapComponent/shared"
 import { useMapState } from "@/shared/contexts"
 import { useSetMapController } from "@/shared/contexts/MapController"
 import { webViewStateToCameraState } from "./cameraState"
 import { createMapController, type MapController } from "./MapController"
-import { DEFAULT_MAP_PROPS, type MapProps } from "./shared"
-import { DEFAULT_CAMERA_STATE } from "./utils/mapbox"
 
 export interface MapComponentRef {
   getController: () => MapController | null
