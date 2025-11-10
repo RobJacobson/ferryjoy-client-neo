@@ -3,11 +3,10 @@
  * Renders vessel markers on map using data from VesselLocations context
  */
 
-import { Text, View } from "react-native";
 import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
 import { useMapState, useWsDottie } from "@/shared/contexts";
-import { VesselMarker } from "./VesselMarker";
+import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
  * Extends VesselLocation to conform to MapMarkerData interface
@@ -26,7 +25,7 @@ const VESSEL_MARKER_CONFIG = {
  *
  * Fetches vessel data from the WsDottie context and renders markers on the map using the generic MapMarkers component.
  * Handles loading states, error states, and visibility based on zoom level.
- * Each vessel is rendered as a VesselMarker component with a blue circular indicator.
+ * Each vessel is rendered as a MapVesselMarker component with a pink circular indicator.
  *
  * @param onVesselPress - Optional callback function triggered when a vessel marker is pressed
  *
@@ -52,33 +51,27 @@ export const MapVesselMarkers = ({
 
   // Transform vessel data to conform to MapMarkerData if needed
   const vesselMarkerData: VesselMarkerData[] | undefined =
-    vesselLocations.data?.map(vessel => ({
-      ...vessel,
-      id: vessel.VesselID.toString(), // Convert to string for MapMarkerData compatibility
-      longitude: vessel.Longitude,
-      latitude: vessel.Latitude,
-    }));
+    vesselLocations.data?.map(toVesselMarkerData);
 
   return (
     <MapMarkers
       data={vesselMarkerData}
-      isLoading={vesselLocations.isLoading}
-      isError={vesselLocations.isError}
-      error={vesselLocations.error}
-      zoomThreshold={VESSEL_MARKER_CONFIG.ZOOM_THRESHOLD}
       renderMarker={vessel => (
-        <VesselMarker
+        <MapVesselMarker
           key={vessel.VesselID}
           vessel={vessel}
           onPress={onVesselPress}
-        >
-          <View className="w-5 h-5 bg-blue-500 rounded-full border-2 border-white justify-center items-center">
-            <View className="w-2 h-2 bg-white rounded-full">
-              <Text>Hi!</Text>
-            </View>
-          </View>
-        </VesselMarker>
+        />
       )}
     />
   );
+};
+
+const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
+  return {
+    ...vessel,
+    id: vessel.VesselID.toString(),
+    longitude: vessel.Longitude,
+    latitude: vessel.Latitude,
+  };
 };
