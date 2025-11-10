@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 
 import { useMapState } from "@/shared/contexts";
-import { clamp } from "@/shared/lib/utils";
+import { clamp } from "@/shared/utils";
 import { mapProjectionUtils } from "@/shared/utils/mapProjection";
 
 // Perspective scaling constant
