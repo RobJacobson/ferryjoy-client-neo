@@ -41,6 +41,9 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.robthecoder.ferryjoyclientneo",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       adaptiveIcon: {
@@ -60,4 +63,4 @@ export default {
       },
     },
   },
-};
+}

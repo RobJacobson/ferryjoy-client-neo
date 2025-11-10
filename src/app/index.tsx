@@ -14,22 +14,6 @@ export default function Home() {
           This is an example of using React Native Reusables components
         </Text>
 
-        <View variant="card" className="w-full max-w-sm">
-          <Text variant="heading3" className="mb-2">
-            Component Examples
-          </Text>
-          <Text variant="body2" className="mb-4">
-            Below are examples of the Button component with different variants
-          </Text>
-
-          <View className="flex flex-col gap-2">
-            <Button variant="default">Default Button</Button>
-            <Button variant="secondary">Secondary Button</Button>
-            <Button variant="outline">Outline Button</Button>
-            <Button variant="destructive">Destructive Button</Button>
-          </View>
-        </View>
-
         <Link href={{ pathname: "/details", params: { name: "Dan" } }} asChild>
           <Button variant="default" className="mt-4">
             Show Details
