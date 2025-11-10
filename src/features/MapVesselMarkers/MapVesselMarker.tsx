@@ -41,11 +41,17 @@ export const MapVesselMarker = ({
   onPress?: (vessel: VesselLocation) => void;
 }) => {
   const { zoom } = useMapState();
-  const scale = zoom * 0.1;
+  const scale = Math.max(0.5, zoom * 0.1); // Ensure minimum scale for visibility
+
   return (
     <Marker longitude={vessel.Longitude} latitude={vessel.Latitude}>
-      <View className="w-8 h-8 bg-pink-500 rounded-full border-2 border-white justify-center items-center">
-        <Text className="text-white text-xs font-bold">V</Text>
+      <View
+        className="bg-pink-500 rounded-full border-2 border-white justify-center items-center w-8 h-8"
+        style={{
+          transform: [{ scale }],
+        }}
+      >
+        <Text className="text-white font-bold text-md">V</Text>
       </View>
     </Marker>
   );
