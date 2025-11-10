@@ -10,7 +10,7 @@
 import { WebMercatorViewport } from "viewport-mercator-project";
 
 import type { CameraState } from "@/features/MapComponent/shared";
-import { lerp } from "@/shared/lib/utils";
+import { lerp } from "./lerp";
 
 /**
  * Geographic coordinate as [longitude, latitude]
