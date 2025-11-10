@@ -50,7 +50,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
       <MapboxGL
         ref={mapRef}
         viewState={viewState}
-        style={{ width: "100%", height: "100%" }}
+        style={{ flex: 1 }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         projection="mercator"
         onMove={handleMove}

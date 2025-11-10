@@ -210,7 +210,7 @@ export const handleCameraStateChange = (
   newCameraState: CameraState,
   previousCameraStateRef: React.MutableRefObject<CameraState>,
   updateCameraState: (cameraState: CameraState) => void
-): boolean => {
+): void => {
   // Only update if the camera state has actually changed
   if (
     newCameraState.centerCoordinate[0] !==
@@ -226,9 +226,5 @@ export const handleCameraStateChange = (
 
     // Update the previous state reference
     previousCameraStateRef.current = newCameraState;
-
-    return true;
   }
-
-  return false;
 };
