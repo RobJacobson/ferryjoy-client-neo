@@ -1,31 +1,7 @@
+import type { ConvexActiveVesselTrip } from "../../../convex/functions/activeVesselTrips/schemas";
 import { type DateFieldsToDate, toDomain, toStorage } from "../transformers";
 
-/**
- * Storage shape used by Convex schemas.
- * Dates are represented as milliseconds and nulls become undefined.
- */
-export type StoredActiveVesselTrip = {
-  VesselID: number;
-  VesselName: string;
-  VesselAbbrev: string;
-  DepartingTerminalID: number;
-  DepartingTerminalName: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalID?: number;
-  ArrivingTerminalName?: string;
-  ArrivingTerminalAbbrev?: string;
-  InService: boolean;
-  AtDock: boolean;
-  ScheduledDeparture?: number;
-  LeftDock?: number;
-  LeftDockActual?: number;
-  LeftDockDelay?: number;
-  Eta?: number;
-  OpRouteAbbrev?: string;
-  VesselPositionNum?: number;
-  TimeStamp: number;
-  TripStart: number;
-};
+// Re-export the inferred type from convex with domain-appropriate naming
 
 // Define date fields as a const array - TypeScript will infer the union type
 const DATE_FIELDS = [
@@ -37,29 +13,26 @@ const DATE_FIELDS = [
   "TripStart",
 ] as const;
 
-// Extract the union type from the const array
-type ActiveVesselTripDateFields = (typeof DATE_FIELDS)[number];
-
 /**
  * Domain type generated from storage type with proper null handling and Date objects
  */
 export type ActiveVesselTrip = DateFieldsToDate<
-  StoredActiveVesselTrip,
+  ConvexActiveVesselTrip,
   (typeof DATE_FIELDS)[number]
 >;
 
 /**
  * Convert storage representation (Convex) to domain representation.
  */
-export const toActiveVesselTrip = (
-  stored: StoredActiveVesselTrip
-): ActiveVesselTrip =>
-  toDomain(stored, DATE_FIELDS) as unknown as ActiveVesselTrip;
+// export const fromConvexActiveVesselTrip = (
+//   convexActiveVesselTrip: ConvexActiveVesselTrip
+// ): ActiveVesselTrip =>
+//   toDomain(convexActiveVesselTrip, DATE_FIELDS) as unknown as ActiveVesselTrip;
 
-/**
- * Convert domain representation to storage representation (Convex).
- */
-export const toStoredActiveVesselTrip = (
-  trip: ActiveVesselTrip
-): StoredActiveVesselTrip =>
-  toStorage(trip, DATE_FIELDS) as unknown as StoredActiveVesselTrip;
+// /**
+//  * Convert domain representation to storage representation (Convex).
+//  */
+// export const toConvexActiveVesselTrip = (
+//   activeVesselTrip: ActiveVesselTrip
+// ): ConvexActiveVesselTrip =>
+//   toStorage(activeVesselTrip, DATE_FIELDS) as unknown as ConvexActiveVesselTrip;

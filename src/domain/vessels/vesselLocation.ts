@@ -1,32 +1,9 @@
 import type { VesselLocation as VesselLocationDottie } from "ws-dottie/wsf-vessels";
+import type { ConvexVesselLocation } from "../../../convex/functions/vesselLocation/schemas";
 import type { DateFieldsToDate } from "../transformers";
 import { toDomain, toStorage } from "../transformers";
 
-/**
- * Storage representation used by Convex schemas.
- */
-export type StoredVesselLocation = {
-  VesselID: number;
-  VesselName: string;
-  DepartingTerminalID: number;
-  DepartingTerminalName: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalID?: number;
-  ArrivingTerminalName?: string;
-  ArrivingTerminalAbbrev?: string;
-  Latitude: number;
-  Longitude: number;
-  Speed: number;
-  Heading: number;
-  InService: boolean;
-  AtDock: boolean;
-  LeftDock?: number;
-  Eta?: number;
-  ScheduledDeparture?: number;
-  OpRouteAbbrev?: string;
-  VesselPositionNum?: number;
-  TimeStamp: number;
-};
+// Re-export the inferred type from convex with domain-appropriate naming
 
 // Define date fields as a const array - TypeScript will infer the union type
 const DATE_FIELDS = [
@@ -44,7 +21,7 @@ type VesselLocationDateFields = (typeof DATE_FIELDS)[number];
  * Generated from storage type with proper null handling and Date objects
  */
 export type VesselLocation = DateFieldsToDate<
-  StoredVesselLocation,
+  ConvexVesselLocation,
   VesselLocationDateFields
 >;
 
@@ -52,47 +29,41 @@ export type VesselLocation = DateFieldsToDate<
  * Converts a raw ws-dottie VesselLocation into the domain shape.
  * Drops unused metadata fields and flattens OpRouteAbbrev to a single value.
  */
-export const toVesselLocation = (vl: VesselLocationDottie): VesselLocation => {
-  const { EtaBasis, SortSeq, ManagedBy, Mmsi, ...raw } = vl;
-  const opRouteAbbrev = raw.OpRouteAbbrev?.[0] ?? null;
+// export const toVesselLocation = (vl: VesselLocationDottie): VesselLocation => {
+//   const {
+//     VesselWatchShutID,
+//     VesselWatchShutMsg,
+//     VesselWatchShutFlag,
+//     VesselWatchStatus,
+//     VesselWatchMsg,
+//     ...rest
+//   } = vl;
 
-  return {
-    VesselID: raw.VesselID,
-    VesselName: raw.VesselName ?? "",
-    DepartingTerminalID: raw.DepartingTerminalID,
-    DepartingTerminalName: raw.DepartingTerminalName ?? "",
-    DepartingTerminalAbbrev: raw.DepartingTerminalAbbrev ?? "",
-    ArrivingTerminalID: raw.ArrivingTerminalID ?? null,
-    ArrivingTerminalName: raw.ArrivingTerminalName ?? null,
-    ArrivingTerminalAbbrev: raw.ArrivingTerminalAbbrev ?? null,
-    Latitude: raw.Latitude,
-    Longitude: raw.Longitude,
-    Speed: raw.Speed,
-    Heading: raw.Heading,
-    InService: raw.InService ?? false,
-    AtDock: raw.AtDock ?? false,
-    LeftDock: raw.LeftDock ? new Date(raw.LeftDock) : null,
-    Eta: raw.Eta ? new Date(raw.Eta) : null,
-    ScheduledDeparture: raw.ScheduledDeparture
-      ? new Date(raw.ScheduledDeparture)
-      : null,
-    OpRouteAbbrev: opRouteAbbrev,
-    VesselPositionNum: raw.VesselPositionNum ?? null,
-    TimeStamp: raw.TimeStamp ? new Date(raw.TimeStamp) : new Date(),
-  };
-};
+//   // Convert to domain type using the toDomain helper with date fields
+//   const domainVesselLocation = toDomain(
+//     rest,
+//     DATE_FIELDS
+//   ) as unknown as VesselLocation;
+
+//   // Override OpRouteAbbrev to flatten the array
+//   return {
+//     ...domainVesselLocation,
+//     OpRouteAbbrev: vl.OpRouteAbbrev?.[0] ?? null,
+//   };
+// };
 
 /**
  * Convert storage representation (Convex) to domain representation.
  */
-export const fromStoredVesselLocation = (
-  stored: StoredVesselLocation
-): VesselLocation => toDomain(stored, DATE_FIELDS) as unknown as VesselLocation;
+export const fromConvexVesselLocation = (
+  convexVesselLocation: ConvexVesselLocation
+): VesselLocation =>
+  toDomain(convexVesselLocation, DATE_FIELDS) as unknown as VesselLocation;
 
 /**
  * Convert domain representation to storage representation (Convex).
  */
-export const toStoredVesselLocation = (
-  location: VesselLocation
-): StoredVesselLocation =>
-  toStorage(location, DATE_FIELDS) as unknown as StoredVesselLocation;
+// export const toConvexVesselLocation = (
+//   vesselLocation: VesselLocation
+// ): ConvexVesselLocation =>
+//   toStorage(vesselLocation, DATE_FIELDS) as unknown as ConvexVesselLocation;

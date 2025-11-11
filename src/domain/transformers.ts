@@ -7,7 +7,9 @@
  * Converts optional properties (T | undefined) to nullable properties (T | null)
  */
 export type OptionalToNullable<T> = {
-  [K in keyof T]: undefined extends T[K] ? NonNullable<T[K]> | null : T[K];
+  [K in keyof T]: undefined extends T[K]
+    ? Exclude<T[K], undefined> | null
+    : T[K];
 };
 
 /**
@@ -41,32 +43,32 @@ export type ExtractDateFields<T> = {
  * Helper function to create a date fields array from a type
  * This avoids repeating string literals
  */
-export function createDateFieldsArray<T extends Record<string, unknown>>(
-  dateFieldNames: ExtractDateFields<T>[]
-): ExtractDateFields<T>[] {
-  return dateFieldNames;
-}
+// export function createDateFieldsArray<T extends Record<string, unknown>>(
+//   dateFieldNames: ExtractDateFields<T>[]
+// ): ExtractDateFields<T>[] {
+//   return dateFieldNames;
+// }
 
 /**
  * Creates a date fields array from a union type of string literals
  * This eliminates the need to define date fields twice
  */
-export function createDateFieldsFromUnion<T extends string>(
-  dateFields: T[]
-): T[] {
-  return dateFields;
-}
+// export function createDateFieldsFromUnion<T extends string>(
+//   dateFields: T[]
+// ): T[] {
+//   return dateFields;
+// }
 
 /**
  * Creates a date fields array from a type and a list of keys
  * This allows TypeScript to infer the types without duplication
  */
-export function createDateFields<
-  T extends Record<string, unknown>,
-  K extends keyof T,
->(dateFields: K[]): K[] {
-  return dateFields;
-}
+// export function createDateFields<
+//   T extends Record<string, unknown>,
+//   K extends keyof T,
+// >(dateFields: K[]): K[] {
+//   return dateFields;
+// }
 
 /**
  * Generic function to convert from storage (Convex) to domain representation

@@ -1,19 +1,13 @@
+import type { VesselLocation as WsDottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+import type {
+  ConvexVesselPing,
+  ConvexVesselPingCollection,
+} from "../../../convex/functions/vesselPings/schemas";
 import type { DateFieldsToDate } from "../transformers";
-import { toDomain, toStorage } from "../transformers";
-import type { VesselLocation } from "./vesselLocation";
+import { toDomain } from "../transformers";
 
-/**
- * Storage representation for vessel pings in Convex.
- */
-export type StoredVesselPing = {
-  VesselID: number;
-  Latitude: number;
-  Longitude: number;
-  Speed: number;
-  Heading: number;
-  AtDock: boolean;
-  TimeStamp: number;
-};
+// Re-export the inferred types from convex with domain-appropriate naming
+export type VesselPingCollection = ConvexVesselPingCollection;
 
 // Define date fields as a const array - TypeScript will infer the union type
 const DATE_FIELDS = ["TimeStamp"] as const;
@@ -26,31 +20,36 @@ type VesselPingDateFields = (typeof DATE_FIELDS)[number];
  * Generated from storage type with proper null handling and Date objects
  */
 export type VesselPing = DateFieldsToDate<
-  StoredVesselPing,
+  ConvexVesselPing,
   VesselPingDateFields
 >;
 
 /**
  * Reduce a vessel location to a ping domain model.
  */
-export const toVesselPing = (vl: VesselLocation): VesselPing => ({
-  VesselID: vl.VesselID,
-  Latitude: Math.round(vl.Latitude * 100000) / 100000,
-  Longitude: Math.round(vl.Longitude * 100000) / 100000,
-  Speed: vl.Speed > 0.2 ? vl.Speed : 0,
-  Heading: vl.Heading,
-  AtDock: vl.AtDock,
-  TimeStamp: vl.TimeStamp,
-});
+// export const vesselLocationToVesselPing = (
+//   vl: WsDottieVesselLocation
+// ): VesselPing => ({
+//   VesselID: vl.VesselID,
+//   Latitude: Math.round(vl.Latitude * 100000) / 100000,
+//   Longitude: Math.round(vl.Longitude * 100000) / 100000,
+//   Speed: vl.Speed,
+//   Heading: vl.Heading,
+//   AtDock: vl.AtDock,
+//   TimeStamp: vl.TimeStamp,
+// });
 
 /**
  * Convert storage representation (Convex) to domain representation.
  */
-export const fromStoredVesselPing = (stored: StoredVesselPing): VesselPing =>
-  toDomain(stored, DATE_FIELDS) as unknown as VesselPing;
+// export const fromConvexVesselPing = (
+//   convexVesselPing: ConvexVesselPing
+// ): VesselPing =>
+//   toDomain(convexVesselPing, DATE_FIELDS) as unknown as VesselPing;
 
 /**
- * Convert domain representation to storage representation (Convex).
+ * Convert Convex collection shape → array of domain vessel pings
  */
-export const toStoredVesselPing = (ping: VesselPing): StoredVesselPing =>
-  toStorage(ping, DATE_FIELDS) as unknown as StoredVesselPing;
+// export const fromConvexVesselPingCollection = (
+//   collection: VesselPingCollection
+// ): VesselPing[] => collection.pings.map(fromConvexVesselPing);
