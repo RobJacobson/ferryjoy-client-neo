@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { fromConvexVesselLocation } from "src/domain/vessels/vesselLocation";
+import { toDomainVesselLocation } from "src/domain/vessels/vesselLocation";
 import { query } from "../../_generated/server";
 
 /**
@@ -15,7 +15,7 @@ export const getOlderThan = query({
       .query("vesselLocations")
       .withIndex("by_timestamp", (q) => q.lt("TimeStamp", cutoffTime))
       .take(limit);
-    return docs.map(fromConvexVesselLocation);
+    return docs.map(toDomainVesselLocation);
   },
 });
 
@@ -34,6 +34,6 @@ export const getLatestLocations = query({
         byVessel[d.VesselID] = { TimeStamp: d.TimeStamp, doc: d };
       }
     }
-    return Object.values(byVessel).map((x) => fromConvexVesselLocation(x.doc));
+    return Object.values(byVessel).map((x) => toDomainVesselLocation(x.doc));
   },
 });

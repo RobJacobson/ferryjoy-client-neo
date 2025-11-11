@@ -23,3 +23,22 @@ export const getOlderThan = query({
     return collections;
   },
 });
+
+/**
+ * Get the latest VesselPingCollections from the database
+ * Used for real-time display of vessel positions
+ */
+export const getLatest = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { limit = 20 }) => {
+    const collections = await ctx.db
+      .query("vesselPings")
+      .withIndex("by_timestamp", (q) => q)
+      .order("desc") // Get most recent first
+      .take(limit);
+
+    return collections;
+  },
+});
