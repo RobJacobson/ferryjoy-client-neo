@@ -1,14 +1,10 @@
-import { api } from "@convex/_generated/api";
-import type { ActionCtx } from "@convex/_generated/server";
-
-import type { ActiveVesselTrip } from "@domain";
-
+import type { ActiveVesselTrip } from "src/domain";
+import { api } from "../../../_generated/api";
+import type { ActionCtx } from "../../../_generated/server";
 import { toCompletedTrip } from "../../../functions/completedVesselTrips/schemas";
 import type { TripPair, ValidatedTrip } from "../types";
 
 // import { fromConvexCompletedVesselTrip } from "../../functions/completedVesselTrips/schemas";
-
-// import { log } from "@/shared/lib/logger";
 
 type VesselTripsByVessel = Record<string, ValidatedTrip[]>;
 

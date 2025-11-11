@@ -1,6 +1,4 @@
-import type { ActionCtx } from "@convex/_generated/server";
-
-import { log } from "@/shared/lib/logger";
+import type { ActionCtx } from "../../_generated/server";
 
 import { encodeFeatures } from "./pipeline/encode";
 import { loadAndFilterTrips } from "./pipeline/load";
@@ -14,7 +12,7 @@ import type { TrainingResponse } from "./types";
 export const trainModels = async (
   ctx: ActionCtx
 ): Promise<TrainingResponse> => {
-  log.info("Starting ML model training pipeline");
+  console.log("Starting ML model training pipeline");
 
   try {
     // Stage 1: Load and filter trips
@@ -26,10 +24,10 @@ export const trainModels = async (
     // Stage 3: Train and save models
     const result = await trainAndSave(ctx, examples, pairs);
 
-    log.info("Training pipeline completed successfully");
+    console.log("Training pipeline completed successfully");
     return result;
   } catch (error) {
-    log.error("Training pipeline failed:", error);
+    console.error("Training pipeline failed:", error);
     throw error;
   }
 };

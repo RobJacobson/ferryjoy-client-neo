@@ -1,8 +1,6 @@
-import { api } from "@convex/_generated/api";
-import type { ActionCtx } from "@convex/_generated/server";
 import MLR from "ml-regression-multivariate-linear";
-
-import { log } from "@/shared/lib/logger";
+import { api } from "../../../_generated/api";
+import type { ActionCtx } from "../../../_generated/server";
 
 import type {
   ModelParameters,
@@ -40,7 +38,7 @@ const generateRouteStatistics = (
   > = {};
 
   Object.entries(routeGroups).forEach(([routeId, examples]) => {
-    const predictions = examples.map((ex) => ex.target);
+    const predictions = examples.map(ex => ex.target);
     const count = predictions.length;
     const avgPrediction =
       predictions.reduce((sum, prediction) => sum + prediction, 0) / count;
@@ -54,7 +52,7 @@ const generateRouteStatistics = (
     const stdDev = Math.sqrt(variance);
 
     // Find corresponding model for this route
-    const model = models.find((m) => m.routeId === routeId);
+    const model = models.find(m => m.routeId === routeId);
     const mae = model?.mae || 0;
     const r2 = model?.r2 || 0;
 
@@ -100,14 +98,14 @@ const trainModelForRoute = (
   const featureNames = Object.keys(examples[0].input);
 
   // Prepare data for ML library
-  const x = examples.map((ex) => Object.values(ex.input));
-  const y = examples.map((ex) => ex.target);
+  const x = examples.map(ex => Object.values(ex.input));
+  const y = examples.map(ex => ex.target);
 
   // Train model using ml-regression-multivariate-linear
   const { coefficients, intercept } = trainLinearRegression(x, y);
 
   // Calculate predictions and metrics
-  const predictions = x.map((features) => {
+  const predictions = x.map(features => {
     let prediction = intercept;
     for (let i = 0; i < features.length; i++) {
       prediction += coefficients[i] * features[i];
@@ -148,13 +146,13 @@ const trainLinearRegression = (
   y: number[]
 ): { coefficients: number[]; intercept: number } => {
   // MLR expects y as 2D array
-  const y2d = y.map((val) => [val]);
+  const y2d = y.map(val => [val]);
 
   const regression = new MLR(x, y2d);
 
   // Extract coefficients and intercept from the trained model
   // coefficients are all rows except the last one
-  const coefficients = regression.weights.slice(0, -1).map((row) => row[0]);
+  const coefficients = regression.weights.slice(0, -1).map(row => row[0]);
   // intercept is the last row
   const intercept = regression.weights[regression.weights.length - 1][0];
 
@@ -173,35 +171,37 @@ export const trainAndSave = async (
   examples: TrainingExample[],
   pairs: TripPair[]
 ): Promise<TrainingResponse> => {
-  log.info(`Training models for ${examples.length} examples`);
+  console.log(`Training models for ${examples.length} examples`);
 
   // Group examples by route
   const routeGroups = groupByRoute(examples, pairs);
   const routes = Object.keys(routeGroups);
 
   // Train model for each route
-  const models = routes.map((routeId) =>
+  const models = routes.map(routeId =>
     trainModelForRoute(routeId, routeGroups[routeId])
   );
 
   // Generate route statistics
   const routeStats = generateRouteStatistics(routeGroups, models);
 
-  log.info(`Training models for routes: ${routes.join(", ")}`);
+  console.log(`Training models for routes: ${routes.join(", ")}`);
 
   // Log route statistics table
-  log.info("=== ROUTE STATISTICS BREAKDOWN ===");
-  log.info("Route ID      | Examples | Avg Prediction | Std Dev | MAE | R²");
-  log.info("--------------|----------|----------------|---------|-----|-----");
+  console.log("=== ROUTE STATISTICS BREAKDOWN ===");
+  console.log("Route ID      | Examples | Avg Prediction | Std Dev | MAE | R²");
+  console.log(
+    "--------------|----------|----------------|---------|-----|-----"
+  );
   Object.entries(routeStats).forEach(([routeId, stats]) => {
-    log.info(
+    console.log(
       `${routeId.padEnd(13)} | ${stats.count.toString().padStart(7)} | ${stats.avgPrediction.toFixed(2).padStart(14)} | ${stats.stdDev.toFixed(2).padStart(7)} | ${stats.mae.toFixed(2).padStart(3)} | ${stats.r2.toFixed(2).padStart(3)}`
     );
   });
-  log.info("=== END ROUTE STATISTICS ===");
+  console.log("=== END ROUTE STATISTICS ===");
 
   // Save models to database
-  const savePromises = models.map((model) =>
+  const savePromises = models.map(model =>
     ctx.runMutation(
       api.functions.predictions.mutations.storeModelParametersMutation,
       {
@@ -225,7 +225,7 @@ export const trainAndSave = async (
 
   await Promise.all(savePromises);
 
-  log.info(`Successfully trained and saved ${models.length} models`);
+  console.log(`Successfully trained and saved ${models.length} models`);
 
   return {
     success: true,

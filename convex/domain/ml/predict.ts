@@ -1,7 +1,5 @@
-import { api } from "@convex/_generated/api";
-import type { ActionCtx } from "@convex/_generated/server";
-
-import { log } from "@/shared/lib/logger";
+import { api } from "../../_generated/api";
+import type { ActionCtx } from "../../_generated/server";
 
 import type { FeatureVector, PredictionOutput } from "./types";
 

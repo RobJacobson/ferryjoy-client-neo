@@ -1,10 +1,8 @@
-import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
-import type { ActionCtx } from "@convex/_generated/server";
-import { internalAction } from "@convex/_generated/server";
 import { v } from "convex/values";
-
-import { log } from "@/shared/lib/logger";
+import { api } from "../../_generated/api";
+import type { Id } from "../../_generated/dataModel";
+import type { ActionCtx } from "../../_generated/server";
+import { internalAction } from "../../_generated/server";
 
 import { activeVesselTripSchema } from "../../functions/activeVesselTrips";
 import { predict } from "./predict";
@@ -21,7 +19,7 @@ import type { PredictionOutput, TrainingResponse } from "./types";
 export const trainPredictionModelsAction = internalAction({
   args: {},
   handler: async (ctx): Promise<TrainingResponse> => {
-    log.info("Starting prediction model training");
+    console.log("Starting prediction model training");
     return await trainModels(ctx);
   },
 });
@@ -49,20 +47,20 @@ export const predictTimeAction = internalAction({
 export const deleteAllModelsAction = internalAction({
   args: {},
   handler: async (ctx: ActionCtx) => {
-    log.info("Starting deletion of all models");
+    console.log("Starting deletion of all models");
 
     const models: Array<{ _id: Id<"modelParameters"> }> = await ctx.runQuery(
       api.functions.predictions.queries.getAllModelParameters
     );
 
     if (models.length === 0) {
-      log.info("No models found to delete");
+      console.log("No models found to delete");
       return { deletedCount: 0 };
     }
 
-    log.info(`Found ${models.length} models to delete`);
+    console.log(`Found ${models.length} models to delete`);
 
-    const deletePromises = models.map((model) =>
+    const deletePromises = models.map(model =>
       ctx.runMutation(
         api.functions.predictions.mutations.deleteModelParametersMutation,
         { modelId: model._id }
@@ -71,7 +69,7 @@ export const deleteAllModelsAction = internalAction({
 
     await Promise.all(deletePromises);
 
-    log.info(`Successfully deleted ${models.length} models`);
+    console.log(`Successfully deleted ${models.length} models`);
     return { deletedCount: models.length };
   },
 });
