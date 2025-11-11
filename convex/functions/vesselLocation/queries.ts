@@ -1,8 +1,6 @@
 import { v } from "convex/values";
+import { fromConvexVesselLocation } from "src/domain/vessels/vesselLocation";
 import { query } from "../../_generated/server";
-import type { QueryCtx } from "../../_generated/server";
-
-import { fromConvexVesselLocation } from "./schemas";
 
 /**
  * Get vessel locations older than a given timestamp

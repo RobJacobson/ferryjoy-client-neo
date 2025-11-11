@@ -1,6 +1,5 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { fromConvexVesselLocation } from "src/domain";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 export const vesselLocationValidationSchema = v.object({
@@ -53,6 +52,3 @@ export const toConvexVesselLocation = (
   VesselPositionNum: vl.VesselPositionNum ?? undefined,
   TimeStamp: vl.TimeStamp.getTime(),
 });
-
-// Re-export domain conversion function
-export { fromConvexVesselLocation };
