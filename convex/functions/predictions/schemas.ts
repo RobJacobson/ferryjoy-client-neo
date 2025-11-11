@@ -63,8 +63,11 @@ export const modelParametersMutationSchema = v.object({
   createdAt: v.number(),
 });
 
-export type CurrentPredictionData = Infer<typeof currentPredictionDataSchema>;
-export type HistoricalPredictionData = Infer<
+// Export inferred types for use in domain layer
+export type ConvexCurrentPredictionData = Infer<
+  typeof currentPredictionDataSchema
+>;
+export type ConvexHistoricalPredictionData = Infer<
   typeof historicalPredictionDataSchema
 >;
-export type ModelParameters = Infer<typeof modelParametersMutationSchema>;
+export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;

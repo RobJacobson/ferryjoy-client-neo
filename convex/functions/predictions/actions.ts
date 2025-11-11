@@ -1,9 +1,8 @@
-// import { api, internal } from "@convex/_generated/api";
-// import type { ActionCtx } from "@convex/_generated/server";
-// import { action, internalAction } from "@convex/_generated/server";
+// import { api, internal } from "....//api";
+// import type { ActionCtx } from "....//server";
+// import { action, internalAction } from "....//server";
 // import { v } from "convex/values";
 
-// import { log } from "@/shared/lib/logger";
 // import { unixTsToDate } from "@/shared/utils/unixTsToDate";
 
 // import type { ConvexActiveVesselTrip } from "../activeVesselTrips/schemas";

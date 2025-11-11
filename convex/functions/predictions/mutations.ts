@@ -1,10 +1,11 @@
-import type { MutationCtx } from "@convex/_generated/server";
-import { mutation } from "@convex/_generated/server";
 import { v } from "convex/values";
+import type { MutationCtx } from "../../_generated/server";
+import { mutation } from "../../_generated/server";
 
-import { log } from "@/shared/lib/logger";
-
-import type { CurrentPredictionData, ModelParameters } from "./schemas";
+import type {
+  ConvexCurrentPredictionData,
+  ConvexModelParameters,
+} from "./schemas";
 import {
   currentPredictionDataSchema,
   modelParametersMutationSchema,
@@ -18,7 +19,7 @@ type PredictionTable = "currentPredictions";
 const updateOrCreatePrediction = async (
   ctx: MutationCtx,
   tableName: PredictionTable,
-  prediction: CurrentPredictionData
+  prediction: ConvexCurrentPredictionData
 ) => {
   const existing = await ctx.db
     .query(tableName)
@@ -31,12 +32,12 @@ const updateOrCreatePrediction = async (
 
   if (existing) {
     await ctx.db.patch(existing._id, prediction);
-    log.info(
+    console.log(
       `Updated current ${prediction.predictionType} prediction for vessel ${prediction.vesselId}`
     );
   } else {
     await ctx.db.insert(tableName, prediction);
-    log.info(
+    console.log(
       `Created current ${prediction.predictionType} prediction for vessel ${prediction.vesselId}`
     );
   }
@@ -53,12 +54,12 @@ export const storeModelParametersMutation = mutation({
     try {
       const modelId = await ctx.db.insert(
         "modelParameters",
-        args.model as ModelParameters
+        args.model as ConvexModelParameters
       );
-      log.info(`Stored model parameters: ${modelId}`);
+      console.log(`Stored model parameters: ${modelId}`);
       return modelId;
     } catch (error) {
-      log.error("Failed to store model parameters:", error);
+      console.error("Failed to store model parameters:", error);
       throw error;
     }
   },
@@ -76,7 +77,7 @@ const createPredictionMutation = (tableName: PredictionTable) =>
       try {
         await updateOrCreatePrediction(ctx, tableName, args.prediction);
       } catch (error) {
-        log.error(`Failed to update current prediction:`, error);
+        console.error(`Failed to update current prediction:`, error);
         throw error;
       }
     },
@@ -98,10 +99,10 @@ export const deleteModelParametersMutation = mutation({
   handler: async (ctx, args) => {
     try {
       await ctx.db.delete(args.modelId);
-      log.info(`Deleted model parameters: ${args.modelId}`);
+      console.log(`Deleted model parameters: ${args.modelId}`);
       return { success: true };
     } catch (error) {
-      log.error("Failed to delete model parameters:", error);
+      console.error("Failed to delete model parameters:", error);
       throw error;
     }
   },
