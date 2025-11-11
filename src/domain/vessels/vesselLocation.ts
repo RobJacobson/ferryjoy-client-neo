@@ -1,36 +1,6 @@
 import type { VesselLocation as VesselLocationDottie } from "ws-dottie/wsf-vessels";
-import {
-  dateOrNull,
-  dateToNumber,
-  nullIfUndefined,
-  undefinedIfNull,
-} from "../converters";
-
-/**
- * Domain model for vessel location with Dates and nullable fields.
- */
-export type VesselLocation = {
-  VesselID: number;
-  VesselName: string;
-  DepartingTerminalID: number;
-  DepartingTerminalName: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalID: number | null;
-  ArrivingTerminalName: string | null;
-  ArrivingTerminalAbbrev: string | null;
-  Latitude: number;
-  Longitude: number;
-  Speed: number;
-  Heading: number;
-  InService: boolean;
-  AtDock: boolean;
-  LeftDock: Date | null;
-  Eta: Date | null;
-  ScheduledDeparture: Date | null;
-  OpRouteAbbrev: string | null;
-  VesselPositionNum: number | null;
-  TimeStamp: Date;
-};
+import type { DateFieldsToDate } from "../transformers";
+import { toDomain, toStorage } from "../transformers";
 
 /**
  * Storage representation used by Convex schemas.
@@ -57,6 +27,26 @@ export type StoredVesselLocation = {
   VesselPositionNum?: number;
   TimeStamp: number;
 };
+
+// Define date fields as a const array - TypeScript will infer the union type
+const DATE_FIELDS = [
+  "LeftDock",
+  "Eta",
+  "ScheduledDeparture",
+  "TimeStamp",
+] as const;
+
+// Extract the union type from the const array
+type VesselLocationDateFields = (typeof DATE_FIELDS)[number];
+
+/**
+ * Domain model for vessel location with Dates and nullable fields.
+ * Generated from storage type with proper null handling and Date objects
+ */
+export type VesselLocation = DateFieldsToDate<
+  StoredVesselLocation,
+  VesselLocationDateFields
+>;
 
 /**
  * Converts a raw ws-dottie VesselLocation into the domain shape.
@@ -97,53 +87,12 @@ export const toVesselLocation = (vl: VesselLocationDottie): VesselLocation => {
  */
 export const fromStoredVesselLocation = (
   stored: StoredVesselLocation
-): VesselLocation => ({
-  VesselID: stored.VesselID,
-  VesselName: stored.VesselName,
-  DepartingTerminalID: stored.DepartingTerminalID,
-  DepartingTerminalName: stored.DepartingTerminalName,
-  DepartingTerminalAbbrev: stored.DepartingTerminalAbbrev,
-  ArrivingTerminalID: nullIfUndefined(stored.ArrivingTerminalID),
-  ArrivingTerminalName: nullIfUndefined(stored.ArrivingTerminalName),
-  ArrivingTerminalAbbrev: nullIfUndefined(stored.ArrivingTerminalAbbrev),
-  Latitude: stored.Latitude,
-  Longitude: stored.Longitude,
-  Speed: stored.Speed,
-  Heading: stored.Heading,
-  InService: stored.InService,
-  AtDock: stored.AtDock,
-  LeftDock: dateOrNull(stored.LeftDock),
-  Eta: dateOrNull(stored.Eta),
-  ScheduledDeparture: dateOrNull(stored.ScheduledDeparture),
-  OpRouteAbbrev: nullIfUndefined(stored.OpRouteAbbrev),
-  VesselPositionNum: nullIfUndefined(stored.VesselPositionNum),
-  TimeStamp: new Date(stored.TimeStamp),
-});
+): VesselLocation => toDomain(stored, DATE_FIELDS) as unknown as VesselLocation;
 
 /**
  * Convert domain representation to storage representation (Convex).
  */
 export const toStoredVesselLocation = (
   location: VesselLocation
-): StoredVesselLocation => ({
-  VesselID: location.VesselID,
-  VesselName: location.VesselName,
-  DepartingTerminalID: location.DepartingTerminalID,
-  DepartingTerminalName: location.DepartingTerminalName,
-  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
-  ArrivingTerminalID: undefinedIfNull(location.ArrivingTerminalID),
-  ArrivingTerminalName: undefinedIfNull(location.ArrivingTerminalName),
-  ArrivingTerminalAbbrev: undefinedIfNull(location.ArrivingTerminalAbbrev),
-  Latitude: location.Latitude,
-  Longitude: location.Longitude,
-  Speed: location.Speed,
-  Heading: location.Heading,
-  InService: location.InService,
-  AtDock: location.AtDock,
-  LeftDock: dateToNumber(location.LeftDock),
-  Eta: dateToNumber(location.Eta),
-  ScheduledDeparture: dateToNumber(location.ScheduledDeparture),
-  OpRouteAbbrev: undefinedIfNull(location.OpRouteAbbrev),
-  VesselPositionNum: undefinedIfNull(location.VesselPositionNum),
-  TimeStamp: location.TimeStamp.getTime(),
-});
+): StoredVesselLocation =>
+  toStorage(location, DATE_FIELDS) as unknown as StoredVesselLocation;

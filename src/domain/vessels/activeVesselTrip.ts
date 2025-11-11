@@ -1,32 +1,4 @@
-import {
-  dateOrNull,
-  dateToNumber,
-  nullIfUndefined,
-  undefinedIfNull,
-} from "../converters";
-
-export type ActiveVesselTrip = {
-  VesselID: number;
-  VesselName: string;
-  VesselAbbrev: string;
-  DepartingTerminalID: number;
-  DepartingTerminalName: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalID: number | null;
-  ArrivingTerminalName: string | null;
-  ArrivingTerminalAbbrev: string | null;
-  InService: boolean;
-  AtDock: boolean;
-  ScheduledDeparture: Date | null;
-  LeftDock: Date | null;
-  LeftDockActual: Date | null;
-  LeftDockDelay: number | null;
-  Eta: Date | null;
-  OpRouteAbbrev: string | null;
-  VesselPositionNum: number | null;
-  TimeStamp: Date;
-  TripStart: Date;
-};
+import { type DateFieldsToDate, toDomain, toStorage } from "../transformers";
 
 /**
  * Storage shape used by Convex schemas.
@@ -55,58 +27,39 @@ export type StoredActiveVesselTrip = {
   TripStart: number;
 };
 
+// Define date fields as a const array - TypeScript will infer the union type
+const DATE_FIELDS = [
+  "ScheduledDeparture",
+  "LeftDock",
+  "LeftDockActual",
+  "Eta",
+  "TimeStamp",
+  "TripStart",
+] as const;
+
+// Extract the union type from the const array
+type ActiveVesselTripDateFields = (typeof DATE_FIELDS)[number];
+
+/**
+ * Domain type generated from storage type with proper null handling and Date objects
+ */
+export type ActiveVesselTrip = DateFieldsToDate<
+  StoredActiveVesselTrip,
+  (typeof DATE_FIELDS)[number]
+>;
+
 /**
  * Convert storage representation (Convex) to domain representation.
  */
 export const toActiveVesselTrip = (
   stored: StoredActiveVesselTrip
-): ActiveVesselTrip => ({
-  VesselID: stored.VesselID,
-  VesselName: stored.VesselName,
-  VesselAbbrev: stored.VesselAbbrev,
-  DepartingTerminalID: stored.DepartingTerminalID,
-  DepartingTerminalName: stored.DepartingTerminalName,
-  DepartingTerminalAbbrev: stored.DepartingTerminalAbbrev,
-  ArrivingTerminalID: nullIfUndefined(stored.ArrivingTerminalID),
-  ArrivingTerminalName: nullIfUndefined(stored.ArrivingTerminalName),
-  ArrivingTerminalAbbrev: nullIfUndefined(stored.ArrivingTerminalAbbrev),
-  InService: stored.InService,
-  AtDock: stored.AtDock,
-  ScheduledDeparture: dateOrNull(stored.ScheduledDeparture),
-  LeftDock: dateOrNull(stored.LeftDock),
-  LeftDockActual: dateOrNull(stored.LeftDockActual),
-  LeftDockDelay: nullIfUndefined(stored.LeftDockDelay),
-  Eta: dateOrNull(stored.Eta),
-  OpRouteAbbrev: nullIfUndefined(stored.OpRouteAbbrev),
-  VesselPositionNum: nullIfUndefined(stored.VesselPositionNum),
-  TimeStamp: new Date(stored.TimeStamp),
-  TripStart: new Date(stored.TripStart),
-});
+): ActiveVesselTrip =>
+  toDomain(stored, DATE_FIELDS) as unknown as ActiveVesselTrip;
 
 /**
  * Convert domain representation to storage representation (Convex).
  */
 export const toStoredActiveVesselTrip = (
   trip: ActiveVesselTrip
-): StoredActiveVesselTrip => ({
-  VesselID: trip.VesselID,
-  VesselName: trip.VesselName,
-  VesselAbbrev: trip.VesselAbbrev,
-  DepartingTerminalID: trip.DepartingTerminalID,
-  DepartingTerminalName: trip.DepartingTerminalName,
-  DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
-  ArrivingTerminalID: undefinedIfNull(trip.ArrivingTerminalID),
-  ArrivingTerminalName: undefinedIfNull(trip.ArrivingTerminalName),
-  ArrivingTerminalAbbrev: undefinedIfNull(trip.ArrivingTerminalAbbrev),
-  InService: trip.InService,
-  AtDock: trip.AtDock,
-  ScheduledDeparture: dateToNumber(trip.ScheduledDeparture),
-  LeftDock: dateToNumber(trip.LeftDock),
-  LeftDockActual: dateToNumber(trip.LeftDockActual),
-  LeftDockDelay: undefinedIfNull(trip.LeftDockDelay),
-  Eta: dateToNumber(trip.Eta),
-  OpRouteAbbrev: undefinedIfNull(trip.OpRouteAbbrev),
-  VesselPositionNum: undefinedIfNull(trip.VesselPositionNum),
-  TimeStamp: trip.TimeStamp.getTime(),
-  TripStart: trip.TripStart.getTime(),
-});
+): StoredActiveVesselTrip =>
+  toStorage(trip, DATE_FIELDS) as unknown as StoredActiveVesselTrip;
