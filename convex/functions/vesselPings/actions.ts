@@ -1,10 +1,9 @@
-import { api, internal } from "@convex/_generated/api";
-import { internalAction } from "@convex/_generated/server";
+import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import { api, internal } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
 
-import { toVesselLocation, toVesselPing } from "@domain";
-
-import type { ConvexVesselPing } from "./schemas";
-import { toConvexVesselPing } from "./schemas";
+import type { ConvexVesselPingCollection } from "./schemas";
+import { toConvexVesselPing, toConvexVesselPingCollection } from "./schemas";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API
@@ -12,38 +11,31 @@ import { toConvexVesselPing } from "./schemas";
  */
 export const fetchAndStoreVesselPings = internalAction({
   args: {},
-  handler: async (
-    ctx
-  ): Promise<{
-    success: boolean;
-    count: number;
-    filtered: number;
-    message?: string;
-  }> => {
-    // Fetch current vessel locations from WSF API
-    const { WsfVessels } = await import("ws-dottie");
-    const rawLocations = await WsfVessels.getVesselLocations();
-    const currLocations = rawLocations
-      .map(vl => toVesselLocation(vl))
-      .map(toVesselPing)
+  handler: async ctx => {
+    // Fetch current vessel locations from WSF API using the new fetchVesselLocations function
+    const rawLocations = await fetchVesselLocations();
+
+    // Transform raw locations to vessel pings
+    const vesselPings = rawLocations
+      .filter(vl => vl.InService)
       .map(toConvexVesselPing);
 
     // Validate we got reasonable data
-    if (currLocations.length === 0) {
+    if (vesselPings.length === 0) {
       throw new Error("No vessel locations received from WSF API");
     }
 
-    // Store locations to database
-    await ctx.runMutation(api.functions.vesselPings.mutations.bulkInsert, {
-      locations: currLocations,
-    });
+    // Create a collection document with all pings and current timestamp
+    const pingCollection: ConvexVesselPingCollection =
+      toConvexVesselPingCollection(vesselPings, Date.now());
 
-    return {
-      success: true,
-      count: currLocations.length,
-      filtered: 0,
-      message: `Saved ${currLocations.length} vessel pings`,
-    };
+    // Store the collection to database
+    await ctx.runMutation(
+      api.functions.vesselPings.mutations.storeVesselPingCollection,
+      {
+        collection: pingCollection,
+      }
+    );
   },
 });
 

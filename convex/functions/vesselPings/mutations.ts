@@ -1,47 +1,43 @@
-import type { Id } from "@convex/_generated/dataModel";
-import { internalMutation, mutation } from "@convex/_generated/server";
-import { v } from "convex/values";
+import { internalMutation, mutation } from "../../_generated/server";
 
-import type { ConvexVesselPing } from "./schemas";
-import { vesselPingValidationSchema } from "./schemas";
+import type { ConvexVesselPingCollection } from "./schemas";
+import { vesselPingCollectionValidationSchema } from "./schemas";
 
 /**
- * Bulk insert multiple vessel ping records
+ * Store a collection of vessel pings as a single document
  * Used by actions to store vessel location data
  */
-export const bulkInsert = mutation({
+export const storeVesselPingCollection = mutation({
   args: {
-    locations: v.array(vesselPingValidationSchema),
+    collection: vesselPingCollectionValidationSchema,
   },
-  handler: async (ctx, args: { locations: ConvexVesselPing[] }) => {
-    for (const location of args.locations) {
-      await ctx.db.insert("vesselPings", location);
-    }
+  handler: async (ctx, args: { collection: ConvexVesselPingCollection }) => {
+    return await ctx.db.insert("vesselPings", args.collection);
   },
 });
 
 /**
- * Internal mutation for cleaning up old vessel ping records
+ * Internal mutation for cleaning up old vessel ping collection records
  * Uses deleteMany for efficient bulk deletion
  * Used by the cleanup cron job for better performance and data consistency
  */
 export const cleanupOldPingsMutation = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const CONFIG = { CLEANUP_HOURS: 2 };
     const cutoffTime = Date.now() - CONFIG.CLEANUP_HOURS * 60 * 60 * 1000;
 
     // Get the records first, then delete in a single transaction
-    const oldPings = await ctx.db
+    const oldPingCollections = await ctx.db
       .query("vesselPings")
-      .filter((q) => q.lt(q.field("TimeStamp"), cutoffTime))
+      .filter(q => q.lt(q.field("timestamp"), cutoffTime))
       .collect();
 
     // Delete all records in a single transaction
-    for (const ping of oldPings) {
-      await ctx.db.delete(ping._id);
+    for (const collection of oldPingCollections) {
+      await ctx.db.delete(collection._id);
     }
 
-    return oldPings.length;
+    return oldPingCollections.length;
   },
 });
