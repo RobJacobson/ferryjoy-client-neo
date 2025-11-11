@@ -11,13 +11,13 @@ import { toConvexVesselPing, toConvexVesselPingCollection } from "./schemas";
  */
 export const fetchAndStoreVesselPings = internalAction({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx) => {
     // Fetch current vessel locations from WSF API using the new fetchVesselLocations function
     const rawLocations = await fetchVesselLocations();
 
     // Transform raw locations to vessel pings
     const vesselPings = rawLocations
-      .filter(vl => vl.InService)
+      .filter((vl) => vl.InService)
       .map(toConvexVesselPing);
 
     // Validate we got reasonable data
@@ -46,7 +46,7 @@ export const fetchAndStoreVesselPings = internalAction({
  */
 export const cleanupOldPings = internalAction({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx) => {
     await ctx.runMutation(
       internal.functions.vesselPings.mutations.cleanupOldPingsMutation
     );

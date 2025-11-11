@@ -23,14 +23,14 @@ export const storeVesselPingCollection = mutation({
  */
 export const cleanupOldPingsMutation = internalMutation({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx) => {
     const CONFIG = { CLEANUP_HOURS: 2 };
     const cutoffTime = Date.now() - CONFIG.CLEANUP_HOURS * 60 * 60 * 1000;
 
     // Get the records first, then delete in a single transaction
     const oldPingCollections = await ctx.db
       .query("vesselPings")
-      .filter(q => q.lt(q.field("timestamp"), cutoffTime))
+      .filter((q) => q.lt(q.field("timestamp"), cutoffTime))
       .collect();
 
     // Delete all records in a single transaction

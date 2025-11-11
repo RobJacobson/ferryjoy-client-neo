@@ -38,7 +38,7 @@ const generateRouteStatistics = (
   > = {};
 
   Object.entries(routeGroups).forEach(([routeId, examples]) => {
-    const predictions = examples.map(ex => ex.target);
+    const predictions = examples.map((ex) => ex.target);
     const count = predictions.length;
     const avgPrediction =
       predictions.reduce((sum, prediction) => sum + prediction, 0) / count;
@@ -52,7 +52,7 @@ const generateRouteStatistics = (
     const stdDev = Math.sqrt(variance);
 
     // Find corresponding model for this route
-    const model = models.find(m => m.routeId === routeId);
+    const model = models.find((m) => m.routeId === routeId);
     const mae = model?.mae || 0;
     const r2 = model?.r2 || 0;
 
@@ -98,14 +98,14 @@ const trainModelForRoute = (
   const featureNames = Object.keys(examples[0].input);
 
   // Prepare data for ML library
-  const x = examples.map(ex => Object.values(ex.input));
-  const y = examples.map(ex => ex.target);
+  const x = examples.map((ex) => Object.values(ex.input));
+  const y = examples.map((ex) => ex.target);
 
   // Train model using ml-regression-multivariate-linear
   const { coefficients, intercept } = trainLinearRegression(x, y);
 
   // Calculate predictions and metrics
-  const predictions = x.map(features => {
+  const predictions = x.map((features) => {
     let prediction = intercept;
     for (let i = 0; i < features.length; i++) {
       prediction += coefficients[i] * features[i];
@@ -146,13 +146,13 @@ const trainLinearRegression = (
   y: number[]
 ): { coefficients: number[]; intercept: number } => {
   // MLR expects y as 2D array
-  const y2d = y.map(val => [val]);
+  const y2d = y.map((val) => [val]);
 
   const regression = new MLR(x, y2d);
 
   // Extract coefficients and intercept from the trained model
   // coefficients are all rows except the last one
-  const coefficients = regression.weights.slice(0, -1).map(row => row[0]);
+  const coefficients = regression.weights.slice(0, -1).map((row) => row[0]);
   // intercept is the last row
   const intercept = regression.weights[regression.weights.length - 1][0];
 
@@ -178,7 +178,7 @@ export const trainAndSave = async (
   const routes = Object.keys(routeGroups);
 
   // Train model for each route
-  const models = routes.map(routeId =>
+  const models = routes.map((routeId) =>
     trainModelForRoute(routeId, routeGroups[routeId])
   );
 
@@ -201,7 +201,7 @@ export const trainAndSave = async (
   console.log("=== END ROUTE STATISTICS ===");
 
   // Save models to database
-  const savePromises = models.map(model =>
+  const savePromises = models.map((model) =>
     ctx.runMutation(
       api.functions.predictions.mutations.storeModelParametersMutation,
       {

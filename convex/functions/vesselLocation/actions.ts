@@ -10,7 +10,7 @@ import { toConvexVesselLocation } from "./schemas";
  */
 export const fetchAndStoreVesselLocations = internalAction({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx) => {
     // Fetch current vessel data from WSF API
     const convexLocations = (await fetchVesselLocations()).map(
       toConvexVesselLocation

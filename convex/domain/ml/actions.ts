@@ -60,7 +60,7 @@ export const deleteAllModelsAction = internalAction({
 
     console.log(`Found ${models.length} models to delete`);
 
-    const deletePromises = models.map(model =>
+    const deletePromises = models.map((model) =>
       ctx.runMutation(
         api.functions.predictions.mutations.deleteModelParametersMutation,
         { modelId: model._id }

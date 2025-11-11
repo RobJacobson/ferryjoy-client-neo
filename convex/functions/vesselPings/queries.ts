@@ -16,7 +16,7 @@ export const getOlderThan = query({
   handler: async (ctx, { cutoffTime, limit = 1000 }) => {
     const collections = await ctx.db
       .query("vesselPings")
-      .withIndex("by_timestamp", q => q.lt("timestamp", cutoffTime))
+      .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoffTime))
       .order("asc") // Get oldest first for deletion
       .take(limit);
 
