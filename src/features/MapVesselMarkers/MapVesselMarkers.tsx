@@ -3,10 +3,8 @@
  * Renders vessel markers on map using smoothed animated vessel positions
  */
 
-import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
 import {
-  useMapState,
   useSmoothedVesselPositions,
   type VesselWithProjection,
 } from "@/shared/contexts";

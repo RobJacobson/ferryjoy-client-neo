@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import {
   animateVesselsSafe,
   getNewVessels,

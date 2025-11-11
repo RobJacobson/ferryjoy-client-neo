@@ -22,7 +22,6 @@
  * ```
  */
 
-import React, { type ReactElement } from "react";
 import { Marker as MapboxMarker } from "react-map-gl/mapbox";
 import type { MarkerProps } from "./shared";
 

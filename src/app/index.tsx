@@ -1,4 +1,4 @@
-import { Link, type RelativePathString, router, Stack } from "expo-router";
+import { Link, type RelativePathString, Stack } from "expo-router";
 
 import { Button, Text, View } from "@/components/ui";
 

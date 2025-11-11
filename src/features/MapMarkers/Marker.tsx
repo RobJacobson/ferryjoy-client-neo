@@ -23,7 +23,6 @@
  */
 
 import MapboxRN from "@rnmapbox/maps";
-import type { ReactElement } from "react";
 import type { MarkerProps } from "./shared";
 
 /**

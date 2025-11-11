@@ -1,5 +1,4 @@
 import { Stack } from "expo-router";
-import { useEffect } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
 import { useWsDottie } from "@/shared/contexts";

@@ -1,7 +1,6 @@
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
-import type { ViewState } from "react-map-gl/mapbox";
 import type { CameraState } from "@/features/MapComponent/shared";
 import {
   DEFAULT_MAP_STYLE,

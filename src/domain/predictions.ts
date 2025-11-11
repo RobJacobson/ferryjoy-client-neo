@@ -4,7 +4,6 @@ import type {
   ConvexModelParameters,
 } from "../../convex/functions/predictions/schemas";
 import type { DateFieldsToDate } from "./transformers";
-import { toDomain, toStorage } from "./transformers";
 
 // Re-export the inferred types from convex with domain-appropriate naming
 

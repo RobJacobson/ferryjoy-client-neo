@@ -1,10 +1,8 @@
-import type { VesselLocation as WsDottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import type {
   ConvexVesselPing,
   ConvexVesselPingCollection,
 } from "../../../convex/functions/vesselPings/schemas";
 import type { DateFieldsToDate } from "../transformers";
-import { toDomain } from "../transformers";
 
 // Re-export the inferred types from convex with domain-appropriate naming
 export type VesselPingCollection = ConvexVesselPingCollection;

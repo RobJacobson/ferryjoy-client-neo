@@ -1,7 +1,6 @@
-import type { VesselLocation as VesselLocationDottie } from "ws-dottie/wsf-vessels";
 import type { ConvexVesselLocation } from "../../../convex/functions/vesselLocation/schemas";
 import type { DateFieldsToDate } from "../transformers";
-import { toDomain, toStorage } from "../transformers";
+import { toDomain } from "../transformers";
 
 // Re-export the inferred type from convex with domain-appropriate naming
 

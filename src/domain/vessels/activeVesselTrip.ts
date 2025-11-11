@@ -1,5 +1,5 @@
 import type { ConvexActiveVesselTrip } from "../../../convex/functions/activeVesselTrips/schemas";
-import { type DateFieldsToDate, toDomain, toStorage } from "../transformers";
+import type { DateFieldsToDate } from "../transformers";
 
 // Re-export the inferred type from convex with domain-appropriate naming
 
