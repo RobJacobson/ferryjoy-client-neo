@@ -51,7 +51,7 @@ export const SmoothedVesselPositionsProvider = ({
   useEffect(() => {
     const newVesselLocations = getNewVessels(smoothedVessels, currentVessels);
     if (newVesselLocations.length > 0) {
-      setSmoothedVessels(prev => [...prev, ...newVesselLocations]);
+      setSmoothedVessels((prev) => [...prev, ...newVesselLocations]);
     }
   }, [currentVessels]);
 
@@ -59,7 +59,7 @@ export const SmoothedVesselPositionsProvider = ({
   useEffect(() => {
     // Schedule animation frames
     intervalRef.current = setInterval(() => {
-      setSmoothedVessels(prev => animateVesselsSafe(prev, currentVessels));
+      setSmoothedVessels((prev) => animateVesselsSafe(prev, currentVessels));
     }, SMOOTHING_INTERVAL_MS);
 
     // Cleanup timer on unmount
