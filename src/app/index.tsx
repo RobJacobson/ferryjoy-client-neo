@@ -43,6 +43,12 @@ export default function Home() {
             Terminal Information
           </Button>
         </Link>
+
+        <Link href={"/vesselPings" as RelativePathString} asChild>
+          <Button variant="outline" className="mt-2">
+            Vessel Pings
+          </Button>
+        </Link>
       </View>
     </View>
   );
