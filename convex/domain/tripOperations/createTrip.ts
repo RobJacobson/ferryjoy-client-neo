@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { ActionCtx } from "@convex/_generated/server";
 
-import { getVesselAbbreviation } from "@/data/utils/vesselAbbreviations";
+import { getVesselAbbreviation } from "@domain/vesselAbbreviations";
 
 import type { ConvexActiveVesselTrip } from "../../functions/activeVesselTrips/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
