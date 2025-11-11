@@ -2,9 +2,14 @@ import { Stack } from "expo-router";
 import { View } from "react-native";
 import { MapComponent } from "@/features/MapComponent";
 import { MapVesselMarkers } from "@/features/MapVesselMarkers";
-import { MapStateProvider, useMapState } from "@/shared/contexts";
+import {
+  MapStateProvider,
+  SmoothedVesselPositionsProvider,
+  useMapState,
+  WsDottieProvider,
+} from "@/shared/contexts";
 
-// Inner component that uses the context to get initial state
+// Inner component that uses context to get initial state
 const MapPageContent = () => {
   const { cameraState } = useMapState();
 
@@ -12,11 +17,9 @@ const MapPageContent = () => {
     <View className="flex-1">
       <Stack.Screen options={{ title: "Map" }} />
       <MapComponent initialCameraState={cameraState}>
-        <MapVesselMarkers
-          onVesselPress={vessel => {
-            console.log("Vessel pressed:", vessel.VesselID);
-          }}
-        />
+        <SmoothedVesselPositionsProvider>
+          <MapVesselMarkers />
+        </SmoothedVesselPositionsProvider>
       </MapComponent>
     </View>
   );
@@ -24,7 +27,9 @@ const MapPageContent = () => {
 
 const MapPage = () => (
   <MapStateProvider>
-    <MapPageContent />
+    <WsDottieProvider>
+      <MapPageContent />
+    </WsDottieProvider>
   </MapStateProvider>
 );
 
