@@ -6,8 +6,7 @@ export * from "../utils/calculateVesselPositions";
 export * from "../utils/projectVesselPosition";
 export {
   ConvexProvider,
-  useConvexData,
-  type VesselTrip,
+  useConvexData as useConvex,
 } from "./ConvexContext";
 export { MapStateProvider, useMapState } from "./MapStateContext";
 export {
