@@ -1,5 +1,7 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
+import type { ConvexVesselLocation } from "../vesselLocation/schemas";
 
 // Schema for database storage (Convex format with undefined for optional fields)
 export const activeVesselTripSchema = v.object({
@@ -27,3 +29,32 @@ export const activeVesselTripSchema = v.object({
 
 // Export inferred types for use in domain layer
 export type ConvexActiveVesselTrip = Infer<typeof activeVesselTripSchema>;
+
+/**
+ * Converts vessel location to active trip format
+ */
+export const toConvexActiveVesselTrip = (
+  location: ConvexVesselLocation,
+  tripStart: number
+): ConvexActiveVesselTrip => ({
+  VesselID: location.VesselID,
+  VesselName: location.VesselName ?? "",
+  VesselAbbrev: getVesselAbbreviation(location.VesselName ?? ""),
+  DepartingTerminalID: location.DepartingTerminalID,
+  DepartingTerminalName: location.DepartingTerminalName ?? "",
+  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev ?? "",
+  ArrivingTerminalID: location.ArrivingTerminalID,
+  ArrivingTerminalName: location.ArrivingTerminalName,
+  ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+  ScheduledDeparture: location.ScheduledDeparture,
+  LeftDock: location.LeftDock,
+  LeftDockActual: undefined,
+  LeftDockDelay: undefined,
+  Eta: location.Eta,
+  InService: location.InService,
+  AtDock: location.AtDock,
+  OpRouteAbbrev: location.OpRouteAbbrev,
+  VesselPositionNum: location.VesselPositionNum,
+  TimeStamp: location.TimeStamp,
+  TripStart: tripStart,
+});

@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/** biome-ignore-all lint/suspicious/noExplicitAny: hardcoded fields */
-
-import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 import { api, internal } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
@@ -10,6 +6,7 @@ import { internalAction } from "../../_generated/server";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
 import type { ConvexActiveVesselTrip } from "./schemas";
+import { toConvexActiveVesselTrip } from "./schemas";
 
 // Special value for the first incomplete trip for each vessel
 // Equals 2020-01-01 00:00:00 UTC
@@ -23,7 +20,7 @@ const FIRST_TRIP_START_MS = 1577836800000;
  */
 export const updateActiveVesselTrips = internalAction({
   args: {},
-  handler: async ctx => {
+  handler: async (ctx) => {
     // Fetch current vessel locations from WSF API
     const currentLocations = (await fetchVesselLocations()).map(
       toConvexVesselLocation
@@ -38,7 +35,7 @@ export const updateActiveVesselTrips = internalAction({
     for (const location of currentLocations) {
       try {
         const existingTrip = existingTrips.find(
-          trip => trip.VesselID === location.VesselID
+          (trip) => trip.VesselID === location.VesselID
         );
 
         if (!existingTrip) {
@@ -50,7 +47,7 @@ export const updateActiveVesselTrips = internalAction({
             internal.functions.completedVesselTrips.actions
               .addCompletedVesselTrip,
             {
-              completedTrip: existingTrip,
+              activeTrip: existingTrip,
               endTime: location.TimeStamp,
             }
           );
@@ -91,7 +88,7 @@ const createNewActiveTrip = async (
   location: ConvexVesselLocation,
   tripStart: number
 ): Promise<void> => {
-  const newTrip = convertLocationToActiveTrip(location, tripStart);
+  const newTrip = toConvexActiveVesselTrip(location, tripStart);
 
   // Ensure uniqueness by removing any existing active trips for this vessel
   await ctx.runMutation(
@@ -142,8 +139,9 @@ const updateExistingTrip = async (
   }
 
   // Convert Doc to ConvexActiveVesselTrip for the mutation
+  const { _id, _creationTime, ...tripFields } = existingTrip;
   const tripToUpdate: ConvexActiveVesselTrip = {
-    ...existingTrip,
+    ...tripFields,
     ...updatedTripData,
     TimeStamp: location.TimeStamp,
   };
@@ -159,35 +157,6 @@ const updateExistingTrip = async (
 };
 
 /**
- * Converts vessel location to active trip format
- */
-const convertLocationToActiveTrip = (
-  location: ConvexVesselLocation,
-  tripStart: number
-): ConvexActiveVesselTrip => ({
-  VesselID: location.VesselID,
-  VesselName: location.VesselName ?? "",
-  VesselAbbrev: getVesselAbbreviation(location.VesselName ?? ""),
-  DepartingTerminalID: location.DepartingTerminalID,
-  DepartingTerminalName: location.DepartingTerminalName ?? "",
-  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev ?? "",
-  ArrivingTerminalID: location.ArrivingTerminalID,
-  ArrivingTerminalName: location.ArrivingTerminalName,
-  ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-  ScheduledDeparture: location.ScheduledDeparture,
-  LeftDock: location.LeftDock,
-  LeftDockActual: undefined,
-  LeftDockDelay: undefined,
-  Eta: location.Eta,
-  InService: location.InService,
-  AtDock: location.AtDock,
-  OpRouteAbbrev: location.OpRouteAbbrev,
-  VesselPositionNum: location.VesselPositionNum,
-  TimeStamp: location.TimeStamp,
-  TripStart: tripStart,
-});
-
-/**
  * Gets updated trip data by comparing existing trip with new location
  * Returns only fields that have changed
  */
@@ -198,7 +167,7 @@ const getUpdatedTripData = (
   const updatedTrip: Partial<ConvexActiveVesselTrip> = {};
 
   // Update common fields that have changed
-  commonFields.forEach(field => {
+  commonFields.forEach((field) => {
     const locationValue = location[field];
     const tripValue = existingTrip[field];
 
