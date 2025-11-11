@@ -11,7 +11,7 @@ import { Text, View } from "@/components/ui";
 import { useMapState, type VesselWithProjection } from "@/shared/contexts";
 import { useVesselPulseAnimation } from "@/shared/hooks";
 import { cn } from "@/shared/utils/cn";
-import { Marker, ScaledMarker, ViewportAwareMarker } from "../MapMarkers";
+import { Marker, ScaledMarker } from "../MapMarkers";
 
 /**
  * MapVesselMarker component
@@ -41,14 +41,16 @@ import { Marker, ScaledMarker, ViewportAwareMarker } from "../MapMarkers";
  */
 export const MapVesselMarker = ({
   vessel,
+  zIndex,
 }: {
   vessel: VesselWithProjection;
+  zIndex?: number;
 }) => {
   return (
     <Marker
       longitude={vessel.Longitude}
       latitude={vessel.Latitude}
-      id={vessel.VesselID.toString()}
+      zIndex={zIndex}
     >
       <ScaledMarker longitude={vessel.Longitude} latitude={vessel.Latitude}>
         {vessel.InService ? (
