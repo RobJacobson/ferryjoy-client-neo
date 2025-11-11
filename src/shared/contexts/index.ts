@@ -3,6 +3,7 @@
  */
 
 export * from "../utils/calculateVesselPositions";
+export * from "../utils/projectVesselPosition";
 export { MapStateProvider, useMapState } from "./MapStateContext";
 export {
   SmoothedVesselPositionsProvider,

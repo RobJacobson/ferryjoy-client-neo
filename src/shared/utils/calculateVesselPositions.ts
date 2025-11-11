@@ -1,5 +1,9 @@
 import { distance } from "@turf/turf";
 import type { VesselLocation } from "ws-dottie/wsf-vessels";
+import {
+  createVesselWithProjection,
+  PROJECTION_TIME_MS,
+} from "./projectVesselPosition";
 
 // Animation timing constants
 export const SMOOTHING_INTERVAL_MS = 1000; // Update animation every second
@@ -12,27 +16,34 @@ export const TELEPORT_THRESHOLD_KM = 0.5; // Detect teleportation beyond 500m
 export const COORDINATE_PRECISION = 6; // ~1 meter precision (6 decimal places)
 export const HEADING_THRESHOLD_DEGREES = 45; // Snap to new heading if >45° difference
 
-type VesselsRecord = Record<number, VesselLocation>;
+// Type for vessels with projection data
+export type VesselWithProjection = VesselLocation & {
+  ProjectedLatitude?: number;
+  ProjectedLongitude?: number;
+  ProjectionTimestamp?: number;
+};
+
+type VesselsRecord = Record<number, VesselWithProjection>;
 
 /**
  * Identifies and adds newly appeared vessels to the animation system.
  *
  * Compares current vessel data with animated vessels to find vessels
  * that have appeared but aren't yet being animated. These new vessels
- * are added to the animation system without smoothing for immediate display.
+ * are added to the animation system with projected positions for immediate animation.
  *
  * @param animatedVessels Currently animated vessels
  * @param currentVessels Latest vessel location data
- * @returns Array of new vessels to add
+ * @returns Array of new vessels to add with projection data
  */
 export const getNewVessels = (
-  animatedVessels: VesselLocation[],
+  animatedVessels: VesselWithProjection[],
   currentVessels: VesselLocation[]
-): VesselLocation[] => {
+): VesselWithProjection[] => {
   const animatedVesselsSet = toVesselsSet(animatedVessels);
-  return currentVessels.filter(
-    vessel => !animatedVesselsSet.has(vessel.VesselID)
-  );
+  return currentVessels
+    .filter(vessel => !animatedVesselsSet.has(vessel.VesselID))
+    .map(vessel => createVesselWithProjection(vessel));
 };
 
 /**
@@ -47,9 +58,9 @@ export const getNewVessels = (
  * @returns Either animated vessels or current vessels as fallback
  */
 export const animateVesselsSafe = (
-  animatedVessels: VesselLocation[],
+  animatedVessels: VesselWithProjection[],
   currentVessels: VesselLocation[]
-): VesselLocation[] => {
+): VesselWithProjection[] => {
   try {
     return animateVessels(animatedVessels, currentVessels);
   } catch (error) {
@@ -61,7 +72,7 @@ export const animateVesselsSafe = (
         currentVesselCount: currentVessels.length,
       }
     );
-    return currentVessels;
+    return currentVessels.map(vessel => createVesselWithProjection(vessel));
   }
 };
 
@@ -72,7 +83,7 @@ export const animateVesselsSafe = (
  * @param vessels Array of vessel locations
  * @returns Set of VesselIDs
  */
-export const toVesselsSet = (vessels: VesselLocation[]): Set<number> =>
+export const toVesselsSet = (vessels: VesselWithProjection[]): Set<number> =>
   new Set(vessels.map(vessel => vessel.VesselID));
 
 /**
@@ -81,16 +92,17 @@ export const toVesselsSet = (vessels: VesselLocation[]): Set<number> =>
  * Creates smooth transitions between GPS updates by blending current and previous
  * positions. Uses 93.3% previous position + 6.7% current position for natural
  * movement. Detects teleportation events (route changes, docking) and snaps
- * to new position instead of smoothing.
+ * to new position instead of smoothing. Animates toward projected positions
+ * to ensure continuous movement.
  *
  * @param animatedVessels Currently smoothed vessel positions
  * @param currentVessels Latest GPS vessel location data
  * @returns Array of smoothly animated vessel positions
  */
 export const animateVessels = (
-  animatedVessels: VesselLocation[],
+  animatedVessels: VesselWithProjection[],
   currentVessels: VesselLocation[]
-): VesselLocation[] => {
+): VesselWithProjection[] => {
   const currentVesselsRecord = toVesselsRecord(currentVessels);
   return animatedVessels
     .map(smoothedVessel => {
@@ -107,21 +119,71 @@ export const animateVessels = (
           calculateDistance(smoothedVessel, currentVessel) >
           TELEPORT_THRESHOLD_KM
         ) {
-          return currentVessel; // Snap to new position
+          // Create new vessel with projection when teleportation is detected
+          return createVesselWithProjection(currentVessel);
+        }
+
+        // Check if we need to update the projection
+        const now = Date.now();
+        const shouldUpdateProjection =
+          !smoothedVessel.ProjectionTimestamp ||
+          now - smoothedVessel.ProjectionTimestamp > PROJECTION_TIME_MS;
+
+        // Get target position (current or projected)
+        let targetLatitude = currentVessel.Latitude;
+        let targetLongitude = currentVessel.Longitude;
+
+        if (shouldUpdateProjection) {
+          // Create new projection
+          const vesselWithProjection =
+            createVesselWithProjection(currentVessel);
+          targetLatitude =
+            vesselWithProjection.ProjectedLatitude || currentVessel.Latitude;
+          targetLongitude =
+            vesselWithProjection.ProjectedLongitude || currentVessel.Longitude;
+
+          // Return vessel with updated projection
+          return {
+            ...currentVessel,
+            Latitude: smoothCoordinate(
+              smoothedVessel.Latitude,
+              currentVessel.Latitude
+            ),
+            Longitude: smoothCoordinate(
+              smoothedVessel.Longitude,
+              currentVessel.Longitude
+            ),
+            Heading: smoothHeading(
+              smoothedVessel.Heading,
+              currentVessel.Heading
+            ),
+            ProjectedLatitude: vesselWithProjection.ProjectedLatitude,
+            ProjectedLongitude: vesselWithProjection.ProjectedLongitude,
+            ProjectionTimestamp: vesselWithProjection.ProjectionTimestamp,
+          };
+        }
+
+        // Use existing projection if available
+        if (
+          smoothedVessel.ProjectedLatitude &&
+          smoothedVessel.ProjectedLongitude
+        ) {
+          targetLatitude = smoothedVessel.ProjectedLatitude;
+          targetLongitude = smoothedVessel.ProjectedLongitude;
         }
 
         // Apply exponential smoothing to coordinates and heading
         return {
           ...currentVessel,
-          Latitude: smoothCoordinate(
-            smoothedVessel.Latitude,
-            currentVessel.Latitude
-          ),
+          Latitude: smoothCoordinate(smoothedVessel.Latitude, targetLatitude),
           Longitude: smoothCoordinate(
             smoothedVessel.Longitude,
-            currentVessel.Longitude
+            targetLongitude
           ),
           Heading: smoothHeading(smoothedVessel.Heading, currentVessel.Heading),
+          ProjectedLatitude: smoothedVessel.ProjectedLatitude,
+          ProjectedLongitude: smoothedVessel.ProjectedLongitude,
+          ProjectionTimestamp: smoothedVessel.ProjectionTimestamp,
         };
       } catch (error) {
         console.error("Error animating vessel", {
@@ -131,7 +193,7 @@ export const animateVessels = (
         return undefined;
       }
     })
-    .filter((vessel): vessel is VesselLocation => vessel !== undefined);
+    .filter((vessel): vessel is VesselWithProjection => vessel !== undefined);
 };
 
 /**
@@ -143,7 +205,7 @@ export const animateVessels = (
  */
 export const toVesselsRecord = (vessels: VesselLocation[]): VesselsRecord =>
   vessels.reduce((acc, vessel) => {
-    acc[vessel.VesselID] = vessel;
+    acc[vessel.VesselID] = createVesselWithProjection(vessel);
     return acc;
   }, {} as VesselsRecord);
 
@@ -158,8 +220,8 @@ export const toVesselsRecord = (vessels: VesselLocation[]): VesselsRecord =>
  * @returns Distance in kilometers
  */
 export const calculateDistance = (
-  vp1: VesselLocation,
-  vp2: VesselLocation
+  vp1: VesselLocation | VesselWithProjection,
+  vp2: VesselLocation | VesselWithProjection
 ): number =>
   distance([vp1.Longitude, vp1.Latitude], [vp2.Longitude, vp2.Latitude], {
     units: "kilometers",

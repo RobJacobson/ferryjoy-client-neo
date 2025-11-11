@@ -11,11 +11,12 @@ import {
   animateVesselsSafe,
   getNewVessels,
   SMOOTHING_INTERVAL_MS,
+  type VesselWithProjection,
 } from "@/shared/utils/calculateVesselPositions";
 import { useWsDottie } from "./WsDottieContext";
 
 type SmoothedVesselPositionsContextValue = {
-  smoothedVessels: VesselLocation[];
+  smoothedVessels: VesselWithProjection[];
 };
 
 const SmoothedVesselPositionsContext =
@@ -34,7 +35,9 @@ export const useSmoothedVesselPositions = () => {
 export const SmoothedVesselPositionsProvider = ({
   children,
 }: PropsWithChildren) => {
-  const [smoothedVessels, setSmoothedVessels] = useState<VesselLocation[]>([]);
+  const [smoothedVessels, setSmoothedVessels] = useState<
+    VesselWithProjection[]
+  >([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(
     undefined
   );
@@ -43,7 +46,7 @@ export const SmoothedVesselPositionsProvider = ({
   const { vesselLocations } = useWsDottie();
   const currentVessels = vesselLocations.data || [];
 
-  // Add new vessels to the animation system
+  // Add new vessels to the animation system with projections
   // biome-ignore lint/correctness/useExhaustiveDependencies: only depends on currentVessels
   useEffect(() => {
     const newVesselLocations = getNewVessels(smoothedVessels, currentVessels);
