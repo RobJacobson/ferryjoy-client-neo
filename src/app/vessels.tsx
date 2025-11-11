@@ -1,16 +1,16 @@
-import { Stack } from "expo-router"
-import { useEffect } from "react"
-import { ActivityIndicator, FlatList, Text, View } from "react-native"
+import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
-import { useWsDottie } from "@/shared/contexts"
+import { useWsDottie } from "@/shared/contexts";
 
 export default function VesselsLocationScreen() {
-  const { vesselLocations, vesselsVerbose } = useWsDottie()
+  const { vesselLocations, vesselsVerbose } = useWsDottie();
 
   // Combine vessel location data with vessel details
   const getVesselDetails = (vesselId: number) => {
-    return vesselsVerbose.data?.find(vessel => vessel.VesselID === vesselId)
-  }
+    return vesselsVerbose.data?.find((vessel) => vessel.VesselID === vesselId);
+  };
 
   return (
     <View className="flex-1 bg-background p-4">
@@ -30,9 +30,9 @@ export default function VesselsLocationScreen() {
       ) : (
         <FlatList
           data={vesselLocations.data}
-          keyExtractor={item => item.VesselID.toString()}
+          keyExtractor={(item) => item.VesselID.toString()}
           renderItem={({ item }) => {
-            const vesselDetails = getVesselDetails(item.VesselID)
+            const vesselDetails = getVesselDetails(item.VesselID);
             return (
               <View className="bg-card p-4 mb-2 rounded-lg border border-border">
                 <Text className="font-bold text-lg text-primary">
@@ -83,7 +83,7 @@ export default function VesselsLocationScreen() {
                   </View>
                 )}
               </View>
-            )
+            );
           }}
           ListEmptyComponent={
             <Text className="text-center mt-4">
@@ -93,5 +93,5 @@ export default function VesselsLocationScreen() {
         />
       )}
     </View>
-  )
+  );
 }
