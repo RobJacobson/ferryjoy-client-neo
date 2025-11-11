@@ -1,5 +1,4 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.3/schema.json",
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -12,8 +11,8 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedImports": "off",
-        "noUnusedVariables": "off",
+        "noUnusedImports": "warn",
+        "noUnusedVariables": "warn",
         "useHookAtTopLevel": "error",
         "useExhaustiveDependencies": "warn"
       },
@@ -42,10 +41,11 @@
     }
   },
   "assist": {
-    "enabled": true,
     "actions": {
       "source": {
-        "organizeImports": "on"
+        "organizeImports": {
+          "level": "on"
+        }
       }
     }
   }
