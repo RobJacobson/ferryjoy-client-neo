@@ -10,7 +10,7 @@ import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { Text, View } from "@/components/ui";
 import { useMapState, type VesselWithProjection } from "@/shared/contexts";
 import { useVesselPulseAnimation } from "@/shared/hooks";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/utils/cn";
 import { Marker, ScaledMarker, ViewportAwareMarker } from "../MapMarkers";
 
 /**
