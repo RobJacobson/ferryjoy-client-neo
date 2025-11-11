@@ -13,7 +13,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@domain/*": ["../src/domain/*"]
+      "src/*": ["../src/*"]
     },
 
     /* These compiler options are required by Convex */

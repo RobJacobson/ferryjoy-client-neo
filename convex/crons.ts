@@ -6,8 +6,8 @@ const crons = cronJobs();
 
 crons.interval(
   "update vessel trips",
-  { seconds: 15 }, // every ffteen seconds
-  internal.functions.activeVesselTrips.actions.updateVesselTrips
+  { seconds: 15 }, // every fifteen seconds
+  internal.functions.activeVesselTrips.actions.updateActiveVesselTrips
 );
 
 crons.cron(

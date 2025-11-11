@@ -8,7 +8,10 @@ import {
   modelParametersMutationSchema,
 } from "./functions/predictions/schemas";
 import { vesselLocationValidationSchema } from "./functions/vesselLocation/schemas";
-import { vesselPingValidationSchema } from "./functions/vesselPings/schemas";
+import {
+  vesselPingCollectionValidationSchema,
+  vesselPingValidationSchema,
+} from "./functions/vesselPings/schemas";
 
 export default defineSchema({
   // Active vessel trips - frequently updated, small dataset
@@ -26,10 +29,11 @@ export default defineSchema({
       "ScheduledDeparture",
     ]),
 
-  // Vessel pings for tracking movement (using shared validation schema)
-  vesselPings: defineTable(vesselPingValidationSchema).index("by_timestamp", [
-    "TimeStamp",
-  ]),
+  // Vessel ping collections - stores arrays of vessel pings with timestamps
+  vesselPings: defineTable(vesselPingCollectionValidationSchema).index(
+    "by_timestamp",
+    ["timestamp"]
+  ),
 
   // Vessel locations combining vessel location data
   vesselLocations: defineTable(vesselLocationValidationSchema)
