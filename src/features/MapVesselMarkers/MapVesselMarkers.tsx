@@ -53,7 +53,7 @@ export const MapVesselMarkers = () => {
   return (
     <MapMarkers
       data={vesselMarkerData}
-      renderMarker={vessel => (
+      renderMarker={(vessel) => (
         <MapVesselMarker
           key={vessel.VesselID}
           vessel={vessel}

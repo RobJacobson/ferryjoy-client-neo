@@ -58,5 +58,5 @@ export const MapMarkers = <T extends MapMarkerData>({
     return null;
   }
 
-  return <>{data?.map(item => renderMarker(item))}</>;
+  return <>{data?.map((item) => renderMarker(item))}</>;
 };
