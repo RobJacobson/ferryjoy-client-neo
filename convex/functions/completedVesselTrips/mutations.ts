@@ -1,5 +1,6 @@
-import { mutation } from "@convex/_generated/server";
 import { ConvexError, v } from "convex/values";
+import type { MutationCtx } from "../../_generated/server";
+import { mutation } from "../../_generated/server";
 
 import {
   type ConvexCompletedVesselTrip,
@@ -26,4 +27,3 @@ export const insert = mutation({
     }
   },
 });
-6;

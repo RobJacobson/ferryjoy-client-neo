@@ -1,5 +1,6 @@
-import { query } from "@convex/_generated/server";
 import { ConvexError, v } from "convex/values";
+import type { QueryCtx } from "../../_generated/server";
+import { query } from "../../_generated/server";
 
 /**
  * API function for fetching completed vessel trips for ML training

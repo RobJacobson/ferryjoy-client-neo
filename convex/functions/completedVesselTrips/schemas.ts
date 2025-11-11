@@ -1,11 +1,10 @@
-import type { Doc } from "@convex/_generated/dataModel";
+import { type Infer, v } from "convex/values";
 import {
   type CompletedVesselTrip,
-  type StoredCompletedVesselTrip,
-  toCompletedVesselTrip as toDomainCompletedTrip,
-  toStoredCompletedVesselTrip,
-} from "@domain";
-import { type Infer, v } from "convex/values";
+  toConvexCompletedVesselTrip as toConvexCompletedVesselTripFromDomain,
+  fromConvexCompletedVesselTrip as toDomainCompletedTrip,
+} from "src/domain";
+import type { Doc } from "../../_generated/dataModel";
 
 import { activeVesselTripSchema } from "../activeVesselTrips/schemas";
 export const completedVesselTripSchema = v.object({
@@ -22,9 +21,7 @@ export const completedVesselTripSchema = v.object({
   TotalDuration: v.number(),
 });
 
-/**
- * Type for Convex completed vessel trip
- */
+// Export inferred types for use in domain layer
 export type ConvexCompletedVesselTrip = Infer<typeof completedVesselTripSchema>;
 
 /**
@@ -38,10 +35,10 @@ export type ConvexCompletedVesselTrip = Infer<typeof completedVesselTripSchema>;
 export const toCompletedTrip = (
   cvt: Doc<"completedVesselTrips">
 ): CompletedVesselTrip =>
-  toDomainCompletedTrip(cvt as StoredCompletedVesselTrip);
+  toDomainCompletedTrip(cvt as ConvexCompletedVesselTrip);
 
 /**
- * Converts raw WSF vessel location data to Convex format
+ * Converts domain format completed vessel trip to Convex format
  * Date → number, null → undefined
  *
  * @param trip - The domain format completed vessel trip to convert
@@ -50,5 +47,4 @@ export const toCompletedTrip = (
  */
 export const toConvexCompletedVesselTrip = (
   trip: CompletedVesselTrip
-): ConvexCompletedVesselTrip =>
-  toStoredCompletedVesselTrip(trip) as ConvexCompletedVesselTrip;
+): ConvexCompletedVesselTrip => toConvexCompletedVesselTripFromDomain(trip);
