@@ -1,10 +1,8 @@
 import type { ActiveVesselTrip } from "src/domain";
-import { fromConvexCompletedVesselTrip } from "src/domain/vessels/completedVesselTrip";
+import { toDomainCompletedVesselTrip } from "src/domain/vessels/completedVesselTrip";
 import { api } from "../../../_generated/api";
 import type { ActionCtx } from "../../../_generated/server";
 import type { TripPair, ValidatedTrip } from "../types";
-
-// import { fromConvexCompletedVesselTrip } from "../../functions/completedVesselTrips/schemas";
 
 // ============================================================================
 // MAIN FUNCTION
@@ -48,7 +46,7 @@ const loadTrips = async (ctx: ActionCtx): Promise<ActiveVesselTrip[]> => {
   const convexTrips = await ctx.runQuery(
     api.functions.completedVesselTrips.queries.getCompletedTrips
   );
-  return convexTrips.map(fromConvexCompletedVesselTrip);
+  return convexTrips.map(toDomainCompletedVesselTrip);
 };
 
 /**
