@@ -1,8 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { internalAction } from "@convex/_generated/server";
+import { toVesselLocation } from "@domain";
 import { WsfVessels } from "ws-dottie";
-
-import { toVesselLocation } from "@/data/types/VesselLocation";
 
 import { toConvexVesselLocation } from "./schemas";
 
@@ -13,7 +12,7 @@ import { toConvexVesselLocation } from "./schemas";
  */
 export const fetchAndStoreVesselLocations = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     // Fetch current vessel data from WSF API
     const rawVesselData = await WsfVessels.getVesselLocations();
 

@@ -1,7 +1,11 @@
+import {
+  fromStoredVesselPing,
+  type StoredVesselPing,
+  toStoredVesselPing,
+  type VesselPing,
+} from "@domain";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-
-import type { VesselPing } from "@/data/types/VesselPing";
 
 /**
  * Validation schema for vessel pings stored in Convex
@@ -24,25 +28,11 @@ export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
 /**
  * Convert domain vessel ping → Convex shape
  */
-export const toConvexVesselPing = (domain: VesselPing): ConvexVesselPing => ({
-  VesselID: domain.VesselID,
-  Latitude: domain.Latitude,
-  Longitude: domain.Longitude,
-  Speed: domain.Speed,
-  Heading: domain.Heading,
-  AtDock: domain.AtDock,
-  TimeStamp: domain.TimeStamp.getTime(),
-});
+export const toConvexVesselPing = (domain: VesselPing): ConvexVesselPing =>
+  toStoredVesselPing(domain) as ConvexVesselPing;
 
 /**
  * Convert Convex vessel ping → domain shape
  */
-export const fromConvexVesselPing = (convex: ConvexVesselPing): VesselPing => ({
-  VesselID: convex.VesselID,
-  Latitude: convex.Latitude,
-  Longitude: convex.Longitude,
-  Speed: convex.Speed,
-  Heading: convex.Heading,
-  AtDock: convex.AtDock,
-  TimeStamp: new Date(convex.TimeStamp),
-});
+export const fromConvexVesselPing = (convex: ConvexVesselPing): VesselPing =>
+  fromStoredVesselPing(convex as StoredVesselPing);

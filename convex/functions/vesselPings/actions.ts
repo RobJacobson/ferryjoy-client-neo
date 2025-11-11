@@ -1,8 +1,7 @@
 import { api, internal } from "@convex/_generated/api";
 import { internalAction } from "@convex/_generated/server";
 
-import { toVesselLocation } from "@/data/types/VesselLocation";
-import { toVesselPing } from "@/data/types/VesselPing";
+import { toVesselLocation, toVesselPing } from "@domain";
 
 import type { ConvexVesselPing } from "./schemas";
 import { toConvexVesselPing } from "./schemas";
@@ -25,7 +24,7 @@ export const fetchAndStoreVesselPings = internalAction({
     const { WsfVessels } = await import("ws-dottie");
     const rawLocations = await WsfVessels.getVesselLocations();
     const currLocations = rawLocations
-      .map((vl) => toVesselLocation(vl))
+      .map(vl => toVesselLocation(vl))
       .map(toVesselPing)
       .map(toConvexVesselPing);
 
@@ -55,7 +54,7 @@ export const fetchAndStoreVesselPings = internalAction({
  */
 export const cleanupOldPings = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     await ctx.runMutation(
       internal.functions.vesselPings.mutations.cleanupOldPingsMutation
     );

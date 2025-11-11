@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { ActionCtx } from "@convex/_generated/server";
 
-import type { ActiveVesselTrip } from "@/data/types/ActiveVesselTrip";
+import type { ActiveVesselTrip } from "@domain";
 
 import { toCompletedTrip } from "../../../functions/completedVesselTrips/schemas";
 import type { TripPair, ValidatedTrip } from "../types";

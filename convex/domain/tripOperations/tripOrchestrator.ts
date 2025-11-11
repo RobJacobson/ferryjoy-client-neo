@@ -1,9 +1,8 @@
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import type { ActionCtx } from "@convex/_generated/server";
+import { toVesselLocation } from "@domain";
 import { WsfVessels } from "ws-dottie";
-
-import { toVesselLocation } from "@/data/types/VesselLocation";
 
 import type { ConvexActiveVesselTrip } from "../../functions/activeVesselTrips/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
@@ -104,8 +103,8 @@ export const getTripPairs = async (ctx: ActionCtx) => {
   );
 
   // Match each vessel location with its corresponding active trip
-  const tripPairs = currLocations.map((currLocation) => ({
-    currTrip: currTrips.find((trip) => trip.VesselID === currLocation.VesselID),
+  const tripPairs = currLocations.map(currLocation => ({
+    currTrip: currTrips.find(trip => trip.VesselID === currLocation.VesselID),
     currLocation,
   }));
   return tripPairs;
