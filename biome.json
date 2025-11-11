@@ -31,7 +31,7 @@
       "jsxQuoteStyle": "double",
       "trailingCommas": "es5",
       "semicolons": "always",
-      "arrowParentheses": "asNeeded",
+      "arrowParentheses": "always",
       "bracketSpacing": true,
       "bracketSameLine": false
     }
