@@ -1,4 +1,4 @@
 // Export all domain business logic modules
 
 export * from "./ml";
-export * from "./tripOperations";
+// tripOperations exports removed - functionality moved to activeVesselTrips and completedVesselTrips modules
