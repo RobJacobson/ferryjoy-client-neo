@@ -15,7 +15,6 @@
  *     <VesselMarker
  *       key={vessel.id}
  *       vessel={vessel}
- *       onPress={handleVesselPress}
  *     />
  *   )}
  * />

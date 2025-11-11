@@ -1,17 +1,21 @@
 /**
  * MapVesselMarkers component
- * Renders vessel markers on map using data from VesselLocations context
+ * Renders vessel markers on map using smoothed animated vessel positions
  */
 
 import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
-import { useMapState, useWsDottie } from "@/shared/contexts";
+import {
+  useMapState,
+  useSmoothedVesselPositions,
+  type VesselWithProjection,
+} from "@/shared/contexts";
 import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
- * Extends VesselLocation to conform to MapMarkerData interface
+ * Extends VesselWithProjection to conform to MapMarkerData interface
  */
-type VesselMarkerData = VesselLocation & MapMarkerData;
+type VesselMarkerData = VesselWithProjection & MapMarkerData;
 
 /**
  * Configuration constants for vessel markers
@@ -25,74 +29,46 @@ const VESSEL_MARKER_CONFIG = {
 /**
  * MapVesselMarkers component
  *
- * Fetches vessel data from the WsDottie context and renders markers on the map using the generic MapMarkers component.
- * Handles loading states, error states, and visibility based on zoom level.
- * Each vessel is rendered as a MapVesselMarker component with a pink circular indicator.
+ * Fetches smoothed vessel position data from SmoothedVesselPositions context and renders markers on the map using the generic MapMarkers component.
+ * The smoothed positions provide fluid animation between GPS updates using exponential smoothing.
+ * Handles visibility based on zoom level.
+ * Each vessel is rendered as a MapVesselMarker with appropriate styling based on service status.
  * In-service vessels are rendered with a higher z-index to appear above out-of-service vessels.
- *
- * @param onVesselPress - Optional callback function triggered when a vessel marker is pressed
  *
  * @returns React elements representing vessel markers or null if vessels should not be displayed
  *
  * @example
  * ```tsx
- * // Basic usage without press handler
+ * // Basic usage
  * <MapVesselMarkers />
- *
- * // With press handler
- * <MapVesselMarkers
- *   onVesselPress={(vessel) => navigation.navigate('VesselDetails', { vesselId: vessel.VesselID })}
- * />
  * ```
  */
-export const MapVesselMarkers = ({
-  onVesselPress,
-}: {
-  onVesselPress?: (vessel: VesselLocation) => void;
-}) => {
-  const { vesselLocations } = useWsDottie();
+export const MapVesselMarkers = () => {
+  const { smoothedVessels } = useSmoothedVesselPositions();
 
-  // Transform vessel data to conform to MapMarkerData if needed
-  const vesselMarkerData: VesselMarkerData[] | undefined =
-    vesselLocations.data?.map(toVesselMarkerData);
-
-  // Separate vessels into in-service and out-of-service groups
-  const inServiceVessels =
-    vesselMarkerData?.filter(vessel => vessel.InService) || [];
-  const outOfServiceVessels =
-    vesselMarkerData?.filter(vessel => !vessel.InService) || [];
+  // Transform vessel data to conform to MapMarkerData
+  const vesselMarkerData: VesselMarkerData[] =
+    smoothedVessels.map(toVesselMarkerData);
 
   return (
-    <>
-      {/* Render out-of-service vessels first with lower z-index */}
-      <MapMarkers
-        data={outOfServiceVessels}
-        renderMarker={vessel => (
-          <MapVesselMarker
-            key={vessel.VesselID}
-            vessel={vessel}
-            onPress={onVesselPress}
-            zIndex={VESSEL_MARKER_CONFIG.OUT_OF_SERVICE_Z_INDEX}
-          />
-        )}
-      />
-      {/* Render in-service vessels second with higher z-index */}
-      <MapMarkers
-        data={inServiceVessels}
-        renderMarker={vessel => (
-          <MapVesselMarker
-            key={vessel.VesselID}
-            vessel={vessel}
-            onPress={onVesselPress}
-            zIndex={VESSEL_MARKER_CONFIG.IN_SERVICE_Z_INDEX}
-          />
-        )}
-      />
-    </>
+    <MapMarkers
+      data={vesselMarkerData}
+      renderMarker={vessel => (
+        <MapVesselMarker
+          key={vessel.VesselID}
+          vessel={vessel}
+          zIndex={
+            vessel.InService
+              ? VESSEL_MARKER_CONFIG.IN_SERVICE_Z_INDEX
+              : VESSEL_MARKER_CONFIG.OUT_OF_SERVICE_Z_INDEX
+          }
+        />
+      )}
+    />
   );
 };
 
-const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
+const toVesselMarkerData = (vessel: VesselWithProjection): VesselMarkerData => {
   return {
     ...vessel,
     id: vessel.VesselID.toString(),

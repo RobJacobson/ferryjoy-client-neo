@@ -24,6 +24,7 @@
 
 import MapboxRN from "@rnmapbox/maps";
 import type { ReactElement } from "react";
+import type { MarkerProps } from "./shared";
 
 /**
  * Native marker component that wraps MapboxRN.MarkerView
@@ -61,12 +62,7 @@ export const Marker = ({
   latitude,
   children,
   zIndex = 1,
-}: {
-  longitude: number;
-  latitude: number;
-  children: ReactElement;
-  zIndex?: number;
-}) => {
+}: MarkerProps) => {
   return (
     <MapboxRN.MarkerView
       coordinate={[longitude, latitude]}
