@@ -1,8 +1,6 @@
-import { api } from "@convex/_generated/api";
-import { internalAction } from "@convex/_generated/server";
-import { toVesselLocation } from "@domain";
-import { WsfVessels } from "ws-dottie";
-
+import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import { api } from "../../_generated/api";
+import { internalAction } from "../../_generated/server";
 import { toConvexVesselLocation } from "./schemas";
 
 /**
@@ -14,18 +12,9 @@ export const fetchAndStoreVesselLocations = internalAction({
   args: {},
   handler: async ctx => {
     // Fetch current vessel data from WSF API
-    const rawVesselData = await WsfVessels.getVesselLocations();
-
-    // Map to VesselLocation
-    const vesselLocations = rawVesselData.map(toVesselLocation);
-
-    // Validate we got reasonable data
-    if (vesselLocations.length === 0) {
-      throw new Error("No vessel data received from WSF API");
-    }
-
-    // Convert to Convex-safe types (ms/undefined) before crossing action→mutation boundary
-    const convexLocations = vesselLocations.map(toConvexVesselLocation);
+    const convexLocations = (await fetchVesselLocations()).map(
+      toConvexVesselLocation
+    );
 
     // Store locations to database
     await ctx.runMutation(api.functions.vesselLocation.mutations.bulkInsert, {
