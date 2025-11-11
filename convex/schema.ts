@@ -8,10 +8,7 @@ import {
   modelParametersMutationSchema,
 } from "./functions/predictions/schemas";
 import { vesselLocationValidationSchema } from "./functions/vesselLocation/schemas";
-import {
-  vesselPingCollectionValidationSchema,
-  vesselPingValidationSchema,
-} from "./functions/vesselPings/schemas";
+import { vesselPingCollectionValidationSchema } from "./functions/vesselPings/schemas";
 
 export default defineSchema({
   // Active vessel trips - frequently updated, small dataset

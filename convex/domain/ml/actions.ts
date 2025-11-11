@@ -1,8 +1,6 @@
-import { v } from "convex/values";
 import { api } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
-import type { ActionCtx } from "../../_generated/server";
-import { internalAction } from "../../_generated/server";
+import { type ActionCtx, internalAction } from "../../_generated/server";
 
 import { activeVesselTripSchema } from "../../functions/activeVesselTrips";
 import { predict } from "./predict";

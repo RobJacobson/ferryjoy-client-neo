@@ -10,7 +10,7 @@ import type {
 // MAIN ENCODING FUNCTION
 // ============================================================================
 
-const logPairInfo = (pair: TripPair) => {
+const _logPairInfo = (pair: TripPair) => {
   const { prevTrip, currTrip } = pair;
   console.log(
     `${prevTrip.VesselName} ${prevTrip.LeftDock.toDateString()} -------------------------------`

@@ -6,8 +6,6 @@ import type { TripPair, ValidatedTrip } from "../types";
 
 // import { fromConvexCompletedVesselTrip } from "../../functions/completedVesselTrips/schemas";
 
-type VesselTripsByVessel = Record<string, ValidatedTrip[]>;
-
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================

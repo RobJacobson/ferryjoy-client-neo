@@ -1,12 +1,15 @@
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 import { api, internal } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
-import type { ActionCtx } from "../../_generated/server";
-import { internalAction } from "../../_generated/server";
-import type { ConvexVesselLocation } from "../vesselLocation/schemas";
-import { toConvexVesselLocation } from "../vesselLocation/schemas";
-import type { ConvexActiveVesselTrip } from "./schemas";
-import { toConvexActiveVesselTrip } from "./schemas";
+import { type ActionCtx, internalAction } from "../../_generated/server";
+import {
+  type ConvexVesselLocation,
+  toConvexVesselLocation,
+} from "../vesselLocation/schemas";
+import {
+  type ConvexActiveVesselTrip,
+  toConvexActiveVesselTrip,
+} from "./schemas";
 
 // Special value for the first incomplete trip for each vessel
 // Equals 2020-01-01 00:00:00 UTC

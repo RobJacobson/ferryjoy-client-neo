@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import type { MutationCtx } from "../../_generated/server";
 import { mutation } from "../../_generated/server";
 
 import { activeVesselTripSchema, type ConvexActiveVesselTrip } from "./schemas";

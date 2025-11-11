@@ -1,5 +1,4 @@
-import { ConvexError, v } from "convex/values";
-import type { MutationCtx } from "../../_generated/server";
+import { ConvexError } from "convex/values";
 import { mutation } from "../../_generated/server";
 
 import {
