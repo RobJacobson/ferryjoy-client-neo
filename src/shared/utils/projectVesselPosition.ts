@@ -59,7 +59,7 @@ export const projectVesselPosition = (
 export const projectVesselPositions = (
   vessels: VesselLocation[]
 ): VesselLocation[] => {
-  return vessels.map(vessel => projectVesselPosition(vessel));
+  return vessels.map((vessel) => projectVesselPosition(vessel));
 };
 
 /**

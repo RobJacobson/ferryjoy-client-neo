@@ -42,8 +42,8 @@ export const getNewVessels = (
 ): VesselWithProjection[] => {
   const animatedVesselsSet = toVesselsSet(animatedVessels);
   return currentVessels
-    .filter(vessel => !animatedVesselsSet.has(vessel.VesselID))
-    .map(vessel => createVesselWithProjection(vessel));
+    .filter((vessel) => !animatedVesselsSet.has(vessel.VesselID))
+    .map((vessel) => createVesselWithProjection(vessel));
 };
 
 /**
@@ -72,7 +72,7 @@ export const animateVesselsSafe = (
         currentVesselCount: currentVessels.length,
       }
     );
-    return currentVessels.map(vessel => createVesselWithProjection(vessel));
+    return currentVessels.map((vessel) => createVesselWithProjection(vessel));
   }
 };
 
@@ -84,7 +84,7 @@ export const animateVesselsSafe = (
  * @returns Set of VesselIDs
  */
 export const toVesselsSet = (vessels: VesselWithProjection[]): Set<number> =>
-  new Set(vessels.map(vessel => vessel.VesselID));
+  new Set(vessels.map((vessel) => vessel.VesselID));
 
 /**
  * Applies exponential smoothing to vessel positions for fluid map animations.
@@ -105,7 +105,7 @@ export const animateVessels = (
 ): VesselWithProjection[] => {
   const currentVesselsRecord = toVesselsRecord(currentVessels);
   return animatedVessels
-    .map(smoothedVessel => {
+    .map((smoothedVessel) => {
       try {
         const currentVessel = currentVesselsRecord[smoothedVessel.VesselID];
 

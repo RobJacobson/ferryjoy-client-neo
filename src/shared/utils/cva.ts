@@ -1,3 +1,3 @@
-import { type VariantProps, cva } from "class-variance-authority"
+import { type VariantProps, cva } from "class-variance-authority";
 
-export { type VariantProps, cva }
+export { type VariantProps, cva };
