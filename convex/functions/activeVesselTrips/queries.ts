@@ -1,5 +1,5 @@
-import { query } from "@convex/_generated/server";
 import { ConvexError, v } from "convex/values";
+import { query } from "../../_generated/server";
 
 /**
  * API function for fetching active vessel trips (currently in progress)
