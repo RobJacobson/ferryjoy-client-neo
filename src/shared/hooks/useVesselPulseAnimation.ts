@@ -10,6 +10,12 @@
 
 "use no memo";
 
+const OPACITY_MIN = 0.25;
+const OPACITY_MAX = 1;
+
+const DURATION_MIN = 1000;
+const DURATION_MAX = 5000;
+
 import { useEffect, useState } from "react";
 import {
   cancelAnimation,
@@ -19,7 +25,7 @@ import {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { clamp, lerp } from "@/shared/utils";
+import { lerp } from "@/shared/utils";
 
 /**
  * Hook for creating vessel pulsing animation based on speed
@@ -29,7 +35,7 @@ import { clamp, lerp } from "@/shared/utils";
  */
 export const useVesselPulseAnimation = (speed: number) => {
   // Create shared value for animation state
-  const opacity = useSharedValue<number>(0.25);
+  const opacity = useSharedValue<number>(OPACITY_MIN);
 
   // Use state to track if we have an active animation
   const [hasActiveAnimation, setHasActiveAnimation] = useState(false);
@@ -43,17 +49,12 @@ export const useVesselPulseAnimation = (speed: number) => {
     }
 
     if (speed > 0) {
-      // Calculate animation duration based on current speed
-      const getDuration = (speedValue: number) => {
-        return clamp(lerp(speedValue, 0, 20, 5000, 1000), 1000, 5000);
-      };
-
       // Start pulsing animation for moving vessels
-      const duration = getDuration(speed);
+      const duration = lerp(speed, 0, 20, DURATION_MAX, DURATION_MIN);
       setHasActiveAnimation(true);
 
       opacity.value = withRepeat(
-        withTiming(0.75, {
+        withTiming(OPACITY_MAX, {
           duration: duration / 2,
           easing: Easing.inOut(Easing.cubic),
         }),
@@ -63,7 +64,7 @@ export const useVesselPulseAnimation = (speed: number) => {
     } else {
       // Set static opacity for stationary vessels - ONLY when speed changes, not on every render
       if (speed === 0) {
-        opacity.value = 0.25;
+        opacity.value = OPACITY_MIN;
       }
     }
   }, [speed, hasActiveAnimation, opacity]);
