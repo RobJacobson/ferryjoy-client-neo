@@ -9,7 +9,7 @@ import {
 import { Stack } from "expo-router";
 import type { PropsWithChildren } from "react";
 import {
-  ConvexProvider,
+  ConvexCombinedProvider,
   MapStateProvider,
   WsDottieProvider,
 } from "@/shared/contexts";
@@ -45,7 +45,7 @@ const Providers = ({ children }: PropsWithChildren) => {
       <QueryClientProvider client={queryClient}>
         <MapStateProvider>
           <WsDottieProvider>
-            <ConvexProvider>{children}</ConvexProvider>
+            <ConvexCombinedProvider>{children}</ConvexCombinedProvider>
           </WsDottieProvider>
         </MapStateProvider>
       </QueryClientProvider>

@@ -4,7 +4,7 @@ import { MapComponent } from "@/features/MapComponent";
 import { MapVesselMarkers } from "@/features/MapVesselMarkers";
 import { VesselLines } from "@/features/VesselLines";
 import {
-  ConvexProvider,
+  ConvexCombinedProvider,
   MapStateProvider,
   SmoothedVesselPositionsProvider,
   useMapState,
@@ -31,9 +31,9 @@ const MapPageContent = () => {
 const MapPage = () => (
   <MapStateProvider>
     <WsDottieProvider>
-      <ConvexProvider>
+      <ConvexCombinedProvider>
         <MapPageContent />
-      </ConvexProvider>
+      </ConvexCombinedProvider>
     </WsDottieProvider>
   </MapStateProvider>
 );

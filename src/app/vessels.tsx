@@ -1,10 +1,11 @@
 import { Stack } from "expo-router";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
-import { useWsDottie } from "@/shared/contexts";
+import { useWsDottie, useConvexVesselLocations } from "@/shared/contexts";
 
 export default function VesselsLocationScreen() {
-  const { vesselLocations, vesselsVerbose } = useWsDottie();
+  const { vesselLocations, isLoading, error } = useConvexVesselLocations();
+  const { vesselsVerbose } = useWsDottie();
 
   // Combine vessel location data with vessel details
   const getVesselDetails = (vesselId: number) => {
@@ -15,20 +16,20 @@ export default function VesselsLocationScreen() {
     <View className="flex-1 bg-background p-4">
       <Stack.Screen options={{ title: "Vessel Locations" }} />
 
-      {vesselLocations.isLoading ? (
+      {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" />
           <Text className="mt-2">Loading vessel locations...</Text>
         </View>
-      ) : vesselLocations.error ? (
+      ) : error ? (
         <View className="flex-1 items-center justify-center">
           <Text className="text-red-500">
-            Error: {vesselLocations.error.message}
+            Error: {error}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={vesselLocations.data}
+          data={vesselLocations}
           keyExtractor={(item) => item.VesselID.toString()}
           renderItem={({ item }) => {
             const vesselDetails = getVesselDetails(item.VesselID);
