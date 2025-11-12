@@ -60,8 +60,6 @@ export const ConvexProvider = ({ children }: PropsWithChildren) => {
     vesselPings: toSortedGroupedPings(latestPingsCollections),
   };
 
-  console.log(contextValue.vesselPings);
-
   return <ConvexContext value={contextValue}>{children}</ConvexContext>;
 };
 
@@ -70,16 +68,25 @@ const toSortedGroupedPings = (
 ) => {
   if (!latestPingsCollections) return {};
 
-  // Transform the data into a mapping of VesselID to an array of VesselPings
-  const vesselPings = latestPingsCollections
-    .flatMap((collection) => collection.pings.map(toDomainVesselPing))
-    .toSorted((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
+  // Transform the data into a sorted array of VesselPings
+  const vesselPings = [
+    ...latestPingsCollections.flatMap((collection) =>
+      collection.pings.map(toDomainVesselPing)
+    ),
+  ].sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
 
-  // Group pings by VesselID using Object.groupBy (ES2023)
-  const groupedPings = Object.groupBy(
-    vesselPings || [],
-    (ping) => ping.VesselID
-  ) as Record<number, VesselPing[]>;
+  // Group pings by VesselID using reduce to preserve sort order
+  const groupedPings = vesselPings.reduce(
+    (acc, ping) => {
+      const vesselId = ping.VesselID;
+      if (!acc[vesselId]) {
+        acc[vesselId] = [];
+      }
+      acc[vesselId].push(ping);
+      return acc;
+    },
+    {} as Record<number, VesselPing[]>
+  );
 
   return groupedPings;
 };
