@@ -69,7 +69,7 @@ const InServiceVesselMarker = ({
 }) => {
   return (
     <View
-      className="bg-pink-400 rounded-full border-2 border-white justify-center items-center w-16 h-16"
+      className="bg-pink-400 rounded-full border-4 border-white justify-center items-center w-16 h-16"
       style={shadowStyle}
     >
       {vessel.Heading && <VesselArrow vessel={vessel} />}
@@ -81,17 +81,17 @@ const shadowStyle = {
   // iOS shadows
   shadowColor: "#000",
   shadowOffset: { width: 1, height: 2 },
-  shadowOpacity: 0.5,
-  shadowRadius: 4,
+  shadowOpacity: 0.25,
+  shadowRadius: 3,
 
   // Android elevation
-  elevation: 5,
+  elevation: 4,
 };
 
 const OutOfServiceVesselMarker = () => {
   return (
     <View
-      className="bg-pink-500/10 rounded-full border-2 border-white/50 justify-center items-center w-16 h-16"
+      className="bg-pink-500/10 rounded-full border-4 border-white/50 justify-center items-center w-16 h-16"
       style={shadowStyle}
     />
   );
@@ -112,7 +112,7 @@ const VesselArrow = ({ vessel }: { vessel: VesselLocation }) => {
   return (
     <View style={{ transform: [{ rotate: `${rotationAngle}deg` }] }}>
       <Animated.View style={animatedStyle}>
-        <Text className="text-white font-bold text-lg">{" ❯"}</Text>
+        <Text className="text-white font-bold text-lg">{" )"}</Text>
       </Animated.View>
     </View>
   );
