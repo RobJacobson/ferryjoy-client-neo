@@ -2,14 +2,14 @@
  * VesselLines component
  *
  * Container component that manages and renders vessel track lines for all vessels.
- * Fetches vessel ping data from ConvexContext, processes data for each vessel,
+ * Fetches vessel ping data from ConvexVesselPingsContext, processes data for each vessel,
  * and renders VesselLine components with appropriate styling.
  */
 
 import { bezierSpline, lineString } from "@turf/turf";
 import type React from "react";
 import type { VesselPing } from "@/domain/vessels/vesselPing";
-import { useConvexData } from "@/shared/contexts/ConvexContext";
+import { useConvexVesselPings } from "@/shared/contexts/ConvexVesselPingsContext";
 import { useSmoothedVesselPositions } from "@/shared/contexts/SmoothedVesselPositionsContext";
 import { VesselLine } from "./VesselLine";
 
@@ -28,7 +28,7 @@ import { VesselLine } from "./VesselLine";
  * ```
  */
 export const VesselLines = () => {
-  const { vesselPings } = useConvexData();
+  const { vesselPings } = useConvexVesselPings();
   const { smoothedVessels } = useSmoothedVesselPositions();
 
   // Process vessel data and create VesselLine components using reduce
