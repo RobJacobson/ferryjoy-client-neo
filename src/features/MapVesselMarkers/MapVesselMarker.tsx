@@ -5,11 +5,9 @@
  * This component is responsible for the visual representation of a single vessel.
  */
 
-import Animated from "react-native-reanimated";
-import type { VesselLocation } from "ws-dottie/wsf-vessels";
 import { Text, View } from "@/components/ui";
 import { useMapState, type VesselWithProjection } from "@/shared/contexts";
-import { useVesselPulseAnimation } from "@/shared/hooks";
+import { cn } from "@/shared/utils/cn";
 import { Marker, ScaledMarker } from "../MapMarkers";
 
 /**
@@ -52,24 +50,23 @@ export const MapVesselMarker = ({
       zIndex={zIndex}
     >
       <ScaledMarker longitude={vessel.Longitude} latitude={vessel.Latitude}>
-        {vessel.InService ? (
-          <InServiceVesselMarker vessel={vessel} />
-        ) : (
-          <OutOfServiceVesselMarker />
-        )}
+        <VesselMarker vessel={vessel} />
       </ScaledMarker>
     </Marker>
   );
 };
 
-const InServiceVesselMarker = ({
-  vessel,
-}: {
-  vessel: VesselWithProjection;
-}) => {
+const VesselMarker = ({ vessel }: { vessel: VesselWithProjection }) => {
   return (
     <View
-      className="bg-pink-400 rounded-full border-4 border-white justify-center items-center w-16 h-16"
+      className={cn(
+        "rounded-full border-4 justify-center items-center w-16 h-16",
+        vessel.InService
+          ? vessel.AtDock
+            ? "bg-gray-300 border-white"
+            : "bg-pink-400 border-white"
+          : "bg-pink-500/10 border-white/50"
+      )}
       style={shadowStyle}
     >
       {vessel.Heading && <VesselArrow vessel={vessel} />}
@@ -88,32 +85,20 @@ const shadowStyle = {
   elevation: 4,
 };
 
-const OutOfServiceVesselMarker = () => {
-  return (
-    <View
-      className="bg-pink-500/10 rounded-full border-4 border-white/50 justify-center items-center w-16 h-16"
-      style={shadowStyle}
-    />
-  );
-};
-
-const VesselArrow = ({ vessel }: { vessel: VesselLocation }) => {
+const VesselArrow = ({ vessel }: { vessel: VesselWithProjection }) => {
   "use no memo";
 
   // Get map heading from context
   const { cameraState } = useMapState();
-
-  // Apply pulsing animation based on vessel speed
-  const animatedStyle = useVesselPulseAnimation(vessel.Speed || 0);
 
   // Convert compass heading (north = 0) to css rotation angle (east = 0), then adjust for map rotation
   const rotationAngle = vessel.Heading - cameraState.heading - 90;
 
   return (
     <View style={{ transform: [{ rotate: `${rotationAngle}deg` }] }}>
-      <Animated.View style={animatedStyle}>
+      <View className={cn(vessel.Speed > 0 ? "opacity-100" : "opacity-50")}>
         <Text className="text-white font-bold text-lg">{" )"}</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 };
