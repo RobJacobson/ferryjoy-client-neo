@@ -11,6 +11,9 @@ export const SMOOTHING_PERIOD_MS = 15000; // 15-second smoothing window
 export const NEW_WEIGHT = SMOOTHING_INTERVAL_MS / SMOOTHING_PERIOD_MS; // 0.067 (6.7% new data weight)
 export const PREV_WEIGHT = 1 - NEW_WEIGHT; // 0.933 (93.3% previous data weight)
 
+// Teleportation detection timing
+export const TELEPORTATION_CHECK_INTERVAL_MS = 100; // Check for teleportation every 100ms
+
 // Thresholds for vessel behavior
 export const TELEPORT_THRESHOLD_KM = 0.5; // Detect teleportation beyond 500m
 export const COORDINATE_PRECISION = 6; // ~1 meter precision (6 decimal places)
@@ -87,13 +90,50 @@ export const toVesselsSet = (vessels: VesselWithProjection[]): Set<number> =>
   new Set(vessels.map((vessel) => vessel.VesselID));
 
 /**
+ * Checks for vessel teleportation and immediately updates vessels that have teleported.
+ *
+ * This function runs more frequently than the main animation loop to detect
+ * sudden position changes (teleportation) and immediately update those vessels
+ * to prevent awkward pauses before teleportation is handled.
+ *
+ * @param animatedVessels Currently animated vessels
+ * @param currentVessels Latest vessel location data
+ * @returns Updated vessels with teleportation handled
+ */
+export const checkForTeleportation = (
+  animatedVessels: VesselWithProjection[],
+  currentVessels: VesselLocation[]
+): VesselWithProjection[] => {
+  const currentVesselsRecord = toVesselsRecord(currentVessels);
+
+  return animatedVessels.map((smoothedVessel) => {
+    const currentVessel = currentVesselsRecord[smoothedVessel.VesselID];
+
+    // Keep existing vessel if no current data available
+    if (!currentVessel) {
+      return smoothedVessel;
+    }
+
+    // Detect teleportation (sudden large position changes)
+    if (
+      calculateDistance(smoothedVessel, currentVessel) > TELEPORT_THRESHOLD_KM
+    ) {
+      // Create new vessel with projection when teleportation is detected
+      return createVesselWithProjection(currentVessel);
+    }
+
+    // Return unchanged vessel if no teleportation detected
+    return smoothedVessel;
+  });
+};
+
+/**
  * Applies exponential smoothing to vessel positions for fluid map animations.
  *
  * Creates smooth transitions between GPS updates by blending current and previous
  * positions. Uses 93.3% previous position + 6.7% current position for natural
- * movement. Detects teleportation events (route changes, docking) and snaps
- * to new position instead of smoothing. Animates toward projected positions
- * to ensure continuous movement.
+ * movement. Animates toward projected positions to ensure continuous movement.
+ * Note: Teleportation detection is now handled separately by checkForTeleportation().
  *
  * @param animatedVessels Currently smoothed vessel positions
  * @param currentVessels Latest GPS vessel location data
@@ -112,15 +152,6 @@ export const animateVessels = (
         // Keep existing vessel if no current data available
         if (!currentVessel) {
           return smoothedVessel;
-        }
-
-        // Detect teleportation (sudden large position changes)
-        if (
-          calculateDistance(smoothedVessel, currentVessel) >
-          TELEPORT_THRESHOLD_KM
-        ) {
-          // Create new vessel with projection when teleportation is detected
-          return createVesselWithProjection(currentVessel);
         }
 
         // Check if we need to update the projection

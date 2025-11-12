@@ -8,8 +8,10 @@ import {
 } from "react";
 import {
   animateVesselsSafe,
+  checkForTeleportation,
   getNewVessels,
   SMOOTHING_INTERVAL_MS,
+  TELEPORTATION_CHECK_INTERVAL_MS,
   type VesselWithProjection,
 } from "@/shared/utils/calculateVesselPositions";
 import { useWsDottie } from "./WsDottieContext";
@@ -40,6 +42,9 @@ export const SmoothedVesselPositionsProvider = ({
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(
     undefined
   );
+  const teleportationCheckIntervalRef = useRef<
+    ReturnType<typeof setInterval> | undefined
+  >(undefined);
 
   // Get real-time vessel location data from WsDottieContext
   const { vesselLocations } = useWsDottie();
@@ -66,6 +71,20 @@ export const SmoothedVesselPositionsProvider = ({
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = undefined;
+      }
+    };
+  }, [currentVessels]);
+
+  // Teleportation detection loop
+  useEffect(() => {
+    teleportationCheckIntervalRef.current = setInterval(() => {
+      setSmoothedVessels((prev) => checkForTeleportation(prev, currentVessels));
+    }, TELEPORTATION_CHECK_INTERVAL_MS);
+
+    return () => {
+      if (teleportationCheckIntervalRef.current) {
+        clearInterval(teleportationCheckIntervalRef.current);
+        teleportationCheckIntervalRef.current = undefined;
       }
     };
   }, [currentVessels]);
