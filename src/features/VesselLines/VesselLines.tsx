@@ -8,9 +8,11 @@
 
 import { bezierSpline, lineString } from "@turf/turf";
 import type React from "react";
+import { smoothingConfig } from "@/config/smoothingConfig";
 import type { VesselPing } from "@/domain/vessels/vesselPing";
 import { useConvexVesselPings } from "@/shared/contexts/ConvexVesselPingsContext";
 import { useSmoothedVesselPositions } from "@/shared/contexts/SmoothedVesselPositionsContext";
+import { createSmoothedLineWithD3 } from "@/shared/utils/d3CurveSmoothing";
 import { VesselLine } from "./VesselLine";
 
 /**
@@ -68,7 +70,7 @@ export const VesselLines = () => {
 };
 
 /**
- * Converts vessel pings to a GeoJSON LineString
+ * Converts vessel pings to a GeoJSON LineString using configured smoothing method
  *
  * @param pings - Array of vessel pings
  * @param currentPosition - Optional current smoothed position [longitude, latitude] to prepend to the line
@@ -78,19 +80,15 @@ export const smoothedLine = (
   pings: VesselPing[],
   currentPosition?: [number, number]
 ) => {
-  // Filter out pings that are less than 30 seconds old
-  const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
-  const filteredPings = pings.filter(
-    (ping) => ping.TimeStamp <= thirtySecondsAgo
-  );
+  // Filter out pings that are less than the configured minimum age
+  const minAgeMs = smoothingConfig.minAgeSeconds * 1000;
+  const cutoffTime = new Date(Date.now() - minAgeMs);
+  const filteredPings = pings.filter((ping) => ping.TimeStamp <= cutoffTime);
 
   // Skip if we don't have enough points for a line after filtering
   if (!filteredPings || filteredPings.length < 2) {
     return null;
   }
-
-  // Limit to a reasonable number of points for performance
-  const maxPoints = 50;
 
   // Convert to GeoJSON LineString coordinates [longitude, latitude]
   let coordinates = filteredPings.map((ping) => [
@@ -104,16 +102,23 @@ export const smoothedLine = (
   }
 
   // Apply the maxPoints limit after potentially adding the current position
-  if (coordinates.length > maxPoints) {
-    coordinates = coordinates.slice(0, maxPoints);
+  if (coordinates.length > smoothingConfig.maxPoints) {
+    coordinates = coordinates.slice(0, smoothingConfig.maxPoints);
   }
 
-  // Create a LineString feature
-  const line = lineString(coordinates);
-  const smoothed = bezierSpline(line, {
-    resolution: 5000,
-    sharpness: 0.75,
-  });
-
-  return smoothed;
+  // Use the configured smoothing method
+  switch (smoothingConfig.method) {
+    case "d3-basis":
+      return createSmoothedLineWithD3(pings, currentPosition);
+    case "turf-bezier":
+    default: {
+      // Fallback to original bezierSpline with config parameters
+      const line = lineString(coordinates);
+      const smoothed = bezierSpline(line, {
+        resolution: smoothingConfig.resolution,
+        sharpness: smoothingConfig.sharpness,
+      });
+      return smoothed;
+    }
+  }
 };
