@@ -78,8 +78,14 @@ export const smoothedLine = (
   pings: VesselPing[],
   currentPosition?: [number, number]
 ) => {
-  // Skip if we don't have enough points for a line
-  if (!pings || pings.length < 2) {
+  // Filter out pings that are less than 30 seconds old
+  const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+  const filteredPings = pings.filter(
+    (ping) => ping.TimeStamp <= thirtySecondsAgo
+  );
+
+  // Skip if we don't have enough points for a line after filtering
+  if (!filteredPings || filteredPings.length < 2) {
     return null;
   }
 
@@ -87,7 +93,10 @@ export const smoothedLine = (
   const maxPoints = 50;
 
   // Convert to GeoJSON LineString coordinates [longitude, latitude]
-  let coordinates = pings.map((ping) => [ping.Longitude, ping.Latitude]);
+  let coordinates = filteredPings.map((ping) => [
+    ping.Longitude,
+    ping.Latitude,
+  ]);
 
   // Prepend the current smoothed position if provided
   if (currentPosition) {
