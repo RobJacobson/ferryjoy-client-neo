@@ -2,7 +2,9 @@ import { Stack } from "expo-router";
 import { View } from "react-native";
 import { MapComponent } from "@/features/MapComponent";
 import { MapVesselMarkers } from "@/features/MapVesselMarkers";
+import { VesselLines } from "@/features/VesselLines";
 import {
+  ConvexProvider,
   MapStateProvider,
   SmoothedVesselPositionsProvider,
   useMapState,
@@ -19,6 +21,7 @@ const MapPageContent = () => {
       <MapComponent initialCameraState={cameraState}>
         <SmoothedVesselPositionsProvider>
           <MapVesselMarkers />
+          <VesselLines />
         </SmoothedVesselPositionsProvider>
       </MapComponent>
     </View>
@@ -28,7 +31,9 @@ const MapPageContent = () => {
 const MapPage = () => (
   <MapStateProvider>
     <WsDottieProvider>
-      <MapPageContent />
+      <ConvexProvider>
+        <MapPageContent />
+      </ConvexProvider>
     </WsDottieProvider>
   </MapStateProvider>
 );
