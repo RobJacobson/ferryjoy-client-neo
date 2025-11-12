@@ -29,6 +29,11 @@ import type * as functions_completedVesselTrips_index from "../functions/complet
 import type * as functions_completedVesselTrips_mutations from "../functions/completedVesselTrips/mutations.js";
 import type * as functions_completedVesselTrips_queries from "../functions/completedVesselTrips/queries.js";
 import type * as functions_completedVesselTrips_schemas from "../functions/completedVesselTrips/schemas.js";
+import type * as functions_currentVesselLocation_actions from "../functions/currentVesselLocation/actions.js";
+import type * as functions_currentVesselLocation_index from "../functions/currentVesselLocation/index.js";
+import type * as functions_currentVesselLocation_mutations from "../functions/currentVesselLocation/mutations.js";
+import type * as functions_currentVesselLocation_queries from "../functions/currentVesselLocation/queries.js";
+import type * as functions_currentVesselLocation_schemas from "../functions/currentVesselLocation/schemas.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
@@ -75,6 +80,11 @@ declare const fullApi: ApiFromModules<{
   "functions/completedVesselTrips/mutations": typeof functions_completedVesselTrips_mutations;
   "functions/completedVesselTrips/queries": typeof functions_completedVesselTrips_queries;
   "functions/completedVesselTrips/schemas": typeof functions_completedVesselTrips_schemas;
+  "functions/currentVesselLocation/actions": typeof functions_currentVesselLocation_actions;
+  "functions/currentVesselLocation/index": typeof functions_currentVesselLocation_index;
+  "functions/currentVesselLocation/mutations": typeof functions_currentVesselLocation_mutations;
+  "functions/currentVesselLocation/queries": typeof functions_currentVesselLocation_queries;
+  "functions/currentVesselLocation/schemas": typeof functions_currentVesselLocation_schemas;
   "functions/index": typeof functions_index;
   "functions/predictions/index": typeof functions_predictions_index;
   "functions/predictions/mutations": typeof functions_predictions_mutations;
