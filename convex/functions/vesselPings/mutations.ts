@@ -24,20 +24,35 @@ export const storeVesselPingCollection = mutation({
 export const cleanupOldPingsMutation = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const CONFIG = { CLEANUP_HOURS: 2 };
+    const CONFIG = { CLEANUP_HOURS: 2, BATCH_SIZE: 50 };
     const cutoffTime = Date.now() - CONFIG.CLEANUP_HOURS * 60 * 60 * 1000;
+    let totalDeleted = 0;
 
-    // Get the records first, then delete in a single transaction
-    const oldPingCollections = await ctx.db
-      .query("vesselPings")
-      .filter((q) => q.lt(q.field("timestamp"), cutoffTime))
-      .collect();
+    // Process in batches to reduce write conflicts
+    while (true) {
+      // Use the index for more efficient querying
+      const oldPingCollections = await ctx.db
+        .query("vesselPings")
+        .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoffTime))
+        .take(CONFIG.BATCH_SIZE);
 
-    // Delete all records in a single transaction
-    for (const collection of oldPingCollections) {
-      await ctx.db.delete(collection._id);
+      if (oldPingCollections.length === 0) {
+        break; // No more old records to delete
+      }
+
+      // Delete all records in this batch
+      for (const collection of oldPingCollections) {
+        await ctx.db.delete(collection._id);
+      }
+
+      totalDeleted += oldPingCollections.length;
+
+      // If we got fewer records than the batch size, we're done
+      if (oldPingCollections.length < CONFIG.BATCH_SIZE) {
+        break;
+      }
     }
 
-    return oldPingCollections.length;
+    return totalDeleted;
   },
 });

@@ -16,7 +16,7 @@ crons.cron(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
-// Register a cron job to cleanup old vessel pings every 6 hours
+// Register a cron job to cleanup old vessel pings every hour
 crons.cron(
   "cleanup old vessel pings",
   "0 * * * *", // Every hour
@@ -33,7 +33,7 @@ crons.cron(
 // Register a cron job to update current vessel locations every minute
 crons.interval(
   "update current vessel locations",
-  { seconds: 5 }, // every 5 seconds
+  { seconds: 2 }, // every 2 seconds
   internal.functions.currentVesselLocation.actions.updateCurrentVesselLocations
 );
 export default crons;
