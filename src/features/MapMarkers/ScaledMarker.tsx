@@ -1,13 +1,13 @@
 /**
  * Generic ScaledMarker component for map markers
  * Handles zoom-based scaling, perspective scaling, and 3D transforms
- * Children are responsible for the visual appearance and styling
+ * Children are responsible for visual appearance and styling
  */
 
 import type { ReactNode } from "react";
 import { View } from "react-native";
-
 import { useMapState } from "@/shared/contexts";
+import { useZoomScale } from "@/shared/hooks/useZoomScale";
 import { clamp } from "@/shared/utils";
 import { mapProjectionUtils } from "@/shared/utils/mapProjection";
 
@@ -43,14 +43,14 @@ export const ScaledMarker = ({
     mapDimensions
   );
 
-  // Calculate perspective scale based on pitch and precise screen position
+  // Calculate perspective scale based on pitch and screen Y position
   const perspectiveScale = calculatePerspectiveScale(
     cameraState.pitch,
     screenY
   );
 
   // Calculate zoom-based scale (1.0 at zoom 10)
-  const zoomScale = calculateZoomScale(cameraState.zoomLevel);
+  const zoomScale = useZoomScale();
 
   // Calculate final marker size by combining both scaling factors
   const totalScale = perspectiveScale * zoomScale;
@@ -97,12 +97,3 @@ const calculatePerspectiveScale = (pitch: number, screenY: number): number => {
 
   return clamp(perspectiveFactor, 0.1, 10.0);
 };
-
-/**
- * Calculate zoom-based scaling factor
- * Maps zoom level to scale factor (1.0 at zoom 10)
- *
- * @param zoomLevel - The current zoom level of the map
- * @returns The zoom-based scaling factor
- */
-const calculateZoomScale = (zoomLevel: number): number => 0.1 * zoomLevel;
