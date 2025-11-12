@@ -6,13 +6,12 @@
  * and renders VesselLine components with appropriate styling.
  */
 
-import { bezierSpline, lineString } from "@turf/turf";
 import type React from "react";
 import { smoothingConfig } from "@/config/smoothingConfig";
 import type { VesselPing } from "@/domain/vessels/vesselPing";
 import { useConvexVesselPings } from "@/shared/contexts/ConvexVesselPingsContext";
 import { useSmoothedVesselPositions } from "@/shared/contexts/SmoothedVesselPositionsContext";
-import { createSmoothedLineWithD3 } from "@/shared/utils/d3CurveSmoothing";
+import { createSmoothedLine } from "./smoothing";
 import { VesselLine } from "./VesselLine";
 
 /**
@@ -80,45 +79,11 @@ export const smoothedLine = (
   pings: VesselPing[],
   currentPosition?: [number, number]
 ) => {
-  // Filter out pings that are less than the configured minimum age
-  const minAgeMs = smoothingConfig.minAgeSeconds * 1000;
-  const cutoffTime = new Date(Date.now() - minAgeMs);
-  const filteredPings = pings.filter((ping) => ping.TimeStamp <= cutoffTime);
-
-  // Skip if we don't have enough points for a line after filtering
-  if (!filteredPings || filteredPings.length < 2) {
-    return null;
-  }
-
-  // Convert to GeoJSON LineString coordinates [longitude, latitude]
-  let coordinates = filteredPings.map((ping) => [
-    ping.Longitude,
-    ping.Latitude,
-  ]);
-
-  // Prepend the current smoothed position if provided
-  if (currentPosition) {
-    coordinates = [currentPosition, ...coordinates];
-  }
-
-  // Apply the maxPoints limit after potentially adding the current position
-  if (coordinates.length > smoothingConfig.maxPoints) {
-    coordinates = coordinates.slice(0, smoothingConfig.maxPoints);
-  }
-
-  // Use the configured smoothing method
-  switch (smoothingConfig.method) {
-    case "d3-basis":
-      return createSmoothedLineWithD3(pings, currentPosition);
-    case "turf-bezier":
-    default: {
-      // Fallback to original bezierSpline with config parameters
-      const line = lineString(coordinates);
-      const smoothed = bezierSpline(line, {
-        resolution: smoothingConfig.resolution,
-        sharpness: smoothingConfig.sharpness,
-      });
-      return smoothed;
-    }
-  }
+  return createSmoothedLine(pings, currentPosition, smoothingConfig.method, {
+    tension: smoothingConfig.tension,
+    resolution: smoothingConfig.resolution,
+    sharpness: smoothingConfig.sharpness,
+    maxPoints: smoothingConfig.maxPoints,
+    minAgeSeconds: smoothingConfig.minAgeSeconds,
+  });
 };
