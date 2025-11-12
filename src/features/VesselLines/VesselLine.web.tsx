@@ -7,9 +7,16 @@
  */
 
 import { Layer, Source } from "react-map-gl/mapbox";
-import { LINE_CAP, LINE_GRADIENT, LINE_JOIN, LINE_WIDTH } from "./styles";
+import { useZoomScale } from "@/shared/hooks";
+import {
+  getLayerId,
+  getSourceId,
+  LINE_CAP,
+  LINE_GRADIENT,
+  LINE_JOIN,
+  LINE_WIDTH,
+} from "./shared";
 import type { VesselLineProps } from "./types";
-import { getLayerId, getSourceId } from "./utils";
 
 /**
  * VesselLine component (Web version)
@@ -36,6 +43,8 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
   const sourceId = getSourceId(id);
   const layerId = getLayerId(id);
 
+  const zoomScale = useZoomScale();
+
   return (
     <Source
       id={sourceId}
@@ -43,6 +52,7 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
       data={line}
       lineMetrics={true} // Enable line metrics for gradient support
     >
+      {/* Main line layer - rendered second (above) */}
       <Layer
         id={layerId}
         type="line"
@@ -53,7 +63,7 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
         }}
         paint={{
           "line-gradient": LINE_GRADIENT,
-          "line-width": LINE_WIDTH,
+          "line-width": LINE_WIDTH * zoomScale,
         }}
       />
     </Source>

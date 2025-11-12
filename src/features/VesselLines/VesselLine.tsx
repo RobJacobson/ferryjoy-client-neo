@@ -1,12 +1,19 @@
 import MapboxRN from "@rnmapbox/maps";
-import { LINE_CAP, LINE_GRADIENT, LINE_JOIN, LINE_WIDTH } from "./styles";
+import { useZoomScale } from "@/shared/hooks";
+import {
+  getLayerId,
+  getSourceId,
+  LINE_CAP,
+  LINE_GRADIENT,
+  LINE_JOIN,
+  LINE_WIDTH,
+} from "./shared";
 import type { VesselLineProps } from "./types";
-import { getLayerId, getSourceId } from "./utils";
 
 /**
  * VesselLine component
  *
- * Renders a vessel track line on the map.
+ * Renders a vessel track line on the map with a shadow effect.
  * The component receives a pre-processed GeoJSON LineString and renders it using Mapbox ShapeSource and LineLayer.
  *
  * @param line - GeoJSON LineString feature
@@ -26,6 +33,8 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
   const sourceId = getSourceId(id);
   const layerId = getLayerId(id);
 
+  const zoomScale = useZoomScale();
+
   return (
     <MapboxRN.ShapeSource
       id={sourceId}
@@ -37,7 +46,7 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
         sourceID={sourceId}
         slot="middle"
         style={{
-          lineWidth: LINE_WIDTH,
+          lineWidth: LINE_WIDTH * zoomScale,
           lineCap: LINE_CAP,
           lineJoin: LINE_JOIN,
           lineGradient: LINE_GRADIENT,
