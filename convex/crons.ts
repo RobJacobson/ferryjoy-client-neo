@@ -30,12 +30,10 @@ crons.cron(
   internal.functions.vesselLocation.actions.fetchAndStoreVesselLocations
 );
 
-// Register a cron job to train prediction models weekly
-// crons.cron(
-//   "train prediction models",
-//   "0 4 * * 0", // Every Sunday at 4 AM
-//   internal.ml.actions.trainPredictionModelsAction,
-//   {}
-// );
-
+// Register a cron job to update current vessel locations every minute
+crons.interval(
+  "update current vessel locations",
+  { seconds: 5 }, // every 5 seconds
+  internal.functions.currentVesselLocation.actions.updateCurrentVesselLocations
+);
 export default crons;

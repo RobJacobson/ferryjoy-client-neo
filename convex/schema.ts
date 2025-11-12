@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 
 import { activeVesselTripSchema } from "./functions/activeVesselTrips/schemas";
 import { completedVesselTripSchema } from "./functions/completedVesselTrips/schemas";
+import { currentVesselLocationValidationSchema } from "./functions/currentVesselLocation/schemas";
 import {
   currentPredictionDataSchema,
   historicalPredictionDataSchema,
@@ -36,6 +37,11 @@ export default defineSchema({
   vesselLocations: defineTable(vesselLocationValidationSchema)
     .index("by_timestamp", ["TimeStamp"])
     .index("by_vessel_id_and_timestamp", ["VesselID", "TimeStamp"]),
+
+  // Current vessel locations - latest position for each vessel
+  currentVesselLocations: defineTable(currentVesselLocationValidationSchema)
+    .index("by_vessel_id", ["VesselID"])
+    .index("by_timestamp", ["TimeStamp"]),
 
   // Prediction model parameters
   modelParameters: defineTable(modelParametersMutationSchema).index(
