@@ -14,7 +14,7 @@ import {
   TELEPORTATION_CHECK_INTERVAL_MS,
   type VesselWithProjection,
 } from "@/shared/utils/calculateVesselPositions";
-import { useWsDottie } from "./WsDottieContext";
+import { useConvexVesselLocations } from "./ConvexVesselLocationsContext";
 
 type SmoothedVesselPositionsContextValue = {
   smoothedVessels: VesselWithProjection[];
@@ -46,9 +46,9 @@ export const SmoothedVesselPositionsProvider = ({
     ReturnType<typeof setInterval> | undefined
   >(undefined);
 
-  // Get real-time vessel location data from WsDottieContext
-  const { vesselLocations } = useWsDottie();
-  const currentVessels = vesselLocations.data || [];
+  // Get real-time vessel location data from ConvexContext
+  const { vesselLocations } = useConvexVesselLocations();
+  const currentVessels = vesselLocations || [];
 
   // Add new vessels to the animation system with projections
   // biome-ignore lint/correctness/useExhaustiveDependencies: only depends on currentVessels

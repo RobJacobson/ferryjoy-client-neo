@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import type { CurrentVesselLocation } from "../../../convex/functions/currentVesselLocation/schemas";
 import type { ConvexVesselPingCollection } from "../../../convex/functions/vesselPings/schemas";
@@ -55,7 +55,7 @@ const ConvexContext = createContext<ConvexContextType | undefined>(undefined);
  * </ConvexProvider>
  * ```
  *
- * @param props - Component props
+ * @param props - Comptonent props
  * @param props.children - Child components that will have access to the vessel data
  * @returns A context provider component
  */
@@ -138,4 +138,38 @@ export const useConvexData = () => {
     throw new Error("useConvexData must be used within ConvexProvider");
   }
   return context;
+};
+
+/**
+ * Hook to access vessel locations with loading and error states.
+ *
+ * Provides vessel locations data with consistent loading and error states
+ * similar to React Query patterns used in WsDottieContext.
+ * Must be used within a ConvexProvider component.
+ *
+ * @example
+ * ```tsx
+ * const { vesselLocations, isLoading, error } = useConvexVesselLocations();
+ * if (isLoading) return <LoadingSpinner />;
+ * if (error) return <ErrorMessage error={error} />;
+ * return <VesselList vessels={vesselLocations} />;
+ * ```
+ *
+ * @returns Object with vessel locations, loading state, and error state
+ * @throws Error if used outside of ConvexProvider
+ */
+export const useConvexVesselLocations = () => {
+  const { vesselLocations } = useConvexData();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle loading states
+  useEffect(() => {
+    if (vesselLocations !== undefined) {
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [vesselLocations]);
+
+  return { vesselLocations: vesselLocations || [], isLoading, error };
 };
