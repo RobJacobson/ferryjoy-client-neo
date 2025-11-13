@@ -2,11 +2,10 @@
  * Shared contexts exports
  */
 
-export * from "../utils/calculateVesselPositions";
 export * from "../utils/projectVesselPosition";
 // Export combined provider
 export { ConvexCombinedProvider } from "./ConvexCombinedProvider";
-// Export the original context for backward compatibility
+// Export original context for backward compatibility
 export {
   ConvexProvider,
   useConvexData,

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { VesselLocation } from "@/domain/vessels/vesselLocation";
 import {
   animateVesselsSafe,
   checkForTeleportation,
@@ -17,7 +18,7 @@ import {
 import { useConvexVesselLocations } from "./ConvexVesselLocationsContext";
 
 type SmoothedVesselPositionsContextValue = {
-  smoothedVessels: VesselWithProjection[];
+  smoothedVessels: VesselLocation[];
 };
 
 const SmoothedVesselPositionsContext =
@@ -89,8 +90,18 @@ export const SmoothedVesselPositionsProvider = ({
     };
   }, [currentVessels]);
 
+  // Transform VesselWithProjection[] to VesselLocation[] for consumers
+  const transformedVessels: VesselLocation[] = smoothedVessels.map(
+    ({
+      ProjectedLatitude,
+      ProjectedLongitude,
+      ProjectionTimestamp,
+      ...vessel
+    }) => vessel
+  );
+
   const value = {
-    smoothedVessels,
+    smoothedVessels: transformedVessels,
   };
 
   return (
