@@ -1,10 +1,10 @@
 import MapboxRN from "@rnmapbox/maps";
 import { useZoomScale } from "@/shared/hooks";
 import {
+  createLineGradient,
   getLayerId,
   getSourceId,
   LINE_CAP,
-  LINE_GRADIENT,
   LINE_JOIN,
   LINE_WIDTH,
 } from "./shared";
@@ -18,6 +18,7 @@ import type { VesselLineProps } from "./types";
  *
  * @param line - GeoJSON LineString feature
  * @param id - Unique identifier for the line source
+ * @param rgbaColor - RGBA color values for the line [r, g, b, a]
  *
  * @returns A Mapbox ShapeSource with LineLayer for the vessel track
  *
@@ -26,14 +27,23 @@ import type { VesselLineProps } from "./types";
  * <VesselLine
  *   line={lineString}
  *   id={`vessel-line-${vesselId}`}
+ *   rgbaColor={[244, 114, 182, 0.75]}
  * />
  * ```
  */
-export const VesselLine = ({ line, id }: VesselLineProps) => {
+export const VesselLine = ({ line, id, rgbaColor }: VesselLineProps) => {
   const sourceId = getSourceId(id);
   const layerId = getLayerId(id);
 
   const zoomScale = useZoomScale();
+
+  // Create gradient with the provided RGBA color
+  const lineGradient = createLineGradient(
+    rgbaColor[0],
+    rgbaColor[1],
+    rgbaColor[2],
+    rgbaColor[3]
+  );
 
   return (
     <MapboxRN.ShapeSource
@@ -49,7 +59,7 @@ export const VesselLine = ({ line, id }: VesselLineProps) => {
           lineWidth: LINE_WIDTH * zoomScale,
           lineCap: LINE_CAP,
           lineJoin: LINE_JOIN,
-          lineGradient: LINE_GRADIENT,
+          lineGradient: lineGradient,
         }}
       />
     </MapboxRN.ShapeSource>

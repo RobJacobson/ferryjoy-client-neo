@@ -5,7 +5,6 @@ import {
   curveCardinal,
   curveCatmullRom,
 } from "d3";
-import type { VesselPing } from "@/domain/vessels/vesselPing";
 
 // Smoothing method constants
 export const SMOOTHING_METHODS = {
@@ -16,27 +15,23 @@ export const SMOOTHING_METHODS = {
 } as const;
 
 // Default sampling resolution for D3 curves
-export const D3_CURVE_SAMPLES = 20;
+export const D3_CURVE_SAMPLES = 10;
 
 /**
  * Creates a smoothed line using the configured smoothing method
  *
- * @param pings - Array of vessel ping data
- * @param currentPosition - Optional current smoothed position [longitude, latitude]
+ * @param coordinates - Array of [longitude, latitude] coordinates
  * @param method - Smoothing method to use
  * @param config - Configuration options for smoothing
  * @returns GeoJSON LineString feature with smoothed coordinates
  */
 export const createSmoothedLine = (
-  pings: VesselPing[],
-  currentPosition?: [number, number],
+  coordinates: [number, number][],
   method: string = SMOOTHING_METHODS.TURF_BEZIER,
   config?: {
     tension?: number;
     resolution?: number;
     sharpness?: number;
-    maxPoints?: number;
-    minAgeSeconds?: number;
   }
 ) => {
   // Use default config if not provided
@@ -44,35 +39,12 @@ export const createSmoothedLine = (
     tension: 0.5,
     resolution: 10000,
     sharpness: 0.95,
-    maxPoints: 50,
-    minAgeSeconds: 30,
     ...config,
   };
 
-  // Filter out pings that are less than the configured minimum age
-  const minAgeMs = finalConfig.minAgeSeconds * 1000;
-  const cutoffTime = new Date(Date.now() - minAgeMs);
-  const filteredPings = pings.filter((ping) => ping.TimeStamp <= cutoffTime);
-
   // Skip if we don't have enough points
-  if (!filteredPings || filteredPings.length < 2) {
+  if (!coordinates || coordinates.length < 2) {
     return null;
-  }
-
-  // Convert to GeoJSON LineString coordinates [longitude, latitude]
-  const coordinates: [number, number][] = filteredPings.map((ping) => [
-    ping.Longitude,
-    ping.Latitude,
-  ]);
-
-  // Prepend the current smoothed position if provided
-  if (currentPosition) {
-    coordinates.unshift(currentPosition);
-  }
-
-  // Apply the maxPoints limit after potentially adding the current position
-  if (coordinates.length > finalConfig.maxPoints) {
-    coordinates.splice(finalConfig.maxPoints);
   }
 
   // Apply selected smoothing method

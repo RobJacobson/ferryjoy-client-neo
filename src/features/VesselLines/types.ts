@@ -7,4 +7,6 @@ export interface VesselLineProps {
   inService: boolean;
   /** Unique identifier for line source */
   id: string;
+  /** RGBA color values for the line [r, g, b, a] */
+  rgbaColor: [number, number, number, number];
 }
