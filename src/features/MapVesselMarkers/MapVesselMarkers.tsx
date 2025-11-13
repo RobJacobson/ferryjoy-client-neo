@@ -3,17 +3,15 @@
  * Renders vessel markers on map using smoothed animated vessel positions
  */
 
+import type { VesselLocation } from "@/domain/vessels/vesselLocation";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
-import {
-  useSmoothedVesselPositions,
-  type VesselWithProjection,
-} from "@/shared/contexts";
+import { useSmoothedVesselPositions } from "@/shared/contexts";
 import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
- * Extends VesselWithProjection to conform to MapMarkerData interface
+ * Extends VesselLocation to conform to MapMarkerData interface
  */
-type VesselMarkerData = VesselWithProjection & MapMarkerData;
+type VesselMarkerData = VesselLocation & MapMarkerData;
 
 /**
  * Configuration constants for vessel markers
@@ -66,7 +64,7 @@ export const MapVesselMarkers = () => {
   );
 };
 
-const toVesselMarkerData = (vessel: VesselWithProjection): VesselMarkerData => {
+const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
   return {
     ...vessel,
     id: vessel.VesselID.toString(),

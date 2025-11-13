@@ -6,7 +6,8 @@
  */
 
 import { Text, View } from "@/components/ui";
-import { useMapState, type VesselWithProjection } from "@/shared/contexts";
+import type { VesselLocation } from "@/domain/vessels/vesselLocation";
+import { useMapState } from "@/shared/contexts";
 import { cn } from "@/shared/utils/cn";
 import { Marker, ScaledMarker } from "../MapMarkers";
 
@@ -50,22 +51,22 @@ export const MapVesselMarker = ({
       zIndex={zIndex}
     >
       <ScaledMarker longitude={vessel.Longitude} latitude={vessel.Latitude}>
-        <VesselMarker vessel={vessel} />
+        {vessel.InService ? (
+          <InServiceVesselMarker vessel={vessel} />
+        ) : (
+          <OutOfServiceVesselMarker />
+        )}
       </ScaledMarker>
     </Marker>
   );
 };
 
-const VesselMarker = ({ vessel }: { vessel: VesselWithProjection }) => {
+const InServiceVesselMarker = ({ vessel }: { vessel: VesselLocation }) => {
   return (
     <View
       className={cn(
-        "rounded-full border-4 justify-center items-center w-16 h-16",
-        vessel.InService
-          ? vessel.AtDock
-            ? "bg-gray-300 border-white"
-            : "bg-pink-400 border-white"
-          : "bg-pink-500/10 border-white/50"
+        "rounded-full border-[6px] justify-center items-center w-16 h-16 border-white",
+        vessel.AtDock ? "bg-pink-200" : "bg-pink-400"
       )}
       style={shadowStyle}
     >
@@ -73,6 +74,13 @@ const VesselMarker = ({ vessel }: { vessel: VesselWithProjection }) => {
     </View>
   );
 };
+
+const OutOfServiceVesselMarker = () => (
+  <View
+    className="w-16 h-16 items-center justify-center bg-white/25 rounded-full border-[6px] border-white/50"
+    style={shadowStyle}
+  ></View>
+);
 
 const shadowStyle = {
   // iOS shadows
