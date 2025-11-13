@@ -37,12 +37,12 @@ export const LINE_JOIN = "round";
  * @param a - Alpha component (0-1)
  * @returns Gradient array with the specified RGBA color at start and RGB with alpha=0 at end
  */
-// biome-ignore lint/suspicious/noExplicitAny: Cross-platform compatibility
 export const createLineGradient = (
   r: number,
   g: number,
   b: number,
   a: number
+  // biome-ignore lint/suspicious/noExplicitAny: Cross-platform compatibility
 ): any => [
   "interpolate",
   ["linear"],

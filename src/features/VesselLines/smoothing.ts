@@ -5,66 +5,82 @@ import {
   curveCardinal,
   curveCatmullRom,
 } from "d3";
+import type { Feature, LineString } from "geojson";
 
-// Smoothing method constants
-export const SMOOTHING_METHODS = {
-  D3_BASIS: "d3-basis",
-  D3_CARDINAL: "d3-cardinal",
-  D3_CATMULL_ROM: "d3-catmullRom",
-  TURF_BEZIER: "turf-bezier",
+// Simple type definition for the strategy function
+export type SmoothingStrategy = (
+  coordinates: [number, number][]
+) => Feature<LineString> | null;
+
+// Strategy object that directly maps strategy names to their implementations
+// Each strategy has its own hardcoded constants
+export const smoothingStrategies = {
+  // D3 Basis Strategy with hardcoded constants
+  d3Basis: (coordinates: [number, number][]) => {
+    if (!coordinates || coordinates.length < 2) return null;
+
+    const selectedCurve = curveBasis;
+    return createSmoothedLineWithCurve(coordinates, selectedCurve);
+  },
+
+  // D3 Cardinal Strategy with hardcoded constants
+  d3Cardinal: (coordinates: [number, number][]) => {
+    if (!coordinates || coordinates.length < 2) return null;
+
+    // Hardcoded tension value specifically for cardinal curves
+    const selectedCurve = curveCardinal.tension(0.7);
+    return createSmoothedLineWithCurve(coordinates, selectedCurve);
+  },
+
+  // D3 Catmull-Rom Strategy with hardcoded constants
+  d3CatmullRom: (coordinates: [number, number][]) => {
+    if (!coordinates || coordinates.length < 2) return null;
+
+    const selectedCurve = curveCatmullRom;
+    return createSmoothedLineWithCurve(coordinates, selectedCurve);
+  },
+
+  // Turf Bezier Strategy with hardcoded constants
+  turfBezier: (coordinates: [number, number][]) => {
+    if (!coordinates || coordinates.length < 2) return null;
+
+    const line = lineString(coordinates);
+    // Hardcoded resolution and sharpness values specifically for bezier curves
+    const smoothed = bezierSpline(line, {
+      resolution: 10000,
+      sharpness: 0.85,
+    });
+    return smoothed;
+  },
 } as const;
 
-// Default sampling resolution for D3 curves
-export const D3_CURVE_SAMPLES = 10;
+// For type-safe strategy selection
+export type SmoothingStrategyName = keyof typeof smoothingStrategies;
 
 /**
- * Creates a smoothed line using the configured smoothing method
+ * Creates a smoothed line using the selected smoothing strategy
  *
  * @param coordinates - Array of [longitude, latitude] coordinates
- * @param method - Smoothing method to use
- * @param config - Configuration options for smoothing
+ * @param strategy - Strategy function to use for smoothing
  * @returns GeoJSON LineString feature with smoothed coordinates
  */
 export const createSmoothedLine = (
   coordinates: [number, number][],
-  method: string = SMOOTHING_METHODS.TURF_BEZIER,
-  config?: {
-    tension?: number;
-    resolution?: number;
-    sharpness?: number;
-  }
-) => {
-  // Use default config if not provided
-  const finalConfig = {
-    tension: 0.5,
-    resolution: 10000,
-    sharpness: 0.95,
-    ...config,
-  };
+  strategy: SmoothingStrategyName = "turfBezier"
+): Feature<LineString> | null => {
+  // Get the selected strategy directly from the object
+  const selectedStrategy = smoothingStrategies[strategy];
 
-  // Skip if we don't have enough points
-  if (!coordinates || coordinates.length < 2) {
-    return null;
+  // Fallback to turfBezier if strategy not found
+  if (!selectedStrategy) {
+    console.warn(
+      `Unknown smoothing strategy: ${strategy}, falling back to turfBezier`
+    );
+    return smoothingStrategies.turfBezier(coordinates);
   }
 
-  // Apply selected smoothing method
-  switch (method) {
-    case SMOOTHING_METHODS.D3_BASIS:
-    case SMOOTHING_METHODS.D3_CARDINAL:
-    case SMOOTHING_METHODS.D3_CATMULL_ROM: {
-      return createSmoothedLineWithD3(coordinates, method, finalConfig.tension);
-    }
-    case SMOOTHING_METHODS.TURF_BEZIER:
-    default: {
-      // Fallback to original bezierSpline with config parameters
-      const line = lineString(coordinates);
-      const smoothed = bezierSpline(line, {
-        resolution: finalConfig.resolution,
-        sharpness: finalConfig.sharpness,
-      });
-      return smoothed;
-    }
-  }
+  // Execute the selected strategy
+  return selectedStrategy(coordinates);
 };
 
 /**
@@ -89,38 +105,6 @@ function createSmoothedLineWithCurve(
 
   // Convert back to GeoJSON LineString
   return lineString(smoothedCoordinates);
-}
-
-/**
- * Creates a smoothed line using D3.js curve interpolation
- * Supports different curve types: basis, cardinal, and catmullRom
- *
- * @param coordinates - Array of [longitude, latitude] coordinates
- * @param curveType - Type of D3 curve to use
- * @param tension - Tension value for cardinal curves
- * @returns GeoJSON LineString feature with smoothed coordinates
- */
-function createSmoothedLineWithD3(
-  coordinates: [number, number][],
-  curveType: string,
-  tension: number
-) {
-  // Select appropriate curve type based on method
-  switch (curveType) {
-    case SMOOTHING_METHODS.D3_CARDINAL: {
-      const selectedCurve = curveCardinal.tension(tension);
-      return createSmoothedLineWithCurve(coordinates, selectedCurve);
-    }
-    case SMOOTHING_METHODS.D3_CATMULL_ROM: {
-      const selectedCurve = curveCatmullRom;
-      return createSmoothedLineWithCurve(coordinates, selectedCurve);
-    }
-    case SMOOTHING_METHODS.D3_BASIS:
-    default: {
-      const selectedCurve = curveBasis;
-      return createSmoothedLineWithCurve(coordinates, selectedCurve);
-    }
-  }
 }
 
 /**
