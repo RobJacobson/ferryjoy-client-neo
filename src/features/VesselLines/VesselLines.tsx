@@ -24,7 +24,7 @@ const VESSEL_LINE_CONFIG = {
   // Color configuration
   colors: {
     // Pink-400 with opacity for vessels in service
-    inService: [244, 114, 182, 0.75] as [number, number, number, number],
+    inService: [244, 114, 182, 1] as [number, number, number, number],
     // White with opacity for vessels at dock
     atDock: [255, 255, 255, 0.5] as [number, number, number, number],
   },

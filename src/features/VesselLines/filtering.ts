@@ -27,7 +27,9 @@ export const filterVesselPings = (
   // Find end index (first at-dock ping, or end of array)
   const firstAtDockIndex = pings.findIndex((ping) => ping.AtDock);
   const endIndex =
-    firstAtDockIndex !== -1 ? firstAtDockIndex + 1 : pings.length;
+    !currentPosition.AtDock && firstAtDockIndex !== -1
+      ? firstAtDockIndex + 1
+      : pings.length;
 
   // Slice array in one operation
   const filteredPings = pings.slice(startIndex, endIndex);
