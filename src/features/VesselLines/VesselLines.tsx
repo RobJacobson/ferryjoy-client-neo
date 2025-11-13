@@ -25,12 +25,6 @@ const smoothingConfig = {
   // Turf bezier parameters (fallback)
   resolution: 10000,
   sharpness: 0.95,
-
-  // Performance settings
-  maxPoints: 50,
-
-  // Data filtering
-  minAgeSeconds: 30,
 };
 
 /**
