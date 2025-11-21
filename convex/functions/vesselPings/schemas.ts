@@ -1,4 +1,3 @@
-import type { Infer } from "convex/values";
 import { zodToConvex } from "convex-helpers/server/zod";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { z } from "zod";
@@ -34,9 +33,9 @@ export type VesselPing = z.infer<typeof vesselPingSchema>;
 
 /**
  * Type for vessel ping in Convex storage (with numbers)
- * Inferred from the Convex validator - single source of truth!
+ * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
  */
-export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
+export type ConvexVesselPing = z.input<typeof vesselPingSchema>;
 
 /**
  * Zod schema for vessel ping collections
@@ -61,10 +60,10 @@ export type VesselPingCollection = z.infer<typeof vesselPingCollectionSchema>;
 
 /**
  * Type for vessel ping collection in Convex storage (with numbers)
- * Inferred from the Convex validator - single source of truth!
+ * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
  */
-export type ConvexVesselPingCollection = Infer<
-  typeof vesselPingCollectionValidationSchema
+export type ConvexVesselPingCollection = z.input<
+  typeof vesselPingCollectionSchema
 >;
 
 /**

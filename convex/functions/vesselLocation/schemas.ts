@@ -1,4 +1,3 @@
-import type { Infer } from "convex/values";
 import { zodToConvex } from "convex-helpers/server/zod";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { z } from "zod";
@@ -50,9 +49,9 @@ export type VesselLocation = z.infer<typeof vesselLocationSchema>;
 
 /**
  * Type for vessel location in Convex storage (with numbers)
- * Inferred from the Convex validator - single source of truth!
+ * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
  */
-export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
+export type ConvexVesselLocation = z.input<typeof vesselLocationSchema>;
 
 /**
  * Convert a Dottie vessel location to a convex vessel location
@@ -97,5 +96,6 @@ export const toConvexVesselLocation = (
  * Convert Convex vessel location (numbers) to domain vessel location (Dates)
  * Uses Zod schema's decode to automatically convert numbers to Dates
  */
-export const toDomainVesselLocation = (location: ConvexVesselLocation) =>
-  vesselLocationSchema.decode(location);
+export const toDomainVesselLocation = (
+  location: ConvexVesselLocation
+): VesselLocation => vesselLocationSchema.decode(location);

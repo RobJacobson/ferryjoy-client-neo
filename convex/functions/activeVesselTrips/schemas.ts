@@ -1,4 +1,3 @@
-import type { Infer } from "convex/values";
 import { zodToConvex } from "convex-helpers/server/zod";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { z } from "zod";
@@ -50,9 +49,9 @@ export type ActiveVesselTrip = z.infer<typeof activeVesselTripZodSchema>;
 
 /**
  * Type for active vessel trip in Convex storage (with numbers)
- * Inferred from the Convex validator - single source of truth!
+ * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
  */
-export type ConvexActiveVesselTrip = Infer<typeof activeVesselTripSchema>;
+export type ConvexActiveVesselTrip = z.input<typeof activeVesselTripZodSchema>;
 
 /**
  * Converts vessel location to active trip format

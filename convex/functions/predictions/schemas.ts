@@ -1,4 +1,3 @@
-import type { Infer } from "convex/values";
 import { zodToConvex } from "convex-helpers/server/zod";
 import { z } from "zod";
 
@@ -105,11 +104,13 @@ export type HistoricalPredictionData = z.infer<
 export type ModelParameters = z.infer<typeof modelParametersMutationZodSchema>;
 
 // Export Convex types (with numbers)
-// Inferred from the Convex validators - single source of truth!
-export type ConvexCurrentPredictionData = Infer<
-  typeof currentPredictionDataSchema
+// Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
+export type ConvexCurrentPredictionData = z.input<
+  typeof currentPredictionDataZodSchema
 >;
-export type ConvexHistoricalPredictionData = Infer<
-  typeof historicalPredictionDataSchema
+export type ConvexHistoricalPredictionData = z.input<
+  typeof historicalPredictionDataZodSchema
 >;
-export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;
+export type ConvexModelParameters = z.input<
+  typeof modelParametersMutationZodSchema
+>;

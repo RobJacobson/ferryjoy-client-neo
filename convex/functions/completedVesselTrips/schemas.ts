@@ -1,4 +1,3 @@
-import type { Infer } from "convex/values";
 import { zodToConvex } from "convex-helpers/server/zod";
 import { z } from "zod";
 import type { Doc } from "../../_generated/dataModel";
@@ -46,9 +45,11 @@ export type CompletedVesselTrip = z.infer<typeof completedVesselTripZodSchema>;
 
 /**
  * Type for completed vessel trip in Convex storage (with numbers)
- * Inferred from the Convex validator - single source of truth!
+ * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
  */
-export type ConvexCompletedVesselTrip = Infer<typeof completedVesselTripSchema>;
+export type ConvexCompletedVesselTrip = z.input<
+  typeof completedVesselTripZodSchema
+>;
 
 /*
  * Transforms an active vessel trip and metrics into a completed vessel trip object
