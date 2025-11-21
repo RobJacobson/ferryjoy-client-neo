@@ -1,5 +1,5 @@
 import { destination } from "@turf/turf";
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
+import type { VesselLocation } from "@/domain";
 
 // Projection time window in milliseconds
 export const PROJECTION_TIME_MS = 15000; // 15 seconds

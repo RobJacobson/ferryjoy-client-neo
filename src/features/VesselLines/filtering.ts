@@ -1,5 +1,4 @@
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
-import type { VesselPing } from "@/domain/vessels/vesselPing";
+import type { VesselLocation, VesselPing } from "@/domain";
 
 /**
  * Filters vessel pings by replacing first ping with current position.

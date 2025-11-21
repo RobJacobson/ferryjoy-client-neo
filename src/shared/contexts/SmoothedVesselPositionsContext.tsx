@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
+import type { VesselLocation } from "@/domain";
 import {
   animateVesselsSafe,
   checkForTeleportation,

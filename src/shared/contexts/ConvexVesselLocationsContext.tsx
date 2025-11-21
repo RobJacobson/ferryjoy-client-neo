@@ -1,12 +1,9 @@
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
+import type { CurrentVesselLocation, VesselLocation } from "@/domain";
+import { toDomainVesselLocation } from "@/domain";
 import { api } from "../../../convex/_generated/api";
-import type { CurrentVesselLocation } from "../../../convex/functions/currentVesselLocation/schemas";
-import {
-  toDomainVesselLocation,
-  type VesselLocation,
-} from "../../domain/vessels/vesselLocation";
 
 export type VesselLocations = VesselLocation[];
 

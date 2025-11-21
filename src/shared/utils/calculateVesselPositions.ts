@@ -1,5 +1,5 @@
 import { distance } from "@turf/turf";
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
+import type { VesselLocation } from "@/domain";
 import {
   createVesselWithProjection,
   PROJECTION_TIME_MS,

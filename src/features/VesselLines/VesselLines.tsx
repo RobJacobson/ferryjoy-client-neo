@@ -8,8 +8,7 @@
 
 import type { Feature, LineString } from "geojson";
 import type React from "react";
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
-import type { VesselPing } from "@/domain/vessels/vesselPing";
+import type { VesselLocation, VesselPing } from "@/domain";
 import { useConvexVesselPings } from "@/shared/contexts/ConvexVesselPingsContext";
 import { useSmoothedVesselPositions } from "@/shared/contexts/SmoothedVesselPositionsContext";
 import { filterVesselPings } from "./filtering";

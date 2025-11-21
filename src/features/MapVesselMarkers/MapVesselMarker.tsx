@@ -6,8 +6,9 @@
  */
 
 import { Text, View } from "@/components/ui";
-import type { VesselLocation } from "@/domain/vessels/vesselLocation";
+import type { VesselLocation } from "@/domain";
 import { useMapState } from "@/shared/contexts";
+import type { VesselWithProjection } from "@/shared/utils/calculateVesselPositions";
 import { cn } from "@/shared/utils/cn";
 import { Marker, ScaledMarker } from "../MapMarkers";
 
