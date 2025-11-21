@@ -1,34 +1,67 @@
 import type { Infer } from "convex/values";
-import { v } from "convex/values";
+import { zodToConvex } from "convex-helpers/server/zod";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+import { z } from "zod";
+
+import { epochMillisToDate } from "../../shared/codecs";
 
 /**
- * Validation schema for individual vessel pings (stored within arrays)
+ * Zod schema for individual vessel pings (domain representation with Date)
+ * This is the single source of truth for vessel ping structure
+ * Exported for use in domain layer conversion functions
  */
-export const vesselPingValidationSchema = v.object({
-  VesselID: v.number(),
-  Latitude: v.number(),
-  Longitude: v.number(),
-  Speed: v.number(),
-  Heading: v.number(),
-  AtDock: v.boolean(),
-  TimeStamp: v.number(),
+export const vesselPingSchema = z.object({
+  VesselID: z.number(),
+  Latitude: z.number(),
+  Longitude: z.number(),
+  Speed: z.number(),
+  Heading: z.number(),
+  AtDock: z.boolean(),
+  TimeStamp: epochMillisToDate, // Date in domain, number in Convex
 });
+
 /**
- * Inferred type for the convex vessel ping
+ * Convex validator for vessel pings (converted from Zod schema)
+ * This is used in defineTable and function argument validation
+ */
+export const vesselPingValidationSchema = zodToConvex(vesselPingSchema);
+
+/**
+ * Type for vessel ping in domain layer (with Date objects)
+ * Inferred from the Zod schema
+ */
+export type VesselPing = z.infer<typeof vesselPingSchema>;
+
+/**
+ * Type for vessel ping in Convex storage (with numbers)
+ * Inferred from the Convex validator - single source of truth!
  */
 export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
 
 /**
- * Validation schema for vessel ping collections
+ * Zod schema for vessel ping collections
  */
-export const vesselPingCollectionValidationSchema = v.object({
-  timestamp: v.number(), // When this collection was created/stored
-  pings: v.array(vesselPingValidationSchema), // Array of vessel pings at this timestamp
+export const vesselPingCollectionSchema = z.object({
+  timestamp: epochMillisToDate, // Date in domain, number in Convex
+  pings: z.array(vesselPingSchema),
 });
 
 /**
- * Inferred type for the convex vessel ping collection
+ * Convex validator for vessel ping collections
+ */
+export const vesselPingCollectionValidationSchema = zodToConvex(
+  vesselPingCollectionSchema
+);
+
+/**
+ * Type for vessel ping collection in domain layer (with Date objects)
+ * Inferred from the Zod schema
+ */
+export type VesselPingCollection = z.infer<typeof vesselPingCollectionSchema>;
+
+/**
+ * Type for vessel ping collection in Convex storage (with numbers)
+ * Inferred from the Convex validator - single source of truth!
  */
 export type ConvexVesselPingCollection = Infer<
   typeof vesselPingCollectionValidationSchema
@@ -36,26 +69,49 @@ export type ConvexVesselPingCollection = Infer<
 
 /**
  * Convert a Dottie vessel location to a convex vessel ping
+ * Uses Zod schema's encode to automatically convert Date to number
  */
 export const toConvexVesselPing = (
   vl: DottieVesselLocation
-): ConvexVesselPing => ({
-  VesselID: vl.VesselID,
-  Latitude: Math.round(vl.Latitude * 100000) / 100000,
-  Longitude: Math.round(vl.Longitude * 100000) / 100000,
-  Speed: vl.Speed,
-  Heading: vl.Heading,
-  AtDock: vl.AtDock,
-  TimeStamp: vl.TimeStamp.getTime(),
-});
+): ConvexVesselPing => {
+  // Create domain representation with Date
+  const domainPing = {
+    VesselID: vl.VesselID,
+    Latitude: Math.round(vl.Latitude * 100000) / 100000,
+    Longitude: Math.round(vl.Longitude * 100000) / 100000,
+    Speed: vl.Speed,
+    Heading: vl.Heading,
+    AtDock: vl.AtDock,
+    TimeStamp: vl.TimeStamp, // Already a Date
+  };
+
+  // Encode to Convex format (Date -> number)
+  // The encode method returns the input type (numbers), which matches ConvexVesselPing
+  // Using 'unknown' first because TypeScript can't properly infer the encoded type
+  return vesselPingSchema.encode(domainPing) as unknown as ConvexVesselPing;
+};
 
 /**
- * Convert an array of Dottie vessel locations to a convex vessel ping collection
+ * Convert an array of convex vessel pings and timestamp to a convex vessel ping collection
+ * Note: pings are already in Convex format (numbers), timestamp is a number
  */
 export const toConvexVesselPingCollection = (
   pings: ConvexVesselPing[],
   timestamp: number
-): ConvexVesselPingCollection => ({
-  timestamp,
-  pings,
-});
+): ConvexVesselPingCollection => {
+  // Pings are already in Convex format, timestamp is already a number
+  // TypeScript can't properly infer ConvexVesselPingCollection from Infer<typeof validator>
+  // when the validator comes from a Zod schema with codecs, so we use a type assertion
+  const result = {
+    timestamp,
+    pings,
+  } as unknown as ConvexVesselPingCollection;
+  return result;
+};
+
+/**
+ * Convert Convex vessel ping (numbers) to domain vessel ping (Dates)
+ * Uses Zod schema's decode to automatically convert numbers to Dates
+ */
+export const toDomainVesselPing = (ping: ConvexVesselPing) =>
+  vesselPingSchema.decode(ping);

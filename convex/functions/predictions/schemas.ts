@@ -1,69 +1,111 @@
 import type { Infer } from "convex/values";
-import { v } from "convex/values";
+import { zodToConvex } from "convex-helpers/server/zod";
+import { z } from "zod";
+
+import {
+  epochMillisToDate,
+  optionalEpochMillisToDate,
+} from "../../shared/codecs";
 
 /**
- * Schema for current prediction data - single table with type discriminator
+ * Zod schema for current prediction data (domain representation with Date objects)
+ * Single table with type discriminator
  */
-export const currentPredictionDataSchema = v.object({
-  vesselId: v.number(),
-  predictionType: v.union(v.literal("departure"), v.literal("arrival")),
-  vesselName: v.string(),
-  opRouteAbrv: v.string(),
-  depTermAbrv: v.string(),
-  arvTermAbrv: v.string(),
-  createdAt: v.number(),
-  schedDep: v.number(),
-  predictedTime: v.number(),
-  confidence: v.number(),
-  modelVersion: v.string(),
+const currentPredictionDataZodSchema = z.object({
+  vesselId: z.number(),
+  predictionType: z.union([z.literal("departure"), z.literal("arrival")]),
+  vesselName: z.string(),
+  opRouteAbrv: z.string(),
+  depTermAbrv: z.string(),
+  arvTermAbrv: z.string(),
+  createdAt: epochMillisToDate, // Date in domain, number in Convex
+  schedDep: epochMillisToDate, // Date in domain, number in Convex
+  predictedTime: epochMillisToDate, // Date in domain, number in Convex
+  confidence: z.number(),
+  modelVersion: z.string(),
 });
 
 /**
- * Schema for historical predictions analysis
+ * Convex validator for current prediction data
+ * Exported as currentPredictionDataSchema for backward compatibility
  */
-export const historicalPredictionDataSchema = v.object({
-  vesselId: v.number(),
-  predictionType: v.union(v.literal("departure"), v.literal("arrival")),
-  vesselName: v.string(),
-  opRouteAbrv: v.string(),
-  depTermAbrv: v.string(),
-  arvTermAbrv: v.string(),
-  modelVersion: v.string(),
-  createdAt: v.number(),
-  schedDep: v.number(),
-  predictedTime: v.number(),
-  confidence: v.number(),
-  predictionId: v.string(),
-  predictionTimestamp: v.number(),
-  hourOfDay: v.number(),
-  dayType: v.union(v.literal("weekday"), v.literal("weekend")),
-  previousDelay: v.number(),
-  priorTime: v.number(),
-  actual: v.optional(v.number()),
-  error: v.optional(v.number()),
+export const currentPredictionDataSchema = zodToConvex(
+  currentPredictionDataZodSchema
+);
+
+/**
+ * Zod schema for historical predictions analysis (domain representation with Date objects)
+ */
+const historicalPredictionDataZodSchema = z.object({
+  vesselId: z.number(),
+  predictionType: z.union([z.literal("departure"), z.literal("arrival")]),
+  vesselName: z.string(),
+  opRouteAbrv: z.string(),
+  depTermAbrv: z.string(),
+  arvTermAbrv: z.string(),
+  modelVersion: z.string(),
+  createdAt: epochMillisToDate, // Date in domain, number in Convex
+  schedDep: epochMillisToDate, // Date in domain, number in Convex
+  predictedTime: epochMillisToDate, // Date in domain, number in Convex
+  confidence: z.number(),
+  predictionId: z.string(),
+  predictionTimestamp: epochMillisToDate, // Date in domain, number in Convex
+  hourOfDay: z.number(),
+  dayType: z.union([z.literal("weekday"), z.literal("weekend")]),
+  previousDelay: z.number(),
+  priorTime: epochMillisToDate, // Date in domain, number in Convex
+  actual: optionalEpochMillisToDate, // Date in domain, number in Convex
+  error: z.number().optional(),
 });
 
 /**
- * Schema for model parameters mutation argument
+ * Convex validator for historical prediction data
+ * Exported as historicalPredictionDataSchema for backward compatibility
  */
-export const modelParametersMutationSchema = v.object({
-  routeId: v.string(),
-  modelType: v.union(v.literal("departure"), v.literal("arrival")),
-  modelAlgorithm: v.optional(v.string()),
-  coefficients: v.array(v.number()),
-  intercept: v.number(),
-  featureNames: v.array(v.string()),
-  trainingMetrics: v.object({
-    mae: v.number(),
-    rmse: v.number(),
-    r2: v.number(),
-    stdDev: v.optional(v.number()),
+export const historicalPredictionDataSchema = zodToConvex(
+  historicalPredictionDataZodSchema
+);
+
+/**
+ * Zod schema for model parameters mutation argument (domain representation with Date objects)
+ */
+const modelParametersMutationZodSchema = z.object({
+  routeId: z.string(),
+  modelType: z.union([z.literal("departure"), z.literal("arrival")]),
+  modelAlgorithm: z.string().optional(),
+  coefficients: z.array(z.number()),
+  intercept: z.number(),
+  featureNames: z.array(z.string()),
+  trainingMetrics: z.object({
+    mae: z.number(),
+    rmse: z.number(),
+    r2: z.number(),
+    stdDev: z.number().optional(),
   }),
-  modelVersion: v.string(),
-  createdAt: v.number(),
+  modelVersion: z.string(),
+  createdAt: epochMillisToDate, // Date in domain, number in Convex
 });
 
-// Export inferred types for use in domain layer
+/**
+ * Convex validator for model parameters
+ * Exported as modelParametersMutationSchema for backward compatibility
+ */
+export const modelParametersMutationSchema = zodToConvex(
+  modelParametersMutationZodSchema
+);
+
+// Export types for use in domain layer (with Date objects)
+// Inferred from the Zod schemas
+export type CurrentPredictionData = z.infer<
+  typeof currentPredictionDataZodSchema
+>;
+export type HistoricalPredictionData = z.infer<
+  typeof historicalPredictionDataZodSchema
+>;
+export type ModelParameters = z.infer<typeof modelParametersMutationZodSchema>;
+
+// Export Convex types (with numbers)
+// Inferred from the Convex validators - single source of truth!
 export type ConvexCurrentPredictionData = Infer<
   typeof currentPredictionDataSchema
 >;

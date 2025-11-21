@@ -1,5 +1,5 @@
-import type { ActiveVesselTrip } from "src/domain";
-import { toDomainCompletedVesselTrip } from "src/domain/vessels/completedVesselTrip";
+import type { ActiveVesselTrip } from "../../../functions/activeVesselTrips/schemas";
+import { toDomainCompletedVesselTrip } from "../../../functions/completedVesselTrips/schemas";
 import { api } from "../../../_generated/api";
 import type { ActionCtx } from "../../../_generated/server";
 import type { TripPair, ValidatedTrip } from "../types";

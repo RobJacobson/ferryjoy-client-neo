@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { toDomainVesselLocation } from "src/domain/vessels/vesselLocation";
 import { query } from "../../_generated/server";
+import type { ConvexVesselLocation } from "./schemas";
+import { toDomainVesselLocation } from "./schemas";
 
 /**
  * Get vessel locations older than a given timestamp
@@ -27,11 +28,17 @@ export const getLatestLocations = query({
   handler: async (ctx) => {
     const docs = await ctx.db.query("vesselLocations").collect();
     // Deduplicate client-side for now; can be moved to an index later
-    const byVessel: Record<number, { TimeStamp: number; doc: any }> = {};
+    const byVessel: Record<
+      number,
+      { TimeStamp: number; doc: ConvexVesselLocation }
+    > = {};
     for (const d of docs) {
       const existing = byVessel[d.VesselID];
-      if (!existing || d.TimeStamp > existing.TimeStamp) {
-        byVessel[d.VesselID] = { TimeStamp: d.TimeStamp, doc: d };
+      // Docs from database are in Convex format (numbers)
+      const doc = d as unknown as ConvexVesselLocation;
+      const timeStamp = doc.TimeStamp as unknown as number;
+      if (!existing || timeStamp > existing.TimeStamp) {
+        byVessel[d.VesselID] = { TimeStamp: timeStamp, doc };
       }
     }
     return Object.values(byVessel).map((x) => toDomainVesselLocation(x.doc));

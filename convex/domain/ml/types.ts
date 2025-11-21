@@ -1,4 +1,4 @@
-import type { ActiveVesselTrip } from "src/domain";
+import type { ActiveVesselTrip } from "../../../functions/activeVesselTrips/schemas";
 
 // ============================================================================
 // CORE TYPES
