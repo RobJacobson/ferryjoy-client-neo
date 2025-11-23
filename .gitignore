@@ -35,3 +35,6 @@ android
 # Environment variables
 .env
 .env.local
+
+# TypeScript build info
+*.tsbuildinfo
