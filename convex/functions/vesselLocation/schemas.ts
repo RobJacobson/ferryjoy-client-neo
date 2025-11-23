@@ -1,101 +1,104 @@
-import { zodToConvex } from "convex-helpers/server/zod";
+import type { Infer } from "convex/values";
+import { v } from "convex/values";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { z } from "zod";
-
 import {
-  epochMillisToDate,
-  optionalEpochMillisToDate,
-} from "../../shared/codecs";
+  dateToEpochMs,
+  epochMsToDate,
+  optionalDateToEpochMs,
+  optionalEpochMsToDate,
+} from "../../shared/dateConversion";
 
 /**
- * Zod schema for vessel location (domain representation with Date objects)
- * This is the single source of truth for vessel location structure
- * Exported for use in domain layer conversion functions
+ * Convex validator for vessel locations (numbers)
+ * This is used in defineTable and function argument validation
  */
-export const vesselLocationSchema = z.object({
-  VesselID: z.number(),
-  VesselName: z.string().optional(),
-  DepartingTerminalID: z.number(),
-  DepartingTerminalName: z.string().optional(),
-  DepartingTerminalAbbrev: z.string().optional(),
-  ArrivingTerminalID: z.number().optional(),
-  ArrivingTerminalName: z.string().optional(),
-  ArrivingTerminalAbbrev: z.string().optional(),
-  Latitude: z.number(),
-  Longitude: z.number(),
-  Speed: z.number(),
-  Heading: z.number(),
-  InService: z.boolean(),
-  AtDock: z.boolean(),
-  LeftDock: optionalEpochMillisToDate, // Date in domain, number in Convex
-  Eta: optionalEpochMillisToDate, // Date in domain, number in Convex
-  ScheduledDeparture: optionalEpochMillisToDate, // Date in domain, number in Convex
-  OpRouteAbbrev: z.string().optional(),
-  VesselPositionNum: z.number().optional(),
-  TimeStamp: epochMillisToDate, // Date in domain, number in Convex
+export const vesselLocationValidationSchema = v.object({
+  VesselID: v.number(),
+  VesselName: v.optional(v.string()),
+  DepartingTerminalID: v.number(),
+  DepartingTerminalName: v.optional(v.string()),
+  DepartingTerminalAbbrev: v.optional(v.string()),
+  ArrivingTerminalID: v.optional(v.number()),
+  ArrivingTerminalName: v.optional(v.string()),
+  ArrivingTerminalAbbrev: v.optional(v.string()),
+  Latitude: v.number(),
+  Longitude: v.number(),
+  Speed: v.number(),
+  Heading: v.number(),
+  InService: v.boolean(),
+  AtDock: v.boolean(),
+  LeftDock: v.optional(v.number()),
+  Eta: v.optional(v.number()),
+  ScheduledDeparture: v.optional(v.number()),
+  OpRouteAbbrev: v.optional(v.string()),
+  VesselPositionNum: v.optional(v.number()),
+  TimeStamp: v.number(),
 });
 
 /**
- * Convex validator for vessel locations (converted from Zod schema)
- * This is used in defineTable and function argument validation
- */
-export const vesselLocationValidationSchema = zodToConvex(vesselLocationSchema);
-
-/**
- * Type for vessel location in domain layer (with Date objects)
- * Inferred from the Zod schema
- */
-export type VesselLocation = z.infer<typeof vesselLocationSchema>;
-
-/**
  * Type for vessel location in Convex storage (with numbers)
- * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
+ * Inferred from the Convex validator
  */
-export type ConvexVesselLocation = z.input<typeof vesselLocationSchema>;
+export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 
 /**
  * Convert a Dottie vessel location to a convex vessel location
- * Uses Zod schema's encode to automatically convert Date to number
+ * Manual conversion from Date objects to epoch milliseconds
  */
 export const toConvexVesselLocation = (
   vl: DottieVesselLocation
-): ConvexVesselLocation => {
-  // Create domain representation with Date objects
-  const domainLocation = {
-    VesselID: vl.VesselID,
-    VesselName: vl.VesselName ?? undefined,
-    DepartingTerminalID: vl.DepartingTerminalID,
-    DepartingTerminalName: vl.DepartingTerminalName ?? undefined,
-    DepartingTerminalAbbrev: vl.DepartingTerminalAbbrev ?? undefined,
-    ArrivingTerminalID: vl.ArrivingTerminalID ?? undefined,
-    ArrivingTerminalName: vl.ArrivingTerminalName ?? undefined,
-    ArrivingTerminalAbbrev: vl.ArrivingTerminalAbbrev ?? undefined,
-    Latitude: vl.Latitude,
-    Longitude: vl.Longitude,
-    Speed: vl.Speed,
-    Heading: vl.Heading,
-    InService: vl.InService,
-    AtDock: vl.AtDock,
-    LeftDock: vl.LeftDock ?? undefined, // Already a Date or null
-    Eta: vl.Eta ?? undefined, // Already a Date or null
-    ScheduledDeparture: vl.ScheduledDeparture ?? undefined, // Already a Date or null
-    OpRouteAbbrev: vl.OpRouteAbbrev?.[0] ?? undefined,
-    VesselPositionNum: vl.VesselPositionNum ?? undefined,
-    TimeStamp: vl.TimeStamp, // Already a Date
-  };
-
-  // Encode to Convex format (Date -> number)
-  // The encode method returns the input type (numbers), which matches ConvexVesselLocation
-  // Using 'unknown' first because TypeScript can't properly infer the encoded type
-  return vesselLocationSchema.encode(
-    domainLocation
-  ) as unknown as ConvexVesselLocation;
-};
+): ConvexVesselLocation => ({
+  VesselID: vl.VesselID,
+  VesselName: vl.VesselName ?? undefined,
+  DepartingTerminalID: vl.DepartingTerminalID,
+  DepartingTerminalName: vl.DepartingTerminalName ?? undefined,
+  DepartingTerminalAbbrev: vl.DepartingTerminalAbbrev ?? undefined,
+  ArrivingTerminalID: vl.ArrivingTerminalID ?? undefined,
+  ArrivingTerminalName: vl.ArrivingTerminalName ?? undefined,
+  ArrivingTerminalAbbrev: vl.ArrivingTerminalAbbrev ?? undefined,
+  Latitude: vl.Latitude,
+  Longitude: vl.Longitude,
+  Speed: vl.Speed,
+  Heading: vl.Heading,
+  InService: vl.InService,
+  AtDock: vl.AtDock,
+  LeftDock: optionalDateToEpochMs(vl.LeftDock),
+  Eta: optionalDateToEpochMs(vl.Eta),
+  ScheduledDeparture: optionalDateToEpochMs(vl.ScheduledDeparture),
+  OpRouteAbbrev: vl.OpRouteAbbrev?.[0] ?? undefined,
+  VesselPositionNum: vl.VesselPositionNum ?? undefined,
+  TimeStamp: dateToEpochMs(vl.TimeStamp),
+});
 
 /**
  * Convert Convex vessel location (numbers) to domain vessel location (Dates)
- * Uses Zod schema's decode to automatically convert numbers to Dates
+ * Manual conversion from epoch milliseconds to Date objects
  */
-export const toDomainVesselLocation = (
-  location: ConvexVesselLocation
-): VesselLocation => vesselLocationSchema.decode(location);
+export const toDomainVesselLocation = (location: ConvexVesselLocation) => ({
+  VesselID: location.VesselID,
+  VesselName: location.VesselName,
+  DepartingTerminalID: location.DepartingTerminalID,
+  DepartingTerminalName: location.DepartingTerminalName,
+  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
+  ArrivingTerminalID: location.ArrivingTerminalID,
+  ArrivingTerminalName: location.ArrivingTerminalName,
+  ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+  Latitude: location.Latitude,
+  Longitude: location.Longitude,
+  Speed: location.Speed,
+  Heading: location.Heading,
+  InService: location.InService,
+  AtDock: location.AtDock,
+  LeftDock: optionalEpochMsToDate(location.LeftDock),
+  Eta: optionalEpochMsToDate(location.Eta),
+  ScheduledDeparture: optionalEpochMsToDate(location.ScheduledDeparture),
+  OpRouteAbbrev: location.OpRouteAbbrev,
+  VesselPositionNum: location.VesselPositionNum,
+  TimeStamp: epochMsToDate(location.TimeStamp),
+});
+
+/**
+ * Type for vessel location in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;

@@ -1,94 +1,43 @@
-import { zodToConvex } from "convex-helpers/server/zod";
+import type { Infer } from "convex/values";
+import { v } from "convex/values";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { z } from "zod";
-
-import { epochMillisToDate } from "../../shared/codecs";
+import { dateToEpochMs, epochMsToDate } from "../../shared/dateConversion";
 
 /**
- * Zod schema for individual vessel pings (domain representation with Date)
- * This is the single source of truth for vessel ping structure
- * Exported for use in domain layer conversion functions
- */
-export const vesselPingSchema = z.object({
-  VesselID: z.number(),
-  Latitude: z.number(),
-  Longitude: z.number(),
-  Speed: z.number(),
-  Heading: z.number(),
-  AtDock: z.boolean(),
-  TimeStamp: epochMillisToDate, // Date in domain, number in Convex
-});
-
-/**
- * Convex validator for vessel pings (converted from Zod schema)
+ * Convex validator for individual vessel pings (numbers)
  * This is used in defineTable and function argument validation
  */
-export const vesselPingValidationSchema = zodToConvex(vesselPingSchema);
-
-/**
- * Type for vessel ping in domain layer (with Date objects)
- * Inferred from the Zod schema
- */
-export type VesselPing = z.infer<typeof vesselPingSchema>;
+export const vesselPingValidationSchema = v.object({
+  VesselID: v.number(),
+  Latitude: v.number(),
+  Longitude: v.number(),
+  Speed: v.number(),
+  Heading: v.number(),
+  AtDock: v.boolean(),
+  TimeStamp: v.number(),
+});
 
 /**
  * Type for vessel ping in Convex storage (with numbers)
- * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
+ * Inferred from the Convex validator
  */
-export type ConvexVesselPing = z.input<typeof vesselPingSchema>;
-
-/**
- * Zod schema for vessel ping collections
- */
-export const vesselPingCollectionSchema = z.object({
-  timestamp: epochMillisToDate, // Date in domain, number in Convex
-  pings: z.array(vesselPingSchema),
-});
-
-/**
- * Convex validator for vessel ping collections
- */
-export const vesselPingCollectionValidationSchema = zodToConvex(
-  vesselPingCollectionSchema
-);
-
-/**
- * Type for vessel ping collection in domain layer (with Date objects)
- * Inferred from the Zod schema
- */
-export type VesselPingCollection = z.infer<typeof vesselPingCollectionSchema>;
-
-/**
- * Type for vessel ping collection in Convex storage (with numbers)
- * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
- */
-export type ConvexVesselPingCollection = z.input<
-  typeof vesselPingCollectionSchema
->;
+export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
 
 /**
  * Convert a Dottie vessel location to a convex vessel ping
- * Uses Zod schema's encode to automatically convert Date to number
+ * Manual conversion from Date objects to epoch milliseconds
  */
 export const toConvexVesselPing = (
   vl: DottieVesselLocation
-): ConvexVesselPing => {
-  // Create domain representation with Date
-  const domainPing = {
-    VesselID: vl.VesselID,
-    Latitude: Math.round(vl.Latitude * 100000) / 100000,
-    Longitude: Math.round(vl.Longitude * 100000) / 100000,
-    Speed: vl.Speed,
-    Heading: vl.Heading,
-    AtDock: vl.AtDock,
-    TimeStamp: vl.TimeStamp, // Already a Date
-  };
-
-  // Encode to Convex format (Date -> number)
-  // The encode method returns the input type (numbers), which matches ConvexVesselPing
-  // Using 'unknown' first because TypeScript can't properly infer the encoded type
-  return vesselPingSchema.encode(domainPing) as unknown as ConvexVesselPing;
-};
+): ConvexVesselPing => ({
+  VesselID: vl.VesselID,
+  Latitude: Math.round(vl.Latitude * 100000) / 100000,
+  Longitude: Math.round(vl.Longitude * 100000) / 100000,
+  Speed: vl.Speed,
+  Heading: vl.Heading,
+  AtDock: vl.AtDock,
+  TimeStamp: dateToEpochMs(vl.TimeStamp),
+});
 
 /**
  * Convert an array of convex vessel pings and timestamp to a convex vessel ping collection
@@ -97,20 +46,54 @@ export const toConvexVesselPing = (
 export const toConvexVesselPingCollection = (
   pings: ConvexVesselPing[],
   timestamp: number
-): ConvexVesselPingCollection => {
-  // Pings are already in Convex format, timestamp is already a number
-  // TypeScript can't properly infer ConvexVesselPingCollection from Infer<typeof validator>
-  // when the validator comes from a Zod schema with codecs, so we use a type assertion
-  const result = {
-    timestamp,
-    pings,
-  } as unknown as ConvexVesselPingCollection;
-  return result;
-};
+) => ({
+  timestamp,
+  pings,
+});
+
+/**
+ * Type for vessel ping collection in Convex storage (with numbers)
+ * Inferred from the return type of our conversion function
+ */
+export type ConvexVesselPingCollection = ReturnType<
+  typeof toConvexVesselPingCollection
+>;
 
 /**
  * Convert Convex vessel ping (numbers) to domain vessel ping (Dates)
- * Uses Zod schema's decode to automatically convert numbers to Dates
+ * Manual conversion from epoch milliseconds to Date objects
  */
-export const toDomainVesselPing = (ping: ConvexVesselPing) =>
-  vesselPingSchema.decode(ping);
+export const toDomainVesselPing = (ping: ConvexVesselPing) => ({
+  VesselID: ping.VesselID,
+  Latitude: ping.Latitude,
+  Longitude: ping.Longitude,
+  Speed: ping.Speed,
+  Heading: ping.Heading,
+  AtDock: ping.AtDock,
+  TimeStamp: epochMsToDate(ping.TimeStamp),
+});
+
+/**
+ * Type for vessel ping in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type VesselPing = ReturnType<typeof toDomainVesselPing>;
+
+/**
+ * Convert Convex vessel ping collection (numbers) to domain vessel ping collection (Dates)
+ * Manual conversion from epoch milliseconds to Date objects
+ */
+export const toDomainVesselPingCollection = (
+  collection: ConvexVesselPingCollection
+) => ({
+  timestamp: epochMsToDate(collection.timestamp),
+  pings: collection.pings.map(toDomainVesselPing),
+});
+
+/**
+ * Type for vessel ping collection in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type VesselPingCollection = ReturnType<
+  typeof toDomainVesselPingCollection
+>;

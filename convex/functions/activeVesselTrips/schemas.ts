@@ -1,57 +1,44 @@
-import { zodToConvex } from "convex-helpers/server/zod";
+import type { Infer } from "convex/values";
+import { v } from "convex/values";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
-import { z } from "zod";
 import {
-  epochMillisToDate,
-  optionalEpochMillisToDate,
-} from "../../shared/codecs";
+  epochMsToDate,
+  optionalEpochMsToDate,
+} from "../../shared/dateConversion";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
 
 /**
- * Zod schema for active vessel trip (domain representation with Date objects)
- * This is the single source of truth for active vessel trip structure
+ * Convex validator for active vessel trips (numbers)
+ * This is used in defineTable and function argument validation
  */
-export const activeVesselTripZodSchema = z.object({
-  VesselID: z.number(),
-  VesselName: z.string(),
-  VesselAbbrev: z.string(),
-  DepartingTerminalID: z.number(),
-  DepartingTerminalName: z.string(),
-  DepartingTerminalAbbrev: z.string(),
-  ArrivingTerminalID: z.number().optional(),
-  ArrivingTerminalName: z.string().optional(),
-  ArrivingTerminalAbbrev: z.string().optional(),
-  ScheduledDeparture: optionalEpochMillisToDate, // Date in domain, number in Convex
-  LeftDock: optionalEpochMillisToDate, // Date in domain, number in Convex
-  LeftDockActual: optionalEpochMillisToDate, // Date in domain, number in Convex
-  LeftDockDelay: z.number().optional(),
-  Eta: optionalEpochMillisToDate, // Date in domain, number in Convex
-  InService: z.boolean(),
-  AtDock: z.boolean(),
-  OpRouteAbbrev: z.string().optional(),
-  VesselPositionNum: z.number().optional(),
-  TimeStamp: epochMillisToDate, // Date in domain, number in Convex
-  TripStart: epochMillisToDate, // Date in domain, number in Convex
+export const activeVesselTripSchema = v.object({
+  VesselID: v.number(),
+  VesselName: v.string(),
+  VesselAbbrev: v.string(),
+  DepartingTerminalID: v.number(),
+  DepartingTerminalName: v.string(),
+  DepartingTerminalAbbrev: v.string(),
+  ArrivingTerminalID: v.optional(v.number()),
+  ArrivingTerminalName: v.optional(v.string()),
+  ArrivingTerminalAbbrev: v.optional(v.string()),
+  ScheduledDeparture: v.optional(v.number()),
+  LeftDock: v.optional(v.number()),
+  LeftDockActual: v.optional(v.number()),
+  LeftDockDelay: v.optional(v.number()),
+  Eta: v.optional(v.number()),
+  InService: v.boolean(),
+  AtDock: v.boolean(),
+  OpRouteAbbrev: v.optional(v.string()),
+  VesselPositionNum: v.optional(v.number()),
+  TimeStamp: v.number(),
+  TripStart: v.number(),
 });
 
 /**
- * Convex validator for active vessel trips (converted from Zod schema)
- * This is used in defineTable and function argument validation
- * Exported as activeVesselTripSchema for backward compatibility
- */
-export const activeVesselTripSchema = zodToConvex(activeVesselTripZodSchema);
-
-/**
- * Type for active vessel trip in domain layer (with Date objects)
- * Inferred from the Zod schema
- */
-export type ActiveVesselTrip = z.infer<typeof activeVesselTripZodSchema>;
-
-/**
  * Type for active vessel trip in Convex storage (with numbers)
- * Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
+ * Inferred from the Convex validator
  */
-export type ConvexActiveVesselTrip = z.input<typeof activeVesselTripZodSchema>;
+export type ConvexActiveVesselTrip = Infer<typeof activeVesselTripSchema>;
 
 /**
  * Converts vessel location to active trip format
@@ -60,37 +47,58 @@ export type ConvexActiveVesselTrip = z.input<typeof activeVesselTripZodSchema>;
 export const toConvexActiveVesselTrip = (
   location: ConvexVesselLocation,
   tripStart: number
-): ConvexActiveVesselTrip => {
-  // TypeScript can't properly infer ConvexActiveVesselTrip from Infer<typeof validator>
-  // when the validator comes from a Zod schema with codecs, so we use a type assertion
-  const result = {
-    VesselID: location.VesselID,
-    VesselName: location.VesselName ?? "",
-    VesselAbbrev: getVesselAbbreviation(location.VesselName ?? ""),
-    DepartingTerminalID: location.DepartingTerminalID,
-    DepartingTerminalName: location.DepartingTerminalName ?? "",
-    DepartingTerminalAbbrev: location.DepartingTerminalAbbrev ?? "",
-    ArrivingTerminalID: location.ArrivingTerminalID,
-    ArrivingTerminalName: location.ArrivingTerminalName,
-    ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-    ScheduledDeparture: location.ScheduledDeparture,
-    LeftDock: location.LeftDock,
-    LeftDockActual: undefined,
-    LeftDockDelay: undefined,
-    Eta: location.Eta,
-    InService: location.InService,
-    AtDock: location.AtDock,
-    OpRouteAbbrev: location.OpRouteAbbrev,
-    VesselPositionNum: location.VesselPositionNum,
-    TimeStamp: location.TimeStamp,
-    TripStart: tripStart,
-  } as unknown as ConvexActiveVesselTrip;
-  return result;
-};
+): ConvexActiveVesselTrip => ({
+  VesselID: location.VesselID,
+  VesselName: location.VesselName ?? "",
+  VesselAbbrev: getVesselAbbreviation(location.VesselName ?? ""),
+  DepartingTerminalID: location.DepartingTerminalID,
+  DepartingTerminalName: location.DepartingTerminalName ?? "",
+  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev ?? "",
+  ArrivingTerminalID: location.ArrivingTerminalID,
+  ArrivingTerminalName: location.ArrivingTerminalName,
+  ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+  ScheduledDeparture: location.ScheduledDeparture,
+  LeftDock: location.LeftDock,
+  LeftDockActual: undefined,
+  LeftDockDelay: undefined,
+  Eta: location.Eta,
+  InService: location.InService,
+  AtDock: location.AtDock,
+  OpRouteAbbrev: location.OpRouteAbbrev,
+  VesselPositionNum: location.VesselPositionNum,
+  TimeStamp: location.TimeStamp,
+  TripStart: tripStart,
+});
 
 /**
  * Convert Convex active vessel trip (numbers) to domain active vessel trip (Dates)
- * Uses Zod schema's decode to automatically convert numbers to Dates
+ * Manual conversion from epoch milliseconds to Date objects
  */
-export const toDomainActiveVesselTrip = (trip: ConvexActiveVesselTrip) =>
-  activeVesselTripZodSchema.decode(trip);
+export const toDomainActiveVesselTrip = (trip: ConvexActiveVesselTrip) => ({
+  VesselID: trip.VesselID,
+  VesselName: trip.VesselName,
+  VesselAbbrev: trip.VesselAbbrev,
+  DepartingTerminalID: trip.DepartingTerminalID,
+  DepartingTerminalName: trip.DepartingTerminalName,
+  DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+  ArrivingTerminalID: trip.ArrivingTerminalID,
+  ArrivingTerminalName: trip.ArrivingTerminalName,
+  ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+  ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
+  LeftDock: optionalEpochMsToDate(trip.LeftDock),
+  LeftDockActual: optionalEpochMsToDate(trip.LeftDockActual),
+  LeftDockDelay: trip.LeftDockDelay,
+  Eta: optionalEpochMsToDate(trip.Eta),
+  InService: trip.InService,
+  AtDock: trip.AtDock,
+  OpRouteAbbrev: trip.OpRouteAbbrev,
+  VesselPositionNum: trip.VesselPositionNum,
+  TimeStamp: epochMsToDate(trip.TimeStamp),
+  TripStart: epochMsToDate(trip.TripStart),
+});
+
+/**
+ * Type for active vessel trip in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type ActiveVesselTrip = ReturnType<typeof toDomainActiveVesselTrip>;

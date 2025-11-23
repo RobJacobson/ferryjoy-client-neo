@@ -1,116 +1,243 @@
-import { zodToConvex } from "convex-helpers/server/zod";
-import { z } from "zod";
-
+import type { Infer } from "convex/values";
+import { v } from "convex/values";
 import {
-  epochMillisToDate,
-  optionalEpochMillisToDate,
-} from "../../shared/codecs";
+  dateToEpochMs,
+  epochMsToDate,
+  optionalDateToEpochMs,
+  optionalEpochMsToDate,
+} from "../../shared/dateConversion";
 
 /**
- * Zod schema for current prediction data (domain representation with Date objects)
+ * Convex validator for current prediction data (numbers)
  * Single table with type discriminator
  */
-const currentPredictionDataZodSchema = z.object({
-  vesselId: z.number(),
-  predictionType: z.union([z.literal("departure"), z.literal("arrival")]),
-  vesselName: z.string(),
-  opRouteAbrv: z.string(),
-  depTermAbrv: z.string(),
-  arvTermAbrv: z.string(),
-  createdAt: epochMillisToDate, // Date in domain, number in Convex
-  schedDep: epochMillisToDate, // Date in domain, number in Convex
-  predictedTime: epochMillisToDate, // Date in domain, number in Convex
-  confidence: z.number(),
-  modelVersion: z.string(),
+export const currentPredictionDataSchema = v.object({
+  vesselId: v.number(),
+  predictionType: v.union(v.literal("departure"), v.literal("arrival")),
+  vesselName: v.string(),
+  opRouteAbrv: v.string(),
+  depTermAbrv: v.string(),
+  arvTermAbrv: v.string(),
+  createdAt: v.number(),
+  schedDep: v.number(),
+  predictedTime: v.number(),
+  confidence: v.number(),
+  modelVersion: v.string(),
 });
 
 /**
- * Convex validator for current prediction data
- * Exported as currentPredictionDataSchema for backward compatibility
+ * Type for current prediction data in Convex storage (with numbers)
+ * Inferred from the Convex validator
  */
-export const currentPredictionDataSchema = zodToConvex(
-  currentPredictionDataZodSchema
-);
+export type ConvexCurrentPredictionData = Infer<
+  typeof currentPredictionDataSchema
+>;
 
 /**
- * Zod schema for historical predictions analysis (domain representation with Date objects)
+ * Convex validator for historical predictions analysis (numbers)
  */
-const historicalPredictionDataZodSchema = z.object({
-  vesselId: z.number(),
-  predictionType: z.union([z.literal("departure"), z.literal("arrival")]),
-  vesselName: z.string(),
-  opRouteAbrv: z.string(),
-  depTermAbrv: z.string(),
-  arvTermAbrv: z.string(),
-  modelVersion: z.string(),
-  createdAt: epochMillisToDate, // Date in domain, number in Convex
-  schedDep: epochMillisToDate, // Date in domain, number in Convex
-  predictedTime: epochMillisToDate, // Date in domain, number in Convex
-  confidence: z.number(),
-  predictionId: z.string(),
-  predictionTimestamp: epochMillisToDate, // Date in domain, number in Convex
-  hourOfDay: z.number(),
-  dayType: z.union([z.literal("weekday"), z.literal("weekend")]),
-  previousDelay: z.number(),
-  priorTime: epochMillisToDate, // Date in domain, number in Convex
-  actual: optionalEpochMillisToDate, // Date in domain, number in Convex
-  error: z.number().optional(),
+export const historicalPredictionDataSchema = v.object({
+  vesselId: v.number(),
+  predictionType: v.union(v.literal("departure"), v.literal("arrival")),
+  vesselName: v.string(),
+  opRouteAbrv: v.string(),
+  depTermAbrv: v.string(),
+  arvTermAbrv: v.string(),
+  modelVersion: v.string(),
+  createdAt: v.number(),
+  schedDep: v.number(),
+  predictedTime: v.number(),
+  confidence: v.number(),
+  predictionId: v.string(),
+  predictionTimestamp: v.number(),
+  hourOfDay: v.number(),
+  dayType: v.union(v.literal("weekday"), v.literal("weekend")),
+  previousDelay: v.number(),
+  priorTime: v.number(),
+  actual: v.optional(v.number()),
+  error: v.optional(v.number()),
 });
 
 /**
- * Convex validator for historical prediction data
- * Exported as historicalPredictionDataSchema for backward compatibility
+ * Type for historical prediction data in Convex storage (with numbers)
+ * Inferred from the Convex validator
  */
-export const historicalPredictionDataSchema = zodToConvex(
-  historicalPredictionDataZodSchema
-);
+export type ConvexHistoricalPredictionData = Infer<
+  typeof historicalPredictionDataSchema
+>;
 
 /**
- * Zod schema for model parameters mutation argument (domain representation with Date objects)
+ * Type for historical prediction data in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
  */
-const modelParametersMutationZodSchema = z.object({
-  routeId: z.string(),
-  modelType: z.union([z.literal("departure"), z.literal("arrival")]),
-  modelAlgorithm: z.string().optional(),
-  coefficients: z.array(z.number()),
-  intercept: z.number(),
-  featureNames: z.array(z.string()),
-  trainingMetrics: z.object({
-    mae: z.number(),
-    rmse: z.number(),
-    r2: z.number(),
-    stdDev: z.number().optional(),
+export type HistoricalPredictionData = ReturnType<
+  typeof toDomainHistoricalPredictionData
+>;
+
+/**
+ * Convex validator for model parameters mutation argument (numbers)
+ */
+export const modelParametersMutationSchema = v.object({
+  routeId: v.string(),
+  modelType: v.union(v.literal("departure"), v.literal("arrival")),
+  modelAlgorithm: v.optional(v.string()),
+  coefficients: v.array(v.number()),
+  intercept: v.number(),
+  featureNames: v.array(v.string()),
+  trainingMetrics: v.object({
+    mae: v.number(),
+    rmse: v.number(),
+    r2: v.number(),
+    stdDev: v.optional(v.number()),
   }),
-  modelVersion: z.string(),
-  createdAt: epochMillisToDate, // Date in domain, number in Convex
+  modelVersion: v.string(),
+  createdAt: v.number(),
 });
 
 /**
- * Convex validator for model parameters
- * Exported as modelParametersMutationSchema for backward compatibility
+ * Type for model parameters in Convex storage (with numbers)
+ * Inferred from the Convex validator
  */
-export const modelParametersMutationSchema = zodToConvex(
-  modelParametersMutationZodSchema
-);
+export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;
 
-// Export types for use in domain layer (with Date objects)
-// Inferred from the Zod schemas
-export type CurrentPredictionData = z.infer<
-  typeof currentPredictionDataZodSchema
->;
-export type HistoricalPredictionData = z.infer<
-  typeof historicalPredictionDataZodSchema
->;
-export type ModelParameters = z.infer<typeof modelParametersMutationZodSchema>;
+/**
+ * Convert Convex current prediction data (numbers) to domain current prediction data (Dates)
+ * Manual conversion from epoch milliseconds to Date objects
+ */
+export const toDomainCurrentPredictionData = (
+  data: ConvexCurrentPredictionData
+) => ({
+  vesselId: data.vesselId,
+  predictionType: data.predictionType,
+  vesselName: data.vesselName,
+  opRouteAbrv: data.opRouteAbrv,
+  depTermAbrv: data.depTermAbrv,
+  arvTermAbrv: data.arvTermAbrv,
+  createdAt: epochMsToDate(data.createdAt),
+  schedDep: epochMsToDate(data.schedDep),
+  predictedTime: epochMsToDate(data.predictedTime),
+  confidence: data.confidence,
+  modelVersion: data.modelVersion,
+});
 
-// Export Convex types (with numbers)
-// Uses z.input to get the input type of the codec (numbers), not the output type (Dates)
-export type ConvexCurrentPredictionData = z.input<
-  typeof currentPredictionDataZodSchema
+/**
+ * Convert domain current prediction data (Dates) to Convex current prediction data (numbers)
+ * Manual conversion from Date objects to epoch milliseconds
+ */
+export const toConvexCurrentPredictionData = (data: CurrentPredictionData) => ({
+  vesselId: data.vesselId,
+  predictionType: data.predictionType,
+  vesselName: data.vesselName,
+  opRouteAbrv: data.opRouteAbrv,
+  depTermAbrv: data.depTermAbrv,
+  arvTermAbrv: data.arvTermAbrv,
+  createdAt: dateToEpochMs(data.createdAt),
+  schedDep: dateToEpochMs(data.schedDep),
+  predictedTime: dateToEpochMs(data.predictedTime),
+  confidence: data.confidence,
+  modelVersion: data.modelVersion,
+});
+
+/**
+ * Convert Convex historical prediction data (numbers) to domain historical prediction data (Dates)
+ * Manual conversion from epoch milliseconds to Date objects
+ */
+export const toDomainHistoricalPredictionData = (
+  data: ConvexHistoricalPredictionData
+) => ({
+  vesselId: data.vesselId,
+  predictionType: data.predictionType,
+  vesselName: data.vesselName,
+  opRouteAbrv: data.opRouteAbrv,
+  depTermAbrv: data.depTermAbrv,
+  arvTermAbrv: data.arvTermAbrv,
+  modelVersion: data.modelVersion,
+  createdAt: epochMsToDate(data.createdAt),
+  schedDep: epochMsToDate(data.schedDep),
+  predictedTime: epochMsToDate(data.predictedTime),
+  confidence: data.confidence,
+  predictionId: data.predictionId,
+  predictionTimestamp: epochMsToDate(data.predictionTimestamp),
+  hourOfDay: data.hourOfDay,
+  dayType: data.dayType,
+  previousDelay: data.previousDelay,
+  priorTime: epochMsToDate(data.priorTime),
+  actual: optionalEpochMsToDate(data.actual),
+  error: data.error,
+});
+
+/**
+ * Type for current prediction data in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type CurrentPredictionData = ReturnType<
+  typeof toDomainCurrentPredictionData
 >;
-export type ConvexHistoricalPredictionData = z.input<
-  typeof historicalPredictionDataZodSchema
->;
-export type ConvexModelParameters = z.input<
-  typeof modelParametersMutationZodSchema
->;
+
+/**
+ * Convert domain historical prediction data (Dates) to Convex historical prediction data (numbers)
+ * Manual conversion from Date objects to epoch milliseconds
+ */
+export const toConvexHistoricalPredictionData = (
+  data: HistoricalPredictionData
+) => ({
+  vesselId: data.vesselId,
+  predictionType: data.predictionType,
+  vesselName: data.vesselName,
+  opRouteAbrv: data.opRouteAbrv,
+  depTermAbrv: data.depTermAbrv,
+  arvTermAbrv: data.arvTermAbrv,
+  modelVersion: data.modelVersion,
+  createdAt: dateToEpochMs(data.createdAt),
+  schedDep: dateToEpochMs(data.schedDep),
+  predictedTime: dateToEpochMs(data.predictedTime),
+  confidence: data.confidence,
+  predictionId: data.predictionId,
+  predictionTimestamp: dateToEpochMs(data.predictionTimestamp),
+  hourOfDay: data.hourOfDay,
+  dayType: data.dayType,
+  previousDelay: data.previousDelay,
+  priorTime: dateToEpochMs(data.priorTime),
+  actual: optionalDateToEpochMs(data.actual),
+  error: data.error,
+});
+
+/**
+ * Convert Convex model parameters (numbers) to domain model parameters (Dates)
+ * Manual conversion from epoch milliseconds to Date objects
+ */
+export const toDomainModelParameters = (params: ConvexModelParameters) => ({
+  routeId: params.routeId,
+  modelType: params.modelType,
+  modelAlgorithm: params.modelAlgorithm,
+  coefficients: params.coefficients,
+  intercept: params.intercept,
+  featureNames: params.featureNames,
+  trainingMetrics: params.trainingMetrics,
+  modelVersion: params.modelVersion,
+  createdAt: epochMsToDate(params.createdAt),
+});
+
+/**
+ * Type for model parameters in domain layer (with Date objects)
+ * Inferred from the return type of our conversion function
+ */
+export type ModelParameters = ReturnType<typeof toDomainModelParameters>;
+
+/**
+ * Convert domain model parameters (Dates) to Convex model parameters (numbers)
+ * Manual conversion from Date objects to epoch milliseconds
+ */
+export const toConvexModelParameters = (
+  params: ModelParameters
+): ConvexModelParameters => ({
+  routeId: params.routeId,
+  modelType: params.modelType,
+  modelAlgorithm: params.modelAlgorithm,
+  coefficients: params.coefficients,
+  intercept: params.intercept,
+  featureNames: params.featureNames,
+  trainingMetrics: params.trainingMetrics,
+  modelVersion: params.modelVersion,
+  createdAt: dateToEpochMs(params.createdAt),
+});
