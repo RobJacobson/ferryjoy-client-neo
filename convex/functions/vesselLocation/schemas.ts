@@ -47,55 +47,40 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  * Manual conversion from Date objects to epoch milliseconds
  */
 export const toConvexVesselLocation = (
-  vl: DottieVesselLocation
+  dvl: DottieVesselLocation
 ): ConvexVesselLocation => ({
-  VesselID: vl.VesselID,
-  VesselName: vl.VesselName ?? undefined,
-  DepartingTerminalID: vl.DepartingTerminalID,
-  DepartingTerminalName: vl.DepartingTerminalName || "",
-  DepartingTerminalAbbrev: vl.DepartingTerminalAbbrev || "",
-  ArrivingTerminalID: vl.ArrivingTerminalID ?? undefined,
-  ArrivingTerminalName: vl.ArrivingTerminalName ?? undefined,
-  ArrivingTerminalAbbrev: vl.ArrivingTerminalAbbrev ?? undefined,
-  Latitude: vl.Latitude,
-  Longitude: vl.Longitude,
-  Speed: vl.Speed,
-  Heading: vl.Heading,
-  InService: vl.InService,
-  AtDock: vl.AtDock,
-  LeftDock: optionalDateToEpochMs(vl.LeftDock),
-  Eta: optionalDateToEpochMs(vl.Eta),
-  ScheduledDeparture: optionalDateToEpochMs(vl.ScheduledDeparture),
-  OpRouteAbbrev: vl.OpRouteAbbrev?.[0] ?? undefined,
-  VesselPositionNum: vl.VesselPositionNum ?? undefined,
-  TimeStamp: dateToEpochMs(vl.TimeStamp),
+  VesselID: dvl.VesselID,
+  VesselName: dvl.VesselName ?? undefined,
+  DepartingTerminalID: dvl.DepartingTerminalID,
+  DepartingTerminalName: dvl.DepartingTerminalName || "",
+  DepartingTerminalAbbrev: dvl.DepartingTerminalAbbrev || "",
+  ArrivingTerminalID: dvl.ArrivingTerminalID ?? undefined,
+  ArrivingTerminalName: dvl.ArrivingTerminalName ?? undefined,
+  ArrivingTerminalAbbrev: dvl.ArrivingTerminalAbbrev ?? undefined,
+  Latitude: dvl.Latitude,
+  Longitude: dvl.Longitude,
+  Speed: dvl.Speed,
+  Heading: dvl.Heading,
+  InService: dvl.InService,
+  AtDock: dvl.AtDock,
+  LeftDock: optionalDateToEpochMs(dvl.LeftDock),
+  Eta: optionalDateToEpochMs(dvl.Eta),
+  ScheduledDeparture: optionalDateToEpochMs(dvl.ScheduledDeparture),
+  OpRouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
+  VesselPositionNum: dvl.VesselPositionNum ?? undefined,
+  TimeStamp: dateToEpochMs(dvl.TimeStamp),
 });
 
 /**
  * Convert Convex vessel location (numbers) to domain vessel location (Dates)
  * Manual conversion from epoch milliseconds to Date objects
  */
-export const toDomainVesselLocation = (location: ConvexVesselLocation) => ({
-  VesselID: location.VesselID,
-  VesselName: location.VesselName,
-  DepartingTerminalID: location.DepartingTerminalID,
-  DepartingTerminalName: location.DepartingTerminalName,
-  DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
-  ArrivingTerminalID: location.ArrivingTerminalID,
-  ArrivingTerminalName: location.ArrivingTerminalName,
-  ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-  Latitude: location.Latitude,
-  Longitude: location.Longitude,
-  Speed: location.Speed,
-  Heading: location.Heading,
-  InService: location.InService,
-  AtDock: location.AtDock,
-  LeftDock: optionalEpochMsToDate(location.LeftDock),
-  Eta: optionalEpochMsToDate(location.Eta),
-  ScheduledDeparture: optionalEpochMsToDate(location.ScheduledDeparture),
-  OpRouteAbbrev: location.OpRouteAbbrev,
-  VesselPositionNum: location.VesselPositionNum,
-  TimeStamp: epochMsToDate(location.TimeStamp),
+export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
+  ...cvl,
+  LeftDock: optionalEpochMsToDate(cvl.LeftDock),
+  Eta: optionalEpochMsToDate(cvl.Eta),
+  ScheduledDeparture: optionalEpochMsToDate(cvl.ScheduledDeparture),
+  TimeStamp: epochMsToDate(cvl.TimeStamp),
 });
 
 /**
