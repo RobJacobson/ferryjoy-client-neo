@@ -1,44 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/** biome-ignore-all lint/suspicious/noExplicitAny: hardcoded fields */
-
-import { v } from "convex/values";
 import { query } from "../../_generated/server";
 
 /**
- * Get VesselPingCollections older than specified timestamp
- * Used for cleanup operations to delete old records
- */
-export const getOlderThan = query({
-  args: {
-    cutoffTime: v.number(),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cutoffTime, limit = 1000 }) => {
-    const collections = await ctx.db
-      .query("vesselPings")
-      .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoffTime))
-      .order("asc") // Get oldest first for deletion
-      .take(limit);
-
-    return collections;
-  },
-});
-
-/**
- * Get the latest VesselPingCollections from the database
- * Used for real-time display of vessel positions
+ * Get the latest 20 vessel pings from the database
  */
 export const getLatest = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { limit = 20 }) => {
-    const collections = await ctx.db
+  args: {},
+  handler: async (ctx) => {
+    const latestPings = await ctx.db
       .query("vesselPings")
-      .withIndex("by_timestamp", (q) => q)
-      .order("desc") // Get most recent first
-      .take(limit);
-
-    return collections;
+      .order("desc")
+      .take(20);
+    return latestPings;
   },
 });

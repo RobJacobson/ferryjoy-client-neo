@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { vesselLocationValidationSchema } from "./functions/vesselLocation/schemas";
-import { vesselPingCollectionValidationSchema } from "./functions/vesselPings/schemas";
+import { vesselPingListValidationSchema } from "./functions/vesselPings/schemas";
 import { vesselTripSchema } from "./functions/vesselTrips/schemas";
 
 export default defineSchema({
@@ -27,7 +27,7 @@ export default defineSchema({
     .index("by_timestamp", ["TimeStamp"]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps
-  vesselPings: defineTable(vesselPingCollectionValidationSchema).index(
+  vesselPings: defineTable(vesselPingListValidationSchema).index(
     "by_timestamp",
     ["timestamp"]
   ),

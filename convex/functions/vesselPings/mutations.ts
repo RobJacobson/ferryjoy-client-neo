@@ -1,7 +1,7 @@
 import { internalMutation, mutation } from "../../_generated/server";
 
 import type { ConvexVesselPingCollection } from "./schemas";
-import { vesselPingCollectionValidationSchema } from "./schemas";
+import { vesselPingListValidationSchema } from "./schemas";
 
 /**
  * Store a collection of vessel pings as a single document
@@ -9,7 +9,7 @@ import { vesselPingCollectionValidationSchema } from "./schemas";
  */
 export const storeVesselPingCollection = mutation({
   args: {
-    collection: vesselPingCollectionValidationSchema,
+    collection: vesselPingListValidationSchema,
   },
   handler: async (ctx, args: { collection: ConvexVesselPingCollection }) => {
     return await ctx.db.insert("vesselPings", args.collection);
