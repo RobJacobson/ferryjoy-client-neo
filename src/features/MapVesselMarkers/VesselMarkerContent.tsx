@@ -22,19 +22,28 @@ import { cn } from "@/shared/utils/cn";
  * @returns A View component with styled vessel marker content
  */
 export const VesselMarkerContent = ({ vessel }: { vessel: VesselLocation }) => {
+  const backgroundColor = vessel.InService
+    ? vessel.AtDock
+      ? "bg-pink-200"
+      : "bg-pink-400"
+    : "bg-white/25";
+  const borderColor = vessel.InService
+    ? vessel.AtDock
+      ? "border-pink-200"
+      : "border-pink-400"
+    : "border-white/25";
   return (
-    <View
-      className={cn(
-        "rounded-full border-[6px] justify-center items-center w-16 h-16 border-white",
-        vessel.InService
-          ? vessel.AtDock
-            ? "bg-pink-200/75"
-            : "bg-pink-400/75"
-          : "bg-white/25"
-      )}
-      style={shadowStyle}
-    >
-      {vessel.InService && vessel.Heading && <VesselArrow vessel={vessel} />}
+    <View className={cn("rounded-full border-[0.5px]", borderColor)}>
+      <View
+        className={cn(
+          "rounded-full border-[6px] justify-center items-center w-16 h-16",
+          backgroundColor,
+          vessel.InService ? "border-white" : "border-white/25"
+        )}
+        style={shadowStyle}
+      >
+        {vessel.InService && vessel.Heading && <VesselArrow vessel={vessel} />}
+      </View>
     </View>
   );
 };
