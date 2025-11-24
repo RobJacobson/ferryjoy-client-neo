@@ -1,8 +1,7 @@
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import type { CurrentVesselLocation, VesselLocation } from "@/domain";
-import { toDomainVesselLocation } from "@/domain";
+import type { VesselLocation } from "@/domain";
 import { api } from "../../../convex/_generated/api";
 
 export type VesselLocations = VesselLocation[];
@@ -54,9 +53,8 @@ export const ConvexVesselLocationsProvider = ({
   children,
 }: PropsWithChildren) => {
   // Fetch all current vessel locations from Convex
-  const currentVesselLocations = useQuery(
-    api.functions.currentVesselLocation.queries.getAll
-  );
+  const currentVesselLocations =
+    useQuery(api.functions.vesselLocation.queries.getAll) || [];
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +68,7 @@ export const ConvexVesselLocationsProvider = ({
   }, [currentVesselLocations]);
 
   const contextValue: ConvexVesselLocationsContextType = {
-    vesselLocations: toDomainVesselLocations(currentVesselLocations),
+    vesselLocations: currentVesselLocations,
     isLoading,
     error,
   };
@@ -80,14 +78,6 @@ export const ConvexVesselLocationsProvider = ({
       {children}
     </ConvexVesselLocationsContext>
   );
-};
-
-const toDomainVesselLocations = (
-  currentVesselLocations: CurrentVesselLocation[] | undefined
-): VesselLocations => {
-  if (!currentVesselLocations) return [];
-
-  return currentVesselLocations.map(toDomainVesselLocation);
 };
 
 /**

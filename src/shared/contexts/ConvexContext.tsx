@@ -1,12 +1,13 @@
+import type { ConvexVesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import type {
-  CurrentVesselLocation,
-  VesselLocation,
-  VesselPing,
+import {
+  toDomainVesselLocation,
+  toDomainVesselPing,
+  type VesselLocation,
+  type VesselPing,
 } from "@/domain";
-import { toDomainVesselLocation, toDomainVesselPing } from "@/domain";
 import { api } from "../../../convex/_generated/api";
 import type { ConvexVesselPingCollection } from "../../../convex/functions/vesselPings/schemas";
 
@@ -65,8 +66,8 @@ export const ConvexProvider = ({ children }: PropsWithChildren) => {
 
   // Fetch all current vessel locations from Convex
   const currentVesselLocations = useQuery(
-    api.functions.currentVesselLocation.queries.getAll
-  );
+    api.functions.vesselLocation.queries.getAll
+  ).map(toDomainVesselLocation);
 
   const contextValue: ConvexContextType = {
     // Type assertion needed because Convex query types may not match codec input types
@@ -75,7 +76,7 @@ export const ConvexProvider = ({ children }: PropsWithChildren) => {
         | ConvexVesselPingCollection[]
         | undefined
     ),
-    vesselLocations: toDomainVesselLocations(currentVesselLocations),
+    vesselLocations: currentVesselLocations,
   };
 
   return <ConvexContext value={contextValue}>{children}</ConvexContext>;
@@ -107,14 +108,6 @@ const toSortedGroupedPings = (
   );
 
   return groupedPings;
-};
-
-const toDomainVesselLocations = (
-  currentVesselLocations: CurrentVesselLocation[] | undefined
-): VesselLocations => {
-  if (!currentVesselLocations) return [];
-
-  return currentVesselLocations.map(toDomainVesselLocation);
 };
 
 /**
