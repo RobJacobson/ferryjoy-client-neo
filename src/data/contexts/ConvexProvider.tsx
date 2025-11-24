@@ -19,7 +19,7 @@ import { ConvexVesselPingsProvider } from "./ConvexVesselPingsContext";
  * @param props.children - Child components that will have access to both contexts
  * @returns A provider component that wraps both contexts
  */
-export const ConvexCombinedProvider = ({ children }: PropsWithChildren) => {
+export const ConvexProvider = ({ children }: PropsWithChildren) => {
   return (
     <ConvexVesselLocationsProvider>
       <ConvexVesselPingsProvider>{children}</ConvexVesselPingsProvider>

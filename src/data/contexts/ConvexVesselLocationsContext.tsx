@@ -1,10 +1,12 @@
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import { toDomainVesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import type { VesselLocation } from "@/domain";
 import { api } from "../../../convex/_generated/api";
 
-export type VesselLocations = VesselLocation[];
+// Re-export VesselLocation type for convenience
+export type { VesselLocation };
 
 /**
  * Type definition for the Convex Vessel Locations context value
@@ -13,14 +15,14 @@ export type VesselLocations = VesselLocation[];
  */
 type ConvexVesselLocationsContextType = {
   /** Array of current vessel locations converted to domain values */
-  vesselLocations: VesselLocations;
+  vesselLocations: VesselLocation[];
   /** Loading state for vessel locations data */
   isLoading: boolean;
   /** Error state for vessel locations data */
   error: string | null;
 };
 
-/**
+/*
  * React context for sharing vessel locations data across the app.
  *
  * This context provides access to vessel locations data with loading and error states.
@@ -54,7 +56,9 @@ export const ConvexVesselLocationsProvider = ({
 }: PropsWithChildren) => {
   // Fetch all current vessel locations from Convex
   const currentVesselLocations =
-    useQuery(api.functions.vesselLocation.queries.getAll) || [];
+    useQuery(api.functions.vesselLocation.queries.getAll)?.map(
+      toDomainVesselLocation
+    ) || [];
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

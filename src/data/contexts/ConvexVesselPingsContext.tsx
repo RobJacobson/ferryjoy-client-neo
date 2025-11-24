@@ -1,12 +1,13 @@
+import { api } from "convex/_generated/api";
+import {
+  toDomainVesselPing,
+  type VesselPing,
+} from "convex/functions/vesselPings/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import type { VesselPing } from "@/domain";
-import { toDomainVesselPing } from "@/domain";
-import { api } from "../../../convex/_generated/api";
-import type { ConvexVesselPingCollection } from "../../../convex/functions/vesselPings/schemas";
 
-export type VesselPings = Record<number, VesselPing[]>;
+export type VesselPingsByVesselId = Record<number, VesselPing[]>;
 
 /**
  * Type definition for the Convex Vessel Pings context value
@@ -15,7 +16,7 @@ export type VesselPings = Record<number, VesselPing[]>;
  */
 type ConvexVesselPingsContextType = {
   /** Object mapping VesselID to an array of VesselPings sorted by timestamp (most recent first) */
-  vesselPings: VesselPings;
+  vesselPingsByVesselId: VesselPingsByVesselId;
   /** Loading state for vessel pings data */
   isLoading: boolean;
   /** Error state for vessel pings data */
@@ -53,29 +54,23 @@ const ConvexVesselPingsContext = createContext<
  */
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   // Fetch the latest 20 VesselPingCollections from Convex
-  const latestPingsCollections = useQuery(
-    api.functions.vesselPings.queries.getLatest,
-    { limit: 20 }
-  );
+  const latestPings = useQuery(api.functions.vesselPings.queries.getLatest)
+    ?.flatMap((pingGroup) => pingGroup.pings)
+    .map(toDomainVesselPing);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Handle loading and error states
   useEffect(() => {
-    if (latestPingsCollections !== undefined) {
+    if (latestPings !== undefined) {
       setIsLoading(false);
       setError(null);
     }
-  }, [latestPingsCollections]);
+  }, [latestPings]);
 
   const contextValue: ConvexVesselPingsContextType = {
-    vesselPings: toSortedGroupedPings(
-      // Type assertion needed because Convex query types may not match codec input types
-      latestPingsCollections as unknown as
-        | ConvexVesselPingCollection[]
-        | undefined
-    ),
+    vesselPingsByVesselId: toVesselPingsByVesselId(latestPings || []),
     isLoading,
     error,
   };
@@ -87,32 +82,15 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   );
 };
 
-const toSortedGroupedPings = (
-  latestPingsCollections: ConvexVesselPingCollection[] | undefined
-) => {
-  if (!latestPingsCollections) return {};
-
-  // Transform the data into a sorted array of VesselPings
-  const vesselPings = [
-    ...latestPingsCollections.flatMap((collection) =>
-      collection.pings.map(toDomainVesselPing)
-    ),
-  ].sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
-
-  // Group pings by VesselID using reduce to preserve sort order
-  const groupedPings = vesselPings.reduce(
-    (acc, ping) => {
-      const vesselId = ping.VesselID;
-      if (!acc[vesselId]) {
-        acc[vesselId] = [];
-      }
-      acc[vesselId].push(ping);
-      return acc;
-    },
-    {} as Record<number, VesselPing[]>
-  );
-
-  return groupedPings;
+const toVesselPingsByVesselId = (
+  pings: VesselPing[]
+): VesselPingsByVesselId => {
+  const groupedPings = Object.groupBy(pings, (p) => p.VesselID);
+  console.log(groupedPings);
+  // Filter out undefined values to match the expected type
+  return Object.fromEntries(
+    Object.entries(groupedPings).filter(([_, pings]) => pings !== undefined)
+  ) as VesselPingsByVesselId;
 };
 
 /**
