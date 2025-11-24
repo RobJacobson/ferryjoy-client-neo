@@ -1,7 +1,9 @@
 import { Stack } from "expo-router";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import type { VesselVerbose } from "ws-dottie/wsf-vessels";
 
-import { useWsDottie, useConvexVesselLocations } from "@/shared/contexts";
+import { useConvexVesselLocations } from "@/data/contexts";
+import { useWsDottie } from "@/data/contexts/WsDottieContext";
 
 export default function VesselsLocationScreen() {
   const { vesselLocations, isLoading, error } = useConvexVesselLocations();
@@ -9,7 +11,9 @@ export default function VesselsLocationScreen() {
 
   // Combine vessel location data with vessel details
   const getVesselDetails = (vesselId: number) => {
-    return vesselsVerbose.data?.find((vessel) => vessel.VesselID === vesselId);
+    return vesselsVerbose.data?.find(
+      (vessel: VesselVerbose) => vessel.VesselID === vesselId
+    );
   };
 
   return (
@@ -23,9 +27,7 @@ export default function VesselsLocationScreen() {
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-red-500">
-            Error: {error}
-          </Text>
+          <Text className="text-red-500">Error: {error}</Text>
         </View>
       ) : (
         <FlatList

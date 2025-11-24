@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
-import { useWsDottie } from "@/shared/contexts";
+import { useWsDottie } from "@/data/contexts";
 
 export default function VesselsVerboseScreen() {
   const { vesselsVerbose } = useWsDottie();

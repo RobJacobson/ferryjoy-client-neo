@@ -1,15 +1,15 @@
 import { Stack } from "expo-router";
 import { View } from "react-native";
-import { MapComponent } from "@/features/MapComponent";
-import { MapVesselMarkers } from "@/features/MapVesselMarkers";
-import { VesselLines } from "@/features/VesselLines";
 import {
-  ConvexCombinedProvider,
+  ConvexProvider,
   MapStateProvider,
   SmoothedVesselPositionsProvider,
   useMapState,
   WsDottieProvider,
-} from "@/shared/contexts";
+} from "@/data/contexts";
+import { MapComponent } from "@/features/MapComponent";
+import { MapVesselMarkers } from "@/features/MapVesselMarkers";
+import { VesselLines } from "@/features/VesselLines";
 
 // Inner component that uses context to get initial state
 const MapPageContent = () => {
@@ -31,9 +31,9 @@ const MapPageContent = () => {
 const MapPage = () => (
   <MapStateProvider>
     <WsDottieProvider>
-      <ConvexCombinedProvider>
+      <ConvexProvider>
         <MapPageContent />
-      </ConvexCombinedProvider>
+      </ConvexProvider>
     </WsDottieProvider>
   </MapStateProvider>
 );
