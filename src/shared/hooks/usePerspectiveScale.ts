@@ -1,11 +1,9 @@
-import type { VesselLocation } from "@/domain";
-import { useMapState } from "@/shared/contexts";
-import { useMapScale } from "@/shared/hooks/useMapScale";
-import { clamp } from "@/shared/utils";
-import { mapProjectionUtils } from "@/shared/utils/mapProjection";
+import { useMapState } from "../contexts/MapStateContext";
+import { clamp } from "../utils";
+import { mapProjectionUtils } from "../utils/mapProjection";
 
 // Perspective scaling constant
-const PERSPECTIVE_STRENGTH = 1;
+const PERSPECTIVE_STRENGTH = 1.25;
 
 /**
  * Calculate perspective scaling factor based on pitch and screen Y position
@@ -32,33 +30,29 @@ const calculatePerspectiveScale = (pitch: number, screenY: number): number => {
   // screenY = +1 → scale < 1.0 (smaller)
   const perspectiveFactor = 1.0 - screenY * pitchEffect;
 
-  return clamp(perspectiveFactor, 0.5, 2.0);
+  return clamp(perspectiveFactor, 0.1, 10.0);
 };
 
 /**
- * Custom hook to calculate the scale factor for a vessel marker
- * Combines zoom-based scaling with perspective scaling based on map pitch and position
+ * Hook to calculate perspective scaling factor for a marker based on map pitch and position
  *
- * @param vessel - The vessel location data
- * @returns The calculated scale factor for the marker
+ * @param latitude - The latitude coordinate of the marker
+ * @param longitude - The longitude coordinate of the marker
+ * @returns The perspective scaling factor
  */
-export const useVesselMarkerScale = (vessel: VesselLocation) => {
+export const usePerspectiveScale = (
+  latitude: number,
+  longitude: number
+): number => {
   const { cameraState, mapDimensions } = useMapState();
-  const zoomScale = useMapScale();
 
   // Calculate precise screen Y position using viewport-mercator-project
   const screenY = mapProjectionUtils.getNormalizedScreenY(
-    [vessel.Longitude, vessel.Latitude],
+    [longitude, latitude],
     cameraState,
     mapDimensions
   );
 
   // Calculate perspective scale based on pitch and screen Y position
-  const perspectiveScale = calculatePerspectiveScale(
-    cameraState.pitch,
-    screenY
-  );
-
-  // Calculate final marker size by combining both scaling factors
-  return perspectiveScale * zoomScale;
+  return calculatePerspectiveScale(cameraState.pitch, screenY);
 };
