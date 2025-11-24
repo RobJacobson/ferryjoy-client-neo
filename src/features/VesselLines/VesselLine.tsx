@@ -1,67 +1,68 @@
-import MapboxRN from "@rnmapbox/maps";
+import type { VesselLocation, VesselPing } from "@/domain";
 import { useZoomScale } from "@/shared/hooks";
-import {
-  createLineGradient,
-  getLayerId,
-  getSourceId,
-  LINE_CAP,
-  LINE_JOIN,
-  LINE_WIDTH,
-} from "./shared";
-import type { VesselLineProps } from "./types";
+import { LineLayer } from "./components/LineLayer"; // Will be resolved to platform-specific version
+import { VESSEL_LINE_CONFIG } from "./config";
+import { filterVesselPings } from "./utils/filtering";
+import { createLineGradient } from "./utils/shared";
+import { createSmoothedLine } from "./utils/smoothing";
 
-/**
- * VesselLine component
- *
- * Renders a vessel track line on the map with a shadow effect.
- * The component receives a pre-processed GeoJSON LineString and renders it using Mapbox ShapeSource and LineLayer.
- *
- * @param line - GeoJSON LineString feature
- * @param id - Unique identifier for the line source
- * @param rgbaColor - RGBA color values for the line [r, g, b, a]
- *
- * @returns A Mapbox ShapeSource with LineLayer for the vessel track
- *
- * @example
- * ```tsx
- * <VesselLine
- *   line={lineString}
- *   id={`vessel-line-${vesselId}`}
- *   rgbaColor={[244, 114, 182, 0.75]}
- * />
- * ```
- */
-export const VesselLine = ({ line, id, rgbaColor }: VesselLineProps) => {
-  const sourceId = getSourceId(id);
-  const layerId = getLayerId(id);
+export const VesselLine = ({
+  vesselId,
+  pings,
+  currentPosition,
+}: {
+  vesselId: string;
+  pings: VesselPing[];
+  currentPosition?: VesselLocation;
+}) => {
+  const mapScale = useZoomScale();
+  // Filter pings first
+  const coordinates = filterVesselPings(pings, currentPosition);
 
-  const zoomScale = useZoomScale();
+  // Skip if we don't have enough points or no current position
+  if (
+    !currentPosition ||
+    coordinates.length < VESSEL_LINE_CONFIG.filtering.minPoints
+  ) {
+    return null;
+  }
 
-  // Create gradient with the provided RGBA color
+  // Apply smoothing with selected strategy
+  const line = createSmoothedLine(
+    coordinates,
+    VESSEL_LINE_CONFIG.smoothing.strategy
+  );
+
+  // Determine if vessel is in service
+  const inService = pings[0]?.AtDock === false;
+
+  // Get color based on service status
+  const rgbaColor = inService
+    ? VESSEL_LINE_CONFIG.styling.colors.inService
+    : VESSEL_LINE_CONFIG.styling.colors.atDock;
+
+  // Generate IDs and styling properties
+  const sourceId = `vessel-line-source-${vesselId}`;
+  const layerId = `vessel-line-layer-${vesselId}`;
   const lineGradient = createLineGradient(
     rgbaColor[0],
     rgbaColor[1],
     rgbaColor[2],
     rgbaColor[3]
   );
+  const lineWidth = VESSEL_LINE_CONFIG.styling.lineWidth * mapScale;
 
+  // Render platform-specific VesselLine component with all props
   return (
-    <MapboxRN.ShapeSource
-      id={sourceId}
-      shape={line}
-      lineMetrics={true} // Enable line metrics for gradient support
-    >
-      <MapboxRN.LineLayer
-        id={layerId}
-        sourceID={sourceId}
-        slot="middle"
-        style={{
-          lineWidth: LINE_WIDTH * zoomScale,
-          lineCap: LINE_CAP,
-          lineJoin: LINE_JOIN,
-          lineGradient: lineGradient,
-        }}
-      />
-    </MapboxRN.ShapeSource>
+    <LineLayer
+      id={`vessel-${vesselId}`}
+      line={line || undefined}
+      inService={inService}
+      rgbaColor={rgbaColor}
+      sourceId={sourceId}
+      layerId={layerId}
+      lineGradient={lineGradient}
+      lineWidth={lineWidth}
+    />
   );
 };

@@ -1,1 +1,1 @@
-export { VesselLines } from "./VesselLines";
+export * from "./VesselLines";

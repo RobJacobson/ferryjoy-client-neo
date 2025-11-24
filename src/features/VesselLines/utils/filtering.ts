@@ -1,4 +1,5 @@
 import type { VesselLocation, VesselPing } from "@/domain";
+import { VESSEL_LINE_CONFIG } from "../config";
 
 /**
  * Filters vessel pings by replacing first ping with current position.
@@ -16,12 +17,14 @@ export const filterVesselPings = (
     return [];
   }
 
-  // Time fifteen seconds ago
-  const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  // Use time window from configuration
+  const timeWindowAgo = new Date(
+    Date.now() - VESSEL_LINE_CONFIG.filtering.timeWindowMs
+  );
 
-  // Find start index (skip first ping if it's within 15 seconds)
+  // Find start index (skip first ping if it's within the time window)
   const startIndex =
-    pings.length > 0 && pings[0].TimeStamp >= fifteenSecondsAgo ? 1 : 0;
+    pings.length > 0 && pings[0].TimeStamp >= timeWindowAgo ? 1 : 0;
 
   // Find end index (first at-dock ping, or end of array)
   const firstAtDockIndex = pings.findIndex((ping) => ping.AtDock);

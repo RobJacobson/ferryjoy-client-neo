@@ -6,6 +6,7 @@ import {
   curveCatmullRom,
 } from "d3";
 import type { Feature, LineString } from "geojson";
+import { VESSEL_LINE_CONFIG } from "../config";
 
 // Simple type definition for the strategy function
 export type SmoothingStrategy = (
@@ -13,42 +14,42 @@ export type SmoothingStrategy = (
 ) => Feature<LineString> | null;
 
 // Strategy object that directly maps strategy names to their implementations
-// Each strategy has its own hardcoded constants
+// Each strategy uses configuration values from VESSEL_LINE_CONFIG
 export const smoothingStrategies = {
-  // D3 Basis Strategy with hardcoded constants
-  d3Basis: (coordinates: [number, number][]) => {
-    if (!coordinates || coordinates.length < 2) return null;
+  // No smoothing - passes through original line segments
+  none: (coordinates: [number, number][]) => {
+    // Simply return the original coordinates as a LineString
+    return lineString(coordinates);
+  },
 
+  // D3 Basis Strategy
+  d3Basis: (coordinates: [number, number][]) => {
     const selectedCurve = curveBasis;
     return createSmoothedLineWithCurve(coordinates, selectedCurve);
   },
 
-  // D3 Cardinal Strategy with hardcoded constants
+  // D3 Cardinal Strategy with configurable tension
   d3Cardinal: (coordinates: [number, number][]) => {
-    if (!coordinates || coordinates.length < 2) return null;
-
-    // Hardcoded tension value specifically for cardinal curves
-    const selectedCurve = curveCardinal.tension(0.7);
+    // Use tension value from configuration
+    const selectedCurve = curveCardinal.tension(
+      VESSEL_LINE_CONFIG.smoothing.cardinalTension
+    );
     return createSmoothedLineWithCurve(coordinates, selectedCurve);
   },
 
-  // D3 Catmull-Rom Strategy with hardcoded constants
+  // D3 Catmull-Rom Strategy
   d3CatmullRom: (coordinates: [number, number][]) => {
-    if (!coordinates || coordinates.length < 2) return null;
-
     const selectedCurve = curveCatmullRom;
     return createSmoothedLineWithCurve(coordinates, selectedCurve);
   },
 
-  // Turf Bezier Strategy with hardcoded constants
+  // Turf Bezier Strategy with configurable parameters
   turfBezier: (coordinates: [number, number][]) => {
-    if (!coordinates || coordinates.length < 2) return null;
-
     const line = lineString(coordinates);
-    // Hardcoded resolution and sharpness values specifically for bezier curves
+    // Use resolution and sharpness values from configuration
     const smoothed = bezierSpline(line, {
-      resolution: 10000,
-      sharpness: 0.85,
+      resolution: VESSEL_LINE_CONFIG.smoothing.bezierResolution,
+      sharpness: VESSEL_LINE_CONFIG.smoothing.bezierSharpness,
     });
     return smoothed;
   },
@@ -66,17 +67,22 @@ export type SmoothingStrategyName = keyof typeof smoothingStrategies;
  */
 export const createSmoothedLine = (
   coordinates: [number, number][],
-  strategy: SmoothingStrategyName = "turfBezier"
+  strategy: SmoothingStrategyName = VESSEL_LINE_CONFIG.smoothing.strategy
 ): Feature<LineString> | null => {
+  // Validate coordinates before processing
+  if (!coordinates || coordinates.length < 2) return null;
+
   // Get the selected strategy directly from the object
   const selectedStrategy = smoothingStrategies[strategy];
 
-  // Fallback to turfBezier if strategy not found
+  // Fallback to default strategy if strategy not found
   if (!selectedStrategy) {
     console.warn(
-      `Unknown smoothing strategy: ${strategy}, falling back to turfBezier`
+      `Unknown smoothing strategy: ${strategy}, falling back to ${VESSEL_LINE_CONFIG.smoothing.strategy}`
     );
-    return smoothingStrategies.turfBezier(coordinates);
+    return smoothingStrategies[VESSEL_LINE_CONFIG.smoothing.strategy](
+      coordinates
+    );
   }
 
   // Execute the selected strategy
