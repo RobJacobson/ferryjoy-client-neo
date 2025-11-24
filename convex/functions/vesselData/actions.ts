@@ -19,6 +19,7 @@ export const updateVesselData = internalAction({
   handler: async (ctx) => {
     // 1. Fetch vesselLocation data from fetchVesselLocations
     const vesselLocations = (await fetchVesselLocations())
+      .map((vl) => ({ ...vl, Speed: vl.Speed < 0.2 ? 0 : vl.Speed }))
       .map(toConvexVesselLocation)
       .map((vl) => ({ ...vl, VesselAbbrev: getVesselAbbreviation(vl) }));
 
@@ -61,5 +62,6 @@ const vesselIdToAbbrev = {
  */
 export const getVesselAbbreviation = (vl: ConvexVesselLocation): string => {
   const vesselId = vl.VesselID.toString();
-  return vesselIdToAbbrev[vesselId] || "";
+  const abbrev = vesselIdToAbbrev[vesselId] || "";
+  return abbrev;
 };

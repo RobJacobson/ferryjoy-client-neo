@@ -105,8 +105,11 @@ const mergeCompletedTrip = (
     // Calculate duration metrics
     AtSeaDuration: calculateDuration(existingTrip.LeftDock, vl.TimeStamp),
     TotalDuration: calculateDuration(existingTrip.TripStart, vl.TimeStamp),
-    Distance: calculateDistanceToTerminal(vl, vl.ArrivingTerminalID),
-    Delay: calculateDuration(vl.ScheduledDeparture, vl.LeftDock),
+    Distance: calculateDistanceToTerminal(vl, existingTrip.ArrivingTerminalID),
+    Delay: calculateDuration(
+      existingTrip.ScheduledDeparture,
+      existingTrip.LeftDock
+    ),
   };
 };
 
@@ -170,7 +173,8 @@ const toCurrentTrip = (
     AtDockDuration: calculateDuration(tripStart, vl.LeftDock),
     AtSeaDuration: calculateDuration(vl.LeftDock, vl.TimeStamp),
     TotalDuration: calculateDuration(tripStart, vl.TimeStamp),
-    Distance: calculateDistanceToTerminal(vl, vl.ArrivingTerminalID),
+    Distance:
+      vl.LeftDock && calculateDistanceToTerminal(vl, vl.ArrivingTerminalID),
     Delay: calculateDuration(vl.ScheduledDeparture, vl.LeftDock),
   });
 };
