@@ -1,24 +1,18 @@
-import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import type { ActionCtx } from "_generated/server";
 import { api } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
-import { toConvexVesselLocation } from "./schemas";
+import type { ConvexVesselLocation } from "./schemas";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API
  * This is called by cron jobs and makes external HTTP requests
  * Stores data without any filtering or transforming
  */
-export const fetchAndStoreVesselLocations = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    // Fetch current vessel data from WSF API
-    const convexLocations = (await fetchVesselLocations()).map(
-      toConvexVesselLocation
-    );
-
-    // Store locations to database
-    await ctx.runMutation(api.functions.vesselLocation.mutations.bulkInsert, {
-      locations: convexLocations,
-    });
-  },
-});
+export const storeVesselLocations = async (
+  ctx: ActionCtx,
+  currentLocations: ConvexVesselLocation[]
+) => {
+  // Store locations to database using bulk upsert to replace existing records by VesselID
+  await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
+    locations: currentLocations,
+  });
+};
