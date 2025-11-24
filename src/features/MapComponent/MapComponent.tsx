@@ -24,6 +24,7 @@ import {
   handleCameraStateChange,
   nativeMapStateToCameraState,
 } from "./shared";
+import { MAP_COMPONENT_CONFIG } from "./config";
 
 /**
  * Native MapComponent for React Native platforms
@@ -73,7 +74,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     <View className="flex-1 relative">
       <MapboxRN.MapView
         style={{ flex: 1 }}
-        styleURL="mapbox://styles/mapbox/streets-v12"
+        styleURL={MAP_COMPONENT_CONFIG.styleURL}
         zoomEnabled={true}
         scrollEnabled={true}
         pitchEnabled={true}

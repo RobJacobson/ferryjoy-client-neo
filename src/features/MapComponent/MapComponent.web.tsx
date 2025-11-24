@@ -8,6 +8,7 @@ import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
 import { useMapState } from "@/data/contexts";
+import { MAP_COMPONENT_CONFIG } from "./config";
 import type { CameraState, MapProps } from "./shared";
 import {
   cameraStateToViewState,
@@ -56,7 +57,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
         ref={mapRef}
         viewState={viewState}
         style={{ flex: 1 }}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapStyle={MAP_COMPONENT_CONFIG.styleURL}
         projection="mercator"
         onMove={handleMove}
         reuseMaps
