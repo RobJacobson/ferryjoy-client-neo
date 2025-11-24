@@ -7,9 +7,10 @@
  */
 
 import type { VesselLocation } from "@/domain";
-import { useMarkerScale } from "@/shared/hooks";
-import { Marker, ScaledMarker } from "../MapMarkers";
+import { useMarkerScale, useMapPitch } from "@/shared/hooks";
+import { Marker } from "../MapMarkers";
 import { VesselMarkerContent } from "./VesselMarkerContent";
+import { View } from "react-native";
 
 /**
  * MapVesselMarker component
@@ -43,6 +44,7 @@ export const MapVesselMarker = ({
   zIndex?: number;
 }) => {
   const markerScale = useMarkerScale(vessel.Latitude, vessel.Longitude);
+  const mapPitch = useMapPitch();
 
   return (
     <Marker
@@ -50,9 +52,13 @@ export const MapVesselMarker = ({
       latitude={vessel.Latitude}
       zIndex={zIndex}
     >
-      <ScaledMarker scale={markerScale}>
+      <View
+        style={{
+          transform: [{ rotateX: `${mapPitch}deg` }, { scale: markerScale }],
+        }}
+      >
         <VesselMarkerContent vessel={vessel} />
-      </ScaledMarker>
+      </View>
     </Marker>
   );
 };
