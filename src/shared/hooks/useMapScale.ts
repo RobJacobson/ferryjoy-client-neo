@@ -1,20 +1,18 @@
-import { useMapState } from "../../data/contexts/MapStateContext";
+import { usePerspectiveScale } from "./usePerspectiveScale";
+import { useZoomScale } from "./useZoomScale";
 
 /**
- * Generic interface for objects with latitude and longitude properties
- */
-export interface LatLon {
-  latitude: number;
-  longitude: number;
-}
-
-/**
- * Hook to calculate zoom-based scale factor for any object with latitude and longitude
- * Useful for scaling effects based on zoom level
+ * Hook to calculate the combined scale factor for a marker
+ * Combines zoom-based scaling with perspective scaling based on map pitch and position
  *
- * @returns Current zoom scale (zoom/10)
+ * @param latitude - The latitude coordinate of the marker
+ * @param longitude - The longitude coordinate of the marker
+ * @returns The combined scale factor for the marker
  */
-export const useMapScale = (): number => {
-  const { cameraState } = useMapState();
-  return (cameraState?.zoomLevel || 10) / 10;
+export const useMapScale = (latitude: number, longitude: number): number => {
+  const zoomScale = useZoomScale();
+  const perspectiveScale = usePerspectiveScale(latitude, longitude);
+
+  // Calculate final marker size by combining both scaling factors
+  return zoomScale * perspectiveScale;
 };

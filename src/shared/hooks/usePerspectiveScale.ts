@@ -30,7 +30,7 @@ const calculatePerspectiveScale = (pitch: number, screenY: number): number => {
   // screenY = +1 → scale < 1.0 (smaller)
   const perspectiveFactor = 1.0 - screenY * pitchEffect;
 
-  return clamp(perspectiveFactor, 0.1, 10.0);
+  return clamp(perspectiveFactor, 0.5, 2);
 };
 
 /**
