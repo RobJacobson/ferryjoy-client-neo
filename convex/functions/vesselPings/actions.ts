@@ -3,7 +3,7 @@ import { api, internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 
 import type { ConvexVesselPingCollection } from "./schemas";
-import { toConvexVesselPing, toConvexVesselPingCollection } from "./schemas";
+import { toConvexVesselPing } from "./schemas";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API
@@ -26,8 +26,10 @@ export const fetchAndStoreVesselPings = internalAction({
     }
 
     // Create a collection document with all pings and current timestamp
-    const pingCollection: ConvexVesselPingCollection =
-      toConvexVesselPingCollection(vesselPings, Date.now());
+    const pingCollection: ConvexVesselPingCollection = {
+      timestamp: Date.now(),
+      pings: vesselPings,
+    };
 
     // Store the collection to database
     await ctx.runMutation(

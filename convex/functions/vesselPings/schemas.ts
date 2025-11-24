@@ -17,11 +17,20 @@ export const vesselPingValidationSchema = v.object({
   TimeStamp: v.number(),
 });
 
+export const vesselPingCollectionValidationSchema = v.object({
+  timestamp: v.number(),
+  pings: v.array(vesselPingValidationSchema),
+});
+
 /**
  * Type for vessel ping in Convex storage (with numbers)
  * Inferred from the Convex validator
  */
 export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
+
+export type ConvexVesselPingCollection = Infer<
+  typeof vesselPingCollectionValidationSchema
+>;
 
 /**
  * Convert a Dottie vessel location to a convex vessel ping
@@ -38,26 +47,6 @@ export const toConvexVesselPing = (
   AtDock: vl.AtDock,
   TimeStamp: dateToEpochMs(vl.TimeStamp),
 });
-
-/**
- * Convert an array of convex vessel pings and timestamp to a convex vessel ping collection
- * Note: pings are already in Convex format (numbers), timestamp is a number
- */
-export const toConvexVesselPingCollection = (
-  pings: ConvexVesselPing[],
-  timestamp: number
-) => ({
-  timestamp,
-  pings,
-});
-
-/**
- * Type for vessel ping collection in Convex storage (with numbers)
- * Inferred from the return type of our conversion function
- */
-export type ConvexVesselPingCollection = ReturnType<
-  typeof toConvexVesselPingCollection
->;
 
 /**
  * Convert Convex vessel ping (numbers) to domain vessel ping (Dates)
