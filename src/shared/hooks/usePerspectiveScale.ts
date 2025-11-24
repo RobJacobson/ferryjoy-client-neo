@@ -1,4 +1,4 @@
-import { useMapState } from "../contexts/MapStateContext";
+import { useMapState } from "../../data/contexts/MapStateContext";
 import { clamp } from "../utils";
 import { mapProjectionUtils } from "../utils/mapProjection";
 

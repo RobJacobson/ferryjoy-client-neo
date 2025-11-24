@@ -1,4 +1,4 @@
-import { useMapState } from "../contexts/MapStateContext";
+import { useMapState } from "../../data/contexts/MapStateContext";
 
 /**
  * Generic interface for objects with latitude and longitude properties
@@ -18,10 +18,3 @@ export const useMapScale = (): number => {
   const { cameraState } = useMapState();
   return (cameraState?.zoomLevel || 10) / 10;
 };
-
-
-
-
-
-
-

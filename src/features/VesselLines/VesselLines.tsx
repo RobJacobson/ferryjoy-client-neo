@@ -8,9 +8,9 @@
 
 import type { Feature, LineString } from "geojson";
 import type React from "react";
+import { useConvexVesselPings } from "@/data/contexts/ConvexVesselPingsContext";
+import { useSmoothedVesselPositions } from "@/data/contexts/SmoothedVesselPositionsContext";
 import type { VesselLocation, VesselPing } from "@/domain";
-import { useConvexVesselPings } from "@/shared/contexts/ConvexVesselPingsContext";
-import { useSmoothedVesselPositions } from "@/shared/contexts/SmoothedVesselPositionsContext";
 import { filterVesselPings } from "./filtering";
 import { createSmoothedLine, type SmoothingStrategyName } from "./smoothing";
 import { VesselLine } from "./VesselLine";
@@ -47,7 +47,7 @@ const VESSEL_LINE_CONFIG = {
  * ```
  */
 export const VesselLines = () => {
-  const { vesselPings } = useConvexVesselPings();
+  const { vesselPingsByVesselId: vesselPings } = useConvexVesselPings();
   const { smoothedVessels } = useSmoothedVesselPositions();
 
   // Process vessel data and create VesselLine components

@@ -17,7 +17,7 @@ import type { MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
-import { useMapState } from "@/shared/contexts";
+import { useMapState } from "@/data/contexts";
 import type { CameraState, MapProps } from "./shared";
 import {
   DEFAULT_NATIVE_CAMERA_STATE,

@@ -3,9 +3,9 @@
  * Renders vessel markers on map using smoothed animated vessel positions
  */
 
+import { useSmoothedVesselPositions } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
-import { useSmoothedVesselPositions } from "@/shared/contexts";
 import { MapVesselMarker } from "./MapVesselMarker";
 
 /**

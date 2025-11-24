@@ -6,7 +6,7 @@
 
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { useMapState } from "@/shared/contexts";
+import { useMapState } from "@/data/contexts";
 
 /**
  * A marker component that applies scaling and 3D transforms to its children.
@@ -31,10 +31,7 @@ export const ScaledMarker = ({
     <View
       className={className}
       style={{
-        transform: [
-          { rotateX: `${cameraState.pitch}deg` },
-          { scale },
-        ],
+        transform: [{ rotateX: `${cameraState.pitch}deg` }, { scale }],
       }}
     >
       {children}

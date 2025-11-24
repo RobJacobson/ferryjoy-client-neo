@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
-import { useMapState } from "@/shared/contexts";
+import { useMapState } from "@/data/contexts";
 import type { CameraState, MapProps } from "./shared";
 import {
   cameraStateToViewState,

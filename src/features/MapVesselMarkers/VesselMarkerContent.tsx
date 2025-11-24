@@ -7,8 +7,8 @@
  */
 
 import { Text, View } from "@/components/ui";
+import { useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
-import { useMapState } from "@/shared/contexts";
 import { cn } from "@/shared/utils/cn";
 
 /**
@@ -28,8 +28,8 @@ export const VesselMarkerContent = ({ vessel }: { vessel: VesselLocation }) => {
         "rounded-full border-[6px] justify-center items-center w-16 h-16 border-white",
         vessel.InService
           ? vessel.AtDock
-            ? "bg-pink-200"
-            : "bg-pink-400"
+            ? "bg-pink-200/75"
+            : "bg-pink-400/75"
           : "bg-white/25"
       )}
       style={shadowStyle}
@@ -61,7 +61,9 @@ const VesselArrow = ({ vessel }: { vessel: VesselLocation }) => {
 
   return (
     <View style={{ transform: [{ rotate: `${rotationAngle}deg` }] }}>
-      <View className={cn((vessel.Speed ?? 0) > 0 ? "opacity-100" : "opacity-50")}>
+      <View
+        className={cn((vessel.Speed ?? 0) > 0 ? "opacity-100" : "opacity-50")}
+      >
         <Text className="text-white font-bold text-lg">{" )"}</Text>
       </View>
     </View>

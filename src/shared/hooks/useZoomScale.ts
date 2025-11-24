@@ -1,4 +1,4 @@
-import { useMapState } from "../contexts/MapStateContext";
+import { useMapState } from "../../data/contexts/MapStateContext";
 
 /**
  * Hook to determine map's zoom level and return zoom/10
