@@ -1,5 +1,5 @@
 import { distance } from "@turf/turf";
-import { getTerminalData } from "../../../src/data/terminalLocations";
+import { getTerminalLocationById } from "../../../src/data/terminalLocations";
 import { api } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
@@ -224,7 +224,7 @@ export const calculateDistanceToTerminal = (
 ): number | undefined => {
   // Get destination terminal coordinates
   const destinationTerminal =
-    arrivingTerminalId && getTerminalData(arrivingTerminalId);
+    arrivingTerminalId && getTerminalLocationById(arrivingTerminalId);
 
   // Return undefined if terminal not found
   if (!destinationTerminal) {
