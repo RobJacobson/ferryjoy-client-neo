@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
-} from "../../shared/dateConversion";
+} from "../../shared/convertDates";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
 
 /**
@@ -58,6 +58,7 @@ export const toConvexVesselTrip = (
   params: {
     TripStart?: number;
     TripEnd?: number;
+    LeftDock?: number;
     Distance?: number;
     AtDockDuration?: number;
     AtSeaDuration?: number;

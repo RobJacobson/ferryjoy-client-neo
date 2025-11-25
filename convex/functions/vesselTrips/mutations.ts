@@ -5,6 +5,10 @@ import { type ConvexVesselTrip, vesselTripSchema } from "./schemas";
 
 /**
  * Bulk upsert multiple vessel trips to activeVesselTrips table (update if exists, insert if not)
+ *
+ * This implementation efficiently batches all reads upfront, then performs
+ * all writes in a single transaction. Convex queues all database changes
+ * and executes them atomically when the mutation completes.
  */
 export const bulkUpsertActiveTrips = mutation({
   args: { trips: v.array(vesselTripSchema) },
@@ -16,16 +20,21 @@ export const bulkUpsertActiveTrips = mutation({
         vesselId: number;
       }[] = [];
 
-      // Process each trip in array
+      // Batch read: Fetch all existing active vessel trips once
+      const existingTrips = await ctx.db.query("activeVesselTrips").collect();
+
+      // Create a Map for O(1) lookups by VesselID
+      const existingByVesselId = new Map(
+        existingTrips.map((trip) => [trip.VesselID, trip])
+      );
+
+      // Process all trips in a single loop
+      // All database writes are queued and executed atomically when mutation completes
       for (const trip of args.trips) {
-        // Find existing document by VesselID in activeVesselTrips table
-        const existing = await ctx.db
-          .query("activeVesselTrips")
-          .filter((q) => q.eq(q.field("VesselID"), trip.VesselID))
-          .first();
+        const existing = existingByVesselId.get(trip.VesselID);
 
         if (existing) {
-          // Update existing document
+          // Update existing document with full replacement
           await ctx.db.replace(existing._id, trip);
           results.push({
             id: existing._id,
