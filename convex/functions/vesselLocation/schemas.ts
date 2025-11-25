@@ -6,7 +6,7 @@ import {
   epochMsToDate,
   optionalDateToEpochMs,
   optionalEpochMsToDate,
-} from "../../shared/dateConversion";
+} from "../../shared/convertDates";
 
 /**
  * Convex validator for vessel locations (numbers)
@@ -24,7 +24,7 @@ export const vesselLocationValidationSchema = v.object({
   ArrivingTerminalAbbrev: v.optional(v.string()),
   Latitude: v.number(),
   Longitude: v.number(),
-  Speed: v.optional(v.number()),
+  Speed: v.number(),
   Heading: v.number(),
   InService: v.boolean(),
   AtDock: v.boolean(),
