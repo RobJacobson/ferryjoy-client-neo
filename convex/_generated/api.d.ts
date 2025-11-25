@@ -11,7 +11,6 @@
 import type * as crons from "../crons.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_utils from "../functions/utils.js";
-import type * as functions_vesselData_actions from "../functions/vesselData/actions.js";
 import type * as functions_vesselLocation_actions from "../functions/vesselLocation/actions.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
@@ -27,7 +26,8 @@ import type * as functions_vesselTrips_index from "../functions/vesselTrips/inde
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
-import type * as shared_dateConversion from "../shared/dateConversion.js";
+import type * as shared_convertDates from "../shared/convertDates.js";
+import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
 
 import type {
   ApiFromModules,
@@ -39,7 +39,6 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "functions/index": typeof functions_index;
   "functions/utils": typeof functions_utils;
-  "functions/vesselData/actions": typeof functions_vesselData_actions;
   "functions/vesselLocation/actions": typeof functions_vesselLocation_actions;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
@@ -55,7 +54,8 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
-  "shared/dateConversion": typeof shared_dateConversion;
+  "shared/convertDates": typeof shared_convertDates;
+  "shared/convertVesselLocations": typeof shared_convertVesselLocations;
 }>;
 
 /**

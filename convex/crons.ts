@@ -5,28 +5,22 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 crons.interval(
-  "update vessel trips",
+  "update vessel locations",
   { seconds: 5 }, // every fifteen seconds
-  internal.functions.vesselData.actions.updateVesselData
+  internal.functions.vesselLocation.actions.updateVesselLocations
 );
 
-// crons.cron(
-//   "update vessel trips",
-//   "* * * * *", // every minute
-//   internal.functions.vesselData.actions.updateVesselData
-// );
+crons.interval(
+  "update vessel trips",
+  { seconds: 15 }, // every fifteen seconds
+  internal.functions.vesselTrips.actions.updateVesselTrips
+);
 
 crons.interval(
   "fetch vessel pings",
   { seconds: 30 }, // every fifteen seconds
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
-
-// crons.cron(
-//   "fetch vessel pings",
-//   "* * * * *", // every minute
-//   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
-// );
 
 // Register a cron job to cleanup old vessel pings every hour
 crons.cron(
