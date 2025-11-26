@@ -19,6 +19,17 @@ export default function Home() {
             View Map
           </Button>
         </Link>
+
+        <Link href="/waves" asChild>
+          <Button variant="outline" className="mt-2">
+            View Waves
+          </Button>
+        </Link>
+        <Link href="/waves2" asChild>
+          <Button variant="outline" className="mt-2">
+            View Waves 2
+          </Button>
+        </Link>
       </View>
     </View>
   );
