@@ -1,4 +1,4 @@
-import { Link, type RelativePathString, Stack } from "expo-router";
+import { Link, Stack } from "expo-router";
 
 import { Button, Text, View } from "@/components/ui";
 
@@ -14,33 +14,9 @@ export default function Home() {
           This is an example of using React Native Reusables components
         </Text>
 
-        <Link href={{ pathname: "/details", params: { name: "Dan" } }} asChild>
-          <Button variant="default" className="mt-4">
-            Show Details
-          </Button>
-        </Link>
-
         <Link href="/map" asChild>
           <Button variant="outline" className="mt-2">
             View Map
-          </Button>
-        </Link>
-
-        <Link href={"/vessels" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Vessel Locations
-          </Button>
-        </Link>
-
-        <Link href={"/vessels-verbose" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Vessels Verbose
-          </Button>
-        </Link>
-
-        <Link href={"/terminals" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Terminal Information
           </Button>
         </Link>
       </View>

@@ -13,10 +13,14 @@ if (!accessToken) {
 }
 Mapbox.setAccessToken(accessToken);
 
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 export default function Layout() {
   return (
-    <Providers>
-      <Stack />
-    </Providers>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Providers>
+        <Stack />
+      </Providers>
+    </GestureHandlerRootView>
   );
 }
