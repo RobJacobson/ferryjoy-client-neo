@@ -31,14 +31,14 @@ export const VesselMarkerContent = ({ vessel }: { vessel: VesselLocation }) => {
     ? vessel.AtDock
       ? "border-pink-200"
       : "border-pink-400"
-    : "border-white/25";
+    : "border-white";
   return (
     <View className={cn("rounded-full border-[0.5px]", borderColor)}>
       <View
         className={cn(
-          "rounded-full border-[6px] justify-center items-center w-16 h-16",
+          "rounded-full border-[6px] justify-center items-center w-20 h-20",
           backgroundColor,
-          vessel.InService ? "border-white" : "border-white/25"
+          vessel.InService ? "border-white" : "border-white/50"
         )}
         style={shadowStyle}
       >
@@ -51,9 +51,9 @@ export const VesselMarkerContent = ({ vessel }: { vessel: VesselLocation }) => {
 const shadowStyle = {
   // iOS shadows
   shadowColor: "#000",
-  shadowOffset: { width: 1, height: 2 },
+  shadowOffset: { width: 2, height: 2 },
   shadowOpacity: 0.25,
-  shadowRadius: 3,
+  shadowRadius: 6,
 
   // Android elevation
   elevation: 4,
