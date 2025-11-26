@@ -23,6 +23,7 @@
  */
 
 import MapboxRN from "@rnmapbox/maps";
+import { TouchableOpacity } from "react-native";
 import type { MarkerProps } from "./shared";
 
 /**
@@ -61,6 +62,7 @@ export const Marker = ({
   latitude,
   children,
   zIndex = 1,
+  onPress,
 }: MarkerProps) => {
   return (
     <MapboxRN.MarkerView
@@ -69,7 +71,11 @@ export const Marker = ({
       allowOverlap={true}
       style={{ zIndex }}
     >
-      {children}
+      {onPress ? (
+        <TouchableOpacity onPress={onPress}>{children}</TouchableOpacity>
+      ) : (
+        children
+      )}
     </MapboxRN.MarkerView>
   );
 };

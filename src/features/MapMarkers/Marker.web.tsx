@@ -60,6 +60,7 @@ export const Marker = ({
   latitude,
   children,
   zIndex,
+  onPress,
 }: MarkerProps) => {
   return (
     <MapboxMarker
@@ -67,6 +68,7 @@ export const Marker = ({
       latitude={latitude}
       anchor="center"
       style={{ zIndex }}
+      onClick={onPress}
     >
       {children}
     </MapboxMarker>

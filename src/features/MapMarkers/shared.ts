@@ -17,4 +17,7 @@ export interface MarkerProps {
 
   /** Optional z-index value to control stacking order of markers */
   zIndex?: number;
+
+  /** Callback when marker is pressed */
+  onPress?: () => void;
 }

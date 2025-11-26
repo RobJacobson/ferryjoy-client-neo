@@ -39,12 +39,17 @@ const VESSEL_MARKER_CONFIG = {
  * <MapVesselMarkers />
  * ```
  */
-export const MapVesselMarkers = () => {
+export const MapVesselMarkers = ({
+  onVesselSelect,
+}: {
+  onVesselSelect?: (vessel: VesselLocation) => void;
+}) => {
   const { smoothedVessels } = useSmoothedVesselPositions();
 
   // Transform vessel data to conform to MapMarkerData
-  const vesselMarkerData: VesselMarkerData[] =
-    smoothedVessels.map(toVesselMarkerData);
+  const vesselMarkerData: VesselMarkerData[] = smoothedVessels
+    .filter((vessel) => !isOutdatedData(vessel))
+    .map(toVesselMarkerData);
 
   return (
     <MapMarkers
@@ -58,6 +63,7 @@ export const MapVesselMarkers = () => {
               ? VESSEL_MARKER_CONFIG.IN_SERVICE_Z_INDEX
               : VESSEL_MARKER_CONFIG.OUT_OF_SERVICE_Z_INDEX
           }
+          onPress={() => onVesselSelect?.(vessel)}
         />
       )}
     />
@@ -72,3 +78,7 @@ const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
     latitude: vessel.Latitude,
   };
 };
+
+const isOutdatedData = (vessel: VesselLocation): boolean =>
+  !!vessel.LeftDock &&
+  vessel.LeftDock < new Date(Date.now() - 2 * 60 * 60 * 1000);
