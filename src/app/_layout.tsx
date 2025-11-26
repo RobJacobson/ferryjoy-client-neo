@@ -2,6 +2,7 @@ import "../../global.css";
 
 import Mapbox from "@rnmapbox/maps";
 import { Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Providers } from "@/data/Providers";
 
 // Set Mapbox access token
@@ -17,10 +18,12 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function Layout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Providers>
-        <Stack />
-      </Providers>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Providers>
+          <Stack />
+        </Providers>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
