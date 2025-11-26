@@ -1,4 +1,5 @@
 import type React from "react";
+import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, {
   Defs,
@@ -70,6 +71,12 @@ export interface WaveProps {
    * Phase shift for the wave (0-1, where 1 is a full period)
    */
   phase?: number;
+
+  /**
+   * Unique identifier for this wave instance (used for SVG IDs)
+   * If not provided, will be generated from props
+   */
+  id?: string;
 }
 
 export interface WaveGradient {
@@ -86,50 +93,58 @@ export const Wave: React.FC<WaveProps> = ({
   width = "100%",
   borderColor = "rgba(255, 255, 255, 0.35)",
   borderWidth = 1.5,
-  shadowColor = "rgba(0, 0, 0, 0.75)",
+  shadowColor = "rgba(0, 0, 0, 0.5)",
   shadowOffset = { x: -2, y: 5 },
   shadowRadius = 10,
-  offsetY = 0,
   phase = 0,
+  offsetY = 0,
+  id,
 }) => {
   // Generate SVG viewBox dimensions
   const viewBoxWidth = 800;
   // Extend waves down by 2000px - container overflow will clip
   const viewBoxHeight = 2000;
 
-  // Generate wave path using sine function
+  // Generate wave path using cubic bezier curves to approximate sine wave
   const generateWavePath = () => {
-    const points: string[] = [];
-    const numPoints = 100;
-    const phaseOffset = phase * period * Math.PI * 2;
-
-    for (let i = 0; i <= numPoints; i++) {
-      const x = (i / numPoints) * viewBoxWidth;
-      const normalizedX = (x / viewBoxWidth) * period;
-      const y =
-        Math.sin(normalizedX * Math.PI * 2 + phaseOffset) * (height / 2) +
-        height / 2 +
-        offsetY;
-
-      if (i === 0) {
-        points.push(`M ${x} ${y}`);
-      } else {
-        points.push(`L ${x} ${y}`);
-      }
+    const offsetCp = Math.round((period * 0.38) / 2);
+    const xStart = -Math.round(phase * period);
+    const y1 = 0 + offsetY;
+    const y2 = height + offsetY;
+    let x1 = xStart;
+    let x2 = x1 + period / 2;
+    let pathData = `M ${x1} ${y1}`;
+    while (x1 < viewBoxWidth) {
+      pathData += `  C ${x1 + offsetCp} ${y1} ${x2 - offsetCp} ${y2} ${x2} ${y2}`;
+      pathData += `  C ${x2 + offsetCp} ${y2} ${x1 + period - offsetCp} ${y1} ${x1 + period} ${y1}`;
+      x1 += period;
+      x2 += period;
     }
-
     // Complete the path by drawing to bottom corners and back
-    points.push(`L ${viewBoxWidth} ${viewBoxHeight}`);
-    points.push(`L 0 ${viewBoxHeight}`);
-    points.push("Z");
-
-    return points.join(" ");
+    pathData += `  L ${x1} ${y1}`;
+    pathData += `  L ${x1} ${viewBoxHeight}`;
+    pathData += `  L ${xStart} ${viewBoxHeight}`;
+    pathData += "  Z";
+    return pathData;
   };
 
   const wavePath = generateWavePath();
   const isGradient = typeof color === "object";
-  const gradientId = `wave-gradient-${Math.random().toString(36).slice(2, 9)}`;
-  const shadowFilterId = `shadow-filter-${gradientId}`;
+
+  // Generate stable IDs based on component props to avoid SVG ID conflicts on iOS
+  // Use provided id prop if available, otherwise create a hash-like string from props
+  const gradientId = useMemo(() => {
+    if (id) {
+      return `wave-gradient-${id}`;
+    }
+    const colorStr =
+      typeof color === "string" ? color.replace(/[^a-zA-Z0-9]/g, "") : "grad";
+    return `wave-gradient-${offsetY}-${height}-${period}-${colorStr.slice(0, 10)}`;
+  }, [id, offsetY, height, period, color]);
+  const shadowFilterId = useMemo(
+    () => `shadow-filter-${gradientId}`,
+    [gradientId]
+  );
 
   // Determine fill color
   const fillColor = isGradient ? `url(#${gradientId})` : color;

@@ -1,26 +1,70 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: Keys are needed for the Wave component */
 import { View } from "react-native";
-import { Wave } from "../components/Wave";
+import { Text } from "@/components/ui";
+import { Wave } from "../components/Wave2";
 
-const colors = ["add7f6", "87bfff", "3f8efc", "2667ff", "3b28cc"];
+const colors = [
+  "hsla(205, 80%, 82%, 1)",
+  "hsla(212, 100%, 76%, 1)",
+  "hsla(215, 97%, 62%, 1)",
+  "hsla(222, 100%, 57%, 1)",
+  "hsla(247, 67%, 48%, 1)",
+];
 
 export default function WavesScreen2() {
   return (
-    <View className="flex-1" style={{ overflow: "visible" }}>
-      {colors.map((c, i) => (
-        <Wave
-          height={80}
-          period={2}
-          color={"#1e3a5f"}
-          offsetY={0 + i * 50}
-          phase={0.5 + i * 0.5}
-          key={i}
-        />
-      ))}
-      {/* <Wave height={80} period={2} color="#1e3a5f" offsetY={0} />
-      <Wave height={80} period={1.8} color="#2b5797" offsetY={40} phase={1.0} />
-      <Wave height={80} period={2.2} color="#5fa3d0" offsetY={80} phase={0.6} />
-      <Wave height={80} period={2} color="#87ceeb" offsetY={120} phase={0.1} /> */}
+    <View className="flex-1 overflow-hidden">
+      <Text>Hello</Text>
+      <Wave
+        height={15}
+        width={1000}
+        period={150}
+        color={colors[0]}
+        offsetX={0}
+        offsetY={100}
+        showPaperGrains={true}
+        showLine={true}
+      />
+      <Wave
+        height={20}
+        width={1000}
+        period={200}
+        color={colors[1]}
+        offsetX={50}
+        offsetY={125}
+        showPaperGrains={true}
+        showLine={true}
+      />
+      <Wave
+        height={30}
+        width={1000}
+        period={250}
+        color={colors[2]}
+        offsetX={25}
+        offsetY={150}
+        showPaperGrains={true}
+        showLine={true}
+      />
+      <Wave
+        height={40}
+        width={1000}
+        period={300}
+        color={colors[3]}
+        offsetX={100}
+        offsetY={175}
+        showPaperGrains={true}
+        showLine={true}
+      />
+      <Wave
+        height={50}
+        width={1000}
+        period={350}
+        color={colors[4]}
+        offsetX={0}
+        offsetY={200}
+        showPaperGrains={true}
+        showLine={true}
+      />
     </View>
   );
 }

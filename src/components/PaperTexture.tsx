@@ -2,9 +2,9 @@ import { Circle, Defs, Pattern, Rect } from "react-native-svg";
 
 // Paper texture configuration constants
 const DEFAULT_PATTERN_SIZE = 96;
-const DEFAULT_SPECKLE_COUNT = 200;
-const DEFAULT_MAX_SPECKLE_SIZE = 1.25;
-const DEFAULT_MAX_SPECKLE_ALPHA = 0.08;
+const DEFAULT_SPECKLE_COUNT = 100;
+const DEFAULT_MAX_SPECKLE_SIZE = 1;
+const DEFAULT_MAX_SPECKLE_ALPHA = 0.1;
 
 // Constant pattern ID (each SVG has its own Defs, so this is safe)
 export const PAPER_TEXTURE_PATTERN_ID = "paper-texture";
