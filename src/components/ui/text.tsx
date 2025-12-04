@@ -1,7 +1,7 @@
 import React from "react";
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
-import { cn } from "@/shared/lib/cn";
-import { cva, type VariantProps } from "@/shared/lib/cva";
+import { cn } from "@/shared/utils/cn";
+import { cva, type VariantProps } from "@/shared/utils/cva";
 
 const textVariants = cva("text-foreground", {
   variants: {
@@ -44,7 +44,7 @@ const Text = React.forwardRef<React.ElementRef<typeof RNText>, TextProps>(
         {...props}
       />
     );
-  },
+  }
 );
 
 Text.displayName = "Text";

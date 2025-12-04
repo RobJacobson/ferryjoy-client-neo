@@ -34,6 +34,10 @@ android
 
 # Environment variables
 .env
+.env.local
 
 # EAS build artifacts
 build-*.tar.gz
+
+# TypeScript build info
+*.tsbuildinfo

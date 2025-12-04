@@ -4,7 +4,8 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@domain/*": ["src/domain/*"]
     }
   },
   "include": [
@@ -13,5 +14,6 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-  ]
+  ],
+  "exclude": ["convex", "node_modules"]
 }

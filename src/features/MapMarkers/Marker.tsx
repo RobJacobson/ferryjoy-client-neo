@@ -22,8 +22,9 @@
  * ```
  */
 
-import MapboxRN from "@rnmapbox/maps"
-import type { ReactElement } from "react"
+import MapboxRN from "@rnmapbox/maps";
+import { TouchableOpacity } from "react-native";
+import type { MarkerProps } from "./shared";
 
 /**
  * Native marker component that wraps MapboxRN.MarkerView
@@ -35,6 +36,7 @@ import type { ReactElement } from "react"
  * @param longitude - The longitude coordinate where the marker should be placed
  * @param latitude - The latitude coordinate where the marker should be placed
  * @param children - React elements to be rendered inside the marker
+ * @param zIndex - Optional z-index value to control stacking order of markers
  *
  * @returns A MapboxRN.MarkerView component positioned at the specified coordinates
  *
@@ -59,18 +61,21 @@ export const Marker = ({
   longitude,
   latitude,
   children,
-}: {
-  longitude: number
-  latitude: number
-  children: ReactElement
-}) => {
+  zIndex = 1,
+  onPress,
+}: MarkerProps) => {
   return (
     <MapboxRN.MarkerView
       coordinate={[longitude, latitude]}
       anchor={{ x: 0.5, y: 0.5 }}
       allowOverlap={true}
+      style={{ zIndex }}
     >
-      {children}
+      {onPress ? (
+        <TouchableOpacity onPress={onPress}>{children}</TouchableOpacity>
+      ) : (
+        children
+      )}
     </MapboxRN.MarkerView>
-  )
-}
+  );
+};

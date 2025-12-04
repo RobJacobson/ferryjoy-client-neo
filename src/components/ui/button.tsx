@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, type PressableProps, Text } from "react-native";
-import { cn } from "@/shared/lib/cn";
-import { cva, type VariantProps } from "@/shared/lib/cva";
+import { cn } from "@/shared/utils/cn";
+import { cva, type VariantProps } from "@/shared/utils/cva";
 
 const buttonVariants = cva(
   "group flex items-center justify-center rounded-md",
@@ -26,7 +26,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 const buttonTextVariants = cva("text-base font-medium", {

@@ -1,49 +1,40 @@
-import { Link, type RelativePathString, router, Stack } from "expo-router";
+import { Stack } from "expo-router";
+import { Dimensions, View } from "react-native";
+// Do not import SafeAreaView from react-naitve, which is deprecated
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "@/components/ui";
+import { Wave } from "@/components/Wave2";
+import { RoutesCarousel } from "@/features/RoutesCarousel/RoutesCarousel";
 
-import { Button, Text, View } from "@/components/ui";
+const { width } = Dimensions.get("window");
 
 export default function Home() {
   return (
-    <View className="flex-1 bg-background p-4">
-      <Stack.Screen options={{ title: "Home" }} />
-      <View className="flex-1 items-center justify-center gap-4">
-        <Text variant="heading1" className="mb-4">
-          React Native Reusables
-        </Text>
-        <Text variant="body1" color="muted" className="text-center mb-8">
-          This is an example of using React Native Reusables components
-        </Text>
+    <View className="flex-1 bg-white">
+      <Stack.Screen options={{ headerShown: false }} />
 
-        <Link href={{ pathname: "/details", params: { name: "Dan" } }} asChild>
-          <Button variant="default" className="mt-4">
-            Show Details
-          </Button>
-        </Link>
-
-        <Link href="/map" asChild>
-          <Button variant="outline" className="mt-2">
-            View Map
-          </Button>
-        </Link>
-
-        <Link href={"/vessels" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Vessel Locations
-          </Button>
-        </Link>
-
-        <Link href={"/vessels-verbose" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Vessels Verbose
-          </Button>
-        </Link>
-
-        <Link href={"/terminals" as RelativePathString} asChild>
-          <Button variant="outline" className="mt-2">
-            Terminal Information
-          </Button>
-        </Link>
+      {/* Background Wave */}
+      <View className="absolute top-0 left-0 right-0 h-full z-0">
+        <Wave
+          height={300}
+          width={width}
+          period={width}
+          color="#81b0ff" // Example color, adjust as needed
+          offsetY={100}
+          showPaperGrains={true}
+        />
+        <View className="absolute top-[200px] left-0 right-0 bottom-0 bg-[#81b0ff]" />
       </View>
+
+      <SafeAreaView className="flex-1 z-10">
+        <View className="px-6 pt-12 pb-6">
+          <Text className="text-4xl font-bold text-white tracking-tight">
+            Ferryjoy
+          </Text>
+        </View>
+
+        <RoutesCarousel />
+      </SafeAreaView>
     </View>
   );
 }

@@ -15,15 +15,16 @@
 
 import type { MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { View } from "react-native";
-import { useMapState } from "@/shared/contexts";
+import { useMapState } from "@/data/contexts";
 import type { CameraState, MapProps } from "./shared";
 import {
   DEFAULT_NATIVE_CAMERA_STATE,
   handleCameraStateChange,
   nativeMapStateToCameraState,
 } from "./shared";
+import { MAP_COMPONENT_CONFIG } from "./config";
 
 /**
  * Native MapComponent for React Native platforms
@@ -37,8 +38,8 @@ import {
  * @returns A React Native View containing the Mapbox map
  */
 export const MapComponent = ({ children, initialCameraState }: MapProps) => {
-  // Only use the update function from context, not the state
-  const { updateCameraState } = useMapState();
+  // Only use update function from context, not the state
+  const { updateCameraState, updateMapDimensions } = useMapState();
 
   // Keep track of previous camera state to avoid unnecessary updates
   const previousCameraStateRef = useRef<CameraState>(
@@ -48,7 +49,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   /**
    * Handles camera change events from Mapbox map
    *
-   * Converts the native MapState to our canonical CameraState format
+   * Converts native MapState to our canonical CameraState format
    * and updates the global map state context.
    *
    * @param state - The MapState object from @rnmapbox/maps
@@ -62,11 +63,18 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     );
   };
 
+  // Update map dimensions when component mounts
+  useEffect(() => {
+    // For native, we'll use default dimensions that should be updated
+    // by the actual map layout when available
+    updateMapDimensions({ width: 375, height: 812 }); // iPhone X dimensions as default
+  }, [updateMapDimensions]);
+
   return (
     <View className="flex-1 relative">
       <MapboxRN.MapView
         style={{ flex: 1 }}
-        styleURL="mapbox://styles/mapbox/streets-v12"
+        styleURL={MAP_COMPONENT_CONFIG.styleURL}
         zoomEnabled={true}
         scrollEnabled={true}
         pitchEnabled={true}

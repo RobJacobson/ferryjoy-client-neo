@@ -1,7 +1,7 @@
 import React from "react";
 import { View as RNView, type ViewProps as RNViewProps } from "react-native";
-import { cn } from "@/shared/lib/cn";
-import { cva, type VariantProps } from "@/shared/lib/cva";
+import { cn } from "@/shared/utils/cn";
+import { cva, type VariantProps } from "@/shared/utils/cva";
 
 const viewVariants = cva("", {
   variants: {
@@ -74,19 +74,19 @@ interface ViewProps extends RNViewProps, VariantProps<typeof viewVariants> {}
 const View = React.forwardRef<React.ElementRef<typeof RNView>, ViewProps>(
   (
     { className, variant, bg, padding, margin, flex, items, justify, ...props },
-    ref,
+    ref
   ) => {
     return (
       <RNView
         className={cn(
           viewVariants({ variant, bg, padding, margin, flex, items, justify }),
-          className,
+          className
         )}
         ref={ref}
         {...props}
       />
     );
-  },
+  }
 );
 
 View.displayName = "View";
