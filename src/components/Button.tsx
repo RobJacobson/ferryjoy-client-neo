@@ -21,7 +21,7 @@ export const Button = forwardRef<View, ButtonProps>(
         <Text className={styles.buttonText}>{title}</Text>
       </TouchableOpacity>
     );
-  },
+  }
 );
 
 Button.displayName = "Button";

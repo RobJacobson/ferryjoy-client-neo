@@ -22,8 +22,8 @@
  * ```
  */
 
-import React, { type ReactElement } from "react";
 import { Marker as MapboxMarker } from "react-map-gl/mapbox";
+import type { MarkerProps } from "./shared";
 
 /**
  * Web marker component that wraps react-map-gl Marker
@@ -59,13 +59,17 @@ export const Marker = ({
   longitude,
   latitude,
   children,
-}: {
-  longitude: number;
-  latitude: number;
-  children: ReactElement;
-}) => {
+  zIndex,
+  onPress,
+}: MarkerProps) => {
   return (
-    <MapboxMarker longitude={longitude} latitude={latitude} anchor="center">
+    <MapboxMarker
+      longitude={longitude}
+      latitude={latitude}
+      anchor="center"
+      style={{ zIndex }}
+      onClick={onPress}
+    >
       {children}
     </MapboxMarker>
   );

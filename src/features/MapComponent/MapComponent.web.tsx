@@ -3,11 +3,12 @@
  * Simple wrapper around react-map-gl
  */
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
-import { useMapState } from "@/shared/contexts";
+import { useMapState } from "@/data/contexts";
+import { MAP_COMPONENT_CONFIG } from "./config";
 import type { CameraState, MapProps } from "./shared";
 import {
   cameraStateToViewState,
@@ -18,7 +19,7 @@ import {
 
 export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   // Only use the update function from context, not the state
-  const { updateCameraState } = useMapState();
+  const { updateCameraState, updateMapDimensions } = useMapState();
   const mapRef = useRef<MapRef>(null);
 
   // Keep track of previous camera state to avoid unnecessary updates
@@ -34,6 +35,11 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     width: 800,
     height: 600,
   };
+
+  // Update map dimensions when component mounts
+  useEffect(() => {
+    updateMapDimensions({ width: 800, height: 600 });
+  }, [updateMapDimensions]);
 
   // Handle camera changes and update context
   const handleMove = (evt: { viewState: ViewState }) => {
@@ -51,7 +57,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
         ref={mapRef}
         viewState={viewState}
         style={{ flex: 1 }}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapStyle={MAP_COMPONENT_CONFIG.styleURL}
         projection="mercator"
         onMove={handleMove}
         reuseMaps

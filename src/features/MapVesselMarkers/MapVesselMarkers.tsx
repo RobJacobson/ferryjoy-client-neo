@@ -1,13 +1,12 @@
 /**
  * MapVesselMarkers component
- * Renders vessel markers on map using data from VesselLocations context
+ * Renders vessel markers on map using smoothed animated vessel positions
  */
 
-import { Text, View } from "react-native";
-import type { VesselLocation } from "ws-dottie/wsf-vessels";
+import { useSmoothedVesselPositions } from "@/data/contexts";
+import type { VesselLocation } from "@/domain";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
-import { useMapState, useWsDottie } from "@/shared/contexts";
-import { VesselMarker } from "./VesselMarker";
+import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
  * Extends VesselLocation to conform to MapMarkerData interface
@@ -19,66 +18,86 @@ type VesselMarkerData = VesselLocation & MapMarkerData;
  */
 const VESSEL_MARKER_CONFIG = {
   ZOOM_THRESHOLD: 8,
+  OUT_OF_SERVICE_Z_INDEX: 0,
+  IN_SERVICE_AT_DOCK_Z_INDEX: 100,
+  IN_SERVICE_AT_SEA_Z_INDEX: 200,
 } as const;
 
 /**
  * MapVesselMarkers component
  *
- * Fetches vessel data from the WsDottie context and renders markers on the map using the generic MapMarkers component.
- * Handles loading states, error states, and visibility based on zoom level.
- * Each vessel is rendered as a VesselMarker component with a blue circular indicator.
+ * Fetches smoothed vessel position data from SmoothedVesselPositions context and renders markers on the map using the generic MapMarkers component.
+ * The smoothed positions provide fluid animation between GPS updates using exponential smoothing.
+ * Filters out vessels that are "lost at sea" (departed dock more than 4 hours ago without recent position updates).
+ * Each vessel is rendered as a MapVesselMarker with a z-index calculated from the vessel ID plus a status-based offset:
+ * - Out of service: VesselID + 0
+ * - In service at dock: VesselID + 100
+ * - In service at sea: VesselID + 200
+ * This ensures unique z-index values while maintaining proper stacking order by service status and location.
  *
- * @param onVesselPress - Optional callback function triggered when a vessel marker is pressed
- *
+ * @param onVesselSelect - Optional callback function invoked when a vessel marker is pressed
  * @returns React elements representing vessel markers or null if vessels should not be displayed
  *
  * @example
  * ```tsx
- * // Basic usage without press handler
+ * // Basic usage
  * <MapVesselMarkers />
  *
- * // With press handler
- * <MapVesselMarkers
- *   onVesselPress={(vessel) => navigation.navigate('VesselDetails', { vesselId: vessel.VesselID })}
- * />
+ * // With vessel selection handler
+ * <MapVesselMarkers onVesselSelect={(vessel) => console.log(vessel.VesselName)} />
  * ```
  */
 export const MapVesselMarkers = ({
-  onVesselPress,
+  onVesselSelect,
 }: {
-  onVesselPress?: (vessel: VesselLocation) => void;
+  onVesselSelect?: (vessel: VesselLocation) => void;
 }) => {
-  const { vesselLocations } = useWsDottie();
+  const { smoothedVessels } = useSmoothedVesselPositions();
 
-  // Transform vessel data to conform to MapMarkerData if needed
-  const vesselMarkerData: VesselMarkerData[] | undefined =
-    vesselLocations.data?.map(vessel => ({
-      ...vessel,
-      id: vessel.VesselID.toString(), // Convert to string for MapMarkerData compatibility
-      longitude: vessel.Longitude,
-      latitude: vessel.Latitude,
-    }));
+  // Filter out vessels lost at sea and transform vessel data to conform to MapMarkerData
+  const vesselMarkerData: VesselMarkerData[] = smoothedVessels
+    .filter((vessel) => !isLostAtSea(vessel))
+    .map(toVesselMarkerData);
 
   return (
     <MapMarkers
       data={vesselMarkerData}
-      isLoading={vesselLocations.isLoading}
-      isError={vesselLocations.isError}
-      error={vesselLocations.error}
-      zoomThreshold={VESSEL_MARKER_CONFIG.ZOOM_THRESHOLD}
-      renderMarker={vessel => (
-        <VesselMarker
+      renderMarker={(vessel) => (
+        <MapVesselMarker
           key={vessel.VesselID}
           vessel={vessel}
-          onPress={onVesselPress}
-        >
-          <View className="w-5 h-5 bg-blue-500 rounded-full border-2 border-white justify-center items-center">
-            <View className="w-2 h-2 bg-white rounded-full">
-              <Text>Hi!</Text>
-            </View>
-          </View>
-        </VesselMarker>
+          zIndex={
+            vessel.VesselID +
+            (!vessel.InService
+              ? VESSEL_MARKER_CONFIG.OUT_OF_SERVICE_Z_INDEX
+              : vessel.AtDock
+                ? VESSEL_MARKER_CONFIG.IN_SERVICE_AT_DOCK_Z_INDEX
+                : VESSEL_MARKER_CONFIG.IN_SERVICE_AT_SEA_Z_INDEX)
+          }
+          onPress={() => onVesselSelect?.(vessel)}
+        />
       )}
     />
   );
 };
+
+/**
+ * Transforms a VesselLocation to VesselMarkerData by adding required MapMarkerData fields
+ */
+const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
+  return {
+    ...vessel,
+    id: vessel.VesselID.toString(),
+    longitude: vessel.Longitude,
+    latitude: vessel.Latitude,
+  };
+};
+
+/**
+ * Determines if a vessel is "lost at sea" (not in service and departed dock more than 4 hours ago)
+ * Such vessels are filtered out as they likely have stale position data
+ */
+const isLostAtSea = (vessel: VesselLocation): boolean =>
+  !vessel.InService &&
+  !!vessel.LeftDock &&
+  vessel.LeftDock < new Date(Date.now() - 4 * 60 * 60 * 1000);

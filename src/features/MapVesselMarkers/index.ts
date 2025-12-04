@@ -29,6 +29,3 @@
 
 // Main component that fetches vessel data and renders markers on the map
 export { MapVesselMarkers } from "./MapVesselMarkers";
-
-// Supporting component that handles business logic for vessel markers
-export { VesselMarker } from "./VesselMarker";

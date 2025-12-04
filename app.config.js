@@ -5,6 +5,7 @@ export default {
     version: "1.0.0",
     scheme: "ferryjoy-client-neo",
     platforms: ["ios", "android", "web"],
+    jsEngine: "hermes",
     web: {
       bundler: "metro",
       output: "static",
@@ -63,4 +64,4 @@ export default {
       },
     },
   },
-}
+};
