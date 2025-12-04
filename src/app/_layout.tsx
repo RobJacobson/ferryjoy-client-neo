@@ -8,9 +8,14 @@ import {
 import Mapbox from "@rnmapbox/maps";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
-import { useColorScheme } from "react-native";
+import { LogBox, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+// Suppress SafeAreaView deprecation warning from React Native's Button component
+LogBox.ignoreLogs([
+  "SafeAreaView has been deprecated and will be removed in a future release",
+]);
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,

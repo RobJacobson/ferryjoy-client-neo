@@ -1,5 +1,7 @@
 import { Stack } from "expo-router";
-import { Dimensions, SafeAreaView, View } from "react-native";
+import { Dimensions, View } from "react-native";
+// Do not import SafeAreaView from react-naitve, which is deprecated
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "@/components/ui";
 import { Wave } from "@/components/Wave2";
 import { RoutesCarousel } from "@/features/RoutesCarousel/RoutesCarousel";
