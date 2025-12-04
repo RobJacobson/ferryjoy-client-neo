@@ -34,3 +34,6 @@ android
 
 # Environment variables
 .env
+
+# EAS build artifacts
+build-*.tar.gz

@@ -17,6 +17,11 @@
       "env": {
         "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "@RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
       }
+    },
+    "production-simulator": {
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {

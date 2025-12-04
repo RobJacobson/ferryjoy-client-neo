@@ -18,12 +18,7 @@ export default {
           locationWhenInUsePermission: "Show current location on map.",
         },
       ],
-      [
-        "@rnmapbox/maps",
-        {
-          RNMapboxMapsDownloadToken: process.env.MAPBOX_SECRET_DOWNLOAD_TOKEN,
-        },
-      ],
+      "@rnmapbox/maps",
     ],
     experiments: {
       typedRoutes: true,
@@ -63,4 +58,4 @@ export default {
       },
     },
   },
-}
+};
