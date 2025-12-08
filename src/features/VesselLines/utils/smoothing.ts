@@ -13,9 +13,46 @@ export type SmoothingStrategy = (
   coordinates: [number, number][]
 ) => Feature<LineString> | null;
 
+const strategyForCurve =
+  (curve: CurveFactory): SmoothingStrategy =>
+  (coordinates) =>
+    createSmoothedLineWithCurve(coordinates, curve);
+
+const sampleCurveStep = 0.05;
+
+const sampleBezierCurve = (
+  startX: number,
+  startY: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  endX: number,
+  endY: number
+) => {
+  const samples: [number, number][] = [];
+
+  for (let t = sampleCurveStep; t <= 1; t += sampleCurveStep) {
+    samples.push([
+      cubicBezier(t, startX, x1, x2, endX),
+      cubicBezier(t, startY, y1, y2, endY),
+    ]);
+  }
+
+  return samples;
+};
+
 // Strategy object that directly maps strategy names to their implementations
 // Each strategy uses configuration values from VESSEL_LINE_CONFIG
-export const smoothingStrategies = {
+type SmoothingStrategyMap = {
+  none: SmoothingStrategy;
+  d3Basis: SmoothingStrategy;
+  d3Cardinal: SmoothingStrategy;
+  d3CatmullRom: SmoothingStrategy;
+  turfBezier: SmoothingStrategy;
+};
+
+export const smoothingStrategies: SmoothingStrategyMap = {
   // No smoothing - passes through original line segments
   none: (coordinates: [number, number][]) => {
     // Simply return the original coordinates as a LineString
@@ -23,25 +60,15 @@ export const smoothingStrategies = {
   },
 
   // D3 Basis Strategy
-  d3Basis: (coordinates: [number, number][]) => {
-    const selectedCurve = curveBasis;
-    return createSmoothedLineWithCurve(coordinates, selectedCurve);
-  },
+  d3Basis: strategyForCurve(curveBasis),
 
   // D3 Cardinal Strategy with configurable tension
-  d3Cardinal: (coordinates: [number, number][]) => {
-    // Use tension value from configuration
-    const selectedCurve = curveCardinal.tension(
-      VESSEL_LINE_CONFIG.smoothing.cardinalTension
-    );
-    return createSmoothedLineWithCurve(coordinates, selectedCurve);
-  },
+  d3Cardinal: strategyForCurve(
+    curveCardinal.tension(VESSEL_LINE_CONFIG.smoothing.cardinalTension)
+  ),
 
   // D3 Catmull-Rom Strategy
-  d3CatmullRom: (coordinates: [number, number][]) => {
-    const selectedCurve = curveCatmullRom;
-    return createSmoothedLineWithCurve(coordinates, selectedCurve);
-  },
+  d3CatmullRom: strategyForCurve(curveCatmullRom),
 
   // Turf Bezier Strategy with configurable parameters
   turfBezier: (coordinates: [number, number][]) => {
@@ -56,7 +83,25 @@ export const smoothingStrategies = {
 } as const;
 
 // For type-safe strategy selection
-export type SmoothingStrategyName = keyof typeof smoothingStrategies;
+export type SmoothingStrategyName = keyof SmoothingStrategyMap;
+
+const resolveStrategy = (strategy: SmoothingStrategyName) => {
+  const defaultStrategyName: SmoothingStrategyName =
+    VESSEL_LINE_CONFIG.smoothing.strategy;
+  const configuredStrategy = smoothingStrategies[strategy];
+
+  if (configuredStrategy) {
+    return { strategyToUse: configuredStrategy };
+  }
+
+  console.warn(
+    `Unknown smoothing strategy: ${strategy}, falling back to ${defaultStrategyName}`
+  );
+
+  return {
+    strategyToUse: smoothingStrategies[defaultStrategyName],
+  };
+};
 
 /**
  * Creates a smoothed line using the selected smoothing strategy
@@ -72,21 +117,9 @@ export const createSmoothedLine = (
   // Validate coordinates before processing
   if (!coordinates || coordinates.length < 2) return null;
 
-  // Get the selected strategy directly from the object
-  const selectedStrategy = smoothingStrategies[strategy];
+  const { strategyToUse } = resolveStrategy(strategy);
 
-  // Fallback to default strategy if strategy not found
-  if (!selectedStrategy) {
-    console.warn(
-      `Unknown smoothing strategy: ${strategy}, falling back to ${VESSEL_LINE_CONFIG.smoothing.strategy}`
-    );
-    return smoothingStrategies[VESSEL_LINE_CONFIG.smoothing.strategy](
-      coordinates
-    );
-  }
-
-  // Execute the selected strategy
-  return selectedStrategy(coordinates);
+  return strategyToUse(coordinates);
 };
 
 /**
@@ -97,21 +130,18 @@ export const createSmoothedLine = (
  * @param curve - D3 curve factory
  * @returns GeoJSON LineString feature with smoothed coordinates
  */
-function createSmoothedLineWithCurve(
+const createSmoothedLineWithCurve = (
   coordinates: [number, number][],
   curve: CurveFactory
-) {
+) => {
   // Generate smoothed coordinates using the selected curve
   const smoothedCoordinates = generateSmoothedCoordinates(coordinates, curve);
 
-  // If we couldn't generate smoothed coordinates, fall back to original coordinates
-  if (smoothedCoordinates.length < 2) {
-    return lineString(coordinates);
-  }
+  const finalCoordinates =
+    smoothedCoordinates.length < 2 ? coordinates : smoothedCoordinates;
 
-  // Convert back to GeoJSON LineString
-  return lineString(smoothedCoordinates);
-}
+  return lineString(finalCoordinates);
+};
 
 /**
  * Generates smoothed coordinates using D3 curve factory
@@ -119,10 +149,10 @@ function createSmoothedLineWithCurve(
  * @param curve - D3 curve factory
  * @returns Smoothed coordinates
  */
-function generateSmoothedCoordinates(
+const generateSmoothedCoordinates = (
   coordinates: [number, number][],
   curve: CurveFactory
-): [number, number][] {
+): [number, number][] => {
   // Create a curve context from the coordinates
   const context = new PathContext();
   const curveFunction = curve(context);
@@ -140,7 +170,7 @@ function generateSmoothedCoordinates(
 
   // Return the smoothed coordinates from the context
   return context.getCoordinates();
-}
+};
 
 /**
  * Custom path context that captures coordinates from D3 curve generation
@@ -150,40 +180,34 @@ class PathContext {
   private currentX = 0;
   private currentY = 0;
 
-  moveTo(x: number, y: number): void {
+  moveTo = (x: number, y: number): void => {
     this.currentX = x;
     this.currentY = y;
     this.coordinates.push([x, y]);
-  }
+  };
 
-  lineTo(x: number, y: number): void {
+  lineTo = (x: number, y: number): void => {
     this.currentX = x;
     this.currentY = y;
     this.coordinates.push([x, y]);
-  }
+  };
 
-  bezierCurveTo(
+  bezierCurveTo = (
     x1: number,
     y1: number,
     x2: number,
     y2: number,
     x: number,
     y: number
-  ): void {
-    // Sample points along the Bezier curve
-    const startX = this.currentX;
-    const startY = this.currentY;
-
-    // Sample points along the curve for smoother appearance
-    for (let t = 0.05; t <= 1; t += 0.05) {
-      const pointX = cubicBezier(t, startX, x1, x2, x);
-      const pointY = cubicBezier(t, startY, y1, y2, y);
-      this.coordinates.push([pointX, pointY]);
-    }
+  ): void => {
+    // Sample points along the Bezier curve for smoother appearance
+    this.coordinates.push(
+      ...sampleBezierCurve(this.currentX, this.currentY, x1, y1, x2, y2, x, y)
+    );
 
     this.currentX = x;
     this.currentY = y;
-  }
+  };
 
   // Required methods for D3 compatibility (not used in our implementation)
   closePath = (): void => {};
@@ -192,9 +216,9 @@ class PathContext {
   arc = (): void => {};
   rect = (): void => {};
 
-  getCoordinates(): [number, number][] {
+  getCoordinates = (): [number, number][] => {
     return this.coordinates;
-  }
+  };
 }
 
 /**
@@ -206,15 +230,15 @@ class PathContext {
  * @param p3 - End point
  * @returns Point on the curve at parameter t
  */
-function cubicBezier(
+const cubicBezier = (
   t: number,
   p0: number,
   p1: number,
   p2: number,
   p3: number
-): number {
+): number => {
   const u = 1 - t;
   return (
     u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3
   );
-}
+};

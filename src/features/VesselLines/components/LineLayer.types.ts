@@ -16,8 +16,15 @@ export interface LineLayerProps {
   /** Line gradient for styling */
   // biome-ignore lint/suspicious/noExplicitAny: Needed for cross-platform compatibility
   lineGradient: any;
+  /** Optional gradient for the outer line layer */
+  // biome-ignore lint/suspicious/noExplicitAny: Needed for cross-platform compatibility
+  outerLineGradient?: any;
   /** Line width for styling */
   lineWidth: number;
+  /** Optional width for an outer halo line */
+  outerLineWidth?: number;
+  /** Optional ID for the outer line layer */
+  outerLayerId?: string;
   /** Optional layer that this line should sit below */
   belowLayerId?: string;
 }
