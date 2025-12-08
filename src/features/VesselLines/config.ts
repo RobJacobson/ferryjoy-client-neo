@@ -27,7 +27,7 @@ export const VESSEL_LINE_CONFIG = {
   // Styling configuration
   styling: {
     // Line width
-    lineWidth: 16,
+    lineWidth: 12,
     baseLineWidth: 0,
     // Line cap and join styles
     lineCap: "round" as const,

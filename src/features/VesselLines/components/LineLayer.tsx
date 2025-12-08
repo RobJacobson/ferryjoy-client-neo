@@ -22,6 +22,7 @@ export const LineLayer = ({
   layerId,
   lineGradient,
   lineWidth,
+  belowLayerId,
 }: LineLayerProps) => {
   // Skip rendering if no line is provided
   if (!line) return null;
@@ -38,6 +39,7 @@ export const LineLayer = ({
           lineJoin: LINE_JOIN,
           lineGradient: lineGradient,
         }}
+        belowLayerID={belowLayerId}
       />
     </MapboxRN.ShapeSource>
   );

@@ -18,4 +18,6 @@ export interface LineLayerProps {
   lineGradient: any;
   /** Line width for styling */
   lineWidth: number;
+  /** Optional layer that this line should sit below */
+  belowLayerId?: string;
 }

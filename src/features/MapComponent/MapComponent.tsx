@@ -18,13 +18,13 @@ import MapboxRN from "@rnmapbox/maps";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
 import { useMapState } from "@/data/contexts";
+import { MAP_COMPONENT_CONFIG } from "./config";
 import type { CameraState, MapProps } from "./shared";
 import {
   DEFAULT_NATIVE_CAMERA_STATE,
   handleCameraStateChange,
   nativeMapStateToCameraState,
 } from "./shared";
-import { MAP_COMPONENT_CONFIG } from "./config";
 
 /**
  * Native MapComponent for React Native platforms
@@ -71,7 +71,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   }, [updateMapDimensions]);
 
   return (
-    <View className="flex-1 relative">
+    <View className="relative flex-1">
       <MapboxRN.MapView
         style={{ flex: 1 }}
         styleURL={MAP_COMPONENT_CONFIG.styleURL}

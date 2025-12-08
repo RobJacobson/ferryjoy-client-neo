@@ -1,4 +1,5 @@
 import type { VesselLocation, VesselPing } from "@/domain";
+import { CIRCLE_LAYER_IDS } from "@/features/VesselCircleMarkers/constants";
 import { useZoomScale } from "@/shared/hooks";
 import { LineLayer } from "./components/LineLayer"; // Will be resolved to platform-specific version
 import { VESSEL_LINE_CONFIG } from "./config";
@@ -63,6 +64,7 @@ export const VesselLine = ({
       layerId={layerId}
       lineGradient={lineGradient}
       lineWidth={lineWidth}
+      belowLayerId={CIRCLE_LAYER_IDS.outOfService}
     />
   );
 };
