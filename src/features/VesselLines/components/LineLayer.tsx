@@ -21,13 +21,34 @@ export const LineLayer = ({
   sourceId,
   layerId,
   lineGradient,
+  outerLineGradient,
   lineWidth,
+  outerLineWidth,
+  outerLayerId,
+  belowLayerId,
 }: LineLayerProps) => {
   // Skip rendering if no line is provided
   if (!line) return null;
 
+  const resolvedOuterLayerId = outerLayerId ?? `${layerId}-outer`;
+  const resolvedOuterGradient = outerLineGradient ?? lineGradient;
+
   return (
     <MapboxRN.ShapeSource id={sourceId} shape={line} lineMetrics={true}>
+      {outerLineWidth && (
+        <MapboxRN.LineLayer
+          id={resolvedOuterLayerId}
+          sourceID={sourceId}
+          slot="middle"
+          style={{
+            lineWidth: outerLineWidth,
+            lineCap: LINE_CAP,
+            lineJoin: LINE_JOIN,
+            lineGradient: resolvedOuterGradient,
+          }}
+          belowLayerID={belowLayerId}
+        />
+      )}
       <MapboxRN.LineLayer
         id={layerId}
         sourceID={sourceId}
@@ -38,6 +59,7 @@ export const LineLayer = ({
           lineJoin: LINE_JOIN,
           lineGradient: lineGradient,
         }}
+        belowLayerID={belowLayerId}
       />
     </MapboxRN.ShapeSource>
   );

@@ -10,10 +10,10 @@ export const VESSEL_LINE_CONFIG = {
     strategy: "d3Basis" as SmoothingStrategyName,
     // strategy: "none" as SmoothingStrategyName,
     // Bezier curve parameters
-    bezierResolution: 1000,
+    bezierResolution: 500,
     bezierSharpness: 0.5,
     // Cardinal curve tension
-    cardinalTension: 0.5,
+    cardinalTension: 0.25,
   },
 
   // Filtering configuration
@@ -26,18 +26,16 @@ export const VESSEL_LINE_CONFIG = {
 
   // Styling configuration
   styling: {
-    // Line width
-    lineWidth: 16,
+    // Line width configuration for dual-layer rendering
+    innerLineWidth: 12,
+    outerLineWidth: 14,
     baseLineWidth: 0,
-    // Line cap and join styles
-    lineCap: "round" as const,
-    lineJoin: "round" as const,
     // Colors
     colors: {
       // Pink-400 with opacity for vessels in service
-      inService: [244, 114, 182, 1] as [number, number, number, number],
+      inService: [244, 114, 182, 0.4] as [number, number, number, number],
       // White with opacity for vessels at dock
-      atDock: [255, 255, 255, 0.5] as [number, number, number, number],
+      atDock: [255, 255, 255, 0.2] as [number, number, number, number],
     },
   },
 } as const;

@@ -7,7 +7,7 @@
 
 import type React from "react";
 import { useConvexVesselPings } from "@/data/contexts/ConvexVesselPingsContext";
-import { useSmoothedVesselPositions } from "@/data/contexts/SmoothedVesselPositionsContext";
+import { useSmoothedVesselLocations } from "@/data/contexts/SmoothedVesselLocationsContext";
 import { VesselLine } from "./VesselLine";
 
 /**
@@ -25,7 +25,7 @@ import { VesselLine } from "./VesselLine";
  */
 export const VesselLines = () => {
   const { vesselPingsByVesselId: vesselPings } = useConvexVesselPings();
-  const { smoothedVessels } = useSmoothedVesselPositions();
+  const { smoothedVessels } = useSmoothedVesselLocations();
 
   // Create VesselLineWrapper components
   const vesselLineComponents = Object.entries(vesselPings)

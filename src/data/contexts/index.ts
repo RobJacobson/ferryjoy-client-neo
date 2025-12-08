@@ -2,7 +2,7 @@
  * Shared contexts exports
  */
 
-export * from "../../shared/utils/projectVesselPosition";
+export * from "../../shared/utils/projectVesselLocation";
 // Export combined provider
 export * from "./ConvexProvider";
 
@@ -10,6 +10,6 @@ export * from "./ConvexVesselLocationsContext";
 
 export * from "./MapStateContext";
 
-export * from "./SmoothedVesselPositionsContext";
+export * from "./SmoothedVesselLocationsContext";
 
 export * from "./WsDottieContext";

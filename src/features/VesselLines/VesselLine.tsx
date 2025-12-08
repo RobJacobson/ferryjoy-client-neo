@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import type { VesselLocation, VesselPing } from "@/domain";
+import { CIRCLE_LAYER_IDS } from "@/features/VesselCircleMarkers/constants";
 import { useZoomScale } from "@/shared/hooks";
 import { LineLayer } from "./components/LineLayer"; // Will be resolved to platform-specific version
 import { VESSEL_LINE_CONFIG } from "./config";
@@ -33,24 +35,24 @@ export const VesselLine = ({
     VESSEL_LINE_CONFIG.smoothing.strategy
   );
 
-  // Determine if vessel is in service
-  const inService = pings[0]?.AtDock === false;
+  // Determine if vessel is actively in service (not docked or out of service)
+  const inService = currentPosition.InService && !currentPosition.AtDock;
 
   // Get color based on service status
   const rgbaColor = inService
     ? VESSEL_LINE_CONFIG.styling.colors.inService
     : VESSEL_LINE_CONFIG.styling.colors.atDock;
 
+  const lineGradient = useMemo(
+    () => createLineGradient(rgbaColor),
+    [rgbaColor]
+  );
+
   // Generate IDs and styling properties
   const sourceId = `vessel-line-source-${vesselId}`;
   const layerId = `vessel-line-layer-${vesselId}`;
-  const lineGradient = createLineGradient(
-    rgbaColor[0],
-    rgbaColor[1],
-    rgbaColor[2],
-    rgbaColor[3]
-  );
-  const lineWidth = VESSEL_LINE_CONFIG.styling.lineWidth * mapScale;
+  const innerLineWidth = VESSEL_LINE_CONFIG.styling.innerLineWidth * mapScale;
+  const outerLineWidth = VESSEL_LINE_CONFIG.styling.outerLineWidth * mapScale;
 
   // Render platform-specific VesselLine component with all props
   return (
@@ -62,7 +64,10 @@ export const VesselLine = ({
       sourceId={sourceId}
       layerId={layerId}
       lineGradient={lineGradient}
-      lineWidth={lineWidth}
+      lineWidth={innerLineWidth}
+      outerLineWidth={outerLineWidth}
+      outerLayerId={`${layerId}-outer`}
+      belowLayerId={CIRCLE_LAYER_IDS.outOfService}
     />
   );
 };
