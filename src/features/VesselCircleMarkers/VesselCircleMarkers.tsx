@@ -79,7 +79,6 @@ export const VesselCircleMarkers = ({
         sourceId={CIRCLE_SOURCE_IDS.outOfService}
         layerId={CIRCLE_LAYER_IDS.outOfService}
         style={CIRCLE_STYLES.outOfService}
-        status="outOfService"
         onFeaturePress={handleVesselSelect}
       />
 
@@ -89,7 +88,6 @@ export const VesselCircleMarkers = ({
         sourceId={CIRCLE_SOURCE_IDS.atDock}
         layerId={CIRCLE_LAYER_IDS.atDock}
         style={CIRCLE_STYLES.atDock}
-        status="atDock"
         onFeaturePress={handleVesselSelect}
       />
 
@@ -99,7 +97,6 @@ export const VesselCircleMarkers = ({
         sourceId={CIRCLE_SOURCE_IDS.atSea}
         layerId={CIRCLE_LAYER_IDS.atSea}
         style={CIRCLE_STYLES.atSea}
-        status="atSea"
         onFeaturePress={handleVesselSelect}
       />
     </>

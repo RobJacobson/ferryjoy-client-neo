@@ -6,7 +6,6 @@
  */
 
 import type { FeatureCollection, Point } from "geojson";
-import type { VesselStatus } from "../config";
 import type { VesselFeatureProperties } from "../geojson";
 
 /**
@@ -35,8 +34,6 @@ export interface CircleLayerProps {
   layerId: string;
   /** Style configuration for the circles */
   style: CircleStyleConfig;
-  /** Vessel status category for this layer */
-  status: VesselStatus;
   /** Callback when a vessel feature is clicked/pressed */
   onFeaturePress?: (vesselId: number) => void;
 }
