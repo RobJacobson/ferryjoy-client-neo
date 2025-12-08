@@ -38,36 +38,35 @@ export const CircleLayer = ({
   const { current: map } = useMap();
   const zoomScale = useZoomScale();
 
-  // Handle click events on the layer
-  const handleClick = (event: MapMouseEvent) => {
-    if (!onFeaturePress) return;
-
-    const feature = event.features?.[0];
-    if (feature?.properties?.VesselID) {
-      onFeaturePress(feature.properties.VesselID as number);
-    }
-  };
-
   // Register click handler for this layer
   useEffect(() => {
     if (!map || !onFeaturePress) return;
 
-    map.on("click", layerId, handleClick);
+    const handleClick = (event: MapMouseEvent) => {
+      const feature = event.features?.[0];
+      if (feature?.properties?.VesselID) {
+        onFeaturePress(feature.properties.VesselID as number);
+      }
+    };
 
-    // Set cursor to pointer on hover
-    map.on("mouseenter", layerId, () => {
+    const handleMouseEnter = () => {
       map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", layerId, () => {
+    };
+
+    const handleMouseLeave = () => {
       map.getCanvas().style.cursor = "";
-    });
+    };
+
+    map.on("click", layerId, handleClick);
+    map.on("mouseenter", layerId, handleMouseEnter);
+    map.on("mouseleave", layerId, handleMouseLeave);
 
     return () => {
       map.off("click", layerId, handleClick);
-      map.off("mouseenter", layerId, () => {});
-      map.off("mouseleave", layerId, () => {});
+      map.off("mouseenter", layerId, handleMouseEnter);
+      map.off("mouseleave", layerId, handleMouseLeave);
     };
-  });
+  }, [map, layerId, onFeaturePress]);
 
   const scaledRadius = style.circleRadius * zoomScale;
 

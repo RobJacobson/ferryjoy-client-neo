@@ -9,7 +9,7 @@
 
 import MapboxRN, { type ShapeSource } from "@rnmapbox/maps";
 import { useZoomScale } from "@/shared/hooks";
-import { CIRCLE_SHADOW } from "../config";
+// import { CIRCLE_SHADOW } from "../config";
 import type { CircleLayerProps } from "./types";
 
 /** Extract the OnPress event type from ShapeSource props */
