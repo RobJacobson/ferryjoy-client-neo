@@ -18,7 +18,7 @@ export const filterVesselPings = (
   const startIndex = currentPosition.TimeStamp > pings[0].TimeStamp ? 0 : 1;
   const combinedPings = [currentPosition, ...pings.slice(startIndex)];
 
-  const lastAtDockIndex = combinedPings.findLastIndex((ping) => ping.AtDock);
+  const lastAtDockIndex = combinedPings.findIndex((ping) => ping.AtDock);
   const endIndex =
     currentPosition.AtDock || lastAtDockIndex < 0
       ? combinedPings.length
