@@ -5,7 +5,7 @@ import { View } from "react-native";
 import {
   ConvexProvider,
   MapStateProvider,
-  SmoothedVesselPositionsProvider,
+  SmoothedVesselLocationsProvider,
   useMapState,
 } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
@@ -33,10 +33,10 @@ const MapPageContent = () => {
     <View className="flex-1">
       <Stack.Screen options={{ title: "Map" }} />
       <MapComponent initialCameraState={cameraState}>
-        <SmoothedVesselPositionsProvider>
+        <SmoothedVesselLocationsProvider>
           <VesselLines />
           <VesselCircleMarkers onVesselSelect={handleVesselSelect} />
-        </SmoothedVesselPositionsProvider>
+        </SmoothedVesselLocationsProvider>
       </MapComponent>
       <VesselBottomSheet ref={bottomSheetRef} selectedVessel={selectedVessel} />
     </View>

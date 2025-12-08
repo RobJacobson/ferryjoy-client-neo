@@ -94,7 +94,7 @@ export const Wave = ({
 
   try {
     return (
-      <View className="absolute overflow-visible" style={{ width: "100%" }}>
+      <View className="overflow-visible absolute" style={{ width: "100%" }}>
         <Svg
           width="100%"
           height={VIEW_BOX_HEIGHT}

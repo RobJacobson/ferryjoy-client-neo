@@ -2,11 +2,11 @@
  * VesselCircleMarkers component
  *
  * Renders vessel markers as Mapbox circle layers. Fetches smoothed vessel
- * position data, filters out "lost at sea" vessels, groups vessels by status,
+ * location data, filters out "lost at sea" vessels, groups vessels by status,
  * and renders three CircleLayer components (one per status category).
  */
 
-import { useSmoothedVesselPositions } from "@/data/contexts";
+import { useSmoothedVesselLocations } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { CircleLayer } from "./components/CircleLayer";
 import { CIRCLE_STYLES } from "./config";
@@ -16,14 +16,14 @@ import { createVesselFeatureCollection } from "./geojson";
 /**
  * VesselCircleMarkers component
  *
- * Fetches smoothed vessel positions and renders them as circle markers
+ * Fetches smoothed vessel locations and renders them as circle markers
  * using Mapbox circle layers. Vessels are grouped by status:
  * - Out-of-service: Not currently in service (lowest z-order)
  * - At-dock: In service but docked (middle z-order)
  * - At-sea: In service and sailing (highest z-order)
  *
  * Filters out vessels that are "lost at sea" (not in service and departed
- * dock more than 4 hours ago without recent position updates).
+ * dock more than 4 hours ago without recent location updates).
  *
  * @param onVesselSelect - Callback invoked when a vessel marker is clicked/tapped
  *
@@ -43,7 +43,7 @@ export const VesselCircleMarkers = ({
 }: {
   onVesselSelect?: (vessel: VesselLocation) => void;
 }) => {
-  const { smoothedVessels } = useSmoothedVesselPositions();
+  const { smoothedVessels } = useSmoothedVesselLocations();
 
   // Filter out vessels that are "lost at sea"
   const activeVessels = smoothedVessels.filter(

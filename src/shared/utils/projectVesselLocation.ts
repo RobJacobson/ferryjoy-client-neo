@@ -13,7 +13,7 @@ export const PROJECTION_TIME_MS = 15000; // 15 seconds
  * @param vessel The vessel location data with current position, speed, and heading
  * @returns A new VesselLocation object with projected coordinates
  */
-export const projectVesselPosition = (
+export const projectVesselLocation = (
   vessel: VesselLocation
 ): VesselLocation => {
   // If vessel is stationary or has invalid data, return current position
@@ -56,10 +56,10 @@ export const projectVesselPosition = (
  * @param vessels Array of vessel location data
  * @returns Array of vessels with projected positions
  */
-export const projectVesselPositions = (
+export const projectVesselLocations = (
   vessels: VesselLocation[]
 ): VesselLocation[] => {
-  return vessels.map((vessel) => projectVesselPosition(vessel));
+  return vessels.map((vessel) => projectVesselLocation(vessel));
 };
 
 /**
@@ -78,7 +78,7 @@ export const createVesselWithProjection = (
   ProjectedLongitude?: number;
   ProjectionTimestamp?: number;
 } => {
-  const projectedVessel = projectVesselPosition(vessel);
+  const projectedVessel = projectVesselLocation(vessel);
 
   // If the vessel is stationary, use current position as projection
   if (!vessel.Speed || vessel.Speed <= 0 || !vessel.Heading) {

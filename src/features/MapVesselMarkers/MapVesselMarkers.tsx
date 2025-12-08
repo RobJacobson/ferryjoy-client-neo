@@ -1,9 +1,9 @@
 /**
  * MapVesselMarkers component
- * Renders vessel markers on map using smoothed animated vessel positions
+ * Renders vessel markers on map using smoothed animated vessel locations
  */
 
-import { useSmoothedVesselPositions } from "@/data/contexts";
+import { useSmoothedVesselLocations } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
 import { MapVesselMarker } from "./MapVesselMarker";
@@ -26,9 +26,9 @@ const VESSEL_MARKER_CONFIG = {
 /**
  * MapVesselMarkers component
  *
- * Fetches smoothed vessel position data from SmoothedVesselPositions context and renders markers on the map using the generic MapMarkers component.
- * The smoothed positions provide fluid animation between GPS updates using exponential smoothing.
- * Filters out vessels that are "lost at sea" (departed dock more than 4 hours ago without recent position updates).
+ * Fetches smoothed vessel location data from SmoothedVesselLocations context and renders markers on the map using the generic MapMarkers component.
+ * The smoothed locations provide fluid animation between GPS updates using exponential smoothing.
+ * Filters out vessels that are "lost at sea" (departed dock more than 4 hours ago without recent location updates).
  * Each vessel is rendered as a MapVesselMarker with a z-index calculated from the vessel ID plus a status-based offset:
  * - Out of service: VesselID + 0
  * - In service at dock: VesselID + 100
@@ -52,7 +52,7 @@ export const MapVesselMarkers = ({
 }: {
   onVesselSelect?: (vessel: VesselLocation) => void;
 }) => {
-  const { smoothedVessels } = useSmoothedVesselPositions();
+  const { smoothedVessels } = useSmoothedVesselLocations();
 
   // Filter out vessels lost at sea and transform vessel data to conform to MapMarkerData
   const vesselMarkerData: VesselMarkerData[] = smoothedVessels
@@ -95,7 +95,7 @@ const toVesselMarkerData = (vessel: VesselLocation): VesselMarkerData => {
 
 /**
  * Determines if a vessel is "lost at sea" (not in service and departed dock more than 4 hours ago)
- * Such vessels are filtered out as they likely have stale position data
+ * Such vessels are filtered out as they likely have stale location data
  */
 const isLostAtSea = (vessel: VesselLocation): boolean =>
   !vessel.InService &&
