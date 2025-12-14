@@ -9,16 +9,16 @@ import {
 } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapComponent";
+import { MapDebugOverlay } from "@/features/MapDebugOverlay/MapDebugOverlay";
 import { VesselBottomSheet } from "@/features/VesselBottomSheet";
 import { VesselCircleMarkers } from "@/features/VesselCircleMarkers";
 import { VesselLines } from "@/features/VesselLines";
 
-// Inner component that uses context to get initial state
-const MapPageContent = () => {
+// Base map tab screen (no deep-link focus)
+const MapIndexPage = () => {
   const { cameraState } = useMapState();
   const { selectedVessel, selectVessel } = useSelectedVessel();
 
-  // ref
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   const handleVesselSelect = useCallback(
@@ -34,15 +34,14 @@ const MapPageContent = () => {
       <Stack.Screen options={{ title: "Map" }} />
       <MapComponent initialCameraState={cameraState}>
         <SmoothedVesselLocationsProvider>
-          <VesselLines />
+          {/* <VesselLines /> */}
           <VesselCircleMarkers onVesselSelect={handleVesselSelect} />
         </SmoothedVesselLocationsProvider>
       </MapComponent>
+      <MapDebugOverlay />
       <VesselBottomSheet ref={bottomSheetRef} selectedVessel={selectedVessel} />
     </View>
   );
 };
 
-const MapPage = () => <MapPageContent />;
-
-export default MapPage;
+export default MapIndexPage;

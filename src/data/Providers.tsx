@@ -14,7 +14,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   ConvexProvider,
+  MapCameraControllerProvider,
   MapStateProvider,
+  NavigationHistoryProvider,
   SelectedVesselProvider,
   WsDottieProvider,
 } from "@/data/contexts";
@@ -43,13 +45,17 @@ export const Providers = ({ children }: PropsWithChildren) => {
             <ThemeProvider
               value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
             >
-              <MapStateProvider>
-                <WsDottieProvider>
-                  <SelectedVesselProvider>
-                    <ConvexProvider>{children}</ConvexProvider>
-                  </SelectedVesselProvider>
-                </WsDottieProvider>
-              </MapStateProvider>
+              <NavigationHistoryProvider>
+                <MapStateProvider>
+                  <MapCameraControllerProvider>
+                    <WsDottieProvider>
+                      <SelectedVesselProvider>
+                        <ConvexProvider>{children}</ConvexProvider>
+                      </SelectedVesselProvider>
+                    </WsDottieProvider>
+                  </MapCameraControllerProvider>
+                </MapStateProvider>
+              </NavigationHistoryProvider>
             </ThemeProvider>
           </QueryClientProvider>
         </ConvexClientProvider>

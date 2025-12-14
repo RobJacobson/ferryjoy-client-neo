@@ -21,6 +21,7 @@ export const RoutesCarousel = () => {
     // Create the combined route
     const combinedRoute = {
       routeId: 999, // Custom ID
+      routeAbbrev: "fau-sou-vai",
       description: "Southworth / Vashon / Fauntleroy",
       terminals: ["FAU", "SOU", "VAI"],
     };
@@ -38,6 +39,7 @@ export const RoutesCarousel = () => {
 
       return {
         id: route.routeId,
+        routeAbbrev: route.routeAbbrev,
         title: route.description,
         terminals,
       };
@@ -63,7 +65,11 @@ export const RoutesCarousel = () => {
         }}
         renderItem={({ item }) => (
           <View className="flex-1 px-2 py-4">
-            <RouteCard title={item.title} terminals={item.terminals} />
+            <RouteCard
+              title={item.title}
+              routeAbbrev={item.routeAbbrev}
+              terminals={item.terminals}
+            />
           </View>
         )}
       />

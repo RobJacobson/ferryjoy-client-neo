@@ -1,3 +1,4 @@
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/ui";
@@ -9,20 +10,27 @@ interface Terminal {
 
 interface RouteCardProps {
   title: string;
+  routeAbbrev: string;
   terminals: Terminal[];
 }
 
-export const RouteCard = ({ title, terminals }: RouteCardProps) => {
+export const RouteCard = ({
+  title,
+  routeAbbrev,
+  terminals,
+}: RouteCardProps) => {
   const router = useRouter();
 
   const handleTerminalPress = (terminalId: string) => {
-    // Navigate to map with terminal selected (implementation detail to be decided)
-    // For now just navigate to map
-    router.push("/(tabs)/map" as any);
+    router.push(`/(tabs)/map/${terminalId.toLowerCase()}` as Href);
+  };
+
+  const handleRoutePress = () => {
+    router.push(`/(tabs)/map/${routeAbbrev}` as Href);
   };
 
   const handleAllTerminalsPress = () => {
-    router.push("/(tabs)/map" as any);
+    router.push("/(tabs)/map" as Href);
   };
 
   return (
@@ -44,6 +52,9 @@ export const RouteCard = ({ title, terminals }: RouteCardProps) => {
         </View>
 
         <View className="gap-3 pb-4">
+          <Button onPress={handleRoutePress} className="w-full">
+            <Text>Route overview</Text>
+          </Button>
           {terminals.map((terminal) => (
             <Button
               key={terminal.id}
