@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { VesselLocation, VesselPing } from "@/domain";
 import { CIRCLE_LAYER_IDS } from "@/features/VesselCircleMarkers/constants";
 import { useZoomScale } from "@/shared/hooks";
@@ -29,11 +28,8 @@ export const VesselLine = ({
     ? VESSEL_LINE_CONFIG.styling.colors.inService
     : VESSEL_LINE_CONFIG.styling.colors.atDock;
 
-  // Hooks must be called unconditionally (even if we return null below).
-  const lineGradient = useMemo(
-    () => createLineGradient(rgbaColor),
-    [rgbaColor]
-  );
+  // Generate line gradient
+  const lineGradient = createLineGradient(rgbaColor);
 
   // Skip if we don't have enough points or no current position
   if (

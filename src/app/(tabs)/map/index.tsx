@@ -1,5 +1,5 @@
 import type BottomSheet from "@gorhom/bottom-sheet";
-import { useCallback, useRef } from "react";
+import { useRef } from "react";
 import { useSelectedVessel } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapScreenLayout } from "@/features/MapScreen";
@@ -11,13 +11,10 @@ const MapIndexPage = () => {
 
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const handleVesselSelect = useCallback(
-    (vessel: VesselLocation) => {
-      selectVessel(vessel);
-      bottomSheetRef.current?.expand();
-    },
-    [selectVessel]
-  );
+  const handleVesselSelect = (vessel: VesselLocation) => {
+    selectVessel(vessel);
+    bottomSheetRef.current?.expand();
+  };
 
   return (
     <MapScreenLayout

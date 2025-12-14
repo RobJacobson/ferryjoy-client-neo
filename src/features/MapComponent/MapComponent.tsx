@@ -15,7 +15,7 @@
 
 import type { Camera, MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { View } from "react-native";
 import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
@@ -75,7 +75,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   }, [updateMapDimensions]);
 
   // Register imperative camera controller for screens to call flyTo
-  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+  const flyToImpl = (target: CameraState, durationMs: number) => {
     cameraRef.current?.setCamera({
       centerCoordinate: [...target.centerCoordinate] as [number, number],
       zoomLevel: target.zoomLevel,
@@ -84,7 +84,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
       animationDuration: durationMs,
       animationMode: durationMs > 0 ? "flyTo" : "none",
     });
-  }, []);
+  };
 
   useRegisterMapCameraController({
     registerController,

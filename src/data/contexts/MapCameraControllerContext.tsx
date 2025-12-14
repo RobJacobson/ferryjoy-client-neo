@@ -1,12 +1,5 @@
 import type { PropsWithChildren } from "react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useRef, useState } from "react";
 
 import type { CameraState } from "@/features/MapComponent/shared";
 
@@ -35,7 +28,7 @@ export const MapCameraControllerProvider = ({
   );
   const controllerStackRef = useRef<MapCameraController[]>([]);
 
-  const registerController = useCallback((next: MapCameraController) => {
+  const registerController = (next: MapCameraController) => {
     controllerStackRef.current.push(next);
     setController(next);
 
@@ -45,15 +38,12 @@ export const MapCameraControllerProvider = ({
       if (idx >= 0) stack.splice(idx, 1);
       setController(stack[stack.length - 1] ?? null);
     };
-  }, []);
+  };
 
-  const value = useMemo(
-    () => ({
-      controller,
-      registerController,
-    }),
-    [controller, registerController]
-  );
+  const value = {
+    controller,
+    registerController,
+  };
 
   return (
     <MapCameraControllerContext value={value}>

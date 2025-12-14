@@ -1,5 +1,5 @@
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import { forwardRef, useCallback, useMemo } from "react";
+import { forwardRef } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useConvexVesselPings } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
@@ -13,13 +13,13 @@ export const VesselBottomSheet = forwardRef<
   VesselBottomSheetProps
 >(({ selectedVessel }, ref) => {
   // variables
-  const snapPoints = useMemo(() => ["25%", "50%", "75%"], []);
+  const snapPoints = ["25%", "50%", "75%"];
   const { vesselPingsByVesselId, isLoading, error } = useConvexVesselPings();
 
   // callbacks
-  const handleSheetChanges = useCallback((index: number) => {
+  const handleSheetChanges = (index: number) => {
     console.log("handleSheetChanges", index);
-  }, []);
+  };
 
   const vesselPings = selectedVessel
     ? vesselPingsByVesselId[selectedVessel.VesselID] || []

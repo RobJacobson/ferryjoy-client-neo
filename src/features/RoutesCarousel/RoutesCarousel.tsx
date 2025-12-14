@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Dimensions, View } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { getMapEntity, MAP_ENTITIES } from "@/data/mapEntities";
@@ -7,32 +6,30 @@ import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 const { width, height } = Dimensions.get("window");
 
 export const RoutesCarousel = () => {
-  const processedRoutes = useMemo(() => {
-    const routes = Object.values(MAP_ENTITIES).filter(
-      (e) => e.kind === "route" && (e.terminals?.length ?? 0) > 0
-    );
+  const routes = Object.values(MAP_ENTITIES).filter(
+    (e) => e.kind === "route" && (e.terminals?.length ?? 0) > 0
+  );
 
-    return routes
-      .slice()
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((route) => {
-        const terminals =
-          route.terminals?.map((terminalSlug) => {
-            const terminalEntity = getMapEntity(terminalSlug);
-            return {
-              id: terminalSlug,
-              name: terminalEntity?.title ?? terminalSlug.toUpperCase(),
-            };
-          }) ?? [];
+  const processedRoutes = routes
+    .slice()
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map((route) => {
+      const terminals =
+        route.terminals?.map((terminalSlug) => {
+          const terminalEntity = getMapEntity(terminalSlug);
+          return {
+            id: terminalSlug,
+            name: terminalEntity?.title ?? terminalSlug.toUpperCase(),
+          };
+        }) ?? [];
 
-        return {
-          id: route.slug,
-          routeAbbrev: route.slug,
-          title: route.title,
-          terminals,
-        };
-      });
-  }, []);
+      return {
+        id: route.slug,
+        routeAbbrev: route.slug,
+        title: route.title,
+        terminals,
+      };
+    });
 
   // Use 80% of the screen height, but ensure aspect ratio isn't too wild
   const carouselHeight = height * 0.8;

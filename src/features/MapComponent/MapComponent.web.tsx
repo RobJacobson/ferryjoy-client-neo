@@ -3,7 +3,7 @@
  * Simple wrapper around react-map-gl
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
@@ -44,7 +44,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   }, [updateMapDimensions]);
 
   // Register imperative camera controller for screens to call flyTo
-  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+  const flyToImpl = (target: CameraState, durationMs: number) => {
     mapRef.current?.flyTo({
       center: [...target.centerCoordinate] as [number, number],
       zoom: target.zoomLevel,
@@ -52,7 +52,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
       pitch: target.pitch,
       duration: durationMs,
     });
-  }, []);
+  };
 
   useRegisterMapCameraController({
     registerController,
