@@ -33,6 +33,14 @@ Map is implemented as a folder route:
 - `src/app/(tabs)/map/_layout.tsx`
   - nested stack header config for Map
 
+### Shared map screen layout
+Both map screens use a shared layout component to eliminate duplication:
+- `src/features/MapScreen/MapScreenLayout.tsx`
+  - Provides common structure: View wrapper, Stack.Screen, MapComponent, providers
+  - Always includes: VesselLines, VesselCircleMarkers, MapDebugOverlay
+  - Accepts: title, optional vessel selection handler, optional bottom sheet
+  - Used by both `index.tsx` (with VesselBottomSheet) and `[slug].tsx` (with TerminalOrRouteBottomSheet)
+
 ### Header / back button behavior
 - Header customization lives in `src/app/(tabs)/map/_layout.tsx`.
 - The header shows a left button labeled **Home**.
@@ -168,9 +176,8 @@ The slug screen passes these values into the bottom sheet.
 To help tune camera targets, a small overlay shows camera values:
 - `src/features/MapDebugOverlay/MapDebugOverlay.tsx`
 
-It’s mounted on:
-- `src/app/(tabs)/map/index.tsx`
-- `src/app/(tabs)/map/[slug].tsx`
+It’s automatically included in all map screens via:
+- `src/features/MapScreen/MapScreenLayout.tsx` (used by both route files)
 
 ---
 
@@ -182,6 +189,7 @@ It’s mounted on:
 - **Change when animation triggers**: `src/features/MapNavigation/mapNavigationPolicy.ts` (`shouldAnimateFromPreviousPath`)
 - **Change slug animation implementation**: `src/features/MapNavigation/useMapSlugCameraAnimation.ts`
 - **Change header Home button**: `src/app/(tabs)/map/_layout.tsx`
+- **Change shared map screen structure**: `src/features/MapScreen/MapScreenLayout.tsx` (affects both route files)
 
 ### Related UI
 - **Route cards data source**: `src/data/mapEntities.ts` (`MAP_ENTITIES[routeSlug].terminals`)
