@@ -1,9 +1,10 @@
 import { distance } from "@turf/turf";
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
+import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 import { getTerminalLocationById } from "../../../src/data/terminalLocations";
 import { api } from "../../_generated/api";
 import { type ActionCtx, internalAction } from "../../_generated/server";
+import { convertConvexVesselLocation } from "../../shared/convertVesselLocations";
 import {
   type ConvexVesselLocation,
   toConvexVesselLocation,
@@ -31,7 +32,9 @@ export const updateVesselTrips = internalAction({
     ) as Record<number, ConvexVesselTrip>;
 
     // 3. Get a list of current locations
-    const vesselLocations = (await fetchVesselLocations())
+    const vesselLocations = (
+      (await fetchVesselLocations()) as unknown as DottieVesselLocation[]
+    )
       .map(toConvexVesselLocation)
       .map(convertConvexVesselLocation);
 

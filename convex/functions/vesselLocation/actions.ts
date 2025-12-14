@@ -1,7 +1,8 @@
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
+import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 import { api } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
+import { convertConvexVesselLocation } from "../../shared/convertVesselLocations";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
 
 /**
@@ -13,7 +14,9 @@ export const updateVesselLocations = internalAction({
   args: {},
   handler: async (ctx) => {
     // 1. Fetch vesselLocation data from fetchVesselLocations
-    const vesselLocations = (await fetchVesselLocations())
+    const vesselLocations = (
+      (await fetchVesselLocations()) as unknown as DottieVesselLocation[]
+    )
       .map(toConvexVesselLocation)
       .map(convertConvexVesselLocation);
 
