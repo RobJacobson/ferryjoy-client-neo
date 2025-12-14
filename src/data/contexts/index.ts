@@ -8,7 +8,11 @@ export * from "./ConvexProvider";
 
 export * from "./ConvexVesselLocationsContext";
 
+export * from "./ConvexVesselPingsContext";
+
 export * from "./MapStateContext";
+
+export * from "./SelectedVesselContext";
 
 export * from "./SmoothedVesselLocationsContext";
 

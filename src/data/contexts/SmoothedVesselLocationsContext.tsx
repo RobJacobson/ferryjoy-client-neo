@@ -1,6 +1,6 @@
 import { createContext, type PropsWithChildren, useContext } from "react";
 import type { VesselLocation } from "@/domain";
-import { useSmoothedVesselLocations as useSmoothedVesselLocationsHook } from "../hooks/useSmoothedVesselLocations";
+import { useSmoothedVesselLocations as useSmoothedVesselLocationsHook } from "../../shared/hooks/useSmoothedVesselLocations";
 import { useConvexVesselLocations } from "./ConvexVesselLocationsContext";
 
 /**

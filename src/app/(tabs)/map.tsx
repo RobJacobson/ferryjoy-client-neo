@@ -1,12 +1,11 @@
 import type BottomSheet from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { View } from "react-native";
 import {
-  ConvexProvider,
-  MapStateProvider,
   SmoothedVesselLocationsProvider,
   useMapState,
+  useSelectedVessel,
 } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapComponent";
@@ -17,17 +16,18 @@ import { VesselLines } from "@/features/VesselLines";
 // Inner component that uses context to get initial state
 const MapPageContent = () => {
   const { cameraState } = useMapState();
-  const [selectedVessel, setSelectedVessel] = useState<VesselLocation | null>(
-    null
-  );
+  const { selectedVessel, selectVessel } = useSelectedVessel();
 
   // ref
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const handleVesselSelect = useCallback((vessel: VesselLocation) => {
-    setSelectedVessel(vessel);
-    bottomSheetRef.current?.expand();
-  }, []);
+  const handleVesselSelect = useCallback(
+    (vessel: VesselLocation) => {
+      selectVessel(vessel);
+      bottomSheetRef.current?.expand();
+    },
+    [selectVessel]
+  );
 
   return (
     <View className="flex-1">
@@ -43,12 +43,6 @@ const MapPageContent = () => {
   );
 };
 
-const MapPage = () => (
-  <MapStateProvider>
-    <ConvexProvider>
-      <MapPageContent />
-    </ConvexProvider>
-  </MapStateProvider>
-);
+const MapPage = () => <MapPageContent />;
 
 export default MapPage;

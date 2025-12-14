@@ -54,26 +54,37 @@ const ConvexVesselPingsContext = createContext<
  */
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   // Fetch the latest 20 VesselPingCollections from Convex
-  const rawPings = useQuery(api.functions.vesselPings.queries.getLatest);
+  const rawPingCollections =
+    useQuery(api.functions.vesselPings.queries.getLatest) ?? [];
 
-  // Memoize the transformation of raw pings to vesselPingsByVesselId
-  const vesselPingsByVesselId =
-    rawPings
-      ?.flatMap((pingGroup) => pingGroup.pings)
-      .map(toDomainVesselPing)
-      .reduce(toVesselPingsByVesselId, {} as VesselPingsByVesselId) ??
-    ({} as VesselPingsByVesselId);
+  // Flatten all pings from all collections and group by vessel ID
+  const vesselPingsByVesselId: VesselPingsByVesselId =
+    rawPingCollections.reduce((acc, collection) => {
+      collection.pings.forEach((ping) => {
+        const domainPing = toDomainVesselPing(ping);
+        if (!acc[ping.VesselID]) {
+          acc[ping.VesselID] = [];
+        }
+        acc[ping.VesselID].push(domainPing);
+      });
+      return acc;
+    }, {} as VesselPingsByVesselId);
+
+  // Sort each vessel's pings by timestamp (most recent first)
+  Object.values(vesselPingsByVesselId).forEach((pings) => {
+    pings.sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
+  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Handle loading and error states
   useEffect(() => {
-    if (rawPings !== undefined) {
+    if (rawPingCollections !== undefined) {
       setIsLoading(false);
       setError(null);
     }
-  }, [rawPings]);
+  }, [rawPingCollections]);
 
   const contextValue: ConvexVesselPingsContextType = {
     vesselPingsByVesselId,
@@ -86,18 +97,6 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
       {children}
     </ConvexVesselPingsContext>
   );
-};
-
-const toVesselPingsByVesselId = (
-  acc: VesselPingsByVesselId,
-  ping: VesselPing
-) => {
-  const vesselId = ping.VesselID;
-  if (!acc[vesselId]) {
-    acc[vesselId] = [];
-  }
-  acc[vesselId].push(ping);
-  return acc;
 };
 
 /**
