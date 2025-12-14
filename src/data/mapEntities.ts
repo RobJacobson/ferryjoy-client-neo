@@ -19,6 +19,11 @@ export type MapEntity = {
   kind: MapEntityKind;
   title: string;
   camera: CameraState;
+  /**
+   * For route entities, the ordered list of terminal slugs on the route.
+   * (Terminal entities omit this.)
+   */
+  terminals?: readonly string[];
 };
 
 export const MAP_NAV_CONFIG = {
@@ -56,6 +61,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "ana-sj",
     kind: "route",
     title: "Anacortes / San Juan Islands",
+    terminals: ["ana", "frh", "lop", "ori", "shi"],
     camera: {
       centerCoordinate: [-122.84542200000001, 48.55236200276221],
       zoomLevel: 9.056054026382606,
@@ -111,6 +117,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "ed-king",
     kind: "route",
     title: "Edmonds / Kingston",
+    terminals: ["edm", "kin"],
     camera: {
       centerCoordinate: [-122.43985300000003, 47.80399284797744],
       zoomLevel: 10.68446843162215,
@@ -133,6 +140,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "f-s",
     kind: "route",
     title: "Fauntleroy (West Seattle) / Southworth",
+    terminals: ["fau", "sou"],
     camera: {
       centerCoordinate: [-122.44622100000001, 47.51813224476199],
       zoomLevel: 10.822022275121626,
@@ -144,6 +152,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "f-v-s",
     kind: "route",
     title: "Fauntleroy (West Seattle) / Vashon",
+    terminals: ["fau", "vai"],
     camera: {
       centerCoordinate: [-122.43016949999999, 47.517075357492494],
       zoomLevel: 11.38721572416178,
@@ -166,6 +175,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "fau-sou-vai",
     kind: "route",
     title: "Southworth / Vashon / Fauntleroy",
+    terminals: ["fau", "sou", "vai"],
     camera: {
       centerCoordinate: [-122.44622100000001, 47.517075357492494],
       zoomLevel: 10.822022275121626,
@@ -221,6 +231,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "muk-cl",
     kind: "route",
     title: "Mukilteo / Clinton",
+    terminals: ["muk", "cli"],
     camera: {
       centerCoordinate: [-122.3232905, 47.96300148829611],
       zoomLevel: 11.735521143173061,
@@ -254,6 +265,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "pd-tal",
     kind: "route",
     title: "Pt. Defiance / Tahlequah",
+    terminals: ["ptd", "tah"],
     camera: {
       centerCoordinate: [-122.5109195, 47.31924153139576],
       zoomLevel: 13.662297103396016,
@@ -276,6 +288,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "pt-key",
     kind: "route",
     title: "Port Townsend / Coupeville",
+    terminals: ["pot", "cou"],
     camera: {
       centerCoordinate: [-122.71582099999999, 48.13493314674583],
       zoomLevel: 11.018430412839686,
@@ -298,6 +311,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "s-v",
     kind: "route",
     title: "Southworth / Vashon",
+    terminals: ["sou", "vai"],
     camera: {
       centerCoordinate: [-122.4796905, 47.512007010644545],
       zoomLevel: 12.447354600602734,
@@ -309,6 +323,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "sea-bi",
     kind: "route",
     title: "Seattle / Bainbridge Island",
+    terminals: ["p52", "bbi"],
     camera: {
       centerCoordinate: [-122.4250445, 47.61242094067968],
       zoomLevel: 10.049874097008596,
@@ -320,6 +335,7 @@ export const MAP_ENTITIES: Record<string, MapEntity> = {
     slug: "sea-br",
     kind: "route",
     title: "Seattle / Bremerton",
+    terminals: ["p52", "bre"],
     camera: {
       centerCoordinate: [-122.48228050000002, 47.58217794631888],
       zoomLevel: 9.304190617781227,

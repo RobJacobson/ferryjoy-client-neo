@@ -54,6 +54,7 @@ This file contains:
   - `kind`: `"terminal" | "route"`
   - `title`: header + bottom sheet title
   - `camera`: canonical `CameraState` target `{ centerCoordinate, zoomLevel, heading, pitch }`
+  - `terminals` (routes only): ordered list of terminal slugs used by UI (e.g. route cards)
 
 - **`MAP_NAV_CONFIG`**: shared defaults used by slug screens
   - `startCamera`: the “Seattle overview” camera (used for the snap step)
@@ -102,6 +103,9 @@ Platform implementations register a controller:
 - Web: `src/features/MapComponent/MapComponent.web.tsx`
   - uses MapRef and `flyTo({ center, zoom, bearing, pitch, duration })`
 
+Shared controller registration logic lives in:
+- `src/features/MapComponent/useRegisterMapCameraController.ts`
+
 The controller API used by screens:
 - `controller.flyTo(targetCameraState, { durationMs })`
 
@@ -113,7 +117,7 @@ Implementation detail:
 ## Animation structure
 
 ### Where the animation logic lives
-- `src/app/(tabs)/map/[slug].tsx`
+- `src/features/MapNavigation/useMapSlugCameraAnimation.ts`
 
 ### When animation runs
 The slug screen runs the animation only when:
@@ -137,7 +141,7 @@ The final target camera is:
 - optionally with `zoomLevel` overridden by `MAP_NAV_CONFIG.flyTo.targetZoomOverride`
 
 ### “Only once per focus” guards
-`map/[slug]` keeps refs to prevent duplicate scheduling while focused:
+`useMapSlugCameraAnimation` keeps refs to prevent duplicate scheduling while focused:
 - `lastAnimatedPathRef`
 - `pendingAnimationPathRef`
 - `flyToTimeoutRef`
@@ -175,5 +179,10 @@ It’s mounted on:
 - **Change Seattle overview start**: `src/data/mapEntities.ts` → `MAP_NAV_CONFIG.startCamera`
 - **Change flyTo duration/delay/zoom override**: `src/data/mapEntities.ts` → `MAP_NAV_CONFIG.flyTo`
 - **Change bottom sheet default height**: `src/data/mapEntities.ts` → `MAP_NAV_CONFIG.bottomSheet`
-- **Change when animation triggers**: `src/app/(tabs)/map/[slug].tsx`
+- **Change when animation triggers**: `src/features/MapNavigation/mapNavigationPolicy.ts` (`shouldAnimateFromPreviousPath`)
+- **Change slug animation implementation**: `src/features/MapNavigation/useMapSlugCameraAnimation.ts`
 - **Change header Home button**: `src/app/(tabs)/map/_layout.tsx`
+
+### Related UI
+- **Route cards data source**: `src/data/mapEntities.ts` (`MAP_ENTITIES[routeSlug].terminals`)
+- **Routes carousel**: `src/features/RoutesCarousel/RoutesCarousel.tsx`

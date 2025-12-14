@@ -86,6 +86,7 @@ function main() {
       kind: "terminal" | "route";
       title: string;
       camera: CameraState;
+      terminals?: string[];
     }
   > = {};
 
@@ -131,6 +132,7 @@ function main() {
       slug,
       kind: "route",
       title: r.description,
+      terminals: r.terminals.map((t) => t.toLowerCase()),
       camera,
     };
   }
@@ -146,6 +148,7 @@ function main() {
       slug: combinedSlug,
       kind: "route",
       title: "Southworth / Vashon / Fauntleroy",
+      terminals: ["fau", "sou", "vai"],
       camera:
         combinedTerminals.length >= 2
           ? computeRouteCamera(combinedTerminals)
@@ -163,7 +166,7 @@ function main() {
 
   const outPath = path.join(process.cwd(), "src/data/mapEntities.ts");
 
-  const file = `/* eslint-disable */\n/**\n * GENERATED FILE\n *\n * Single source of truth for map deep links, titles, camera targets,\n * and animation/sheet defaults.\n *\n * Edit this file directly if you want to hand-tune cameras.\n * To regenerate initial values from WSF JSON assets, run:\n *   npx tsx scripts/generateMapEntities.ts\n */\n\nimport type { CameraState } from \"@/features/MapComponent/shared\";\n\nexport type MapEntityKind = \"terminal\" | \"route\";\n\nexport type MapEntity = {\n  slug: string;\n  kind: MapEntityKind;\n  title: string;\n  camera: CameraState;\n};\n\nexport const MAP_NAV_CONFIG = {\n  startCamera: ${JSON.stringify(START_CAMERA, null, 2)} as const satisfies CameraState,\n  flyTo: {\n    delayMs: 50,\n    durationMs: 800,\n    // Set to null to respect per-entity camera.zoomLevel\n    targetZoomOverride: 10 as number | null,\n  },\n  bottomSheet: {\n    snapPoints: [\"25%\", \"50%\", \"85%\"] as const,\n    initialIndex: 0 as const,\n  },\n} as const;\n\nexport const MAP_ENTITIES: Record<string, MapEntity> = ${JSON.stringify(sorted, null, 2)};\n\nexport const getMapEntity = (slug: string): MapEntity | null => {\n  const key = slug.toLowerCase();\n  return MAP_ENTITIES[key] ?? MAP_ENTITIES[slug] ?? null;\n};\n`;
+  const file = `/* eslint-disable */\n/**\n * GENERATED FILE\n *\n * Single source of truth for map deep links, titles, camera targets,\n * and animation/sheet defaults.\n *\n * Edit this file directly if you want to hand-tune cameras.\n * To regenerate initial values from WSF JSON assets, run:\n *   npx tsx scripts/generateMapEntities.ts\n */\n\nimport type { CameraState } from "@/features/MapComponent/shared";\n\nexport type MapEntityKind = "terminal" | "route";\n\nexport type MapEntity = {\n  slug: string;\n  kind: MapEntityKind;\n  title: string;\n  camera: CameraState;\n  terminals?: readonly string[];\n};\n\nexport const MAP_NAV_CONFIG = {\n  startCamera: ${JSON.stringify(START_CAMERA, null, 2)} as const satisfies CameraState,\n  flyTo: {\n    delayMs: 50,\n    durationMs: 800,\n    // Set to null to respect per-entity camera.zoomLevel\n    targetZoomOverride: 10 as number | null,\n  },\n  bottomSheet: {\n    snapPoints: ["25%", "50%", "85%"] as const,\n    initialIndex: 0 as const,\n  },\n} as const;\n\nexport const MAP_ENTITIES: Record<string, MapEntity> = ${JSON.stringify(sorted, null, 2)};\n\nexport const getMapEntity = (slug: string): MapEntity | null => {\n  const key = slug.toLowerCase();\n  return MAP_ENTITIES[key] ?? MAP_ENTITIES[slug] ?? null;\n};\n`;
 
   fs.writeFileSync(outPath, file, "utf8");
   console.log(`Wrote ${outPath} with ${Object.keys(sorted).length} entities`);

@@ -15,7 +15,7 @@
 
 import type { Camera, MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { View } from "react-native";
 import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
@@ -25,6 +25,7 @@ import {
   handleCameraStateChange,
   nativeMapStateToCameraState,
 } from "./shared";
+import { useRegisterMapCameraController } from "./useRegisterMapCameraController";
 
 /**
  * Native MapComponent for React Native platforms
@@ -74,29 +75,23 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   }, [updateMapDimensions]);
 
   // Register imperative camera controller for screens to call flyTo
-  useEffect(() => {
-    const unregister = registerController({
-      flyTo: (target, options) => {
-        const durationMs = options?.durationMs ?? 800;
-
-        cameraRef.current?.setCamera({
-          centerCoordinate: [...target.centerCoordinate] as [number, number],
-          zoomLevel: target.zoomLevel,
-          heading: target.heading,
-          pitch: target.pitch,
-          animationDuration: durationMs,
-          animationMode: durationMs > 0 ? "flyTo" : "none",
-        });
-
-        // Keep canonical camera state in sync with programmatic moves
-        updateCameraState(target);
-      },
+  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+    cameraRef.current?.setCamera({
+      centerCoordinate: [...target.centerCoordinate] as [number, number],
+      zoomLevel: target.zoomLevel,
+      heading: target.heading,
+      pitch: target.pitch,
+      animationDuration: durationMs,
+      animationMode: durationMs > 0 ? "flyTo" : "none",
     });
+  }, []);
 
-    return () => {
-      unregister();
-    };
-  }, [registerController, updateCameraState]);
+  useRegisterMapCameraController({
+    registerController,
+    updateCameraState,
+    flyToImpl,
+    defaultDurationMs: 800,
+  });
 
   return (
     <View className="relative flex-1">

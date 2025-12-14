@@ -1,4 +1,5 @@
 import MapboxRN from "@rnmapbox/maps";
+import type { ReactElement } from "react";
 import { LINE_CAP, LINE_JOIN } from "../utils/shared";
 import type { LineLayerProps } from "./LineLayer.types";
 
@@ -33,34 +34,43 @@ export const LineLayer = ({
   const resolvedOuterLayerId = outerLayerId ?? `${layerId}-outer`;
   const resolvedOuterGradient = outerLineGradient ?? lineGradient;
 
-  return (
-    <MapboxRN.ShapeSource id={sourceId} shape={line} lineMetrics={true}>
-      {outerLineWidth && (
-        <MapboxRN.LineLayer
-          id={resolvedOuterLayerId}
-          sourceID={sourceId}
-          slot="middle"
-          style={{
-            lineWidth: outerLineWidth,
-            lineCap: LINE_CAP,
-            lineJoin: LINE_JOIN,
-            lineGradient: resolvedOuterGradient,
-          }}
-          belowLayerID={belowLayerId}
-        />
-      )}
+  const layers: ReactElement[] = [];
+  if (outerLineWidth != null && outerLineWidth > 0) {
+    layers.push(
       <MapboxRN.LineLayer
-        id={layerId}
+        key={resolvedOuterLayerId}
+        id={resolvedOuterLayerId}
         sourceID={sourceId}
         slot="middle"
         style={{
-          lineWidth,
+          lineWidth: outerLineWidth,
           lineCap: LINE_CAP,
           lineJoin: LINE_JOIN,
-          lineGradient: lineGradient,
+          lineGradient: resolvedOuterGradient,
         }}
         belowLayerID={belowLayerId}
       />
+    );
+  }
+  layers.push(
+    <MapboxRN.LineLayer
+      key={layerId}
+      id={layerId}
+      sourceID={sourceId}
+      slot="middle"
+      style={{
+        lineWidth,
+        lineCap: LINE_CAP,
+        lineJoin: LINE_JOIN,
+        lineGradient: lineGradient,
+      }}
+      belowLayerID={belowLayerId}
+    />
+  );
+
+  return (
+    <MapboxRN.ShapeSource id={sourceId} shape={line} lineMetrics={true}>
+      {layers}
     </MapboxRN.ShapeSource>
   );
 };

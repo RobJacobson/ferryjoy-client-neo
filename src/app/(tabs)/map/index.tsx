@@ -12,7 +12,6 @@ import { MapComponent } from "@/features/MapComponent";
 import { MapDebugOverlay } from "@/features/MapDebugOverlay/MapDebugOverlay";
 import { VesselBottomSheet } from "@/features/VesselBottomSheet";
 import { VesselCircleMarkers } from "@/features/VesselCircleMarkers";
-import { VesselLines } from "@/features/VesselLines";
 
 // Base map tab screen (no deep-link focus)
 const MapIndexPage = () => {
