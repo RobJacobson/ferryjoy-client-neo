@@ -14,6 +14,7 @@
     "type-check": "tsc --noEmit",
     "web": "expo start --web",
     "convex:dev": "npx convex dev",
+    "convex:dev:no-check": "npx convex dev --typecheck=disable",
     "convex:deploy": "npx convex deploy",
     "convex:deploy:prod": "npx convex deploy --prod",
     "convex:codegen": "npx convex codegen",
