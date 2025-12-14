@@ -45,8 +45,8 @@ export const MapScreenLayout = ({
       <Stack.Screen options={{ title }} />
       <MapComponent initialCameraState={cameraState}>
         <SmoothedVesselLocationsProvider>
-          <VesselLines />
           <VesselCircleMarkers onVesselSelect={onVesselSelect} />
+          <VesselLines />
         </SmoothedVesselLocationsProvider>
       </MapComponent>
       <MapDebugOverlay />
