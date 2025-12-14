@@ -1,4 +1,7 @@
 {
+  "files": {
+    "includes": ["**", "!!**/convex/_generated"]
+  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
