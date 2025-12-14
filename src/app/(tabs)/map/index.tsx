@@ -1,54 +1,46 @@
 import type BottomSheet from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { View } from "react-native";
 import {
-  ConvexProvider,
-  MapStateProvider,
   SmoothedVesselLocationsProvider,
   useMapState,
+  useSelectedVessel,
 } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapComponent";
+import { MapDebugOverlay } from "@/features/MapDebugOverlay/MapDebugOverlay";
 import { VesselBottomSheet } from "@/features/VesselBottomSheet";
 import { VesselCircleMarkers } from "@/features/VesselCircleMarkers";
-import { VesselLines } from "@/features/VesselLines";
 
-// Inner component that uses context to get initial state
-const MapPageContent = () => {
+// Base map tab screen (no deep-link focus)
+const MapIndexPage = () => {
   const { cameraState } = useMapState();
-  const [selectedVessel, setSelectedVessel] = useState<VesselLocation | null>(
-    null
-  );
+  const { selectedVessel, selectVessel } = useSelectedVessel();
 
-  // ref
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const handleVesselSelect = useCallback((vessel: VesselLocation) => {
-    setSelectedVessel(vessel);
-    bottomSheetRef.current?.expand();
-  }, []);
+  const handleVesselSelect = useCallback(
+    (vessel: VesselLocation) => {
+      selectVessel(vessel);
+      bottomSheetRef.current?.expand();
+    },
+    [selectVessel]
+  );
 
   return (
     <View className="flex-1">
       <Stack.Screen options={{ title: "Map" }} />
       <MapComponent initialCameraState={cameraState}>
         <SmoothedVesselLocationsProvider>
-          <VesselLines />
+          {/* <VesselLines /> */}
           <VesselCircleMarkers onVesselSelect={handleVesselSelect} />
         </SmoothedVesselLocationsProvider>
       </MapComponent>
+      <MapDebugOverlay />
       <VesselBottomSheet ref={bottomSheetRef} selectedVessel={selectedVessel} />
     </View>
   );
 };
 
-const MapPage = () => (
-  <MapStateProvider>
-    <ConvexProvider>
-      <MapPageContent />
-    </ConvexProvider>
-  </MapStateProvider>
-);
-
-export default MapPage;
+export default MapIndexPage;

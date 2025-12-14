@@ -21,6 +21,20 @@ export const VesselLine = ({
   // Filter pings first
   const coordinates = filterVesselPings(pings, currentPosition);
 
+  // Determine if vessel is actively in service (not docked or out of service)
+  const inService = !!currentPosition?.InService && !currentPosition?.AtDock;
+
+  // Get color based on service status
+  const rgbaColor = inService
+    ? VESSEL_LINE_CONFIG.styling.colors.inService
+    : VESSEL_LINE_CONFIG.styling.colors.atDock;
+
+  // Hooks must be called unconditionally (even if we return null below).
+  const lineGradient = useMemo(
+    () => createLineGradient(rgbaColor),
+    [rgbaColor]
+  );
+
   // Skip if we don't have enough points or no current position
   if (
     !currentPosition ||
@@ -33,19 +47,6 @@ export const VesselLine = ({
   const line = createSmoothedLine(
     coordinates,
     VESSEL_LINE_CONFIG.smoothing.strategy
-  );
-
-  // Determine if vessel is actively in service (not docked or out of service)
-  const inService = currentPosition.InService && !currentPosition.AtDock;
-
-  // Get color based on service status
-  const rgbaColor = inService
-    ? VESSEL_LINE_CONFIG.styling.colors.inService
-    : VESSEL_LINE_CONFIG.styling.colors.atDock;
-
-  const lineGradient = useMemo(
-    () => createLineGradient(rgbaColor),
-    [rgbaColor]
   );
 
   // Generate IDs and styling properties

@@ -1,5 +1,10 @@
 # Map Animation Implementation Review
 
+> Note: This document predates the current map navigation refactor. For the up-to-date implementation,
+> see `MAP_NAVIGATION_AND_ANIMATION.md`, plus:
+> - `src/features/MapComponent/useRegisterMapCameraController.ts`
+> - `src/features/MapNavigation/useMapSlugCameraAnimation.ts`
+
 ## Current Implementation Analysis
 
 ### Native Implementation (`MapComponent.tsx`)

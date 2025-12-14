@@ -3,11 +3,11 @@
  * Simple wrapper around react-map-gl
  */
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
-import { useMapState } from "@/data/contexts";
+import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
 import type { CameraState, MapProps } from "./shared";
 import {
@@ -16,10 +16,12 @@ import {
   handleCameraStateChange,
   webViewStateToCameraState,
 } from "./shared";
+import { useRegisterMapCameraController } from "./useRegisterMapCameraController";
 
 export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   // Only use the update function from context, not the state
   const { updateCameraState, updateMapDimensions } = useMapState();
+  const { registerController } = useMapCameraController();
   const mapRef = useRef<MapRef>(null);
 
   // Keep track of previous camera state to avoid unnecessary updates
@@ -40,6 +42,24 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   useEffect(() => {
     updateMapDimensions({ width: 800, height: 600 });
   }, [updateMapDimensions]);
+
+  // Register imperative camera controller for screens to call flyTo
+  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+    mapRef.current?.flyTo({
+      center: [...target.centerCoordinate] as [number, number],
+      zoom: target.zoomLevel,
+      bearing: target.heading,
+      pitch: target.pitch,
+      duration: durationMs,
+    });
+  }, []);
+
+  useRegisterMapCameraController({
+    registerController,
+    updateCameraState,
+    flyToImpl,
+    defaultDurationMs: 800,
+  });
 
   // Handle camera changes and update context
   const handleMove = (evt: { viewState: ViewState }) => {

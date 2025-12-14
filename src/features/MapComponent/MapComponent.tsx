@@ -13,11 +13,11 @@
  * ```
  */
 
-import type { MapState as RNMapState } from "@rnmapbox/maps";
+import type { Camera, MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { View } from "react-native";
-import { useMapState } from "@/data/contexts";
+import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
 import type { CameraState, MapProps } from "./shared";
 import {
@@ -25,6 +25,7 @@ import {
   handleCameraStateChange,
   nativeMapStateToCameraState,
 } from "./shared";
+import { useRegisterMapCameraController } from "./useRegisterMapCameraController";
 
 /**
  * Native MapComponent for React Native platforms
@@ -40,11 +41,14 @@ import {
 export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   // Only use update function from context, not the state
   const { updateCameraState, updateMapDimensions } = useMapState();
+  const { registerController } = useMapCameraController();
 
   // Keep track of previous camera state to avoid unnecessary updates
   const previousCameraStateRef = useRef<CameraState>(
     initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
   );
+
+  const cameraRef = useRef<Camera>(null);
 
   /**
    * Handles camera change events from Mapbox map
@@ -70,6 +74,25 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     updateMapDimensions({ width: 375, height: 812 }); // iPhone X dimensions as default
   }, [updateMapDimensions]);
 
+  // Register imperative camera controller for screens to call flyTo
+  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+    cameraRef.current?.setCamera({
+      centerCoordinate: [...target.centerCoordinate] as [number, number],
+      zoomLevel: target.zoomLevel,
+      heading: target.heading,
+      pitch: target.pitch,
+      animationDuration: durationMs,
+      animationMode: durationMs > 0 ? "flyTo" : "none",
+    });
+  }, []);
+
+  useRegisterMapCameraController({
+    registerController,
+    updateCameraState,
+    flyToImpl,
+    defaultDurationMs: 800,
+  });
+
   return (
     <View className="relative flex-1">
       <MapboxRN.MapView
@@ -82,6 +105,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
         onCameraChanged={handleCameraChanged}
       >
         <MapboxRN.Camera
+          ref={cameraRef}
           defaultSettings={{
             ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE),
             centerCoordinate: [

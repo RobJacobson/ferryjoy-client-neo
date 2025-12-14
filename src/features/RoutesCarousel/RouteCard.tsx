@@ -1,3 +1,4 @@
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/ui";
@@ -9,24 +10,31 @@ interface Terminal {
 
 interface RouteCardProps {
   title: string;
+  routeAbbrev: string;
   terminals: Terminal[];
 }
 
-export const RouteCard = ({ title, terminals }: RouteCardProps) => {
+export const RouteCard = ({
+  title,
+  routeAbbrev,
+  terminals,
+}: RouteCardProps) => {
   const router = useRouter();
 
   const handleTerminalPress = (terminalId: string) => {
-    // Navigate to map with terminal selected (implementation detail to be decided)
-    // For now just navigate to map
-    router.push("/(tabs)/map" as any);
+    router.push(`/(tabs)/map/${terminalId.toLowerCase()}` as Href);
+  };
+
+  const handleRoutePress = () => {
+    router.push(`/(tabs)/map/${routeAbbrev}` as Href);
   };
 
   const handleAllTerminalsPress = () => {
-    router.push("/(tabs)/map" as any);
+    router.push("/(tabs)/map" as Href);
   };
 
   return (
-    <View className="bg-white rounded-3xl h-full shadow-sm border border-gray-100 overflow-hidden">
+    <View className="overflow-hidden h-full bg-white rounded-3xl border border-gray-100 shadow-sm">
       <ScrollView
         contentContainerStyle={{
           padding: 24,
@@ -35,15 +43,18 @@ export const RouteCard = ({ title, terminals }: RouteCardProps) => {
         }}
       >
         <View>
-          <View className="h-40 bg-gray-200 rounded-xl mb-6 items-center justify-center">
+          <View className="justify-center items-center mb-6 h-40 bg-gray-200 rounded-xl">
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
-          <Text className="text-2xl font-bold text-slate-900 mb-6 text-center leading-tight">
+          <Text className="mb-6 text-2xl font-bold leading-tight text-center text-slate-900">
             {title}
           </Text>
         </View>
 
         <View className="gap-3 pb-4">
+          <Button onPress={handleRoutePress} className="w-full">
+            <Text>Route overview</Text>
+          </Button>
           {terminals.map((terminal) => (
             <Button
               key={terminal.id}
@@ -54,7 +65,7 @@ export const RouteCard = ({ title, terminals }: RouteCardProps) => {
               <Text>{terminal.name}</Text>
             </Button>
           ))}
-          <Button onPress={handleAllTerminalsPress} className="w-full mt-2">
+          <Button onPress={handleAllTerminalsPress} className="mt-2 w-full">
             <Text>All Terminals</Text>
           </Button>
         </View>
