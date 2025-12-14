@@ -22,11 +22,10 @@ crons.interval(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
-// Register a cron job to cleanup old vessel pings every hour
-crons.cron(
-  "cleanup old vessel pings",
-  "0 * * * *", // Every hour
-  internal.functions.vesselPings.actions.cleanupOldPings
+crons.interval(
+  "fetch vessel ping",
+  { minutes: 1 }, // every minute
+  internal.functions.vesselPing.actions.fetchAndStoreVesselPing
 );
 
 export default crons;
