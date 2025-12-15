@@ -1,0 +1,1 @@
+export { VesselsTripList } from "./VesselsTripList";

@@ -1,95 +1,110 @@
-import type { LayoutChangeEvent } from "react-native";
 import { View } from "@/components/ui";
-import { TimelineCallout } from "./TimelineCallout";
 import { TimelineCircle } from "./TimelineCircle";
 import { TimelineKnob } from "./TimelineKnob";
 import { TimelineTrack } from "./TimelineTrack";
-import type { TripTimelineCardDirection } from "./types";
-import type { TripTimelineCardLabel } from "./useTripTimelineCardModel";
+import type {
+  TripTimelineCardStatus,
+} from "./types";
+
+const formatTime12h = (date: Date) =>
+  date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+const getLabelPrefix = (
+  position: "start" | "depart" | "end",
+  status: TripTimelineCardStatus
+): string => {
+  if (position === "start") {
+    return status === "future" ? "ETA" : "Arrived";
+  }
+  if (position === "depart") {
+    return status === "atSea" || status === "arrived" ? "Left" : "ETD";
+  }
+  // position === "end"
+  return status === "arrived" ? "Arrived" : "ETA";
+};
 
 export type TripTimelineGraphicProps = {
-  trackWidth: number;
-  onTrackLayout: (e: LayoutChangeEvent) => void;
   isActive: boolean;
-  direction: TripTimelineCardDirection;
+  status: TripTimelineCardStatus;
   departP: number;
   progressP: number;
-  progressX: number;
   startFilled: boolean;
   departFilled: boolean;
   endFilled: boolean;
-  calloutText: string;
-  startLabel: TripTimelineCardLabel;
-  departLabel: TripTimelineCardLabel;
-  endLabel: TripTimelineCardLabel;
+  startTime: Date;
+  departTime: Date;
+  endTime: Date;
+  VesselName: string;
+  VesselStatus: string;
 };
 
 export const TripTimelineGraphic = ({
-  trackWidth,
-  onTrackLayout,
   isActive,
-  direction,
+  status,
   departP,
   progressP,
-  progressX,
   startFilled,
   departFilled,
   endFilled,
-  calloutText,
-  startLabel,
-  departLabel,
-  endLabel,
+  startTime,
+  departTime,
+  endTime,
+  VesselName,
+  VesselStatus,
 }: TripTimelineGraphicProps) => {
-  const isWestward = direction === "westward";
+  // Hardcoded eastbound positions
+  const startPosition = 0;
+  const departPosition = departP * 100;
+  const endPosition = 100;
 
-  // For westward trips, reverse the positions:
-  // - Start (on right) at 100%
-  // - Depart (in middle) at (1 - departP) * 100%
-  // - End (on left) at 0%
-  // For eastward trips, keep original positions:
-  // - Start (on left) at 0%
-  // - Depart (in middle) at departP * 100%
-  // - End (on right) at 100%
-  const startPosition = isWestward ? 100 : 0;
-  const departPosition = isWestward ? (1 - departP) * 100 : departP * 100;
-  const endPosition = isWestward ? 0 : 100;
+  // Convert progressP to position percentage (eastbound)
+  const progressPosition = progressP * 100;
+
+  // Format times locally
+  const startTimeStr = formatTime12h(startTime);
+  const departTimeStr = formatTime12h(departTime);
+  const endTimeStr = formatTime12h(endTime);
 
   return (
-    <View className="w-full h-[60px]" onLayout={onTrackLayout}>
+    <View className="w-full h-[60px]">
       {/* Track with progress fill */}
-      <TimelineTrack direction={direction} progressP={progressP} />
+      <TimelineTrack progressP={progressP} />
 
       {/* Start circle + label */}
       <TimelineCircle
         position={startPosition}
         filled={startFilled}
-        label={startLabel}
+        time={startTimeStr}
+        description={getLabelPrefix("start", status)}
       />
 
       {/* Depart circle + label */}
       <TimelineCircle
         position={departPosition}
         filled={departFilled}
-        label={departLabel}
+        time={departTimeStr}
+        description={getLabelPrefix("depart", status)}
       />
 
       {/* End circle + label */}
       <TimelineCircle
         position={endPosition}
         filled={endFilled}
-        label={endLabel}
+        time={endTimeStr}
+        description={getLabelPrefix("end", status)}
       />
 
       {/* Knob + callout (active only) */}
       {isActive ? (
-        <>
-          <TimelineCallout
-            text={calloutText}
-            trackWidth={trackWidth}
-            progressX={progressX}
-          />
-          <TimelineKnob progressX={progressX} />
-        </>
+        <TimelineKnob
+          progressPosition={progressPosition}
+          VesselName={VesselName}
+          VesselStatus={VesselStatus}
+        />
       ) : null}
     </View>
   );

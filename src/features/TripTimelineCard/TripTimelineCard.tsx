@@ -8,25 +8,23 @@ export const TripTimelineCard = (props: TripTimelineCardProps) => {
 
   return (
     <View
-      className="px-4 pb-16 w-full"
+      className="px-4 py-2 w-full"
       accessibilityLabel={model.accessibilityLabel}
     >
       <View className="h-[64px]">
         <TripTimelineGraphic
-          trackWidth={model.trackWidth}
-          onTrackLayout={model.onTrackLayout}
           isActive={model.isActive}
-          direction={props.direction}
+          status={props.status}
           departP={model.departP}
           progressP={model.progressP}
-          progressX={model.progressX}
           startFilled={model.startFilled}
           departFilled={model.departFilled}
           endFilled={model.endFilled}
-          calloutText={model.calloutText}
-          startLabel={model.startLabel}
-          departLabel={model.departLabel}
-          endLabel={model.endLabel}
+          startTime={props.startTime}
+          departTime={props.departTime}
+          endTime={props.endTime}
+          VesselName={props.VesselName}
+          VesselStatus={props.VesselStatus}
         />
       </View>
     </View>

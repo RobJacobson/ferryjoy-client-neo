@@ -1,13 +1,10 @@
 import { View } from "@/components/ui";
-import type { TripTimelineCardDirection } from "./types";
 
 export type TimelineTrackProps = {
-  direction: TripTimelineCardDirection;
   progressP: number;
 };
 
-export const TimelineTrack = ({ direction, progressP }: TimelineTrackProps) => {
-  const isEastward = direction === "eastward";
+export const TimelineTrack = ({ progressP }: TimelineTrackProps) => {
   const fillWidthPercent = progressP * 100;
 
   return (
@@ -15,21 +12,14 @@ export const TimelineTrack = ({ direction, progressP }: TimelineTrackProps) => {
       {/* Background track */}
       <View className="absolute inset-0 rounded-full bg-muted" />
 
-      {/* Progress fill - extends from start edge (eastward) or end edge (westward) to progress position */}
+      {/* Progress fill - extends from left edge to progress position (eastbound) */}
       {progressP > 0 && (
         <View
           className="absolute inset-y-0 rounded-full bg-primary"
-          style={
-            isEastward
-              ? {
-                  left: 0,
-                  width: `${fillWidthPercent}%`,
-                }
-              : {
-                  right: 0,
-                  width: `${fillWidthPercent}%`,
-                }
-          }
+          style={{
+            left: 0,
+            width: `${fillWidthPercent}%`,
+          }}
         />
       )}
     </View>
