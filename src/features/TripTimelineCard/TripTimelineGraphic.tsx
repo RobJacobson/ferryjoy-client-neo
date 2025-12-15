@@ -32,8 +32,6 @@ export type TripTimelineGraphicProps = {
   departTime: Date;
   endTime: Date;
   nowMs: number;
-  VesselName: string;
-  VesselStatus: string;
 };
 
 export const TripTimelineGraphic = ({
@@ -42,8 +40,6 @@ export const TripTimelineGraphic = ({
   departTime,
   endTime,
   nowMs,
-  VesselName,
-  VesselStatus,
 }: TripTimelineGraphicProps) => {
   const isActive = status === "atDock" || status === "atSea";
 
@@ -89,7 +85,7 @@ export const TripTimelineGraphic = ({
   const endTimeStr = formatTime12h(endTime);
 
   return (
-    <View className="w-full h-[60px]">
+    <View className="w-full h-[64px]">
       {/* Track with progress fill */}
       <TimelineTrack progressP={progressP} />
 
@@ -120,14 +116,8 @@ export const TripTimelineGraphic = ({
         description={getLabelPrefix("end", status)}
       />
 
-      {/* Knob + callout (active only) */}
-      {isActive ? (
-        <TimelineKnob
-          progressPosition={progressPosition}
-          VesselName={VesselName}
-          VesselStatus={VesselStatus}
-        />
-      ) : null}
+      {/* Knob (active only) */}
+      {isActive ? <TimelineKnob progressPosition={progressPosition} /> : null}
     </View>
   );
 };

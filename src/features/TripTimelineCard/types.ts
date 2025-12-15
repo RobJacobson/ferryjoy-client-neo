@@ -7,6 +7,4 @@ export type TripTimelineCardProps = {
   startTime: Date;
   departTime: Date;
   endTime: Date;
-  VesselName: string;
-  VesselStatus: string;
 };

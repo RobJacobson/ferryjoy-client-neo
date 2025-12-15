@@ -1,0 +1,1 @@
+export { VesselTripCard } from "./VesselTripCard";

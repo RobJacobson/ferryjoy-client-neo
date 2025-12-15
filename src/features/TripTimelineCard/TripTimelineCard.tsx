@@ -85,17 +85,13 @@ export const TripTimelineCard = (props: TripTimelineCardProps) => {
         endTime
       )}
     >
-      <View className="h-[64px]">
-        <TripTimelineGraphic
-          status={status}
-          startTime={startTime}
-          departTime={departTime}
-          endTime={endTime}
-          nowMs={nowMs}
-          VesselName={props.VesselName}
-          VesselStatus={props.VesselStatus}
-        />
-      </View>
+      <TripTimelineGraphic
+        status={status}
+        startTime={startTime}
+        departTime={departTime}
+        endTime={endTime}
+        nowMs={nowMs}
+      />
     </View>
   );
 };

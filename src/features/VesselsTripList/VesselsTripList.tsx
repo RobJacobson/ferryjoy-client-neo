@@ -1,24 +1,7 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
-import {
-  useConvexVesselTrips,
-  type VesselTrip,
-} from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { TripTimelineCard } from "@/features/TripTimelineCard";
-
-const getTimelineProps = (trip: VesselTrip) => {
-  return {
-    status: trip.AtDock ? ("atDock" as const) : ("atSea" as const),
-    fromTerminal: trip.DepartingTerminalAbbrev || "",
-    toTerminal: trip.ArrivingTerminalAbbrev || "",
-    startTime: trip.TripStart || new Date(),
-    departTime:
-      trip.LeftDock ||
-      new Date((trip.TripStart?.getTime() || 0) + 10 * 60 * 1000),
-    endTime:
-      trip.Eta || new Date((trip.TripStart?.getTime() || 0) + 30 * 60 * 1000),
-  };
-};
+import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
+import { VesselTripCard } from "@/features/VesselTripCard";
 
 export const VesselsTripList = () => {
   const { activeVesselTrips, isLoading, error } = useConvexVesselTrips();
@@ -64,33 +47,9 @@ export const VesselsTripList = () => {
               trip.ArrivingTerminalID
           )
           .map((trip) => (
-            <View key={trip.VesselID} className="mb-4">
-              <View className="flex-row">
-                <Text className="text-lg font-bold">
-                  {trip.DepartingTerminalName}
-                </Text>
-                <Text className="text-lg font-light">
-                  {` → ${trip.ArrivingTerminalName}`}
-                </Text>
-              </View>
-              <TripTimelineCard
-                {...getTimelineProps(trip)}
-                VesselName={trip.VesselName || "Unknown Vessel"}
-                VesselStatus={getVesselStatus(trip)}
-              />
-            </View>
+            <VesselTripCard key={trip.VesselID} trip={trip} />
           ))}
       </View>
     </ScrollView>
   );
-};
-
-const getVesselStatus = (trip: VesselTrip): string => {
-  if (trip.AtDock) {
-    return "At Dock";
-  }
-  if (!trip.Speed) {
-    return "At Sea";
-  }
-  return `${trip.Speed?.toFixed(1)} knots`;
 };
