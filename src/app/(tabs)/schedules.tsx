@@ -17,13 +17,14 @@ export default function SchedulesScreen() {
           TripTimeline (future)
         </Text>
         <TripTimelineCard
-          direction="eastward"
           status="future"
           fromTerminal="SEA"
           toTerminal="BBI"
           startTime={startTime}
           departTime={departTime}
           endTime={endTime}
+          VesselName="Example Vessel"
+          VesselStatus="Scheduled"
         />
       </View>
 
@@ -32,13 +33,14 @@ export default function SchedulesScreen() {
           TripTimeline (at-dock)
         </Text>
         <TripTimelineCard
-          direction="eastward"
           status="atDock"
           fromTerminal="SEA"
           toTerminal="BBI"
           startTime={startTime}
           departTime={departTime}
           endTime={endTime}
+          VesselName="Example Vessel"
+          VesselStatus="At Dock"
         />
       </View>
 
@@ -47,13 +49,14 @@ export default function SchedulesScreen() {
           TripTimeline (at-sea, westward)
         </Text>
         <TripTimelineCard
-          direction="westward"
           status="atSea"
           fromTerminal="BBI"
           toTerminal="SEA"
           startTime={new Date(Date.now() - 60 * 60 * 1000)}
           departTime={new Date(Date.now() - 45 * 60 * 1000)}
           endTime={new Date(Date.now() + 15 * 60 * 1000)}
+          VesselName="Example Vessel"
+          VesselStatus="At Sea"
         />
       </View>
 
@@ -62,13 +65,14 @@ export default function SchedulesScreen() {
           TripTimeline (arrived)
         </Text>
         <TripTimelineCard
-          direction="westward"
           status="arrived"
           fromTerminal="SEA"
           toTerminal="BBI"
           startTime={new Date(Date.now() - 80 * 60 * 1000)}
           departTime={new Date(Date.now() - 65 * 60 * 1000)}
           endTime={new Date(Date.now() - 10 * 60 * 1000)}
+          VesselName="Example Vessel"
+          VesselStatus="Arrived"
         />
       </View>
     </ScrollView>
