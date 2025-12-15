@@ -46,3 +46,16 @@ export const getActiveTripByVesselId = query({
     }
   },
 });
+
+/**
+ * API function for fetching completed vessel trips (finished trips)
+ * Large dataset, infrequently updated, good for caching
+ * Optimized with proper indexing for performance
+ */
+export const getCompletedTrips = query({
+  args: {},
+  handler: async (ctx) => {
+    const trips = await ctx.db.query("completedVesselTrips").collect();
+    return trips;
+  },
+});
