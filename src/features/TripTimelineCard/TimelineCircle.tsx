@@ -7,19 +7,38 @@ import {
   TRACK_Y,
 } from "./constants";
 
+const getFilledState = (
+  positionType: "start" | "depart" | "end",
+  status: "future" | "atDock" | "atSea" | "arrived"
+): boolean => {
+  switch (positionType) {
+    case "start":
+      return status !== "future";
+    case "depart":
+      return status === "atSea" || status === "arrived";
+    case "end":
+      return status === "arrived";
+    default:
+      return false;
+  }
+};
+
 export type TimelineCircleProps = {
   position: number; // 0-100, where 0 = left edge, 100 = right edge
-  filled: boolean;
+  positionType: "start" | "depart" | "end";
+  status: "future" | "atDock" | "atSea" | "arrived";
   time: string;
   description: string;
 };
 
 export const TimelineCircle = ({
   position,
-  filled,
+  positionType,
+  status,
   time,
   description,
 }: TimelineCircleProps) => {
+  const filled = getFilledState(positionType, status);
   // Parent container positioned at the percentage
   // position = 0 means left edge, position = 100 means right edge
   const containerStyle: ViewStyle = {
