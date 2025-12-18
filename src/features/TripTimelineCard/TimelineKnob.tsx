@@ -1,27 +1,8 @@
 import { View } from "@/components/ui";
-import { KNOB_SIZE, TRACK_HEIGHT, TRACK_Y } from "./constants";
+import { KNOB_SIZE } from "./constants";
 
 export type TimelineKnobProps = {
   progressPosition: number; // 0-100, percentage position
-};
-
-export const TimelineKnob = ({ progressPosition }: TimelineKnobProps) => {
-  return (
-    <View className="absolute inset-0">
-      {/* Knob */}
-      <View
-        className="absolute rounded-full border-2 bg-background border-primary"
-        style={{
-          top: TRACK_Y + TRACK_HEIGHT / 2 - KNOB_SIZE / 2,
-          left: `${progressPosition}%`,
-          marginLeft: -KNOB_SIZE / 2, // Center the knob on the position
-          width: KNOB_SIZE,
-          height: KNOB_SIZE,
-          ...shadowStyle,
-        }}
-      />
-    </View>
-  );
 };
 
 const shadowStyle = {
@@ -32,4 +13,23 @@ const shadowStyle = {
   shadowRadius: 2,
   // Android elevation
   elevation: 2,
+};
+
+export const TimelineKnob = ({ progressPosition }: TimelineKnobProps) => {
+  return (
+    <View
+      className="absolute rounded-full border-2 bg-background border-primary"
+      style={{
+        top: "50%",
+        left: `${progressPosition}%`,
+        transform: [
+          { translateX: -KNOB_SIZE / 2 },
+          { translateY: -KNOB_SIZE / 2 },
+        ], // Center the knob on the position both horizontally and vertically
+        width: KNOB_SIZE,
+        height: KNOB_SIZE,
+        ...shadowStyle,
+      }}
+    />
+  );
 };

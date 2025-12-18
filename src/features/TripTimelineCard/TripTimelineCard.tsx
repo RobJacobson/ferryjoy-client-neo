@@ -45,10 +45,36 @@ export const TripTimelineCard = (props: TripTimelineCardProps) => {
     return () => clearInterval(id);
   }, [isActive]);
 
+  // Handle case where there's no destination or scheduled departure
+  const hasDestination = !!toTerminal;
+  const hasScheduledDeparture = !!departTime;
+
   // Compute progress values
   const t0 = startTime.getTime();
-  const t1 = departTime.getTime();
-  const t2 = endTime.getTime();
+  const t1 = departTime?.getTime() ?? t0;
+  const t2 = endTime?.getTime() ?? t0;
+
+  // When there's no destination, we don't have a meaningful timeline
+  // Just show the start position
+  if (!hasDestination) {
+    return (
+      <View
+        className="px-4 w-full"
+        style={{ overflow: "visible" }}
+        accessibilityLabel={`Vessel at dock at ${fromTerminal}`}
+      >
+        <TripTimelineGraphic
+          status={status}
+          startTime={startTime}
+          departTime={undefined}
+          endTime={undefined}
+          nowMs={nowMs}
+          hasDestination={false}
+          hasScheduledDeparture={false}
+        />
+      </View>
+    );
+  }
 
   const invalidOrdering = t1 < t0 || t2 < t1;
   const total = Math.max(t2 - t0, 1);
@@ -75,14 +101,15 @@ export const TripTimelineCard = (props: TripTimelineCardProps) => {
 
   return (
     <View
-      className="px-4 py-2 w-full"
+      className="px-4 w-full"
+      style={{ overflow: "visible" }}
       accessibilityLabel={getAccessibilityLabel(
         status,
         fromTerminal,
-        toTerminal,
+        toTerminal || "",
         startTime,
-        departTime,
-        endTime
+        departTime || startTime,
+        endTime || startTime
       )}
     >
       <TripTimelineGraphic
@@ -91,6 +118,8 @@ export const TripTimelineCard = (props: TripTimelineCardProps) => {
         departTime={departTime}
         endTime={endTime}
         nowMs={nowMs}
+        hasDestination={hasDestination}
+        hasScheduledDeparture={hasScheduledDeparture}
       />
     </View>
   );
