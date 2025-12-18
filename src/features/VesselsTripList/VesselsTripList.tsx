@@ -3,7 +3,14 @@ import { Text, View } from "@/components/ui";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { VesselTripCard } from "@/features/VesselTripCard";
 
-export const VesselsTripList = () => {
+export type VesselsTripListProps = {
+  /** Space reserved for translucent header overlay; lets content scroll under it. */
+  contentInsetTop?: number;
+};
+
+export const VesselsTripList = ({
+  contentInsetTop = 0,
+}: VesselsTripListProps) => {
   const { activeVesselTrips, isLoading, error } = useConvexVesselTrips();
 
   if (isLoading) {
@@ -33,9 +40,11 @@ export const VesselsTripList = () => {
     );
   }
 
+  const insetTop = Math.max(0, contentInsetTop);
+
   return (
     <ScrollView className="flex-1 bg-background">
-      <View className="gap-6 p-6">
+      <View className="gap-6 px-6 pb-6" style={{ paddingTop: insetTop }}>
         <Text variant="heading2" className="mb-4 text-center">
           Active Vessel Trips
         </Text>
