@@ -7,16 +7,21 @@ type VesselTripCardProps = {
 };
 
 const getTimelineProps = (trip: VesselTrip) => {
+  const hasDestination = !!trip.ArrivingTerminalAbbrev;
+  const hasScheduledDeparture = !!trip.ScheduledDeparture;
+
   return {
     status: trip.AtDock ? ("atDock" as const) : ("atSea" as const),
     fromTerminal: trip.DepartingTerminalAbbrev || "",
-    toTerminal: trip.ArrivingTerminalAbbrev || "",
+    toTerminal: hasDestination ? trip.ArrivingTerminalAbbrev || "" : undefined,
     startTime: trip.TripStart || new Date(),
-    departTime:
-      trip.LeftDock ||
-      new Date((trip.TripStart?.getTime() || 0) + 10 * 60 * 1000),
-    endTime:
-      trip.Eta || new Date((trip.TripStart?.getTime() || 0) + 30 * 60 * 1000),
+    departTime: hasScheduledDeparture
+      ? trip.LeftDock ||
+        new Date((trip.TripStart?.getTime() || 0) + 10 * 60 * 1000)
+      : undefined,
+    endTime: hasDestination
+      ? trip.Eta || new Date((trip.TripStart?.getTime() || 0) + 30 * 60 * 1000)
+      : undefined,
   };
 };
 
@@ -31,19 +36,23 @@ const getVesselStatus = (trip: VesselTrip): string => {
 };
 
 export const VesselTripCard = ({ trip }: VesselTripCardProps) => {
+  const hasDestination = !!trip.ArrivingTerminalName;
+
   return (
-    <View className="mb-4">
-      <View className="">
+    <View className="">
+      <View>
         <View className="flex-row flex-1">
-          <Text className="text-lg font-bold">
+          <Text className="text-lg font-bold leading-tight">
             {trip.DepartingTerminalName}
           </Text>
-          <Text className="text-lg font-light">
-            {` → ${trip.ArrivingTerminalName}`}
-          </Text>
+          {hasDestination && (
+            <Text className="text-lg font-light leading-tight">
+              {` → ${trip.ArrivingTerminalName}`}
+            </Text>
+          )}
         </View>
         <View className="flex">
-          <Text variant="muted">
+          <Text variant="muted" className="text-sm font-light leading-tight">
             {`${trip.VesselName} • ${getVesselStatus(trip)}`}
           </Text>
         </View>
