@@ -13,7 +13,7 @@ const colors = [
 
 export default function WavesScreen2() {
   return (
-    <View className="flex-1 overflow-hidden">
+    <View className="overflow-hidden flex-1">
       <Text>Hello</Text>
       <Wave
         height={15}
