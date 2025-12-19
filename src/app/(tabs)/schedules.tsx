@@ -23,8 +23,6 @@ export default function SchedulesScreen() {
           startTime={startTime}
           departTime={departTime}
           endTime={endTime}
-          VesselName="Example Vessel"
-          VesselStatus="Scheduled"
         />
       </View>
 
@@ -39,8 +37,6 @@ export default function SchedulesScreen() {
           startTime={startTime}
           departTime={departTime}
           endTime={endTime}
-          VesselName="Example Vessel"
-          VesselStatus="At Dock"
         />
       </View>
 
@@ -55,8 +51,6 @@ export default function SchedulesScreen() {
           startTime={new Date(Date.now() - 60 * 60 * 1000)}
           departTime={new Date(Date.now() - 45 * 60 * 1000)}
           endTime={new Date(Date.now() + 15 * 60 * 1000)}
-          VesselName="Example Vessel"
-          VesselStatus="At Sea"
         />
       </View>
 
@@ -71,8 +65,6 @@ export default function SchedulesScreen() {
           startTime={new Date(Date.now() - 80 * 60 * 1000)}
           departTime={new Date(Date.now() - 65 * 60 * 1000)}
           endTime={new Date(Date.now() - 10 * 60 * 1000)}
-          VesselName="Example Vessel"
-          VesselStatus="Arrived"
         />
       </View>
     </ScrollView>
