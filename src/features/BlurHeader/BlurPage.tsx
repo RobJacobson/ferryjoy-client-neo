@@ -1,12 +1,9 @@
-import type React from "react";
 import { type StyleProp, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  OpacityBlurOverlay,
-  type OpacityBlurOverlayProps,
-} from "./OpacityBlurOverlay";
+import { BlurOverlay } from "./BlurOverlay";
+import type { BlurOverlayProps } from "./utils";
 
-export type OpacityBlurPageLayout = {
+export type BlurPageLayout = {
   /** Total overlay height (safe area + nav). */
   contentInsetTop: number;
   /** Safe area inset at the top (notch/status bar). */
@@ -15,14 +12,12 @@ export type OpacityBlurPageLayout = {
   navBarHeight: number;
 };
 
-export type OpacityBlurPageProps = {
+export interface BlurPageProps {
   /**
    * If you pass a function, you get `contentInsetTop` for ScrollView padding.
-   * If you pass a node, it’s rendered as-is.
+   * If you pass a node, it's rendered as-is.
    */
-  children:
-    | React.ReactNode
-    | ((layout: OpacityBlurPageLayout) => React.ReactNode);
+  children: React.ReactNode | ((layout: BlurPageLayout) => React.ReactNode);
 
   /** Height of the header area below the notch/status bar. */
   navBarHeight?: number;
@@ -32,29 +27,37 @@ export type OpacityBlurPageProps = {
 
   /** Props forwarded into the overlay renderer. */
   overlayProps?: Omit<
-    OpacityBlurOverlayProps,
+    BlurOverlayProps,
     "position" | "height" | "extendIntoNotch"
   >;
-};
+}
 
 /**
- * Screen wrapper that adds a Contacts-style opacity blur header overlay.
+ * Screen wrapper that adds a blur header overlay with both blur and opacity gradients.
+ *
+ * This component combines both:
+ * 1. Progressive blur gradient (content becomes more blurry as it scrolls up) - optional
+ * 2. Progressive opacity gradient (tint fades out as it approaches content)
+ *
  * It also hands you the correct `contentInsetTop` so ScrollViews can start below the header,
  * while still allowing content to scroll underneath the glass.
+ *
+ * When blurAmount is 0 (default), only opacity gradient is applied.
+ * When blurAmount > 0, both blur and opacity gradients are combined.
  */
-export function OpacityBlurPage({
+export const BlurPage: React.FC<BlurPageProps> = ({
   children,
   navBarHeight = 56,
   style,
   overlayProps,
-}: OpacityBlurPageProps) {
+}) => {
   const insets = useSafeAreaInsets();
 
   const contentInsetTop = insets.top + navBarHeight;
 
   return (
-    <View style={[{ flex: 1 }, style]}>
-      <OpacityBlurOverlay
+    <View className="flex-1" style={style}>
+      <BlurOverlay
         position="top"
         height={contentInsetTop}
         extendIntoNotch={true}
@@ -70,4 +73,4 @@ export function OpacityBlurPage({
         : children}
     </View>
   );
-}
+};
