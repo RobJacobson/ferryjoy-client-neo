@@ -1,15 +1,15 @@
 import { distance } from "@turf/turf";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { getTerminalLocationById } from "../../../src/data/terminalLocations";
-import { api } from "../../_generated/api";
-import { type ActionCtx, internalAction } from "../../_generated/server";
-import { convertConvexVesselLocation } from "../../shared/convertVesselLocations";
+import { getTerminalLocationById } from "src/data/terminalLocations";
+import { api } from "_generated/api";
+import { type ActionCtx, internalAction } from "_generated/server";
+import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import {
   type ConvexVesselLocation,
   toConvexVesselLocation,
-} from "../vesselLocation/schemas";
-import { type ConvexVesselTrip, toConvexVesselTrip } from "./schemas";
+} from "functions/vesselLocation/schemas";
+import { type ConvexVesselTrip, toConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Updates active vessel trips based on current vessel locations

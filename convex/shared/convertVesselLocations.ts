@@ -1,4 +1,4 @@
-import type { ConvexVesselLocation } from "../functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 
 export const convertConvexVesselLocation = (
   cvl: ConvexVesselLocation

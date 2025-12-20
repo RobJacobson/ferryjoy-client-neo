@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { internalMutation, mutation } from "../../_generated/server";
+import { internalMutation, mutation } from "_generated/server";
 
-import type { ConvexVesselPing } from "./schemas";
-import { vesselPingValidationSchema } from "./schemas";
+import type { ConvexVesselPing } from "functions/vesselPing/schemas";
+import { vesselPingValidationSchema } from "functions/vesselPing/schemas";
 
 /**
  * Store individual vessel pings to the vesselPing table

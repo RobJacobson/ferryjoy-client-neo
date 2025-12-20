@@ -1,5 +1,5 @@
+import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { query } from "../../_generated/server";
 
 /**
  * API function for fetching active vessel trips (currently in progress)
@@ -55,7 +55,49 @@ export const getActiveTripByVesselId = query({
 export const getCompletedTrips = query({
   args: {},
   handler: async (ctx) => {
+    // Load all completed trips (Convex handles response size limits)
     const trips = await ctx.db.query("completedVesselTrips").collect();
     return trips;
+  },
+});
+
+/**
+ * Get paginated completed trips for ML processing
+ */
+export const getCompletedTripsPaginated = query({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 1000; // Smaller batches to stay under limits
+
+    // Load all available training data for comprehensive model training
+    return ctx.db.query("completedVesselTrips").paginate({
+      cursor: args.cursor || null,
+      numItems: limit,
+    });
+  },
+});
+
+/**
+ * Get trip counts by terminal pair for analysis
+ */
+export const getTerminalPairCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const trips = await ctx.db.query("completedVesselTrips").take(5000);
+    const counts = new Map<string, number>();
+
+    trips.forEach((trip) => {
+      if (trip.DepartingTerminalAbbrev && trip.ArrivingTerminalAbbrev) {
+        const key = `${trip.DepartingTerminalAbbrev}_${trip.ArrivingTerminalAbbrev}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    });
+
+    return Array.from(counts.entries())
+      .map(([pair, count]) => ({ pair, count }))
+      .sort((a, b) => b.count - a.count);
   },
 });

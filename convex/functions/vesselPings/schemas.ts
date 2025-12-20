@@ -1,7 +1,7 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { dateToEpochMs, epochMsToDate } from "shared/convertDates";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { dateToEpochMs, epochMsToDate } from "../../shared/convertDates";
 
 /**
  * Convex validator for individual vessel pings (numbers)

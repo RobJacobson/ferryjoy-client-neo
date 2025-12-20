@@ -1,9 +1,9 @@
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { api, internal } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
+import { api, internal } from "_generated/api";
+import { internalAction } from "_generated/server";
 
-import type { ConvexVesselPingCollection } from "./schemas";
-import { toConvexVesselPing } from "./schemas";
+import type { ConvexVesselPingCollection } from "functions/vesselPings/schemas";
+import { toConvexVesselPing } from "functions/vesselPings/schemas";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API

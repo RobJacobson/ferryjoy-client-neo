@@ -1,4 +1,4 @@
-import { query } from "../../_generated/server";
+import { query } from "_generated/server";
 
 /**
  * Get all vessel pings from the last 10 minutes using index search

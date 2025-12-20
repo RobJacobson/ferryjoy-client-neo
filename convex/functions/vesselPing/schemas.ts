@@ -5,4 +5,4 @@ export {
   toDomainVesselPing,
   type VesselPing,
   vesselPingValidationSchema,
-} from "../vesselPings/schemas";
+} from "functions/vesselPings/schemas";

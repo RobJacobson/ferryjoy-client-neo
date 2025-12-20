@@ -1,15 +1,8 @@
-// import { v } from "convex/values";
-// import type { MutationCtx } from "../../_generated/server";
-// import { mutation } from "../../_generated/server";
-
-// import type {
-//   ConvexCurrentPredictionData,
-//   ConvexModelParameters,
-// } from "./schemas";
-// import {
-//   currentPredictionDataSchema,
-//   modelParametersMutationSchema,
-// } from "./schemas";
+import type { MutationCtx } from "_generated/server";
+import { mutation } from "_generated/server";
+import { v } from "convex/values";
+import type { ConvexModelParameters } from "functions/predictions/schemas";
+import { modelParametersMutationSchema } from "functions/predictions/schemas";
 
 // type PredictionTable = "currentPredictions";
 
@@ -43,27 +36,42 @@
 //   }
 // };
 
-// /**
-//  * Stores model parameters in the database
-//  */
-// export const storeModelParametersMutation = mutation({
-//   args: {
-//     model: modelParametersMutationSchema,
-//   },
-//   handler: async (ctx, args) => {
-//     try {
-//       const modelId = await ctx.db.insert(
-//         "modelParameters",
-//         args.model as ConvexModelParameters
-//       );
-//       console.log(`Stored model parameters: ${modelId}`);
-//       return modelId;
-//     } catch (error) {
-//       console.error("Failed to store model parameters:", error);
-//       throw error;
-//     }
-//   },
-// });
+/**
+ * Stores model parameters in the database
+ */
+export const storeModelParametersMutation = mutation({
+  args: {
+    model: modelParametersMutationSchema,
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Delete existing models for this terminal pair and model type to avoid duplicates
+      const existingModels = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_terminals_and_type", (q) =>
+          q
+            .eq("departingTerminalAbbrev", args.model.departingTerminalAbbrev)
+            .eq("arrivingTerminalAbbrev", args.model.arrivingTerminalAbbrev)
+            .eq("modelType", args.model.modelType)
+        )
+        .collect();
+
+      // Delete existing models (overwrite behavior)
+      for (const existing of existingModels) {
+        await ctx.db.delete(existing._id);
+      }
+
+      const modelId = await ctx.db.insert(
+        "modelParameters",
+        args.model as ConvexModelParameters
+      );
+      return modelId;
+    } catch (error) {
+      console.error("Failed to store model parameters:", error);
+      throw error;
+    }
+  },
+});
 
 // /**
 //  * Factory function to create prediction update mutations
@@ -89,21 +97,20 @@
 // export const updateCurrentPredictionMutation =
 //   createPredictionMutation("currentPredictions");
 
-// /**
-//  * Deletes model parameters by ID
-//  */
-// export const deleteModelParametersMutation = mutation({
-//   args: {
-//     modelId: v.id("modelParameters"),
-//   },
-//   handler: async (ctx, args) => {
-//     try {
-//       await ctx.db.delete(args.modelId);
-//       console.log(`Deleted model parameters: ${args.modelId}`);
-//       return { success: true };
-//     } catch (error) {
-//       console.error("Failed to delete model parameters:", error);
-//       throw error;
-//     }
-//   },
-// });
+/**
+ * Deletes model parameters by ID
+ */
+export const deleteModelParametersMutation = mutation({
+  args: {
+    modelId: v.id("modelParameters"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.db.delete(args.modelId);
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to delete model parameters:", error);
+      throw error;
+    }
+  },
+});

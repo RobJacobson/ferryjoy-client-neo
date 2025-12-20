@@ -1,10 +1,10 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
-import type { ConvexVesselLocation } from "../vesselLocation/schemas";
 
 /**
  * Convex validator for active vessel trips (numbers)

@@ -9,7 +9,30 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as domain_ml_actions from "../domain/ml/actions.js";
+import type * as domain_ml_index from "../domain/ml/index.js";
+import type * as domain_ml_pipeline_load from "../domain/ml/pipeline/load.js";
+import type * as domain_ml_pipeline_orchestrator from "../domain/ml/pipeline/orchestrator.js";
+import type * as domain_ml_pipeline_shared_config from "../domain/ml/pipeline/shared/config.js";
+import type * as domain_ml_pipeline_shared_logging from "../domain/ml/pipeline/shared/logging.js";
+import type * as domain_ml_pipeline_shared_performance from "../domain/ml/pipeline/shared/performance.js";
+import type * as domain_ml_pipeline_shared_types from "../domain/ml/pipeline/shared/types.js";
+import type * as domain_ml_pipeline_shared_validation from "../domain/ml/pipeline/shared/validation.js";
+import type * as domain_ml_pipeline_step_1_loadAllTrips from "../domain/ml/pipeline/step_1_loadAllTrips.js";
+import type * as domain_ml_pipeline_step_2_filterAndConvert from "../domain/ml/pipeline/step_2_filterAndConvert.js";
+import type * as domain_ml_pipeline_step_3_bucketByTerminalPairs from "../domain/ml/pipeline/step_3_bucketByTerminalPairs.js";
+import type * as domain_ml_pipeline_step_4_createTrainingData from "../domain/ml/pipeline/step_4_createTrainingData.js";
+import type * as domain_ml_pipeline_step_5_trainBuckets from "../domain/ml/pipeline/step_5_trainBuckets.js";
+import type * as domain_ml_pipeline_step_6_storeResults from "../domain/ml/pipeline/step_6_storeResults.js";
+import type * as domain_ml_predict from "../domain/ml/predict.js";
+import type * as domain_ml_shared from "../domain/ml/shared.js";
+import type * as domain_ml_temp from "../domain/ml/temp.js";
+import type * as domain_ml_types from "../domain/ml/types.js";
 import type * as functions_index from "../functions/index.js";
+import type * as functions_predictions_index from "../functions/predictions/index.js";
+import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
+import type * as functions_predictions_queries from "../functions/predictions/queries.js";
+import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
 import type * as functions_utils from "../functions/utils.js";
 import type * as functions_vesselLocation_actions from "../functions/vesselLocation/actions.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
@@ -42,7 +65,30 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  "domain/ml/actions": typeof domain_ml_actions;
+  "domain/ml/index": typeof domain_ml_index;
+  "domain/ml/pipeline/load": typeof domain_ml_pipeline_load;
+  "domain/ml/pipeline/orchestrator": typeof domain_ml_pipeline_orchestrator;
+  "domain/ml/pipeline/shared/config": typeof domain_ml_pipeline_shared_config;
+  "domain/ml/pipeline/shared/logging": typeof domain_ml_pipeline_shared_logging;
+  "domain/ml/pipeline/shared/performance": typeof domain_ml_pipeline_shared_performance;
+  "domain/ml/pipeline/shared/types": typeof domain_ml_pipeline_shared_types;
+  "domain/ml/pipeline/shared/validation": typeof domain_ml_pipeline_shared_validation;
+  "domain/ml/pipeline/step_1_loadAllTrips": typeof domain_ml_pipeline_step_1_loadAllTrips;
+  "domain/ml/pipeline/step_2_filterAndConvert": typeof domain_ml_pipeline_step_2_filterAndConvert;
+  "domain/ml/pipeline/step_3_bucketByTerminalPairs": typeof domain_ml_pipeline_step_3_bucketByTerminalPairs;
+  "domain/ml/pipeline/step_4_createTrainingData": typeof domain_ml_pipeline_step_4_createTrainingData;
+  "domain/ml/pipeline/step_5_trainBuckets": typeof domain_ml_pipeline_step_5_trainBuckets;
+  "domain/ml/pipeline/step_6_storeResults": typeof domain_ml_pipeline_step_6_storeResults;
+  "domain/ml/predict": typeof domain_ml_predict;
+  "domain/ml/shared": typeof domain_ml_shared;
+  "domain/ml/temp": typeof domain_ml_temp;
+  "domain/ml/types": typeof domain_ml_types;
   "functions/index": typeof functions_index;
+  "functions/predictions/index": typeof functions_predictions_index;
+  "functions/predictions/mutations": typeof functions_predictions_mutations;
+  "functions/predictions/queries": typeof functions_predictions_queries;
+  "functions/predictions/schemas": typeof functions_predictions_schemas;
   "functions/utils": typeof functions_utils;
   "functions/vesselLocation/actions": typeof functions_vesselLocation_actions;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;

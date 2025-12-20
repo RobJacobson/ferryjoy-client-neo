@@ -1,18 +1,17 @@
+import { internal } from "_generated/api";
 import { cronJobs } from "convex/server";
-
-import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
 crons.interval(
   "update vessel locations",
-  { seconds: 5 }, // every fifteen seconds
+  { seconds: 10 }, // every ten seconds
   internal.functions.vesselLocation.actions.updateVesselLocations
 );
 
-crons.interval(
+crons.cron(
   "update vessel trips",
-  { seconds: 15 }, // every fifteen seconds
+  "* * * * *", // every minute
   internal.functions.vesselTrips.actions.updateVesselTrips
 );
 
@@ -22,10 +21,17 @@ crons.interval(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
-crons.interval(
-  "fetch vessel ping",
-  { minutes: 1 }, // every minute
-  internal.functions.vesselPing.actions.fetchAndStoreVesselPing
+// crons.interval(
+//   "fetch vessel ping",
+//   { minutes: 1 }, // every minute
+//   internal.functions.vesselPing.actions.fetchAndStoreVesselPing
+// );
+
+// Daily model retraining at 4:00 AM Pacific Time (comprehensive training on all data)
+crons.cron(
+  "retrain ml models",
+  "0 4 * * *", // 4:00 AM daily (Pacific Time)
+  internal.domain.ml.actions.trainPredictionModelsAction
 );
 
 export default crons;

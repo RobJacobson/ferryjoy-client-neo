@@ -1,4 +1,4 @@
-import { query } from "../../_generated/server";
+import { query } from "_generated/server";
 
 /**
  * Get the latest 20 vessel pings from the database

@@ -1,10 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
-import { vesselLocationValidationSchema } from "./functions/vesselLocation/schemas";
+import { modelParametersMutationSchema } from "functions/predictions/schemas";
+import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
-} from "./functions/vesselPings/schemas";
-import { vesselTripSchema } from "./functions/vesselTrips/schemas";
+} from "functions/vesselPings/schemas";
+import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
   // Active vessel trips - frequently updated, small dataset
@@ -48,10 +49,16 @@ export default defineSchema({
   ),
 
   // Prediction model parameters
-  // modelParameters: defineTable(modelParametersMutationSchema).index(
-  //   "by_route_and_type",
-  //   ["routeId", "modelType"]
-  // ),
+  modelParameters: defineTable(modelParametersMutationSchema)
+    .index("by_terminals_and_type", [
+      "departingTerminalAbbrev",
+      "arrivingTerminalAbbrev",
+      "modelType",
+    ])
+    .index("by_terminals", [
+      "departingTerminalAbbrev",
+      "arrivingTerminalAbbrev",
+    ]),
 
   // Historical predictions for analysis (single table with type discriminator)
   // historicalPrcedictions: defineTable(historicalPredictionDataSchema)
