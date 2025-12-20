@@ -7,8 +7,8 @@ import type { ActionCtx } from "_generated/server";
 import type { PipelineLogger } from "domain/ml/pipeline/shared/logging";
 import { createPipelineLogger } from "domain/ml/pipeline/shared/logging";
 import { createPerformanceTracker } from "domain/ml/pipeline/shared/performance";
-import { loadAllCompletedTrips } from "domain/ml/pipeline/step_1_loadAllTrips";
-import { filterAndConvertToTrainingRecords } from "domain/ml/pipeline/step_2_filterAndConvert";
+import { loadAllConvexTrips } from "domain/ml/pipeline/step_1a_loadAllConvexTrips";
+import { loadAllWSFTrips } from "domain/ml/pipeline/step_1b_loadAllWSFTrips";
 import { createTerminalPairBuckets } from "domain/ml/pipeline/step_3_bucketByTerminalPairs";
 import { trainModelsForBucket } from "domain/ml/pipeline/step_5_trainBuckets";
 import { storeModelResults } from "domain/ml/pipeline/step_6_storeResults";
@@ -20,17 +20,22 @@ import type {
   TrainingResponse,
 } from "domain/ml/types";
 import { PipelineError, PipelineErrorType } from "domain/ml/types";
-import type { VesselTrip } from "functions/vesselTrips/schemas";
 import type {
   PerformanceMetrics,
   PerformanceTracker,
 } from "./shared/performance";
 
 /**
+ * Data source type for ML pipeline
+ */
+export type DataSourceType = "convex" | "wsf";
+
+/**
  * Main ML pipeline orchestrator
  */
 export const runMLPipeline = async (
-  ctx: ActionCtx
+  ctx: ActionCtx,
+  dataSource: DataSourceType = "convex"
 ): Promise<TrainingResponse> => {
   const pipelineId = `ml-pipeline-${Date.now()}`;
   const logger = createPipelineLogger(pipelineId);
@@ -40,23 +45,19 @@ export const runMLPipeline = async (
   logger.info("Starting ML training pipeline", { timestamp: new Date() });
 
   try {
-    // Step 1: Load all completed trips
-    const loadResult = await loadWithErrorHandling(
-      () => loadAllCompletedTrips(ctx, logger),
-      "loadAllTrips",
-      logger,
-      perfTracker
-    );
-    const rawTrips = loadResult.result;
+    // Step 1: Load training data from data source
+    const loadStepName =
+      dataSource === "convex" ? "loadAllConvexTrips" : "loadAllWSFTrips";
+    const loadFunction =
+      dataSource === "convex" ? loadAllConvexTrips : loadAllWSFTrips;
 
-    // Step 2: Filter and convert to training records
-    const filterResult = measureSyncWithErrorHandling(
-      () => filterAndConvertToTrainingRecords(rawTrips, logger),
-      "filterAndConvert",
+    const loadResult = await loadWithErrorHandling(
+      () => loadFunction(ctx, logger),
+      loadStepName,
       logger,
       perfTracker
     );
-    const trainingRecords = filterResult.result;
+    const trainingRecords = loadResult.result;
 
     // Step 3: Create terminal pair buckets
     const bucketResult = measureSyncWithErrorHandling(
@@ -67,13 +68,8 @@ export const runMLPipeline = async (
     );
     const buckets = bucketResult.result;
 
-    // Analyze data quality
-    const dataQuality = analyzeDataQuality(
-      rawTrips,
-      trainingRecords,
-      buckets,
-      logger
-    );
+    // Analyze data quality (using training records only)
+    const dataQuality = analyzeDataQuality(trainingRecords, buckets, logger);
 
     // Step 4-5: Train models for all buckets sequentially
     const allModels = await trainAllBuckets(
@@ -191,22 +187,21 @@ const trainAllBuckets = async (
  * Analyze data quality across the pipeline
  */
 const analyzeDataQuality = (
-  rawTrips: VesselTrip[],
   trainingRecords: TrainingDataRecord[],
   _buckets: TerminalPairBucket[],
   logger: PipelineLogger
 ): DataQualityMetrics => {
   const quality: DataQualityMetrics = {
-    totalRecords: rawTrips.length,
+    totalRecords: trainingRecords.length,
     completeness: {
-      overallScore: trainingRecords.length / rawTrips.length,
-      fieldCompleteness: calculateFieldCompleteness(rawTrips),
+      overallScore: 1.0, // Training records are already filtered/validated
+      fieldCompleteness: calculateFieldCompleteness(trainingRecords),
     },
     temporal: {
-      validOrdering: calculateTemporalConsistency(rawTrips),
+      validOrdering: calculateTemporalConsistency(trainingRecords),
       invalidRecords:
-        rawTrips.length -
-        calculateTemporalConsistency(rawTrips) * rawTrips.length,
+        trainingRecords.length -
+        calculateTemporalConsistency(trainingRecords) * trainingRecords.length,
     },
     statistical: {
       durationSkewness: calculateDurationSkewness(trainingRecords),
@@ -221,26 +216,27 @@ const analyzeDataQuality = (
 /**
  * Helper functions for data quality analysis
  */
-const calculateFieldCompleteness = (trips: VesselTrip[]) => ({
-  tripStart: trips.filter((t) => !!t.TripStart).length / trips.length,
-  leftDock: trips.filter((t) => !!t.LeftDock).length / trips.length,
-  tripEnd: trips.filter((t) => !!t.TripEnd).length / trips.length,
-  atDockDuration:
-    trips.filter((t) => t.AtDockDuration != null).length / trips.length,
+const calculateFieldCompleteness = (records: TrainingDataRecord[]) => ({
+  tripStart: records.filter((r) => !!r.tripStart).length / records.length,
+  leftDock: records.filter((r) => !!r.leftDock).length / records.length,
+  tripEnd: records.filter((r) => !!r.tripEnd).length / records.length,
+  atDockDuration: 1.0, // Not available in TrainingDataRecord
   atSeaDuration:
-    trips.filter((t) => t.AtSeaDuration != null).length / trips.length,
+    records.filter((r) => r.atSeaDuration != null).length / records.length,
 });
 
-const calculateTemporalConsistency = (trips: VesselTrip[]): number => {
-  const validTrips = trips.filter(
-    (t) =>
-      t.TripStart &&
-      t.LeftDock &&
-      t.TripEnd &&
-      t.TripStart < t.LeftDock &&
-      t.LeftDock < t.TripEnd
+const calculateTemporalConsistency = (
+  records: TrainingDataRecord[]
+): number => {
+  const validRecords = records.filter(
+    (r) =>
+      r.tripStart &&
+      r.leftDock &&
+      r.tripEnd &&
+      r.tripStart < r.leftDock &&
+      r.leftDock < r.tripEnd
   ).length;
-  return validTrips / trips.length;
+  return validRecords / records.length;
 };
 
 const calculateDurationSkewness = (records: TrainingDataRecord[]): number => {

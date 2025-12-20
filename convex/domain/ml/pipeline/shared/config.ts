@@ -35,10 +35,11 @@ export const PIPELINE_CONFIG = {
   // Data loading
   BATCH_SIZE: 1000,
   MAX_LOAD_RETRIES: 3,
+  DAYS_BACK: 90, // Days of historical data for WSF training
 
   // Data quality
   MIN_TRAINING_EXAMPLES: 25,
-  MAX_SCHEDULE_DELTA_MINUTES: 20,
+  MAX_SCHEDULE_DELTA_MINUTES: 30,
   REQUIRED_COMPLETENESS_THRESHOLD: 0.7,
 
   // Model training

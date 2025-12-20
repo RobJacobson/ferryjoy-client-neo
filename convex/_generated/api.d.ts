@@ -11,7 +11,6 @@
 import type * as crons from "../crons.js";
 import type * as domain_ml_actions from "../domain/ml/actions.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
-import type * as domain_ml_pipeline_load from "../domain/ml/pipeline/load.js";
 import type * as domain_ml_pipeline_orchestrator from "../domain/ml/pipeline/orchestrator.js";
 import type * as domain_ml_pipeline_shared_config from "../domain/ml/pipeline/shared/config.js";
 import type * as domain_ml_pipeline_shared_logging from "../domain/ml/pipeline/shared/logging.js";
@@ -19,6 +18,8 @@ import type * as domain_ml_pipeline_shared_performance from "../domain/ml/pipeli
 import type * as domain_ml_pipeline_shared_types from "../domain/ml/pipeline/shared/types.js";
 import type * as domain_ml_pipeline_shared_validation from "../domain/ml/pipeline/shared/validation.js";
 import type * as domain_ml_pipeline_step_1_loadAllTrips from "../domain/ml/pipeline/step_1_loadAllTrips.js";
+import type * as domain_ml_pipeline_step_1a_loadAllConvexTrips from "../domain/ml/pipeline/step_1a_loadAllConvexTrips.js";
+import type * as domain_ml_pipeline_step_1b_loadAllWSFTrips from "../domain/ml/pipeline/step_1b_loadAllWSFTrips.js";
 import type * as domain_ml_pipeline_step_2_filterAndConvert from "../domain/ml/pipeline/step_2_filterAndConvert.js";
 import type * as domain_ml_pipeline_step_3_bucketByTerminalPairs from "../domain/ml/pipeline/step_3_bucketByTerminalPairs.js";
 import type * as domain_ml_pipeline_step_4_createTrainingData from "../domain/ml/pipeline/step_4_createTrainingData.js";
@@ -67,7 +68,6 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "domain/ml/actions": typeof domain_ml_actions;
   "domain/ml/index": typeof domain_ml_index;
-  "domain/ml/pipeline/load": typeof domain_ml_pipeline_load;
   "domain/ml/pipeline/orchestrator": typeof domain_ml_pipeline_orchestrator;
   "domain/ml/pipeline/shared/config": typeof domain_ml_pipeline_shared_config;
   "domain/ml/pipeline/shared/logging": typeof domain_ml_pipeline_shared_logging;
@@ -75,6 +75,8 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/pipeline/shared/types": typeof domain_ml_pipeline_shared_types;
   "domain/ml/pipeline/shared/validation": typeof domain_ml_pipeline_shared_validation;
   "domain/ml/pipeline/step_1_loadAllTrips": typeof domain_ml_pipeline_step_1_loadAllTrips;
+  "domain/ml/pipeline/step_1a_loadAllConvexTrips": typeof domain_ml_pipeline_step_1a_loadAllConvexTrips;
+  "domain/ml/pipeline/step_1b_loadAllWSFTrips": typeof domain_ml_pipeline_step_1b_loadAllWSFTrips;
   "domain/ml/pipeline/step_2_filterAndConvert": typeof domain_ml_pipeline_step_2_filterAndConvert;
   "domain/ml/pipeline/step_3_bucketByTerminalPairs": typeof domain_ml_pipeline_step_3_bucketByTerminalPairs;
   "domain/ml/pipeline/step_4_createTrainingData": typeof domain_ml_pipeline_step_4_createTrainingData;

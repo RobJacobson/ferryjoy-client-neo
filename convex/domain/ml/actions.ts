@@ -12,12 +12,25 @@ import { toDomainVesselTrip, vesselTripSchema } from "functions/vesselTrips";
 
 /**
  * Trains prediction models for all terminal pairs using the new pipeline
+ * Uses Convex database as data source (default)
  */
 export const trainPredictionModelsAction = internalAction({
   args: {},
   handler: async (ctx): Promise<TrainingResponse> => {
-    console.log("Starting ML training pipeline");
-    return await runMLPipeline(ctx);
+    console.log("Starting ML training pipeline with Convex data source");
+    return await runMLPipeline(ctx, "convex");
+  },
+});
+
+/**
+ * Trains prediction models using WSF API data as source
+ * Fetches vessel histories from WSF backend for the configured date range
+ */
+export const trainPredictionModelsWSFAction = internalAction({
+  args: {},
+  handler: async (ctx): Promise<TrainingResponse> => {
+    console.log("Starting ML training pipeline with WSF data source");
+    return await runMLPipeline(ctx, "wsf");
   },
 });
 
