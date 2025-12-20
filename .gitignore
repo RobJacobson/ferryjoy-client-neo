@@ -41,3 +41,6 @@ build-*.tar.gz
 
 # TypeScript build info
 *.tsbuildinfo
+
+# CSV files (often generated data)
+*.csv
