@@ -1,5 +1,6 @@
 import { api } from "convex/_generated/api";
 import {
+  type ConvexVesselPingCollection,
   toDomainVesselPing,
   type VesselPing,
 } from "convex/functions/vesselPings/schemas";
@@ -59,16 +60,19 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
 
   // Flatten all pings from all collections and group by vessel ID
   const vesselPingsByVesselId: VesselPingsByVesselId =
-    rawPingCollections.reduce((acc, collection) => {
-      collection.pings.forEach((ping) => {
-        const domainPing = toDomainVesselPing(ping);
-        if (!acc[ping.VesselID]) {
-          acc[ping.VesselID] = [];
-        }
-        acc[ping.VesselID].push(domainPing);
-      });
-      return acc;
-    }, {} as VesselPingsByVesselId);
+    rawPingCollections.reduce(
+      (acc: VesselPingsByVesselId, collection: ConvexVesselPingCollection) => {
+        collection.pings.forEach((ping) => {
+          const domainPing = toDomainVesselPing(ping);
+          if (!acc[ping.VesselID]) {
+            acc[ping.VesselID] = [];
+          }
+          acc[ping.VesselID].push(domainPing);
+        });
+        return acc;
+      },
+      {} as VesselPingsByVesselId
+    );
 
   // Sort each vessel's pings by timestamp (most recent first)
   Object.values(vesselPingsByVesselId).forEach((pings) => {

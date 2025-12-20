@@ -1,9 +1,9 @@
+import { api } from "convex/_generated/api";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { toDomainVesselTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "../../../../convex/_generated/api";
 
 // Re-export VesselTrip type for convenience
 export type { VesselTrip };
