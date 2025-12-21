@@ -5,7 +5,6 @@
 // ============================================================================
 
 import type { TrainingDataRecord } from "domain/ml/types";
-import { fetchTerminalBasics } from "ws-dottie/wsf-terminals/core";
 import {
   fetchVesselBasics,
   fetchVesselHistoriesByVesselAndDates,
@@ -71,12 +70,45 @@ export const loadAllWSFTrips = async (
 };
 
 /**
- * Build terminal name to abbreviation mapping using WSF API
+ * Source of truth mapping for terminal names as returned by fetchVesselHistoriesByVesselAndDates
+ * to their standard abbreviations. This mapping was created by analyzing vessel history data
+ * from 2025-12-19 across all active vessels in the WSF fleet.
+ */
+const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
+  // Puget Sound region
+  Bainbridge: "BBI",
+  Bremerton: "BRE",
+  Kingston: "KIN",
+  Edmonds: "EDM",
+  Mukilteo: "MUK",
+  Clinton: "CLI",
+  Fauntleroy: "FAU",
+  Vashon: "VAI",
+  Colman: "P52",
+  Southworth: "SOU",
+  "Pt. Defiance": "PTD",
+  Tahlequah: "TAH",
+
+  // San Juan Islands
+  Anacortes: "ANA",
+  Friday: "FRH", // Note: vessel histories may return "Friday Harbor" or "Friday"
+  "Friday Harbor": "FRH",
+  Shaw: "SHI",
+  Orcas: "ORI",
+  Lopez: "LOP",
+
+  // Other
+  "Port Townsend": "POT",
+  Keystone: "COU",
+  "Sidney B.C.": "SID",
+};
+
+/**
+ * Build terminal name to abbreviation mapping using VESSEL_HISTORIES_TERMINAL_MAPPING as source of truth
  */
 const buildTerminalMapping = async (
   logger: PipelineLogger
 ): Promise<Record<string, string>> => {
-  // Return cached mapping if available
   if (terminalMappingCache) {
     return terminalMappingCache;
   }
@@ -84,22 +116,14 @@ const buildTerminalMapping = async (
   logger.info("Building terminal name to abbreviation mapping");
 
   try {
-    const terminals = await fetchTerminalBasics();
-
     const mapping: Record<string, string> = {};
 
-    for (const terminal of terminals) {
-      // Map full name to abbreviation
-      mapping[terminal.TerminalName || ""] = terminal.TerminalAbbrev || "";
-
-      // Also handle lowercase variations
-      mapping[(terminal.TerminalName || "").toLowerCase()] =
-        terminal.TerminalAbbrev || "";
-    }
+    // Add vessel histories mapping (comprehensive source of truth)
+    Object.assign(mapping, VESSEL_HISTORIES_TERMINAL_MAPPING);
 
     terminalMappingCache = mapping;
     logger.info(
-      `Built terminal mapping with ${Object.keys(mapping).length} entries`
+      `Built terminal mapping with ${Object.keys(mapping).length} entries from vessel histories`
     );
 
     return mapping;
@@ -121,7 +145,10 @@ const getTerminalAbbrev = (
   const abbrev = mapping[terminalName] || mapping[terminalName.toLowerCase()];
 
   if (!abbrev) {
-    logger.warn(`Terminal name not found in mapping: ${terminalName}`);
+    // Don't log for empty terminal names (expected when arriving is null)
+    if (terminalName.trim() !== "") {
+      logger.warn(`Terminal name not found in mapping: ${terminalName}`);
+    }
     return undefined;
   }
 
@@ -235,11 +262,14 @@ const transformWSFRecordsToTrainingRecords = (
 
       // SKIP if terminals not found in mapping
       if (!departingAbbrev || !arrivingAbbrev) {
-        logger.warn(`Skipping record due to unmapped terminals`, {
-          vessel: vesselName,
-          departing: current.Departing,
-          arriving: current.Arriving,
-        });
+        // Don't log when arriving terminal is null (expected case)
+        if (current.Arriving !== null && current.Arriving !== undefined) {
+          logger.warn(`Skipping record due to unmapped terminals`, {
+            vessel: vesselName,
+            departing: current.Departing,
+            arriving: current.Arriving,
+          });
+        }
         continue;
       }
 

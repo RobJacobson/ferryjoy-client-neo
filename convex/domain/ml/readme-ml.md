@@ -84,15 +84,21 @@ The ML system processes ferry trip data through a multi-step pipeline with two d
 //
 // Departure Model Features (predicts departure delay):
 // - schedule_delta_clamped: How early/late vessel arrived (minutes)
-// - hour_of_day: Time of arrival (0-23)
+// - time_category: Time of day category (0-5) representing operational periods (Pacific Time PST/PDT) - **TEMPORARILY COMMENTED OUT FOR A/B TESTING**
+//   0: Late night/Early morning (22:00-04:59, quietest/most predictable)
+//   1: Early morning prep (05:00-06:59)
+//   2: Morning rush hour (07:00-09:59)
+//   3: Midday (10:00-14:59)
+//   4: Afternoon rush hour (15:00-17:59)
+//   5: Evening (18:00-21:59)
 // - is_weekend: Boolean weekend flag (1/0)
 // - Target: departureDelay (actual - scheduled departure in minutes)
 //
 // Arrival Model Features:
 // - schedule_delta_clamped: Schedule adherence at departure (minutes)
-// - hour_of_day: Time of departure (0-23)
+// - time_category: Time of day category (0-5, same as above, Pacific Time PST/PDT) - **TEMPORARILY COMMENTED OUT FOR A/B TESTING**
 // - is_weekend: Boolean weekend flag (1/0)
-// - delay_minutes: Historical delay at departure terminal
+// - delay_minutes: 0 (placeholder for future features)
 // - Target: atSeaDuration (minutes from departure to arrival)
 ```
 
@@ -173,7 +179,7 @@ Generate a CSV file with the latest training results for analysis:
 npm run convex:dev
 
 # In another terminal, export the results
-npm run export:training-results
+npm run train:export-results
 ```
 
 This creates `training-results.csv` in your project root with one row per terminal pair containing:
@@ -191,6 +197,32 @@ This creates `training-results.csv` in your project root with one row per termin
 - `mean_departure_delay`: Average departure delay in minutes
 - `mean_at_sea_duration`: Average actual sea time
 - `created_at`: When models were trained
+
+### Compare Training Results
+
+Compare performance metrics between two different training result CSV files:
+
+```bash
+# Compare two training result files
+npm run train:compare fileA.csv fileB.csv
+
+# Example: Compare with vs without time_category feature
+npm run train:compare training-results-with-feature.csv training-results-without-feature.csv
+
+# Example: Compare cascade delay vs no cascade delay
+npm run train:compare training-results-with-cascade-delay.csv training-results-without-cascade-delay.csv
+```
+
+**Features:**
+- **Statistical Comparison**: Shows MAE and R² differences between models
+- **Data Filtering**: Automatically excludes routes with <100 total records for reliable comparisons
+- **Comprehensive Analysis**: Provides summary statistics and recommendations
+- **Terminal Pair Breakdown**: Detailed table showing performance for each route
+
+**Output includes:**
+- Detailed comparison table for each terminal pair
+- Summary statistics (average differences, better performing routes)
+- Recommendation on which configuration performs better overall
 
 ### Get Predictions
 ```typescript
@@ -397,7 +429,7 @@ npm run train:ml              # Train on all historical data (Convex database)
 npm run train:ml:wsf          # Train on WSF API data (alternative)
 
 # Export training results to CSV
-npm run export:training-results
+npm run train:export-results
 ```
 
 ### Cron Job Configuration
@@ -455,7 +487,8 @@ crons.cron(
 **Status**: ✅ **FULLY OPERATIONAL**
 **Models**: 70 active models across 35 terminal pairs (72 total records, 2 null models)
 **Training Data**: Processes complete historical dataset (10K+ records)
-**Accuracy**: 3.4-3.5 min average MAE across all routes
+**Accuracy**: 3.3-3.5 min average MAE across all routes (improved after cascade delay tuning)
+**Features**: 3 features for departure models, 3 for arrival models (cascade delay removed)
 **Automation**: Daily comprehensive retraining at 4:00 AM Pacific (Convex source)
 **Export**: CSV reporting available for performance analysis
 **Schema**: Backward compatible with legacy data fields</content>

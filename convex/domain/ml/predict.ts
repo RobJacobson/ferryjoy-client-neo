@@ -130,6 +130,26 @@ const predictWithCoefficients = (
 };
 
 /**
+ * Categorize hour of day into ferry operation time periods
+ * Returns 0-5 representing different operational patterns:
+ * 0: Late night/Early morning (quietest, most predictable)
+ * 1: Early morning prep
+ * 2: Morning rush hour
+ * 3: Midday
+ * 4: Afternoon rush hour
+ * 5: Evening
+ */
+const getTimeOfDayCategory = (hour: number): number => {
+  if (hour >= 22 || hour < 5) return 0; // Late night/Early morning (22:00-04:59)
+  if (hour >= 5 && hour < 7) return 1; // Early morning prep (05:00-06:59)
+  if (hour >= 7 && hour < 10) return 2; // Morning rush (07:00-09:59)
+  if (hour >= 10 && hour < 15) return 3; // Midday (10:00-14:59)
+  if (hour >= 15 && hour < 18) return 4; // Afternoon rush (15:00-17:59)
+  if (hour >= 18 && hour < 22) return 5; // Evening (18:00-21:59)
+  return 0; // Fallback
+};
+
+/**
  * Extracts features for departure model prediction
  * IMPORTANT: Only use features available at the time of vessel arrival
  */
@@ -137,14 +157,14 @@ const extractDepartureFeatures = (trip: VesselTrip): FeatureVector => {
   const scheduleDelta = calculateScheduleDelta(trip);
   const scheduleDeltaClamped = Math.min(20, Math.max(-Infinity, scheduleDelta));
   const hourOfDay = trip.TripStart!.getHours();
+  const timeCategory = getTimeOfDayCategory(hourOfDay);
   const isWeekend =
     trip.TripStart!.getDay() === 0 || trip.TripStart!.getDay() === 6;
 
   return {
     schedule_delta_clamped: scheduleDeltaClamped,
-    hour_of_day: hourOfDay,
+    time_category: timeCategory, // Using categorical time periods for ferry operations
     is_weekend: isWeekend ? 1 : 0,
-    // Removed delay_minutes to prevent data leakage
   };
 };
 
@@ -155,12 +175,13 @@ const extractArrivalFeatures = (trip: VesselTrip): FeatureVector => {
   const scheduleDelta = calculateScheduleDelta(trip);
   const scheduleDeltaClamped = Math.min(20, Math.max(-Infinity, scheduleDelta));
   const hourOfDay = trip.LeftDock!.getHours();
+  const timeCategory = getTimeOfDayCategory(hourOfDay);
   const isWeekend =
     trip.LeftDock!.getDay() === 0 || trip.LeftDock!.getDay() === 6;
 
   return {
     schedule_delta_clamped: scheduleDeltaClamped,
-    hour_of_day: hourOfDay,
+    time_category: timeCategory, // Using categorical time periods for ferry operations
     is_weekend: isWeekend ? 1 : 0,
     delay_minutes: trip.Delay || 0,
   };
