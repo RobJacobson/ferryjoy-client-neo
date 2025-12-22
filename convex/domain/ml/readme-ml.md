@@ -14,57 +14,39 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 **Key Features:**
 - **Terminal-Pair Specific**: Separate models for each departure→arrival terminal combination
 - **Real-Time Predictions**: Sub-millisecond inference for live vessel tracking
-- **Dual Data Sources**: Train from Convex database (historical) or WSF API (fresh data)
-- **Automated Training**: Daily comprehensive retraining on complete historical datasets
-- **Quality Assurance**: Multi-stage data validation, statistical analysis, and error handling
-- **Backward Compatibility**: Supports legacy data formats and schema evolution
+- **WSF API Training**: Automated daily retraining with fresh data (365 days back)
+- **Quality Assurance**: Basic data validation and temporal consistency checks
+- **Simplified Design**: Essential functionality without over-engineering
+- **Backward Compatibility**: Maintains database schema compatibility
 
 ## 📊 Training Pipeline
 
-The ML system processes ferry trip data through a multi-step pipeline with two data source options:
+The ML system processes ferry trip data through a streamlined 6-step pipeline:
 
-### Step 1: Load Training Data (Choose One)
-
-#### Option 1A: Load from Convex Database (`step_1a_loadAllConvexTrips.ts`)
-```typescript
-// Loads completed vessel trips from Convex database
-// Uses step_1_loadAllTrips.ts for paginated loading
-// Applies step_2_filterAndConvert.ts for quality filtering
-// Returns: Array of TrainingDataRecord
-```
-
-#### Option 1B: Load from WSF API (`step_1b_loadAllWSFTrips.ts`)
+### Step 1: Load Raw WSF Records (`step_1_loadWsfTrainingData.ts`)
 ```typescript
 // Fetches vessel histories from WSF backend API
-// Configurable date range (default: 90 days back)
-// Transforms WSF data format to TrainingDataRecord:
-//   - Chains trips by vessel (tripStart = previous EstArrival)
-//   - Maps terminal names to abbreviations
-//   - Filters by valid passenger terminals
-//   - Calculates departure delay and at-sea duration
+// Configurable date range (default: 365 days back)
+// Returns: Array of raw WSF API records
+```
+
+### Step 2: Convert to Training Records (`step_2_convertWsfToTraining.ts`)
+```typescript
+// Convert raw WSF API records to TrainingDataRecord format:
+// - Map terminal names to abbreviations
+// - Filter by valid passenger terminals
+// - Basic data completeness validation
+// - Calculate departure delays and at-sea durations
 // Returns: Array of TrainingDataRecord
 ```
 
-### Helper Steps (Used by Step 1A)
-
-#### Load Raw Trips (`step_1_loadAllTrips.ts`)
+### Step 3: Bucket by Terminal Pairs (`step_3_bucketByTerminalPairs.ts`)
 ```typescript
-// Paginated loading from Convex database
-// Handles Convex's 8,192 item response limit
-// Returns: Array of VesselTrip records
-```
-
-#### Filter & Convert (`step_2_filterAndConvert.ts`)
-```typescript
-// Apply quality filters:
-// - Valid passenger terminals only
-// - Complete temporal data (arrival/departure times)
-// - Reasonable duration ranges
-// - Outlier removal
-//
-// Convert to minimal TrainingDataRecord:
-// - Essential temporal data only
-// - No redundant vessel/route information
+// Dynamic grouping by terminal pairs:
+// - Discover all valid terminal combinations from data
+// - Calculate basic bucket statistics:
+//   * totalRecords: Records before filtering
+//   * filteredRecords: Records after quality filters
 ```
 
 ### Step 3: Bucket by Terminal Pairs (`step_3_bucketByTerminalPairs.ts`)
@@ -78,47 +60,37 @@ The ML system processes ferry trip data through a multi-step pipeline with two d
 //   * meanAtSeaDuration: Average sea time
 ```
 
-### Step 4: Create Training Data (`step_4_createTrainingData.ts`)
+### Step 4: Feature Engineering (Integrated in Step 5)
 ```typescript
-// Feature engineering for each model type:
+// Simplified feature extraction (performed during model training):
 //
-// Departure Model Features (predicts departure delay):
-// - schedule_delta_clamped: How early/late vessel arrived (minutes)
-// - time_category: Time of day category (0-5) representing operational periods (Pacific Time PST/PDT) - **TEMPORARILY COMMENTED OUT FOR A/B TESTING**
-//   0: Late night/Early morning (22:00-04:59, quietest/most predictable)
-//   1: Early morning prep (05:00-06:59)
-//   2: Morning rush hour (07:00-09:59)
-//   3: Midday (10:00-14:59)
-//   4: Afternoon rush hour (15:00-17:59)
-//   5: Evening (18:00-21:59)
+// Essential Feature Set (used for both departure and arrival models):
+// - schedule_delta_clamped: Schedule adherence (minutes, positive = ahead of schedule)
+// - hour_of_day: Hour as numeric value (0-23) - simplified from 24 one-hot features
 // - is_weekend: Boolean weekend flag (1/0)
-// - Target: departureDelay (actual - scheduled departure in minutes)
+// - delay_minutes: Departure delay for arrival model (minutes)
 //
-// Arrival Model Features:
-// - schedule_delta_clamped: Schedule adherence at departure (minutes)
-// - time_category: Time of day category (0-5, same as above, Pacific Time PST/PDT) - **TEMPORARILY COMMENTED OUT FOR A/B TESTING**
-// - is_weekend: Boolean weekend flag (1/0)
-// - delay_minutes: 0 (placeholder for future features)
-// - Target: atSeaDuration (minutes from departure to arrival)
+// Departure Model Target: departureDelay (actual - scheduled departure in minutes)
+// Arrival Model Target: atSeaDuration (minutes from departure to arrival)
 ```
 
 ### Step 5: Train Bucket Models (`step_5_trainBuckets.ts`)
 ```typescript
 // Train separate models for each terminal pair:
-// - Departure model: Predict departure_delay_minutes
-// - Arrival model: Predict at_sea_duration_minutes
-// - Multiple linear regression with 5-fold cross-validation
+// - Departure model: Predict departure_delay_minutes (4 features: schedule_delta_clamped + hour_of_day + is_weekend)
+// - Arrival model: Predict at_sea_duration_minutes (4 features: above + delay_minutes)
+// - Multiple linear regression (simplified approach)
 // - Null models for insufficient data (<25 examples)
-// - Comprehensive training metrics (MAE, R², RMSE, StdDev)
+// - Essential training metrics (MAE, RMSE for DB compatibility, R²)
 ```
 
 ### Step 6: Store Results (`step_6_storeResults.ts`)
 ```typescript
-// Database storage with comprehensive metadata:
+// Database storage with essential metadata:
 // - Model coefficients and intercept
-// - Training metrics (MAE, R², RMSE, standard deviation)
-// - Bucket statistics (total/filtered records, means)
-// - Model algorithm and feature names
+// - Training metrics (MAE, RMSE for DB compatibility, R²)
+// - Bucket statistics (total/filtered records)
+// - Model algorithm identifier
 // - Graceful handling of missing models
 ```
 
@@ -126,25 +98,25 @@ The ML system processes ferry trip data through a multi-step pipeline with two d
 
 The pipeline supports two data source options, selectable when running training:
 
-### Convex Database (Default)
-- **Source**: Stored historical trip data in Convex database
-- **Advantages**: Fast access, no API rate limits, comprehensive historical coverage
-- **Use Case**: Regular automated training, offline analysis
-- **Data Range**: All available historical records (10K+ trips)
-
-### WSF API (Alternative)
+### WSF API (Default)
 - **Source**: Direct fetch from WSF backend API using ws-dottie library
 - **Advantages**: Fresh data without database dependency, configurable date range
-- **Use Case**: Testing with recent data, comparing model performance
+- **Use Case**: Regular automated training, real-time relevance
 - **Data Range**: Configurable (default: 90 days back) for all vessels (~45K records)
-- **Configuration**: Set `PIPELINE_CONFIG.DAYS_BACK` in `shared/config.ts`
+- **Configuration**: Set `PIPELINE_CONFIG.DAYS_BACK` in `shared/config.ts` (default: 365 days)
+
+### Convex Database (Alternative)
+- **Source**: Stored historical trip data in Convex database
+- **Advantages**: Fast access, no API rate limits, comprehensive historical coverage
+- **Use Case**: Offline analysis, complete historical dataset access
+- **Data Range**: All available historical records (10K+ trips)
 
 Both sources produce the same `TrainingDataRecord[]` format, ensuring compatibility with the rest of the pipeline.
 
 ## 🚀 How to Use
 
 ### Automated Training (Recommended)
-The system runs automatically via cron job at 4:00 AM Pacific daily using Convex database data:
+The system runs automatically via cron job at 4:00 AM Pacific daily using WSF API data:
 ```typescript
 // convex/crons.ts
 crons.cron(
@@ -159,16 +131,16 @@ crons.cron(
 Run the training pipeline manually:
 
 ```bash
-# Train using Convex database data (default)
+# Train using WSF API data (default)
 npm run train:ml
 
-# Train using WSF API data (alternative)
-npm run train:ml:wsf
+# Train using Convex database data (alternative)
+npm run train:ml:convex
 ```
 
-**Convex Data Source**: Trains on all available historical trip data (10K+ records) stored in the Convex database.
-
 **WSF API Data Source**: Fetches vessel histories directly from WSF backend API for the configured date range (default: 90 days), providing fresh data without relying on stored records.
+
+**Convex Data Source**: Trains on all available historical trip data (10K+ records) stored in the Convex database.
 
 ### Export Training Results to CSV
 
@@ -194,8 +166,6 @@ This creates `training-results.csv` in your project root with one row per termin
 - `arrival_mae`, `arrival_r2`, etc.: Arrival model metrics
 - `total_records`: Records in the bucket before filtering
 - `filtered_records`: Records used for training
-- `mean_departure_delay`: Average departure delay in minutes
-- `mean_at_sea_duration`: Average actual sea time
 - `created_at`: When models were trained
 
 ### Compare Training Results
@@ -242,12 +212,6 @@ const prediction = await predict({
 //   departureDelay: 2.3,           // minutes from scheduled departure (+ for late, - for early)
 //   atSeaDuration: 18.7,           // minutes until arrival
 //   predictedDepartureTime: Date,  // calculated actual departure time
-//   confidence: {                  // optional confidence intervals
-//     delayLower: -1.2,
-//     delayUpper: 5.8,
-//     seaLower: 16.2,
-//     seaUpper: 21.2
-//   }
 // }
 ```
 
@@ -302,13 +266,13 @@ Convex Database → Paginated Load → Quality Filters → Training Records → 
 
 **WSF API Data Source Path:**
 ```
-WSF API → Vessel Fleet → Vessel Histories → Transform & Filter → Training Records → Terminal Buckets → Feature Engineering → Model Training → Database Storage
-     ↓           ↓              ↓                    ↓                  ↓                   ↓                  ↓               ↓              ↓
-  90 days    fetchBasics   fetchHistories    Chain trips, map      TrainingDataRecord   36+ buckets      4 features     MLR training   Comprehensive
-   back      (25 vessels)  per vessel        terminals, filter      structure            + statistics      per model        validation    metadata
+WSF API → Load Raw Records → Convert to Training → Terminal Buckets → Feature Engineering → Model Training → Database Storage
+     ↓           ↓                  ↓                   ↓                  ↓               ↓                  ↓               ↓              ↓
+365 days    step_1: loadWsfTrainingData   step_2: convertWsfDataToTrainingRecords   36+ buckets      4 features     MLR training   Essential
+   back      (25 vessels)  fetch vessel histories    minimal filtering & conversion      + statistics      per model        metrics       metadata
 ```
 
-The system processes historical datasets for maximum model accuracy. Convex source uses stored historical data, while WSF source fetches fresh data directly from the API.
+The system processes datasets for maximum model accuracy. WSF API source fetches fresh data directly from the API, while Convex source uses stored historical data.
 
 ### Database Schema
 ```typescript
@@ -345,29 +309,27 @@ The system processes historical datasets for maximum model accuracy. Convex sour
 ### File Structure
 ```
 convex/domain/ml/
-├── actions.ts              # Public Convex actions (Convex & WSF training modes)
-├── predict.ts              # Prediction API with confidence intervals
-├── types.ts                # TypeScript interfaces and schemas
-├── shared.ts               # Shared utilities and constants
+├── actions.ts              # Public Convex actions (WSF training mode)
+├── predict.ts              # Simplified prediction API
+├── types.ts                # Streamlined TypeScript interfaces
+├── shared.ts               # Minimal shared utilities
 ├── index.ts                # Module exports
 ├── temp.js                 # Legacy code (deprecated)
 ├── readme-ml.md            # This documentation
 └── pipeline/
-    ├── orchestrator.ts     # Main pipeline coordination (accepts data source type)
-    ├── step_1_loadAllTrips.ts         # Paginated Convex data loading (used by step_1a)
-    ├── step_1a_loadAllConvexTrips.ts  # Load & filter trips from Convex database
-    ├── step_1b_loadAllWSFTrips.ts     # Load & transform trips from WSF API
-    ├── step_2_filterAndConvert.ts     # Quality filtering & TrainingDataRecord conversion (used by step_1a)
-    ├── step_3_bucketByTerminalPairs.ts # Terminal pair bucketing with statistics
-    ├── step_4_createTrainingData.ts   # Feature engineering for ML models
-    ├── step_5_trainBuckets.ts         # Model training orchestration (MLR)
+    ├── step_1_loadWsfTrainingData.ts  # Load raw WSF records from API
+    ├── step_2_convertWsfToTraining.ts # Convert WSF records to training format
+    ├── step_3_bucketByTerminalPairs.ts # Terminal pair bucketing
+    ├── step_4_createTrainingData.ts   # Feature engineering wrapper
+    ├── step_5_trainBuckets.ts         # Simplified model training
     ├── step_6_storeResults.ts         # Database storage with metadata
     └── shared/
-        ├── config.ts       # Pipeline configuration constants (includes DAYS_BACK for WSF)
-        ├── logging.ts      # Structured JSON logging system
-        ├── validation.ts   # Data validation utilities
-        ├── performance.ts  # Performance monitoring & tracking
-        └── types.ts        # Shared type definitions
+        ├── config.ts                   # Essential configuration constants
+        ├── dataQualityAnalyzer.ts     # Basic data quality metrics
+        ├── featureEngineering.ts      # Simplified feature extraction
+        ├── modelTrainingCoordinator.ts # Model training orchestration
+        ├── pipelineCoordinator.ts     # Main pipeline coordination
+        └── time.ts                     # Pacific timezone utilities
 ```
 
 ## 📊 Data Quality & Validation
@@ -380,10 +342,9 @@ convex/domain/ml/
 5. **Schedule Adherence**: Within 24 hours of scheduled times
 
 ### Statistical Validation
-- **Outlier Detection**: Remove 2σ outliers
-- **Distribution Analysis**: Skewness and variance monitoring
-- **Cross-Validation**: 5-fold CV prevents overfitting
-- **Performance Tracking**: MAE, R², RMSE metrics
+- **Basic Validation**: Temporal consistency checks
+- **Data Completeness**: Required field validation
+- **Performance Tracking**: MAE, RMSE, R² metrics
 
 ## 🔍 Monitoring & Logging
 
@@ -425,8 +386,8 @@ npm install
 npm run convex:dev
 
 # Training Commands
-npm run train:ml              # Train on all historical data (Convex database)
-npm run train:ml:wsf          # Train on WSF API data (alternative)
+npm run train:ml              # Train on WSF API data (default - fresh data)
+npm run train:ml:convex       # Train on Convex database data (alternative)
 
 # Export training results to CSV
 npm run train:export-results
@@ -463,9 +424,8 @@ crons.cron(
 - Solution: Pipeline automatically handles large datasets with pagination
 
 ### Performance Tuning
-- **Batch Size**: Configurable via PIPELINE_CONFIG (default: 500 items)
-- **Training Threshold**: Minimum 25 examples per model (configurable)
-- **Cross-Validation**: 5-fold CV for robust model evaluation
+- **Training Threshold**: Minimum 25 examples per model (configurable via PIPELINE_CONFIG.MIN_TRAINING_EXAMPLES)
+- **Data Range**: Configurable days back for training (default: 365 days via PIPELINE_CONFIG.DAYS_BACK)
 - **Memory Management**: Paginated loading to handle large datasets
 
 ## 🎯 Business Impact
@@ -480,16 +440,16 @@ crons.cron(
 - **95% Terminal Coverage**: Models for nearly all active routes
 - **Sub-Millisecond Inference**: Real-time prediction performance
 - **Automated Operations**: Zero manual intervention required
-- **Robust Architecture**: Fault-tolerant with comprehensive error handling
+- **Simplified Architecture**: Essential functionality without unnecessary complexity
 
 ---
 
-**Status**: ✅ **FULLY OPERATIONAL**
-**Models**: 70 active models across 35 terminal pairs (72 total records, 2 null models)
-**Training Data**: Processes complete historical dataset (10K+ records)
-**Accuracy**: 3.3-3.5 min average MAE across all routes (improved after cascade delay tuning)
-**Features**: 3 features for departure models, 3 for arrival models (cascade delay removed)
-**Automation**: Daily comprehensive retraining at 4:00 AM Pacific (Convex source)
+**Status**: ✅ **FULLY OPERATIONAL & SIMPLIFIED**
+**Models**: 74 active models across 37 terminal pairs
+**Training Data**: Processes fresh WSF API data (365 days back)
+**Accuracy**: 3.3-3.5 min average MAE across all routes
+**Features**: 4 simplified features (schedule_delta_clamped, hour_of_day, is_weekend, delay_minutes)
+**Automation**: Daily streamlined retraining at 4:00 AM Pacific (WSF API source)
 **Export**: CSV reporting available for performance analysis
-**Schema**: Backward compatible with legacy data fields</content>
+**Simplification**: Removed over-engineering while maintaining core functionality</content>
 </xai:function_call">Write contents to convex/domain/ml/readme-ml.md

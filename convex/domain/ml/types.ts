@@ -8,6 +8,21 @@
 export type FeatureVector = Record<string, number>;
 
 /**
+ * Feature record for feature extraction (used in prediction and training)
+ */
+export type FeatureRecord = {
+  // Essential temporal data for feature extraction
+  tripStart: Date; // Vessel arrival at departing terminal (or current time reference)
+  schedDeparture: Date; // Scheduled departure time
+  prevLeftDock: Date | null; // Previous segment's left dock time
+  prevSchedDeparture: Date | null; // Previous segment's scheduled departure
+
+  // Prediction-specific fields (only available during prediction)
+  delayMinutes?: number; // Current delay in minutes (for arrival models)
+  leftDock?: Date; // Actual departure time (for arrival models)
+};
+
+/**
  * Training example with features and target
  */
 export type TrainingExample = {
@@ -24,36 +39,31 @@ export type TerminalPair = {
 };
 
 /**
- * Minimal training data record containing only essential data for training
+ * Training data record containing both features and targets for model training
  */
-export type TrainingDataRecord = {
-  // Terminal identifiers
+export type TrainingDataRecord = FeatureRecord & {
+  // Terminal identifiers (needed for pipeline operations)
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
 
-  // Essential temporal data (only what we use for features)
-  tripStart: Date; // Vessel arrival at departing terminal
-  leftDock: Date; // Vessel departure from departing terminal
-  tripEnd: Date; // Vessel arrival at arriving terminal
-  scheduledDeparture: Date;
+  // Additional temporal data for validation
+  tripEnd: Date;
+  leftDock: Date; // Actual departure time
 
-  // Target variables (computed)
+  // Target variables for training
   departureDelay: number | null; // minutes from scheduled departure (can be negative)
-  atSeaDuration: number | null;
-  delay: number | null; // legacy field, keep for backward compatibility
+  atSeaDuration: number | null; // minutes from departure to arrival
 };
 
 /**
- * Terminal pair bucket with statistics
+ * Terminal pair bucket with basic statistics
  */
 export type TerminalPairBucket = {
   terminalPair: TerminalPair;
   records: TrainingDataRecord[];
   bucketStats: {
-    totalRecords: number; // Total records in bucket before filtering
-    filteredRecords: number; // Records after filtering (used for training)
-    meanDepartureDelay: number | null; // Average departure delay in minutes
-    meanAtSeaDuration: number | null;
+    totalRecords: number;
+    filteredRecords: number;
   };
 };
 
@@ -67,12 +77,11 @@ export type TerminalPairTrainingData = {
 };
 
 /**
- * Enhanced ML model parameters with bucket statistics
+ * Simplified ML model parameters
  */
 export type ModelParameters = {
   // Model data (optional for insufficient data cases)
   coefficients?: number[];
-  featureNames?: string[];
   intercept?: number;
 
   // Required identifiers
@@ -80,27 +89,26 @@ export type ModelParameters = {
   arrivingTerminalAbbrev: string;
   modelType: "departure" | "arrival";
 
-  // Training metadata
-  modelAlgorithm?: string;
+  // Training metrics (matching database schema)
   trainingMetrics?: {
     mae: number;
     rmse: number;
     r2: number;
     stdDev?: number;
   };
+
+  // Creation timestamp
   createdAt: number;
 
-  // Bucket statistics (always present)
+  // Basic bucket statistics
   bucketStats: {
     totalRecords: number;
     filteredRecords: number;
-    meanDepartureDelay: number | null;
-    meanAtSeaDuration: number | null;
   };
 };
 
 /**
- * Data quality metrics
+ * Basic data quality metrics
  */
 export type DataQualityMetrics = {
   totalRecords: number;
@@ -112,82 +120,19 @@ export type DataQualityMetrics = {
     validOrdering: number;
     invalidRecords: number;
   };
-  statistical: {
-    durationSkewness: number;
-    outlierPercentage: number;
-  };
-  duplicates?: {
-    count: number;
-  };
 };
 
 /**
- * Pipeline error types
- */
-export enum PipelineErrorType {
-  DATA_LOADING = "data_loading",
-  DATA_QUALITY = "data_quality",
-  FEATURE_ENGINEERING = "feature_engineering",
-  MODEL_TRAINING = "model_training",
-  STORAGE = "storage",
-  VALIDATION = "validation",
-}
-
-export class PipelineError extends Error {
-  constructor(
-    message: string,
-    public readonly type: PipelineErrorType,
-    public readonly step: string,
-    public readonly bucket?: TerminalPair,
-    public readonly recoverable: boolean = true,
-    public readonly context?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = "PipelineError";
-  }
-}
-
-/**
- * Enhanced training response with error tracking
+ * Simplified training response
  */
 export type TrainingResponse = {
-  success: boolean;
   models: ModelParameters[];
   stats: {
     totalExamples: number;
     terminalPairs: string[];
     bucketsProcessed: number;
     dataQuality: DataQualityMetrics;
-    terminalPairBreakdown: Record<
-      string, // "DEP_ARR" format (e.g., "SEA_BRE")
-      {
-        departure?: {
-          count: number;
-          filteredRecords: number;
-          avgPrediction?: number;
-          stdDev?: number;
-          mae?: number;
-          r2?: number;
-          meanDepartureDelay?: number;
-        };
-        arrival?: {
-          count: number;
-          filteredRecords: number;
-          avgPrediction?: number;
-          stdDev?: number;
-          mae?: number;
-          r2?: number;
-        };
-      }
-    >;
   };
-  errors: Array<{
-    type: PipelineErrorType;
-    message: string;
-    step: string;
-    bucket?: string;
-    recoverable: boolean;
-  }>;
 };
 
 /**
@@ -197,10 +142,4 @@ export type PredictionOutput = {
   departureDelay?: number; // minutes from scheduled departure (can be negative)
   atSeaDuration?: number; // null if no arrival model
   predictedDepartureTime?: Date; // calculated from scheduled + delay
-  confidence?: {
-    delayLower: number;
-    delayUpper: number;
-    seaLower: number;
-    seaUpper: number;
-  };
 };

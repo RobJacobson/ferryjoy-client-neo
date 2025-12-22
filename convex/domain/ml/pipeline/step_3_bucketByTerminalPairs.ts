@@ -4,17 +4,15 @@
 // ============================================================================
 
 import { VALID_PASSENGER_TERMINALS } from "domain/ml/pipeline/shared/config";
-import type { PipelineLogger } from "domain/ml/pipeline/shared/logging";
 import type { TerminalPairBucket, TrainingDataRecord } from "domain/ml/types";
 
 /**
  * Create terminal pair buckets from training records
  */
 export const createTerminalPairBuckets = (
-  records: TrainingDataRecord[],
-  logger: PipelineLogger
+  records: TrainingDataRecord[]
 ): TerminalPairBucket[] => {
-  logger.logStepStart("createBuckets", { recordCount: records.length });
+  console.log(`Creating buckets from ${records.length} records`);
 
   const bucketMap = new Map<string, TrainingDataRecord[]>();
 
@@ -39,26 +37,6 @@ export const createTerminalPairBuckets = (
     ([key, records]) => {
       const [departing, arriving] = key.split("_");
 
-      // Calculate bucket statistics
-      const validDelayRecords = records.filter((r) => r.departureDelay != null);
-      const validSeaRecords = records.filter((r) => r.atSeaDuration != null);
-
-      const meanDepartureDelay =
-        validDelayRecords.length > 0
-          ? validDelayRecords.reduce(
-              (sum, r) => sum + (r.departureDelay || 0),
-              0
-            ) / validDelayRecords.length
-          : null;
-
-      const meanAtSeaDuration =
-        validSeaRecords.length > 0
-          ? validSeaRecords.reduce(
-              (sum, r) => sum + (r.atSeaDuration || 0),
-              0
-            ) / validSeaRecords.length
-          : null;
-
       return {
         terminalPair: {
           departingTerminalAbbrev: departing,
@@ -68,8 +46,6 @@ export const createTerminalPairBuckets = (
         bucketStats: {
           totalRecords: records.length,
           filteredRecords: records.length, // Will be updated in training step
-          meanDepartureDelay,
-          meanAtSeaDuration,
         },
       };
     }
@@ -78,19 +54,10 @@ export const createTerminalPairBuckets = (
   // Sort buckets by record count (largest first)
   buckets.sort((a, b) => b.records.length - a.records.length);
 
-  logger.logStepEnd("createBuckets", 0, {
-    bucketCount: buckets.length,
-    totalRecordsInBuckets: buckets.reduce(
-      (sum, b) => sum + b.records.length,
-      0
-    ),
-    largestBucket: buckets[0]
-      ? {
-          pair: `${buckets[0].terminalPair.departingTerminalAbbrev}_${buckets[0].terminalPair.arrivingTerminalAbbrev}`,
-          records: buckets[0].records.length,
-        }
-      : null,
-  });
+  const totalRecords = buckets.reduce((sum, b) => sum + b.records.length, 0);
+  console.log(
+    `Created ${buckets.length} buckets with ${totalRecords} total records`
+  );
 
   return buckets;
 };
@@ -99,8 +66,7 @@ export const createTerminalPairBuckets = (
  * Validate bucket contents
  */
 export const validateBuckets = (
-  buckets: TerminalPairBucket[],
-  logger: PipelineLogger
+  buckets: TerminalPairBucket[]
 ): { validBuckets: TerminalPairBucket[]; invalidCount: number } => {
   const validBuckets: TerminalPairBucket[] = [];
   let invalidCount = 0;
@@ -120,12 +86,8 @@ export const validateBuckets = (
       validBuckets.push(bucket);
     } else {
       invalidCount++;
-      logger.warn(
-        `Invalid bucket: ${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`,
-        {
-          recordCount: bucket.records.length,
-          hasInconsistentRecords: true,
-        }
+      console.warn(
+        `Invalid bucket: ${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev} (${bucket.records.length} records)`
       );
     }
   }

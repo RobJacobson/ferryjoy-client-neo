@@ -1,7 +1,7 @@
 import { api } from "_generated/api";
 import type { Id } from "_generated/dataModel";
 import { type ActionCtx, internalAction } from "_generated/server";
-import { runMLPipeline } from "domain/ml/pipeline/orchestrator";
+import { runMLPipeline } from "domain/ml/pipelineCoordinator";
 import { predict } from "domain/ml/predict";
 import type { PredictionOutput, TrainingResponse } from "domain/ml/types";
 import { toDomainVesselTrip, vesselTripSchema } from "functions/vesselTrips";
@@ -17,20 +17,8 @@ import { toDomainVesselTrip, vesselTripSchema } from "functions/vesselTrips";
 export const trainPredictionModelsAction = internalAction({
   args: {},
   handler: async (ctx): Promise<TrainingResponse> => {
-    console.log("Starting ML training pipeline with Convex data source");
-    return await runMLPipeline(ctx, "convex");
-  },
-});
-
-/**
- * Trains prediction models using WSF API data as source
- * Fetches vessel histories from WSF backend for the configured date range
- */
-export const trainPredictionModelsWSFAction = internalAction({
-  args: {},
-  handler: async (ctx): Promise<TrainingResponse> => {
     console.log("Starting ML training pipeline with WSF data source");
-    return await runMLPipeline(ctx, "wsf");
+    return await runMLPipeline(ctx);
   },
 });
 

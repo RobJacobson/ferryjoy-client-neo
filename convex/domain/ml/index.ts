@@ -9,7 +9,7 @@ export {
   trainPredictionModelsAction,
 } from "./actions";
 // Main pipeline orchestrator
-export { runMLPipeline } from "./pipeline/orchestrator";
+export { runMLPipeline } from "./pipelineCoordinator";
 export { predict } from "./predict";
 
 // Types
@@ -17,8 +17,6 @@ export type {
   DataQualityMetrics,
   FeatureVector,
   ModelParameters,
-  PipelineError,
-  PipelineErrorType,
   PredictionOutput,
   TerminalPair,
   TerminalPairBucket,

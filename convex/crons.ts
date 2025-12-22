@@ -27,11 +27,11 @@ crons.interval(
 //   internal.functions.vesselPing.actions.fetchAndStoreVesselPing
 // );
 
-// Daily model retraining at 4:00 AM Pacific Time (comprehensive training on fresh WSF data)
+// Daily model retraining at 4:00 AM Pacific Time (training on Convex data)
 crons.cron(
   "retrain ml models",
   "0 4 * * *", // 4:00 AM daily (Pacific Time)
-  internal.domain.ml.actions.trainPredictionModelsWSFAction
+  internal.domain.ml.actions.trainPredictionModelsAction
 );
 
 export default crons;

@@ -1,7 +1,10 @@
-import { ConvexError, v } from "convex/values";
 import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
-import { type ConvexVesselTrip, vesselTripSchema } from "functions/vesselTrips/schemas";
+import { ConvexError, v } from "convex/values";
+import {
+  type ConvexVesselTrip,
+  vesselTripSchema,
+} from "functions/vesselTrips/schemas";
 
 /**
  * Bulk upsert multiple vessel trips to activeVesselTrips table (update if exists, insert if not)
