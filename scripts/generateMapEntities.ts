@@ -40,7 +40,7 @@ const ROUTE_DEFAULTS: Omit<CameraState, "centerCoordinate"> = {
   pitch: 0,
 };
 
-function computeRouteCamera(terminals: TerminalLocation[]): CameraState {
+const computeRouteCamera = (terminals: TerminalLocation[]): CameraState => {
   const lons = terminals.map((t) => t.Longitude);
   const lats = terminals.map((t) => t.Latitude);
 
@@ -64,16 +64,16 @@ function computeRouteCamera(terminals: TerminalLocation[]): CameraState {
     heading: 0,
     pitch: 0,
   };
-}
+};
 
-function sortKeys<T extends Record<string, unknown>>(obj: T): T {
+const sortKeys = <T extends Record<string, unknown>>(obj: T): T => {
   const keys = Object.keys(obj).sort((a, b) => a.localeCompare(b));
   const out: Record<string, unknown> = {};
   for (const k of keys) out[k] = obj[k];
   return out as T;
-}
+};
 
-function main() {
+const main = () => {
   const terminalsByAbbrev = terminalLocations as Record<
     string,
     TerminalLocation
@@ -170,6 +170,6 @@ function main() {
 
   fs.writeFileSync(outPath, file, "utf8");
   console.log(`Wrote ${outPath} with ${Object.keys(sorted).length} entities`);
-}
+};
 
 main();

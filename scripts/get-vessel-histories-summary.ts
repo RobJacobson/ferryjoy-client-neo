@@ -1,15 +1,16 @@
 #!/usr/bin/env tsx
 
-import { writeFileSync } from "fs";
+import { writeFileSync } from "node:fs";
 import {
   fetchVesselBasics,
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 
 /**
  * Get vessel history summary for December 19, 2025
  */
-async function getVesselHistoriesSummary() {
+const getVesselHistoriesSummary = async () => {
   console.log("Getting vessel history summary for 2025-12-19");
 
   // Get all vessels
@@ -17,7 +18,7 @@ async function getVesselHistoriesSummary() {
 
   console.log(`Found ${vessels.length} vessels`);
 
-  const vesselHistories: any[] = [];
+  const vesselHistories: VesselHistory[] = [];
   const terminalPairVessels = new Map<string, Set<string>>();
 
   // Get history for each vessel
@@ -73,12 +74,25 @@ async function getVesselHistoriesSummary() {
     terminalPairs: summary.length,
     summary,
   };
+};
+
+interface SummaryResult {
+  date: string;
+  totalVessels: number;
+  activeVessels: number;
+  totalTrips: number;
+  terminalPairs: number;
+  summary: Array<{
+    terminalPair: string;
+    vessels: string[];
+    vesselCount: number;
+  }>;
 }
 
 /**
  * Save the summary results to a markdown file
  */
-function saveSummaryToMarkdown(result: any) {
+const saveSummaryToMarkdown = (result: SummaryResult): void => {
   const outputPath = "vessel-history-summary-2025-12-19.md";
 
   let markdown = `# Vessel History Summary for 2025-12-19
@@ -109,11 +123,11 @@ function saveSummaryToMarkdown(result: any) {
     markdown += "## No Activity\n\nNo vessel activity found for 2025-12-19.\n";
   }
 
-  markdown += "\n---\n*Generated on " + new Date().toISOString() + "*";
+  markdown += `\n---\n*Generated on ${new Date().toISOString()}*`;
 
   writeFileSync(outputPath, markdown);
   console.log(`\nSummary saved to ${outputPath}`);
-}
+};
 
 // Run the script
 getVesselHistoriesSummary()
