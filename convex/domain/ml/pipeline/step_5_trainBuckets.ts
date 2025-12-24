@@ -4,7 +4,7 @@
 // ============================================================================
 
 import MLR from "ml-regression-multivariate-linear";
-import { createTrainingDataForBucketBoth } from "./step_4_createTrainingData";
+import { createTrainingDataForBucketAll } from "./step_4_createTrainingData";
 import { PIPELINE_CONFIG } from "./shared/config";
 import type {
   FeatureRecord,
@@ -141,12 +141,12 @@ type HoldoutEvaluationResult = {
  * The evaluation trains on 80% of data (earliest) and tests on 20% (most recent).
  *
  * @param records - Training records to split
- * @param modelType - "departure" or "arrival"
+ * @param modelType - Model type to evaluate
  * @returns Holdout evaluation result with metrics
  */
 const computeHoldoutMetrics = async (
   records: TrainingDataRecord[],
-  modelType: "departure" | "arrival"
+  modelType: "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart"
 ): Promise<HoldoutEvaluationResult> => {
   const EVAL_CONFIG = PIPELINE_CONFIG.EVALUATION;
 
@@ -210,16 +210,25 @@ const computeHoldoutMetrics = async (
   };
 
   // Create training examples for both sets
-  const trainData = createTrainingDataForBucketBoth(trainBucket);
-  const testData = createTrainingDataForBucketBoth(testBucket);
-  const trainExamples =
-    modelType === "departure"
-      ? trainData.departureExamples
-      : trainData.arrivalExamples;
-  const testExamples =
-    modelType === "departure"
-      ? testData.departureExamples
-      : testData.arrivalExamples;
+  const trainData = createTrainingDataForBucketAll(trainBucket);
+  const testData = createTrainingDataForBucketAll(testBucket);
+  let trainExamples: TrainingExample[];
+  let testExamples: TrainingExample[];
+  
+  if (modelType === "arrive-depart") {
+    trainExamples = trainData.arriveDepartExamples;
+    testExamples = testData.arriveDepartExamples;
+  } else if (modelType === "depart-arrive") {
+    trainExamples = trainData.departArriveExamples;
+    testExamples = testData.departArriveExamples;
+  } else if (modelType === "arrive-arrive") {
+    trainExamples = trainData.arriveArriveExamples;
+    testExamples = testData.arriveArriveExamples;
+  } else {
+    // depart-depart
+    trainExamples = trainData.departDepartExamples;
+    testExamples = testData.departDepartExamples;
+  }
 
   if (trainExamples.length === 0 || testExamples.length === 0) {
     return {
@@ -262,25 +271,46 @@ export const trainModelsForBucket = async (
     `Training models for ${pairKey} (${bucket.records.length} records)`
   );
 
-  // Create training data for both models
-  const { departureExamples, arrivalExamples } =
-    createTrainingDataForBucketBoth(bucket);
+  // Create training data for all models
+  const {
+    arriveDepartExamples,
+    departArriveExamples,
+    arriveArriveExamples,
+    departDepartExamples,
+  } = createTrainingDataForBucketAll(bucket);
 
-  // Train departure model
-  const departureModel = await trainSingleModel(
-    departureExamples,
-    "departure",
+  // Train arrive-depart model
+  const arriveDepartModel = await trainSingleModel(
+    arriveDepartExamples,
+    "arrive-depart",
     bucket
   );
-  results.push(departureModel);
+  results.push(arriveDepartModel);
 
-  // Train arrival model
-  const arrivalModel = await trainSingleModel(
-    arrivalExamples,
-    "arrival",
+  // Train depart-arrive model
+  const departArriveModel = await trainSingleModel(
+    departArriveExamples,
+    "depart-arrive",
     bucket
   );
-  results.push(arrivalModel);
+  results.push(departArriveModel);
+
+  // Train arrive-arrive model
+  const arriveArriveModel = await trainSingleModel(
+    arriveArriveExamples,
+    "arrive-arrive",
+    bucket
+  );
+  results.push(arriveArriveModel);
+
+  // Train depart-depart model
+  const departDepartModel = await trainSingleModel(
+    departDepartExamples,
+    "depart-depart",
+    bucket
+  );
+  results.push(departDepartModel);
+
   return results;
 };
 
@@ -289,7 +319,7 @@ export const trainModelsForBucket = async (
  */
 const trainSingleModel = async (
   examples: TrainingExample[],
-  modelType: "departure" | "arrival",
+  modelType: "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart",
   bucket: TerminalPairBucket
 ): Promise<ModelParameters> => {
   const pairKey = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
@@ -304,10 +334,15 @@ const trainSingleModel = async (
     console.log(`📊 First ${modelType} example target:`, examples[0].target);
 
     // Extract first record for debugging (first example corresponds to first valid record)
-    const firstRecord =
-      modelType === "departure"
-        ? bucket.records.find((r) => r.departureDelay != null)
-        : bucket.records.find((r) => r.atSeaDuration != null);
+    let firstRecord: TrainingDataRecord | undefined;
+    if (modelType === "arrive-depart" || modelType === "arrive-arrive") {
+      firstRecord = bucket.records.find((r) => r.departureDelay != null);
+    } else if (modelType === "depart-arrive") {
+      firstRecord = bucket.records.find((r) => r.atSeaDuration != null);
+    } else {
+      // depart-depart
+      firstRecord = bucket.records.find((r) => r.departureDelay != null);
+    }
 
     if (firstRecord) {
       const firstFeatureRecord: FeatureRecord = {
@@ -315,9 +350,12 @@ const trainSingleModel = async (
         tripStart: firstRecord.tripStart,
         schedDeparture: firstRecord.schedDeparture,
         meanAtDockDuration: firstRecord.meanAtDockDuration,
-        ...(modelType === "arrival" && {
+        ...(modelType === "depart-arrive" && {
           delayMinutes: firstRecord.departureDelay,
           leftDock: firstRecord.leftDock,
+        }),
+        ...(modelType === "depart-depart" && {
+          prevLeftDock: firstRecord.prevLeftDock,
         }),
       };
       console.log(

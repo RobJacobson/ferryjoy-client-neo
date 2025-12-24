@@ -8,6 +8,7 @@ import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { TrainingDataRecord } from "../types";
 import {
   MEAN_AT_DOCK_DURATION,
+  MAX_DURATION_THRESHOLDS,
   MIN_DURATION_THRESHOLDS,
   VALID_PASSENGER_TERMINALS,
 } from "./shared/config";
@@ -34,6 +35,7 @@ const getTerminalAbbrev = (terminalName: string): string | undefined => {
 const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
   // Puget Sound region
   Bainbridge: "BBI",
+  "Bainbridge Island": "BBI",
   Bremerton: "BRE",
   Kingston: "KIN",
   Edmonds: "EDM",
@@ -41,9 +43,12 @@ const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
   Clinton: "CLI",
   Fauntleroy: "FAU",
   Vashon: "VAI",
+  "Vashon Island": "VAI", // WSF API may return full name
   Colman: "P52",
+  Seattle: "P52", // WSF API may return "Seattle" instead of "Colman"
   Southworth: "SOU",
   "Pt. Defiance": "PTD",
+  "Point Defiance": "PTD", // WSF API may return full name
   Tahlequah: "TAH",
 
   // San Juan Islands
@@ -51,8 +56,11 @@ const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
   Friday: "FRH", // Note: vessel histories may return "Friday Harbor" or "Friday"
   "Friday Harbor": "FRH",
   Shaw: "SHI",
+  "Shaw Island": "SHI", // WSF API may return full name
   Orcas: "ORI",
+  "Orcas Island": "ORI", // WSF API may return full name
   Lopez: "LOP",
+  "Lopez Island": "LOP", // WSF API may return full name
 
   // Other
   "Port Townsend": "POT",
@@ -93,16 +101,28 @@ export const convertWsfDataToTrainingRecords = (
         current.Departing || ""
       );
       const arrivingTerminalAbbrev = getTerminalAbbrev(current.Arriving || "");
+      const previousArrivingTerminalAbbrev = getTerminalAbbrev(
+        previous.Arriving || ""
+      );
 
       // SKIP if terminals not found in mapping
-      if (!departingTerminalAbbrev || !arrivingTerminalAbbrev) {
-        // Don't log when arriving terminal is null (expected case)
+      if (!departingTerminalAbbrev || !arrivingTerminalAbbrev || !previousArrivingTerminalAbbrev) {
+        // Log warnings for unmapped terminals (but not for null previous.Arriving, which is expected for in-progress trips)
         if (current.Arriving !== null && current.Arriving !== undefined) {
-          console.warn(`Skipping record due to unmapped terminals`, {
-            vessel: vesselName,
-            departing: current.Departing,
-            arriving: current.Arriving,
-          });
+          if (!previousArrivingTerminalAbbrev && previous.Arriving === null) {
+            // Previous trip has no arrival data (likely in-progress) - this is expected, skip silently
+          } else {
+            // Actual unmapped terminal issue - log warning
+            console.warn(`Skipping record due to unmapped terminals`, {
+              vessel: vesselName,
+              departing: current.Departing,
+              arriving: current.Arriving,
+              previousArriving: previous.Arriving,
+              departingMapped: !!departingTerminalAbbrev,
+              arrivingMapped: !!arrivingTerminalAbbrev,
+              previousArrivingMapped: !!previousArrivingTerminalAbbrev,
+            });
+          }
         }
         continue;
       }
@@ -110,8 +130,22 @@ export const convertWsfDataToTrainingRecords = (
       // SKIP if terminals not in valid passenger terminals
       if (
         !VALID_PASSENGER_TERMINALS.has(departingTerminalAbbrev) ||
-        !VALID_PASSENGER_TERMINALS.has(arrivingTerminalAbbrev)
+        !VALID_PASSENGER_TERMINALS.has(arrivingTerminalAbbrev) ||
+        !VALID_PASSENGER_TERMINALS.has(previousArrivingTerminalAbbrev)
       ) {
+        continue;
+      }
+
+      // CRITICAL: Verify that previous trip's arrival terminal matches current trip's departure terminal
+      // This ensures consecutive trips are actually connected (same terminal between trips).
+      // Without this check, if a trip is filtered out, the next trip would incorrectly reference
+      // a non-consecutive previous trip, causing incorrect data for ALL models:
+      // - arrive-depart: prevDelay would be from wrong trip
+      // - depart-arrive: tripStart would be from wrong terminal
+      // - arrive-arrive: atDockDuration would be calculated incorrectly
+      // - depart-depart: prevLeftDock would be from wrong trip
+      if (previousArrivingTerminalAbbrev !== departingTerminalAbbrev) {
+        // Trips are not consecutive - skip this record (prevents cascading data errors)
         continue;
       }
 
@@ -138,6 +172,7 @@ export const convertWsfDataToTrainingRecords = (
       const departureDelay = getMinutesDelta(schedDeparture, leftDock); // Minutes from scheduled departure to left dock
       const atSeaDuration = getMinutesDelta(leftDock, tripEnd); // Minutes from left dock to trip end
       const atDockDuration = getMinutesDelta(tripStart, leftDock); // Minutes from trip start (arrival) to left dock
+      const prevLeftDock = previous.ActualDepart; // Previous trip's ActualDepart (for depart-depart features)
 
       // Filter out records with invalid durations (data quality check)
       if (atSeaDuration < MIN_DURATION_THRESHOLDS.AT_SEA) {
@@ -145,6 +180,17 @@ export const convertWsfDataToTrainingRecords = (
       }
       if (atDockDuration < MIN_DURATION_THRESHOLDS.AT_DOCK) {
         continue; // Skip records where vessel was at dock for less than 2 minutes
+      }
+      if (atDockDuration > MAX_DURATION_THRESHOLDS.AT_DOCK) {
+        continue; // Skip records with overnight layovers or extended maintenance (>3 hours at dock)
+      }
+      if (atSeaDuration > MAX_DURATION_THRESHOLDS.AT_SEA) {
+        continue; // Skip records with data errors (>24 hours at sea)
+      }
+      // Filter arrive-arrive outliers (total time from arrival to next arrival)
+      const arriveArriveTotal = atDockDuration + atSeaDuration;
+      if (arriveArriveTotal > MAX_DURATION_THRESHOLDS.ARRIVE_ARRIVE_TOTAL) {
+        continue; // Skip records with extreme arrive-arrive durations (>4 hours total)
       }
 
       const arriveEarlyMin = getMinutesDelta(tripStart, schedDeparture);
@@ -166,6 +212,8 @@ export const convertWsfDataToTrainingRecords = (
         schedDeparture,
         departureDelay,
         atSeaDuration,
+        atDockDuration,
+        prevLeftDock,
         meanAtDockDuration,
       });
     }

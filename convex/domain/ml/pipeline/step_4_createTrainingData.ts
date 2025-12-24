@@ -7,6 +7,7 @@ import type {
   FeatureRecord,
   FeatureVector,
   TerminalPairBucket,
+  TrainingDataRecord,
   TrainingExample,
 } from "../types";
 import { getMinutesDelta, getPacificTime } from "./shared/time";
@@ -108,20 +109,20 @@ const extractFeatures = (input: FeatureRecord): FeatureVector => {
  */
 export const createTrainingExamplesForBucket = (
   bucket: TerminalPairBucket,
-  modelType: "departure" | "arrival"
+  modelType: "arrive-depart" | "depart-arrive"
 ): TrainingExample[] => {
   const examples: TrainingExample[] = [];
 
   for (const record of bucket.records) {
     // Since step_2 guarantees data completeness, we can skip validation
-    if (modelType === "departure") {
+    if (modelType === "arrive-depart") {
       examples.push({
         input: extractFeatures(record),
         // biome-ignore lint/style/noNonNullAssertion: step_2 validation guarantees this is not null
         target: record.departureDelay!,
       });
     } else {
-      // arrival - atSeaDuration is the only field that might be null
+      // depart-arrive - atSeaDuration is the only field that might be null
       if (record.atSeaDuration != null) {
         examples.push({
           input: extractFeatures(record),
@@ -138,19 +139,113 @@ export const createTrainingExamplesForBucket = (
 };
 
 /**
- * Create training data for both models in a bucket
+ * Extract features for depart-depart model (simplified - no prevDelay)
  */
-export const createTrainingDataForBucketBoth = (
+const extractFeaturesForDepartDepart = (
+  record: TrainingDataRecord
+): FeatureVector => {
+  const schedDeparturePacificTime = getPacificTime(record.schedDeparture);
+  const dayOfWeek = schedDeparturePacificTime.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+  // Get time-of-day features
+  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
+  const cleanedTimeFeatures: Record<string, number> = {};
+  for (const [key, value] of Object.entries(timeFeatures)) {
+    cleanedTimeFeatures[key] = roundTinyValues(value);
+  }
+
+  // Time delta from prevLeftDock to schedDeparture (at-sea duration from A to B)
+  const atSeaDurationFromA = getMinutesDelta(
+    record.prevLeftDock,
+    record.schedDeparture
+  );
+
+  // Mean at-sea duration for A-B segment (we'll use meanAtDockDuration as approximation)
+  // Note: This is an approximation - ideally we'd have mean at-sea duration for A-B
+  const meanAtSeaDurationAB = record.meanAtDockDuration; // Approximation
+
+  const features: FeatureVector = {
+    is_weekend: isWeekend ? 1 : 0,
+    at_sea_duration_from_a: roundTinyValues(atSeaDurationFromA),
+    mean_at_sea_duration_ab: roundTinyValues(meanAtSeaDurationAB),
+    ...cleanedTimeFeatures,
+  };
+
+  return features;
+};
+
+/**
+ * Create training examples for arrive-arrive model
+ */
+const createTrainingExamplesForArriveArrive = (
+  bucket: TerminalPairBucket
+): TrainingExample[] => {
+  const examples: TrainingExample[] = [];
+
+  for (const record of bucket.records) {
+    // Uses same features as arrive-depart model
+    // Target is total time from arrival at B to arrival at C
+    const target = record.atDockDuration + record.atSeaDuration;
+    examples.push({
+      input: extractFeatures(record),
+      target,
+    });
+  }
+
+  return examples;
+};
+
+/**
+ * Create training examples for depart-depart model
+ */
+const createTrainingExamplesForDepartDepart = (
+  bucket: TerminalPairBucket
+): TrainingExample[] => {
+  const examples: TrainingExample[] = [];
+
+  for (const record of bucket.records) {
+    // Target is total time from departure at A to departure at B
+    // This is the at-sea duration from A to B plus the at-dock duration at B
+    const totalTimeFromDepartAtoDepartB = getMinutesDelta(
+      record.prevLeftDock,
+      record.leftDock
+    );
+    examples.push({
+      input: extractFeaturesForDepartDepart(record),
+      target: totalTimeFromDepartAtoDepartB,
+    });
+  }
+
+  return examples;
+};
+
+/**
+ * Create training data for all models in a bucket
+ */
+export const createTrainingDataForBucketAll = (
   bucket: TerminalPairBucket
 ): {
-  departureExamples: TrainingExample[];
-  arrivalExamples: TrainingExample[];
+  arriveDepartExamples: TrainingExample[];
+  departArriveExamples: TrainingExample[];
+  arriveArriveExamples: TrainingExample[];
+  departDepartExamples: TrainingExample[];
 } => {
-  const departureExamples = createTrainingExamplesForBucket(
+  const arriveDepartExamples = createTrainingExamplesForBucket(
     bucket,
-    "departure"
+    "arrive-depart"
   );
-  const arrivalExamples = createTrainingExamplesForBucket(bucket, "arrival");
+  const departArriveExamples = createTrainingExamplesForBucket(
+    bucket,
+    "depart-arrive"
+  );
+  const arriveArriveExamples = createTrainingExamplesForArriveArrive(bucket);
+  const departDepartExamples = createTrainingExamplesForDepartDepart(bucket);
 
-  return { departureExamples, arrivalExamples };
+  return {
+    arriveDepartExamples,
+    departArriveExamples,
+    arriveArriveExamples,
+    departDepartExamples,
+  };
 };

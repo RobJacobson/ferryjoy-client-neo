@@ -4,14 +4,22 @@ import * as path from "node:path";
 
 interface TrainingResultRow {
   terminal_pair: string;
-  departure_mae?: number;
-  departure_r2?: number;
-  departure_rmse?: number;
-  departure_std_dev?: number;
-  arrival_mae?: number;
-  arrival_r2?: number;
-  arrival_rmse?: number;
-  arrival_std_dev?: number;
+  arrive_depart_mae?: number;
+  arrive_depart_r2?: number;
+  arrive_depart_rmse?: number;
+  arrive_depart_std_dev?: number;
+  depart_arrive_mae?: number;
+  depart_arrive_r2?: number;
+  depart_arrive_rmse?: number;
+  depart_arrive_std_dev?: number;
+  arrive_arrive_mae?: number;
+  arrive_arrive_r2?: number;
+  arrive_arrive_rmse?: number;
+  arrive_arrive_std_dev?: number;
+  depart_depart_mae?: number;
+  depart_depart_r2?: number;
+  depart_depart_rmse?: number;
+  depart_depart_std_dev?: number;
   total_records: number;
   filtered_records: number;
   mean_departure_delay?: number;
@@ -52,18 +60,34 @@ const parseCSV = (content: string): TrainingResultRow[] => {
 
 interface ComparisonRow {
   terminal_pair: string;
-  departure_mae_file_a?: number;
-  departure_mae_file_b?: number;
-  departure_mae_diff?: number;
-  departure_r2_file_a?: number;
-  departure_r2_file_b?: number;
-  departure_r2_diff?: number;
-  arrival_mae_file_a?: number;
-  arrival_mae_file_b?: number;
-  arrival_mae_diff?: number;
-  arrival_r2_file_a?: number;
-  arrival_r2_file_b?: number;
-  arrival_r2_diff?: number;
+  // arrive-depart
+  arrive_depart_mae_file_a?: number;
+  arrive_depart_mae_file_b?: number;
+  arrive_depart_mae_diff?: number;
+  arrive_depart_r2_file_a?: number;
+  arrive_depart_r2_file_b?: number;
+  arrive_depart_r2_diff?: number;
+  // depart-arrive
+  depart_arrive_mae_file_a?: number;
+  depart_arrive_mae_file_b?: number;
+  depart_arrive_mae_diff?: number;
+  depart_arrive_r2_file_a?: number;
+  depart_arrive_r2_file_b?: number;
+  depart_arrive_r2_diff?: number;
+  // arrive-arrive
+  arrive_arrive_mae_file_a?: number;
+  arrive_arrive_mae_file_b?: number;
+  arrive_arrive_mae_diff?: number;
+  arrive_arrive_r2_file_a?: number;
+  arrive_arrive_r2_file_b?: number;
+  arrive_arrive_r2_diff?: number;
+  // depart-depart
+  depart_depart_mae_file_a?: number;
+  depart_depart_mae_file_b?: number;
+  depart_depart_mae_diff?: number;
+  depart_depart_r2_file_a?: number;
+  depart_depart_r2_file_b?: number;
+  depart_depart_r2_diff?: number;
   total_records: number;
 }
 
@@ -101,32 +125,78 @@ const compareResults = (
       return;
     }
 
+    // Helper to get metric value
+    const getMetric = (
+      row: TrainingResultRow,
+      modelType:
+        | "arrive-depart"
+        | "depart-arrive"
+        | "arrive-arrive"
+        | "depart-depart",
+      metric: "mae" | "r2"
+    ): number | undefined => {
+      const key =
+        `${modelType.replace(/-/g, "_")}_${metric}` as keyof TrainingResultRow;
+      return row[key] as number | undefined;
+    };
+
+    const calcDiff = (a?: number, b?: number) =>
+      a != null && b != null ? b - a : undefined;
+
     comparison.push({
       terminal_pair: fileARow.terminal_pair,
-      // Departure metrics
-      departure_mae_file_a: fileARow.departure_mae,
-      departure_mae_file_b: fileBRow.departure_mae,
-      departure_mae_diff: fileBRow.departure_mae
-        ? fileBRow.departure_mae - (fileARow.departure_mae || 0)
-        : undefined,
-      departure_r2_file_a: fileARow.departure_r2,
-      departure_r2_file_b: fileBRow.departure_r2,
-      departure_r2_diff: fileBRow.departure_r2
-        ? fileBRow.departure_r2 - (fileARow.departure_r2 || 0)
-        : undefined,
-
-      // Arrival metrics
-      arrival_mae_file_a: fileARow.arrival_mae,
-      arrival_mae_file_b: fileBRow.arrival_mae,
-      arrival_mae_diff: fileBRow.arrival_mae
-        ? fileBRow.arrival_mae - (fileARow.arrival_mae || 0)
-        : undefined,
-      arrival_r2_file_a: fileARow.arrival_r2,
-      arrival_r2_file_b: fileBRow.arrival_r2,
-      arrival_r2_diff: fileBRow.arrival_r2
-        ? fileBRow.arrival_r2 - (fileARow.arrival_r2 || 0)
-        : undefined,
-
+      // arrive-depart metrics
+      arrive_depart_mae_file_a: getMetric(fileARow, "arrive-depart", "mae"),
+      arrive_depart_mae_file_b: getMetric(fileBRow, "arrive-depart", "mae"),
+      arrive_depart_mae_diff: calcDiff(
+        getMetric(fileARow, "arrive-depart", "mae"),
+        getMetric(fileBRow, "arrive-depart", "mae")
+      ),
+      arrive_depart_r2_file_a: getMetric(fileARow, "arrive-depart", "r2"),
+      arrive_depart_r2_file_b: getMetric(fileBRow, "arrive-depart", "r2"),
+      arrive_depart_r2_diff: calcDiff(
+        getMetric(fileARow, "arrive-depart", "r2"),
+        getMetric(fileBRow, "arrive-depart", "r2")
+      ),
+      // depart-arrive metrics
+      depart_arrive_mae_file_a: getMetric(fileARow, "depart-arrive", "mae"),
+      depart_arrive_mae_file_b: getMetric(fileBRow, "depart-arrive", "mae"),
+      depart_arrive_mae_diff: calcDiff(
+        getMetric(fileARow, "depart-arrive", "mae"),
+        getMetric(fileBRow, "depart-arrive", "mae")
+      ),
+      depart_arrive_r2_file_a: getMetric(fileARow, "depart-arrive", "r2"),
+      depart_arrive_r2_file_b: getMetric(fileBRow, "depart-arrive", "r2"),
+      depart_arrive_r2_diff: calcDiff(
+        getMetric(fileARow, "depart-arrive", "r2"),
+        getMetric(fileBRow, "depart-arrive", "r2")
+      ),
+      // arrive-arrive metrics
+      arrive_arrive_mae_file_a: getMetric(fileARow, "arrive-arrive", "mae"),
+      arrive_arrive_mae_file_b: getMetric(fileBRow, "arrive-arrive", "mae"),
+      arrive_arrive_mae_diff: calcDiff(
+        getMetric(fileARow, "arrive-arrive", "mae"),
+        getMetric(fileBRow, "arrive-arrive", "mae")
+      ),
+      arrive_arrive_r2_file_a: getMetric(fileARow, "arrive-arrive", "r2"),
+      arrive_arrive_r2_file_b: getMetric(fileBRow, "arrive-arrive", "r2"),
+      arrive_arrive_r2_diff: calcDiff(
+        getMetric(fileARow, "arrive-arrive", "r2"),
+        getMetric(fileBRow, "arrive-arrive", "r2")
+      ),
+      // depart-depart metrics
+      depart_depart_mae_file_a: getMetric(fileARow, "depart-depart", "mae"),
+      depart_depart_mae_file_b: getMetric(fileBRow, "depart-depart", "mae"),
+      depart_depart_mae_diff: calcDiff(
+        getMetric(fileARow, "depart-depart", "mae"),
+        getMetric(fileBRow, "depart-depart", "mae")
+      ),
+      depart_depart_r2_file_a: getMetric(fileARow, "depart-depart", "r2"),
+      depart_depart_r2_file_b: getMetric(fileBRow, "depart-depart", "r2"),
+      depart_depart_r2_diff: calcDiff(
+        getMetric(fileARow, "depart-depart", "r2"),
+        getMetric(fileBRow, "depart-depart", "r2")
+      ),
       total_records: fileARow.total_records,
     });
   });
@@ -151,127 +221,248 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
 
 ## Detailed Comparison
 
-| Terminal Pair | Departure MAE |  |  | Departure R² |  |  | Arrival MAE |  |  | Arrival R² |  |  | Records |
-|---------------|---------------|----------|----------|--------------|---------|---------|-------------|----------|----------|------------|---------|---------|---------|
-|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    | ${fileALabel.padEnd(11)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(10)} | ${fileBLabel.padEnd(7)} | Diff    |         |
+### Arrive-Depart Model
+
+| Terminal Pair | MAE |  |  | R² |  |  | Records |
+|---------------|-----|-----|-----|-----|-----|-----|---------|
+|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
+
+### Depart-Arrive Model
+
+| Terminal Pair | MAE |  |  | R² |  |  | Records |
+|---------------|-----|-----|-----|-----|-----|-----|---------|
+|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
+
+### Arrive-Arrive Model
+
+| Terminal Pair | MAE |  |  | R² |  |  | Records |
+|---------------|-----|-----|-----|-----|-----|-----|---------|
+|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
+
+### Depart-Depart Model
+
+| Terminal Pair | MAE |  |  | R² |  |  | Records |
+|---------------|-----|-----|-----|-----|-----|-----|---------|
+|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
 `;
 
-  comparison.forEach((row) => {
-    const formatNum = (num?: number) => (num != null ? num.toFixed(3) : "N/A");
-    const formatDiff = (diff?: number) => {
-      if (diff == null) return "N/A";
-      const sign = diff > 0 ? "+" : "";
-      return `${sign}${diff.toFixed(3)}`;
-    };
+  const formatNum = (num?: number) => (num != null ? num.toFixed(3) : "N/A");
+  const formatDiff = (diff?: number) => {
+    if (diff == null) return "N/A";
+    const sign = diff > 0 ? "+" : "";
+    return `${sign}${diff.toFixed(3)}`;
+  };
 
-    markdown += `| ${row.terminal_pair.padEnd(13)} | ${formatNum(row.departure_mae_file_a).padStart(13)} | ${formatNum(row.departure_mae_file_b).padStart(8)} | ${formatDiff(row.departure_mae_diff).padStart(8)} | ${formatNum(row.departure_r2_file_a).padStart(12)} | ${formatNum(row.departure_r2_file_b).padStart(7)} | ${formatDiff(row.departure_r2_diff).padStart(7)} | ${formatNum(row.arrival_mae_file_a).padStart(11)} | ${formatNum(row.arrival_mae_file_b).padStart(8)} | ${formatDiff(row.arrival_mae_diff).padStart(8)} | ${formatNum(row.arrival_r2_file_a).padStart(10)} | ${formatNum(row.arrival_r2_file_b).padStart(7)} | ${formatDiff(row.arrival_r2_diff).padStart(7)} | ${row.total_records.toString().padStart(7)} |\n`;
-  });
+  // Helper function to generate table rows for a model type
+  const generateTableRows = (
+    modelType:
+      | "arrive-depart"
+      | "depart-arrive"
+      | "arrive-arrive"
+      | "depart-depart"
+  ) => {
+    let rows = "";
+    const maeAValues: number[] = [];
+    const maeBValues: number[] = [];
+    const maeDiffValues: number[] = [];
+    const r2AValues: number[] = [];
+    const r2BValues: number[] = [];
+    const r2DiffValues: number[] = [];
 
-  // Add summary row with averages
-  if (comparison.length > 0) {
-    const formatNum = (num?: number) => (num != null ? num.toFixed(3) : "N/A");
-    const formatDiff = (diff?: number) => {
-      if (diff == null) return "N/A";
-      const sign = diff > 0 ? "+" : "";
-      return `${sign}${diff.toFixed(3)}`;
-    };
+    comparison.forEach((row) => {
+      let maeA: number | undefined;
+      let maeB: number | undefined;
+      let maeDiff: number | undefined;
+      let r2A: number | undefined;
+      let r2B: number | undefined;
+      let r2Diff: number | undefined;
 
-    // Calculate averages for each column
-    const avgDepartureMaeA =
-      comparison.reduce(
-        (sum, row) => sum + (row.departure_mae_file_a || 0),
-        0
-      ) / comparison.length;
-    const avgDepartureMaeB =
-      comparison.reduce(
-        (sum, row) => sum + (row.departure_mae_file_b || 0),
-        0
-      ) / comparison.length;
-    const avgDepartureMaeDiff =
-      comparison.reduce((sum, row) => sum + (row.departure_mae_diff || 0), 0) /
-      comparison.length;
+      if (modelType === "arrive-depart") {
+        maeA = row.arrive_depart_mae_file_a;
+        maeB = row.arrive_depart_mae_file_b;
+        maeDiff = row.arrive_depart_mae_diff;
+        r2A = row.arrive_depart_r2_file_a;
+        r2B = row.arrive_depart_r2_file_b;
+        r2Diff = row.arrive_depart_r2_diff;
+      } else if (modelType === "depart-arrive") {
+        maeA = row.depart_arrive_mae_file_a;
+        maeB = row.depart_arrive_mae_file_b;
+        maeDiff = row.depart_arrive_mae_diff;
+        r2A = row.depart_arrive_r2_file_a;
+        r2B = row.depart_arrive_r2_file_b;
+        r2Diff = row.depart_arrive_r2_diff;
+      } else if (modelType === "arrive-arrive") {
+        maeA = row.arrive_arrive_mae_file_a;
+        maeB = row.arrive_arrive_mae_file_b;
+        maeDiff = row.arrive_arrive_mae_diff;
+        r2A = row.arrive_arrive_r2_file_a;
+        r2B = row.arrive_arrive_r2_file_b;
+        r2Diff = row.arrive_arrive_r2_diff;
+      } else {
+        // depart-depart
+        maeA = row.depart_depart_mae_file_a;
+        maeB = row.depart_depart_mae_file_b;
+        maeDiff = row.depart_depart_mae_diff;
+        r2A = row.depart_depart_r2_file_a;
+        r2B = row.depart_depart_r2_file_b;
+        r2Diff = row.depart_depart_r2_diff;
+      }
 
-    const avgDepartureR2A =
-      comparison.reduce((sum, row) => sum + (row.departure_r2_file_a || 0), 0) /
-      comparison.length;
-    const avgDepartureR2B =
-      comparison.reduce((sum, row) => sum + (row.departure_r2_file_b || 0), 0) /
-      comparison.length;
-    const avgDepartureR2Diff =
-      comparison.reduce((sum, row) => sum + (row.departure_r2_diff || 0), 0) /
-      comparison.length;
+      if (maeA != null) maeAValues.push(maeA);
+      if (maeB != null) maeBValues.push(maeB);
+      if (maeDiff != null) maeDiffValues.push(maeDiff);
+      if (r2A != null) r2AValues.push(r2A);
+      if (r2B != null) r2BValues.push(r2B);
+      if (r2Diff != null) r2DiffValues.push(r2Diff);
 
-    const avgArrivalMaeA =
-      comparison.reduce((sum, row) => sum + (row.arrival_mae_file_a || 0), 0) /
-      comparison.length;
-    const avgArrivalMaeB =
-      comparison.reduce((sum, row) => sum + (row.arrival_mae_file_b || 0), 0) /
-      comparison.length;
-    const avgArrivalMaeDiff =
-      comparison.reduce((sum, row) => sum + (row.arrival_mae_diff || 0), 0) /
-      comparison.length;
+      rows += `| ${row.terminal_pair.padEnd(13)} | ${formatNum(maeA).padStart(13)} | ${formatNum(maeB).padStart(8)} | ${formatDiff(maeDiff).padStart(8)} | ${formatNum(r2A).padStart(12)} | ${formatNum(r2B).padStart(7)} | ${formatDiff(r2Diff).padStart(7)} | ${row.total_records.toString().padStart(7)} |\n`;
+    });
 
-    const avgArrivalR2A =
-      comparison.reduce((sum, row) => sum + (row.arrival_r2_file_a || 0), 0) /
-      comparison.length;
-    const avgArrivalR2B =
-      comparison.reduce((sum, row) => sum + (row.arrival_r2_file_b || 0), 0) /
-      comparison.length;
-    const avgArrivalR2Diff =
-      comparison.reduce((sum, row) => sum + (row.arrival_r2_diff || 0), 0) /
-      comparison.length;
+    // Add summary row
+    const avgMaeA =
+      maeAValues.length > 0
+        ? maeAValues.reduce((a, b) => a + b, 0) / maeAValues.length
+        : 0;
+    const avgMaeB =
+      maeBValues.length > 0
+        ? maeBValues.reduce((a, b) => a + b, 0) / maeBValues.length
+        : 0;
+    const avgMaeDiff =
+      maeDiffValues.length > 0
+        ? maeDiffValues.reduce((a, b) => a + b, 0) / maeDiffValues.length
+        : 0;
+    const avgR2A =
+      r2AValues.length > 0
+        ? r2AValues.reduce((a, b) => a + b, 0) / r2AValues.length
+        : 0;
+    const avgR2B =
+      r2BValues.length > 0
+        ? r2BValues.reduce((a, b) => a + b, 0) / r2BValues.length
+        : 0;
+    const avgR2Diff =
+      r2DiffValues.length > 0
+        ? r2DiffValues.reduce((a, b) => a + b, 0) / r2DiffValues.length
+        : 0;
 
-    const totalRecords = comparison.reduce(
-      (sum, row) => sum + row.total_records,
-      0
-    );
+    rows += `| **Average**     | ${formatNum(avgMaeA).padStart(13)} | ${formatNum(avgMaeB).padStart(8)} | ${formatDiff(avgMaeDiff).padStart(8)} | ${formatNum(avgR2A).padStart(12)} | ${formatNum(avgR2B).padStart(7)} | ${formatDiff(avgR2Diff).padStart(7)} |         |\n`;
 
-    markdown += `| **AVERAGE**${"".padEnd(6)} | ${formatNum(avgDepartureMaeA).padStart(13)} | ${formatNum(avgDepartureMaeB).padStart(8)} | ${formatDiff(avgDepartureMaeDiff).padStart(8)} | ${formatNum(avgDepartureR2A).padStart(12)} | ${formatNum(avgDepartureR2B).padStart(7)} | ${formatDiff(avgDepartureR2Diff).padStart(7)} | ${formatNum(avgArrivalMaeA).padStart(11)} | ${formatNum(avgArrivalMaeB).padStart(8)} | ${formatDiff(avgArrivalMaeDiff).padStart(8)} | ${formatNum(avgArrivalR2A).padStart(10)} | ${formatNum(avgArrivalR2B).padStart(7)} | ${formatDiff(avgArrivalR2Diff).padStart(7)} | ${totalRecords.toString().padStart(7)} |\n`;
-  }
+    return rows;
+  };
 
-  // Calculate summary statistics
-  const validDepartureMae = comparison
-    .filter((r) => r.departure_mae_diff != null)
-    .map((r) => r.departure_mae_diff);
-  const validDepartureR2 = comparison
-    .filter((r) => r.departure_r2_diff != null)
-    .map((r) => r.departure_r2_diff);
-  const validArrivalMae = comparison
-    .filter((r) => r.arrival_mae_diff != null)
-    .map((r) => r.arrival_mae_diff);
-  const validArrivalR2 = comparison
-    .filter((r) => r.arrival_r2_diff != null)
-    .map((r) => r.arrival_r2_diff);
+  // Generate tables for each model type
+  markdown += generateTableRows("arrive-depart");
+  markdown += "\n### Depart-Arrive Model\n\n";
+  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
+  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
+  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
+  markdown += generateTableRows("depart-arrive");
+  markdown += "\n### Arrive-Arrive Model\n\n";
+  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
+  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
+  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
+  markdown += generateTableRows("arrive-arrive");
+  markdown += "\n### Depart-Depart Model\n\n";
+  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
+  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
+  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
+  markdown += generateTableRows("depart-depart");
 
   markdown += "\n## Summary Statistics\n\n";
 
-  markdown += "### Departure Model\n";
-  markdown += `**Average MAE difference:** ${validDepartureMae.reduce((a, b) => a + b, 0) / validDepartureMae.length > 0 ? "+" : ""}${(validDepartureMae.reduce((a, b) => a + b, 0) / validDepartureMae.length).toFixed(3)}\n`;
-  markdown += `**Average R² difference:** ${validDepartureR2.reduce((a, b) => a + b, 0) / validDepartureR2.length > 0 ? "+" : ""}${(validDepartureR2.reduce((a, b) => a + b, 0) / validDepartureR2.length).toFixed(3)}\n`;
-  markdown += `**Better MAE performance (${fileBLabel}):** ${validDepartureMae.filter((d) => d < 0).length}/${validDepartureMae.length} terminal pairs\n`;
-  markdown += `**Better R² performance (${fileBLabel}):** ${validDepartureR2.filter((d) => d > 0).length}/${validDepartureR2.length} terminal pairs\n`;
+  const arriveDepartMae = comparison
+    .map((r) => r.arrive_depart_mae_diff)
+    .filter((d): d is number => d != null);
+  const arriveDepartR2 = comparison
+    .map((r) => r.arrive_depart_r2_diff)
+    .filter((d): d is number => d != null);
+  const departArriveMae = comparison
+    .map((r) => r.depart_arrive_mae_diff)
+    .filter((d): d is number => d != null);
+  const departArriveR2 = comparison
+    .map((r) => r.depart_arrive_r2_diff)
+    .filter((d): d is number => d != null);
+  const arriveArriveMae = comparison
+    .map((r) => r.arrive_arrive_mae_diff)
+    .filter((d): d is number => d != null);
+  const arriveArriveR2 = comparison
+    .map((r) => r.arrive_arrive_r2_diff)
+    .filter((d): d is number => d != null);
+  const departDepartMae = comparison
+    .map((r) => r.depart_depart_mae_diff)
+    .filter((d): d is number => d != null);
+  const departDepartR2 = comparison
+    .map((r) => r.depart_depart_r2_diff)
+    .filter((d): d is number => d != null);
 
-  markdown += "\n### Arrival Model\n";
-  markdown += `**Average MAE difference:** ${validArrivalMae.reduce((a, b) => a + b, 0) / validArrivalMae.length > 0 ? "+" : ""}${(validArrivalMae.reduce((a, b) => a + b, 0) / validArrivalMae.length).toFixed(3)}\n`;
-  markdown += `**Average R² difference:** ${validArrivalR2.reduce((a, b) => a + b, 0) / validArrivalR2.length > 0 ? "+" : ""}${(validArrivalR2.reduce((a, b) => a + b, 0) / validArrivalR2.length).toFixed(3)}\n`;
-  markdown += `**Better MAE performance (${fileBLabel}):** ${validArrivalMae.filter((d) => d < 0).length}/${validArrivalMae.length} terminal pairs\n`;
-  markdown += `**Better R² performance (${fileBLabel}):** ${validArrivalR2.filter((d) => d > 0).length}/${validArrivalR2.length} terminal pairs\n`;
+  markdown += "### Arrive-Depart Model\n";
+  if (arriveDepartMae.length > 0) {
+    markdown += `**Better MAE performance (${fileBLabel}):** ${arriveDepartMae.filter((d) => d < 0).length}/${arriveDepartMae.length} terminal pairs\n`;
+    markdown += `**Better R² performance (${fileBLabel}):** ${arriveDepartR2.filter((d) => d > 0).length}/${arriveDepartR2.length} terminal pairs\n`;
+  } else {
+    markdown += "No data available\n";
+  }
 
-  // Overall recommendation
-  const departureBetterCount = validDepartureMae.filter((d) => d < 0).length;
-  const arrivalBetterCount = validArrivalMae.filter((d) => d < 0).length;
-  const totalRoutes = validDepartureMae.length;
-  const betterRoutes = departureBetterCount + arrivalBetterCount;
+  markdown += "\n### Depart-Arrive Model\n";
+  if (departArriveMae.length > 0) {
+    markdown += `**Better MAE performance (${fileBLabel}):** ${departArriveMae.filter((d) => d < 0).length}/${departArriveMae.length} terminal pairs\n`;
+    markdown += `**Better R² performance (${fileBLabel}):** ${departArriveR2.filter((d) => d > 0).length}/${departArriveR2.length} terminal pairs\n`;
+  } else {
+    markdown += "No data available\n";
+  }
+
+  markdown += "\n### Arrive-Arrive Model\n";
+  if (arriveArriveMae.length > 0) {
+    markdown += `**Better MAE performance (${fileBLabel}):** ${arriveArriveMae.filter((d) => d < 0).length}/${arriveArriveMae.length} terminal pairs\n`;
+    markdown += `**Better R² performance (${fileBLabel}):** ${arriveArriveR2.filter((d) => d > 0).length}/${arriveArriveR2.length} terminal pairs\n`;
+  } else {
+    markdown += "No data available\n";
+  }
+
+  markdown += "\n### Depart-Depart Model\n";
+  if (departDepartMae.length > 0) {
+    markdown += `**Better MAE performance (${fileBLabel}):** ${departDepartMae.filter((d) => d < 0).length}/${departDepartMae.length} terminal pairs\n`;
+    markdown += `**Better R² performance (${fileBLabel}):** ${departDepartR2.filter((d) => d > 0).length}/${departDepartR2.length} terminal pairs\n`;
+  } else {
+    markdown += "No data available\n";
+  }
+
+  // Overall recommendation - count better performance across all 4 model types
+  const arriveDepartBetterCount = arriveDepartMae.filter((d) => d < 0).length;
+  const departArriveBetterCount = departArriveMae.filter((d) => d < 0).length;
+  const arriveArriveBetterCount = arriveArriveMae.filter((d) => d < 0).length;
+  const departDepartBetterCount = departDepartMae.filter((d) => d < 0).length;
+
+  const totalBetterCount =
+    arriveDepartBetterCount +
+    departArriveBetterCount +
+    arriveArriveBetterCount +
+    departDepartBetterCount;
+  const totalModelCount =
+    arriveDepartMae.length +
+    departArriveMae.length +
+    arriveArriveMae.length +
+    departDepartMae.length;
+  const totalRoutes = Math.max(
+    arriveDepartMae.length,
+    departArriveMae.length,
+    arriveArriveMae.length,
+    departDepartMae.length
+  );
 
   markdown += "\n## Comparison Summary\n\n";
   markdown += `Out of ${totalRoutes} routes tested with sufficient data (≥100 records):\n`;
-  markdown += `- ${betterRoutes} route-model combinations perform better with ${fileBLabel}\n`;
-  markdown += `- ${totalRoutes * 2 - betterRoutes} route-model combinations perform better with ${fileALabel}\n\n`;
+  markdown += `- ${totalBetterCount} route-model combinations perform better with ${fileBLabel} (lower MAE)\n`;
+  markdown += `- ${totalModelCount - totalBetterCount} route-model combinations perform better with ${fileALabel} (lower MAE)\n\n`;
+  markdown += `Breakdown by model type:\n`;
+  markdown += `- Arrive-Depart: ${arriveDepartBetterCount}/${arriveDepartMae.length} routes better with ${fileBLabel}\n`;
+  markdown += `- Depart-Arrive: ${departArriveBetterCount}/${departArriveMae.length} routes better with ${fileBLabel}\n`;
+  markdown += `- Arrive-Arrive: ${arriveArriveBetterCount}/${arriveArriveMae.length} routes better with ${fileBLabel}\n`;
+  markdown += `- Depart-Depart: ${departDepartBetterCount}/${departDepartMae.length} routes better with ${fileBLabel}\n\n`;
 
-  if (betterRoutes > totalRoutes) {
-    markdown += `**RECOMMENDATION:** ${fileBLabel} performs better overall\n`;
+  if (totalBetterCount > totalModelCount / 2) {
+    markdown += `**RECOMMENDATION:** ${fileBLabel} performs better overall (${totalBetterCount}/${totalModelCount} models)\n`;
   } else {
-    markdown += `**RECOMMENDATION:** ${fileALabel} performs better overall\n`;
+    markdown += `**RECOMMENDATION:** ${fileALabel} performs better overall (${totalModelCount - totalBetterCount}/${totalModelCount} models)\n`;
   }
 
   markdown += `\n---\n*Generated on ${new Date().toISOString()}*`;

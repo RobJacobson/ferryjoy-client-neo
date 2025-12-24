@@ -81,6 +81,16 @@ export const MIN_DURATION_THRESHOLDS = {
 } as const;
 
 /**
+ * Maximum duration thresholds (in minutes) for data quality filtering
+ * Used to filter out overnight layovers, extended maintenance periods, etc.
+ */
+export const MAX_DURATION_THRESHOLDS = {
+  AT_DOCK: 60.0, // Maximum at-dock duration (60 minutes) - filters out overnight layovers
+  AT_SEA: 90.0, // Maximum at-sea duration (90 minutes) - filters out data errors
+  ARRIVE_ARRIVE_TOTAL: 120.0, // Maximum total arrive-arrive duration (2 hours) - filters out extreme outliers
+} as const;
+
+/**
  * Simplified pipeline configuration - only essential settings
  */
 export const PIPELINE_CONFIG = {

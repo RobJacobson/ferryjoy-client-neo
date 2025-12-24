@@ -80,7 +80,12 @@ import { v } from "convex/values";
 export const modelParametersMutationSchema = v.object({
     departingTerminalAbbrev: v.string(),
     arrivingTerminalAbbrev: v.string(),
-    modelType: v.union(v.literal("departure"), v.literal("arrival")),
+    modelType: v.union(
+      v.literal("arrive-depart"),
+      v.literal("depart-arrive"),
+      v.literal("arrive-arrive"),
+      v.literal("depart-depart")
+    ),
 
     // Model parameters (optional for insufficient data cases)
     coefficients: v.optional(v.array(v.number())),

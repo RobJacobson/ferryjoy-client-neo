@@ -16,7 +16,12 @@ export const getModelParametersByTerminalPair = query({
   args: {
     departingTerminalAbbrev: v.string(),
     arrivingTerminalAbbrev: v.string(),
-    modelType: v.union(v.literal("departure"), v.literal("arrival")),
+    modelType: v.union(
+      v.literal("arrive-depart"),
+      v.literal("depart-arrive"),
+      v.literal("arrive-arrive"),
+      v.literal("depart-depart")
+    ),
   },
   handler: async (ctx, args) => {
     const model = await ctx.db
@@ -34,7 +39,7 @@ export const getModelParametersByTerminalPair = query({
 });
 
 /**
- * Gets all models for a terminal pair (both departure and arrival)
+ * Gets all models for a terminal pair (all four model types)
  */
 export const getModelsByTerminalPair = query({
   args: {

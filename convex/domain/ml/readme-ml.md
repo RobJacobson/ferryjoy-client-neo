@@ -4,10 +4,12 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 
 ## What This System Does
 
-**Predicts two critical timing metrics for ferry vessels:**
+**Predicts four critical timing metrics for ferry vessels:**
 
-1. **Departure Delay**: Minutes from scheduled departure time (can be negative for early departures)
-2. **At-Sea Duration**: Time from vessel departure until arrival at next terminal
+1. **Arrive-Depart**: Departure delay at B given arrival at B
+2. **Depart-Arrive**: At-sea duration from B to C given departure from B
+3. **Arrive-Arrive**: Total time from arrival at B to arrival at C (without knowing departure time from B)
+4. **Depart-Depart**: Total time from departure at A to departure at B given actual departure from A and scheduled departure from B
 
 **Key advantage**: Terminal-pair specific models trained on complete historical datasets provide accurate, route-aware predictions for passenger planning and operational decision-making.
 
@@ -17,7 +19,6 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 - **WSF API Training**: Automated daily retraining with fresh data (720 days back)
 - **Quality Assurance**: Basic data validation and temporal consistency checks
 - **Simplified Design**: Essential functionality without over-engineering
-- **Backward Compatibility**: Maintains database schema compatibility
 
 ## Training Pipeline
 
@@ -67,15 +68,17 @@ The ML system processes ferry trip data through a streamlined 6-step pipeline:
 // - time_center_0 through time_center_7: Gaussian radial basis functions
 //   for smooth time-of-day modeling (peaks at 2,5,8,11,14,17,20,23 hours)
 //
-// Total: 13 features for departure models, 14 for arrival models
-// Creates training examples with features and targets for both model types
+// Total: 13 features for arrive-depart and arrive-arrive models, 14 for depart-arrive models, ~11 for depart-depart models
+// Creates training examples with features and targets for all four model types
 ```
 
 ### Step 5: Train Bucket Models (`step_5_trainBuckets.ts`)
 ```typescript
 // Train separate models for each terminal pair:
-// - Departure model: Predict departureDelay (13 features)
-// - Arrival model: Predict atSeaDuration (14 features)
+// - Arrive-depart model: Predict departureDelay (13 features)
+// - Depart-arrive model: Predict atSeaDuration (14 features)
+// - Arrive-arrive model: Predict atDockDuration + atSeaDuration (13 features)
+// - Depart-depart model: Predict total time from departure at A to departure at B (11 features, simplified)
 // - Uses multivariate linear regression (MLR)
 // - Includes holdout evaluation (80/20 time-split) for validation
 // - Essential training metrics (MAE, RMSE, R²)
@@ -159,8 +162,10 @@ This creates `ml/training-results.csv` with one row per terminal pair containing
 
 **CSV Columns:**
 - `terminal_pair`: Terminal combination (e.g., "MUK_CLI")
-- `departure_mae`, `departure_r2`, etc.: Departure model metrics
-- `arrival_mae`, `arrival_r2`, etc.: Arrival model metrics
+- `arrive_depart_mae`, `arrive_depart_r2`, etc.: Arrive-depart model metrics
+- `depart_arrive_mae`, `depart_arrive_r2`, etc.: Depart-arrive model metrics
+- `arrive_arrive_mae`, `arrive_arrive_r2`, etc.: Arrive-arrive model metrics
+- `depart_depart_mae`, `depart_depart_r2`, etc.: Depart-depart model metrics
 - `total_records`: Records in the bucket before filtering
 - `filtered_records`: Records used for training
 - `created_at`: When models were trained
@@ -201,7 +206,7 @@ const model = await ctx.runQuery(
   {
     departingTerminalAbbrev: "MUK",
     arrivingTerminalAbbrev: "CLI",
-    modelType: "departure"
+    modelType: "arrive-depart" // or "depart-arrive", "arrive-arrive", "depart-depart"
   }
 );
 ```
@@ -210,7 +215,7 @@ const model = await ctx.runQuery(
 
 ### Current Coverage
 - **36+ terminal pairs** trained (dynamic discovery from available data)
-- **72+ models** total (2 per pair: departure + arrival models)
+- **144+ models** total (4 per pair: arrive-depart, depart-arrive, arrive-arrive, depart-depart)
 - **10K+ training examples** processed from complete historical dataset
 
 ### Performance Metrics by Route Type
@@ -218,9 +223,9 @@ const model = await ctx.runQuery(
 #### High-Traffic Routes (Excellent Performance)
 | Terminal Pair | Model | Examples | MAE (min) | R² |
 |---------------|-------|----------|-----------|----|
-| MUK_CLI | Departure | 44 | ~0 | 1.0 |
-| CLI_MUK | Departure | 44 | ~0 | 1.0 |
-| MUK_CLI | Arrival | 44 | ~0 | 1.0 |
+| MUK_CLI | Arrive-Depart | 44 | ~0 | 1.0 |
+| CLI_MUK | Arrive-Depart | 44 | ~0 | 1.0 |
+| MUK_CLI | Depart-Arrive | 44 | ~0 | 1.0 |
 
 #### Medium-Traffic Routes (Good Performance)
 | Terminal Pair | Model | Examples | MAE (min) | R² |
@@ -231,14 +236,16 @@ const model = await ctx.runQuery(
 #### Variable Routes (Functional Performance)
 | Terminal Pair | Model | Examples | MAE (min) | R² |
 |---------------|-------|----------|-----------|----|
-| ANA_FRH | Departure | 38 | 48.9 | 0.74 |
-| ANA_FRH | Arrival | 38 | 3.9 | 0.40 |
-| ANA_LOP | Departure | 57 | 31.8 | 0.12 |
+| ANA_FRH | Arrive-Depart | 38 | 48.9 | 0.74 |
+| ANA_FRH | Depart-Arrive | 38 | 3.9 | 0.40 |
+| ANA_LOP | Arrive-Depart | 57 | 31.8 | 0.12 |
 
 ### Prediction Accuracy Summary
-- **Arrival Predictions**: Variable performance by route (typically 2-10 min MAE)
-- **Departure Delay Predictions**: Generally better performance (typically 2-5 min MAE)
-- **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs)
+- **Arrive-Depart Predictions**: Generally good performance (typically 2-5 min MAE)
+- **Depart-Arrive Predictions**: Variable performance by route (typically 2-10 min MAE)
+- **Arrive-Arrive Predictions**: Predicts total time from arrival to next arrival
+- **Depart-Depart Predictions**: Predicts total time from departure at A to departure at B
+- **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs, 4 models each)
 
 ## Technical Architecture
 
@@ -388,10 +395,10 @@ crons.cron(
 
 **Status**: ✅ **FULLY OPERATIONAL WITH LINEAR REGRESSION**
 
-**Models**: Dynamic coverage across 35+ terminal pairs (2 models each: departure + arrival)
+**Models**: Dynamic coverage across 35+ terminal pairs (4 models each: arrive-depart, depart-arrive, arrive-arrive, depart-depart)
 
 **Training Data**: Fresh WSF API data (720 days back) or stored historical data
 
-**Features**: 13-14 comprehensive features (5 base + 8 time-of-day centers)
+**Features**: 11-14 comprehensive features (5 base + 8 time-of-day centers, simplified for depart-depart)
 
 **Automation**: Daily retraining at 4:00 AM Pacific (linear regression via cron)

@@ -6,14 +6,22 @@ import type { ConvexModelParameters } from "../convex/functions/predictions/sche
 
 interface TrainingResultRow {
   terminal_pair: string;
-  departure_mae?: number;
-  departure_r2?: number;
-  departure_rmse?: number;
-  departure_std_dev?: number;
-  arrival_mae?: number;
-  arrival_r2?: number;
-  arrival_rmse?: number;
-  arrival_std_dev?: number;
+  arrive_depart_mae?: number;
+  arrive_depart_r2?: number;
+  arrive_depart_rmse?: number;
+  arrive_depart_std_dev?: number;
+  depart_arrive_mae?: number;
+  depart_arrive_r2?: number;
+  depart_arrive_rmse?: number;
+  depart_arrive_std_dev?: number;
+  arrive_arrive_mae?: number;
+  arrive_arrive_r2?: number;
+  arrive_arrive_rmse?: number;
+  arrive_arrive_std_dev?: number;
+  depart_depart_mae?: number;
+  depart_depart_r2?: number;
+  depart_depart_rmse?: number;
+  depart_depart_std_dev?: number;
   total_records: number;
   filtered_records: number;
   mean_departure_delay?: number;
@@ -71,16 +79,26 @@ async function exportTrainingResults() {
     }
 
     const metrics = model.trainingMetrics;
-    if (model.modelType === "departure") {
-      pairResult.departure_mae = metrics?.mae;
-      pairResult.departure_r2 = metrics?.r2;
-      pairResult.departure_rmse = metrics?.rmse;
-      pairResult.departure_std_dev = metrics?.stdDev;
-    } else if (model.modelType === "arrival") {
-      pairResult.arrival_mae = metrics?.mae;
-      pairResult.arrival_r2 = metrics?.r2;
-      pairResult.arrival_rmse = metrics?.rmse;
-      pairResult.arrival_std_dev = metrics?.stdDev;
+    if (model.modelType === "arrive-depart") {
+      pairResult.arrive_depart_mae = metrics?.mae;
+      pairResult.arrive_depart_r2 = metrics?.r2;
+      pairResult.arrive_depart_rmse = metrics?.rmse;
+      pairResult.arrive_depart_std_dev = metrics?.stdDev;
+    } else if (model.modelType === "depart-arrive") {
+      pairResult.depart_arrive_mae = metrics?.mae;
+      pairResult.depart_arrive_r2 = metrics?.r2;
+      pairResult.depart_arrive_rmse = metrics?.rmse;
+      pairResult.depart_arrive_std_dev = metrics?.stdDev;
+    } else if (model.modelType === "arrive-arrive") {
+      pairResult.arrive_arrive_mae = metrics?.mae;
+      pairResult.arrive_arrive_r2 = metrics?.r2;
+      pairResult.arrive_arrive_rmse = metrics?.rmse;
+      pairResult.arrive_arrive_std_dev = metrics?.stdDev;
+    } else if (model.modelType === "depart-depart") {
+      pairResult.depart_depart_mae = metrics?.mae;
+      pairResult.depart_depart_r2 = metrics?.r2;
+      pairResult.depart_depart_rmse = metrics?.rmse;
+      pairResult.depart_depart_std_dev = metrics?.stdDev;
     }
   });
 
@@ -104,14 +122,22 @@ async function exportTrainingResults() {
 function generateCSV(results: TrainingResultRow[]): string {
   const headers = [
     "terminal_pair",
-    "departure_mae",
-    "departure_r2",
-    "departure_rmse",
-    "departure_std_dev",
-    "arrival_mae",
-    "arrival_r2",
-    "arrival_rmse",
-    "arrival_std_dev",
+    "arrive_depart_mae",
+    "arrive_depart_r2",
+    "arrive_depart_rmse",
+    "arrive_depart_std_dev",
+    "depart_arrive_mae",
+    "depart_arrive_r2",
+    "depart_arrive_rmse",
+    "depart_arrive_std_dev",
+    "arrive_arrive_mae",
+    "arrive_arrive_r2",
+    "arrive_arrive_rmse",
+    "arrive_arrive_std_dev",
+    "depart_depart_mae",
+    "depart_depart_r2",
+    "depart_depart_rmse",
+    "depart_depart_std_dev",
     "total_records",
     "filtered_records",
     "mean_departure_delay",

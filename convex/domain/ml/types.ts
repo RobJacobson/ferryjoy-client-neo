@@ -18,8 +18,9 @@ export type FeatureRecord = {
   meanAtDockDuration: number; // Minutes from departure to arrival at next terminal
 
   // Prediction-specific fields (only available during prediction)
-  delayMinutes?: number; // Current delay in minutes (for arrival models)
-  leftDock?: Date; // Actual departure time (for arrival models)
+  delayMinutes?: number; // Current delay in minutes (for depart-arrive models)
+  leftDock?: Date; // Actual departure time (for depart-arrive models)
+  prevLeftDock?: Date; // Actual departure time from previous trip (for depart-depart models)
 };
 
 /**
@@ -53,6 +54,8 @@ export type TrainingDataRecord = FeatureRecord & {
   // Target variables for training
   departureDelay: number; // minutes from scheduled departure (can be negative)
   atSeaDuration: number; // minutes from departure to arrival
+  atDockDuration: number; // minutes from arrival at B to departure from B (for arrive-arrive target)
+  prevLeftDock: Date; // Actual departure time from previous trip (for depart-depart features)
 };
 
 /**
@@ -75,7 +78,11 @@ export type TerminalPairBucket = {
  */
 export type TerminalPairTrainingData = {
   terminalPair: TerminalPair;
-  modelType: "departure" | "arrival";
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart";
   examples: TrainingExample[];
 };
 
@@ -92,7 +99,11 @@ export type ModelParameters = {
   // Required identifiers
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
-  modelType: "departure" | "arrival";
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart";
 
   // Training metrics (matching database schema)
   trainingMetrics?: {
