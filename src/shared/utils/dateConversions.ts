@@ -40,5 +40,3 @@ export const optionalEpochMsToDate = (
 export const optionalDateToEpochMs = (
   date: Date | undefined | null
 ): number | undefined => (date ? date.getTime() : undefined);
-
-
