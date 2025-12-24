@@ -13,6 +13,7 @@ import { PIPELINE_CONFIG } from "./shared/config";
 
 /**
  * Load all vessel history records from WSF API
+ * Fails immediately if any vessel data fetch fails (data integrity requirement)
  */
 export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
   console.log("Loading all vessel history records from WSF API...");
@@ -24,67 +25,47 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
     // Process vessels in batches to manage memory
     const VESSEL_BATCH_SIZE = 2; // Process 2 vessels at a time
     const allRecords: VesselHistory[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-    let batchCount = 0;
 
     console.log(
       `Processing ${vessels.length} vessels in batches of ${VESSEL_BATCH_SIZE}`
     );
 
     for (let i = 0; i < vessels.length; i += VESSEL_BATCH_SIZE) {
-      batchCount++;
       const vesselBatch = vessels.slice(i, i + VESSEL_BATCH_SIZE);
+      const batchNumber = Math.floor(i / VESSEL_BATCH_SIZE) + 1;
 
       console.log(
-        `Processing vessel batch ${batchCount}: vessels ${i + 1}-${i + vesselBatch.length}/${vessels.length}`
+        `Processing vessel batch ${batchNumber}: vessels ${i + 1}-${i + vesselBatch.length}/${vessels.length}`
       );
 
-      // Process this batch in parallel
+      // Process this batch in parallel - fail immediately on any error
       const vesselPromises = vesselBatch.map((vessel) =>
         fetchVesselData(vessel.VesselName)
       );
 
-      const vesselResults = await Promise.allSettled(vesselPromises);
-
-      // Collect results from this batch
-      for (let j = 0; j < vesselResults.length; j++) {
-        const result = vesselResults[j];
-        const vessel = vesselBatch[j];
-
-        if (result.status === "fulfilled") {
-          allRecords.push(...result.value);
-          successCount++;
-        } else {
-          console.error(
-            `Failed to fetch vessel ${vessel.VesselName || "unknown"}`,
-            { error: String(result.reason) }
-          );
-          failureCount++;
-        }
-      }
+      // Use Promise.all (not allSettled) to fail fast on errors
+      const batchResults = await Promise.all(vesselPromises);
+      allRecords.push(...batchResults.flat());
 
       // Memory safety check - prevent excessive memory usage
-      if (allRecords.length > 50000) {
-        // 50K records limit
+      if (
+        allRecords.length >
+        PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL * vessels.length
+      ) {
         console.warn("Reached maximum record limit for memory safety", {
           totalRecords: allRecords.length,
-          vesselsProcessed: successCount + failureCount,
+          vesselsProcessed: i + vesselBatch.length,
           totalVessels: vessels.length,
         });
         break;
       }
     }
 
-    console.log(
-      `Batch processing completed: ${successCount} successful, ${failureCount} failed`
-    );
     console.log(`Loaded data: ${allRecords.length} WSF records from WSF API`);
-
     return allRecords;
   } catch (error) {
     console.error("WSF data loading failed", { error: String(error) });
-    throw error;
+    throw new Error(`Failed to load vessel data: ${error}`);
   }
 };
 

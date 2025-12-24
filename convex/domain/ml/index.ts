@@ -9,7 +9,6 @@ export {
 } from "./actions";
 // Main pipeline orchestrator
 export { runMLPipeline } from "./pipelineCoordinator";
-// export { predict } from "./predict";
 
 // Types
 export type {

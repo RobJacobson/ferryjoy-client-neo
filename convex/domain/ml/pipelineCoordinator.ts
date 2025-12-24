@@ -1,33 +1,17 @@
 // ============================================================================
 // PIPELINE COORDINATOR
 // Main ML pipeline coordination and response creation
-// Includes data quality analysis and model training coordination
+// Includes model training coordination
 // ============================================================================
-
-// ============================================================================
-// DATA QUALITY ANALYSIS
-// ============================================================================
-
-/**
- * Calculate temporal consistency (count of valid time ordering)
- */
-const calculateTemporalConsistency = (
-  records: TrainingDataRecord[]
-): number => {
-  return records.filter(
-    (r) => r.tripStart && r.schedDeparture && r.tripStart < r.schedDeparture
-  ).length;
-};
 
 /**
  * Analyze basic data quality metrics
+ * Note: Temporal validation is done in step_2, so all records are valid
  */
 const analyzeDataQuality = (
   trainingRecords: TrainingDataRecord[],
   buckets: TerminalPairBucket[]
 ): DataQualityMetrics => {
-  const validTemporalRecords = calculateTemporalConsistency(trainingRecords);
-
   const quality: DataQualityMetrics = {
     totalRecords: trainingRecords.length,
     completeness: {
@@ -35,10 +19,9 @@ const analyzeDataQuality = (
       fieldCompleteness: {}, // Simplified - no detailed field analysis needed
     },
     temporal: {
-      validOrdering: validTemporalRecords / trainingRecords.length,
-      invalidRecords: trainingRecords.length - validTemporalRecords,
+      validOrdering: 1.0, // All records valid after step_2 validation
+      invalidRecords: 0,
     },
-    // Removed statistical analysis (skewness, outliers) for YAGNI
   };
 
   console.log(
@@ -53,11 +36,17 @@ const analyzeDataQuality = (
 
 /**
  * Train models for all buckets sequentially
+ * Gracefully continues on individual bucket failures (route independence)
  */
 const trainAllBuckets = async (
   buckets: TerminalPairBucket[]
 ): Promise<ModelParameters[]> => {
   const allModels: ModelParameters[] = [];
+  const failedBuckets: Array<{
+    pairKey: string;
+    recordCount: number;
+    error: unknown;
+  }> = [];
 
   console.log(`Training models for ${buckets.length} buckets`);
 
@@ -72,13 +61,31 @@ const trainAllBuckets = async (
       const bucketModels = await trainModelsForBucket(bucket);
       allModels.push(...bucketModels);
     } catch (error) {
-      console.error(`Failed to train models for ${pairKey}:`, error);
-      // Continue with other buckets - don't fail the entire pipeline
+      // Track failed bucket for summary logging
+      failedBuckets.push({
+        pairKey,
+        recordCount: bucket.records.length,
+        error,
+      });
+      console.error(
+        `Failed to train models for ${pairKey} (${bucket.records.length} records):`,
+        error
+      );
+      // Continue with other buckets - route independence principle
     }
   }
 
+  // Log summary of failures
+  if (failedBuckets.length > 0) {
+    console.warn(
+      `Failed to train ${failedBuckets.length}/${buckets.length} bucket(s):`,
+      failedBuckets.map((f) => `${f.pairKey} (${f.recordCount} records)`)
+    );
+  }
+
   console.log(
-    `Completed training: ${allModels.length} models created from ${buckets.length} buckets`
+    `Completed training: ${allModels.length} models created from ${buckets.length} buckets ` +
+    `(${failedBuckets.length} failed, ${buckets.length - failedBuckets.length} successful)`
   );
   return allModels;
 };
@@ -125,10 +132,8 @@ export const runMLPipeline = async (
     // Analyze data quality (using training records only)
     const dataQuality = analyzeDataQuality(trainingRecords, buckets);
 
-    // Step 4: Create training data for all buckets
-    // (handled automatically by step 5)
-
-    // Step 5: Train models for all buckets sequentially
+    // Step 4-5: Create training data and train models for all buckets sequentially
+    // Note: Training data creation is handled automatically within step 5
     console.log("Training models...");
     const allModels = await trainAllBuckets(buckets);
 

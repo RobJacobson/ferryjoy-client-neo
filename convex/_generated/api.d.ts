@@ -12,6 +12,7 @@ import type * as crons from "../crons.js";
 import type * as domain_ml_actions from "../domain/ml/actions.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
 import type * as domain_ml_pipeline_shared_config from "../domain/ml/pipeline/shared/config.js";
+import type * as domain_ml_pipeline_shared_logger from "../domain/ml/pipeline/shared/logger.js";
 import type * as domain_ml_pipeline_shared_time from "../domain/ml/pipeline/shared/time.js";
 import type * as domain_ml_pipeline_step_1_loadWsfTrainingData from "../domain/ml/pipeline/step_1_loadWsfTrainingData.js";
 import type * as domain_ml_pipeline_step_2_convertWsfToTraining from "../domain/ml/pipeline/step_2_convertWsfToTraining.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/actions": typeof domain_ml_actions;
   "domain/ml/index": typeof domain_ml_index;
   "domain/ml/pipeline/shared/config": typeof domain_ml_pipeline_shared_config;
+  "domain/ml/pipeline/shared/logger": typeof domain_ml_pipeline_shared_logger;
   "domain/ml/pipeline/shared/time": typeof domain_ml_pipeline_shared_time;
   "domain/ml/pipeline/step_1_loadWsfTrainingData": typeof domain_ml_pipeline_step_1_loadWsfTrainingData;
   "domain/ml/pipeline/step_2_convertWsfToTraining": typeof domain_ml_pipeline_step_2_convertWsfToTraining;

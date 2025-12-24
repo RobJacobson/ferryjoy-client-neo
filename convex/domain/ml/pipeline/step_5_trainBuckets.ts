@@ -4,15 +4,14 @@
 // ============================================================================
 
 import MLR from "ml-regression-multivariate-linear";
-import { createTrainingDataForBucketAll } from "./step_4_createTrainingData";
-import { PIPELINE_CONFIG } from "./shared/config";
 import type {
-  FeatureRecord,
   ModelParameters,
   TerminalPairBucket,
   TrainingDataRecord,
   TrainingExample,
 } from "../types";
+import { PIPELINE_CONFIG } from "./shared/config";
+import { createTrainingDataForBucketAll } from "./step_4_createTrainingData";
 
 // ============================================================================
 // ALGORITHM CONSTANTS
@@ -73,11 +72,12 @@ const calculateMetrics = (
 
 /**
  * Result from training a model
+ * Linear regression models always have coefficients and intercept set
  */
 type TrainingResult = {
-  // For linear models: coefficients and intercept
-  coefficients?: number[];
-  intercept?: number;
+  // For linear models: always set when examples > 0
+  coefficients: number[];
+  intercept: number;
 
   // Prediction function for this model
   predict: (features: number[]) => number;
@@ -93,9 +93,7 @@ const roundTinyCoefficient = (value: number): number => {
 /**
  * Linear Regression trainer using MLR
  */
-const trainLinearRegression = (
-  examples: TrainingExample[]
-): TrainingResult => {
+const trainLinearRegression = (examples: TrainingExample[]): TrainingResult => {
   const x = examples.map((ex) => Object.values(ex.input) as number[]);
   const y = examples.map((ex) => ex.target);
 
@@ -146,7 +144,11 @@ type HoldoutEvaluationResult = {
  */
 const computeHoldoutMetrics = async (
   records: TrainingDataRecord[],
-  modelType: "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart"
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
 ): Promise<HoldoutEvaluationResult> => {
   const EVAL_CONFIG = PIPELINE_CONFIG.EVALUATION;
 
@@ -177,7 +179,7 @@ const computeHoldoutMetrics = async (
   }
 
   // Check minimum training examples
-  if (train.length < EVAL_CONFIG.minTrainExamples) {
+  if (train.length === 0 || test.length === 0) {
     return {
       strategy: "insufficient_data",
       foldsUsed: 0,
@@ -186,10 +188,11 @@ const computeHoldoutMetrics = async (
   }
 
   // Create buckets for train and test sets
+  const firstRecord = records[0];
   const trainBucket: TerminalPairBucket = {
     terminalPair: {
-      departingTerminalAbbrev: records[0]?.departingTerminalAbbrev || "X",
-      arrivingTerminalAbbrev: records[0]?.arrivingTerminalAbbrev || "Y",
+      departingTerminalAbbrev: firstRecord.departingTerminalAbbrev,
+      arrivingTerminalAbbrev: firstRecord.arrivingTerminalAbbrev,
     },
     records: train,
     bucketStats: {
@@ -199,8 +202,8 @@ const computeHoldoutMetrics = async (
   };
   const testBucket: TerminalPairBucket = {
     terminalPair: {
-      departingTerminalAbbrev: records[0]?.departingTerminalAbbrev || "X",
-      arrivingTerminalAbbrev: records[0]?.arrivingTerminalAbbrev || "Y",
+      departingTerminalAbbrev: firstRecord.departingTerminalAbbrev,
+      arrivingTerminalAbbrev: firstRecord.arrivingTerminalAbbrev,
     },
     records: test,
     bucketStats: {
@@ -214,7 +217,7 @@ const computeHoldoutMetrics = async (
   const testData = createTrainingDataForBucketAll(testBucket);
   let trainExamples: TrainingExample[];
   let testExamples: TrainingExample[];
-  
+
   if (modelType === "arrive-depart") {
     trainExamples = trainData.arriveDepartExamples;
     testExamples = testData.arriveDepartExamples;
@@ -319,62 +322,14 @@ export const trainModelsForBucket = async (
  */
 const trainSingleModel = async (
   examples: TrainingExample[],
-  modelType: "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart",
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart",
   bucket: TerminalPairBucket
 ): Promise<ModelParameters> => {
   const pairKey = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
-
-  // Debug: Log first example FeatureVector and underlying FeatureRecord
-  if (examples.length > 0) {
-    const featureNames = Object.keys(examples[0].input);
-    const sampleX0 = Object.fromEntries(
-      featureNames.map((name) => [name, examples[0].input[name]])
-    );
-    console.log(`📊 First ${modelType} example FeatureVector:`, sampleX0);
-    console.log(`📊 First ${modelType} example target:`, examples[0].target);
-
-    // Extract first record for debugging (first example corresponds to first valid record)
-    let firstRecord: TrainingDataRecord | undefined;
-    if (modelType === "arrive-depart" || modelType === "arrive-arrive") {
-      firstRecord = bucket.records.find((r) => r.departureDelay != null);
-    } else if (modelType === "depart-arrive") {
-      firstRecord = bucket.records.find((r) => r.atSeaDuration != null);
-    } else {
-      // depart-depart
-      firstRecord = bucket.records.find((r) => r.departureDelay != null);
-    }
-
-    if (firstRecord) {
-      const firstFeatureRecord: FeatureRecord = {
-        prevDelay: firstRecord.prevDelay,
-        tripStart: firstRecord.tripStart,
-        schedDeparture: firstRecord.schedDeparture,
-        meanAtDockDuration: firstRecord.meanAtDockDuration,
-        ...(modelType === "depart-arrive" && {
-          delayMinutes: firstRecord.departureDelay,
-          leftDock: firstRecord.leftDock,
-        }),
-        ...(modelType === "depart-depart" && {
-          prevLeftDock: firstRecord.prevLeftDock,
-        }),
-      };
-      console.log(
-        `📊 First ${modelType} example underlying FeatureRecord:`,
-        JSON.stringify(
-          {
-            prevDelay: firstFeatureRecord.prevDelay,
-            tripStart: firstFeatureRecord.tripStart.toISOString(),
-            schedDeparture: firstFeatureRecord.schedDeparture.toISOString(),
-            meanAtDockDuration: firstFeatureRecord.meanAtDockDuration,
-            delayMinutes: firstFeatureRecord.delayMinutes,
-            leftDock: firstFeatureRecord.leftDock?.toISOString(),
-          },
-          null,
-          2
-        )
-      );
-    }
-  }
 
   // Compute holdout evaluation metrics (if enabled)
   const holdoutResult = await computeHoldoutMetrics(bucket.records, modelType);

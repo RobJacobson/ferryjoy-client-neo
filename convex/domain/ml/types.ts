@@ -88,13 +88,12 @@ export type TerminalPairTrainingData = {
 
 /**
  * Simplified ML model parameters
+ * Linear regression models always have coefficients and intercept set
  */
 export type ModelParameters = {
-  // Model data (optional for insufficient data cases)
-  // For linear models: coefficients and intercept
-  // For tree-based models: these may be empty
-  coefficients?: number[];
-  intercept?: number;
+  // Model data - always set for valid linear regression models
+  coefficients: number[];
+  intercept: number;
 
   // Required identifiers
   departingTerminalAbbrev: string;
@@ -105,8 +104,8 @@ export type ModelParameters = {
     | "arrive-arrive"
     | "depart-depart";
 
-  // Training metrics (matching database schema)
-  trainingMetrics?: {
+  // Training metrics - always set after training
+  trainingMetrics: {
     mae: number;
     rmse: number;
     r2: number;
@@ -125,15 +124,11 @@ export type ModelParameters = {
     meanDelay?: number;
   };
 
-  // Optional evaluation metrics (holdout evaluation)
+  // Optional evaluation metrics (only set when holdout evaluation succeeds)
   evaluation?: {
-    strategy: "time_split" | "insufficient_data";
+    strategy: "time_split";
     foldsUsed: number;
-    holdout: {
-      mae: number;
-      rmse: number;
-      r2: number;
-    };
+    holdout: { mae: number; rmse: number; r2: number };
   };
 };
 

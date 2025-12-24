@@ -190,12 +190,7 @@ export const convertWsfDataToTrainingRecords = (
       // Filter arrive-arrive outliers (total time from arrival to next arrival)
       const arriveArriveTotal = atDockDuration + atSeaDuration;
       if (arriveArriveTotal > MAX_DURATION_THRESHOLDS.ARRIVE_ARRIVE_TOTAL) {
-        continue; // Skip records with extreme arrive-arrive durations (>4 hours total)
-      }
-
-      const arriveEarlyMin = getMinutesDelta(tripStart, schedDeparture);
-      if (arriveEarlyMin > 30) {
-        // continue;
+        continue; // Skip records with extreme arrive-arrive durations (>2 hours total)
       }
 
       // Get meanAtDockDuration for this terminal pair

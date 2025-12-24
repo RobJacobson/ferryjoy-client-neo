@@ -3,70 +3,100 @@
 // Shared time-related functions for ML pipeline
 // ============================================================================
 
-// DST periods by year - all times in UTC
-// DST starts at 2:00 AM PDT (10:00 AM UTC) on second Sunday in March (spring forward)
-// DST ends at 2:00 AM PST (9:00 AM UTC) on first Sunday in November (fall back)
-const dstPeriods: Record<number, { dstStart: Date; dstEnd: Date }> = {
-  2024: {
-    dstStart: new Date("2024-03-10T10:00:00Z"), // March 10, 2024
-    dstEnd: new Date("2024-11-03T09:00:00Z"), // November 3, 2024
-  },
-  2025: {
-    dstStart: new Date("2025-03-09T10:00:00Z"), // March 9, 2025
-    dstEnd: new Date("2025-11-02T09:00:00Z"), // November 2, 2025
-  },
-  2026: {
-    dstStart: new Date("2026-03-08T10:00:00Z"), // March 8, 2026
-    dstEnd: new Date("2026-11-02T09:00:00Z"), // November 2, 2026
-  },
-  2027: {
-    dstStart: new Date("2027-03-14T10:00:00Z"), // March 14, 2027
-    dstEnd: new Date("2027-11-07T09:00:00Z"), // November 7, 2027
-  },
-  2028: {
-    dstStart: new Date("2028-03-12T10:00:00Z"), // March 12, 2028
-    dstEnd: new Date("2028-11-05T09:00:00Z"), // November 5, 2028
-  },
-  2029: {
-    dstStart: new Date("2029-03-11T10:00:00Z"), // March 11, 2029
-    dstEnd: new Date("2029-11-04T09:00:00Z"), // November 4, 2029
-  },
-  2030: {
-    dstStart: new Date("2030-03-10T10:00:00Z"), // March 10, 2030
-    dstEnd: new Date("2030-11-03T09:00:00Z"), // November 3, 2030
-  },
-};
+// Timezone formatter for America/Los_Angeles (Pacific Time)
+// Using Intl.DateTimeFormat ensures accurate DST handling for any year
+const PACIFIC_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+  weekday: "short",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+});
 
 /**
- * Get DST period for a given year
+ * Extract Pacific time components from a UTC date using Intl API
+ * This properly handles DST transitions for any year without manual calculations
+ * @param utcDate - UTC date to convert
+ * @returns Object with hour, minute, second, and day of week in Pacific time
  */
-const getDSTPeriod = (year: number): { dstStart: Date; dstEnd: Date } => {
-  const period = dstPeriods[year];
-  if (period) {
-    return period;
+const getPacificTimeComponents = (utcDate: Date): {
+  hour: number;
+  minute: number;
+  second: number;
+  dayOfWeek: number;
+} => {
+  // Format the date in Pacific timezone
+  const parts = PACIFIC_TIME_FORMATTER.formatToParts(utcDate);
+
+  // Extract components
+  let hour = 0,
+    minute = 0,
+    second = 0,
+    dayOfWeek = 0;
+
+  for (const part of parts) {
+    switch (part.type) {
+      case "hour":
+        hour = Number.parseInt(part.value, 10);
+        break;
+      case "minute":
+        minute = Number.parseInt(part.value, 10);
+        break;
+      case "second":
+        second = Number.parseInt(part.value, 10);
+        break;
+      case "weekday":
+        // Map weekday names to numbers (Sunday = 0)
+        const weekdayMap: Record<string, number> = {
+          Sun: 0,
+          Mon: 1,
+          Tue: 2,
+          Wed: 3,
+          Thu: 4,
+          Fri: 5,
+          Sat: 6,
+        };
+        dayOfWeek = weekdayMap[part.value] ?? 0;
+        break;
+    }
   }
 
-  // For years not in our lookup, use 2024 dates as fallback
-  console.warn(
-    `DST dates not defined for year ${year}, using 2024 dates as fallback`
-  );
-  return dstPeriods[2024];
+  return { hour, minute, second, dayOfWeek };
 };
 
 /**
- * Get Pacific time from UTC
+ * Get a Date object representing the same moment in Pacific timezone
+ * This creates a Date with Pacific time components (stored as UTC)
+ * @param utcDate - UTC date to convert
+ * @returns Date object (stored as UTC, but represents Pacific time values)
  */
 export const getPacificTime = (utcDate: Date): Date => {
+  const components = getPacificTimeComponents(utcDate);
   const year = utcDate.getUTCFullYear();
-  const { dstStart, dstEnd } = getDSTPeriod(year);
-  const isDST = utcDate >= dstStart && utcDate < dstEnd;
+  const month = utcDate.getUTCMonth();
+  const day = utcDate.getUTCDate();
 
-  // Pacific offset: -8 hours (PST) or -7 hours (PDT)
-  const pacificOffset = isDST ? -7 * 60 * 60 * 1000 : -8 * 60 * 60 * 1000;
-
-  const pacificTime = new Date(utcDate.getTime() + pacificOffset);
-  return pacificTime;
+  // Create a new Date with Pacific time components (stored as UTC)
+  return new Date(Date.UTC(year, month, day, components.hour, components.minute, components.second));
 };
 
+/**
+ * Get day of week for a UTC date in Pacific timezone
+ * @param utcDate - UTC date to convert
+ * @returns Day of week (0-6, where 0 = Sunday)
+ */
+export const getPacificDayOfWeek = (utcDate: Date): number => {
+  return getPacificTimeComponents(utcDate).dayOfWeek;
+};
+
+/**
+ * Calculate the time delta in minutes between two dates
+ * @param startTime - Start date
+ * @param endTime - End date
+ * @returns Difference in minutes (can be negative if endTime < startTime)
+ */
 export const getMinutesDelta = (startTime: Date, endTime: Date): number =>
   (endTime.getTime() - startTime.getTime()) / (1000 * 60);

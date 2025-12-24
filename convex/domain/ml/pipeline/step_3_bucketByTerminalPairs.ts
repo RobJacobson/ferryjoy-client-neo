@@ -17,15 +17,8 @@ export const createTerminalPairBuckets = (
   const bucketMap = new Map<string, TrainingDataRecord[]>();
 
   // Dynamic grouping by terminal pairs
+  // Note: Terminal validation already done in step_2, so all records are valid
   for (const record of records) {
-    // Additional validation (should already be filtered, but being safe)
-    if (
-      !VALID_PASSENGER_TERMINALS.has(record.departingTerminalAbbrev) ||
-      !VALID_PASSENGER_TERMINALS.has(record.arrivingTerminalAbbrev)
-    ) {
-      continue;
-    }
-
     const key = `${record.departingTerminalAbbrev}_${record.arrivingTerminalAbbrev}`;
     const bucketRecords = bucketMap.get(key) || [];
     bucketRecords.push(record);
@@ -89,37 +82,4 @@ export const createTerminalPairBuckets = (
   );
 
   return buckets;
-};
-
-/**
- * Validate bucket contents
- */
-export const validateBuckets = (
-  buckets: TerminalPairBucket[]
-): { validBuckets: TerminalPairBucket[]; invalidCount: number } => {
-  const validBuckets: TerminalPairBucket[] = [];
-  let invalidCount = 0;
-
-  for (const bucket of buckets) {
-    const isValid =
-      bucket.records.length > 0 &&
-      bucket.records.every(
-        (r) =>
-          r.departingTerminalAbbrev ===
-            bucket.terminalPair.departingTerminalAbbrev &&
-          r.arrivingTerminalAbbrev ===
-            bucket.terminalPair.arrivingTerminalAbbrev
-      );
-
-    if (isValid) {
-      validBuckets.push(bucket);
-    } else {
-      invalidCount++;
-      console.warn(
-        `Invalid bucket: ${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev} (${bucket.records.length} records)`
-      );
-    }
-  }
-
-  return { validBuckets, invalidCount };
 };

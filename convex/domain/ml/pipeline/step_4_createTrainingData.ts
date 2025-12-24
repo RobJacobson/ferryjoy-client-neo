@@ -20,6 +20,21 @@ const roundTinyValues = (value: number, threshold: number = 1e-10): number => {
 };
 
 /**
+ * Extract and clean time-of-day features from a date
+ * Shared between extractFeatures and extractFeaturesForDepartDepart
+ */
+const extractTimeFeatures = (
+  schedDeparturePacificTime: Date
+): Record<string, number> => {
+  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
+  const cleanedTimeFeatures: Record<string, number> = {};
+  for (const [key, value] of Object.entries(timeFeatures)) {
+    cleanedTimeFeatures[key] = roundTinyValues(value);
+  }
+  return cleanedTimeFeatures;
+};
+
+/**
  * Create smooth time-of-day features using Gaussian radial basis functions
  * Evenly distributed centers every 3 hours for comprehensive daily coverage
  */
@@ -68,12 +83,8 @@ const extractFeatures = (input: FeatureRecord): FeatureVector => {
   const dayOfWeek = schedDeparturePacificTime.getDay();
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-  // Get raw time features and round tiny values to zero
-  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
-  const cleanedTimeFeatures: Record<string, number> = {};
-  for (const [key, value] of Object.entries(timeFeatures)) {
-    cleanedTimeFeatures[key] = roundTinyValues(value);
-  }
+  // Get time features using shared helper
+  const cleanedTimeFeatures = extractTimeFeatures(schedDeparturePacificTime);
 
   // Running late features
   const runningLate = arriveBeforeMin < input.meanAtDockDuration ? 1 : 0;
@@ -148,12 +159,8 @@ const extractFeaturesForDepartDepart = (
   const dayOfWeek = schedDeparturePacificTime.getDay();
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-  // Get time-of-day features
-  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
-  const cleanedTimeFeatures: Record<string, number> = {};
-  for (const [key, value] of Object.entries(timeFeatures)) {
-    cleanedTimeFeatures[key] = roundTinyValues(value);
-  }
+  // Get time features using shared helper
+  const cleanedTimeFeatures = extractTimeFeatures(schedDeparturePacificTime);
 
   // Time delta from prevLeftDock to schedDeparture (at-sea duration from A to B)
   const atSeaDurationFromA = getMinutesDelta(
