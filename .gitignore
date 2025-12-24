@@ -44,3 +44,6 @@ build-*.tar.gz
 
 # CSV files (often generated data)
 *.csv
+
+# ML training artifacts (generated models, data, and results)
+ml/
