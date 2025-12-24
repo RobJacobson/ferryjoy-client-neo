@@ -8,14 +8,13 @@ import {
   fetchVesselBasics,
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { PIPELINE_CONFIG } from "./shared/config";
 
 /**
  * Load all vessel history records from WSF API
  */
-export const loadWsfTrainingData = async (): Promise<
-  Awaited<ReturnType<typeof fetchVesselHistoriesByVesselAndDates>>
-> => {
+export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
   console.log("Loading all vessel history records from WSF API...");
 
   try {
@@ -23,10 +22,8 @@ export const loadWsfTrainingData = async (): Promise<
     const vessels = await fetchVesselFleet();
 
     // Process vessels in batches to manage memory
-    const VESSEL_BATCH_SIZE = 10; // Process 10 vessels at a time
-    const allRecords: Awaited<
-      ReturnType<typeof fetchVesselHistoriesByVesselAndDates>
-    > = [];
+    const VESSEL_BATCH_SIZE = 2; // Process 2 vessels at a time
+    const allRecords: VesselHistory[] = [];
     let successCount = 0;
     let failureCount = 0;
     let batchCount = 0;
@@ -114,9 +111,7 @@ const fetchVesselFleet = async (): Promise<
  */
 const fetchVesselData = async (
   vesselName: string | null
-): Promise<
-  Awaited<ReturnType<typeof fetchVesselHistoriesByVesselAndDates>>
-> => {
+): Promise<VesselHistory[]> => {
   console.log(`Fetching data for vessel: ${vesselName}`);
 
   // Calculate date range
@@ -139,11 +134,49 @@ const fetchVesselData = async (
       `Fetched ${historyRecords.length} WSF records for ${vesselName}`
     );
 
-    return historyRecords;
+    // Apply sampling strategy to manage data volume
+    const sampledRecords = applySamplingStrategy(historyRecords);
+
+    if (sampledRecords.length < historyRecords.length) {
+      console.log(
+        `Sampled down to ${sampledRecords.length} records for ${vesselName} (${PIPELINE_CONFIG.SAMPLING_STRATEGY})`
+      );
+    }
+
+    return sampledRecords;
   } catch (error) {
     console.error(`Failed to fetch data for vessel ${vesselName}`, {
       error: String(error),
     });
     throw error;
   }
+};
+
+/**
+ * Apply sampling strategy to reduce data volume while preserving information
+ */
+const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
+  const maxRecords = PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL;
+
+  if (records.length <= maxRecords) {
+    return records; // No sampling needed
+  }
+
+  // Sort by date (most recent first)
+  const sortedRecords = records.sort((a, b) => {
+    const dateA = a.ScheduledDepart?.getTime() || 0;
+    const dateB = b.ScheduledDepart?.getTime() || 0;
+    return dateB - dateA; // Most recent first
+  });
+
+  if (PIPELINE_CONFIG.SAMPLING_STRATEGY === "recent_first") {
+    // Keep the most recent records up to the limit
+    return sortedRecords.slice(0, maxRecords);
+  }
+
+  // Default: return all records if strategy not recognized
+  console.warn(
+    `Unknown sampling strategy: ${PIPELINE_CONFIG.SAMPLING_STRATEGY}, returning unsampled data`
+  );
+  return records;
 };

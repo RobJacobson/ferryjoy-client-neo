@@ -12,10 +12,10 @@ export type FeatureVector = Record<string, number>;
  */
 export type FeatureRecord = {
   // Essential temporal data for feature extraction
+  prevDelay: number; // Minutes from previous trip's actual departure to previous trip's estimated arrival
   tripStart: Date; // Vessel arrival at departing terminal (or current time reference)
   schedDeparture: Date; // Scheduled departure time
-  prevLeftDock: Date | null; // Previous segment's left dock time
-  prevSchedDeparture: Date | null; // Previous segment's scheduled departure
+  meanAtDockDuration: number; // Minutes from departure to arrival at next terminal
 
   // Prediction-specific fields (only available during prediction)
   delayMinutes?: number; // Current delay in minutes (for arrival models)
@@ -51,8 +51,8 @@ export type TrainingDataRecord = FeatureRecord & {
   leftDock: Date; // Actual departure time
 
   // Target variables for training
-  departureDelay: number | null; // minutes from scheduled departure (can be negative)
-  atSeaDuration: number | null; // minutes from departure to arrival
+  departureDelay: number; // minutes from scheduled departure (can be negative)
+  atSeaDuration: number; // minutes from departure to arrival
 };
 
 /**
@@ -64,6 +64,9 @@ export type TerminalPairBucket = {
   bucketStats: {
     totalRecords: number;
     filteredRecords: number;
+    meanDepartureDelay?: number;
+    meanAtSeaDuration?: number;
+    meanDelay?: number;
   };
 };
 
@@ -81,6 +84,8 @@ export type TerminalPairTrainingData = {
  */
 export type ModelParameters = {
   // Model data (optional for insufficient data cases)
+  // For linear models: coefficients and intercept
+  // For tree-based models: these may be empty
   coefficients?: number[];
   intercept?: number;
 
@@ -104,6 +109,20 @@ export type ModelParameters = {
   bucketStats: {
     totalRecords: number;
     filteredRecords: number;
+    meanDepartureDelay?: number;
+    meanAtSeaDuration?: number;
+    meanDelay?: number;
+  };
+
+  // Optional evaluation metrics (holdout evaluation)
+  evaluation?: {
+    strategy: "time_split" | "insufficient_data";
+    foldsUsed: number;
+    holdout: {
+      mae: number;
+      rmse: number;
+      r2: number;
+    };
   };
 };
 

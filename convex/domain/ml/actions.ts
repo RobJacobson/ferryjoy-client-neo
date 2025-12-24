@@ -2,17 +2,16 @@ import { api } from "_generated/api";
 import type { Id } from "_generated/dataModel";
 import { type ActionCtx, internalAction } from "_generated/server";
 import { runMLPipeline } from "domain/ml/pipelineCoordinator";
-import { predict } from "domain/ml/predict";
-import type { PredictionOutput, TrainingResponse } from "domain/ml/types";
-import { toDomainVesselTrip, vesselTripSchema } from "functions/vesselTrips";
+import type {
+  TrainingResponse,
+} from "domain/ml/types";
 
 // ============================================================================
 // PUBLIC ACTIONS
 // ============================================================================
 
 /**
- * Trains prediction models for all terminal pairs using the new pipeline
- * Uses Convex database as data source (default)
+ * Trains prediction models for all terminal pairs using the ML pipeline
  */
 export const trainPredictionModelsAction = internalAction({
   args: {},
@@ -23,21 +22,7 @@ export const trainPredictionModelsAction = internalAction({
 });
 
 /**
- * Predicts departure and arrival durations for a vessel trip
- */
-export const predictDurationsAction = internalAction({
-  args: {
-    trip: vesselTripSchema,
-  },
-  handler: async (ctx, args): Promise<PredictionOutput> => {
-    // Convert from Convex format (numbers) to domain format (Dates)
-    const domainTrip = toDomainVesselTrip(args.trip);
-    return await predict(ctx, domainTrip);
-  },
-});
-
-/**
- * Deletes all models from the database
+ * Deletes all models from database
  */
 export const deleteAllModelsAction = internalAction({
   args: {},
@@ -69,4 +54,4 @@ export const deleteAllModelsAction = internalAction({
   },
 });
 
-// Feature extraction is now handled in the predict function
+// Feature extraction is now handled in predict function

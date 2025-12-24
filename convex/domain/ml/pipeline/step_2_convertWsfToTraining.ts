@@ -4,8 +4,29 @@
 // Converts raw WSF records to TrainingDataRecord format with minimal filtering
 // ============================================================================
 
-import type { TrainingDataRecord } from "domain/ml/types";
-import { VALID_PASSENGER_TERMINALS } from "./shared/config";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { TrainingDataRecord } from "../types";
+import {
+  MEAN_AT_DOCK_DURATION,
+  MIN_DURATION_THRESHOLDS,
+  VALID_PASSENGER_TERMINALS,
+} from "./shared/config";
+import { getMinutesDelta } from "./shared/time";
+
+/**
+ * Get terminal abbreviation for a given name
+ */
+const getTerminalAbbrev = (terminalName: string): string | undefined => {
+  const abbrev =
+    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName] ||
+    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName.toLowerCase()];
+
+  if (!abbrev && terminalName.trim() !== "") {
+    console.warn(`Terminal name not found in mapping: ${terminalName}`);
+  }
+
+  return abbrev;
+};
 
 /**
  * Terminal mapping for WSF record conversion
@@ -43,11 +64,7 @@ const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
  * Convert WSF records to TrainingDataRecord format with minimal filtering
  */
 export const convertWsfDataToTrainingRecords = (
-  wsfRecords: Awaited<
-    ReturnType<
-      typeof import("ws-dottie/wsf-vessels/core").fetchVesselHistoriesByVesselAndDates
-    >
-  >
+  wsfRecords: VesselHistory[]
 ): TrainingDataRecord[] => {
   console.log(
     `Converting ${wsfRecords.length} WSF records to training records`
@@ -66,20 +83,19 @@ export const convertWsfDataToTrainingRecords = (
         (b.ScheduledDepart?.getTime() || 0)
     );
 
-    for (let i = 0; i < sortedTrips.length; i++) {
+    // Start at index 1 to avoid using the first trip as the previous trip
+    for (let i = 1; i < sortedTrips.length; i++) {
       const current = sortedTrips[i];
-
-      // SKIP if no previous trip (no TripStart available)
-      if (i === 0) continue;
-
       const previous = sortedTrips[i - 1];
 
       // Map terminal names to abbreviations
-      const departingAbbrev = getTerminalAbbrev(current.Departing || "");
-      const arrivingAbbrev = getTerminalAbbrev(current.Arriving || "");
+      const departingTerminalAbbrev = getTerminalAbbrev(
+        current.Departing || ""
+      );
+      const arrivingTerminalAbbrev = getTerminalAbbrev(current.Arriving || "");
 
       // SKIP if terminals not found in mapping
-      if (!departingAbbrev || !arrivingAbbrev) {
+      if (!departingTerminalAbbrev || !arrivingTerminalAbbrev) {
         // Don't log when arriving terminal is null (expected case)
         if (current.Arriving !== null && current.Arriving !== undefined) {
           console.warn(`Skipping record due to unmapped terminals`, {
@@ -93,41 +109,64 @@ export const convertWsfDataToTrainingRecords = (
 
       // SKIP if terminals not in valid passenger terminals
       if (
-        !VALID_PASSENGER_TERMINALS.has(departingAbbrev) ||
-        !VALID_PASSENGER_TERMINALS.has(arrivingAbbrev)
+        !VALID_PASSENGER_TERMINALS.has(departingTerminalAbbrev) ||
+        !VALID_PASSENGER_TERMINALS.has(arrivingTerminalAbbrev)
       ) {
         continue;
       }
 
-      // Basic data completeness check
+      // Check for missing data
       if (
         !previous.EstArrival ||
         !current.EstArrival ||
         !current.ActualDepart ||
-        !current.ScheduledDepart
+        !current.ScheduledDepart ||
+        !previous.ActualDepart ||
+        !previous.ScheduledDepart
       ) {
         continue;
       }
 
-      // Calculate departure delay
-      const departureDelay =
-        (current.ActualDepart.getTime() - current.ScheduledDepart.getTime()) /
-        (1000 * 60); // minutes
+      const prevDelay = getMinutesDelta(
+        previous.ScheduledDepart,
+        previous.ActualDepart
+      );
+      const tripStart = previous.EstArrival; // Previous trip's EstArrival (trip start time)
+      const leftDock = current.ActualDepart; // Current trip's ActualDepart (left dock time)
+      const tripEnd = current.EstArrival; // Current trip's EstArrival (trip end time)
+      const schedDeparture = current.ScheduledDepart; // Current trip's ScheduledDeparture
+      const departureDelay = getMinutesDelta(schedDeparture, leftDock); // Minutes from scheduled departure to left dock
+      const atSeaDuration = getMinutesDelta(leftDock, tripEnd); // Minutes from left dock to trip end
+      const atDockDuration = getMinutesDelta(tripStart, leftDock); // Minutes from trip start (arrival) to left dock
 
-      // Calculate at-sea duration
-      const atSeaDuration = calculateAtSeaDuration(current);
+      // Filter out records with invalid durations (data quality check)
+      if (atSeaDuration < MIN_DURATION_THRESHOLDS.AT_SEA) {
+        continue; // Skip records where vessel was at sea for less than 2 minutes
+      }
+      if (atDockDuration < MIN_DURATION_THRESHOLDS.AT_DOCK) {
+        continue; // Skip records where vessel was at dock for less than 2 minutes
+      }
+
+      const arriveEarlyMin = getMinutesDelta(tripStart, schedDeparture);
+      if (arriveEarlyMin > 30) {
+        // continue;
+      }
+
+      // Get meanAtDockDuration for this terminal pair
+      const terminalPairKey = `${departingTerminalAbbrev}_${arrivingTerminalAbbrev}`;
+      const meanAtDockDuration = MEAN_AT_DOCK_DURATION[terminalPairKey] ?? 20;
 
       records.push({
-        departingTerminalAbbrev: departingAbbrev,
-        arrivingTerminalAbbrev: arrivingAbbrev,
-        tripStart: previous.EstArrival, // Previous trip's EstArrival
-        leftDock: current.ActualDepart,
-        tripEnd: current.EstArrival,
-        schedDeparture: current.ScheduledDepart,
-        prevLeftDock: previous.ActualDepart || null,
-        prevSchedDeparture: previous.ScheduledDepart || null,
+        departingTerminalAbbrev,
+        arrivingTerminalAbbrev,
+        prevDelay,
+        tripStart,
+        leftDock,
+        tripEnd,
+        schedDeparture,
         departureDelay,
         atSeaDuration,
+        meanAtDockDuration,
       });
     }
   }
@@ -137,41 +176,6 @@ export const convertWsfDataToTrainingRecords = (
   );
 
   return records;
-};
-
-/**
- * Get terminal abbreviation for a given name
- */
-const getTerminalAbbrev = (terminalName: string): string | undefined => {
-  const abbrev =
-    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName] ||
-    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName.toLowerCase()];
-
-  if (!abbrev && terminalName.trim() !== "") {
-    console.warn(`Terminal name not found in mapping: ${terminalName}`);
-  }
-
-  return abbrev;
-};
-
-/**
- * Calculate at-sea duration from WSF record
- */
-const calculateAtSeaDuration = (
-  record: Awaited<
-    ReturnType<
-      typeof import("ws-dottie/wsf-vessels/core").fetchVesselHistoriesByVesselAndDates
-    >
-  >[0]
-): number | null => {
-  try {
-    const depart = record.ActualDepart;
-    const arrive = record.EstArrival;
-    if (!depart || !arrive) return null;
-    return (arrive.getTime() - depart.getTime()) / (1000 * 60); // minutes
-  } catch {
-    return null;
-  }
 };
 
 /**

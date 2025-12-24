@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import type { ConvexModelParameters } from "functions/predictions/schemas";
 import { modelParametersMutationSchema } from "functions/predictions/schemas";
 
+
 // type PredictionTable = "currentPredictions";
 
 // /**
@@ -63,7 +64,7 @@ export const storeModelParametersMutation = mutation({
 
       const modelId = await ctx.db.insert(
         "modelParameters",
-        args.model as ConvexModelParameters
+        args.model
       );
       return modelId;
     } catch (error) {

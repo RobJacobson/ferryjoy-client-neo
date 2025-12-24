@@ -1,25 +1,25 @@
 # Ferry Vessel Duration Prediction System
 
-A machine learning system that predicts ferry vessel docking and sailing durations using terminal-pair specific models. The system uses multiple linear regression to provide real-time predictions for vessel arrival and departure times across Washington State Ferry routes.
+A machine learning system that predicts ferry vessel docking and sailing durations using terminal-pair specific models. The system uses multivariate linear regression to provide real-time predictions for vessel arrival and departure times across Washington State Ferry routes.
 
-## 🎯 What This System Does
+## What This System Does
 
 **Predicts two critical timing metrics for ferry vessels:**
 
 1. **Departure Delay**: Minutes from scheduled departure time (can be negative for early departures)
-2. **At-Sea Duration**: Time from vessel departure until arrival at the next terminal
+2. **At-Sea Duration**: Time from vessel departure until arrival at next terminal
 
 **Key advantage**: Terminal-pair specific models trained on complete historical datasets provide accurate, route-aware predictions for passenger planning and operational decision-making.
 
 **Key Features:**
 - **Terminal-Pair Specific**: Separate models for each departure→arrival terminal combination
 - **Real-Time Predictions**: Sub-millisecond inference for live vessel tracking
-- **WSF API Training**: Automated daily retraining with fresh data (365 days back)
+- **WSF API Training**: Automated daily retraining with fresh data (720 days back)
 - **Quality Assurance**: Basic data validation and temporal consistency checks
 - **Simplified Design**: Essential functionality without over-engineering
 - **Backward Compatibility**: Maintains database schema compatibility
 
-## 📊 Training Pipeline
+## Training Pipeline
 
 The ML system processes ferry trip data through a streamlined 6-step pipeline:
 
@@ -47,54 +47,51 @@ The ML system processes ferry trip data through a streamlined 6-step pipeline:
 // - Calculate basic bucket statistics:
 //   * totalRecords: Records before filtering
 //   * filteredRecords: Records after quality filters
-```
-
-### Step 3: Bucket by Terminal Pairs (`step_3_bucketByTerminalPairs.ts`)
-```typescript
-// Dynamic grouping by terminal pairs:
-// - Discover all valid terminal combinations from data
-// - Calculate bucket statistics:
-//   * totalRecords: Records before filtering
-//   * filteredRecords: Records after quality filters
 //   * meanDepartureDelay: Average departure delay (minutes)
 //   * meanAtSeaDuration: Average sea time
 ```
 
-### Step 4: Feature Engineering (Integrated in Step 5)
+### Step 4: Create Training Data (`step_4_createTrainingData.ts`)
 ```typescript
-// Simplified feature extraction (performed during model training):
-//
-// Essential Feature Set (used for both departure and arrival models):
-// - schedule_delta_clamped: Schedule adherence (minutes, positive = ahead of schedule)
-// - hour_of_day: Hour as numeric value (0-23) - simplified from 24 one-hot features
+// Feature engineering and training example creation:
+// Comprehensive feature extraction for ML models:
+// Base features (5 total):
+// - running_late: Binary flag (1/0)
+// - running_late_min: Minutes late (0+)
+// - running_early_min: Minutes early (capped at 10)
 // - is_weekend: Boolean weekend flag (1/0)
-// - delay_minutes: Departure delay for arrival model (minutes)
+// - prev_delay: Previous vessel delay (minutes)
+// - delay_minutes: Departure delay (arrival models only)
 //
-// Departure Model Target: departureDelay (actual - scheduled departure in minutes)
-// Arrival Model Target: atSeaDuration (minutes from departure to arrival)
+// Time-of-day features (8 centers every 3 hours):
+// - time_center_0 through time_center_7: Gaussian radial basis functions
+//   for smooth time-of-day modeling (peaks at 2,5,8,11,14,17,20,23 hours)
+//
+// Total: 13 features for departure models, 14 for arrival models
+// Creates training examples with features and targets for both model types
 ```
 
 ### Step 5: Train Bucket Models (`step_5_trainBuckets.ts`)
 ```typescript
 // Train separate models for each terminal pair:
-// - Departure model: Predict departure_delay_minutes (4 features: schedule_delta_clamped + hour_of_day + is_weekend)
-// - Arrival model: Predict at_sea_duration_minutes (4 features: above + delay_minutes)
-// - Multiple linear regression (simplified approach)
-// - Null models for insufficient data (<25 examples)
-// - Essential training metrics (MAE, RMSE for DB compatibility, R²)
+// - Departure model: Predict departureDelay (13 features)
+// - Arrival model: Predict atSeaDuration (14 features)
+// - Uses multivariate linear regression (MLR)
+// - Includes holdout evaluation (80/20 time-split) for validation
+// - Essential training metrics (MAE, RMSE, R²)
+// - Consolidated: training, metrics calculation, and holdout evaluation
 ```
 
 ### Step 6: Store Results (`step_6_storeResults.ts`)
 ```typescript
 // Database storage with essential metadata:
 // - Model coefficients and intercept
-// - Training metrics (MAE, RMSE for DB compatibility, R²)
+// - Training metrics (MAE, RMSE, R²)
 // - Bucket statistics (total/filtered records)
-// - Model algorithm identifier
 // - Graceful handling of missing models
 ```
 
-## 🔄 Data Sources
+## Data Sources
 
 The pipeline supports two data source options, selectable when running training:
 
@@ -102,8 +99,8 @@ The pipeline supports two data source options, selectable when running training:
 - **Source**: Direct fetch from WSF backend API using ws-dottie library
 - **Advantages**: Fresh data without database dependency, configurable date range
 - **Use Case**: Regular automated training, real-time relevance
-- **Data Range**: Configurable (default: 90 days back) for all vessels (~45K records)
-- **Configuration**: Set `PIPELINE_CONFIG.DAYS_BACK` in `shared/config.ts` (default: 365 days)
+- **Data Range**: Configurable (default: 720 days back) for all vessels
+- **Configuration**: Set `PIPELINE_CONFIG.DAYS_BACK` in `pipeline/shared/config.ts` (default: 720 days)
 
 ### Convex Database (Alternative)
 - **Source**: Stored historical trip data in Convex database
@@ -113,7 +110,7 @@ The pipeline supports two data source options, selectable when running training:
 
 Both sources produce the same `TrainingDataRecord[]` format, ensuring compatibility with the rest of the pipeline.
 
-## 🚀 How to Use
+## How to Use
 
 ### Automated Training (Recommended)
 The system runs automatically via cron job at 4:00 AM Pacific daily using WSF API data:
@@ -138,11 +135,11 @@ npm run train:ml
 npm run train:ml:convex
 ```
 
-**WSF API Data Source**: Fetches vessel histories directly from WSF backend API for the configured date range (default: 90 days), providing fresh data without relying on stored records.
+**WSF API Data Source**: Fetches vessel histories directly from WSF backend API for configured date range (default: 720 days), providing fresh data without relying on stored records.
 
-**Convex Data Source**: Trains on all available historical trip data (10K+ records) stored in the Convex database.
+**Convex Data Source**: Trains on all available historical trip data (10K+ records) stored in Convex database.
 
-### Export Training Results to CSV
+## Export Training Results to CSV
 
 Generate a CSV file with the latest training results for analysis:
 
@@ -150,11 +147,11 @@ Generate a CSV file with the latest training results for analysis:
 # Make sure your Convex dev server is running
 npm run convex:dev
 
-# In another terminal, export the results
+# In another terminal, export results
 npm run train:export-results
 ```
 
-This creates `training-results.csv` in your project root with one row per terminal pair containing:
+This creates `ml/training-results.csv` with one row per terminal pair containing:
 - Model performance metrics (MAE, R², RMSE)
 - Training data statistics (total/filtered records)
 - Bucket statistics (mean durations)
@@ -176,11 +173,8 @@ Compare performance metrics between two different training result CSV files:
 # Compare two training result files
 npm run train:compare fileA.csv fileB.csv
 
-# Example: Compare with vs without time_category feature
+# Example: Compare different configurations or data sources
 npm run train:compare training-results-with-feature.csv training-results-without-feature.csv
-
-# Example: Compare cascade delay vs no cascade delay
-npm run train:compare training-results-with-cascade-delay.csv training-results-without-cascade-delay.csv
 ```
 
 **Features:**
@@ -195,27 +189,24 @@ npm run train:compare training-results-with-cascade-delay.csv training-results-w
 - Recommendation on which configuration performs better overall
 
 ### Get Predictions
+
+Prediction functionality is currently being developed. Models are trained and stored in the database, and can be queried via the Convex API:
+
 ```typescript
-import { predict } from "./convex/domain/ml";
+import { api } from "./_generated/api";
 
-// Example usage
-const prediction = await predict({
-  departingTerminalAbbrev: "MUK",
-  arrivingTerminalAbbrev: "CLI",
-  tripStart: new Date("2024-01-01T10:30:00Z"),
-  leftDock: new Date("2024-01-01T10:45:00Z"),
-  scheduledDeparture: new Date("2024-01-01T10:30:00Z")
-});
-
-// Result:
-// {
-//   departureDelay: 2.3,           // minutes from scheduled departure (+ for late, - for early)
-//   atSeaDuration: 18.7,           // minutes until arrival
-//   predictedDepartureTime: Date,  // calculated actual departure time
-// }
+// Query model parameters for a terminal pair
+const model = await ctx.runQuery(
+  api.functions.predictions.queries.getModelParametersByTerminalPair,
+  {
+    departingTerminalAbbrev: "MUK",
+    arrivingTerminalAbbrev: "CLI",
+    modelType: "departure"
+  }
+);
 ```
 
-## 📈 Model Performance
+## Model Performance
 
 ### Current Coverage
 - **36+ terminal pairs** trained (dynamic discovery from available data)
@@ -230,7 +221,6 @@ const prediction = await predict({
 | MUK_CLI | Departure | 44 | ~0 | 1.0 |
 | CLI_MUK | Departure | 44 | ~0 | 1.0 |
 | MUK_CLI | Arrival | 44 | ~0 | 1.0 |
-| CLI_MUK | Arrival | 44 | ~0 | 1.0 |
 
 #### Medium-Traffic Routes (Good Performance)
 | Terminal Pair | Model | Examples | MAE (min) | R² |
@@ -246,96 +236,47 @@ const prediction = await predict({
 | ANA_LOP | Departure | 57 | 31.8 | 0.12 |
 
 ### Prediction Accuracy Summary
-- **Arrival Predictions**: 3.5 min average MAE (excellent)
-- **Departure Delay Predictions**: 3.4 min average MAE (good performance across routes)
-- **Overall Coverage**: 35/36 trained terminal pairs (97% coverage, 1 null model due to insufficient data)
+- **Arrival Predictions**: Variable performance by route (typically 2-10 min MAE)
+- **Departure Delay Predictions**: Generally better performance (typically 2-5 min MAE)
+- **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs)
 
-## 🔧 Technical Architecture
+## Technical Architecture
 
 ### Data Flow
 
-**Convex Data Source Path:**
+**Convex Training Path (Linear Regression):**
 ```
-Convex Database → Paginated Load → Quality Filters → Training Records → Terminal Buckets → Feature Engineering → Model Training → Database Storage
-     ↓                ↓                  ↓                ↓                   ↓                  ↓               ↓              ↓
-   10K+ records    step_1         step_2_filter   TrainingDataRecord   36+ buckets      4 features     MLR training   Comprehensive
-   (complete       pagination     validation      structure            + statistics      per model        validation    metadata
-   historical
-   dataset)
-```
-
-**WSF API Data Source Path:**
-```
-WSF API → Load Raw Records → Convert to Training → Terminal Buckets → Feature Engineering → Model Training → Database Storage
-     ↓           ↓                  ↓                   ↓                  ↓               ↓                  ↓               ↓              ↓
-365 days    step_1: loadWsfTrainingData   step_2: convertWsfDataToTrainingRecords   36+ buckets      4 features     MLR training   Essential
-   back      (25 vessels)  fetch vessel histories    minimal filtering & conversion      + statistics      per model        metrics       metadata
-```
-
-The system processes datasets for maximum model accuracy. WSF API source fetches fresh data directly from the API, while Convex source uses stored historical data.
-
-### Database Schema
-```typescript
-// modelParameters table
-{
-  departingTerminalAbbrev: string,
-  arrivingTerminalAbbrev: string,
-  modelType: "departure" | "arrival",
-
-  // Model data (optional for insufficient data)
-  coefficients?: number[],
-  intercept?: number,
-  featureNames?: string[],
-  trainingMetrics?: {
-    mae: number,
-    rmse: number,
-    r2: number,
-    stdDev?: number
-  },
-
-  // Bucket statistics (optional for backward compatibility)
-  bucketStats?: {
-    totalRecords: number,
-    filteredRecords: number,
-    meanDepartureDelay?: number | null,      // Current field name
-    meanAtSeaDuration?: number | null,
-    meanAtDockDuration?: number | null       // Legacy field (backward compatibility)
-  },
-
-  createdAt: number
-}
+WSF API → Load Records → Convert to Training → Terminal Buckets → Feature Engineering → MLR Training → Database Storage
+   ↓            ↓                  ↓                   ↓                  ↓               ↓              ↓
+Fresh Data   step_1         TrainingDataRecord   35+ buckets      13-14 features     MLR training   Essential
+(720 days)   (batched)      validation           + statistics      per model          validation    metadata
 ```
 
 ### File Structure
 ```
 convex/domain/ml/
-├── actions.ts              # Public Convex actions (WSF training mode)
-├── predict.ts              # Simplified prediction API
-├── types.ts                # Streamlined TypeScript interfaces
-├── shared.ts               # Minimal shared utilities
-├── index.ts                # Module exports
-├── temp.js                 # Legacy code (deprecated)
-├── readme-ml.md            # This documentation
+├── actions.ts                       # Public Convex actions
+├── pipelineCoordinator.ts           # Main orchestrator (includes data quality + training loop)
+├── types.ts                         # TypeScript type definitions
+├── shared.ts                        # Time normalization utilities
+├── index.ts                         # Module exports
+├── readme-ml.md                     # This documentation
 └── pipeline/
-    ├── step_1_loadWsfTrainingData.ts  # Load raw WSF records from API
-    ├── step_2_convertWsfToTraining.ts # Convert WSF records to training format
-    ├── step_3_bucketByTerminalPairs.ts # Terminal pair bucketing
-    ├── step_4_createTrainingData.ts   # Feature engineering wrapper
-    ├── step_5_trainBuckets.ts         # Simplified model training
-    ├── step_6_storeResults.ts         # Database storage with metadata
+    ├── step_1_loadWsfTrainingData.ts      # Load raw WSF records from API
+    ├── step_2_convertWsfToTraining.ts     # Convert WSF records to training format
+    ├── step_3_bucketByTerminalPairs.ts    # Terminal pair bucketing
+    ├── step_4_createTrainingData.ts       # Feature engineering and training example creation
+    ├── step_5_trainBuckets.ts             # Model training (includes MLR, metrics, holdout evaluation)
+    ├── step_6_storeResults.ts             # Database storage with metadata
     └── shared/
-        ├── config.ts                   # Essential configuration constants
-        ├── dataQualityAnalyzer.ts     # Basic data quality metrics
-        ├── featureEngineering.ts      # Simplified feature extraction
-        ├── modelTrainingCoordinator.ts # Model training orchestration
-        ├── pipelineCoordinator.ts     # Main pipeline coordination
-        └── time.ts                     # Pacific timezone utilities
+        ├── config.ts                       # Pipeline configuration constants
+        └── time.ts                         # Pacific timezone utilities
 ```
 
-## 📊 Data Quality & Validation
+## Data Quality & Validation
 
 ### Quality Filters Applied
-1. **Terminal Validation**: Only valid passenger terminals (ANA, BBI, BRE, etc.)
+1. **Terminal Validation**: Only valid passenger terminals (ANA, BBI, BRE, CLI, COU, EDM, FAU, FRH, KIN, LOP, MUK, ORI, P52, POT, PTD, SHI, SID, SOU, TAH, VAI)
 2. **Temporal Consistency**: `tripStart < leftDock < tripEnd`
 3. **Data Completeness**: All required timestamps present
 4. **Duration Bounds**: Reasonable time ranges (dock: 0-12hrs, sea: 1min-24hrs)
@@ -346,7 +287,7 @@ convex/domain/ml/
 - **Data Completeness**: Required field validation
 - **Performance Tracking**: MAE, RMSE, R² metrics
 
-## 🔍 Monitoring & Logging
+## Monitoring & Logging
 
 ### Structured Logging
 All pipeline activity logged in JSON format:
@@ -369,13 +310,13 @@ All pipeline activity logged in JSON format:
 - **Model Performance**: MAE, R², RMSE across all terminal pairs
 - **Coverage**: Percentage of terminal pairs with trained models
 
-## 🛠️ Development & Operations
+## Development & Operations
 
 ### Dependencies
-- `ml-regression-multivariate-linear`: Multiple linear regression implementation
-- Convex database for model storage, queries, and cron automation
-- Node.js runtime for training pipeline execution
-- TypeScript for type safety and development experience
+- **Convex Environment**: `ml-regression-multivariate-linear` for linear regression training
+- **Database**: Convex for model storage, queries, and automated cron jobs
+- **Runtime**: Node.js for Convex functions
+- **TypeScript**: Type safety across the entire ML pipeline
 
 ### Environment Setup
 ```bash
@@ -386,8 +327,8 @@ npm install
 npm run convex:dev
 
 # Training Commands
-npm run train:ml              # Train on WSF API data (default - fresh data)
-npm run train:ml:convex       # Train on Convex database data (alternative)
+npm run train:ml              # Train on WSF API data (linear regression)
+npm run train:ml:convex       # Train on Convex database data (linear regression)
 
 # Export training results to CSV
 npm run train:export-results
@@ -398,12 +339,12 @@ npm run train:export-results
 // Daily training at 4:00 AM Pacific
 crons.cron(
   "retrain ml models",
-  "0 4 * * *",
+  "0 4 * * *", // 4:00 AM daily (Pacific Time)
   internal.domain.ml.actions.trainPredictionModelsAction
 );
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -424,11 +365,12 @@ crons.cron(
 - Solution: Pipeline automatically handles large datasets with pagination
 
 ### Performance Tuning
-- **Training Threshold**: Minimum 25 examples per model (configurable via PIPELINE_CONFIG.MIN_TRAINING_EXAMPLES)
-- **Data Range**: Configurable days back for training (default: 365 days via PIPELINE_CONFIG.DAYS_BACK)
-- **Memory Management**: Paginated loading to handle large datasets
+- **Training Threshold**: Minimum training examples checked in holdout evaluation (configurable via `PIPELINE_CONFIG.EVALUATION.minTrainExamples`)
+- **Data Range**: Configurable days back for training (default: 720 days via `PIPELINE_CONFIG.DAYS_BACK`)
+- **Memory Management**: Batched vessel loading to handle large datasets
+- **Route Sampling**: Limits records per route via `PIPELINE_CONFIG.MAX_SAMPLES_PER_ROUTE` (default: 2500)
 
-## 🎯 Business Impact
+## Business Impact
 
 ### Operational Benefits
 - **Real-Time Tracking**: Accurate vessel ETAs for passengers
@@ -444,12 +386,12 @@ crons.cron(
 
 ---
 
-**Status**: ✅ **FULLY OPERATIONAL & SIMPLIFIED**
-**Models**: 74 active models across 37 terminal pairs
-**Training Data**: Processes fresh WSF API data (365 days back)
-**Accuracy**: 3.3-3.5 min average MAE across all routes
-**Features**: 4 simplified features (schedule_delta_clamped, hour_of_day, is_weekend, delay_minutes)
-**Automation**: Daily streamlined retraining at 4:00 AM Pacific (WSF API source)
-**Export**: CSV reporting available for performance analysis
-**Simplification**: Removed over-engineering while maintaining core functionality</content>
-</xai:function_call">Write contents to convex/domain/ml/readme-ml.md
+**Status**: ✅ **FULLY OPERATIONAL WITH LINEAR REGRESSION**
+
+**Models**: Dynamic coverage across 35+ terminal pairs (2 models each: departure + arrival)
+
+**Training Data**: Fresh WSF API data (720 days back) or stored historical data
+
+**Features**: 13-14 comprehensive features (5 base + 8 time-of-day centers)
+
+**Automation**: Daily retraining at 4:00 AM Pacific (linear regression via cron)

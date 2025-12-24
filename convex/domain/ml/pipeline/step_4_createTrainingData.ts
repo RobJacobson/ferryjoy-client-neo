@@ -3,11 +3,105 @@
 // Feature engineering and training example creation
 // ============================================================================
 
-import { extractFeatures } from "domain/ml/pipeline/shared/featureEngineering";
 import type {
+  FeatureRecord,
+  FeatureVector,
   TerminalPairBucket,
   TrainingExample,
 } from "../types";
+import { getMinutesDelta, getPacificTime } from "./shared/time";
+
+/**
+ * Round very small values to zero to clean up numerical noise
+ */
+const roundTinyValues = (value: number, threshold: number = 1e-10): number => {
+  return Math.abs(value) < threshold ? 0 : value;
+};
+
+/**
+ * Create smooth time-of-day features using Gaussian radial basis functions
+ * Evenly distributed centers every 3 hours for comprehensive daily coverage
+ */
+const getTimeOfDaySmooth = (
+  schedDeparturePacificTime: Date
+): Record<string, number> => {
+  const hourOfDay =
+    schedDeparturePacificTime.getHours() +
+    schedDeparturePacificTime.getMinutes() / 60;
+
+  // Every 3 hours, with peaks around 8:00 AM and 5:00 PM
+  const centers = [2, 5, 8, 11, 14, 17, 20, 23];
+
+  // Adaptive standard deviation based on center spacing
+  // For N centers in 24 hours: spacing = 24/N, sigma = spacing * 0.5 for good overlap
+  const sigma = (12 / centers.length) * 0.5;
+
+  const features: Record<string, number> = {};
+
+  centers.forEach((center, index) => {
+    // Calculate minimum distance considering 24-hour wraparound
+    const distance = Math.min(
+      Math.abs(hourOfDay - center),
+      24 - Math.abs(hourOfDay - center)
+    );
+
+    // Gaussian radial basis function
+    const weight = Math.exp(-(distance * distance) / (2 * sigma * sigma));
+
+    features[`time_center_${index}`] = weight;
+  });
+
+  return features;
+};
+
+/**
+ * Extract features for ML models using FeatureRecord
+ */
+const extractFeatures = (input: FeatureRecord): FeatureVector => {
+  const arriveBeforeMin = getMinutesDelta(
+    input.tripStart,
+    input.schedDeparture
+  );
+  const schedDeparturePacificTime = getPacificTime(input.schedDeparture);
+
+  const dayOfWeek = schedDeparturePacificTime.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+  // Get raw time features and round tiny values to zero
+  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
+  const cleanedTimeFeatures: Record<string, number> = {};
+  for (const [key, value] of Object.entries(timeFeatures)) {
+    cleanedTimeFeatures[key] = roundTinyValues(value);
+  }
+
+  // Running late features
+  const runningLate = arriveBeforeMin < input.meanAtDockDuration ? 1 : 0;
+  const runningLateMin = Math.max(
+    0,
+    input.meanAtDockDuration - arriveBeforeMin
+  );
+  const runningEarlyMin = Math.max(
+    0,
+    Math.min(arriveBeforeMin - input.meanAtDockDuration, 10)
+  );
+
+  // Base features available in both contexts
+  const features: FeatureVector = {
+    running_late: runningLate,
+    running_late_min: runningLateMin,
+    running_early_min: runningEarlyMin,
+    is_weekend: isWeekend ? 1 : 0,
+    prev_delay: input.prevDelay,
+    ...cleanedTimeFeatures,
+  };
+
+  // Add delay_minutes for arrival models (available in FeatureRecord from prediction)
+  if (input.delayMinutes !== undefined) {
+    features.delay_minutes = roundTinyValues(input.delayMinutes);
+  }
+
+  return features;
+};
 
 /**
  * Create training examples for a specific bucket and model type
@@ -40,13 +134,6 @@ export const createTrainingExamplesForBucket = (
   // Update bucket stats with filtered count
   bucket.bucketStats.filteredRecords = examples.length;
 
-  const filterRate = ((examples.length / bucket.records.length) * 100).toFixed(
-    1
-  );
-  console.log(
-    `Created ${examples.length}/${bucket.records.length} training examples for ${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev} ${modelType} (${filterRate}%)`
-  );
-
   return examples;
 };
 
@@ -59,10 +146,6 @@ export const createTrainingDataForBucketBoth = (
   departureExamples: TrainingExample[];
   arrivalExamples: TrainingExample[];
 } => {
-  console.log(
-    `Creating training data for ${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev} (${bucket.records.length} records)`
-  );
-
   const departureExamples = createTrainingExamplesForBucket(
     bucket,
     "departure"
