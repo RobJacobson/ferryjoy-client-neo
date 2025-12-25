@@ -1,94 +1,115 @@
-import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError } from "convex/values";
 import {
   type ConvexVesselTrip,
   vesselTripSchema,
 } from "functions/vesselTrips/schemas";
 
 /**
- * Bulk upsert multiple vessel trips to activeVesselTrips table (update if exists, insert if not)
- *
- * This implementation efficiently batches all reads upfront, then performs
- * all writes in a single transaction. Convex queues all database changes
- * and executes them atomically when the mutation completes.
+ * Upsert an active trip (update if exists, insert if not)
+ * Only one active trip per vessel allowed
  */
-export const bulkUpsertActiveTrips = mutation({
-  args: { trips: v.array(vesselTripSchema) },
-  handler: async (ctx, args: { trips: ConvexVesselTrip[] }) => {
+export const upsertActiveTrip = mutation({
+  args: { trip: vesselTripSchema },
+  handler: async (ctx, args: { trip: ConvexVesselTrip }) => {
     try {
-      const results: {
-        id: Id<"activeVesselTrips">;
-        action: "updated" | "inserted";
-        vesselId: number;
-      }[] = [];
+      const existing = await ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.trip.VesselAbbrev)
+        )
+        .first();
 
-      // Batch read: Fetch all existing active vessel trips once
-      const existingTrips = await ctx.db.query("activeVesselTrips").collect();
-
-      // Create a Map for O(1) lookups by VesselID
-      const existingByVesselId = new Map(
-        existingTrips.map((trip) => [trip.VesselID, trip])
-      );
-
-      // Process all trips in a single loop
-      // All database writes are queued and executed atomically when mutation completes
-      for (const trip of args.trips) {
-        const existing = existingByVesselId.get(trip.VesselID);
-
-        if (existing) {
-          // Update existing document with full replacement
-          await ctx.db.replace(existing._id, trip);
-          results.push({
-            id: existing._id,
-            action: "updated",
-            vesselId: trip.VesselID,
-          });
-        } else {
-          // Insert new document
-          const id = await ctx.db.insert("activeVesselTrips", trip);
-          results.push({ id, action: "inserted", vesselId: trip.VesselID });
-        }
+      if (existing) {
+        // Update existing trip
+        await ctx.db.replace(existing._id, args.trip);
+        return existing._id;
+      } else {
+        // Insert new trip
+        const id = await ctx.db.insert("activeVesselTrips", args.trip);
+        return id;
       }
-
-      return results;
     } catch (error) {
       throw new ConvexError({
-        message: `Failed to bulk upsert vessel trips to activeVesselTrips`,
-        code: "BULK_UPSERT_ACTIVE_FAILED",
+        message: `Failed to upsert active trip for vessel ${args.trip.VesselAbbrev}`,
+        code: "UPSERT_ACTIVE_TRIP_FAILED",
         severity: "error",
-        details: { error: String(error) },
+        details: {
+          vesselAbbrev: args.trip.VesselAbbrev,
+          error: String(error),
+        },
       });
     }
   },
 });
 
 /**
- * Bulk insert multiple vessel trips to completedVesselTrips table (insert only)
+ * Complete an active trip and start a new one
+ * Performs two atomic operations:
+ * 1. Insert the completed trip into completedVesselTrips
+ * 2. Overwrite the active trip with new trip data (instead of delete + insert)
  */
-export const bulkInsertCompletedTrips = mutation({
-  args: { trips: v.array(vesselTripSchema) },
-  handler: async (ctx, args: { trips: ConvexVesselTrip[] }) => {
+export const completeAndStartNewTrip = mutation({
+  args: {
+    completedTrip: vesselTripSchema,
+    newTrip: vesselTripSchema,
+  },
+  handler: async (
+    ctx,
+    args: { completedTrip: ConvexVesselTrip; newTrip: ConvexVesselTrip }
+  ) => {
     try {
-      const results: {
-        id: Id<"completedVesselTrips">;
-        vesselId: number;
-      }[] = [];
-
-      // Process each trip in array
-      for (const trip of args.trips) {
-        // Insert new document into completedVesselTrips table
-        const id = await ctx.db.insert("completedVesselTrips", trip);
-        results.push({ id, vesselId: trip.VesselID });
+      // Verify completed trip has TripEnd set
+      if (!args.completedTrip.TripEnd) {
+        throw new ConvexError({
+          message: "Completed trip must have TripEnd set",
+          code: "INVALID_COMPLETED_TRIP",
+          severity: "error",
+        });
       }
 
-      return results;
+      // Get the existing active trip to overwrite
+      const existingActive = await ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.completedTrip.VesselAbbrev)
+        )
+        .first();
+
+      if (!existingActive) {
+        throw new ConvexError({
+          message: `No active trip found for vessel ${args.completedTrip.VesselAbbrev}`,
+          code: "ACTIVE_TRIP_NOT_FOUND",
+          severity: "error",
+          details: { vesselAbbrev: args.completedTrip.VesselAbbrev },
+        });
+      }
+
+      // 1. Insert completed trip
+      const completedId = await ctx.db.insert(
+        "completedVesselTrips",
+        args.completedTrip
+      );
+
+      // 2. Overwrite the active trip with new trip data
+      await ctx.db.replace(existingActive._id, args.newTrip);
+
+      return {
+        completedId,
+        activeTripId: existingActive._id,
+      };
     } catch (error) {
+      if (error instanceof ConvexError) {
+        throw error;
+      }
       throw new ConvexError({
-        message: `Failed to bulk insert vessel trips to completedVesselTrips`,
-        code: "BULK_INSERT_COMPLETED_FAILED",
+        message: `Failed to complete and start new trip for vessel ${args.completedTrip.VesselAbbrev}`,
+        code: "COMPLETE_AND_START_TRIP_FAILED",
         severity: "error",
-        details: { error: String(error) },
+        details: {
+          vesselAbbrev: args.completedTrip.VesselAbbrev,
+          error: String(error),
+        },
       });
     }
   },

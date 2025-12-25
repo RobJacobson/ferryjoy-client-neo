@@ -7,40 +7,25 @@ import {
 } from "../../shared/convertDates";
 
 /**
- * Convex validator for active vessel trips (numbers)
- * This is used in defineTable and function argument validation
+ * Convex validator for vessel trips (numbers)
+ * Simplified schema without Status field - table determines status
  */
 export const vesselTripSchema = v.object({
-  // vessel location fields
-  VesselID: v.number(),
-  VesselName: v.optional(v.string()),
-  VesselAbbrev: v.optional(v.string()),
-  DepartingTerminalID: v.number(),
-  DepartingTerminalName: v.string(),
+  VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalID: v.optional(v.number()),
-  ArrivingTerminalName: v.optional(v.string()),
   ArrivingTerminalAbbrev: v.optional(v.string()),
-  Latitude: v.number(),
-  Longitude: v.number(),
-  Speed: v.optional(v.number()),
-  Heading: v.number(),
-  InService: v.boolean(),
-  AtDock: v.boolean(),
-  LeftDock: v.optional(v.number()),
-  Eta: v.optional(v.number()),
-  ScheduledDeparture: v.optional(v.number()),
-  OpRouteAbbrev: v.optional(v.string()),
-  VesselPositionNum: v.optional(v.number()),
-  TimeStamp: v.number(),
-  // vessel trip fields
   TripStart: v.optional(v.number()),
-  TripEnd: v.optional(v.number()),
-  Distance: v.optional(v.number()),
+  AtDock: v.boolean(),
   AtDockDuration: v.optional(v.number()),
+  ScheduledDeparture: v.optional(v.number()),
+  LeftDock: v.optional(v.number()),
+  Delay: v.optional(v.number()),
+  Eta: v.optional(v.number()),
+  TripEnd: v.optional(v.number()),
   AtSeaDuration: v.optional(v.number()),
   TotalDuration: v.optional(v.number()),
-  Delay: v.optional(v.number()),
+  InService: v.boolean(),
+  TimeStamp: v.number(),
 });
 
 /**
@@ -50,28 +35,39 @@ export const vesselTripSchema = v.object({
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 
 /**
- * Converts vessel location to active trip format
+ * Converts vessel location to trip format with simplified schema
  * Note: location is already in Convex format (numbers), returns Convex format
  */
 export const toConvexVesselTrip = (
-  location: ConvexVesselLocation,
+  cvl: ConvexVesselLocation,
   params: {
     TripStart?: number;
     TripEnd?: number;
-    LeftDock?: number;
-    Distance?: number;
     AtDockDuration?: number;
     AtSeaDuration?: number;
     TotalDuration?: number;
     Delay?: number;
   }
 ): ConvexVesselTrip => ({
-  ...location,
-  ...params,
+  VesselAbbrev: cvl.VesselAbbrev,
+  DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
+  ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
+  AtDock: cvl.AtDock,
+  ScheduledDeparture: cvl.ScheduledDeparture,
+  Eta: cvl.Eta,
+  TimeStamp: cvl.TimeStamp,
+  TripStart: params.TripStart,
+  TripEnd: params.TripEnd,
+  AtDockDuration: params.AtDockDuration,
+  LeftDock: cvl.LeftDock,
+  AtSeaDuration: params.AtSeaDuration,
+  TotalDuration: params.TotalDuration,
+  Delay: params.Delay,
+  InService: cvl.InService,
 });
 
 /**
- * Convert Convex active vessel trip (numbers) to domain active vessel trip (Dates)
+ * Convert Convex vessel trip (numbers) to domain vessel trip (Dates)
  * Manual conversion from epoch milliseconds to Date objects
  */
 export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({

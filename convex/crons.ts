@@ -9,9 +9,9 @@ crons.interval(
   internal.functions.vesselLocation.actions.updateVesselLocations
 );
 
-crons.cron(
+crons.interval(
   "update vessel trips",
-  "* * * * *", // every minute
+  { seconds: 10 }, // every ten seconds
   internal.functions.vesselTrips.actions.updateVesselTrips
 );
 
