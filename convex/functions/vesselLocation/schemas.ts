@@ -1,5 +1,6 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import {
   dateToEpochMs,
@@ -14,8 +15,8 @@ import {
  */
 export const vesselLocationValidationSchema = v.object({
   VesselID: v.number(),
-  VesselName: v.optional(v.string()),
-  VesselAbbrev: v.optional(v.string()),
+  VesselName: v.string(),
+  VesselAbbrev: v.string(),
   DepartingTerminalID: v.number(),
   DepartingTerminalName: v.string(),
   DepartingTerminalAbbrev: v.string(),
@@ -50,10 +51,11 @@ export const toConvexVesselLocation = (
   dvl: DottieVesselLocation
 ): ConvexVesselLocation => ({
   VesselID: dvl.VesselID,
-  VesselName: dvl.VesselName ?? undefined,
+  VesselName: dvl.VesselName ?? "",
+  VesselAbbrev: getVesselAbbreviation(dvl.VesselName ?? ""),
   DepartingTerminalID: dvl.DepartingTerminalID,
-  DepartingTerminalName: dvl.DepartingTerminalName || "",
-  DepartingTerminalAbbrev: dvl.DepartingTerminalAbbrev || "",
+  DepartingTerminalName: dvl.DepartingTerminalName ?? "",
+  DepartingTerminalAbbrev: dvl.DepartingTerminalAbbrev ?? "",
   ArrivingTerminalID: dvl.ArrivingTerminalID ?? undefined,
   ArrivingTerminalName: dvl.ArrivingTerminalName ?? undefined,
   ArrivingTerminalAbbrev: dvl.ArrivingTerminalAbbrev ?? undefined,

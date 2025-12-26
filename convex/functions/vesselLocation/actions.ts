@@ -1,9 +1,9 @@
+import { api } from "_generated/api";
+import { internalAction } from "_generated/server";
+import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { api } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
-import { convertConvexVesselLocation } from "../../shared/convertVesselLocations";
-import { toConvexVesselLocation } from "../vesselLocation/schemas";
 
 /**
  * Runs every 5 seconds to fetch vessel locations and update related data

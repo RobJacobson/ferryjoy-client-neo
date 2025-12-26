@@ -1,7 +1,7 @@
-import { internalMutation, mutation } from "../../_generated/server";
+import { internalMutation, mutation } from "_generated/server";
 
-import type { ConvexVesselPingCollection } from "./schemas";
-import { vesselPingListValidationSchema } from "./schemas";
+import type { ConvexVesselPingCollection } from "functions/vesselPings/schemas";
+import { vesselPingListValidationSchema } from "functions/vesselPings/schemas";
 
 /**
  * Store a collection of vessel pings as a single document

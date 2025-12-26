@@ -1,5 +1,4 @@
 import type React from "react";
-import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, {
   Defs,
@@ -133,18 +132,17 @@ export const Wave: React.FC<WaveProps> = ({
 
   // Generate stable IDs based on component props to avoid SVG ID conflicts on iOS
   // Use provided id prop if available, otherwise create a hash-like string from props
-  const gradientId = useMemo(() => {
-    if (id) {
-      return `wave-gradient-${id}`;
-    }
-    const colorStr =
-      typeof color === "string" ? color.replace(/[^a-zA-Z0-9]/g, "") : "grad";
-    return `wave-gradient-${offsetY}-${height}-${period}-${colorStr.slice(0, 10)}`;
-  }, [id, offsetY, height, period, color]);
-  const shadowFilterId = useMemo(
-    () => `shadow-filter-${gradientId}`,
-    [gradientId]
-  );
+  // React Compiler will automatically memoize these based on prop dependencies
+  const gradientId = id
+    ? `wave-gradient-${id}`
+    : (() => {
+        const colorStr =
+          typeof color === "string"
+            ? color.replace(/[^a-zA-Z0-9]/g, "")
+            : "grad";
+        return `wave-gradient-${offsetY}-${height}-${period}-${colorStr.slice(0, 10)}`;
+      })();
+  const shadowFilterId = `shadow-filter-${gradientId}`;
 
   // Determine fill color
   const fillColor = isGradient ? `url(#${gradientId})` : color;

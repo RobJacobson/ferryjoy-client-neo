@@ -6,7 +6,7 @@
  */
 
 import type React from "react";
-import { useConvexVesselPings } from "@/data/contexts/ConvexVesselPingsContext";
+import { useConvexVesselPings } from "@/data/contexts/convex/ConvexVesselPingsContext";
 import { useSmoothedVesselLocations } from "@/data/contexts/SmoothedVesselLocationsContext";
 import { VesselLine } from "./VesselLine";
 

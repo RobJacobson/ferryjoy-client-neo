@@ -1,84 +1,166 @@
-// import type { ActiveVesselTrip } from "../../../functions/activeVesselTrips/schemas";
+// ============================================================================
+// CORE TYPES
+// ============================================================================
 
-// // ============================================================================
-// // CORE TYPES
-// // ============================================================================
+/**
+ * Feature vector as name-value pairs for ML
+ */
+export type FeatureVector = Record<string, number>;
 
-// /**
-//  * Vessel trip with all required fields guaranteed to be present
-//  * This is a runtime-validated subset of VesselTrip
-//  */
-// export type ValidatedTrip = ActiveVesselTrip & {
-//   OpRouteAbbrev: string;
-//   ArrivingTerminalID: number;
-//   ArrivingTerminalName: string;
-//   ArrivingTerminalAbbrev: string;
-//   ScheduledDeparture: Date;
-//   ArvDockActual: Date;
-//   LeftDock: Date;
-//   Eta: Date;
-//   TimeStamp: Date;
-//   LeftDockDelay: number;
-// };
+/**
+ * Feature record for feature extraction (used in prediction and training)
+ */
+export type FeatureRecord = Record<string, number>;
 
-// /**
-//  * Pair of consecutive vessel trips for feature extraction
-//  */
-// export type TripPair = {
-//   prevTrip: ValidatedTrip;
-//   currTrip: ValidatedTrip;
-//   routeId: string;
-// };
+/**
+ * Training example with features and target
+ */
+export type TrainingExample = {
+  input: FeatureVector;
+  target: number; // duration in minutes (at_dock, at_sea, or combined durations)
+};
 
-// /**
-//  * Feature vector as name-value pairs for ML
-//  */
-// export type FeatureVector = Record<string, number>;
+/**
+ * Terminal pair identifier
+ */
+export type TerminalPair = {
+  departingTerminalAbbrev: string;
+  arrivingTerminalAbbrev: string;
+};
 
-// /**
-//  * Training example with features and target
-//  */
-// export type TrainingExample = {
-//   input: FeatureVector;
-//   target: number; // delay in minutes
-// };
+/**
+ * Training data record containing both features and targets for model training
+ */
+export type TrainingDataRecord = {
+  // Terminal identifiers (needed for pipeline operations)
+  departingTerminalAbbrev: string;
+  arrivingTerminalAbbrev: string;
 
-// /**
-//  * ML model parameters
-//  */
-// export type ModelParameters = {
-//   coefficients: number[];
-//   featureNames: string[];
-//   intercept: number;
-//   routeId: string;
-// };
+  // Target variables for training
+  prevDelay: number; // minutes from previous trip's scheduled departure (can be negative)
+  prevAtSeaDuration: number; // minutes from previous trip's departure to previous trip's arrival (for depart-depart target)
+  currAtDockDuration: number; // minutes from arrival at B to departure from B (current trip)
+  currDelay: number; // minutes from scheduled departure to actual departure (current trip)
+  currAtSeaDuration: number; // minutes from departure to arrival (current trip)
 
-// /**
-//  * Training response
-//  */
-// export type TrainingResponse = {
-//   success: boolean;
-//   models: ModelParameters[];
-//   stats: {
-//     totalExamples: number;
-//     routes: string[];
-//     routeBreakdown: Record<
-//       string,
-//       {
-//         count: number;
-//         avgPrediction: number;
-//         stdDev: number;
-//         mae: number;
-//         r2: number;
-//       }
-//     >;
-//   };
-// };
+  // Time features extracted from scheduled departure
+  isWeekend: number; // 1 if the scheduled departure is on a weekend, 0 otherwise
+  schedDepartureTimeFeatures: Record<string, number>; // Time-of-day features from scheduled departure time
+  schedDepartureTimestamp: number; // Timestamp (milliseconds) of scheduled departure for chronological sorting
+  arriveEarlyMinutes: number; // minutes early the vessel arrived at the dock
+  arriveBeforeMinutes: number; // minutes before the scheduled departure the vessel arrived at the dock
+};
 
-// /**
-//  * Prediction output
-//  */
-// export type PredictionOutput = {
-//   predictedDelayMinutes: number;
-//   confidence?: number;
-// };
+/**
+ * Terminal pair bucket with basic statistics
+ */
+export type TerminalPairBucket = {
+  terminalPair: TerminalPair;
+  records: TrainingDataRecord[];
+  bucketStats: {
+    totalRecords: number;
+    filteredRecords: number;
+    meanDepartureDelay?: number;
+    meanAtSeaDuration?: number;
+    meanDelay?: number;
+  };
+};
+
+/**
+ * Training data for a specific terminal pair and model type
+ */
+export type TerminalPairTrainingData = {
+  terminalPair: TerminalPair;
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
+    | "arrive-depart-late";
+  examples: TrainingExample[];
+};
+
+/**
+ * Simplified ML model parameters
+ * Linear regression models always have coefficients and intercept set
+ */
+export type ModelParameters = {
+  // Model data - always set for valid linear regression models
+  coefficients: number[];
+  intercept: number;
+
+  // Required identifiers
+  departingTerminalAbbrev: string;
+  arrivingTerminalAbbrev: string;
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
+    | "arrive-depart-late";
+
+  // Training metrics - always set after training
+  trainingMetrics: {
+    mae: number;
+    rmse: number;
+    r2: number;
+    stdDev?: number;
+  };
+
+  // Creation timestamp
+  createdAt: number;
+
+  // Basic bucket statistics
+  bucketStats: {
+    totalRecords: number;
+    filteredRecords: number;
+    meanDepartureDelay?: number;
+    meanAtSeaDuration?: number;
+    meanDelay?: number;
+  };
+
+  // Optional evaluation metrics (only set when holdout evaluation succeeds)
+  evaluation?: {
+    strategy: "time_split";
+    foldsUsed: number;
+    holdout: { mae: number; rmse: number; r2: number };
+  };
+};
+
+/**
+ * Basic data quality metrics
+ */
+export type DataQualityMetrics = {
+  totalRecords: number;
+  completeness: {
+    overallScore: number;
+    fieldCompleteness: Record<string, number>;
+  };
+  temporal: {
+    validOrdering: number;
+    invalidRecords: number;
+  };
+};
+
+/**
+ * Simplified training response
+ */
+export type TrainingResponse = {
+  models: ModelParameters[];
+  stats: {
+    totalExamples: number;
+    terminalPairs: string[];
+    bucketsProcessed: number;
+    dataQuality: DataQualityMetrics;
+  };
+};
+
+/**
+ * Prediction output for terminal pair models
+ */
+export type PredictionOutput = {
+  atDockDuration?: number; // minutes from arrival at dock to departure (arrive-depart model)
+  atSeaDuration?: number; // minutes from departure to arrival (depart-arrive model)
+  combinedDuration?: number; // minutes from departure at A to departure at B (depart-depart model)
+  predictedDepartureTime?: Date; // calculated from scheduled + delay (if applicable)
+};

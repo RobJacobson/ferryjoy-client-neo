@@ -15,7 +15,7 @@
 
 import type { Camera, MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
@@ -42,6 +42,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   // Only use update function from context, not the state
   const { updateCameraState, updateMapDimensions } = useMapState();
   const { registerController } = useMapCameraController();
+  const [styleLoaded, setStyleLoaded] = useState(false);
 
   // Keep track of previous camera state to avoid unnecessary updates
   const previousCameraStateRef = useRef<CameraState>(
@@ -75,7 +76,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   }, [updateMapDimensions]);
 
   // Register imperative camera controller for screens to call flyTo
-  const flyToImpl = useCallback((target: CameraState, durationMs: number) => {
+  const flyToImpl = (target: CameraState, durationMs: number) => {
     cameraRef.current?.setCamera({
       centerCoordinate: [...target.centerCoordinate] as [number, number],
       zoomLevel: target.zoomLevel,
@@ -84,7 +85,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
       animationDuration: durationMs,
       animationMode: durationMs > 0 ? "flyTo" : "none",
     });
-  }, []);
+  };
 
   useRegisterMapCameraController({
     registerController,
@@ -103,6 +104,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
         pitchEnabled={true}
         rotateEnabled={true}
         onCameraChanged={handleCameraChanged}
+        onDidFinishLoadingStyle={() => setStyleLoaded(true)}
       >
         <MapboxRN.Camera
           ref={cameraRef}
@@ -114,7 +116,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
             ] as [number, number],
           }}
         />
-        {children}
+        {styleLoaded ? children : null}
       </MapboxRN.MapView>
     </View>
   );

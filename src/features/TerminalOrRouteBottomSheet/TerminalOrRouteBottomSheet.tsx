@@ -1,5 +1,4 @@
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export type TerminalOrRouteBottomSheetProps = {
@@ -15,10 +14,8 @@ export const TerminalOrRouteBottomSheet = ({
   snapPoints: snapPointsProp,
   initialIndex = 0,
 }: TerminalOrRouteBottomSheetProps) => {
-  const snapPoints = useMemo<(string | number)[]>(() => {
-    // BottomSheet expects a mutable array type; spread ensures we don't pass readonly arrays through.
-    return [...(snapPointsProp ?? ["25%", "50%", "85%"])];
-  }, [snapPointsProp]);
+  // BottomSheet expects a mutable array type; spread ensures we don't pass readonly arrays through.
+  const snapPoints = [...(snapPointsProp ?? ["25%", "50%", "85%"])];
 
   return (
     <BottomSheet

@@ -1,5 +1,5 @@
-// import type { Infer } from "convex/values";
-// import { v } from "convex/values";
+import type { Infer } from "convex/values";
+import { v } from "convex/values";
 // import {
 //   dateToEpochMs,
 //   epochMsToDate,
@@ -74,31 +74,54 @@
 //   typeof toDomainHistoricalPredictionData
 // >;
 
-// /**
-//  * Convex validator for model parameters mutation argument (numbers)
-//  */
-// export const modelParametersMutationSchema = v.object({
-//   routeId: v.string(),
-//   modelType: v.union(v.literal("departure"), v.literal("arrival")),
-//   modelAlgorithm: v.optional(v.string()),
-//   coefficients: v.array(v.number()),
-//   intercept: v.number(),
-//   featureNames: v.array(v.string()),
-//   trainingMetrics: v.object({
-//     mae: v.number(),
-//     rmse: v.number(),
-//     r2: v.number(),
-//     stdDev: v.optional(v.number()),
-//   }),
-//   modelVersion: v.string(),
-//   createdAt: v.number(),
-// });
+/**
+ * Convex validator for model parameters mutation argument (numbers)
+ */
+export const modelParametersMutationSchema = v.object({
+    departingTerminalAbbrev: v.string(),
+    arrivingTerminalAbbrev: v.string(),
+    modelType: v.union(
+      v.literal("arrive-depart"),
+      v.literal("arrive-depart-late"),
+      v.literal("depart-arrive"),
+      v.literal("arrive-arrive"),
+      v.literal("depart-depart")
+    ),
 
-// /**
-//  * Type for model parameters in Convex storage (with numbers)
-//  * Inferred from the Convex validator
-//  */
-// export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;
+    // Model parameters (optional for insufficient data cases)
+    coefficients: v.optional(v.array(v.number())),
+    intercept: v.optional(v.number()),
+    trainingMetrics: v.optional(
+      v.object({
+        mae: v.number(),
+        rmse: v.number(),
+        r2: v.number(),
+        stdDev: v.optional(v.number()),
+      })
+    ),
+
+    // Required metadata
+    createdAt: v.number(),
+
+    // Bucket statistics (optional for backward compatibility)
+    bucketStats: v.optional(
+      v.object({
+        totalRecords: v.number(),
+        filteredRecords: v.number(),
+        meanDepartureDelay: v.optional(v.number()),
+        meanAtSeaDuration: v.optional(v.number()),
+        meanDelay: v.optional(v.number()),
+        // Backward compatibility for old data
+        meanAtDockDuration: v.optional(v.number()),
+      })
+    ),
+  });
+
+/**
+ * Type for model parameters in Convex storage (with numbers)
+ * Inferred from the Convex validator
+ */
+export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;
 
 // /**
 //  * Convert Convex current prediction data (numbers) to domain current prediction data (Dates)

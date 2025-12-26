@@ -1,13 +1,6 @@
 import { usePathname } from "expo-router";
 import type { PropsWithChildren } from "react";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type NavigationHistoryContextType = {
   previousPathname: string | null;
@@ -32,10 +25,7 @@ export const NavigationHistoryProvider = ({ children }: PropsWithChildren) => {
     currentRef.current = pathname;
   }, [pathname]);
 
-  const value = useMemo(
-    () => ({ previousPathname, currentPathname }),
-    [previousPathname, currentPathname]
-  );
+  const value = { previousPathname, currentPathname };
 
   return (
     <NavigationHistoryContext value={value}>

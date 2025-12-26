@@ -34,12 +34,3 @@ export const toVesselAbbreviation: Record<string, string> = {
 export const getVesselAbbreviation = (vesselName: string): string => {
   return toVesselAbbreviation[vesselName] || "";
 };
-
-/**
- * Check if a vessel name has a known abbreviation
- * @param vesselName - The full name of the vessel
- * @returns True if the vessel has a known abbreviation
- */
-export const hasVesselAbbreviation = (vesselName: string): boolean => {
-  return vesselName in toVesselAbbreviation;
-};

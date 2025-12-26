@@ -7,8 +7,8 @@ export const VESSEL_LINE_CONFIG = {
   // Smoothing configuration
   smoothing: {
     // Default smoothing strategy
-    strategy: "d3Basis" as SmoothingStrategyName,
-    // strategy: "none" as SmoothingStrategyName,
+    // strategy: "d3Basis" as SmoothingStrategyName,
+    strategy: "none" as SmoothingStrategyName,
     // Bezier curve parameters
     bezierResolution: 500,
     bezierSharpness: 0.5,

@@ -1,32 +1,62 @@
-// import { v } from "convex/values";
-// import { query } from "../../_generated/server";
+import { query } from "_generated/server";
+import { v } from "convex/values";
 
-// /**
-//  * Gets all model parameters
-//  */
-// export const getAllModelParameters = query({
-//   args: {},
-//   handler: async (ctx) => ctx.db.query("modelParameters").collect(),
-// });
+/**
+ * Gets all model parameters
+ */
+export const getAllModelParameters = query({
+  args: {},
+  handler: async (ctx) => ctx.db.query("modelParameters").collect(),
+});
 
-// /**
-//  * Gets model parameters by route
-//  */
-// export const getModelParametersByRoute = query({
-//   args: { routeId: v.string() },
-//   handler: async (ctx, args) => {
-//     const models = await ctx.db
-//       .query("modelParameters")
-//       .filter((q) => q.eq(q.field("routeId"), args.routeId))
-//       .collect();
+/**
+ * Gets model parameters by terminal pair and model type
+ */
+export const getModelParametersByTerminalPair = query({
+  args: {
+    departingTerminalAbbrev: v.string(),
+    arrivingTerminalAbbrev: v.string(),
+    modelType: v.union(
+      v.literal("arrive-depart"),
+      v.literal("depart-arrive"),
+      v.literal("arrive-arrive"),
+      v.literal("depart-depart")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const model = await ctx.db
+      .query("modelParameters")
+      .withIndex("by_terminals_and_type", (q) =>
+        q
+          .eq("departingTerminalAbbrev", args.departingTerminalAbbrev)
+          .eq("arrivingTerminalAbbrev", args.arrivingTerminalAbbrev)
+          .eq("modelType", args.modelType)
+      )
+      .first();
 
-//     // Return the most recent model for this route
-//     if (models.length > 0) {
-//       return models.sort((a, b) => b.createdAt - a.createdAt)[0];
-//     }
-//     return null;
-//   },
-// });
+    return model;
+  },
+});
+
+/**
+ * Gets all models for a terminal pair (all four model types)
+ */
+export const getModelsByTerminalPair = query({
+  args: {
+    departingTerminalAbbrev: v.string(),
+    arrivingTerminalAbbrev: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("modelParameters")
+      .withIndex("by_terminals", (q) =>
+        q
+          .eq("departingTerminalAbbrev", args.departingTerminalAbbrev)
+          .eq("arrivingTerminalAbbrev", args.arrivingTerminalAbbrev)
+      )
+      .collect();
+  },
+});
 
 // /**
 //  * Gets all current predictions
@@ -83,3 +113,18 @@
 //       .filter((q) => q.eq(q.field("predictionType"), args.predictionType))
 //       .collect(),
 // });
+
+/**
+ * Get the most recent model training timestamp for incremental training
+ */
+export const getLastTrainingTimestamp = query({
+  args: {},
+  handler: async (ctx) => {
+    const latestModel = await ctx.db
+      .query("modelParameters")
+      .order("desc")
+      .first();
+
+    return latestModel?.createdAt || 0;
+  },
+});
