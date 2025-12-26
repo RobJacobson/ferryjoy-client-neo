@@ -103,8 +103,13 @@ export const getMinutesDelta = (startTime: Date, endTime: Date): number =>
 
 /**
  * Round very small values to zero to clean up numerical noise
+ * @param value - Value to potentially round to zero
+ * @param threshold - Absolute value threshold below which value becomes zero (default: 1e-6 for coefficient noise)
  */
-const roundTinyValues = (value: number, threshold: number = 1e-10): number => {
+export const roundTinyValues = (
+  value: number,
+  threshold: number = 1e-6
+): number => {
   return Math.abs(value) < threshold ? 0 : value;
 };
 

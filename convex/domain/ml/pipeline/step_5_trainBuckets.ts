@@ -12,6 +12,7 @@ import type {
 } from "../types";
 import { formatTerminalPairKey, PIPELINE_CONFIG } from "./shared/config";
 import { createTrainingDataForBucketSingle } from "./step_4_createTrainingData";
+import { roundTinyValues } from "./shared/time";
 
 // ============================================================================
 // ALGORITHM CONSTANTS
@@ -83,13 +84,6 @@ type TrainingResult = {
   predict: (features: number[]) => number;
 };
 
-const roundTinyCoefficient = (value: number): number => {
-  // Values this small contribute essentially nothing to minute-level predictions.
-  return Math.abs(value) < PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD
-    ? 0
-    : value;
-};
-
 /**
  * Linear Regression trainer using MLR
  */
@@ -102,9 +96,12 @@ const trainLinearRegression = (examples: TrainingExample[]): TrainingResult => {
 
   const coefficients = regression.weights
     .slice(0, -1)
-    .map((row) => roundTinyCoefficient(row[0]));
-  const intercept = roundTinyCoefficient(
-    regression.weights[regression.weights.length - 1][0]
+    .map((row) =>
+      roundTinyValues(row[0], PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD)
+    );
+  const intercept = roundTinyValues(
+    regression.weights[regression.weights.length - 1][0],
+    PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD
   );
 
   return {
@@ -159,6 +156,7 @@ const createExamplesFromRecords = (
 /**
  * Compute holdout metrics using a single chronological 80/20 split.
  * Memory-optimized version that avoids creating intermediate buckets.
+ * Returns out-of-sample metrics for model evaluation.
  *
  * @param sortedRecords - Pre-sorted training records (chronological by scheduled departure)
  * @param modelType - Model type to evaluate
@@ -208,7 +206,7 @@ const computeHoldoutMetrics = async (
     };
   }
 
-  // Train model on training set
+  // Train model on training set (for out-of-sample evaluation only) (for out-of-sample evaluation only)
   const trainingResult = trainLinearRegression(trainExamples);
 
   // Evaluate on test set (process in place to minimize memory)
@@ -278,6 +276,8 @@ export const trainModelsForBucket = async (
 
 /**
  * Train a single model for given examples
+ * Consistently trains on 100% of data for production use
+ * Holdout evaluation provides out-of-sample metrics only
  */
 const trainSingleModel = async (
   examples: TrainingExample[],
@@ -296,23 +296,22 @@ const trainSingleModel = async (
   );
 
   // Compute holdout evaluation metrics (if enabled)
-  // Pass pre-sorted records to avoid creating multiple copies
+  // This evaluates on 80/20 split and provides out-of-sample metrics
   const holdoutResult = await computeHoldoutMetrics(sortedRecords, modelType);
 
-  // Train model on all available data
+  // Train model on FULL dataset for production use (100% of data)
   const trainingResult = trainLinearRegression(examples);
 
-  // Calculate essential metrics (MAE, RMSE, R²)
-  // Use holdout metrics if available, otherwise calculate in-sample metrics
+  // Calculate metrics - use holdout out-of-sample if available, otherwise in-sample
   let mae: number;
   let rmse: number;
   let r2: number;
 
   if (holdoutResult.strategy === "time_split") {
-    // Use holdout metrics (already computed, no need to recalculate)
+    // Use out-of-sample metrics from holdout evaluation (better for generalization)
     ({ mae, rmse, r2 } = holdoutResult.metrics);
   } else {
-    // Calculate in-sample metrics (only if holdout evaluation failed)
+    // Calculate in-sample metrics (holdout evaluation failed or disabled)
     const x = examples.map((ex) => Object.values(ex.input) as number[]);
     const y = examples.map((ex) => ex.target);
     const predictions = x.map((features) => trainingResult.predict(features));
