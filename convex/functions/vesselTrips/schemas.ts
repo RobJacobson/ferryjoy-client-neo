@@ -26,6 +26,14 @@ export const vesselTripSchema = v.object({
   TotalDuration: v.optional(v.number()),
   InService: v.boolean(),
   TimeStamp: v.number(),
+  // Predicted departure time (absolute timestamp in milliseconds)
+  LeftDockPred: v.optional(v.number()),
+  // Prediction MAE (rounded to nearest 0.01 minute)
+  LeftDockPredMae: v.optional(v.number()),
+  // Predicted arrival time (absolute timestamp in milliseconds)
+  EtaPred: v.optional(v.number()),
+  // Prediction MAE (rounded to nearest 0.01 minute)
+  EtaPredMae: v.optional(v.number()),
 });
 
 /**
@@ -47,6 +55,11 @@ export const toConvexVesselTrip = (
     AtSeaDuration?: number;
     TotalDuration?: number;
     Delay?: number;
+    // Prediction fields
+    LeftDockPred?: number;
+    LeftDockPredMae?: number;
+    EtaPred?: number;
+    EtaPredMae?: number;
   }
 ): ConvexVesselTrip => ({
   VesselAbbrev: cvl.VesselAbbrev,
@@ -64,6 +77,11 @@ export const toConvexVesselTrip = (
   TotalDuration: params.TotalDuration,
   Delay: params.Delay,
   InService: cvl.InService,
+  // Prediction fields
+  LeftDockPred: params.LeftDockPred,
+  LeftDockPredMae: params.LeftDockPredMae,
+  EtaPred: params.EtaPred,
+  EtaPredMae: params.EtaPredMae,
 });
 
 /**
@@ -78,6 +96,12 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   TimeStamp: epochMsToDate(trip.TimeStamp),
   TripStart: optionalEpochMsToDate(trip.TripStart),
   TripEnd: optionalEpochMsToDate(trip.TripEnd),
+  // Prediction fields (convert timestamps to Date objects)
+  LeftDockPred: optionalEpochMsToDate(trip.LeftDockPred),
+  EtaPred: optionalEpochMsToDate(trip.EtaPred),
+  // MAE fields remain as numbers (not timestamps)
+  LeftDockPredMae: trip.LeftDockPredMae,
+  EtaPredMae: trip.EtaPredMae,
 });
 
 /**
