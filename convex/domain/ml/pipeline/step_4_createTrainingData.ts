@@ -20,18 +20,15 @@ const timeFeatures = (record: TrainingDataRecord) => ({
  */
 export const createArriveDepartTrainingExample = (
   record: TrainingDataRecord
-): TrainingExample | null => {
-  return {
-    input: {
-      ...timeFeatures(record),
-      prevDelay: record.prevDelay,
-      prevAtSeaDuration: record.prevAtSeaDuration,
-      // arriveEarlyMinutes: record.arriveEarlyMinutes,
-      arriveBeforeMinutes: record.arriveBeforeMinutes,
-    },
-    target: record.currAtDockDuration, // Changed from departureDelay to currAtDockDuration
-  };
-};
+): TrainingExample => ({
+  input: {
+    ...timeFeatures(record),
+    prevDelay: record.prevDelay,
+    prevAtSeaDuration: record.prevAtSeaDuration,
+    arriveBeforeMinutes: record.arriveBeforeMinutes,
+  },
+  target: record.currAtDockDuration, // Changed from departureDelay to currAtDockDuration
+});
 
 /**
  * Create training example for arrive-depart-late model
@@ -40,17 +37,15 @@ export const createArriveDepartTrainingExample = (
  */
 export const createArriveDepartLateTrainingExample = (
   record: TrainingDataRecord
-): TrainingExample | null => {
-  return {
-    input: {
-      ...timeFeatures(record),
-      prevDelay: record.prevDelay,
-      prevAtSeaDuration: record.prevAtSeaDuration,
-      arriveBeforeMinutes: record.arriveBeforeMinutes,
-    },
-    target: record.currDelay,
-  };
-};
+): TrainingExample => ({
+  input: {
+    ...timeFeatures(record),
+    prevDelay: record.prevDelay,
+    prevAtSeaDuration: record.prevAtSeaDuration,
+    arriveBeforeMinutes: record.arriveBeforeMinutes,
+  },
+  target: record.currDelay,
+});
 
 /**
  * Create training example for depart-arrive model
@@ -58,23 +53,14 @@ export const createArriveDepartLateTrainingExample = (
  */
 export const createDepartArriveTrainingExample = (
   record: TrainingDataRecord
-): TrainingExample | null => {
-  // depart-arrive - atSeaDuration is the only field that might be null
-  if (record.currAtSeaDuration == null) {
-    return null;
-  }
-
-  return {
-    input: {
-      ...timeFeatures(record),
-      prevDelay: record.prevDelay,
-      prevAtSeaDuration: record.prevAtSeaDuration,
-      atDockDuration: record.currAtDockDuration,
-      delay: record.currDelay,
-    },
-    target: record.currAtSeaDuration,
-  };
-};
+): TrainingExample => ({
+  input: {
+    ...timeFeatures(record),
+    atDockDuration: record.currAtDockDuration,
+    delay: record.currDelay,
+  },
+  target: record.currAtSeaDuration,
+});
 
 /**
  * Create training example for arrive-arrive model
@@ -82,16 +68,14 @@ export const createDepartArriveTrainingExample = (
  */
 export const createArriveArriveTrainingExample = (
   record: TrainingDataRecord
-): TrainingExample | null => {
-  return {
-    input: {
-      ...timeFeatures(record),
-      // prevDelay: record.prevDelay,
-      // prevAtSeaDuration: record.prevAtSeaDuration,
-    },
-    target: record.currAtDockDuration + record.currAtSeaDuration,
-  };
-};
+): TrainingExample => ({
+  input: {
+    ...timeFeatures(record),
+    prevDelay: record.prevDelay,
+    prevAtSeaDuration: record.prevAtSeaDuration,
+  },
+  target: record.currAtDockDuration + record.currAtSeaDuration,
+});
 
 /**
  * Create training example for depart-depart model
@@ -99,15 +83,13 @@ export const createArriveArriveTrainingExample = (
  */
 export const createDepartDepartTrainingExample = (
   record: TrainingDataRecord
-): TrainingExample | null => {
-  return {
-    input: {
-      ...timeFeatures(record),
-      // prevDelay: record.prevDelay,
-    },
-    target: record.prevAtSeaDuration + record.currAtDockDuration,
-  };
-};
+): TrainingExample => ({
+  input: {
+    ...timeFeatures(record),
+    prevDelay: record.prevDelay,
+  },
+  target: record.prevAtSeaDuration + record.currAtDockDuration,
+});
 
 /**
  * Create training data for a single model type in a bucket
@@ -123,24 +105,14 @@ export const createTrainingDataForBucketSingle = (
 ): TrainingExample[] => {
   switch (modelType) {
     case "arrive-depart":
-      return bucket.records
-        .map(createArriveDepartTrainingExample)
-        .filter((example): example is TrainingExample => example !== null);
+      return bucket.records.map(createArriveDepartTrainingExample);
     case "depart-arrive":
-      return bucket.records
-        .map(createDepartArriveTrainingExample)
-        .filter((example): example is TrainingExample => example !== null);
+      return bucket.records.map(createDepartArriveTrainingExample);
     case "arrive-arrive":
-      return bucket.records
-        .map(createArriveArriveTrainingExample)
-        .filter((example): example is TrainingExample => example !== null);
+      return bucket.records.map(createArriveArriveTrainingExample);
     case "depart-depart":
-      return bucket.records
-        .map(createDepartDepartTrainingExample)
-        .filter((example): example is TrainingExample => example !== null);
+      return bucket.records.map(createDepartDepartTrainingExample);
     case "arrive-depart-late":
-      return bucket.records
-        .map(createArriveDepartLateTrainingExample)
-        .filter((example): example is TrainingExample => example !== null);
+      return bucket.records.map(createArriveDepartLateTrainingExample);
   }
 };
