@@ -20,9 +20,12 @@ import type * as domain_ml_pipeline_step_4_createTrainingData from "../domain/ml
 import type * as domain_ml_pipeline_step_5_trainBuckets from "../domain/ml/pipeline/step_5_trainBuckets.js";
 import type * as domain_ml_pipeline_step_6_storeResults from "../domain/ml/pipeline/step_6_storeResults.js";
 import type * as domain_ml_pipelineCoordinator from "../domain/ml/pipelineCoordinator.js";
+import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
+import type * as domain_ml_prediction_predictors_index from "../domain/ml/prediction/predictors/index.js";
 import type * as domain_ml_prediction_step_1_extractFeatures from "../domain/ml/prediction/step_1_extractFeatures.js";
 import type * as domain_ml_prediction_step_2_loadModel from "../domain/ml/prediction/step_2_loadModel.js";
 import type * as domain_ml_prediction_step_3_makePrediction from "../domain/ml/prediction/step_3_makePrediction.js";
+import type * as domain_ml_prediction_step_4_calculateInitialPredictions from "../domain/ml/prediction/step_4_calculateInitialPredictions.js";
 import type * as domain_ml_types from "../domain/ml/types.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
@@ -74,9 +77,12 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/pipeline/step_5_trainBuckets": typeof domain_ml_pipeline_step_5_trainBuckets;
   "domain/ml/pipeline/step_6_storeResults": typeof domain_ml_pipeline_step_6_storeResults;
   "domain/ml/pipelineCoordinator": typeof domain_ml_pipelineCoordinator;
+  "domain/ml/prediction/index": typeof domain_ml_prediction_index;
+  "domain/ml/prediction/predictors/index": typeof domain_ml_prediction_predictors_index;
   "domain/ml/prediction/step_1_extractFeatures": typeof domain_ml_prediction_step_1_extractFeatures;
   "domain/ml/prediction/step_2_loadModel": typeof domain_ml_prediction_step_2_loadModel;
   "domain/ml/prediction/step_3_makePrediction": typeof domain_ml_prediction_step_3_makePrediction;
+  "domain/ml/prediction/step_4_calculateInitialPredictions": typeof domain_ml_prediction_step_4_calculateInitialPredictions;
   "domain/ml/types": typeof domain_ml_types;
   "functions/index": typeof functions_index;
   "functions/predictions/index": typeof functions_predictions_index;

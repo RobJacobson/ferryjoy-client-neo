@@ -1,5 +1,6 @@
 import { mutation } from "_generated/server";
 import { ConvexError } from "convex/values";
+import { calculateInitialPredictions, type InitialPredictions } from "domain/ml";
 import {
   type ConvexVesselTrip,
   vesselTripSchema,
@@ -45,9 +46,10 @@ export const upsertActiveTrip = mutation({
 
 /**
  * Complete an active trip and start a new one
- * Performs two atomic operations:
+ * Performs three atomic operations:
  * 1. Insert the completed trip into completedVesselTrips
- * 2. Overwrite the active trip with new trip data (instead of delete + insert)
+ * 2. Calculate ML predictions for the new trip (LeftDockPred and EtaPred)
+ * 3. Overwrite the active trip with new trip data (including predictions)
  */
 export const completeAndStartNewTrip = mutation({
   args: {
@@ -91,8 +93,81 @@ export const completeAndStartNewTrip = mutation({
         args.completedTrip
       );
 
-      // 2. Overwrite the active trip with new trip data
-      await ctx.db.replace(existingActive._id, args.newTrip);
+      // 2. Calculate initial predictions for the new trip
+      let predictions: InitialPredictions;
+      try {
+        predictions = await calculateInitialPredictions(
+          ctx,
+          args.completedTrip,
+          args.newTrip
+        );
+
+        // Log prediction results for observability
+        if (predictions.LeftDockPred) {
+          console.log(
+            `[ML Prediction] LeftDockPred calculated for ${args.newTrip.VesselAbbrev}:`,
+            {
+              vessel: args.newTrip.VesselAbbrev,
+              departingTerminal: args.newTrip.DepartingTerminalAbbrev,
+              arrivingTerminal: args.newTrip.ArrivingTerminalAbbrev,
+              scheduledDeparture: args.newTrip.ScheduledDeparture,
+              predictedLeftDock: predictions.LeftDockPred,
+              leftDockMae: predictions.LeftDockPredMae,
+            }
+          );
+        } else {
+          console.log(
+            `[ML Prediction] LeftDockPred skipped for ${args.newTrip.VesselAbbrev}`,
+            {
+              vessel: args.newTrip.VesselAbbrev,
+              reason: "Insufficient data or model not found",
+            }
+          );
+        }
+
+        if (predictions.EtaPred) {
+          console.log(`[ML Prediction] EtaPred calculated for ${args.newTrip.VesselAbbrev}:`, {
+            vessel: args.newTrip.VesselAbbrev,
+            departingTerminal: args.newTrip.DepartingTerminalAbbrev,
+            arrivingTerminal: args.newTrip.ArrivingTerminalAbbrev,
+            tripStart: args.newTrip.TripStart,
+            predictedEta: predictions.EtaPred,
+            etaMae: predictions.EtaPredMae,
+          });
+        } else {
+          console.log(
+            `[ML Prediction] EtaPred skipped for ${args.newTrip.VesselAbbrev}`,
+            {
+              vessel: args.newTrip.VesselAbbrev,
+              reason: "Insufficient data or model not found",
+            }
+          );
+        }
+      } catch (error) {
+        // Prediction failure should not prevent trip creation
+        console.error(
+          `[ML Prediction] Failed to calculate initial predictions for ${args.newTrip.VesselAbbrev}:`,
+          error
+        );
+        predictions = {
+          LeftDockPred: undefined,
+          LeftDockPredMae: undefined,
+          EtaPred: undefined,
+          EtaPredMae: undefined,
+        };
+      }
+
+      // 3. Merge predictions into new trip data
+      const newTripWithPredictions: ConvexVesselTrip = {
+        ...args.newTrip,
+        LeftDockPred: predictions.LeftDockPred,
+        LeftDockPredMae: predictions.LeftDockPredMae,
+        EtaPred: predictions.EtaPred,
+        EtaPredMae: predictions.EtaPredMae,
+      };
+
+      // 4. Overwrite the active trip with new trip data (including predictions)
+      await ctx.db.replace(existingActive._id, newTripWithPredictions);
 
       return {
         completedId,
