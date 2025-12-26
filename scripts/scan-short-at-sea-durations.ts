@@ -87,7 +87,7 @@ const main = (): void => {
   >();
 
   for (const bucket of buckets) {
-    const terminalPair = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
+    const terminalPair = `${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}`;
     const totalRecords = bucket.records.length;
     let shortCount = 0;
     let shortest = Infinity;

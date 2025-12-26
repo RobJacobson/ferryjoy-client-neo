@@ -8,6 +8,10 @@ interface TrainingResultRow {
   arrive_depart_r2?: number;
   arrive_depart_rmse?: number;
   arrive_depart_std_dev?: number;
+  arrive_depart_late_mae?: number;
+  arrive_depart_late_r2?: number;
+  arrive_depart_late_rmse?: number;
+  arrive_depart_late_std_dev?: number;
   depart_arrive_mae?: number;
   depart_arrive_r2?: number;
   depart_arrive_rmse?: number;
@@ -54,7 +58,7 @@ const parseCSV = (content: string): TrainingResultRow[] => {
       }
     });
 
-    return row as TrainingResultRow;
+    return row as unknown as TrainingResultRow;
   });
 };
 
@@ -67,6 +71,13 @@ interface ComparisonRow {
   arrive_depart_r2_file_a?: number;
   arrive_depart_r2_file_b?: number;
   arrive_depart_r2_diff?: number;
+  // arrive-depart-late
+  arrive_depart_late_mae_file_a?: number;
+  arrive_depart_late_mae_file_b?: number;
+  arrive_depart_late_mae_diff?: number;
+  arrive_depart_late_r2_file_a?: number;
+  arrive_depart_late_r2_file_b?: number;
+  arrive_depart_late_r2_diff?: number;
   // depart-arrive
   depart_arrive_mae_file_a?: number;
   depart_arrive_mae_file_b?: number;
@@ -130,6 +141,7 @@ const compareResults = (
       row: TrainingResultRow,
       modelType:
         | "arrive-depart"
+        | "arrive-depart-late"
         | "depart-arrive"
         | "arrive-arrive"
         | "depart-depart",
@@ -157,6 +169,19 @@ const compareResults = (
       arrive_depart_r2_diff: calcDiff(
         getMetric(fileARow, "arrive-depart", "r2"),
         getMetric(fileBRow, "arrive-depart", "r2")
+      ),
+      // arrive-depart-late metrics
+      arrive_depart_late_mae_file_a: getMetric(fileARow, "arrive-depart-late", "mae"),
+      arrive_depart_late_mae_file_b: getMetric(fileBRow, "arrive-depart-late", "mae"),
+      arrive_depart_late_mae_diff: calcDiff(
+        getMetric(fileARow, "arrive-depart-late", "mae"),
+        getMetric(fileBRow, "arrive-depart-late", "mae")
+      ),
+      arrive_depart_late_r2_file_a: getMetric(fileARow, "arrive-depart-late", "r2"),
+      arrive_depart_late_r2_file_b: getMetric(fileBRow, "arrive-depart-late", "r2"),
+      arrive_depart_late_r2_diff: calcDiff(
+        getMetric(fileARow, "arrive-depart-late", "r2"),
+        getMetric(fileBRow, "arrive-depart-late", "r2")
       ),
       // depart-arrive metrics
       depart_arrive_mae_file_a: getMetric(fileARow, "depart-arrive", "mae"),
@@ -221,29 +246,6 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
 
 ## Detailed Comparison
 
-### Arrive-Depart Model
-
-| Terminal Pair | MAE |  |  | R² |  |  | Records |
-|---------------|-----|-----|-----|-----|-----|-----|---------|
-|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
-
-### Depart-Arrive Model
-
-| Terminal Pair | MAE |  |  | R² |  |  | Records |
-|---------------|-----|-----|-----|-----|-----|-----|---------|
-|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
-
-### Arrive-Arrive Model
-
-| Terminal Pair | MAE |  |  | R² |  |  | Records |
-|---------------|-----|-----|-----|-----|-----|-----|---------|
-|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
-
-### Depart-Depart Model
-
-| Terminal Pair | MAE |  |  | R² |  |  | Records |
-|---------------|-----|-----|-----|-----|-----|-----|---------|
-|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |
 `;
 
   const formatNum = (num?: number) => (num != null ? num.toFixed(3) : "N/A");
@@ -257,6 +259,7 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
   const generateTableRows = (
     modelType:
       | "arrive-depart"
+      | "arrive-depart-late"
       | "depart-arrive"
       | "arrive-arrive"
       | "depart-depart"
@@ -284,6 +287,13 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
         r2A = row.arrive_depart_r2_file_a;
         r2B = row.arrive_depart_r2_file_b;
         r2Diff = row.arrive_depart_r2_diff;
+      } else if (modelType === "arrive-depart-late") {
+        maeA = row.arrive_depart_late_mae_file_a;
+        maeB = row.arrive_depart_late_mae_file_b;
+        maeDiff = row.arrive_depart_late_mae_diff;
+        r2A = row.arrive_depart_late_r2_file_a;
+        r2B = row.arrive_depart_late_r2_file_b;
+        r2Diff = row.arrive_depart_late_r2_diff;
       } else if (modelType === "depart-arrive") {
         maeA = row.depart_arrive_mae_file_a;
         maeB = row.depart_arrive_mae_file_b;
@@ -349,23 +359,22 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
     return rows;
   };
 
-  // Generate tables for each model type
-  markdown += generateTableRows("arrive-depart");
-  markdown += "\n### Depart-Arrive Model\n\n";
-  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
-  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
-  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
-  markdown += generateTableRows("depart-arrive");
-  markdown += "\n### Arrive-Arrive Model\n\n";
-  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
-  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
-  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
-  markdown += generateTableRows("arrive-arrive");
-  markdown += "\n### Depart-Depart Model\n\n";
-  markdown += `| Terminal Pair | MAE |  |  | R² |  |  | Records |\n`;
-  markdown += `|---------------|-----|-----|-----|-----|-----|-----|---------|\n`;
-  markdown += `|               | ${fileALabel.padEnd(13)} | ${fileBLabel.padEnd(8)} | Diff     | ${fileALabel.padEnd(12)} | ${fileBLabel.padEnd(7)} | Diff    |         |\n`;
-  markdown += generateTableRows("depart-depart");
+  // Generate tables for each model type with proper headers and rows
+  const modelTypes = [
+    { key: "arrive-depart", title: "Arrive-Depart Model" },
+    { key: "arrive-depart-late", title: "Arrive-Depart-Late Model" },
+    { key: "depart-arrive", title: "Depart-Arrive Model" },
+    { key: "arrive-arrive", title: "Arrive-Arrive Model" },
+    { key: "depart-depart", title: "Depart-Depart Model" },
+  ] as const;
+
+  modelTypes.forEach(({ key, title }) => {
+    markdown += `### ${title}\n\n`;
+    markdown += `| Terminal Pair | MAE (${fileALabel}) | MAE (${fileBLabel}) | MAE Diff | R² (${fileALabel}) | R² (${fileBLabel}) | R² Diff | Records |\n`;
+    markdown += `|---------------|---------------------|---------------------|----------|---------------------|---------------------|---------|----------|\n`;
+    markdown += generateTableRows(key);
+    markdown += "\n";
+  });
 
   markdown += "\n## Summary Statistics\n\n";
 
@@ -402,6 +411,21 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
     markdown += "No data available\n";
   }
 
+  const arriveDepartLateMae = comparison
+    .map((r) => r.arrive_depart_late_mae_diff)
+    .filter((d): d is number => d != null);
+  const arriveDepartLateR2 = comparison
+    .map((r) => r.arrive_depart_late_r2_diff)
+    .filter((d): d is number => d != null);
+
+  markdown += "\n### Arrive-Depart-Late Model\n";
+  if (arriveDepartLateMae.length > 0) {
+    markdown += `**Better MAE performance (${fileBLabel}):** ${arriveDepartLateMae.filter((d) => d < 0).length}/${arriveDepartLateMae.length} terminal pairs\n`;
+    markdown += `**Better R² performance (${fileBLabel}):** ${arriveDepartLateR2.filter((d) => d > 0).length}/${arriveDepartLateR2.length} terminal pairs\n`;
+  } else {
+    markdown += "No data available\n";
+  }
+
   markdown += "\n### Depart-Arrive Model\n";
   if (departArriveMae.length > 0) {
     markdown += `**Better MAE performance (${fileBLabel}):** ${departArriveMae.filter((d) => d < 0).length}/${departArriveMae.length} terminal pairs\n`;
@@ -426,19 +450,22 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
     markdown += "No data available\n";
   }
 
-  // Overall recommendation - count better performance across all 4 model types
+  // Overall recommendation - count better performance across all 5 model types
   const arriveDepartBetterCount = arriveDepartMae.filter((d) => d < 0).length;
+  const arriveDepartLateBetterCount = arriveDepartLateMae.filter((d) => d < 0).length;
   const departArriveBetterCount = departArriveMae.filter((d) => d < 0).length;
   const arriveArriveBetterCount = arriveArriveMae.filter((d) => d < 0).length;
   const departDepartBetterCount = departDepartMae.filter((d) => d < 0).length;
 
   const totalBetterCount =
     arriveDepartBetterCount +
+    arriveDepartLateBetterCount +
     departArriveBetterCount +
     arriveArriveBetterCount +
     departDepartBetterCount;
   const totalModelCount =
     arriveDepartMae.length +
+    arriveDepartLateMae.length +
     departArriveMae.length +
     arriveArriveMae.length +
     departDepartMae.length;
@@ -455,6 +482,7 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
   markdown += `- ${totalModelCount - totalBetterCount} route-model combinations perform better with ${fileALabel} (lower MAE)\n\n`;
   markdown += `Breakdown by model type:\n`;
   markdown += `- Arrive-Depart: ${arriveDepartBetterCount}/${arriveDepartMae.length} routes better with ${fileBLabel}\n`;
+  markdown += `- Arrive-Depart-Late: ${arriveDepartLateBetterCount}/${arriveDepartLateMae.length} routes better with ${fileBLabel}\n`;
   markdown += `- Depart-Arrive: ${departArriveBetterCount}/${departArriveMae.length} routes better with ${fileBLabel}\n`;
   markdown += `- Arrive-Arrive: ${arriveArriveBetterCount}/${arriveArriveMae.length} routes better with ${fileBLabel}\n`;
   markdown += `- Depart-Depart: ${departDepartBetterCount}/${departDepartMae.length} routes better with ${fileBLabel}\n\n`;

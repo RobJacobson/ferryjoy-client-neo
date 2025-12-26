@@ -10,6 +10,10 @@ interface TrainingResultRow {
   arrive_depart_r2?: number;
   arrive_depart_rmse?: number;
   arrive_depart_std_dev?: number;
+  arrive_depart_late_mae?: number;
+  arrive_depart_late_r2?: number;
+  arrive_depart_late_rmse?: number;
+  arrive_depart_late_std_dev?: number;
   depart_arrive_mae?: number;
   depart_arrive_r2?: number;
   depart_arrive_rmse?: number;
@@ -56,7 +60,7 @@ async function exportTrainingResults() {
   const pairMap = new Map<string, TrainingResultRow>();
 
   models.forEach((model: ConvexModelParameters) => {
-    const pairKey = `${model.departingTerminalAbbrev}_${model.arrivingTerminalAbbrev}`;
+    const pairKey = `${model.departingTerminalAbbrev}->${model.arrivingTerminalAbbrev}`;
 
     if (!pairMap.has(pairKey)) {
       pairMap.set(pairKey, {
@@ -84,6 +88,11 @@ async function exportTrainingResults() {
       pairResult.arrive_depart_r2 = metrics?.r2;
       pairResult.arrive_depart_rmse = metrics?.rmse;
       pairResult.arrive_depart_std_dev = metrics?.stdDev;
+    } else if (model.modelType === "arrive-depart-late") {
+      pairResult.arrive_depart_late_mae = metrics?.mae;
+      pairResult.arrive_depart_late_r2 = metrics?.r2;
+      pairResult.arrive_depart_late_rmse = metrics?.rmse;
+      pairResult.arrive_depart_late_std_dev = metrics?.stdDev;
     } else if (model.modelType === "depart-arrive") {
       pairResult.depart_arrive_mae = metrics?.mae;
       pairResult.depart_arrive_r2 = metrics?.r2;
@@ -126,6 +135,10 @@ function generateCSV(results: TrainingResultRow[]): string {
     "arrive_depart_r2",
     "arrive_depart_rmse",
     "arrive_depart_std_dev",
+    "arrive_depart_late_mae",
+    "arrive_depart_late_r2",
+    "arrive_depart_late_rmse",
+    "arrive_depart_late_std_dev",
     "depart_arrive_mae",
     "depart_arrive_r2",
     "depart_arrive_rmse",

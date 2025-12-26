@@ -12,9 +12,9 @@
  *   tsx scripts/detect-outliers.ts [TERMINAL_PAIR] [MODEL_TYPE]
  *
  * Examples:
- *   tsx scripts/detect-outliers.ts FRH_LOP departure
- *   tsx scripts/detect-outliers.ts FRH_LOP arrival
- *   tsx scripts/detect-outliers.ts FRH_LOP  # defaults to analyzing all fields
+ *   tsx scripts/detect-outliers.ts FRH->LOP departure
+ *   tsx scripts/detect-outliers.ts FRH->LOP arrival
+ *   tsx scripts/detect-outliers.ts FRH->LOP  # defaults to analyzing all fields
  */
 
 import fs from "node:fs";
@@ -532,7 +532,7 @@ const analyzeTerminalPair = (
  */
 const main = (): void => {
   const args = process.argv.slice(2);
-  const terminalPair = args[0] || "FRH_LOP";
+  const terminalPair = args[0] || "FRH->LOP";
   const modelTypeArg = args[1]?.toLowerCase();
 
   let modelType: "departure" | "arrival" | "all" = "all";
@@ -562,7 +562,11 @@ const main = (): void => {
   const buckets: TerminalPairBucket[] = JSON.parse(rawData);
 
   // Find the target terminal pair
-  const [departing, arriving] = terminalPair.split("_");
+  const [departing, arriving] = terminalPair.split("->");
+  if (!departing || !arriving) {
+    console.error(`❌ Invalid terminal pair format: ${terminalPair}. Expected format: "FRH->LOP"`);
+    process.exit(1);
+  }
   const bucket = buckets.find(
     (b) =>
       b.terminalPair.departingTerminalAbbrev === departing &&
@@ -573,7 +577,7 @@ const main = (): void => {
     console.error(`❌ Terminal pair not found: ${terminalPair}`);
     console.log(`\nAvailable terminal pairs:`);
     for (const b of buckets) {
-      const key = `${b.terminalPair.departingTerminalAbbrev}_${b.terminalPair.arrivingTerminalAbbrev}`;
+      const key = `${b.terminalPair.departingTerminalAbbrev}->${b.terminalPair.arrivingTerminalAbbrev}`;
       console.log(`  - ${key} (${b.records.length} records)`);
     }
     process.exit(1);
