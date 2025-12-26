@@ -78,44 +78,44 @@ import { v } from "convex/values";
  * Convex validator for model parameters mutation argument (numbers)
  */
 export const modelParametersMutationSchema = v.object({
-    departingTerminalAbbrev: v.string(),
-    arrivingTerminalAbbrev: v.string(),
-    modelType: v.union(
-      v.literal("arrive-depart"),
-      v.literal("arrive-depart-late"),
-      v.literal("depart-arrive"),
-      v.literal("arrive-arrive"),
-      v.literal("depart-depart")
-    ),
+  departingTerminalAbbrev: v.string(),
+  arrivingTerminalAbbrev: v.string(),
+  modelType: v.union(
+    v.literal("arrive-depart"),
+    v.literal("arrive-depart-late"),
+    v.literal("depart-arrive"),
+    v.literal("arrive-arrive"),
+    v.literal("depart-depart")
+  ),
 
-    // Model parameters (optional for insufficient data cases)
-    coefficients: v.optional(v.array(v.number())),
-    intercept: v.optional(v.number()),
-    trainingMetrics: v.optional(
-      v.object({
-        mae: v.number(),
-        rmse: v.number(),
-        r2: v.number(),
-        stdDev: v.optional(v.number()),
-      })
-    ),
+  // Model parameters (optional for insufficient data cases)
+  coefficients: v.optional(v.array(v.number())),
+  intercept: v.optional(v.number()),
+  trainingMetrics: v.optional(
+    v.object({
+      mae: v.number(),
+      rmse: v.number(),
+      r2: v.number(),
+      stdDev: v.optional(v.number()),
+    })
+  ),
 
-    // Required metadata
-    createdAt: v.number(),
+  // Required metadata
+  createdAt: v.number(),
 
-    // Bucket statistics (optional for backward compatibility)
-    bucketStats: v.optional(
-      v.object({
-        totalRecords: v.number(),
-        filteredRecords: v.number(),
-        meanDepartureDelay: v.optional(v.number()),
-        meanAtSeaDuration: v.optional(v.number()),
-        meanDelay: v.optional(v.number()),
-        // Backward compatibility for old data
-        meanAtDockDuration: v.optional(v.number()),
-      })
-    ),
-  });
+  // Bucket statistics (optional for backward compatibility)
+  bucketStats: v.optional(
+    v.object({
+      totalRecords: v.number(),
+      filteredRecords: v.number(),
+      meanDepartureDelay: v.optional(v.number()),
+      meanAtSeaDuration: v.optional(v.number()),
+      meanDelay: v.optional(v.number()),
+      // Backward compatibility for old data
+      meanAtDockDuration: v.optional(v.number()),
+    })
+  ),
+});
 
 /**
  * Type for model parameters in Convex storage (with numbers)

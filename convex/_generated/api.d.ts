@@ -12,7 +12,6 @@ import type * as crons from "../crons.js";
 import type * as domain_ml_actions from "../domain/ml/actions.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
 import type * as domain_ml_pipeline_shared_config from "../domain/ml/pipeline/shared/config.js";
-import type * as domain_ml_pipeline_shared_logger from "../domain/ml/pipeline/shared/logger.js";
 import type * as domain_ml_pipeline_shared_time from "../domain/ml/pipeline/shared/time.js";
 import type * as domain_ml_pipeline_step_1_loadWsfTrainingData from "../domain/ml/pipeline/step_1_loadWsfTrainingData.js";
 import type * as domain_ml_pipeline_step_2_convertWsfToTraining from "../domain/ml/pipeline/step_2_convertWsfToTraining.js";
@@ -21,7 +20,6 @@ import type * as domain_ml_pipeline_step_4_createTrainingData from "../domain/ml
 import type * as domain_ml_pipeline_step_5_trainBuckets from "../domain/ml/pipeline/step_5_trainBuckets.js";
 import type * as domain_ml_pipeline_step_6_storeResults from "../domain/ml/pipeline/step_6_storeResults.js";
 import type * as domain_ml_pipelineCoordinator from "../domain/ml/pipelineCoordinator.js";
-import type * as domain_ml_shared from "../domain/ml/shared.js";
 import type * as domain_ml_types from "../domain/ml/types.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
@@ -51,6 +49,8 @@ import type * as functions_vesselTrips_queries from "../functions/vesselTrips/qu
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
+import type * as shared_durationUtils from "../shared/durationUtils.js";
+import type * as shared_index from "../shared/index.js";
 
 import type {
   ApiFromModules,
@@ -63,7 +63,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/actions": typeof domain_ml_actions;
   "domain/ml/index": typeof domain_ml_index;
   "domain/ml/pipeline/shared/config": typeof domain_ml_pipeline_shared_config;
-  "domain/ml/pipeline/shared/logger": typeof domain_ml_pipeline_shared_logger;
   "domain/ml/pipeline/shared/time": typeof domain_ml_pipeline_shared_time;
   "domain/ml/pipeline/step_1_loadWsfTrainingData": typeof domain_ml_pipeline_step_1_loadWsfTrainingData;
   "domain/ml/pipeline/step_2_convertWsfToTraining": typeof domain_ml_pipeline_step_2_convertWsfToTraining;
@@ -72,7 +71,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/pipeline/step_5_trainBuckets": typeof domain_ml_pipeline_step_5_trainBuckets;
   "domain/ml/pipeline/step_6_storeResults": typeof domain_ml_pipeline_step_6_storeResults;
   "domain/ml/pipelineCoordinator": typeof domain_ml_pipelineCoordinator;
-  "domain/ml/shared": typeof domain_ml_shared;
   "domain/ml/types": typeof domain_ml_types;
   "functions/index": typeof functions_index;
   "functions/predictions/index": typeof functions_predictions_index;
@@ -102,6 +100,8 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
   "shared/convertDates": typeof shared_convertDates;
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
+  "shared/durationUtils": typeof shared_durationUtils;
+  "shared/index": typeof shared_index;
 }>;
 
 /**

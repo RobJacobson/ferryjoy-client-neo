@@ -27,10 +27,7 @@ export const storeModelParametersMutation = mutation({
         await ctx.db.delete(existing._id);
       }
 
-      const modelId = await ctx.db.insert(
-        "modelParameters",
-        args.model
-      );
+      const modelId = await ctx.db.insert("modelParameters", args.model);
       return modelId;
     } catch (error) {
       console.error("Failed to store model parameters:", error);

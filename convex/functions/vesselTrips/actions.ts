@@ -9,6 +9,11 @@ import {
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
+import {
+  calculateAtDockDuration,
+  calculateAtSeaDuration,
+  calculateTotalDuration,
+} from "shared/durationUtils";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
@@ -98,9 +103,21 @@ const checkAndHandleNewTrip = async (
 
   if (existingTrip) {
     // Complete existing trip and start new one
+    // Calculate AtSeaDuration and TotalDuration when completing the trip
+    const atSeaDuration = calculateAtSeaDuration(
+      existingTrip.LeftDock,
+      currLocation.TimeStamp
+    );
+    const totalDuration = calculateTotalDuration(
+      existingTrip.TripStart,
+      currLocation.TimeStamp
+    );
+
     const completedTrip: ConvexVesselTrip = {
       ...existingTrip,
       TripEnd: currLocation.TimeStamp,
+      AtSeaDuration: atSeaDuration,
+      TotalDuration: totalDuration,
     };
 
     const newTrip = toConvexVesselTrip(currLocation, {
@@ -116,8 +133,14 @@ const checkAndHandleNewTrip = async (
       }
     );
   } else {
-    // First time seeing this vessel - create new active trip
-    const newTrip = toConvexVesselTrip(currLocation, {});
+    const delay = calculateDelay(
+      currLocation.ScheduledDeparture,
+      currLocation.LeftDock
+    );
+
+    const newTrip = toConvexVesselTrip(currLocation, {
+      Delay: delay,
+    });
     await ctx.runMutation(
       api.functions.vesselTrips.mutations.upsertActiveTrip,
       { trip: newTrip }
@@ -155,25 +178,37 @@ const checkAndHandleTripUpdate = async (
   existingTrip: ConvexVesselTrip
 ) => {
   // Check what changed
+  // Recalculate AtDockDuration whenever possible
+  const calculatedAtDockDuration =
+    currLocation.LeftDock && existingTrip.TripStart
+      ? calculateAtDockDuration(existingTrip.TripStart, currLocation.LeftDock)
+      : undefined;
+
+  // Recalculate Delay whenever possible
+  const calculatedDelay = calculateDelay(
+    currLocation.ScheduledDeparture,
+    currLocation.LeftDock
+  );
+
   const atDockChanged = existingTrip.AtDock !== currLocation.AtDock;
   const etaChanged = existingTrip.Eta !== currLocation.Eta;
   const arrivingTerminalChanged =
     existingTrip.ArrivingTerminalAbbrev !== currLocation.ArrivingTerminalAbbrev;
   const leftDockChanged = existingTrip.LeftDock !== currLocation.LeftDock;
+  const atDockDurationChanged =
+    calculatedAtDockDuration !== existingTrip.AtDockDuration;
+  const delayChanged = calculatedDelay !== existingTrip.Delay;
 
   if (
     !atDockChanged &&
     !etaChanged &&
     !arrivingTerminalChanged &&
-    !leftDockChanged
+    !leftDockChanged &&
+    !atDockDurationChanged &&
+    !delayChanged
   ) {
     return;
   }
-
-  const delay = calculateDelay(
-    currLocation.ScheduledDeparture,
-    currLocation.LeftDock
-  );
 
   const updatedTrip: ConvexVesselTrip = {
     ...existingTrip,
@@ -181,7 +216,8 @@ const checkAndHandleTripUpdate = async (
     AtDock: currLocation.AtDock,
     Eta: currLocation.Eta,
     LeftDock: currLocation.LeftDock,
-    Delay: delay,
+    Delay: calculatedDelay,
+    AtDockDuration: calculatedAtDockDuration,
   };
 
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
