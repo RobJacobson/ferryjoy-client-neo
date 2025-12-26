@@ -10,8 +10,8 @@ import type {
   TrainingDataRecord,
   TrainingExample,
 } from "../types";
-import { PIPELINE_CONFIG } from "./shared/config";
-import { createTrainingDataForBucketAll } from "./step_4_createTrainingData";
+import { formatTerminalPairKey, PIPELINE_CONFIG } from "./shared/config";
+import { createTrainingDataForBucketSingle } from "./step_4_createTrainingData";
 
 // ============================================================================
 // ALGORITHM CONSTANTS
@@ -134,21 +134,44 @@ type HoldoutEvaluationResult = {
 };
 
 /**
- * Compute holdout metrics using a single chronological 80/20 split.
- * This better reflects final model's performance since it's also trained on all data.
- * The evaluation trains on 80% of data (earliest) and tests on 20% (most recent).
- *
- * @param records - Training records to split
- * @param modelType - Model type to evaluate
- * @returns Holdout evaluation result with metrics
+ * Create training examples directly from records (memory-efficient, avoids bucket creation)
+ * Uses the same feature extraction logic as step_4 for consistency
  */
-const computeHoldoutMetrics = async (
+const createExamplesFromRecords = (
   records: TrainingDataRecord[],
   modelType:
     | "arrive-depart"
     | "depart-arrive"
     | "arrive-arrive"
     | "depart-depart"
+    | "arrive-depart-late"
+): TrainingExample[] => {
+  // Create a temporary bucket to reuse step 4 functions
+  // This ensures consistency with the main training path
+  const tempBucket: TerminalPairBucket = {
+    terminalPair: { departingTerminalAbbrev: "", arrivingTerminalAbbrev: "" },
+    bucketStats: { totalRecords: records.length, filteredRecords: records.length },
+    records,
+  };
+  return createTrainingDataForBucketSingle(tempBucket, modelType);
+};
+
+/**
+ * Compute holdout metrics using a single chronological 80/20 split.
+ * Memory-optimized version that avoids creating intermediate buckets.
+ *
+ * @param sortedRecords - Pre-sorted training records (chronological by scheduled departure)
+ * @param modelType - Model type to evaluate
+ * @returns Holdout evaluation result with metrics
+ */
+const computeHoldoutMetrics = async (
+  sortedRecords: TrainingDataRecord[],
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
+    | "arrive-depart-late"
 ): Promise<HoldoutEvaluationResult> => {
   const EVAL_CONFIG = PIPELINE_CONFIG.EVALUATION;
 
@@ -160,17 +183,12 @@ const computeHoldoutMetrics = async (
     };
   }
 
-  // Sort chronologically by scheduled departure
-  const sorted = [...records].sort(
-    (a, b) => a.schedDeparture.getTime() - b.schedDeparture.getTime()
-  );
-
   // 80/20 split: train on first 80%, test on last 20%
-  const splitIdx = Math.floor(sorted.length * EVAL_CONFIG.trainRatio);
-  const train = sorted.slice(0, splitIdx);
-  const test = sorted.slice(splitIdx);
+  const splitIdx = Math.floor(sortedRecords.length * EVAL_CONFIG.trainRatio);
+  const trainRecords = sortedRecords.slice(0, splitIdx);
+  const testRecords = sortedRecords.slice(splitIdx);
 
-  if (train.length === 0 || test.length === 0) {
+  if (trainRecords.length === 0 || testRecords.length === 0) {
     return {
       strategy: "insufficient_data",
       foldsUsed: 0,
@@ -178,60 +196,9 @@ const computeHoldoutMetrics = async (
     };
   }
 
-  // Check minimum training examples
-  if (train.length === 0 || test.length === 0) {
-    return {
-      strategy: "insufficient_data",
-      foldsUsed: 0,
-      metrics: { mae: 0, rmse: 0, r2: 0 },
-    };
-  }
-
-  // Create buckets for train and test sets
-  const firstRecord = records[0];
-  const trainBucket: TerminalPairBucket = {
-    terminalPair: {
-      departingTerminalAbbrev: firstRecord.departingTerminalAbbrev,
-      arrivingTerminalAbbrev: firstRecord.arrivingTerminalAbbrev,
-    },
-    records: train,
-    bucketStats: {
-      totalRecords: train.length,
-      filteredRecords: train.length,
-    },
-  };
-  const testBucket: TerminalPairBucket = {
-    terminalPair: {
-      departingTerminalAbbrev: firstRecord.departingTerminalAbbrev,
-      arrivingTerminalAbbrev: firstRecord.arrivingTerminalAbbrev,
-    },
-    records: test,
-    bucketStats: {
-      totalRecords: test.length,
-      filteredRecords: test.length,
-    },
-  };
-
-  // Create training examples for both sets
-  const trainData = createTrainingDataForBucketAll(trainBucket);
-  const testData = createTrainingDataForBucketAll(testBucket);
-  let trainExamples: TrainingExample[];
-  let testExamples: TrainingExample[];
-
-  if (modelType === "arrive-depart") {
-    trainExamples = trainData.arriveDepartExamples;
-    testExamples = testData.arriveDepartExamples;
-  } else if (modelType === "depart-arrive") {
-    trainExamples = trainData.departArriveExamples;
-    testExamples = testData.departArriveExamples;
-  } else if (modelType === "arrive-arrive") {
-    trainExamples = trainData.arriveArriveExamples;
-    testExamples = testData.arriveArriveExamples;
-  } else {
-    // depart-depart
-    trainExamples = trainData.departDepartExamples;
-    testExamples = testData.departDepartExamples;
-  }
+  // Create training examples directly from records (avoid creating buckets)
+  const trainExamples = createExamplesFromRecords(trainRecords, modelType);
+  const testExamples = createExamplesFromRecords(testRecords, modelType);
 
   if (trainExamples.length === 0 || testExamples.length === 0) {
     return {
@@ -244,11 +211,11 @@ const computeHoldoutMetrics = async (
   // Train model on training set
   const trainingResult = trainLinearRegression(trainExamples);
 
-  // Evaluate on test set
-  const x = testExamples.map((ex) => Object.values(ex.input) as number[]);
-  const y = testExamples.map((ex) => ex.target);
-  const predictions = x.map((features) => trainingResult.predict(features));
-  const metrics = calculateMetrics(y, predictions);
+  // Evaluate on test set (process in place to minimize memory)
+  const testX = testExamples.map((ex) => Object.values(ex.input) as number[]);
+  const testY = testExamples.map((ex) => ex.target);
+  const predictions = testX.map((features) => trainingResult.predict(features));
+  const metrics = calculateMetrics(testY, predictions);
 
   return {
     strategy: "time_split",
@@ -263,56 +230,48 @@ const computeHoldoutMetrics = async (
 
 /**
  * Train models for a single bucket
+ * Processes one model at a time to reduce memory pressure
  */
 export const trainModelsForBucket = async (
   bucket: TerminalPairBucket
 ): Promise<ModelParameters[]> => {
   const results: ModelParameters[] = [];
-  const pairKey = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
+  const pairKey = formatTerminalPairKey(
+    bucket.terminalPair.departingTerminalAbbrev,
+    bucket.terminalPair.arrivingTerminalAbbrev
+  );
 
   console.log(
     `Training models for ${pairKey} (${bucket.records.length} records)`
   );
 
-  // Create training data for all models
-  const {
-    arriveDepartExamples,
-    departArriveExamples,
-    arriveArriveExamples,
-    departDepartExamples,
-  } = createTrainingDataForBucketAll(bucket);
+  // Sort records once for all models (used by holdout evaluation)
+  // Sort in place to avoid creating a copy
+  const sortedRecords = bucket.records
+    .slice()
+    .sort((a, b) => a.schedDepartureTimestamp - b.schedDepartureTimestamp);
 
-  // Train arrive-depart model
-  const arriveDepartModel = await trainSingleModel(
-    arriveDepartExamples,
-    "arrive-depart",
-    bucket
-  );
-  results.push(arriveDepartModel);
+  // Define model types to train
+  const modelTypes: Array<
+    "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart" | "arrive-depart-late"
+  > = ["arrive-depart", "depart-arrive", "arrive-arrive", "depart-depart", "arrive-depart-late"];
 
-  // Train depart-arrive model
-  const departArriveModel = await trainSingleModel(
-    departArriveExamples,
-    "depart-arrive",
-    bucket
-  );
-  results.push(departArriveModel);
+  // Process one model at a time to reduce memory pressure
+  for (const modelType of modelTypes) {
+    // Create training data for this model only
+    const examples = createTrainingDataForBucketSingle(bucket, modelType);
 
-  // Train arrive-arrive model
-  const arriveArriveModel = await trainSingleModel(
-    arriveArriveExamples,
-    "arrive-arrive",
-    bucket
-  );
-  results.push(arriveArriveModel);
+    // Train this model (pass sorted records for holdout evaluation)
+    const model = await trainSingleModel(
+      examples,
+      modelType,
+      bucket,
+      sortedRecords
+    );
+    results.push(model);
 
-  // Train depart-depart model
-  const departDepartModel = await trainSingleModel(
-    departDepartExamples,
-    "depart-depart",
-    bucket
-  );
-  results.push(departDepartModel);
+    // Training data for this model is now out of scope and can be garbage collected
+  }
 
   return results;
 };
@@ -326,30 +285,39 @@ const trainSingleModel = async (
     | "arrive-depart"
     | "depart-arrive"
     | "arrive-arrive"
-    | "depart-depart",
-  bucket: TerminalPairBucket
+    | "depart-depart"
+    | "arrive-depart-late",
+  bucket: TerminalPairBucket,
+  sortedRecords: TrainingDataRecord[]
 ): Promise<ModelParameters> => {
-  const pairKey = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
+  const pairKey = formatTerminalPairKey(
+    bucket.terminalPair.departingTerminalAbbrev,
+    bucket.terminalPair.arrivingTerminalAbbrev
+  );
 
   // Compute holdout evaluation metrics (if enabled)
-  const holdoutResult = await computeHoldoutMetrics(bucket.records, modelType);
+  // Pass pre-sorted records to avoid creating multiple copies
+  const holdoutResult = await computeHoldoutMetrics(sortedRecords, modelType);
 
   // Train model on all available data
   const trainingResult = trainLinearRegression(examples);
 
-  // Prepare feature matrix for metrics calculation on all data
-  const x = examples.map((ex) => Object.values(ex.input) as number[]);
-  const y = examples.map((ex) => ex.target);
+  // Calculate essential metrics (MAE, RMSE, R²)
+  // Use holdout metrics if available, otherwise calculate in-sample metrics
+  let mae: number;
+  let rmse: number;
+  let r2: number;
 
-  // Calculate predictions for metrics
-  const predictions = x.map((features) => trainingResult.predict(features));
-
-  // Calculate essential metrics (MAE, RMSE, R²) using shared function
-  // Use holdout metrics if available, otherwise use in-sample metrics
-  const { mae, rmse, r2 } =
-    holdoutResult.strategy === "time_split"
-      ? holdoutResult.metrics
-      : calculateMetrics(y, predictions);
+  if (holdoutResult.strategy === "time_split") {
+    // Use holdout metrics (already computed, no need to recalculate)
+    ({ mae, rmse, r2 } = holdoutResult.metrics);
+  } else {
+    // Calculate in-sample metrics (only if holdout evaluation failed)
+    const x = examples.map((ex) => Object.values(ex.input) as number[]);
+    const y = examples.map((ex) => ex.target);
+    const predictions = x.map((features) => trainingResult.predict(features));
+    ({ mae, rmse, r2 } = calculateMetrics(y, predictions));
+  }
 
   const model: ModelParameters = {
     departingTerminalAbbrev: bucket.terminalPair.departingTerminalAbbrev,

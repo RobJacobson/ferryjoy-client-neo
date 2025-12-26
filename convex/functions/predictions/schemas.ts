@@ -82,6 +82,7 @@ export const modelParametersMutationSchema = v.object({
     arrivingTerminalAbbrev: v.string(),
     modelType: v.union(
       v.literal("arrive-depart"),
+      v.literal("arrive-depart-late"),
       v.literal("depart-arrive"),
       v.literal("arrive-arrive"),
       v.literal("depart-depart")

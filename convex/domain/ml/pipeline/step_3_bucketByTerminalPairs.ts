@@ -3,8 +3,13 @@
 // Group records by terminal pairs and calculate statistics
 // ============================================================================
 
-import { VALID_PASSENGER_TERMINALS, PIPELINE_CONFIG } from "./shared/config";
 import type { TerminalPairBucket, TrainingDataRecord } from "../types";
+import {
+  formatTerminalPairKey,
+  PIPELINE_CONFIG,
+  parseTerminalPairKey,
+  VALID_PASSENGER_TERMINALS,
+} from "./shared/config";
 
 /**
  * Create terminal pair buckets from training records
@@ -19,7 +24,10 @@ export const createTerminalPairBuckets = (
   // Dynamic grouping by terminal pairs
   // Note: Terminal validation already done in step_2, so all records are valid
   for (const record of records) {
-    const key = `${record.departingTerminalAbbrev}_${record.arrivingTerminalAbbrev}`;
+    const key = formatTerminalPairKey(
+      record.departingTerminalAbbrev,
+      record.arrivingTerminalAbbrev
+    );
     const bucketRecords = bucketMap.get(key) || [];
     bucketRecords.push(record);
     bucketMap.set(key, bucketRecords);
@@ -28,31 +36,40 @@ export const createTerminalPairBuckets = (
   // Convert to buckets with comprehensive statistics
   const buckets: TerminalPairBucket[] = Array.from(bucketMap.entries()).map(
     ([key, records]) => {
-      const [departing, arriving] = key.split("_");
+      const [departing, arriving] = parseTerminalPairKey(key);
 
       // Sample down to most recent MAX_SAMPLES_PER_ROUTE records
       const originalCount = records.length;
       const sampledRecords = records
-        .sort((a, b) => b.tripStart.getTime() - a.tripStart.getTime()) // Most recent first
+        .sort((a, b) => b.schedDepartureTimestamp - a.schedDepartureTimestamp) // Most recent first
         .slice(0, PIPELINE_CONFIG.MAX_SAMPLES_PER_ROUTE); // Take top N
 
       console.log(
         `Route ${key}: ${originalCount} → ${sampledRecords.length} samples ` +
-        `(kept ${((sampledRecords.length / originalCount) * 100).toFixed(1)}% most recent)`
+          `(kept ${((sampledRecords.length / originalCount) * 100).toFixed(1)}% most recent)`
       );
 
       // Calculate mean statistics on sampled records
-      const validRecords = sampledRecords.filter(r => r.departureDelay != null && r.atSeaDuration != null);
-      const meanDepartureDelay = validRecords.length > 0
-        ? validRecords.reduce((sum, r) => sum + r.departureDelay!, 0) / validRecords.length
-        : undefined;
-      const meanAtSeaDuration = validRecords.length > 0
-        ? validRecords.reduce((sum, r) => sum + r.atSeaDuration!, 0) / validRecords.length
-        : undefined;
-      const meanDelay = validRecords.length > 0
-        ? validRecords.reduce((sum, r) => sum + r.departureDelay! + r.atSeaDuration!, 0) / validRecords.length
-        : undefined;
-
+      const validRecords = sampledRecords.filter(
+        (r) => r.prevDelay != null && r.currAtSeaDuration != null
+      );
+      const meanDepartureDelay =
+        validRecords.length > 0
+          ? validRecords.reduce((sum, r) => sum + r.prevDelay!, 0) /
+            validRecords.length
+          : undefined;
+      const meanAtSeaDuration =
+        validRecords.length > 0
+          ? validRecords.reduce((sum, r) => sum + r.currAtSeaDuration!, 0) /
+            validRecords.length
+          : undefined;
+      const meanDelay =
+        validRecords.length > 0
+          ? validRecords.reduce(
+              (sum, r) => sum + r.prevDelay! + r.currAtSeaDuration!,
+              0
+            ) / validRecords.length
+          : undefined;
 
       return {
         terminalPair: {
@@ -74,11 +91,17 @@ export const createTerminalPairBuckets = (
   // Sort buckets by sampled record count (largest first)
   buckets.sort((a, b) => b.records.length - a.records.length);
 
-  const totalOriginalRecords = buckets.reduce((sum, b) => sum + b.bucketStats.totalRecords, 0);
-  const totalSampledRecords = buckets.reduce((sum, b) => sum + b.records.length, 0);
+  const totalOriginalRecords = buckets.reduce(
+    (sum, b) => sum + b.bucketStats.totalRecords,
+    0
+  );
+  const totalSampledRecords = buckets.reduce(
+    (sum, b) => sum + b.records.length,
+    0
+  );
   console.log(
     `Created ${buckets.length} buckets: ${totalOriginalRecords} → ${totalSampledRecords} sampled records ` +
-    `(${((totalSampledRecords / totalOriginalRecords) * 100).toFixed(1)}% kept)`
+      `(${((totalSampledRecords / totalOriginalRecords) * 100).toFixed(1)}% kept)`
   );
 
   return buckets;

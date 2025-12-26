@@ -10,25 +10,14 @@ export type FeatureVector = Record<string, number>;
 /**
  * Feature record for feature extraction (used in prediction and training)
  */
-export type FeatureRecord = {
-  // Essential temporal data for feature extraction
-  prevDelay: number; // Minutes from previous trip's actual departure to previous trip's estimated arrival
-  tripStart: Date; // Vessel arrival at departing terminal (or current time reference)
-  schedDeparture: Date; // Scheduled departure time
-  meanAtDockDuration: number; // Minutes from departure to arrival at next terminal
-
-  // Prediction-specific fields (only available during prediction)
-  delayMinutes?: number; // Current delay in minutes (for depart-arrive models)
-  leftDock?: Date; // Actual departure time (for depart-arrive models)
-  prevLeftDock?: Date; // Actual departure time from previous trip (for depart-depart models)
-};
+export type FeatureRecord = Record<string, number>;
 
 /**
  * Training example with features and target
  */
 export type TrainingExample = {
   input: FeatureVector;
-  target: number; // duration in minutes (at_dock or at_sea)
+  target: number; // duration in minutes (at_dock, at_sea, or combined durations)
 };
 
 /**
@@ -42,20 +31,24 @@ export type TerminalPair = {
 /**
  * Training data record containing both features and targets for model training
  */
-export type TrainingDataRecord = FeatureRecord & {
+export type TrainingDataRecord = {
   // Terminal identifiers (needed for pipeline operations)
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
 
-  // Additional temporal data for validation
-  tripEnd: Date;
-  leftDock: Date; // Actual departure time
-
   // Target variables for training
-  departureDelay: number; // minutes from scheduled departure (can be negative)
-  atSeaDuration: number; // minutes from departure to arrival
-  atDockDuration: number; // minutes from arrival at B to departure from B (for arrive-arrive target)
-  prevLeftDock: Date; // Actual departure time from previous trip (for depart-depart features)
+  prevDelay: number; // minutes from previous trip's scheduled departure (can be negative)
+  prevAtSeaDuration: number; // minutes from previous trip's departure to previous trip's arrival (for depart-depart target)
+  currAtDockDuration: number; // minutes from arrival at B to departure from B (current trip)
+  currDelay: number; // minutes from scheduled departure to actual departure (current trip)
+  currAtSeaDuration: number; // minutes from departure to arrival (current trip)
+
+  // Time features extracted from scheduled departure
+  isWeekend: number; // 1 if the scheduled departure is on a weekend, 0 otherwise
+  schedDepartureTimeFeatures: Record<string, number>; // Time-of-day features from scheduled departure time
+  schedDepartureTimestamp: number; // Timestamp (milliseconds) of scheduled departure for chronological sorting
+  arriveEarlyMinutes: number; // minutes early the vessel arrived at the dock
+  arriveBeforeMinutes: number; // minutes before the scheduled departure the vessel arrived at the dock
 };
 
 /**
@@ -82,7 +75,8 @@ export type TerminalPairTrainingData = {
     | "arrive-depart"
     | "depart-arrive"
     | "arrive-arrive"
-    | "depart-depart";
+    | "depart-depart"
+    | "arrive-depart-late";
   examples: TrainingExample[];
 };
 
@@ -102,7 +96,8 @@ export type ModelParameters = {
     | "arrive-depart"
     | "depart-arrive"
     | "arrive-arrive"
-    | "depart-depart";
+    | "depart-depart"
+    | "arrive-depart-late";
 
   // Training metrics - always set after training
   trainingMetrics: {
@@ -164,7 +159,8 @@ export type TrainingResponse = {
  * Prediction output for terminal pair models
  */
 export type PredictionOutput = {
-  departureDelay?: number; // minutes from scheduled departure (can be negative)
-  atSeaDuration?: number; // null if no arrival model
-  predictedDepartureTime?: Date; // calculated from scheduled + delay
+  atDockDuration?: number; // minutes from arrival at dock to departure (arrive-depart model)
+  atSeaDuration?: number; // minutes from departure to arrival (depart-arrive model)
+  combinedDuration?: number; // minutes from departure at A to departure at B (depart-depart model)
+  predictedDepartureTime?: Date; // calculated from scheduled + delay (if applicable)
 };

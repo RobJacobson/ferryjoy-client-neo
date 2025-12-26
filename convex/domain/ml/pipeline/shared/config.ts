@@ -29,47 +29,68 @@ export const VALID_PASSENGER_TERMINALS = new Set([
 ]);
 
 /**
+ * Format terminal pair as a key string (e.g., "P52->BBI")
+ */
+export const formatTerminalPairKey = (
+  departing: string,
+  arriving: string
+): string => {
+  return `${departing}->${arriving}`;
+};
+
+/**
+ * Parse terminal pair key string (e.g., "P52->BBI" -> ["P52", "BBI"])
+ */
+export const parseTerminalPairKey = (key: string): [string, string] => {
+  const parts = key.split("->");
+  if (parts.length !== 2) {
+    throw new Error(`Invalid terminal pair key format: ${key}`);
+  }
+  return [parts[0], parts[1]];
+};
+
+/**
  * Mean at-dock duration (in minutes) for each terminal pair
  * Values truncated to 2 decimal places from training-results.csv
  */
 export const MEAN_AT_DOCK_DURATION: Record<string, number> = {
-  ANA_FRH: 26.74,
-  ANA_LOP: 26.65,
-  ANA_ORI: 26.33,
-  ANA_SHI: 23.2,
-  BBI_P52: 18.5,
-  BRE_P52: 18.55,
-  CLI_MUK: 16.38,
-  COU_POT: 17.94,
-  EDM_KIN: 23.94,
-  FAU_SOU: 15.99,
-  FAU_VAI: 15.42,
-  FRH_ANA: 26.28,
-  FRH_LOP: 27.22,
-  FRH_ORI: 23.39,
-  FRH_SHI: 20.82,
-  KIN_EDM: 24.18,
-  LOP_ANA: 12.63,
-  LOP_FRH: 10.02,
-  LOP_ORI: 12.87,
-  LOP_SHI: 10.7,
-  MUK_CLI: 15.4,
-  ORI_ANA: 19.52,
-  ORI_FRH: 12.09,
-  ORI_LOP: 20.88,
-  ORI_SHI: 21.99,
-  P52_BBI: 21.17,
-  P52_BRE: 18.93,
-  POT_COU: 21.07,
-  PTD_TAH: 17.39,
-  SHI_ANA: 6.23,
-  SHI_LOP: 6.2,
-  SHI_ORI: 6.76,
-  SOU_FAU: 10.55,
-  SOU_VAI: 14.67,
-  TAH_PTD: 13.68,
-  VAI_FAU: 14.12,
-  VAI_SOU: 10.99,
+  "ANA->FRH": 26.74,
+  "ANA->LOP": 26.65,
+  "ANA->ORI": 26.33,
+  "ANA->SHI": 23.2,
+  "BBI->P52": 18.5,
+  "BRE->P52": 18.55,
+  "CLI->MUK": 16.38,
+  "COU->POT": 17.94,
+  "EDM->KIN": 23.94,
+  "FAU->SOU": 15.99,
+  "FAU->VAI": 15.42,
+  "FRH->ANA": 26.28,
+  "FRH->LOP": 27.22,
+  "FRH->ORI": 23.39,
+  "FRH->SHI": 20.82,
+  "KIN->EDM": 24.18,
+  "LOP->ANA": 12.63,
+  "LOP->FRH": 10.02,
+  "LOP->ORI": 12.87,
+  "LOP->SHI": 10.7,
+  "MUK->CLI": 15.4,
+  "ORI->ANA": 19.52,
+  "ORI->FRH": 12.09,
+  "ORI->LOP": 20.88,
+  "ORI->SHI": 21.99,
+  "P52->BBI": 21.17,
+  "P52->BRE": 18.93,
+  "POT->COU": 21.07,
+  "PTD->TAH": 17.39,
+  "SHI->ANA": 6.23,
+  "SHI->LOP": 6.2,
+  "SHI->ORI": 6.76,
+  "SOU->FAU": 10.55,
+  "SOU->VAI": 14.67,
+  "TAH->PTD": 13.68,
+  "VAI->FAU": 14.12,
+  "VAI->SOU": 10.99,
 } as const;
 
 /**
@@ -85,7 +106,7 @@ export const MIN_DURATION_THRESHOLDS = {
  * Used to filter out overnight layovers, extended maintenance periods, etc.
  */
 export const MAX_DURATION_THRESHOLDS = {
-  AT_DOCK: 60.0, // Maximum at-dock duration (60 minutes) - filters out overnight layovers
+  AT_DOCK: 30.0, // Maximum at-dock duration (60 minutes) - filters out overnight layovers
   AT_SEA: 90.0, // Maximum at-sea duration (90 minutes) - filters out data errors
   ARRIVE_ARRIVE_TOTAL: 120.0, // Maximum total arrive-arrive duration (2 hours) - filters out extreme outliers
 } as const;

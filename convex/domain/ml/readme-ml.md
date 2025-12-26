@@ -6,10 +6,10 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 
 **Predicts four critical timing metrics for ferry vessels:**
 
-1. **Arrive-Depart**: Departure delay at B given arrival at B
+1. **Arrive-Depart**: At-dock duration at B given arrival at B (time vessel stays at dock)
 2. **Depart-Arrive**: At-sea duration from B to C given departure from B
 3. **Arrive-Arrive**: Total time from arrival at B to arrival at C (without knowing departure time from B)
-4. **Depart-Depart**: Total time from departure at A to departure at B given actual departure from A and scheduled departure from B
+4. **Depart-Depart**: Sum of at-sea duration from A to B plus at-dock duration at B given departure from A and scheduled departure from B
 
 **Key advantage**: Terminal-pair specific models trained on complete historical datasets provide accurate, route-aware predictions for passenger planning and operational decision-making.
 
@@ -75,10 +75,10 @@ The ML system processes ferry trip data through a streamlined 6-step pipeline:
 ### Step 5: Train Bucket Models (`step_5_trainBuckets.ts`)
 ```typescript
 // Train separate models for each terminal pair:
-// - Arrive-depart model: Predict departureDelay (13 features)
+// - Arrive-depart model: Predict atDockDuration (13 features)
 // - Depart-arrive model: Predict atSeaDuration (14 features)
 // - Arrive-arrive model: Predict atDockDuration + atSeaDuration (13 features)
-// - Depart-depart model: Predict total time from departure at A to departure at B (11 features, simplified)
+// - Depart-depart model: Predict atSeaDuration + atDockDuration (11 features, simplified)
 // - Uses multivariate linear regression (MLR)
 // - Includes holdout evaluation (80/20 time-split) for validation
 // - Essential training metrics (MAE, RMSE, R²)
@@ -162,10 +162,10 @@ This creates `ml/training-results.csv` with one row per terminal pair containing
 
 **CSV Columns:**
 - `terminal_pair`: Terminal combination (e.g., "MUK_CLI")
-- `arrive_depart_mae`, `arrive_depart_r2`, etc.: Arrive-depart model metrics
+- `arrive_depart_mae`, `arrive_depart_r2`, etc.: Arrive-depart model metrics (predicts at-dock duration)
 - `depart_arrive_mae`, `depart_arrive_r2`, etc.: Depart-arrive model metrics
 - `arrive_arrive_mae`, `arrive_arrive_r2`, etc.: Arrive-arrive model metrics
-- `depart_depart_mae`, `depart_depart_r2`, etc.: Depart-depart model metrics
+- `depart_depart_mae`, `depart_depart_r2`, etc.: Depart-depart model metrics (predicts combined at-sea + at-dock)
 - `total_records`: Records in the bucket before filtering
 - `filtered_records`: Records used for training
 - `created_at`: When models were trained
@@ -241,10 +241,10 @@ const model = await ctx.runQuery(
 | ANA_LOP | Arrive-Depart | 57 | 31.8 | 0.12 |
 
 ### Prediction Accuracy Summary
-- **Arrive-Depart Predictions**: Generally good performance (typically 2-5 min MAE)
+- **Arrive-Depart Predictions**: Generally good performance (typically 2-5 min MAE) - predicts at-dock duration
 - **Depart-Arrive Predictions**: Variable performance by route (typically 2-10 min MAE)
 - **Arrive-Arrive Predictions**: Predicts total time from arrival to next arrival
-- **Depart-Depart Predictions**: Predicts total time from departure at A to departure at B
+- **Depart-Depart Predictions**: Predicts sum of at-sea duration (from A to B) + at-dock duration (at B)
 - **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs, 4 models each)
 
 ## Technical Architecture

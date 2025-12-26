@@ -4,255 +4,143 @@
 // ============================================================================
 
 import type {
-  FeatureRecord,
-  FeatureVector,
   TerminalPairBucket,
   TrainingDataRecord,
   TrainingExample,
 } from "../types";
-import { getMinutesDelta, getPacificTime } from "./shared/time";
+
+const timeFeatures = (record: TrainingDataRecord) => ({
+  ...record.schedDepartureTimeFeatures,
+  isWeekend: record.isWeekend,
+});
 
 /**
- * Round very small values to zero to clean up numerical noise
+ * Create training example for arrive-depart model
+ * Returns null if the record should be skipped, otherwise returns the training example
  */
-const roundTinyValues = (value: number, threshold: number = 1e-10): number => {
-  return Math.abs(value) < threshold ? 0 : value;
-};
-
-/**
- * Extract and clean time-of-day features from a date
- * Shared between extractFeatures and extractFeaturesForDepartDepart
- */
-const extractTimeFeatures = (
-  schedDeparturePacificTime: Date
-): Record<string, number> => {
-  const timeFeatures = getTimeOfDaySmooth(schedDeparturePacificTime);
-  const cleanedTimeFeatures: Record<string, number> = {};
-  for (const [key, value] of Object.entries(timeFeatures)) {
-    cleanedTimeFeatures[key] = roundTinyValues(value);
-  }
-  return cleanedTimeFeatures;
-};
-
-/**
- * Create smooth time-of-day features using Gaussian radial basis functions
- * Evenly distributed centers every 3 hours for comprehensive daily coverage
- */
-const getTimeOfDaySmooth = (
-  schedDeparturePacificTime: Date
-): Record<string, number> => {
-  const hourOfDay =
-    schedDeparturePacificTime.getHours() +
-    schedDeparturePacificTime.getMinutes() / 60;
-
-  // Every 3 hours, with peaks around 8:00 AM and 5:00 PM
-  const centers = [2, 5, 8, 11, 14, 17, 20, 23];
-
-  // Adaptive standard deviation based on center spacing
-  // For N centers in 24 hours: spacing = 24/N, sigma = spacing * 0.5 for good overlap
-  const sigma = (12 / centers.length) * 0.5;
-
-  const features: Record<string, number> = {};
-
-  centers.forEach((center, index) => {
-    // Calculate minimum distance considering 24-hour wraparound
-    const distance = Math.min(
-      Math.abs(hourOfDay - center),
-      24 - Math.abs(hourOfDay - center)
-    );
-
-    // Gaussian radial basis function
-    const weight = Math.exp(-(distance * distance) / (2 * sigma * sigma));
-
-    features[`time_center_${index}`] = weight;
-  });
-
-  return features;
-};
-
-/**
- * Extract features for ML models using FeatureRecord
- */
-const extractFeatures = (input: FeatureRecord): FeatureVector => {
-  const arriveBeforeMin = getMinutesDelta(
-    input.tripStart,
-    input.schedDeparture
-  );
-  const schedDeparturePacificTime = getPacificTime(input.schedDeparture);
-
-  const dayOfWeek = schedDeparturePacificTime.getDay();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-  // Get time features using shared helper
-  const cleanedTimeFeatures = extractTimeFeatures(schedDeparturePacificTime);
-
-  // Running late features
-  const runningLate = arriveBeforeMin < input.meanAtDockDuration ? 1 : 0;
-  const runningLateMin = Math.max(
-    0,
-    input.meanAtDockDuration - arriveBeforeMin
-  );
-  const runningEarlyMin = Math.max(
-    0,
-    Math.min(arriveBeforeMin - input.meanAtDockDuration, 10)
-  );
-
-  // Base features available in both contexts
-  const features: FeatureVector = {
-    running_late: runningLate,
-    running_late_min: runningLateMin,
-    running_early_min: runningEarlyMin,
-    is_weekend: isWeekend ? 1 : 0,
-    prev_delay: input.prevDelay,
-    ...cleanedTimeFeatures,
-  };
-
-  // Add delay_minutes for arrival models (available in FeatureRecord from prediction)
-  if (input.delayMinutes !== undefined) {
-    features.delay_minutes = roundTinyValues(input.delayMinutes);
-  }
-
-  return features;
-};
-
-/**
- * Create training examples for a specific bucket and model type
- */
-export const createTrainingExamplesForBucket = (
-  bucket: TerminalPairBucket,
-  modelType: "arrive-depart" | "depart-arrive"
-): TrainingExample[] => {
-  const examples: TrainingExample[] = [];
-
-  for (const record of bucket.records) {
-    // Since step_2 guarantees data completeness, we can skip validation
-    if (modelType === "arrive-depart") {
-      examples.push({
-        input: extractFeatures(record),
-        // biome-ignore lint/style/noNonNullAssertion: step_2 validation guarantees this is not null
-        target: record.departureDelay!,
-      });
-    } else {
-      // depart-arrive - atSeaDuration is the only field that might be null
-      if (record.atSeaDuration != null) {
-        examples.push({
-          input: extractFeatures(record),
-          target: record.atSeaDuration,
-        });
-      }
-    }
-  }
-
-  // Update bucket stats with filtered count
-  bucket.bucketStats.filteredRecords = examples.length;
-
-  return examples;
-};
-
-/**
- * Extract features for depart-depart model (simplified - no prevDelay)
- */
-const extractFeaturesForDepartDepart = (
+export const createArriveDepartTrainingExample = (
   record: TrainingDataRecord
-): FeatureVector => {
-  const schedDeparturePacificTime = getPacificTime(record.schedDeparture);
-  const dayOfWeek = schedDeparturePacificTime.getDay();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-  // Get time features using shared helper
-  const cleanedTimeFeatures = extractTimeFeatures(schedDeparturePacificTime);
-
-  // Time delta from prevLeftDock to schedDeparture (at-sea duration from A to B)
-  const atSeaDurationFromA = getMinutesDelta(
-    record.prevLeftDock,
-    record.schedDeparture
-  );
-
-  // Mean at-sea duration for A-B segment (we'll use meanAtDockDuration as approximation)
-  // Note: This is an approximation - ideally we'd have mean at-sea duration for A-B
-  const meanAtSeaDurationAB = record.meanAtDockDuration; // Approximation
-
-  const features: FeatureVector = {
-    is_weekend: isWeekend ? 1 : 0,
-    at_sea_duration_from_a: roundTinyValues(atSeaDurationFromA),
-    mean_at_sea_duration_ab: roundTinyValues(meanAtSeaDurationAB),
-    ...cleanedTimeFeatures,
+): TrainingExample | null => {
+  return {
+    input: {
+      ...timeFeatures(record),
+      prevDelay: record.prevDelay,
+      prevAtSeaDuration: record.prevAtSeaDuration,
+      // arriveEarlyMinutes: record.arriveEarlyMinutes,
+      arriveBeforeMinutes: record.arriveBeforeMinutes,
+    },
+    target: record.currAtDockDuration, // Changed from departureDelay to currAtDockDuration
   };
-
-  return features;
 };
 
 /**
- * Create training examples for arrive-arrive model
+ * Create training example for arrive-depart-late model
+ * Predicts how early the vessel arrives at the dock (in minutes)
+ * Returns null if the record should be skipped, otherwise returns the training example
  */
-const createTrainingExamplesForArriveArrive = (
-  bucket: TerminalPairBucket
-): TrainingExample[] => {
-  const examples: TrainingExample[] = [];
+export const createArriveDepartLateTrainingExample = (
+  record: TrainingDataRecord
+): TrainingExample | null => {
+  return {
+    input: {
+      ...timeFeatures(record),
+      prevDelay: record.prevDelay,
+      prevAtSeaDuration: record.prevAtSeaDuration,
+      arriveBeforeMinutes: record.arriveBeforeMinutes,
+    },
+    target: record.currDelay,
+  };
+};
 
-  for (const record of bucket.records) {
-    // Uses same features as arrive-depart model
-    // Target is total time from arrival at B to arrival at C
-    const target = record.atDockDuration + record.atSeaDuration;
-    examples.push({
-      input: extractFeatures(record),
-      target,
-    });
+/**
+ * Create training example for depart-arrive model
+ * Returns null if the record should be skipped, otherwise returns the training example
+ */
+export const createDepartArriveTrainingExample = (
+  record: TrainingDataRecord
+): TrainingExample | null => {
+  // depart-arrive - atSeaDuration is the only field that might be null
+  if (record.currAtSeaDuration == null) {
+    return null;
   }
-
-  return examples;
-};
-
-/**
- * Create training examples for depart-depart model
- */
-const createTrainingExamplesForDepartDepart = (
-  bucket: TerminalPairBucket
-): TrainingExample[] => {
-  const examples: TrainingExample[] = [];
-
-  for (const record of bucket.records) {
-    // Target is total time from departure at A to departure at B
-    // This is the at-sea duration from A to B plus the at-dock duration at B
-    const totalTimeFromDepartAtoDepartB = getMinutesDelta(
-      record.prevLeftDock,
-      record.leftDock
-    );
-    examples.push({
-      input: extractFeaturesForDepartDepart(record),
-      target: totalTimeFromDepartAtoDepartB,
-    });
-  }
-
-  return examples;
-};
-
-/**
- * Create training data for all models in a bucket
- */
-export const createTrainingDataForBucketAll = (
-  bucket: TerminalPairBucket
-): {
-  arriveDepartExamples: TrainingExample[];
-  departArriveExamples: TrainingExample[];
-  arriveArriveExamples: TrainingExample[];
-  departDepartExamples: TrainingExample[];
-} => {
-  const arriveDepartExamples = createTrainingExamplesForBucket(
-    bucket,
-    "arrive-depart"
-  );
-  const departArriveExamples = createTrainingExamplesForBucket(
-    bucket,
-    "depart-arrive"
-  );
-  const arriveArriveExamples = createTrainingExamplesForArriveArrive(bucket);
-  const departDepartExamples = createTrainingExamplesForDepartDepart(bucket);
 
   return {
-    arriveDepartExamples,
-    departArriveExamples,
-    arriveArriveExamples,
-    departDepartExamples,
+    input: {
+      ...timeFeatures(record),
+      prevDelay: record.prevDelay,
+      prevAtSeaDuration: record.prevAtSeaDuration,
+      atDockDuration: record.currAtDockDuration,
+      delay: record.currDelay,
+    },
+    target: record.currAtSeaDuration,
   };
+};
+
+/**
+ * Create training example for arrive-arrive model
+ * Returns null if the record should be skipped, otherwise returns the training example
+ */
+export const createArriveArriveTrainingExample = (
+  record: TrainingDataRecord
+): TrainingExample | null => {
+  return {
+    input: {
+      ...timeFeatures(record),
+      // prevDelay: record.prevDelay,
+      // prevAtSeaDuration: record.prevAtSeaDuration,
+    },
+    target: record.currAtDockDuration + record.currAtSeaDuration,
+  };
+};
+
+/**
+ * Create training example for depart-depart model
+ * Returns null if the record should be skipped, otherwise returns the training example
+ */
+export const createDepartDepartTrainingExample = (
+  record: TrainingDataRecord
+): TrainingExample | null => {
+  return {
+    input: {
+      ...timeFeatures(record),
+      // prevDelay: record.prevDelay,
+    },
+    target: record.prevAtSeaDuration + record.currAtDockDuration,
+  };
+};
+
+/**
+ * Create training data for a single model type in a bucket
+ */
+export const createTrainingDataForBucketSingle = (
+  bucket: TerminalPairBucket,
+  modelType:
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
+    | "arrive-depart-late"
+): TrainingExample[] => {
+  switch (modelType) {
+    case "arrive-depart":
+      return bucket.records
+        .map(createArriveDepartTrainingExample)
+        .filter((example): example is TrainingExample => example !== null);
+    case "depart-arrive":
+      return bucket.records
+        .map(createDepartArriveTrainingExample)
+        .filter((example): example is TrainingExample => example !== null);
+    case "arrive-arrive":
+      return bucket.records
+        .map(createArriveArriveTrainingExample)
+        .filter((example): example is TrainingExample => example !== null);
+    case "depart-depart":
+      return bucket.records
+        .map(createDepartDepartTrainingExample)
+        .filter((example): example is TrainingExample => example !== null);
+    case "arrive-depart-late":
+      return bucket.records
+        .map(createArriveDepartLateTrainingExample)
+        .filter((example): example is TrainingExample => example !== null);
+  }
 };

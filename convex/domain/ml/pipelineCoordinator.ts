@@ -52,7 +52,10 @@ const trainAllBuckets = async (
 
   for (let i = 0; i < buckets.length; i++) {
     const bucket = buckets[i];
-    const pairKey = `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`;
+    const pairKey = formatTerminalPairKey(
+      bucket.terminalPair.departingTerminalAbbrev,
+      bucket.terminalPair.arrivingTerminalAbbrev
+    );
 
     try {
       console.log(
@@ -107,6 +110,7 @@ import { convertWsfDataToTrainingRecords } from "./pipeline/step_2_convertWsfToT
 import { createTerminalPairBuckets } from "./pipeline/step_3_bucketByTerminalPairs";
 import { trainModelsForBucket } from "./pipeline/step_5_trainBuckets";
 import { storeModelResults } from "./pipeline/step_6_storeResults";
+import { formatTerminalPairKey } from "./pipeline/shared/config";
 
 /**
  * Main ML pipeline orchestrator
@@ -164,9 +168,11 @@ const createFinalResponse = (
   dataQuality: DataQualityMetrics
 ): TrainingResponse => {
   // Extract terminal pair strings from buckets
-  const terminalPairs = buckets.map(
-    (bucket) =>
-      `${bucket.terminalPair.departingTerminalAbbrev}_${bucket.terminalPair.arrivingTerminalAbbrev}`
+  const terminalPairs = buckets.map((bucket) =>
+    formatTerminalPairKey(
+      bucket.terminalPair.departingTerminalAbbrev,
+      bucket.terminalPair.arrivingTerminalAbbrev
+    )
   );
 
   return {
