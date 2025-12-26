@@ -88,7 +88,7 @@ const trainAllBuckets = async (
 
   console.log(
     `Completed training: ${allModels.length} models created from ${buckets.length} buckets ` +
-    `(${failedBuckets.length} failed, ${buckets.length - failedBuckets.length} successful)`
+      `(${failedBuckets.length} failed, ${buckets.length - failedBuckets.length} successful)`
   );
   return allModels;
 };
@@ -98,6 +98,12 @@ const trainAllBuckets = async (
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
+import { formatTerminalPairKey } from "./pipeline/shared/config";
+import { loadWsfTrainingData } from "./pipeline/step_1_loadWsfTrainingData";
+import { convertWsfDataToTrainingRecords } from "./pipeline/step_2_convertWsfToTraining";
+import { createTerminalPairBuckets } from "./pipeline/step_3_bucketByTerminalPairs";
+import { trainModelsForBucket } from "./pipeline/step_5_trainBuckets";
+import { storeModelResults } from "./pipeline/step_6_storeResults";
 import type {
   DataQualityMetrics,
   ModelParameters,
@@ -105,12 +111,6 @@ import type {
   TrainingDataRecord,
   TrainingResponse,
 } from "./types";
-import { loadWsfTrainingData } from "./pipeline/step_1_loadWsfTrainingData";
-import { convertWsfDataToTrainingRecords } from "./pipeline/step_2_convertWsfToTraining";
-import { createTerminalPairBuckets } from "./pipeline/step_3_bucketByTerminalPairs";
-import { trainModelsForBucket } from "./pipeline/step_5_trainBuckets";
-import { storeModelResults } from "./pipeline/step_6_storeResults";
-import { formatTerminalPairKey } from "./pipeline/shared/config";
 
 /**
  * Main ML pipeline orchestrator

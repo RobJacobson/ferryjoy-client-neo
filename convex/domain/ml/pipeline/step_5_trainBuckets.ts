@@ -11,8 +11,8 @@ import type {
   TrainingExample,
 } from "../types";
 import { formatTerminalPairKey, PIPELINE_CONFIG } from "./shared/config";
-import { createTrainingDataForBucketSingle } from "./step_4_createTrainingData";
 import { roundTinyValues } from "./shared/time";
+import { createTrainingDataForBucketSingle } from "./step_4_createTrainingData";
 
 // ============================================================================
 // ALGORITHM CONSTANTS
@@ -97,7 +97,10 @@ const trainLinearRegression = (examples: TrainingExample[]): TrainingResult => {
   const coefficients = regression.weights
     .slice(0, -1)
     .map((row) =>
-      roundTinyValues(row[0], PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD)
+      roundTinyValues(
+        row[0],
+        PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD
+      )
     );
   const intercept = roundTinyValues(
     regression.weights[regression.weights.length - 1][0],
@@ -147,7 +150,10 @@ const createExamplesFromRecords = (
   // This ensures consistency with the main training path
   const tempBucket: TerminalPairBucket = {
     terminalPair: { departingTerminalAbbrev: "", arrivingTerminalAbbrev: "" },
-    bucketStats: { totalRecords: records.length, filteredRecords: records.length },
+    bucketStats: {
+      totalRecords: records.length,
+      filteredRecords: records.length,
+    },
     records,
   };
   return createTrainingDataForBucketSingle(tempBucket, modelType);
@@ -251,8 +257,18 @@ export const trainModelsForBucket = async (
 
   // Define model types to train
   const modelTypes: Array<
-    "arrive-depart" | "depart-arrive" | "arrive-arrive" | "depart-depart" | "arrive-depart-late"
-  > = ["arrive-depart", "depart-arrive", "arrive-arrive", "depart-depart", "arrive-depart-late"];
+    | "arrive-depart"
+    | "depart-arrive"
+    | "arrive-arrive"
+    | "depart-depart"
+    | "arrive-depart-late"
+  > = [
+    "arrive-depart",
+    "depart-arrive",
+    "arrive-arrive",
+    "depart-depart",
+    "arrive-depart-late",
+  ];
 
   // Process one model at a time to reduce memory pressure
   for (const modelType of modelTypes) {

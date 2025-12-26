@@ -22,7 +22,9 @@ const PACIFIC_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
  * @param utcDate - UTC date to convert
  * @returns Object with hour, minute, second, and day of week in Pacific time
  */
-const getPacificTimeComponents = (utcDate: Date): {
+const getPacificTimeComponents = (
+  utcDate: Date
+): {
   hour: number;
   minute: number;
   second: number;
@@ -48,7 +50,7 @@ const getPacificTimeComponents = (utcDate: Date): {
       case "second":
         second = Number.parseInt(part.value, 10);
         break;
-      case "weekday":
+      case "weekday": {
         // Map weekday names to numbers (Sunday = 0)
         const weekdayMap: Record<string, number> = {
           Sun: 0,
@@ -61,6 +63,7 @@ const getPacificTimeComponents = (utcDate: Date): {
         };
         dayOfWeek = weekdayMap[part.value] ?? 0;
         break;
+      }
     }
   }
 
@@ -80,7 +83,16 @@ export const getPacificTime = (utcDate: Date): Date => {
   const day = utcDate.getUTCDate();
 
   // Create a new Date with Pacific time components (stored as UTC)
-  return new Date(Date.UTC(year, month, day, components.hour, components.minute, components.second));
+  return new Date(
+    Date.UTC(
+      year,
+      month,
+      day,
+      components.hour,
+      components.minute,
+      components.second
+    )
+  );
 };
 
 /**
