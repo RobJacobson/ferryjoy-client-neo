@@ -171,14 +171,30 @@ const compareResults = (
         getMetric(fileBRow, "arrive-depart", "r2")
       ),
       // arrive-depart-late metrics
-      arrive_depart_late_mae_file_a: getMetric(fileARow, "arrive-depart-late", "mae"),
-      arrive_depart_late_mae_file_b: getMetric(fileBRow, "arrive-depart-late", "mae"),
+      arrive_depart_late_mae_file_a: getMetric(
+        fileARow,
+        "arrive-depart-late",
+        "mae"
+      ),
+      arrive_depart_late_mae_file_b: getMetric(
+        fileBRow,
+        "arrive-depart-late",
+        "mae"
+      ),
       arrive_depart_late_mae_diff: calcDiff(
         getMetric(fileARow, "arrive-depart-late", "mae"),
         getMetric(fileBRow, "arrive-depart-late", "mae")
       ),
-      arrive_depart_late_r2_file_a: getMetric(fileARow, "arrive-depart-late", "r2"),
-      arrive_depart_late_r2_file_b: getMetric(fileBRow, "arrive-depart-late", "r2"),
+      arrive_depart_late_r2_file_a: getMetric(
+        fileARow,
+        "arrive-depart-late",
+        "r2"
+      ),
+      arrive_depart_late_r2_file_b: getMetric(
+        fileBRow,
+        "arrive-depart-late",
+        "r2"
+      ),
       arrive_depart_late_r2_diff: calcDiff(
         getMetric(fileARow, "arrive-depart-late", "r2"),
         getMetric(fileBRow, "arrive-depart-late", "r2")
@@ -452,7 +468,9 @@ Comparing ML model performance between ${fileALabel} and ${fileBLabel}
 
   // Overall recommendation - count better performance across all 5 model types
   const arriveDepartBetterCount = arriveDepartMae.filter((d) => d < 0).length;
-  const arriveDepartLateBetterCount = arriveDepartLateMae.filter((d) => d < 0).length;
+  const arriveDepartLateBetterCount = arriveDepartLateMae.filter(
+    (d) => d < 0
+  ).length;
   const departArriveBetterCount = departArriveMae.filter((d) => d < 0).length;
   const arriveArriveBetterCount = arriveArriveMae.filter((d) => d < 0).length;
   const departDepartBetterCount = departDepartMae.filter((d) => d < 0).length;

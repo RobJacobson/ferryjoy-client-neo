@@ -177,4 +177,3 @@ function generateCSV(results: TrainingResultRow[]): string {
 if (require.main === module) {
   exportTrainingResults().catch(console.error);
 }
-
