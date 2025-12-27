@@ -98,12 +98,12 @@ const trainAllBuckets = async (
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
-import { formatTerminalPairKey } from "./pipeline/shared/config";
-import { loadWsfTrainingData } from "./pipeline/step_1_loadWsfTrainingData";
-import { convertWsfDataToTrainingRecords } from "./pipeline/step_2_convertWsfToTraining";
-import { createTerminalPairBuckets } from "./pipeline/step_3_bucketByTerminalPairs";
-import { trainModelsForBucket } from "./pipeline/step_5_trainBuckets";
-import { storeModelResults } from "./pipeline/step_6_storeResults";
+import { formatTerminalPairKey } from "./training/shared/config";
+import { loadWsfTrainingData } from "./training/step_1_loadWsfTrainingData";
+import { convertWsfDataToTrainingRecords } from "./training/step_2_convertWsfToTraining";
+import { createTerminalPairBuckets } from "./training/step_3_bucketByTerminalPairs";
+import { trainModelsForBucket } from "./training/step_5_trainBuckets";
+import { storeModelResults } from "./training/step_6_storeResults";
 import type {
   DataQualityMetrics,
   ModelParameters,

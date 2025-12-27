@@ -14,10 +14,11 @@ export const loadModel = async (
   departingTerminal: string,
   arrivingTerminal: string,
   modelType:
-    | "arrive-depart"
-    | "arrive-depart-late"
-    | "depart-arrive"
-    | "arrive-arrive"
+    | "arrive-depart-atdock-duration"
+    | "arrive-depart-delay"
+    | "depart-arrive-atsea-duration"
+    | "arrive-arrive-total-duration"
+    | "depart-depart-total-duration"
 ): Promise<ModelParameters | null> => {
   const model = await ctx.runQuery(
     api.functions.predictions.queries.getModelParametersByTerminalPair,

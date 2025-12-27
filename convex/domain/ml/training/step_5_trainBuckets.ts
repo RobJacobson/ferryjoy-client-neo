@@ -4,17 +4,14 @@
 // ============================================================================
 
 import MLR from "ml-regression-multivariate-linear";
-import {
-  formatTerminalPairKey,
-  PIPELINE_CONFIG,
-} from "../training/shared/config";
-import { roundTinyValues } from "../training/shared/time";
 import type {
   ModelParameters,
   TerminalPairBucket,
   TrainingDataRecord,
   TrainingExample,
 } from "../types";
+import { formatTerminalPairKey, PIPELINE_CONFIG } from "./shared/config";
+import { roundTinyValues } from "./shared/time";
 import { createTrainingDataForBucketSingle } from "./step_4_createTrainingData";
 
 // ============================================================================

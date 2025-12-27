@@ -17,11 +17,11 @@ export const getModelParametersByTerminalPair = query({
     departingTerminalAbbrev: v.string(),
     arrivingTerminalAbbrev: v.string(),
     modelType: v.union(
-      v.literal("arrive-depart"),
-      v.literal("arrive-depart-late"),
-      v.literal("depart-arrive"),
-      v.literal("arrive-arrive"),
-      v.literal("depart-depart")
+      v.literal("arrive-depart-atdock-duration"),
+      v.literal("arrive-depart-delay"),
+      v.literal("depart-arrive-atsea-duration"),
+      v.literal("arrive-arrive-total-duration"),
+      v.literal("depart-depart-total-duration")
     ),
   },
   handler: async (ctx, args) => {

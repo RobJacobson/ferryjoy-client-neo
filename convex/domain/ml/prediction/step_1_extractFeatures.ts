@@ -3,9 +3,8 @@
 // Feature extraction from vessel trips for ML models
 // ============================================================================
 
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { MEAN_AT_DOCK_DURATION } from "../pipeline/shared/config";
-import { extractTimeFeatures, getPacificTime } from "../pipeline/shared/time";
+import { MEAN_AT_DOCK_DURATION } from "../training/shared/config";
+import { extractTimeFeatures, getPacificTime } from "../training/shared/time";
 
 /**
  * Feature record for ML prediction

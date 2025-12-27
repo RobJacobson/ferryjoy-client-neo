@@ -180,7 +180,7 @@ describe("Integration: Initial Predictions Flow", () => {
       mockCtx,
       "P52",
       "BBI",
-      "arrive-depart-late"
+      "arrive-depart-delay"
     );
     expect(extractArriveDepartFeatures).toHaveBeenCalled();
     expect(applyLinearRegression).toHaveBeenCalled();

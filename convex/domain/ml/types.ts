@@ -72,11 +72,11 @@ export type TerminalPairBucket = {
 export type TerminalPairTrainingData = {
   terminalPair: TerminalPair;
   modelType:
-    | "arrive-depart"
-    | "depart-arrive"
-    | "arrive-arrive"
-    | "depart-depart"
-    | "arrive-depart-late";
+    | "arrive-depart-atdock-duration"
+    | "depart-arrive-atsea-duration"
+    | "arrive-arrive-total-duration"
+    | "depart-depart-total-duration"
+    | "arrive-depart-delay";
   examples: TrainingExample[];
 };
 
@@ -93,11 +93,11 @@ export type ModelParameters = {
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
   modelType:
-    | "arrive-depart"
-    | "depart-arrive"
-    | "arrive-arrive"
-    | "depart-depart"
-    | "arrive-depart-late";
+    | "arrive-depart-atdock-duration"
+    | "depart-arrive-atsea-duration"
+    | "arrive-arrive-total-duration"
+    | "depart-depart-total-duration"
+    | "arrive-depart-delay";
 
   // Training metrics - always set after training
   trainingMetrics: {
@@ -159,8 +159,8 @@ export type TrainingResponse = {
  * Prediction output for terminal pair models
  */
 export type PredictionOutput = {
-  atDockDuration?: number; // minutes from arrival at dock to departure (arrive-depart model)
-  atSeaDuration?: number; // minutes from departure to arrival (depart-arrive model)
-  combinedDuration?: number; // minutes from departure at A to departure at B (depart-depart model)
+  atDockDuration?: number; // minutes from arrival at dock to departure (arrive-depart-atdock-duration model)
+  atSeaDuration?: number; // minutes from departure to arrival (depart-arrive-atsea-duration model)
+  combinedDuration?: number; // minutes from departure at A to departure at B (arrive-arrive-total-duration model)
   predictedDepartureTime?: Date; // calculated from scheduled + delay (if applicable)
 };

@@ -9,7 +9,7 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 1. **Arrive-Depart-At-Dock-Duration**: At-dock duration at B given arrival at B (time vessel stays at dock)
 2. **Depart-Arrive-At-Sea-Duration**: At-sea duration from B to C given departure from B
 3. **Arrive-Arrive-Total-Duration**: Total time from arrival at B to arrival at C (without knowing departure time from B)
-4. **Depart-Depart-Total-Duration**: Sum of at-sea duration from A to B plus at-dock duration at B given departure from A and scheduled departure from B
+4. **Depart-Depart**: Sum of at-sea duration from A to B plus at-dock duration at B given departure from A and scheduled departure from B
 
 **Key advantage**: Terminal-pair specific models trained on complete historical datasets provide accurate, route-aware predictions for passenger planning and operational decision-making.
 
@@ -645,7 +645,7 @@ npx tsx scripts/validate-predictions.ts
 - **Arrive-Depart-At-Dock-Duration Predictions**: Generally good performance (typically 2-5 min MAE) - predicts at-dock duration
 - **Depart-Arrive-At-Sea-Duration Predictions**: Variable performance by route (typically 2-10 min MAE)
 - **Arrive-Arrive-Total-Duration Predictions**: Predicts total time from arrival to next arrival
-- **Depart-Depart-Total-Duration Predictions**: Predicts sum of at-sea duration (from A to B) + at-dock duration (at B)
+- **Depart-Depart Predictions**: Predicts sum of at-sea duration (from A to B) + at-dock duration (at B)
 - **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs, 4 models each)
 
 ## Technical Architecture

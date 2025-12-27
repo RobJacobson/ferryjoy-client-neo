@@ -42,7 +42,7 @@ sequenceDiagram
         Pred->>LeftDock: predictLeftDock(completedTrip, newTrip)
         Note over LeftDock: 1. Skip if insufficient data
         LeftDock->>LeftDock: 2. Extract features<br/>(time, previous delay,<br/>previous at-sea duration)
-        LeftDock->>DB: Load arrive-depart-late model
+        LeftDock->>DB: Load arrive-depart-delay model
         DB-->>LeftDock: Model parameters
         LeftDock->>LeftDock: 3. Apply linear regression
         LeftDock->>LeftDock: 4. Convert delay to absolute timestamp
@@ -54,7 +54,7 @@ sequenceDiagram
         Pred->>Eta: predictEta(completedTrip, newTrip)
         Note over Eta: 1. Skip if insufficient data
         Eta->>Eta: 2. Extract features<br/>(same as LeftDock)
-        Eta->>DB: Load arrive-arrive model
+        Eta->>DB: Load arrive-arrive-total-duration model
         DB-->>Eta: Model parameters
         Eta->>Eta: 3. Apply linear regression
         Eta->>Eta: 4. Convert duration to absolute timestamp
@@ -222,8 +222,8 @@ Feature Extraction:
   - New trip: TripStart
   ↓
 Model Loading (DB query):
-  - arrive-depart-late model
-  - arrive-arrive model
+  - arrive-depart-delay model
+  - arrive-arrive-total-duration model
   ↓
 Prediction Calculation:
   - Linear regression: y = intercept + Σ(coefficient × feature)
@@ -313,7 +313,7 @@ isWeekend: 1 if dayOfWeek ∈ {0 (Sun), 6 (Sat)}, else 0
 
 **What it predicts:**
 - Departure delay from scheduled departure time
-- Model: `arrive-depart-late`
+- Model: `arrive-depart-delay`
 - Target: Delay (minutes from scheduled to actual departure)
 
 ### Arrive-Arrive Features (Initial ETA Prediction)
@@ -330,7 +330,7 @@ isWeekend: 1 if dayOfWeek ∈ {0 (Sun), 6 (Sat)}, else 0
 
 **What it predicts:**
 - Combined duration: at-dock + at-sea
-- Model: `arrive-arrive`
+- Model: `arrive-arrive-total-duration`
 - Target: Total duration from arrival to next arrival (minutes)
 
 ### Depart-Arrive Features (ETA Update on Departure)
@@ -353,8 +353,8 @@ isWeekend: 1 if dayOfWeek ∈ {0 (Sun), 6 (Sat)}, else 0
 
 | Model Type              | Features | Predicts                         | Used For                    | When Called |
 |-------------------------|----------|----------------------------------|-----------------------------|-------------|
-| arrive-depart-late      | 12       | Departure delay                  | LeftDockPred                | Trip start  |
-| arrive-arrive           | 12       | Combined duration (dock + sea)    | EtaPred (initial)           | Trip start  |
+| arrive-depart-delay      | 12       | Departure delay                  | LeftDockPred                | Trip start  |
+| arrive-arrive-total-duration           | 12       | Combined duration (dock + sea)    | EtaPred (initial)           | Trip start  |
 | depart-arrive           | 11       | At-sea duration                  | EtaPred (updated)           | Departure   |
 
 ## Error Handling and Logging

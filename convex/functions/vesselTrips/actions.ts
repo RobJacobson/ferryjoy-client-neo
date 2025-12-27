@@ -1,6 +1,6 @@
 import { api } from "_generated/api";
 import { type ActionCtx, internalAction } from "_generated/server";
-import { updateEtaOnDeparture } from "domain/ml";
+import { calculateInitialPredictions, updateEtaOnDeparture } from "domain/ml";
 import {
   type ConvexVesselLocation,
   toConvexVesselLocation,
@@ -166,11 +166,15 @@ const checkAndHandleNewTrip = async (
  * departure time and actual `LeftDock` time. All updated fields are then persisted
  * to the database.
  *
- * Special handling for ETA predictions:
+ * Special handling for predictions:
+ * - When `ArrivingTerminalAbbrev` transitions from `null` to a value (first time we
+ *   know the destination), the `calculateInitialPredictions` function is called to
+ *   generate initial LeftDockPred and EtaPred predictions.
  * - When `LeftDock` transitions from `undefined` to a value (vessel leaves dock),
  *   the `updateEtaOnDeparture` function is called to generate a more accurate ETA
  *   prediction based on the actual at-dock duration.
- * - The new `EtaPred` and `EtaPredMae` values are merged into the updated trip data.
+ * - All prediction results (LeftDockPred, LeftDockPredMae, EtaPred, EtaPredMae) are
+ *   merged into the updated trip data.
  *
  * If no changes are detected, the function returns early without performing any database
  * operations.
@@ -190,6 +194,13 @@ const checkAndHandleTripUpdate = async (
     return;
   }
 
+  const initialPredictions = await calculateInitialPredictionsIfNeeded(
+    ctx,
+    currLocation,
+    existingTrip,
+    updates
+  );
+
   const etaPrediction = await updateEtaOnDepartureIfNeeded(
     ctx,
     currLocation,
@@ -201,6 +212,7 @@ const checkAndHandleTripUpdate = async (
     currLocation,
     existingTrip,
     updates,
+    initialPredictions,
     etaPrediction
   );
 
@@ -226,6 +238,10 @@ const calculateTripUpdates = (
     currLocation.LeftDock
   );
 
+  const arrivingTerminalBecameAvailable =
+    existingTrip.ArrivingTerminalAbbrev === null &&
+    currLocation.ArrivingTerminalAbbrev !== null;
+
   return {
     atDockDuration,
     delay,
@@ -234,6 +250,7 @@ const calculateTripUpdates = (
     arrivingTerminalChanged:
       existingTrip.ArrivingTerminalAbbrev !==
       currLocation.ArrivingTerminalAbbrev,
+    arrivingTerminalBecameAvailable,
     leftDockChanged: existingTrip.LeftDock !== currLocation.LeftDock,
     atDockDurationChanged: atDockDuration !== existingTrip.AtDockDuration,
     delayChanged: delay !== existingTrip.Delay,
@@ -250,6 +267,7 @@ const hasTripChanges = (
     updates.atDockChanged ||
     updates.etaChanged ||
     updates.arrivingTerminalChanged ||
+    updates.arrivingTerminalBecameAvailable ||
     updates.leftDockChanged ||
     updates.atDockDurationChanged ||
     updates.delayChanged
@@ -355,12 +373,102 @@ const logEtaPredictionError = (
 };
 
 /**
+ * Calculates initial predictions when arriving terminal first becomes available.
+ */
+const calculateInitialPredictionsIfNeeded = async (
+  ctx: ActionCtx,
+  currLocation: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip,
+  updates: ReturnType<typeof calculateTripUpdates>
+): Promise<{
+  LeftDockPred?: number;
+  LeftDockPredMae?: number;
+  EtaPred?: number;
+  EtaPredMae?: number;
+}> => {
+  if (!updates.arrivingTerminalBecameAvailable) {
+    return {};
+  }
+
+  try {
+    const predictions = await calculateInitialPredictions(
+      ctx,
+      existingTrip,
+      existingTrip
+    );
+
+    if (predictions.LeftDockPred) {
+      console.log(
+        `[ML Prediction] LeftDockPred calculated for ${existingTrip.VesselAbbrev}:`,
+        {
+          vessel: existingTrip.VesselAbbrev,
+          departingTerminal: existingTrip.DepartingTerminalAbbrev,
+          arrivingTerminal: currLocation.ArrivingTerminalAbbrev,
+          scheduledDeparture: existingTrip.ScheduledDeparture,
+          predictedLeftDock: predictions.LeftDockPred,
+          leftDockMae: predictions.LeftDockPredMae,
+        }
+      );
+    } else {
+      console.log(
+        `[ML Prediction] LeftDockPred skipped for ${existingTrip.VesselAbbrev}`,
+        {
+          vessel: existingTrip.VesselAbbrev,
+          reason: "Insufficient data or model not found",
+        }
+      );
+    }
+
+    if (predictions.EtaPred) {
+      console.log(
+        `[ML Prediction] EtaPred calculated for ${existingTrip.VesselAbbrev}:`,
+        {
+          vessel: existingTrip.VesselAbbrev,
+          departingTerminal: existingTrip.DepartingTerminalAbbrev,
+          arrivingTerminal: currLocation.ArrivingTerminalAbbrev,
+          tripStart: existingTrip.TripStart,
+          predictedEta: predictions.EtaPred,
+          etaMae: predictions.EtaPredMae,
+        }
+      );
+    } else {
+      console.log(
+        `[ML Prediction] EtaPred skipped for ${existingTrip.VesselAbbrev}`,
+        {
+          vessel: existingTrip.VesselAbbrev,
+          reason: "Insufficient data or model not found",
+        }
+      );
+    }
+
+    return {
+      LeftDockPred: predictions.LeftDockPred,
+      LeftDockPredMae: predictions.LeftDockPredMae,
+      EtaPred: predictions.EtaPred,
+      EtaPredMae: predictions.EtaPredMae,
+    };
+  } catch (error) {
+    console.error(
+      `[ML Prediction] Failed to calculate initial predictions for ${existingTrip.VesselAbbrev}:`,
+      error
+    );
+    return {};
+  }
+};
+
+/**
  * Builds the updated trip object with all changes and prediction updates.
  */
 const buildUpdatedTrip = (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip,
   updates: ReturnType<typeof calculateTripUpdates>,
+  initialPredictions: {
+    LeftDockPred?: number;
+    LeftDockPredMae?: number;
+    EtaPred?: number;
+    EtaPredMae?: number;
+  },
   etaPrediction: { EtaPred?: number; EtaPredMae?: number }
 ): ConvexVesselTrip => ({
   ...existingTrip,
@@ -370,6 +478,7 @@ const buildUpdatedTrip = (
   LeftDock: currLocation.LeftDock,
   Delay: updates.delay,
   AtDockDuration: updates.atDockDuration,
+  ...initialPredictions,
   ...etaPrediction,
 });
 

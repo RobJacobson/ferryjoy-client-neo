@@ -7,7 +7,7 @@
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { formatTerminalPairKey } from "../../pipeline/shared/config";
+import { formatTerminalPairKey } from "../../training/shared/config";
 import type { FeatureRecord } from "../step_1_extractFeatures";
 import {
   extractArriveDepartFeatures,
@@ -31,7 +31,10 @@ import {
  * Generic prediction configuration
  */
 type PredictionConfig<TContext> = {
-  modelName: "arrive-depart-late" | "arrive-arrive" | "depart-arrive";
+  modelName:
+    | "arrive-depart-delay"
+    | "arrive-arrive-total-duration"
+    | "depart-arrive-atsea-duration";
   skipPrediction: (ctx: TContext) => boolean;
   extractFeatures: (ctx: TContext) => {
     features: FeatureRecord;
@@ -149,12 +152,12 @@ type DepartureContext = TerminalContext & {
 };
 
 // ============================================================================
-// LEFT DOCK PREDICTION (arrive-depart-late model)
+// LEFT DOCK PREDICTION (arrive-depart-delay model)
 // ============================================================================
 
 /**
  * Predict LeftDockPred when a new trip starts
- * Uses arrive-depart-late model to predict departure delay
+ * Uses arrive-depart-delay model to predict departure delay
  */
 export const predictLeftDock = async (
   ctx: ActionCtx | MutationCtx,
@@ -169,7 +172,7 @@ export const predictLeftDock = async (
   };
 
   const config: PredictionConfig<NewTripContext> = {
-    modelName: "arrive-depart-late",
+    modelName: "arrive-depart-delay",
     skipPrediction: (_ctx) =>
       !_ctx.completedTrip.Delay ||
       !_ctx.completedTrip.AtSeaDuration ||
@@ -207,12 +210,12 @@ export const predictLeftDock = async (
 };
 
 // ============================================================================
-// ETA PREDICTION ON NEW TRIP (arrive-arrive model)
+// ETA PREDICTION ON NEW TRIP (arrive-arrive-total-duration model)
 // ============================================================================
 
 /**
  * Predict EtaPred when a new trip starts
- * Uses arrive-arrive model to predict total arrival time
+ * Uses arrive-arrive-total-duration model to predict total arrival time
  */
 export const predictEta = async (
   ctx: ActionCtx | MutationCtx,
@@ -227,7 +230,7 @@ export const predictEta = async (
   };
 
   const config: PredictionConfig<NewTripContext> = {
-    modelName: "arrive-arrive",
+    modelName: "arrive-arrive-total-duration",
     skipPrediction: (_ctx) =>
       !_ctx.completedTrip.Delay ||
       !_ctx.completedTrip.AtSeaDuration ||
@@ -265,12 +268,12 @@ export const predictEta = async (
 };
 
 // ============================================================================
-// ETA UPDATE ON DEPARTURE (depart-arrive model)
+// ETA UPDATE ON DEPARTURE (depart-arrive-atsea-duration model)
 // ============================================================================
 
 /**
  * Update EtaPred when vessel leaves dock
- * Uses depart-arrive model with actual at-dock duration
+ * Uses depart-arrive-atsea-duration model with actual at-dock duration
  */
 export const updateEtaOnDeparture = async (
   ctx: ActionCtx | MutationCtx,
@@ -285,7 +288,7 @@ export const updateEtaOnDeparture = async (
   };
 
   const config: PredictionConfig<DepartureContext> = {
-    modelName: "depart-arrive",
+    modelName: "depart-arrive-atsea-duration",
     skipPrediction: (ctx) =>
       !ctx.currentLocation.LeftDock ||
       !ctx.currentTrip.AtDockDuration ||
