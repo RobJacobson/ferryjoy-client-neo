@@ -19,6 +19,12 @@
     "train:export-results": "npm run train:export-results:convex",
     "train:export-results:convex": "npx tsx scripts/export-training-results-from-convex.ts",
     "train:compare": "npx tsx scripts/compare-summaries.ts",
+    "test:ml": "vitest run convex/domain/ml/prediction/__tests__",
+    "test:ml:watch": "vitest convex/domain/ml/prediction/__tests__",
+    "test:ml:coverage": "vitest run convex/domain/ml/prediction/__tests__ --coverage",
+    "test": "npm run test:ml",
+    "test:watch": "npm run test:ml:watch",
+    "test:coverage": "npm run test:ml:coverage",
     "convex:deploy": "npx convex deploy",
     "convex:deploy:prod": "npx convex deploy --prod",
     "convex:codegen": "npx convex codegen",
@@ -87,10 +93,12 @@
     "@babel/core": "^7.28.5",
     "@biomejs/biome": "^2.3.8",
     "@types/react": "~19.2.7",
+    "@vitest/coverage-v8": "^2.1.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^2.1.8"
   },
   "private": true
 }
