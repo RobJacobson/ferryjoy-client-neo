@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { modelParametersMutationSchema } from "functions/predictions/schemas";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
   vesselPingListValidationSchema,
@@ -20,6 +21,17 @@ export default defineSchema({
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_trip_end", ["TripEnd"])
     .index("by_timestamp", ["TimeStamp"]),
+
+  // Scheduled trips - planned ferry trips with departure/arrival times
+  scheduledTrips: defineTable(scheduledTripSchema)
+    .index("by_vessel", ["VesselAbbrev"])
+    .index("by_departing_time", ["DepartingTime"])
+    .index("by_route", ["RouteID"])
+    .index("by_departing_terminal", ["DepartingTerminalAbbrev"])
+    .index("by_arriving_terminal", ["ArrivingTerminalAbbrev"])
+    .index("by_key", ["Key"])
+    .index("by_vessel_and_departing_time", ["VesselAbbrev", "DepartingTime"])
+    .index("by_route_and_departing_time", ["RouteID", "DepartingTime"]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps
   vesselPings: defineTable(vesselPingListValidationSchema).index(

@@ -16,6 +16,11 @@ import type * as domain_ml_pipeline_step_5_trainBuckets from "../domain/ml/pipel
 import type * as domain_ml_pipelineCoordinator from "../domain/ml/pipelineCoordinator.js";
 import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
 import type * as domain_ml_prediction_predictors_index from "../domain/ml/prediction/predictors/index.js";
+import type * as domain_ml_prediction_predictors_predictDelayOnArrival from "../domain/ml/prediction/predictors/predictDelayOnArrival.js";
+import type * as domain_ml_prediction_predictors_predictEtaOnArrival from "../domain/ml/prediction/predictors/predictEtaOnArrival.js";
+import type * as domain_ml_prediction_predictors_predictEtaOnDeparture from "../domain/ml/prediction/predictors/predictEtaOnDeparture.js";
+import type * as domain_ml_prediction_predictors_shared from "../domain/ml/prediction/predictors/shared.js";
+import type * as domain_ml_prediction_predictors_types from "../domain/ml/prediction/predictors/types.js";
 import type * as domain_ml_prediction_step_1_extractFeatures from "../domain/ml/prediction/step_1_extractFeatures.js";
 import type * as domain_ml_prediction_step_2_loadModel from "../domain/ml/prediction/step_2_loadModel.js";
 import type * as domain_ml_prediction_step_3_makePrediction from "../domain/ml/prediction/step_3_makePrediction.js";
@@ -34,6 +39,11 @@ import type * as functions_predictions_index from "../functions/predictions/inde
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
+import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
+import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
+import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
+import type * as functions_scheduledTrips_queries from "../functions/scheduledTrips/queries.js";
+import type * as functions_scheduledTrips_schemas from "../functions/scheduledTrips/schemas.js";
 import type * as functions_utils from "../functions/utils.js";
 import type * as functions_vesselLocation_actions from "../functions/vesselLocation/actions.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
@@ -59,6 +69,7 @@ import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_index from "../shared/index.js";
+import type * as shared_predictionUtils from "../shared/predictionUtils.js";
 
 import type {
   ApiFromModules,
@@ -75,6 +86,11 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/pipelineCoordinator": typeof domain_ml_pipelineCoordinator;
   "domain/ml/prediction/index": typeof domain_ml_prediction_index;
   "domain/ml/prediction/predictors/index": typeof domain_ml_prediction_predictors_index;
+  "domain/ml/prediction/predictors/predictDelayOnArrival": typeof domain_ml_prediction_predictors_predictDelayOnArrival;
+  "domain/ml/prediction/predictors/predictEtaOnArrival": typeof domain_ml_prediction_predictors_predictEtaOnArrival;
+  "domain/ml/prediction/predictors/predictEtaOnDeparture": typeof domain_ml_prediction_predictors_predictEtaOnDeparture;
+  "domain/ml/prediction/predictors/shared": typeof domain_ml_prediction_predictors_shared;
+  "domain/ml/prediction/predictors/types": typeof domain_ml_prediction_predictors_types;
   "domain/ml/prediction/step_1_extractFeatures": typeof domain_ml_prediction_step_1_extractFeatures;
   "domain/ml/prediction/step_2_loadModel": typeof domain_ml_prediction_step_2_loadModel;
   "domain/ml/prediction/step_3_makePrediction": typeof domain_ml_prediction_step_3_makePrediction;
@@ -93,6 +109,11 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
+  "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
+  "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
+  "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
+  "functions/scheduledTrips/queries": typeof functions_scheduledTrips_queries;
+  "functions/scheduledTrips/schemas": typeof functions_scheduledTrips_schemas;
   "functions/utils": typeof functions_utils;
   "functions/vesselLocation/actions": typeof functions_vesselLocation_actions;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
@@ -118,6 +139,7 @@ declare const fullApi: ApiFromModules<{
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/index": typeof shared_index;
+  "shared/predictionUtils": typeof shared_predictionUtils;
 }>;
 
 /**
