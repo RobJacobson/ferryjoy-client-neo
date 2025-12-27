@@ -10,12 +10,12 @@ export {
 
 // Training pipeline orchestrator
 export { runMLPipeline } from "./pipelineCoordinator";
-export type { PredictionResult as PredictorResult } from "./prediction/predictors";
 export {
-  predictEta,
-  predictLeftDock,
-  updateEtaOnDeparture,
+  predictDelayOnArrival,
+  predictEtaOnArrival,
+  predictEtaOnDeparture,
 } from "./prediction/predictors";
+export type { DelayPredictionParams } from "./prediction/predictors/types";
 export type { FeatureRecord } from "./prediction/step_1_extractFeatures";
 // Prediction types
 export type { InitialPredictions } from "./prediction/step_4_calculateInitialPredictions";

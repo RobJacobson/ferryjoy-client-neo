@@ -82,13 +82,6 @@ export const atSeaDurationToEtaPred = (
 };
 
 /**
- * Round MAE to nearest 0.01 minute (0.6 seconds)
- */
-export const roundMae = (mae: number): number => {
-  return Math.round(mae * 100) / 100;
-};
-
-/**
  * Validate prediction time is not before reference time
  * Clamps to minimum valid time if prediction is too early
  */

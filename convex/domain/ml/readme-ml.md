@@ -365,47 +365,79 @@ type PredictionResult = {
 
 ### Integration with Vessel Trip Pipeline
 
-**Initial Predictions (in `vesselTrips/mutations.ts`):**
+**Predictions on New Trip Creation (in `vesselTrips/actions.ts`):**
 
-When a vessel arrives at dock and a new trip starts:
+When a vessel completes a trip and a new one starts, predictions are run if both terminals are non-null:
 
 ```typescript
-// In completeAndStartNewTrip mutation
-let predictions: InitialPredictions;
-try {
-  predictions = await calculateInitialPredictions(
-    ctx,
+// In checkAndHandleNewTrip function
+// Atomic operation: complete existing, start new
+await ctx.runMutation(
+  api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+  {
     completedTrip,
-    newTrip
-  );
-  // Log results for observability
-} catch (error) {
-  // Prediction failure does not prevent trip creation
-  console.error("[ML Prediction] Failed...", error);
-  predictions = { LeftDockPred: undefined, ... };
-}
+    newTrip,
+  }
+);
 
-// Merge predictions into new trip
-const newTripWithPredictions = {
-  ...newTrip,
-  LeftDockPred: predictions.LeftDockPred,
-  LeftDockPredMae: predictions.LeftDockPredMae,
-  EtaPred: predictions.EtaPred,
-  EtaPredMae: predictions.EtaPredMae,
-};
+// Run predictions if both terminals are non-null
+if (
+  newTrip.DepartingTerminalAbbrev &&
+  newTrip.ArrivingTerminalAbbrev
+) {
+  await runPredictionsForNewTrip(ctx, completedTrip, newTrip);
+}
 ```
+
+This runs both predictions in parallel:
+- **LeftDockPred** using `arrive-depart-delay` model
+- **EtaPred** using `arrive-arrive-total-duration` model
+
+**Predictions on Trip Updates (in `vesselTrips/actions.ts`):**
+
+When an existing trip is updated, predictions are run for missing values:
+
+```typescript
+// In checkAndHandleTripUpdate function
+// Check if we need to run predictions for missing values
+const predictions = await calculateMissingPredictions(
+  ctx,
+  currLocation,
+  existingTrip,
+  updates
+);
+
+// Recompute ETA when vessel departs
+const etaPrediction = await updateEtaOnDepartureIfNeeded(
+  ctx,
+  currLocation,
+  existingTrip,
+  updates
+);
+```
+
+The `calculateMissingPredictions` function:
+1. **Predict LeftDockPred** using `arrive-depart-delay` model if:
+   - Both terminals are non-null
+   - LeftDockPred is currently null
+
+2. **Predict EtaPred** if:
+   - Both terminals are non-null
+   - EtaPred is currently null
+   - Uses `arrive-arrive-total-duration` model if we haven't left dock yet
+   - Uses `depart-arrive-atsea-duration` model if we have left dock
 
 **ETA Update on Departure (in `vesselTrips/actions.ts`):**
 
-When vessel leaves dock:
+When vessel leaves dock, ETA is recomputed with the `depart-arrive-atsea-duration` model:
 
 ```typescript
 // Detect vessel departure
 const vesselDeparted =
-  leftDockChanged &&
+  updates.leftDockChanged &&
   !existingTrip.LeftDock &&
   !!currLocation.LeftDock &&
-  !!atDockDuration;
+  !!updates.atDockDuration;
 
 if (vesselDeparted) {
   try {
@@ -547,35 +579,6 @@ export {
 } from "./prediction/predictors";
 ```
 
-### Testing Predictions
-
-Run the ML prediction test suite:
-
-```bash
-# Run all ML prediction tests
-npm run test:ml
-
-# Run tests in watch mode
-npm run test:ml:watch
-
-# Run tests with coverage report
-npm run test:ml:coverage
-```
-
-**Test File Location:**
-Tests are located at `tests/ml-prediction/` (outside the `convex/` directory) to avoid bundling issues with the Convex dev server. Test files import from the prediction pipeline code in `convex/domain/ml/prediction/`.
-
-**Test Coverage:**
-- Feature extraction (all feature types)
-- Model loading and validation
-- Prediction calculation (linear regression)
-- Time conversion (relative to absolute timestamps)
-- MAE rounding (to 0.01 minutes)
-- Prediction validation (minimum time clamping)
-- Parallel prediction execution
-- Error handling and graceful degradation
-- Integration between all pipeline steps
-
 ### Validation Script
 
 Validate prediction accuracy against actual trip data:
@@ -687,17 +690,6 @@ convex/domain/ml/
     └── shared/
         ├── config.ts                       # Pipeline configuration constants
         └── time.ts                         # Pacific timezone utilities
-```
-
-**Tests:**
-```
-tests/ml-prediction/
-├── setup.ts                         # Global test configuration
-├── vitest.config.ts                 # Vitest configuration
-├── step_1_extractFeatures.test.ts    # Unit tests for feature extraction
-├── step_3_makePrediction.test.ts    # Unit tests for prediction utilities
-├── step_4_calculateInitialPredictions.test.ts  # Unit tests for orchestrator
-└── integration.test.ts               # End-to-end integration tests
 ```
 
 ## Data Quality & Validation
