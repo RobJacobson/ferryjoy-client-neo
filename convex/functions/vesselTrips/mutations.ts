@@ -1,6 +1,9 @@
 import { mutation } from "_generated/server";
 import { ConvexError } from "convex/values";
-import { calculateInitialPredictions, type InitialPredictions } from "domain/ml";
+import {
+  calculateInitialPredictions,
+  type InitialPredictions,
+} from "domain/ml";
 import {
   type ConvexVesselTrip,
   vesselTripSchema,
@@ -126,14 +129,17 @@ export const completeAndStartNewTrip = mutation({
         }
 
         if (predictions.EtaPred) {
-          console.log(`[ML Prediction] EtaPred calculated for ${args.newTrip.VesselAbbrev}:`, {
-            vessel: args.newTrip.VesselAbbrev,
-            departingTerminal: args.newTrip.DepartingTerminalAbbrev,
-            arrivingTerminal: args.newTrip.ArrivingTerminalAbbrev,
-            tripStart: args.newTrip.TripStart,
-            predictedEta: predictions.EtaPred,
-            etaMae: predictions.EtaPredMae,
-          });
+          console.log(
+            `[ML Prediction] EtaPred calculated for ${args.newTrip.VesselAbbrev}:`,
+            {
+              vessel: args.newTrip.VesselAbbrev,
+              departingTerminal: args.newTrip.DepartingTerminalAbbrev,
+              arrivingTerminal: args.newTrip.ArrivingTerminalAbbrev,
+              tripStart: args.newTrip.TripStart,
+              predictedEta: predictions.EtaPred,
+              etaMae: predictions.EtaPredMae,
+            }
+          );
         } else {
           console.log(
             `[ML Prediction] EtaPred skipped for ${args.newTrip.VesselAbbrev}`,

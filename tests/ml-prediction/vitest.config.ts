@@ -5,13 +5,13 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./setup.ts"],
-    include: ["**/*.test.ts"],
+    include: ["./**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
       exclude: [
         "node_modules/",
-        "__tests__/",
+        "tests/",
         "**/*.test.ts",
         "**/*.config.ts",
         "**/setup.ts",

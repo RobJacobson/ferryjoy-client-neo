@@ -3,31 +3,31 @@
 // Testing end-to-end prediction functionality
 // ============================================================================
 
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-// @ts-ignore - vitest will be installed as dev dependency
+// @ts-expect-error - vitest will be installed as dev dependency
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   predictEta,
   predictLeftDock,
   updateEtaOnDeparture,
-} from "../predictors";
-import { calculateInitialPredictions } from "../step_4_calculateInitialPredictions";
+} from "../../convex/domain/ml/prediction/predictors";
+import { calculateInitialPredictions } from "../../convex/domain/ml/prediction/step_4_calculateInitialPredictions";
+import type { ConvexVesselLocation } from "../../convex/functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "../../convex/functions/vesselTrips/schemas";
 
 // Mocks will be set up in beforeEach
 let mockCtx: any;
 
 // Mock prediction pipeline components
-vi.mock("../step_2_loadModel", () => ({
+vi.mock("../../convex/domain/ml/prediction/step_2_loadModel", () => ({
   loadModel: vi.fn(),
 }));
 
-vi.mock("../step_1_extractFeatures", () => ({
+vi.mock("../../convex/domain/ml/prediction/step_1_extractFeatures", () => ({
   extractArriveDepartFeatures: vi.fn(),
   extractDepartArriveFeatures: vi.fn(),
 }));
 
-vi.mock("../step_3_makePrediction", () => ({
+vi.mock("../../convex/domain/ml/prediction/step_3_makePrediction", () => ({
   applyLinearRegression: vi.fn(),
   delayToLeftDockPred: vi.fn(),
   combinedDurationToEtaPred: vi.fn(),
@@ -39,8 +39,8 @@ vi.mock("../step_3_makePrediction", () => ({
 import {
   extractArriveDepartFeatures,
   extractDepartArriveFeatures,
-} from "../step_1_extractFeatures";
-import { loadModel } from "../step_2_loadModel";
+} from "../../convex/domain/ml/prediction/step_1_extractFeatures";
+import { loadModel } from "../../convex/domain/ml/prediction/step_2_loadModel";
 import {
   applyLinearRegression,
   atSeaDurationToEtaPred,
@@ -48,7 +48,7 @@ import {
   delayToLeftDockPred,
   roundMae,
   validatePredictionTime,
-} from "../step_3_makePrediction";
+} from "../../convex/domain/ml/prediction/step_3_makePrediction";
 
 // Helper functions
 const createMockTrip = (

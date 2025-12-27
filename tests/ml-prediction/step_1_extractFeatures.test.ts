@@ -2,15 +2,15 @@
 // UNIT TESTS: Feature Extraction Utilities
 // Testing step_1_extractFeatures.ts functions
 // ============================================================================
-  
-// @ts-ignore - vitest will be installed as dev dependency
+
+// @ts-expect-error - vitest will be installed as dev dependency
 import { describe, expect, test } from "vitest";
 import {
   extractArriveBeforeFeatures,
   extractArriveDepartFeatures,
   extractDepartArriveFeatures,
   extractTimeBasedFeatures,
-} from "../step_1_extractFeatures";
+} from "../../convex/domain/ml/prediction/step_1_extractFeatures";
 
 describe("extractTimeBasedFeatures", () => {
   test("should extract time features for weekday morning", () => {

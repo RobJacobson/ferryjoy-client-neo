@@ -3,19 +3,22 @@
 // Testing step_4_calculateInitialPredictions.ts functions
 // ============================================================================
 
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-// @ts-ignore - vitest will be installed as dev dependency
+// @ts-expect-error - vitest will be installed as dev dependency
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import type { InitialPredictions } from "../step_4_calculateInitialPredictions";
-import { calculateInitialPredictions } from "../step_4_calculateInitialPredictions";
+import type { InitialPredictions } from "../../convex/domain/ml/prediction/step_4_calculateInitialPredictions";
+import { calculateInitialPredictions } from "../../convex/domain/ml/prediction/step_4_calculateInitialPredictions";
+import type { ConvexVesselTrip } from "../../convex/functions/vesselTrips/schemas";
 
 // Mock the predictors
-vi.mock("../predictors", () => ({
+vi.mock("../../convex/domain/ml/prediction/predictors", () => ({
   predictLeftDock: vi.fn(),
   predictEta: vi.fn(),
 }));
 
-import { predictEta, predictLeftDock } from "../predictors";
+import {
+  predictEta,
+  predictLeftDock,
+} from "../../convex/domain/ml/prediction/predictors";
 
 describe("calculateInitialPredictions", () => {
   const mockCtx = {} as any;

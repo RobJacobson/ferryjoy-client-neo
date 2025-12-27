@@ -3,10 +3,9 @@
 // Testing step_3_makePrediction.ts functions
 // ============================================================================
 
-// @ts-ignore - vitest will be installed as dev dependency
+// @ts-expect-error - vitest will be installed as dev dependency
 import { describe, expect, test } from "vitest";
-import type { ModelParameters } from "../../types";
-import type { FeatureRecord } from "../step_1_extractFeatures";
+import type { FeatureRecord } from "../../convex/domain/ml/prediction/step_1_extractFeatures";
 import {
   applyLinearRegression,
   atSeaDurationToEtaPred,
@@ -14,7 +13,8 @@ import {
   delayToLeftDockPred,
   roundMae,
   validatePredictionTime,
-} from "../step_3_makePrediction";
+} from "../../convex/domain/ml/prediction/step_3_makePrediction";
+import type { ModelParameters } from "../../convex/domain/ml/types";
 
 describe("applyLinearRegression", () => {
   test("should calculate prediction with simple model", () => {

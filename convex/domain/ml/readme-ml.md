@@ -193,9 +193,271 @@ npm run train:compare training-results-with-feature.csv training-results-without
 - Summary statistics (average differences, better performing routes)
 - Recommendation on which configuration performs better overall
 
-### Get Predictions
+## Prediction Pipeline
 
-Prediction functionality is currently being developed. Models are trained and stored in the database, and can be queried via the Convex API:
+The prediction system uses trained ML models to provide real-time vessel departure and arrival time predictions. Predictions are automatically calculated when vessel state changes and stored with active vessel trips.
+
+### What Predictions Are Made
+
+**Initial Predictions (when vessel arrives at dock and new trip starts):**
+
+1. **LeftDockPred** - Predicted departure time (absolute timestamp)
+   - Uses `arrive-depart-late` model
+   - Predicts departure delay based on previous trip's performance
+   - MAE margin provided as `LeftDockPredMae` (rounded to 0.01 minutes)
+
+2. **EtaPred** - Predicted arrival time (absolute timestamp)
+   - Uses `arrive-arrive` model
+   - Predicts total trip duration from arrival at dock to arrival at destination
+   - MAE margin provided as `EtaPredMae` (rounded to 0.01 minutes)
+
+**Updated Prediction (when vessel leaves dock):**
+
+3. **EtaPred Update** - More accurate arrival time
+   - Uses `depart-arrive` model
+   - Updates ETA based on actual at-dock duration
+   - Replaces initial `EtaPred` with refined prediction
+
+### Prediction Flow
+
+```
+Vessel Arrives at Dock                          Vessel Leaves Dock
+        ↓                        x                       ↓
+1. Complete previous trip                        1. Detect departure
+2. Create new trip record                        2. Calculate atDockDuration
+3. Run initial predictions:                      3. Update ETA prediction
+   - predictLeftDock()                        (depart-arrive model)
+   - predictEta()
+        ↓                                               ↓
+4. Store predictions with new trip               4. Update active trip with new EtaPred
+   - LeftDockPred (absolute timestamp)
+   - LeftDockPredMae (margin)
+   - EtaPred (absolute timestamp)
+   - EtaPredMae (margin)
+```
+
+### Prediction Pipeline Architecture
+
+**File Structure:**
+```
+convex/domain/ml/prediction/
+├── step_1_extractFeatures.ts           # Feature extraction utilities
+├── step_2_loadModel.ts                # Model loading from database
+├── step_3_makePrediction.ts           # Prediction calculation utilities
+├── step_4_calculateInitialPredictions.ts  # Initial predictions orchestrator
+├── predictors/
+│   └── index.ts                       # Generic predictor with strategy pattern
+└── index.ts                           # Public exports
+```
+
+**Pipeline Steps:**
+
+#### Step 1: Extract Features (`step_1_extractFeatures.ts`)
+
+Extracts features from vessel trip data for ML model input:
+
+- **Time-Based Features** (`extractTimeBasedFeatures`):
+  - Time-of-day features (8 Gaussian radial basis functions centered at 2,5,8,11,14,17,20,23 hours)
+  - Weekend flag (1/0)
+
+- **Arrive-Before Features** (`extractArriveBeforeFeatures`):
+  - Time between arrival and scheduled departure
+  - How early the vessel arrived (relative to mean at-dock duration)
+
+- **Arrive-Depart Features** (`extractArriveDepartFeatures`):
+  - All time-based features
+  - Previous trip's delay
+  - Previous trip's at-sea duration
+  - Time vessel arrived before scheduled departure
+
+- **Depart-Arrive Features** (`extractDepartArriveFeatures`):
+  - All time-based features
+  - Actual at-dock duration
+  - Departure delay
+
+#### Step 2: Load Model (`step_2_loadModel.ts`)
+
+Loads trained model parameters from the Convex `modelParameters` table:
+
+```typescript
+const model = await loadModel(
+  ctx,
+  departingTerminal,      // e.g., "MUK"
+  arrivingTerminal,       // e.g., "CLI"
+  modelType               // e.g., "arrive-depart-late"
+);
+```
+
+**Validation:**
+- Checks model exists in database
+- Validates model has required `coefficients` and `intercept`
+- Returns `null` with warning if model is missing or invalid
+
+#### Step 3: Make Prediction (`step_3_makePrediction.ts`)
+
+Applies linear regression model to features and converts to absolute timestamps:
+
+- **`applyLinearRegression`** - Calculates prediction: `y = intercept + Σ(coefficient × feature)`
+- **`delayToLeftDockPred`** - Converts predicted delay (minutes) to absolute left dock time
+- **`combinedDurationToEtaPred`** - Converts predicted combined duration to absolute ETA
+- **`atSeaDurationToEtaPred`** - Converts predicted at-sea duration to absolute ETA
+- **`roundMae`** - Rounds MAE to nearest 0.01 minute (0.6 seconds)
+- **`validatePredictionTime`** - Clamps predictions to minimum valid time (default: 2 minutes after reference)
+
+#### Step 4: Calculate Initial Predictions (`step_4_calculateInitialPredictions.ts`)
+
+Orchestrates initial predictions when a new trip starts:
+
+```typescript
+const predictions = await calculateInitialPredictions(
+  ctx,
+  completedTrip,    // Trip that just completed
+  newTrip          // Trip that just started
+);
+// Returns: { LeftDockPred, LeftDockPredMae, EtaPred, EtaPredMae }
+```
+
+**Key Features:**
+- Runs `predictLeftDock` and `predictEta` in parallel for efficiency
+- Returns predictions with MAE margins
+- All predictions are absolute timestamps (milliseconds)
+
+### Predictors (Strategy Pattern)
+
+The predictors module (`prediction/predictors/index.ts`) provides a generic prediction orchestrator that reduces code duplication:
+
+**Generic `predict()` Function:**
+```typescript
+const predict = async (ctx, config) => {
+  // 1. Check if prediction should be skipped
+  // 2. Extract features
+  // 3. Load model from database
+  // 4. Apply linear regression
+  // 5. Convert to absolute time
+  // 6. Validate and clamp prediction
+  // 7. Round MAE
+};
+```
+
+**Implemented Predictors:**
+
+1. **`predictLeftDock`** - Uses `arrive-depart-late` model
+   - Predicts departure time when new trip starts
+   - Context: Completed trip + new trip
+
+2. **`predictEta`** - Uses `arrive-arrive` model
+   - Predicts arrival time when new trip starts
+   - Context: Completed trip + new trip
+
+3. **`updateEtaOnDeparture`** - Uses `depart-arrive` model
+   - Updates ETA when vessel leaves dock
+   - Context: Current trip + current location
+
+**Prediction Result Type:**
+```typescript
+type PredictionResult = {
+  predictedTime?: number;    // Absolute timestamp (or undefined if skipped)
+  mae?: number;              // MAE rounded to 0.01 min (or undefined if skipped)
+  skipped: boolean;           // Whether prediction was skipped
+  skipReason?: string;       // Explanation of why prediction was skipped
+};
+```
+
+### Integration with Vessel Trip Pipeline
+
+**Initial Predictions (in `vesselTrips/mutations.ts`):**
+
+When a vessel arrives at dock and a new trip starts:
+
+```typescript
+// In completeAndStartNewTrip mutation
+let predictions: InitialPredictions;
+try {
+  predictions = await calculateInitialPredictions(
+    ctx,
+    completedTrip,
+    newTrip
+  );
+  // Log results for observability
+} catch (error) {
+  // Prediction failure does not prevent trip creation
+  console.error("[ML Prediction] Failed...", error);
+  predictions = { LeftDockPred: undefined, ... };
+}
+
+// Merge predictions into new trip
+const newTripWithPredictions = {
+  ...newTrip,
+  LeftDockPred: predictions.LeftDockPred,
+  LeftDockPredMae: predictions.LeftDockPredMae,
+  EtaPred: predictions.EtaPred,
+  EtaPredMae: predictions.EtaPredMae,
+};
+```
+
+**ETA Update on Departure (in `vesselTrips/actions.ts`):**
+
+When vessel leaves dock:
+
+```typescript
+// Detect vessel departure
+const vesselDeparted =
+  leftDockChanged &&
+  !existingTrip.LeftDock &&
+  !!currLocation.LeftDock &&
+  !!atDockDuration;
+
+if (vesselDeparted) {
+  try {
+    const etaResult = await updateEtaOnDeparture(
+      ctx,
+      existingTrip,
+      currLocation
+    );
+    if (etaResult.predictedTime) {
+      // Update trip with new EtaPred
+      etaUpdate = {
+        EtaPred: etaResult.predictedTime,
+        EtaPredMae: etaResult.mae
+      };
+    }
+  } catch (error) {
+    console.error("[ML Prediction] Failed...", error);
+  }
+}
+```
+
+### Database Schema Updates
+
+The `vesselTripSchema` includes prediction fields:
+
+```typescript
+vesselTripSchema: v.object({
+  // ... existing fields ...
+  LeftDockPred: v.optional(v.number()),        // Predicted departure time (absolute ms)
+  LeftDockPredMae: v.optional(v.number()),     // MAE margin (0.01 min precision)
+  EtaPred: v.optional(v.number()),              // Predicted arrival time (absolute ms)
+  EtaPredMae: v.optional(v.number()),          // MAE margin (0.01 min precision)
+});
+```
+
+**Key Design Decisions:**
+
+- **Absolute Timestamps**: Predictions stored as absolute milliseconds (not offsets)
+  - Immune to schedule changes
+  - Simpler downstream consumption
+  - Consistent with how trip times are stored elsewhere
+
+- **MAE Precision**: Rounded to 0.01 minutes (0.6 seconds) for confidence intervals
+
+- **Graceful Degradation**: Prediction failures don't prevent core operations
+  - Trip creation continues even if predictions fail
+  - Trip updates continue even if ETA update fails
+  - All decisions logged for observability
+
+### Get Model Parameters (for debugging)
+
+Query model parameters from the Convex API:
 
 ```typescript
 import { api } from "./_generated/api";
@@ -206,10 +468,149 @@ const model = await ctx.runQuery(
   {
     departingTerminalAbbrev: "MUK",
     arrivingTerminalAbbrev: "CLI",
-    modelType: "arrive-depart" // or "depart-arrive", "arrive-arrive", "depart-depart"
+    modelType: "arrive-depart-late" // or "arrive-arrive", "depart-arrive"
   }
 );
 ```
+
+### Example: Adding a New Predictor
+
+To add a new predictor (e.g., `predictArriveDepart` for arrive-depart model):
+
+```typescript
+// 1. Define the predictor in prediction/predictors/index.ts
+
+export const predictArriveDepart = async (
+  ctx: ActionCtx | MutationCtx,
+  completedTrip: ConvexVesselTrip,
+  newTrip: ConvexVesselTrip
+): Promise<PredictionResult> => {
+  const _predictionContext: NewTripContext = {
+    completedTrip,
+    newTrip,
+    departingTerminal: newTrip.DepartingTerminalAbbrev,
+    arrivingTerminal: newTrip.ArrivingTerminalAbbrev || "",
+  };
+
+  const config: PredictionConfig<NewTripContext> = {
+    modelName: "arrive-depart",  // Your model type
+    skipPrediction: (_ctx) =>
+      !_ctx.completedTrip.Delay ||
+      !_ctx.completedTrip.AtSeaDuration ||
+      !_ctx.newTrip.TripStart ||
+      !_ctx.newTrip.ScheduledDeparture,
+    extractFeatures: (_ctx) => {
+      const terminalPairKey = formatTerminalPairKey(
+        _ctx.departingTerminal,
+        _ctx.arrivingTerminal
+      );
+      try {
+        // Use appropriate feature extraction function
+        const features = extractArriveDepartFeatures(
+          _ctx.newTrip.ScheduledDeparture!,
+          _ctx.completedTrip.Delay!,
+          _ctx.completedTrip.AtSeaDuration!,
+          _ctx.newTrip.TripStart!,
+          terminalPairKey
+        );
+        return { features };
+      } catch (error) {
+        return { features: {}, error: String(error) };
+      }
+    },
+    convertToAbsolute: (predictedDuration, ctx) => {
+      // Choose appropriate time conversion function
+      const absoluteTime = yourConversionFunction(
+        ctx.newTrip.TripStart!,
+        predictedDuration
+      );
+      return {
+        absoluteTime,
+        referenceTime: ctx.newTrip.TripStart!,
+        minimumGap: 2,
+      };
+    },
+  };
+
+  return predict(ctx, config);
+};
+
+// 2. Export from prediction/index.ts
+export { predictArriveDepart } from "./predictors";
+
+// 3. Export from domain/ml/index.ts
+export {
+  predictArriveDepart,
+  predictEta,
+  predictLeftDock,
+  updateEtaOnDeparture,
+} from "./prediction/predictors";
+```
+
+### Testing Predictions
+
+Run the ML prediction test suite:
+
+```bash
+# Run all ML prediction tests
+npm run test:ml
+
+# Run tests in watch mode
+npm run test:ml:watch
+
+# Run tests with coverage report
+npm run test:ml:coverage
+```
+
+**Test File Location:**
+Tests are located at `tests/ml-prediction/` (outside the `convex/` directory) to avoid bundling issues with the Convex dev server. Test files import from the prediction pipeline code in `convex/domain/ml/prediction/`.
+
+**Test Coverage:**
+- Feature extraction (all feature types)
+- Model loading and validation
+- Prediction calculation (linear regression)
+- Time conversion (relative to absolute timestamps)
+- MAE rounding (to 0.01 minutes)
+- Prediction validation (minimum time clamping)
+- Parallel prediction execution
+- Error handling and graceful degradation
+- Integration between all pipeline steps
+
+### Validation Script
+
+Validate prediction accuracy against actual trip data:
+
+```bash
+# Run prediction validation (after predictions exist in database)
+npx tsx scripts/validate-predictions.ts
+```
+
+**Output:**
+- Overall accuracy metrics
+- Accuracy by terminal pair
+- Percentage of predictions within MAE margin
+- Average error in minutes
+- Recommendations for improvement
+
+### Known Limitations
+
+1. **Model Availability**: Predictions only work if models exist in database. First run after deployment will have no predictions until training completes.
+
+2. **Edge Cases Handled Gracefully**:
+   - Missing previous trip data → No predictions (fields remain `undefined`)
+   - Model not found for terminal pair → No predictions
+   - Invalid model parameters → No predictions
+   - Impossible predictions → Clamped to minimum valid times
+
+3. **Performance**:
+   - Prediction calculations are fast (single linear regression evaluation)
+   - Database queries for model loading may add latency
+   - Consider caching models in memory if latency becomes an issue
+
+4. **Future Model Support**: Infrastructure supports adding:
+   - `predictArriveDepart` for arrive-depart model
+   - `predictDepartDepart` for depart-depart model
+   All would use same generic `predict()` orchestrator
 
 ## Model Performance
 
@@ -268,6 +669,14 @@ convex/domain/ml/
 ├── shared.ts                        # Time normalization utilities
 ├── index.ts                         # Module exports
 ├── readme-ml.md                     # This documentation
+├── prediction/                      # Prediction pipeline
+│   ├── step_1_extractFeatures.ts     # Feature extraction utilities
+│   ├── step_2_loadModel.ts          # Model loading from database
+│   ├── step_3_makePrediction.ts     # Prediction calculation utilities
+│   ├── step_4_calculateInitialPredictions.ts  # Initial predictions orchestrator
+│   ├── predictors/
+│   │   └── index.ts               # Generic predictor with strategy pattern
+│   └── index.ts                   # Public exports
 └── pipeline/
     ├── step_1_loadWsfTrainingData.ts      # Load raw WSF records from API
     ├── step_2_convertWsfToTraining.ts     # Convert WSF records to training format
@@ -278,6 +687,17 @@ convex/domain/ml/
     └── shared/
         ├── config.ts                       # Pipeline configuration constants
         └── time.ts                         # Pacific timezone utilities
+```
+
+**Tests:**
+```
+tests/ml-prediction/
+├── setup.ts                         # Global test configuration
+├── vitest.config.ts                 # Vitest configuration
+├── step_1_extractFeatures.test.ts    # Unit tests for feature extraction
+├── step_3_makePrediction.test.ts    # Unit tests for prediction utilities
+├── step_4_calculateInitialPredictions.test.ts  # Unit tests for orchestrator
+└── integration.test.ts               # End-to-end integration tests
 ```
 
 ## Data Quality & Validation

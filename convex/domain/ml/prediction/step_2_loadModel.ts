@@ -43,5 +43,6 @@ export const loadModel = async (
     return null;
   }
 
-  return model;
+  // Cast to ModelParameters since we've validated required fields exist
+  return model as ModelParameters;
 };
