@@ -49,8 +49,8 @@ export const upsertActiveTrip = mutation({
  * 1. Insert the completed trip into completedVesselTrips
  * 2. Overwrite the active trip with new trip data
  *
- * Note: ML predictions are now calculated in the action layer when the arriving
- * terminal first becomes available (not on trip creation)
+ * Note: ML predictions are calculated in the action layer after trip creation
+ * if both departing and arriving terminals are non-null
  */
 export const completeAndStartNewTrip = mutation({
   args: {

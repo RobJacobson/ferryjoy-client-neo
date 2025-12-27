@@ -21,58 +21,32 @@ export const getMinutesDelta = (
 };
 
 /**
- * Round a duration to one decimal place.
+ * Rounds a number to a specified precision.
  *
- * @param duration - Duration in minutes
- * @returns Duration rounded to one decimal place
+ * This utility function provides controlled rounding by multiplying the value by the
+ * precision factor, rounding to the nearest integer, and then dividing back.
+ *
+ * @param value - The numeric value to round
+ * @param precision - The precision factor (e.g., 10 for 1 decimal place, 100 for 2 decimal places)
+ * @returns The rounded number
  */
-const roundToOneDecimal = (duration: number): number =>
-  Math.round(duration * 10) / 10;
+export const roundToPrecision = (value: number, precision: number): number =>
+  Math.round(value * precision) / precision;
 
 /**
- * Calculate the AtDockDuration for a trip.
- * This is the time from when the trip started until the vessel left the dock.
+ * Calculates the time delta in minutes between two times.
  *
- * @param tripStart - Trip start timestamp in epoch milliseconds
- * @param leftDock - Time when vessel left the dock (epoch milliseconds)
- * @returns AtDockDuration in minutes (rounded to one decimal place), or undefined if either timestamp is missing
- */
-export const calculateAtDockDuration = (
-  tripStart: number | undefined,
-  leftDock: number | undefined
-): number | undefined => {
-  const duration = getMinutesDelta(tripStart, leftDock);
-  return duration !== undefined ? roundToOneDecimal(duration) : undefined;
-};
-
-/**
- * Calculate the AtSeaDuration for a trip.
- * This is the time from when the vessel left the dock until the trip ended.
+ * This function computes the difference between the second time and the first time,
+ * returning the time delta in minutes rounded to one decimal place.
  *
- * @param leftDock - Time when vessel left the dock (epoch milliseconds)
- * @param tripEnd - Trip end timestamp in epoch milliseconds
- * @returns AtSeaDuration in minutes (rounded to one decimal place), or undefined if either timestamp is missing
+ * @param firstTime - First time in milliseconds since epoch
+ * @param secondTime - Second time in milliseconds since epoch
+ * @returns Time delta in minutes (rounded to one decimal place), or `undefined` if either parameter is invalid or missing
  */
-export const calculateAtSeaDuration = (
-  leftDock: number | undefined,
-  tripEnd: number | undefined
+export const calculateTimeDelta = (
+  firstTime: number | undefined,
+  secondTime: number | undefined
 ): number | undefined => {
-  const duration = getMinutesDelta(leftDock, tripEnd);
-  return duration !== undefined ? roundToOneDecimal(duration) : undefined;
-};
-
-/**
- * Calculate the TotalDuration for a trip.
- * This is the time from when the trip started until it ended.
- *
- * @param tripStart - Trip start timestamp in epoch milliseconds
- * @param tripEnd - Trip end timestamp in epoch milliseconds
- * @returns TotalDuration in minutes (rounded to one decimal place), or undefined if either timestamp is missing
- */
-export const calculateTotalDuration = (
-  tripStart: number | undefined,
-  tripEnd: number | undefined
-): number | undefined => {
-  const duration = getMinutesDelta(tripStart, tripEnd);
-  return duration !== undefined ? roundToOneDecimal(duration) : undefined;
+  const delta = getMinutesDelta(firstTime, secondTime);
+  return delta !== undefined ? roundToPrecision(delta, 10) : undefined;
 };

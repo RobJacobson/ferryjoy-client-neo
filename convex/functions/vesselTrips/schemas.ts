@@ -26,10 +26,13 @@ export const vesselTripSchema = v.object({
   TotalDuration: v.optional(v.number()),
   InService: v.boolean(),
   TimeStamp: v.number(),
-  // Predicted departure time (absolute timestamp in milliseconds)
-  LeftDockPred: v.optional(v.number()),
+  // Denormalized previous trip data for efficient predictions
+  prevAtSeaDuration: v.optional(v.number()), // Previous trip's at-sea duration in minutes
+  prevDelay: v.optional(v.number()), // Previous trip's departure delay in minutes
+  // Predicted departure delay (in minutes)
+  DelayPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
-  LeftDockPredMae: v.optional(v.number()),
+  DelayPredMae: v.optional(v.number()),
   // Predicted arrival time (absolute timestamp in milliseconds)
   EtaPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
@@ -55,9 +58,12 @@ export const toConvexVesselTrip = (
     AtSeaDuration?: number;
     TotalDuration?: number;
     Delay?: number;
+    // Denormalized previous trip data
+    prevAtSeaDuration?: number;
+    prevDelay?: number;
     // Prediction fields
-    LeftDockPred?: number;
-    LeftDockPredMae?: number;
+    DelayPred?: number;
+    DelayPredMae?: number;
     EtaPred?: number;
     EtaPredMae?: number;
   }
@@ -77,9 +83,12 @@ export const toConvexVesselTrip = (
   TotalDuration: params.TotalDuration,
   Delay: params.Delay,
   InService: cvl.InService,
+  // Denormalized previous trip data
+  prevAtSeaDuration: params.prevAtSeaDuration,
+  prevDelay: params.prevDelay,
   // Prediction fields
-  LeftDockPred: params.LeftDockPred,
-  LeftDockPredMae: params.LeftDockPredMae,
+  DelayPred: params.DelayPred,
+  DelayPredMae: params.DelayPredMae,
   EtaPred: params.EtaPred,
   EtaPredMae: params.EtaPredMae,
 });
@@ -96,13 +105,37 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   TimeStamp: epochMsToDate(trip.TimeStamp),
   TripStart: optionalEpochMsToDate(trip.TripStart),
   TripEnd: optionalEpochMsToDate(trip.TripEnd),
-  // Prediction fields (convert timestamps to Date objects)
-  LeftDockPred: optionalEpochMsToDate(trip.LeftDockPred),
-  EtaPred: optionalEpochMsToDate(trip.EtaPred),
+  // Prediction fields
+  DelayPred: trip.DelayPred, // Delay in minutes (not a timestamp)
+  EtaPred: optionalEpochMsToDate(trip.EtaPred), // ETA is still a timestamp
   // MAE fields remain as numbers (not timestamps)
-  LeftDockPredMae: trip.LeftDockPredMae,
+  DelayPredMae: trip.DelayPredMae,
   EtaPredMae: trip.EtaPredMae,
 });
+
+/**
+ * A vessel trip that has all required fields for making predictions.
+ * This is a subset of ConvexVesselTrip where prediction-critical fields are guaranteed to be present.
+ */
+export type PredictionReadyTrip = ConvexVesselTrip & {
+  ScheduledDeparture: number;
+  ArrivingTerminalAbbrev: string;
+  TripStart: number;
+  prevDelay: number;
+  prevAtSeaDuration: number;
+};
+
+/**
+ * Type guard to check if a trip has all required fields for predictions
+ */
+export const isPredictionReady = (
+  trip: ConvexVesselTrip
+): trip is PredictionReadyTrip =>
+  trip.ScheduledDeparture !== undefined &&
+  trip.ArrivingTerminalAbbrev !== undefined &&
+  trip.TripStart !== undefined &&
+  trip.prevDelay !== undefined &&
+  trip.prevAtSeaDuration !== undefined;
 
 /**
  * Type for active vessel trip in domain layer (with Date objects)

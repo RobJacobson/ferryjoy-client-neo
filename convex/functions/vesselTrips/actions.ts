@@ -1,20 +1,23 @@
 import { api } from "_generated/api";
 import { type ActionCtx, internalAction } from "_generated/server";
-import { calculateInitialPredictions, updateEtaOnDeparture } from "domain/ml";
+import {
+  calculateInitialPredictions,
+  predictDelayOnArrival,
+  predictEtaOnDeparture,
+} from "domain/ml";
 import {
   type ConvexVesselLocation,
   toConvexVesselLocation,
 } from "functions/vesselLocation/schemas";
 import {
   type ConvexVesselTrip,
+  isPredictionReady,
+  type PredictionReadyTrip,
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import {
-  calculateAtDockDuration,
-  calculateAtSeaDuration,
-  calculateTotalDuration,
-} from "shared/durationUtils";
+import { calculateTimeDelta } from "shared/durationUtils";
+import { processPredictionResult } from "shared/predictionUtils";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
@@ -30,7 +33,6 @@ import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
  *
  * 2. **Trip updates**: When an existing trip needs data updates due to changes in:
  *    - `AtDock` status (e.g., vessel leaves the dock)
- *    - `Eta` (estimated arrival time)
  *    - `ArrivingTerminalAbbrev` (destination terminal)
  *    - `LeftDock` (actual departure time)
  *
@@ -49,407 +51,262 @@ export const updateVesselTrips = internalAction({
       existingTripsList.map((trip) => [trip.VesselAbbrev, trip])
     ) as Record<string, ConvexVesselTrip>;
 
-    // 3. Get a list of current locations
-    const vesselLocations = (
+    // 3. Get a list of current convex vessel locations
+    const convexVesselLocations = (
       (await fetchVesselLocations()) as unknown as DottieVesselLocation[]
     )
       .map(toConvexVesselLocation)
       .map(convertConvexVesselLocation);
 
     // 4. Process each vessel location
-    for (const currLocation of vesselLocations) {
+    for (const currLocation of convexVesselLocations) {
       const existingTrip = existingTripsDict[currLocation.VesselAbbrev];
 
-      // Case (a): New trip - either no existing trip or departing terminal changed
-      if (await checkAndHandleNewTrip(ctx, existingTrip, currLocation)) {
+      // Case (a): First trip - no existing trip
+      if (isFirstTrip(existingTrip)) {
+        await handleFirstTrip(ctx, currLocation);
         continue;
       }
-      // Case (b): Update trip - existing trip needs data updates
-      if (existingTrip) {
-        await checkAndHandleTripUpdate(ctx, currLocation, existingTrip);
+
+      // Case (b): New trip - departing terminal changed
+      if (isNewTrip(existingTrip, currLocation)) {
+        await handleNewTrip(ctx, existingTrip, currLocation);
+        continue;
       }
+
+      // Case (c): Update trip - existing trip needs data updates
+      await handleTripUpdate(ctx, currLocation, existingTrip);
     }
   },
 });
 
 /**
- * Checks if a new trip is needed and handles the transition.
- *
- * A new trip is detected when either:
- * - No existing trip exists (first time seeing this vessel)
- * - The departing terminal has changed (indicating a new route has started)
- *
- * When a new trip is needed:
- * - If an existing trip exists, it is completed with a `TripEnd` timestamp and saved
- *   to the `completedVesselTrips` collection
- * - A new active trip is created and inserted into the `activeVesselTrips` collection
+ * Handles the first trip for a vessel by creating and upserting the active trip.
  *
  * @param ctx - The Convex action context for running mutations
- * @param existingTrip - The existing active trip for this vessel, or undefined if none exists
  * @param currLocation - The current vessel location data from WSF API
- * @returns `true` if a new trip was handled, `false` if no new trip action was needed
  */
-const checkAndHandleNewTrip = async (
+const handleFirstTrip = async (
   ctx: ActionCtx,
-  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
-) => {
-  if (
-    existingTrip &&
-    existingTrip.DepartingTerminalAbbrev ===
-      currLocation.DepartingTerminalAbbrev
-  ) {
-    return false;
-  }
+): Promise<void> => {
+  const newTrip = toConvexVesselTrip(currLocation, {
+    TripStart: currLocation.TimeStamp,
+  });
 
-  if (existingTrip) {
-    // Complete existing trip and start new one
-    // Calculate AtSeaDuration and TotalDuration when completing the trip
-    const atSeaDuration = calculateAtSeaDuration(
+  await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
+    trip: newTrip,
+  });
+};
+
+/**
+ * Handles a new trip by completing the existing trip and starting a new one with predictions.
+ *
+ * @param ctx - The Convex action context for running mutations
+ * @param existingTrip - The existing trip to complete
+ * @param currLocation - The current vessel location data from WSF API
+ */
+const handleNewTrip = async (
+  ctx: ActionCtx,
+  existingTrip: ConvexVesselTrip,
+  currLocation: ConvexVesselLocation
+): Promise<void> => {
+  const newTrip = toConvexVesselTrip(currLocation, {
+    TripStart: currLocation.TimeStamp,
+    prevAtSeaDuration: existingTrip.AtSeaDuration,
+    prevDelay: existingTrip.Delay,
+  });
+
+  // Creates a completed trip object from an existing trip by calculating final durations and setting TripEnd.
+  const completedTrip = {
+    ...existingTrip,
+    TripEnd: currLocation.TimeStamp,
+    AtSeaDuration: calculateTimeDelta(
       existingTrip.LeftDock,
       currLocation.TimeStamp
-    );
-    const totalDuration = calculateTotalDuration(
+    ),
+    TotalDuration: calculateTimeDelta(
       existingTrip.TripStart,
       currLocation.TimeStamp
-    );
+    ),
+  };
 
-    const completedTrip: ConvexVesselTrip = {
-      ...existingTrip,
-      TripEnd: currLocation.TimeStamp,
-      AtSeaDuration: atSeaDuration,
-      TotalDuration: totalDuration,
-    };
+  // If the new trip has all required data for predictions, predict delay and ETA
+  const predictions = isPredictionReady(newTrip)
+    ? await generateInitialPredictions(ctx, completedTrip, newTrip)
+    : {};
 
-    const newTrip = toConvexVesselTrip(currLocation, {
-      TripStart: currLocation.TimeStamp,
-    });
-
-    // Atomic operation: complete existing, start new
-    await ctx.runMutation(
-      api.functions.vesselTrips.mutations.completeAndStartNewTrip,
-      {
-        completedTrip,
-        newTrip,
-      }
-    );
-  } else {
-    const delay = calculateDelay(
-      currLocation.ScheduledDeparture,
-      currLocation.LeftDock
-    );
-
-    const newTrip = toConvexVesselTrip(currLocation, {
-      Delay: delay,
-    });
-    await ctx.runMutation(
-      api.functions.vesselTrips.mutations.upsertActiveTrip,
-      { trip: newTrip }
-    );
-  }
-
-  return true;
+  // Complete and start a new trip by upserting the completed trip and the new trip
+  await ctx.runMutation(
+    api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+    {
+      completedTrip,
+      newTrip: { ...newTrip, ...predictions },
+    }
+  );
 };
 
 /**
  * Checks if trip data needs updating and applies updates to the active trip.
  *
- * This function compares the current vessel location data with the existing active trip
- * and updates the trip if any of the following fields have changed:
- *
- * - `AtDock`: Indicates whether the vessel is currently docked
- * - `Eta`: Estimated arrival time at the destination terminal
- * - `ArrivingTerminalAbbrev`: The destination terminal abbreviation
- * - `LeftDock`: Actual time when the vessel departed from the dock
- *
- * When updates are needed, the `Delay` field is recalculated based on the scheduled
- * departure time and actual `LeftDock` time. All updated fields are then persisted
- * to the database.
- *
- * Special handling for predictions:
- * - When `ArrivingTerminalAbbrev` transitions from `null` to a value (first time we
- *   know the destination), the `calculateInitialPredictions` function is called to
- *   generate initial LeftDockPred and EtaPred predictions.
- * - When `LeftDock` transitions from `undefined` to a value (vessel leaves dock),
- *   the `updateEtaOnDeparture` function is called to generate a more accurate ETA
- *   prediction based on the actual at-dock duration.
- * - All prediction results (LeftDockPred, LeftDockPredMae, EtaPred, EtaPredMae) are
- *   merged into the updated trip data.
- *
- * If no changes are detected, the function returns early without performing any database
- * operations.
+ * This function builds an updated trip object with current data and predictions,
+ * then performs a member-wise comparison with the existing trip. If any fields
+ * have changed, the trip is updated in the database.
  *
  * @param ctx - The Convex action context for running mutations
  * @param currLocation - The current vessel location data from WSF API
  * @param existingTrip - The existing active trip for this vessel
  */
-const checkAndHandleTripUpdate = async (
+const handleTripUpdate = async (
   ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip
 ) => {
-  const updates = calculateTripUpdates(currLocation, existingTrip);
-
-  if (!hasTripChanges(updates)) {
+  if (
+    currLocation.ArrivingTerminalAbbrev ===
+      existingTrip.ArrivingTerminalAbbrev &&
+    currLocation.AtDock === existingTrip.AtDock &&
+    currLocation.Eta === existingTrip.Eta &&
+    currLocation.LeftDock === existingTrip.LeftDock &&
+    currLocation.ScheduledDeparture === existingTrip.ScheduledDeparture &&
+    currLocation.InService === existingTrip.InService
+  ) {
     return;
   }
+  // Build the updated trip object with all current data
+  const updatedTrip: ConvexVesselTrip = {
+    ...existingTrip,
+    ArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
+    AtDock: currLocation.AtDock,
+    Eta: currLocation.Eta,
+    LeftDock: currLocation.LeftDock,
+    ScheduledDeparture: currLocation.ScheduledDeparture,
+    Delay: calculateTimeDelta(
+      currLocation.ScheduledDeparture,
+      currLocation.LeftDock
+    ),
+    AtDockDuration: calculateTimeDelta(
+      existingTrip.TripStart,
+      currLocation.LeftDock
+    ),
+    TimeStamp: currLocation.TimeStamp,
+    InService: currLocation.InService,
+  };
 
-  const initialPredictions = await calculateInitialPredictionsIfNeeded(
-    ctx,
-    currLocation,
-    existingTrip,
-    updates
-  );
+  // If the delay prediction is missing and the trip has all required data, predict the left dock
+  const predictions =
+    updatedTrip.DelayPred === undefined && isPredictionReady(updatedTrip)
+      ? await generateDelayPredictions(ctx, updatedTrip)
+      : {};
 
-  const etaPrediction = await updateEtaOnDepartureIfNeeded(
-    ctx,
-    currLocation,
-    existingTrip,
-    updates
-  );
+  // If vessel just departed (AtDock changed from true to false), update ETA prediction with actual at-dock duration
+  const departurePredictions =
+    existingTrip.AtDock === true &&
+    currLocation.AtDock === false &&
+    currLocation.LeftDock !== undefined
+      ? await generateDepartureEtaPredictions(ctx, updatedTrip, currLocation)
+      : {};
 
-  const updatedTrip = buildUpdatedTrip(
-    currLocation,
-    existingTrip,
-    updates,
-    initialPredictions,
-    etaPrediction
-  );
+  // Combine the updated trip with the predictions
+  const updatedTripWithPredictions = {
+    ...updatedTrip,
+    ...predictions,
+    ...departurePredictions,
+  };
 
+  console.log("Updated trip:", updatedTripWithPredictions);
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
-    trip: updatedTrip,
+    trip: updatedTripWithPredictions,
   });
 };
 
 /**
- * Calculates derived values and detects changes between current location and existing trip.
+ * Checks if this is the first trip for a vessel (no existing trip).
+ *
+ * @param existingTrip - The existing active trip for this vessel, or undefined if none exists
+ * @returns `true` if this is the first trip, `false` otherwise
  */
-const calculateTripUpdates = (
-  currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip
-) => {
-  const atDockDuration =
-    currLocation.LeftDock && existingTrip.TripStart
-      ? calculateAtDockDuration(existingTrip.TripStart, currLocation.LeftDock)
-      : undefined;
+const isFirstTrip = (existingTrip: ConvexVesselTrip | undefined): boolean =>
+  !existingTrip;
 
-  const delay = calculateDelay(
-    currLocation.ScheduledDeparture,
-    currLocation.LeftDock
-  );
+/**
+ * Checks if a new trip is needed based on departing terminal change.
+ *
+ * @param existingTrip - The existing active trip for this vessel
+ * @param currLocation - The current vessel location data from WSF API
+ * @returns `true` if the departing terminal has changed, `false` otherwise
+ */
+const isNewTrip = (
+  existingTrip: ConvexVesselTrip,
+  currLocation: ConvexVesselLocation
+): boolean =>
+  existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
 
-  const arrivingTerminalBecameAvailable =
-    existingTrip.ArrivingTerminalAbbrev === null &&
-    currLocation.ArrivingTerminalAbbrev !== null;
-
-  return {
-    atDockDuration,
-    delay,
-    atDockChanged: existingTrip.AtDock !== currLocation.AtDock,
-    etaChanged: existingTrip.Eta !== currLocation.Eta,
-    arrivingTerminalChanged:
-      existingTrip.ArrivingTerminalAbbrev !==
-      currLocation.ArrivingTerminalAbbrev,
-    arrivingTerminalBecameAvailable,
-    leftDockChanged: existingTrip.LeftDock !== currLocation.LeftDock,
-    atDockDurationChanged: atDockDuration !== existingTrip.AtDockDuration,
-    delayChanged: delay !== existingTrip.Delay,
+/**
+ * Generates delay predictions for a prediction-ready vessel trip.
+ *
+ * @param ctx - Convex action context for running ML predictions
+ * @param trip - A vessel trip that has all required fields for predictions
+ * @returns Promise resolving to prediction results or empty object if prediction fails
+ */
+const generateDelayPredictions = async (
+  ctx: ActionCtx,
+  trip: PredictionReadyTrip
+): Promise<{ DelayPred?: number; DelayPredMae?: number }> => {
+  const predictionParams = {
+    scheduledDeparture: trip.ScheduledDeparture,
+    departingTerminal: trip.DepartingTerminalAbbrev,
+    arrivingTerminal: trip.ArrivingTerminalAbbrev,
+    tripStart: trip.TripStart,
+    previousDelay: trip.prevDelay,
+    previousAtSeaDuration: trip.prevAtSeaDuration,
+    vesselAbbrev: trip.VesselAbbrev,
   };
-};
 
-/**
- * Determines if any trip fields have changed.
- */
-const hasTripChanges = (
-  updates: ReturnType<typeof calculateTripUpdates>
-): boolean => {
+  const result = await predictDelayOnArrival(ctx, predictionParams);
   return (
-    updates.atDockChanged ||
-    updates.etaChanged ||
-    updates.arrivingTerminalChanged ||
-    updates.arrivingTerminalBecameAvailable ||
-    updates.leftDockChanged ||
-    updates.atDockDurationChanged ||
-    updates.delayChanged
+    processPredictionResult(
+      result.predictedTime,
+      result.mae,
+      trip.VesselAbbrev,
+      predictionParams
+    ) || {}
   );
 };
 
 /**
- * Updates ETA prediction when vessel leaves dock, handling errors gracefully.
+ * Generates initial predictions (both delay and ETA) for a new trip when vessel arrives at dock.
+ *
+ * @param ctx - Convex action context for running ML predictions
+ * @param completedTrip - The trip that just completed
+ * @param newTrip - The new trip that just started (must be prediction-ready)
+ * @returns Promise resolving to prediction results or empty object if predictions fail
  */
-const updateEtaOnDepartureIfNeeded = async (
+const generateInitialPredictions = async (
   ctx: ActionCtx,
-  currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip,
-  updates: ReturnType<typeof calculateTripUpdates>
+  completedTrip: ConvexVesselTrip,
+  newTrip: PredictionReadyTrip
 ): Promise<{
+  DelayPred?: number;
+  DelayPredMae?: number;
   EtaPred?: number;
   EtaPredMae?: number;
 }> => {
-  const vesselDeparted =
-    updates.leftDockChanged &&
-    !existingTrip.LeftDock &&
-    !!currLocation.LeftDock &&
-    !!updates.atDockDuration;
-
-  if (!vesselDeparted) {
-    return {};
-  }
-
   try {
-    const etaResult = await updateEtaOnDeparture(
+    const initialPredictions = await calculateInitialPredictions(
       ctx,
-      existingTrip,
-      currLocation
+      completedTrip,
+      newTrip
     );
-
-    if (etaResult.predictedTime) {
-      logEtaPredictionSuccess(existingTrip, currLocation, updates, etaResult);
-      return {
-        EtaPred: etaResult.predictedTime,
-        EtaPredMae: etaResult.mae,
-      };
-    }
-
-    logEtaPredictionSkipped(existingTrip, etaResult);
-    return {};
-  } catch (error) {
-    logEtaPredictionError(existingTrip, error);
-    return {};
-  }
-};
-
-/**
- * Logs successful ETA prediction update.
- */
-const logEtaPredictionSuccess = (
-  existingTrip: ConvexVesselTrip,
-  currLocation: ConvexVesselLocation,
-  updates: ReturnType<typeof calculateTripUpdates>,
-  etaResult: Awaited<ReturnType<typeof updateEtaOnDeparture>>
-): void => {
-  console.log(
-    `[ML Prediction] EtaPred updated on departure for ${existingTrip.VesselAbbrev}:`,
-    {
-      vessel: existingTrip.VesselAbbrev,
-      departingTerminal: existingTrip.DepartingTerminalAbbrev,
-      arrivingTerminal: existingTrip.ArrivingTerminalAbbrev,
-      leftDock: currLocation.LeftDock,
-      atDockDuration: updates.atDockDuration,
-      delay: updates.delay,
-      predictedEta: etaResult.predictedTime,
-      etaMae: etaResult.mae,
-    }
-  );
-};
-
-/**
- * Logs skipped ETA prediction update.
- */
-const logEtaPredictionSkipped = (
-  existingTrip: ConvexVesselTrip,
-  etaResult: Awaited<ReturnType<typeof updateEtaOnDeparture>>
-): void => {
-  console.log(
-    `[ML Prediction] EtaPred update skipped for ${existingTrip.VesselAbbrev}`,
-    {
-      vessel: existingTrip.VesselAbbrev,
-      reason: etaResult.skipReason || "Insufficient data or model not found",
-    }
-  );
-};
-
-/**
- * Logs ETA prediction error.
- */
-const logEtaPredictionError = (
-  existingTrip: ConvexVesselTrip,
-  error: unknown
-): void => {
-  console.error(
-    `[ML Prediction] Failed to update EtaPred on departure for ${existingTrip.VesselAbbrev}:`,
-    error
-  );
-};
-
-/**
- * Calculates initial predictions when arriving terminal first becomes available.
- */
-const calculateInitialPredictionsIfNeeded = async (
-  ctx: ActionCtx,
-  currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip,
-  updates: ReturnType<typeof calculateTripUpdates>
-): Promise<{
-  LeftDockPred?: number;
-  LeftDockPredMae?: number;
-  EtaPred?: number;
-  EtaPredMae?: number;
-}> => {
-  if (!updates.arrivingTerminalBecameAvailable) {
-    return {};
-  }
-
-  try {
-    const predictions = await calculateInitialPredictions(
-      ctx,
-      existingTrip,
-      existingTrip
-    );
-
-    if (predictions.LeftDockPred) {
-      console.log(
-        `[ML Prediction] LeftDockPred calculated for ${existingTrip.VesselAbbrev}:`,
-        {
-          vessel: existingTrip.VesselAbbrev,
-          departingTerminal: existingTrip.DepartingTerminalAbbrev,
-          arrivingTerminal: currLocation.ArrivingTerminalAbbrev,
-          scheduledDeparture: existingTrip.ScheduledDeparture,
-          predictedLeftDock: predictions.LeftDockPred,
-          leftDockMae: predictions.LeftDockPredMae,
-        }
-      );
-    } else {
-      console.log(
-        `[ML Prediction] LeftDockPred skipped for ${existingTrip.VesselAbbrev}`,
-        {
-          vessel: existingTrip.VesselAbbrev,
-          reason: "Insufficient data or model not found",
-        }
-      );
-    }
-
-    if (predictions.EtaPred) {
-      console.log(
-        `[ML Prediction] EtaPred calculated for ${existingTrip.VesselAbbrev}:`,
-        {
-          vessel: existingTrip.VesselAbbrev,
-          departingTerminal: existingTrip.DepartingTerminalAbbrev,
-          arrivingTerminal: currLocation.ArrivingTerminalAbbrev,
-          tripStart: existingTrip.TripStart,
-          predictedEta: predictions.EtaPred,
-          etaMae: predictions.EtaPredMae,
-        }
-      );
-    } else {
-      console.log(
-        `[ML Prediction] EtaPred skipped for ${existingTrip.VesselAbbrev}`,
-        {
-          vessel: existingTrip.VesselAbbrev,
-          reason: "Insufficient data or model not found",
-        }
-      );
-    }
-
     return {
-      LeftDockPred: predictions.LeftDockPred,
-      LeftDockPredMae: predictions.LeftDockPredMae,
-      EtaPred: predictions.EtaPred,
-      EtaPredMae: predictions.EtaPredMae,
+      DelayPred: initialPredictions.DelayPred,
+      DelayPredMae: initialPredictions.DelayPredMae,
+      EtaPred: initialPredictions.EtaPred,
+      EtaPredMae: initialPredictions.EtaPredMae,
     };
   } catch (error) {
     console.error(
-      `[ML Prediction] Failed to calculate initial predictions for ${existingTrip.VesselAbbrev}:`,
+      `[Prediction] Initial predictions failed for ${newTrip.VesselAbbrev}:`,
       error
     );
     return {};
@@ -457,61 +314,36 @@ const calculateInitialPredictionsIfNeeded = async (
 };
 
 /**
- * Builds the updated trip object with all changes and prediction updates.
- */
-const buildUpdatedTrip = (
-  currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip,
-  updates: ReturnType<typeof calculateTripUpdates>,
-  initialPredictions: {
-    LeftDockPred?: number;
-    LeftDockPredMae?: number;
-    EtaPred?: number;
-    EtaPredMae?: number;
-  },
-  etaPrediction: { EtaPred?: number; EtaPredMae?: number }
-): ConvexVesselTrip => ({
-  ...existingTrip,
-  ArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
-  AtDock: currLocation.AtDock,
-  Eta: currLocation.Eta,
-  LeftDock: currLocation.LeftDock,
-  Delay: updates.delay,
-  AtDockDuration: updates.atDockDuration,
-  ...initialPredictions,
-  ...etaPrediction,
-});
-
-/**
- * Calculates delay in minutes from scheduled departure to actual departure.
+ * Generates updated ETA predictions when vessel leaves dock using actual at-dock duration.
  *
- * This function computes the difference between the actual departure time and the
- * scheduled departure time, returning the delay in minutes. A positive delay indicates
- * the vessel departed late, while a negative value would indicate early departure.
- *
- * @param scheduled - Scheduled departure time in milliseconds since epoch
- * @param actual - Actual departure time in milliseconds since epoch
- * @returns Delay in minutes, or `undefined` if either parameter is invalid or missing
+ * @param ctx - Convex action context for running ML predictions
+ * @param currentTrip - The current vessel trip with actual at-dock duration
+ * @param currentLocation - The current vessel location data
+ * @returns Promise resolving to ETA prediction results or empty object if prediction fails
  */
-const calculateDelay = (
-  scheduled: number | undefined,
-  actual: number | undefined
-): number | undefined => {
-  if (!scheduled || !actual) {
-    return undefined;
+const generateDepartureEtaPredictions = async (
+  ctx: ActionCtx,
+  currentTrip: ConvexVesselTrip,
+  currentLocation: ConvexVesselLocation
+): Promise<{
+  EtaPred?: number;
+  EtaPredMae?: number;
+}> => {
+  try {
+    const etaResult = await predictEtaOnDeparture(
+      ctx,
+      currentTrip,
+      currentLocation
+    );
+    return {
+      EtaPred: etaResult.predictedTime,
+      EtaPredMae: etaResult.mae,
+    };
+  } catch (error) {
+    console.error(
+      `[Prediction] Departure ETA prediction failed for ${currentTrip.VesselAbbrev}:`,
+      error
+    );
+    return {};
   }
-  return roundToPrecision((actual - scheduled) / (1000 * 60), 10);
 };
-
-/**
- * Rounds a number to a specified precision.
- *
- * This utility function provides controlled rounding by multiplying the value by the
- * precision factor, rounding to the nearest integer, and then dividing back.
- *
- * @param value - The numeric value to round
- * @param precision - The precision factor (e.g., 10 for 1 decimal place, 100 for 2 decimal places)
- * @returns The rounded number
- */
-const roundToPrecision = (value: number, precision: number): number =>
-  Math.round(value * precision) / precision;
