@@ -324,14 +324,79 @@ The test suite covers:
 - ✅ Error handling and graceful degradation
 - ✅ Integration between all pipeline steps
 
-### Phase 4: Documentation (Not Started)
+### Phase 4: Documentation (COMPLETED)
 **Description**: Document the prediction system for future developers.
 
-**Tasks**:
-1. Update ML readme with prediction pipeline documentation
-2. Add JSDoc comments to prediction functions
-3. Document prediction flow sequence with timing diagram
-4. Create example showing how to add a new predictor
+**Tasks Completed**:
+
+1. **Updated ML readme with prediction pipeline documentation** (`convex/domain/ml/readme-ml.md`)
+   - Added comprehensive "Prediction Pipeline" section
+   - Documented what predictions are made (LeftDockPred, EtaPred)
+   - Created prediction flow diagram
+   - Documented prediction pipeline architecture with file structure
+   - Explained each step in the pipeline (feature extraction, model loading, prediction calculation, initial predictions)
+   - Documented predictors with strategy pattern
+   - Added integration details for vessel trip pipeline
+   - Explained database schema updates for prediction fields
+   - Documented how to query model parameters
+   - Created example for adding a new predictor
+   - Added testing and validation sections
+   - Documented known limitations
+
+2. **JSDoc comments already present** in prediction functions:
+   - All public functions have JSDoc comments
+   - `extractTimeBasedFeatures()` - Extracts time-based features from scheduled departure
+   - `extractArriveBeforeFeatures()` - Calculates time between arrival and scheduled departure
+   - `extractArriveDepartFeatures()` - Features for arrive-depart, arrive-depart-late, and arrive-arrive models
+   - `extractDepartArriveFeatures()` - Features for depart-arrive model
+   - `loadModel()` - Loads model parameters from database
+   - `applyLinearRegression()` - Applies linear regression model to features
+   - `delayToLeftDockPred()` - Converts predicted delay to absolute left dock timestamp
+   - `combinedDurationToEtaPred()` - Converts predicted combined duration to absolute ETA timestamp
+   - `atSeaDurationToEtaPred()` - Converts predicted at-sea duration to absolute ETA timestamp
+   - `roundMae()` - Rounds MAE to nearest 0.01 minute
+   - `validatePredictionTime()` - Clamps predictions to minimum valid times
+   - `calculateInitialPredictions()` - Calculates initial predictions for a new trip
+   - `predictLeftDock()` - Predicts LeftDockPred when a new trip starts
+   - `predictEta()` - Predicts EtaPred when a new trip starts
+   - `updateEtaOnDeparture()` - Updates EtaPred when vessel leaves dock
+
+3. **Created prediction flow sequence with timing diagram** (`convex/domain/ml/prediction/PREDICTION_FLOW.md`)
+   - Complete sequence diagram for initial predictions
+   - Complete sequence diagram for ETA update on departure
+   - Timing breakdown for both prediction types
+   - Data flow details for each step
+   - Feature engineering details with all features explained
+   - Model types summary table
+   - Error handling and logging documentation
+   - Performance characteristics table
+   - Validation and clamping rules
+   - Production deployment considerations
+
+**Documentation Deliverables:**
+
+- **Updated ML readme** (`convex/domain/ml/readme-ml.md`):
+  - Comprehensive "Prediction Pipeline" section (~400 lines)
+  - Complete integration guide
+  - Example code for adding new predictors
+  - Testing and validation sections
+
+- **Prediction Flow Documentation** (`convex/domain/ml/prediction/PREDICTION_FLOW.md`):
+  - Two complete sequence diagrams (initial predictions + ETA update)
+  - Detailed timing breakdowns
+  - Data flow documentation
+  - Feature engineering details
+  - Performance characteristics
+  - Production considerations
+
+**Key Documentation Features:**
+
+1. **Clear Architecture**: File structure and pipeline steps are clearly documented
+2. **Timing Information**: Detailed breakdown of prediction timing helps with performance tuning
+3. **Code Examples**: Ready-to-use examples for adding new predictors
+4. **Integration Details**: Complete explanation of how predictions integrate with vessel trip pipeline
+5. **Troubleshooting**: Common issues and their solutions documented
+6. **Production Ready**: Monitoring, scaling, and deployment considerations included
 
 ## Timeline / Checklist
 
@@ -352,9 +417,9 @@ The test suite covers:
 - [x] **Phase 3.1**: Write unit tests for prediction utilities
 - [x] **Phase 3.2**: Write integration tests for prediction flow
 - [x] **Phase 3.3**: Validate prediction accuracy against historical data
-- [ ] **Phase 4.1**: Update ML readme with prediction documentation
-- [ ] **Phase 4.2**: Add JSDoc to all prediction functions
-- [ ] **Phase 4.3**: Create prediction flow diagram
+- [x] **Phase 4.1**: Update ML readme with prediction documentation
+- [x] **Phase 4.2**: Add JSDoc to all prediction functions
+- [x] **Phase 4.3**: Create prediction flow diagram
 
 ## Key Decisions Made
 
