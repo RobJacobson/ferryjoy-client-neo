@@ -17,7 +17,7 @@ crons.interval(
 
 crons.interval(
   "fetch vessel pings",
-  { seconds: 30 }, // every fifteen seconds
+  { seconds: 30 }, // every thirty seconds
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
