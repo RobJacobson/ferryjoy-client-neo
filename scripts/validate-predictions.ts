@@ -32,7 +32,7 @@ async function validatePredictionAccuracy(): Promise<void> {
 
   // Fetch completed trips with predictions
   const completedTrips = (await fetchCompletedTrips()).filter(
-    (trip) => trip.LeftDockPred !== undefined || trip.EtaPred !== undefined
+    (trip) => trip.DelayPred !== undefined || trip.EtaPred !== undefined
   );
 
   if (completedTrips.length === 0) {
@@ -86,13 +86,21 @@ function calculateOverallMetrics(
   let totalErrorMinutes = 0;
 
   for (const trip of trips) {
-    // Validate LeftDock predictions
-    if (trip.LeftDockPred && trip.LeftDock) {
+    // Validate delay predictions (DelayPred is in minutes, not timestamp)
+    if (
+      trip.DelayPred !== undefined &&
+      trip.LeftDock !== undefined &&
+      trip.ScheduledDeparture !== undefined
+    ) {
       totalPredictions++;
-      const errorMinutes = Math.abs(trip.LeftDockPred - trip.LeftDock) / 60000;
+      // Calculate actual delay in minutes
+      const actualDelayMinutes =
+        (trip.LeftDock - trip.ScheduledDeparture) / 60000;
+      // Compare predicted delay to actual delay
+      const errorMinutes = Math.abs(trip.DelayPred - actualDelayMinutes);
       totalErrorMinutes += errorMinutes;
 
-      if (trip.LeftDockPredMae && errorMinutes <= trip.LeftDockPredMae) {
+      if (trip.DelayPredMae && errorMinutes <= trip.DelayPredMae) {
         accuratePredictions++;
       }
     }
@@ -109,7 +117,7 @@ function calculateOverallMetrics(
     }
 
     // Count skipped predictions (no prediction made)
-    if (!trip.LeftDockPred && !trip.EtaPred) {
+    if (trip.DelayPred === undefined && trip.EtaPred === undefined) {
       skippedPredictions++;
     }
   }
@@ -157,13 +165,22 @@ function calculateTerminalPairMetrics(
 
     existing.totalTrips++;
 
-    // Track LeftDock predictions
-    if (trip.LeftDockPred && trip.LeftDock && trip.LeftDockPredMae) {
+    // Track delay predictions (DelayPred is in minutes, not timestamp)
+    if (
+      trip.DelayPred !== undefined &&
+      trip.LeftDock !== undefined &&
+      trip.ScheduledDeparture !== undefined &&
+      trip.DelayPredMae !== undefined
+    ) {
       existing.predictionsWithMae++;
-      const errorMinutes = Math.abs(trip.LeftDockPred - trip.LeftDock) / 60000;
+      // Calculate actual delay in minutes
+      const actualDelayMinutes =
+        (trip.LeftDock - trip.ScheduledDeparture) / 60000;
+      // Compare predicted delay to actual delay
+      const errorMinutes = Math.abs(trip.DelayPred - actualDelayMinutes);
       existing.totalErrorMinutes += errorMinutes;
 
-      if (errorMinutes <= trip.LeftDockPredMae) {
+      if (errorMinutes <= trip.DelayPredMae) {
         existing.accurateWithinMae++;
       }
     }

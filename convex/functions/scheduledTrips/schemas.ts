@@ -2,10 +2,33 @@ import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { terminalLocations } from "src/data/terminalLocations";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
+import { getPacificTime } from "../../domain/ml/training/shared/time";
 import { epochMsToDate } from "../../shared/convertDates";
 
 // Re-export for convenience
 export { getVesselAbbreviation };
+
+/**
+ * Calculate the sailing day for a departure time using WSF's operational day rules
+ * Sailing day spans from 3:00AM Pacific to 2:59AM Pacific the next day
+ * @param departureTime - Departure time as Date object
+ * @returns Sailing day in YYYY-MM-DD format
+ */
+export const calculateSailingDay = (departureTime: Date): string => {
+  // Convert to Pacific time using existing utility
+  const pacificTime = getPacificTime(departureTime);
+
+  // Create a new date object to avoid mutating the input
+  const adjustedDate = new Date(pacificTime);
+
+  // If departure is before 3:00 AM Pacific, it belongs to the previous sailing day
+  if (pacificTime.getHours() < 3) {
+    adjustedDate.setDate(adjustedDate.getDate() - 1);
+  }
+
+  // Format as YYYY-MM-DD string
+  return adjustedDate.toISOString().split("T")[0];
+};
 
 /**
  * Get terminal abbreviation by terminal name
@@ -30,6 +53,7 @@ export const scheduledTripSchema = v.object({
   RouteID: v.number(),
   RouteAbbrev: v.string(),
   Key: v.string(),
+  SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
 });
 
 /**
@@ -45,7 +69,9 @@ export type ConvexScheduledTrip = Infer<typeof scheduledTripSchema>;
 export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
   ...trip,
   DepartingTime: epochMsToDate(trip.DepartingTime),
-  ArrivingTime: trip.ArrivingTime ? epochMsToDate(trip.ArrivingTime) : undefined,
+  ArrivingTime: trip.ArrivingTime
+    ? epochMsToDate(trip.ArrivingTime)
+    : undefined,
 });
 
 /**

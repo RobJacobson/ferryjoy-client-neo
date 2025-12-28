@@ -40,6 +40,11 @@ import type * as functions_predictions_mutations from "../functions/predictions/
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
+import type * as functions_scheduledTrips_actions_index from "../functions/scheduledTrips/actions/index.js";
+import type * as functions_scheduledTrips_actions_performSync from "../functions/scheduledTrips/actions/performSync.js";
+import type * as functions_scheduledTrips_actions_shared from "../functions/scheduledTrips/actions/shared.js";
+import type * as functions_scheduledTrips_actions_types from "../functions/scheduledTrips/actions/types.js";
+import type * as functions_scheduledTrips_actions_validateSync from "../functions/scheduledTrips/actions/validateSync.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
 import type * as functions_scheduledTrips_queries from "../functions/scheduledTrips/queries.js";
@@ -110,6 +115,11 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
+  "functions/scheduledTrips/actions/index": typeof functions_scheduledTrips_actions_index;
+  "functions/scheduledTrips/actions/performSync": typeof functions_scheduledTrips_actions_performSync;
+  "functions/scheduledTrips/actions/shared": typeof functions_scheduledTrips_actions_shared;
+  "functions/scheduledTrips/actions/types": typeof functions_scheduledTrips_actions_types;
+  "functions/scheduledTrips/actions/validateSync": typeof functions_scheduledTrips_actions_validateSync;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
   "functions/scheduledTrips/queries": typeof functions_scheduledTrips_queries;

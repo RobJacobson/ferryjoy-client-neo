@@ -19,12 +19,9 @@
     "train:export-results": "npm run train:export-results:convex",
     "train:export-results:convex": "npx tsx scripts/export-training-results-from-convex.ts",
     "train:compare": "npx tsx scripts/compare-summaries.ts",
-    "test:ml": "vitest run tests/ml-prediction",
-    "test:ml:watch": "vitest tests/ml-prediction",
-    "test:ml:coverage": "vitest run tests/ml-prediction --coverage",
-    "test": "npm run test:ml",
-    "test:watch": "npm run test:ml:watch",
-    "test:coverage": "npm run test:ml:coverage",
+    "sync:scheduled-trips": "npx tsx scripts/sync-scheduled-trips.ts",
+    "validate:scheduled-trips": "npx tsx scripts/validate-scheduled-trips.ts",
+    "validate:all-scheduled-trips": "npx tsx scripts/validate-all-scheduled-trips.ts",
     "convex:deploy": "npx convex deploy",
     "convex:deploy:prod": "npx convex deploy --prod",
     "convex:codegen": "npx convex codegen",
@@ -93,12 +90,10 @@
     "@babel/core": "^7.28.5",
     "@biomejs/biome": "^2.3.8",
     "@types/react": "~19.2.7",
-    "@vitest/coverage-v8": "^2.1.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3",
-    "vitest": "^2.1.8"
+    "typescript": "~5.9.3"
   },
   "private": true
 }
