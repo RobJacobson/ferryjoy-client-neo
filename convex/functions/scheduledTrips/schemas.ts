@@ -2,8 +2,8 @@ import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { terminalLocations } from "src/data/terminalLocations";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
-import { getPacificTime } from "../../domain/ml/training/shared/time";
 import { epochMsToDate } from "../../shared/convertDates";
+import { getPacificTimeComponents } from "../../shared/time";
 
 // Re-export for convenience
 export { getVesselAbbreviation };
@@ -15,14 +15,14 @@ export { getVesselAbbreviation };
  * @returns Sailing day in YYYY-MM-DD format
  */
 export const calculateSailingDay = (departureTime: Date): string => {
-  // Convert to Pacific time using existing utility
-  const pacificTime = getPacificTime(departureTime);
+  // Get Pacific time components
+  const pacificComponents = getPacificTimeComponents(departureTime);
 
   // Create a new date object to avoid mutating the input
-  const adjustedDate = new Date(pacificTime);
+  const adjustedDate = new Date(departureTime);
 
   // If departure is before 3:00 AM Pacific, it belongs to the previous sailing day
-  if (pacificTime.getHours() < 3) {
+  if (pacificComponents.hour < 3) {
     adjustedDate.setDate(adjustedDate.getDate() - 1);
   }
 

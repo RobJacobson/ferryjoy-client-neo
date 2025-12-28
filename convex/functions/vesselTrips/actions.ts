@@ -91,7 +91,7 @@ const handleFirstTrip = async (
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
   const newTrip = toConvexVesselTrip(currLocation, {
-    TripStart: currLocation.TimeStamp,
+    TripStart: undefined,
   });
 
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
@@ -111,13 +111,7 @@ const handleNewTrip = async (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
-  const newTrip = toConvexVesselTrip(currLocation, {
-    TripStart: currLocation.TimeStamp,
-    prevAtSeaDuration: existingTrip.AtSeaDuration,
-    prevDelay: existingTrip.Delay,
-  });
-
-  // Creates a completed trip object from an existing trip by calculating final durations and setting TripEnd.
+  // Creates a completed trip object by calculating final durations and setting TripEnd.
   const completedTrip = {
     ...existingTrip,
     TripEnd: currLocation.TimeStamp,
@@ -130,6 +124,13 @@ const handleNewTrip = async (
       currLocation.TimeStamp
     ),
   };
+
+  // Create the new trip object with the completed trip's at-sea duration and total duration
+  const newTrip = toConvexVesselTrip(currLocation, {
+    TripStart: currLocation.TimeStamp,
+    prevAtSeaDuration: completedTrip.AtSeaDuration,
+    prevDelay: completedTrip.Delay,
+  });
 
   // If the new trip has all required data for predictions, predict delay and ETA
   const predictions = isPredictionReady(newTrip)
@@ -162,6 +163,7 @@ const handleTripUpdate = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip
 ) => {
+  // If the trip has not changed, do not update
   if (
     currLocation.ArrivingTerminalAbbrev ===
       existingTrip.ArrivingTerminalAbbrev &&
@@ -173,6 +175,7 @@ const handleTripUpdate = async (
   ) {
     return;
   }
+
   // Build the updated trip object with all current data
   const updatedTrip: ConvexVesselTrip = {
     ...existingTrip,

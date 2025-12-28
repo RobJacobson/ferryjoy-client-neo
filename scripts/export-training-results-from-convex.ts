@@ -83,27 +83,27 @@ async function exportTrainingResults() {
     }
 
     const metrics = model.trainingMetrics;
-    if (model.modelType === "arrive-depart") {
+    if (model.modelType === "arrive-depart-atdock-duration") {
       pairResult.arrive_depart_mae = metrics?.mae;
       pairResult.arrive_depart_r2 = metrics?.r2;
       pairResult.arrive_depart_rmse = metrics?.rmse;
       pairResult.arrive_depart_std_dev = metrics?.stdDev;
-    } else if (model.modelType === "arrive-depart-late") {
+    } else if (model.modelType === "arrive-depart-delay") {
       pairResult.arrive_depart_late_mae = metrics?.mae;
       pairResult.arrive_depart_late_r2 = metrics?.r2;
       pairResult.arrive_depart_late_rmse = metrics?.rmse;
       pairResult.arrive_depart_late_std_dev = metrics?.stdDev;
-    } else if (model.modelType === "depart-arrive") {
+    } else if (model.modelType === "depart-arrive-atsea-duration") {
       pairResult.depart_arrive_mae = metrics?.mae;
       pairResult.depart_arrive_r2 = metrics?.r2;
       pairResult.depart_arrive_rmse = metrics?.rmse;
       pairResult.depart_arrive_std_dev = metrics?.stdDev;
-    } else if (model.modelType === "arrive-arrive") {
+    } else if (model.modelType === "arrive-arrive-total-duration") {
       pairResult.arrive_arrive_mae = metrics?.mae;
       pairResult.arrive_arrive_r2 = metrics?.r2;
       pairResult.arrive_arrive_rmse = metrics?.rmse;
       pairResult.arrive_arrive_std_dev = metrics?.stdDev;
-    } else if (model.modelType === "depart-depart") {
+    } else if (model.modelType === "depart-depart-total-duration") {
       pairResult.depart_depart_mae = metrics?.mae;
       pairResult.depart_depart_r2 = metrics?.r2;
       pairResult.depart_depart_rmse = metrics?.rmse;

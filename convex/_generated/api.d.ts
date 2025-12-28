@@ -75,6 +75,7 @@ import type * as shared_convertVesselLocations from "../shared/convertVesselLoca
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_predictionUtils from "../shared/predictionUtils.js";
+import type * as shared_time from "../shared/time.js";
 
 import type {
   ApiFromModules,
@@ -150,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/index": typeof shared_index;
   "shared/predictionUtils": typeof shared_predictionUtils;
+  "shared/time": typeof shared_time;
 }>;
 
 /**

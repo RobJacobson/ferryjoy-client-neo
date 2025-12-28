@@ -63,11 +63,8 @@ export const predictDelayOnArrival = async (
   // Make prediction (returns delay in minutes)
   const predictedDelayMinutes = applyLinearRegression(model, features);
 
-  // Validate delay (must be non-negative)
-  const validatedDelay = Math.max(predictedDelayMinutes, 0);
-
   return {
-    predictedTime: validatedDelay, // Delay in minutes (not a timestamp)
+    predictedTime: predictedDelayMinutes, // Delay in minutes (not a timestamp)
     mae: model.trainingMetrics.mae,
   };
 };

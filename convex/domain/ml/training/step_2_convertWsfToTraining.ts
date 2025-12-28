@@ -5,6 +5,7 @@
 // ============================================================================
 
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import { getMinutesDelta, getPacificTime } from "../../../shared/time";
 import type { TrainingDataRecord } from "../types";
 import {
   MAX_DURATION_THRESHOLDS,
@@ -12,11 +13,7 @@ import {
   MIN_DURATION_THRESHOLDS,
   VALID_PASSENGER_TERMINALS,
 } from "./shared/config";
-import {
-  extractTimeFeatures,
-  getMinutesDelta,
-  getPacificTime,
-} from "./shared/time";
+import { extractTimeFeatures } from "./shared/time";
 
 /**
  * Get terminal abbreviation for a given name

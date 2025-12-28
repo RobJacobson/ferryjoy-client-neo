@@ -3,8 +3,9 @@
 // Feature extraction from vessel trips for ML models
 // ============================================================================
 
+import { getPacificTime } from "../../../shared/time";
 import { MEAN_AT_DOCK_DURATION } from "../training/shared/config";
-import { extractTimeFeatures, getPacificTime } from "../training/shared/time";
+import { extractTimeFeatures } from "../training/shared/time";
 
 /**
  * Feature record for ML prediction
