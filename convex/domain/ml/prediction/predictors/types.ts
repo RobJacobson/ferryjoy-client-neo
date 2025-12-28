@@ -4,18 +4,17 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ModelType } from "../../shared/core/modelTypes";
+import type { FeatureRecord } from "../../shared/core/types";
 
 /**
  * Generic prediction configuration
  */
 export type PredictionConfig<TContext> = {
-  modelName:
-    | "arrive-depart-delay"
-    | "arrive-arrive-total-duration"
-    | "depart-arrive-atsea-duration";
+  modelName: ModelType;
   skipPrediction: (ctx: TContext) => boolean;
   extractFeatures: (ctx: TContext) => {
-    features: import("../step_1_extractFeatures").FeatureRecord;
+    features: FeatureRecord;
     error?: string;
   };
   convertToAbsolute: (

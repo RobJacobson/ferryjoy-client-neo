@@ -1,14 +1,18 @@
 // ============================================================================
+/** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
 // STEP 3: BUCKET BY TERMINAL PAIRS
 // Group records by terminal pairs and calculate statistics
 // ============================================================================
 
-import type { TerminalPairBucket, TrainingDataRecord } from "../types";
 import {
   formatTerminalPairKey,
   PIPELINE_CONFIG,
   parseTerminalPairKey,
-} from "./shared/config";
+} from "../../shared/core/config";
+import type {
+  TerminalPairBucket,
+  TrainingDataRecord,
+} from "../../shared/core/types";
 
 /**
  * Create terminal pair buckets from training records
@@ -21,7 +25,7 @@ export const createTerminalPairBuckets = (
   const bucketMap = new Map<string, TrainingDataRecord[]>();
 
   // Dynamic grouping by terminal pairs
-  // Note: Terminal validation already done in step_2, so all records are valid
+  // Note: Terminal data already validated
   for (const record of records) {
     const key = formatTerminalPairKey(
       record.departingTerminalAbbrev,

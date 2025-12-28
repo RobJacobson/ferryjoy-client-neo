@@ -3,11 +3,11 @@
 // ============================================================================
 
 import type { ActionCtx, MutationCtx } from "_generated/server";
-import { loadModel } from "../step_2_loadModel";
+import { loadModel } from "../../training/models/loadModel";
 import {
   applyLinearRegression,
   validatePredictionTime,
-} from "../step_3_makePrediction";
+} from "../predictLinearRegression";
 import type {
   PredictionConfig,
   PredictionResult,

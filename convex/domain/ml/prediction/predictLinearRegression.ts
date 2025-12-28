@@ -2,8 +2,7 @@
 // STEP 3: MAKE PREDICTION AND CONVERT TO ABSOLUTE TIME
 // ============================================================================
 
-import type { ModelParameters } from "../types";
-import type { FeatureRecord } from "./step_1_extractFeatures";
+import type { FeatureRecord, ModelParameters } from "../shared/core/types";
 
 /**
  * Apply linear regression model to features

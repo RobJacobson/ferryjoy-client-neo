@@ -3,8 +3,8 @@
 import { api } from "_generated/api";
 import type { Id } from "_generated/dataModel";
 import { type ActionCtx, internalAction } from "_generated/server";
-import { runMLPipeline } from "domain/ml/pipelineCoordinator";
-import type { TrainingResponse } from "domain/ml/types";
+import type { TrainingResponse } from "../shared/core/types";
+import { runMLPipeline } from "./pipeline";
 
 // ============================================================================
 // PUBLIC ACTIONS

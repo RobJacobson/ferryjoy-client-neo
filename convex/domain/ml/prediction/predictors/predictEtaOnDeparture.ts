@@ -2,11 +2,14 @@
 // ETA UPDATE ON DEPARTURE (depart-arrive-atsea-duration model)
 // ============================================================================
 
+/** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
+
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { extractDepartArriveFeatures } from "../step_1_extractFeatures";
-import { atSeaDurationToEtaPred } from "../step_3_makePrediction";
+import { MODEL_TYPES } from "../../shared/core/modelTypes";
+import { extractDepartArriveAtSeaFeatures } from "../../shared/features/extractFeatures";
+import { atSeaDurationToEtaPred } from "../predictLinearRegression";
 import { predict } from "./shared";
 import type {
   DepartureContext,
@@ -39,7 +42,7 @@ export const predictEtaOnDeparture = async (
   };
 
   const config: PredictionConfig<DepartureContext> = {
-    modelName: "depart-arrive-atsea-duration",
+    modelName: MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION,
     skipPrediction: (ctx) =>
       !ctx.currentLocation.LeftDock ||
       !ctx.currentTrip.AtDockDuration ||
@@ -47,7 +50,7 @@ export const predictEtaOnDeparture = async (
       !ctx.currentTrip.ScheduledDeparture,
     extractFeatures: (ctx) => {
       try {
-        const features = extractDepartArriveFeatures(
+        const features = extractDepartArriveAtSeaFeatures(
           ctx.currentTrip.ScheduledDeparture,
           ctx.currentTrip.AtDockDuration,
           ctx.currentTrip.Delay

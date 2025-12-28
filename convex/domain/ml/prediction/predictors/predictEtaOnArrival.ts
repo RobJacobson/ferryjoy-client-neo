@@ -2,11 +2,14 @@
 // ETA PREDICTION ON NEW TRIP (arrive-arrive-total-duration model)
 // ============================================================================
 
+/** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
+
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { formatTerminalPairKey } from "../../training/shared/config";
-import { extractArriveDepartFeatures } from "../step_1_extractFeatures";
-import { combinedDurationToEtaPred } from "../step_3_makePrediction";
+import { formatTerminalPairKey } from "../../shared/core/config";
+import { MODEL_TYPES } from "../../shared/core/modelTypes";
+import { extractArriveDepartFeatures } from "../../shared/features/extractFeatures";
+import { combinedDurationToEtaPred } from "../predictLinearRegression";
 import { predict } from "./shared";
 import type {
   NewTripContext,
@@ -39,7 +42,7 @@ export const predictEtaOnArrival = async (
   };
 
   const config: PredictionConfig<NewTripContext> = {
-    modelName: "arrive-arrive-total-duration",
+    modelName: MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION,
     skipPrediction: (_ctx) =>
       !_ctx.completedTrip.Delay ||
       !_ctx.completedTrip.AtSeaDuration ||

@@ -33,7 +33,7 @@ export type InitialPredictions = {
  * @param newTrip - The new trip that just started
  * @returns Initial predictions with MAE margins
  */
-export const calculateInitialPredictions = async (
+export const calculateArrivalPredictions = async (
   ctx: ActionCtx | MutationCtx,
   completedTrip: ConvexVesselTrip,
   newTrip: ConvexVesselTrip

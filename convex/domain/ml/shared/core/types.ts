@@ -2,6 +2,8 @@
 // CORE TYPES
 // ============================================================================
 
+import type { ModelType } from "./modelTypes";
+
 /**
  * Feature vector as name-value pairs for ML
  */
@@ -77,12 +79,7 @@ export type TerminalPairBucket = {
  */
 export type TerminalPairTrainingData = {
   terminalPair: TerminalPair;
-  modelType:
-    | "arrive-depart-atdock-duration"
-    | "depart-arrive-atsea-duration"
-    | "arrive-arrive-total-duration"
-    | "depart-depart-total-duration"
-    | "arrive-depart-delay";
+  modelType: ModelType;
   examples: TrainingExample[];
 };
 
@@ -100,12 +97,7 @@ export type ModelParameters = {
   // Required identifiers
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
-  modelType:
-    | "arrive-depart-atdock-duration"
-    | "depart-arrive-atsea-duration"
-    | "arrive-arrive-total-duration"
-    | "depart-depart-total-duration"
-    | "arrive-depart-delay";
+  modelType: ModelType;
 
   // Training metrics - always set after training
   trainingMetrics: {

@@ -4,16 +4,17 @@
 // Converts raw WSF records to TrainingDataRecord format with minimal filtering
 // ============================================================================
 
+import { getMinutesDelta, getPacificTime } from "shared/time";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { getMinutesDelta, getPacificTime } from "../../../shared/time";
-import type { TrainingDataRecord } from "../types";
 import {
   MAX_DURATION_THRESHOLDS,
   MEAN_AT_DOCK_DURATION,
   MIN_DURATION_THRESHOLDS,
+  TERMINAL_NAME_MAPPING,
   VALID_PASSENGER_TERMINALS,
-} from "./shared/config";
-import { extractTimeFeatures } from "./shared/time";
+} from "../../shared/core/config";
+import type { TrainingDataRecord } from "../../shared/core/types";
+import { extractTimeFeatures } from "../../shared/features/timeFeatures";
 
 /**
  * Terminal abbreviations for a consecutive trip pair (current + previous trip)
@@ -36,44 +37,6 @@ type TripCalculations = {
   arriveBeforeMinutes: number; // Minutes before scheduled departure vessel arrived
   arriveEarlyMinutes: number; // How early vessel arrived relative to mean at-dock time
 };
-/**
- * Terminal mapping for WSF record conversion
- */
-const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
-  // Puget Sound region
-  Bainbridge: "BBI",
-  "Bainbridge Island": "BBI",
-  Bremerton: "BRE",
-  Kingston: "KIN",
-  Edmonds: "EDM",
-  Mukilteo: "MUK",
-  Clinton: "CLI",
-  Fauntleroy: "FAU",
-  Vashon: "VAI",
-  "Vashon Island": "VAI", // WSF API may return full name
-  Colman: "P52",
-  Seattle: "P52", // WSF API may return "Seattle" instead of "Colman"
-  Southworth: "SOU",
-  "Pt. Defiance": "PTD",
-  "Point Defiance": "PTD", // WSF API may return full name
-  Tahlequah: "TAH",
-
-  // San Juan Islands
-  Anacortes: "ANA",
-  Friday: "FRH", // Note: vessel histories may return "Friday Harbor" or "Friday"
-  "Friday Harbor": "FRH",
-  Shaw: "SHI",
-  "Shaw Island": "SHI", // WSF API may return full name
-  Orcas: "ORI",
-  "Orcas Island": "ORI", // WSF API may return full name
-  Lopez: "LOP",
-  "Lopez Island": "LOP", // WSF API may return full name
-
-  // Other
-  "Port Townsend": "POT",
-  Keystone: "COU",
-  "Sidney B.C.": "SID",
-};
 
 /**
  * Convert WSF vessel history records to ML training data format
@@ -91,7 +54,7 @@ const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
  * @param wsfRecords - Raw vessel history records from WSF API
  * @returns Array of validated training data records ready for ML model training
  */
-export const convertWsfDataToTrainingRecords = (
+export const createTrainingDataRecords = (
   wsfRecords: VesselHistory[]
 ): TrainingDataRecord[] => {
   console.log(
@@ -196,7 +159,7 @@ const processTripPair = (
  * @returns Standardized terminal abbreviation or undefined if not found
  */
 const getTerminalAbbrev = (terminalName: string): string | undefined => {
-  const abbrev = VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName];
+  const abbrev = TERMINAL_NAME_MAPPING[terminalName];
 
   if (!abbrev && terminalName.trim() !== "") {
     console.warn(`Terminal name not found in mapping: ${terminalName}`);

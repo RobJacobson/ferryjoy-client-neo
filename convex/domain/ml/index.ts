@@ -2,36 +2,22 @@
 // ML MODULE EXPORTS
 // ============================================================================
 
-// Training pipeline actions
-export {
-  deleteAllModelsAction,
-  trainPredictionModelsAction,
-} from "./actions";
-
-// Training pipeline orchestrator
-export { runMLPipeline } from "./pipelineCoordinator";
+// Prediction functionality
+export type { InitialPredictions } from "./prediction/predictOnArrival";
+export { calculateArrivalPredictions as calculateInitialPredictions } from "./prediction/predictOnArrival";
 export {
   predictDelayOnArrival,
   predictEtaOnArrival,
   predictEtaOnDeparture,
 } from "./prediction/predictors";
 export type { DelayPredictionParams } from "./prediction/predictors/types";
-export type { FeatureRecord } from "./prediction/step_1_extractFeatures";
-// Prediction types
-export type { InitialPredictions } from "./prediction/step_4_calculateInitialPredictions";
-// Prediction pipeline
-export { calculateInitialPredictions } from "./prediction/step_4_calculateInitialPredictions";
-
-// Types
-export type {
-  DataQualityMetrics,
-  FeatureVector,
-  ModelParameters,
-  PredictionOutput,
-  TerminalPair,
-  TerminalPairBucket,
-  TerminalPairTrainingData,
-  TrainingDataRecord,
-  TrainingExample,
-  TrainingResponse,
-} from "./types";
+// Shared functionality (types, config, model types, features)
+export * from "./shared";
+export type { FeatureRecord } from "./shared/core/types";
+// Training functionality
+export { runMLPipeline } from "./training";
+// ML Actions (model management)
+export {
+  deleteAllModelsAction,
+  trainPredictionModelsAction,
+} from "./training/actions";

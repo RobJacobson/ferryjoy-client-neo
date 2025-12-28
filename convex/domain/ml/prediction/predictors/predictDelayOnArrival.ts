@@ -3,11 +3,11 @@
 // ============================================================================
 
 import type { ActionCtx, MutationCtx } from "_generated/server";
-import { formatTerminalPairKey } from "../../training/shared/config";
-import type { FeatureRecord } from "../step_1_extractFeatures";
-import { extractArriveDepartFeatures } from "../step_1_extractFeatures";
-import { loadModel } from "../step_2_loadModel";
-import { applyLinearRegression } from "../step_3_makePrediction";
+import { formatTerminalPairKey } from "../../shared/core/config";
+import type { FeatureRecord } from "../../shared/core/types";
+import { extractArriveDepartFeatures } from "../../shared/features/extractFeatures";
+import { loadModel } from "../../training/models/loadModel";
+import { applyLinearRegression } from "../predictLinearRegression";
 import type { DelayPredictionParams, PredictionResult } from "./types";
 
 /**
