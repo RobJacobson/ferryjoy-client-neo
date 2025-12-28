@@ -10,7 +10,6 @@
 
 import type * as crons from "../crons.js";
 import type * as domain_index from "../domain/index.js";
-import type * as domain_ml_actions from "../domain/ml/training/actions.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
 import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
 import type * as domain_ml_prediction_predictLinearRegression from "../domain/ml/prediction/predictLinearRegression.js";
@@ -28,7 +27,9 @@ import type * as domain_ml_shared_core_types from "../domain/ml/shared/core/type
 import type * as domain_ml_shared_features_extractFeatures from "../domain/ml/shared/features/extractFeatures.js";
 import type * as domain_ml_shared_features_index from "../domain/ml/shared/features/index.js";
 import type * as domain_ml_shared_features_timeFeatures from "../domain/ml/shared/features/timeFeatures.js";
+import type * as domain_ml_shared_functional_index from "../domain/ml/shared/functional/index.js";
 import type * as domain_ml_shared_index from "../domain/ml/shared/index.js";
+import type * as domain_ml_training_actions from "../domain/ml/training/actions.js";
 import type * as domain_ml_training_data_createTrainingBuckets from "../domain/ml/training/data/createTrainingBuckets.js";
 import type * as domain_ml_training_data_createTrainingRecords from "../domain/ml/training/data/createTrainingRecords.js";
 import type * as domain_ml_training_data_index from "../domain/ml/training/data/index.js";
@@ -91,7 +92,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "domain/index": typeof domain_index;
-  "domain/ml/actions": typeof domain_ml_actions;
   "domain/ml/index": typeof domain_ml_index;
   "domain/ml/prediction/index": typeof domain_ml_prediction_index;
   "domain/ml/prediction/predictLinearRegression": typeof domain_ml_prediction_predictLinearRegression;
@@ -109,7 +109,9 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/shared/features/extractFeatures": typeof domain_ml_shared_features_extractFeatures;
   "domain/ml/shared/features/index": typeof domain_ml_shared_features_index;
   "domain/ml/shared/features/timeFeatures": typeof domain_ml_shared_features_timeFeatures;
+  "domain/ml/shared/functional/index": typeof domain_ml_shared_functional_index;
   "domain/ml/shared/index": typeof domain_ml_shared_index;
+  "domain/ml/training/actions": typeof domain_ml_training_actions;
   "domain/ml/training/data/createTrainingBuckets": typeof domain_ml_training_data_createTrainingBuckets;
   "domain/ml/training/data/createTrainingRecords": typeof domain_ml_training_data_createTrainingRecords;
   "domain/ml/training/data/index": typeof domain_ml_training_data_index;

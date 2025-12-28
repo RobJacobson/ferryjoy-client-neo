@@ -101,13 +101,13 @@ The training pipeline processes this data into `TrainingDataRecord` objects that
 ## How to Use
 
 ### Automated Training (Recommended)
-The system runs automatically via cron job at 4:00 AM Pacific daily using WSF API data:
+The system runs automatically via cron job at 11:00 AM UTC every Monday using WSF API data:
 ```typescript
 // convex/crons.ts
 crons.cron(
   "retrain ml models",
-  "0 4 * * *", // 4:00 AM daily (Pacific Time)
-  internal.domain.ml.actions.trainPredictionModelsAction
+  "0 11 * * 1", // 11:00 AM UTC every Monday
+  internal.domain.ml.training.actions.trainPredictionModelsAction
 );
 ```
 
@@ -116,11 +116,8 @@ crons.cron(
 Run the training pipeline manually:
 
 ```bash
-# Train using WSF API data (default)
+# Train using WSF API data (recommended)
 npm run train:ml
-
-# Train using Convex database data (alternative)
-npm run train:ml:convex
 ```
 
 **WSF API Data Source**: Fetches vessel histories directly from WSF backend API for configured date range (default: 720 days), providing fresh data without relying on stored records.
@@ -453,7 +450,7 @@ npm run train:export-results
 
 ### Cron Job Configuration
 
-Daily automated training at 4:00 AM Pacific:
+Weekly automated training at 11:00 AM UTC on Mondays:
 
 ```typescript
 // convex/crons.ts
@@ -488,7 +485,7 @@ npm run train:compare results1.csv results2.csv
 
 **Coverage**: Dynamic terminal pair discovery (35+ routes, 4-5 models each)
 
-**Training**: Automated daily retraining with fresh WSF API data (720 days)
+**Training**: Automated weekly retraining at 11:00 AM UTC on Mondays with fresh WSF API data (720 days)
 
 **Predictions**: Real-time inference with sub-millisecond latency
 
@@ -557,10 +554,9 @@ export { predictArriveDepart } from "./predictors";
 
 // 3. Export from domain/ml/index.ts
 export {
-  predictArriveDepart,
-  predictEta,
-  predictLeftDock,
-  updateEtaOnDeparture,
+  predictDelayOnArrival,
+  predictEtaOnArrival,
+  predictEtaOnDeparture,
 } from "./prediction/predictors";
 ```
 
@@ -778,7 +774,7 @@ npm run train:export-results
 // Daily training at 4:00 AM Pacific
 crons.cron(
   "retrain ml models",
-  "0 4 * * *", // 4:00 AM daily (Pacific Time)
+  "0 11 * * 1", // 11:00 AM UTC every Monday
   internal.domain.ml.actions.trainPredictionModelsAction
 );
 ```
@@ -833,4 +829,4 @@ crons.cron(
 
 **Features**: 11-14 comprehensive features (5 base + 8 time-of-day centers, simplified for depart-depart)
 
-**Automation**: Daily retraining at 4:00 AM Pacific (linear regression via cron)
+**Automation**: Weekly retraining at 11:00 AM UTC on Mondays (linear regression via cron)

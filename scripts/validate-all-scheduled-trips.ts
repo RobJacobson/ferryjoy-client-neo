@@ -5,9 +5,9 @@
 // Validates data consistency across all routes for a given date
 // ============================================================================
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
-import * as fs from "fs";
-import * as path from "path";
 import type { Route } from "ws-dottie/wsf-schedule";
 import { fetchRoutesByTripDate } from "ws-dottie/wsf-schedule";
 import { api } from "../convex/_generated/api";

@@ -3,7 +3,6 @@
 // Validates prediction models against historical trip data
 // ============================================================================
 
-import { api } from "../convex/_generated/api";
 import type { ConvexVesselTrip } from "../convex/functions/vesselTrips/schemas";
 
 interface PredictionAccuracyMetrics {

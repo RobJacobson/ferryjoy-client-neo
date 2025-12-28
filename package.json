@@ -15,7 +15,7 @@
     "web": "expo start --web",
     "convex:dev": "npx convex dev",
     "convex:dev:no-check": "npx convex dev --typecheck=disable",
-    "train:ml": "npx convex run domain/ml/actions:trainPredictionModelsAction && npm run train:export-results:convex",
+    "train:ml": "npx convex run domain/ml/training/actions:trainPredictionModelsAction && npm run train:export-results:convex",
     "train:export-results": "npm run train:export-results:convex",
     "train:export-results:convex": "npx tsx scripts/export-training-results-from-convex.ts",
     "train:compare": "npx tsx scripts/compare-summaries.ts",

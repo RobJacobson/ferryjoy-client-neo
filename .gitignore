@@ -46,7 +46,7 @@ build-*.tar.gz
 *.csv
 
 # ML training artifacts (generated models, data, and results)
-ml/training-results*.csv
+ml/
 
 # Test coverage reports
 coverage/

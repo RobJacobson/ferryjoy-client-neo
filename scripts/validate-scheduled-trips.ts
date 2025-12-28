@@ -174,7 +174,7 @@ function main() {
   const sailingDay = args[1];
   const verbose = args.includes("--verbose");
 
-  if (isNaN(routeId)) {
+  if (Number.isNaN(routeId)) {
     console.error("Error: routeId must be a valid number");
     process.exit(1);
   }

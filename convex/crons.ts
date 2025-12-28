@@ -27,11 +27,12 @@ crons.interval(
 //   internal.functions.vesselPing.actions.fetchAndStoreVesselPing
 // );
 
-// Daily model retraining at 4:00 AM Pacific Time (training on Convex data)
+// Weekly model retraining at 11:00 AM UTC on Mondays
+// Note: Convex cron jobs run in UTC, not local timezones
 crons.cron(
   "retrain ml models",
-  "0 4 * * *", // 4:00 AM daily (Pacific Time)
-  internal.domain.ml.actions.trainPredictionModelsAction
+  "0 11 * * 1", // 11:00 AM UTC every Monday
+  internal.domain.ml.training.actions.trainPredictionModelsAction
 );
 
 export default crons;
