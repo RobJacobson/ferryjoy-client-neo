@@ -8,7 +8,8 @@
 export type FeatureVector = Record<string, number>;
 
 /**
- * Feature record for feature extraction (used in prediction and training)
+ * Feature record containing extracted numeric features for ML models
+ * Used during both prediction and training phases for consistent feature engineering
  */
 export type FeatureRecord = Record<string, number>;
 
@@ -29,26 +30,31 @@ export type TerminalPair = {
 };
 
 /**
- * Training data record containing both features and targets for model training
+ * Training data record containing raw trip data and computed features for model training
+ *
+ * Each record represents a consecutive trip pair (current trip and its immediate predecessor)
+ * with all necessary data for training multiple ML models that predict ferry durations and delays.
  */
 export type TrainingDataRecord = {
-  // Terminal identifiers (needed for pipeline operations)
+  // Terminal pair identifiers (required for routing and model lookup)
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
 
-  // Target variables for training
-  prevDelay: number; // minutes from previous trip's scheduled departure (can be negative)
-  prevAtSeaDuration: number; // minutes from previous trip's departure to previous trip's arrival (for depart-depart target)
-  currAtDockDuration: number; // minutes from arrival at B to departure from B (current trip)
-  currDelay: number; // minutes from scheduled departure to actual departure (current trip)
-  currAtSeaDuration: number; // minutes from departure to arrival (current trip)
+  // Previous trip metrics (context for current trip predictions)
+  prevDelay: number; // Previous trip's delay in minutes from scheduled departure (can be negative for early departures)
+  prevAtSeaDuration: number; // Previous trip's duration at sea in minutes (departure to arrival)
 
-  // Time features extracted from scheduled departure
-  isWeekend: number; // 1 if the scheduled departure is on a weekend, 0 otherwise
-  schedDepartureTimeFeatures: Record<string, number>; // Time-of-day features from scheduled departure time
-  schedDepartureTimestamp: number; // Timestamp (milliseconds) of scheduled departure for chronological sorting
-  arriveEarlyMinutes: number; // minutes early the vessel arrived at the dock
-  arriveBeforeMinutes: number; // minutes before the scheduled departure the vessel arrived at the dock
+  // Current trip metrics (prediction targets)
+  currAtDockDuration: number; // Current trip's at-dock duration in minutes (arrival to departure)
+  currDelay: number; // Current trip's delay in minutes from scheduled departure
+  currAtSeaDuration: number; // Current trip's duration at sea in minutes (departure to arrival)
+
+  // Time-based features extracted from current trip's scheduled departure
+  isWeekend: number; // 1 if scheduled departure is on weekend (Saturday/Sunday), 0 otherwise
+  schedDepartureTimeFeatures: Record<string, number>; // Gaussian radial basis function features for time-of-day
+  schedDepartureTimestamp: number; // Scheduled departure timestamp in milliseconds (for sorting and validation)
+  arriveEarlyMinutes: number; // How many minutes early the vessel arrived at dock (relative to mean)
+  arriveBeforeMinutes: number; // How many minutes before scheduled departure the vessel arrived at dock
 };
 
 /**
@@ -81,8 +87,10 @@ export type TerminalPairTrainingData = {
 };
 
 /**
- * Simplified ML model parameters
- * Linear regression models always have coefficients and intercept set
+ * Trained machine learning model parameters for linear regression
+ *
+ * Contains all data needed to make predictions for a specific terminal pair and model type.
+ * Linear regression models always include coefficients and intercept arrays.
  */
 export type ModelParameters = {
   // Model data - always set for valid linear regression models

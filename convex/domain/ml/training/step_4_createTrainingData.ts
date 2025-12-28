@@ -9,6 +9,12 @@ import type {
   TrainingExample,
 } from "../types";
 
+/**
+ * Extract time-based features common to multiple model types
+ *
+ * @param record - Training data record to extract features from
+ * @returns Time features including weekend indicator and time-of-day features
+ */
 const timeFeatures = (record: TrainingDataRecord) => ({
   ...record.schedDepartureTimeFeatures,
   isWeekend: record.isWeekend,
@@ -16,7 +22,12 @@ const timeFeatures = (record: TrainingDataRecord) => ({
 
 /**
  * Create training example for arrive-depart-atdock-duration model
- * Returns null if the record should be skipped, otherwise returns the training example
+ *
+ * Predicts how long a vessel will spend at dock after arrival (at-dock duration).
+ * Uses arrival context and previous trip metrics as features.
+ *
+ * @param record - Training data record containing trip information
+ * @returns Training example with features and at-dock duration target
  */
 export const createArriveDepartTrainingExample = (
   record: TrainingDataRecord
@@ -32,8 +43,12 @@ export const createArriveDepartTrainingExample = (
 
 /**
  * Create training example for arrive-depart-delay model
- * Predicts how early the vessel arrives at the dock (in minutes)
- * Returns null if the record should be skipped, otherwise returns the training example
+ *
+ * Predicts departure delay (how early or late vessel departs relative to schedule).
+ * Uses arrival context and previous trip metrics as features.
+ *
+ * @param record - Training data record containing trip information
+ * @returns Training example with features and delay target
  */
 export const createArriveDepartLateTrainingExample = (
   record: TrainingDataRecord
@@ -49,7 +64,12 @@ export const createArriveDepartLateTrainingExample = (
 
 /**
  * Create training example for depart-arrive-atsea-duration model
- * Returns null if the record should be skipped, otherwise returns the training example
+ *
+ * Predicts at-sea duration from departure to arrival using actual at-dock duration
+ * and scheduled departure context as features.
+ *
+ * @param record - Training data record containing trip information
+ * @returns Training example with features and at-sea duration target
  */
 export const createDepartArriveTrainingExample = (
   record: TrainingDataRecord
@@ -64,7 +84,12 @@ export const createDepartArriveTrainingExample = (
 
 /**
  * Create training example for arrive-arrive-total-duration model
- * Returns null if the record should be skipped, otherwise returns the training example
+ *
+ * Predicts total duration from arrival at dock to arrival at next terminal
+ * (combines at-dock and at-sea durations).
+ *
+ * @param record - Training data record containing trip information
+ * @returns Training example with features and total duration target
  */
 export const createArriveArriveTrainingExample = (
   record: TrainingDataRecord
@@ -79,7 +104,12 @@ export const createArriveArriveTrainingExample = (
 
 /**
  * Create training example for depart-depart-total-duration model
- * Returns null if the record should be skipped, otherwise returns the training example
+ *
+ * Predicts total duration from departure at terminal A to departure at terminal B
+ * using previous trip context as features.
+ *
+ * @param record - Training data record containing trip information
+ * @returns Training example with features and total duration target
  */
 export const createDepartDepartTrainingExample = (
   record: TrainingDataRecord
@@ -92,7 +122,14 @@ export const createDepartDepartTrainingExample = (
 });
 
 /**
- * Create training data for a single model type in a bucket
+ * Create training examples for a specific model type within a terminal pair bucket
+ *
+ * Applies the appropriate feature extraction function based on the model type
+ * to create training examples from all records in the bucket.
+ *
+ * @param bucket - Terminal pair bucket containing training records
+ * @param modelType - Type of ML model to create training data for
+ * @returns Array of training examples for the specified model type
  */
 export const createTrainingDataForBucketSingle = (
   bucket: TerminalPairBucket,

@@ -15,17 +15,17 @@ export const applyLinearRegression = (
 ): number => {
   const { coefficients, intercept } = model;
 
-  // Map feature names to coefficient indices
-  // Time features are time_center_0 through time_center_7
+  // Build feature vector in coefficient order (must match training order)
   const featureValues: number[] = [];
 
-  // Add time features in order
+  // Time features are always first: time_center_0 through time_center_7
   for (let i = 0; i < 8; i++) {
     const featureName = `time_center_${i}`;
     featureValues.push(features[featureName] ?? 0);
   }
 
-  // Add additional features based on what's present in model
+  // Add model-specific features in the order they were trained
+  // Order must match feature engineering in training step_4
   if (features.prevDelay !== undefined) {
     featureValues.push(features.prevDelay);
   }
@@ -42,7 +42,7 @@ export const applyLinearRegression = (
     featureValues.push(features.delay);
   }
 
-  // Calculate prediction: y = intercept + Σ(coefficient[i] * feature[i])
+  // Calculate prediction using linear regression formula
   let prediction = intercept;
   for (let i = 0; i < coefficients.length && i < featureValues.length; i++) {
     prediction += coefficients[i] * featureValues[i];

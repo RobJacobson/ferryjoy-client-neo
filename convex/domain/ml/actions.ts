@@ -11,7 +11,17 @@ import type { TrainingResponse } from "domain/ml/types";
 // ============================================================================
 
 /**
- * Trains prediction models for all terminal pairs using the ML pipeline
+ * Trains prediction models for all terminal pairs using the complete ML pipeline
+ *
+ * This action orchestrates the entire machine learning pipeline:
+ * 1. Loads WSF vessel history data
+ * 2. Converts raw data to training records with feature engineering
+ * 3. Groups records by terminal pairs and applies sampling
+ * 4. Trains linear regression models for each terminal pair and model type
+ * 5. Stores trained models in the database
+ *
+ * @param ctx - Convex internal action context
+ * @returns Training response with statistics and data quality metrics
  */
 export const trainPredictionModelsAction = internalAction({
   args: {},
@@ -22,7 +32,13 @@ export const trainPredictionModelsAction = internalAction({
 });
 
 /**
- * Deletes all models from database
+ * Deletes all trained models from the database
+ *
+ * This action removes all model parameters from the modelParameters table.
+ * Use with caution as this will affect all predictions until new models are trained.
+ *
+ * @param ctx - Convex action context
+ * @returns Object containing the count of deleted models
  */
 export const deleteAllModelsAction = internalAction({
   args: {},
@@ -40,6 +56,7 @@ export const deleteAllModelsAction = internalAction({
 
     console.log(`Found ${models.length} models to delete`);
 
+    // Delete all models in parallel for efficiency
     const deletePromises = models.map((model) =>
       ctx.runMutation(
         api.functions.predictions.mutations.deleteModelParametersMutation,
@@ -53,5 +70,3 @@ export const deleteAllModelsAction = internalAction({
     return { deletedCount: models.length };
   },
 });
-
-// Feature extraction is now handled in predict function

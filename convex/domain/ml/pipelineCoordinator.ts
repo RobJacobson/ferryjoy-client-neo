@@ -5,8 +5,14 @@
 // ============================================================================
 
 /**
- * Analyze basic data quality metrics
- * Note: Temporal validation is done in step_2, so all records are valid
+ * Analyze basic data quality metrics for the training dataset
+ *
+ * Computes completeness scores and temporal validation metrics.
+ * Note: Temporal validation is already performed in step_2, so all records are guaranteed valid.
+ *
+ * @param trainingRecords - The filtered training records after all validation steps
+ * @param buckets - Terminal pair buckets created from the training records
+ * @returns Data quality metrics including completeness and temporal validation scores
  */
 const analyzeDataQuality = (
   trainingRecords: TrainingDataRecord[],
@@ -35,8 +41,14 @@ const analyzeDataQuality = (
 // ============================================================================
 
 /**
- * Train models for all buckets sequentially
- * Gracefully continues on individual bucket failures (route independence)
+ * Train ML models for all terminal pair buckets sequentially
+ *
+ * Processes each bucket independently to ensure route isolation - if one route fails to train,
+ * other routes can still complete successfully. This provides resilience against data issues
+ * affecting specific terminal pairs.
+ *
+ * @param buckets - Array of terminal pair buckets containing training data
+ * @returns Array of successfully trained model parameters from all buckets
  */
 const trainAllBuckets = async (
   buckets: TerminalPairBucket[]
@@ -125,27 +137,27 @@ export const runMLPipeline = async (
     console.log("Loading raw WSF records...");
     const wsfRecords = await loadWsfTrainingData();
 
-    // Step 2: Convert to training records
+    // Step 2: Convert to training records (with validation and feature engineering)
     console.log("Converting WSF records to training records...");
     const trainingRecords = convertWsfDataToTrainingRecords(wsfRecords);
 
-    // Step 3: Create terminal pair buckets
+    // Step 3: Group records by terminal pairs and apply sampling
     console.log("Creating terminal pair buckets...");
     const buckets = createTerminalPairBuckets(trainingRecords);
 
-    // Analyze data quality (using training records only)
+    // Analyze data quality metrics for reporting
     const dataQuality = analyzeDataQuality(trainingRecords, buckets);
 
-    // Step 4-5: Create training data and train models for all buckets sequentially
+    // Step 4-5: Train models for all terminal pairs (feature extraction happens here)
     // Note: Training data creation is handled automatically within step 5
     console.log("Training models...");
     const allModels = await trainAllBuckets(buckets);
 
-    // Step 6: Store results
+    // Step 6: Persist trained models to database
     console.log("Storing model results...");
     await storeModelResults(allModels, ctx);
 
-    // Create final response
+    // Aggregate results into standardized response format
     const response = createFinalResponse(allModels, buckets, dataQuality);
 
     console.log(
@@ -160,7 +172,15 @@ export const runMLPipeline = async (
 };
 
 /**
- * Create final response object
+ * Create final training response object with comprehensive statistics
+ *
+ * Aggregates all training results into a standardized response format that includes
+ * trained models, terminal pair information, and data quality metrics.
+ *
+ * @param models - Array of successfully trained model parameters
+ * @param buckets - Terminal pair buckets used for training
+ * @param dataQuality - Data quality metrics computed from training data
+ * @returns Standardized training response object
  */
 const createFinalResponse = (
   models: ModelParameters[],

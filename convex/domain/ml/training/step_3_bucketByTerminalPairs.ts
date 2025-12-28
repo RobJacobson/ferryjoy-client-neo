@@ -8,7 +8,6 @@ import {
   formatTerminalPairKey,
   PIPELINE_CONFIG,
   parseTerminalPairKey,
-  VALID_PASSENGER_TERMINALS,
 } from "./shared/config";
 
 /**

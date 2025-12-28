@@ -1,4 +1,7 @@
-// // Export all domain business logic modules
+// ============================================================================
+// DOMAIN MODULE EXPORTS
+// Central export point for all domain business logic modules
+// ============================================================================
 
-// export * from "./ml";
-// // tripOperations exports removed - functionality moved to activeVesselTrips and completedVesselTrips modules
+// ML domain exports - machine learning pipeline and prediction logic
+export * from "./ml";

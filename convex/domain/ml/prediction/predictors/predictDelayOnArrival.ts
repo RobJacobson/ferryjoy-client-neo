@@ -11,9 +11,15 @@ import { applyLinearRegression } from "../step_3_makePrediction";
 import type { DelayPredictionParams, PredictionResult } from "./types";
 
 /**
- * Predict DelayPred when a new trip starts
- * Uses arrive-depart-delay model to predict departure delay in minutes
- * Returns raw delay (not absolute timestamp)
+ * Predict departure delay for a new trip using the arrive-depart-delay model
+ *
+ * This function predicts how many minutes early or late a vessel will depart
+ * relative to its scheduled departure time. Used when a vessel arrives at dock
+ * and a new trip is about to start.
+ *
+ * @param ctx - Convex action or mutation context for database access
+ * @param params - Parameters required for delay prediction including trip context
+ * @returns Prediction result with delay in minutes and model accuracy (MAE)
  */
 export const predictDelayOnArrival = async (
   ctx: ActionCtx | MutationCtx,

@@ -15,8 +15,16 @@ import type {
 } from "./types";
 
 /**
- * Predict EtaPred when a new trip starts
- * Uses arrive-arrive-total-duration model to predict total arrival time
+ * Predict ETA for a new trip using the arrive-arrive-total-duration model
+ *
+ * This function predicts the absolute arrival time for a new trip by modeling
+ * the total duration from vessel arrival at dock to arrival at the next terminal.
+ * Used when a vessel arrives at dock and a new trip is about to start.
+ *
+ * @param ctx - Convex action or mutation context for database access
+ * @param completedTrip - The trip that just completed (provides context for the new trip)
+ * @param newTrip - The new trip that is about to start
+ * @returns Prediction result with ETA timestamp and model accuracy (MAE)
  */
 export const predictEtaOnArrival = async (
   ctx: ActionCtx | MutationCtx,

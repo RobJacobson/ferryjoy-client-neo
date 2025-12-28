@@ -16,20 +16,26 @@ import {
 import { extractTimeFeatures } from "./shared/time";
 
 /**
- * Get terminal abbreviation for a given name
+ * Terminal abbreviations for a consecutive trip pair (current + previous trip)
  */
-const getTerminalAbbrev = (terminalName: string): string | undefined => {
-  const abbrev =
-    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName] ||
-    VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName.toLowerCase()];
-
-  if (!abbrev && terminalName.trim() !== "") {
-    console.warn(`Terminal name not found in mapping: ${terminalName}`);
-  }
-
-  return abbrev;
+type TerminalAbbrevs = {
+  departing: string; // Current trip departure terminal
+  arriving: string; // Current trip arrival terminal
+  previousArriving: string; // Previous trip arrival terminal (must match current departing)
 };
 
+/**
+ * Calculated durations and delays for a consecutive trip pair
+ */
+type TripCalculations = {
+  prevDelay: number; // Previous trip delay in minutes
+  prevAtSeaDuration: number; // Previous trip at-sea duration in minutes
+  currAtDockDuration: number; // Current trip at-dock duration in minutes
+  currDelay: number; // Current trip delay in minutes
+  currAtSeaDuration: number; // Current trip at-sea duration in minutes
+  arriveBeforeMinutes: number; // Minutes before scheduled departure vessel arrived
+  arriveEarlyMinutes: number; // How early vessel arrived relative to mean at-dock time
+};
 /**
  * Terminal mapping for WSF record conversion
  */
@@ -70,29 +76,140 @@ const VESSEL_HISTORIES_TERMINAL_MAPPING: Record<string, string> = {
 };
 
 /**
- * Terminal abbreviations for a trip pair
+ * Convert WSF vessel history records to ML training data format
+ *
+ * This is the main data transformation step in the ML pipeline that converts raw
+ * WSF API data into structured training records suitable for machine learning.
+ * The process involves:
+ * 1. Grouping records by vessel to process trips chronologically per vessel
+ * 2. Converting consecutive trip pairs into training examples with features and targets
+ * 3. Applying extensive validation and filtering to ensure data quality
+ *
+ * Only valid consecutive trip pairs that pass all quality checks become training records.
+ * Invalid records are silently filtered out to maintain training data integrity.
+ *
+ * @param wsfRecords - Raw vessel history records from WSF API
+ * @returns Array of validated training data records ready for ML model training
  */
-type TerminalAbbrevs = {
-  departing: string;
-  arriving: string;
-  previousArriving: string;
+export const convertWsfDataToTrainingRecords = (
+  wsfRecords: VesselHistory[]
+): TrainingDataRecord[] => {
+  console.log(
+    `Converting ${wsfRecords.length} WSF records to training records`
+  );
+
+  // Group records by vessel to process each vessel's trips chronologically
+  const vesselGroups = groupBy(wsfRecords, "Vessel");
+
+  // Process each vessel's trip history into training records
+  // Each vessel's trips are processed independently for data integrity
+  const records = Object.values(vesselGroups).flatMap(processVesselTrips);
+
+  console.log(
+    `Converted to ${records.length} training records (${((records.length / wsfRecords.length) * 100).toFixed(1)}% of input)`
+  );
+
+  return records;
 };
 
 /**
- * Calculated durations and delays for a trip pair
+ * Process all trips for a single vessel into training records
+ *
+ * Groups trips chronologically and processes each consecutive pair to create
+ * training data. Only consecutive, valid trip pairs become training records.
+ *
+ * @param trips - Array of WSF trip records for a single vessel
+ * @returns Array of training data records (one per valid trip pair)
  */
-type TripCalculations = {
-  prevDelay: number;
-  prevAtSeaDuration: number;
-  currAtDockDuration: number;
-  currDelay: number;
-  currAtSeaDuration: number;
-  arriveBeforeMinutes: number;
-  arriveEarlyMinutes: number;
+const processVesselTrips = (trips: VesselHistory[]): TrainingDataRecord[] => {
+  const sortedTrips = trips.sort(
+    (a, b) =>
+      (a.ScheduledDepart?.getTime() || 0) - (b.ScheduledDepart?.getTime() || 0)
+  );
+
+  const records: TrainingDataRecord[] = [];
+  for (let i = 1; i < sortedTrips.length; i++) {
+    const record = processTripPair(sortedTrips[i], sortedTrips[i - 1]);
+    if (record) {
+      records.push(record);
+    }
+  }
+  return records;
 };
 
 /**
- * Check if all required terminal mappings exist
+ * Process a single consecutive trip pair into a training record
+ *
+ * Applies all validation steps and data transformations to convert raw WSF data
+ * into a clean training record. Returns null if the trip pair fails any validation.
+ *
+ * @param curr - Current trip WSF record
+ * @param prev - Previous trip WSF record
+ * @returns Training data record or null if validation fails
+ */
+const processTripPair = (
+  curr: VesselHistory,
+  prev: VesselHistory
+): TrainingDataRecord | null => {
+  // Step 1: Validate terminal mappings exist
+  const abbrevs = getTerminalAbbrevs(curr, prev);
+  if (!hasValidTerminalMappings(abbrevs)) {
+    return null; // Skip if any terminals unmapped
+  }
+
+  // Step 2: Validate terminals are passenger terminals (not maintenance docks)
+  if (!areTerminalsValid(abbrevs)) {
+    return null; // Skip non-passenger terminals
+  }
+
+  // Step 3: Validate trips are consecutive (previous arrival = current departure)
+  if (!areTripsConsecutive(abbrevs)) {
+    return null; // Critical: ensures trip continuity
+  }
+
+  // Step 4: Validate all required timestamp data exists
+  if (!hasRequiredData(curr, prev)) {
+    return null; // Cannot calculate durations without timestamps
+  }
+
+  // Step 5: Calculate all timing metrics (delays, durations, arrival features)
+  const terminalPairKey = `${abbrevs.departing}->${abbrevs.arriving}`;
+  const calc = calculateTripDurations(curr, prev, terminalPairKey);
+
+  // Step 6: Validate calculated durations are within reasonable bounds
+  if (!areDurationsValid(calc)) {
+    return null; // Filter out anomalies (overnight layovers, data errors, etc.)
+  }
+
+  // Step 7: Create and return validated training record
+  // Non-null assertion is safe here because hasRequiredData() validates ScheduledDepart exists
+  return createTrainingRecord(abbrevs, calc, curr.ScheduledDepart!);
+};
+
+/**
+ * Get standardized terminal abbreviation for WSF terminal names
+ *
+ * Maps various WSF API terminal name formats to standardized abbreviations.
+ * Handles full name variants.
+ *
+ * @param terminalName - Terminal name from WSF API (may include full names or abbreviations)
+ * @returns Standardized terminal abbreviation or undefined if not found
+ */
+const getTerminalAbbrev = (terminalName: string): string | undefined => {
+  const abbrev = VESSEL_HISTORIES_TERMINAL_MAPPING[terminalName];
+
+  if (!abbrev && terminalName.trim() !== "") {
+    console.warn(`Terminal name not found in mapping: ${terminalName}`);
+  }
+
+  return abbrev;
+};
+
+/**
+ * Check if all required terminal mappings exist for trip processing
+ *
+ * @param abbrevs - Terminal abbreviations for the trip pair
+ * @returns True if all terminals are properly mapped, false otherwise
  */
 const hasValidTerminalMappings = (
   abbrevs: TerminalAbbrevs | null
@@ -106,7 +223,14 @@ const hasValidTerminalMappings = (
 };
 
 /**
- * Get terminal abbreviations for current and previous trips
+ * Extract terminal abbreviations for a consecutive trip pair
+ *
+ * Maps terminal names from WSF records to standardized abbreviations and validates
+ * that the trips are truly consecutive (previous arrival matches current departure).
+ *
+ * @param curr - Current trip WSF record
+ * @param prev - Previous trip WSF record
+ * @returns Terminal abbreviations object or null if mapping fails
  */
 const getTerminalAbbrevs = (
   curr: VesselHistory,
@@ -133,7 +257,13 @@ const getTerminalAbbrevs = (
 };
 
 /**
- * Check if terminals are valid passenger terminals
+ * Validate that all terminals in the trip pair are passenger terminals
+ *
+ * Only passenger ferry terminals are included in the ML models. Cargo-only
+ * terminals and other facilities are excluded from training data.
+ *
+ * @param abbrevs - Terminal abbreviations to validate
+ * @returns True if all terminals are valid passenger terminals
  */
 const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
   return (
@@ -158,7 +288,14 @@ const areTripsConsecutive = (abbrevs: TerminalAbbrevs): boolean => {
 };
 
 /**
- * Check if all required data fields are present
+ * Validate that all required timestamp fields are present for duration calculations
+ *
+ * Checks that both current and previous trips have the necessary timestamps
+ * to calculate delays and durations safely.
+ *
+ * @param curr - Current trip WSF record
+ * @param prev - Previous trip WSF record
+ * @returns True if all required data fields are present
  */
 const hasRequiredData = (curr: VesselHistory, prev: VesselHistory): boolean => {
   return !!(
@@ -172,8 +309,15 @@ const hasRequiredData = (curr: VesselHistory, prev: VesselHistory): boolean => {
 };
 
 /**
- * Calculate all durations and delays for a trip pair
- * Note: This function assumes required data has been validated via hasRequiredData()
+ * Calculate all durations and delays for a consecutive trip pair
+ *
+ * Computes timing metrics that will serve as both features and targets for ML models.
+ * Assumes hasRequiredData() has already validated that all timestamps exist.
+ *
+ * @param curr - Current trip WSF record
+ * @param prev - Previous trip WSF record
+ * @param terminalPairKey - Terminal pair key for mean duration lookups
+ * @returns Calculated timing metrics for the trip pair
  */
 const calculateTripDurations = (
   curr: VesselHistory,
@@ -211,7 +355,13 @@ const calculateTripDurations = (
 };
 
 /**
- * Check if calculated durations are within valid thresholds
+ * Validate that calculated durations are within acceptable ranges
+ *
+ * Filters out anomalous data points that could skew model training, such as
+ * overnight layovers, data errors, or unusually short trips.
+ *
+ * @param calc - Calculated timing metrics for validation
+ * @returns True if all durations are within valid thresholds
  */
 const areDurationsValid = (calc: TripCalculations): boolean => {
   if (calc.currAtSeaDuration < MIN_DURATION_THRESHOLDS.AT_SEA) {
@@ -236,7 +386,15 @@ const areDurationsValid = (calc: TripCalculations): boolean => {
 };
 
 /**
- * Create a training record from validated trip data
+ * Create a training data record from validated and processed trip data
+ *
+ * Combines terminal information, calculated durations, and extracted time features
+ * into the final format used for ML model training.
+ *
+ * @param abbrevs - Validated terminal abbreviations
+ * @param calc - Calculated timing metrics
+ * @param schedDeparture - Scheduled departure date for time feature extraction
+ * @returns Complete training data record
  */
 const createTrainingRecord = (
   abbrevs: TerminalAbbrevs,
@@ -267,97 +425,20 @@ const createTrainingRecord = (
 };
 
 /**
- * Process a single trip pair and return a training record or null
- */
-const processTripPair = (
-  curr: VesselHistory,
-  prev: VesselHistory
-): TrainingDataRecord | null => {
-  // Validate terminal mappings
-  const abbrevs = getTerminalAbbrevs(curr, prev);
-  if (!hasValidTerminalMappings(abbrevs)) {
-    return null;
-  }
-
-  // Validate terminals are passenger terminals
-  if (!areTerminalsValid(abbrevs)) {
-    return null;
-  }
-
-  // Validate trips are consecutive
-  if (!areTripsConsecutive(abbrevs)) {
-    return null;
-  }
-
-  // Validate required data exists
-  if (!hasRequiredData(curr, prev)) {
-    return null;
-  }
-
-  // Calculate durations
-  const terminalPairKey = `${abbrevs.departing}->${abbrevs.arriving}`;
-  const calc = calculateTripDurations(curr, prev, terminalPairKey);
-
-  // Validate durations
-  if (!areDurationsValid(calc)) {
-    return null;
-  }
-
-  // Create and return training record
-  // Non-null assertion is safe here because hasRequiredData() validates ScheduledDepart exists
-  return createTrainingRecord(abbrevs, calc, curr.ScheduledDepart!);
-};
-
-/**
- * Process all trips for a single vessel
- */
-const processVesselTrips = (trips: VesselHistory[]): TrainingDataRecord[] => {
-  const sortedTrips = trips.sort(
-    (a, b) =>
-      (a.ScheduledDepart?.getTime() || 0) - (b.ScheduledDepart?.getTime() || 0)
-  );
-
-  const records: TrainingDataRecord[] = [];
-  for (let i = 1; i < sortedTrips.length; i++) {
-    const record = processTripPair(sortedTrips[i], sortedTrips[i - 1]);
-    if (record) {
-      records.push(record);
-    }
-  }
-  return records;
-};
-
-/**
- * Convert WSF records to TrainingDataRecord format with minimal filtering
- */
-export const convertWsfDataToTrainingRecords = (
-  wsfRecords: VesselHistory[]
-): TrainingDataRecord[] => {
-  console.log(
-    `Converting ${wsfRecords.length} WSF records to training records`
-  );
-
-  const vesselGroups = groupBy(wsfRecords, "Vessel");
-
-  const records = Object.values(vesselGroups).flatMap(processVesselTrips);
-
-  console.log(
-    `Converted to ${records.length} training records (${((records.length / wsfRecords.length) * 100).toFixed(1)}% of input)`
-  );
-
-  return records;
-};
-
-/**
- * Group array by key
+ * Group array elements by a specified key
+ *
+ * Utility function to group WSF records by vessel name for chronological processing.
+ * Uses modern reduce pattern with optional chaining for safer property access.
+ *
+ * @param array - Array of objects to group
+ * @param key - Property name to group by
+ * @returns Object with grouped arrays keyed by the specified property
  */
 const groupBy = <T>(array: T[], key: keyof T): Record<string, T[]> => {
   return array.reduce(
     (groups, item) => {
-      const groupKey = String(item[key]);
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
-      }
+      const groupKey = String(item[key] ?? "unknown");
+      groups[groupKey] ??= [];
       groups[groupKey].push(item);
       return groups;
     },

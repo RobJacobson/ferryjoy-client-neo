@@ -13,7 +13,10 @@ import { extractTimeFeatures } from "../training/shared/time";
 export type FeatureRecord = Record<string, number>;
 
 /**
- * Extract time-based features from scheduled departure
+ * Extract time-of-day and weekend features from scheduled departure timestamp
+ *
+ * @param scheduledDeparture - Scheduled departure timestamp in milliseconds (can be undefined)
+ * @returns Object containing Gaussian radial basis time features and weekend indicator
  */
 export const extractTimeBasedFeatures = (
   scheduledDeparture: number | undefined
@@ -29,7 +32,12 @@ export const extractTimeBasedFeatures = (
 };
 
 /**
- * Extract "arrive before" features (time between arrival and scheduled departure)
+ * Extract timing features related to vessel arrival relative to scheduled departure
+ *
+ * @param tripStart - Timestamp when vessel arrived at dock (trip start)
+ * @param scheduledDeparture - Scheduled departure timestamp
+ * @param terminalPairKey - Terminal pair key for looking up mean at-dock duration
+ * @returns Object with arriveBeforeMinutes and arriveEarlyMinutes features
  */
 export const extractArriveBeforeFeatures = (
   tripStart: number,
@@ -49,8 +57,17 @@ export const extractArriveBeforeFeatures = (
 };
 
 /**
- * Extract features for arrive-depart model
- * Used by: arrive-depart, arrive-depart-late, arrive-arrive models
+ * Extract features for models that use arrival context (arrive-depart-delay, arrive-arrive-total-duration)
+ *
+ * Combines time-based features, previous trip metrics, and arrival timing to create
+ * a comprehensive feature set for predicting delays and durations when vessels arrive at dock.
+ *
+ * @param scheduledDeparture - Scheduled departure timestamp for the current trip
+ * @param prevDelay - Delay from the previous trip in minutes
+ * @param prevAtSeaDuration - At-sea duration from the previous trip in minutes
+ * @param tripStart - Timestamp when current trip started (vessel arrived at dock)
+ * @param terminalPairKey - Terminal pair identifier for duration lookups
+ * @returns Complete feature record for arrive-depart model types
  */
 export const extractArriveDepartFeatures = (
   scheduledDeparture: number | undefined,
@@ -77,7 +94,15 @@ export const extractArriveDepartFeatures = (
 };
 
 /**
- * Extract features for depart-arrive model
+ * Extract features for depart-arrive-atsea-duration model
+ *
+ * Creates feature set for predicting at-sea duration using actual at-dock duration
+ * and scheduled departure context. Used when vessels depart from dock.
+ *
+ * @param scheduledDeparture - Scheduled departure timestamp
+ * @param atDockDuration - Actual time spent at dock in minutes
+ * @param delay - Actual delay from scheduled departure in minutes
+ * @returns Feature record for depart-arrive model predictions
  */
 export const extractDepartArriveFeatures = (
   scheduledDeparture: number | undefined,

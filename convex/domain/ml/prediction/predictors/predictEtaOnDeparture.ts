@@ -15,8 +15,16 @@ import type {
 } from "./types";
 
 /**
- * Update EtaPred when vessel leaves dock
- * Uses depart-arrive-atsea-duration model with actual at-dock duration
+ * Update ETA prediction when vessel departs from dock
+ *
+ * This function refines the ETA prediction using the depart-arrive-atsea-duration model
+ * with the actual time the vessel spent at dock. Called when a vessel leaves dock
+ * to provide more accurate arrival time predictions.
+ *
+ * @param ctx - Convex action or mutation context for database access
+ * @param currentTrip - The current trip being executed
+ * @param currentLocation - Current vessel location data including actual departure time
+ * @returns Updated prediction result with refined ETA timestamp and model accuracy (MAE)
  */
 export const predictEtaOnDeparture = async (
   ctx: ActionCtx | MutationCtx,
