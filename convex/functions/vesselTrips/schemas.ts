@@ -33,10 +33,14 @@ export const vesselTripSchema = v.object({
   DelayPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
   DelayPredMae: v.optional(v.number()),
-  // Predicted arrival time (absolute timestamp in milliseconds)
-  EtaPred: v.optional(v.number()),
+  // Predicted arrival time based on arrival (arrive-arrive model, absolute timestamp in milliseconds)
+  EtaPredArrive: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
-  EtaPredMae: v.optional(v.number()),
+  EtaPredArriveMae: v.optional(v.number()),
+  // Predicted arrival time based on departure (depart-arrive model, absolute timestamp in milliseconds)
+  EtaPredDepart: v.optional(v.number()),
+  // Prediction MAE (rounded to nearest 0.01 minute)
+  EtaPredDepartMae: v.optional(v.number()),
 });
 
 /**
@@ -64,8 +68,10 @@ export const toConvexVesselTrip = (
     // Prediction fields
     DelayPred?: number;
     DelayPredMae?: number;
-    EtaPred?: number;
-    EtaPredMae?: number;
+    EtaPredArrive?: number;
+    EtaPredArriveMae?: number;
+    EtaPredDepart?: number;
+    EtaPredDepartMae?: number;
   }
 ): ConvexVesselTrip => ({
   VesselAbbrev: cvl.VesselAbbrev,
@@ -89,8 +95,10 @@ export const toConvexVesselTrip = (
   // Prediction fields
   DelayPred: params.DelayPred,
   DelayPredMae: params.DelayPredMae,
-  EtaPred: params.EtaPred,
-  EtaPredMae: params.EtaPredMae,
+  EtaPredArrive: params.EtaPredArrive,
+  EtaPredArriveMae: params.EtaPredArriveMae,
+  EtaPredDepart: params.EtaPredDepart,
+  EtaPredDepartMae: params.EtaPredDepartMae,
 });
 
 /**
@@ -107,10 +115,12 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   TripEnd: optionalEpochMsToDate(trip.TripEnd),
   // Prediction fields
   DelayPred: trip.DelayPred, // Delay in minutes (not a timestamp)
-  EtaPred: optionalEpochMsToDate(trip.EtaPred), // ETA is still a timestamp
+  EtaPredArrive: optionalEpochMsToDate(trip.EtaPredArrive), // ETA is still a timestamp
+  EtaPredDepart: optionalEpochMsToDate(trip.EtaPredDepart), // ETA is still a timestamp
   // MAE fields remain as numbers (not timestamps)
   DelayPredMae: trip.DelayPredMae,
-  EtaPredMae: trip.EtaPredMae,
+  EtaPredArriveMae: trip.EtaPredArriveMae,
+  EtaPredDepartMae: trip.EtaPredDepartMae,
 });
 
 /**

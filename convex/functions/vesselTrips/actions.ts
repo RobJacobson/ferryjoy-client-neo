@@ -206,7 +206,7 @@ const handleTripUpdate = async (
 
   // If vessel just departed (AtDock changed from true to false), update ETA prediction with actual at-dock duration
   const departureEtaPredictions =
-    updatedTrip.EtaPred === undefined &&
+    updatedTrip.EtaPredDepart === undefined &&
     currLocation.AtDock === false &&
     currLocation.LeftDock !== undefined
       ? await generateDepartureEtaPredictions(ctx, updatedTrip, currLocation)
@@ -294,8 +294,8 @@ const generateInitialPredictions = async (
 ): Promise<{
   DelayPred?: number;
   DelayPredMae?: number;
-  EtaPred?: number;
-  EtaPredMae?: number;
+  EtaPredArrive?: number;
+  EtaPredArriveMae?: number;
 }> => {
   try {
     const initialPredictions = await calculateInitialPredictions(
@@ -306,8 +306,8 @@ const generateInitialPredictions = async (
     return {
       DelayPred: initialPredictions.DelayPred,
       DelayPredMae: initialPredictions.DelayPredMae,
-      EtaPred: initialPredictions.EtaPred,
-      EtaPredMae: initialPredictions.EtaPredMae,
+      EtaPredArrive: initialPredictions.EtaPredArrive,
+      EtaPredArriveMae: initialPredictions.EtaPredArriveMae,
     };
   } catch (error) {
     console.error(
@@ -331,8 +331,8 @@ const generateDepartureEtaPredictions = async (
   currentTrip: ConvexVesselTrip,
   currentLocation: ConvexVesselLocation
 ): Promise<{
-  EtaPred?: number;
-  EtaPredMae?: number;
+  EtaPredDepart?: number;
+  EtaPredDepartMae?: number;
 }> => {
   try {
     const etaResult = await predictEtaOnDeparture(
@@ -341,8 +341,8 @@ const generateDepartureEtaPredictions = async (
       currentLocation
     );
     return {
-      EtaPred: etaResult.predictedTime,
-      EtaPredMae: etaResult.mae,
+      EtaPredDepart: etaResult.predictedTime,
+      EtaPredDepartMae: etaResult.mae,
     };
   } catch (error) {
     console.error(

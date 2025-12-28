@@ -14,8 +14,8 @@ import type { DelayPredictionParams } from "./predictors/types";
 export type InitialPredictions = {
   DelayPred: number | undefined;
   DelayPredMae: number | undefined;
-  EtaPred: number | undefined;
-  EtaPredMae: number | undefined;
+  EtaPredArrive: number | undefined;
+  EtaPredArriveMae: number | undefined;
 };
 
 /**
@@ -69,7 +69,7 @@ export const calculateArrivalPredictions = async (
   return {
     DelayPred: delayResult.predictedTime, // Delay in minutes
     DelayPredMae: delayResult.mae,
-    EtaPred: etaResult.predictedTime, // ETA as absolute timestamp
-    EtaPredMae: etaResult.mae,
+    EtaPredArrive: etaResult.predictedTime, // ETA as absolute timestamp (arrive-based)
+    EtaPredArriveMae: etaResult.mae,
   };
 };
