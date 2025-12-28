@@ -3,11 +3,8 @@
 // ============================================================================
 
 import type { ActionCtx, MutationCtx } from "_generated/server";
-import { formatTerminalPairKey } from "../../shared/core/config";
-import type { FeatureRecord } from "../../shared/core/types";
-import { extractArriveDepartFeatures } from "../../shared/features/extractFeatures";
-import { loadModel } from "../../training/models/loadModel";
-import { applyLinearRegression } from "../predictLinearRegression";
+import { MODEL_TYPES } from "../../shared/core/modelTypes";
+import { featureExtractors, makePrediction } from "./shared";
 import type { DelayPredictionParams, PredictionResult } from "./types";
 
 /**
@@ -25,52 +22,28 @@ export const predictDelayOnArrival = async (
   ctx: ActionCtx | MutationCtx,
   params: DelayPredictionParams
 ): Promise<PredictionResult> => {
-  // Validation is now handled upstream in validatePredictionData
+  const features = featureExtractors.arrivalBased({
+    departingTerminal: params.departingTerminal,
+    arrivingTerminal: params.arrivingTerminal || "",
+    scheduledDeparture: params.scheduledDeparture,
+    prevDelay: params.previousDelay,
+    prevAtSeaDuration: params.previousAtSeaDuration,
+    tripStart: params.tripStart,
+  });
 
-  // Extract features
-  const terminalPairKey = formatTerminalPairKey(
-    params.departingTerminal,
-    params.arrivingTerminal || ""
-  );
-
-  let features: FeatureRecord;
-  try {
-    features = extractArriveDepartFeatures(
-      params.scheduledDeparture,
-      params.previousDelay,
-      params.previousAtSeaDuration,
-      params.tripStart,
-      terminalPairKey
-    );
-  } catch (error) {
-    console.error(
-      `[Prediction] Feature extraction failed for ${params.vesselAbbrev}: ${error}`
-    );
-    throw new Error(`Prediction failed: Feature extraction failed: ${error}`);
-  }
-
-  // Load model
-  const model = await loadModel(
+  // For delay prediction, we return the raw delay minutes (not a timestamp)
+  const result = await makePrediction(
     ctx,
+    MODEL_TYPES.ARRIVE_DEPART_DELAY,
     params.departingTerminal,
     params.arrivingTerminal || "",
-    "arrive-depart-delay"
+    features,
+    (delay) => ({ absoluteTime: delay, referenceTime: 0, minimumGap: 0 }) // Delay is not a timestamp
   );
 
-  if (!model) {
-    console.error(
-      `[Prediction] DelayPred failed for ${params.vesselAbbrev}: Model not found`
-    );
-    throw new Error(
-      `Prediction failed: Model not found for arrive-depart-delay`
-    );
-  }
-
-  // Make prediction (returns delay in minutes)
-  const predictedDelayMinutes = applyLinearRegression(model, features);
-
+  // Return delay as predictedTime (not a timestamp)
   return {
-    predictedTime: predictedDelayMinutes, // Delay in minutes (not a timestamp)
-    mae: model.trainingMetrics.mae,
+    predictedTime: result.predictedTime, // This is delay in minutes
+    mae: result.mae,
   };
 };

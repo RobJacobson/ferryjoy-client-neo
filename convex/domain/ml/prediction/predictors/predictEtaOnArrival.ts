@@ -6,16 +6,9 @@
 
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { formatTerminalPairKey } from "../../shared/core/config";
 import { MODEL_TYPES } from "../../shared/core/modelTypes";
-import { extractArriveDepartFeatures } from "../../shared/features/extractFeatures";
-import { combinedDurationToEtaPred } from "../predictLinearRegression";
-import { predict } from "./shared";
-import type {
-  NewTripContext,
-  PredictionConfig,
-  PredictionResult,
-} from "./types";
+import { featureExtractors, makePrediction, timeConverters } from "./shared";
+import type { PredictionResult } from "./types";
 
 /**
  * Predict ETA for a new trip using the arrive-arrive-total-duration model
@@ -34,47 +27,31 @@ export const predictEtaOnArrival = async (
   completedTrip: ConvexVesselTrip,
   newTrip: ConvexVesselTrip
 ): Promise<PredictionResult> => {
-  const _predictionContext: NewTripContext = {
-    completedTrip,
-    newTrip,
+  // Validate required data
+  if (
+    !completedTrip?.Delay ||
+    !completedTrip?.AtSeaDuration ||
+    !newTrip?.TripStart ||
+    !newTrip?.ScheduledDeparture
+  ) {
+    throw new Error("Insufficient data for ETA prediction on arrival");
+  }
+
+  const features = featureExtractors.arrivalBased({
     departingTerminal: newTrip.DepartingTerminalAbbrev,
     arrivingTerminal: newTrip.ArrivingTerminalAbbrev || "",
-  };
+    scheduledDeparture: newTrip.ScheduledDeparture,
+    prevDelay: completedTrip.Delay,
+    prevAtSeaDuration: completedTrip.AtSeaDuration,
+    tripStart: newTrip.TripStart,
+  });
 
-  const config: PredictionConfig<NewTripContext> = {
-    modelName: MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION,
-    skipPrediction: (_ctx) =>
-      !_ctx.completedTrip.Delay ||
-      !_ctx.completedTrip.AtSeaDuration ||
-      !_ctx.newTrip.TripStart ||
-      !_ctx.newTrip.ScheduledDeparture,
-    extractFeatures: (_ctx) => {
-      const terminalPairKey = formatTerminalPairKey(
-        _ctx.departingTerminal,
-        _ctx.arrivingTerminal
-      );
-      try {
-        const features = extractArriveDepartFeatures(
-          _ctx.newTrip.ScheduledDeparture!,
-          _ctx.completedTrip.Delay!,
-          _ctx.completedTrip.AtSeaDuration!,
-          _ctx.newTrip.TripStart!,
-          terminalPairKey
-        );
-        return { features };
-      } catch (error) {
-        return { features: {}, error: String(error) };
-      }
-    },
-    convertToAbsolute: (predictedDuration, ctx) => ({
-      absoluteTime: combinedDurationToEtaPred(
-        ctx.newTrip.TripStart!,
-        predictedDuration
-      ),
-      referenceTime: ctx.newTrip.TripStart!,
-      minimumGap: 2,
-    }),
-  };
-
-  return predict(ctx, config, _predictionContext);
+  return makePrediction(
+    ctx,
+    MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION,
+    newTrip.DepartingTerminalAbbrev,
+    newTrip.ArrivingTerminalAbbrev || "",
+    features,
+    (duration) => timeConverters.combinedToArrival(duration, newTrip.TripStart!)
+  );
 };

@@ -1,10 +1,19 @@
 // ============================================================================
 // TRAINING MODULE EXPORTS
+// Machine learning model training functionality
 // ============================================================================
 
-// Data processing
+/**
+ * Data processing utilities for converting raw WSF data to training records
+ */
 export * from "./data";
-// Model training and storage
+
+/**
+ * Model training, storage, and loading utilities
+ */
 export * from "./models";
-// Training pipeline
+
+/**
+ * Main training pipeline that orchestrates the complete ML training process
+ */
 export { runMLPipeline } from "./pipeline";

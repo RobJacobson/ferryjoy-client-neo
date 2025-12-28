@@ -38,14 +38,26 @@ export const calculateArrivalPredictions = async (
   completedTrip: ConvexVesselTrip,
   newTrip: ConvexVesselTrip
 ): Promise<InitialPredictions> => {
+  // Validate required data exists
+  if (
+    !newTrip.ScheduledDeparture ||
+    !newTrip.DepartingTerminalAbbrev ||
+    !newTrip.ArrivingTerminalAbbrev ||
+    !newTrip.TripStart ||
+    !completedTrip.Delay ||
+    !completedTrip.AtSeaDuration
+  ) {
+    throw new Error("Insufficient data for arrival predictions");
+  }
+
   // Construct prediction parameters for delay prediction
   const delayParams: DelayPredictionParams = {
-    scheduledDeparture: newTrip.ScheduledDeparture!,
-    departingTerminal: newTrip.DepartingTerminalAbbrev!,
-    arrivingTerminal: newTrip.ArrivingTerminalAbbrev!,
-    tripStart: newTrip.TripStart!,
-    previousDelay: completedTrip.Delay!,
-    previousAtSeaDuration: completedTrip.AtSeaDuration!,
+    scheduledDeparture: newTrip.ScheduledDeparture,
+    departingTerminal: newTrip.DepartingTerminalAbbrev,
+    arrivingTerminal: newTrip.ArrivingTerminalAbbrev,
+    tripStart: newTrip.TripStart,
+    previousDelay: completedTrip.Delay,
+    previousAtSeaDuration: completedTrip.AtSeaDuration,
     vesselAbbrev: newTrip.VesselAbbrev,
   };
 

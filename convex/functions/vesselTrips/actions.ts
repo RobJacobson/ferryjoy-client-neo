@@ -163,19 +163,6 @@ const handleTripUpdate = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip
 ) => {
-  // If the trip has not changed, do not update
-  if (
-    currLocation.ArrivingTerminalAbbrev ===
-      existingTrip.ArrivingTerminalAbbrev &&
-    currLocation.AtDock === existingTrip.AtDock &&
-    currLocation.Eta === existingTrip.Eta &&
-    currLocation.LeftDock === existingTrip.LeftDock &&
-    currLocation.ScheduledDeparture === existingTrip.ScheduledDeparture &&
-    currLocation.InService === existingTrip.InService
-  ) {
-    return;
-  }
-
   // Build the updated trip object with all current data
   const updatedTrip: ConvexVesselTrip = {
     ...existingTrip,
@@ -184,6 +171,8 @@ const handleTripUpdate = async (
     Eta: currLocation.Eta,
     LeftDock: currLocation.LeftDock,
     ScheduledDeparture: currLocation.ScheduledDeparture,
+    TimeStamp: currLocation.TimeStamp,
+    InService: currLocation.InService,
     Delay: calculateTimeDelta(
       currLocation.ScheduledDeparture,
       currLocation.LeftDock
@@ -192,19 +181,32 @@ const handleTripUpdate = async (
       existingTrip.TripStart,
       currLocation.LeftDock
     ),
-    TimeStamp: currLocation.TimeStamp,
-    InService: currLocation.InService,
   };
 
+  // If the trip has not changed, do not update
+  if (
+    updatedTrip.ArrivingTerminalAbbrev ===
+      existingTrip.ArrivingTerminalAbbrev &&
+    updatedTrip.AtDock === existingTrip.AtDock &&
+    updatedTrip.Eta === existingTrip.Eta &&
+    updatedTrip.LeftDock === existingTrip.LeftDock &&
+    updatedTrip.ScheduledDeparture === existingTrip.ScheduledDeparture &&
+    updatedTrip.InService === existingTrip.InService &&
+    updatedTrip.Delay === existingTrip.Delay &&
+    updatedTrip.AtDockDuration === existingTrip.AtDockDuration
+  ) {
+    return;
+  }
+
   // If the delay prediction is missing and the trip has all required data, predict the left dock
-  const predictions =
+  const delayPredictions =
     updatedTrip.DelayPred === undefined && isPredictionReady(updatedTrip)
       ? await generateDelayPredictions(ctx, updatedTrip)
       : {};
 
   // If vessel just departed (AtDock changed from true to false), update ETA prediction with actual at-dock duration
-  const departurePredictions =
-    existingTrip.AtDock === true &&
+  const departureEtaPredictions =
+    updatedTrip.EtaPred === undefined &&
     currLocation.AtDock === false &&
     currLocation.LeftDock !== undefined
       ? await generateDepartureEtaPredictions(ctx, updatedTrip, currLocation)
@@ -213,8 +215,8 @@ const handleTripUpdate = async (
   // Combine the updated trip with the predictions
   const updatedTripWithPredictions = {
     ...updatedTrip,
-    ...predictions,
-    ...departurePredictions,
+    ...delayPredictions,
+    ...departureEtaPredictions,
   };
 
   console.log("Updated trip:", updatedTripWithPredictions);

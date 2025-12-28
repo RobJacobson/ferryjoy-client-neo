@@ -4,24 +4,6 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { ModelType } from "../../shared/core/modelTypes";
-import type { FeatureRecord } from "../../shared/core/types";
-
-/**
- * Generic prediction configuration
- */
-export type PredictionConfig<TContext> = {
-  modelName: ModelType;
-  skipPrediction: (ctx: TContext) => boolean;
-  extractFeatures: (ctx: TContext) => {
-    features: FeatureRecord;
-    error?: string;
-  };
-  convertToAbsolute: (
-    predictedDuration: number,
-    ctx: TContext
-  ) => { absoluteTime: number; referenceTime: number; minimumGap?: number };
-};
 
 /**
  * Prediction result
@@ -29,14 +11,6 @@ export type PredictionConfig<TContext> = {
 export type PredictionResult = {
   predictedTime?: number;
   mae?: number;
-};
-
-/**
- * Common terminal properties for all prediction contexts
- */
-export type TerminalContext = {
-  departingTerminal: string;
-  arrivingTerminal: string;
 };
 
 /**
@@ -55,7 +29,9 @@ export type DelayPredictionParams = {
 /**
  * Context for predictions when a new trip starts
  */
-export type NewTripContext = TerminalContext & {
+export type NewTripContext = {
+  departingTerminal: string;
+  arrivingTerminal: string;
   completedTrip: ConvexVesselTrip;
   newTrip: ConvexVesselTrip;
 };
@@ -63,7 +39,9 @@ export type NewTripContext = TerminalContext & {
 /**
  * Context for ETA prediction when vessel leaves dock
  */
-export type DepartureContext = TerminalContext & {
+export type DepartureContext = {
+  departingTerminal: string;
+  arrivingTerminal: string;
   currentTrip: ConvexVesselTrip;
   currentLocation: ConvexVesselLocation;
 };

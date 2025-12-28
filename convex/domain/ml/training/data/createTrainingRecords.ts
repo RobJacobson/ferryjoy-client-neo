@@ -6,13 +6,7 @@
 
 import { getMinutesDelta, getPacificTime } from "shared/time";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import {
-  MAX_DURATION_THRESHOLDS,
-  MEAN_AT_DOCK_DURATION,
-  MIN_DURATION_THRESHOLDS,
-  TERMINAL_NAME_MAPPING,
-  VALID_PASSENGER_TERMINALS,
-} from "../../shared/core/config";
+import { getConfig } from "../../shared/core/config";
 import type { TrainingDataRecord } from "../../shared/core/types";
 import { extractTimeFeatures } from "../../shared/features/timeFeatures";
 
@@ -159,13 +153,13 @@ const processTripPair = (
  * @returns Standardized terminal abbreviation or undefined if not found
  */
 const getTerminalAbbrev = (terminalName: string): string | undefined => {
-  const abbrev = TERMINAL_NAME_MAPPING[terminalName];
+  const abbrev = getConfig.getTerminalAbbrev(terminalName);
 
-  if (!abbrev && terminalName.trim() !== "") {
+  if (!abbrev && terminalName.trim() !== "" && abbrev !== terminalName) {
     console.warn(`Terminal name not found in mapping: ${terminalName}`);
   }
 
-  return abbrev;
+  return abbrev === terminalName ? undefined : abbrev;
 };
 
 /**
@@ -230,9 +224,9 @@ const getTerminalAbbrevs = (
  */
 const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
   return (
-    VALID_PASSENGER_TERMINALS.has(abbrevs.departing) &&
-    VALID_PASSENGER_TERMINALS.has(abbrevs.arriving) &&
-    VALID_PASSENGER_TERMINALS.has(abbrevs.previousArriving)
+    getConfig.isValidTerminal(abbrevs.departing) &&
+    getConfig.isValidTerminal(abbrevs.arriving) &&
+    getConfig.isValidTerminal(abbrevs.previousArriving)
   );
 };
 
@@ -303,7 +297,7 @@ const calculateTripDurations = (
 
   const arriveBeforeMinutes =
     (curr.ScheduledDepart!.getTime() - curr.EstArrival!.getTime()) / 60000;
-  const meanAtDockDuration = MEAN_AT_DOCK_DURATION[terminalPairKey] || 0;
+  const meanAtDockDuration = getConfig.getMeanDockDuration(terminalPairKey);
   const arriveEarlyMinutes = meanAtDockDuration - arriveBeforeMinutes;
 
   return {
@@ -327,21 +321,21 @@ const calculateTripDurations = (
  * @returns True if all durations are within valid thresholds
  */
 const areDurationsValid = (calc: TripCalculations): boolean => {
-  if (calc.currAtSeaDuration < MIN_DURATION_THRESHOLDS.AT_SEA) {
+  if (calc.currAtSeaDuration < getConfig.getMinAtSeaDuration()) {
     return false; // Skip records where vessel was at sea for less than 2 minutes
   }
-  if (calc.currAtDockDuration < MIN_DURATION_THRESHOLDS.AT_DOCK) {
+  if (calc.currAtDockDuration < getConfig.getMinAtDockDuration()) {
     return false; // Skip records where vessel was at dock for less than 2 minutes
   }
-  if (calc.currAtDockDuration > MAX_DURATION_THRESHOLDS.AT_DOCK) {
+  if (calc.currAtDockDuration > getConfig.getMaxAtDockDuration()) {
     return false; // Skip records with overnight layovers or extended maintenance (>3 hours at dock)
   }
-  if (calc.currAtSeaDuration > MAX_DURATION_THRESHOLDS.AT_SEA) {
+  if (calc.currAtSeaDuration > getConfig.getMaxAtSeaDuration()) {
     return false; // Skip records with data errors (>24 hours at sea)
   }
   // Filter arrive-arrive outliers (total time from arrival to next arrival)
   const arriveArriveTotal = calc.currAtDockDuration + calc.currAtSeaDuration;
-  if (arriveArriveTotal > MAX_DURATION_THRESHOLDS.ARRIVE_ARRIVE_TOTAL) {
+  if (arriveArriveTotal > getConfig.getMaxTotalDuration()) {
     return false; // Skip records with extreme arrive-arrive durations (>2 hours total)
   }
 

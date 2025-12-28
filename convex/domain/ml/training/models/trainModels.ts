@@ -16,55 +16,77 @@ import type {
 import { roundTinyValues } from "../../shared/features/timeFeatures";
 
 /**
- * Create training examples for a specific model type
+ * Create training examples for a specific model type from raw training records
+ *
+ * Converts TrainingDataRecord objects into TrainingExample format by:
+ * 1. Transforming records into unified parameter format
+ * 2. Extracting features using the same logic as prediction
+ * 3. Determining target values based on model type
+ *
+ * @param records - Array of training data records for this terminal pair
+ * @param modelType - Type of model to create examples for
+ * @returns Array of training examples with input features and target values
  */
 const createTrainingExamples = (
   records: TrainingDataRecord[],
-  modelType: string
+  modelType: ModelType
 ): TrainingExample[] => {
-  // Import here to avoid circular dependencies
-  const {
-    extractArriveDepartAtDockFeatures,
-    extractDepartArriveAtSeaFeatures,
-    extractArriveArriveTotalFeatures,
-    extractArriveDepartDelayFeatures,
-  } = require("../../shared/features/extractFeatures");
+  const { extractFeatures } = require("../../shared/features/extractFeatures");
 
   return records.map((record) => {
-    let features: Record<string, number>;
+    // Convert TrainingDataRecord to unified feature extraction format
+    const params = {
+      scheduledDeparture: record.schedDepartureTimestamp,
+      prevDelay: record.prevDelay,
+      prevAtSeaDuration: record.prevAtSeaDuration,
+      currAtDockDuration: record.currAtDockDuration,
+      currAtSeaDuration: record.currAtSeaDuration,
+      arriveBeforeMinutes: record.arriveBeforeMinutes,
+    };
 
+    // Extract features using same logic as prediction (ensures consistency)
+    const features = extractFeatures(modelType, params);
+
+    // Determine target value based on model type (what we're trying to predict)
+    let target: number;
     switch (modelType) {
       case MODEL_TYPES.ARRIVE_DEPART_ATDOCK_DURATION:
-        features = extractArriveDepartAtDockFeatures(record);
-        return { input: features, target: record.currAtDockDuration };
-
+        target = record.currAtDockDuration; // How long vessel stays at dock
+        break;
       case MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION:
-        features = extractDepartArriveAtSeaFeatures(
-          record.schedDepartureTimestamp,
-          record.currAtDockDuration,
-          record.currDelay
-        );
-        return { input: features, target: record.currAtSeaDuration };
-
+        target = record.currAtSeaDuration; // How long vessel spends at sea
+        break;
       case MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION:
-        features = extractArriveArriveTotalFeatures(record);
-        return {
-          input: features,
-          target: record.currAtDockDuration + record.currAtSeaDuration,
-        };
-
+        target = record.currAtDockDuration + record.currAtSeaDuration; // Total trip time
+        break;
       case MODEL_TYPES.ARRIVE_DEPART_DELAY:
-        features = extractArriveDepartDelayFeatures(record);
-        return { input: features, target: record.currDelay };
-
+        target = record.currDelay; // Departure delay in minutes
+        break;
+      case MODEL_TYPES.DEPART_DEPART_TOTAL_DURATION:
+        // Time between consecutive departures (simplified)
+        target = record.prevAtSeaDuration + record.currAtDockDuration;
+        break;
       default:
         throw new Error(`Unknown model type: ${modelType}`);
     }
+
+    return {
+      input: features,
+      target,
+    };
   });
 };
 
 /**
- * Train a single model for a terminal pair and model type
+ * Train a single linear regression model for a terminal pair and model type
+ *
+ * This function creates training examples, trains a multivariate linear regression model,
+ * and returns the trained model parameters with performance metrics.
+ *
+ * @param bucket - Terminal pair bucket containing training records
+ * @param modelType - Type of prediction model to train
+ * @returns Trained model parameters with coefficients, intercept, and metrics
+ * @throws Error if no training examples available or training fails
  */
 export const trainModel = (
   bucket: TerminalPairBucket,
@@ -76,18 +98,20 @@ export const trainModel = (
     throw new Error(`No training examples for ${modelType}`);
   }
 
-  // Extract features and targets
+  // Extract feature matrix X and target vector y
   const X = examples.map((ex) => Object.values(ex.input) as number[]);
   const y = examples.map((ex) => ex.target);
 
-  // Train linear regression model (MLR expects y as 2D array)
+  // Train multivariate linear regression model
+  // MLR library expects y as 2D array (n_samples x 1)
   const y2d = y.map((val) => [val]);
   const mlr = new MLR(X, y2d);
 
-  // Extract coefficients and intercept from weights (MLR returns 2D array)
+  // Extract model weights: coefficients for each feature plus intercept
+  // MLR returns weights as 2D array: [coefficients..., intercept]
   const weights = mlr.weights as number[][];
   const coefficients = weights
-    .slice(0, -1)
+    .slice(0, -1) // All but last element are feature coefficients
     .map((row) =>
       roundTinyValues(
         row[0],
@@ -95,7 +119,7 @@ export const trainModel = (
       )
     );
   const intercept = roundTinyValues(
-    weights[weights.length - 1][0],
+    weights[weights.length - 1][0], // Last element is intercept
     PIPELINE_CONFIG.COEFFICIENT_ROUNDING_ZERO_THRESHOLD
   );
 
@@ -121,7 +145,14 @@ export const trainModel = (
 };
 
 /**
- * Calculate Mean Absolute Error
+ * Calculate Mean Absolute Error (MAE) - average absolute prediction error
+ *
+ * MAE measures the average magnitude of prediction errors without considering direction.
+ * Lower values indicate better model performance. Measured in the same units as targets.
+ *
+ * @param actual - Array of actual target values
+ * @param predicted - Array of predicted values from the model
+ * @returns Mean absolute error
  */
 const calculateMAE = (actual: number[], predicted: number[]): number => {
   return (
@@ -131,7 +162,14 @@ const calculateMAE = (actual: number[], predicted: number[]): number => {
 };
 
 /**
- * Calculate Root Mean Squared Error
+ * Calculate Root Mean Squared Error (RMSE) - square root of average squared errors
+ *
+ * RMSE gives higher weight to larger errors compared to MAE. It's in the same units
+ * as the target variable and provides a measure of prediction accuracy.
+ *
+ * @param actual - Array of actual target values
+ * @param predicted - Array of predicted values from the model
+ * @returns Root mean squared error
  */
 const calculateRMSE = (actual: number[], predicted: number[]): number => {
   const mse =
@@ -141,7 +179,15 @@ const calculateRMSE = (actual: number[], predicted: number[]): number => {
 };
 
 /**
- * Calculate R² (coefficient of determination)
+ * Calculate R² (coefficient of determination) - proportion of variance explained
+ *
+ * R² measures how well the model explains the variability in the target.
+ * Values range from 0 to 1, where 1 indicates perfect predictions and 0 indicates
+ * the model performs no better than predicting the mean.
+ *
+ * @param actual - Array of actual target values
+ * @param predicted - Array of predicted values from the model
+ * @returns R-squared value between 0 and 1
  */
 const calculateR2 = (actual: number[], predicted: number[]): number => {
   const n = actual.length;
@@ -158,7 +204,14 @@ const calculateR2 = (actual: number[], predicted: number[]): number => {
 };
 
 /**
- * Make prediction with model coefficients
+ * Make a prediction using trained linear regression model parameters
+ *
+ * Applies the linear regression equation: y = intercept + Σ(coefficient_i × feature_i)
+ *
+ * @param features - Array of feature values in same order as training
+ * @param coefficients - Trained coefficients for each feature
+ * @param intercept - Trained intercept (bias) term
+ * @returns Predicted target value
  */
 const predictWithModel = (
   features: number[],

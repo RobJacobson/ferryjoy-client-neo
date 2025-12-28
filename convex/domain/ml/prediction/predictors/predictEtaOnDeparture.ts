@@ -8,14 +8,8 @@ import type { ActionCtx, MutationCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { MODEL_TYPES } from "../../shared/core/modelTypes";
-import { extractDepartArriveAtSeaFeatures } from "../../shared/features/extractFeatures";
-import { atSeaDurationToEtaPred } from "../predictLinearRegression";
-import { predict } from "./shared";
-import type {
-  DepartureContext,
-  PredictionConfig,
-  PredictionResult,
-} from "./types";
+import { featureExtractors, makePrediction, timeConverters } from "./shared";
+import type { PredictionResult } from "./types";
 
 /**
  * Update ETA prediction when vessel departs from dock
@@ -34,41 +28,29 @@ export const predictEtaOnDeparture = async (
   currentTrip: ConvexVesselTrip,
   currentLocation: ConvexVesselLocation
 ): Promise<PredictionResult> => {
-  const _predictionContext: DepartureContext = {
-    currentTrip,
-    currentLocation,
-    departingTerminal: currentTrip.DepartingTerminalAbbrev,
-    arrivingTerminal: currentTrip.ArrivingTerminalAbbrev || "",
-  };
+  // Validate required data
+  if (
+    !currentLocation?.LeftDock ||
+    !currentTrip?.AtDockDuration ||
+    !currentTrip?.Delay ||
+    !currentTrip?.ScheduledDeparture
+  ) {
+    throw new Error("Insufficient data for ETA prediction on departure");
+  }
 
-  const config: PredictionConfig<DepartureContext> = {
-    modelName: MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION,
-    skipPrediction: (ctx) =>
-      !ctx.currentLocation.LeftDock ||
-      !ctx.currentTrip.AtDockDuration ||
-      !ctx.currentTrip.Delay ||
-      !ctx.currentTrip.ScheduledDeparture,
-    extractFeatures: (ctx) => {
-      try {
-        const features = extractDepartArriveAtSeaFeatures(
-          ctx.currentTrip.ScheduledDeparture,
-          ctx.currentTrip.AtDockDuration,
-          ctx.currentTrip.Delay
-        );
-        return { features };
-      } catch (error) {
-        return { features: {}, error: String(error) };
-      }
-    },
-    convertToAbsolute: (predictedDuration, _ctx) => ({
-      absoluteTime: atSeaDurationToEtaPred(
-        _ctx.currentLocation.LeftDock!,
-        predictedDuration
-      ),
-      referenceTime: _ctx.currentLocation.LeftDock!,
-      minimumGap: 2,
-    }),
-  };
+  const features = featureExtractors.departureBased({
+    scheduledDeparture: currentTrip.ScheduledDeparture,
+    atDockDuration: currentTrip.AtDockDuration,
+    delay: currentTrip.Delay,
+  });
 
-  return predict(ctx, config, _predictionContext);
+  return makePrediction(
+    ctx,
+    MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION,
+    currentTrip.DepartingTerminalAbbrev,
+    currentTrip.ArrivingTerminalAbbrev || "",
+    features,
+    (duration) =>
+      timeConverters.atSeaToArrival(duration, currentLocation.LeftDock!)
+  );
 };

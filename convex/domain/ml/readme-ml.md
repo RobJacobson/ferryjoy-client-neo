@@ -1,117 +1,102 @@
 # Ferry Vessel Duration Prediction System
 
-A machine learning system that predicts ferry vessel docking and sailing durations using terminal-pair specific models. The system uses multivariate linear regression to provide real-time predictions for vessel arrival and departure times across Washington State Ferry routes.
+A machine learning system that predicts ferry vessel docking and sailing durations using terminal-pair specific models. The system uses multivariate linear regression trained on historical Washington State Ferry data to provide real-time predictions for vessel arrival and departure times.
 
 ## What This System Does
 
-**Predicts four critical timing metrics for ferry vessels:**
+**Predicts five critical timing metrics for ferry vessels:**
 
-1. **Arrive-Depart-At-Dock-Duration**: At-dock duration at B given arrival at B (time vessel stays at dock)
-2. **Depart-Arrive-At-Sea-Duration**: At-sea duration from B to C given departure from B
-3. **Arrive-Arrive-Total-Duration**: Total time from arrival at B to arrival at C (without knowing departure time from B)
-4. **Depart-Depart-Total-Duration**: Sum of at-sea duration from A to B plus at-dock duration at B given departure from A and scheduled departure from B
+1. **Arrive-Depart-At-Dock-Duration**: Predicts how long a vessel will stay at dock after arrival
+2. **Depart-Arrive-At-Sea-Duration**: Predicts how long a vessel will spend at sea after departure
+3. **Arrive-Arrive-Total-Duration**: Predicts total time from dock arrival to next terminal arrival
+4. **Arrive-Depart-Delay**: Predicts departure delay after vessel arrives at terminal
+5. **Depart-Depart-Total-Duration**: Predicts time between consecutive departures (simplified model)
 
-**Key advantage**: Terminal-pair specific models trained on complete historical datasets provide accurate, route-aware predictions for passenger planning and operational decision-making.
+**Key advantage**: Terminal-pair specific models trained on historical vessel tracking data provide accurate, route-aware predictions for passenger planning and operational decision-making.
 
 **Key Features:**
 - **Terminal-Pair Specific**: Separate models for each departure→arrival terminal combination
 - **Real-Time Predictions**: Sub-millisecond inference for live vessel tracking
-- **WSF API Training**: Automated daily retraining with fresh data (720 days back)
-- **Quality Assurance**: Basic data validation and temporal consistency checks
-- **Simplified Design**: Essential functionality without over-engineering
+- **Automated Training**: Daily retraining pipeline using fresh WSF API data
+- **Type-Safe**: Full TypeScript implementation with comprehensive error handling
+- **Quality Assurance**: Extensive data validation and temporal consistency checks
 
 ## Training Pipeline
 
-The ML system processes ferry trip data through a streamlined 6-step pipeline:
+The ML system processes ferry trip data through a streamlined 6-step pipeline that runs daily to keep models fresh with current vessel patterns.
 
-### Step 1: Load Raw WSF Records (`step_1_loadWsfTrainingData.ts`)
+### Step 1: Load Raw WSF Records
 ```typescript
 // Fetches vessel histories from WSF backend API
-// Configurable date range (default: 365 days back)
-// Returns: Array of raw WSF API records
+// Configurable date range (default: 720 days back)
+// Returns: Array of raw WSF API VesselHistory records
 ```
+**Purpose**: Loads fresh vessel tracking data from the Washington State Ferry API to ensure models reflect current operational patterns.
 
-### Step 2: Convert to Training Records (`step_2_convertWsfToTraining.ts`)
+### Step 2: Convert to Training Records
 ```typescript
 // Convert raw WSF API records to TrainingDataRecord format:
-// - Map terminal names to abbreviations
-// - Filter by valid passenger terminals
-// - Basic data completeness validation
-// - Calculate departure delays and at-sea durations
-// Returns: Array of TrainingDataRecord
+// - Group records by vessel for chronological processing
+// - Process consecutive trip pairs into training examples
+// - Calculate delays, durations, and temporal features
+// - Extensive validation and quality filtering
+// Returns: Array of TrainingDataRecord objects
 ```
+**Purpose**: Transforms raw API data into structured training records. Groups vessel trips chronologically and creates training examples from consecutive trip pairs with computed features like delays and durations.
 
-### Step 3: Bucket by Terminal Pairs (`step_3_bucketByTerminalPairs.ts`)
+### Step 3: Create Terminal Pair Buckets
 ```typescript
-// Dynamic grouping by terminal pairs:
+// Group training records by terminal pairs:
 // - Discover all valid terminal combinations from data
-// - Calculate basic bucket statistics:
-//   * totalRecords: Records before filtering
-//   * filteredRecords: Records after quality filters
-//   * meanDepartureDelay: Average departure delay (minutes)
-//   * meanAtSeaDuration: Average sea time
+// - Apply sampling limits per route (default: 2500 records max)
+// - Calculate bucket statistics and quality metrics
+// Returns: Array of TerminalPairBucket objects
 ```
+**Purpose**: Organizes training data by terminal pairs (e.g., "MUK_CLI") and applies sampling to manage dataset size while maintaining representative coverage.
 
-### Step 4: Create Training Data (`step_4_createTrainingData.ts`)
+### Step 4: Train Models for All Buckets
 ```typescript
-// Feature engineering and training example creation:
-// Comprehensive feature extraction for ML models:
-// Base features (5 total):
-// - running_late: Binary flag (1/0)
-// - running_late_min: Minutes late (0+)
-// - running_early_min: Minutes early (capped at 10)
-// - is_weekend: Boolean weekend flag (1/0)
-// - prev_delay: Previous vessel delay (minutes)
-// - delay_minutes: Departure delay (arrival models only)
-//
-// Time-of-day features (8 centers every 3 hours):
-// - time_center_0 through time_center_7: Gaussian radial basis functions
-//   for smooth time-of-day modeling (peaks at 2,5,8,11,14,17,20,23 hours)
-//
-// Total: 13 features for arrive-depart and arrive-arrive models, 14 for depart-arrive models, ~11 for depart-depart models
-// Creates training examples with features and targets for all four model types
+// Train linear regression models for each terminal pair:
+// - Creates training examples with feature extraction
+// - Trains multivariate linear regression for each model type
+// - Calculates performance metrics (MAE, RMSE, R²)
+// - Handles training failures gracefully
+// Returns: Array of trained ModelParameters
 ```
+**Purpose**: Trains separate linear regression models for each terminal pair and prediction type using the same feature extraction logic as prediction.
 
-### Step 5: Train Bucket Models (`step_5_trainBuckets.ts`)
+### Step 5: Store Trained Models
 ```typescript
-// Train separate models for each terminal pair:
-// - Arrive-depart model: Predict atDockDuration (13 features)
-// - Depart-arrive model: Predict atSeaDuration (14 features)
-// - Arrive-arrive model: Predict atDockDuration + atSeaDuration (13 features)
-// - Depart-depart model: Predict atSeaDuration + atDockDuration (11 features, simplified)
-// - Uses multivariate linear regression (MLR)
-// - Includes holdout evaluation (80/20 time-split) for validation
-// - Essential training metrics (MAE, RMSE, R²)
-// - Consolidated: training, metrics calculation, and holdout evaluation
+// Persist models to Convex database:
+// - Model coefficients and intercept values
+// - Training performance metrics
+// - Bucket statistics and metadata
+// - Graceful handling of storage failures
 ```
+**Purpose**: Saves trained models to the database for use in production predictions, replacing any existing models for the same terminal pairs.
 
-### Step 6: Store Results (`step_6_storeResults.ts`)
+### Step 6: Analyze Data Quality
 ```typescript
-// Database storage with essential metadata:
-// - Model coefficients and intercept
-// - Training metrics (MAE, RMSE, R²)
-// - Bucket statistics (total/filtered records)
-// - Graceful handling of missing models
+// Calculate training data quality metrics:
+// - Total records processed
+// - Completeness scores (placeholder for future enhancement)
+// - Temporal validation (placeholder for future enhancement)
+// Returns: DataQualityMetrics object
 ```
+**Purpose**: Provides basic data quality analysis and summary statistics about the training run.
 
 ## Data Sources
 
-The pipeline supports two data source options, selectable when running training:
+The system currently uses WSF API data for training, loaded through the `loadWsfTrainingData()` function which fetches vessel tracking data directly from the Washington State Ferry backend API.
 
-### WSF API (Default)
-- **Source**: Direct fetch from WSF backend API using ws-dottie library
-- **Advantages**: Fresh data without database dependency, configurable date range
-- **Use Case**: Regular automated training, real-time relevance
-- **Data Range**: Configurable (default: 720 days back) for all vessels
-- **Configuration**: Set `PIPELINE_CONFIG.DAYS_BACK` in `pipeline/shared/config.ts` (default: 720 days)
+### WSF API (Primary Source)
+- **Source**: Direct fetch from WSF backend API
+- **Data Range**: Configurable date range (default: 720 days back)
+- **Advantages**: Fresh data reflecting current operational patterns
+- **Processing**: Raw vessel histories converted to structured training records
+- **Validation**: Extensive quality checks and temporal consistency validation
 
-### Convex Database (Alternative)
-- **Source**: Stored historical trip data in Convex database
-- **Advantages**: Fast access, no API rate limits, comprehensive historical coverage
-- **Use Case**: Offline analysis, complete historical dataset access
-- **Data Range**: All available historical records (10K+ trips)
-
-Both sources produce the same `TrainingDataRecord[]` format, ensuring compatibility with the rest of the pipeline.
+The training pipeline processes this data into `TrainingDataRecord` objects that contain all necessary features for model training.
 
 ## How to Use
 
@@ -195,163 +180,70 @@ npm run train:compare training-results-with-feature.csv training-results-without
 
 ## Prediction Pipeline
 
-The prediction system uses trained ML models to provide real-time vessel departure and arrival time predictions. Predictions are automatically calculated when vessel state changes and stored with active vessel trips.
+The prediction system uses trained ML models to provide real-time vessel timing predictions. Predictions are calculated using the same feature extraction and linear regression logic as training.
 
-### What Predictions Are Made
+### Prediction Models
 
-**Initial Predictions (when vessel arrives at dock and new trip starts):**
+The system provides three main prediction functions:
 
-1. **LeftDockPred** - Predicted departure time (absolute timestamp)
-   - Uses `arrive-depart-late` model
-   - Predicts departure delay based on previous trip's performance
-   - MAE margin provided as `LeftDockPredMae` (rounded to 0.01 minutes)
+#### 1. `predictDelayOnArrival` - Arrival-based delay prediction
+- **Model**: `arrive-depart-delay`
+- **Purpose**: Predicts departure delay when vessel arrives at terminal
+- **Input**: Previous trip context, scheduled departure, trip start time
+- **Output**: Delay in minutes (can be negative for early departures)
+- **Use Case**: Called when vessel arrives at dock, predicts how long before actual departure
 
-2. **EtaPred** - Predicted arrival time (absolute timestamp)
-   - Uses `arrive-arrive` model
-   - Predicts total trip duration from arrival at dock to arrival at destination
-   - MAE margin provided as `EtaPredMae` (rounded to 0.01 minutes)
+#### 2. `predictEtaOnArrival` - Arrival-based ETA prediction
+- **Model**: `arrive-arrive-total-duration`
+- **Purpose**: Predicts total trip duration from arrival to next arrival
+- **Input**: Completed trip + new trip context
+- **Output**: ETA as absolute timestamp
+- **Use Case**: Initial ETA prediction when new trip starts
 
-**Updated Prediction (when vessel leaves dock):**
-
-3. **EtaPred Update** - More accurate arrival time
-   - Uses `depart-arrive` model
-   - Updates ETA based on actual at-dock duration
-   - Replaces initial `EtaPred` with refined prediction
+#### 3. `predictEtaOnDeparture` - Departure-based ETA prediction
+- **Model**: `depart-arrive-atsea-duration`
+- **Purpose**: Predicts at-sea duration after vessel departs
+- **Input**: Current trip with actual departure time and at-dock duration
+- **Output**: Refined ETA as absolute timestamp
+- **Use Case**: Updates ETA with actual departure information
 
 ### Prediction Flow
 
-```
-Vessel Arrives at Dock                          Vessel Leaves Dock
-        ↓                        x                       ↓
-1. Complete previous trip                        1. Detect departure
-2. Create new trip record                        2. Calculate atDockDuration
-3. Run initial predictions:                      3. Update ETA prediction
-   - predictLeftDock()                        (depart-arrive model)
-   - predictEta()
-        ↓                                               ↓
-4. Store predictions with new trip               4. Update active trip with new EtaPred
-   - LeftDockPred (absolute timestamp)
-   - LeftDockPredMae (margin)
-   - EtaPred (absolute timestamp)
-   - EtaPredMae (margin)
-```
-
-### Prediction Pipeline Architecture
-
-**File Structure:**
-```
-convex/domain/ml/prediction/
-├── step_1_extractFeatures.ts           # Feature extraction utilities
-├── step_2_loadModel.ts                # Model loading from database
-├── step_3_makePrediction.ts           # Prediction calculation utilities
-├── step_4_calculateInitialPredictions.ts  # Initial predictions orchestrator
-├── predictors/
-│   └── index.ts                       # Generic predictor with strategy pattern
-└── index.ts                           # Public exports
-```
-
-**Pipeline Steps:**
-
-#### Step 1: Extract Features (`step_1_extractFeatures.ts`)
-
-Extracts features from vessel trip data for ML model input:
-
-- **Time-Based Features** (`extractTimeBasedFeatures`):
-  - Time-of-day features (8 Gaussian radial basis functions centered at 2,5,8,11,14,17,20,23 hours)
-  - Weekend flag (1/0)
-
-- **Arrive-Before Features** (`extractArriveBeforeFeatures`):
-  - Time between arrival and scheduled departure
-  - How early the vessel arrived (relative to mean at-dock duration)
-
-- **Arrive-Depart-At-Dock-Duration Features** (`extractArriveDepartFeatures`):
-  - All time-based features
-  - Previous trip's delay
-  - Previous trip's at-sea duration
-  - Time vessel arrived before scheduled departure
-
-- **Depart-Arrive-At-Sea-Duration Features** (`extractDepartArriveFeatures`):
-  - All time-based features
-  - Actual at-dock duration
-  - Departure delay
-
-#### Step 2: Load Model (`step_2_loadModel.ts`)
-
-Loads trained model parameters from the Convex `modelParameters` table:
-
 ```typescript
-const model = await loadModel(
-  ctx,
-  departingTerminal,      // e.g., "MUK"
-  arrivingTerminal,       // e.g., "CLI"
-  modelType               // e.g., "arrive-depart-late"
-);
+// When vessel arrives at dock and new trip starts:
+const predictions = await calculateArrivalPredictions(ctx, completedTrip, newTrip);
+// Result: { DelayPred, DelayPredMae, EtaPred, EtaPredMae }
+
+// When vessel departs from dock:
+const updatedEta = await predictEtaOnDeparture(ctx, currentTrip, currentLocation);
+// Result: { predictedTime, mae }
 ```
 
-**Validation:**
-- Checks model exists in database
-- Validates model has required `coefficients` and `intercept`
-- Returns `null` with warning if model is missing or invalid
+### Core Prediction Logic
 
-#### Step 3: Make Prediction (`step_3_makePrediction.ts`)
+All predictions follow the same pipeline:
 
-Applies linear regression model to features and converts to absolute timestamps:
+1. **Feature Extraction**: Convert trip data to numerical features using `extractFeatures()`
+2. **Model Loading**: Retrieve trained model parameters from database using `loadModel()`
+3. **Linear Regression**: Apply `y = intercept + Σ(coefficient_i × feature_i)`
+4. **Time Conversion**: Convert duration predictions to absolute timestamps
+5. **Validation**: Clamp predictions to reasonable bounds and round MAE values
 
-- **`applyLinearRegression`** - Calculates prediction: `y = intercept + Σ(coefficient × feature)`
-- **`delayToLeftDockPred`** - Converts predicted delay (minutes) to absolute left dock time
-- **`combinedDurationToEtaPred`** - Converts predicted combined duration to absolute ETA
-- **`atSeaDurationToEtaPred`** - Converts predicted at-sea duration to absolute ETA
-- **`roundMae`** - Rounds MAE to nearest 0.01 minute (0.6 seconds)
-- **`validatePredictionTime`** - Clamps predictions to minimum valid time (default: 2 minutes after reference)
+### Feature Engineering
 
-#### Step 4: Calculate Initial Predictions (`step_4_calculateInitialPredictions.ts`)
+Predictions use the same feature extraction as training:
 
-Orchestrates initial predictions when a new trip starts:
+- **Time Features**: Cyclical encoding for hour-of-day and day-of-year
+- **Historical Context**: Previous trip delays and durations
+- **Temporal Features**: Arrival timing relative to schedule
+- **Terminal Context**: Route-specific patterns captured in model coefficients
 
-```typescript
-const predictions = await calculateInitialPredictions(
-  ctx,
-  completedTrip,    // Trip that just completed
-  newTrip          // Trip that just started
-);
-// Returns: { LeftDockPred, LeftDockPredMae, EtaPred, EtaPredMae }
-```
+### Error Handling
 
-**Key Features:**
-- Runs `predictLeftDock` and `predictEta` in parallel for efficiency
-- Returns predictions with MAE margins
-- All predictions are absolute timestamps (milliseconds)
-
-### Predictors (Strategy Pattern)
-
-The predictors module (`prediction/predictors/index.ts`) provides a generic prediction orchestrator that reduces code duplication:
-
-**Generic `predict()` Function:**
-```typescript
-const predict = async (ctx, config) => {
-  // 1. Check if prediction should be skipped
-  // 2. Extract features
-  // 3. Load model from database
-  // 4. Apply linear regression
-  // 5. Convert to absolute time
-  // 6. Validate and clamp prediction
-  // 7. Round MAE
-};
-```
-
-**Implemented Predictors:**
-
-1. **`predictLeftDock`** - Uses `arrive-depart-late` model
-   - Predicts departure time when new trip starts
-   - Context: Completed trip + new trip
-
-2. **`predictEta`** - Uses `arrive-arrive` model
-   - Predicts arrival time when new trip starts
-   - Context: Completed trip + new trip
-
-3. **`updateEtaOnDeparture`** - Uses `depart-arrive` model
-   - Updates ETA when vessel leaves dock
-   - Context: Current trip + current location
+- **Missing Models**: Gracefully handles cases where models don't exist for terminal pairs
+- **Invalid Data**: Validates input parameters before making predictions
+- **Prediction Bounds**: Clamps predictions to reasonable time ranges
+- **MAE Precision**: Rounds accuracy metrics to 0.01 minute precision
 
 **Prediction Result Type:**
 ```typescript
@@ -505,9 +397,102 @@ const model = await ctx.runQuery(
 );
 ```
 
-### Example: Adding a New Predictor
+## Integration with Vessel Trips
 
-To add a new predictor (e.g., `predictArriveDepart` for arrive-depart model):
+Predictions are automatically calculated when vessel trip events occur:
+
+### New Trip Creation
+When a vessel completes a trip and starts a new one, initial predictions are made:
+
+```typescript
+// In vesselTrips/actions.ts
+const predictions = await calculateArrivalPredictions(ctx, completedTrip, newTrip);
+// Stores: DelayPred, DelayPredMae, EtaPred, EtaPredMae
+```
+
+### Departure Updates
+When a vessel leaves dock, ETA predictions are refined:
+
+```typescript
+// In vesselTrips/actions.ts
+const etaResult = await predictEtaOnDeparture(ctx, currentTrip, currentLocation);
+// Updates: EtaPred, EtaPredMae with more accurate values
+```
+
+### Database Schema
+
+Vessel trips include prediction fields:
+
+```typescript
+vesselTripSchema: v.object({
+  // ... existing fields ...
+  DelayPred: v.optional(v.number()),      // Predicted delay (minutes)
+  DelayPredMae: v.optional(v.number()),   // Delay prediction MAE
+  EtaPred: v.optional(v.number()),        // Predicted ETA (timestamp)
+  EtaPredMae: v.optional(v.number()),     // ETA prediction MAE
+});
+```
+
+## Development & Operations
+
+### Environment Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run convex:dev
+
+# Run training pipeline
+npm run train:ml
+
+# Export training results to CSV
+npm run train:export-results
+```
+
+### Cron Job Configuration
+
+Daily automated training at 4:00 AM Pacific:
+
+```typescript
+// convex/crons.ts
+crons.cron(
+  "retrain ml models",
+  "0 4 * * *", // 4:00 AM daily
+  internal.domain.ml.actions.trainPredictionModelsAction
+);
+```
+
+### Validation Scripts
+
+Compare training results between different configurations:
+
+```bash
+# Compare two training result CSV files
+npm run train:compare results1.csv results2.csv
+```
+
+### Known Limitations
+
+1. **Model Availability**: Predictions require trained models in database
+2. **Data Quality**: Performance depends on training data completeness
+3. **Terminal Coverage**: Only routes with sufficient historical data get models
+4. **Real-time Updates**: Models are updated daily, not continuously
+
+---
+
+**Status**: ✅ **FULLY OPERATIONAL**
+
+**Architecture**: TypeScript + Convex + Multivariate Linear Regression
+
+**Coverage**: Dynamic terminal pair discovery (35+ routes, 4-5 models each)
+
+**Training**: Automated daily retraining with fresh WSF API data (720 days)
+
+**Predictions**: Real-time inference with sub-millisecond latency
+
+**Features**: 11-14 engineered features per model (time cycles, historical context, route patterns)
 
 ```typescript
 // 1. Define the predictor in prediction/predictors/index.ts
@@ -615,81 +600,116 @@ npx tsx scripts/validate-predictions.ts
    - `predictDepartDepart` for depart-depart model
    All would use same generic `predict()` orchestrator
 
-## Model Performance
+## Model Architecture
 
-### Current Coverage
-- **36+ terminal pairs** trained (dynamic discovery from available data)
-- **144+ models** total (4 per pair: arrive-depart, depart-arrive, arrive-arrive, depart-depart)
-- **10K+ training examples** processed from complete historical dataset
+### Linear Regression Models
 
-### Performance Metrics by Route Type
+The system uses multivariate linear regression trained on historical vessel data:
 
-#### High-Traffic Routes (Excellent Performance)
-| Terminal Pair | Model | Examples | MAE (min) | R² |
-|---------------|-------|----------|-----------|----|
-| MUK_CLI | Arrive-Depart-At-Dock-Duration | 44 | ~0 | 1.0 |
-| CLI_MUK | Arrive-Depart-At-Dock-Duration | 44 | ~0 | 1.0 |
-| MUK_CLI | Depart-Arrive-At-Sea-Duration | 44 | ~0 | 1.0 |
+**Model Equation**: `y = intercept + Σ(coefficient_i × feature_i)`
 
-#### Medium-Traffic Routes (Good Performance)
-| Terminal Pair | Model | Examples | MAE (min) | R² |
-|---------------|-------|----------|-----------|----|
-| FAU_VAI | Both | 359 | 3.6-4.1 | 0.46-0.49 |
-| VAI_FAU | Both | 317 | 3.2-4.1 | 0.08-0.49 |
+Where:
+- `y` = predicted duration or delay (in minutes)
+- `intercept` = baseline prediction value
+- `coefficient_i` = weight for each feature
+- `feature_i` = normalized input features
 
-#### Variable Routes (Functional Performance)
-| Terminal Pair | Model | Examples | MAE (min) | R² |
-|---------------|-------|----------|-----------|----|
-| ANA_FRH | Arrive-Depart-At-Dock-Duration | 38 | 48.9 | 0.74 |
-| ANA_FRH | Depart-Arrive-At-Sea-Duration | 38 | 3.9 | 0.40 |
-| ANA_LOP | Arrive-Depart-At-Dock-Duration | 57 | 31.8 | 0.12 |
+### Model Types
 
-### Prediction Accuracy Summary
-- **Arrive-Depart-At-Dock-Duration Predictions**: Generally good performance (typically 2-5 min MAE) - predicts at-dock duration
-- **Depart-Arrive-At-Sea-Duration Predictions**: Variable performance by route (typically 2-10 min MAE)
-- **Arrive-Arrive-Total-Duration Predictions**: Predicts total time from arrival to next arrival
-- **Depart-Depart-Total-Duration Predictions**: Predicts sum of at-sea duration (from A to B) + at-dock duration (at B)
-- **Overall Coverage**: Dynamic based on available data (typically 35+ terminal pairs, 4 models each)
+Each terminal pair gets trained on 4-5 different models:
+
+1. **`arrive-depart-atdock-duration`**: Predicts how long vessel stays at dock after arrival
+2. **`depart-arrive-atsea-duration`**: Predicts how long vessel spends at sea after departure
+3. **`arrive-arrive-total-duration`**: Predicts total time from dock arrival to next dock arrival
+4. **`arrive-depart-delay`**: Predicts departure delay (early or late) after arrival
+5. **`depart-depart-total-duration`**: Simplified model for time between departures
+
+### Feature Engineering
+
+**Time-Based Features:**
+- Cyclical encoding for hour-of-day (8 Gaussian radial basis functions)
+- Day-of-year cyclical encoding
+- Weekend indicator (1/0)
+
+**Historical Context:**
+- Previous trip delay (minutes)
+- Previous trip at-sea duration (minutes)
+
+**Current Trip Context:**
+- Arrival timing relative to schedule
+- At-dock duration (for departure-based predictions)
+- Terminal pair routing patterns
+
+### Training Metrics
+
+Models are evaluated using:
+- **MAE (Mean Absolute Error)**: Average absolute prediction error in minutes
+- **RMSE (Root Mean Squared Error)**: Square root of average squared errors
+- **R² (Coefficient of Determination)**: Proportion of variance explained (0-1 scale)
 
 ## Technical Architecture
 
-### Data Flow
-
-**Convex Training Path (Linear Regression):**
-```
-WSF API → Load Records → Convert to Training → Terminal Buckets → Feature Engineering → MLR Training → Database Storage
-   ↓            ↓                  ↓                   ↓                  ↓               ↓              ↓
-Fresh Data   step_1         TrainingDataRecord   35+ buckets      13-14 features     MLR training   Essential
-(720 days)   (batched)      validation           + statistics      per model          validation    metadata
-```
-
 ### File Structure
+
 ```
 convex/domain/ml/
-├── actions.ts                       # Public Convex actions
-├── pipelineCoordinator.ts           # Main orchestrator (includes data quality + training loop)
-├── types.ts                         # TypeScript type definitions
-├── shared.ts                        # Time normalization utilities
-├── index.ts                         # Module exports
+├── index.ts                         # Main module exports
 ├── readme-ml.md                     # This documentation
-├── prediction/                      # Prediction pipeline
-│   ├── step_1_extractFeatures.ts     # Feature extraction utilities
-│   ├── step_2_loadModel.ts          # Model loading from database
-│   ├── step_3_makePrediction.ts     # Prediction calculation utilities
-│   ├── step_4_calculateInitialPredictions.ts  # Initial predictions orchestrator
-│   ├── predictors/
-│   │   └── index.ts               # Generic predictor with strategy pattern
-│   └── index.ts                   # Public exports
-└── pipeline/
-    ├── step_1_loadWsfTrainingData.ts      # Load raw WSF records from API
-    ├── step_2_convertWsfToTraining.ts     # Convert WSF records to training format
-    ├── step_3_bucketByTerminalPairs.ts    # Terminal pair bucketing
-    ├── step_4_createTrainingData.ts       # Feature engineering and training example creation
-    ├── step_5_trainBuckets.ts             # Model training (includes MLR, metrics, holdout evaluation)
-    ├── step_6_storeResults.ts             # Database storage with metadata
-    └── shared/
-        ├── config.ts                       # Pipeline configuration constants
-        └── time.ts                         # Pacific timezone utilities
+├── actions.ts                       # Convex actions for training
+├── training/                        # Training pipeline
+│   ├── index.ts                     # Training module exports
+│   ├── pipeline.ts                  # Main training orchestrator (6 steps)
+│   ├── actions.ts                   # Training action handlers
+│   ├── data/                        # Data loading and processing
+│   │   ├── index.ts
+│   │   ├── loadTrainingData.ts      # Load WSF API data
+│   │   ├── createTrainingRecords.ts # Convert to training format
+│   │   └── createTrainingBuckets.ts # Group by terminal pairs
+│   └── models/                      # Model training logic
+│       ├── index.ts
+│       ├── trainModels.ts           # Core training with MLR
+│       ├── loadModel.ts             # Model retrieval for predictions
+│       └── storeModels.ts           # Model persistence
+├── prediction/                      # Prediction system
+│   ├── index.ts                     # Prediction exports
+│   ├── predictOnArrival.ts          # Initial prediction orchestrator
+│   ├── predictLinearRegression.ts   # Core prediction utilities
+│   └── predictors/                  # Individual predictor functions
+│       ├── index.ts
+│       ├── shared.ts                # Common prediction utilities
+│       ├── predictDelayOnArrival.ts # Delay prediction
+│       ├── predictEtaOnArrival.ts   # ETA prediction (arrival-based)
+│       ├── predictEtaOnDeparture.ts # ETA prediction (departure-based)
+│       └── types.ts                 # Prediction type definitions
+└── shared/                          # Shared utilities
+    ├── index.ts
+    ├── core/                        # Core types and configuration
+    │   ├── index.ts
+    │   ├── types.ts                 # TypeScript type definitions
+    │   ├── modelTypes.ts            # Model type constants
+    │   └── config.ts                # Configuration constants
+    ├── features/                    # Feature engineering
+    │   ├── index.ts
+    │   ├── extractFeatures.ts       # Feature extraction dispatcher
+    │   └── timeFeatures.ts          # Time-based feature utilities
+    └── functional/                  # Functional programming utilities
+        └── index.ts
+```
+
+### Data Flow
+
+**Training Pipeline:**
+```
+WSF API → Load Records → Convert to Training → Create Buckets → Train Models → Store Models → Quality Analysis
+   ↓            ↓                  ↓                   ↓               ↓              ↓              ↓
+Raw Data   Vessel Groups     TrainingDataRecord   TerminalPairBucket  ModelParameters  Database     Metrics
+```
+
+**Prediction Pipeline:**
+```
+Trip Data → Feature Extraction → Load Model → Linear Regression → Time Conversion → Validation → Result
+    ↓              ↓                  ↓               ↓                  ↓              ↓          ↓
+Raw Input     FeatureRecord      ModelParameters   Duration (min)   Timestamp (ms)   Clamped    Prediction
 ```
 
 ## Data Quality & Validation
