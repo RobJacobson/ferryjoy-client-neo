@@ -4,28 +4,11 @@
 // ============================================================================
 
 // Prediction functionality
-export type { InitialPredictions } from "./prediction/predictOnArrival";
-/**
- * Calculates initial predictions for ferry arrivals based on historical data
- * @deprecated Use individual predictor functions for better control
- */
-export { calculateArrivalPredictions as calculateInitialPredictions } from "./prediction/predictOnArrival";
-/**
- * Predicts delay on arrival at a terminal
- */
-/**
- * Predicts estimated time of arrival based on vessel position and historical patterns
- */
-/**
- * Predicts estimated time of arrival based on departure time and conditions
- */
 export {
   predictDelayOnArrival,
   predictEtaOnArrival,
   predictEtaOnDeparture,
 } from "./prediction/predictors";
-
-export type { DelayPredictionParams } from "./prediction/predictors/types";
 
 // Shared functionality (types, config, model types, features)
 /**

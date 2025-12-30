@@ -28,8 +28,8 @@ export const createTerminalPairBuckets = (
   // Note: Terminal data already validated
   for (const record of records) {
     const key = formatTerminalPairKey(
-      record.departingTerminalAbbrev,
-      record.arrivingTerminalAbbrev
+      record.DepartingTerminalAbbrev,
+      record.ArrivingTerminalAbbrev
     );
     const bucketRecords = bucketMap.get(key) || [];
     bucketRecords.push(record);
@@ -44,7 +44,7 @@ export const createTerminalPairBuckets = (
       // Sample down to most recent MAX_SAMPLES_PER_ROUTE records
       const originalCount = records.length;
       const sampledRecords = records
-        .sort((a, b) => b.schedDepartureTimestamp - a.schedDepartureTimestamp) // Most recent first
+        .sort((a, b) => b.ScheduledDeparture - a.ScheduledDeparture) // Most recent first
         .slice(0, PIPELINE_CONFIG.MAX_SAMPLES_PER_ROUTE); // Take top N
 
       console.log(
@@ -54,22 +54,22 @@ export const createTerminalPairBuckets = (
 
       // Calculate mean statistics on sampled records
       const validRecords = sampledRecords.filter(
-        (r) => r.prevDelay != null && r.currAtSeaDuration != null
+        (r) => r.PrevTripDelay != null && r.AtSeaDuration != null
       );
       const meanDepartureDelay =
         validRecords.length > 0
-          ? validRecords.reduce((sum, r) => sum + r.prevDelay!, 0) /
+          ? validRecords.reduce((sum, r) => sum + r.PrevTripDelay!, 0) /
             validRecords.length
           : undefined;
       const meanAtSeaDuration =
         validRecords.length > 0
-          ? validRecords.reduce((sum, r) => sum + r.currAtSeaDuration!, 0) /
+          ? validRecords.reduce((sum, r) => sum + r.AtSeaDuration!, 0) /
             validRecords.length
           : undefined;
       const meanDelay =
         validRecords.length > 0
           ? validRecords.reduce(
-              (sum, r) => sum + r.prevDelay! + r.currAtSeaDuration!,
+              (sum, r) => sum + r.PrevTripDelay! + r.AtSeaDuration!,
               0
             ) / validRecords.length
           : undefined;

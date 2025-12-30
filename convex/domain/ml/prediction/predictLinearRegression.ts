@@ -79,16 +79,3 @@ export const atSeaDurationToEtaPred = (
 ): number => {
   return leftDock + predictedAtSeaMinutes * 60000;
 };
-
-/**
- * Validate prediction time is not before reference time
- * Clamps to minimum valid time if prediction is too early
- */
-export const validatePredictionTime = (
-  predictedTime: number,
-  referenceTime: number,
-  minimumGapMinutes: number = 2
-): number => {
-  const minimumValidTime = referenceTime + minimumGapMinutes * 60000;
-  return Math.max(predictedTime, minimumValidTime);
-};

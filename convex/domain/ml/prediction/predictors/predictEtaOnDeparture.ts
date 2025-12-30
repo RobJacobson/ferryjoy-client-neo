@@ -2,13 +2,10 @@
 // ETA UPDATE ON DEPARTURE (depart-arrive-atsea-duration model)
 // ============================================================================
 
-/** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
-
 import type { ActionCtx, MutationCtx } from "_generated/server";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { MODEL_TYPES } from "../../shared/core/modelTypes";
-import { featureExtractors, makePrediction, timeConverters } from "./shared";
+import { makePrediction } from "./shared";
 import type { PredictionResult } from "./types";
 
 /**
@@ -25,32 +22,23 @@ import type { PredictionResult } from "./types";
  */
 export const predictEtaOnDeparture = async (
   ctx: ActionCtx | MutationCtx,
-  currentTrip: ConvexVesselTrip,
-  currentLocation: ConvexVesselLocation
+  currentTrip: ConvexVesselTrip
 ): Promise<PredictionResult> => {
   // Validate required data
   if (
-    !currentLocation?.LeftDock ||
+    !currentTrip.ArrivingTerminalAbbrev ||
+    !currentTrip?.LeftDock ||
     !currentTrip?.AtDockDuration ||
-    !currentTrip?.Delay ||
+    !currentTrip?.TripDelay ||
     !currentTrip?.ScheduledDeparture
   ) {
-    throw new Error("Insufficient data for ETA prediction on departure");
+    return {};
   }
-
-  const features = featureExtractors.departureBased({
-    scheduledDeparture: currentTrip.ScheduledDeparture,
-    atDockDuration: currentTrip.AtDockDuration,
-    delay: currentTrip.Delay,
-  });
 
   return makePrediction(
     ctx,
     MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION,
-    currentTrip.DepartingTerminalAbbrev,
-    currentTrip.ArrivingTerminalAbbrev || "",
-    features,
-    (duration) =>
-      timeConverters.atSeaToArrival(duration, currentLocation.LeftDock!)
+    currentTrip,
+    currentTrip.LeftDock
   );
 };

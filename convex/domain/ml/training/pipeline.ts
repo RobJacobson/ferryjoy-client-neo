@@ -46,19 +46,14 @@ const analyzeDataQuality = (
 const trainAllModels = async (
   buckets: TerminalPairBucket[]
 ): Promise<ModelParameters[]> => {
-  const modelTypes: ModelType[] = [
-    MODEL_TYPES.ARRIVE_DEPART_ATDOCK_DURATION,
-    MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION,
-    MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION,
-    MODEL_TYPES.ARRIVE_DEPART_DELAY,
-  ];
+  const modelTypes: ModelType[] = Object.values(MODEL_TYPES);
 
   // Create training tasks for all bucket-model combinations
   // Each bucket gets trained for all model types (4 different prediction models)
   const trainingTasks = buckets.flatMap((bucket) =>
     modelTypes.map(async (modelType) => {
       try {
-        return await trainModel(bucket, modelType);
+        return trainModel(bucket, modelType);
       } catch (error) {
         const errorMsg = `Failed to train ${modelType} for ${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}: ${error}`;
         console.error(errorMsg);

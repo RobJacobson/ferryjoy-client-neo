@@ -3,9 +3,10 @@
 // ============================================================================
 
 import type { ActionCtx, MutationCtx } from "_generated/server";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { MODEL_TYPES } from "../../shared/core/modelTypes";
-import { featureExtractors, makePrediction } from "./shared";
-import type { DelayPredictionParams, PredictionResult } from "./types";
+import { makePrediction } from "./shared";
+import type { PredictionResult } from "./types";
 
 /**
  * Predict departure delay for a new trip using the arrive-depart-delay model
@@ -15,35 +16,32 @@ import type { DelayPredictionParams, PredictionResult } from "./types";
  * and a new trip is about to start.
  *
  * @param ctx - Convex action or mutation context for database access
- * @param params - Parameters required for delay prediction including trip context
+ * @param completedTrip - The trip that just completed (provides PrevTripDelay, PrevAtSeaDuration)
+ * @param newTrip - The new trip to predict delay for
  * @returns Prediction result with delay in minutes and model accuracy (MAE)
  */
 export const predictDelayOnArrival = async (
   ctx: ActionCtx | MutationCtx,
-  params: DelayPredictionParams
+  newTrip: ConvexVesselTrip
 ): Promise<PredictionResult> => {
-  const features = featureExtractors.arrivalBased({
-    departingTerminal: params.departingTerminal,
-    arrivingTerminal: params.arrivingTerminal || "",
-    scheduledDeparture: params.scheduledDeparture,
-    prevDelay: params.previousDelay,
-    prevAtSeaDuration: params.previousAtSeaDuration,
-    tripStart: params.tripStart,
-  });
+  // Validate required data
+  if (
+    !newTrip.ArrivingTerminalAbbrev ||
+    !newTrip.ScheduledDeparture ||
+    !newTrip.DepartingTerminalAbbrev ||
+    !newTrip.TripStart ||
+    !newTrip.PrevTripDelay ||
+    !newTrip.PrevAtSeaDuration
+  ) {
+    return {};
+  }
 
-  // For delay prediction, we return the raw delay minutes (not a timestamp)
-  const result = await makePrediction(
+  // For delay prediction, we return raw delay minutes (not a timestamp)
+  // Use baseTime === 0 to signal that this is a delay prediction, not a timestamp
+  return makePrediction(
     ctx,
     MODEL_TYPES.ARRIVE_DEPART_DELAY,
-    params.departingTerminal,
-    params.arrivingTerminal || "",
-    features,
-    (delay) => ({ absoluteTime: delay, referenceTime: 0, minimumGap: 0 }) // Delay is not a timestamp
+    newTrip,
+    0 // baseTime: 0 means return raw delay minutes
   );
-
-  // Return delay as predictedTime (not a timestamp)
-  return {
-    predictedTime: result.predictedTime, // This is delay in minutes
-    mae: result.mae,
-  };
 };

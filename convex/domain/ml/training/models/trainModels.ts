@@ -13,6 +13,7 @@ import type {
   TrainingDataRecord,
   TrainingExample,
 } from "../../shared/core/types";
+import type { FeatureExtractionParams } from "../../shared/features/extractFeatures";
 import { roundTinyValues } from "../../shared/features/timeFeatures";
 
 /**
@@ -33,16 +34,28 @@ const createTrainingExamples = (
 ): TrainingExample[] => {
   const { extractFeatures } = require("../../shared/features/extractFeatures");
 
+  /**
+   * Type-safe mapping from TrainingDataRecord to FeatureExtractionParams
+   * This function ensures field names match exactly what extractors expect.
+   * If TrainingDataRecord or FeatureExtractionParams field names change,
+   * TypeScript will catch the mismatch at compile time.
+   *
+   * Maps TrainingDataRecord (PascalCase) → FeatureExtractionParams (PascalCase) → FeatureRecord (camelCase)
+   */
+  const mapToFeatureParams = (
+    record: TrainingDataRecord
+  ): FeatureExtractionParams => ({
+    ScheduledDeparture: record.ScheduledDeparture,
+    PrevTripDelay: record.PrevTripDelay,
+    PrevAtSeaDuration: record.PrevAtSeaDuration,
+    AtDockDuration: record.AtDockDuration,
+    TripDelay: record.TripDelay,
+    arriveBeforeMinutes: record.arriveBeforeMinutes,
+  });
+
   return records.map((record) => {
-    // Convert TrainingDataRecord to unified feature extraction format
-    const params = {
-      scheduledDeparture: record.schedDepartureTimestamp,
-      prevDelay: record.prevDelay,
-      prevAtSeaDuration: record.prevAtSeaDuration,
-      currAtDockDuration: record.currAtDockDuration,
-      currAtSeaDuration: record.currAtSeaDuration,
-      arriveBeforeMinutes: record.arriveBeforeMinutes,
-    };
+    // Type-safe conversion ensures field names match extractor expectations
+    const params = mapToFeatureParams(record);
 
     // Extract features using same logic as prediction (ensures consistency)
     const features = extractFeatures(modelType, params);
@@ -51,20 +64,20 @@ const createTrainingExamples = (
     let target: number;
     switch (modelType) {
       case MODEL_TYPES.ARRIVE_DEPART_ATDOCK_DURATION:
-        target = record.currAtDockDuration; // How long vessel stays at dock
+        target = record.AtDockDuration; // How long vessel stays at dock
         break;
       case MODEL_TYPES.DEPART_ARRIVE_ATSEA_DURATION:
-        target = record.currAtSeaDuration; // How long vessel spends at sea
+        target = record.AtSeaDuration; // How long vessel spends at sea
         break;
       case MODEL_TYPES.ARRIVE_ARRIVE_TOTAL_DURATION:
-        target = record.currAtDockDuration + record.currAtSeaDuration; // Total trip time
+        target = record.AtDockDuration + record.AtSeaDuration; // Total trip time
         break;
       case MODEL_TYPES.ARRIVE_DEPART_DELAY:
-        target = record.currDelay; // Departure delay in minutes
+        target = record.TripDelay; // Departure delay in minutes
         break;
       case MODEL_TYPES.DEPART_DEPART_TOTAL_DURATION:
         // Time between consecutive departures (simplified)
-        target = record.prevAtSeaDuration + record.currAtDockDuration;
+        target = record.PrevAtSeaDuration + record.AtDockDuration;
         break;
       default:
         throw new Error(`Unknown model type: ${modelType}`);

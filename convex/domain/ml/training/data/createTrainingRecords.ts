@@ -23,11 +23,11 @@ type TerminalAbbrevs = {
  * Calculated durations and delays for a consecutive trip pair
  */
 type TripCalculations = {
-  prevDelay: number; // Previous trip delay in minutes
-  prevAtSeaDuration: number; // Previous trip at-sea duration in minutes
-  currAtDockDuration: number; // Current trip at-dock duration in minutes
-  currDelay: number; // Current trip delay in minutes
-  currAtSeaDuration: number; // Current trip at-sea duration in minutes
+  PrevTripDelay: number; // Previous trip delay in minutes
+  PrevAtSeaDuration: number; // Previous trip at-sea duration in minutes
+  AtDockDuration: number; // Current trip at-dock duration in minutes
+  TripDelay: number; // Current trip delay in minutes
+  AtSeaDuration: number; // Current trip at-sea duration in minutes
   arriveBeforeMinutes: number; // Minutes before scheduled departure vessel arrived
   arriveEarlyMinutes: number; // How early vessel arrived relative to mean at-dock time
 };
@@ -98,7 +98,7 @@ const processVesselTrips = (trips: VesselHistory[]): TrainingDataRecord[] => {
  * Process a single consecutive trip pair into a training record
  *
  * Applies all validation steps and data transformations to convert raw WSF data
- * into a clean training record. Returns null if the trip pair fails any validation.
+ * into a clean training record. Returns null if trip pair fails any validation.
  *
  * @param curr - Current trip WSF record
  * @param prev - Previous trip WSF record
@@ -165,7 +165,7 @@ const getTerminalAbbrev = (terminalName: string): string | undefined => {
 /**
  * Check if all required terminal mappings exist for trip processing
  *
- * @param abbrevs - Terminal abbreviations for the trip pair
+ * @param abbrevs - Terminal abbreviations for trip pair
  * @returns True if all terminals are properly mapped, false otherwise
  */
 const hasValidTerminalMappings = (
@@ -183,7 +183,7 @@ const hasValidTerminalMappings = (
  * Extract terminal abbreviations for a consecutive trip pair
  *
  * Maps terminal names from WSF records to standardized abbreviations and validates
- * that the trips are truly consecutive (previous arrival matches current departure).
+ * that trips are truly consecutive (previous arrival matches current departure).
  *
  * @param curr - Current trip WSF record
  * @param prev - Previous trip WSF record
@@ -214,9 +214,9 @@ const getTerminalAbbrevs = (
 };
 
 /**
- * Validate that all terminals in the trip pair are passenger terminals
+ * Validate that all terminals in trip pair are passenger terminals
  *
- * Only passenger ferry terminals are included in the ML models. Cargo-only
+ * Only passenger ferry terminals are included in ML models. Cargo-only
  * terminals and other facilities are excluded from training data.
  *
  * @param abbrevs - Terminal abbreviations to validate
@@ -237,7 +237,7 @@ const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
  * a non-consecutive previous trip, causing incorrect data for ALL models:
  * - arrive-depart: prevDelay would be from wrong trip
  * - depart-arrive: tripStart would be from wrong terminal
- * - arrive-arrive: atDockDuration would be calculated incorrectly
+ * - arrive-arrive: AtDockDuration would be calculated incorrectly
  * - depart-depart: prevLeftDock would be from wrong trip
  */
 const areTripsConsecutive = (abbrevs: TerminalAbbrevs): boolean => {
@@ -245,9 +245,7 @@ const areTripsConsecutive = (abbrevs: TerminalAbbrevs): boolean => {
 };
 
 /**
- * Validate that all required timestamp fields are present for duration calculations
- *
- * Checks that both current and previous trips have the necessary timestamps
+ * Check that both current and previous trips have necessary timestamps
  * to calculate delays and durations safely.
  *
  * @param curr - Current trip WSF record
@@ -257,7 +255,6 @@ const areTripsConsecutive = (abbrevs: TerminalAbbrevs): boolean => {
 const hasRequiredData = (curr: VesselHistory, prev: VesselHistory): boolean => {
   return !!(
     prev.EstArrival &&
-    curr.EstArrival &&
     curr.ActualDepart &&
     curr.ScheduledDepart &&
     prev.ActualDepart &&
@@ -271,10 +268,14 @@ const hasRequiredData = (curr: VesselHistory, prev: VesselHistory): boolean => {
  * Computes timing metrics that will serve as both features and targets for ML models.
  * Assumes hasRequiredData() has already validated that all timestamps exist.
  *
+ * IMPORTANT: This uses TripEnd (prev.EstArrival) as the vessel's actual arrival time,
+ * which is the correct timestamp for when the vessel arrived at the dock.
+ * The training record's ScheduledDeparture field maps to curr.ScheduledDeparture.
+ *
  * @param curr - Current trip WSF record
  * @param prev - Previous trip WSF record
  * @param terminalPairKey - Terminal pair key for mean duration lookups
- * @returns Calculated timing metrics for the trip pair
+ * @returns Calculated timing metrics for trip pair
  */
 const calculateTripDurations = (
   curr: VesselHistory,
@@ -282,30 +283,27 @@ const calculateTripDurations = (
   terminalPairKey: string
 ): TripCalculations => {
   // Non-null assertions are safe here because hasRequiredData() validates these fields exist
-  const prevDelay = getMinutesDelta(prev.ScheduledDepart!, prev.ActualDepart!);
+  const PrevTripDelay = getMinutesDelta(
+    prev.ScheduledDepart!,
+    prev.ActualDepart!
+  );
   const prevLeftDock = prev.ActualDepart!; // Previous trip's ActualDepart (for depart-depart features)
-  const prevAtSeaDuration = getMinutesDelta(prevLeftDock, prev.EstArrival!); // Minutes from previous trip's departure to previous trip's arrival (for depart-depart target)
-  const currAtDockDuration = getMinutesDelta(
-    prev.EstArrival!,
-    curr.ActualDepart!
-  ); // Minutes from trip start (arrival) to left dock (current trip)
-  const currDelay = getMinutesDelta(curr.ScheduledDepart!, curr.ActualDepart!);
-  const currAtSeaDuration = getMinutesDelta(
-    curr.ActualDepart!,
-    curr.EstArrival!
-  ); // Minutes from left dock to trip end (current trip)
+  const PrevAtSeaDuration = getMinutesDelta(prevLeftDock, prev.EstArrival!); // Minutes from previous trip's departure to previous trip's arrival (for depart-depart target)
+  const AtDockDuration = getMinutesDelta(prev.EstArrival!, curr.ActualDepart!); // Minutes from trip start (arrival) to left dock (current trip)
+  const TripDelay = getMinutesDelta(curr.ScheduledDepart!, curr.ActualDepart!);
+  const AtSeaDuration = getMinutesDelta(curr.ActualDepart!, curr.EstArrival!); // Minutes from left dock to trip end (current trip)
 
   const arriveBeforeMinutes =
-    (curr.ScheduledDepart!.getTime() - curr.EstArrival!.getTime()) / 60000;
+    (curr.ScheduledDepart!.getTime() - prev.EstArrival!.getTime()) / 60000;
   const meanAtDockDuration = getConfig.getMeanDockDuration(terminalPairKey);
   const arriveEarlyMinutes = meanAtDockDuration - arriveBeforeMinutes;
 
   return {
-    prevDelay,
-    prevAtSeaDuration,
-    currAtDockDuration,
-    currDelay,
-    currAtSeaDuration,
+    PrevTripDelay,
+    PrevAtSeaDuration,
+    AtDockDuration,
+    TripDelay,
+    AtSeaDuration,
     arriveBeforeMinutes,
     arriveEarlyMinutes,
   };
@@ -321,20 +319,20 @@ const calculateTripDurations = (
  * @returns True if all durations are within valid thresholds
  */
 const areDurationsValid = (calc: TripCalculations): boolean => {
-  if (calc.currAtSeaDuration < getConfig.getMinAtSeaDuration()) {
+  if (calc.AtSeaDuration < getConfig.getMinAtSeaDuration()) {
     return false; // Skip records where vessel was at sea for less than 2 minutes
   }
-  if (calc.currAtDockDuration < getConfig.getMinAtDockDuration()) {
+  if (calc.AtDockDuration < getConfig.getMinAtDockDuration()) {
     return false; // Skip records where vessel was at dock for less than 2 minutes
   }
-  if (calc.currAtDockDuration > getConfig.getMaxAtDockDuration()) {
+  if (calc.AtDockDuration > getConfig.getMaxAtDockDuration()) {
     return false; // Skip records with overnight layovers or extended maintenance (>3 hours at dock)
   }
-  if (calc.currAtSeaDuration > getConfig.getMaxAtSeaDuration()) {
+  if (calc.AtSeaDuration > getConfig.getMaxAtSeaDuration()) {
     return false; // Skip records with data errors (>24 hours at sea)
   }
   // Filter arrive-arrive outliers (total time from arrival to next arrival)
-  const arriveArriveTotal = calc.currAtDockDuration + calc.currAtSeaDuration;
+  const arriveArriveTotal = calc.AtDockDuration + calc.AtSeaDuration;
   if (arriveArriveTotal > getConfig.getMaxTotalDuration()) {
     return false; // Skip records with extreme arrive-arrive durations (>2 hours total)
   }
@@ -346,7 +344,7 @@ const areDurationsValid = (calc: TripCalculations): boolean => {
  * Create a training data record from validated and processed trip data
  *
  * Combines terminal information, calculated durations, and extracted time features
- * into the final format used for ML model training.
+ * into final format used for ML model training.
  *
  * @param abbrevs - Validated terminal abbreviations
  * @param calc - Calculated timing metrics
@@ -366,16 +364,16 @@ const createTrainingRecord = (
   );
 
   return {
-    departingTerminalAbbrev: abbrevs.departing,
-    arrivingTerminalAbbrev: abbrevs.arriving,
-    prevDelay: calc.prevDelay,
-    prevAtSeaDuration: calc.prevAtSeaDuration,
-    currAtDockDuration: calc.currAtDockDuration,
-    currDelay: calc.currDelay,
-    currAtSeaDuration: calc.currAtSeaDuration,
+    DepartingTerminalAbbrev: abbrevs.departing,
+    ArrivingTerminalAbbrev: abbrevs.arriving,
+    PrevTripDelay: calc.PrevTripDelay,
+    PrevAtSeaDuration: calc.PrevAtSeaDuration,
+    AtDockDuration: calc.AtDockDuration,
+    TripDelay: calc.TripDelay,
+    AtSeaDuration: calc.AtSeaDuration,
     isWeekend,
     schedDepartureTimeFeatures,
-    schedDepartureTimestamp: schedDeparture.getTime(),
+    ScheduledDeparture: schedDeparturePacificTime.getTime(),
     arriveEarlyMinutes: calc.arriveEarlyMinutes,
     arriveBeforeMinutes: calc.arriveBeforeMinutes,
   };

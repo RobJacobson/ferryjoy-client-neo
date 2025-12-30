@@ -6,7 +6,7 @@
 import { getPacificTime } from "shared/time";
 import { MEAN_AT_DOCK_DURATION } from "../core/config";
 import { MODEL_TYPES, type ModelType } from "../core/modelTypes";
-import type { FeatureRecord, TrainingDataRecord } from "../core/types";
+import type { FeatureRecord } from "../core/types";
 import { extractTimeFeatures } from "./timeFeatures";
 
 /**
@@ -14,22 +14,24 @@ import { extractTimeFeatures } from "./timeFeatures";
  *
  * This type consolidates all possible parameters needed for different prediction models,
  * providing a single interface for feature extraction in both training and prediction contexts.
+ *
+ * Field names match VesselTrip schema to eliminate unnecessary mapping.
  */
 export type FeatureExtractionParams = {
   /** Scheduled departure timestamp (milliseconds since epoch) */
-  scheduledDeparture?: number;
-  /** Delay from previous trip in minutes */
-  prevDelay?: number;
-  /** Duration spent at sea in previous trip in minutes */
-  prevAtSeaDuration?: number;
-  /** When current trip started (vessel arrival at terminal) */
-  tripStart?: number;
+  ScheduledDeparture?: number;
+  /** Previous trip's departure delay in minutes (from VesselTrip.PrevTripDelay) */
+  PrevTripDelay?: number;
+  /** Previous trip's at-sea duration in minutes (from VesselTrip.PrevAtSeaDuration) */
+  PrevAtSeaDuration?: number;
+  /** When current trip started (vessel arrival at terminal, from VesselTrip.TripStart) */
+  TripStart?: number;
   /** Terminal pair identifier (e.g., "BAIN-BEL") */
   terminalPairKey?: string;
-  /** Actual time spent at dock in minutes */
-  atDockDuration?: number;
-  /** Current delay from schedule in minutes */
-  delay?: number;
+  /** Current trip's actual at-dock duration in minutes (from VesselTrip.AtDockDuration) */
+  AtDockDuration?: number;
+  /** Current trip's departure delay in minutes (from VesselTrip.TripDelay) */
+  TripDelay?: number;
   // Training-specific fields (may be undefined for predictions)
   /** Current trip's at-dock duration (training only) */
   currAtDockDuration?: number;
@@ -81,41 +83,132 @@ export const extractFeatures = (
 };
 
 /**
- * Extract features for training context using full TrainingDataRecord
- * @deprecated Use extractFeatures with unified FeatureExtractionParams interface instead
- * @param record - Complete training data record with all trip information
- * @param modelType - Type of model to extract features for
- * @returns Feature record for model training
+ * Extract timing features related to how early/late vessel arrives at terminal
+ *
+ * Calculates arrival timing relative to scheduled departure, which is crucial
+ * for predicting departure delays and at-dock durations.
+ *
+ * @param tripStart - When vessel arrived at terminal (trip start time)
+ * @param scheduledDeparture - Scheduled departure timestamp
+ * @param terminalPairKey - Terminal pair identifier for mean duration lookup
+ * @returns Arrival timing features: minutes before schedule and early arrival adjustment
  */
-export const extractFeaturesForTraining = (
-  record: TrainingDataRecord,
-  modelType: ModelType
-): FeatureRecord => {
-  // Convert TrainingDataRecord to unified params
-  const params: FeatureExtractionParams = {
-    scheduledDeparture: record.schedDepartureTimestamp,
-    prevDelay: record.prevDelay,
-    prevAtSeaDuration: record.prevAtSeaDuration,
-    currAtDockDuration: record.currAtDockDuration,
-    currAtSeaDuration: record.currAtSeaDuration,
-    arriveBeforeMinutes: record.arriveBeforeMinutes,
-  };
+export const extractArriveBeforeFeatures = (
+  tripStart: number,
+  scheduledDeparture: number,
+  terminalPairKey: string
+): { arriveBeforeMinutes: number; arriveEarlyMinutes: number } => {
+  const schedDepartDate = new Date(scheduledDeparture);
+  const tripStartDate = new Date(tripStart);
 
-  return extractFeatures(modelType, params);
+  // Positive = arrived early, Negative = arrived late
+  const arriveBeforeMinutes =
+    (schedDepartDate.getTime() - tripStartDate.getTime()) / 60000;
+
+  // Get historical average at-dock duration for this terminal pair
+  const meanAtDockDuration = MEAN_AT_DOCK_DURATION[terminalPairKey];
+
+  // How much "extra" time vessel has (positive if early, negative if late)
+  const arriveEarlyMinutes = arriveBeforeMinutes - meanAtDockDuration;
+
+  return { arriveBeforeMinutes, arriveEarlyMinutes };
 };
 
 /**
- * Extract features for prediction context with individual parameters
- * @deprecated Use extractFeatures with unified interface instead
- * @param modelType - Type of model to extract features for
- * @param params - Feature extraction parameters
- * @returns Feature record for model prediction
+ * Extract features for arrive-depart-atdock-duration model
  */
-export const extractFeaturesForPrediction = (
-  modelType: ModelType,
+export const extractArriveDepartAtDockFeatures = (
   params: FeatureExtractionParams
 ): FeatureRecord => {
-  return extractFeatures(modelType, params);
+  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
+    params.ScheduledDeparture
+  );
+  return {
+    ...timeFeatures,
+    isWeekend,
+    prevDelay: params.PrevTripDelay ?? 0,
+    prevAtSeaDuration: params.PrevAtSeaDuration ?? 0,
+    arriveBeforeMinutes: params.arriveBeforeMinutes ?? 0,
+  };
+};
+
+/**
+ * Extract features for depart-arrive-atsea-duration model
+ */
+export const extractDepartArriveAtSeaFeatures = (
+  params: FeatureExtractionParams
+): FeatureRecord => {
+  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
+    params.ScheduledDeparture
+  );
+  return {
+    ...timeFeatures,
+    isWeekend,
+    atDockDuration: params.AtDockDuration ?? 0,
+    delay: params.TripDelay ?? 0,
+  };
+};
+
+/**
+ * Extract features for depart-depart-total-duration model
+ */
+export const extractDepartDepartTotalFeatures = (
+  params: FeatureExtractionParams
+): FeatureRecord => {
+  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
+    params.ScheduledDeparture
+  );
+  return {
+    ...timeFeatures,
+    isWeekend,
+    prevDelay: params.PrevTripDelay ?? 0,
+    prevAtSeaDuration: params.PrevAtSeaDuration ?? 0,
+  };
+};
+
+/**
+ * Extract features for arrive-arrive-total-duration model
+ */
+export const extractArriveArriveTotalFeatures = (
+  params: FeatureExtractionParams
+): FeatureRecord => {
+  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
+    params.ScheduledDeparture
+  );
+  return {
+    ...timeFeatures,
+    isWeekend,
+    prevDelay: params.PrevTripDelay ?? 0,
+    prevAtSeaDuration: params.PrevAtSeaDuration ?? 0,
+    arriveBeforeMinutes: params.arriveBeforeMinutes ?? 0,
+  };
+};
+
+/**
+ * Extract features for arrive-depart-delay model
+ */
+export const extractArriveDepartDelayFeatures = (
+  params: FeatureExtractionParams
+): FeatureRecord => {
+  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
+    params.ScheduledDeparture
+  );
+  const { arriveBeforeMinutes } =
+    params.TripStart && params.ScheduledDeparture && params.terminalPairKey
+      ? extractArriveBeforeFeatures(
+          params.TripStart,
+          params.ScheduledDeparture,
+          params.terminalPairKey
+        )
+      : { arriveBeforeMinutes: 0 };
+
+  return {
+    ...timeFeatures,
+    isWeekend,
+    prevDelay: params.PrevTripDelay ?? 0,
+    prevAtSeaDuration: params.PrevAtSeaDuration ?? 0,
+    arriveBeforeMinutes,
+  };
 };
 
 /**
@@ -140,132 +233,4 @@ export const extractTimeBasedFeatures = (
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 ? 1 : 0;
 
   return { timeFeatures, isWeekend };
-};
-
-/**
- * Extract timing features related to how early/late vessel arrives at terminal
- *
- * Calculates arrival timing relative to scheduled departure, which is crucial
- * for predicting departure delays and at-dock durations.
- *
- * @param tripStart - When vessel arrived at terminal (trip start time)
- * @param scheduledDeparture - Scheduled departure timestamp
- * @param terminalPairKey - Terminal pair identifier for mean duration lookup
- * @returns Arrival timing features: minutes before schedule and early arrival adjustment
- */
-export const extractArriveBeforeFeatures = (
-  tripStart: number,
-  scheduledDeparture: number | undefined,
-  terminalPairKey: string
-): { arriveBeforeMinutes: number; arriveEarlyMinutes: number } => {
-  const schedDepartDate = new Date(scheduledDeparture || 0);
-  const tripStartDate = new Date(tripStart);
-
-  // Positive = arrived early, Negative = arrived late
-  const arriveBeforeMinutes =
-    (schedDepartDate.getTime() - tripStartDate.getTime()) / 60000;
-
-  // Get historical average at-dock duration for this terminal pair
-  const meanAtDockDuration = MEAN_AT_DOCK_DURATION[terminalPairKey] || 0;
-  // How much "extra" time vessel has (or is short) compared to historical average
-  const arriveEarlyMinutes = meanAtDockDuration - arriveBeforeMinutes;
-
-  return { arriveBeforeMinutes, arriveEarlyMinutes };
-};
-
-/**
- * Extract features for arrive-depart-atdock-duration model
- */
-export const extractArriveDepartAtDockFeatures = (
-  params: FeatureExtractionParams
-): FeatureRecord => {
-  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
-    params.scheduledDeparture
-  );
-  return {
-    ...timeFeatures,
-    isWeekend,
-    prevDelay: params.prevDelay ?? 0,
-    prevAtSeaDuration: params.prevAtSeaDuration ?? 0,
-    arriveBeforeMinutes: params.arriveBeforeMinutes ?? 0,
-  };
-};
-
-/**
- * Extract features for depart-arrive-atsea-duration model
- */
-export const extractDepartArriveAtSeaFeatures = (
-  params: FeatureExtractionParams
-): FeatureRecord => {
-  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
-    params.scheduledDeparture
-  );
-  return {
-    ...timeFeatures,
-    isWeekend,
-    atDockDuration: params.atDockDuration ?? 0,
-    delay: params.delay ?? 0,
-  };
-};
-
-/**
- * Extract features for depart-depart-total-duration model
- */
-export const extractDepartDepartTotalFeatures = (
-  params: FeatureExtractionParams
-): FeatureRecord => {
-  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
-    params.scheduledDeparture
-  );
-  return {
-    ...timeFeatures,
-    isWeekend,
-    prevDelay: params.prevDelay ?? 0,
-    prevAtSeaDuration: params.prevAtSeaDuration ?? 0,
-  };
-};
-
-/**
- * Extract features for arrive-arrive-total-duration model
- */
-export const extractArriveArriveTotalFeatures = (
-  params: FeatureExtractionParams
-): FeatureRecord => {
-  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
-    params.scheduledDeparture
-  );
-  return {
-    ...timeFeatures,
-    isWeekend,
-    prevDelay: params.prevDelay ?? 0,
-    prevAtSeaDuration: params.prevAtSeaDuration ?? 0,
-    arriveBeforeMinutes: params.arriveBeforeMinutes ?? 0,
-  };
-};
-
-/**
- * Extract features for arrive-depart-delay model
- */
-export const extractArriveDepartDelayFeatures = (
-  params: FeatureExtractionParams
-): FeatureRecord => {
-  const { timeFeatures, isWeekend } = extractTimeBasedFeatures(
-    params.scheduledDeparture
-  );
-  const { arriveBeforeMinutes } =
-    params.tripStart && params.scheduledDeparture && params.terminalPairKey
-      ? extractArriveBeforeFeatures(
-          params.tripStart,
-          params.scheduledDeparture,
-          params.terminalPairKey
-        )
-      : { arriveBeforeMinutes: 0 };
-
-  return {
-    ...timeFeatures,
-    isWeekend,
-    prevDelay: params.prevDelay ?? 0,
-    prevAtSeaDuration: params.prevAtSeaDuration ?? 0,
-    arriveBeforeMinutes,
-  };
 };

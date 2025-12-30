@@ -13,7 +13,6 @@ import type * as domain_index from "../domain/index.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
 import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
 import type * as domain_ml_prediction_predictLinearRegression from "../domain/ml/prediction/predictLinearRegression.js";
-import type * as domain_ml_prediction_predictOnArrival from "../domain/ml/prediction/predictOnArrival.js";
 import type * as domain_ml_prediction_predictors_index from "../domain/ml/prediction/predictors/index.js";
 import type * as domain_ml_prediction_predictors_predictDelayOnArrival from "../domain/ml/prediction/predictors/predictDelayOnArrival.js";
 import type * as domain_ml_prediction_predictors_predictEtaOnArrival from "../domain/ml/prediction/predictors/predictEtaOnArrival.js";
@@ -95,7 +94,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/index": typeof domain_ml_index;
   "domain/ml/prediction/index": typeof domain_ml_prediction_index;
   "domain/ml/prediction/predictLinearRegression": typeof domain_ml_prediction_predictLinearRegression;
-  "domain/ml/prediction/predictOnArrival": typeof domain_ml_prediction_predictOnArrival;
   "domain/ml/prediction/predictors/index": typeof domain_ml_prediction_predictors_index;
   "domain/ml/prediction/predictors/predictDelayOnArrival": typeof domain_ml_prediction_predictors_predictDelayOnArrival;
   "domain/ml/prediction/predictors/predictEtaOnArrival": typeof domain_ml_prediction_predictors_predictEtaOnArrival;

@@ -36,27 +36,29 @@ export type TerminalPair = {
  *
  * Each record represents a consecutive trip pair (current trip and its immediate predecessor)
  * with all necessary data for training multiple ML models that predict ferry durations and delays.
+ *
+ * Field names match Convex VesselTrip schema for consistency.
  */
 export type TrainingDataRecord = {
   // Terminal pair identifiers (required for routing and model lookup)
-  departingTerminalAbbrev: string;
-  arrivingTerminalAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
 
   // Previous trip metrics (context for current trip predictions)
-  prevDelay: number; // Previous trip's delay in minutes from scheduled departure (can be negative for early departures)
-  prevAtSeaDuration: number; // Previous trip's duration at sea in minutes (departure to arrival)
+  PrevTripDelay: number; // Previous trip's departure delay in minutes from scheduled departure (can be negative for early departures)
+  PrevAtSeaDuration: number; // Previous trip's duration at sea in minutes (departure to arrival)
 
   // Current trip metrics (prediction targets)
-  currAtDockDuration: number; // Current trip's at-dock duration in minutes (arrival to departure)
-  currDelay: number; // Current trip's delay in minutes from scheduled departure
-  currAtSeaDuration: number; // Current trip's duration at sea in minutes (departure to arrival)
+  AtDockDuration: number; // Current trip's at-dock duration in minutes (arrival to departure)
+  TripDelay: number; // Current trip's departure delay in minutes from scheduled departure
+  AtSeaDuration: number; // Current trip's duration at sea in minutes (departure to arrival)
 
   // Time-based features extracted from current trip's scheduled departure
   isWeekend: number; // 1 if scheduled departure is on weekend (Saturday/Sunday), 0 otherwise
   schedDepartureTimeFeatures: Record<string, number>; // Gaussian radial basis function features for time-of-day
-  schedDepartureTimestamp: number; // Scheduled departure timestamp in milliseconds (for sorting and validation)
-  arriveEarlyMinutes: number; // How many minutes early the vessel arrived at dock (relative to mean)
-  arriveBeforeMinutes: number; // How many minutes before scheduled departure the vessel arrived at dock
+  ScheduledDeparture: number; // Scheduled departure timestamp in milliseconds (for sorting and validation)
+  arriveEarlyMinutes: number; // How many minutes early vessel arrived at dock (relative to mean)
+  arriveBeforeMinutes: number; // How many minutes before scheduled departure vessel arrived at dock
 };
 
 /**
