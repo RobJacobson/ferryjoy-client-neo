@@ -4,6 +4,15 @@
 // ============================================================================
 
 /**
+ * Core prediction utilities used by training pipeline for metrics calculation
+ */
+export * from "../prediction";
+/**
+ * Core ML types, configuration constants, and model type definitions
+ */
+export * from "./config";
+
+/**
  * Feature extraction utilities
  */
 export * from "./features";
@@ -12,11 +21,7 @@ export * from "./features";
  * Central model definitions and registry
  */
 export * from "./models";
-
-/**
- * Core prediction utilities used by training pipeline for metrics calculation
- */
-export * from "./prediction";
+export * from "./types";
 
 /**
  * Unified trip structure for ML training and prediction

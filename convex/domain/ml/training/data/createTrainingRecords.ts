@@ -4,10 +4,10 @@
 // Converts raw WSF records to TrainingDataRecord format with minimal filtering
 // ============================================================================
 
-import type { TrainingDataWithTerminals } from "domain/ml/shared/core/types";
+import type { TrainingDataWithTerminals } from "domain/ml/shared/types";
 import { getMinutesDelta } from "shared/time";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { config } from "../../shared/core/config";
+import { config } from "../../shared/config";
 import { extractFeatures } from "../../shared/features";
 import type { UnifiedTrip } from "../../shared/unifiedTrip";
 

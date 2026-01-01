@@ -7,12 +7,12 @@
 import type {
   TerminalPairBucket,
   TrainingDataWithTerminals,
-} from "domain/ml/shared/core/types";
+} from "domain/ml/shared/types";
 import {
   config,
   formatTerminalPairKey,
   parseTerminalPairKey,
-} from "../../shared/core/config";
+} from "../../shared/config";
 
 /**
  * Create terminal pair buckets from training records

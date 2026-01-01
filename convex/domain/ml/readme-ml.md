@@ -546,52 +546,31 @@ Models are evaluated using:
 convex/domain/ml/
 ├── index.ts                         # Main module exports
 ├── readme-ml.md                     # This documentation
-├── training/                        # Training pipeline
-│   ├── index.ts                     # Training module exports
-│   ├── pipeline.ts                  # Main training orchestrator (6 steps)
-│   ├── actions.ts                   # Training action handlers
-│   ├── data/                        # Data loading and processing
-│   │   ├── index.ts
-│   │   ├── loadTrainingData.ts      # Load WSF API data
-│   │   ├── createTrainingRecords.ts # Convert to training format
-│   │   └── createTrainingBuckets.ts # Group by terminal pairs
-│   └── models/                      # Model training logic
-│       ├── index.ts
-│       ├── trainModels.ts           # Core training with MLR
-│       ├── loadModel.ts             # Model retrieval for predictions
-│       └── storeModels.ts           # Model persistence
-├── prediction/                      # Prediction system
-│   ├── index.ts                     # Prediction exports
-│   ├── predictLinearRegression.ts   # Core prediction utilities
-│   └── predictors/                  # Individual predictor functions
-│       ├── index.ts
-│       ├── genericPredictor.ts      # Generic prediction orchestrator
-│       ├── shared.ts                # Common prediction utilities
-│       ├── predictDelayOnArrival.ts # Delay prediction
-│       ├── predictEtaOnArrival.ts   # ETA prediction (arrival-based)
-│       ├── predictEtaOnDeparture.ts # ETA prediction (departure-based)
-│       └── types.ts                 # Prediction type definitions
-├── core/                            # Public ML constants and types
-│   ├── index.ts                     # Core module exports
-│   ├── config.ts                    # Configuration constants
-│   ├── constants.ts                 # Model type constants
-│   └── types.ts                     # Public ML types
-└── shared/                          # Shared utilities and types
-    ├── index.ts
-    ├── core/                        # Core implementation (internal)
+├── shared/                          # Core shared utilities
+│   ├── index.ts                     # Export core types, config, features
+│   ├── config.ts                    # ML configuration (moved from core/)
+│   ├── types.ts                     # Core types (moved from core/)
+│   ├── features.ts                  # Feature extraction
+│   ├── models.ts                    # Model definitions
+│   └── unifiedTrip.ts               # Trip structure utilities
+├── prediction/                      # Prediction system (moved from shared/)
+│   ├── index.ts
+│   ├── applyModel.ts                # Core prediction utilities
+│   └── metrics.ts                   # Prediction metrics
+└── training/                        # Training pipeline
+    ├── index.ts                     # Training module exports
+    ├── actions.ts                   # Training action handlers
+    ├── pipeline.ts                  # Main training orchestrator (6 steps)
+    ├── data/                        # Data loading and processing
     │   ├── index.ts
-    │   ├── types.ts                 # Core type definitions
-    │   ├── modelTypes.ts            # Model type constants
-    │   └── config.ts                # ML configuration and FEATURE_DEFINITIONS
-    ├── features/                    # Feature engineering
-    │   ├── index.ts
-    │   ├── extractFeatures.ts       # Feature extraction dispatcher
-    │   └── timeFeatures.ts          # Time-based feature utilities
-    ├── features.ts                  # Feature extraction exports
-    ├── functional/                  # Functional programming utilities
-    │   └── index.ts
-    ├── terminals.ts                 # Terminal name utilities
-    └── unifiedTrip.ts              # Unified trip structure for ML
+    │   ├── loadTrainingData.ts      # Load WSF API data
+    │   ├── createTrainingRecords.ts # Convert to training format
+    │   └── createTrainingBuckets.ts # Group by terminal pairs
+    └── models/                      # Model training logic
+        ├── index.ts
+        ├── trainModels.ts           # Core training with MLR
+        ├── loadModel.ts             # Model retrieval for predictions
+        └── storeModels.ts           # Model persistence
 ```
 
 ### Data Flow

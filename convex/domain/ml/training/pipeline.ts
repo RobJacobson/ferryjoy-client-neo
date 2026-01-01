@@ -11,7 +11,7 @@ import type {
   TerminalPairBucket,
   TrainingDataWithTerminals,
   TrainingResponse,
-} from "domain/ml/shared/core/types";
+} from "domain/ml/shared";
 import { MODEL_KEYS } from "../shared/models";
 import { createTerminalPairBuckets } from "./data/createTrainingBuckets";
 import { createTrainingDataRecords } from "./data/createTrainingRecords";

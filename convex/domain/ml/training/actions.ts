@@ -1,7 +1,7 @@
 "use node";
 
 import { internalAction } from "_generated/server";
-import type { TrainingResponse } from "domain/ml/shared/core/types";
+import type { TrainingResponse } from "domain/ml/shared/types";
 import { runMLPipeline } from "./pipeline";
 
 // ============================================================================

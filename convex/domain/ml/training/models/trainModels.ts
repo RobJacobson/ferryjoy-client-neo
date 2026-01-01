@@ -7,16 +7,16 @@ import type {
   ModelParameters,
   TerminalPairBucket,
   TrainingExample,
-} from "domain/ml/shared/core/types";
+} from "domain/ml/shared/types";
 import MLR from "ml-regression-multivariate-linear";
-import type { Features } from "../../shared/features";
-import { type ModelType, models } from "../../shared/models";
-import { predictWithModel } from "../../shared/prediction/applyModel";
+import { predictWithModel } from "../../prediction/applyModel";
 import {
   calculateMAE,
   calculateR2,
   calculateRMSE,
-} from "../../shared/prediction/metrics";
+} from "../../prediction/metrics";
+import type { Features } from "../../shared/features";
+import { type ModelType, models } from "../../shared/models";
 
 /**
  * Create training examples for a specific model type from processed features

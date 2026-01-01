@@ -5,7 +5,7 @@
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import type { ModelParameters } from "domain/ml/shared/core/types";
+import type { ModelParameters } from "domain/ml/shared/types";
 
 /**
  * Store trained models in the database

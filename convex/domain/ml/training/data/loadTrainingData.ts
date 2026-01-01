@@ -9,7 +9,7 @@ import {
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { config } from "../../shared/core/config";
+import { config } from "../../shared/config";
 
 /**
  * Load all vessel history records from WSF API
