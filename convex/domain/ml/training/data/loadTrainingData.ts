@@ -9,7 +9,7 @@ import {
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { PIPELINE_CONFIG } from "../../shared/core/config";
+import { config } from "../../shared/core/config";
 
 /**
  * Load all vessel history records from WSF API
@@ -50,7 +50,7 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
       // Memory safety check - prevent excessive memory usage
       if (
         allRecords.length >
-        PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL * vessels.length
+        config.getMaxRecordsPerVessel() * vessels.length
       ) {
         console.warn("Reached maximum record limit for memory safety", {
           totalRecords: allRecords.length,
@@ -98,7 +98,7 @@ const fetchVesselData = async (
   // Calculate date range
   const endDate = new Date();
   const startDate = new Date(
-    endDate.getTime() - PIPELINE_CONFIG.DAYS_BACK * 24 * 60 * 60 * 1000
+    endDate.getTime() - config.getDaysBack() * 24 * 60 * 60 * 1000
   );
 
   try {
@@ -120,7 +120,7 @@ const fetchVesselData = async (
 
     if (sampledRecords.length < historyRecords.length) {
       console.log(
-        `Sampled down to ${sampledRecords.length} records for ${vesselName} (${PIPELINE_CONFIG.SAMPLING_STRATEGY})`
+        `Sampled down to ${sampledRecords.length} records for ${vesselName} (${config.getSamplingStrategy()})`
       );
     }
 
@@ -137,7 +137,7 @@ const fetchVesselData = async (
  * Apply sampling strategy to reduce data volume while preserving information
  */
 const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
-  const maxRecords = PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL;
+  const maxRecords = config.getMaxRecordsPerVessel();
 
   if (records.length <= maxRecords) {
     return records; // No sampling needed
@@ -150,14 +150,14 @@ const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
     return dateB - dateA; // Most recent first
   });
 
-  if (PIPELINE_CONFIG.SAMPLING_STRATEGY === "recent_first") {
+  if (config.getSamplingStrategy() === "recent_first") {
     // Keep the most recent records up to the limit
     return sortedRecords.slice(0, maxRecords);
   }
 
   // Default: return all records if strategy not recognized
   console.warn(
-    `Unknown sampling strategy: ${PIPELINE_CONFIG.SAMPLING_STRATEGY}, returning unsampled data`
+    `Unknown sampling strategy: ${config.getSamplingStrategy()}, returning unsampled data`
   );
   return records;
 };

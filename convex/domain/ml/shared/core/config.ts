@@ -143,13 +143,13 @@ export const ML_CONFIG = {
 /**
  * Functional getters for common configuration access patterns
  */
-export const getConfig = {
+export const config = {
   // Terminal utilities
   isValidTerminal: (terminal: string) =>
     ML_CONFIG.terminals.valid.has(terminal),
 
   getTerminalAbbrev: (terminalName: string) =>
-    ML_CONFIG.terminals.mapping[terminalName] || terminalName,
+    ML_CONFIG.terminals.mapping[terminalName],
 
   getMeanDockDuration: (terminalPair: string) =>
     ML_CONFIG.terminals.meanDockDuration[terminalPair] || 0,
@@ -204,28 +204,66 @@ export const parseTerminalPairKey = (key: string): [string, string] => {
 };
 
 /**
- * Backward compatibility exports for old constant names
+ * Feature key definitions for explicit ordering
+ * Guarantees consistent ordering between training and prediction
+ * to prevent silent errors where coefficients are applied to wrong features
+ *
+ * CRITICAL: Any changes to feature order require model retraining
  */
-export const VALID_PASSENGER_TERMINALS = ML_CONFIG.terminals.valid;
-export const TERMINAL_NAME_MAPPING = ML_CONFIG.terminals.mapping;
-export const MEAN_AT_DOCK_DURATION = ML_CONFIG.terminals.meanDockDuration;
-export const DURATION_THRESHOLDS = ML_CONFIG.thresholds.duration;
-export const PIPELINE_CONFIG = {
-  DAYS_BACK: ML_CONFIG.pipeline.dataLoading.daysBack,
-  MAX_RECORDS_PER_VESSEL: ML_CONFIG.pipeline.dataLoading.maxRecordsPerVessel,
-  MAX_SAMPLES_PER_ROUTE: ML_CONFIG.pipeline.dataLoading.maxSamplesPerRoute,
-  SAMPLING_STRATEGY: ML_CONFIG.pipeline.dataLoading.samplingStrategy,
-  COEFFICIENT_ROUNDING_ZERO_THRESHOLD:
-    ML_CONFIG.pipeline.training.coefficientRoundingZeroThreshold,
-  EVALUATION: ML_CONFIG.pipeline.evaluation,
-} as const;
+export const FEATURE_DEFINITIONS = {
+  // Time features (always present, ordered 0-7)
+  TIME_FEATURES: [
+    "time_center_0",
+    "time_center_1",
+    "time_center_2",
+    "time_center_3",
+    "time_center_4",
+    "time_center_5",
+    "time_center_6",
+    "time_center_7",
+  ] as const,
 
-export const MIN_DURATION_THRESHOLDS = {
-  AT_SEA: DURATION_THRESHOLDS.atSea.min,
-  AT_DOCK: DURATION_THRESHOLDS.atDock.min,
-};
-export const MAX_DURATION_THRESHOLDS = {
-  AT_DOCK: DURATION_THRESHOLDS.atDock.max,
-  AT_SEA: DURATION_THRESHOLDS.atSea.max,
-  ARRIVE_ARRIVE_TOTAL: DURATION_THRESHOLDS.arriveArriveTotal.max,
-};
+  // Base features (present in all models)
+  BASE_FEATURES: [
+    "isWeekend",
+    "prevDelay",
+    "prevAtSeaDuration",
+    "arriveBeforeMinutes",
+  ] as const,
+
+  // Departure-specific features (only in depart- models)
+  DEPART_FEATURES: ["atDockDuration", "tripDelay"] as const,
+
+  // Complete feature sets by model type
+  ARRIVE_MODEL_FEATURES: [
+    "time_center_0",
+    "time_center_1",
+    "time_center_2",
+    "time_center_3",
+    "time_center_4",
+    "time_center_5",
+    "time_center_6",
+    "time_center_7",
+    "isWeekend",
+    "prevDelay",
+    "prevAtSeaDuration",
+    "arriveBeforeMinutes",
+  ] as const,
+
+  DEPART_MODEL_FEATURES: [
+    "time_center_0",
+    "time_center_1",
+    "time_center_2",
+    "time_center_3",
+    "time_center_4",
+    "time_center_5",
+    "time_center_6",
+    "time_center_7",
+    "isWeekend",
+    "prevDelay",
+    "prevAtSeaDuration",
+    "arriveBeforeMinutes",
+    "atDockDuration",
+    "tripDelay",
+  ] as const,
+} as const;

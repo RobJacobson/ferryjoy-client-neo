@@ -4,11 +4,12 @@
 // Converts raw WSF records to TrainingDataRecord format with minimal filtering
 // ============================================================================
 
-import { getMinutesDelta, getPacificTime } from "shared/time";
+import type { TrainingDataWithTerminals } from "domain/ml/shared/core/types";
+import { getMinutesDelta } from "shared/time";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { getConfig } from "../../shared/core/config";
-import type { TrainingDataRecord } from "../../shared/core/types";
-import { extractTimeFeatures } from "../../shared/features/timeFeatures";
+import { config } from "../../shared/core/config";
+import { extractFeatures } from "../../shared/features";
+import type { UnifiedTrip } from "../../shared/unifiedTrip";
 
 /**
  * Terminal abbreviations for a consecutive trip pair (current + previous trip)
@@ -50,7 +51,7 @@ type TripCalculations = {
  */
 export const createTrainingDataRecords = (
   wsfRecords: VesselHistory[]
-): TrainingDataRecord[] => {
+): TrainingDataWithTerminals[] => {
   console.log(
     `Converting ${wsfRecords.length} WSF records to training records`
   );
@@ -78,13 +79,15 @@ export const createTrainingDataRecords = (
  * @param trips - Array of WSF trip records for a single vessel
  * @returns Array of training data records (one per valid trip pair)
  */
-const processVesselTrips = (trips: VesselHistory[]): TrainingDataRecord[] => {
+const processVesselTrips = (
+  trips: VesselHistory[]
+): TrainingDataWithTerminals[] => {
   const sortedTrips = trips.sort(
     (a, b) =>
       (a.ScheduledDepart?.getTime() || 0) - (b.ScheduledDepart?.getTime() || 0)
   );
 
-  const records: TrainingDataRecord[] = [];
+  const records: TrainingDataWithTerminals[] = [];
   for (let i = 1; i < sortedTrips.length; i++) {
     const record = processTripPair(sortedTrips[i], sortedTrips[i - 1]);
     if (record) {
@@ -107,7 +110,7 @@ const processVesselTrips = (trips: VesselHistory[]): TrainingDataRecord[] => {
 const processTripPair = (
   curr: VesselHistory,
   prev: VesselHistory
-): TrainingDataRecord | null => {
+): TrainingDataWithTerminals | null => {
   // Step 1: Validate terminal mappings exist
   const abbrevs = getTerminalAbbrevs(curr, prev);
   if (!hasValidTerminalMappings(abbrevs)) {
@@ -153,7 +156,7 @@ const processTripPair = (
  * @returns Standardized terminal abbreviation or undefined if not found
  */
 const getTerminalAbbrev = (terminalName: string): string | undefined => {
-  const abbrev = getConfig.getTerminalAbbrev(terminalName);
+  const abbrev = config.getTerminalAbbrev(terminalName);
 
   if (!abbrev && terminalName.trim() !== "" && abbrev !== terminalName) {
     console.warn(`Terminal name not found in mapping: ${terminalName}`);
@@ -224,9 +227,9 @@ const getTerminalAbbrevs = (
  */
 const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
   return (
-    getConfig.isValidTerminal(abbrevs.departing) &&
-    getConfig.isValidTerminal(abbrevs.arriving) &&
-    getConfig.isValidTerminal(abbrevs.previousArriving)
+    config.isValidTerminal(abbrevs.departing) &&
+    config.isValidTerminal(abbrevs.arriving) &&
+    config.isValidTerminal(abbrevs.previousArriving)
   );
 };
 
@@ -295,7 +298,7 @@ const calculateTripDurations = (
 
   const arriveBeforeMinutes =
     (curr.ScheduledDepart!.getTime() - prev.EstArrival!.getTime()) / 60000;
-  const meanAtDockDuration = getConfig.getMeanDockDuration(terminalPairKey);
+  const meanAtDockDuration = config.getMeanDockDuration(terminalPairKey);
   const arriveEarlyMinutes = meanAtDockDuration - arriveBeforeMinutes;
 
   return {
@@ -319,21 +322,21 @@ const calculateTripDurations = (
  * @returns True if all durations are within valid thresholds
  */
 const areDurationsValid = (calc: TripCalculations): boolean => {
-  if (calc.AtSeaDuration < getConfig.getMinAtSeaDuration()) {
+  if (calc.AtSeaDuration < config.getMinAtSeaDuration()) {
     return false; // Skip records where vessel was at sea for less than 2 minutes
   }
-  if (calc.AtDockDuration < getConfig.getMinAtDockDuration()) {
+  if (calc.AtDockDuration < config.getMinAtDockDuration()) {
     return false; // Skip records where vessel was at dock for less than 2 minutes
   }
-  if (calc.AtDockDuration > getConfig.getMaxAtDockDuration()) {
+  if (calc.AtDockDuration > config.getMaxAtDockDuration()) {
     return false; // Skip records with overnight layovers or extended maintenance (>3 hours at dock)
   }
-  if (calc.AtSeaDuration > getConfig.getMaxAtSeaDuration()) {
+  if (calc.AtSeaDuration > config.getMaxAtSeaDuration()) {
     return false; // Skip records with data errors (>24 hours at sea)
   }
   // Filter arrive-arrive outliers (total time from arrival to next arrival)
   const arriveArriveTotal = calc.AtDockDuration + calc.AtSeaDuration;
-  if (arriveArriveTotal > getConfig.getMaxTotalDuration()) {
+  if (arriveArriveTotal > config.getMaxTotalDuration()) {
     return false; // Skip records with extreme arrive-arrive durations (>2 hours total)
   }
 
@@ -355,27 +358,46 @@ const createTrainingRecord = (
   abbrevs: TerminalAbbrevs,
   calc: TripCalculations,
   schedDeparture: Date
-): TrainingDataRecord => {
-  const schedDeparturePacificTime = getPacificTime(schedDeparture);
-  const dayOfWeek = schedDeparturePacificTime.getDay();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 ? 1 : 0;
-  const schedDepartureTimeFeatures = extractTimeFeatures(
-    schedDeparturePacificTime
-  );
+): TrainingDataWithTerminals => {
+  // Create a UnifiedTrip for feature extraction by reconstructing timestamps
+  // that will produce the same calculated durations when passed to extractFeatures
+  const schedDepartureTime = schedDeparture.getTime();
 
-  return {
+  // Work backwards from scheduled departure to reconstruct all timestamps
+  // LeftDock = ScheduledDeparture + TripDelay
+  const leftDockTime = schedDepartureTime + calc.TripDelay * 60000;
+
+  // TripStart = LeftDock - AtDockDuration
+  const tripStartTime = leftDockTime - calc.AtDockDuration * 60000;
+
+  // TripEnd = LeftDock + AtSeaDuration
+  const tripEndTime = leftDockTime + calc.AtSeaDuration * 60000;
+
+  // PrevLeftDock = TripStart - PrevAtSeaDuration
+  const prevLeftDockTime = tripStartTime - calc.PrevAtSeaDuration * 60000;
+
+  // PrevScheduledDeparture = PrevLeftDock - PrevTripDelay
+  const prevSchedDepartTime = prevLeftDockTime - calc.PrevTripDelay * 60000;
+
+  const unifiedTrip: UnifiedTrip = {
+    VesselAbbrev: "unknown", // Not needed for feature extraction
     DepartingTerminalAbbrev: abbrevs.departing,
     ArrivingTerminalAbbrev: abbrevs.arriving,
-    PrevTripDelay: calc.PrevTripDelay,
-    PrevAtSeaDuration: calc.PrevAtSeaDuration,
-    AtDockDuration: calc.AtDockDuration,
-    TripDelay: calc.TripDelay,
-    AtSeaDuration: calc.AtSeaDuration,
-    isWeekend,
-    schedDepartureTimeFeatures,
-    ScheduledDeparture: schedDeparturePacificTime.getTime(),
-    arriveEarlyMinutes: calc.arriveEarlyMinutes,
-    arriveBeforeMinutes: calc.arriveBeforeMinutes,
+    TripStart: tripStartTime,
+    ScheduledDeparture: schedDepartureTime,
+    LeftDock: leftDockTime,
+    TripEnd: tripEndTime,
+    PrevLeftDock: prevLeftDockTime,
+    PrevScheduledDeparture: prevSchedDepartTime,
+  };
+
+  return {
+    terminalPair: {
+      departingTerminalAbbrev: abbrevs.departing,
+      arrivingTerminalAbbrev: abbrevs.arriving,
+    },
+    scheduledDeparture: schedDepartureTime,
+    features: extractFeatures(unifiedTrip),
   };
 };
 

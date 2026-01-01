@@ -5,8 +5,7 @@
 
 import { api } from "_generated/api";
 import type { ActionCtx, MutationCtx } from "_generated/server";
-import type { ModelType } from "../../shared/core/modelTypes";
-import type { ModelParameters } from "../../shared/core/types";
+import type { ModelParameters, ModelType } from "domain/ml/shared/core/types";
 
 /**
  * Load a trained model for prediction

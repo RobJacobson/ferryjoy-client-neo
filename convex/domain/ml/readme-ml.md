@@ -491,111 +491,6 @@ npm run train:compare results1.csv results2.csv
 
 **Features**: 11-14 engineered features per model (time cycles, historical context, route patterns)
 
-```typescript
-// 1. Define the predictor in prediction/predictors/index.ts
-
-export const predictArriveDepart = async (
-  ctx: ActionCtx | MutationCtx,
-  completedTrip: ConvexVesselTrip,
-  newTrip: ConvexVesselTrip
-): Promise<PredictionResult> => {
-  const _predictionContext: NewTripContext = {
-    completedTrip,
-    newTrip,
-    departingTerminal: newTrip.DepartingTerminalAbbrev,
-    arrivingTerminal: newTrip.ArrivingTerminalAbbrev || "",
-  };
-
-  const config: PredictionConfig<NewTripContext> = {
-    modelName: "arrive-depart",  // Your model type
-    skipPrediction: (_ctx) =>
-      !_ctx.completedTrip.Delay ||
-      !_ctx.completedTrip.AtSeaDuration ||
-      !_ctx.newTrip.TripStart ||
-      !_ctx.newTrip.ScheduledDeparture,
-    extractFeatures: (_ctx) => {
-      const terminalPairKey = formatTerminalPairKey(
-        _ctx.departingTerminal,
-        _ctx.arrivingTerminal
-      );
-      try {
-        // Use appropriate feature extraction function
-        const features = extractArriveDepartFeatures(
-          _ctx.newTrip.ScheduledDeparture!,
-          _ctx.completedTrip.Delay!,
-          _ctx.completedTrip.AtSeaDuration!,
-          _ctx.newTrip.TripStart!,
-          terminalPairKey
-        );
-        return { features };
-      } catch (error) {
-        return { features: {}, error: String(error) };
-      }
-    },
-    convertToAbsolute: (predictedDuration, ctx) => {
-      // Choose appropriate time conversion function
-      const absoluteTime = yourConversionFunction(
-        ctx.newTrip.TripStart!,
-        predictedDuration
-      );
-      return {
-        absoluteTime,
-        referenceTime: ctx.newTrip.TripStart!,
-        minimumGap: 2,
-      };
-    },
-  };
-
-  return predict(ctx, config);
-};
-
-// 2. Export from prediction/index.ts
-export { predictArriveDepart } from "./predictors";
-
-// 3. Export from domain/ml/index.ts
-export {
-  predictDelayOnArrival,
-  predictEtaOnArrival,
-  predictEtaOnDeparture,
-} from "./prediction/predictors";
-```
-
-### Validation Script
-
-Validate prediction accuracy against actual trip data:
-
-```bash
-# Run prediction validation (after predictions exist in database)
-npx tsx scripts/validate-predictions.ts
-```
-
-**Output:**
-- Overall accuracy metrics
-- Accuracy by terminal pair
-- Percentage of predictions within MAE margin
-- Average error in minutes
-- Recommendations for improvement
-
-### Known Limitations
-
-1. **Model Availability**: Predictions only work if models exist in database. First run after deployment will have no predictions until training completes.
-
-2. **Edge Cases Handled Gracefully**:
-   - Missing previous trip data → No predictions (fields remain `undefined`)
-   - Model not found for terminal pair → No predictions
-   - Invalid model parameters → No predictions
-   - Impossible predictions → Clamped to minimum valid times
-
-3. **Performance**:
-   - Prediction calculations are fast (single linear regression evaluation)
-   - Database queries for model loading may add latency
-   - Consider caching models in memory if latency becomes an issue
-
-4. **Future Model Support**: Infrastructure supports adding:
-   - `predictArriveDepart` for arrive-depart model
-   - `predictDepartDepart` for depart-depart model
-   All would use same generic `predict()` orchestrator
-
 ## Model Architecture
 
 ### Linear Regression Models
@@ -651,7 +546,6 @@ Models are evaluated using:
 convex/domain/ml/
 ├── index.ts                         # Main module exports
 ├── readme-ml.md                     # This documentation
-├── actions.ts                       # Convex actions for training
 ├── training/                        # Training pipeline
 │   ├── index.ts                     # Training module exports
 │   ├── pipeline.ts                  # Main training orchestrator (6 steps)
@@ -668,28 +562,36 @@ convex/domain/ml/
 │       └── storeModels.ts           # Model persistence
 ├── prediction/                      # Prediction system
 │   ├── index.ts                     # Prediction exports
-│   ├── predictOnArrival.ts          # Initial prediction orchestrator
 │   ├── predictLinearRegression.ts   # Core prediction utilities
 │   └── predictors/                  # Individual predictor functions
 │       ├── index.ts
+│       ├── genericPredictor.ts      # Generic prediction orchestrator
 │       ├── shared.ts                # Common prediction utilities
 │       ├── predictDelayOnArrival.ts # Delay prediction
 │       ├── predictEtaOnArrival.ts   # ETA prediction (arrival-based)
 │       ├── predictEtaOnDeparture.ts # ETA prediction (departure-based)
 │       └── types.ts                 # Prediction type definitions
-└── shared/                          # Shared utilities
+├── core/                            # Public ML constants and types
+│   ├── index.ts                     # Core module exports
+│   ├── config.ts                    # Configuration constants
+│   ├── constants.ts                 # Model type constants
+│   └── types.ts                     # Public ML types
+└── shared/                          # Shared utilities and types
     ├── index.ts
-    ├── core/                        # Core types and configuration
+    ├── core/                        # Core implementation (internal)
     │   ├── index.ts
-    │   ├── types.ts                 # TypeScript type definitions
+    │   ├── types.ts                 # Core type definitions
     │   ├── modelTypes.ts            # Model type constants
-    │   └── config.ts                # Configuration constants
+    │   └── config.ts                # ML configuration and FEATURE_DEFINITIONS
     ├── features/                    # Feature engineering
     │   ├── index.ts
     │   ├── extractFeatures.ts       # Feature extraction dispatcher
     │   └── timeFeatures.ts          # Time-based feature utilities
-    └── functional/                  # Functional programming utilities
-        └── index.ts
+    ├── features.ts                  # Feature extraction exports
+    ├── functional/                  # Functional programming utilities
+    │   └── index.ts
+    ├── terminals.ts                 # Terminal name utilities
+    └── unifiedTrip.ts              # Unified trip structure for ML
 ```
 
 ### Data Flow
@@ -823,10 +725,10 @@ crons.cron(
 
 **Status**: ✅ **FULLY OPERATIONAL WITH LINEAR REGRESSION**
 
-**Models**: Dynamic coverage across 35+ terminal pairs (4 models each: arrive-depart, depart-arrive, arrive-arrive, depart-depart)
+**Models**: Dynamic coverage across 35+ terminal pairs (5 models each: arrive-depart-atdock-duration, depart-arrive-atsea-duration, arrive-arrive-total-duration, arrive-depart-delay, depart-depart-total-duration)
 
 **Training Data**: Fresh WSF API data (720 days back) or stored historical data
 
-**Features**: 11-14 comprehensive features (5 base + 8 time-of-day centers, simplified for depart-depart)
+**Features**: 11-14 comprehensive features (time-of-day RBF functions, historical context, arrival timing, route patterns)
 
 **Automation**: Weekly retraining at 11:00 AM UTC on Mondays (linear regression via cron)

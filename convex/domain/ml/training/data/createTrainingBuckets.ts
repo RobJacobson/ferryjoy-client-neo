@@ -4,37 +4,44 @@
 // Group records by terminal pairs and calculate statistics
 // ============================================================================
 
-import {
-  formatTerminalPairKey,
-  PIPELINE_CONFIG,
-  parseTerminalPairKey,
-} from "../../shared/core/config";
 import type {
   TerminalPairBucket,
-  TrainingDataRecord,
-} from "../../shared/core/types";
+  TrainingDataWithTerminals,
+} from "domain/ml/shared/core/types";
+import {
+  config,
+  formatTerminalPairKey,
+  parseTerminalPairKey,
+} from "../../shared/core/config";
 
 /**
  * Create terminal pair buckets from training records
  */
 export const createTerminalPairBuckets = (
-  records: TrainingDataRecord[]
+  records: TrainingDataWithTerminals[]
 ): TerminalPairBucket[] => {
   console.log(`Creating buckets from ${records.length} records`);
 
-  const bucketMap = new Map<string, TrainingDataRecord[]>();
+  const bucketMap = new Map<string, TrainingDataWithTerminals[]>();
 
   // Dynamic grouping by terminal pairs
   // Note: Terminal data already validated
   for (const record of records) {
     const key = formatTerminalPairKey(
-      record.DepartingTerminalAbbrev,
-      record.ArrivingTerminalAbbrev
+      record.terminalPair.departingTerminalAbbrev,
+      record.terminalPair.arrivingTerminalAbbrev
     );
     const bucketRecords = bucketMap.get(key) || [];
     bucketRecords.push(record);
     bucketMap.set(key, bucketRecords);
   }
+
+  /**
+   * Extract Features from TrainingDataWithTerminals for model processing
+   */
+  const recordToFeatures = (
+    record: TrainingDataWithTerminals
+  ): typeof record.features => record.features;
 
   // Convert to buckets with comprehensive statistics
   const buckets: TerminalPairBucket[] = Array.from(bucketMap.entries()).map(
@@ -44,8 +51,8 @@ export const createTerminalPairBuckets = (
       // Sample down to most recent MAX_SAMPLES_PER_ROUTE records
       const originalCount = records.length;
       const sampledRecords = records
-        .sort((a, b) => b.ScheduledDeparture - a.ScheduledDeparture) // Most recent first
-        .slice(0, PIPELINE_CONFIG.MAX_SAMPLES_PER_ROUTE); // Take top N
+        .sort((a, b) => b.scheduledDeparture - a.scheduledDeparture) // Most recent first
+        .slice(0, config.getMaxSamplesPerRoute()); // Take top N
 
       console.log(
         `Route ${key}: ${originalCount} → ${sampledRecords.length} samples ` +
@@ -54,32 +61,41 @@ export const createTerminalPairBuckets = (
 
       // Calculate mean statistics on sampled records
       const validRecords = sampledRecords.filter(
-        (r) => r.PrevTripDelay != null && r.AtSeaDuration != null
+        (r) =>
+          r.features.prevTripDelay != null && r.features.atSeaDuration != null
       );
       const meanDepartureDelay =
         validRecords.length > 0
-          ? validRecords.reduce((sum, r) => sum + r.PrevTripDelay!, 0) /
-            validRecords.length
+          ? validRecords.reduce(
+              (sum, r) => sum + r.features.prevTripDelay!,
+              0
+            ) / validRecords.length
           : undefined;
       const meanAtSeaDuration =
         validRecords.length > 0
-          ? validRecords.reduce((sum, r) => sum + r.AtSeaDuration!, 0) /
-            validRecords.length
+          ? validRecords.reduce(
+              (sum, r) => sum + r.features.atSeaDuration!,
+              0
+            ) / validRecords.length
           : undefined;
       const meanDelay =
         validRecords.length > 0
           ? validRecords.reduce(
-              (sum, r) => sum + r.PrevTripDelay! + r.AtSeaDuration!,
+              (sum, r) =>
+                sum + r.features.prevTripDelay! + r.features.atSeaDuration!,
               0
             ) / validRecords.length
           : undefined;
+
+      // Convert records to features for the bucket
+      const features = sampledRecords.map(recordToFeatures);
 
       return {
         terminalPair: {
           departingTerminalAbbrev: departing,
           arrivingTerminalAbbrev: arriving,
         },
-        records: sampledRecords,
+        features,
         bucketStats: {
           totalRecords: originalCount, // Original count before sampling
           filteredRecords: sampledRecords.length, // Actual training samples
@@ -92,14 +108,14 @@ export const createTerminalPairBuckets = (
   );
 
   // Sort buckets by sampled record count (largest first)
-  buckets.sort((a, b) => b.records.length - a.records.length);
+  buckets.sort((a, b) => b.features.length - a.features.length);
 
   const totalOriginalRecords = buckets.reduce(
     (sum, b) => sum + b.bucketStats.totalRecords,
     0
   );
   const totalSampledRecords = buckets.reduce(
-    (sum, b) => sum + b.records.length,
+    (sum, b) => sum + b.features.length,
     0
   );
   console.log(

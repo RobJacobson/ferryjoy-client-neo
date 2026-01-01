@@ -3,5 +3,4 @@
 // ============================================================================
 
 export * from "./config";
-export * from "./modelTypes";
 export * from "./types";

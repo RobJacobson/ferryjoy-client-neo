@@ -4,14 +4,15 @@
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
-import { MODEL_TYPES, type ModelType } from "../shared/core/modelTypes";
 import type {
   DataQualityMetrics,
   ModelParameters,
+  ModelType,
   TerminalPairBucket,
-  TrainingDataRecord,
+  TrainingDataWithTerminals,
   TrainingResponse,
-} from "../shared/core/types";
+} from "domain/ml/shared/core/types";
+import { MODEL_KEYS } from "../shared/models";
 import { createTerminalPairBuckets } from "./data/createTrainingBuckets";
 import { createTrainingDataRecords } from "./data/createTrainingRecords";
 import { loadWsfTrainingData } from "./data/loadTrainingData";
@@ -24,7 +25,7 @@ import { trainModel } from "./models/trainModels";
  * @returns Quality metrics including completeness and temporal validation scores
  */
 const analyzeDataQuality = (
-  trainingRecords: TrainingDataRecord[]
+  trainingRecords: TrainingDataWithTerminals[]
 ): DataQualityMetrics => ({
   totalRecords: trainingRecords.length,
   completeness: {
@@ -46,7 +47,7 @@ const analyzeDataQuality = (
 const trainAllModels = async (
   buckets: TerminalPairBucket[]
 ): Promise<ModelParameters[]> => {
-  const modelTypes: ModelType[] = Object.values(MODEL_TYPES);
+  const modelTypes: ModelType[] = [...MODEL_KEYS];
 
   // Create training tasks for all bucket-model combinations
   // Each bucket gets trained for all model types (4 different prediction models)
@@ -113,7 +114,7 @@ export const runMLPipeline = async (
     return {
       models,
       stats: {
-        totalExamples: buckets.reduce((sum, b) => sum + b.records.length, 0),
+        totalExamples: buckets.reduce((sum, b) => sum + b.features.length, 0),
         terminalPairs: buckets.map(
           (b) =>
             `${b.terminalPair.departingTerminalAbbrev}->${b.terminalPair.arrivingTerminalAbbrev}`

@@ -2,12 +2,9 @@
 // CORE TYPES
 // ============================================================================
 
-import type { ModelType } from "./modelTypes";
-
-/**
- * Feature vector as name-value pairs for ML
- */
-export type FeatureVector = Record<string, number>;
+import type { Features } from "../features";
+import type { ModelType } from "../models";
+export type { ModelType };
 
 /**
  * Feature record containing extracted numeric features for ML models
@@ -16,10 +13,19 @@ export type FeatureVector = Record<string, number>;
 export type FeatureRecord = Record<string, number>;
 
 /**
+ * Result of feature extraction including features and explicit ordering
+ * Used to guarantee consistent feature ordering between training and prediction
+ */
+export type FeatureExtractionResult = {
+  features: FeatureRecord;
+  featureKeys: readonly string[];
+};
+
+/**
  * Training example with features and target
  */
 export type TrainingExample = {
-  input: FeatureVector;
+  input: FeatureRecord;
   target: number; // duration in minutes (at_dock, at_sea, or combined durations)
 };
 
@@ -32,33 +38,15 @@ export type TerminalPair = {
 };
 
 /**
- * Training data record containing raw trip data and computed features for model training
- *
- * Each record represents a consecutive trip pair (current trip and its immediate predecessor)
- * with all necessary data for training multiple ML models that predict ferry durations and delays.
- *
- * Field names match Convex VesselTrip schema for consistency.
+ * Training data with terminal pair information
  */
-export type TrainingDataRecord = {
-  // Terminal pair identifiers (required for routing and model lookup)
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-
-  // Previous trip metrics (context for current trip predictions)
-  PrevTripDelay: number; // Previous trip's departure delay in minutes from scheduled departure (can be negative for early departures)
-  PrevAtSeaDuration: number; // Previous trip's duration at sea in minutes (departure to arrival)
-
-  // Current trip metrics (prediction targets)
-  AtDockDuration: number; // Current trip's at-dock duration in minutes (arrival to departure)
-  TripDelay: number; // Current trip's departure delay in minutes from scheduled departure
-  AtSeaDuration: number; // Current trip's duration at sea in minutes (departure to arrival)
-
-  // Time-based features extracted from current trip's scheduled departure
-  isWeekend: number; // 1 if scheduled departure is on weekend (Saturday/Sunday), 0 otherwise
-  schedDepartureTimeFeatures: Record<string, number>; // Gaussian radial basis function features for time-of-day
-  ScheduledDeparture: number; // Scheduled departure timestamp in milliseconds (for sorting and validation)
-  arriveEarlyMinutes: number; // How many minutes early vessel arrived at dock (relative to mean)
-  arriveBeforeMinutes: number; // How many minutes before scheduled departure vessel arrived at dock
+export type TrainingDataWithTerminals = {
+  terminalPair: {
+    departingTerminalAbbrev: string;
+    arrivingTerminalAbbrev: string;
+  };
+  scheduledDeparture: number; // For sorting by recency
+  features: Features;
 };
 
 /**
@@ -66,7 +54,7 @@ export type TrainingDataRecord = {
  */
 export type TerminalPairBucket = {
   terminalPair: TerminalPair;
-  records: TrainingDataRecord[];
+  features: Features[];
   bucketStats: {
     totalRecords: number;
     filteredRecords: number;
