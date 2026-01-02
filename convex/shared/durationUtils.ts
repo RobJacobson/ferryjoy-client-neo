@@ -27,11 +27,13 @@ export const getMinutesDelta = (
  * precision factor, rounding to the nearest integer, and then dividing back.
  *
  * @param value - The numeric value to round
- * @param precision - The precision factor (e.g., 10 for 1 decimal place, 100 for 2 decimal places)
+ * @param precision - The precision factor (e.g., 1 for 1 decimal place, 2 for 2 decimal places)
  * @returns The rounded number
  */
-export const roundToPrecision = (value: number, precision: number): number =>
-  Math.round(value * precision) / precision;
+export const roundToPrecision = (
+  value: number,
+  precision: number = 0
+): number => Math.round(value * 10 ** precision) / 10 ** precision;
 
 /**
  * Calculates the time delta in minutes between two times.
@@ -48,5 +50,5 @@ export const calculateTimeDelta = (
   secondTime: number | undefined
 ): number | undefined => {
   const delta = getMinutesDelta(firstTime, secondTime);
-  return delta !== undefined ? roundToPrecision(delta, 10) : undefined;
+  return delta !== undefined ? roundToPrecision(delta, 1) : undefined;
 };

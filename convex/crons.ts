@@ -5,13 +5,13 @@ const crons = cronJobs();
 
 crons.interval(
   "update vessel locations",
-  { seconds: 10 }, // every ten seconds
+  { seconds: 15 }, // every ten seconds
   internal.functions.vesselLocation.actions.updateVesselLocations
 );
 
 crons.interval(
   "update vessel trips",
-  { seconds: 10 }, // every ten seconds
+  { seconds: 15 }, // every ten seconds
   internal.functions.vesselTrips.actions.updateVesselTrips
 );
 

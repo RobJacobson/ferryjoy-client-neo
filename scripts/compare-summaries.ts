@@ -136,6 +136,12 @@ const compareResults = (
       return;
     }
 
+    // Skip FRH->SHI due to small sample size
+    if (fileARow.terminal_pair === "FRH->SHI") {
+      console.log(`Skipping ${fileARow.terminal_pair} (small sample size)`);
+      return;
+    }
+
     // Helper to get metric value
     const getMetric = (
       row: TrainingResultRow,
@@ -591,6 +597,6 @@ const compareSummaries = async () => {
 };
 
 // Run if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   compareSummaries().catch(console.error);
 }

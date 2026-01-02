@@ -196,20 +196,18 @@ const getTerminalAbbrevs = (
   curr: VesselHistory,
   prev: VesselHistory
 ): TerminalAbbrevs | null => {
-  const departing = getTerminalAbbrev(curr.Departing || "");
-  const arriving = getTerminalAbbrev(curr.Arriving || "");
-  const previousArriving = getTerminalAbbrev(prev.Arriving || "");
+  if (!curr.Departing || !curr.Arriving || !prev.Arriving) {
+    return null;
+  }
+  const departing = getTerminalAbbrev(curr.Departing);
+  const arriving = getTerminalAbbrev(curr.Arriving);
+  const previousArriving = getTerminalAbbrev(prev.Arriving);
 
   // If any terminal is unmapped, return null
   if (!departing || !arriving || !previousArriving) {
-    // Only warn if it's an actual unmapped terminal issue (not expected null prev.Arriving)
-    const isExpectedNull = !previousArriving && prev.Arriving === null;
-    if (!isExpectedNull) {
-      console.warn(`Skipping record due to unmapped terminals`, {
-        departing: curr.Departing,
-        arriving: curr.Arriving,
-      });
-    }
+    console.warn(`Skipping record due to unmapped terminals`, {
+      curr,
+    });
     return null;
   }
 
@@ -298,7 +296,7 @@ const calculateTripDurations = (
 
   const arriveBeforeMinutes =
     (curr.ScheduledDepart!.getTime() - prev.EstArrival!.getTime()) / 60000;
-  const meanAtDockDuration = config.getMeanDockDuration(terminalPairKey);
+  const meanAtDockDuration = config.getMeanAtDockDuration(terminalPairKey);
   const arriveEarlyMinutes = meanAtDockDuration - arriveBeforeMinutes;
 
   return {

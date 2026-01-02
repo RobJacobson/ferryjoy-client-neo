@@ -54,11 +54,6 @@ export const createTerminalPairBuckets = (
         .sort((a, b) => b.scheduledDeparture - a.scheduledDeparture) // Most recent first
         .slice(0, config.getMaxSamplesPerRoute()); // Take top N
 
-      console.log(
-        `Route ${key}: ${originalCount} → ${sampledRecords.length} samples ` +
-          `(kept ${((sampledRecords.length / originalCount) * 100).toFixed(1)}% most recent)`
-      );
-
       // Calculate mean statistics on sampled records
       const validRecords = sampledRecords.filter(
         (r) =>

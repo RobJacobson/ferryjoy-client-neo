@@ -54,10 +54,12 @@ const trainAllModels = async (
   const trainingTasks = buckets.flatMap((bucket) =>
     modelTypes.map(async (modelType) => {
       try {
-        return trainModel(bucket, modelType);
+        return await trainModel(bucket, modelType);
       } catch (error) {
-        const errorMsg = `Failed to train ${modelType} for ${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}: ${error}`;
-        console.error(errorMsg);
+        const terminalPair = `${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}`;
+        console.error(
+          `Failed to train ${modelType} for ${terminalPair}: ${error}`
+        );
         return null; // Return null for failed trainings, filter out later
       }
     })
@@ -67,7 +69,9 @@ const trainAllModels = async (
   const results = await Promise.all(trainingTasks);
 
   // Filter out any failed trainings (null results)
-  return results.filter((model): model is ModelParameters => model !== null);
+  const successfulModels = results.filter((model): model is ModelParameters => model !== null);
+
+  return successfulModels;
 };
 
 /**
@@ -88,9 +92,7 @@ const trainAllModels = async (
 export const runMLPipeline = async (
   ctx: ActionCtx
 ): Promise<TrainingResponse> => {
-  console.log("Starting ML training pipeline", {
-    timestamp: new Date(),
-  });
+  console.log("Starting ML training pipeline", { timestamp: new Date() });
 
   try {
     // Step 1: Load raw WSF vessel tracking data from external data sources
@@ -105,11 +107,13 @@ export const runMLPipeline = async (
     // Step 4: Train linear regression models for all terminal pairs and model types
     const models = await trainAllModels(buckets);
 
-    // Step 5: Persist trained models to database for production predictions
+    // Step 6: Persist trained models to database for production predictions
     await storeModels(models, ctx);
 
     // Step 6: Analyze training data quality and compute statistics
     const dataQuality = analyzeDataQuality(trainingRecords);
+
+    console.log(`Training complete. Stored ${models.length} models.`);
 
     return {
       models,

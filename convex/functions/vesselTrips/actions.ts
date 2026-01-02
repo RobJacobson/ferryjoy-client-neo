@@ -1,10 +1,10 @@
 import { api } from "_generated/api";
 import { type ActionCtx, internalAction } from "_generated/server";
 import {
+  predictArriveEta,
   predictDelayOnArrival,
-  predictEtaOnArrival,
   predictEtaOnDeparture,
-} from "domain/ml/prediction/predictors";
+} from "domain/ml/prediction";
 import {
   type ConvexVesselLocation,
   toConvexVesselLocation,
@@ -125,17 +125,18 @@ const handleNewTrip = async (
   // Create a new trip object with the completed trip's at-sea duration and total duration
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
-    PrevAtSeaDuration: completedTrip.AtSeaDuration,
-    PrevTripDelay: completedTrip.TripDelay,
+    PrevScheduledDeparture: completedTrip.ScheduledDeparture,
+    PrevLeftDock: completedTrip.LeftDock,
   });
 
   const newTripWithPredictions = {
     ...newTrip,
     ...(await getTripDelayPrediction(ctx, newTrip)),
-    ...(await getEtaArrivalPrediction(ctx, newTrip)),
-    ...(await getEtaDeparturePrediction(ctx, newTrip)),
+    ...(await getArriveEtaPrediction(ctx, newTrip)),
+    ...(await getDepartEtaPrediction(ctx, newTrip)),
   };
 
+  console.log("New trip with predictions:", newTripWithPredictions);
   // Complete and start a new trip by upserting the completed trip and the new trip
   await ctx.runMutation(
     api.functions.vesselTrips.mutations.completeAndStartNewTrip,
@@ -185,8 +186,8 @@ const handleTripUpdate = async (
   const updatedTripWithPredictions = {
     ...updatedTrip,
     ...(await getTripDelayPrediction(ctx, updatedTrip)),
-    ...(await getEtaArrivalPrediction(ctx, updatedTrip)),
-    ...(await getEtaDeparturePrediction(ctx, updatedTrip)),
+    ...(await getArriveEtaPrediction(ctx, updatedTrip)),
+    ...(await getDepartEtaPrediction(ctx, updatedTrip)),
   };
 
   if (equals(updatedTripWithPredictions, existingTrip)) {
@@ -243,25 +244,22 @@ const getTripDelayPrediction = async (
   trip: ConvexVesselTrip
 ): Promise<{
   TripDelayPred?: number;
-  TripDelayPredMae?: number;
+  TripDelayMae?: number;
 }> => {
-  if (
-    trip.TripDelayPred === undefined &&
-    trip.ArrivingTerminalAbbrev !== undefined
-  ) {
+  if (hasPredictionData(trip, false) && !trip.TripDelayPred) {
     try {
       const prediction = await predictDelayOnArrival(ctx, trip);
       console.log(
-        `[Prediction] Delay prediction for ${trip.VesselAbbrev}:`,
+        `[Action] Delay prediction for ${trip.VesselAbbrev}:`,
         prediction
       );
       return {
         TripDelayPred: prediction.predictedTime,
-        TripDelayPredMae: prediction.mae,
+        TripDelayMae: prediction.mae,
       };
     } catch (error) {
       console.error(
-        `[Prediction] Delay prediction failed for ${trip.VesselAbbrev}:`,
+        `[Action] Delay prediction failed for ${trip.VesselAbbrev}:`,
         error
       );
     }
@@ -276,32 +274,28 @@ const getTripDelayPrediction = async (
  * @param trip - The trip to predict departure ETA for
  * @returns Promise resolving to departure ETA prediction or empty object if prediction fails
  */
-const getEtaDeparturePrediction = async (
+const getDepartEtaPrediction = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<{
-  EtaPredDepart?: number;
-  EtaPredDepartMae?: number;
+  DepartEtaPred?: number;
+  DepartEtaMae?: number;
 }> => {
   // Only generate if not already calculated and vessel has left dock
-  if (
-    trip.EtaPredDepart === undefined &&
-    trip.AtDock === false &&
-    trip.LeftDock === undefined
-  ) {
+  if (hasPredictionData(trip, false) && !trip.DepartEtaPred) {
     try {
       const prediction = await predictEtaOnDeparture(ctx, trip);
       console.log(
-        `[Prediction] Departure ETA for ${trip.VesselAbbrev}:`,
+        `[Action] Departure ETA for ${trip.VesselAbbrev}:`,
         prediction
       );
       return {
-        EtaPredDepart: prediction.predictedTime,
-        EtaPredDepartMae: prediction.mae,
+        DepartEtaPred: prediction.predictedTime,
+        DepartEtaMae: prediction.mae,
       };
     } catch (error) {
       console.error(
-        `[Prediction] Departure ETA failed for ${trip.VesselAbbrev}:`,
+        `[Action] Departure ETA failed for ${trip.VesselAbbrev}:`,
         error
       );
     }
@@ -316,33 +310,46 @@ const getEtaDeparturePrediction = async (
  * @param trip - The trip to predict ETA for
  * @returns Promise resolving to arrival ETA prediction or empty object if prediction fails
  */
-const getEtaArrivalPrediction = async (
+const getArriveEtaPrediction = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<{
-  EtaPredArrive?: number;
-  EtaPredArriveMae?: number;
+  ArriveEtaPred?: number;
+  ArriveEtaMae?: number;
 }> => {
   if (
-    trip.EtaPredDepart === undefined &&
-    trip.ArrivingTerminalAbbrev !== undefined
+    hasPredictionData(trip, true) &&
+    Boolean(trip.LeftDock) &&
+    !trip.ArriveEtaPred
   ) {
     try {
-      const prediction = await predictEtaOnArrival(ctx, trip);
+      const prediction = await predictArriveEta(ctx, trip);
       console.log(
-        `[Prediction] ETA prediction for ${trip.VesselAbbrev}:`,
+        `[Action] ETA prediction for ${trip.VesselAbbrev}:`,
         prediction
       );
       return {
-        EtaPredArrive: prediction.predictedTime,
-        EtaPredArriveMae: prediction.mae,
+        ArriveEtaPred: prediction.predictedTime,
+        ArriveEtaMae: prediction.mae,
       };
     } catch (error) {
       console.error(
-        `[Prediction] ETA prediction failed for ${trip.VesselAbbrev}:`,
+        `[Action] ETA prediction failed for ${trip.VesselAbbrev}:`,
         error
       );
     }
   }
   return {};
 };
+
+const hasPredictionData = (
+  trip: ConvexVesselTrip,
+  leftDockRequired: boolean
+): boolean =>
+  Boolean(trip.TripStart) &&
+  Boolean(trip.ArrivingTerminalAbbrev) &&
+  Boolean(trip.InService) &&
+  Boolean(trip.ScheduledDeparture) &&
+  Boolean(trip.PrevScheduledDeparture) &&
+  Boolean(trip.PrevLeftDock) &&
+  (!leftDockRequired || Boolean(trip.LeftDock));

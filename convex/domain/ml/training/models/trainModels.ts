@@ -18,6 +18,9 @@ import {
 import type { Features } from "../../shared/features";
 import { type ModelType, models } from "../../shared/models";
 
+const getMean = (values: number[]): number =>
+  values.reduce((sum, v) => sum + v, 0) / values.length;
+
 /**
  * Create training examples for a specific model type from processed features
  *
@@ -82,24 +85,72 @@ export const trainModel = (
   // Extract model weights: coefficients for each feature plus intercept
   // MLR returns weights as 2D array: [coefficients..., intercept]
   const weights = mlr.weights as number[][];
-  const coefficients = weights
-    .slice(0, -1) // All but last element are feature coefficients
-    .map((row) => roundTinyValues(row[0]));
-  const intercept = roundTinyValues(
-    weights[weights.length - 1][0] // Last element is intercept
+  // console.log(
+  //   `⚖️ MLR weights: ${weights.length} (expected: ${(X[0]?.length || 0) + 1})`
+  // );
+
+  // SAFEGUARD: Validate weights structure before extraction
+  if (!Array.isArray(weights) || weights.length === 0) {
+    throw new Error(
+      `Invalid MLR weights structure: ${JSON.stringify(weights)}`
+    );
+  }
+
+  // Check if weights are in expected format [coefficient] arrays
+  const expectedLength = (X[0]?.length || 0) + 1; // +1 for intercept
+  if (weights.length !== expectedLength) {
+    // Keep going (we'll fall back to baseline below if this causes instability).
+  }
+
+  // Check if all weights are [number] arrays
+  const invalidWeights = weights.filter(
+    (w) => !Array.isArray(w) || w.length !== 1 || typeof w[0] !== "number"
   );
 
+  const coefficients = weights
+    .slice(0, -1) // All but last element are feature coefficients
+    .map((row, i) => {
+      if (!Array.isArray(row) || row.length !== 1) {
+        console.error(`Invalid coefficient structure at index ${i}:`, row);
+        return 0; // fallback
+      }
+      return roundTinyValues(row[0]);
+    });
+  const intercept =
+    Array.isArray(weights[weights.length - 1]) &&
+    weights[weights.length - 1].length === 1
+      ? roundTinyValues(weights[weights.length - 1][0])
+      : 0; // fallback
+
+  // FINAL VALIDATION: Check for abnormally large coefficients
+  const maxCoeff = Math.max(...coefficients.map(Math.abs));
+  const isUnstable =
+    maxCoeff > 10000 ||
+    !Number.isFinite(intercept) ||
+    coefficients.some((c) => !Number.isFinite(c)) ||
+    invalidWeights.length > 0;
+
   // Calculate predictions and metrics
-  const predictions = X.map((row) =>
+  const rawPredictions = X.map((row) =>
     predictWithModel(row, coefficients, intercept)
   );
+
+  // If training is numerically unstable (common when features have near-zero
+  // variance due to fixed schedules), fall back to a baseline predictor.
+  // This prevents "bizarre outliers" from poisoning aggregate training stats.
+  const finalIntercept = isUnstable ? getMean(y) : intercept;
+  const finalCoefficients = isUnstable
+    ? coefficients.map(() => 0)
+    : coefficients;
+
+  const predictions = isUnstable ? y.map(() => finalIntercept) : rawPredictions;
 
   return {
     departingTerminalAbbrev: bucket.terminalPair.departingTerminalAbbrev,
     arrivingTerminalAbbrev: bucket.terminalPair.arrivingTerminalAbbrev,
     modelType,
-    coefficients,
-    intercept,
+    coefficients: finalCoefficients,
+    intercept: finalIntercept,
     trainingMetrics: {
       mae: calculateMAE(y, predictions),
       rmse: calculateRMSE(y, predictions),
