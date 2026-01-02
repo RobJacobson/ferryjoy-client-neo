@@ -3,15 +3,16 @@
 // Machine Learning functionality for ferry schedule predictions
 // ============================================================================
 
-// Shared functionality (types, config, model types, features)
+/**
+ * Prediction utilities for real-time ML inference
+ */
+export * from "./prediction";
 /**
  * Core ML types, configuration constants, and model type definitions
  */
 export * from "./shared";
 
-// Training functionality
-// ML Actions (model management)
 /**
- * Action to train prediction models using the complete ML pipeline
+ * Training pipeline and model management functionality
  */
-export { trainPredictionModelsAction } from "./training/actions";
+export * from "./training";

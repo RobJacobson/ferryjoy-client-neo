@@ -16,6 +16,7 @@ A machine learning system that predicts ferry vessel docking and sailing duratio
 
 **Key Features:**
 - **Terminal-Pair Specific**: Separate models for each departure→arrival terminal combination
+- **Train-Test Evaluation**: 80/20 chronological split for reliable performance metrics
 - **Real-Time Predictions**: Sub-millisecond inference for live vessel tracking
 - **Automated Training**: Daily retraining pipeline using fresh WSF API data
 - **Type-Safe**: Full TypeScript implementation with comprehensive error handling
@@ -57,13 +58,14 @@ The ML system processes ferry trip data through a streamlined 6-step pipeline th
 ### Step 4: Train Models for All Buckets
 ```typescript
 // Train linear regression models for each terminal pair:
-// - Creates training examples with feature extraction
+// - Implements 80/20 train-test split (chronological order preserved)
+// - Trains on first 80% of data, evaluates on remaining 20%
 // - Trains multivariate linear regression for each model type
-// - Calculates performance metrics (MAE, RMSE, R²)
+// - Calculates performance metrics (MAE, RMSE, R²) on test set
 // - Handles training failures gracefully
-// Returns: Array of trained ModelParameters
+// Returns: Array of trained ModelParameters with test metrics
 ```
-**Purpose**: Trains separate linear regression models for each terminal pair and prediction type using the same feature extraction logic as prediction.
+**Purpose**: Trains separate linear regression models for each terminal pair and prediction type using train-test split for proper evaluation. Models are trained on chronological data and evaluated on held-out test data.
 
 ### Step 5: Store Trained Models
 ```typescript
@@ -124,9 +126,9 @@ npm run train:ml
 
 **Convex Data Source**: Trains on all available historical trip data (10K+ records) stored in Convex database.
 
-## Export Training Results to CSV
+## Export Test Results to CSV
 
-Generate a CSV file with the latest training results for analysis:
+Generate a CSV file with the latest model test results for analysis:
 
 ```bash
 # Make sure your Convex dev server is running
@@ -137,17 +139,17 @@ npm run train:export-results
 ```
 
 This creates `ml/training-results.csv` with one row per terminal pair containing:
-- Model performance metrics (MAE, R², RMSE)
+- Model performance metrics on held-out test set (MAE, R², RMSE)
 - Training data statistics (total/filtered records)
 - Bucket statistics (mean durations)
 - Training timestamps
 
 **CSV Columns:**
 - `terminal_pair`: Terminal combination (e.g., "MUK_CLI")
-- `arrive_depart_mae`, `arrive_depart_r2`, etc.: Arrive-depart model metrics (predicts at-dock duration)
-- `depart_arrive_mae`, `depart_arrive_r2`, etc.: Depart-arrive model metrics
-- `arrive_arrive_mae`, `arrive_arrive_r2`, etc.: Arrive-arrive model metrics
-- `depart_depart_mae`, `depart_depart_r2`, etc.: Depart-depart model metrics (predicts combined at-sea + at-dock)
+- `arrive_depart_mae`, `arrive_depart_r2`, etc.: Arrive-depart model test metrics (predicts at-dock duration)
+- `depart_arrive_mae`, `depart_arrive_r2`, etc.: Depart-arrive model test metrics
+- `arrive_arrive_mae`, `arrive_arrive_r2`, etc.: Arrive-arrive model test metrics
+- `depart_depart_mae`, `depart_depart_r2`, etc.: Depart-depart model test metrics (predicts combined at-sea + at-dock)
 - `total_records`: Records in the bucket before filtering
 - `filtered_records`: Records used for training
 - `created_at`: When models were trained
@@ -456,8 +458,8 @@ Weekly automated training at 11:00 AM UTC on Mondays:
 // convex/crons.ts
 crons.cron(
   "retrain ml models",
-  "0 4 * * *", // 4:00 AM daily
-  internal.domain.ml.actions.trainPredictionModelsAction
+  "0 11 * * 1", // 11:00 AM UTC every Monday
+  internal.domain.ml.training.actions.trainPredictionModelsAction
 );
 ```
 
@@ -544,33 +546,34 @@ Models are evaluated using:
 
 ```
 convex/domain/ml/
-├── index.ts                         # Main module exports
+├── index.ts                         # Main module exports (prediction, shared, training)
 ├── readme-ml.md                     # This documentation
-├── shared/                          # Core shared utilities
-│   ├── index.ts                     # Export core types, config, features
-│   ├── config.ts                    # ML configuration (moved from core/)
-│   ├── types.ts                     # Core types (moved from core/)
-│   ├── features.ts                  # Feature extraction
-│   ├── models.ts                    # Model definitions
-│   └── unifiedTrip.ts               # Trip structure utilities
-├── prediction/                      # Prediction system (moved from shared/)
-│   ├── index.ts
-│   ├── applyModel.ts                # Core prediction utilities
-│   └── metrics.ts                   # Prediction metrics
-└── training/                        # Training pipeline
-    ├── index.ts                     # Training module exports
-    ├── actions.ts                   # Training action handlers
-    ├── pipeline.ts                  # Main training orchestrator (6 steps)
-    ├── data/                        # Data loading and processing
+├── shared/                          # Core types, configuration, and shared utilities
+│   ├── index.ts                     # Exports: config, features, models, types, unifiedTrip
+│   ├── config.ts                    # ML configuration constants and settings
+│   ├── types.ts                     # Core ML types and interfaces
+│   ├── features.ts                  # Feature extraction utilities
+│   ├── models.ts                    # Model type definitions and registry
+│   └── unifiedTrip.ts               # Unified trip structure for ML processing
+├── prediction/                      # Real-time prediction system
+│   ├── index.ts                     # Exports: predictWithModel, metrics, prediction functions
+│   ├── applyModel.ts                # Core model application and inference
+│   ├── metrics.ts                   # Prediction accuracy metrics (MAE, RMSE, R²)
+│   └── predictTrip.ts               # High-level prediction functions
+└── training/                        # ML training pipeline and model management
+    ├── index.ts                     # Exports: actions, data, models, pipeline
+    ├── actions.ts                   # Training action handlers for Convex
+    ├── pipeline.ts                  # Main training orchestrator (6-step pipeline)
+    ├── data/                        # Data loading and processing utilities
     │   ├── index.ts
     │   ├── loadTrainingData.ts      # Load WSF API data
     │   ├── createTrainingRecords.ts # Convert to training format
     │   └── createTrainingBuckets.ts # Group by terminal pairs
-    └── models/                      # Model training logic
+    └── models/                      # Model training, storage, and retrieval
         ├── index.ts
-        ├── trainModels.ts           # Core training with MLR
+        ├── trainModels.ts           # Core training with multivariate linear regression
         ├── loadModel.ts             # Model retrieval for predictions
-        └── storeModels.ts           # Model persistence
+        └── storeModels.ts           # Model persistence to database
 ```
 
 ### Data Flow
@@ -652,11 +655,11 @@ npm run train:export-results
 
 ### Cron Job Configuration
 ```typescript
-// Daily training at 4:00 AM Pacific
+// Weekly training at 11:00 AM UTC on Mondays
 crons.cron(
   "retrain ml models",
   "0 11 * * 1", // 11:00 AM UTC every Monday
-  internal.domain.ml.actions.trainPredictionModelsAction
+  internal.domain.ml.training.actions.trainPredictionModelsAction
 );
 ```
 

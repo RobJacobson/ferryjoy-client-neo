@@ -1,12 +1,8 @@
 // ============================================================================
 // SHARED MODULE EXPORTS
-// Shared utilities used across training and prediction phases
+// Core types, configuration, and utilities shared across ML modules
 // ============================================================================
 
-/**
- * Core prediction utilities used by training pipeline for metrics calculation
- */
-export * from "../prediction";
 /**
  * Core ML types, configuration constants, and model type definitions
  */

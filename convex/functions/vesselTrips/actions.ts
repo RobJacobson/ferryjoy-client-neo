@@ -14,7 +14,7 @@ import {
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { calculateTimeDelta } from "shared/durationUtils";
+import { calculateTimeDelta, roundToPrecision } from "shared/durationUtils";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
@@ -131,7 +131,7 @@ const handleNewTrip = async (
 
   const newTripWithPredictions = {
     ...newTrip,
-    ...(await getTripDelayPrediction(ctx, newTrip)),
+    ...(await getLeftDockPrediction(ctx, newTrip)),
     ...(await getArriveEtaPrediction(ctx, newTrip)),
     ...(await getDepartEtaPrediction(ctx, newTrip)),
   };
@@ -182,12 +182,16 @@ const handleTripUpdate = async (
     ),
   };
 
+  // Calculate LeftDockDelta if vessel just left dock
+  const leftDockDelta = calculateLeftDockDelta(existingTrip, updatedTrip);
+
   // Combine the updated trip with the predictions
   const updatedTripWithPredictions = {
     ...updatedTrip,
-    ...(await getTripDelayPrediction(ctx, updatedTrip)),
+    ...(await getLeftDockPrediction(ctx, updatedTrip)),
     ...(await getArriveEtaPrediction(ctx, updatedTrip)),
     ...(await getDepartEtaPrediction(ctx, updatedTrip)),
+    ...(leftDockDelta !== undefined ? { LeftDockDelta: leftDockDelta } : {}),
   };
 
   if (equals(updatedTripWithPredictions, existingTrip)) {
@@ -200,15 +204,20 @@ const handleTripUpdate = async (
   });
 };
 
+/**
+ * Checks if two vessel trips are equal.
+ *
+ * @param a - The first vessel trip
+ * @param b - The second vessel trip
+ * @returns `true` if the vessel trips are equal, `false` otherwise
+ */
 const equals = (a: ConvexVesselTrip, b: ConvexVesselTrip): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
-
-// const equals = (a: ConvexVesselTrip, b: ConvexVesselTrip): boolean =>
-//   Object.keys(a).length === Object.keys(b).length &&
-//   Object.keys(a).every(
-//     (key) =>
-//       a[key as keyof ConvexVesselTrip] === b[key as keyof ConvexVesselTrip]
-//   );
+// Object.keys(a).length === Object.keys(b).length &&
+// Object.keys(a).every(
+//   (key) =>
+//     a[key as keyof ConvexVesselTrip] === b[key as keyof ConvexVesselTrip]
+// );
 
 /**
  * Checks if this is the first trip for a vessel (no existing trip).
@@ -233,33 +242,56 @@ const isNewTrip = (
   existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
 
 /**
- * Generates delay prediction for a trip if not already calculated.
+ * Generates left dock prediction for a trip if not already calculated.
  *
  * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict delay for
- * @returns Promise resolving to delay prediction or empty object if prediction fails
+ * @param trip - The trip to predict left dock time for
+ * @returns Promise resolving to left dock prediction or empty object if prediction fails
  */
-const getTripDelayPrediction = async (
+const getLeftDockPrediction = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<{
-  TripDelayPred?: number;
-  TripDelayMae?: number;
+  LeftDockPred?: number;
+  LeftDockMae?: number;
+  LeftDockMin?: number;
+  LeftDockMax?: number;
 }> => {
-  if (hasPredictionData(trip, false) && !trip.TripDelayPred) {
+  if (hasPredictionData(trip, false) && !trip.LeftDockPred) {
     try {
       const prediction = await predictDelayOnArrival(ctx, trip);
       console.log(
-        `[Action] Delay prediction for ${trip.VesselAbbrev}:`,
+        `[Action] Left dock prediction for ${trip.VesselAbbrev}:`,
         prediction
       );
+
+      // prediction.predictedTime is delay in minutes relative to scheduled departure, convert to absolute timestamp
+      const predictedDelayMinutes = prediction.predictedTime;
+      const predictedDelayMs = predictedDelayMinutes * 60 * 1000; // Convert minutes to milliseconds
+      const leftDockPred =
+        (trip.ScheduledDeparture as number) + predictedDelayMs; // Absolute timestamp: scheduled departure + predicted delay
+      const leftDockMae = prediction.mae;
+
+      // Calculate derived values if prediction is available
+      let leftDockMin: number | undefined;
+      let leftDockMax: number | undefined;
+
+      if (leftDockPred !== undefined && leftDockMae !== undefined) {
+        // Convert MAE from minutes to milliseconds for timestamp calculations
+        const maeMs = leftDockMae * 60 * 1000;
+        leftDockMin = leftDockPred - maeMs;
+        leftDockMax = leftDockPred + maeMs;
+      }
+
       return {
-        TripDelayPred: prediction.predictedTime,
-        TripDelayMae: prediction.mae,
+        LeftDockPred: leftDockPred,
+        LeftDockMae: leftDockMae,
+        LeftDockMin: leftDockMin,
+        LeftDockMax: leftDockMax,
       };
     } catch (error) {
       console.error(
-        `[Action] Delay prediction failed for ${trip.VesselAbbrev}:`,
+        `[Action] Left dock prediction failed for ${trip.VesselAbbrev}:`,
         error
       );
     }
@@ -340,6 +372,40 @@ const getArriveEtaPrediction = async (
     }
   }
   return {};
+};
+
+/**
+ * Calculates LeftDockDelta when vessel leaves dock.
+ *
+ * @param existingTrip - The previous trip state
+ * @param updatedTrip - The updated trip state
+ * @returns LeftDockDelta in minutes, or undefined if not applicable
+ */
+const calculateLeftDockDelta = (
+  existingTrip: ConvexVesselTrip,
+  updatedTrip: ConvexVesselTrip
+): number | undefined => {
+  // Only calculate if vessel just left dock and predictions exist
+  if (
+    !existingTrip.LeftDock ||
+    !updatedTrip.LeftDock ||
+    !updatedTrip.LeftDockPred ||
+    updatedTrip.LeftDockMin === undefined ||
+    updatedTrip.LeftDockMax === undefined
+  ) {
+    return undefined;
+  }
+
+  // Values are guaranteed to exist after guard clause above
+  const actual = updatedTrip.LeftDock as number;
+  const min = updatedTrip.LeftDockMin as number;
+  const max = updatedTrip.LeftDockMax as number;
+
+  // Calculate delta in minutes from prediction bounds, rounded to 1 decimal place
+  const MS_PER_MINUTE = 60 * 1000;
+  if (actual < min) return roundToPrecision((actual - min) / MS_PER_MINUTE, 1); // Early departure
+  if (actual > max) return roundToPrecision((actual - max) / MS_PER_MINUTE, 1); // Late departure
+  return 0; // Within prediction range
 };
 
 const hasPredictionData = (

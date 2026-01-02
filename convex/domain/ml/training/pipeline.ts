@@ -69,7 +69,9 @@ const trainAllModels = async (
   const results = await Promise.all(trainingTasks);
 
   // Filter out any failed trainings (null results)
-  const successfulModels = results.filter((model): model is ModelParameters => model !== null);
+  const successfulModels = results.filter(
+    (model): model is ModelParameters => model !== null
+  );
 
   return successfulModels;
 };
@@ -81,9 +83,9 @@ const trainAllModels = async (
  * 1. Load WSF training data from external sources
  * 2. Convert raw data to structured training records with feature engineering
  * 3. Group records by terminal pairs and create training buckets
- * 4. Train linear regression models for each terminal pair and prediction type
+ * 4. Train linear regression models for each terminal pair and prediction type (80/20 train-test split)
  * 5. Store trained models in the database for later predictions
- * 6. Calculate and return training statistics and data quality metrics
+ * 6. Calculate and return test performance metrics and data quality metrics
  *
  * @param ctx - Convex action context for database operations
  * @returns Training response containing trained models and statistics
@@ -104,7 +106,7 @@ export const runMLPipeline = async (
     // Step 3: Group training records by terminal pairs and apply sampling/bucketing logic
     const buckets = createTerminalPairBuckets(trainingRecords);
 
-    // Step 4: Train linear regression models for all terminal pairs and model types
+    // Step 4: Train linear regression models for all terminal pairs and model types (80/20 train-test split)
     const models = await trainAllModels(buckets);
 
     // Step 6: Persist trained models to database for production predictions

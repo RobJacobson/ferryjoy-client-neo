@@ -9,6 +9,7 @@ import type {
   TrainingExample,
 } from "domain/ml/shared/types";
 import MLR from "ml-regression-multivariate-linear";
+import { roundToPrecision } from "shared/durationUtils";
 import { predictWithModel } from "../../prediction/applyModel";
 import {
   calculateMAE,
@@ -55,39 +56,69 @@ const createTrainingExamples = (
 /**
  * Train a single linear regression model for a terminal pair and model type
  *
- * This function creates training examples, trains a multivariate linear regression model,
- * and returns the trained model parameters with performance metrics.
+ * This function implements an 80/20 train-test split:
+ * - Trains on the first 80% of examples (chronologically ordered)
+ * - Evaluates performance on the remaining 20% test set
+ * - Returns model parameters with test set performance metrics
  *
  * @param bucket - Terminal pair bucket containing training records
  * @param modelType - Type of prediction model to train
- * @returns Trained model parameters with coefficients, intercept, and metrics
+ * @returns Trained model parameters with coefficients, intercept, and test metrics
  * @throws Error if no training examples available or training fails
  */
 export const trainModel = (
   bucket: TerminalPairBucket,
   modelType: ModelType
 ): ModelParameters => {
-  const examples = createTrainingExamples(bucket.features, modelType);
+  // 80/20 train-test split on features (maintains chronological order)
+  const splitIndex = Math.floor(bucket.features.length * 0.8);
+  const trainFeatures = bucket.features.slice(0, splitIndex);
+  const testFeatures = bucket.features.slice(splitIndex);
 
-  if (examples.length === 0) {
-    throw new Error(`No training examples for ${modelType}`);
+  // Require minimum examples for meaningful training and evaluation
+  const minExamples = 10; // Minimum total examples for train-test split
+  if (
+    bucket.features.length < minExamples ||
+    trainFeatures.length < 5 ||
+    testFeatures.length < 2
+  ) {
+    console.log(
+      `Skipping ${modelType} for ${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}: insufficient data (${bucket.features.length} total, ${trainFeatures.length} train, ${testFeatures.length} test)`
+    );
+    throw new Error(
+      `Insufficient data for ${modelType}: ${bucket.features.length} total, ${trainFeatures.length} train, ${testFeatures.length} test`
+    );
   }
 
-  // Extract feature matrix X and target vector y
-  const X = examples.map((ex) => Object.values(ex.input) as number[]);
-  const y = examples.map((ex) => ex.target);
+  const trainExamples = createTrainingExamples(trainFeatures, modelType);
+  const testExamples = createTrainingExamples(testFeatures, modelType);
 
-  // Train multivariate linear regression model
+  console.log(
+    `Training ${modelType} for ${bucket.terminalPair.departingTerminalAbbrev}->${bucket.terminalPair.arrivingTerminalAbbrev}: ${trainExamples.length} train, ${testExamples.length} test examples`
+  );
+
+  if (trainExamples.length === 0) {
+    throw new Error(`No training examples after split for ${modelType}`);
+  }
+
+  // Extract training data
+  const X_train = trainExamples.map(
+    (ex) => Object.values(ex.input) as number[]
+  );
+  const y_train = trainExamples.map((ex) => ex.target);
+
+  // Extract test data for evaluation
+  const X_test = testExamples.map((ex) => Object.values(ex.input) as number[]);
+  const y_test = testExamples.map((ex) => ex.target);
+
+  // Train multivariate linear regression model on training set
   // MLR library expects y as 2D array (n_samples x 1)
-  const y2d = y.map((val) => [val]);
-  const mlr = new MLR(X, y2d);
+  const y_train_2d = y_train.map((val) => [val]);
+  const mlr = new MLR(X_train, y_train_2d);
 
   // Extract model weights: coefficients for each feature plus intercept
   // MLR returns weights as 2D array: [coefficients..., intercept]
   const weights = mlr.weights as number[][];
-  // console.log(
-  //   `⚖️ MLR weights: ${weights.length} (expected: ${(X[0]?.length || 0) + 1})`
-  // );
 
   // SAFEGUARD: Validate weights structure before extraction
   if (!Array.isArray(weights) || weights.length === 0) {
@@ -97,7 +128,7 @@ export const trainModel = (
   }
 
   // Check if weights are in expected format [coefficient] arrays
-  const expectedLength = (X[0]?.length || 0) + 1; // +1 for intercept
+  const expectedLength = (X_train[0]?.length || 0) + 1; // +1 for intercept
   if (weights.length !== expectedLength) {
     // Keep going (we'll fall back to baseline below if this causes instability).
   }
@@ -130,20 +161,22 @@ export const trainModel = (
     coefficients.some((c) => !Number.isFinite(c)) ||
     invalidWeights.length > 0;
 
-  // Calculate predictions and metrics
-  const rawPredictions = X.map((row) =>
+  // Calculate predictions on test set and metrics
+  const rawTestPredictions = X_test.map((row) =>
     predictWithModel(row, coefficients, intercept)
   );
 
-  // If training is numerically unstable (common when features have near-zero
-  // variance due to fixed schedules), fall back to a baseline predictor.
-  // This prevents "bizarre outliers" from poisoning aggregate training stats.
-  const finalIntercept = isUnstable ? getMean(y) : intercept;
+  // If training is numerically unstable, fall back to baseline predictor
+  // This prevents "bizarre outliers" from poisoning aggregate training stats
+  const finalIntercept = isUnstable ? getMean(y_train) : intercept;
   const finalCoefficients = isUnstable
     ? coefficients.map(() => 0)
     : coefficients;
 
-  const predictions = isUnstable ? y.map(() => finalIntercept) : rawPredictions;
+  // Use baseline predictions for unstable models, otherwise use trained model predictions
+  const testPredictions = isUnstable
+    ? y_test.map(() => finalIntercept)
+    : rawTestPredictions;
 
   return {
     departingTerminalAbbrev: bucket.terminalPair.departingTerminalAbbrev,
@@ -151,15 +184,14 @@ export const trainModel = (
     modelType,
     coefficients: finalCoefficients,
     intercept: finalIntercept,
-    trainingMetrics: {
-      mae: calculateMAE(y, predictions),
-      rmse: calculateRMSE(y, predictions),
-      r2: calculateR2(y, predictions),
+    testMetrics: {
+      mae: calculateMAE(y_test, testPredictions),
+      rmse: calculateRMSE(y_test, testPredictions),
+      r2: calculateR2(y_test, testPredictions),
     },
     createdAt: Date.now(),
     bucketStats: bucket.bucketStats,
   };
 };
 
-const roundTinyValues = (value: number): number =>
-  Math.round(value * 100000) / 100000;
+const roundTinyValues = (value: number): number => roundToPrecision(value, 6);

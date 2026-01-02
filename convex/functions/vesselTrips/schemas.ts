@@ -29,10 +29,15 @@ export const vesselTripSchema = v.object({
   // Denormalized previous trip data for efficient predictions
   PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
   PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
-  // Predicted departure delay (in minutes)
-  TripDelayPred: v.optional(v.number()),
+  // Predicted departure time (absolute timestamp in milliseconds, arrive-depart model)
+  LeftDockPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
-  TripDelayMae: v.optional(v.number()),
+  LeftDockMae: v.optional(v.number()),
+  // Derived prediction bounds (absolute timestamps in milliseconds)
+  LeftDockMin: v.optional(v.number()), // LeftDockPred - LeftDockMae
+  LeftDockMax: v.optional(v.number()), // LeftDockPred + LeftDockMae
+  // Delta between actual and predicted departure (in minutes)
+  LeftDockDelta: v.optional(v.number()), // Calculated when vessel leaves dock
   // Predicted arrival time based on arrival (arrive-arrive model, absolute timestamp in milliseconds)
   ArriveEtaPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
@@ -62,8 +67,11 @@ export const toConvexVesselTrip = (
     PrevScheduledDeparture?: number;
     PrevLeftDock?: number;
     // Prediction fields
-    TripDelayPred?: number;
-    TripDelayMae?: number;
+    LeftDockPred?: number;
+    LeftDockMae?: number;
+    LeftDockMin?: number;
+    LeftDockMax?: number;
+    LeftDockDelta?: number;
     ArriveEtaPred?: number;
     ArriveEtaMae?: number;
     DepartEtaPred?: number;
@@ -85,8 +93,11 @@ export const toConvexVesselTrip = (
   PrevScheduledDeparture: params.PrevScheduledDeparture,
   PrevLeftDock: params.PrevLeftDock,
   // Prediction fields
-  TripDelayPred: params.TripDelayPred,
-  TripDelayMae: params.TripDelayMae,
+  LeftDockPred: params.LeftDockPred,
+  LeftDockMae: params.LeftDockMae,
+  LeftDockMin: params.LeftDockMin,
+  LeftDockMax: params.LeftDockMax,
+  LeftDockDelta: params.LeftDockDelta,
   ArriveEtaPred: params.ArriveEtaPred,
   ArriveEtaMae: params.ArriveEtaMae,
   DepartEtaPred: params.DepartEtaPred,
@@ -106,11 +117,14 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   TripStart: optionalEpochMsToDate(trip.TripStart),
   TripEnd: optionalEpochMsToDate(trip.TripEnd),
   // Prediction fields
-  TripDelayPred: trip.TripDelayPred, // Delay in minutes (not a timestamp)
+  LeftDockPred: optionalEpochMsToDate(trip.LeftDockPred), // Now an absolute timestamp
   ArriveEtaPred: optionalEpochMsToDate(trip.ArriveEtaPred), // ETA is still a timestamp
   DepartEtaPred: optionalEpochMsToDate(trip.DepartEtaPred), // ETA is still a timestamp
-  // MAE fields remain as numbers (not timestamps)
-  TripDelayMae: trip.TripDelayMae,
+  // MAE and derived fields remain as numbers (not timestamps)
+  LeftDockMae: trip.LeftDockMae,
+  LeftDockMin: trip.LeftDockMin,
+  LeftDockMax: trip.LeftDockMax,
+  LeftDockDelta: trip.LeftDockDelta,
   ArriveEtaMae: trip.ArriveEtaMae,
   DepartEtaMae: trip.DepartEtaMae,
 });
