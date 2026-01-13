@@ -12,6 +12,7 @@ import {
  */
 export const vesselTripSchema = v.object({
   VesselAbbrev: v.string(),
+  PrevTerminalAbbrev: v.optional(v.string()),
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
   TripStart: v.optional(v.number()),
@@ -64,6 +65,7 @@ export const toConvexVesselTrip = (
     TripStart?: number;
     TripEnd?: number;
     // Denormalized previous trip data
+    PrevTerminalAbbrev?: string;
     PrevScheduledDeparture?: number;
     PrevLeftDock?: number;
     // Prediction fields
@@ -79,6 +81,7 @@ export const toConvexVesselTrip = (
   }
 ): ConvexVesselTrip => ({
   VesselAbbrev: cvl.VesselAbbrev,
+  PrevTerminalAbbrev: params.PrevTerminalAbbrev,
   DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
   ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
   AtDock: cvl.AtDock,
@@ -135,6 +138,7 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
  */
 export type PredictionReadyTrip = ConvexVesselTrip & {
   ScheduledDeparture: number;
+  PrevTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
   TripStart: number;
   PrevScheduledDeparture: number;

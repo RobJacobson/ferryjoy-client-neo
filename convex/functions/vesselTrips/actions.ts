@@ -125,6 +125,7 @@ const handleNewTrip = async (
   // Create a new trip object with the completed trip's at-sea duration and total duration
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
+    PrevTerminalAbbrev: completedTrip.ArrivingTerminalAbbrev,
     PrevScheduledDeparture: completedTrip.ScheduledDeparture,
     PrevLeftDock: completedTrip.LeftDock,
   });

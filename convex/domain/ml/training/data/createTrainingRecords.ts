@@ -379,6 +379,7 @@ const createTrainingRecord = (
 
   const unifiedTrip: UnifiedTrip = {
     VesselAbbrev: "unknown", // Not needed for feature extraction
+    PrevTerminalAbbrev: abbrevs.previousArriving,
     DepartingTerminalAbbrev: abbrevs.departing,
     ArrivingTerminalAbbrev: abbrevs.arriving,
     TripStart: tripStartTime,

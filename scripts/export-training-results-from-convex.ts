@@ -82,7 +82,8 @@ async function exportTrainingResults() {
       return;
     }
 
-    const metrics = model.trainingMetrics;
+    // Use testMetrics if available, otherwise fall back to trainingMetrics for backward compatibility
+    const metrics = model.testMetrics || model.trainingMetrics;
     if (model.modelType === "arrive-depart-atdock-duration") {
       pairResult.arrive_depart_mae = metrics?.mae;
       pairResult.arrive_depart_r2 = metrics?.r2;
