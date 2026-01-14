@@ -125,7 +125,10 @@ const handleNewTrip = async (
   // Create a new trip object with the completed trip's at-sea duration and total duration
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
-    PrevTerminalAbbrev: completedTrip.ArrivingTerminalAbbrev,
+    // PrevTerminalAbbrev must represent the *previous trip's departing terminal*
+    // (A in A->B then B->C). This is used by ML features as the origin of the
+    // previous leg (A->B), not the previous leg's arrival (B).
+    PrevTerminalAbbrev: completedTrip.DepartingTerminalAbbrev,
     PrevScheduledDeparture: completedTrip.ScheduledDeparture,
     PrevLeftDock: completedTrip.LeftDock,
   });

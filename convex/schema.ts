@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { modelParametersMutationSchema } from "functions/predictions/schemas";
+import { modelParametersV2Schema } from "functions/predictionsV2/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
@@ -64,6 +65,11 @@ export default defineSchema({
       "departingTerminalAbbrev",
       "arrivingTerminalAbbrev",
     ]),
+
+  // Prediction model parameters (ML v2: chain/pair buckets)
+  modelParametersV2: defineTable(modelParametersV2Schema)
+    .index("by_chain_and_type", ["chainKey", "modelType"])
+    .index("by_pair_and_type", ["pairKey", "modelType"]),
 
   // Historical predictions for analysis (single table with type discriminator)
   // historicalPrcedictions: defineTable(historicalPredictionDataSchema)

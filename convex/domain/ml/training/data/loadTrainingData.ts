@@ -11,6 +11,66 @@ import {
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { config } from "../../shared/config";
 
+const safeJsonStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(
+    value,
+    (_key, v) => {
+      if (typeof v === "bigint") {
+        return String(v);
+      }
+      if (typeof v === "object" && v !== null) {
+        if (seen.has(v)) {
+          return "[Circular]";
+        }
+        seen.add(v);
+      }
+      if (v instanceof Error) {
+        return {
+          name: v.name,
+          message: v.message,
+          stack: v.stack,
+          cause: v.cause,
+        };
+      }
+      return v;
+    },
+    2
+  );
+};
+
+const formatUnknownError = (error: unknown) => {
+  if (error instanceof Error) {
+    return {
+      kind: "Error",
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    return {
+      kind: "object",
+      keys: Object.keys(record).sort(),
+      // Common fields we often see from fetch / HTTP wrappers:
+      message: record.message,
+      status: record.status,
+      statusText: record.statusText,
+      url: record.url,
+      cause: record.cause,
+      raw: safeJsonStringify(record),
+    };
+  }
+
+  return {
+    kind: typeof error,
+    message: String(error),
+  };
+};
+
 /**
  * Load all vessel history records from WSF API
  * Fails immediately if any vessel data fetch fails (data integrity requirement)
@@ -64,8 +124,13 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
     console.log(`Loaded data: ${allRecords.length} WSF records from WSF API`);
     return allRecords;
   } catch (error) {
-    console.error("WSF data loading failed", { error: String(error) });
-    throw new Error(`Failed to load vessel data: ${error}`);
+    const formatted = formatUnknownError(error);
+    console.error("WSF data loading failed", {
+      error: formatted,
+    });
+    // Ensure the surfaced error message is informative even if the runtime
+    // renders nested objects poorly (e.g. "[object Object]").
+    throw new Error(`Failed to load vessel data: ${safeJsonStringify(formatted)}`);
   }
 };
 
@@ -82,8 +147,11 @@ const fetchVesselFleet = async (): Promise<
     console.log(`Fetched ${vessels.length} vessels from WSF`);
     return vessels;
   } catch (error) {
-    console.error("Failed to fetch vessel fleet", { error: String(error) });
-    throw error;
+    const formatted = formatUnknownError(error);
+    console.error("Failed to fetch vessel fleet", {
+      error: formatted,
+    });
+    throw new Error(`Failed to fetch vessel fleet: ${safeJsonStringify(formatted)}`);
   }
 };
 
@@ -100,14 +168,16 @@ const fetchVesselData = async (
   const startDate = new Date(
     endDate.getTime() - config.getDaysBack() * 24 * 60 * 60 * 1000
   );
+  const dateStart = startDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  const dateEnd = endDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
   try {
     // Fetch vessel history
     const historyRecords = await fetchVesselHistoriesByVesselAndDates({
       params: {
         VesselName: vesselName || "",
-        DateStart: startDate.toISOString().split("T")[0], // YYYY-MM-DD format
-        DateEnd: endDate.toISOString().split("T")[0], // YYYY-MM-DD format
+        DateStart: dateStart,
+        DateEnd: dateEnd,
       },
     });
 
@@ -126,10 +196,20 @@ const fetchVesselData = async (
 
     return sampledRecords;
   } catch (error) {
+    const formatted = formatUnknownError(error);
     console.error(`Failed to fetch data for vessel ${vesselName}`, {
-      error: String(error),
+      vesselName,
+      dateStart,
+      dateEnd,
+      samplingStrategy: config.getSamplingStrategy(),
+      maxRecordsPerVessel: config.getMaxRecordsPerVessel(),
+      error: formatted,
     });
-    throw error;
+    throw new Error(
+      `Failed to fetch data for vessel ${vesselName}: ${safeJsonStringify(
+        formatted
+      )}`
+    );
   }
 };
 

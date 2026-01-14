@@ -17,7 +17,8 @@ import type { UnifiedTrip } from "../../shared/unifiedTrip";
 type TerminalAbbrevs = {
   departing: string; // Current trip departure terminal
   arriving: string; // Current trip arrival terminal
-  previousArriving: string; // Previous trip arrival terminal (must match current departing)
+  prevArriving: string; // Previous trip arrival terminal (must match current departing)
+  prevDeparting: string; // Previous trip departure terminal (A in A->B)
 };
 
 /**
@@ -178,7 +179,8 @@ const hasValidTerminalMappings = (
     abbrevs !== null &&
     !!abbrevs.departing &&
     !!abbrevs.arriving &&
-    !!abbrevs.previousArriving
+    !!abbrevs.prevArriving &&
+    !!abbrevs.prevDeparting
   );
 };
 
@@ -196,22 +198,23 @@ const getTerminalAbbrevs = (
   curr: VesselHistory,
   prev: VesselHistory
 ): TerminalAbbrevs | null => {
-  if (!curr.Departing || !curr.Arriving || !prev.Arriving) {
+  if (!curr.Departing || !curr.Arriving || !prev.Arriving || !prev.Departing) {
     return null;
   }
   const departing = getTerminalAbbrev(curr.Departing);
   const arriving = getTerminalAbbrev(curr.Arriving);
-  const previousArriving = getTerminalAbbrev(prev.Arriving);
+  const prevArriving = getTerminalAbbrev(prev.Arriving);
+  const prevDeparting = getTerminalAbbrev(prev.Departing);
 
   // If any terminal is unmapped, return null
-  if (!departing || !arriving || !previousArriving) {
+  if (!departing || !arriving || !prevArriving || !prevDeparting) {
     console.warn(`Skipping record due to unmapped terminals`, {
       curr,
     });
     return null;
   }
 
-  return { departing, arriving, previousArriving };
+  return { departing, arriving, prevArriving, prevDeparting };
 };
 
 /**
@@ -227,7 +230,8 @@ const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
   return (
     config.isValidTerminal(abbrevs.departing) &&
     config.isValidTerminal(abbrevs.arriving) &&
-    config.isValidTerminal(abbrevs.previousArriving)
+    config.isValidTerminal(abbrevs.prevArriving) &&
+    config.isValidTerminal(abbrevs.prevDeparting)
   );
 };
 
@@ -242,7 +246,7 @@ const areTerminalsValid = (abbrevs: TerminalAbbrevs): boolean => {
  * - depart-depart: prevLeftDock would be from wrong trip
  */
 const areTripsConsecutive = (abbrevs: TerminalAbbrevs): boolean => {
-  return abbrevs.previousArriving === abbrevs.departing;
+  return abbrevs.prevArriving === abbrevs.departing;
 };
 
 /**
@@ -379,7 +383,10 @@ const createTrainingRecord = (
 
   const unifiedTrip: UnifiedTrip = {
     VesselAbbrev: "unknown", // Not needed for feature extraction
-    PrevTerminalAbbrev: abbrevs.previousArriving,
+    // PrevTerminalAbbrev should represent the previous trip's *departing* terminal
+    // (A in A->B then B->C). This is required for correctly computing the
+    // previous-leg mean at-sea duration and arrival-vs-estimated-schedule features.
+    PrevTerminalAbbrev: abbrevs.prevDeparting,
     DepartingTerminalAbbrev: abbrevs.departing,
     ArrivingTerminalAbbrev: abbrevs.arriving,
     TripStart: tripStartTime,
