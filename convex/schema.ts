@@ -14,13 +14,15 @@ export default defineSchema({
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_scheduled_departure", ["ScheduledDeparture"])
     .index("by_vessel_and_scheduled", ["VesselAbbrev", "ScheduledDeparture"])
-    .index("by_timestamp", ["TimeStamp"]),
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_key", ["Key"]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_trip_end", ["TripEnd"])
-    .index("by_timestamp", ["TimeStamp"]),
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_key", ["Key"]),
 
   // Scheduled trips - planned ferry trips with departure/arrival times
   scheduledTrips: defineTable(scheduledTripSchema)

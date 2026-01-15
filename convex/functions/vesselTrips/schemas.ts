@@ -1,6 +1,7 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { generateTripKey } from "shared";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
@@ -78,6 +79,7 @@ export const optionalToDomainPrediction = (
  * Simplified schema without Status field - table determines status
  */
 export const vesselTripSchema = v.object({
+  Key: v.optional(v.string()), // Composite key for trip identification
   VesselAbbrev: v.string(),
   PrevTerminalAbbrev: v.optional(v.string()),
   DepartingTerminalAbbrev: v.string(),
@@ -131,29 +133,40 @@ export const toConvexVesselTrip = (
     AtSeaArriveNext?: ConvexPrediction;
     AtSeaDepartNext?: ConvexPrediction;
   }
-): ConvexVesselTrip => ({
-  VesselAbbrev: cvl.VesselAbbrev,
-  PrevTerminalAbbrev: params.PrevTerminalAbbrev,
-  DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
-  ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
-  AtDock: cvl.AtDock,
-  ScheduledDeparture: cvl.ScheduledDeparture,
-  Eta: cvl.Eta,
-  TimeStamp: cvl.TimeStamp,
-  TripStart: params.TripStart,
-  TripEnd: params.TripEnd,
-  LeftDock: cvl.LeftDock,
-  InService: cvl.InService,
-  // Denormalized previous trip data
-  PrevScheduledDeparture: params.PrevScheduledDeparture,
-  PrevLeftDock: params.PrevLeftDock,
-  // ML model predictions
-  AtDockDepartCurr: params.AtDockDepartCurr,
-  AtDockArriveNext: params.AtDockArriveNext,
-  AtDockDepartNext: params.AtDockDepartNext,
-  AtSeaArriveNext: params.AtSeaArriveNext,
-  AtSeaDepartNext: params.AtSeaDepartNext,
-});
+): ConvexVesselTrip => {
+  // Generate key if we have the required information
+  const key = generateTripKey(
+    cvl.VesselAbbrev,
+    cvl.DepartingTerminalAbbrev,
+    cvl.ArrivingTerminalAbbrev,
+    cvl.ScheduledDeparture ? new Date(cvl.ScheduledDeparture) : undefined
+  );
+
+  return {
+    Key: key,
+    VesselAbbrev: cvl.VesselAbbrev,
+    PrevTerminalAbbrev: params.PrevTerminalAbbrev,
+    DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
+    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
+    AtDock: cvl.AtDock,
+    ScheduledDeparture: cvl.ScheduledDeparture,
+    Eta: cvl.Eta,
+    TimeStamp: cvl.TimeStamp,
+    TripStart: params.TripStart,
+    TripEnd: params.TripEnd,
+    LeftDock: cvl.LeftDock,
+    InService: cvl.InService,
+    // Denormalized previous trip data
+    PrevScheduledDeparture: params.PrevScheduledDeparture,
+    PrevLeftDock: params.PrevLeftDock,
+    // ML model predictions
+    AtDockDepartCurr: params.AtDockDepartCurr,
+    AtDockArriveNext: params.AtDockArriveNext,
+    AtDockDepartNext: params.AtDockDepartNext,
+    AtSeaArriveNext: params.AtSeaArriveNext,
+    AtSeaDepartNext: params.AtSeaDepartNext,
+  };
+};
 
 /**
  * Convert Convex vessel trip (numbers) to domain vessel trip (Dates)

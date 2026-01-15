@@ -3,32 +3,9 @@ import { v } from "convex/values";
 import { terminalLocations } from "src/data/terminalLocations";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { epochMsToDate } from "../../shared/convertDates";
-import { getPacificTimeComponents } from "../../shared/time";
 
 // Re-export for convenience
 export { getVesselAbbreviation };
-
-/**
- * Calculate the sailing day for a departure time using WSF's operational day rules
- * Sailing day spans from 3:00AM Pacific to 2:59AM Pacific the next day
- * @param departureTime - Departure time as Date object
- * @returns Sailing day in YYYY-MM-DD format
- */
-export const calculateSailingDay = (departureTime: Date): string => {
-  // Get Pacific time components
-  const pacificComponents = getPacificTimeComponents(departureTime);
-
-  // Create a new date object to avoid mutating the input
-  const adjustedDate = new Date(departureTime);
-
-  // If departure is before 3:00 AM Pacific, it belongs to the previous sailing day
-  if (pacificComponents.hour < 3) {
-    adjustedDate.setDate(adjustedDate.getDate() - 1);
-  }
-
-  // Format as YYYY-MM-DD string
-  return adjustedDate.toISOString().split("T")[0];
-};
 
 /**
  * Get terminal abbreviation by terminal name
@@ -73,21 +50,6 @@ export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
     ? epochMsToDate(trip.ArrivingTime)
     : undefined,
 });
-
-/**
- * Generate composite key for scheduled trip
- * Format: "[Vessel Abbrev]-[Departing Terminal Abbrev]-[Arriving Terminal Abbrev]-[Departing Time]"
- * Example: "TAC-BBI-P52-2025-12-21T00:20:00"
- */
-export const generateScheduledTripKey = (
-  vesselAbbrev: string,
-  departingTerminalAbbrev: string,
-  arrivingTerminalAbbrev: string,
-  departingTime: Date
-): string => {
-  const timeStr = departingTime.toISOString().replace(".000Z", "");
-  return `${vesselAbbrev}-${departingTerminalAbbrev}-${arrivingTerminalAbbrev}-${timeStr}`;
-};
 
 /**
  * Type for scheduled trip in domain layer (with Date objects)

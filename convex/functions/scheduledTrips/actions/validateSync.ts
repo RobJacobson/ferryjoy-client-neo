@@ -2,7 +2,7 @@ import { api } from "_generated/api";
 import { action } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { fetchRoutesByTripDate } from "ws-dottie/wsf-schedule";
-import { type ConvexScheduledTrip, calculateSailingDay } from "../schemas";
+import type { ConvexScheduledTrip } from "../schemas";
 import {
   fetchRouteSchedule,
   flattenScheduleToTrips,
@@ -52,7 +52,11 @@ export const verifyScheduledTripsForRoute = action({
 
           if (route) {
             const wsfSchedule = await fetchRouteSchedule(routeId, calendarDay);
-            const trips = flattenScheduleToTrips(wsfSchedule, route);
+            const trips = flattenScheduleToTrips(
+              wsfSchedule,
+              route,
+              calendarDay
+            );
             allWsfTrips.push(...trips);
           }
         } catch (error) {
@@ -64,12 +68,10 @@ export const verifyScheduledTripsForRoute = action({
       }
 
       // 2. Filter WSF trips to only those belonging to our target sailing day
-      const wsfTrips = allWsfTrips.filter((trip) => {
-        const calculatedSailingDay = calculateSailingDay(
-          new Date(trip.DepartingTime)
-        );
-        return calculatedSailingDay === sailingDay;
-      });
+      // Since we now set SailingDay directly from the WSF API TripDate, we can filter by it directly
+      const wsfTrips = allWsfTrips.filter(
+        (trip) => trip.SailingDay === sailingDay
+      );
 
       // 3. Fetch data from Convex database (filter by route and sailing day)
       const convexTrips = await ctx.runQuery(

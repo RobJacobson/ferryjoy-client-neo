@@ -1,14 +1,10 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import { generateTripKey } from "shared";
 import type { Route, Schedule, TerminalCombo } from "ws-dottie/wsf-schedule";
 import { fetchScheduleByTripDateAndRouteId } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../schemas";
-import {
-  calculateSailingDay,
-  generateScheduledTripKey,
-  getTerminalAbbreviation,
-  getVesselAbbreviation,
-} from "../schemas";
+import { getTerminalAbbreviation, getVesselAbbreviation } from "../schemas";
 import type { RouteSyncResult, ScheduledTripDoc } from "./types";
 
 /**
@@ -100,7 +96,8 @@ const isValidTripData = (tripData: TripIntermediateData): boolean => {
  */
 const createScheduledTrip = (
   tripData: TripIntermediateData,
-  route: Route
+  route: Route,
+  tripDate: string
 ): ConvexScheduledTrip => {
   const {
     vesselAbbrev,
@@ -112,15 +109,22 @@ const createScheduledTrip = (
   } = tripData;
 
   // Generate composite key
-  const key = generateScheduledTripKey(
+  const key = generateTripKey(
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,
     time.DepartingTime
   );
 
-  // Calculate sailing day using WSF operational rules
-  const sailingDay = calculateSailingDay(time.DepartingTime);
+  // Scheduled trips should always have a key since they have departure times
+  if (!key) {
+    throw new Error(
+      `Failed to generate key for scheduled trip: ${vesselAbbrev}-${departingTerminalAbbrev}-${arrivingTerminalAbbrev}`
+    );
+  }
+
+  // Use the trip date from the WSF API call as the authoritative sailing day
+  const sailingDay = tripDate;
 
   const trip: ConvexScheduledTrip = {
     VesselAbbrev: vesselAbbrev,
@@ -141,16 +145,20 @@ const createScheduledTrip = (
 
 /**
  * Flatten schedule data into individual scheduled trip records
+ * @param schedule - WSF schedule data
+ * @param route - Route information
+ * @param tripDate - The trip date used for the WSF API call (authoritative sailing day)
  */
 export const flattenScheduleToTrips = (
   schedule: Schedule,
-  route: Route
+  route: Route,
+  tripDate: string
 ): ConvexScheduledTrip[] =>
   schedule.TerminalCombos.flatMap((terminalCombo) =>
     (terminalCombo.Times as Time[])
       .map((time) => buildTripIntermediateData(time, terminalCombo))
       .filter(isValidTripData)
-      .map((tripData) => createScheduledTrip(tripData, route))
+      .map((tripData) => createScheduledTrip(tripData, route, tripDate))
   );
 
 /**
@@ -233,8 +241,8 @@ export const syncRoute = async (
   // Fetch schedule for this route
   const schedule = await fetchRouteSchedule(route.RouteID, today);
 
-  // Flatten schedule to trips
-  const routeTrips = flattenScheduleToTrips(schedule, route);
+  // Flatten schedule to trips using the authoritative trip date
+  const routeTrips = flattenScheduleToTrips(schedule, route, today);
   console.log(
     `${logPrefix}Flattened ${routeTrips.length} trips from route ${route.RouteID}`
   );
