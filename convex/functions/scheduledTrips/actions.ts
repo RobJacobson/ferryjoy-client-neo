@@ -1,9 +1,6 @@
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import {
-  performSimpleScheduledTripsSyncForDate,
-  performWindowedScheduledTripsSync,
-} from "./actions/";
+import { performUnifiedScheduledTripsSync } from "./actions/performSync";
 
 /**
  * Simplified manual sync that deletes all data for today and downloads fresh data.
@@ -13,11 +10,11 @@ export const syncScheduledTripsSimpleManual = action({
   args: {},
   handler: async (ctx) => {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
-    return await performSimpleScheduledTripsSyncForDate(
-      ctx,
-      today,
-      "[SIMPLE MANUAL] "
-    );
+    return await performUnifiedScheduledTripsSync(ctx, {
+      mode: "single",
+      targetDate: today,
+      logPrefix: "[SIMPLE MANUAL] ",
+    });
   },
 });
 
@@ -29,11 +26,11 @@ export const syncScheduledTripsSimpleForDate = action({
     targetDate: v.string(),
   },
   handler: async (ctx, args) => {
-    return await performSimpleScheduledTripsSyncForDate(
-      ctx,
-      args.targetDate,
-      "[SIMPLE] "
-    );
+    return await performUnifiedScheduledTripsSync(ctx, {
+      mode: "single",
+      targetDate: args.targetDate,
+      logPrefix: "[SIMPLE] ",
+    });
   },
 });
 
@@ -45,7 +42,10 @@ export const syncScheduledTripsSimpleForDate = action({
 export const syncScheduledTripsWindowedManual = action({
   args: {},
   handler: async (ctx) =>
-    performWindowedScheduledTripsSync(ctx, "[MANUAL WINDOWED] "),
+    performUnifiedScheduledTripsSync(ctx, {
+      mode: "window",
+      logPrefix: "[MANUAL WINDOWED] ",
+    }),
 });
 
 /**
@@ -55,5 +55,9 @@ export const syncScheduledTripsWindowedManual = action({
  */
 export const syncScheduledTripsWindowed = internalAction({
   args: {},
-  handler: async (ctx) => performWindowedScheduledTripsSync(ctx),
+  handler: async (ctx) =>
+    performUnifiedScheduledTripsSync(ctx, {
+      mode: "window",
+      logPrefix: "[AUTOMATED] ",
+    }),
 });

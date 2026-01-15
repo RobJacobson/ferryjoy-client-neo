@@ -40,35 +40,19 @@ export const deleteScheduledTripsForDate = mutation({
 });
 
 /**
- * Bulk insert scheduled trips with automatic deduplication by Key
- * Removes older duplicates when inserting new data for the same logical trip
+ * Bulk insert scheduled trips without deduplication logic
+ * Assumes the caller has already resolved overlapping routes via filtering
  */
 export const insertScheduledTrips = mutation({
   args: { trips: v.array(scheduledTripSchema) },
   handler: async (ctx, args: { trips: ConvexScheduledTrip[] }) => {
     try {
-      let inserted = 0;
-      let deduplicated = 0;
-
+      // Insert all trips (filtering has already resolved overlaps)
       for (const trip of args.trips) {
-        // Check if a trip with this key already exists
-        const existing = await ctx.db
-          .query("scheduledTrips")
-          .withIndex("by_key", (q) => q.eq("Key", trip.Key))
-          .first();
-
-        if (existing) {
-          // Replace existing trip with new data
-          await ctx.db.replace(existing._id, trip);
-          deduplicated++;
-        } else {
-          // Insert new trip
-          await ctx.db.insert("scheduledTrips", trip);
-          inserted++;
-        }
+        await ctx.db.insert("scheduledTrips", trip);
       }
 
-      return { inserted, deduplicated };
+      return { inserted: args.trips.length };
     } catch (error) {
       throw new ConvexError({
         message: `Failed to insert scheduled trips`,

@@ -1,4 +1,3 @@
-import type { TerminalCombo } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../schemas";
 
 /**
@@ -34,7 +33,6 @@ export type VesselSailing = {
   /** Indexes into terminal combo annotations array, null if no annotations */
   AnnotationIndexes: number[] | null;
 };
-
 
 /**
  * Result type for tracking individual day synchronization operations.

@@ -41,9 +41,7 @@ import type * as functions_predictions_schemas from "../functions/predictions/sc
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
 import type * as functions_scheduledTrips_actions_index from "../functions/scheduledTrips/actions/index.js";
 import type * as functions_scheduledTrips_actions_performSync from "../functions/scheduledTrips/actions/performSync.js";
-import type * as functions_scheduledTrips_actions_shared from "../functions/scheduledTrips/actions/shared.js";
 import type * as functions_scheduledTrips_actions_types from "../functions/scheduledTrips/actions/types.js";
-import type * as functions_scheduledTrips_actions_windowedSync from "../functions/scheduledTrips/actions/windowedSync.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
 import type * as functions_scheduledTrips_queries from "../functions/scheduledTrips/queries.js";
@@ -116,9 +114,7 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
   "functions/scheduledTrips/actions/index": typeof functions_scheduledTrips_actions_index;
   "functions/scheduledTrips/actions/performSync": typeof functions_scheduledTrips_actions_performSync;
-  "functions/scheduledTrips/actions/shared": typeof functions_scheduledTrips_actions_shared;
   "functions/scheduledTrips/actions/types": typeof functions_scheduledTrips_actions_types;
-  "functions/scheduledTrips/actions/windowedSync": typeof functions_scheduledTrips_actions_windowedSync;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
   "functions/scheduledTrips/queries": typeof functions_scheduledTrips_queries;
