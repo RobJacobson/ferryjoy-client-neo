@@ -41,8 +41,8 @@ export type VesselSailing = {
 export type DaySyncResult = {
   /** Sailing day that was processed in YYYY-MM-DD format */
   sailingDay: string;
-  /** Action taken: downloaded (new data), updated (existing data), or failed (error) */
-  action: "downloaded" | "updated" | "failed";
+  /** Action taken: synced (successful sync) or failed (error) */
+  action: "synced" | "failed";
   /** Error message if the sync operation failed */
   error?: string;
 };

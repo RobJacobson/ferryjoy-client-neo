@@ -36,7 +36,8 @@ crons.cron(
 crons.cron(
   "daily scheduled trips sync",
   "0 11 * * *", // 11:00 AM UTC daily (covers 4:00 AM Pacific in both DST and standard time)
-  internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed
+  internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
+  {}
 );
 
 export default crons;

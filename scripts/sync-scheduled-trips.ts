@@ -25,7 +25,7 @@ async function syncScheduledTrips() {
     // Trigger the scheduled trips sync (using simplified approach)
     console.log("📡 Calling simplified scheduledTrips sync action...");
     const result = await convex.action(
-      api.functions.scheduledTrips.actions.syncScheduledTripsSimpleManual
+      api.functions.scheduledTrips.actions.syncScheduledTripsManual
     );
     console.log("📊 Sync results:", result);
 

@@ -1,51 +1,33 @@
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { performUnifiedScheduledTripsSync } from "./actions/performSync";
+import { formatPacificDate } from "../../shared/keys";
+import {
+  syncScheduledTripsForDate,
+  syncScheduledTripsForDateRange,
+} from "./sync/sync";
 
 /**
  * Simplified manual sync that deletes all data for today and downloads fresh data.
  * Much simpler and more reliable than the complex diffing logic.
  */
-export const syncScheduledTripsSimpleManual = action({
+export const syncScheduledTripsManual = action({
   args: {},
   handler: async (ctx) => {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
-    return await performUnifiedScheduledTripsSync(ctx, {
-      mode: "single",
-      targetDate: today,
-      logPrefix: "[SIMPLE MANUAL] ",
-    });
+    return await syncScheduledTripsForDate(ctx, today);
   },
 });
 
 /**
  * Simplified sync for a specific date that deletes all data and downloads fresh data.
  */
-export const syncScheduledTripsSimpleForDate = action({
+export const syncScheduledTripsForDateManual = action({
   args: {
     targetDate: v.string(),
   },
   handler: async (ctx, args) => {
-    return await performUnifiedScheduledTripsSync(ctx, {
-      mode: "single",
-      targetDate: args.targetDate,
-      logPrefix: "[SIMPLE] ",
-    });
+    return await syncScheduledTripsForDate(ctx, args.targetDate);
   },
-});
-
-/**
- * Manual trigger for testing windowed scheduled trips sync.
- * Processes the full N-day window (default 7 days) for comprehensive testing.
- * Useful for validating the complete automated sync process.
- */
-export const syncScheduledTripsWindowedManual = action({
-  args: {},
-  handler: async (ctx) =>
-    performUnifiedScheduledTripsSync(ctx, {
-      mode: "window",
-      logPrefix: "[MANUAL WINDOWED] ",
-    }),
 });
 
 /**
@@ -54,10 +36,11 @@ export const syncScheduledTripsWindowedManual = action({
  * Runs at 4:00 AM Pacific time to sync between WSF trip date boundaries.
  */
 export const syncScheduledTripsWindowed = internalAction({
-  args: {},
-  handler: async (ctx) =>
-    performUnifiedScheduledTripsSync(ctx, {
-      mode: "window",
-      logPrefix: "[AUTOMATED] ",
-    }),
+  args: { daysToSync: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const startDate = formatPacificDate(new Date());
+    const daysToSync = args.daysToSync || 7;
+
+    return await syncScheduledTripsForDateRange(ctx, startDate, daysToSync);
+  },
 });
