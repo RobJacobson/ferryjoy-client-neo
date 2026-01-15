@@ -1,11 +1,8 @@
 // Export all types
 
 // Export sync functionality
-export { performScheduledTripsSync } from "./performSync";
-
+export { syncScheduledTripsForDate as performSimpleScheduledTripsSyncForDate } from "./performSync";
 // Export shared utilities and functions
 export * from "./shared";
 export type * from "./types";
-
-// Export validation functionality
-export { verifyScheduledTripsForRoute } from "./validateSync";
+export { performWindowedScheduledTripsSync } from "./windowedSync";

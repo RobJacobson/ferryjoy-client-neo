@@ -1,31 +1,59 @@
 import { action, internalAction } from "_generated/server";
+import { v } from "convex/values";
 import {
-  performScheduledTripsSync,
-  verifyScheduledTripsForRoute,
+  performSimpleScheduledTripsSyncForDate,
+  performWindowedScheduledTripsSync,
 } from "./actions/";
 
 /**
- * Internal action for syncing scheduled trips data
- * This will eventually be called by a cron job
- *
- * @returns Sync result with statistics
+ * Simplified manual sync that deletes all data for today and downloads fresh data.
+ * Much simpler and more reliable than the complex diffing logic.
  */
-export const syncScheduledTrips = internalAction({
+export const syncScheduledTripsSimpleManual = action({
   args: {},
-  handler: async (ctx) => performScheduledTripsSync(ctx),
+  handler: async (ctx) => {
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+    return await performSimpleScheduledTripsSyncForDate(
+      ctx,
+      today,
+      "[SIMPLE MANUAL] "
+    );
+  },
 });
 
 /**
- * Manual trigger for testing scheduled trips sync
- * Uses shared sync logic to avoid code duplication
+ * Simplified sync for a specific date that deletes all data and downloads fresh data.
  */
-export const syncScheduledTripsManual = action({
-  args: {},
-  handler: async (ctx) => performScheduledTripsSync(ctx, "[MANUAL] "),
+export const syncScheduledTripsSimpleForDate = action({
+  args: {
+    targetDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await performSimpleScheduledTripsSyncForDate(
+      ctx,
+      args.targetDate,
+      "[SIMPLE] "
+    );
+  },
 });
 
 /**
- * Public action for verifying scheduled trips data consistency
- * Compares WSF API data with Convex database for debugging
+ * Manual trigger for testing windowed scheduled trips sync.
+ * Processes the full N-day window (default 7 days) for comprehensive testing.
+ * Useful for validating the complete automated sync process.
  */
-export { verifyScheduledTripsForRoute };
+export const syncScheduledTripsWindowedManual = action({
+  args: {},
+  handler: async (ctx) =>
+    performWindowedScheduledTripsSync(ctx, "[MANUAL WINDOWED] "),
+});
+
+/**
+ * Internal action for automated windowed scheduled trips sync.
+ * Called daily by cron job to maintain accurate schedule data for the rolling N-day window.
+ * Runs at 4:00 AM Pacific time to sync between WSF trip date boundaries.
+ */
+export const syncScheduledTripsWindowed = internalAction({
+  args: {},
+  handler: async (ctx) => performWindowedScheduledTripsSync(ctx),
+});

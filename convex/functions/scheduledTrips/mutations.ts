@@ -3,111 +3,35 @@ import { ConvexError, v } from "convex/values";
 import { type ConvexScheduledTrip, scheduledTripSchema } from "./schemas";
 
 /**
- * Type for scheduled trip document as returned from database queries
- * Includes _id and _creationTime fields
+ * Deletes all scheduled trips for a specific sailing day
  */
-type ScheduledTripDoc = ConvexScheduledTrip & {
-  _id: string;
-  _creationTime: number;
-};
-
-/**
- * Utility function to compare trips for equality
- * Used to determine if an update is needed
- * Excludes _id and _creationTime fields from comparison
- */
-function tripsEqual(a: ScheduledTripDoc, b: ConvexScheduledTrip): boolean {
-  // Compare all fields except _id and _creationTime
-  return (
-    a.Key === b.Key &&
-    a.VesselAbbrev === b.VesselAbbrev &&
-    a.DepartingTerminalAbbrev === b.DepartingTerminalAbbrev &&
-    a.ArrivingTerminalAbbrev === b.ArrivingTerminalAbbrev &&
-    a.DepartingTime === b.DepartingTime &&
-    a.ArrivingTime === b.ArrivingTime &&
-    a.SailingNotes === b.SailingNotes &&
-    JSON.stringify(a.Annotations) === JSON.stringify(b.Annotations) &&
-    a.RouteID === b.RouteID &&
-    a.RouteAbbrev === b.RouteAbbrev &&
-    a.SailingDay === b.SailingDay
-  );
-}
-
-/**
- * Synchronizes scheduled trips for a single route atomically
- * Handles inserts, updates, and deletes in one transaction
- * Ensures database exactly matches provided trip data
- */
-export const syncScheduledTripsForRoute = mutation({
+export const deleteScheduledTripsForDate = mutation({
   args: {
-    routeId: v.number(),
-    trips: v.array(scheduledTripSchema),
+    sailingDay: v.string(),
   },
-  handler: async (
-    ctx,
-    args: { routeId: number; trips: ConvexScheduledTrip[] }
-  ) => {
-    // 0. Deduplicate input trips by Key (defensive programming)
-    const uniqueTrips = Array.from(
-      new Map(args.trips.map((trip) => [trip.Key, trip])).values()
-    );
-
+  handler: async (ctx, args: { sailingDay: string }) => {
     try {
-      // 1. Query existing trips for this route
-      const existingTrips = await ctx.db
+      // Query all trips for this sailing day
+      const tripsToDelete = await ctx.db
         .query("scheduledTrips")
-        .withIndex("by_route", (q) => q.eq("RouteID", args.routeId))
+        .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.sailingDay))
         .collect();
 
-      // 2. Build lookup maps for efficient diffing
-      const existingByKey = new Map(
-        existingTrips.map((trip) => [trip.Key, trip])
-      );
-      const newByKey = new Map(uniqueTrips.map((trip) => [trip.Key, trip]));
-
-      // 3. Calculate changes needed
-      const toDelete = existingTrips.filter((trip) => !newByKey.has(trip.Key));
-      const toUpsert = uniqueTrips.filter((trip) => {
-        const existing = existingByKey.get(trip.Key);
-        // Insert if new, or update if changed
-        return !existing || !tripsEqual(existing, trip);
-      });
-
-      // 4. Apply all changes atomically
-      const results = {
-        deleted: 0,
-        inserted: 0,
-        updated: 0,
-      };
-
-      // Delete cancelled trips
-      for (const trip of toDelete) {
+      // Delete each trip
+      let deletedCount = 0;
+      for (const trip of tripsToDelete) {
         await ctx.db.delete(trip._id);
-        results.deleted++;
+        deletedCount++;
       }
 
-      // Upsert changed/new trips
-      for (const trip of toUpsert) {
-        const existing = existingByKey.get(trip.Key);
-        if (existing) {
-          await ctx.db.replace(existing._id, trip);
-          results.updated++;
-        } else {
-          await ctx.db.insert("scheduledTrips", trip);
-          results.inserted++;
-        }
-      }
-
-      return results;
+      return { deleted: deletedCount };
     } catch (error) {
       throw new ConvexError({
-        message: `Failed to sync scheduled trips for route ${args.routeId}`,
-        code: "SYNC_SCHEDULED_TRIPS_FOR_ROUTE_FAILED",
+        message: `Failed to delete scheduled trips for ${args.sailingDay}`,
+        code: "DELETE_SCHEDULED_TRIPS_FOR_DATE_FAILED",
         severity: "error",
         details: {
-          routeId: args.routeId,
-          inputTripCount: args.trips.length,
-          deduplicatedTripCount: uniqueTrips.length,
+          sailingDay: args.sailingDay,
           error: String(error),
         },
       });
@@ -116,23 +40,39 @@ export const syncScheduledTripsForRoute = mutation({
 });
 
 /**
- * Bulk upsert scheduled trips (replace if exists, insert if not)
- * Uses composite key for deduplication
- * @deprecated Use syncScheduledTripsForRoute for atomic per-route operations
+ * Bulk insert scheduled trips with automatic deduplication by Key
+ * Removes older duplicates when inserting new data for the same logical trip
  */
-export const upsertScheduledTrips = mutation({
+export const insertScheduledTrips = mutation({
   args: { trips: v.array(scheduledTripSchema) },
   handler: async (ctx, args: { trips: ConvexScheduledTrip[] }) => {
     try {
-      return args.trips.map((trip) => {
-        // Use composite key for deduplication - replace if exists, insert if not
-        ctx.db.insert("scheduledTrips", trip);
-        return trip.Key;
-      });
+      let inserted = 0;
+      let deduplicated = 0;
+
+      for (const trip of args.trips) {
+        // Check if a trip with this key already exists
+        const existing = await ctx.db
+          .query("scheduledTrips")
+          .withIndex("by_key", (q) => q.eq("Key", trip.Key))
+          .first();
+
+        if (existing) {
+          // Replace existing trip with new data
+          await ctx.db.replace(existing._id, trip);
+          deduplicated++;
+        } else {
+          // Insert new trip
+          await ctx.db.insert("scheduledTrips", trip);
+          inserted++;
+        }
+      }
+
+      return { inserted, deduplicated };
     } catch (error) {
       throw new ConvexError({
-        message: `Failed to upsert scheduled trips`,
-        code: "UPSERT_SCHEDULED_TRIPS_FAILED",
+        message: `Failed to insert scheduled trips`,
+        code: "INSERT_SCHEDULED_TRIPS_FAILED",
         severity: "error",
         details: {
           tripCount: args.trips.length,

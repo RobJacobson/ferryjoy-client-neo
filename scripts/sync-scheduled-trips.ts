@@ -22,11 +22,12 @@ async function syncScheduledTrips() {
     // Initialize Convex client
     const convex = new ConvexHttpClient(convexUrl);
 
-    // Trigger the scheduled trips sync
-    console.log("📡 Calling scheduledTrips sync action...");
-    await convex.action(
-      api.functions.scheduledTrips.actions.syncScheduledTripsManual
+    // Trigger the scheduled trips sync (using simplified approach)
+    console.log("📡 Calling simplified scheduledTrips sync action...");
+    const result = await convex.action(
+      api.functions.scheduledTrips.actions.syncScheduledTripsSimpleManual
     );
+    console.log("📊 Sync results:", result);
 
     console.log("✅ Scheduled trips sync completed successfully!");
   } catch (error) {
