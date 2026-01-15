@@ -21,6 +21,7 @@ export const modelParametersSchema = v.object({
     mae: v.number(),
     rmse: v.number(),
     r2: v.number(),
+    stdDev: v.number(),
   }),
 
   createdAt: v.number(),

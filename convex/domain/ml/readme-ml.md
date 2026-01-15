@@ -287,7 +287,7 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 - **Cross-Validation**: Chronological splits prevent temporal leakage
 
 #### Performance Monitoring
-- **Model Metrics**: MAE, RMSE, R² tracked for each trained model
+- **Model Metrics**: MAE, RMSE, Std Dev, R² tracked for each trained model
 - **Training Statistics**: Success rates, data volumes, processing times
 - **Data Coverage**: Route coverage and example distributions
 - **Prediction Bounds**: Reasonable limits on prediction magnitudes
@@ -417,6 +417,12 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 **Interpretation**: 0.0 (random) to 1.0 (perfect prediction)
 **Context**: Lower for complex, noisy real-world systems
 
+#### Standard Deviation of Errors
+**Definition**: Measure of prediction error consistency/spread
+**Formula**: \( \sigma = \sqrt{\frac{1}{n-1} \sum (y_{predicted} - y_{actual} - \bar{e})^2} \)
+**Interpretation**: Lower values indicate more consistent predictions
+**Business Value**: Shows prediction reliability (e.g., "usually within ±X minutes")
+
 ### Evaluation Methodology
 
 #### Chronological Train/Test Split
@@ -435,6 +441,7 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 #### Expected Performance Ranges
 - **MAE**: 5-15 minutes depending on route complexity
 - **RMSE**: 8-25 minutes (higher due to outlier sensitivity)
+- **Std Dev**: 6-20 minutes (measures error consistency)
 - **R²**: 0.3-0.7 for real-world operational predictions
 
 #### Route Performance Factors
@@ -885,7 +892,7 @@ Models are stored in the `modelParameters` table with:
 - `pairKey`
 - `modelType`: one of the five model keys
 - `featureKeys`, `coefficients`, `intercept`
-- `testMetrics` (MAE, RMSE, R²)
+- `testMetrics` (MAE, RMSE, Std Dev, R²)
 - `bucketStats` (totalRecords, sampledRecords)
 - `createdAt`
 

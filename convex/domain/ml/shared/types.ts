@@ -252,6 +252,8 @@ export type ModelParameters = {
     rmse: number;
     /** R-squared (coefficient of determination, 0-1 scale) */
     r2: number;
+    /** Standard Deviation of prediction errors (measures error consistency) */
+    stdDev: number;
   };
 
   /** Unix timestamp when model was trained */

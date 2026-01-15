@@ -13,22 +13,27 @@ type TrainingResultRow = {
   at_dock_depart_curr_mae?: number;
   at_dock_depart_curr_r2?: number;
   at_dock_depart_curr_rmse?: number;
+  at_dock_depart_curr_stddev?: number;
 
   at_dock_arrive_next_mae?: number;
   at_dock_arrive_next_r2?: number;
   at_dock_arrive_next_rmse?: number;
+  at_dock_arrive_next_stddev?: number;
 
   at_dock_depart_next_mae?: number;
   at_dock_depart_next_r2?: number;
   at_dock_depart_next_rmse?: number;
+  at_dock_depart_next_stddev?: number;
 
   at_sea_arrive_next_mae?: number;
   at_sea_arrive_next_r2?: number;
   at_sea_arrive_next_rmse?: number;
+  at_sea_arrive_next_stddev?: number;
 
   at_sea_depart_next_mae?: number;
   at_sea_depart_next_r2?: number;
   at_sea_depart_next_rmse?: number;
+  at_sea_depart_next_stddev?: number;
 
   total_records: number;
   sampled_records: number;
@@ -75,33 +80,38 @@ const upsertRow = (
     model.bucketStats.sampledRecords
   );
 
-  const { mae, r2, rmse } = model.testMetrics;
+  const { mae, r2, rmse, stdDev } = model.testMetrics;
 
   switch (model.modelType) {
     case "at-dock-depart-curr":
       row.at_dock_depart_curr_mae = mae;
       row.at_dock_depart_curr_r2 = r2;
       row.at_dock_depart_curr_rmse = rmse;
+      row.at_dock_depart_curr_stddev = stdDev;
       break;
     case "at-dock-arrive-next":
       row.at_dock_arrive_next_mae = mae;
       row.at_dock_arrive_next_r2 = r2;
       row.at_dock_arrive_next_rmse = rmse;
+      row.at_dock_arrive_next_stddev = stdDev;
       break;
     case "at-dock-depart-next":
       row.at_dock_depart_next_mae = mae;
       row.at_dock_depart_next_r2 = r2;
       row.at_dock_depart_next_rmse = rmse;
+      row.at_dock_depart_next_stddev = stdDev;
       break;
     case "at-sea-arrive-next":
       row.at_sea_arrive_next_mae = mae;
       row.at_sea_arrive_next_r2 = r2;
       row.at_sea_arrive_next_rmse = rmse;
+      row.at_sea_arrive_next_stddev = stdDev;
       break;
     case "at-sea-depart-next":
       row.at_sea_depart_next_mae = mae;
       row.at_sea_depart_next_r2 = r2;
       row.at_sea_depart_next_rmse = rmse;
+      row.at_sea_depart_next_stddev = stdDev;
       break;
   }
 };
@@ -114,22 +124,27 @@ const generateCSV = (results: TrainingResultRow[]): string => {
     "at_dock_depart_curr_mae",
     "at_dock_depart_curr_r2",
     "at_dock_depart_curr_rmse",
+    "at_dock_depart_curr_stddev",
 
     "at_dock_arrive_next_mae",
     "at_dock_arrive_next_r2",
     "at_dock_arrive_next_rmse",
+    "at_dock_arrive_next_stddev",
 
     "at_dock_depart_next_mae",
     "at_dock_depart_next_r2",
     "at_dock_depart_next_rmse",
+    "at_dock_depart_next_stddev",
 
     "at_sea_arrive_next_mae",
     "at_sea_arrive_next_r2",
     "at_sea_arrive_next_rmse",
+    "at_sea_arrive_next_stddev",
 
     "at_sea_depart_next_mae",
     "at_sea_depart_next_r2",
     "at_sea_depart_next_rmse",
+    "at_sea_depart_next_stddev",
 
     "total_records",
     "sampled_records",

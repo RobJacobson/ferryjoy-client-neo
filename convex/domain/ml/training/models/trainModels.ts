@@ -9,6 +9,7 @@ import {
   calculateMAE,
   calculateR2,
   calculateRMSE,
+  calculateStdDevErrors,
 } from "../../prediction/metrics";
 import { models } from "../../shared/models";
 import type {
@@ -93,7 +94,7 @@ export const trainModel = (
 
   // Prepare training data matrices
   const X_train = trainExamples.map((ex) => toRow(ex.input)); // Feature matrix
-  const y_train = trainExamples.map((ex) => ex.target);      // Target vector
+  const y_train = trainExamples.map((ex) => ex.target); // Target vector
 
   // Prepare test data for evaluation
   const X_test = testExamples.map((ex) => toRow(ex.input));
@@ -154,6 +155,7 @@ export const trainModel = (
       mae: calculateMAE(y_test, testPredictions),
       rmse: calculateRMSE(y_test, testPredictions),
       r2: calculateR2(y_test, testPredictions),
+      stdDev: calculateStdDevErrors(y_test, testPredictions),
     },
     createdAt: Date.now(),
     bucketStats: bucket.bucketStats,

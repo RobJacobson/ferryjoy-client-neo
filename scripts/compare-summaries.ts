@@ -11,22 +11,27 @@ type TrainingResultRow = {
   at_dock_depart_curr_mae?: number;
   at_dock_depart_curr_r2?: number;
   at_dock_depart_curr_rmse?: number;
+  at_dock_depart_curr_stddev?: number;
 
   at_dock_arrive_next_mae?: number;
   at_dock_arrive_next_r2?: number;
   at_dock_arrive_next_rmse?: number;
+  at_dock_arrive_next_stddev?: number;
 
   at_dock_depart_next_mae?: number;
   at_dock_depart_next_r2?: number;
   at_dock_depart_next_rmse?: number;
+  at_dock_depart_next_stddev?: number;
 
   at_sea_arrive_next_mae?: number;
   at_sea_arrive_next_r2?: number;
   at_sea_arrive_next_rmse?: number;
+  at_sea_arrive_next_stddev?: number;
 
   at_sea_depart_next_mae?: number;
   at_sea_depart_next_r2?: number;
   at_sea_depart_next_rmse?: number;
+  at_sea_depart_next_stddev?: number;
 
   total_records: number;
   sampled_records: number;
@@ -40,7 +45,7 @@ type ModelKey =
   | "at_sea_arrive_next"
   | "at_sea_depart_next";
 
-type MetricKey = "mae" | "r2";
+type MetricKey = "mae" | "r2" | "stddev";
 
 type ComparisonRow = {
   bucket_type: BucketType;
@@ -55,6 +60,9 @@ type ComparisonRow = {
       r2_a?: number;
       r2_b?: number;
       r2_diff?: number;
+      stddev_a?: number;
+      stddev_b?: number;
+      stddev_diff?: number;
     }
   >;
 };
@@ -78,6 +86,7 @@ const parseCSV = (content: string): TrainingResultRow[] => {
         header.endsWith("_mae") ||
         header.endsWith("_r2") ||
         header.endsWith("_rmse") ||
+        header.endsWith("_stddev") ||
         header.endsWith("_records")
       ) {
         row[header] = parseFloat(value);
@@ -164,6 +173,8 @@ const compareResults = (
         const maeB = getMetric(rowB, modelKey, "mae");
         const r2A = getMetric(rowA, modelKey, "r2");
         const r2B = getMetric(rowB, modelKey, "r2");
+        const stddevA = getMetric(rowA, modelKey, "stddev");
+        const stddevB = getMetric(rowB, modelKey, "stddev");
 
         acc[modelKey] = {
           mae_a: maeA,
@@ -172,6 +183,9 @@ const compareResults = (
           r2_a: r2A,
           r2_b: r2B,
           r2_diff: calcDiff(r2A, r2B),
+          stddev_a: stddevA,
+          stddev_b: stddevB,
+          stddev_diff: calcDiff(stddevA, stddevB),
         };
         return acc;
       },
@@ -189,20 +203,18 @@ const compareResults = (
   return comparison;
 };
 
-const generateMarkdown = (
-  comparison: ComparisonRow[],
-  fileALabel: string,
-  fileBLabel: string
-): string => {
-  let markdown = `# Training Results Comparison: ${fileALabel} vs ${fileBLabel}
+const generateMarkdown = (comparison: ComparisonRow[]): string => {
+  let markdown = `# Training Results Comparison: first vs second
 
-Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
+Comparing model performance between **first** and **second**.
 
 **Interpretation**
-- Positive MAE diff = ${fileBLabel} is worse (higher error)
-- Negative MAE diff = ${fileBLabel} is better (lower error)
-- Positive R² diff = ${fileBLabel} is better (higher explanatory power)
-- Negative R² diff = ${fileBLabel} is worse (lower explanatory power)
+- Positive MAE diff = second is worse (higher error)
+- Negative MAE diff = second is better (lower error)
+- Positive R² diff = second is better (higher explanatory power)
+- Negative R² diff = second is worse (lower explanatory power)
+- Positive SD diff = second is less consistent (more variable errors)
+- Negative SD diff = second is more consistent (less variable errors)
 
 `;
 
@@ -214,22 +226,27 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
   };
 
   const BASE_COLS = {
-    bucket: 18,
+    bucket: 14,
     maeA: 12,
-    maeB: 17,
+    maeB: 13,
     maeDiff: 9,
-    r2A: 12,
-    r2B: 17,
+    r2A: 11,
+    r2B: 13,
     r2Diff: 8,
+    stddevA: 11,
+    stddevB: 12,
+    stddevDiff: 11,
     records: 7,
   } as const;
 
   const cols: Record<keyof typeof BASE_COLS, number> = { ...BASE_COLS };
 
-  const maeALabel = `MAE (${fileALabel})`;
-  const maeBLabel = `MAE (${fileBLabel})`;
-  const r2ALabel = `R² (${fileALabel})`;
-  const r2BLabel = `R² (${fileBLabel})`;
+  const maeALabel = `MAE (first)`;
+  const maeBLabel = `MAE (second)`;
+  const r2ALabel = `R² (first)`;
+  const r2BLabel = `R² (second)`;
+  const stddevALabel = `SD (first)`;
+  const stddevBLabel = `SD (second)`;
 
   const pad = (value: string, width: number, align: "left" | "right") =>
     align === "right" ? value.padStart(width) : value.padEnd(width);
@@ -259,8 +276,7 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
     },
   ];
 
-  const bucketLabel = (row: ComparisonRow) =>
-    `${row.bucket_type}|${row.bucket_key}`;
+  const bucketLabel = (row: ComparisonRow) => row.bucket_key;
 
   cols.bucket = Math.max(
     cols.bucket,
@@ -271,6 +287,8 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
   cols.maeB = Math.max(cols.maeB, maeBLabel.length);
   cols.r2A = Math.max(cols.r2A, r2ALabel.length);
   cols.r2B = Math.max(cols.r2B, r2BLabel.length);
+  cols.stddevA = Math.max(cols.stddevA, stddevALabel.length);
+  cols.stddevB = Math.max(cols.stddevB, stddevBLabel.length);
 
   for (const model of models) {
     markdown += `## ${model.title}\n\n`;
@@ -282,6 +300,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
       pad(r2ALabel, cols.r2A, "right"),
       pad(r2BLabel, cols.r2B, "right"),
       pad("R² Diff", cols.r2Diff, "right"),
+      pad(stddevALabel, cols.stddevA, "right"),
+      pad(stddevBLabel, cols.stddevB, "right"),
+      pad("SD Diff", cols.stddevDiff, "right"),
       pad("Records", cols.records, "right"),
     ];
     markdown += `| ${header.join(" | ")} |\n`;
@@ -293,6 +314,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
       dashed(cols.r2A),
       dashed(cols.r2B),
       dashed(cols.r2Diff),
+      dashed(cols.stddevA),
+      dashed(cols.stddevB),
+      dashed(cols.stddevDiff),
       dashed(cols.records),
     ].join(" | ")} |\n`;
 
@@ -302,6 +326,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
     const r2AValues: number[] = [];
     const r2BValues: number[] = [];
     const r2DiffValues: number[] = [];
+    const stddevAValues: number[] = [];
+    const stddevBValues: number[] = [];
+    const stddevDiffValues: number[] = [];
 
     for (const row of comparison) {
       const m = row.metrics[model.key];
@@ -311,6 +338,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
       if (m.r2_a != null) r2AValues.push(m.r2_a);
       if (m.r2_b != null) r2BValues.push(m.r2_b);
       if (m.r2_diff != null) r2DiffValues.push(m.r2_diff);
+      if (m.stddev_a != null) stddevAValues.push(m.stddev_a);
+      if (m.stddev_b != null) stddevBValues.push(m.stddev_b);
+      if (m.stddev_diff != null) stddevDiffValues.push(m.stddev_diff);
 
       const line = [
         pad(bucketLabel(row), cols.bucket, "left"),
@@ -320,6 +350,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
         pad(formatNum(m.r2_a), cols.r2A, "right"),
         pad(formatNum(m.r2_b), cols.r2B, "right"),
         pad(formatDiff(m.r2_diff), cols.r2Diff, "right"),
+        pad(formatNum(m.stddev_a), cols.stddevA, "right"),
+        pad(formatNum(m.stddev_b), cols.stddevB, "right"),
+        pad(formatDiff(m.stddev_diff), cols.stddevDiff, "right"),
         pad(String(row.total_records), cols.records, "right"),
       ];
       markdown += `| ${line.join(" | ")} |\n`;
@@ -336,6 +369,9 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
       pad(formatNum(avg(r2AValues)), cols.r2A, "right"),
       pad(formatNum(avg(r2BValues)), cols.r2B, "right"),
       pad(formatDiff(avg(r2DiffValues)), cols.r2Diff, "right"),
+      pad(formatNum(avg(stddevAValues)), cols.stddevA, "right"),
+      pad(formatNum(avg(stddevBValues)), cols.stddevB, "right"),
+      pad(formatDiff(avg(stddevDiffValues)), cols.stddevDiff, "right"),
       pad("", cols.records, "right"),
     ];
     markdown += `| ${avgLine.join(" | ")} |\n\n`;
@@ -356,7 +392,7 @@ Comparing model performance between **${fileALabel}** and **${fileBLabel}**.
       continue;
     }
 
-    markdown += `- **${model.title}**: ${fileBLabel} better on **${better}/${diffs.length}**, worse on **${worse}/${diffs.length}** (MAE)\n`;
+    markdown += `- **${model.title}**: second better on **${better}/${diffs.length}**, worse on **${worse}/${diffs.length}** (MAE)\n`;
   }
 
   markdown += `\n---\n*Generated on ${new Date().toISOString()}*\n`;
@@ -389,10 +425,6 @@ const compareSummaries = async () => {
   }
 
   const [fileAPath, fileBPath] = filteredArgs;
-  const toLabel = (filePath: string) =>
-    path.basename(filePath, ".csv").replace("training-results-", "");
-  const fileALabel = toLabel(fileAPath);
-  const fileBLabel = toLabel(fileBPath);
 
   if (!fs.existsSync(fileAPath)) {
     console.error(`File not found: ${fileAPath}`);
@@ -410,7 +442,7 @@ const compareSummaries = async () => {
   const fileBData = parseCSV(fileBContent);
 
   const comparison = compareResults(fileAData, fileBData, showAll);
-  const markdown = generateMarkdown(comparison, fileALabel, fileBLabel);
+  const markdown = generateMarkdown(comparison);
 
   const outputPath = path.join(
     process.cwd(),
