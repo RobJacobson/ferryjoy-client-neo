@@ -29,31 +29,28 @@ const getVesselStatus = (trip: VesselTrip): string => {
   if (trip.AtDock) {
     return "At Dock";
   }
-  if (!trip.Speed) {
-    return "At Sea";
-  }
-  return `${trip.Speed?.toFixed(1)} knots`;
+  return "At Sea";
 };
 
 export const VesselTripCard = ({ trip }: VesselTripCardProps) => {
-  const hasDestination = !!trip.ArrivingTerminalName;
+  const hasDestination = !!trip.ArrivingTerminalAbbrev;
 
   return (
     <View className="">
       <View>
         <View className="flex-row flex-1">
           <Text className="text-lg font-bold leading-tight">
-            {trip.DepartingTerminalName}
+            {trip.DepartingTerminalAbbrev}
           </Text>
           {hasDestination && (
             <Text className="text-lg font-light leading-tight">
-              {` → ${trip.ArrivingTerminalName}`}
+              {` → ${trip.ArrivingTerminalAbbrev}`}
             </Text>
           )}
         </View>
         <View className="flex">
           <Text variant="muted" className="text-sm font-light leading-tight">
-            {`${trip.VesselName} • ${getVesselStatus(trip)}`}
+            {`${trip.VesselAbbrev} • ${getVesselStatus(trip)}`}
           </Text>
         </View>
       </View>

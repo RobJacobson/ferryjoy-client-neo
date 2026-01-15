@@ -1,122 +1,128 @@
 // ============================================================================
-/** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
-// STEP 3: BUCKET BY TERMINAL PAIRS
-// Group records by terminal pairs and calculate statistics
+// ML - TRAINING DATA BUCKETING
+// Group training examples by route for specialized model training
 // ============================================================================
 
+/**
+ * ## Training Data Bucketing Overview
+ *
+ * This module groups training examples by terminal route to enable specialized
+ * model training for each ferry route. Each route has unique characteristics
+ * that warrant dedicated ML models.
+ *
+ * ## Bucketing Strategy
+ *
+ * - **Unit of Analysis**: Terminal pairs (e.g., "BBI->P52")
+ * - **Rationale**: Each route has distinct operational patterns, traffic volumes,
+ *   and environmental conditions that affect schedule adherence
+ * - **Benefits**: Specialized models capture route-specific behaviors better
+ *   than a single global model
+ *
+ * ## Sampling Logic
+ *
+ * - **Recency Bias**: Prioritize recent examples (last 720 days)
+ * - **Volume Limits**: Cap samples per route to prevent overfitting
+ * - **Sorting**: Most recent examples first to capture current patterns
+ *
+ * ## Quality Controls
+ *
+ * - Routes with insufficient data are skipped
+ * - Sampling prevents memory issues with high-volume routes
+ * - Maintains temporal ordering for validation splits
+ */
+
+import { config } from "../../shared/config";
 import type {
-  TerminalPairBucket,
-  TrainingDataWithTerminals,
-} from "domain/ml/shared/types";
-import {
-  config,
-  formatTerminalPairKey,
-  parseTerminalPairKey,
-} from "../../shared/config";
+  BucketKey,
+  FeatureRecord,
+  TrainingBucket,
+} from "../../shared/types";
+
+const bucketKeyToString = (key: BucketKey): string => {
+  return `pair|${key.pairKey}`;
+};
+
+const getBucketKeyForRecord = (record: FeatureRecord): BucketKey => {
+  return { bucketType: "pair", pairKey: record.currPairKey };
+};
 
 /**
- * Create terminal pair buckets from training records
+ * Group training records into route-specific buckets for model training.
+ *
+ * This function organizes feature records by terminal pair (route) and applies
+ * sampling to ensure balanced training data across routes.
+ *
+ * ## Processing Steps
+ *
+ * 1. **Grouping**: Collect all records for each terminal pair
+ * 2. **Sorting**: Order by recency (most recent first) to prioritize current patterns
+ * 3. **Sampling**: Limit records per route to prevent overfitting and memory issues
+ * 4. **Statistics**: Track total vs sampled counts for analysis
+ *
+ * ## Sampling Strategy
+ *
+ * - **Max Samples**: Limited by `config.getMaxSamplesPerRoute()` (prevents domination by high-volume routes)
+ * - **Recency Priority**: Recent data more valuable than historical patterns
+ * - **Deterministic**: Same input always produces same output
+ *
+ * ## Output Structure
+ *
+ * Each bucket contains:
+ * - **Bucket Key**: Terminal pair identifier (e.g., "BBI->P52")
+ * - **Sampled Records**: Training examples for this route
+ * - **Statistics**: Total available vs sampled counts
+ *
+ * @param records - Feature records ready for training
+ * @returns Route-grouped training buckets with sampling applied
  */
-export const createTerminalPairBuckets = (
-  records: TrainingDataWithTerminals[]
-): TerminalPairBucket[] => {
-  console.log(`Creating buckets from ${records.length} records`);
+export const createTrainingBuckets = (
+  records: FeatureRecord[]
+): TrainingBucket[] => {
+  // Group records by terminal pair for route-specific model training
+  const bucketMap = new Map<
+    string,
+    { key: BucketKey; records: FeatureRecord[] }
+  >();
 
-  const bucketMap = new Map<string, TrainingDataWithTerminals[]>();
-
-  // Dynamic grouping by terminal pairs
-  // Note: Terminal data already validated
+  // Collect all training examples for each route
   for (const record of records) {
-    const key = formatTerminalPairKey(
-      record.terminalPair.departingTerminalAbbrev,
-      record.terminalPair.arrivingTerminalAbbrev
-    );
-    const bucketRecords = bucketMap.get(key) || [];
-    bucketRecords.push(record);
-    bucketMap.set(key, bucketRecords);
+    const key = getBucketKeyForRecord(record); // Extract route identifier (B->C pair)
+    const mapKey = bucketKeyToString(key); // Create unique string key for Map
+
+    const existing = bucketMap.get(mapKey);
+    if (existing) {
+      existing.records.push(record);
+    } else {
+      // Initialize new bucket for this route
+      bucketMap.set(mapKey, { key, records: [record] });
+    }
   }
 
-  /**
-   * Extract Features from TrainingDataWithTerminals for model processing
-   */
-  const recordToFeatures = (
-    record: TrainingDataWithTerminals
-  ): typeof record.features => record.features;
+  // Process each route bucket with sampling and statistics
+  const buckets: TrainingBucket[] = Array.from(bucketMap.values()).map(
+    ({ key, records }) => {
+      const totalRecords = records.length;
 
-  // Convert to buckets with comprehensive statistics
-  const buckets: TerminalPairBucket[] = Array.from(bucketMap.entries()).map(
-    ([key, records]) => {
-      const [departing, arriving] = parseTerminalPairKey(key);
-
-      // Sample down to most recent MAX_SAMPLES_PER_ROUTE records
-      const originalCount = records.length;
-      const sampledRecords = records
-        .sort((a, b) => b.scheduledDeparture - a.scheduledDeparture) // Most recent first
-        .slice(0, config.getMaxSamplesPerRoute()); // Take top N
-
-      // Calculate mean statistics on sampled records
-      const validRecords = sampledRecords.filter(
-        (r) =>
-          r.features.prevTripDelay != null && r.features.atSeaDuration != null
-      );
-      const meanDepartureDelay =
-        validRecords.length > 0
-          ? validRecords.reduce(
-              (sum, r) => sum + r.features.prevTripDelay!,
-              0
-            ) / validRecords.length
-          : undefined;
-      const meanAtSeaDuration =
-        validRecords.length > 0
-          ? validRecords.reduce(
-              (sum, r) => sum + r.features.atSeaDuration!,
-              0
-            ) / validRecords.length
-          : undefined;
-      const meanDelay =
-        validRecords.length > 0
-          ? validRecords.reduce(
-              (sum, r) =>
-                sum + r.features.prevTripDelay! + r.features.atSeaDuration!,
-              0
-            ) / validRecords.length
-          : undefined;
-
-      // Convert records to features for the bucket
-      const features = sampledRecords.map(recordToFeatures);
+      // Sample most recent records to prioritize current operational patterns
+      // Sort by scheduled departure time (descending = most recent first)
+      const sampled = records
+        .slice()
+        .sort((a, b) => b.currScheduledDepartMs - a.currScheduledDepartMs)
+        .slice(0, config.getMaxSamplesPerRoute()); // Limit to prevent overfitting
 
       return {
-        terminalPair: {
-          departingTerminalAbbrev: departing,
-          arrivingTerminalAbbrev: arriving,
-        },
-        features,
+        bucketKey: key,
+        records: sampled,
         bucketStats: {
-          totalRecords: originalCount, // Original count before sampling
-          filteredRecords: sampledRecords.length, // Actual training samples
-          meanDepartureDelay,
-          meanAtSeaDuration,
-          meanDelay,
+          totalRecords, // Total examples available for this route
+          sampledRecords: sampled.length, // Examples kept after sampling
         },
       };
     }
   );
 
-  // Sort buckets by sampled record count (largest first)
-  buckets.sort((a, b) => b.features.length - a.features.length);
-
-  const totalOriginalRecords = buckets.reduce(
-    (sum, b) => sum + b.bucketStats.totalRecords,
-    0
-  );
-  const totalSampledRecords = buckets.reduce(
-    (sum, b) => sum + b.features.length,
-    0
-  );
-  console.log(
-    `Created ${buckets.length} buckets: ${totalOriginalRecords} → ${totalSampledRecords} sampled records ` +
-      `(${((totalSampledRecords / totalOriginalRecords) * 100).toFixed(1)}% kept)`
-  );
+  // Sort buckets by size (largest first) for processing priority
+  buckets.sort((a, b) => b.records.length - a.records.length);
 
   return buckets;
 };

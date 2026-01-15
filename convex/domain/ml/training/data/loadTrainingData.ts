@@ -30,7 +30,6 @@ const safeJsonStringify = (value: unknown): string => {
           name: v.name,
           message: v.message,
           stack: v.stack,
-          cause: v.cause,
         };
       }
       return v;
@@ -46,7 +45,6 @@ const formatUnknownError = (error: unknown) => {
       name: error.name,
       message: error.message,
       stack: error.stack,
-      cause: error.cause,
     };
   }
 
@@ -130,7 +128,9 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
     });
     // Ensure the surfaced error message is informative even if the runtime
     // renders nested objects poorly (e.g. "[object Object]").
-    throw new Error(`Failed to load vessel data: ${safeJsonStringify(formatted)}`);
+    throw new Error(
+      `Failed to load vessel data: ${safeJsonStringify(formatted)}`
+    );
   }
 };
 
@@ -151,7 +151,9 @@ const fetchVesselFleet = async (): Promise<
     console.error("Failed to fetch vessel fleet", {
       error: formatted,
     });
-    throw new Error(`Failed to fetch vessel fleet: ${safeJsonStringify(formatted)}`);
+    throw new Error(
+      `Failed to fetch vessel fleet: ${safeJsonStringify(formatted)}`
+    );
   }
 };
 

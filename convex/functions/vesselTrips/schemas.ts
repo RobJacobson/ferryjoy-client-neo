@@ -30,7 +30,7 @@ export const vesselTripSchema = v.object({
   // Denormalized previous trip data for efficient predictions
   PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
   PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
-  // Predicted departure time (absolute timestamp in milliseconds, arrive-depart model)
+  // Predicted departure time (absolute timestamp in milliseconds)
   LeftDockPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
   LeftDockMae: v.optional(v.number()),
@@ -39,11 +39,11 @@ export const vesselTripSchema = v.object({
   LeftDockMax: v.optional(v.number()), // LeftDockPred + LeftDockMae
   // Delta between actual and predicted departure (in minutes)
   LeftDockDelta: v.optional(v.number()), // Calculated when vessel leaves dock
-  // Predicted arrival time based on arrival (arrive-arrive model, absolute timestamp in milliseconds)
+  // Predicted arrival time (absolute timestamp in milliseconds)
   ArriveEtaPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
   ArriveEtaMae: v.optional(v.number()),
-  // Predicted arrival time based on departure (depart-arrive model, absolute timestamp in milliseconds)
+  // Predicted arrival time based on departure (absolute timestamp in milliseconds)
   DepartEtaPred: v.optional(v.number()),
   // Prediction MAE (rounded to nearest 0.01 minute)
   DepartEtaMae: v.optional(v.number()),

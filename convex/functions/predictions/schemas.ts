@@ -1,61 +1,34 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 
-/**
- * Convex validator for model parameters mutation argument (numbers)
- */
-export const modelParametersMutationSchema = v.object({
-  departingTerminalAbbrev: v.string(),
-  arrivingTerminalAbbrev: v.string(),
+export const modelParametersSchema = v.object({
+  bucketType: v.union(v.literal("pair")),
+  pairKey: v.optional(v.string()), // present when bucketType === "pair"
+
   modelType: v.union(
-    v.literal("arrive-depart-atdock-duration"),
-    v.literal("arrive-depart-delay"),
-    v.literal("depart-arrive-atsea-duration"),
-    v.literal("arrive-arrive-total-duration"),
-    v.literal("depart-depart-total-duration")
+    v.literal("at-dock-depart-curr"),
+    v.literal("at-dock-arrive-next"),
+    v.literal("at-dock-depart-next"),
+    v.literal("at-sea-arrive-next"),
+    v.literal("at-sea-depart-next")
   ),
 
-  // Model parameters (optional for insufficient data cases)
-  coefficients: v.optional(v.array(v.number())),
-  intercept: v.optional(v.number()),
-  testMetrics: v.optional(
-    v.object({
-      mae: v.number(),
-      rmse: v.number(),
-      r2: v.number(),
-      stdDev: v.optional(v.number()),
-    })
-  ),
+  featureKeys: v.array(v.string()),
+  coefficients: v.array(v.number()),
+  intercept: v.number(),
 
-  // Legacy field - kept for backward compatibility during migration
-  trainingMetrics: v.optional(
-    v.object({
-      mae: v.number(),
-      rmse: v.number(),
-      r2: v.number(),
-      stdDev: v.optional(v.number()),
-    })
-  ),
+  testMetrics: v.object({
+    mae: v.number(),
+    rmse: v.number(),
+    r2: v.number(),
+  }),
 
-  // Required metadata
   createdAt: v.number(),
 
-  // Bucket statistics (optional for backward compatibility)
-  bucketStats: v.optional(
-    v.object({
-      totalRecords: v.number(),
-      filteredRecords: v.number(),
-      meanDepartureDelay: v.optional(v.number()),
-      meanAtSeaDuration: v.optional(v.number()),
-      meanDelay: v.optional(v.number()),
-      // Backward compatibility for old data
-      meanAtDockDuration: v.optional(v.number()),
-    })
-  ),
+  bucketStats: v.object({
+    totalRecords: v.number(),
+    sampledRecords: v.number(),
+  }),
 });
 
-/**
- * Type for model parameters in Convex storage (with numbers)
- * Inferred from the Convex validator
- */
-export type ConvexModelParameters = Infer<typeof modelParametersMutationSchema>;
+export type ConvexModelParameters = Infer<typeof modelParametersSchema>;

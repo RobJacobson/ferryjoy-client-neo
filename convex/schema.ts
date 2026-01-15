@@ -1,6 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
-import { modelParametersMutationSchema } from "functions/predictions/schemas";
-import { modelParametersV2Schema } from "functions/predictionsV2/schemas";
+import { modelParametersSchema } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
@@ -54,31 +53,9 @@ export default defineSchema({
     ["VesselID"]
   ),
 
-  // Prediction model parameters
-  modelParameters: defineTable(modelParametersMutationSchema)
-    .index("by_terminals_and_type", [
-      "departingTerminalAbbrev",
-      "arrivingTerminalAbbrev",
-      "modelType",
-    ])
-    .index("by_terminals", [
-      "departingTerminalAbbrev",
-      "arrivingTerminalAbbrev",
-    ]),
-
-  // Prediction model parameters (ML v2: chain/pair buckets)
-  modelParametersV2: defineTable(modelParametersV2Schema)
-    .index("by_chain_and_type", ["chainKey", "modelType"])
-    .index("by_pair_and_type", ["pairKey", "modelType"]),
-
-  // Historical predictions for analysis (single table with type discriminator)
-  // historicalPrcedictions: defineTable(historicalPredictionDataSchema)
-  //   .index("by_timestamp", ["predictionTimestamp"])
-  //   .index("by_vessel_and_type", ["vesselId", "predictionType"])
-  //   .index("by_route", ["opRouteAbrv"]),
-
-  // // Current predictions for caching (single table with type discriminator)
-  // currentPredictions: defineTable(currentPredictionDataSchema)
-  //   .index("by_vessel_and_type", ["vesselId", "predictionType"])
-  //   .index("by_route", ["opRouteAbrv"]),
+  // Prediction model parameters (pair buckets)
+  modelParameters: defineTable(modelParametersSchema).index(
+    "by_pair_and_type",
+    ["pairKey", "modelType"]
+  ),
 });
