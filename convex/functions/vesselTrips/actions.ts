@@ -1,9 +1,10 @@
 import { api } from "_generated/api";
 import { type ActionCtx, internalAction } from "_generated/server";
 import {
-  predictArriveEta,
-  predictDelayOnArrival,
-  predictEtaOnDeparture,
+  predictAtDockArriveNext,
+  predictAtDockDepartCurr,
+  predictAtSeaArriveNext,
+  updatePredictionsWithActuals,
 } from "domain/ml/prediction";
 import {
   type ConvexVesselLocation,
@@ -14,7 +15,7 @@ import {
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { calculateTimeDelta, roundToPrecision } from "shared/durationUtils";
+import { calculateTimeDelta } from "shared/durationUtils";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
@@ -88,7 +89,7 @@ const handleFirstTrip = async (
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
   const newTrip = toConvexVesselTrip(currLocation, {
-    TripStart: undefined,
+    TripStart: currLocation.TimeStamp,
   });
 
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
@@ -109,7 +110,7 @@ const handleNewTrip = async (
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
   // Creates a completed trip object by calculating final durations and setting TripEnd.
-  const completedTrip = {
+  const completedTripBase = {
     ...existingTrip,
     TripEnd: currLocation.TimeStamp,
     AtSeaDuration: calculateTimeDelta(
@@ -122,10 +123,15 @@ const handleNewTrip = async (
     ),
   };
 
+  const completedTrip = {
+    ...completedTripBase,
+    ...updatePredictionsWithActuals(existingTrip, completedTripBase),
+  };
+
   // Create a new trip object with the completed trip's at-sea duration and total duration
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
-    // PrevTerminalAbbrev must represent the *previous trip's departing terminal*
+    // PrevTerminalAbbrev represents the *previous trip's departing terminal*
     // (A in A->B then B->C). This is used by ML features as the origin of the
     // previous leg (A->B), not the previous leg's arrival (B).
     PrevTerminalAbbrev: completedTrip.DepartingTerminalAbbrev,
@@ -133,20 +139,12 @@ const handleNewTrip = async (
     PrevLeftDock: completedTrip.LeftDock,
   });
 
-  const newTripWithPredictions = {
-    ...newTrip,
-    ...(await getLeftDockPrediction(ctx, newTrip)),
-    ...(await getArriveEtaPrediction(ctx, newTrip)),
-    ...(await getDepartEtaPrediction(ctx, newTrip)),
-  };
-
-  console.log("New trip with predictions:", newTripWithPredictions);
   // Complete and start a new trip by upserting the completed trip and the new trip
   await ctx.runMutation(
     api.functions.vesselTrips.mutations.completeAndStartNewTrip,
     {
       completedTrip,
-      newTrip: newTripWithPredictions,
+      newTrip,
     }
   );
 };
@@ -167,61 +165,185 @@ const handleTripUpdate = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip
 ) => {
-  // Build the updated trip object with all current data
+  const tripFieldUpdates = getTripFieldUpdatesFromLocation(
+    existingTrip,
+    currLocation
+  );
+
   const updatedTrip: ConvexVesselTrip = {
     ...existingTrip,
-    ArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
-    AtDock: currLocation.AtDock,
-    Eta: currLocation.Eta,
-    LeftDock: currLocation.LeftDock,
-    ScheduledDeparture: currLocation.ScheduledDeparture,
-    InService: currLocation.InService,
-    TripDelay: calculateTimeDelta(
-      currLocation.ScheduledDeparture,
-      currLocation.LeftDock
-    ),
-    AtDockDuration: calculateTimeDelta(
-      existingTrip.TripStart,
-      currLocation.LeftDock
-    ),
+    ...tripFieldUpdates,
   };
 
-  // Calculate LeftDockDelta if vessel just left dock
-  const leftDockDelta = calculateLeftDockDelta(existingTrip, updatedTrip);
+  const didStartTrip =
+    !existingTrip.ArrivingTerminalAbbrev &&
+    Boolean(currLocation.ArrivingTerminalAbbrev);
 
-  // Combine the updated trip with the predictions
-  const updatedTripWithPredictions = {
+  const didLeaveDock = !existingTrip.LeftDock && Boolean(currLocation.LeftDock);
+
+  const predictionUpdates: Partial<ConvexVesselTrip> = {
+    ...(didStartTrip
+      ? await handleStartTrip(ctx, {
+          existingTrip,
+          updatedTrip,
+        })
+      : {}),
+    ...(didLeaveDock
+      ? await handleLeftDock(ctx, {
+          existingTrip,
+          updatedTrip,
+        })
+      : {}),
+  };
+
+  const updatedTripWithPredictions: ConvexVesselTrip = {
     ...updatedTrip,
-    ...(await getLeftDockPrediction(ctx, updatedTrip)),
-    ...(await getArriveEtaPrediction(ctx, updatedTrip)),
-    ...(await getDepartEtaPrediction(ctx, updatedTrip)),
-    ...(leftDockDelta !== undefined ? { LeftDockDelta: leftDockDelta } : {}),
+    ...predictionUpdates,
   };
 
-  if (equals(updatedTripWithPredictions, existingTrip)) {
+  const predictionActualUpdates = updatePredictionsWithActuals(
+    existingTrip,
+    updatedTripWithPredictions
+  );
+
+  const tripToUpsert: ConvexVesselTrip = {
+    ...updatedTripWithPredictions,
+    ...predictionActualUpdates,
+  };
+
+  if (
+    Object.keys(tripFieldUpdates).length === 0 &&
+    Object.keys(predictionUpdates).length === 0 &&
+    Object.keys(predictionActualUpdates).length === 0
+  ) {
     return;
   }
 
-  console.log("Updated trip:", updatedTripWithPredictions);
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
-    trip: { ...updatedTripWithPredictions, TimeStamp: currLocation.TimeStamp },
+    trip: tripToUpsert,
   });
 };
 
-/**
- * Checks if two vessel trips are equal.
- *
- * @param a - The first vessel trip
- * @param b - The second vessel trip
- * @returns `true` if the vessel trips are equal, `false` otherwise
- */
-const equals = (a: ConvexVesselTrip, b: ConvexVesselTrip): boolean =>
-  JSON.stringify(a) === JSON.stringify(b);
-// Object.keys(a).length === Object.keys(b).length &&
-// Object.keys(a).every(
-//   (key) =>
-//     a[key as keyof ConvexVesselTrip] === b[key as keyof ConvexVesselTrip]
-// );
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+const getTripFieldUpdatesFromLocation = (
+  existingTrip: ConvexVesselTrip,
+  currLocation: ConvexVesselLocation
+): Partial<ConvexVesselTrip> => {
+  const updates: Partial<ConvexVesselTrip> = {};
+
+  if (
+    currLocation.ArrivingTerminalAbbrev !== existingTrip.ArrivingTerminalAbbrev
+  ) {
+    updates.ArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
+  }
+
+  if (currLocation.AtDock !== existingTrip.AtDock) {
+    updates.AtDock = currLocation.AtDock;
+  }
+
+  if (currLocation.Eta !== existingTrip.Eta) {
+    updates.Eta = currLocation.Eta;
+  }
+
+  if (currLocation.LeftDock !== existingTrip.LeftDock) {
+    updates.LeftDock = currLocation.LeftDock;
+  }
+
+  if (currLocation.ScheduledDeparture !== existingTrip.ScheduledDeparture) {
+    updates.ScheduledDeparture = currLocation.ScheduledDeparture;
+  }
+
+  const tripDelay = calculateTimeDelta(
+    currLocation.ScheduledDeparture,
+    currLocation.LeftDock
+  );
+  if (tripDelay !== undefined && tripDelay !== existingTrip.TripDelay) {
+    updates.TripDelay = tripDelay;
+  }
+
+  const atDockDuration = calculateTimeDelta(
+    existingTrip.TripStart,
+    currLocation.LeftDock
+  );
+  if (
+    atDockDuration !== undefined &&
+    atDockDuration !== existingTrip.AtDockDuration
+  ) {
+    updates.AtDockDuration = atDockDuration;
+  }
+
+  return updates;
+};
+
+const handleStartTrip = async (
+  ctx: ActionCtx,
+  args: {
+    existingTrip: ConvexVesselTrip;
+    updatedTrip: ConvexVesselTrip;
+  }
+): Promise<Partial<ConvexVesselTrip>> => {
+  const updates: Partial<ConvexVesselTrip> = {};
+
+  if (!args.updatedTrip.AtDock || args.updatedTrip.LeftDock) {
+    return updates;
+  }
+
+  if (
+    args.existingTrip.AtDockDepartCurr ||
+    args.existingTrip.AtDockArriveNext
+  ) {
+    return updates;
+  }
+
+  const departCurrPrediction = await predictAtDockDepartCurr(
+    ctx,
+    args.updatedTrip
+  );
+  if (departCurrPrediction) {
+    updates.AtDockDepartCurr = departCurrPrediction;
+  }
+
+  const arriveNextPrediction = await predictAtDockArriveNext(
+    ctx,
+    args.updatedTrip
+  );
+  if (arriveNextPrediction) {
+    updates.AtDockArriveNext = arriveNextPrediction;
+  }
+
+  return updates;
+};
+
+const handleLeftDock = async (
+  ctx: ActionCtx,
+  args: {
+    existingTrip: ConvexVesselTrip;
+    updatedTrip: ConvexVesselTrip;
+  }
+): Promise<Partial<ConvexVesselTrip>> => {
+  const updates: Partial<ConvexVesselTrip> = {};
+
+  if (!args.updatedTrip.LeftDock) {
+    return updates;
+  }
+
+  if (args.existingTrip.AtSeaArriveNext) {
+    return updates;
+  }
+
+  const arriveNextPrediction = await predictAtSeaArriveNext(
+    ctx,
+    args.updatedTrip
+  );
+  if (arriveNextPrediction) {
+    updates.AtSeaArriveNext = arriveNextPrediction;
+  }
+
+  return updates;
+};
 
 /**
  * Checks if this is the first trip for a vessel (no existing trip).
@@ -244,182 +366,3 @@ const isNewTrip = (
   currLocation: ConvexVesselLocation
 ): boolean =>
   existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
-
-/**
- * Generates left dock prediction for a trip if not already calculated.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict left dock time for
- * @returns Promise resolving to left dock prediction or empty object if prediction fails
- */
-const getLeftDockPrediction = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<{
-  LeftDockPred?: number;
-  LeftDockMae?: number;
-  LeftDockMin?: number;
-  LeftDockMax?: number;
-}> => {
-  if (hasPredictionData(trip, false) && !trip.LeftDockPred) {
-    try {
-      const prediction = await predictDelayOnArrival(ctx, trip);
-      console.log(
-        `[Action] Left dock prediction for ${trip.VesselAbbrev}:`,
-        prediction
-      );
-
-      // prediction.predictedTime is delay in minutes relative to scheduled departure, convert to absolute timestamp
-      const predictedDelayMinutes = prediction.predictedTime;
-      const predictedDelayMs = predictedDelayMinutes * 60 * 1000; // Convert minutes to milliseconds
-      const leftDockPred =
-        (trip.ScheduledDeparture as number) + predictedDelayMs; // Absolute timestamp: scheduled departure + predicted delay
-      const leftDockMae = prediction.mae;
-
-      // Calculate derived values if prediction is available
-      let leftDockMin: number | undefined;
-      let leftDockMax: number | undefined;
-
-      if (leftDockPred !== undefined && leftDockMae !== undefined) {
-        // Convert MAE from minutes to milliseconds for timestamp calculations
-        const maeMs = leftDockMae * 60 * 1000;
-        leftDockMin = leftDockPred - maeMs;
-        leftDockMax = leftDockPred + maeMs;
-      }
-
-      return {
-        LeftDockPred: leftDockPred,
-        LeftDockMae: leftDockMae,
-        LeftDockMin: leftDockMin,
-        LeftDockMax: leftDockMax,
-      };
-    } catch (error) {
-      console.error(
-        `[Action] Left dock prediction failed for ${trip.VesselAbbrev}:`,
-        error
-      );
-    }
-  }
-  return {};
-};
-
-/**
- * Generates departure ETA prediction when vessel leaves dock.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict departure ETA for
- * @returns Promise resolving to departure ETA prediction or empty object if prediction fails
- */
-const getDepartEtaPrediction = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<{
-  DepartEtaPred?: number;
-  DepartEtaMae?: number;
-}> => {
-  // Only generate if not already calculated and vessel has left dock
-  if (hasPredictionData(trip, false) && !trip.DepartEtaPred) {
-    try {
-      const prediction = await predictEtaOnDeparture(ctx, trip);
-      console.log(
-        `[Action] Departure ETA for ${trip.VesselAbbrev}:`,
-        prediction
-      );
-      return {
-        DepartEtaPred: prediction.predictedTime,
-        DepartEtaMae: prediction.mae,
-      };
-    } catch (error) {
-      console.error(
-        `[Action] Departure ETA failed for ${trip.VesselAbbrev}:`,
-        error
-      );
-    }
-  }
-  return {};
-};
-
-/**
- * Generates arrival ETA prediction for a trip if not already calculated.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict ETA for
- * @returns Promise resolving to arrival ETA prediction or empty object if prediction fails
- */
-const getArriveEtaPrediction = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<{
-  ArriveEtaPred?: number;
-  ArriveEtaMae?: number;
-}> => {
-  if (
-    hasPredictionData(trip, true) &&
-    Boolean(trip.LeftDock) &&
-    !trip.ArriveEtaPred
-  ) {
-    try {
-      const prediction = await predictArriveEta(ctx, trip);
-      console.log(
-        `[Action] ETA prediction for ${trip.VesselAbbrev}:`,
-        prediction
-      );
-      return {
-        ArriveEtaPred: prediction.predictedTime,
-        ArriveEtaMae: prediction.mae,
-      };
-    } catch (error) {
-      console.error(
-        `[Action] ETA prediction failed for ${trip.VesselAbbrev}:`,
-        error
-      );
-    }
-  }
-  return {};
-};
-
-/**
- * Calculates LeftDockDelta when vessel leaves dock.
- *
- * @param existingTrip - The previous trip state
- * @param updatedTrip - The updated trip state
- * @returns LeftDockDelta in minutes, or undefined if not applicable
- */
-const calculateLeftDockDelta = (
-  existingTrip: ConvexVesselTrip,
-  updatedTrip: ConvexVesselTrip
-): number | undefined => {
-  // Only calculate if vessel just left dock and predictions exist
-  if (
-    !existingTrip.LeftDock ||
-    !updatedTrip.LeftDock ||
-    !updatedTrip.LeftDockPred ||
-    updatedTrip.LeftDockMin === undefined ||
-    updatedTrip.LeftDockMax === undefined
-  ) {
-    return undefined;
-  }
-
-  // Values are guaranteed to exist after guard clause above
-  const actual = updatedTrip.LeftDock as number;
-  const min = updatedTrip.LeftDockMin as number;
-  const max = updatedTrip.LeftDockMax as number;
-
-  // Calculate delta in minutes from prediction bounds, rounded to 1 decimal place
-  const MS_PER_MINUTE = 60 * 1000;
-  if (actual < min) return roundToPrecision((actual - min) / MS_PER_MINUTE, 1); // Early departure
-  if (actual > max) return roundToPrecision((actual - max) / MS_PER_MINUTE, 1); // Late departure
-  return 0; // Within prediction range
-};
-
-const hasPredictionData = (
-  trip: ConvexVesselTrip,
-  leftDockRequired: boolean
-): boolean =>
-  Boolean(trip.TripStart) &&
-  Boolean(trip.ArrivingTerminalAbbrev) &&
-  Boolean(trip.InService) &&
-  Boolean(trip.ScheduledDeparture) &&
-  Boolean(trip.PrevScheduledDeparture) &&
-  Boolean(trip.PrevLeftDock) &&
-  (!leftDockRequired || Boolean(trip.LeftDock));

@@ -10,3 +10,11 @@ export {
   predictEtaOnDeparture,
   predictTripValue,
 } from "./predictTrip";
+export {
+  predictAtDockArriveNext,
+  predictAtDockDepartCurr,
+  predictAtDockDepartNext,
+  predictAtSeaArriveNext,
+  predictAtSeaDepartNext,
+  updatePredictionsWithActuals,
+} from "./vesselTripPredictions";

@@ -15,6 +15,7 @@ import type * as domain_ml_prediction_applyModel from "../domain/ml/prediction/a
 import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
 import type * as domain_ml_prediction_metrics from "../domain/ml/prediction/metrics.js";
 import type * as domain_ml_prediction_predictTrip from "../domain/ml/prediction/predictTrip.js";
+import type * as domain_ml_prediction_vesselTripPredictions from "../domain/ml/prediction/vesselTripPredictions.js";
 import type * as domain_ml_shared_config from "../domain/ml/shared/config.js";
 import type * as domain_ml_shared_featureRecord from "../domain/ml/shared/featureRecord.js";
 import type * as domain_ml_shared_features from "../domain/ml/shared/features.js";
@@ -88,6 +89,7 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/prediction/index": typeof domain_ml_prediction_index;
   "domain/ml/prediction/metrics": typeof domain_ml_prediction_metrics;
   "domain/ml/prediction/predictTrip": typeof domain_ml_prediction_predictTrip;
+  "domain/ml/prediction/vesselTripPredictions": typeof domain_ml_prediction_vesselTripPredictions;
   "domain/ml/shared/config": typeof domain_ml_shared_config;
   "domain/ml/shared/featureRecord": typeof domain_ml_shared_featureRecord;
   "domain/ml/shared/features": typeof domain_ml_shared_features;

@@ -7,6 +7,73 @@ import {
 } from "../../shared/convertDates";
 
 /**
+ * Convex validator for ML prediction data (numbers)
+ * Contains prediction results with uncertainty bounds and actual outcomes
+ */
+export const predictionSchema = v.object({
+  // Our actual predicted time (milliseconds since epoch)
+  PredTime: v.number(),
+  // Lower bound for time prediction (PredTime - 1 Std Dev)
+  MinTime: v.number(),
+  // Upper bound for time prediction (PredTime + 1 Std Dev)
+  MaxTime: v.number(),
+  // Actual observed time (optional, set when trip completes)
+  Actual: v.optional(v.number()),
+  // Signed difference: Actual - PredTime (optional, in minutes)
+  DeltaTotal: v.optional(v.number()),
+  // Range deviation: (Actual - MinTime) if Actual < MinTime,
+  // (Actual - MaxTime) if Actual > MinTime, 0 if within bounds
+  DeltaRange: v.optional(v.number()),
+});
+
+/**
+ * Type for prediction data in Convex storage (with numbers)
+ * Inferred from the Convex validator
+ */
+export type ConvexPrediction = Infer<typeof predictionSchema>;
+
+/**
+ * Type for prediction data in domain layer (with Date objects)
+ */
+export type Prediction = {
+  // Our actual predicted time
+  PredTime: Date;
+  // Lower bound for time prediction (PredTime - 1 Std Dev)
+  MinTime: Date;
+  // Upper bound for time prediction (PredTime + 1 Std Dev)
+  MaxTime: Date;
+  // Actual observed time (optional, set when trip completes)
+  Actual?: Date;
+  // Signed difference: Actual - PredTime (optional, in minutes)
+  DeltaTotal?: number;
+  // Range deviation: (Actual - MinTime) if Actual < MinTime,
+  // (Actual - MaxTime) if Actual > MaxTime, 0 if within bounds
+  DeltaRange?: number;
+};
+
+/**
+ * Convert Convex prediction (numbers) to domain prediction (Dates)
+ */
+export const toDomainPrediction = (
+  prediction: ConvexPrediction
+): Prediction => ({
+  PredTime: epochMsToDate(prediction.PredTime),
+  MinTime: epochMsToDate(prediction.MinTime),
+  MaxTime: epochMsToDate(prediction.MaxTime),
+  Actual: optionalEpochMsToDate(prediction.Actual),
+  DeltaTotal: prediction.DeltaTotal,
+  DeltaRange: prediction.DeltaRange,
+});
+
+/**
+ * Convert optional Convex prediction to optional domain prediction
+ */
+export const optionalToDomainPrediction = (
+  prediction?: ConvexPrediction
+): Prediction | undefined =>
+  prediction ? toDomainPrediction(prediction) : undefined;
+
+/**
  * Convex validator for vessel trips (numbers)
  * Simplified schema without Status field - table determines status
  */
@@ -30,23 +97,12 @@ export const vesselTripSchema = v.object({
   // Denormalized previous trip data for efficient predictions
   PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
   PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
-  // Predicted departure time (absolute timestamp in milliseconds)
-  LeftDockPred: v.optional(v.number()),
-  // Prediction MAE (rounded to nearest 0.01 minute)
-  LeftDockMae: v.optional(v.number()),
-  // Derived prediction bounds (absolute timestamps in milliseconds)
-  LeftDockMin: v.optional(v.number()), // LeftDockPred - LeftDockMae
-  LeftDockMax: v.optional(v.number()), // LeftDockPred + LeftDockMae
-  // Delta between actual and predicted departure (in minutes)
-  LeftDockDelta: v.optional(v.number()), // Calculated when vessel leaves dock
-  // Predicted arrival time (absolute timestamp in milliseconds)
-  ArriveEtaPred: v.optional(v.number()),
-  // Prediction MAE (rounded to nearest 0.01 minute)
-  ArriveEtaMae: v.optional(v.number()),
-  // Predicted arrival time based on departure (absolute timestamp in milliseconds)
-  DepartEtaPred: v.optional(v.number()),
-  // Prediction MAE (rounded to nearest 0.01 minute)
-  DepartEtaMae: v.optional(v.number()),
+  // ML model predictions with uncertainty bounds and actual outcomes
+  AtDockDepartCurr: v.optional(predictionSchema), // at-dock-depart-curr model
+  AtDockArriveNext: v.optional(predictionSchema), // at-dock-arrive-next model
+  AtDockDepartNext: v.optional(predictionSchema), // at-dock-depart-next model
+  AtSeaArriveNext: v.optional(predictionSchema), // at-sea-arrive-next model
+  AtSeaDepartNext: v.optional(predictionSchema), // at-sea-depart-next model
 });
 
 /**
@@ -68,16 +124,12 @@ export const toConvexVesselTrip = (
     PrevTerminalAbbrev?: string;
     PrevScheduledDeparture?: number;
     PrevLeftDock?: number;
-    // Prediction fields
-    LeftDockPred?: number;
-    LeftDockMae?: number;
-    LeftDockMin?: number;
-    LeftDockMax?: number;
-    LeftDockDelta?: number;
-    ArriveEtaPred?: number;
-    ArriveEtaMae?: number;
-    DepartEtaPred?: number;
-    DepartEtaMae?: number;
+    // ML model predictions
+    AtDockDepartCurr?: ConvexPrediction;
+    AtDockArriveNext?: ConvexPrediction;
+    AtDockDepartNext?: ConvexPrediction;
+    AtSeaArriveNext?: ConvexPrediction;
+    AtSeaDepartNext?: ConvexPrediction;
   }
 ): ConvexVesselTrip => ({
   VesselAbbrev: cvl.VesselAbbrev,
@@ -95,16 +147,12 @@ export const toConvexVesselTrip = (
   // Denormalized previous trip data
   PrevScheduledDeparture: params.PrevScheduledDeparture,
   PrevLeftDock: params.PrevLeftDock,
-  // Prediction fields
-  LeftDockPred: params.LeftDockPred,
-  LeftDockMae: params.LeftDockMae,
-  LeftDockMin: params.LeftDockMin,
-  LeftDockMax: params.LeftDockMax,
-  LeftDockDelta: params.LeftDockDelta,
-  ArriveEtaPred: params.ArriveEtaPred,
-  ArriveEtaMae: params.ArriveEtaMae,
-  DepartEtaPred: params.DepartEtaPred,
-  DepartEtaMae: params.DepartEtaMae,
+  // ML model predictions
+  AtDockDepartCurr: params.AtDockDepartCurr,
+  AtDockArriveNext: params.AtDockArriveNext,
+  AtDockDepartNext: params.AtDockDepartNext,
+  AtSeaArriveNext: params.AtSeaArriveNext,
+  AtSeaDepartNext: params.AtSeaDepartNext,
 });
 
 /**
@@ -119,17 +167,12 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   TimeStamp: epochMsToDate(trip.TimeStamp),
   TripStart: optionalEpochMsToDate(trip.TripStart),
   TripEnd: optionalEpochMsToDate(trip.TripEnd),
-  // Prediction fields
-  LeftDockPred: optionalEpochMsToDate(trip.LeftDockPred), // Now an absolute timestamp
-  ArriveEtaPred: optionalEpochMsToDate(trip.ArriveEtaPred), // ETA is still a timestamp
-  DepartEtaPred: optionalEpochMsToDate(trip.DepartEtaPred), // ETA is still a timestamp
-  // MAE and derived fields remain as numbers (not timestamps)
-  LeftDockMae: trip.LeftDockMae,
-  LeftDockMin: trip.LeftDockMin,
-  LeftDockMax: trip.LeftDockMax,
-  LeftDockDelta: trip.LeftDockDelta,
-  ArriveEtaMae: trip.ArriveEtaMae,
-  DepartEtaMae: trip.DepartEtaMae,
+  // ML model predictions
+  AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
+  AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
+  AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
+  AtSeaArriveNext: optionalToDomainPrediction(trip.AtSeaArriveNext),
+  AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
 });
 
 /**
