@@ -16,6 +16,7 @@ import {
 } from "functions/vesselTrips/schemas";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import { calculateTimeDelta } from "shared/durationUtils";
+import { generateTripKey } from "shared/keys";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
@@ -296,6 +297,32 @@ const handleStartTrip = async (
     args.existingTrip.AtDockArriveNext
   ) {
     return updates;
+  }
+
+  // Generate key and query for corresponding ScheduledTrip
+  const tripKey = generateTripKey(
+    args.updatedTrip.VesselAbbrev,
+    args.updatedTrip.DepartingTerminalAbbrev,
+    args.updatedTrip.ArrivingTerminalAbbrev,
+    new Date(args.updatedTrip.DepartingTime)
+  );
+
+  if (tripKey) {
+    try {
+      const scheduledTrip = await ctx.runQuery(
+        api.functions.scheduledTrips.queries.getScheduledTripByKey,
+        { key: tripKey }
+      );
+
+      if (scheduledTrip) {
+        // Copy ScheduledTrip information into VesselTrip using spread
+        Object.assign(updates, scheduledTrip);
+      } else {
+        console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
+      }
+    } catch (error) {
+      console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
+    }
   }
 
   const departCurrPrediction = await predictAtDockDepartCurr(

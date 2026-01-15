@@ -2,6 +2,30 @@ import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 
 /**
+ * Fetch a scheduled trip by its composite key
+ * Used to match vessel trips with their scheduled counterparts
+ */
+export const getScheduledTripByKey = query({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      const trip = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_key", (q) => q.eq("Key", args.key))
+        .first();
+      return trip;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch scheduled trip for key ${args.key}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { key: args.key, error: String(error) },
+      });
+    }
+  },
+});
+
+/**
  * Fetch all scheduled trips for a specific route
  * Used for verification and debugging purposes
  */

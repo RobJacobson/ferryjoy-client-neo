@@ -52,3 +52,28 @@ export const calculateTimeDelta = (
   const delta = getMinutesDelta(firstTime, secondTime);
   return delta !== undefined ? roundToPrecision(delta, 1) : undefined;
 };
+
+/**
+ * Rounds a timestamp upward to the next minute boundary.
+ *
+ * Since departing times are whole minutes and mean durations are fractional,
+ * this will always round up fractional minutes to the next whole minute.
+ * Example: 22:45:10 → 22:46:00
+ *
+ * @param timeMs - Time in epoch milliseconds
+ * @returns Time rounded up to next minute boundary
+ */
+export const roundUpToNextMinute = (timeMs: number): number => {
+  const date = new Date(timeMs);
+  const seconds = date.getSeconds();
+  const milliseconds = date.getMilliseconds();
+
+  // Always round up to next minute boundary if any fractional seconds exist
+  if (seconds > 0 || milliseconds > 0) {
+    date.setMinutes(date.getMinutes() + 1);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
+  }
+
+  return date.getTime();
+};

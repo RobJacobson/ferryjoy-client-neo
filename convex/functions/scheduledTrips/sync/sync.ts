@@ -2,7 +2,10 @@ import type { ActionCtx } from "_generated/server";
 import type { Route } from "ws-dottie/wsf-schedule";
 import { formatPacificDate } from "../../../shared/keys";
 import type { ConvexScheduledTrip } from "../schemas";
-import { filterOverlappingTrips } from "./businessLogic";
+import {
+  calculateTripEstimates,
+  filterOverlappingTrips,
+} from "./businessLogic";
 import { createScheduledTrip } from "./dataTransformation";
 import { fetchActiveRoutes, fetchRouteSchedule } from "./infrastructure";
 import { performSafeDataReplacement } from "./persistence";
@@ -217,11 +220,18 @@ const combineAndFilterTrips = (
   );
 
   // Apply vessel-level filtering to resolve overlapping routes across all terminals
-  const finalTrips = filterOverlappingTrips(allRawTrips);
-  const totalFiltered = allRawTrips.length - finalTrips.length;
+  const filteredTrips = filterOverlappingTrips(allRawTrips);
+  const totalFiltered = allRawTrips.length - filteredTrips.length;
 
   console.log(
-    `${logPrefix} Vessel filtering: ${allRawTrips.length} → ${finalTrips.length} trips (${totalFiltered} filtered out)`
+    `${logPrefix} Vessel filtering: ${allRawTrips.length} → ${filteredTrips.length} trips (${totalFiltered} filtered out)`
+  );
+
+  // Calculate trip estimates using the filtered, chronologically ordered trips
+  const finalTrips = calculateTripEstimates(filteredTrips);
+
+  console.log(
+    `${logPrefix} Trip estimates calculated for ${finalTrips.length} trips`
   );
 
   return { finalTrips, totalFiltered };

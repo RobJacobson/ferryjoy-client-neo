@@ -6,6 +6,7 @@ import {
   epochMsToDate,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
+import { getSailingDay } from "../../shared/time";
 
 /**
  * Convex validator for ML prediction data (numbers)
@@ -76,14 +77,27 @@ export const optionalToDomainPrediction = (
 
 /**
  * Convex validator for vessel trips (numbers)
- * Simplified schema without Status field - table determines status
+ * Strict superset of ScheduledTrip schema - includes all ScheduledTrip fields plus vessel-specific fields
  */
 export const vesselTripSchema = v.object({
-  Key: v.optional(v.string()), // Composite key for trip identification
+  // All ScheduledTrip fields (making VesselTrip a strict superset)
   VesselAbbrev: v.string(),
-  PrevTerminalAbbrev: v.optional(v.string()),
   DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalAbbrev: v.optional(v.string()),
+  ArrivingTerminalAbbrev: v.string(),
+  DepartingTime: v.number(),
+  ArrivingTime: v.optional(v.number()),
+  SailingNotes: v.string(),
+  Annotations: v.array(v.string()),
+  RouteID: v.number(),
+  RouteAbbrev: v.string(),
+  Key: v.optional(v.string()), // Optional given need for departing terminal
+  SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
+  NextKey: v.optional(v.string()),
+  EstArriveNext: v.optional(v.number()),
+  EstArriveCurr: v.optional(v.number()),
+  TripDate: v.string(), // Sailing day in YYYY-MM-DD format (3:00 AM to 2:59 AM Pacific time)
+  // Additional VesselTrip-specific fields
+  PrevTerminalAbbrev: v.optional(v.string()),
   TripStart: v.optional(v.number()),
   AtDock: v.boolean(),
   AtDockDuration: v.optional(v.number()),
@@ -109,7 +123,7 @@ export const vesselTripSchema = v.object({
 
 /**
  * Type for active vessel trip in Convex storage (with numbers)
- * Inferred from the Convex validator
+ * Inferred from the Convex validator - strict superset of ConvexScheduledTrip
  */
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 
@@ -143,19 +157,36 @@ export const toConvexVesselTrip = (
   );
 
   return {
-    Key: key,
+    // ScheduledTrip fields (VesselTrip is a strict superset)
     VesselAbbrev: cvl.VesselAbbrev,
-    PrevTerminalAbbrev: params.PrevTerminalAbbrev,
     DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
-    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
-    AtDock: cvl.AtDock,
-    ScheduledDeparture: cvl.ScheduledDeparture,
-    Eta: cvl.Eta,
-    TimeStamp: cvl.TimeStamp,
+    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev || "", // Required in ScheduledTrip, provide empty string if missing
+    DepartingTime: cvl.ScheduledDeparture || cvl.TimeStamp, // Use scheduled departure or current timestamp as fallback
+    ArrivingTime: undefined, // Not available in vessel location data
+    SailingNotes: "", // Not available in vessel location data
+    Annotations: [], // Not available in vessel location data
+    RouteID: 0, // Not available in vessel location data
+    RouteAbbrev: "", // Not available in vessel location data
+    Key: key || "", // Required in ScheduledTrip, provide empty string if missing
+    SailingDay: "", // Not available in vessel location data
+    NextKey: undefined,
+    EstArriveNext: undefined,
+    EstArriveCurr: undefined,
+    TripDate: getSailingDay(new Date(params.TripStart || cvl.TimeStamp)), // Sailing day in YYYY-MM-DD format (3:00 AM to 2:59 AM Pacific time)
+    // VesselTrip-specific fields
+    PrevTerminalAbbrev: params.PrevTerminalAbbrev,
     TripStart: params.TripStart,
-    TripEnd: params.TripEnd,
+    AtDock: cvl.AtDock,
+    AtDockDuration: undefined,
+    ScheduledDeparture: cvl.ScheduledDeparture,
     LeftDock: cvl.LeftDock,
+    TripDelay: undefined,
+    Eta: cvl.Eta,
+    TripEnd: params.TripEnd,
+    AtSeaDuration: undefined,
+    TotalDuration: undefined,
     InService: cvl.InService,
+    TimeStamp: cvl.TimeStamp,
     // Denormalized previous trip data
     PrevScheduledDeparture: params.PrevScheduledDeparture,
     PrevLeftDock: params.PrevLeftDock,

@@ -3,17 +3,19 @@
 // Core time-related functions used across the application
 // ============================================================================
 
-// Timezone formatter for America/Los_Angeles (Pacific Time)
-// Using Intl.DateTimeFormat ensures accurate DST handling for any year
+// Timezone formatters for America/Los_Angeles (Pacific Time)
+// Using separate formatters for better performance and cleaner code
 const PACIFIC_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
+  hour12: false, // Get 24-hour format directly
   hour: "numeric",
   minute: "numeric",
   second: "numeric",
+});
+
+const PACIFIC_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
   weekday: "short",
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
 });
 
 /**
@@ -30,55 +32,34 @@ export const getPacificTimeComponents = (
   second: number;
   dayOfWeek: number;
 } => {
-  // Format the date in Pacific timezone
-  const parts = PACIFIC_TIME_FORMATTER.formatToParts(utcDate);
+  // Get time components in 24-hour format directly
+  const timeParts = PACIFIC_TIME_FORMATTER.formatToParts(utcDate);
+  const weekdayParts = PACIFIC_WEEKDAY_FORMATTER.formatToParts(utcDate);
 
-  // Extract components
-  let hour = 0,
-    minute = 0,
-    second = 0,
-    dayOfWeek = 0,
-    dayPeriod = "";
+  // Extract components directly by index (formatToParts returns predictable order)
+  const components = {
+    hour: Number(timeParts[0]?.value) || 0,
+    minute: Number(timeParts[2]?.value) || 0,
+    second: Number(timeParts[4]?.value) || 0,
+    dayOfWeek: 0,
+  };
 
-  for (const part of parts) {
-    switch (part.type) {
-      case "hour":
-        hour = Number.parseInt(part.value, 10);
-        break;
-      case "minute":
-        minute = Number.parseInt(part.value, 10);
-        break;
-      case "second":
-        second = Number.parseInt(part.value, 10);
-        break;
-      case "dayPeriod":
-        dayPeriod = part.value;
-        break;
-      case "weekday": {
-        // Map weekday names to numbers (Sunday = 0)
-        const weekdayMap: Record<string, number> = {
-          Sun: 0,
-          Mon: 1,
-          Tue: 2,
-          Wed: 3,
-          Thu: 4,
-          Fri: 5,
-          Sat: 6,
-        };
-        dayOfWeek = weekdayMap[part.value] ?? 0;
-        break;
-      }
-    }
+  // Handle weekday separately
+  const weekdayPart = weekdayParts.find((p) => p.type === "weekday");
+  if (weekdayPart?.value) {
+    const weekdayIndex = [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+    ].indexOf(weekdayPart.value);
+    components.dayOfWeek = weekdayIndex >= 0 ? weekdayIndex : 0;
   }
 
-  // Convert 12-hour format to 24-hour format
-  if (dayPeriod === "PM" && hour !== 12) {
-    hour += 12;
-  } else if (dayPeriod === "AM" && hour === 12) {
-    hour = 0;
-  }
-
-  return { hour, minute, second, dayOfWeek };
+  return components;
 };
 
 /**
@@ -123,3 +104,36 @@ export const getPacificDayOfWeek = (utcDate: Date): number => {
  */
 export const getMinutesDelta = (startTime: Date, endTime: Date): number =>
   (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+
+/**
+ * Get the sailing day date for a UTC timestamp in Pacific timezone
+ * Sailing day is defined as the period from 3:00 AM to 2:59 AM Pacific time
+ * Events before 3:00 AM Pacific are considered part of the previous day's sailing day
+ * @param utcDate - UTC timestamp to convert
+ * @returns Sailing day date string in YYYY-MM-DD format
+ */
+export const getSailingDay = (utcDate: Date): string => {
+  const components = getPacificTimeComponents(utcDate);
+
+  // Create a Date object for the Pacific date
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const pacificDateStr = formatter.format(utcDate);
+
+  // If the time is before 3:00 AM Pacific, it's part of the previous day's sailing day
+  if (components.hour < 3) {
+    // Parse the date string and subtract one day
+    const [year, month, day] = pacificDateStr.split("-").map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+    date.setDate(date.getDate() - 1);
+
+    return formatter.format(date);
+  }
+
+  return pacificDateStr;
+};

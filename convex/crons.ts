@@ -9,11 +9,11 @@ crons.interval(
   internal.functions.vesselLocation.actions.updateVesselLocations
 );
 
-// crons.interval(
-//   "update vessel trips",
-//   { seconds: 15 }, // every ten seconds
-//   internal.functions.vesselTrips.actions.updateVesselTrips
-// );
+crons.interval(
+  "update vessel trips",
+  { seconds: 15 }, // every ten seconds
+  internal.functions.vesselTrips.actions.updateVesselTrips
+);
 
 crons.interval(
   "fetch vessel pings",

@@ -31,6 +31,9 @@ export const scheduledTripSchema = v.object({
   RouteAbbrev: v.string(),
   Key: v.string(),
   SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
+  NextKey: v.optional(v.string()),
+  EstArriveNext: v.optional(v.number()),
+  EstArriveCurr: v.optional(v.number()),
 });
 
 /**

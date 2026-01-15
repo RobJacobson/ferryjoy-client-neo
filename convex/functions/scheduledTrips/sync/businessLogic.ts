@@ -1,3 +1,8 @@
+import {
+  config,
+  formatTerminalPairKey,
+} from "../../../domain/ml/shared/config";
+import { roundUpToNextMinute } from "../../../shared/durationUtils";
 import type { ConvexScheduledTrip } from "../schemas";
 
 /**
@@ -148,4 +153,86 @@ export const resolveOverlappingGroup = (
     );
     return overlappingTrips;
   }
+};
+
+/**
+ * Calculates NextKey, EstArriveNext, and EstArriveCurr for all trips.
+ * Must be called after vessel-level filtering to ensure correct chronological order.
+ *
+ * @param trips - Array of scheduled trip records to enhance
+ * @returns Array of trips with additional estimate fields populated
+ */
+export const calculateTripEstimates = (
+  trips: ConvexScheduledTrip[]
+): ConvexScheduledTrip[] => {
+  const tripsByVessel = groupTripsByVessel(trips);
+
+  return Object.values(tripsByVessel).flatMap(calculateVesselTripEstimates);
+};
+
+/**
+ * Calculates estimates for a single vessel's chronologically sorted trips.
+ */
+const calculateVesselTripEstimates = (
+  vesselTrips: ConvexScheduledTrip[]
+): ConvexScheduledTrip[] => {
+  if (vesselTrips.length === 0) return [];
+
+  // First pass: calculate EstArriveNext for all trips
+  const tripsWithNextArrival = vesselTrips.map((trip) => ({
+    ...trip,
+    EstArriveNext: calculateEstArriveNext(trip),
+  }));
+
+  // Second pass: set NextKey and validate EstArriveCurr
+  return tripsWithNextArrival.map((trip, index) => {
+    const nextTrip = tripsWithNextArrival[index + 1];
+    const prevTrip = index > 0 ? tripsWithNextArrival[index - 1] : null;
+
+    // NextKey: key of next trip (undefined for last trip)
+    const nextKey = nextTrip?.Key;
+
+    // EstArriveCurr: EstArriveNext of previous trip, but only if it's <= DepartingTime
+    let estArriveCurr = prevTrip?.EstArriveNext;
+    if (estArriveCurr !== undefined && estArriveCurr > trip.DepartingTime) {
+      estArriveCurr = undefined; // Validation violation - negative layover time
+    }
+
+    return {
+      ...trip,
+      NextKey: nextKey,
+      EstArriveCurr: estArriveCurr,
+    };
+  });
+};
+
+/**
+ * Calculates estimated arrival time at the next terminal.
+ * Returns undefined if terminal pair is missing from config.
+ */
+const calculateEstArriveNext = (
+  trip: ConvexScheduledTrip
+): number | undefined => {
+  // If actual arrival time exists, use it (no rounding needed for real data)
+  if (trip.ArrivingTime !== undefined) {
+    return trip.ArrivingTime;
+  }
+
+  // Otherwise, estimate using mean crossing time
+  const terminalPair = formatTerminalPairKey(
+    trip.DepartingTerminalAbbrev,
+    trip.ArrivingTerminalAbbrev
+  );
+
+  const meanDurationMinutes = config.getMeanAtSeaDuration(terminalPair);
+
+  // Skip calculation if terminal pair not found in config
+  if (meanDurationMinutes === 0) {
+    return undefined;
+  }
+
+  // Add mean duration to departure time and round up to next minute
+  const estimatedArrivalMs =
+    trip.DepartingTime + meanDurationMinutes * 60 * 1000;
+  return roundUpToNextMinute(estimatedArrivalMs);
 };
