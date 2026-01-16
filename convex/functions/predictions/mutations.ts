@@ -5,6 +5,14 @@ import {
   predictionRecordSchema,
 } from "functions/predictions/schemas";
 
+/**
+ * Store trained ML model parameters in the database
+ * Handles deduplication by deleting existing models for the same bucket+type combination
+ *
+ * @param ctx - Convex context
+ * @param args.model - The model parameters to store
+ * @returns The ID of the inserted model parameters document
+ */
 export const storeModelParametersMutation = mutation({
   args: {
     model: modelParametersSchema,
@@ -29,6 +37,13 @@ export const storeModelParametersMutation = mutation({
   },
 });
 
+/**
+ * Delete a specific model parameters record from the database
+ *
+ * @param ctx - Convex context
+ * @param args.modelId - The ID of the model parameters record to delete
+ * @returns Success confirmation object
+ */
 export const deleteModelParametersMutation = mutation({
   args: { modelId: v.id("modelParameters") },
   handler: async (ctx, args) => {
@@ -37,6 +52,12 @@ export const deleteModelParametersMutation = mutation({
   },
 });
 
+/**
+ * Delete all model parameters records from the database
+ *
+ * @param ctx - Convex context
+ * @returns Object with the number of records deleted
+ */
 export const deleteAllModelParametersMutation = mutation({
   args: {},
   handler: async (ctx) => {
@@ -51,9 +72,11 @@ export const deleteAllModelParametersMutation = mutation({
 /**
  * Insert a completed prediction record into the predictions table.
  * Handles deduplication by checking for existing predictions with the same Key + PredictionType.
+ * Used to store completed predictions for performance monitoring and analysis.
  *
- * @param prediction - The prediction record to insert
- * @returns The ID of the inserted prediction, or the existing prediction ID if duplicate
+ * @param ctx - Convex mutation context
+ * @param args.prediction - The prediction record to insert with all required fields
+ * @returns The ID of the inserted prediction, or the existing prediction ID if duplicate found
  */
 export const insertPrediction = mutation({
   args: {

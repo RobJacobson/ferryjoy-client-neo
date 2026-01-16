@@ -21,10 +21,13 @@ import { enrichTripFields } from "./locationEnrichment";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
 
 /**
- * Orchestration logic for `updateVesselTrips`.
+ * Main orchestration function for updating active vessel trips.
  *
- * This contains the update loop and lifecycle helpers; `actions.ts` should remain
- * a thin Convex endpoint wrapper.
+ * Fetches current vessel locations and active trips, then processes each vessel
+ * to handle trip lifecycle events (first trips, new trips, trip updates).
+ * Manages trip enrichment, prediction generation, and database persistence.
+ *
+ * @param ctx - Convex action context for database operations
  */
 export const runUpdateVesselTrips = async (ctx: ActionCtx): Promise<void> => {
   // Fetch current active trips and index them by vessel for O(1) lookup.
@@ -70,6 +73,8 @@ export const runUpdateVesselTrips = async (ctx: ActionCtx): Promise<void> => {
 
 /**
  * Create the first active trip for a vessel we haven't seen before.
+ * @param ctx - Convex action context for database operations
+ * @param currLocation - Current vessel location data
  */
 const handleFirstTrip = async (
   ctx: ActionCtx,
@@ -85,6 +90,10 @@ const handleFirstTrip = async (
 
 /**
  * Complete the existing trip and start a new active trip.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param existingTrip - Current active trip to complete
+ * @param currLocation - Current vessel location data for new trip
  */
 const handleNewTrip = async (
   ctx: ActionCtx,
@@ -132,6 +141,9 @@ const handleNewTrip = async (
 
 /**
  * Apply incremental updates to an existing active trip.
+ * @param ctx - Convex action context for database operations
+ * @param currLocation - Current vessel location data
+ * @param existingTrip - Existing active trip to update
  */
 const handleTripUpdate = async (
   ctx: ActionCtx,
@@ -226,6 +238,9 @@ const handleTripUpdate = async (
 /**
  * Insert completed predictions into the predictions table.
  * Checks each prediction field and inserts if Actual is set.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param trip - Completed vessel trip with predictions to insert
  */
 const insertCompletedPredictions = async (
   ctx: ActionCtx,
@@ -260,12 +275,17 @@ const insertCompletedPredictions = async (
 
 /**
  * Checks if this is the first trip for a vessel (no existing trip).
+ * @param existingTrip - Existing vessel trip or undefined if none exists
+ * @returns True if this is the first trip for the vessel
  */
 const isFirstTrip = (existingTrip: ConvexVesselTrip | undefined): boolean =>
   !existingTrip;
 
 /**
  * Checks if a new trip is needed based on departing terminal change.
+ * @param existingTrip - The current active trip for the vessel
+ * @param currLocation - The current vessel location data
+ * @returns True if vessel has moved to a different departing terminal
  */
 const isNewTrip = (
   existingTrip: ConvexVesselTrip,
@@ -273,6 +293,11 @@ const isNewTrip = (
 ): boolean =>
   existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
 
+/**
+ * Deduplicates vessel locations by vessel, keeping only the most recent location per vessel.
+ * @param locations - Array of vessel locations to deduplicate
+ * @returns Array of deduplicated locations, one per vessel with most recent timestamp
+ */
 const dedupeVesselLocationsByTimestamp = (
   locations: ConvexVesselLocation[]
 ): ConvexVesselLocation[] => {

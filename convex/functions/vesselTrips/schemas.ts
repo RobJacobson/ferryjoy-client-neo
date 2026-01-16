@@ -59,7 +59,11 @@ export type Prediction = {
 };
 
 /**
- * Convert Convex prediction (numbers) to domain prediction (Dates)
+ * Convert Convex prediction (numbers) to domain prediction (Dates).
+ * Transforms timestamp fields from epoch milliseconds to Date objects for domain layer use.
+ *
+ * @param prediction - Convex prediction record with numeric timestamps
+ * @returns Domain prediction with Date objects for all timestamp fields
  */
 export const toDomainPrediction = (
   prediction: ConvexPrediction
@@ -75,7 +79,11 @@ export const toDomainPrediction = (
 });
 
 /**
- * Convert optional Convex prediction to optional domain prediction
+ * Convert optional Convex prediction to optional domain prediction.
+ * Safely handles undefined predictions without throwing errors.
+ *
+ * @param prediction - Optional Convex prediction record with numeric timestamps
+ * @returns Optional domain prediction with Date objects, or undefined if input is undefined
  */
 export const optionalToDomainPrediction = (
   prediction?: ConvexPrediction
@@ -128,8 +136,13 @@ export const vesselTripSchema = v.object({
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 
 /**
- * Converts vessel location to trip format with simplified schema
- * Note: location is already in Convex format (numbers), returns Convex format
+ * Converts vessel location to trip format with simplified schema.
+ * Note: location is already in Convex format (numbers), returns Convex format.
+ * Used to transform vessel location data into vessel trip records for tracking and predictions.
+ *
+ * @param cvl - Convex vessel location record to convert
+ * @param params - Additional trip parameters including predictions and previous trip data
+ * @returns Complete vessel trip record in Convex format ready for database storage
  */
 export const toConvexVesselTrip = (
   cvl: ConvexVesselLocation,
@@ -181,8 +194,11 @@ export const toConvexVesselTrip = (
 };
 
 /**
- * Convert Convex vessel trip (numbers) to domain vessel trip (Dates)
- * Manual conversion from epoch milliseconds to Date objects
+ * Convert Convex vessel trip (numbers) to domain vessel trip (Dates).
+ * Manual conversion from epoch milliseconds to Date objects.
+ *
+ * @param trip - Convex vessel trip with numeric timestamps
+ * @returns Domain vessel trip with Date objects
  */
 export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   ...trip,

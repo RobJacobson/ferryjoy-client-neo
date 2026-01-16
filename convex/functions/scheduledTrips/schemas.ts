@@ -9,6 +9,7 @@ export { getVesselAbbreviation };
 
 /**
  * Get terminal abbreviation by terminal name
+ *
  * @param terminalName - The full name of the terminal
  * @returns The terminal abbreviation or empty string if not found
  */
@@ -45,8 +46,11 @@ export const scheduledTripSchema = v.object({
 export type ConvexScheduledTrip = Infer<typeof scheduledTripSchema>;
 
 /**
- * Convert Convex scheduled trip (numbers) to domain scheduled trip (Dates)
- * Manual conversion from epoch milliseconds to Date objects
+ * Convert Convex scheduled trip (numbers) to domain scheduled trip (Dates).
+ * Manual conversion from epoch milliseconds to Date objects.
+ *
+ * @param trip - Convex scheduled trip with numeric timestamps
+ * @returns Domain scheduled trip with Date objects
  */
 export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
   ...trip,

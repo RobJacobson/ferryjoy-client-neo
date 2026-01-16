@@ -7,6 +7,9 @@ import type { ConvexVesselTrip } from "./schemas";
  * API function for fetching active vessel trips (currently in progress)
  * Small dataset, frequently updated, perfect for real-time subscriptions
  * Optimized with proper indexing for performance
+ *
+ * @param ctx - Convex context
+ * @returns Array of active vessel trip documents
  */
 export const getActiveTrips = query({
   args: {},
@@ -28,6 +31,10 @@ export const getActiveTrips = query({
 /**
  * API function for fetching the most recent completed trip for a vessel
  * Used by prediction logic to access previous trip data for context
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - The vessel abbreviation to find completed trips for
+ * @returns The most recent completed trip document or null if none found
  */
 export const getMostRecentCompletedTrip = query({
   args: { vesselAbbrev: v.string() },

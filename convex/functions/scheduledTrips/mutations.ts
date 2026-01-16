@@ -3,7 +3,11 @@ import { ConvexError, v } from "convex/values";
 import { type ConvexScheduledTrip, scheduledTripSchema } from "./schemas";
 
 /**
- * Deletes all scheduled trips for a specific sailing day
+ * Deletes all scheduled trips for a specific sailing day.
+ * Used during sync operations to clear old data before inserting fresh schedule data.
+ * @param ctx - Convex mutation context
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format to delete trips for
+ * @returns Object containing the number of trips deleted
  */
 export const deleteScheduledTripsForDate = mutation({
   args: {
@@ -40,8 +44,13 @@ export const deleteScheduledTripsForDate = mutation({
 });
 
 /**
- * Bulk insert scheduled trips without deduplication logic
- * Assumes the caller has already resolved overlapping routes via filtering
+ * Bulk insert scheduled trips without deduplication logic.
+ * Assumes the caller has already resolved overlapping routes via filtering.
+ * Used during sync operations to populate fresh schedule data.
+ *
+ * @param ctx - Convex mutation context
+ * @param args.trips - Array of scheduled trip objects to insert into the database
+ * @returns Object containing the number of trips successfully inserted
  */
 export const insertScheduledTrips = mutation({
   args: { trips: v.array(scheduledTripSchema) },

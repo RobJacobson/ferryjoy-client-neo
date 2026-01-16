@@ -2,11 +2,25 @@ import { query } from "_generated/server";
 import { v } from "convex/values";
 import { modelTypeValidator, predictionTypeValidator } from "./schemas";
 
+/**
+ * Get all model parameters from the database
+ *
+ * @param ctx - Convex context
+ * @returns Array of all model parameters records
+ */
 export const getAllModelParameters = query({
   args: {},
   handler: async (ctx) => ctx.db.query("modelParameters").collect(),
 });
 
+/**
+ * Get model parameters for a specific terminal pair and model type
+ *
+ * @param ctx - Convex context
+ * @param args.pairKey - The terminal pair key (e.g., "TerminalA-TerminalB")
+ * @param args.modelType - The model type to retrieve
+ * @returns The model parameters record or null if not found
+ */
 export const getModelParametersByPair = query({
   args: {
     pairKey: v.string(),
@@ -22,7 +36,12 @@ export const getModelParametersByPair = query({
 });
 
 /**
- * Get all predictions for a specific trip key
+ * Get all completed predictions for a specific vessel trip key.
+ * Returns historical prediction performance data for analysis and monitoring.
+ *
+ * @param ctx - Convex query context
+ * @param args.key - The vessel trip key to retrieve predictions for
+ * @returns Array of prediction records for the specified trip key
  */
 export const getPredictionsByKey = query({
   args: {
@@ -36,7 +55,11 @@ export const getPredictionsByKey = query({
 });
 
 /**
- * Get all predictions for a specific vessel
+ * Get all completed predictions for a specific vessel across all its trips.
+ * Used for vessel-specific performance analysis and prediction accuracy monitoring.
+ * @param ctx - Convex query context
+ * @param args.vesselAbbreviation - The vessel abbreviation (e.g., "SPU") to retrieve predictions for
+ * @returns Array of prediction records for the specified vessel
  */
 export const getPredictionsByVessel = query({
   args: {
@@ -52,7 +75,11 @@ export const getPredictionsByVessel = query({
 });
 
 /**
- * Get all predictions for a specific model type
+ * Get all completed predictions for a specific prediction model type across all vessels and routes.
+ * Used for model performance analysis and identifying prediction patterns by type.
+ * @param ctx - Convex query context
+ * @param args.predictionType - The PascalCase prediction type (e.g., "AtDockDepartCurr", "AtSeaArriveNext")
+ * @returns Array of prediction records for the specified prediction type
  */
 export const getPredictionsByType = query({
   args: {
@@ -68,7 +95,12 @@ export const getPredictionsByType = query({
 });
 
 /**
- * Get predictions for a specific vessel and model type
+ * Get all completed predictions for a specific vessel and prediction type combination.
+ * Used for detailed vessel-specific model performance analysis.
+ * @param ctx - Convex query context
+ * @param args.vesselAbbreviation - The vessel abbreviation (e.g., "SPU") to filter by
+ * @param args.predictionType - The PascalCase prediction type (e.g., "AtDockDepartCurr", "AtSeaArriveNext") to filter by
+ * @returns Array of prediction records for the specified vessel and prediction type
  */
 export const getPredictionsByVesselAndType = query({
   args: {
@@ -87,7 +119,12 @@ export const getPredictionsByVesselAndType = query({
 });
 
 /**
- * Get predictions within a date range (based on PredTime)
+ * Get all completed predictions within a specific time range based on predicted time.
+ * Used for temporal analysis of prediction performance and historical trend analysis.
+ * @param ctx - Convex query context
+ * @param args.startTime - Start of time range in epoch milliseconds (inclusive)
+ * @param args.endTime - End of time range in epoch milliseconds (inclusive)
+ * @returns Array of prediction records with PredTime within the specified range
  */
 export const getPredictionsByDateRange = query({
   args: {

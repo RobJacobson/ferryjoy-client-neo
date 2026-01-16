@@ -4,6 +4,10 @@ import { ConvexError, v } from "convex/values";
 /**
  * Fetch a scheduled trip by its composite key
  * Used to match vessel trips with their scheduled counterparts
+ *
+ * @param ctx - Convex context
+ * @param args.key - The composite trip key to search for
+ * @returns The scheduled trip document or null if not found
  */
 export const getScheduledTripByKey = query({
   args: { key: v.string() },
@@ -28,6 +32,10 @@ export const getScheduledTripByKey = query({
 /**
  * Fetch all scheduled trips for a specific route
  * Used for verification and debugging purposes
+ *
+ * @param ctx - Convex context
+ * @param args.routeId - The route ID to filter trips by
+ * @returns Array of scheduled trip documents for the specified route
  */
 export const getScheduledTripsForRoute = query({
   args: { routeId: v.number() },
@@ -52,6 +60,11 @@ export const getScheduledTripsForRoute = query({
 /**
  * Fetch scheduled trips for a specific route and date range
  * Used for verification to ensure exact date filtering
+ * @param ctx - Convex context
+ * @param args.routeId - The route ID to filter trips by
+ * @param args.startDate - Start of date range (epoch milliseconds)
+ * @param args.endDate - End of date range (epoch milliseconds)
+ * @returns Array of scheduled trip documents within the specified route and date range
  */
 export const getScheduledTripsForRouteAndDate = query({
   args: {
@@ -90,6 +103,10 @@ export const getScheduledTripsForRouteAndDate = query({
 /**
  * Fetch scheduled trips for a specific route and sailing day
  * Primary query for operational use - uses WSF sailing day concept
+ * @param ctx - Convex context
+ * @param args.routeId - The route ID to filter trips by
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format
+ * @returns Array of scheduled trip documents for the specified route and sailing day
  */
 export const getScheduledTripsForRouteAndSailingDay = query({
   args: {
@@ -123,6 +140,9 @@ export const getScheduledTripsForRouteAndSailingDay = query({
 /**
  * Fetch all scheduled trips for a specific sailing day
  * Used for cross-route analytics and reporting
+ * @param ctx - Convex context
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format
+ * @returns Array of all scheduled trip documents for the specified sailing day
  */
 export const getScheduledTripsForSailingDay = query({
   args: { sailingDay: v.string() },

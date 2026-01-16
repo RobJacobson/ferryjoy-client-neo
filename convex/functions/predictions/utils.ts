@@ -62,6 +62,12 @@ export const extractPredictionRecord = (
   const predictionType = PREDICTION_FIELD_TO_TYPE[field];
 
   // Round times to seconds (they should already be rounded, but ensure consistency)
+  /**
+   * Round timestamp to nearest second boundary for consistent storage.
+   * Ensures prediction records use consistent precision across all timestamp fields.
+   * @param ms - Timestamp in milliseconds to round, or undefined if not available
+   * @returns Timestamp rounded down to nearest second boundary, or undefined if input is undefined
+   */
   const roundToSeconds = (ms: number | undefined): number | undefined =>
     ms !== undefined ? Math.floor(ms / 1000) * 1000 : undefined;
 

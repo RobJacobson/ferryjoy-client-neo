@@ -30,6 +30,9 @@ const CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE: Partial<ConvexVesselTrip> = {
  * - `ScheduledDeparture` (for date/time in Pacific)
  * - `DepartingTerminalAbbrev`
  * - `ArrivingTerminalAbbrev`
+ *
+ * @param trip - Active vessel trip with required fields for key derivation
+ * @returns Composite trip key string or null if required fields are missing
  */
 const deriveTripKey = (trip: ConvexVesselTrip): string | null => {
   if (
@@ -57,6 +60,10 @@ const deriveTripKey = (trip: ConvexVesselTrip): string | null => {
  * - the key is missing or changed (critical; we must resync)
  * - or we don't have scheduled data yet, with a light throttle to avoid
  *   hammering the DB on every update tick.
+ *
+ * @param trip - Current vessel trip state
+ * @param tripKey - Computed trip key for lookup
+ * @returns Object indicating whether to lookup and if there's a key mismatch
  */
 const shouldLookupScheduledTrip = (
   trip: ConvexVesselTrip,
@@ -83,6 +90,10 @@ const shouldLookupScheduledTrip = (
  *
  * We store a snapshot copy (`ScheduledTrip`) for debugging/explainability and
  * keep a few core fields denormalized at the top-level for quick access.
+ *
+ * @param ctx - Convex action context for database queries
+ * @param tripKey - Composite trip key to lookup ScheduledTrip
+ * @returns Partial VesselTrip patch with ScheduledTrip data, or null if not found
  */
 const fetchScheduledTripFieldsByKey = async (
   ctx: ActionCtx,
@@ -113,6 +124,10 @@ const fetchScheduledTripFieldsByKey = async (
  * - Keeps `Key` in sync with current trip identity
  * - Looks up the matching ScheduledTrip doc when appropriate
  * - Clears stale derived data when the key changes
+ *
+ * @param ctx - Convex action context for database operations
+ * @param updatedTrip - Current vessel trip state to enrich with scheduled data
+ * @returns Partial trip update with scheduled trip fields and key synchronization
  */
 export const enrichTripStartUpdates = async (
   ctx: ActionCtx,

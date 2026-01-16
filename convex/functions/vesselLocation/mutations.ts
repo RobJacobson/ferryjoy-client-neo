@@ -13,6 +13,10 @@ import {
  * This implementation efficiently batches all reads upfront, then performs
  * all writes in a single transaction. Convex queues all database changes
  * and executes them atomically when the mutation completes.
+ *
+ * @param ctx - Convex context
+ * @param args.locations - Array of vessel location records to upsert
+ * @returns Object with upsert statistics (total, updated, inserted counts)
  */
 export const bulkUpsert = mutation({
   args: { locations: v.array(vesselLocationValidationSchema) },

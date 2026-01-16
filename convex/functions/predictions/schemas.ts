@@ -37,6 +37,10 @@ export const predictionTypeValidator = v.union(
   v.literal("AtSeaDepartNext")
 );
 
+/**
+ * Convex validator for ML model parameters stored in the modelParameters table
+ * Contains trained linear regression models with coefficients, intercept, and performance metrics
+ */
 export const modelParametersSchema = v.object({
   bucketType: v.union(v.literal("pair")),
   pairKey: v.optional(v.string()), // present when bucketType === "pair"

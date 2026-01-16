@@ -44,8 +44,10 @@ export const vesselLocationValidationSchema = v.object({
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 
 /**
- * Convert a Dottie vessel location to a convex vessel location
- * Manual conversion from Date objects to epoch milliseconds
+ * Convert a Dottie vessel location to a convex vessel location.
+ * Manual conversion from Date objects to epoch milliseconds.
+ * @param dvl - Dottie vessel location with Date objects
+ * @returns Convex vessel location with numeric timestamps
  */
 export const toConvexVesselLocation = (
   dvl: DottieVesselLocation
@@ -74,8 +76,10 @@ export const toConvexVesselLocation = (
 });
 
 /**
- * Convert Convex vessel location (numbers) to domain vessel location (Dates)
- * Manual conversion from epoch milliseconds to Date objects
+ * Convert Convex vessel location (numbers) to domain vessel location (Dates).
+ * Manual conversion from epoch milliseconds to Date objects.
+ * @param cvl - Convex vessel location with numeric timestamps
+ * @returns Domain vessel location with Date objects
  */
 export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
   ...cvl,

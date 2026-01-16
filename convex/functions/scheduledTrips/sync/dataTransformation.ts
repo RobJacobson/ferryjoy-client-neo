@@ -5,6 +5,10 @@ import type { VesselSailing } from "./types";
 
 /**
  * Extracts annotations from terminal combo using the sailing's annotation indexes.
+ *
+ * @param sailing - Vessel sailing data containing annotation indexes
+ * @param terminalCombo - Terminal combination data containing annotations
+ * @returns Array of annotation strings
  */
 export const extractAnnotations = (
   sailing: VesselSailing,
@@ -19,6 +23,11 @@ export const extractAnnotations = (
 
 /**
  * Resolves all required abbreviations for a trip, rejecting if any are missing.
+ *
+ * @param vesselName - Full vessel name
+ * @param departingTerminal - Full departing terminal name
+ * @param arrivingTerminal - Full arriving terminal name
+ * @returns Object with resolved abbreviations or null if any abbreviation is missing
  */
 export const resolveTripAbbreviations = (
   vesselName: string,

@@ -8,6 +8,15 @@ import {
 
 const MS_PER_MINUTE = 60 * 1000;
 
+/**
+ * Calculate the range deviation delta for a prediction
+ * Returns the difference between actual and the nearest prediction bound (min or max)
+ *
+ * @param actual - Actual timestamp in milliseconds
+ * @param min - Minimum prediction bound in milliseconds
+ * @param max - Maximum prediction bound in milliseconds
+ * @returns Delta in minutes (positive if actual > max, negative if actual < min, 0 if within bounds)
+ */
 const calculateDeltaRange = (
   actual: number,
   min: number,
@@ -20,10 +29,23 @@ const calculateDeltaRange = (
   return 0;
 };
 
+/**
+ * Calculate the total prediction error delta
+ *
+ * @param actual - Actual timestamp in milliseconds
+ * @param predicted - Predicted timestamp in milliseconds
+ * @returns Delta in minutes (actual - predicted)
+ */
 const calculateDeltaTotal = (actual: number, predicted: number): number => {
   return Math.round(((actual - predicted) / MS_PER_MINUTE) * 10) / 10;
 };
 
+/**
+ * Apply actual observed timestamp to a prediction, calculating deltas
+ * @param prediction - The prediction to update with actual data
+ * @param actualMs - The actual observed timestamp in milliseconds
+ * @returns Updated prediction with actual timestamp and calculated deltas
+ */
 const applyActualToPrediction = (
   prediction: ConvexPrediction,
   actualMs: number
@@ -44,6 +66,10 @@ const applyActualToPrediction = (
 /**
  * Upsert an active trip (update if exists, insert if not)
  * Only one active trip per vessel allowed
+ *
+ * @param ctx - Convex context
+ * @param args.trip - The vessel trip to upsert
+ * @returns The ID of the upserted trip document
  */
 export const upsertActiveTrip = mutation({
   args: { trip: vesselTripSchema },
@@ -87,6 +113,10 @@ export const upsertActiveTrip = mutation({
  *
  * Note: ML predictions are calculated in the action layer after trip creation
  * if both departing and arriving terminals are non-null
+ * @param ctx - Convex context
+ * @param args.completedTrip - The completed vessel trip to archive
+ * @param args.newTrip - The new vessel trip to start
+ * @returns Object containing IDs of the completed and active trip documents
  */
 export const completeAndStartNewTrip = mutation({
   args: {
@@ -162,6 +192,10 @@ export const completeAndStartNewTrip = mutation({
  * When the current active trip leaves dock at terminal B (B->C LeftDock becomes
  * known), that timestamp is the "actual depart-next" event for the previous
  * completed trip (A->B) at terminal B.
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - The vessel abbreviation to find completed trips for
+ * @param args.actualDepartMs - The actual departure timestamp in milliseconds
+ * @returns Object indicating if update was successful and containing updated trip data
  */
 export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
   args: {

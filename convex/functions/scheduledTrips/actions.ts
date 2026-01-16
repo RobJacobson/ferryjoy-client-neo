@@ -7,9 +7,11 @@ import {
 } from "./sync/sync";
 
 /**
- * Simplified manual sync that deletes all data for the *current sailing day*
- * and downloads fresh data.
+ * Simplified manual sync that deletes all data for the current sailing day and downloads fresh data.
  * Much simpler and more reliable than the complex diffing logic.
+ *
+ * @param ctx - Convex action context
+ * @returns Sync result with deletion and insertion counts
  */
 export const syncScheduledTripsManual = action({
   args: {},
@@ -23,6 +25,10 @@ export const syncScheduledTripsManual = action({
 
 /**
  * Simplified sync for a specific date that deletes all data and downloads fresh data.
+ *
+ * @param ctx - Convex action context
+ * @param args.targetDate - Target sailing day in YYYY-MM-DD format
+ * @returns Sync result with deletion and insertion counts
  */
 export const syncScheduledTripsForDateManual = action({
   args: {
@@ -37,6 +43,10 @@ export const syncScheduledTripsForDateManual = action({
  * Internal action for automated windowed scheduled trips sync.
  * Called daily by cron job to maintain accurate schedule data for the rolling N-day window.
  * Runs at 4:00 AM Pacific time to sync between WSF trip date boundaries.
+ *
+ * @param ctx - Convex internal action context
+ * @param args.daysToSync - Number of days to sync (defaults to 7)
+ * @returns Sync result with deletion and insertion counts for all processed days
  */
 export const syncScheduledTripsWindowed = internalAction({
   args: { daysToSync: v.optional(v.number()) },

@@ -154,6 +154,11 @@ export const syncScheduledTripsForDate = async (
 
 /**
  * Downloads and processes schedule data for all routes on a specific date.
+ * Fetches raw schedule data from WSF API and converts to scheduled trip records.
+ *
+ * @param routes - Array of active routes to download data for
+ * @param tripDate - Trip date in YYYY-MM-DD format to fetch schedules for
+ * @returns Array of route data objects containing processed trips and metadata
  */
 const downloadRouteData = async (
   routes: Route[],
@@ -203,6 +208,10 @@ const downloadRouteData = async (
 
 /**
  * Combines trips from all routes and applies vessel-level filtering.
+ * Resolves overlapping routes across terminals and calculates trip estimates.
+ *
+ * @param routeData - Array of route data objects containing trips from each route
+ * @returns Object containing final filtered trips with estimates and filtering statistics
  */
 const combineAndFilterTrips = (
   routeData: {
@@ -238,6 +247,9 @@ const combineAndFilterTrips = (
 
 /**
  * Helper function to add days to a date string.
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @param days - Number of days to add (can be negative)
+ * @returns New date string in YYYY-MM-DD format
  */
 const addDays = (dateString: string, days: number): string => {
   // NOTE: `new Date("YYYY-MM-DD")` is parsed as UTC midnight, which can shift the

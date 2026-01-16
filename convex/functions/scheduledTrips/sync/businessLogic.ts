@@ -17,6 +17,7 @@ import type { ConvexScheduledTrip } from "../schemas";
  * 3. When overlapping departures found, check next trip's departure terminal
  * 4. Keep only trips where arrival terminal matches next departure terminal
  *
+ *
  * @param trips - Array of scheduled trip records to filter
  * @returns Filtered array with chronologically correct trips only
  */
@@ -31,6 +32,9 @@ export const filterOverlappingTrips = (
 
 /**
  * Groups trips by vessel abbreviation for chronological processing.
+ *
+ * @param trips - Array of scheduled trips to group
+ * @returns Object mapping vessel abbreviations to arrays of their trips
  */
 export const groupTripsByVessel = (
   trips: ConvexScheduledTrip[]
@@ -47,6 +51,9 @@ export const groupTripsByVessel = (
 
 /**
  * Processes a single vessel's trips chronologically, resolving overlapping routes.
+ *
+ * @param vesselTrips - Array of trips for a single vessel
+ * @returns Array of filtered trips with overlapping routes resolved
  */
 export const processVesselTrips = (
   vesselTrips: ConvexScheduledTrip[]
@@ -90,6 +97,11 @@ export const processVesselTrips = (
 /**
  * Scans forward from current position to find where this vessel departs from next.
  * This helps resolve which destination the vessel actually chose.
+ *
+ * @param vesselTrips - Array of trips for a single vessel
+ * @param afterIndex - Index to start scanning from
+ * @param currentDepartureTime - Current departure time to skip
+ * @returns The next departure terminal abbreviation, or undefined if none found
  */
 export const findNextDepartureTerminal = (
   vesselTrips: ConvexScheduledTrip[],
@@ -105,6 +117,10 @@ export const findNextDepartureTerminal = (
 /**
  * Finds all trips that depart at the same time from the same terminal.
  * These represent overlapping/ambiguous route options.
+ *
+ * @param vesselTrips - Array of trips for a single vessel
+ * @param startIndex - Index to start scanning from
+ * @returns Array of trips that depart at the same time from the same terminal
  */
 export const findOverlappingGroup = (
   vesselTrips: ConvexScheduledTrip[],
@@ -125,6 +141,12 @@ export const findOverlappingGroup = (
 /**
  * Resolves overlapping trips by finding which one leads to the expected next terminal.
  * If no trip matches the expected terminal, falls back to keeping all options.
+ *
+ * @param overlappingTrips - Array of trips that depart at the same time
+ * @param nextTerminal - Expected next departure terminal
+ * @param vesselAbbrev - Vessel abbreviation for logging
+ * @param departureTime - Departure time for logging
+ * @returns Array of resolved trips (usually just one)
  */
 export const resolveOverlappingGroup = (
   overlappingTrips: ConvexScheduledTrip[],
@@ -173,6 +195,12 @@ export const calculateTripEstimates = (
 
 /**
  * Calculates estimates for a single vessel's chronologically sorted trips.
+ *
+ * Computes PrevKey, NextKey, NextDepartingTime, and validates EstArriveCurr
+ * by linking consecutive trips in the vessel's journey.
+ *
+ * @param vesselTrips - Array of chronologically sorted trips for a single vessel
+ * @returns Array of trips with calculated estimates (PrevKey, NextKey, etc.)
  */
 const calculateVesselTripEstimates = (
   vesselTrips: ConvexScheduledTrip[]
@@ -217,7 +245,12 @@ const calculateVesselTripEstimates = (
 
 /**
  * Calculates estimated arrival time at the next terminal.
- * Returns undefined if terminal pair is missing from config.
+ *
+ * Uses actual arrival time if available, otherwise estimates using historical
+ * mean crossing time for the terminal pair.
+ *
+ * @param trip - Scheduled trip with departure and terminal information
+ * @returns Estimated arrival time in milliseconds, or undefined if cannot be calculated
  */
 const calculateEstArriveNext = (
   trip: ConvexScheduledTrip

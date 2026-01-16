@@ -21,6 +21,12 @@ export type InsertResult = {
 /**
  * Performs safe data replacement: deletes existing data, then inserts fresh data.
  * This ensures atomicity - either all data is replaced or none is.
+ * Used during scheduled trips sync to maintain data consistency.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param sailingDay - Sailing day in YYYY-MM-DD format to replace data for
+ * @param trips - Array of fresh scheduled trip records to insert
+ * @returns Object containing count of deleted and inserted records
  */
 export const performSafeDataReplacement = async (
   ctx: ActionCtx,
@@ -50,6 +56,9 @@ export const performSafeDataReplacement = async (
 
 /**
  * Deletes all scheduled trips for a specific sailing day.
+ * @param ctx - Convex action context for database operations
+ * @param sailingDay - Sailing day in YYYY-MM-DD format
+ * @returns Number of trips deleted
  */
 const deleteScheduledTripsForDate = async (
   ctx: ActionCtx,
@@ -62,6 +71,9 @@ const deleteScheduledTripsForDate = async (
 
 /**
  * Inserts multiple scheduled trips into the database.
+ * @param ctx - Convex action context for database operations
+ * @param trips - Array of scheduled trip records to insert
+ * @returns Number of trips successfully inserted
  */
 const insertScheduledTrips = async (
   ctx: ActionCtx,
@@ -79,6 +91,9 @@ const insertScheduledTrips = async (
 
 /**
  * Checks if schedule data already exists for a specific sailing day.
+ * @param ctx - Convex action context
+ * @param sailingDay - Sailing day in YYYY-MM-DD format
+ * @returns True if data exists for the specified day
  */
 export const hasDataForDay = async (
   ctx: ActionCtx,

@@ -7,6 +7,10 @@ import { calculateTimeDelta } from "shared/durationUtils";
  *
  * This is intentionally a *diff* generator: only changed fields are included in
  * the returned patch.
+ *
+ * @param existingTrip - Current vessel trip state
+ * @param currLocation - Latest vessel location data
+ * @returns Partial trip update with only changed fields
  */
 export const enrichTripFields = (
   existingTrip: ConvexVesselTrip,
