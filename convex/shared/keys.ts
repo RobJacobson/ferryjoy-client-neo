@@ -3,8 +3,6 @@
  * Provides consistent key generation across different trip types
  */
 
-import { getSailingDay } from "./time";
-
 /**
  * Format a UTC date as Pacific local date (YYYY-MM-DD)
  * @param utcDate - UTC date to format
@@ -41,8 +39,8 @@ export const formatPacificTime = (utcDate: Date): string => {
 
 /**
  * Generate composite key for any trip type
- * Format: "[vessel]--[sailing day]-[time]--[departing terminal]-[arriving terminal]"
- * Uses WSF sailing day logic (events before 3:00 AM Pacific are part of previous day)
+ * Format: "[vessel]--[sailing day]--[time]--[departing terminal]-[arriving terminal]"
+ * Uses Pacific calendar day (not WSF sailing day logic).
  * Time is in HH:MM format (Pacific timezone)
  * @param vesselAbbrev - Vessel abbreviation
  * @param departingTerminalAbbrev - Departing terminal abbreviation
@@ -62,7 +60,7 @@ export const generateTripKey = (
   }
 
   const arrivingAbbrev = arrivingTerminalAbbrev || "";
-  const dateStr = getSailingDay(departingTime);
+  const dateStr = formatPacificDate(departingTime);
   const timeStr = formatPacificTime(departingTime);
-  return `${vesselAbbrev}--${dateStr}-${timeStr}--${departingTerminalAbbrev}-${arrivingAbbrev}`;
+  return `${vesselAbbrev}--${dateStr}--${timeStr}--${departingTerminalAbbrev}-${arrivingAbbrev}`;
 };

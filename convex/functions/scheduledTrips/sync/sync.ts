@@ -1,6 +1,5 @@
 import type { ActionCtx } from "_generated/server";
 import type { Route } from "ws-dottie/wsf-schedule";
-import { formatPacificDate } from "../../../shared/keys";
 import type { ConvexScheduledTrip } from "../schemas";
 import {
   calculateTripEstimates,
@@ -241,7 +240,11 @@ const combineAndFilterTrips = (
  * Helper function to add days to a date string.
  */
 const addDays = (dateString: string, days: number): string => {
-  const date = new Date(dateString);
-  date.setDate(date.getDate() + days);
-  return formatPacificDate(date);
+  // NOTE: `new Date("YYYY-MM-DD")` is parsed as UTC midnight, which can shift the
+  // Pacific date backward. Use UTC math anchored at noon to keep date arithmetic
+  // stable across time zones and DST.
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 };

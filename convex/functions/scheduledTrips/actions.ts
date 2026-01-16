@@ -1,20 +1,23 @@
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { formatPacificDate } from "../../shared/keys";
+import { getSailingDay } from "../../shared/time";
 import {
   syncScheduledTripsForDate,
   syncScheduledTripsForDateRange,
 } from "./sync/sync";
 
 /**
- * Simplified manual sync that deletes all data for today and downloads fresh data.
+ * Simplified manual sync that deletes all data for the *current sailing day*
+ * and downloads fresh data.
  * Much simpler and more reliable than the complex diffing logic.
  */
 export const syncScheduledTripsManual = action({
   args: {},
   handler: async (ctx) => {
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
-    return await syncScheduledTripsForDate(ctx, today);
+    // Important: WSF "sailing day" runs 3:00 AM → 2:59 AM Pacific.
+    // Using UTC calendar day here will often select the wrong day in the evening.
+    const sailingDay = getSailingDay(new Date());
+    return await syncScheduledTripsForDate(ctx, sailingDay);
   },
 });
 
@@ -38,7 +41,8 @@ export const syncScheduledTripsForDateManual = action({
 export const syncScheduledTripsWindowed = internalAction({
   args: { daysToSync: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const startDate = formatPacificDate(new Date());
+    // Start from the current sailing day, not the UTC date.
+    const startDate = getSailingDay(new Date());
     const daysToSync = args.daysToSync || 7;
 
     return await syncScheduledTripsForDateRange(ctx, startDate, daysToSync);

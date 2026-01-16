@@ -32,7 +32,7 @@ async function syncScheduledTripsForDate(targetDate: string) {
     // Trigger the scheduled trips sync for specific date
     console.log("📡 Calling scheduledTrips sync action for specific date...");
     const result = await convex.action(
-      api.functions.scheduledTrips.actions.syncScheduledTripsSimpleForDate,
+      api.functions.scheduledTrips.actions.syncScheduledTripsForDateManual,
       { targetDate }
     );
     console.log("📊 Sync results:", result);

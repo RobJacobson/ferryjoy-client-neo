@@ -1,5 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
-import { modelParametersSchema } from "functions/predictions/schemas";
+import {
+  modelParametersSchema,
+  predictionRecordSchema,
+} from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
@@ -60,4 +63,12 @@ export default defineSchema({
     "by_pair_and_type",
     ["pairKey", "modelType"]
   ),
+
+  // Completed ML predictions - one row per completed prediction
+  predictions: defineTable(predictionRecordSchema)
+    .index("by_key", ["Key"])
+    .index("by_vessel_abbreviation", ["VesselAbbreviation"])
+    .index("by_prediction_type", ["PredictionType"])
+    .index("by_pred_time", ["PredTime"])
+    .index("by_vessel_and_type", ["VesselAbbreviation", "PredictionType"]),
 });

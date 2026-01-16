@@ -38,6 +38,7 @@ import type * as functions_predictions_index from "../functions/predictions/inde
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
+import type * as functions_predictions_utils from "../functions/predictions/utils.js";
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
@@ -71,11 +72,16 @@ import type * as functions_vesselTrips_index from "../functions/vesselTrips/inde
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
+import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
+import type * as functions_vesselTrips_updates_locationEnrichment from "../functions/vesselTrips/updates/locationEnrichment.js";
+import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
+import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
+import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_time from "../shared/time.js";
 
 import type {
@@ -115,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
+  "functions/predictions/utils": typeof functions_predictions_utils;
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
@@ -148,11 +155,16 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
+  "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
+  "functions/vesselTrips/updates/locationEnrichment": typeof functions_vesselTrips_updates_locationEnrichment;
+  "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;
+  "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "shared/convertDates": typeof shared_convertDates;
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;
+  "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/time": typeof shared_time;
 }>;
 

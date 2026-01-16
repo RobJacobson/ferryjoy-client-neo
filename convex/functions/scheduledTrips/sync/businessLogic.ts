@@ -156,7 +156,8 @@ export const resolveOverlappingGroup = (
 };
 
 /**
- * Calculates NextKey, EstArriveNext, and EstArriveCurr for all trips.
+ * Calculates PrevKey, NextKey, NextDepartingTime, EstArriveNext, and EstArriveCurr
+ * for all trips.
  * Must be called after vessel-level filtering to ensure correct chronological order.
  *
  * @param trips - Array of scheduled trip records to enhance
@@ -184,13 +185,19 @@ const calculateVesselTripEstimates = (
     EstArriveNext: calculateEstArriveNext(trip),
   }));
 
-  // Second pass: set NextKey and validate EstArriveCurr
+  // Second pass: set PrevKey/NextKey/NextDepartingTime and validate EstArriveCurr
   return tripsWithNextArrival.map((trip, index) => {
     const nextTrip = tripsWithNextArrival[index + 1];
     const prevTrip = index > 0 ? tripsWithNextArrival[index - 1] : null;
 
+    // PrevKey: key of previous trip (undefined for first trip)
+    const prevKey = prevTrip?.Key;
+
     // NextKey: key of next trip (undefined for last trip)
     const nextKey = nextTrip?.Key;
+
+    // NextDepartingTime: scheduled departure time of next trip (undefined for last trip)
+    const nextDepartingTime = nextTrip?.DepartingTime;
 
     // EstArriveCurr: EstArriveNext of previous trip, but only if it's <= DepartingTime
     let estArriveCurr = prevTrip?.EstArriveNext;
@@ -200,7 +207,9 @@ const calculateVesselTripEstimates = (
 
     return {
       ...trip,
+      PrevKey: prevKey,
       NextKey: nextKey,
+      NextDepartingTime: nextDepartingTime,
       EstArriveCurr: estArriveCurr,
     };
   });

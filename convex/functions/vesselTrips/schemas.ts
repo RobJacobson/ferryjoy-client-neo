@@ -1,11 +1,11 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
-import { getSailingDay } from "../../shared/time";
 
 /**
  * Convex validator for ML prediction data (numbers)
@@ -18,6 +18,9 @@ export const predictionSchema = v.object({
   MinTime: v.number(),
   // Upper bound for time prediction (PredTime + 1 Std Dev)
   MaxTime: v.number(),
+  // Model performance metrics (from training)
+  MAE: v.number(), // Mean Absolute Error in minutes
+  StdDev: v.number(), // Standard deviation of errors in minutes
   // Actual observed time (optional, set when trip completes)
   Actual: v.optional(v.number()),
   // Signed difference: Actual - PredTime (optional, in minutes)
@@ -43,6 +46,9 @@ export type Prediction = {
   MinTime: Date;
   // Upper bound for time prediction (PredTime + 1 Std Dev)
   MaxTime: Date;
+  // Model performance metrics (from training)
+  MAE: number; // Mean Absolute Error in minutes
+  StdDev: number; // Standard deviation of errors in minutes
   // Actual observed time (optional, set when trip completes)
   Actual?: Date;
   // Signed difference: Actual - PredTime (optional, in minutes)
@@ -61,6 +67,8 @@ export const toDomainPrediction = (
   PredTime: epochMsToDate(prediction.PredTime),
   MinTime: epochMsToDate(prediction.MinTime),
   MaxTime: epochMsToDate(prediction.MaxTime),
+  MAE: prediction.MAE,
+  StdDev: prediction.StdDev,
   Actual: optionalEpochMsToDate(prediction.Actual),
   DeltaTotal: prediction.DeltaTotal,
   DeltaRange: prediction.DeltaRange,
@@ -76,25 +84,18 @@ export const optionalToDomainPrediction = (
 
 /**
  * Convex validator for vessel trips (numbers)
- * Strict superset of ScheduledTrip schema - includes all ScheduledTrip fields plus vessel-specific fields
+ * Vessel trip records enriched with optional ScheduledTrip snapshot data.
  */
 export const vesselTripSchema = v.object({
-  // All ScheduledTrip fields (making VesselTrip a strict superset)
+  // Core trip identity fields (from vessel locations)
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
-  DepartingTime: v.number(),
-  ArrivingTime: v.optional(v.number()),
-  SailingNotes: v.string(),
-  Annotations: v.array(v.string()),
   RouteID: v.number(),
   RouteAbbrev: v.string(),
   Key: v.optional(v.string()), // Optional given need for departing terminal
   SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
-  NextKey: v.optional(v.string()),
-  EstArriveNext: v.optional(v.number()),
-  EstArriveCurr: v.optional(v.number()),
-  TripDate: v.string(), // Sailing day in YYYY-MM-DD format (3:00 AM to 2:59 AM Pacific time)
+  ScheduledTrip: v.optional(scheduledTripSchema),
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
   TripStart: v.optional(v.number()),
@@ -122,7 +123,7 @@ export const vesselTripSchema = v.object({
 
 /**
  * Type for active vessel trip in Convex storage (with numbers)
- * Inferred from the Convex validator - strict superset of ConvexScheduledTrip
+ * Inferred from the Convex validator.
  */
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 
@@ -148,21 +149,14 @@ export const toConvexVesselTrip = (
   }
 ): ConvexVesselTrip => {
   return {
-    // ScheduledTrip fields (VesselTrip is a strict superset)
+    // Core trip identity fields (from vessel locations)
     VesselAbbrev: cvl.VesselAbbrev,
     DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
-    DepartingTime: cvl.ScheduledDeparture || cvl.TimeStamp, // Use scheduled departure or current timestamp as fallback
-    ArrivingTime: undefined, // Not available in vessel location data
-    SailingNotes: "", // Not available in vessel location data
-    Annotations: [], // Not available in vessel location data
     RouteID: 0, // Not available in vessel location data
     RouteAbbrev: "", // Not available in vessel location data
     SailingDay: "", // Not available in vessel location data
-    NextKey: undefined,
-    EstArriveNext: undefined,
-    EstArriveCurr: undefined,
-    TripDate: getSailingDay(new Date(params.TripStart || cvl.TimeStamp)), // Sailing day in YYYY-MM-DD format (3:00 AM to 2:59 AM Pacific time)
+    ScheduledTrip: undefined,
     // VesselTrip-specific fields
     PrevTerminalAbbrev: params.PrevTerminalAbbrev,
     TripStart: params.TripStart,

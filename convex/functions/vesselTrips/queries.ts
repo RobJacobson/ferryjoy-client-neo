@@ -1,5 +1,6 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 import type { ConvexVesselTrip } from "./schemas";
 
 /**
@@ -55,9 +56,8 @@ export const getMostRecentCompletedTrip = query({
       if (!mostRecent) {
         return null;
       }
-      // Strip Convex document metadata (_id, _creationTime) to return just the trip data
-      const { _id, _creationTime, ...tripData } = mostRecent;
-      return tripData as ConvexVesselTrip;
+      // Strip Convex document metadata (_id, _creationTime) to return just the trip data.
+      return stripConvexMeta(mostRecent) as ConvexVesselTrip;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch most recent completed trip for vessel ${args.vesselAbbrev}`,
