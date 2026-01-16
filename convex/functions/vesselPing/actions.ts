@@ -7,6 +7,8 @@ import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
  * Internal action for fetching and storing vessel locations from WSF API
  * This is called by cron jobs and makes external HTTP requests
  * Stores each vessel ping as an individual document in the vesselPing table
+ *
+ * @param ctx - Convex context
  */
 export const fetchAndStoreVesselPing = internalAction({
   args: {},
@@ -37,6 +39,7 @@ export const fetchAndStoreVesselPing = internalAction({
  * Internal action for cleaning up old vessel ping records
  * Deletes records older than 24 hours to prevent unlimited database growth
  * Uses consolidated internal mutation for better performance and data consistency
+ * @param ctx - Convex context
  */
 export const cleanupOldPings = internalAction({
   args: {},

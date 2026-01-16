@@ -41,8 +41,10 @@ export type ConvexVesselPingCollection = Infer<
 >;
 
 /**
- * Convert a Dottie vessel location to a convex vessel ping
- * Manual conversion from Date objects to epoch milliseconds
+ * Convert a Dottie vessel location to a convex vessel ping.
+ * Manual conversion from Date objects to epoch milliseconds.
+ * @param dvl - Dottie vessel location with Date objects
+ * @returns Convex vessel ping with numeric timestamp
  */
 export const toConvexVesselPing = (
   dvl: DottieVesselLocation
@@ -57,8 +59,10 @@ export const toConvexVesselPing = (
 });
 
 /**
- * Convert Convex vessel ping (numbers) to domain vessel ping (Dates)
- * Manual conversion from epoch milliseconds to Date objects
+ * Convert Convex vessel ping (numbers) to domain vessel ping (Dates).
+ * Manual conversion from epoch milliseconds to Date objects.
+ * @param ping - Convex vessel ping with numeric timestamp
+ * @returns Domain vessel ping with Date object
  */
 export const toDomainVesselPing = (ping: ConvexVesselPing) => ({
   ...ping,

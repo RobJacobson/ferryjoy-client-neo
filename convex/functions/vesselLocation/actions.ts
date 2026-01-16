@@ -9,6 +9,8 @@ import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
  * Runs every 5 seconds to fetch vessel locations and update related data
  * 1. Fetches vesselLocation data from fetchVesselLocations
  * 2. Converts to convex vessel location and stores to database using bulk upsert
+ *
+ * @param ctx - Convex context
  */
 export const updateVesselLocations = internalAction({
   args: {},

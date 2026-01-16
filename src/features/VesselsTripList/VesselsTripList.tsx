@@ -51,7 +51,7 @@ export const VesselsTripList = ({
         {activeVesselTrips
           .filter((trip) => trip.InService)
           .map((trip) => (
-            <VesselTripCard key={trip.VesselID} trip={trip} />
+            <VesselTripCard key={trip.VesselAbbrev} trip={trip} />
           ))}
       </View>
     </ScrollView>

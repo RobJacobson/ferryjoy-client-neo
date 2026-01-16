@@ -61,7 +61,12 @@ const main = (): void => {
   console.log(`🔍 Scanning for At-Sea Durations < ${threshold} minutes`);
   console.log(`${"=".repeat(80)}\n`);
 
-  const trainingDataPath = path.join(__dirname, "..", "ml", "training-data.json");
+  const trainingDataPath = path.join(
+    __dirname,
+    "..",
+    "ml",
+    "training-data.json"
+  );
 
   if (!fs.existsSync(trainingDataPath)) {
     console.error(`❌ Training data file not found: ${trainingDataPath}`);

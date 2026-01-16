@@ -550,7 +550,12 @@ const main = (): void => {
     console.log(`Model Type: all (no step_4 filtering)`);
   }
 
-  const trainingDataPath = path.join(__dirname, "..", "ml", "training-data.json");
+  const trainingDataPath = path.join(
+    __dirname,
+    "..",
+    "ml",
+    "training-data.json"
+  );
 
   if (!fs.existsSync(trainingDataPath)) {
     console.error(`❌ Training data file not found: ${trainingDataPath}`);
@@ -564,7 +569,9 @@ const main = (): void => {
   // Find the target terminal pair
   const [departing, arriving] = terminalPair.split("->");
   if (!departing || !arriving) {
-    console.error(`❌ Invalid terminal pair format: ${terminalPair}. Expected format: "FRH->LOP"`);
+    console.error(
+      `❌ Invalid terminal pair format: ${terminalPair}. Expected format: "FRH->LOP"`
+    );
     process.exit(1);
   }
   const bucket = buckets.find(

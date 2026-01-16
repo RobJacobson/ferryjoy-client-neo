@@ -9,7 +9,77 @@ import {
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { PIPELINE_CONFIG } from "./shared/config";
+import { config } from "../../shared/config";
+
+/**
+ * Safely stringify objects that may contain circular references or bigints.
+ *
+ * @param value - Value to stringify
+ * @returns JSON string representation
+ */
+const safeJsonStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(
+    value,
+    (_key, v) => {
+      if (typeof v === "bigint") {
+        return String(v);
+      }
+      if (typeof v === "object" && v !== null) {
+        if (seen.has(v)) {
+          return "[Circular]";
+        }
+        seen.add(v);
+      }
+      if (v instanceof Error) {
+        return {
+          name: v.name,
+          message: v.message,
+          stack: v.stack,
+        };
+      }
+      return v;
+    },
+    2
+  );
+};
+
+/**
+ * Format unknown error values into structured error information.
+ *
+ * @param error - Error value to format
+ * @returns Structured error information
+ */
+const formatUnknownError = (error: unknown) => {
+  if (error instanceof Error) {
+    return {
+      kind: "Error",
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    return {
+      kind: "object",
+      keys: Object.keys(record).sort(),
+      // Common fields we often see from fetch / HTTP wrappers:
+      message: record.message,
+      status: record.status,
+      statusText: record.statusText,
+      url: record.url,
+      cause: record.cause,
+      raw: safeJsonStringify(record),
+    };
+  }
+
+  return {
+    kind: typeof error,
+    message: String(error),
+  };
+};
 
 /**
  * Load all vessel history records from WSF API
@@ -50,7 +120,7 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
       // Memory safety check - prevent excessive memory usage
       if (
         allRecords.length >
-        PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL * vessels.length
+        config.getMaxRecordsPerVessel() * vessels.length
       ) {
         console.warn("Reached maximum record limit for memory safety", {
           totalRecords: allRecords.length,
@@ -64,13 +134,21 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
     console.log(`Loaded data: ${allRecords.length} WSF records from WSF API`);
     return allRecords;
   } catch (error) {
-    console.error("WSF data loading failed", { error: String(error) });
-    throw new Error(`Failed to load vessel data: ${error}`);
+    const formatted = formatUnknownError(error);
+    console.error("WSF data loading failed", {
+      error: formatted,
+    });
+    // Ensure the surfaced error message is informative even if the runtime
+    // renders nested objects poorly (e.g. "[object Object]").
+    throw new Error(
+      `Failed to load vessel data: ${safeJsonStringify(formatted)}`
+    );
   }
 };
 
 /**
- * Fetch all vessels from WSF
+ * Fetch all vessels from WSF API.
+ * @returns Array of vessel basic information
  */
 const fetchVesselFleet = async (): Promise<
   ReturnType<typeof fetchVesselBasics>
@@ -82,13 +160,21 @@ const fetchVesselFleet = async (): Promise<
     console.log(`Fetched ${vessels.length} vessels from WSF`);
     return vessels;
   } catch (error) {
-    console.error("Failed to fetch vessel fleet", { error: String(error) });
-    throw error;
+    const formatted = formatUnknownError(error);
+    console.error("Failed to fetch vessel fleet", {
+      error: formatted,
+    });
+    throw new Error(
+      `Failed to fetch vessel fleet: ${safeJsonStringify(formatted)}`
+    );
   }
 };
 
 /**
- * Fetch vessel history data for a single vessel
+ * Fetch vessel history data for a single vessel within the training date range.
+ *
+ * @param vesselName - Name of the vessel to fetch data for
+ * @returns Array of vessel history records for the specified vessel
  */
 const fetchVesselData = async (
   vesselName: string | null
@@ -98,16 +184,18 @@ const fetchVesselData = async (
   // Calculate date range
   const endDate = new Date();
   const startDate = new Date(
-    endDate.getTime() - PIPELINE_CONFIG.DAYS_BACK * 24 * 60 * 60 * 1000
+    endDate.getTime() - config.getDaysBack() * 24 * 60 * 60 * 1000
   );
+  const dateStart = startDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  const dateEnd = endDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
   try {
     // Fetch vessel history
     const historyRecords = await fetchVesselHistoriesByVesselAndDates({
       params: {
         VesselName: vesselName || "",
-        DateStart: startDate.toISOString().split("T")[0], // YYYY-MM-DD format
-        DateEnd: endDate.toISOString().split("T")[0], // YYYY-MM-DD format
+        DateStart: dateStart,
+        DateEnd: dateEnd,
       },
     });
 
@@ -120,24 +208,37 @@ const fetchVesselData = async (
 
     if (sampledRecords.length < historyRecords.length) {
       console.log(
-        `Sampled down to ${sampledRecords.length} records for ${vesselName} (${PIPELINE_CONFIG.SAMPLING_STRATEGY})`
+        `Sampled down to ${sampledRecords.length} records for ${vesselName} (${config.getSamplingStrategy()})`
       );
     }
 
     return sampledRecords;
   } catch (error) {
+    const formatted = formatUnknownError(error);
     console.error(`Failed to fetch data for vessel ${vesselName}`, {
-      error: String(error),
+      vesselName,
+      dateStart,
+      dateEnd,
+      samplingStrategy: config.getSamplingStrategy(),
+      maxRecordsPerVessel: config.getMaxRecordsPerVessel(),
+      error: formatted,
     });
-    throw error;
+    throw new Error(
+      `Failed to fetch data for vessel ${vesselName}: ${safeJsonStringify(
+        formatted
+      )}`
+    );
   }
 };
 
 /**
- * Apply sampling strategy to reduce data volume while preserving information
+ * Apply sampling strategy to reduce data volume while preserving information.
+ *
+ * @param records - Array of vessel history records to sample
+ * @returns Sampled array of vessel history records
  */
 const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
-  const maxRecords = PIPELINE_CONFIG.MAX_RECORDS_PER_VESSEL;
+  const maxRecords = config.getMaxRecordsPerVessel();
 
   if (records.length <= maxRecords) {
     return records; // No sampling needed
@@ -150,14 +251,14 @@ const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
     return dateB - dateA; // Most recent first
   });
 
-  if (PIPELINE_CONFIG.SAMPLING_STRATEGY === "recent_first") {
+  if (config.getSamplingStrategy() === "recent_first") {
     // Keep the most recent records up to the limit
     return sortedRecords.slice(0, maxRecords);
   }
 
   // Default: return all records if strategy not recognized
   console.warn(
-    `Unknown sampling strategy: ${PIPELINE_CONFIG.SAMPLING_STRATEGY}, returning unsampled data`
+    `Unknown sampling strategy: ${config.getSamplingStrategy()}, returning unsampled data`
   );
   return records;
 };

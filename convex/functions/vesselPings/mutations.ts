@@ -6,6 +6,10 @@ import { vesselPingListValidationSchema } from "functions/vesselPings/schemas";
 /**
  * Store a collection of vessel pings as a single document
  * Used by actions to store vessel location data
+ *
+ * @param ctx - Convex context
+ * @param args.collection - Vessel ping collection to store
+ * @returns The ID of the inserted document
  */
 export const storeVesselPingCollection = mutation({
   args: {
@@ -20,6 +24,9 @@ export const storeVesselPingCollection = mutation({
  * Internal mutation for cleaning up old vessel ping collection records
  * Uses deleteMany for efficient bulk deletion
  * Used by the cleanup cron job for better performance and data consistency
+ *
+ * @param ctx - Convex context
+ * @returns Number of records deleted
  */
 export const cleanupOldPingsMutation = internalMutation({
   args: {},

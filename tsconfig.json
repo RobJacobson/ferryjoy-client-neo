@@ -5,7 +5,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@domain/*": ["src/domain/*"]
+      "@domain/*": ["src/domain/*"],
+
+      "_generated/*": ["convex/_generated/*"],
+      "functions/*": ["convex/functions/*"],
+      "domain/*": ["convex/domain/*"],
+      "shared": ["convex/shared/index.ts"],
+      "shared/*": ["convex/shared/*"]
     }
   },
   "include": [
@@ -15,5 +21,5 @@
     "expo-env.d.ts",
     "nativewind-env.d.ts"
   ],
-  "exclude": ["convex", "node_modules"]
+  "exclude": ["convex/**", "scripts/**", "node_modules"]
 }

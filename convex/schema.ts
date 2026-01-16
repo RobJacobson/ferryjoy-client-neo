@@ -1,5 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
-import { modelParametersMutationSchema } from "functions/predictions/schemas";
+import {
+  modelParametersSchema,
+  predictionRecordSchema,
+} from "functions/predictions/schemas";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
   vesselPingListValidationSchema,
@@ -13,13 +17,28 @@ export default defineSchema({
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_scheduled_departure", ["ScheduledDeparture"])
     .index("by_vessel_and_scheduled", ["VesselAbbrev", "ScheduledDeparture"])
-    .index("by_timestamp", ["TimeStamp"]),
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_key", ["Key"]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_trip_end", ["TripEnd"])
-    .index("by_timestamp", ["TimeStamp"]),
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_key", ["Key"]),
+
+  // Scheduled trips - planned ferry trips with departure/arrival times
+  scheduledTrips: defineTable(scheduledTripSchema)
+    .index("by_vessel", ["VesselAbbrev"])
+    .index("by_departing_time", ["DepartingTime"])
+    .index("by_route", ["RouteID"])
+    .index("by_departing_terminal", ["DepartingTerminalAbbrev"])
+    .index("by_arriving_terminal", ["ArrivingTerminalAbbrev"])
+    .index("by_key", ["Key"])
+    .index("by_vessel_and_departing_time", ["VesselAbbrev", "DepartingTime"])
+    .index("by_route_and_departing_time", ["RouteID", "DepartingTime"])
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_route_and_sailing_day", ["RouteID", "SailingDay"]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps
   vesselPings: defineTable(vesselPingListValidationSchema).index(
@@ -39,26 +58,17 @@ export default defineSchema({
     ["VesselID"]
   ),
 
-  // Prediction model parameters
-  modelParameters: defineTable(modelParametersMutationSchema)
-    .index("by_terminals_and_type", [
-      "departingTerminalAbbrev",
-      "arrivingTerminalAbbrev",
-      "modelType",
-    ])
-    .index("by_terminals", [
-      "departingTerminalAbbrev",
-      "arrivingTerminalAbbrev",
-    ]),
+  // Prediction model parameters (pair buckets)
+  modelParameters: defineTable(modelParametersSchema).index(
+    "by_pair_and_type",
+    ["pairKey", "modelType"]
+  ),
 
-  // Historical predictions for analysis (single table with type discriminator)
-  // historicalPrcedictions: defineTable(historicalPredictionDataSchema)
-  //   .index("by_timestamp", ["predictionTimestamp"])
-  //   .index("by_vessel_and_type", ["vesselId", "predictionType"])
-  //   .index("by_route", ["opRouteAbrv"]),
-
-  // // Current predictions for caching (single table with type discriminator)
-  // currentPredictions: defineTable(currentPredictionDataSchema)
-  //   .index("by_vessel_and_type", ["vesselId", "predictionType"])
-  //   .index("by_route", ["opRouteAbrv"]),
+  // Completed ML predictions - one row per completed prediction
+  predictions: defineTable(predictionRecordSchema)
+    .index("by_key", ["Key"])
+    .index("by_vessel_abbreviation", ["VesselAbbreviation"])
+    .index("by_prediction_type", ["PredictionType"])
+    .index("by_pred_time", ["PredTime"])
+    .index("by_vessel_and_type", ["VesselAbbreviation", "PredictionType"]),
 });

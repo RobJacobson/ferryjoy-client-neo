@@ -6,7 +6,7 @@
  */
 
 /**
- * Convert epoch milliseconds to Date object
+ * Convert epoch milliseconds to Date object.
  *
  * @param ms - Epoch milliseconds
  * @returns Date object
@@ -14,7 +14,7 @@
 export const epochMsToDate = (ms: number): Date => new Date(ms);
 
 /**
- * Convert Date object to epoch milliseconds
+ * Convert Date object to epoch milliseconds.
  *
  * @param ms - Date object
  * @returns Epoch milliseconds

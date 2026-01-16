@@ -1,25 +1,19 @@
 // ============================================================================
-// ML MODULE EXPORTS
+// ML DOMAIN MODULE
+// Machine Learning functionality for ferry schedule predictions
 // ============================================================================
 
-// Public actions
-export {
-  deleteAllModelsAction,
-  trainPredictionModelsAction,
-} from "./actions";
-// Main pipeline orchestrator
-export { runMLPipeline } from "./pipelineCoordinator";
+/**
+ * Prediction utilities for real-time ML inference
+ */
+export * from "./prediction";
 
-// Types
-export type {
-  DataQualityMetrics,
-  FeatureVector,
-  ModelParameters,
-  PredictionOutput,
-  TerminalPair,
-  TerminalPairBucket,
-  TerminalPairTrainingData,
-  TrainingDataRecord,
-  TrainingExample,
-  TrainingResponse,
-} from "./types";
+/**
+ * Core ML types, configuration constants, and model type definitions
+ */
+export * from "./shared";
+
+/**
+ * Training pipeline and model management functionality
+ */
+export * from "./training";

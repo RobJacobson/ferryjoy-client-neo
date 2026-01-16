@@ -46,4 +46,8 @@ build-*.tar.gz
 *.csv
 
 # ML training artifacts (generated models, data, and results)
-ml/
+# NOTE: anchored so we don't ignore `convex/domain/ml/`
+/ml/
+
+# Test coverage reports
+coverage/
