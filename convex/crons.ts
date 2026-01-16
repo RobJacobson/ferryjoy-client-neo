@@ -4,15 +4,9 @@ import { cronJobs } from "convex/server";
 const crons = cronJobs();
 
 crons.interval(
-  "update vessel locations",
-  { seconds: 15 }, // every ten seconds
-  internal.functions.vesselLocation.actions.updateVesselLocations
-);
-
-crons.interval(
-  "update vessel trips",
-  { seconds: 15 }, // every ten seconds
-  internal.functions.vesselTrips.actions.updateVesselTrips
+  "update vessel orchestrator",
+  { seconds: 5 }, // every 5 seconds
+  internal.functions.vesselOrchestrator.actions.updateVesselOrchestrator
 );
 
 crons.interval(
