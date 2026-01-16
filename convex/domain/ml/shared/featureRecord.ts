@@ -123,6 +123,9 @@ const getPrevLegContextAtCurr = (window: TrainingWindow) => {
  *
  * These are computed at terminal Curr and are available at "at dock" time (and
  * remain known at "at sea" time).
+ *
+ * @param window - Training window with current terminal arrival information
+ * @returns Arrival-time regime features for schedule pressure analysis
  */
 const getDockCuesAtCurr = (window: TrainingWindow) => {
   const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;

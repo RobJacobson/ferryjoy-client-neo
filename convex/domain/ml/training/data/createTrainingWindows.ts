@@ -56,9 +56,22 @@ import type {
 const MINUTES_PER_HOUR = 60;
 const MAX_SLACK_MINUTES = 12 * MINUTES_PER_HOUR;
 
+/**
+ * Calculate time difference in minutes between two timestamps.
+ *
+ * @param earlierMs - Earlier timestamp in milliseconds
+ * @param laterMs - Later timestamp in milliseconds
+ * @returns Time difference in minutes
+ */
 const minutesBetween = (earlierMs: number, laterMs: number): number =>
   (laterMs - earlierMs) / 60000;
 
+/**
+ * Get standardized terminal abbreviation from terminal name.
+ *
+ * @param terminalName - Full terminal name from WSF data
+ * @returns Standardized terminal abbreviation or null if invalid
+ */
 const getTerminalAbbrev = (terminalName: string): TerminalAbbrev | null => {
   const abbrev = config.getTerminalAbbrev(terminalName);
   if (!abbrev || abbrev === terminalName) {
@@ -76,6 +89,15 @@ type MappedTrip = {
   estArrivalMs: number;
 };
 
+/**
+ * Transform raw WSF vessel trip data into structured format for training.
+ *
+ * Validates data completeness and terminal mappings, converting timestamps
+ * to milliseconds for consistent processing.
+ *
+ * @param trip - Raw WSF vessel trip record
+ * @returns Structured trip data or null if invalid
+ */
 const mapTrip = (trip: VesselHistory): MappedTrip | null => {
   if (
     !trip.Vessel ||
@@ -107,6 +129,12 @@ const mapTrip = (trip: VesselHistory): MappedTrip | null => {
   };
 };
 
+/**
+ * Group vessel trip records by vessel identifier for chronological processing.
+ *
+ * @param records - Array of vessel trip records to group
+ * @returns Records grouped by vessel abbreviation
+ */
 const groupByVessel = (
   records: VesselHistory[]
 ): Record<string, VesselHistory[]> =>

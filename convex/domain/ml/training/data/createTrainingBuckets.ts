@@ -38,10 +38,22 @@ import type {
   TrainingBucket,
 } from "../../shared/types";
 
+/**
+ * Convert bucket key to string representation for Map operations.
+ *
+ * @param key - Bucket key object to convert
+ * @returns String representation of the bucket key
+ */
 const bucketKeyToString = (key: BucketKey): string => {
   return `pair|${key.pairKey}`;
 };
 
+/**
+ * Extract bucket key from feature record for grouping by route.
+ *
+ * @param record - Feature record to extract bucket key from
+ * @returns Bucket key identifying the terminal pair route
+ */
 const getBucketKeyForRecord = (record: FeatureRecord): BucketKey => {
   return { bucketType: "pair", pairKey: record.currPairKey };
 };

@@ -19,11 +19,33 @@ import type {
   TrainingExample,
 } from "../../shared/types";
 
+/**
+ * Calculate the arithmetic mean of an array of numbers.
+ *
+ * @param values - Array of numbers to average
+ * @returns Mean value of the input array
+ */
 const getMean = (values: number[]): number =>
   values.reduce((sum, v) => sum + v, 0) / values.length;
 
+/**
+ * Round very small floating point values to prevent numerical instability.
+ *
+ * @param value - Number to round
+ * @returns Rounded number with 6 decimal places
+ */
 const roundTinyValues = (value: number): number => roundToPrecision(value, 6);
 
+/**
+ * Create training examples from feature records for a specific model type.
+ *
+ * Filters out records without valid targets and extracts feature-target pairs
+ * suitable for machine learning training.
+ *
+ * @param records - Array of feature records from a training bucket
+ * @param modelType - Type of model to create examples for
+ * @returns Array of training examples with input features and target values
+ */
 const createTrainingExamples = (
   records: TrainingBucket["records"],
   modelType: ModelType
@@ -89,6 +111,11 @@ export const trainModel = (
   const featureKeys = Object.keys(trainExamples[0].input).sort();
 
   // Convert feature objects to arrays in consistent order
+  /**
+   * Convert feature object to ordered array for ML library input.
+   * @param input - Feature values keyed by feature name
+   * @returns Feature values as ordered array matching featureKeys
+   */
   const toRow = (input: Record<string, number>): number[] =>
     featureKeys.map((k) => input[k] ?? 0);
 

@@ -11,6 +11,12 @@ import {
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { config } from "../../shared/config";
 
+/**
+ * Safely stringify objects that may contain circular references or bigints.
+ *
+ * @param value - Value to stringify
+ * @returns JSON string representation
+ */
 const safeJsonStringify = (value: unknown): string => {
   const seen = new WeakSet<object>();
   return JSON.stringify(
@@ -38,6 +44,12 @@ const safeJsonStringify = (value: unknown): string => {
   );
 };
 
+/**
+ * Format unknown error values into structured error information.
+ *
+ * @param error - Error value to format
+ * @returns Structured error information
+ */
 const formatUnknownError = (error: unknown) => {
   if (error instanceof Error) {
     return {
@@ -135,7 +147,8 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
 };
 
 /**
- * Fetch all vessels from WSF
+ * Fetch all vessels from WSF API.
+ * @returns Array of vessel basic information
  */
 const fetchVesselFleet = async (): Promise<
   ReturnType<typeof fetchVesselBasics>
@@ -158,7 +171,10 @@ const fetchVesselFleet = async (): Promise<
 };
 
 /**
- * Fetch vessel history data for a single vessel
+ * Fetch vessel history data for a single vessel within the training date range.
+ *
+ * @param vesselName - Name of the vessel to fetch data for
+ * @returns Array of vessel history records for the specified vessel
  */
 const fetchVesselData = async (
   vesselName: string | null
@@ -216,7 +232,10 @@ const fetchVesselData = async (
 };
 
 /**
- * Apply sampling strategy to reduce data volume while preserving information
+ * Apply sampling strategy to reduce data volume while preserving information.
+ *
+ * @param records - Array of vessel history records to sample
+ * @returns Sampled array of vessel history records
  */
 const applySamplingStrategy = (records: VesselHistory[]): VesselHistory[] => {
   const maxRecords = config.getMaxRecordsPerVessel();

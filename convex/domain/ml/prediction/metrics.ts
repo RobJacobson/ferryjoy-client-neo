@@ -4,8 +4,12 @@
 // ============================================================================
 
 /**
- * Calculate Mean Absolute Error (MAE)
- * Average of absolute differences between predicted and actual values
+ * Calculate Mean Absolute Error (MAE).
+ * Average of absolute differences between predicted and actual values.
+ *
+ * @param actual - Array of actual values
+ * @param predicted - Array of predicted values
+ * @returns Mean absolute error
  */
 export const calculateMAE = (actual: number[], predicted: number[]): number => {
   if (actual.length !== predicted.length) {
@@ -20,8 +24,12 @@ export const calculateMAE = (actual: number[], predicted: number[]): number => {
 };
 
 /**
- * Calculate Root Mean Square Error (RMSE)
- * Square root of the average of squared differences between predicted and actual values
+ * Calculate Root Mean Square Error (RMSE).
+ * Square root of the average of squared differences between predicted and actual values.
+ *
+ * @param actual - Array of actual values
+ * @param predicted - Array of predicted values
+ * @returns Root mean square error
  */
 export const calculateRMSE = (
   actual: number[],
@@ -40,8 +48,12 @@ export const calculateRMSE = (
 };
 
 /**
- * Calculate R-squared (coefficient of determination)
- * Proportion of variance in dependent variable explained by the model
+ * Calculate R-squared (coefficient of determination).
+ * Proportion of variance in dependent variable explained by the model.
+ *
+ * @param actual - Array of actual values
+ * @param predicted - Array of predicted values
+ * @returns R-squared coefficient
  */
 export const calculateR2 = (actual: number[], predicted: number[]): number => {
   if (actual.length !== predicted.length) {
@@ -65,8 +77,12 @@ export const calculateR2 = (actual: number[], predicted: number[]): number => {
 };
 
 /**
- * Calculate Standard Deviation of Errors
- * Measures the spread/consistency of prediction errors around the mean
+ * Calculate Standard Deviation of Errors.
+ * Measures the spread/consistency of prediction errors around the mean.
+ *
+ * @param actual - Array of actual values
+ * @param predicted - Array of predicted values
+ * @returns Standard deviation of prediction errors
  */
 export const calculateStdDevErrors = (
   actual: number[],

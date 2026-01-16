@@ -61,6 +61,12 @@ type ModelDoc = {
   };
 };
 
+/**
+ * Type guard to check if context is a mutation context.
+ *
+ * @param ctx - Convex execution context to check
+ * @returns True if context has direct database access (mutation context)
+ */
 const isMutationCtx = (ctx: ActionCtx | MutationCtx): ctx is MutationCtx =>
   // Mutations have direct DB access; actions do not.
   "db" in ctx;
@@ -111,6 +117,13 @@ const requireTripField = <T>(
   return value;
 };
 
+/**
+ * Calculate time difference in minutes between two timestamps.
+ *
+ * @param earlierMs - Earlier timestamp in milliseconds
+ * @param laterMs - Later timestamp in milliseconds
+ * @returns Time difference in minutes
+ */
 const minutesBetween = (earlierMs: number, laterMs: number): number =>
   (laterMs - earlierMs) / 60000;
 

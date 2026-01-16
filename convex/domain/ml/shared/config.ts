@@ -300,23 +300,55 @@ export const config = {
     ML_CONFIG.thresholds.duration.arriveArriveTotal.max,
 
   // Pipeline getters
+  /**
+   * Get the number of days of historical data to use for training.
+   * @returns Number of days back from today to include in training data
+   */
   getDaysBack: () => ML_CONFIG.pipeline.dataLoading.daysBack,
 
+  /**
+   * Get the maximum number of records to fetch per vessel.
+   * @returns Maximum records per vessel for memory management
+   */
   getMaxRecordsPerVessel: () =>
     ML_CONFIG.pipeline.dataLoading.maxRecordsPerVessel,
 
+  /**
+   * Get the maximum number of training samples to keep per route.
+   * @returns Maximum samples per route to prevent overfitting
+   */
   getMaxSamplesPerRoute: () =>
     ML_CONFIG.pipeline.dataLoading.maxSamplesPerRoute,
 
+  /**
+   * Get the sampling strategy for reducing data volume.
+   * @returns Sampling strategy (e.g., "recent_first")
+   */
   getSamplingStrategy: () => ML_CONFIG.pipeline.dataLoading.samplingStrategy,
 
+  /**
+   * Get the threshold below which coefficients are rounded to zero.
+   * @returns Coefficient rounding threshold for numerical stability
+   */
   getCoefficientRoundingThreshold: () =>
     ML_CONFIG.pipeline.training.coefficientRoundingZeroThreshold,
 
+  /**
+   * Check if model evaluation is enabled.
+   * @returns True if evaluation metrics should be computed
+   */
   isEvaluationEnabled: () => ML_CONFIG.pipeline.evaluation.enabled,
 
+  /**
+   * Get the ratio of training data to total data for evaluation.
+   * @returns Training data ratio (0.0 to 1.0)
+   */
   getTrainRatio: () => ML_CONFIG.pipeline.evaluation.trainRatio,
 
+  /**
+   * Get the minimum number of training examples required.
+   * @returns Minimum training examples for valid model training
+   */
   getMinTrainExamples: () => ML_CONFIG.pipeline.evaluation.minTrainExamples,
 } as const;
 
