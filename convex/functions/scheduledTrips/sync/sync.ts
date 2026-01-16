@@ -1,10 +1,7 @@
 import type { ActionCtx } from "_generated/server";
 import type { Route } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../schemas";
-import {
-  calculateTripEstimates,
-  filterOverlappingTrips,
-} from "./businessLogic";
+import { calculateTripEstimates, classifyTripsByType } from "./businessLogic";
 import { createScheduledTrip } from "./dataTransformation";
 import { fetchActiveRoutes, fetchRouteSchedule } from "./infrastructure";
 import { performSafeDataReplacement } from "./persistence";
@@ -28,13 +25,13 @@ export const syncScheduledTripsForDateRange = async (
 ): Promise<{
   totalDeleted: number;
   totalInserted: number;
-  totalFiltered: number;
+  totalIndirect: number;
   daysProcessed: DaySyncResult[];
 }> => {
   const results: DaySyncResult[] = [];
   let totalDeleted = 0;
   let totalInserted = 0;
-  let totalFiltered = 0;
+  let totalIndirect = 0;
 
   console.log(
     `${logPrefix} Starting range sync: ${daysToSync} days starting ${startDate}`
@@ -53,7 +50,7 @@ export const syncScheduledTripsForDateRange = async (
 
       totalDeleted += result.deleted;
       totalInserted += result.inserted;
-      totalFiltered += result.totalFiltered;
+      totalIndirect += result.totalIndirect;
     } catch (error) {
       console.error(`${logPrefix}Failed to sync ${currentDate}:`, error);
       results.push({
@@ -71,7 +68,7 @@ export const syncScheduledTripsForDateRange = async (
   return {
     totalDeleted,
     totalInserted,
-    totalFiltered,
+    totalIndirect,
     daysProcessed: results,
   };
 };
@@ -96,7 +93,7 @@ export const syncScheduledTripsForDate = async (
   deleted: number;
   inserted: number;
   routesProcessed: number;
-  totalFiltered: number;
+  totalIndirect: number;
 }> => {
   try {
     console.log(`${logPrefix} Starting scheduled trips sync for ${targetDate}`);
@@ -113,14 +110,14 @@ export const syncScheduledTripsForDate = async (
 
     if (routes.length === 0) {
       console.log(`${logPrefix}No routes found for ${targetDate}`);
-      return { deleted: 0, inserted: 0, routesProcessed: 0, totalFiltered: 0 };
+      return { deleted: 0, inserted: 0, routesProcessed: 0, totalIndirect: 0 };
     }
 
     // Phase 2: Download ALL fresh data before making any changes
     const routeData = await downloadRouteData(routes, targetDate);
 
-    // Phase 3: Combine and filter trips
-    const { finalTrips, totalFiltered } = combineAndFilterTrips(routeData);
+    // Phase 3: Combine and classify trips
+    const { finalTrips, totalIndirect } = combineAndFilterTrips(routeData);
 
     console.log(
       `${logPrefix}Successfully downloaded ${finalTrips.length} trips across ${routeData.length} routes`
@@ -134,14 +131,15 @@ export const syncScheduledTripsForDate = async (
     );
 
     console.log(
-      `${logPrefix}Safe sync completed: deleted ${deleted}, inserted ${inserted}, filtered ${totalFiltered} trips across ${routeData.length} routes`
+      `${logPrefix}Safe sync completed: deleted ${deleted}, inserted ${inserted}, ` +
+        `${totalIndirect} indirect trips across ${routeData.length} routes`
     );
 
     return {
       deleted,
       inserted,
       routesProcessed: routeData.length,
-      totalFiltered,
+      totalIndirect,
     };
   } catch (error) {
     console.error(
@@ -207,11 +205,11 @@ const downloadRouteData = async (
 };
 
 /**
- * Combines trips from all routes and applies vessel-level filtering.
- * Resolves overlapping routes across terminals and calculates trip estimates.
+ * Combines trips from all routes and applies vessel-level classification.
+ * Classifies trips as direct or indirect and calculates trip estimates.
  *
  * @param routeData - Array of route data objects containing trips from each route
- * @returns Object containing final filtered trips with estimates and filtering statistics
+ * @returns Object containing final classified trips with estimates and classification statistics
  */
 const combineAndFilterTrips = (
   routeData: {
@@ -219,30 +217,33 @@ const combineAndFilterTrips = (
     trips: ConvexScheduledTrip[];
     rawTripCount: number;
   }[]
-): { finalTrips: ConvexScheduledTrip[]; totalFiltered: number } => {
+): { finalTrips: ConvexScheduledTrip[]; totalIndirect: number } => {
   const logPrefix = "[SYNC TRIPS]";
   // Combine all trips from all routes
   const allRawTrips = routeData.flatMap((data) => data.trips);
   console.log(
-    `${logPrefix} Applying vessel-level filtering to ${allRawTrips.length} total trips across all routes`
+    `${logPrefix} Applying vessel-level classification to ${allRawTrips.length} total trips across all routes`
   );
 
-  // Apply vessel-level filtering to resolve overlapping routes across all terminals
-  const filteredTrips = filterOverlappingTrips(allRawTrips);
-  const totalFiltered = allRawTrips.length - filteredTrips.length;
+  // Apply vessel-level classification to mark trips as direct or indirect
+  const classifiedTrips = classifyTripsByType(allRawTrips);
+  const totalIndirect = classifiedTrips.filter(
+    (trip) => trip.TripType === "indirect"
+  ).length;
 
   console.log(
-    `${logPrefix} Vessel filtering: ${allRawTrips.length} → ${filteredTrips.length} trips (${totalFiltered} filtered out)`
+    `${logPrefix} Vessel classification: ${allRawTrips.length} total trips, ` +
+      `${classifiedTrips.length - totalIndirect} direct, ${totalIndirect} indirect`
   );
 
-  // Calculate trip estimates using the filtered, chronologically ordered trips
-  const finalTrips = calculateTripEstimates(filteredTrips);
+  // Calculate trip estimates using the classified, chronologically ordered trips
+  const finalTrips = calculateTripEstimates(classifiedTrips);
 
   console.log(
     `${logPrefix} Trip estimates calculated for ${finalTrips.length} trips`
   );
 
-  return { finalTrips, totalFiltered };
+  return { finalTrips, totalIndirect };
 };
 
 /**

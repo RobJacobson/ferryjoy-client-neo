@@ -65,9 +65,8 @@ export const modelParametersSchema = v.object({
     sampledRecords: v.number(),
   }),
 
-  // Versioning fields
-  versionType: v.union(v.literal("dev"), v.literal("prod")),
-  versionNumber: v.number(), // -1 represents "dev-temp", positive numbers are versioned
+  // Versioning field - arbitrary string tag (e.g., "dev-temp", "dev-1", "prod-1")
+  versionTag: v.string(),
 });
 
 export type ConvexModelParameters = Infer<typeof modelParametersSchema>;
@@ -108,13 +107,13 @@ export const predictionRecordSchema = v.object({
 export type ConvexPredictionRecord = Infer<typeof predictionRecordSchema>;
 
 /**
- * Convex validator for ML configuration stored in the mlConfig table.
- * Stores runtime configuration values like the active production version.
+ * Convex validator for ML configuration stored in the modelConfig table.
+ * Stores runtime configuration values like the active production version tag.
  */
-export const mlConfigSchema = v.object({
-  key: v.literal("productionVersion"), // Singleton key for this config
-  productionVersion: v.union(v.number(), v.null()),
+export const modelConfigSchema = v.object({
+  key: v.literal("productionVersionTag"), // Singleton key for this config
+  productionVersionTag: v.union(v.string(), v.null()),
   updatedAt: v.number(),
 });
 
-export type ConvexMLConfig = Infer<typeof mlConfigSchema>;
+export type ConvexModelConfig = Infer<typeof modelConfigSchema>;

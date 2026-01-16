@@ -55,5 +55,19 @@ export const enrichTripFields = (
     updates.TripDelay = tripDelay;
   }
 
+  // AtDockDuration is derived (minutes), calculated when trip leaves dock.
+  // Time delta: LeftDock - TripStart
+  const atDockDuration = calculateTimeDelta(
+    existingTrip.TripStart,
+    currLocation.LeftDock
+  );
+
+  if (
+    atDockDuration !== undefined &&
+    atDockDuration !== existingTrip.AtDockDuration
+  ) {
+    updates.AtDockDuration = atDockDuration;
+  }
+
   return updates;
 };

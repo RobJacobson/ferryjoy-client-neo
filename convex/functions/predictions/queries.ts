@@ -15,39 +15,35 @@ export const getAllModelParameters = query({
 
 /**
  * Get model parameters for a specific terminal pair and model type.
- * Optionally filters by version type and number.
+ * Optionally filters by version tag.
  *
  * @param ctx - Convex context
  * @param args.pairKey - The terminal pair key (e.g., "TerminalA-TerminalB")
  * @param args.modelType - The model type to retrieve
- * @param args.versionType - Optional version type filter ("dev" or "prod")
- * @param args.versionNumber - Optional version number filter
+ * @param args.versionTag - Optional version tag filter (e.g., "dev-temp", "dev-1", "prod-1")
  * @returns The model parameters record or null if not found
  */
 export const getModelParametersByPair = query({
   args: {
     pairKey: v.string(),
     modelType: modelTypeValidator,
-    versionType: v.optional(v.union(v.literal("dev"), v.literal("prod"))),
-    versionNumber: v.optional(v.number()),
+    versionTag: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (args.versionType && args.versionNumber !== undefined) {
+    if (args.versionTag !== undefined) {
       // Use version-specific index
-      const versionType = args.versionType; // TypeScript now knows this is "dev" | "prod"
-      const versionNumber = args.versionNumber; // TypeScript now knows this is number
+      const versionTag = args.versionTag; // TypeScript now knows this is string
       return ctx.db
         .query("modelParameters")
-        .withIndex("by_pair_type_version", (q) =>
+        .withIndex("by_pair_type_tag", (q) =>
           q
             .eq("pairKey", args.pairKey)
             .eq("modelType", args.modelType)
-            .eq("versionType", versionType)
-            .eq("versionNumber", versionNumber)
+            .eq("versionTag", versionTag)
         )
         .first();
     }
-    // Fallback to old index for backward compatibility
+    // Fallback to pair+type index when no tag specified
     return ctx.db
       .query("modelParameters")
       .withIndex("by_pair_and_type", (q) =>
@@ -59,7 +55,7 @@ export const getModelParametersByPair = query({
 
 /**
  * Get model parameters for production predictions.
- * Uses the active production version from config.
+ * Uses the active production version tag from config.
  *
  * @param ctx - Convex context
  * @param args.pairKey - The terminal pair key (e.g., "TerminalA-TerminalB")
@@ -72,99 +68,86 @@ export const getModelParametersForProduction = query({
     modelType: modelTypeValidator,
   },
   handler: async (ctx, args) => {
-    // Get production version from config
+    // Get production version tag from config
     const config = await ctx.db
-      .query("mlConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersion"))
+      .query("modelConfig")
+      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
       .first();
 
-    const prodVersion = config?.productionVersion;
-    if (prodVersion === null || prodVersion === undefined) {
+    const prodVersionTag = config?.productionVersionTag;
+    if (!prodVersionTag) {
       return null;
     }
 
-    // Query with production version
+    // Query with production version tag
     return ctx.db
       .query("modelParameters")
-      .withIndex("by_pair_type_version", (q) =>
+      .withIndex("by_pair_type_tag", (q) =>
         q
           .eq("pairKey", args.pairKey)
           .eq("modelType", args.modelType)
-          .eq("versionType", "prod")
-          .eq("versionNumber", prodVersion)
+          .eq("versionTag", prodVersionTag)
       )
       .first();
   },
 });
 
 /**
- * Get all models for a specific version.
+ * Get all models for a specific version tag.
  *
  * @param ctx - Convex context
- * @param args.versionType - The version type ("dev" or "prod")
- * @param args.versionNumber - The version number
- * @returns Array of model parameters for the specified version
+ * @param args.versionTag - The version tag (e.g., "dev-temp", "dev-1", "prod-1")
+ * @returns Array of model parameters for the specified version tag
  */
-export const getModelParametersByVersion = query({
+export const getModelParametersByTag = query({
   args: {
-    versionType: v.union(v.literal("dev"), v.literal("prod")),
-    versionNumber: v.number(),
+    versionTag: v.string(),
   },
   handler: async (ctx, args) =>
     ctx.db
       .query("modelParameters")
-      .withIndex("by_version", (q) =>
-        q
-          .eq("versionType", args.versionType)
-          .eq("versionNumber", args.versionNumber)
+      .withIndex("by_version_tag", (q) =>
+        q.eq("versionTag", args.versionTag)
       )
       .collect(),
 });
 
 /**
- * Get all unique version numbers for dev and prod.
+ * Get all unique version tags.
  *
  * @param ctx - Convex context
- * @returns Object with arrays of dev and prod version numbers
+ * @returns Array of unique version tags, sorted alphabetically
  */
 export const getAllVersions = query({
   args: {},
   handler: async (ctx) => {
     const allModels = await ctx.db.query("modelParameters").collect();
 
-    const devVersions = new Set<number>();
-    const prodVersions = new Set<number>();
+    const versionTags = new Set<string>();
 
     for (const model of allModels) {
-      if (model.versionType === "dev") {
-        devVersions.add(model.versionNumber);
-      } else if (model.versionType === "prod") {
-        prodVersions.add(model.versionNumber);
-      }
+      versionTags.add(model.versionTag);
     }
 
-    return {
-      dev: Array.from(devVersions).sort((a, b) => a - b),
-      prod: Array.from(prodVersions).sort((a, b) => a - b),
-    };
+    return Array.from(versionTags).sort();
   },
 });
 
 /**
- * Get the current production version from config.
+ * Get the current production version tag from config.
  *
  * @param ctx - Convex context
- * @returns The production version number or null if not set
+ * @returns The production version tag or null if not set
  */
-export const getProductionVersion = query({
+export const getProductionVersionTag = query({
   args: {},
   handler: async (ctx) => {
     const config = await ctx.db
-      .query("mlConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersion"))
+      .query("modelConfig")
+      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
       .first();
 
-    return config?.productionVersion ?? null;
+    return config?.productionVersionTag ?? null;
   },
 });
 

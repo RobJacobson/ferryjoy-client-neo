@@ -32,6 +32,7 @@ export const scheduledTripSchema = v.object({
   RouteAbbrev: v.string(),
   Key: v.string(),
   SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
+  TripType: v.union(v.literal("direct"), v.literal("indirect")),
   PrevKey: v.optional(v.string()),
   NextKey: v.optional(v.string()),
   NextDepartingTime: v.optional(v.number()),

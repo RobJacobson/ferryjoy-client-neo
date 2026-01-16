@@ -1,6 +1,6 @@
 // ============================================================================
 // ML VERSION MANAGEMENT - List all versions
-// Lists all dev and prod versions with model counts and creation timestamps
+// Lists all version tags with model counts and creation timestamps
 // ============================================================================
 
 import { ConvexHttpClient } from "convex/browser";
@@ -8,14 +8,14 @@ import { api } from "../../convex/_generated/api";
 import type { ConvexModelParameters } from "../../convex/functions/predictions/schemas";
 
 type VersionInfo = {
-  versionNumber: number;
+  versionTag: string;
   modelCount: number;
   earliestCreated: number;
   latestCreated: number;
 };
 
 /**
- * List all dev and prod versions with statistics.
+ * List all version tags with statistics.
  */
 async function listVersions() {
   const convexUrl =
@@ -29,14 +29,14 @@ async function listVersions() {
   const convex = new ConvexHttpClient(convexUrl);
 
   try {
-    // Get all versions
-    const versions = await convex.query(
+    // Get all version tags
+    const versionTags = await convex.query(
       api.functions.predictions.queries.getAllVersions
     );
 
-    // Get current production version
-    const currentProdVersion = await convex.query(
-      api.functions.predictions.queries.getProductionVersion
+    // Get current production version tag
+    const currentProdTag = await convex.query(
+      api.functions.predictions.queries.getProductionVersionTag
     );
 
     // Get all models to calculate statistics
@@ -44,49 +44,59 @@ async function listVersions() {
       api.functions.predictions.queries.getAllModelParameters
     )) as ConvexModelParameters[];
 
-    // Group models by version
-    const devVersions = new Map<number, ConvexModelParameters[]>();
-    const prodVersions = new Map<number, ConvexModelParameters[]>();
+    // Group models by version tag
+    const modelsByTag = new Map<string, ConvexModelParameters[]>();
 
     for (const model of allModels) {
-      if (model.versionType === "dev") {
-        const existing = devVersions.get(model.versionNumber) || [];
-        existing.push(model);
-        devVersions.set(model.versionNumber, existing);
-      } else if (model.versionType === "prod") {
-        const existing = prodVersions.get(model.versionNumber) || [];
-        existing.push(model);
-        prodVersions.set(model.versionNumber, existing);
-      }
+      const existing = modelsByTag.get(model.versionTag) || [];
+      existing.push(model);
+      modelsByTag.set(model.versionTag, existing);
     }
 
     // Format version info
     const formatVersionInfo = (
-      versionNumber: number,
+      versionTag: string,
       models: ConvexModelParameters[]
     ): VersionInfo => {
       const timestamps = models.map((m) => m.createdAt);
       return {
-        versionNumber,
+        versionTag,
         modelCount: models.length,
         earliestCreated: Math.min(...timestamps),
         latestCreated: Math.max(...timestamps),
       };
     };
 
+    // Categorize tags (dev-*, prod-*, or other)
+    const devTags: VersionInfo[] = [];
+    const prodTags: VersionInfo[] = [];
+    const otherTags: VersionInfo[] = [];
+
+    for (const tag of versionTags) {
+      const models = modelsByTag.get(tag) || [];
+      const info = formatVersionInfo(tag, models);
+      if (tag.startsWith("dev-")) {
+        devTags.push(info);
+      } else if (tag.startsWith("prod-")) {
+        prodTags.push(info);
+      } else {
+        otherTags.push(info);
+      }
+    }
+
+    // Sort dev and prod by tag name
+    devTags.sort((a, b) => a.versionTag.localeCompare(b.versionTag));
+    prodTags.sort((a, b) => a.versionTag.localeCompare(b.versionTag));
+
     // Display dev versions
     console.log("📦 Development Versions:");
-    if (versions.dev.length === 0) {
+    if (devTags.length === 0) {
       console.log("  (none)");
     } else {
-      for (const versionNum of versions.dev) {
-        const models = devVersions.get(versionNum) || [];
-        const info = formatVersionInfo(versionNum, models);
-        const versionLabel =
-          versionNum === -1 ? "dev-temp" : `dev-${versionNum}`;
+      for (const info of devTags) {
         const created = new Date(info.earliestCreated).toISOString();
         console.log(
-          `  ${versionLabel.padEnd(12)} ${info.modelCount.toString().padStart(4)} models  created: ${created}`
+          `  ${info.versionTag.padEnd(12)} ${info.modelCount.toString().padStart(4)} models  created: ${created}`
         );
       }
     }
@@ -95,26 +105,38 @@ async function listVersions() {
 
     // Display prod versions
     console.log("🚀 Production Versions:");
-    if (versions.prod.length === 0) {
+    if (prodTags.length === 0) {
       console.log("  (none)");
     } else {
-      for (const versionNum of versions.prod) {
-        const models = prodVersions.get(versionNum) || [];
-        const info = formatVersionInfo(versionNum, models);
+      for (const info of prodTags) {
         const created = new Date(info.earliestCreated).toISOString();
         const activeMarker =
-          currentProdVersion === versionNum ? " ⭐ ACTIVE" : "";
+          currentProdTag === info.versionTag ? " ⭐ ACTIVE" : "";
         console.log(
-          `  prod-${versionNum.toString().padEnd(8)} ${info.modelCount.toString().padStart(4)} models  created: ${created}${activeMarker}`
+          `  ${info.versionTag.padEnd(12)} ${info.modelCount.toString().padStart(4)} models  created: ${created}${activeMarker}`
+        );
+      }
+    }
+
+    // Display other tags if any
+    if (otherTags.length > 0) {
+      console.log();
+      console.log("📋 Other Versions:");
+      for (const info of otherTags) {
+        const created = new Date(info.earliestCreated).toISOString();
+        const activeMarker =
+          currentProdTag === info.versionTag ? " ⭐ ACTIVE" : "";
+        console.log(
+          `  ${info.versionTag.padEnd(12)} ${info.modelCount.toString().padStart(4)} models  created: ${created}${activeMarker}`
         );
       }
     }
 
     console.log();
-    if (currentProdVersion === null) {
+    if (!currentProdTag) {
       console.log("⚠️  No production version is currently active");
     } else {
-      console.log(`✅ Active production version: prod-${currentProdVersion}`);
+      console.log(`✅ Active production version: ${currentProdTag}`);
     }
   } catch (error) {
     console.error("Error listing versions:", error);

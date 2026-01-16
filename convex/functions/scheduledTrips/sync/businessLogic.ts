@@ -6,7 +6,7 @@ import { roundUpToNextMinute } from "../../../shared/durationUtils";
 import type { ConvexScheduledTrip } from "../schemas";
 
 /**
- * Filters out indirect/overlapping trips using a two-pointer chronological scan.
+ * Classifies trips as direct or indirect using a two-pointer chronological scan.
  * For multi-stage vessel trips, WSF API reports multiple destination options from the same
  * departure point. This function scans chronologically and uses lookahead to identify
  * which destination matches the vessel's actual next departure terminal.
@@ -15,13 +15,13 @@ import type { ConvexScheduledTrip } from "../schemas";
  * 1. Group trips by vessel and sailing day, sort chronologically
  * 2. Scan through trips with two pointers (current + lookahead)
  * 3. When overlapping departures found, check next trip's departure terminal
- * 4. Keep only trips where arrival terminal matches next departure terminal
+ * 4. Mark trips where arrival terminal matches next departure terminal as "direct"
+ * 5. Mark other overlapping trips as "indirect"
  *
- *
- * @param trips - Array of scheduled trip records to filter
- * @returns Filtered array with chronologically correct trips only
+ * @param trips - Array of scheduled trip records to classify
+ * @returns Array of all trips with TripType field set to "direct" or "indirect"
  */
-export const filterOverlappingTrips = (
+export const classifyTripsByType = (
   trips: ConvexScheduledTrip[]
 ): ConvexScheduledTrip[] => {
   // Group trips by vessel (across all routes and days for proper network traversal)
@@ -50,10 +50,10 @@ export const groupTripsByVessel = (
 };
 
 /**
- * Processes a single vessel's trips chronologically, resolving overlapping routes.
+ * Processes a single vessel's trips chronologically, classifying them as direct or indirect.
  *
  * @param vesselTrips - Array of trips for a single vessel
- * @returns Array of filtered trips with overlapping routes resolved
+ * @returns Array of all trips with TripType field set to "direct" or "indirect"
  */
 export const processVesselTrips = (
   vesselTrips: ConvexScheduledTrip[]
@@ -63,18 +63,21 @@ export const processVesselTrips = (
   // Sort chronologically by departure time
   vesselTrips.sort((a, b) => a.DepartingTime - b.DepartingTime);
 
-  const filteredTrips: ConvexScheduledTrip[] = [];
+  const classifiedTrips: ConvexScheduledTrip[] = [];
   let i = 0;
 
   while (i < vesselTrips.length) {
     const overlappingTrips = findOverlappingGroup(vesselTrips, i);
 
     if (overlappingTrips.length === 1) {
-      // Single trip - keep it
-      filteredTrips.push(overlappingTrips[0]);
+      // Single trip - mark as direct
+      classifiedTrips.push({
+        ...overlappingTrips[0],
+        TripType: "direct",
+      });
       i += 1;
     } else {
-      // Multiple overlapping trips - resolve using lookahead
+      // Multiple overlapping trips - classify using lookahead
       const nextTerminal = findNextDepartureTerminal(
         vesselTrips,
         i + overlappingTrips.length,
@@ -86,12 +89,12 @@ export const processVesselTrips = (
         overlappingTrips[0].VesselAbbrev,
         overlappingTrips[0].DepartingTime
       );
-      filteredTrips.push(...resolvedTrips);
+      classifiedTrips.push(...resolvedTrips);
       i += overlappingTrips.length;
     }
   }
 
-  return filteredTrips;
+  return classifiedTrips;
 };
 
 /**
@@ -139,14 +142,15 @@ export const findOverlappingGroup = (
 };
 
 /**
- * Resolves overlapping trips by finding which one leads to the expected next terminal.
- * If no trip matches the expected terminal, falls back to keeping all options.
+ * Resolves overlapping trips by classifying which one leads to the expected next terminal.
+ * Marks the trip matching the next terminal as "direct" and others as "indirect".
+ * If no trip matches the expected terminal, marks all as "direct" (fallback).
  *
  * @param overlappingTrips - Array of trips that depart at the same time
  * @param nextTerminal - Expected next departure terminal
  * @param vesselAbbrev - Vessel abbreviation for logging
  * @param departureTime - Departure time for logging
- * @returns Array of resolved trips (usually just one)
+ * @returns Array of all trips with TripType field set to "direct" or "indirect"
  */
 export const resolveOverlappingGroup = (
   overlappingTrips: ConvexScheduledTrip[],
@@ -155,25 +159,38 @@ export const resolveOverlappingGroup = (
   departureTime: number
 ): ConvexScheduledTrip[] => {
   if (!nextTerminal) {
-    // No next departure found (end of vessel's schedule) - keep all options
-    return overlappingTrips;
+    // No next departure found (end of vessel's schedule) - mark all as direct
+    return overlappingTrips.map((trip) => ({
+      ...trip,
+      TripType: "direct" as const,
+    }));
   }
 
-  // Keep only the trip that goes to the next departure terminal
+  // Find the trip that goes to the next departure terminal
   const correctTrip = overlappingTrips.find(
     (trip) => trip.ArrivingTerminalAbbrev === nextTerminal
   );
 
   if (correctTrip) {
-    return [correctTrip];
+    // Mark the correct trip as direct, others as indirect
+    return overlappingTrips.map((trip) => ({
+      ...trip,
+      TripType:
+        trip.ArrivingTerminalAbbrev === nextTerminal
+          ? ("direct" as const)
+          : ("indirect" as const),
+    }));
   } else {
     // Fallback: no trip matches expected next terminal
-    // This can happen with irregular schedules - keep all options
+    // This can happen with irregular schedules - mark all as direct
     console.warn(
       `No overlapping trip goes to expected next terminal ${nextTerminal} ` +
         `for vessel ${vesselAbbrev} departing at ${new Date(departureTime).toISOString()}`
     );
-    return overlappingTrips;
+    return overlappingTrips.map((trip) => ({
+      ...trip,
+      TripType: "direct" as const,
+    }));
   }
 };
 

@@ -328,6 +328,11 @@ Important details:
 #### ScheduledTrips chain fields
 
 During sync, we compute (per ScheduledTrip):
+- `TripType`: classification as "direct" or "indirect" trip
+  - Direct trips: consecutive terminal pairs (A→B, B→C)
+  - Indirect trips: skip intermediate terminals (A→C when A→B→C exists)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`classifyTripsByType`)
+  - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `PrevKey`: the previous trip’s `Key` for this vessel (chronological chain)
   - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
@@ -342,8 +347,10 @@ During sync, we compute (per ScheduledTrip):
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
   - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
 
-These are computed only after vessel-level filtering resolves overlapping/ambiguous
-route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`).
+These are computed only after vessel-level classification resolves overlapping/ambiguous
+route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`). The classification
+process marks trips as direct or indirect instead of filtering them out, allowing both types
+to be stored while maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
@@ -363,6 +370,10 @@ For each active vessel trip update:
   VesselTrip as `ScheduledTrip` (with light throttling to avoid DB churn).
   - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`enrichTripStartUpdates`, `fetchScheduledTripFieldsByKey`)
   - Query: `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
+- **Safety**: Only direct trips match VesselTrips. Indirect trips have different
+  terminal pairs (A→C vs A→B), so their composite keys are inherently different.
+  An explicit check ensures `TripType === "direct"` (defensive programming).
+  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`fetchScheduledTripFieldsByKey`)
 - If `Key` changes, we clear derived data (scheduled snapshot + predictions) to
   prevent mixing identities.
   - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE`)
@@ -613,17 +624,17 @@ convex/domain/ml/
 
 #### Automated Training
 ```bash
-npm run train:ml
+npm run ml:train
 ```
-**Process**: Loads data, trains all models, stores to database
+**Process**: Loads data, trains all models, stores to database with tag `"dev-temp"`, then exports results
 **Duration**: 10-30 minutes depending on data volume
 **Output**: Training statistics and model performance metrics
 
 #### Results Export
 ```bash
-npm run train:export-results
+npm run ml:export-results
 ```
-**Purpose**: Extract training results for analysis
+**Purpose**: Extract training results for analysis (without retraining)
 **Format**: CSV files with model parameters and metrics
 **Location**: `ml/training-results.csv`
 
@@ -1007,24 +1018,70 @@ Schemas/DB:
 
 ---
 
+## ML Command Cheat Sheet
+
+### Training Commands
+
+```bash
+# Train models and export results to CSV
+npm run ml:train
+
+# Export training results to CSV only (without retraining)
+npm run ml:export-results
+```
+
+**Output:** `ml/training-results.csv`
+
+### Version Management Commands
+
+```bash
+# Rename a version tag (copies models and deletes old tag)
+npm run ml:rename-tag -- "dev-temp" "dev-1"
+npm run ml:rename-tag -- "dev-1" "prod-1"
+
+# List all version tags with statistics
+npm run ml:list-versions
+
+# Switch active production version
+npm run ml:switch-prod -- "prod-1"
+
+# Delete a version tag
+npm run ml:delete-version -- "dev-1"
+npm run ml:delete-version -- "prod-1"  # Requires confirmation
+```
+
+### Analysis Commands
+
+```bash
+# Compare training results summaries
+npm run ml:compare
+```
+
+---
+
 ## How to run ML
 
 ### Train models and export CSV
 
 ```bash
-npm run train:ml
+npm run ml:train
 ```
+
+This command:
+1. Trains all ML models using historical data
+2. Saves models with version tag `"dev-temp"`
+3. Exports training results to CSV
 
 ### Export CSV only
 
 ```bash
-npm run train:export-results
+npm run ml:export-results
 ```
 
-Output:
+**Output:**
 - `ml/training-results.csv`
 
-Export script:
+**Export script:**
 - `scripts/ml/export-training-results-from-convex.ts`
 
 ---
@@ -1033,75 +1090,64 @@ Export script:
 
 ### Overview
 
-The ML system uses a versioning scheme to separate development and production models, enabling safe experimentation while maintaining stable production predictions. Models progress through a lifecycle: **dev-temp** → **dev-x** → **prod-y**.
+The ML system uses a simple tag-based versioning scheme to separate development and production models, enabling safe experimentation while maintaining stable production predictions. Models progress through a lifecycle: **dev-temp** → **dev-x** → **prod-y**.
 
 ### Version Lifecycle
 
 ```
 Training → dev-temp → dev-x → prod-y → Production Predictions
-          (auto)     (manual)  (manual)  (config-based)
+          (auto)     (rename)  (rename)  (switch)
 ```
 
-1. **Training**: New models are automatically saved as `dev-temp` (versionType: "dev", versionNumber: -1)
-2. **Promote to dev**: Manually promote dev-temp to a named dev version (e.g., dev-1, dev-2)
-3. **Promote to prod**: Manually copy a dev version to a production version (e.g., prod-1, prod-2)
-4. **Production**: Predictions use the active production version specified in config
+1. **Training**: New models are automatically saved with `versionTag: "dev-temp"`
+2. **Rename to dev**: Manually rename dev-temp to a named dev version (e.g., "dev-1", "dev-2")
+3. **Rename to prod**: Manually rename a dev version to a production version (e.g., "prod-1", "prod-2")
+4. **Activate prod**: Set the production version tag as active for predictions
 
-### Version Types
+### Version Tags
 
-- **dev-temp**: Temporary development version created during training (versionNumber: -1)
-- **dev-x**: Named development versions for testing and evaluation (versionNumber: positive integer)
-- **prod-y**: Production versions used for real-time predictions (versionNumber: positive integer)
+Version tags are arbitrary strings. Common conventions:
+- **"dev-temp"**: Temporary development version created during training (default)
+- **"dev-1"**, **"dev-2"**, etc.: Named development versions for testing and evaluation
+- **"prod-1"**, **"prod-2"**, etc.: Production versions used for real-time predictions
+
+You can use any tag format (e.g., "staging-1", "experimental-abc"), but the `dev-*` and `prod-*` prefixes are recommended for clarity.
 
 ### Database Schema
 
-Models include versioning fields:
-- `versionType`: `"dev" | "prod"`
-- `versionNumber`: `number` (-1 for dev-temp, positive integers for versioned models)
+Models include a single versioning field:
+- `versionTag`: `string` (e.g., "dev-temp", "dev-1", "prod-1")
 
-The `mlConfig` table stores the active production version used for predictions.
+The `modelConfig` table stores the active production version tag used for predictions.
 
-### Version Management Scripts
+### Version Management Workflow
 
-All version management scripts are located in `scripts/ml/`:
-
-#### 1. Promote dev-temp to dev-x
+#### 1. Rename version tag
 
 ```bash
-npm run ml:promote-dev -- <version>
+npm run ml:rename-tag -- <from-tag> <to-tag>
 ```
 
-Promotes all dev-temp models to a named dev version and automatically deletes dev-temp.
+Renames a version tag by copying all models to the new tag and deleting the old tag. This is the primary way to promote models through the lifecycle.
 
-**Example:**
+**Examples:**
 ```bash
-npm run ml:promote-dev -- 1
+# Rename dev-temp to a named dev version
+npm run ml:rename-tag -- "dev-temp" "dev-1"
+
+# Rename dev version to prod version
+npm run ml:rename-tag -- "dev-1" "prod-1"
 ```
 
-This creates `dev-1` from all current `dev-temp` models.
+**Note:** Cannot rename the currently active production version. Switch to a different version first.
 
-#### 2. Promote dev-x to prod-y
-
-```bash
-npm run ml:promote-prod -- <dev-version> <prod-version>
-```
-
-Copies all models from a dev version to a production version and sets it as the active production version.
-
-**Example:**
-```bash
-npm run ml:promote-prod -- 1 1
-```
-
-This copies all models from `dev-1` to `prod-1` and activates `prod-1` for predictions.
-
-#### 3. List all versions
+#### 2. List all versions
 
 ```bash
 npm run ml:list-versions
 ```
 
-Displays all dev and prod versions with:
+Displays all version tags with:
 - Model counts per version
 - Creation timestamps
 - Currently active production version (marked with ⭐)
@@ -1119,43 +1165,43 @@ Displays all dev and prod versions with:
 ✅ Active production version: prod-1
 ```
 
-#### 4. Switch production version
+#### 3. Switch production version
 
 ```bash
-npm run ml:switch-prod -- <prod-version>
+npm run ml:switch-prod -- <version-tag>
 ```
 
-Changes the active production version used for predictions without creating new models.
+Changes the active production version tag used for predictions without creating new models.
 
 **Example:**
 ```bash
-npm run ml:switch-prod -- 2
+npm run ml:switch-prod -- "prod-2"
 ```
 
 This switches predictions to use `prod-2` (must already exist).
 
-#### 5. Delete version
+#### 4. Delete version tag
 
 ```bash
-npm run ml:delete-version -- <type> <version>
+npm run ml:delete-version -- <version-tag>
 ```
 
-Deletes all models for a specific version. Requires confirmation for production versions and prevents deletion of the currently active production version.
+Deletes all models for a specific version tag. Requires confirmation for production versions and prevents deletion of the currently active production version.
 
 **Examples:**
 ```bash
-npm run ml:delete-version -- dev 1      # Delete dev-1
-npm run ml:delete-version -- dev -1     # Delete dev-temp
-npm run ml:delete-version -- prod 2     # Delete prod-2 (with confirmation)
+npm run ml:delete-version -- "dev-1"      # Delete dev-1
+npm run ml:delete-version -- "dev-temp"   # Delete dev-temp
+npm run ml:delete-version -- "prod-2"     # Delete prod-2 (with confirmation)
 ```
 
 ### Production Version Selection
 
-The prediction system automatically uses the active production version stored in the `mlConfig` table. When making predictions:
+The prediction system automatically uses the active production version tag stored in the `modelConfig` table. When making predictions:
 
-1. The system queries `mlConfig` for the current `productionVersion`
-2. Models are loaded with `versionType: "prod"` and the specified `versionNumber`
-3. If no production version is set, the system falls back to legacy behavior (any model matching pair+type)
+1. The system queries `modelConfig` for the current `productionVersionTag`
+2. Models are loaded with the specified `versionTag`
+3. If no production version tag is set, the system falls back to any model matching pair+type
 
 **Implementation:**
 - Query: `convex/functions/predictions/queries.ts` (`getModelParametersForProduction`)
@@ -1164,14 +1210,15 @@ The prediction system automatically uses the active production version stored in
 ### Best Practices
 
 1. **Training Workflow**:
-   - Run `npm run train:ml` to create new dev-temp models
-   - Evaluate dev-temp performance before promoting
-   - Promote to dev-x when satisfied with results
+   - Run `npm run ml:train` to create new models with tag `"dev-temp"`
+   - Evaluate dev-temp performance before renaming
+   - Rename to a named dev tag (e.g., "dev-1") when satisfied with results
 
 2. **Production Deployment**:
-   - Test dev versions thoroughly before promoting to prod
-   - Use descriptive version numbers (1, 2, 3, etc.)
-   - Keep dev versions for reference after promoting to prod
+   - Test dev versions thoroughly before renaming to prod
+   - Use descriptive tag names (e.g., "prod-1", "prod-2")
+   - Keep dev versions for reference after renaming to prod
+   - Remember to activate the production version after renaming
 
 3. **Version Management**:
    - List versions regularly to track model history
@@ -1186,8 +1233,8 @@ The prediction system automatically uses the active production version stored in
 ### Database Indexes
 
 Version-aware indexes enable efficient queries:
-- `by_pair_type_version`: Query by route, model type, and version
-- `by_version`: Query all models for a specific version
+- `by_pair_type_tag`: Query by route, model type, and version tag
+- `by_version_tag`: Query all models for a specific version tag
 
 **Schema:**
 - `convex/functions/predictions/schemas.ts` (`modelParametersSchema`)
@@ -1248,11 +1295,11 @@ Version management scripts:
 
 ```
 scripts/ml/
-├── ml-version-promote-dev.ts
-├── ml-version-promote-prod.ts
+├── ml-version-rename.ts
 ├── ml-version-list.ts
 ├── ml-version-switch-prod.ts
 ├── ml-version-delete.ts
 ├── export-training-results-from-convex.ts
-└── compare-summaries.ts
+├── compare-summaries.ts
+└── migrate-to-version-tag.ts
 ```
