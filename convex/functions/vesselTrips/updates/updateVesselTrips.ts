@@ -5,31 +5,29 @@ import {
   updatePredictionsWithActuals,
 } from "domain/ml/prediction";
 import { extractPredictionRecord } from "functions/predictions/utils";
-import {
-  type ConvexVesselLocation,
-  toConvexVesselLocation,
-} from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   type ConvexVesselTrip,
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import { stripConvexMeta } from "shared/stripConvexMeta";
-import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 import { enrichTripFields } from "./locationEnrichment";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
 
 /**
  * Main orchestration function for updating active vessel trips.
  *
- * Fetches current vessel locations and active trips, then processes each vessel
- * to handle trip lifecycle events (first trips, new trips, trip updates).
- * Manages trip enrichment, prediction generation, and database persistence.
+ * Processes vessel locations and active trips to handle trip lifecycle events
+ * (first trips, new trips, trip updates). Manages trip enrichment, prediction
+ * generation, and database persistence.
  *
  * @param ctx - Convex action context for database operations
+ * @param locations - Array of vessel locations to process (already converted and deduplicated)
  */
-export const runUpdateVesselTrips = async (ctx: ActionCtx): Promise<void> => {
+export const runUpdateVesselTrips = async (
+  ctx: ActionCtx,
+  locations: ConvexVesselLocation[]
+): Promise<void> => {
   // Fetch current active trips and index them by vessel for O(1) lookup.
   const existingTripsList = (
     await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips)
@@ -39,19 +37,8 @@ export const runUpdateVesselTrips = async (ctx: ActionCtx): Promise<void> => {
     existingTripsList.map((trip) => [trip.VesselAbbrev, trip])
   ) as Record<string, ConvexVesselTrip>;
 
-  // Fetch and normalize current vessel locations into Convex-friendly shape.
-  const convexVesselLocations = (
-    (await fetchVesselLocations()) as unknown as DottieVesselLocation[]
-  )
-    .map(toConvexVesselLocation)
-    .map(convertConvexVesselLocation);
-
-  const latestVesselLocations = dedupeVesselLocationsByTimestamp(
-    convexVesselLocations
-  );
-
   // Process each vessel independently.
-  for (const currLocation of latestVesselLocations) {
+  for (const currLocation of locations) {
     const existingTrip = existingTripsDict[currLocation.VesselAbbrev];
 
     // Case: first sighting for this vessel.
@@ -292,26 +279,3 @@ const isNewTrip = (
   currLocation: ConvexVesselLocation
 ): boolean =>
   existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
-
-/**
- * Deduplicates vessel locations by vessel, keeping only the most recent location per vessel.
- * @param locations - Array of vessel locations to deduplicate
- * @returns Array of deduplicated locations, one per vessel with most recent timestamp
- */
-const dedupeVesselLocationsByTimestamp = (
-  locations: ConvexVesselLocation[]
-): ConvexVesselLocation[] => {
-  const sortedOldestFirst = [...locations].sort(
-    (a, b) => a.TimeStamp - b.TimeStamp
-  );
-
-  const byVessel = sortedOldestFirst.reduce<
-    Record<string, ConvexVesselLocation>
-  >((acc, location) => {
-    // Oldest-to-newest ordering means the newest record overwrites prior ones.
-    acc[location.VesselAbbrev] = location;
-    return acc;
-  }, {});
-
-  return Object.values(byVessel);
-};

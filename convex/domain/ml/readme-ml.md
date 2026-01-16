@@ -347,8 +347,11 @@ route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`).
 
 ### How predictions are generated in VesselTrips
 
-Predictions are generated and stored as part of the VesselTrips “realtime sync”
-action `updateVesselTrips` (entrypoint: `convex/functions/vesselTrips/actions.ts`, implementation: `convex/functions/vesselTrips/updates/updateVesselTrips.ts`).
+Predictions are generated and stored as part of the vessel orchestrator action
+`updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`).
+The orchestrator fetches vessel locations once, deduplicates them, and delegates to
+both `updateVesselLocations` and `runUpdateVesselTrips` subroutines with error isolation.
+The trip update logic is implemented in `convex/functions/vesselTrips/updates/updateVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
 
@@ -393,10 +396,11 @@ observed:
 - `AtSeaArriveNext.Actual`: set when the trip completes (`TripEnd` becomes known)
   - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`updatePredictionsWithActuals`)
 - `AtDockDepartNext.Actual` / `AtSeaDepartNext.Actual`: set when the *next* trip
-  leaves dock (the next trip’s `LeftDock` is the previous trip’s “depart next”
+  leaves dock (the next trip's `LeftDock` is the previous trip's "depart next"
   actual), using `setDepartNextActualsForMostRecentCompletedTrip`.
   - Trigger: `convex/functions/vesselTrips/updates/updateVesselTrips.ts` (`handleTripUpdate`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
+  - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 
 #### Feature Engineering Pipeline
 **Temporal Safety**: Use only features available at prediction time
@@ -1021,7 +1025,173 @@ Output:
 - `ml/training-results.csv`
 
 Export script:
-- `scripts/export-training-results-from-convex.ts`
+- `scripts/ml/export-training-results-from-convex.ts`
+
+---
+
+## Model Versioning System
+
+### Overview
+
+The ML system uses a versioning scheme to separate development and production models, enabling safe experimentation while maintaining stable production predictions. Models progress through a lifecycle: **dev-temp** → **dev-x** → **prod-y**.
+
+### Version Lifecycle
+
+```
+Training → dev-temp → dev-x → prod-y → Production Predictions
+          (auto)     (manual)  (manual)  (config-based)
+```
+
+1. **Training**: New models are automatically saved as `dev-temp` (versionType: "dev", versionNumber: -1)
+2. **Promote to dev**: Manually promote dev-temp to a named dev version (e.g., dev-1, dev-2)
+3. **Promote to prod**: Manually copy a dev version to a production version (e.g., prod-1, prod-2)
+4. **Production**: Predictions use the active production version specified in config
+
+### Version Types
+
+- **dev-temp**: Temporary development version created during training (versionNumber: -1)
+- **dev-x**: Named development versions for testing and evaluation (versionNumber: positive integer)
+- **prod-y**: Production versions used for real-time predictions (versionNumber: positive integer)
+
+### Database Schema
+
+Models include versioning fields:
+- `versionType`: `"dev" | "prod"`
+- `versionNumber`: `number` (-1 for dev-temp, positive integers for versioned models)
+
+The `mlConfig` table stores the active production version used for predictions.
+
+### Version Management Scripts
+
+All version management scripts are located in `scripts/ml/`:
+
+#### 1. Promote dev-temp to dev-x
+
+```bash
+npm run ml:promote-dev -- <version>
+```
+
+Promotes all dev-temp models to a named dev version and automatically deletes dev-temp.
+
+**Example:**
+```bash
+npm run ml:promote-dev -- 1
+```
+
+This creates `dev-1` from all current `dev-temp` models.
+
+#### 2. Promote dev-x to prod-y
+
+```bash
+npm run ml:promote-prod -- <dev-version> <prod-version>
+```
+
+Copies all models from a dev version to a production version and sets it as the active production version.
+
+**Example:**
+```bash
+npm run ml:promote-prod -- 1 1
+```
+
+This copies all models from `dev-1` to `prod-1` and activates `prod-1` for predictions.
+
+#### 3. List all versions
+
+```bash
+npm run ml:list-versions
+```
+
+Displays all dev and prod versions with:
+- Model counts per version
+- Creation timestamps
+- Currently active production version (marked with ⭐)
+
+**Example output:**
+```
+📦 Development Versions:
+  dev-temp       12 models  created: 2024-01-15T10:30:00.000Z
+  dev-1          45 models  created: 2024-01-14T08:00:00.000Z
+
+🚀 Production Versions:
+  prod-1         45 models  created: 2024-01-14T08:00:00.000Z ⭐ ACTIVE
+  prod-2         48 models  created: 2024-01-13T15:20:00.000Z
+
+✅ Active production version: prod-1
+```
+
+#### 4. Switch production version
+
+```bash
+npm run ml:switch-prod -- <prod-version>
+```
+
+Changes the active production version used for predictions without creating new models.
+
+**Example:**
+```bash
+npm run ml:switch-prod -- 2
+```
+
+This switches predictions to use `prod-2` (must already exist).
+
+#### 5. Delete version
+
+```bash
+npm run ml:delete-version -- <type> <version>
+```
+
+Deletes all models for a specific version. Requires confirmation for production versions and prevents deletion of the currently active production version.
+
+**Examples:**
+```bash
+npm run ml:delete-version -- dev 1      # Delete dev-1
+npm run ml:delete-version -- dev -1     # Delete dev-temp
+npm run ml:delete-version -- prod 2     # Delete prod-2 (with confirmation)
+```
+
+### Production Version Selection
+
+The prediction system automatically uses the active production version stored in the `mlConfig` table. When making predictions:
+
+1. The system queries `mlConfig` for the current `productionVersion`
+2. Models are loaded with `versionType: "prod"` and the specified `versionNumber`
+3. If no production version is set, the system falls back to legacy behavior (any model matching pair+type)
+
+**Implementation:**
+- Query: `convex/functions/predictions/queries.ts` (`getModelParametersForProduction`)
+- Prediction: `convex/domain/ml/prediction/predictTrip.ts` (`loadModelForPair`)
+
+### Best Practices
+
+1. **Training Workflow**:
+   - Run `npm run train:ml` to create new dev-temp models
+   - Evaluate dev-temp performance before promoting
+   - Promote to dev-x when satisfied with results
+
+2. **Production Deployment**:
+   - Test dev versions thoroughly before promoting to prod
+   - Use descriptive version numbers (1, 2, 3, etc.)
+   - Keep dev versions for reference after promoting to prod
+
+3. **Version Management**:
+   - List versions regularly to track model history
+   - Switch production versions during low-traffic periods
+   - Delete old versions only after confirming new versions work correctly
+
+4. **Safety**:
+   - The system prevents deletion of the active production version
+   - Always switch to a different prod version before deleting
+   - Production version changes take effect immediately for new predictions
+
+### Database Indexes
+
+Version-aware indexes enable efficient queries:
+- `by_pair_type_version`: Query by route, model type, and version
+- `by_version`: Query all models for a specific version
+
+**Schema:**
+- `convex/functions/predictions/schemas.ts` (`modelParametersSchema`)
+- `convex/schema.ts` (table definitions)
 
 ---
 
@@ -1074,3 +1244,15 @@ convex/functions/predictions/
 └── queries.ts
 ```
 
+Version management scripts:
+
+```
+scripts/ml/
+├── ml-version-promote-dev.ts
+├── ml-version-promote-prod.ts
+├── ml-version-list.ts
+├── ml-version-switch-prod.ts
+├── ml-version-delete.ts
+├── export-training-results-from-convex.ts
+└── compare-summaries.ts
+```

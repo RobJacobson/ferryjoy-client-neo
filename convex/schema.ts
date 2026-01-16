@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import {
+  mlConfigSchema,
   modelParametersSchema,
   predictionRecordSchema,
 } from "functions/predictions/schemas";
@@ -59,10 +60,15 @@ export default defineSchema({
   ),
 
   // Prediction model parameters (pair buckets)
-  modelParameters: defineTable(modelParametersSchema).index(
-    "by_pair_and_type",
-    ["pairKey", "modelType"]
-  ),
+  modelParameters: defineTable(modelParametersSchema)
+    .index("by_pair_and_type", ["pairKey", "modelType"])
+    .index("by_pair_type_version", [
+      "pairKey",
+      "modelType",
+      "versionType",
+      "versionNumber",
+    ])
+    .index("by_version", ["versionType", "versionNumber"]),
 
   // Completed ML predictions - one row per completed prediction
   predictions: defineTable(predictionRecordSchema)
@@ -71,4 +77,7 @@ export default defineSchema({
     .index("by_prediction_type", ["PredictionType"])
     .index("by_pred_time", ["PredTime"])
     .index("by_vessel_and_type", ["VesselAbbreviation", "PredictionType"]),
+
+  // ML configuration - singleton table for runtime config values
+  mlConfig: defineTable(mlConfigSchema).index("by_key", ["key"]),
 });

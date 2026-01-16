@@ -256,6 +256,13 @@ export const ML_CONFIG = {
       trainRatio: 0.8,
       minTrainExamples: 200,
     },
+    /**
+     * Production model version configuration.
+     *
+     * Determines which production version is used for real-time predictions.
+     * Stored in database for runtime updates; this is the default value.
+     */
+    productionVersion: null as number | null,
   },
 } as const;
 
@@ -350,6 +357,13 @@ export const config = {
    * @returns Minimum training examples for valid model training
    */
   getMinTrainExamples: () => ML_CONFIG.pipeline.evaluation.minTrainExamples,
+
+  /**
+   * Get the current production version number.
+   * @returns Production version number or null if not set
+   * @note This returns the default from config; actual runtime value is stored in database
+   */
+  getProductionVersion: () => ML_CONFIG.pipeline.productionVersion,
 } as const;
 
 /**

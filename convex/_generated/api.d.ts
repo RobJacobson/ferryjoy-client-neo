@@ -51,12 +51,12 @@ import type * as functions_scheduledTrips_sync_infrastructure from "../functions
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
 import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
-import type * as functions_utils from "../functions/utils.js";
-import type * as functions_vesselLocation_actions from "../functions/vesselLocation/actions.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
 import type * as functions_vesselLocation_queries from "../functions/vesselLocation/queries.js";
 import type * as functions_vesselLocation_schemas from "../functions/vesselLocation/schemas.js";
+import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
+import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
 import type * as functions_vesselPing_actions from "../functions/vesselPing/actions.js";
 import type * as functions_vesselPing_index from "../functions/vesselPing/index.js";
 import type * as functions_vesselPing_mutations from "../functions/vesselPing/mutations.js";
@@ -67,7 +67,6 @@ import type * as functions_vesselPings_index from "../functions/vesselPings/inde
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
-import type * as functions_vesselTrips_actions from "../functions/vesselTrips/actions.js";
 import type * as functions_vesselTrips_index from "../functions/vesselTrips/index.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
@@ -134,12 +133,12 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
   "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
-  "functions/utils": typeof functions_utils;
-  "functions/vesselLocation/actions": typeof functions_vesselLocation_actions;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
   "functions/vesselLocation/queries": typeof functions_vesselLocation_queries;
   "functions/vesselLocation/schemas": typeof functions_vesselLocation_schemas;
+  "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
+  "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
   "functions/vesselPing/actions": typeof functions_vesselPing_actions;
   "functions/vesselPing/index": typeof functions_vesselPing_index;
   "functions/vesselPing/mutations": typeof functions_vesselPing_mutations;
@@ -150,7 +149,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
-  "functions/vesselTrips/actions": typeof functions_vesselTrips_actions;
   "functions/vesselTrips/index": typeof functions_vesselTrips_index;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;

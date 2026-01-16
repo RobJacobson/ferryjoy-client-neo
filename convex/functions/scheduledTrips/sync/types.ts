@@ -1,14 +1,3 @@
-import type { ConvexScheduledTrip } from "../schemas";
-
-/**
- * Type for scheduled trip document as returned from database queries
- * Includes _id and _creationTime fields
- */
-export type ScheduledTripDoc = ConvexScheduledTrip & {
-  _id: string;
-  _creationTime: number;
-};
-
 /**
  * Internal type representing a scheduled vessel sailing from WSF API terminal combinations.
  * Contains vessel details and timing information for a specific departure/arrival.

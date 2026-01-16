@@ -73,6 +73,7 @@ const isMutationCtx = (ctx: ActionCtx | MutationCtx): ctx is MutationCtx =>
 
 /**
  * Load trained ML model for specific route and prediction type.
+ * Uses the active production version from config for predictions.
  *
  * Handles different Convex contexts (actions vs mutations) which have
  * different APIs for database access. Actions must use queries while
@@ -89,19 +90,42 @@ const loadModelForPair = async (
   modelType: ModelType
 ): Promise<ModelDoc | null> => {
   if (isMutationCtx(ctx)) {
-    // Mutations have direct database access - use query API directly
+    // Mutations have direct database access
+    // Get production version from config
+    const config = await ctx.db
+      .query("mlConfig")
+      .withIndex("by_key", (q) => q.eq("key", "productionVersion"))
+      .first();
+
+    const prodVersion = config?.productionVersion;
+    if (prodVersion === null || prodVersion === undefined) {
+      // Fallback: try to find any model (for backward compatibility)
+      const doc = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_pair_and_type", (q) =>
+          q.eq("pairKey", pairKey).eq("modelType", modelType)
+        )
+        .first();
+      return doc as ModelDoc | null;
+    }
+
+    // Query with production version
     const doc = await ctx.db
       .query("modelParameters")
-      .withIndex("by_pair_and_type", (q) =>
-        q.eq("pairKey", pairKey).eq("modelType", modelType)
+      .withIndex("by_pair_type_version", (q) =>
+        q
+          .eq("pairKey", pairKey)
+          .eq("modelType", modelType)
+          .eq("versionType", "prod")
+          .eq("versionNumber", prodVersion)
       )
       .first();
     return doc as ModelDoc | null;
   }
 
-  // Actions don't have direct DB access - use query functions instead
+  // Actions don't have direct DB access - use production query
   const doc = await ctx.runQuery(
-    api.functions.predictions.queries.getModelParametersByPair,
+    api.functions.predictions.queries.getModelParametersForProduction,
     { pairKey, modelType }
   );
   return doc as ModelDoc | null;

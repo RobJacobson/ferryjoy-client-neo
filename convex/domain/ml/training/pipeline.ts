@@ -102,14 +102,9 @@ const trainAllModels = async (
 export const runMLPipeline = async (
   ctx: ActionCtx
 ): Promise<TrainingResponse> => {
-  // Start with clean slate - remove existing models to prevent confusion
-  // This ensures we don't have stale models from previous training runs
-  await ctx.runMutation(
-    api.functions.predictions.mutations.deleteAllModelParametersMutation,
-    {}
-  );
-
   // Load historical training data (720 days ≈ 2 years of ferry operations)
+  // Note: Models are now versioned, so we don't delete existing models.
+  // New training runs create dev-temp versions that can be promoted later.
   const wsfRecords = await loadWsfTrainingData();
 
   // Build training windows from consecutive vessel trips
