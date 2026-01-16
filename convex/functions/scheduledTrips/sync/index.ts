@@ -1,6 +1,6 @@
 // Export types
 
-export { filterOverlappingTrips } from "./businessLogic";
+export { classifyTripsByType } from "./businessLogic";
 
 // Export functions used internally by sync.ts
 export { createScheduledTrip } from "./dataTransformation";

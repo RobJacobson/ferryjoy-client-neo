@@ -45,7 +45,7 @@ export const deleteScheduledTripsForDate = mutation({
 
 /**
  * Bulk insert scheduled trips without deduplication logic.
- * Assumes the caller has already resolved overlapping routes via filtering.
+ * Assumes the caller has already classified trips as direct/indirect via classification.
  * Used during sync operations to populate fresh schedule data.
  *
  * @param ctx - Convex mutation context
@@ -56,7 +56,7 @@ export const insertScheduledTrips = mutation({
   args: { trips: v.array(scheduledTripSchema) },
   handler: async (ctx, args: { trips: ConvexScheduledTrip[] }) => {
     try {
-      // Insert all trips (filtering has already resolved overlaps)
+      // Insert all trips (classification has already set TripType)
       for (const trip of args.trips) {
         await ctx.db.insert("scheduledTrips", trip);
       }

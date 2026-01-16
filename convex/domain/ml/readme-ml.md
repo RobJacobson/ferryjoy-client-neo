@@ -328,6 +328,11 @@ Important details:
 #### ScheduledTrips chain fields
 
 During sync, we compute (per ScheduledTrip):
+- `TripType`: classification as "direct" or "indirect" trip
+  - Direct trips: consecutive terminal pairs (A→B, B→C)
+  - Indirect trips: skip intermediate terminals (A→C when A→B→C exists)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`classifyTripsByType`)
+  - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `PrevKey`: the previous trip’s `Key` for this vessel (chronological chain)
   - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
@@ -342,8 +347,10 @@ During sync, we compute (per ScheduledTrip):
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
   - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
 
-These are computed only after vessel-level filtering resolves overlapping/ambiguous
-route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`).
+These are computed only after vessel-level classification resolves overlapping/ambiguous
+route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`). The classification
+process marks trips as direct or indirect instead of filtering them out, allowing both types
+to be stored while maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
@@ -363,6 +370,10 @@ For each active vessel trip update:
   VesselTrip as `ScheduledTrip` (with light throttling to avoid DB churn).
   - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`enrichTripStartUpdates`, `fetchScheduledTripFieldsByKey`)
   - Query: `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
+- **Safety**: Only direct trips match VesselTrips. Indirect trips have different
+  terminal pairs (A→C vs A→B), so their composite keys are inherently different.
+  An explicit check ensures `TripType === "direct"` (defensive programming).
+  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`fetchScheduledTripFieldsByKey`)
 - If `Key` changes, we clear derived data (scheduled snapshot + predictions) to
   prevent mixing identities.
   - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE`)

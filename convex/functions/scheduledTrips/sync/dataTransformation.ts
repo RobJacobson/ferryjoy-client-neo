@@ -111,6 +111,9 @@ export const createScheduledTrip = (
     RouteAbbrev: route.RouteAbbrev || "",
     Key: key,
     SailingDay: tripDate,
+    // TripType will be set correctly by classifyTripsByType() during sync
+    // Default to "direct" as most trips are direct; classification will correct this
+    TripType: "direct",
   };
 
   return trip;

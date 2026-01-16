@@ -91,9 +91,13 @@ const shouldLookupScheduledTrip = (
  * We store a snapshot copy (`ScheduledTrip`) for debugging/explainability and
  * keep a few core fields denormalized at the top-level for quick access.
  *
+ * Safety check: Only matches direct trips. Indirect trips have different terminal
+ * pairs (A->C vs A->B), so they have different keys and won't match. This explicit
+ * check provides additional defensive programming.
+ *
  * @param ctx - Convex action context for database queries
  * @param tripKey - Composite trip key to lookup ScheduledTrip
- * @returns Partial VesselTrip patch with ScheduledTrip data, or null if not found
+ * @returns Partial VesselTrip patch with ScheduledTrip data, or null if not found or indirect
  */
 const fetchScheduledTripFieldsByKey = async (
   ctx: ActionCtx,
@@ -109,6 +113,17 @@ const fetchScheduledTripFieldsByKey = async (
   }
 
   const scheduledTrip = stripConvexMeta(scheduledTripDoc);
+
+  // Safety check: Only use direct trips for VesselTrips
+  // Indirect trips have different keys (different terminal pairs), so this
+  // should never happen, but we check defensively
+  if (scheduledTrip.TripType === "indirect") {
+    console.warn(
+      `Attempted to match indirect trip with key ${tripKey} - this should not happen due to different terminal pairs`
+    );
+    return null;
+  }
+
   return {
     ScheduledTrip: scheduledTrip,
     RouteID: scheduledTrip.RouteID,
