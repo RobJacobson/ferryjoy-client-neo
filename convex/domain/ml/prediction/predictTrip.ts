@@ -91,14 +91,14 @@ const loadModelForPair = async (
 ): Promise<ModelDoc | null> => {
   if (isMutationCtx(ctx)) {
     // Mutations have direct database access
-    // Get production version from config
+    // Get production version tag from config
     const config = await ctx.db
-      .query("mlConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersion"))
+      .query("modelConfig")
+      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
       .first();
 
-    const prodVersion = config?.productionVersion;
-    if (prodVersion === null || prodVersion === undefined) {
+    const prodVersionTag = config?.productionVersionTag;
+    if (!prodVersionTag) {
       // Fallback: try to find any model (for backward compatibility)
       const doc = await ctx.db
         .query("modelParameters")
@@ -109,15 +109,14 @@ const loadModelForPair = async (
       return doc as ModelDoc | null;
     }
 
-    // Query with production version
+    // Query with production version tag
     const doc = await ctx.db
       .query("modelParameters")
-      .withIndex("by_pair_type_version", (q) =>
+      .withIndex("by_pair_type_tag", (q) =>
         q
           .eq("pairKey", pairKey)
           .eq("modelType", modelType)
-          .eq("versionType", "prod")
-          .eq("versionNumber", prodVersion)
+          .eq("versionTag", prodVersionTag)
       )
       .first();
     return doc as ModelDoc | null;

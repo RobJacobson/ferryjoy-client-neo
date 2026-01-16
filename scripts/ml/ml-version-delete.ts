@@ -1,6 +1,6 @@
 // ============================================================================
-// ML VERSION MANAGEMENT - Delete version
-// Deletes all models for a specific dev or prod version
+// ML VERSION MANAGEMENT - Delete version tag
+// Deletes all models for a specific version tag
 // ============================================================================
 
 import * as readline from "node:readline";
@@ -25,26 +25,14 @@ function askQuestion(query: string): Promise<string> {
 }
 
 /**
- * Delete a version (dev or prod).
+ * Delete a version tag.
  *
- * @param versionType - "dev" or "prod"
- * @param versionNumber - The version number to delete
+ * @param versionTag - The version tag to delete (e.g., "dev-1", "prod-1")
  */
-async function deleteVersion(
-  versionType: "dev" | "prod",
-  versionNumber: number
-) {
-  // Allow -1 for dev-temp, but require positive integers for other versions
-  if (versionType === "dev") {
-    if (versionNumber !== -1 && (versionNumber <= 0 || !Number.isInteger(versionNumber))) {
-      console.error("Error: Dev version number must be -1 (dev-temp) or a positive integer");
-      process.exit(1);
-    }
-  } else {
-    if (versionNumber <= 0 || !Number.isInteger(versionNumber)) {
-      console.error("Error: Prod version number must be a positive integer");
-      process.exit(1);
-    }
+async function deleteVersion(versionTag: string) {
+  if (!versionTag || versionTag.trim() === "") {
+    console.error("Error: Version tag cannot be empty");
+    process.exit(1);
   }
 
   const convexUrl =
@@ -52,20 +40,13 @@ async function deleteVersion(
     process.env.EXPO_PUBLIC_CONVEX_URL ||
     "https://outstanding-caterpillar-504.convex.cloud";
 
-  const versionLabel =
-    versionType === "dev"
-      ? versionNumber === -1
-        ? "dev-temp"
-        : `dev-${versionNumber}`
-      : `prod-${versionNumber}`;
-
-  console.log(`Deleting ${versionLabel}...`);
+  console.log(`Deleting ${versionTag}...`);
   console.log(`Using Convex deployment: ${convexUrl}`);
 
   // Require confirmation for prod versions
-  if (versionType === "prod") {
+  if (versionTag.startsWith("prod-")) {
     const answer = await askQuestion(
-      `⚠️  Are you sure you want to delete ${versionLabel}? (yes/no): `
+      `⚠️  Are you sure you want to delete ${versionTag}? (yes/no): `
     );
     if (answer.toLowerCase() !== "yes") {
       console.log("Cancelled");
@@ -78,11 +59,11 @@ async function deleteVersion(
   try {
     const result = await convex.mutation(
       api.functions.predictions.mutations.deleteVersion,
-      { versionType, versionNumber }
+      { versionTag }
     );
 
     console.log(
-      `✅ Successfully deleted ${result.deleted} models from ${versionLabel}`
+      `✅ Successfully deleted ${result.deleted} models from ${versionTag}`
     );
   } catch (error: unknown) {
     const errorMessage =
@@ -101,25 +82,15 @@ async function deleteVersion(
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-if (args.length !== 2) {
-  console.error("Usage: npm run ml:delete-version -- <type> <version>");
-  console.error("Example: npm run ml:delete-version -- dev 1");
-  console.error("Example: npm run ml:delete-version -- prod 1");
+if (args.length !== 1) {
+  console.error("Usage: npm run ml:delete-version -- <version-tag>");
+  console.error('Example: npm run ml:delete-version -- "dev-1"');
+  console.error('Example: npm run ml:delete-version -- "prod-1"');
   process.exit(1);
 }
 
-const versionType = args[0] as "dev" | "prod";
-if (versionType !== "dev" && versionType !== "prod") {
-  console.error("Error: Type must be 'dev' or 'prod'");
-  process.exit(1);
-}
-
-const versionNumber = parseInt(args[1], 10);
-if (isNaN(versionNumber)) {
-  console.error("Error: Version must be a number");
-  process.exit(1);
-}
+const versionTag = args[0];
 
 if (require.main === module) {
-  deleteVersion(versionType, versionNumber).catch(console.error);
+  deleteVersion(versionTag).catch(console.error);
 }

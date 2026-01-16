@@ -17,11 +17,11 @@ crons.interval(
 
 // Weekly model retraining at 11:00 AM UTC on Mondays
 // Note: Convex cron jobs run in UTC, not local timezones
-crons.cron(
-  "retrain ml models",
-  "0 11 * * 1", // 11:00 AM UTC every Monday
-  internal.domain.ml.training.actions.trainPredictionModelsAction
-);
+// crons.cron(
+//   "retrain ml models",
+//   "0 11 * * 1", // 11:00 AM UTC every Monday
+//   internal.domain.ml.training.actions.trainPredictionModelsAction
+// );
 
 // Daily scheduled trips sync at 4:00 AM Pacific (between trip dates)
 // Pacific timezone: UTC-8 (standard) or UTC-7 (DST)
