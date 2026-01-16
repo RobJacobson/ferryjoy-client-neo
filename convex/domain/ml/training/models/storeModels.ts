@@ -12,6 +12,7 @@ import type { ModelParameters } from "../../shared/types";
  *
  * Transforms internal model representation to database-compatible schema
  * while maintaining all training metadata and performance metrics.
+ * New models are saved as dev-temp (versionType: "dev", versionNumber: -1).
  *
  * @param model - Trained model parameters from ML pipeline
  * @returns Convex-compatible model document
@@ -27,6 +28,8 @@ const toConvexModel = (model: ModelParameters) => {
     testMetrics: model.testMetrics,
     createdAt: model.createdAt,
     bucketStats: model.bucketStats,
+    versionType: "dev" as const,
+    versionNumber: -1, // dev-temp
   };
 };
 

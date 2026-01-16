@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
-import { api } from "../convex/_generated/api";
-import type { ConvexModelParameters } from "../convex/functions/predictions/schemas";
+import { api } from "../../convex/_generated/api";
+import type { ConvexModelParameters } from "../../convex/functions/predictions/schemas";
 
 type BucketType = "chain" | "pair";
 
