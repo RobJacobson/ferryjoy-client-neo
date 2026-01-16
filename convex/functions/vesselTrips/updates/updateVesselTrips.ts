@@ -10,6 +10,7 @@ import {
   type ConvexVesselTrip,
   toConvexVesselTrip,
 } from "functions/vesselTrips/schemas";
+import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { enrichTripFields } from "./locationEnrichment";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
@@ -95,6 +96,25 @@ const handleNewTrip = async (
     ...existingTripClean,
     TripEnd: currLocation.TimeStamp,
   };
+
+  // Calculate durations when trip ends (in minutes, rounded to nearest tenth).
+  // AtSeaDuration: time delta TripEnd - LeftDock
+  const atSeaDuration = calculateTimeDelta(
+    completedTripBase.LeftDock,
+    completedTripBase.TripEnd
+  );
+  if (atSeaDuration !== undefined) {
+    completedTripBase.AtSeaDuration = atSeaDuration;
+  }
+
+  // TotalDuration: time delta TripEnd - TripStart
+  const totalDuration = calculateTimeDelta(
+    completedTripBase.TripStart,
+    completedTripBase.TripEnd
+  );
+  if (totalDuration !== undefined) {
+    completedTripBase.TotalDuration = totalDuration;
+  }
 
   // Overlay "actuals" onto predictions (immutably), based on final state.
   const completedTrip = {
