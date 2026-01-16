@@ -1,4 +1,5 @@
 import { api } from "_generated/api";
+import { Doc } from "_generated/dataModel";
 import { type ActionCtx, internalAction } from "_generated/server";
 import {
   predictAtDockArriveNext,
@@ -89,9 +90,7 @@ const handleFirstTrip = async (
   ctx: ActionCtx,
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
-  const newTrip = toConvexVesselTrip(currLocation, {
-    TripStart: currLocation.TimeStamp,
-  });
+  const newTrip = toConvexVesselTrip(currLocation, {});
 
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
     trip: newTrip,
@@ -110,26 +109,21 @@ const handleNewTrip = async (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Promise<void> => {
-  // Creates a completed trip object by calculating final durations and setting TripEnd.
+  // Creates a completed trip object by setting TripEnd.
+  // Destructure to remove Convex internal fields that might be present
+  const { _id, _creationTime, ...existingTripClean } =
+    existingTrip as ConvexVesselTrip & { _id?: string; _creationTime?: number };
   const completedTripBase = {
-    ...existingTrip,
+    ...existingTripClean,
     TripEnd: currLocation.TimeStamp,
-    AtSeaDuration: calculateTimeDelta(
-      existingTrip.LeftDock,
-      currLocation.TimeStamp
-    ),
-    TotalDuration: calculateTimeDelta(
-      existingTrip.TripStart,
-      currLocation.TimeStamp
-    ),
   };
 
   const completedTrip = {
     ...completedTripBase,
-    ...updatePredictionsWithActuals(existingTrip, completedTripBase),
+    ...updatePredictionsWithActuals(existingTripClean, completedTripBase),
   };
 
-  // Create a new trip object with the completed trip's at-sea duration and total duration
+  // Create a new trip object
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
     // PrevTerminalAbbrev represents the *previous trip's departing terminal*
@@ -166,62 +160,50 @@ const handleTripUpdate = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip
 ) => {
-  const tripFieldUpdates = getTripFieldUpdatesFromLocation(
-    existingTrip,
-    currLocation
-  );
+  // Enriches the trip fields for a trip
+  const tripFieldUpdates = enrichTripFields(existingTrip, currLocation);
 
-  const updatedTrip: ConvexVesselTrip = {
+  // Enriches the scheduled trip fields for a trip
+  const tripStartUpdates = await enrichTripStartUpdates(ctx, {
     ...existingTrip,
     ...tripFieldUpdates,
+  });
+
+  // Enriches the at dock predictions for a trip
+  const atDockPredictions = await enrichAtDockPredictions(ctx, {
+    ...existingTrip,
+    ...tripFieldUpdates,
+  });
+
+  // Enriches the at sea predictions for a trip
+  const atSeaPredictions = await enrichAtSeaPredictions(ctx, {
+    ...existingTrip,
+    ...tripFieldUpdates,
+  });
+
+  // Creates the trip to upsert
+  const updatedData: Partial<ConvexVesselTrip> = {
+    ...tripFieldUpdates,
+    ...tripStartUpdates,
+    ...atDockPredictions,
+    ...atSeaPredictions,
   };
 
-  const didStartTrip =
-    !existingTrip.ArrivingTerminalAbbrev &&
-    Boolean(currLocation.ArrivingTerminalAbbrev);
-
-  const didLeaveDock = !existingTrip.LeftDock && Boolean(currLocation.LeftDock);
-
-  const predictionUpdates: Partial<ConvexVesselTrip> = {
-    ...(didStartTrip
-      ? await handleStartTrip(ctx, {
-          existingTrip,
-          updatedTrip,
-        })
-      : {}),
-    ...(didLeaveDock
-      ? await handleLeftDock(ctx, {
-          existingTrip,
-          updatedTrip,
-        })
-      : {}),
-  };
-
-  const updatedTripWithPredictions: ConvexVesselTrip = {
-    ...updatedTrip,
-    ...predictionUpdates,
-  };
-
-  const predictionActualUpdates = updatePredictionsWithActuals(
-    existingTrip,
-    updatedTripWithPredictions
-  );
-
-  const tripToUpsert: ConvexVesselTrip = {
-    ...updatedTripWithPredictions,
-    ...predictionActualUpdates,
-  };
-
-  if (
-    Object.keys(tripFieldUpdates).length === 0 &&
-    Object.keys(predictionUpdates).length === 0 &&
-    Object.keys(predictionActualUpdates).length === 0
-  ) {
+  // If the trip to upsert is empty, don't upsert
+  if (Object.keys(updatedData).length === 0) {
     return;
   }
 
+  console.log(currLocation.VesselAbbrev, Object.keys(updatedData), "updates:", {
+    ...updatedData,
+  });
+
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
-    trip: tripToUpsert,
+    trip: {
+      ...existingTrip,
+      ...updatedData,
+      TimeStamp: currLocation.TimeStamp,
+    },
   });
 };
 
@@ -229,147 +211,177 @@ const handleTripUpdate = async (
 // HELPERS
 // ============================================================================
 
-const getTripFieldUpdatesFromLocation = (
+/**
+ * Enriches the trip fields for a trip.
+ *
+ * @param existingTrip - The existing trip to enrich
+ * @param currLocation - The current vessel location data from WSF API
+ * @returns The enriched trip fields
+ */
+const enrichTripFields = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Partial<ConvexVesselTrip> => {
+  // Creates the updates object
   const updates: Partial<ConvexVesselTrip> = {};
 
+  // If the vessel's arriving terminal has changed, update the arriving terminal
   if (
     currLocation.ArrivingTerminalAbbrev !== existingTrip.ArrivingTerminalAbbrev
   ) {
     updates.ArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   }
 
+  // If the vessel's at dock status has changed, update the at dock status
   if (currLocation.AtDock !== existingTrip.AtDock) {
     updates.AtDock = currLocation.AtDock;
   }
 
+  // If the vessel's estimated arrival time has changed, update the estimated arrival time
   if (currLocation.Eta !== existingTrip.Eta) {
     updates.Eta = currLocation.Eta;
   }
 
+  // If the vessel's left dock time has changed, update the left dock time
   if (currLocation.LeftDock !== existingTrip.LeftDock) {
     updates.LeftDock = currLocation.LeftDock;
   }
 
+  // If the vessel's scheduled departure time has changed, update the scheduled departure time
   if (currLocation.ScheduledDeparture !== existingTrip.ScheduledDeparture) {
     updates.ScheduledDeparture = currLocation.ScheduledDeparture;
   }
 
+  // If the vessel's trip delay has changed, update the trip delay
   const tripDelay = calculateTimeDelta(
     currLocation.ScheduledDeparture,
     currLocation.LeftDock
   );
+
+  // If the vessel's trip delay has changed, update the trip delay
   if (tripDelay !== undefined && tripDelay !== existingTrip.TripDelay) {
     updates.TripDelay = tripDelay;
   }
 
-  const atDockDuration = calculateTimeDelta(
-    existingTrip.TripStart,
-    currLocation.LeftDock
-  );
-  if (
-    atDockDuration !== undefined &&
-    atDockDuration !== existingTrip.AtDockDuration
-  ) {
-    updates.AtDockDuration = atDockDuration;
-  }
-
+  // Return the updates
   return updates;
 };
 
-const handleStartTrip = async (
+/**
+ * Enriches the scheduled trip fields for a trip.
+ *
+ * @param ctx - The Convex action context for running mutations
+ * @param updatedTrip - The updated trip to enrich
+ * @returns The enriched scheduled trip fields
+ */
+const enrichTripStartUpdates = async (
   ctx: ActionCtx,
-  args: {
-    existingTrip: ConvexVesselTrip;
-    updatedTrip: ConvexVesselTrip;
-  }
+  existingTrip: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
-  const updates: Partial<ConvexVesselTrip> = {};
-
-  if (!args.updatedTrip.AtDock || args.updatedTrip.LeftDock) {
-    return updates;
-  }
-
   if (
-    args.existingTrip.AtDockDepartCurr ||
-    args.existingTrip.AtDockArriveNext
+    existingTrip.Key ||
+    !existingTrip.ScheduledDeparture ||
+    !existingTrip.DepartingTerminalAbbrev ||
+    !existingTrip.ArrivingTerminalAbbrev
   ) {
-    return updates;
+    return {};
   }
 
-  // Generate key and query for corresponding ScheduledTrip
   const tripKey = generateTripKey(
-    args.updatedTrip.VesselAbbrev,
-    args.updatedTrip.DepartingTerminalAbbrev,
-    args.updatedTrip.ArrivingTerminalAbbrev,
-    new Date(args.updatedTrip.DepartingTime)
+    existingTrip.VesselAbbrev,
+    existingTrip.DepartingTerminalAbbrev,
+    existingTrip.ArrivingTerminalAbbrev,
+    new Date(existingTrip.ScheduledDeparture)
   );
 
-  if (tripKey) {
-    try {
-      const scheduledTrip = await ctx.runQuery(
-        api.functions.scheduledTrips.queries.getScheduledTripByKey,
-        { key: tripKey }
-      );
+  if (!tripKey) {
+    return {};
+  }
 
-      if (scheduledTrip) {
-        // Copy ScheduledTrip information into VesselTrip using spread
-        Object.assign(updates, scheduledTrip);
-      } else {
-        console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
-      }
-    } catch (error) {
-      console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
+  // Query the ScheduledTrip
+  try {
+    console.log("Querying ScheduledTrip for key:", tripKey);
+    const scheduledTripDoc = await ctx.runQuery(
+      api.functions.scheduledTrips.queries.getScheduledTripByKey,
+      { key: tripKey }
+    );
+    // If the ScheduledTrip is found, return it without Convex internal fields
+    if (scheduledTripDoc) {
+      const { _id, _creationTime, ...scheduledTrip } = scheduledTripDoc;
+      return scheduledTrip as Partial<ConvexVesselTrip>;
+    } else {
+      console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
     }
+  } catch (error) {
+    console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
   }
 
-  const departCurrPrediction = await predictAtDockDepartCurr(
-    ctx,
-    args.updatedTrip
-  );
-  if (departCurrPrediction) {
-    updates.AtDockDepartCurr = departCurrPrediction;
-  }
-
-  const arriveNextPrediction = await predictAtDockArriveNext(
-    ctx,
-    args.updatedTrip
-  );
-  if (arriveNextPrediction) {
-    updates.AtDockArriveNext = arriveNextPrediction;
-  }
-
-  return updates;
+  // If the ScheduledTrip is not found, just return the key
+  return { Key: tripKey };
 };
 
-const handleLeftDock = async (
+/**
+ * Enriches the at dock predictions for a trip.
+ *
+ * @param ctx - The Convex action context for running mutations
+ * @param updatedTrip - The updated trip to enrich
+ * @returns The enriched at dock predictions
+ */
+const enrichAtDockPredictions = async (
   ctx: ActionCtx,
-  args: {
-    existingTrip: ConvexVesselTrip;
-    updatedTrip: ConvexVesselTrip;
-  }
+  updatedTrip: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
-  const updates: Partial<ConvexVesselTrip> = {};
-
-  if (!args.updatedTrip.LeftDock) {
-    return updates;
+  // If the trip is missing required fields, we don't need to predict
+  if (
+    !updatedTrip.TripStart ||
+    !updatedTrip.ArrivingTerminalAbbrev ||
+    !updatedTrip.PrevScheduledDeparture ||
+    !updatedTrip.PrevTerminalAbbrev
+  ) {
+    return {};
   }
 
-  if (args.existingTrip.AtSeaArriveNext) {
-    return updates;
+  // If the trip already has predictions, we don't need to predict again
+  if (updatedTrip.AtDockDepartCurr || updatedTrip.AtDockArriveNext) {
+    return {};
   }
 
-  const arriveNextPrediction = await predictAtSeaArriveNext(
-    ctx,
-    args.updatedTrip
-  );
-  if (arriveNextPrediction) {
-    updates.AtSeaArriveNext = arriveNextPrediction;
+  // Predict the departure current prediction
+  const departCurrPrediction = await predictAtDockDepartCurr(ctx, updatedTrip);
+
+  // Predict the arrival next prediction
+  const arriveNextPrediction = await predictAtDockArriveNext(ctx, updatedTrip);
+
+  // Return the predictions
+  return {
+    AtDockDepartCurr: departCurrPrediction ?? undefined,
+    AtDockArriveNext: arriveNextPrediction ?? undefined,
+  };
+};
+
+const enrichAtSeaPredictions = async (
+  ctx: ActionCtx,
+  updatedTrip: ConvexVesselTrip
+): Promise<Partial<ConvexVesselTrip>> => {
+  // If the trip doesn't have a departing terminal or we haven't left dock, we don't need to predict
+  if (
+    !updatedTrip.DepartingTerminalAbbrev ||
+    !updatedTrip.LeftDock ||
+    !updatedTrip.TripStart
+  ) {
+    return {};
   }
 
-  return updates;
+  // If the trip already has predictions, we don't need to predict again
+  if (updatedTrip.AtSeaArriveNext) {
+    return {};
+  }
+
+  // Predict the arrival next prediction
+  const arriveNextPrediction = await predictAtSeaArriveNext(ctx, updatedTrip);
+
+  // Return the prediction
+  return { AtSeaArriveNext: arriveNextPrediction ?? undefined };
 };
 
 /**

@@ -1,7 +1,6 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { generateTripKey } from "shared";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
@@ -83,7 +82,7 @@ export const vesselTripSchema = v.object({
   // All ScheduledTrip fields (making VesselTrip a strict superset)
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalAbbrev: v.string(),
+  ArrivingTerminalAbbrev: v.optional(v.string()),
   DepartingTime: v.number(),
   ArrivingTime: v.optional(v.number()),
   SailingNotes: v.string(),
@@ -148,26 +147,17 @@ export const toConvexVesselTrip = (
     AtSeaDepartNext?: ConvexPrediction;
   }
 ): ConvexVesselTrip => {
-  // Generate key if we have the required information
-  const key = generateTripKey(
-    cvl.VesselAbbrev,
-    cvl.DepartingTerminalAbbrev,
-    cvl.ArrivingTerminalAbbrev,
-    cvl.ScheduledDeparture ? new Date(cvl.ScheduledDeparture) : undefined
-  );
-
   return {
     // ScheduledTrip fields (VesselTrip is a strict superset)
     VesselAbbrev: cvl.VesselAbbrev,
     DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
-    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev || "", // Required in ScheduledTrip, provide empty string if missing
+    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
     DepartingTime: cvl.ScheduledDeparture || cvl.TimeStamp, // Use scheduled departure or current timestamp as fallback
     ArrivingTime: undefined, // Not available in vessel location data
     SailingNotes: "", // Not available in vessel location data
     Annotations: [], // Not available in vessel location data
     RouteID: 0, // Not available in vessel location data
     RouteAbbrev: "", // Not available in vessel location data
-    Key: key || "", // Required in ScheduledTrip, provide empty string if missing
     SailingDay: "", // Not available in vessel location data
     NextKey: undefined,
     EstArriveNext: undefined,
@@ -177,14 +167,11 @@ export const toConvexVesselTrip = (
     PrevTerminalAbbrev: params.PrevTerminalAbbrev,
     TripStart: params.TripStart,
     AtDock: cvl.AtDock,
-    AtDockDuration: undefined,
     ScheduledDeparture: cvl.ScheduledDeparture,
     LeftDock: cvl.LeftDock,
     TripDelay: undefined,
     Eta: cvl.Eta,
     TripEnd: params.TripEnd,
-    AtSeaDuration: undefined,
-    TotalDuration: undefined,
     InService: cvl.InService,
     TimeStamp: cvl.TimeStamp,
     // Denormalized previous trip data

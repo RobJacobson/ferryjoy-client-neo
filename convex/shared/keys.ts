@@ -3,6 +3,8 @@
  * Provides consistent key generation across different trip types
  */
 
+import { getSailingDay } from "./time";
+
 /**
  * Format a UTC date as Pacific local date (YYYY-MM-DD)
  * @param utcDate - UTC date to format
@@ -21,8 +23,27 @@ export const formatPacificDate = (utcDate: Date): string => {
 };
 
 /**
+ * Format a UTC time as Pacific local time (HH:MM)
+ * @param utcDate - UTC date to format
+ * @returns Time string in Pacific timezone (HH:MM)
+ */
+export const formatPacificTime = (utcDate: Date): string => {
+  // Use Intl.DateTimeFormat to get Pacific time components
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  return formatter.format(utcDate);
+};
+
+/**
  * Generate composite key for any trip type
- * Format: "[vessel]-[date]-[departing terminal]-[arriving terminal]"
+ * Format: "[vessel]--[sailing day]-[time]--[departing terminal]-[arriving terminal]"
+ * Uses WSF sailing day logic (events before 3:00 AM Pacific are part of previous day)
+ * Time is in HH:MM format (Pacific timezone)
  * @param vesselAbbrev - Vessel abbreviation
  * @param departingTerminalAbbrev - Departing terminal abbreviation
  * @param arrivingTerminalAbbrev - Arriving terminal abbreviation (can be empty string or undefined)
@@ -36,11 +57,12 @@ export const generateTripKey = (
   departingTime: Date | undefined
 ): string | undefined => {
   // Require minimum fields for key generation
-  if (!departingTime) {
+  if (!departingTime || !vesselAbbrev || !departingTerminalAbbrev) {
     return undefined;
   }
 
   const arrivingAbbrev = arrivingTerminalAbbrev || "";
-  const dateStr = formatPacificDate(departingTime);
-  return `${vesselAbbrev}-${dateStr}-${departingTerminalAbbrev}-${arrivingAbbrev}`;
+  const dateStr = getSailingDay(departingTime);
+  const timeStr = formatPacificTime(departingTime);
+  return `${vesselAbbrev}--${dateStr}-${timeStr}--${departingTerminalAbbrev}-${arrivingAbbrev}`;
 };
