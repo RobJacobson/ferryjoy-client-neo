@@ -4,7 +4,8 @@
  */
 
 /**
- * Format a UTC date as Pacific local date (YYYY-MM-DD)
+ * Format a UTC date as Pacific local date (YYYY-MM-DD).
+ *
  * @param utcDate - UTC date to format
  * @returns Date string in Pacific timezone (YYYY-MM-DD)
  */
@@ -21,7 +22,8 @@ export const formatPacificDate = (utcDate: Date): string => {
 };
 
 /**
- * Format a UTC time as Pacific local time (HH:MM)
+ * Format a UTC time as Pacific local time (HH:MM).
+ *
  * @param utcDate - UTC date to format
  * @returns Time string in Pacific timezone (HH:MM)
  */
@@ -42,6 +44,7 @@ export const formatPacificTime = (utcDate: Date): string => {
  * Format: "[vessel]--[sailing day]--[time]--[departing terminal]-[arriving terminal]"
  * Uses Pacific calendar day (not WSF sailing day logic).
  * Time is in HH:MM format (Pacific timezone)
+ *
  * @param vesselAbbrev - Vessel abbreviation
  * @param departingTerminalAbbrev - Departing terminal abbreviation
  * @param arrivingTerminalAbbrev - Arriving terminal abbreviation (can be empty string or undefined)

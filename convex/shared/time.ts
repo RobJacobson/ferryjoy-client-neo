@@ -21,6 +21,7 @@ const PACIFIC_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
 /**
  * Extract Pacific time components from a UTC date using Intl API
  * This properly handles DST transitions for any year without manual calculations
+ *
  * @param utcDate - UTC date to convert
  * @returns Object with hour, minute, second, and day of week in Pacific time
  */
@@ -65,6 +66,7 @@ export const getPacificTimeComponents = (
 /**
  * Get a Date object representing the same moment in Pacific timezone
  * This creates a Date with Pacific time components (stored as UTC)
+ *
  * @param utcDate - UTC date to convert
  * @returns Date object (stored as UTC, but represents Pacific time values)
  */
@@ -89,6 +91,7 @@ export const getPacificTime = (utcDate: Date): Date => {
 
 /**
  * Get day of week for a UTC date in Pacific timezone
+ *
  * @param utcDate - UTC date to convert
  * @returns Day of week (0-6, where 0 = Sunday)
  */
@@ -98,6 +101,7 @@ export const getPacificDayOfWeek = (utcDate: Date): number => {
 
 /**
  * Calculate the time delta in minutes between two dates
+ *
  * @param startTime - Start date
  * @param endTime - End date
  * @returns Difference in minutes (can be negative if endTime < startTime)
@@ -109,6 +113,7 @@ export const getMinutesDelta = (startTime: Date, endTime: Date): number =>
  * Get the sailing day date for a UTC timestamp in Pacific timezone
  * Sailing day is defined as the period from 3:00 AM to 2:59 AM Pacific time
  * Events before 3:00 AM Pacific are considered part of the previous day's sailing day
+ *
  * @param utcDate - UTC timestamp to convert
  * @returns Sailing day date string in YYYY-MM-DD format
  */

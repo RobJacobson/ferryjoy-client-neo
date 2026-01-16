@@ -1,5 +1,11 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 
+/**
+ * Convert a ConvexVesselLocation by adding vessel abbreviation and cleaning speed data
+ *
+ * @param cvl - The convex vessel location to convert
+ * @returns The converted vessel location with vessel abbreviation and cleaned speed
+ */
 export const convertConvexVesselLocation = (
   cvl: ConvexVesselLocation
 ): ConvexVesselLocation => ({
@@ -36,7 +42,8 @@ const vesselIdToAbbrev = {
 } as Record<number, string>;
 
 /**
- * Get vessel abbreviation by vessel ID
+ * Get vessel abbreviation by vessel ID.
+ *
  * @param vesselId - The ID of the vessel
  * @returns The vessel abbreviation or empty string if not found
  */
