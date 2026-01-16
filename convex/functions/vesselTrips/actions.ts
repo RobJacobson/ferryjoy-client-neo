@@ -1,5 +1,4 @@
 import { api } from "_generated/api";
-import { Doc } from "_generated/dataModel";
 import { type ActionCtx, internalAction } from "_generated/server";
 import {
   predictAtDockArriveNext,
@@ -162,24 +161,19 @@ const handleTripUpdate = async (
 ) => {
   // Enriches the trip fields for a trip
   const tripFieldUpdates = enrichTripFields(existingTrip, currLocation);
+  const baseTrip: ConvexVesselTrip = {
+    ...existingTrip,
+    ...tripFieldUpdates,
+  };
 
   // Enriches the scheduled trip fields for a trip
-  const tripStartUpdates = await enrichTripStartUpdates(ctx, {
-    ...existingTrip,
-    ...tripFieldUpdates,
-  });
+  const tripStartUpdates = await enrichTripStartUpdates(ctx, baseTrip);
 
   // Enriches the at dock predictions for a trip
-  const atDockPredictions = await enrichAtDockPredictions(ctx, {
-    ...existingTrip,
-    ...tripFieldUpdates,
-  });
+  const atDockPredictions = await enrichAtDockPredictions(ctx, baseTrip);
 
   // Enriches the at sea predictions for a trip
-  const atSeaPredictions = await enrichAtSeaPredictions(ctx, {
-    ...existingTrip,
-    ...tripFieldUpdates,
-  });
+  const atSeaPredictions = await enrichAtSeaPredictions(ctx, baseTrip);
 
   // Creates the trip to upsert
   const updatedData: Partial<ConvexVesselTrip> = {
@@ -210,6 +204,65 @@ const handleTripUpdate = async (
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+/**
+ * Clears derived ScheduledTrip fields and prediction fields when the computed key
+ * changes, ensuring we don't retain stale data from a previous trip identity.
+ */
+const CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE: Partial<ConvexVesselTrip> = {
+  RouteID: 0,
+  RouteAbbrev: "",
+  SailingDay: "",
+  SailingNotes: "",
+  Annotations: [],
+  NextKey: undefined,
+  EstArriveNext: undefined,
+  EstArriveCurr: undefined,
+  ArrivingTime: undefined,
+  AtDockDepartCurr: undefined,
+  AtDockArriveNext: undefined,
+  AtDockDepartNext: undefined,
+  AtSeaArriveNext: undefined,
+  AtSeaDepartNext: undefined,
+};
+
+const deriveTripKey = (trip: ConvexVesselTrip): string | null => {
+  if (
+    !trip.ScheduledDeparture ||
+    !trip.DepartingTerminalAbbrev ||
+    !trip.ArrivingTerminalAbbrev
+  ) {
+    return null;
+  }
+
+  return (
+    generateTripKey(
+      trip.VesselAbbrev,
+      trip.DepartingTerminalAbbrev,
+      trip.ArrivingTerminalAbbrev,
+      new Date(trip.ScheduledDeparture)
+    ) ?? null
+  );
+};
+
+const shouldLookupScheduledTrip = (
+  trip: ConvexVesselTrip,
+  tripKey: string
+): { shouldLookup: boolean; existingKeyMismatch: boolean } => {
+  const existingKeyMismatch = trip.Key !== undefined && trip.Key !== tripKey;
+  const hasExistingKey = trip.Key !== undefined;
+
+  if (existingKeyMismatch || !hasExistingKey) {
+    return { shouldLookup: true, existingKeyMismatch };
+  }
+
+  const hasScheduledTripData = trip.SailingDay !== "" && trip.RouteID !== 0;
+  const seconds = new Date().getSeconds();
+  return {
+    shouldLookup: !hasScheduledTripData && seconds < 15,
+    existingKeyMismatch,
+  };
+};
 
 /**
  * Enriches the trip fields for a trip.
@@ -276,48 +329,71 @@ const enrichTripFields = (
  */
 const enrichTripStartUpdates = async (
   ctx: ActionCtx,
-  existingTrip: ConvexVesselTrip
+  updatedTrip: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
-  if (
-    existingTrip.Key ||
-    !existingTrip.ScheduledDeparture ||
-    !existingTrip.DepartingTerminalAbbrev ||
-    !existingTrip.ArrivingTerminalAbbrev
-  ) {
+  const tripKey = deriveTripKey(updatedTrip);
+  if (!tripKey) {
     return {};
   }
 
-  const tripKey = generateTripKey(
-    existingTrip.VesselAbbrev,
-    existingTrip.DepartingTerminalAbbrev,
-    existingTrip.ArrivingTerminalAbbrev,
-    new Date(existingTrip.ScheduledDeparture)
+  const { shouldLookup, existingKeyMismatch } = shouldLookupScheduledTrip(
+    updatedTrip,
+    tripKey
   );
 
-  if (!tripKey) {
-    return {};
+  // If we can compute a key, keep it in sync even if we don't look up yet.
+  const keyPatch: Partial<ConvexVesselTrip> =
+    updatedTrip.Key === tripKey ? {} : { Key: tripKey };
+  const invalidationPatch = existingKeyMismatch
+    ? CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE
+    : {};
+
+  // We already have ScheduledTrip data, or we're backing off—no lookup needed.
+  if (!shouldLookup) {
+    return keyPatch;
   }
 
   // Query the ScheduledTrip
   try {
     console.log("Querying ScheduledTrip for key:", tripKey);
-    const scheduledTripDoc = await ctx.runQuery(
-      api.functions.scheduledTrips.queries.getScheduledTripByKey,
-      { key: tripKey }
-    );
-    // If the ScheduledTrip is found, return it without Convex internal fields
-    if (scheduledTripDoc) {
-      const { _id, _creationTime, ...scheduledTrip } = scheduledTripDoc;
-      return scheduledTrip as Partial<ConvexVesselTrip>;
+    const scheduledTrip = await fetchScheduledTripFieldsByKey(ctx, tripKey);
+    if (scheduledTrip) {
+      return {
+        ...scheduledTrip,
+        ...keyPatch,
+      };
     } else {
       console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
     }
   } catch (error) {
     console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
+    return {
+      ...keyPatch,
+      ...invalidationPatch,
+    };
   }
 
-  // If the ScheduledTrip is not found, just return the key
-  return { Key: tripKey };
+  return {
+    ...keyPatch,
+    ...invalidationPatch,
+  };
+};
+
+const fetchScheduledTripFieldsByKey = async (
+  ctx: ActionCtx,
+  tripKey: string
+): Promise<Partial<ConvexVesselTrip> | null> => {
+  const scheduledTripDoc = await ctx.runQuery(
+    api.functions.scheduledTrips.queries.getScheduledTripByKey,
+    { key: tripKey }
+  );
+
+  if (!scheduledTripDoc) {
+    return null;
+  }
+
+  const { _id, _creationTime, ...scheduledTrip } = scheduledTripDoc;
+  return scheduledTrip as Partial<ConvexVesselTrip>;
 };
 
 /**
@@ -341,22 +417,29 @@ const enrichAtDockPredictions = async (
     return {};
   }
 
-  // If the trip already has predictions, we don't need to predict again
-  if (updatedTrip.AtDockDepartCurr || updatedTrip.AtDockArriveNext) {
-    return {};
+  const updates: Partial<ConvexVesselTrip> = {};
+
+  if (!updatedTrip.AtDockDepartCurr) {
+    const departCurrPrediction = await predictAtDockDepartCurr(
+      ctx,
+      updatedTrip
+    );
+    if (departCurrPrediction) {
+      updates.AtDockDepartCurr = departCurrPrediction;
+    }
   }
 
-  // Predict the departure current prediction
-  const departCurrPrediction = await predictAtDockDepartCurr(ctx, updatedTrip);
+  if (!updatedTrip.AtDockArriveNext) {
+    const arriveNextPrediction = await predictAtDockArriveNext(
+      ctx,
+      updatedTrip
+    );
+    if (arriveNextPrediction) {
+      updates.AtDockArriveNext = arriveNextPrediction;
+    }
+  }
 
-  // Predict the arrival next prediction
-  const arriveNextPrediction = await predictAtDockArriveNext(ctx, updatedTrip);
-
-  // Return the predictions
-  return {
-    AtDockDepartCurr: departCurrPrediction ?? undefined,
-    AtDockArriveNext: arriveNextPrediction ?? undefined,
-  };
+  return updates;
 };
 
 const enrichAtSeaPredictions = async (
@@ -372,16 +455,17 @@ const enrichAtSeaPredictions = async (
     return {};
   }
 
-  // If the trip already has predictions, we don't need to predict again
   if (updatedTrip.AtSeaArriveNext) {
     return {};
   }
 
   // Predict the arrival next prediction
   const arriveNextPrediction = await predictAtSeaArriveNext(ctx, updatedTrip);
+  if (!arriveNextPrediction) {
+    return {};
+  }
 
-  // Return the prediction
-  return { AtSeaArriveNext: arriveNextPrediction ?? undefined };
+  return { AtSeaArriveNext: arriveNextPrediction };
 };
 
 /**
