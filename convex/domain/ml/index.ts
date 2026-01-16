@@ -1,5 +1,5 @@
 // ============================================================================
-// ML MODULE EXPORTS
+// ML DOMAIN MODULE
 // Machine Learning functionality for ferry schedule predictions
 // ============================================================================
 
@@ -7,6 +7,7 @@
  * Prediction utilities for real-time ML inference
  */
 export * from "./prediction";
+
 /**
  * Core ML types, configuration constants, and model type definitions
  */

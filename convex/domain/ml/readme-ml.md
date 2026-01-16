@@ -2,7 +2,7 @@
 
 ## Overview
 
-FerryJoy's ML system provides real-time predictions for ferry departure delays and arrival times across the Washington State Ferry (WSF) network. The system uses **5 specialized linear regression models** trained on 720 days of historical trip data to predict vessel behavior under various operational conditions.
+FerryJoy's ML system provides real-time predictions for ferry departure delays and arrival times across the Washington State Ferry (WSF) network. The system uses **5 specialized linear regression models** trained on a configurable historical window (see `convex/domain/ml/shared/config.ts` `ML_CONFIG.pipeline.dataLoading.daysBack`) to predict vessel behavior under various operational conditions.
 
 ### Core Architecture Principles
 
@@ -33,7 +33,7 @@ FerryJoy's ML system provides real-time predictions for ferry departure delays a
 ```
 Raw WSF Data → Training Windows → Feature Extraction → Model Training → Database Storage → Real-Time Inference
      ↓              ↓                     ↓                ↓                ↓                  ↓
-   720 days    Temporal Context     ML Features       5 Models         Convex DB          REST API
+   N days      Temporal Context     ML Features       5 Models         Convex DB          App / UI
  Historical    (A→B→C sequences)    Engineering       per Route        Persistence        Predictions
 ```
 
@@ -49,7 +49,7 @@ Raw WSF Data → Training Windows → Feature Extraction → Model Training → 
 - **Framework**: TypeScript with strict typing throughout
 - **ML Library**: ml-regression-multivariate-linear for training
 - **Database**: Convex for model storage and real-time queries
-- **Data Source**: Washington State Ferry historical trip data (720 days)
+- **Data Source**: Washington State Ferry historical trip data (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
 - **Deployment**: Serverless functions with automatic scaling
 
 ---
@@ -77,7 +77,9 @@ Models use the full temporal context (previous leg A→B) and are bucketed by 2-
 #### 3. `at-dock-depart-next`
 **Purpose**: Predict turnaround delay at next terminal in multi-leg journeys
 **Use Case**: Complex itinerary planning across multiple ferry segments
-**Features**: At-dock features with 3-leg temporal context
+**Features**: At-dock feature set for the current leg. Training requires a next leg
+(Next→After) to label targets; inference additionally needs `ScheduledTrip.NextDepartingTime`
+to anchor predictions.
 **Target**: Minutes from next terminal scheduled departure to actual departure
 **Business Value**: End-to-end journey time predictions
 
@@ -91,7 +93,9 @@ Models use the full temporal context (previous leg A→B) and are bucketed by 2-
 #### 5. `at-sea-depart-next`
 **Purpose**: Update next terminal departure predictions using transit observations
 **Use Case**: Refined multi-leg predictions with real-time transit data
-**Features**: At-sea features with actual transit performance
+**Features**: At-sea feature set for the current leg. Training requires a next leg
+(Next→After) to label targets; inference additionally needs `ScheduledTrip.NextDepartingTime`
+to anchor predictions.
 **Target**: Minutes from next terminal scheduled departure to actual departure
 **Business Value**: Improves connection reliability with live transit data
 
@@ -166,7 +170,7 @@ The system engineers 20+ features from raw trip data, capturing temporal pattern
 
 #### Mean At-Sea Duration (Previous Leg)
 - **Definition**: Historical average transit time for A→B route
-- **Source**: Pre-computed from 720 days of WSF data
+- **Source**: Pre-computed from the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
 - **Purpose**: Baseline for arrival time expectations
 
 #### Estimated Arrival at Current Terminal
@@ -196,12 +200,12 @@ The system engineers 20+ features from raw trip data, capturing temporal pattern
 
 #### Mean At-Dock Duration (Current Route)
 - **Definition**: Historical average turnaround time for B→C terminal pair
-- **Source**: Pre-computed from 720 days of WSF data
+- **Source**: Pre-computed from the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
 - **Purpose**: Route-specific baseline for operational expectations
 
 #### Mean At-Sea Duration (Current Route)
 - **Definition**: Historical average transit time for B→C terminal pair
-- **Source**: Pre-computed from 720 days of WSF data
+- **Source**: Pre-computed from the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
 - **Purpose**: Route-specific baseline for transit time expectations
 
 ### Feature Set Variants by Context
@@ -234,7 +238,7 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 
 #### 1. Data Loading (`loadWsfTrainingData`)
 **Purpose**: Load historical training data with quality controls
-**Source**: 720 days of WSF vessel trip records
+**Source**: WSF vessel trip records within the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
 **Filtering**: Removes invalid records, ensures data completeness
 **Output**: Cleaned VesselHistory[] array for window creation
 
@@ -303,6 +307,97 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 **Timing Context**: Choose at-dock vs at-sea models based on available information
 **Fallback Handling**: Graceful degradation when preferred models unavailable
 
+### ScheduledTrips enrichment used by inference
+
+Real-time inference depends on **schedule-chain fields** computed during ScheduledTrips
+sync and then **snapshotted onto active VesselTrips**.
+
+#### Composite trip key format
+
+Both ScheduledTrips and VesselTrips use a shared composite key (see
+`convex/shared/keys.ts` `generateTripKey`) with format:
+
+`[VesselAbbrev]--[PacificDate]--[PacificTime]--[DepartingTerminal]-[ArrivingTerminal]`
+
+Important details:
+- **PacificDate/PacificTime** are computed in `America/Los_Angeles`.
+  - Implementation: `convex/shared/keys.ts` (`formatPacificDate`, `formatPacificTime`)
+- The key uses the **Pacific calendar day** (not WSF “sailing day”).
+  - Implementation: `convex/shared/keys.ts` (`generateTripKey`)
+
+#### ScheduledTrips chain fields
+
+During sync, we compute (per ScheduledTrip):
+- `PrevKey`: the previous trip’s `Key` for this vessel (chronological chain)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
+- `NextKey`: the next trip’s `Key` for this vessel (chronological chain)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
+- `NextDepartingTime`: the next trip’s scheduled departure timestamp (epoch ms)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
+- `EstArriveNext`: estimated arrival at the next terminal (epoch ms, proxy)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateEstArriveNext`)
+- `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
+  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+
+These are computed only after vessel-level filtering resolves overlapping/ambiguous
+route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`).
+
+### How predictions are generated in VesselTrips
+
+Predictions are generated and stored as part of the VesselTrips “realtime sync”
+action `updateVesselTrips` (entrypoint: `convex/functions/vesselTrips/actions.ts`, implementation: `convex/functions/vesselTrips/updates/updateVesselTrips.ts`).
+
+#### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
+
+For each active vessel trip update:
+- We derive `Key` once `ScheduledDeparture`, `DepartingTerminalAbbrev`, and
+  `ArrivingTerminalAbbrev` are present.
+  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`deriveTripKey`)
+- We lazily fetch the matching ScheduledTrip by `Key` and snapshot it onto the
+  VesselTrip as `ScheduledTrip` (with light throttling to avoid DB churn).
+  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`enrichTripStartUpdates`, `fetchScheduledTripFieldsByKey`)
+  - Query: `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
+- If `Key` changes, we clear derived data (scheduled snapshot + predictions) to
+  prevent mixing identities.
+  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE`)
+
+Note: `NextKey` is **not duplicated** on VesselTrips; it is read from the embedded
+`ScheduledTrip` snapshot.
+  - Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduledTrip: v.optional(scheduledTripSchema)`)
+
+#### 2) Prediction generation (once per trip, per timing context)
+
+When required features are present, we compute and persist:
+- **At dock**:
+  - `AtDockDepartCurr` (predict departure from Curr)
+  - `AtDockArriveNext` (predict arrival at Next)
+  - `AtDockDepartNext` (predict departure from Next)
+    - Anchor: `ScheduledTrip.NextDepartingTime`
+- **At sea** (requires `LeftDock`):
+  - `AtSeaArriveNext` (refined ETA while underway)
+  - `AtSeaDepartNext` (refined Next-departure while underway)
+    - Anchor: `ScheduledTrip.NextDepartingTime`
+
+Depart-next predictions are anchored on `ScheduledTrip.NextDepartingTime` so the
+model’s output (minutes vs Next scheduled departure) can be stored as an absolute
+epoch-ms `PredTime`.
+  - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`computeVesselTripPredictionsPatch`)
+
+#### 3) Prediction actualization (backfill)
+
+We fill “Actual” values (and deltas) when the relevant real-world event is
+observed:
+- `AtSeaArriveNext.Actual`: set when the trip completes (`TripEnd` becomes known)
+  - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`updatePredictionsWithActuals`)
+- `AtDockDepartNext.Actual` / `AtSeaDepartNext.Actual`: set when the *next* trip
+  leaves dock (the next trip’s `LeftDock` is the previous trip’s “depart next”
+  actual), using `setDepartNextActualsForMostRecentCompletedTrip`.
+  - Trigger: `convex/functions/vesselTrips/updates/updateVesselTrips.ts` (`handleTripUpdate`, `didJustLeaveDock`)
+  - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
+
 #### Feature Engineering Pipeline
 **Temporal Safety**: Use only features available at prediction time
 **Data Normalization**: Apply same transformations as training
@@ -354,7 +449,7 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 ### Primary Data Source: WSF Historical Records
 
 #### Data Scope
-- **Time Range**: 720 days (approximately 2 years) of historical data
+- **Time Range**: Configurable via `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`
 - **Coverage**: All major Puget Sound and San Juan Island routes
 - **Update Frequency**: Continuous updates for model freshness
 
@@ -675,9 +770,12 @@ Models explicitly use Prev→Curr context and bucket by the **pair key**:
 - **Target**: \( \Delta(Curr\_{schedDepart},\ Next\_{arrivalProxy}) \)
 
 3) **`at-dock-depart-next`**
-- **Use when**: at dock at Curr, and we have a reliable next leg out of Next (Next→After) to learn “depart Next”
+- **Use when**: at dock at Curr and `ScheduledTrip.NextDepartingTime` is available
+  (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
+  - Note: a next leg (Next→After) is required during training to label the target,
+    but it is not required at inference time.
 
 4) **`at-sea-arrive-next`**
 - **Use when**: at sea between Curr and Next (Curr actual departure is known)
@@ -685,9 +783,12 @@ Models explicitly use Prev→Curr context and bucket by the **pair key**:
 - **Target**: \( \Delta(Curr\_{actualDepart},\ Next\_{arrivalProxy}) \)
 
 5) **`at-sea-depart-next`**
-- **Use when**: at sea between Curr and Next, and we have a reliable Next→After leg
+- **Use when**: at sea between Curr and Next and `ScheduledTrip.NextDepartingTime`
+  is available (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
+  - Note: a next leg (Next→After) is required during training to label the target,
+    but it is not required at inference time.
 
 
 Layover models assume a “fresh start” and bucket only by the **pair key**:
@@ -792,9 +893,9 @@ We reuse v1’s time encoding:
 
 Anchors:
 - For “depart-curr” / “arrive-next” models: time features are anchored to **B scheduled departure** (`curr.ScheduledDepart`).
-- For “depart-next” models: we also include time features anchored to **C scheduled departure** (`next.ScheduledDepart`) when available, and keep separate weekend flags:
-  - `isWeekendB`
-  - `isWeekendC`
+- For “depart-next” models: time features are still anchored to **B scheduled departure**
+  (the current leg). The “depart-next” target is defined relative to **C scheduled
+  departure**, which is supplied at inference time via `ScheduledTrip.NextDepartingTime`.
 
 ### Slack feature at Curr (both regimes)
 - `slackBeforeCurrScheduledDepartMinutes` (computed from arrival proxy at Curr vs Curr scheduled depart)

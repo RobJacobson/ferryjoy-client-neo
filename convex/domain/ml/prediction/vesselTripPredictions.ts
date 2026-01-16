@@ -7,20 +7,66 @@ import type { ActionCtx } from "_generated/server";
 import type {
   ConvexPrediction,
   ConvexVesselTrip,
+  PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
-import {
-  predictArriveEta,
-  predictDelayOnArrival,
-  predictTripValue,
-} from "./predictTrip";
+import type { ModelType } from "../shared/types";
+import { predictTripValue } from "./predictTrip";
 
 const MINUTES_TO_MS = 60 * 1000;
+
+type PredictionField =
+  | "AtDockDepartCurr"
+  | "AtDockArriveNext"
+  | "AtDockDepartNext"
+  | "AtSeaArriveNext"
+  | "AtSeaDepartNext";
+
+type PredictionSpec = {
+  field: PredictionField;
+  modelType: ModelType;
+  requiresLeftDock: boolean;
+  getAnchorMs: (trip: ConvexVesselTrip) => number | null;
+};
+
+const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
+  AtDockDepartCurr: {
+    field: "AtDockDepartCurr",
+    modelType: "at-dock-depart-curr",
+    requiresLeftDock: false,
+    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+  },
+  AtDockArriveNext: {
+    field: "AtDockArriveNext",
+    modelType: "at-dock-arrive-next",
+    requiresLeftDock: false,
+    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+  },
+  AtDockDepartNext: {
+    field: "AtDockDepartNext",
+    modelType: "at-dock-depart-next",
+    requiresLeftDock: false,
+    getAnchorMs: (trip) => trip.ScheduledTrip?.NextDepartingTime ?? null,
+  },
+  AtSeaArriveNext: {
+    field: "AtSeaArriveNext",
+    modelType: "at-sea-arrive-next",
+    requiresLeftDock: true,
+    getAnchorMs: (trip) => trip.LeftDock ?? null,
+  },
+  AtSeaDepartNext: {
+    field: "AtSeaDepartNext",
+    modelType: "at-sea-depart-next",
+    requiresLeftDock: true,
+    getAnchorMs: (trip) => trip.ScheduledTrip?.NextDepartingTime ?? null,
+  },
+};
 
 /**
  * Creates a prediction result from ML prediction data
  */
 const createPredictionResult = (
   predictedTime: number,
+  mae: number,
   stdDev: number
 ): ConvexPrediction => {
   const predTime = Math.floor(predictedTime / 1000) * 1000;
@@ -30,11 +76,69 @@ const createPredictionResult = (
     PredTime: predTime,
     MinTime: Math.floor((predictedTime - stdDevMs) / 1000) * 1000,
     MaxTime: Math.floor((predictedTime + stdDevMs) / 1000) * 1000,
+    MAE: mae,
+    StdDev: stdDev,
     Actual: undefined,
     DeltaTotal: undefined,
     DeltaRange: undefined,
   };
 };
+
+const isPredictionReadyTrip = (
+  trip: ConvexVesselTrip
+): trip is PredictionReadyTrip =>
+  Boolean(trip.TripStart) &&
+  Boolean(trip.DepartingTerminalAbbrev) &&
+  Boolean(trip.ArrivingTerminalAbbrev) &&
+  Boolean(trip.PrevTerminalAbbrev) &&
+  Boolean(trip.InService) &&
+  Boolean(trip.ScheduledDeparture) &&
+  Boolean(trip.PrevScheduledDeparture) &&
+  Boolean(trip.PrevLeftDock);
+
+const predictFromSpec = async (
+  ctx: ActionCtx,
+  trip: ConvexVesselTrip,
+  spec: PredictionSpec
+): Promise<ConvexPrediction | null> => {
+  if (!isPredictionReadyTrip(trip)) {
+    return null;
+  }
+
+  if (spec.requiresLeftDock && !trip.LeftDock) {
+    return null;
+  }
+
+  const anchorMs = spec.getAnchorMs(trip);
+  if (!anchorMs) {
+    return null;
+  }
+
+  try {
+    const {
+      predictedValue: predictedMinutes,
+      mae,
+      stdDev,
+    } = await predictTripValue(ctx, trip, spec.modelType);
+
+    const predictedMs = anchorMs + predictedMinutes * MINUTES_TO_MS;
+    return createPredictionResult(predictedMs, mae, stdDev);
+  } catch (error) {
+    console.error(
+      `[Prediction] ${spec.modelType} failed for ${trip.VesselAbbrev}:`,
+      error
+    );
+    return null;
+  }
+};
+
+const makePredictor =
+  (field: PredictionField) =>
+  async (
+    ctx: ActionCtx,
+    trip: ConvexVesselTrip
+  ): Promise<ConvexPrediction | null> =>
+    await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
 
 /**
  * Predicts departure delay from current terminal using at-dock context.
@@ -44,29 +148,7 @@ const createPredictionResult = (
  * @param trip - The trip to predict for
  * @returns Promise resolving to departure prediction result
  */
-export const predictAtDockDepartCurr = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexPrediction | null> => {
-  if (!hasPredictionData(trip, false)) {
-    return null;
-  }
-
-  try {
-    const prediction = await predictDelayOnArrival(ctx, trip);
-    const predictedDelayMinutes = prediction.predictedTime;
-    const predictedDelayMs = predictedDelayMinutes * 60 * 1000;
-    const predTime = (trip.ScheduledDeparture as number) + predictedDelayMs;
-
-    return createPredictionResult(predTime, prediction.stdDev);
-  } catch (error) {
-    console.error(
-      `[Prediction] At-dock depart curr failed for ${trip.VesselAbbrev}:`,
-      error
-    );
-    return null;
-  }
-};
+export const predictAtDockDepartCurr = makePredictor("AtDockDepartCurr");
 
 /**
  * Predicts arrival time at next terminal using at-dock context.
@@ -76,35 +158,7 @@ export const predictAtDockDepartCurr = async (
  * @param trip - The trip to predict for
  * @returns Promise resolving to arrival prediction result
  */
-export const predictAtDockArriveNext = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexPrediction | null> => {
-  if (!hasPredictionData(trip, false)) {
-    return null;
-  }
-
-  try {
-    // Model predicts minutes from Curr scheduled departure to arrival at Next.
-    const { predictedValue: predictedMinutes, stdDev } = await predictTripValue(
-      ctx,
-      trip,
-      "at-dock-arrive-next"
-    );
-
-    const scheduledDepartMs = trip.ScheduledDeparture as number;
-    const predictedArrivalMs =
-      scheduledDepartMs + predictedMinutes * MINUTES_TO_MS;
-
-    return createPredictionResult(predictedArrivalMs, stdDev);
-  } catch (error) {
-    console.error(
-      `[Prediction] At-dock arrive next failed for ${trip.VesselAbbrev}:`,
-      error
-    );
-    return null;
-  }
-};
+export const predictAtDockArriveNext = makePredictor("AtDockArriveNext");
 
 /**
  * Predicts departure delay from next terminal using at-dock context.
@@ -114,19 +168,7 @@ export const predictAtDockArriveNext = async (
  * @param trip - The trip to predict for
  * @returns Promise resolving to next departure prediction result
  */
-export const predictAtDockDepartNext = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexPrediction | null> => {
-  void ctx;
-  void trip;
-
-  // NOTE: The depart-next models predict minutes relative to Next's scheduled
-  // departure, but the active trip record does not currently include Next's
-  // scheduled departure timestamp. Until we add that field, we cannot store a
-  // unit-correct `ConvexPrediction` (which is epoch-ms-based).
-  return null;
-};
+export const predictAtDockDepartNext = makePredictor("AtDockDepartNext");
 
 /**
  * Predicts arrival time at next terminal using at-sea context.
@@ -136,25 +178,7 @@ export const predictAtDockDepartNext = async (
  * @param trip - The trip to predict for (must have LeftDock)
  * @returns Promise resolving to arrival prediction result
  */
-export const predictAtSeaArriveNext = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexPrediction | null> => {
-  if (!trip.LeftDock || !hasPredictionData(trip, true)) {
-    return null;
-  }
-
-  try {
-    const prediction = await predictArriveEta(ctx, trip);
-    return createPredictionResult(prediction.predictedTime, prediction.stdDev);
-  } catch (error) {
-    console.error(
-      `[Prediction] At-sea arrive next failed for ${trip.VesselAbbrev}:`,
-      error
-    );
-    return null;
-  }
-};
+export const predictAtSeaArriveNext = makePredictor("AtSeaArriveNext");
 
 /**
  * Predicts departure delay from next terminal using at-sea context.
@@ -164,19 +188,35 @@ export const predictAtSeaArriveNext = async (
  * @param trip - The trip to predict for (must have LeftDock)
  * @returns Promise resolving to next departure prediction result
  */
-export const predictAtSeaDepartNext = async (
+export const predictAtSeaDepartNext = makePredictor("AtSeaDepartNext");
+
+export const computeVesselTripPredictionsPatch = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
-): Promise<ConvexPrediction | null> => {
-  void ctx;
-  void trip;
+): Promise<Partial<ConvexVesselTrip>> => {
+  const updates: Partial<Record<PredictionField, ConvexPrediction>> = {};
 
-  // See note in `predictAtDockDepartNext`.
-  return null;
+  for (const spec of Object.values(PREDICTION_SPECS)) {
+    if (trip[spec.field] !== undefined) {
+      continue;
+    }
+
+    const prediction = await predictFromSpec(ctx, trip, spec);
+    if (prediction) {
+      updates[spec.field] = prediction;
+    }
+  }
+
+  return updates as Partial<ConvexVesselTrip>;
 };
 
 /**
  * Updates existing predictions with actual times and calculates deltas
+ *
+ * Note: "depart-next" prediction actualization is handled when the *next* trip
+ * leaves dock (it becomes known as `LeftDock` on the next trip), via the
+ * `setDepartNextActualsForMostRecentCompletedTrip` mutation. As a result, this
+ * function only fills actuals that can be observed on the *same* trip record.
  *
  * @param existingTrip - The previous trip state
  * @param updatedTrip - The updated trip state
@@ -238,18 +278,6 @@ export const updatePredictionsWithActuals = (
     };
   }
 
-  // Update AtDockDepartNext prediction when vessel departs next terminal
-  if (
-    existingTrip.TripEnd &&
-    !existingTrip.ArrivingTerminalAbbrev &&
-    updatedTrip.ArrivingTerminalAbbrev &&
-    updatedTrip.AtDockDepartNext
-  ) {
-    // This is when we complete the trip at the next terminal
-    // We don't have the actual departure time from the next terminal in this trip record
-    // That would be in the next trip's LeftDock field
-  }
-
   return updates;
 };
 
@@ -285,22 +313,3 @@ const calculateDeltaTotal = (actual: number, predicted: number): number => {
   const MS_PER_MINUTE = 60 * 1000;
   return Math.round(((actual - predicted) / MS_PER_MINUTE) * 10) / 10;
 };
-
-/**
- * Checks if trip has all required data for making predictions
- *
- * @param trip - The trip to check
- * @param leftDockRequired - Whether LeftDock is required for prediction
- * @returns True if trip has sufficient data for predictions
- */
-const hasPredictionData = (
-  trip: ConvexVesselTrip,
-  leftDockRequired: boolean
-): boolean =>
-  Boolean(trip.TripStart) &&
-  Boolean(trip.ArrivingTerminalAbbrev) &&
-  Boolean(trip.InService) &&
-  Boolean(trip.ScheduledDeparture) &&
-  Boolean(trip.PrevScheduledDeparture) &&
-  Boolean(trip.PrevLeftDock) &&
-  (!leftDockRequired || Boolean(trip.LeftDock));

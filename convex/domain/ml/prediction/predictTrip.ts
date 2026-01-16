@@ -208,6 +208,7 @@ export const predictTripValue = async (
   modelType: ModelType
 ): Promise<{
   predictedValue: number;
+  mae: number;
   stdDev: number;
 }> => {
   // Identify the route for model lookup
@@ -239,9 +240,10 @@ export const predictTripValue = async (
     model.intercept
   );
 
-  // Return prediction with uncertainty metric (Std Dev from training)
+  // Return prediction with uncertainty metrics (MAE and Std Dev from training)
   return {
     predictedValue: roundToPrecision(predictedValue, 1), // Round to 1 decimal place
+    mae: roundToPrecision(model.testMetrics.mae, 1), // Mean Absolute Error
     stdDev: roundToPrecision(model.testMetrics.stdDev, 1), // Standard deviation of errors
   };
 };
@@ -262,6 +264,7 @@ export const predictArriveEta = async (
   trip: ConvexVesselTrip
 ): Promise<{
   predictedTime: number;
+  mae: number;
   stdDev: number;
 }> => {
   if (!trip.LeftDock) {
@@ -271,17 +274,18 @@ export const predictArriveEta = async (
   }
 
   // Predict minutes from actual departure at Curr to arrival at Next.
-  const { predictedValue: predictedDuration, stdDev } = await predictTripValue(
-    ctx,
-    trip,
-    "at-sea-arrive-next"
-  );
+  const {
+    predictedValue: predictedDuration,
+    mae,
+    stdDev,
+  } = await predictTripValue(ctx, trip, "at-sea-arrive-next");
 
   // Calculate predicted arrival time (departure time + predicted duration)
   const predictedArrivalTime = trip.LeftDock + predictedDuration * 60000; // Convert minutes to milliseconds
 
   return {
     predictedTime: predictedArrivalTime,
+    mae,
     stdDev,
   };
 };
@@ -302,17 +306,19 @@ export const predictDelayOnArrival = async (
   trip: ConvexVesselTrip
 ): Promise<{
   predictedTime: number;
+  mae: number;
   stdDev: number;
 }> => {
   // Predict minutes of delay from scheduled departure at Curr to actual departure.
-  const { predictedValue: predictedDelay, stdDev } = await predictTripValue(
-    ctx,
-    trip,
-    "at-dock-depart-curr"
-  );
+  const {
+    predictedValue: predictedDelay,
+    mae,
+    stdDev,
+  } = await predictTripValue(ctx, trip, "at-dock-depart-curr");
 
   return {
     predictedTime: predictedDelay,
+    mae,
     stdDev,
   };
 };
@@ -333,6 +339,7 @@ export const predictEtaOnDeparture = async (
   trip: ConvexVesselTrip
 ): Promise<{
   predictedTime: number;
+  mae: number;
   stdDev: number;
 }> => {
   if (!trip.ScheduledDeparture) {
@@ -342,11 +349,11 @@ export const predictEtaOnDeparture = async (
   }
 
   // Predict delay minutes, then convert to an absolute departure timestamp.
-  const { predictedValue: predictedDelay, stdDev } = await predictTripValue(
-    ctx,
-    trip,
-    "at-dock-depart-curr"
-  );
+  const {
+    predictedValue: predictedDelay,
+    mae,
+    stdDev,
+  } = await predictTripValue(ctx, trip, "at-dock-depart-curr");
 
   // Calculate predicted departure time (scheduled departure + predicted delay)
   const predictedDepartureTime =
@@ -354,6 +361,7 @@ export const predictEtaOnDeparture = async (
 
   return {
     predictedTime: predictedDepartureTime,
+    mae,
     stdDev,
   };
 };

@@ -76,7 +76,8 @@ const getTimeContext = (scheduledDepartMs: number) => {
  * @returns Object with previous leg context features
  */
 const getPrevLegContextAtCurr = (window: TrainingWindow) => {
-  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs ?? 0;
+  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
+  const hasArrivalAtCurr = arrivalAtCurrMs !== undefined;
 
   const prevPairKey = formatTerminalPairKey(
     window.prevTerminalAbbrev,
@@ -86,23 +87,23 @@ const getPrevLegContextAtCurr = (window: TrainingWindow) => {
   const estimatedArrivalAtCurrMs =
     window.prevLeg.scheduledDepartMs + meanAtSeaPrevMinutes * 60000;
 
-  const arrivalVsEstimatedScheduleMinutes = minutesBetween(
-    estimatedArrivalAtCurrMs,
-    arrivalAtCurrMs
-  );
+  const arrivalVsEstimatedScheduleMinutes = hasArrivalAtCurr
+    ? minutesBetween(estimatedArrivalAtCurrMs, arrivalAtCurrMs)
+    : 0;
 
   const prevTripDelayMinutes = minutesBetween(
     window.prevLeg.scheduledDepartMs,
     window.prevLeg.actualDepartMs
   );
-  const prevAtSeaDurationMinutes = arrivalAtCurrMs
+  const prevAtSeaDurationMinutes = hasArrivalAtCurr
     ? minutesBetween(window.prevLeg.actualDepartMs, arrivalAtCurrMs)
     : 0;
 
   return {
-    arrivalAtCurrMs,
     meanAtSeaPrevMinutes,
-    atSeaDelay: prevAtSeaDurationMinutes - meanAtSeaPrevMinutes,
+    atSeaDelay: hasArrivalAtCurr
+      ? prevAtSeaDurationMinutes - meanAtSeaPrevMinutes
+      : 0,
     arrivalVsEstimatedScheduleMinutes,
     arrivalAfterEstimatedScheduleMinutes: Math.max(
       0,
@@ -124,15 +125,16 @@ const getPrevLegContextAtCurr = (window: TrainingWindow) => {
  * remain known at "at sea" time).
  */
 const getDockCuesAtCurr = (window: TrainingWindow) => {
-  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs ?? 0;
+  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
 
   // v1: arrivalAfterScheduledDepartureMinutes = max(0, arrivalAtCurr - schedDepartCurr)
-  const arrivalAfterScheduledDepartureMinutes = arrivalAtCurrMs
-    ? Math.max(
-        0,
-        minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
-      )
-    : 0;
+  const arrivalAfterScheduledDepartureMinutes =
+    arrivalAtCurrMs !== undefined
+      ? Math.max(
+          0,
+          minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
+        )
+      : 0;
 
   // v1 "lateArrival" (pressure) feature:
   // max(0, meanAtDock(Curr->Next) - slackBeforeDepartureMinutes)
@@ -179,15 +181,16 @@ const getCurrLegRoutePriors = (window: TrainingWindow) => {
  * @returns Actual performance metrics from current terminal operations
  */
 const getCurrSeaActuals = (window: TrainingWindow) => {
-  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs ?? 0;
+  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
 
   const currTripDelayMinutes = minutesBetween(
     window.currLeg.scheduledDepartMs,
     window.currLeg.actualDepartMs
   );
-  const currAtDockDurationMinutes = arrivalAtCurrMs
-    ? minutesBetween(arrivalAtCurrMs, window.currLeg.actualDepartMs)
-    : 0;
+  const currAtDockDurationMinutes =
+    arrivalAtCurrMs !== undefined
+      ? minutesBetween(arrivalAtCurrMs, window.currLeg.actualDepartMs)
+      : 0;
 
   return {
     currTripDelayMinutes,
@@ -269,7 +272,7 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
   };
 
   // Extract arrival timestamp for target calculations
-  const arrivalAtNextMs = window.currLeg.arrivalProxyMs ?? 0;
+  const arrivalAtNextMs = window.currLeg.arrivalProxyMs;
 
   // Return complete feature record with metadata, feature sets, and targets
   return {
@@ -291,15 +294,17 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
 
       // Arrival at next terminal from current scheduled departure
       // Used for "arrive-next" models in at-dock prediction context
-      arriveNextFromCurrScheduledMinutes: arrivalAtNextMs
-        ? minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtNextMs)
-        : null,
+      arriveNextFromCurrScheduledMinutes:
+        arrivalAtNextMs !== undefined
+          ? minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtNextMs)
+          : null,
 
       // Arrival at next terminal from current actual departure
       // Used for "arrive-next" models in at-sea prediction context
-      arriveNextFromCurrActualMinutes: arrivalAtNextMs
-        ? minutesBetween(window.currLeg.actualDepartMs, arrivalAtNextMs)
-        : null,
+      arriveNextFromCurrActualMinutes:
+        arrivalAtNextMs !== undefined
+          ? minutesBetween(window.currLeg.actualDepartMs, arrivalAtNextMs)
+          : null,
 
       // Next terminal departure delay (requires 3-leg context)
       // Only available when next leg data is present and eligible

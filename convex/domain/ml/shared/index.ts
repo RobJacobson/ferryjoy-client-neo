@@ -1,5 +1,5 @@
 // ============================================================================
-// SHARED MODULE EXPORTS
+// SHARED UTILITIES MODULE
 // Core types, configuration, and utilities shared across ML modules
 // ============================================================================
 
