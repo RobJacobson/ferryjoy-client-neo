@@ -15,7 +15,8 @@
 
 import type { Camera, MapState as RNMapState } from "@rnmapbox/maps";
 import MapboxRN from "@rnmapbox/maps";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import type { LayoutChangeEvent } from "react-native";
 import { View } from "react-native";
 import { useMapCameraController, useMapState } from "@/data/contexts";
 import { MAP_COMPONENT_CONFIG } from "./config";
@@ -43,6 +44,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   const { updateCameraState, updateMapDimensions } = useMapState();
   const { registerController } = useMapCameraController();
   const [styleLoaded, setStyleLoaded] = useState(false);
+  const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
 
   // Keep track of previous camera state to avoid unnecessary updates
   const previousCameraStateRef = useRef<CameraState>(
@@ -68,12 +70,21 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     );
   };
 
-  // Update map dimensions when component mounts
-  useEffect(() => {
-    // For native, we'll use default dimensions that should be updated
-    // by the actual map layout when available
-    updateMapDimensions({ width: 375, height: 812 }); // iPhone X dimensions as default
-  }, [updateMapDimensions]);
+  /**
+   * Handles layout changes to measure actual container dimensions
+   *
+   * This ensures Mapbox receives valid dimensions before initialization,
+   * preventing the "Invalid size" error on iOS.
+   *
+   * @param event - Layout change event with dimensions
+   */
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setMapDimensions({ width, height });
+      updateMapDimensions({ width, height });
+    }
+  };
 
   // Register imperative camera controller for screens to call flyTo
   const flyToImpl = (target: CameraState, durationMs: number) => {
@@ -94,30 +105,36 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     defaultDurationMs: 800,
   });
 
+  // Only render MapView after we have valid dimensions to prevent iOS initialization errors
+  const hasValidDimensions =
+    mapDimensions.width > 0 && mapDimensions.height > 0;
+
   return (
-    <View className="relative flex-1">
-      <MapboxRN.MapView
-        style={{ flex: 1 }}
-        styleURL={MAP_COMPONENT_CONFIG.styleURL}
-        zoomEnabled={true}
-        scrollEnabled={true}
-        pitchEnabled={true}
-        rotateEnabled={true}
-        onCameraChanged={handleCameraChanged}
-        onDidFinishLoadingStyle={() => setStyleLoaded(true)}
-      >
-        <MapboxRN.Camera
-          ref={cameraRef}
-          defaultSettings={{
-            ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE),
-            centerCoordinate: [
-              ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE)
-                .centerCoordinate,
-            ] as [number, number],
-          }}
-        />
-        {styleLoaded ? children : null}
-      </MapboxRN.MapView>
+    <View className="relative flex-1" onLayout={handleLayout}>
+      {hasValidDimensions ? (
+        <MapboxRN.MapView
+          style={{ flex: 1 }}
+          styleURL={MAP_COMPONENT_CONFIG.styleURL}
+          zoomEnabled={true}
+          scrollEnabled={true}
+          pitchEnabled={true}
+          rotateEnabled={true}
+          onCameraChanged={handleCameraChanged}
+          onDidFinishLoadingStyle={() => setStyleLoaded(true)}
+        >
+          <MapboxRN.Camera
+            ref={cameraRef}
+            defaultSettings={{
+              ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE),
+              centerCoordinate: [
+                ...(initialCameraState || DEFAULT_NATIVE_CAMERA_STATE)
+                  .centerCoordinate,
+              ] as [number, number],
+            }}
+          />
+          {styleLoaded ? children : null}
+        </MapboxRN.MapView>
+      ) : null}
     </View>
   );
 };
