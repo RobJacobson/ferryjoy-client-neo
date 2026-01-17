@@ -5,6 +5,7 @@ export {
   optionalDateToEpochMs,
   optionalEpochMsToDate,
 } from "./dateConversions";
+export { getSailingDay } from "./getSailingDay";
 export {
   EasingFunctions,
   lerp,
