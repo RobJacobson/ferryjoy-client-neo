@@ -38,4 +38,7 @@ config.resolver.extraNodeModules = {
   "@tanstack/query-core": path.join(appNodeModules, "@tanstack", "query-core"),
 };
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+module.exports = withNativeWind(config, {
+  input: "./global.css",
+  inlineRem: 16,
+});
