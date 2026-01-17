@@ -19,11 +19,18 @@ interface RouteCardProps {
  * RouteCard component that displays a terminal with buttons for reachable destinations.
  * Each destination button shows "To [destination name]" format.
  */
-export const RouteCard = ({ terminalName, destinations }: RouteCardProps) => {
+export const RouteCard = ({
+  terminalName,
+  terminalSlug,
+  destinations,
+}: RouteCardProps) => {
   const router = useRouter();
 
   const handleDestinationPress = (destinationSlug: string) => {
-    router.push(`/(tabs)/map/${destinationSlug}` as Href);
+    // Convert both origin and destination slugs to uppercase abbreviations
+    const fromAbbrev = terminalSlug.toUpperCase();
+    const destAbbrev = destinationSlug.toUpperCase();
+    router.push(`/(tabs)/map/${fromAbbrev}/${destAbbrev}` as Href);
   };
 
   return (

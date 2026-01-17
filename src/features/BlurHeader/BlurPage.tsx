@@ -33,6 +33,9 @@ export interface BlurPageProps {
 }
 
 /**
+ * ⚠️ DEPRECATED: This component has been replaced by `GlassHeader` which uses
+ * Expo's native `expo-glass-effect` package for authentic iOS 26 liquid glass effects.
+ *
  * Screen wrapper that adds a blur header overlay with both blur and opacity gradients.
  *
  * This component combines both:

@@ -1,10 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-
-import type { CameraState } from "@/features/MapComponent/shared";
-import { mapProjectionUtils } from "@/shared/utils/mapProjection";
 import { wsfRoutesData } from "@/data/routes";
 import { terminalLocations } from "@/data/terminalLocations";
+import type { CameraState } from "@/features/MapComponent/shared";
+import { mapProjectionUtils } from "@/shared/utils/mapProjection";
 
 type TerminalLocation = {
   TerminalName: string;

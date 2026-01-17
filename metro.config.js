@@ -30,7 +30,11 @@ config.resolver.extraNodeModules = {
   "ws-dottie": wsDottieRoot,
   react: path.join(appNodeModules, "react"),
   "react-dom": path.join(appNodeModules, "react-dom"),
-  "@tanstack/react-query": path.join(appNodeModules, "@tanstack", "react-query"),
+  "@tanstack/react-query": path.join(
+    appNodeModules,
+    "@tanstack",
+    "react-query"
+  ),
   "@tanstack/query-core": path.join(appNodeModules, "@tanstack", "query-core"),
 };
 

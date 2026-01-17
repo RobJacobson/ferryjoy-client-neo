@@ -1,4 +1,4 @@
-import { destination } from "@turf/turf";
+import destination from "@turf/destination";
 import type { VesselLocation } from "@/domain";
 
 // Projection time window in milliseconds

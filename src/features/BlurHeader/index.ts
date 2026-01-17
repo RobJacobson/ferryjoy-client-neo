@@ -1,4 +1,5 @@
-// Blur Header Feature
+// Blur Header Feature (DEPRECATED)
+// ⚠️ DEPRECATED: Replaced by GlassHeader using expo-glass-effect
 // Provides iOS Contacts-style blurred header overlays for screens
 
 // Unified blur components (combines opacity + blur gradients)

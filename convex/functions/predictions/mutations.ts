@@ -1,5 +1,5 @@
-import { mutation } from "_generated/server";
 import type { MutationCtx } from "_generated/server";
+import { mutation } from "_generated/server";
 import { v } from "convex/values";
 import {
   modelParametersSchema,

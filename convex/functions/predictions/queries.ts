@@ -106,9 +106,7 @@ export const getModelParametersByTag = query({
   handler: async (ctx, args) =>
     ctx.db
       .query("modelParameters")
-      .withIndex("by_version_tag", (q) =>
-        q.eq("versionTag", args.versionTag)
-      )
+      .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
       .collect(),
 });
 

@@ -432,6 +432,20 @@ export const getTerminalLocation = (
 };
 
 /**
+ * Helper function to get terminal location data by abbreviation (case-insensitive).
+ * Normalizes the input to uppercase for lookup.
+ *
+ * @param abbrev - The abbreviation of terminal (case-insensitive)
+ * @returns The terminal location data object or null if not found
+ */
+export const getTerminalLocationByAbbrev = (
+  abbrev: string
+): TerminalLocation | null => {
+  const normalizedAbbrev = abbrev.toUpperCase();
+  return terminalLocations[normalizedAbbrev] || null;
+};
+
+/**
  * Helper function to get terminal location data by ID
  *
  * @param terminalId - The ID of terminal

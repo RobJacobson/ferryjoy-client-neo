@@ -1,4 +1,6 @@
-# BlurHeader Feature
+# BlurHeader Feature (DEPRECATED)
+
+> **⚠️ DEPRECATED**: This component has been replaced by `GlassHeader` which uses Expo's native `expo-glass-effect` package for authentic iOS 26 liquid glass effects. Please migrate to `GlassHeader` for better performance, compatibility, and native iOS 26 support.
 
 Provides iOS Contacts-style blurred header overlays for screens with both blur and opacity gradients.
 
