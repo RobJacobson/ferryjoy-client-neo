@@ -3,8 +3,8 @@ import path from "node:path";
 
 import type { CameraState } from "@/features/MapComponent/shared";
 import { mapProjectionUtils } from "@/shared/utils/mapProjection";
-import routesData from "../assets/wsf-data/wsf-routes.json";
-import terminalLocations from "../assets/wsf-data/wsf-terminals-locations.json";
+import { wsfRoutesData } from "@/data/routes";
+import { terminalLocations } from "@/data/terminalLocations";
 
 type TerminalLocation = {
   TerminalName: string;
@@ -105,7 +105,7 @@ const main = () => {
   }
 
   // Routes
-  const routes = Object.values(routesData.routes) as RouteJson[];
+  const routes = Object.values(wsfRoutesData.routes) as RouteJson[];
   for (const r of routes) {
     const slug = r.routeAbbrev;
     const routeTerminals: TerminalLocation[] = r.terminals
