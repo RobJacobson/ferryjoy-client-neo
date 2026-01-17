@@ -145,7 +145,7 @@ async function main() {
 
   const totalUniquePairs = uniqueConnections.size;
 
-  console.log("\n" + "=".repeat(60));
+  console.log(`\n${"=".repeat(60)}`);
   console.log("📊 Summary:");
   console.log(`  Successfully fetched: ${successCount} days`);
   console.log(`  Failed/invalid: ${errorCount} days`);
