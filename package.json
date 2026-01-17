@@ -5,6 +5,7 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:build": "expo run:ios --device --clean",
     "start": "expo start",
     "prebuild": "expo prebuild",
     "lint": "biome lint .",
