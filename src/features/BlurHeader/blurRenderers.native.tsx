@@ -1,10 +1,8 @@
 import MaskedView from "@react-native-masked-view/masked-view";
+import { ProgressiveBlurView } from "@sbaiahmed1/react-native-blur";
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { hexToRgba } from "./utils";
-
-// ProgressiveBlurView is not available on web
-// This file is used for web platform, native uses blurRenderers.native.tsx
 
 export type RenderProps = {
   tintColor: string;
@@ -103,14 +101,68 @@ const renderCombinedBlurMode = ({
   tintColor,
   opacity,
   fadeStartClamped,
-}: Pick<RenderProps, "tintColor" | "opacity" | "fadeStartClamped">) => {
-  // Web version: ProgressiveBlurView is not available, so fall back to masked mode
-  // This should not be called on web since renderWebMode is used instead
-  return renderMaskedMode({
-    tintColor,
-    opacity,
-    fadeStartClamped,
-  });
+  blurAmount,
+  blurType,
+  blurDirection,
+  blurStartOffset,
+}: Pick<
+  RenderProps,
+  | "tintColor"
+  | "opacity"
+  | "fadeStartClamped"
+  | "blurAmount"
+  | "blurType"
+  | "blurDirection"
+  | "blurStartOffset"
+>) => {
+  // Create the opacity mask for the tint overlay
+  const startOpacity = 1;
+  const endOpacity = 0;
+
+  const opacityMaskElement = (
+    <View className="absolute inset-0 bg-transparent">
+      <Svg width="100%" height="100%" preserveAspectRatio="none">
+        <Defs>
+          <LinearGradient id="opacityMask" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#fff" stopOpacity={startOpacity} />
+            <Stop
+              offset={String(fadeStartClamped)}
+              stopColor="#fff"
+              stopOpacity={startOpacity}
+            />
+            <Stop offset="1" stopColor="#fff" stopOpacity={endOpacity} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#opacityMask)" />
+      </Svg>
+    </View>
+  );
+
+  return (
+    <View className="absolute inset-0">
+      {/* Progressive blur layer - this creates the gradient blur effect */}
+      <ProgressiveBlurView
+        blurType={blurType}
+        blurAmount={blurAmount}
+        direction={blurDirection}
+        startOffset={blurStartOffset}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Opacity tint overlay - this adds the color tint with gradient fade */}
+      <MaskedView
+        style={StyleSheet.absoluteFill}
+        maskElement={opacityMaskElement}
+      >
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: hexToRgba(tintColor, opacity) },
+          ]}
+        />
+      </MaskedView>
+    </View>
+  );
 };
 
 const renderFallbackMode = ({
