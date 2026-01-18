@@ -1,4 +1,5 @@
-import { bezierSpline, lineString } from "@turf/turf";
+import bezierSpline from "@turf/bezier-spline";
+import { lineString } from "@turf/helpers";
 import {
   type CurveFactory,
   curveBasis,

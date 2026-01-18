@@ -2,35 +2,38 @@ import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/ui";
+import { useSelectedTerminalPair } from "@/data/contexts";
 
-interface Terminal {
-  id: string;
-  name: string;
+interface Destination {
+  terminalId: number;
+  terminalName: string;
+  terminalSlug: string;
 }
 
 interface RouteCardProps {
-  title: string;
-  routeAbbrev: string;
-  terminals: Terminal[];
+  terminalName: string;
+  terminalSlug: string;
+  destinations: Destination[];
 }
 
+/**
+ * RouteCard component that displays a terminal with buttons for reachable destinations.
+ * Each destination button shows "To [destination name]" format.
+ */
 export const RouteCard = ({
-  title,
-  routeAbbrev,
-  terminals,
+  terminalName,
+  terminalSlug,
+  destinations,
 }: RouteCardProps) => {
   const router = useRouter();
+  const { setPair } = useSelectedTerminalPair();
 
-  const handleTerminalPress = (terminalId: string) => {
-    router.push(`/(tabs)/map/${terminalId.toLowerCase()}` as Href);
-  };
-
-  const handleRoutePress = () => {
-    router.push(`/(tabs)/map/${routeAbbrev}` as Href);
-  };
-
-  const handleAllTerminalsPress = () => {
-    router.push("/(tabs)/map" as Href);
+  const handleDestinationPress = (destinationSlug: string) => {
+    // Convert both origin and destination slugs to uppercase abbreviations
+    const fromAbbrev = terminalSlug.toUpperCase();
+    const destAbbrev = destinationSlug.toUpperCase();
+    void setPair(fromAbbrev, destAbbrev);
+    router.push(`/(tabs)/map/${fromAbbrev}/${destAbbrev}` as Href);
   };
 
   return (
@@ -47,27 +50,21 @@ export const RouteCard = ({
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
           <Text className="mb-6 text-2xl font-bold leading-tight text-center text-slate-900">
-            {title}
+            {terminalName}
           </Text>
         </View>
 
         <View className="gap-3 pb-4">
-          <Button onPress={handleRoutePress} className="w-full">
-            <Text>Route overview</Text>
-          </Button>
-          {terminals.map((terminal) => (
+          {destinations.map((destination) => (
             <Button
-              key={terminal.id}
+              key={destination.terminalSlug}
               variant="secondary"
-              onPress={() => handleTerminalPress(terminal.id)}
+              onPress={() => handleDestinationPress(destination.terminalSlug)}
               className="w-full"
             >
-              <Text>{terminal.name}</Text>
+              <Text>To {destination.terminalName}</Text>
             </Button>
           ))}
-          <Button onPress={handleAllTerminalsPress} className="mt-2 w-full">
-            <Text>All Terminals</Text>
-          </Button>
         </View>
       </ScrollView>
     </View>

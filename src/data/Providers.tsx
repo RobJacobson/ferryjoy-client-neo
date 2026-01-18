@@ -1,8 +1,5 @@
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { ThemeProvider } from "@react-navigation/native";
+import { PortalHost } from "@rn-primitives/portal";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   ConvexProvider as ConvexClientProvider,
@@ -17,9 +14,11 @@ import {
   MapCameraControllerProvider,
   MapStateProvider,
   NavigationHistoryProvider,
+  SelectedTerminalPairProvider,
   SelectedVesselProvider,
   WsDottieProvider,
 } from "@/data/contexts";
+import { NAV_THEME } from "@/lib/theme";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -43,19 +42,22 @@ export const Providers = ({ children }: PropsWithChildren) => {
         <ConvexClientProvider client={convex}>
           <QueryClientProvider client={queryClient}>
             <ThemeProvider
-              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+              value={NAV_THEME[colorScheme === "dark" ? "dark" : "light"]}
             >
               <NavigationHistoryProvider>
                 <MapStateProvider>
                   <MapCameraControllerProvider>
                     <WsDottieProvider>
-                      <SelectedVesselProvider>
-                        <ConvexProvider>{children}</ConvexProvider>
-                      </SelectedVesselProvider>
+                      <SelectedTerminalPairProvider>
+                        <SelectedVesselProvider>
+                          <ConvexProvider>{children}</ConvexProvider>
+                        </SelectedVesselProvider>
+                      </SelectedTerminalPairProvider>
                     </WsDottieProvider>
                   </MapCameraControllerProvider>
                 </MapStateProvider>
               </NavigationHistoryProvider>
+              <PortalHost />
             </ThemeProvider>
           </QueryClientProvider>
         </ConvexClientProvider>

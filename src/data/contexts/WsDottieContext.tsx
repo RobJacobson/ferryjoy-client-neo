@@ -2,16 +2,11 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext } from "react";
 import { Platform } from "react-native";
-import {
-  type TerminalVerbose,
-  useTerminalVerbose,
-} from "ws-dottie/wsf-terminals";
-import {
-  useVesselLocations,
-  useVesselsVerbose,
-  type VesselLocation,
-  type VesselVerbose,
-} from "ws-dottie/wsf-vessels";
+
+import type { TerminalVerbose } from "ws-dottie/wsf-terminals";
+import { useTerminalVerbose } from "ws-dottie/wsf-terminals";
+import type { VesselLocation, VesselVerbose } from "ws-dottie/wsf-vessels";
+import { useVesselLocations, useVesselsVerbose } from "ws-dottie/wsf-vessels";
 
 type WsDottieContextValue = {
   vesselLocations: UseQueryResult<VesselLocation[], Error>;

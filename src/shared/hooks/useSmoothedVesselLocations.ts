@@ -1,4 +1,4 @@
-import { distance } from "@turf/turf";
+import { distance } from "@turf/distance";
 import { useEffect, useRef, useState } from "react";
 import type { VesselLocation } from "@/domain";
 import { lerp } from "@/shared/utils/lerp";

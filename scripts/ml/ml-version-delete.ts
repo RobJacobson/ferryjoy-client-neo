@@ -66,8 +66,7 @@ async function deleteVersion(versionTag: string) {
       `✅ Successfully deleted ${result.deleted} models from ${versionTag}`
     );
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("Cannot delete active production version")) {
       console.error(`❌ ${errorMessage}`);
       console.error(

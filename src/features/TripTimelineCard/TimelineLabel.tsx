@@ -30,17 +30,13 @@ export const TimelineLabel = ({
       onLayout={handleLayout}
     >
       <Text
-        variant="body2"
+        variant="default"
         className="font-bold leading-tight text-center line-height-tight"
       >
         {time}
       </Text>
       {description && (
-        <Text
-          variant="body2"
-          color="muted"
-          className="font-light leading-tight text-center"
-        >
+        <Text variant="muted" className="font-light leading-tight text-center">
           {description}
         </Text>
       )}

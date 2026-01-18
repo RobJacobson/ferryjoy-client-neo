@@ -18,6 +18,8 @@ export * from "./MapStateContext";
 
 export * from "./NavigationHistoryContext";
 
+export * from "./SelectedTerminalPairContext";
+
 export * from "./SelectedVesselContext";
 
 export * from "./SmoothedVesselLocationsContext";

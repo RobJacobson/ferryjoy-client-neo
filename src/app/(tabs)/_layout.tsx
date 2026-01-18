@@ -1,74 +1,62 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {
-  Icon,
-  Label,
-  NativeTabs,
-  VectorIcon,
-} from "expo-router/unstable-native-tabs";
-import { Platform } from "react-native";
+import { Tabs } from "expo-router";
+import { HeaderBackCircleButton } from "@/components/navigation/HeaderBackCircleButton";
+import { TerminalSelectionHeader } from "@/components/navigation/TerminalSelectionHeader";
 
 export default function TabLayout() {
   return (
-    <NativeTabs tintColor="#007AFF">
-      <NativeTabs.Trigger name="map">
-        <Label>Map</Label>
-        {Platform.OS === "ios" ? (
-          <Icon sf={{ default: "map", selected: "map.fill" }} />
-        ) : (
-          <Icon src={<VectorIcon family={Ionicons} name="map-outline" />} />
-        )}
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="terminals">
-        <Label>Terminals</Label>
-        {Platform.OS === "ios" ? (
-          <Icon
-            sf={{ default: "mappin.circle", selected: "mappin.circle.fill" }}
-          />
-        ) : (
-          <Icon
-            src={<VectorIcon family={Ionicons} name="location-outline" />}
-          />
-        )}
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="vessels">
-        <Label>Vessels</Label>
-        {Platform.OS === "ios" ? (
-          <Icon sf={{ default: "sailboat", selected: "sailboat.fill" }} />
-        ) : (
-          <Icon src={<VectorIcon family={Ionicons} name="boat-outline" />} />
-        )}
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="schedules">
-        <Label>Schedules</Label>
-        {Platform.OS === "ios" ? (
-          <Icon
-            sf={{ default: "calendar", selected: "calendar.circle.fill" }}
-          />
-        ) : (
-          <Icon
-            src={<VectorIcon family={Ionicons} name="calendar-outline" />}
-          />
-        )}
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="chat">
-        <Label>Chat</Label>
-        {Platform.OS === "ios" ? (
-          <Icon
-            sf={{
-              default: "bubble.left.and.bubble.right",
-              selected: "bubble.left.and.bubble.right.fill",
-            }}
-          />
-        ) : (
-          <Icon
-            src={<VectorIcon family={Ionicons} name="chatbubbles-outline" />}
-          />
-        )}
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#007AFF",
+        headerShown: true,
+        headerTitleAlign: "center",
+        headerTitle: () => <TerminalSelectionHeader />,
+        headerLeft: () => <HeaderBackCircleButton />,
+        headerTitleContainerStyle: { paddingBottom: 2 },
+        headerLeftContainerStyle: { paddingBottom: 2 },
+      }}
+    >
+      <Tabs.Screen
+        name="map"
+        options={{
+          headerShown: true,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="terminals"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="location-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="vessels"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="boat-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="schedules"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

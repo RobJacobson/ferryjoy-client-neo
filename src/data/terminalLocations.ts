@@ -1,4 +1,9 @@
-import terminalLocationsData from "../../assets/wsf-data/wsf-terminals-locations.json";
+/**
+ * Terminal Locations Data and Types
+ *
+ * Static data for all Washington State Ferry terminal locations.
+ * This file contains both type definitions and the actual data.
+ */
 
 /**
  * Type definition for terminal location data
@@ -29,24 +34,421 @@ export type TerminalLocation = {
 export type TerminalLocationsMap = Record<string, TerminalLocation>;
 
 /**
- * Terminal locations data imported from JSON file
+ * Terminal locations data for all WSF terminals
  */
-export const terminalLocations: TerminalLocationsMap = terminalLocationsData;
+export const terminalLocations: TerminalLocationsMap = {
+  ANA: {
+    TerminalID: 1,
+    TerminalSubjectID: 111,
+    RegionID: 1,
+    TerminalName: "Anacortes",
+    TerminalAbbrev: "ANA",
+    SortSeq: 10,
+    Latitude: 48.507351,
+    Longitude: -122.677,
+    AddressLineOne: "2100 Ferry Terminal Road",
+    AddressLineTwo: null,
+    City: "Anacortes",
+    State: "WA",
+    ZipCode: "98221",
+    Country: "USA",
+    routeId: 9,
+    routeAbbrev: "ana-sj",
+    TerminalMates: ["FRH", "LOP", "ORI", "SHI"],
+  },
+  BBI: {
+    TerminalID: 3,
+    TerminalSubjectID: 103,
+    RegionID: 4,
+    TerminalName: "Bainbridge Island",
+    TerminalAbbrev: "BBI",
+    SortSeq: 40,
+    Latitude: 47.622339,
+    Longitude: -122.509617,
+    AddressLineOne: "270 Olympic Drive SE",
+    AddressLineTwo: null,
+    City: "Bainbridge Island",
+    State: "WA",
+    ZipCode: "98110",
+    Country: "USA",
+    routeId: 5,
+    routeAbbrev: "sea-bi",
+    TerminalMates: ["P52"],
+  },
+  BRE: {
+    TerminalID: 4,
+    TerminalSubjectID: 102,
+    RegionID: 4,
+    TerminalName: "Bremerton",
+    TerminalAbbrev: "BRE",
+    SortSeq: 30,
+    Latitude: 47.561847,
+    Longitude: -122.624089,
+    AddressLineOne: "211 1st Street",
+    AddressLineTwo: null,
+    City: "Bremerton",
+    State: "WA",
+    ZipCode: "98337",
+    Country: "USA",
+    routeId: 3,
+    routeAbbrev: "sea-br",
+    TerminalMates: ["P52"],
+  },
+  CLI: {
+    TerminalID: 5,
+    TerminalSubjectID: 112,
+    RegionID: 2,
+    TerminalName: "Clinton",
+    TerminalAbbrev: "CLI",
+    SortSeq: 20,
+    Latitude: 47.9754,
+    Longitude: -122.349581,
+    AddressLineOne: "64 South Ferrydock Road",
+    AddressLineTwo: null,
+    City: "Clinton",
+    State: "WA",
+    ZipCode: "98236",
+    Country: "USA",
+    routeId: 7,
+    routeAbbrev: "muk-cl",
+    TerminalMates: ["MUK"],
+  },
+  COU: {
+    TerminalID: 11,
+    TerminalSubjectID: 116,
+    RegionID: 2,
+    TerminalName: "Coupeville ",
+    TerminalAbbrev: "COU",
+    SortSeq: 40,
+    Latitude: 48.159008,
+    Longitude: -122.672603,
+    AddressLineOne: "1400 South State Route 20",
+    AddressLineTwo: null,
+    City: "Coupeville",
+    State: "WA",
+    ZipCode: "98239",
+    Country: "USA",
+    routeId: 8,
+    routeAbbrev: "pt-key",
+    TerminalMates: ["POT"],
+  },
+  EDM: {
+    TerminalID: 8,
+    TerminalSubjectID: 113,
+    RegionID: 3,
+    TerminalName: "Edmonds",
+    TerminalAbbrev: "EDM",
+    SortSeq: 10,
+    Latitude: 47.813378,
+    Longitude: -122.385378,
+    AddressLineOne: "199 Sunset Ave. S.",
+    AddressLineTwo: null,
+    City: "Edmonds",
+    State: "WA",
+    ZipCode: "98020",
+    Country: "USA",
+    routeId: 6,
+    routeAbbrev: "ed-king",
+    TerminalMates: ["KIN"],
+  },
+  FAU: {
+    TerminalID: 9,
+    TerminalSubjectID: 114,
+    RegionID: 5,
+    TerminalName: "Fauntleroy",
+    TerminalAbbrev: "FAU",
+    SortSeq: 10,
+    Latitude: 47.5232,
+    Longitude: -122.3967,
+    AddressLineOne: "4829 SW Barton",
+    AddressLineTwo: null,
+    City: "Seattle",
+    State: "WA",
+    ZipCode: "98136",
+    Country: "USA",
+    routeId: 13,
+    routeAbbrev: "f-s",
+    TerminalMates: ["SOU", "VAI"],
+  },
+  FRH: {
+    TerminalID: 10,
+    TerminalSubjectID: 115,
+    RegionID: 1,
+    TerminalName: "Friday Harbor",
+    TerminalAbbrev: "FRH",
+    SortSeq: 50,
+    Latitude: 48.535783,
+    Longitude: -123.013844,
+    AddressLineOne: "91 Front Street S.  ",
+    AddressLineTwo: null,
+    City: "Friday Harbor",
+    State: "WA",
+    ZipCode: "98250",
+    Country: "USA",
+    routeId: 9,
+    routeAbbrev: "ana-sj",
+    TerminalMates: ["ANA", "LOP", "ORI", "SHI"],
+  },
+  KIN: {
+    TerminalID: 12,
+    TerminalSubjectID: 110,
+    RegionID: 3,
+    TerminalName: "Kingston",
+    TerminalAbbrev: "KIN",
+    SortSeq: 20,
+    Latitude: 47.794606,
+    Longitude: -122.494328,
+    AddressLineOne: "11264 State Route 104",
+    AddressLineTwo: null,
+    City: "Kingston",
+    State: "WA",
+    ZipCode: "98346",
+    Country: "USA",
+    routeId: 6,
+    routeAbbrev: "ed-king",
+    TerminalMates: ["EDM"],
+  },
+  LOP: {
+    TerminalID: 13,
+    TerminalSubjectID: 117,
+    RegionID: 1,
+    TerminalName: "Lopez Island",
+    TerminalAbbrev: "LOP",
+    SortSeq: 20,
+    Latitude: 48.570928,
+    Longitude: -122.882764,
+    AddressLineOne: "1 Ferry Road",
+    AddressLineTwo: null,
+    City: "Lopez Island",
+    State: "WA",
+    ZipCode: "98261",
+    Country: "USA",
+    routeId: 9,
+    routeAbbrev: "ana-sj",
+    TerminalMates: ["ANA", "FRH", "ORI", "SHI"],
+  },
+  MUK: {
+    TerminalID: 14,
+    TerminalSubjectID: 109,
+    RegionID: 2,
+    TerminalName: "Mukilteo",
+    TerminalAbbrev: "MUK",
+    SortSeq: 10,
+    Latitude: 47.9506,
+    Longitude: -122.297,
+    AddressLineOne: "910 First Street",
+    AddressLineTwo: null,
+    City: "Mukilteo",
+    State: "WA",
+    ZipCode: "98204",
+    Country: "USA",
+    routeId: 7,
+    routeAbbrev: "muk-cl",
+    TerminalMates: ["CLI"],
+  },
+  ORI: {
+    TerminalID: 15,
+    TerminalSubjectID: 119,
+    RegionID: 1,
+    TerminalName: "Orcas Island",
+    TerminalAbbrev: "ORI",
+    SortSeq: 40,
+    Latitude: 48.597333,
+    Longitude: -122.943494,
+    AddressLineOne: "8368 Orcas Road",
+    AddressLineTwo: null,
+    City: "Orcas Island",
+    State: "WA",
+    ZipCode: "98280",
+    Country: "USA",
+    routeId: 9,
+    routeAbbrev: "ana-sj",
+    TerminalMates: ["ANA", "FRH", "LOP", "SHI"],
+  },
+  PTD: {
+    TerminalID: 16,
+    TerminalSubjectID: 108,
+    RegionID: 5,
+    TerminalName: "Point Defiance",
+    TerminalAbbrev: "PTD",
+    SortSeq: 60,
+    Latitude: 47.306519,
+    Longitude: -122.514053,
+    AddressLineOne: "5810 North Pearl Street",
+    AddressLineTwo: null,
+    City: "Tacoma",
+    State: "WA",
+    ZipCode: "98405",
+    Country: "USA",
+    routeId: 1,
+    routeAbbrev: "pd-tal",
+    TerminalMates: ["TAH"],
+  },
+  POT: {
+    TerminalID: 17,
+    TerminalSubjectID: 107,
+    RegionID: 2,
+    TerminalName: "Port Townsend",
+    TerminalAbbrev: "POT",
+    SortSeq: 30,
+    Latitude: 48.110847,
+    Longitude: -122.759039,
+    AddressLineOne: "1301 Water Street",
+    AddressLineTwo: null,
+    City: "Port Townsend",
+    State: "WA",
+    ZipCode: "98368",
+    Country: "USA",
+    routeId: 8,
+    routeAbbrev: "pt-key",
+    TerminalMates: ["COU"],
+  },
+  P52: {
+    TerminalID: 7,
+    TerminalSubjectID: 101,
+    RegionID: 4,
+    TerminalName: "Seattle",
+    TerminalAbbrev: "P52",
+    SortSeq: 20,
+    Latitude: 47.602501,
+    Longitude: -122.340472,
+    AddressLineOne: "801 Alaskan Way Pier 52",
+    AddressLineTwo: null,
+    City: "Seattle",
+    State: "WA",
+    ZipCode: "98104",
+    Country: "USA",
+    routeId: 3,
+    routeAbbrev: "sea-br",
+    TerminalMates: ["BBI", "BRE"],
+  },
+  SHI: {
+    TerminalID: 18,
+    TerminalSubjectID: 118,
+    RegionID: 1,
+    TerminalName: "Shaw Island",
+    TerminalAbbrev: "SHI",
+    SortSeq: 30,
+    Latitude: 48.584792,
+    Longitude: -122.92965,
+    AddressLineOne: "12 Blind Bay Rd.",
+    AddressLineTwo: null,
+    City: "Shaw Island",
+    State: "WA",
+    ZipCode: "98286",
+    Country: "USA",
+    routeId: 9,
+    routeAbbrev: "ana-sj",
+    TerminalMates: ["ANA", "FRH", "LOP", "ORI"],
+  },
+  SID: {
+    TerminalID: 19,
+    TerminalSubjectID: 120,
+    RegionID: 1,
+    TerminalName: "Sidney B.C.",
+    TerminalAbbrev: "SID",
+    SortSeq: 60,
+    Latitude: 48.643114,
+    Longitude: -123.396739,
+    AddressLineOne: "2499 Ocean Avenue",
+    AddressLineTwo: null,
+    City: "Sidney",
+    State: "BC",
+    ZipCode: "V8L1T3",
+    Country: "Canada",
+    routeId: null,
+    routeAbbrev: null,
+    TerminalMates: [],
+  },
+  SOU: {
+    TerminalID: 20,
+    TerminalSubjectID: 105,
+    RegionID: 5,
+    TerminalName: "Southworth",
+    TerminalAbbrev: "SOU",
+    SortSeq: 35,
+    Latitude: 47.513064,
+    Longitude: -122.495742,
+    AddressLineOne: "11700 SE Sedwick Rd",
+    AddressLineTwo: null,
+    City: "Southworth",
+    State: "WA",
+    ZipCode: "98386",
+    Country: "USA",
+    routeId: 13,
+    routeAbbrev: "f-s",
+    TerminalMates: ["FAU", "VAI"],
+  },
+  TAH: {
+    TerminalID: 21,
+    TerminalSubjectID: 121,
+    RegionID: 5,
+    TerminalName: "Tahlequah",
+    TerminalAbbrev: "TAH",
+    SortSeq: 55,
+    Latitude: 47.331961,
+    Longitude: -122.507786,
+    AddressLineOne: "Vashon Hwy SW and SW Tahlequah Rd",
+    AddressLineTwo: null,
+    City: "Vashon",
+    State: "WA",
+    ZipCode: "98070",
+    Country: "USA",
+    routeId: 1,
+    routeAbbrev: "pd-tal",
+    TerminalMates: ["PTD"],
+  },
+  VAI: {
+    TerminalID: 22,
+    TerminalSubjectID: 106,
+    RegionID: 5,
+    TerminalName: "Vashon Island",
+    TerminalAbbrev: "VAI",
+    SortSeq: 20,
+    Latitude: 47.51095,
+    Longitude: -122.463639,
+    AddressLineOne: "10800 North Vashon Highway",
+    AddressLineTwo: null,
+    City: "Vashon",
+    State: "WA",
+    ZipCode: "98070",
+    Country: "USA",
+    routeId: 14,
+    routeAbbrev: "f-v-s",
+    TerminalMates: ["FAU", "SOU"],
+  },
+};
 
 /**
  * Helper function to get terminal location data by abbreviation
- * @param terminalAbbrev The abbreviation of terminal
+ *
+ * @param terminalAbbrev - The abbreviation of terminal
  * @returns The terminal location data object or null if not found
  */
 export const getTerminalLocation = (
   terminalAbbrev: string
 ): TerminalLocation | null => {
-  return (terminalLocations as TerminalLocationsMap)[terminalAbbrev] || null;
+  return terminalLocations[terminalAbbrev] || null;
+};
+
+/**
+ * Helper function to get terminal location data by abbreviation (case-insensitive).
+ * Normalizes the input to uppercase for lookup.
+ *
+ * @param abbrev - The abbreviation of terminal (case-insensitive)
+ * @returns The terminal location data object or null if not found
+ */
+export const getTerminalLocationByAbbrev = (
+  abbrev: string
+): TerminalLocation | null => {
+  const normalizedAbbrev = abbrev.toUpperCase();
+  return terminalLocations[normalizedAbbrev] || null;
 };
 
 /**
  * Helper function to get terminal location data by ID
- * @param terminalId The ID of terminal
+ *
+ * @param terminalId - The ID of terminal
  * @returns The terminal location data object or null if not found
  */
 export const getTerminalLocationById = (
@@ -60,7 +462,8 @@ export const getTerminalLocationById = (
 
 /**
  * Helper function to get all terminals for a specific route
- * @param routeId The ID of route
+ *
+ * @param routeId - The ID of route
  * @returns Array of terminal location data objects for route
  */
 export const getTerminalsByRoute = (routeId: number): TerminalLocation[] => {
@@ -70,7 +473,8 @@ export const getTerminalsByRoute = (routeId: number): TerminalLocation[] => {
 
 /**
  * Helper function to get all terminals in a specific region
- * @param regionId The ID of region
+ *
+ * @param regionId - The ID of region
  * @returns Array of terminal location data objects for region
  */
 export const getTerminalsByRegion = (regionId: number): TerminalLocation[] => {

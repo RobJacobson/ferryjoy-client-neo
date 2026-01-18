@@ -33,9 +33,7 @@ async function switchProductionVersion(versionTag: string) {
       { versionTag }
     );
 
-    console.log(
-      `✅ Successfully switched production version to ${versionTag}`
-    );
+    console.log(`✅ Successfully switched production version to ${versionTag}`);
     console.log("   Predictions will now use this version");
   } catch (error) {
     console.error("Error switching production version:", error);
