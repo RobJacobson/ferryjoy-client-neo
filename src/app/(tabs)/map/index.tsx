@@ -18,7 +18,6 @@ const MapIndexPage = () => {
 
   return (
     <MapScreenLayout
-      title="Map"
       onVesselSelect={handleVesselSelect}
       bottomSheet={
         <VesselBottomSheet

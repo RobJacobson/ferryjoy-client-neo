@@ -14,6 +14,7 @@ import {
   MapCameraControllerProvider,
   MapStateProvider,
   NavigationHistoryProvider,
+  SelectedTerminalPairProvider,
   SelectedVesselProvider,
   WsDottieProvider,
 } from "@/data/contexts";
@@ -47,9 +48,11 @@ export const Providers = ({ children }: PropsWithChildren) => {
                 <MapStateProvider>
                   <MapCameraControllerProvider>
                     <WsDottieProvider>
-                      <SelectedVesselProvider>
-                        <ConvexProvider>{children}</ConvexProvider>
-                      </SelectedVesselProvider>
+                      <SelectedTerminalPairProvider>
+                        <SelectedVesselProvider>
+                          <ConvexProvider>{children}</ConvexProvider>
+                        </SelectedVesselProvider>
+                      </SelectedTerminalPairProvider>
                     </WsDottieProvider>
                   </MapCameraControllerProvider>
                 </MapStateProvider>

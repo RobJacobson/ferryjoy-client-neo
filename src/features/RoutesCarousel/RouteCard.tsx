@@ -2,6 +2,7 @@ import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/ui";
+import { useSelectedTerminalPair } from "@/data/contexts";
 
 interface Destination {
   terminalId: number;
@@ -25,11 +26,13 @@ export const RouteCard = ({
   destinations,
 }: RouteCardProps) => {
   const router = useRouter();
+  const { setPair } = useSelectedTerminalPair();
 
   const handleDestinationPress = (destinationSlug: string) => {
     // Convert both origin and destination slugs to uppercase abbreviations
     const fromAbbrev = terminalSlug.toUpperCase();
     const destAbbrev = destinationSlug.toUpperCase();
+    void setPair(fromAbbrev, destAbbrev);
     router.push(`/(tabs)/map/${fromAbbrev}/${destAbbrev}` as Href);
   };
 

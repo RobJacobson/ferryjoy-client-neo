@@ -1,5 +1,5 @@
-import { ScrollView } from "react-native";
-import { Text, View } from "@/components/ui";
+import { ScrollView, View } from "react-native";
+import { Text as UIText } from "@/components/ui";
 import { TripTimelineCard } from "@/features/TripTimelineCard";
 
 export default function SchedulesScreen() {
@@ -13,9 +13,9 @@ export default function SchedulesScreen() {
       contentContainerClassName="p-6 gap-8"
     >
       <View>
-        <Text variant="heading4" className="mb-3">
+        <UIText variant="h4" className="mb-3">
           TripTimeline (future)
-        </Text>
+        </UIText>
         <TripTimelineCard
           status="future"
           fromTerminal="SEA"
@@ -27,9 +27,9 @@ export default function SchedulesScreen() {
       </View>
 
       <View>
-        <Text variant="heading4" className="mb-3">
+        <UIText variant="h4" className="mb-3">
           TripTimeline (at-dock)
-        </Text>
+        </UIText>
         <TripTimelineCard
           status="atDock"
           fromTerminal="SEA"
@@ -41,9 +41,9 @@ export default function SchedulesScreen() {
       </View>
 
       <View>
-        <Text variant="heading4" className="mb-3">
+        <UIText variant="h4" className="mb-3">
           TripTimeline (at-sea, westward)
-        </Text>
+        </UIText>
         <TripTimelineCard
           status="atSea"
           fromTerminal="BBI"
@@ -55,9 +55,9 @@ export default function SchedulesScreen() {
       </View>
 
       <View>
-        <Text variant="heading4" className="mb-3">
+        <UIText variant="h4" className="mb-3">
           TripTimeline (arrived)
-        </Text>
+        </UIText>
         <TripTimelineCard
           status="arrived"
           fromTerminal="SEA"

@@ -9,7 +9,12 @@
  */
 
 import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
-import { useMapCameraController, useNavigationHistory } from "@/data/contexts";
+import { useEffect } from "react";
+import {
+  useMapCameraController,
+  useNavigationHistory,
+  useSelectedTerminalPair,
+} from "@/data/contexts";
 import { MAP_NAV_CONFIG } from "@/data/mapEntities";
 import {
   getTerminalLocationByAbbrev,
@@ -59,6 +64,7 @@ const MapTerminalPairPage = () => {
   }>();
   const { controller } = useMapCameraController();
   const { previousPathname } = useNavigationHistory();
+  const { setPair } = useSelectedTerminalPair();
   const pathname = usePathname();
 
   // Extract and normalize terminal abbreviations
@@ -83,6 +89,13 @@ const MapTerminalPairPage = () => {
     ? generateTitle(fromTerminal, destTerminal)
     : "Map";
 
+  useEffect(() => {
+    if (!fromTerminal || !destTerminal) {
+      return;
+    }
+    void setPair(fromTerminal.TerminalAbbrev, destTerminal.TerminalAbbrev);
+  }, [destTerminal, fromTerminal, setPair]);
+
   // Use existing camera animation hook (must be called unconditionally)
   useMapSlugCameraAnimation({
     controller,
@@ -99,17 +112,18 @@ const MapTerminalPairPage = () => {
   }
 
   return (
-    <MapScreenLayout
-      title={title}
-      bottomSheet={
-        <TerminalOrRouteBottomSheet
-          title={title}
-          kind="terminal"
-          snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
-          initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
-        />
-      }
-    />
+    <>
+      <MapScreenLayout
+        bottomSheet={
+          <TerminalOrRouteBottomSheet
+            title={title}
+            kind="terminal"
+            snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
+            initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
+          />
+        }
+      />
+    </>
   );
 };
 

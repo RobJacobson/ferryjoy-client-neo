@@ -1,5 +1,15 @@
-import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
-import { useMapCameraController, useNavigationHistory } from "@/data/contexts";
+import {
+  Redirect,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
+} from "expo-router";
+import { useEffect } from "react";
+import {
+  useMapCameraController,
+  useNavigationHistory,
+  useSelectedTerminalPair,
+} from "@/data/contexts";
 import { getMapEntity, MAP_NAV_CONFIG } from "@/data/mapEntities";
 import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
 import type { CameraState } from "@/features/MapComponent/shared";
@@ -30,6 +40,8 @@ const MapSlugPage = () => {
   const { controller } = useMapCameraController();
   const { previousPathname } = useNavigationHistory();
   const pathname = usePathname();
+  const router = useRouter();
+  const { clear, setAll } = useSelectedTerminalPair();
 
   const slugStr = (slug || "").toString();
 
@@ -39,10 +51,39 @@ const MapSlugPage = () => {
   // If no entity found, check if it's an uppercase terminal abbreviation
   const terminal = !entity ? getTerminalLocationByAbbrev(slugStr) : null;
 
+  const terminalMates = terminal?.TerminalMates ?? [];
+
   const cameraState: CameraState | null =
     entity?.camera ?? (terminal ? createTerminalCameraState(terminal) : null);
-  const title = entity?.title ?? (terminal ? terminal.TerminalName : "Map");
+
+  const title = entity?.title
+    ? entity.title
+    : terminal
+      ? terminalMates.length >= 2
+        ? `${terminal.TerminalName} (all terminals)`
+        : terminal.TerminalName
+      : "Map";
   const kind: "terminal" | "route" = entity?.kind ?? "terminal";
+
+  useEffect(() => {
+    if (entity || !terminal) {
+      return;
+    }
+
+    if (terminalMates.length === 0) {
+      void clear();
+      router.replace("/");
+      return;
+    }
+
+    if (terminalMates.length === 1) {
+      const onlyMate = terminalMates[0];
+      router.replace(`/(tabs)/map/${terminal.TerminalAbbrev}/${onlyMate}`);
+      return;
+    }
+
+    void setAll(terminal.TerminalAbbrev);
+  }, [clear, entity, router, setAll, terminal, terminalMates]);
 
   useMapSlugCameraAnimation({
     controller,
@@ -58,17 +99,18 @@ const MapSlugPage = () => {
   }
 
   return (
-    <MapScreenLayout
-      title={title}
-      bottomSheet={
-        <TerminalOrRouteBottomSheet
-          title={title}
-          kind={kind}
-          snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
-          initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
-        />
-      }
-    />
+    <>
+      <MapScreenLayout
+        bottomSheet={
+          <TerminalOrRouteBottomSheet
+            title={title}
+            kind={kind}
+            snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
+            initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
+          />
+        }
+      />
+    </>
   );
 };
 
