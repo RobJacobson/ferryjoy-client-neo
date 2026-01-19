@@ -37,9 +37,12 @@ type TripProgressMeterProps = {
  * with minimum/maximum constraints to ensure readability. Progress indicators show minutes remaining
  * and are rendered via portal to overlay across the entire meter for clear visibility.
  *
+ * The indicator is shown based on vessel state (AtDock property) rather than time-based progress,
+ * allowing it to display correctly even when vessels are running late.
+ *
  * @param trip - VesselTrip object containing actual, predicted, and scheduled timing data
  * @param className - Optional className for styling the meter container
- * @returns A View component with two progress bars, three markers, and overlaid progress indicators
+ * @returns A View component with two progress bars, three markers, and optionally overlaid progress indicators
  */
 const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -91,6 +94,10 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
   // Generate unique portal names to isolate progress indicators per trip instance
   const portalNames = createPortalNames(trip);
 
+  // Determine which segment should show the indicator based on vessel state
+  const showIndicatorOnFirstSegment = trip.AtDock;
+  const showIndicatorOnSecondSegment = !trip.AtDock;
+
   return (
     <View
       className={cn(
@@ -110,6 +117,7 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
         currentTimeMs={nowMs}
         percentWidth={firstWidthPercent}
         startOffsetPercent={0}
+        showIndicator={showIndicatorOnFirstSegment}
         portalHostName={portalNames.host}
         portalName={portalNames.segment1}
         zIndex={STACKING.bar}
@@ -127,6 +135,7 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
         currentTimeMs={nowMs}
         percentWidth={secondWidthPercent}
         startOffsetPercent={firstWidthPercent}
+        showIndicator={showIndicatorOnSecondSegment}
         portalHostName={portalNames.host}
         portalName={portalNames.segment2}
         zIndex={STACKING.bar}

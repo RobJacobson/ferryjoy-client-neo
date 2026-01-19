@@ -1,18 +1,14 @@
 /**
  * TripProgressBar component for rendering individual progress segments in the trip progress meter.
- * Displays a horizontal progress bar with optional progress indicator that can be portaled
- * to render above other components. Calculates progress based on time values and supports
- * both automatic and manual progress values. Used as building blocks within TripProgressMeter
- * to create multi-segment progress visualizations.
+ * Displays a horizontal progress bar that calculates progress based on time values. Used as
+ * building blocks within TripProgressMeter to create multi-segment progress visualizations.
  */
 
-import { Portal } from "@rn-primitives/portal";
 import { View, type ViewStyle } from "react-native";
-import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { clamp } from "@/shared/utils";
 import { STACKING, shadowStyle } from "./config";
-import TripProgressCircle from "./TripProgressCircle";
+import TripProgressIndicator from "./TripProgressIndicator";
 
 // ============================================================================
 // Types
@@ -41,9 +37,9 @@ type TripProgressBarProps = {
    */
   startOffsetPercent?: number;
   /**
-   * Progress value (0-1). If provided, overrides internal calculation.
+   * Whether to show the progress indicator. Defaults to false.
    */
-  progress?: number;
+  showIndicator?: boolean;
   /**
    * Optional portal host for rendering the progress indicator above markers.
    * When set, the indicator will be rendered into the given portal host.
@@ -63,18 +59,17 @@ type TripProgressBarProps = {
 // ============================================================================
 
 /**
- * Renders a horizontal progress bar with optional progress indicator overlay.
- * Calculates progress automatically from time values or accepts manual progress override.
- * Supports flexible width sizing and portal-based rendering for indicators that need
- * to appear above other components. The progress bar consists of a background track
- * and a filled progress portion, with an optional circular indicator showing minutes remaining.
+ * Renders a horizontal progress bar that calculates progress automatically from time values.
+ * Supports flexible width sizing and portal-based rendering for indicators that need to appear
+ * above other components. The progress bar consists of a background track and a filled progress
+ * portion, with an optional circular indicator showing minutes remaining.
  *
- * @param startTimeMs - Start time in epoch milliseconds for automatic progress calculation
- * @param endTimeMs - End time in epoch milliseconds for automatic progress calculation
- * @param currentTimeMs - Current time in epoch milliseconds for automatic progress calculation
+ * @param startTimeMs - Start time in epoch milliseconds for progress calculation
+ * @param endTimeMs - End time in epoch milliseconds for progress calculation
+ * @param currentTimeMs - Current time in epoch milliseconds for progress calculation
  * @param percentWidth - Width as percentage (0-100), otherwise uses flex-1
  * @param startOffsetPercent - Offset within parent container for portal positioning
- * @param progress - Manual progress value (0-1), overrides automatic calculation if provided
+ * @param showIndicator - Whether to show the progress indicator. Defaults to false.
  * @param portalHostName - Portal host name for rendering indicator above other elements
  * @param portalName - Unique portal name for this bar's indicator
  * @param zIndex - Z-index for layering the progress bar
@@ -88,36 +83,29 @@ const TripProgressBar = ({
   currentTimeMs,
   percentWidth,
   startOffsetPercent,
-  progress: progressProp,
+  showIndicator = false,
   portalHostName,
   portalName,
   zIndex,
   className,
   style,
 }: TripProgressBarProps) => {
-  const progress =
-    progressProp ?? calculateProgress(startTimeMs, endTimeMs, currentTimeMs);
+  const progress = calculateProgress(startTimeMs, endTimeMs, currentTimeMs);
 
   // Use flex-1 if no explicit width is provided.
   const hasExplicitWidth = percentWidth !== undefined;
   const flexClass = hasExplicitWidth ? "" : "flex-1";
 
-  const inProgress = progress > 0 && progress < 1;
-  const minutesRemaining = calculateMinutesRemaining(endTimeMs, currentTimeMs);
-
+  // Calculate indicator position and minutes remaining if indicator should be shown
   const shouldRenderIndicator =
+    showIndicator &&
     portalHostName !== undefined &&
     portalName !== undefined &&
     startOffsetPercent !== undefined &&
-    percentWidth !== undefined &&
-    inProgress;
-
-  // Calculate indicator position
-  const calculatedLeftPercent =
-    (startOffsetPercent ?? 0) + (progress ?? 0) * (percentWidth ?? 0);
+    percentWidth !== undefined;
 
   const indicatorLeftPercent = shouldRenderIndicator
-    ? calculatedLeftPercent
+    ? (startOffsetPercent ?? 0) + progress * (percentWidth ?? 0)
     : 0;
 
   return (
@@ -143,22 +131,14 @@ const TripProgressBar = ({
         </View>
       </View>
 
-      {shouldRenderIndicator && portalHostName && portalName ? (
-        <Portal name={portalName} hostName={portalHostName}>
-          <TripProgressCircle
-            left={`${indicatorLeftPercent}%`}
-            backgroundColor="bg-pink-500"
-            borderColor=""
-            size={32}
-            zIndex={STACKING.progressCircle}
-          >
-            <View className="border border-white p-1 rounded-full w-full items-center justify-center">
-              <Text className="text-sm font-semibold text-white">
-                {minutesRemaining}
-              </Text>
-            </View>
-          </TripProgressCircle>
-        </Portal>
+      {shouldRenderIndicator ? (
+        <TripProgressIndicator
+          portalName={portalName}
+          portalHostName={portalHostName}
+          indicatorLeftPercent={indicatorLeftPercent}
+          endTimeMs={endTimeMs}
+          currentTimeMs={currentTimeMs}
+        />
       ) : null}
     </>
   );
