@@ -96,6 +96,50 @@ const isPredictionReadyTrip = (
   Boolean(trip.PrevScheduledDeparture) &&
   Boolean(trip.PrevLeftDock);
 
+/**
+ * Determines if a prediction should be attempted based on throttling rules.
+ *
+ * Predictions are throttled to once per minute using time-based logic:
+ * - AtDock predictions: run on first update with required fields OR every minute
+ * - AtSea predictions: run on first update with LeftDock OR every minute
+ * - Skip if prediction already exists
+ *
+ * @param spec - Prediction specification
+ * @param trip - Current vessel trip state
+ * @param existingTrip - Previous vessel trip state (for detecting first-time conditions)
+ * @returns True if prediction should be attempted
+ */
+const shouldAttemptPrediction = (
+  spec: PredictionSpec,
+  trip: ConvexVesselTrip,
+  existingTrip: ConvexVesselTrip | undefined
+): boolean => {
+  // Don't attempt if we already have a valid prediction
+  if (trip[spec.field] !== undefined) {
+    return false;
+  }
+
+  const seconds = new Date().getSeconds();
+  const isThrottleWindow = seconds < 5; // Once per minute
+
+  if (spec.requiresLeftDock) {
+    // AtSea predictions: run on first LeftDock OR every minute
+    const justLeftDock =
+      existingTrip !== undefined &&
+      existingTrip.LeftDock === undefined &&
+      trip.LeftDock !== undefined;
+    return justLeftDock || isThrottleWindow;
+  } else {
+    // AtDock predictions: run on first update with departure terminal OR every minute
+    // Check if this is the first time we have required fields for predictions
+    const hasRequiredFields = isPredictionReadyTrip(trip);
+    const hadRequiredFields =
+      existingTrip && isPredictionReadyTrip(existingTrip);
+    const firstTimeWithFields = hasRequiredFields && !hadRequiredFields;
+    return firstTimeWithFields || isThrottleWindow;
+  }
+};
+
 const predictFromSpec = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
@@ -134,11 +178,11 @@ const predictFromSpec = async (
 
 const makePredictor =
   (field: PredictionField) =>
-  async (
-    ctx: ActionCtx,
-    trip: ConvexVesselTrip
-  ): Promise<ConvexPrediction | null> =>
-    await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
+    async (
+      ctx: ActionCtx,
+      trip: ConvexVesselTrip
+    ): Promise<ConvexPrediction | null> =>
+      await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
 
 /**
  * Predicts departure delay from current terminal using at-dock context.
@@ -190,14 +234,27 @@ export const predictAtSeaArriveNext = makePredictor("AtSeaArriveNext");
  */
 export const predictAtSeaDepartNext = makePredictor("AtSeaDepartNext");
 
+/**
+ * Compute prediction updates for a vessel trip with time-based throttling.
+ *
+ * Predictions are throttled to prevent repeated failures from being attempted
+ * every 5 seconds. AtDock predictions run on first update with required fields
+ * or every minute. AtSea predictions run on first update with LeftDock or every minute.
+ *
+ * @param ctx - Convex action context for running ML predictions
+ * @param trip - Current vessel trip state
+ * @param existingTrip - Previous vessel trip state (optional, for detecting first-time conditions)
+ * @returns Partial trip update with new predictions
+ */
 export const computeVesselTripPredictionsPatch = async (
   ctx: ActionCtx,
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTrip,
+  existingTrip?: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
   const updates: Partial<Record<PredictionField, ConvexPrediction>> = {};
 
   for (const spec of Object.values(PREDICTION_SPECS)) {
-    if (trip[spec.field] !== undefined) {
+    if (!shouldAttemptPrediction(spec, trip, existingTrip)) {
       continue;
     }
 

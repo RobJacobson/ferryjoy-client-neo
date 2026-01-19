@@ -174,7 +174,8 @@ const handleTripUpdate = async (
   };
   const predictionUpdates = await computeVesselTripPredictionsPatch(
     ctx,
-    tripForPredictions
+    tripForPredictions,
+    existingTrip
   );
 
   const updatedData: Partial<ConvexVesselTrip> = {

@@ -80,7 +80,7 @@ const shouldLookupScheduledTrip = (
     trip.ScheduledTrip !== undefined && trip.RouteID !== 0;
   const seconds = new Date().getSeconds();
   return {
-    shouldLookup: !hasScheduledTripData && seconds < 15,
+    shouldLookup: !hasScheduledTripData && seconds < 5,
     existingKeyMismatch,
   };
 };
