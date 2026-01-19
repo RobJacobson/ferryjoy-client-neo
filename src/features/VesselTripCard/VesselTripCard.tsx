@@ -1,3 +1,8 @@
+/**
+ * @deprecated This component is deprecated. Use TripProgressCard instead, which uses
+ * the improved TripProgressMeter component and ShadCN Card components for a better UI.
+ */
+
 import { Text, View } from "@/components/ui";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { TripTimelineCard } from "@/features/TripTimelineCard";
