@@ -61,7 +61,9 @@ const TripProgressIndicator = ({
       >
         <View className="border border-white p-1 rounded-full w-full items-center justify-center">
           <Text className="text-sm font-semibold text-white">
-            {indicatorModel.minutesRemaining > 99 ? "--" : indicatorModel.minutesRemaining}
+            {indicatorModel.minutesRemaining > 99
+              ? "--"
+              : indicatorModel.minutesRemaining}
           </Text>
         </View>
       </TripProgressCircle>
