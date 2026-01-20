@@ -185,7 +185,7 @@ export const resolveOverlappingGroup = (
     // This can happen with irregular schedules - mark all as direct
     console.warn(
       `No overlapping trip goes to expected next terminal ${nextTerminal} ` +
-        `for vessel ${vesselAbbrev} departing at ${new Date(departureTime).toISOString()}`
+      `for vessel ${vesselAbbrev} departing at ${new Date(departureTime).toISOString()}`
     );
     return overlappingTrips.map((trip) => ({
       ...trip,
@@ -230,34 +230,86 @@ const calculateVesselTripEstimates = (
     EstArriveNext: calculateEstArriveNext(trip),
   }));
 
-  // Second pass: set PrevKey/NextKey/NextDepartingTime and validate EstArriveCurr
-  return tripsWithNextArrival.map((trip, index) => {
-    const nextTrip = tripsWithNextArrival[index + 1];
-    const prevTrip = index > 0 ? tripsWithNextArrival[index - 1] : null;
+  // Second pass: set PrevKey/NextKey/NextDepartingTime and compute EstArriveCurr.
+  //
+  // NOTE: WSF can emit multiple schedule options that share the same departure
+  // time + departing terminal (direct + indirect). We must not treat same-time
+  // siblings as "previous" trips, otherwise EstArriveCurr can be incorrectly
+  // cleared by the negative-layover guard.
+  const lastArriveByTerminal: Record<string, number | undefined> = {};
+  const lastDirectKeyByArrivingTerminal: Record<string, string | undefined> = {};
+  const enhancedTrips: ConvexScheduledTrip[] = [];
 
-    // PrevKey: key of previous trip (undefined for first trip)
-    const prevKey = prevTrip?.Key;
+  for (let index = 0; index < tripsWithNextArrival.length;) {
+    const referenceTrip = tripsWithNextArrival[index];
+    if (!referenceTrip) break;
 
-    // NextKey: key of next trip (undefined for last trip)
-    const nextKey = nextTrip?.Key;
+    let groupEndExclusive = index + 1;
+    while (groupEndExclusive < tripsWithNextArrival.length) {
+      const candidate = tripsWithNextArrival[groupEndExclusive];
+      if (!candidate) break;
 
-    // NextDepartingTime: scheduled departure time of next trip (undefined for last trip)
-    const nextDepartingTime = nextTrip?.DepartingTime;
+      const isSameOverlapGroup =
+        candidate.DepartingTime === referenceTrip.DepartingTime &&
+        candidate.DepartingTerminalAbbrev ===
+        referenceTrip.DepartingTerminalAbbrev;
 
-    // EstArriveCurr: EstArriveNext of previous trip, but only if it's <= DepartingTime
-    let estArriveCurr = prevTrip?.EstArriveNext;
-    if (estArriveCurr !== undefined && estArriveCurr > trip.DepartingTime) {
-      estArriveCurr = undefined; // Validation violation - negative layover time
+      if (!isSameOverlapGroup) break;
+
+      groupEndExclusive += 1;
     }
 
-    return {
-      ...trip,
-      PrevKey: prevKey,
-      NextKey: nextKey,
-      NextDepartingTime: nextDepartingTime,
-      EstArriveCurr: estArriveCurr,
-    };
-  });
+    // Determine the next DIRECT trip after this overlap group (skip indirects and
+    // skip same-departure siblings entirely).
+    const nextDirectTrip = tripsWithNextArrival
+      .slice(groupEndExclusive)
+      .find((trip) => trip.TripType === "direct");
+
+    const prevDirectKey =
+      lastDirectKeyByArrivingTerminal[referenceTrip.DepartingTerminalAbbrev];
+    const nextDirectKey = nextDirectTrip?.Key;
+    const nextDirectDepartingTime = nextDirectTrip?.DepartingTime;
+
+    // Compute patches for this overlap group using arrivals from *earlier*
+    // departures only (i.e., map state as of group start).
+    for (let i = index; i < groupEndExclusive; i += 1) {
+      const trip = tripsWithNextArrival[i];
+      if (!trip) continue;
+
+      // EstArriveCurr: last known DIRECT arrival into the current departing terminal,
+      // but only if it's <= DepartingTime (avoid negative layover time).
+      let estArriveCurr = lastArriveByTerminal[trip.DepartingTerminalAbbrev];
+      if (estArriveCurr !== undefined && estArriveCurr > trip.DepartingTime) {
+        estArriveCurr = undefined;
+      }
+
+      enhancedTrips.push({
+        ...trip,
+        // Prev/Next are keyed to the vessel's DIRECT trip chain, not indirect options.
+        PrevKey: prevDirectKey,
+        NextKey: nextDirectKey,
+        NextDepartingTime: nextDirectDepartingTime,
+        EstArriveCurr: estArriveCurr,
+      });
+    }
+
+    // Update arrival knowledge AFTER processing the whole overlap group so
+    // siblings don't become each other's "previous" context.
+    for (let i = index; i < groupEndExclusive; i += 1) {
+      const trip = tripsWithNextArrival[i];
+      if (!trip) continue;
+
+      if (trip.TripType !== "direct") continue;
+      if (trip.EstArriveNext === undefined) continue;
+
+      lastArriveByTerminal[trip.ArrivingTerminalAbbrev] = trip.EstArriveNext;
+      lastDirectKeyByArrivingTerminal[trip.ArrivingTerminalAbbrev] = trip.Key;
+    }
+
+    index = groupEndExclusive;
+  }
+
+  return enhancedTrips;
 };
 
 /**
@@ -272,12 +324,9 @@ const calculateVesselTripEstimates = (
 const calculateEstArriveNext = (
   trip: ConvexScheduledTrip
 ): number | undefined => {
-  // If actual arrival time exists, use it (no rounding needed for real data)
-  if (trip.ArrivingTime !== undefined) {
-    return trip.ArrivingTime;
-  }
-
-  // Otherwise, estimate using mean crossing time
+  // Estimate using historical mean at-sea duration for the terminal pair.
+  // We intentionally ignore any WSF-provided arrival time because it can be
+  // imprecise or degenerate (e.g., arrival == departure).
   const terminalPair = formatTerminalPairKey(
     trip.DepartingTerminalAbbrev,
     trip.ArrivingTerminalAbbrev
@@ -290,7 +339,7 @@ const calculateEstArriveNext = (
     return undefined;
   }
 
-  // Add mean duration to departure time and round up to next minute
+  // Add duration to departure time and round up to next minute
   const estimatedArrivalMs =
     trip.DepartingTime + meanDurationMinutes * 60 * 1000;
   return roundUpToNextMinute(estimatedArrivalMs);

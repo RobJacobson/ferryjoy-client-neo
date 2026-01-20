@@ -29,9 +29,18 @@ crons.interval(
 // Use 11:00 AM UTC to ensure it runs between 3:00-4:00 AM Pacific in both cases
 crons.cron(
   "daily scheduled trips sync",
-  "0 11 * * *", // 11:00 AM UTC daily (covers 4:00 AM Pacific in both DST and standard time)
+  "1 11 * * *", // 11:01 AM UTC daily (covers ~4:01 AM Pacific in both DST and standard time)
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-  {} // Optional args - defaults to 7 days sync window
+  { daysToSync: 2 } // Maintain a 2-day rolling window
+);
+
+// Daily purge of out-of-date scheduled trips at 11:00 AM UTC.
+// Purges any records with DepartingTime older than 24 hours at run time.
+crons.cron(
+  "purge out-of-date scheduled trips",
+  "0 11 * * *", // 11:00 AM UTC daily
+  internal.functions.scheduledTrips.actions.purgeScheduledTripsOutOfDate,
+  {}
 );
 
 export default crons;

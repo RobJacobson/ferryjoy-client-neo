@@ -178,11 +178,11 @@ const predictFromSpec = async (
 
 const makePredictor =
   (field: PredictionField) =>
-    async (
-      ctx: ActionCtx,
-      trip: ConvexVesselTrip
-    ): Promise<ConvexPrediction | null> =>
-      await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
+  async (
+    ctx: ActionCtx,
+    trip: ConvexVesselTrip
+  ): Promise<ConvexPrediction | null> =>
+    await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
 
 /**
  * Predicts departure delay from current terminal using at-dock context.

@@ -48,6 +48,7 @@ import type * as functions_scheduledTrips_sync_businessLogic from "../functions/
 import type * as functions_scheduledTrips_sync_dataTransformation from "../functions/scheduledTrips/sync/dataTransformation.js";
 import type * as functions_scheduledTrips_sync_index from "../functions/scheduledTrips/sync/index.js";
 import type * as functions_scheduledTrips_sync_infrastructure from "../functions/scheduledTrips/sync/infrastructure.js";
+import type * as functions_scheduledTrips_sync_officialCrossingTimes from "../functions/scheduledTrips/sync/officialCrossingTimes.js";
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
 import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
@@ -130,6 +131,7 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/dataTransformation": typeof functions_scheduledTrips_sync_dataTransformation;
   "functions/scheduledTrips/sync/index": typeof functions_scheduledTrips_sync_index;
   "functions/scheduledTrips/sync/infrastructure": typeof functions_scheduledTrips_sync_infrastructure;
+  "functions/scheduledTrips/sync/officialCrossingTimes": typeof functions_scheduledTrips_sync_officialCrossingTimes;
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
   "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
