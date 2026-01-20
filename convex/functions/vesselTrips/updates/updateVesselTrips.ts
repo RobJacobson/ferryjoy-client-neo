@@ -189,9 +189,9 @@ const handleTripUpdate = async (
     return;
   }
 
-  console.log(currLocation.VesselAbbrev, Object.keys(updatedData), "updates:", {
-    ...updatedData,
-  });
+  // console.log(currLocation.VesselAbbrev, Object.keys(updatedData), "updates:", {
+  //   ...updatedData,
+  // });
 
   await ctx.runMutation(api.functions.vesselTrips.mutations.upsertActiveTrip, {
     trip: {
@@ -261,12 +261,12 @@ const insertCompletedPredictions = async (
     | "AtSeaArriveNext"
     | "AtSeaDepartNext"
   > = [
-    "AtDockDepartCurr",
-    "AtDockArriveNext",
-    "AtDockDepartNext",
-    "AtSeaArriveNext",
-    "AtSeaDepartNext",
-  ];
+      "AtDockDepartCurr",
+      "AtDockArriveNext",
+      "AtDockDepartNext",
+      "AtSeaArriveNext",
+      "AtSeaDepartNext",
+    ];
 
   for (const field of predictionFields) {
     const predictionRecord = extractPredictionRecord(trip, field);
