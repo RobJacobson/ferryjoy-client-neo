@@ -41,7 +41,13 @@ export type TerminalChainKey =
  * Currently only supports WSF (Washington State Ferries) estimated arrival times.
  * These are treated as close proxies for actual dock arrival times.
  */
-export type ArrivalProxySource = "wsf_est_arrival";
+// NOTE: Some WSF history rows omit EstArrival. When we can reliably infer the
+// missing Arriving terminal from the next leg, we project EstArrival using the
+// route’s mean at-sea duration. This is still an arrival *proxy* and is labeled
+// distinctly from the WSF-provided value.
+export type ArrivalProxySource =
+  | "wsf_est_arrival"
+  | "projected_mean_at_sea";
 
 export type TripLeg = {
   fromTerminalAbbrev: TerminalAbbrev;

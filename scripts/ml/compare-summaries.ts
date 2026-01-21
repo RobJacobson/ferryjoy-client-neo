@@ -195,7 +195,9 @@ const compareResults = (
     comparison.push({
       bucket_type: rowA.bucket_type,
       bucket_key: rowA.bucket_key,
-      total_records: rowA.total_records,
+      // Use the second file’s record count, since that represents the “current”
+      // training run being evaluated.
+      total_records: rowB.total_records,
       metrics,
     });
   }

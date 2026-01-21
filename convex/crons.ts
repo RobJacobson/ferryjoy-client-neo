@@ -3,17 +3,17 @@ import { cronJobs } from "convex/server";
 
 const crons = cronJobs();
 
-crons.interval(
-  "update vessel orchestrator",
-  { seconds: 5 }, // every 5 seconds
-  internal.functions.vesselOrchestrator.actions.updateVesselOrchestrator
-);
+// crons.interval(
+//   "update vessel orchestrator",
+//   { seconds: 5 }, // every 5 seconds
+//   internal.functions.vesselOrchestrator.actions.updateVesselOrchestrator
+// );
 
-crons.interval(
-  "fetch vessel pings",
-  { seconds: 30 }, // every thirty seconds
-  internal.functions.vesselPings.actions.fetchAndStoreVesselPings
-);
+// crons.interval(
+//   "fetch vessel pings",
+//   { seconds: 30 }, // every thirty seconds
+//   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
+// );
 
 // Weekly model retraining at 11:00 AM UTC on Mondays
 // Note: Convex cron jobs run in UTC, not local timezones
@@ -41,6 +41,14 @@ crons.cron(
   "0 11 * * *", // 11:00 AM UTC daily
   internal.functions.scheduledTrips.actions.purgeScheduledTripsOutOfDate,
   {}
+);
+
+// Hourly cleanup of old vessel pings.
+// Deletes VesselPings records older than the configured threshold (default: 1 hour).
+crons.interval(
+  "cleanup old vessel pings",
+  { hours: 1 }, // every hour
+  internal.functions.vesselPings.actions.cleanupOldPings
 );
 
 export default crons;

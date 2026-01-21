@@ -20,6 +20,11 @@ export * from "./models";
 export * from "./types";
 
 /**
+ * WSF vessel history normalization (missing fields inference)
+ */
+export * from "./normalizeWsfVesselHistories";
+
+/**
  * Unified trip structure for ML training and prediction
  */
 export * from "./unifiedTrip";

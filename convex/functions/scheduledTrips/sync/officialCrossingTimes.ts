@@ -113,4 +113,3 @@ export const getOfficialCrossingTimeMinutes = (params: {
   // we treat it as unknown and return undefined.
   return undefined;
 };
-

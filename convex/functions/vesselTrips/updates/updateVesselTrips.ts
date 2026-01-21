@@ -261,12 +261,12 @@ const insertCompletedPredictions = async (
     | "AtSeaArriveNext"
     | "AtSeaDepartNext"
   > = [
-      "AtDockDepartCurr",
-      "AtDockArriveNext",
-      "AtDockDepartNext",
-      "AtSeaArriveNext",
-      "AtSeaDepartNext",
-    ];
+    "AtDockDepartCurr",
+    "AtDockArriveNext",
+    "AtDockDepartNext",
+    "AtSeaArriveNext",
+    "AtSeaDepartNext",
+  ];
 
   for (const field of predictionFields) {
     const predictionRecord = extractPredictionRecord(trip, field);

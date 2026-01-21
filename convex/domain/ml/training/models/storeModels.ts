@@ -46,6 +46,14 @@ export const storeModels = async (
   models: ModelParameters[],
   ctx: ActionCtx
 ): Promise<void> => {
+  // Ensure dev-temp always represents the most recent training run.
+  // Without this, if a bucket+modelType fails to train in the current run, a
+  // stale dev-temp doc from a previous run can remain in the DB and pollute
+  // exports/analysis.
+  await ctx.runMutation(api.functions.predictions.mutations.deleteVersion, {
+    versionTag: "dev-temp",
+  });
+
   const storePromises = models.map((model) =>
     ctx.runMutation(
       api.functions.predictions.mutations.storeModelParametersMutation,

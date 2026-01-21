@@ -113,7 +113,8 @@ export function extractFeatures(trip: UnifiedTrip) {
       trip.PrevLeftDock
     ),
     prevAtSeaDuration: getMinutesDelta(trip.PrevLeftDock, trip.TripStart), // Previous leg actual duration
-    lateArrival: lateArrival(trip, slackBeforeDepartureMinutes), // Schedule pressure feature (clamped at 1.5x mean)
+    // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
+    // lateArrival: lateArrival(trip, slackBeforeDepartureMinutes), // Schedule pressure feature (clamped at 1.5x mean)
   };
 }
 
@@ -136,30 +137,31 @@ export function extractFeatures(trip: UnifiedTrip) {
  * @param slackBeforeDepartureMinutes - Available time before scheduled departure
  * @returns Schedule pressure value (≥ 0)
  */
-const lateArrival = (
-  trip: UnifiedTrip,
-  slackBeforeDepartureMinutes: number
-): number => {
-  // This calculation uses only arrival time + schedule, so it's available at prediction
-  // time when actual departure (LeftDock) isn't known yet
-  if (!trip.TripStart || !trip.ScheduledDeparture) {
-    return 0;
-  }
-
-  // Get historical average turnaround time for this route (B->C)
-  const averageTurnaroundMinutes = config.getMeanAtDockDuration(
-    formatTerminalPairKey(
-      trip.DepartingTerminalAbbrev,
-      trip.ArrivingTerminalAbbrev
-    )
-  );
-
-  // Calculate pressure: how much below 1.5x average turnaround time we are
-  // Experiment: Clamp early departures at 1.5x mean at-dock time to increase layover sensitivity
-  // Higher values indicate tighter schedules and more operational pressure
-  const maxPressure = 1.5 * averageTurnaroundMinutes;
-  return Math.max(0, maxPressure - slackBeforeDepartureMinutes);
-};
+// FEATURE_GROUP: MeanAtDockDerived (DISABLED)
+// const lateArrival = (
+//   trip: UnifiedTrip,
+//   slackBeforeDepartureMinutes: number
+// ): number => {
+//   // This calculation uses only arrival time + schedule, so it's available at prediction
+//   // time when actual departure (LeftDock) isn't known yet
+//   if (!trip.TripStart || !trip.ScheduledDeparture) {
+//     return 0;
+//   }
+//
+//   // Get historical average turnaround time for this route (B->C)
+//   const averageTurnaroundMinutes = config.getMeanAtDockDuration(
+//     formatTerminalPairKey(
+//       trip.DepartingTerminalAbbrev,
+//       trip.ArrivingTerminalAbbrev
+//     )
+//   );
+//
+//   // Calculate pressure: how much below 1.5x average turnaround time we are
+//   // Experiment: Clamp early departures at 1.5x mean at-dock time to increase layover sensitivity
+//   // Higher values indicate tighter schedules and more operational pressure
+//   const maxPressure = 1.5 * averageTurnaroundMinutes;
+//   return Math.max(0, maxPressure - slackBeforeDepartureMinutes);
+// };
 
 /**
  * Calculate time delta in minutes between two timestamps

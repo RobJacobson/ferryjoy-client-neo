@@ -239,13 +239,41 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 #### 1. Data Loading (`loadWsfTrainingData`)
 **Purpose**: Load historical training data with quality controls
 **Source**: WSF vessel trip records within the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
-**Filtering**: Removes invalid records, ensures data completeness
-**Output**: Cleaned VesselHistory[] array for window creation
+**Filtering**: Removes only truly unusable records (e.g. missing vessel/departure/timestamps)
+**Output**: Raw `VesselHistory[]` (not yet windowed) for normalization + window creation
+
+#### 1.5. WSF History Normalization (`normalizeWsfVesselHistories`)
+WSF historical vessel records frequently omit `Arriving` (and sometimes `EstArrival`), even when the trip is otherwise valid. Rejecting these rows materially reduces data coverage and biases both training and analytics.
+
+To address this, we run a shared normalization step used by both ML training and reporting:
+
+- **Implementation**: `convex/domain/ml/shared/normalizeWsfVesselHistories.ts`
+- **Used by**:
+  - Training windows: `convex/domain/ml/training/data/createTrainingWindows.ts`
+  - Sailings report: `scripts/vessel-sailings-by-terminal-pair.ts`
+
+**Normalization behaviors**
+- **Infer missing `Arriving`**:
+  - For a given vessel, sort records chronologically.
+  - If a record has `Arriving: null`, infer `Arriving = next.Departing` (same vessel).
+  - This matches the operational reality that consecutive legs share terminals.
+- **Project missing `EstArrival` (only when `Arriving` was inferred)**:
+  - If `EstArrival` is missing for the inferred leg, project an arrival proxy using route priors:
+    - `EstArrivalMs = ActualDepartMs + meanAtSeaDurationMinutes(pair) * 60_000`
+  - The projected value is labeled as an arrival *proxy*, distinct from WSF’s provided value.
+
+**Inference guard (prevents bad joins across layovers/overnights)**
+Inference is only accepted when it is “plausible” using existing ML thresholds from `convex/domain/ml/shared/config.ts`:
+- **At-sea minutes** must be within `[min, max]`
+- **At-dock minutes** (next.ActualDepart − inferred/proxy arrival) must be within `[min, max]`
+- **Arrive→arrive total** must be ≤ the configured maximum (currently 120 minutes)
+
+If the guard fails (e.g. long gap/layover), the record is rejected rather than incorrectly joined.
 
 #### 2. Window Creation (`createTrainingWindows`)
 **Purpose**: Build temporal training contexts from sequential trips
 **Logic**: Process each vessel's trips chronologically, creating A→B→C sequences
-**Validation**: Terminal continuity, duration bounds, timestamp validity
+**Validation**: Terminal continuity, duration bounds, timestamp validity (after normalization fills missing `Arriving` where safe)
 **Output**: TrainingWindow[] with full temporal context
 
 #### 3. Feature Extraction (`createFeatureRecords`)
@@ -283,6 +311,11 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 - **Terminal Mapping**: All terminals exist in validated terminal set
 - **Timestamp Validity**: No negative durations or impossible sequences
 - **Continuity Checks**: Vessel trips form logical journey sequences
+
+**Important note on missing WSF fields**
+- Missing `Arriving` is handled by normalization (inferred from next `Departing` with a duration guard).
+- Missing `EstArrival` is handled *only* when `Arriving` was inferred, by projecting an arrival proxy using `meanAtSeaDuration`.
+  - This preserves the meaning of WSF-provided `EstArrival` while recovering otherwise-lost training examples.
 
 #### Training Stability Safeguards
 - **Numerical Stability**: Detect and handle exploding coefficients

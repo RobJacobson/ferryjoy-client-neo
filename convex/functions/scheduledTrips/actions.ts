@@ -1,6 +1,6 @@
+import { internal } from "_generated/api";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { internal } from "_generated/api";
 import { getSailingDay } from "../../shared/time";
 import {
   syncScheduledTripsForDate,

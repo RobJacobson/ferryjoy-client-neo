@@ -185,7 +185,7 @@ export const resolveOverlappingGroup = (
     // This can happen with irregular schedules - mark all as direct
     console.warn(
       `No overlapping trip goes to expected next terminal ${nextTerminal} ` +
-      `for vessel ${vesselAbbrev} departing at ${new Date(departureTime).toISOString()}`
+        `for vessel ${vesselAbbrev} departing at ${new Date(departureTime).toISOString()}`
     );
     return overlappingTrips.map((trip) => ({
       ...trip,
@@ -237,10 +237,11 @@ const calculateVesselTripEstimates = (
   // siblings as "previous" trips, otherwise EstArriveCurr can be incorrectly
   // cleared by the negative-layover guard.
   const lastArriveByTerminal: Record<string, number | undefined> = {};
-  const lastDirectKeyByArrivingTerminal: Record<string, string | undefined> = {};
+  const lastDirectKeyByArrivingTerminal: Record<string, string | undefined> =
+    {};
   const enhancedTrips: ConvexScheduledTrip[] = [];
 
-  for (let index = 0; index < tripsWithNextArrival.length;) {
+  for (let index = 0; index < tripsWithNextArrival.length; ) {
     const referenceTrip = tripsWithNextArrival[index];
     if (!referenceTrip) break;
 
@@ -252,7 +253,7 @@ const calculateVesselTripEstimates = (
       const isSameOverlapGroup =
         candidate.DepartingTime === referenceTrip.DepartingTime &&
         candidate.DepartingTerminalAbbrev ===
-        referenceTrip.DepartingTerminalAbbrev;
+          referenceTrip.DepartingTerminalAbbrev;
 
       if (!isSameOverlapGroup) break;
 
