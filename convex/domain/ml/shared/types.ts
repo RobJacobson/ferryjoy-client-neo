@@ -2,6 +2,8 @@
 // ML - CORE TYPES (windowed training)
 // ============================================================================
 
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+
 /**
  * Terminal abbreviation code (3-letter codes like "BBI", "EDM", "MUK").
  *
@@ -88,6 +90,13 @@ export type TrainingWindowBase = {
 
   // For ordering / sampling
   currScheduledDepartMs: EpochMs;
+
+  /**
+   * References to original VesselHistory records for debugging/logging.
+   */
+  prevHistory: VesselHistory | null;
+  currHistory: VesselHistory;
+  nextHistory: VesselHistory | null;
 };
 
 export type TrainingWindowWithDepartC = TrainingWindowBase & {
@@ -161,6 +170,13 @@ export type FeatureRecord = {
     // Minutes between Next scheduled departure and Next actual departure.
     departNextFromNextScheduledMinutes: number | null;
   };
+
+  /**
+   * References to original VesselHistory records for debugging/logging.
+   */
+  prevHistory: VesselHistory | null;
+  currHistory: VesselHistory;
+  nextHistory: VesselHistory | null;
 };
 
 /**

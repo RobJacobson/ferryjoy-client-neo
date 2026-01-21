@@ -222,6 +222,10 @@ const toTrainingWindow = (trip: ConvexVesselTrip): TrainingWindow => {
     slackBeforeCurrScheduledDepartMinutes,
     meanAtDockMinutesForCurrPair,
     currScheduledDepartMs: scheduledDepartMs,
+    // Inference doesn't have VesselHistory records (only training does)
+    prevHistory: null,
+    currHistory: null as any, // Required field but not available during inference
+    nextHistory: null,
   };
 };
 

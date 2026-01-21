@@ -116,6 +116,7 @@ export const runMLPipeline = async (
   const featureRecords = createFeatureRecords(windows);
 
   // Free memory - windows are no longer needed after feature extraction
+  // Note: VesselHistory records remain accessible through references in featureRecords
   windows = [];
 
   // Group training examples by route for specialized model training

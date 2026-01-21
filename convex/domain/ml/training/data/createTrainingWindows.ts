@@ -213,8 +213,10 @@ export const createTrainingWindows = (
     // Process consecutive trip pairs (i-1, i) to build training windows
     // Each window needs context from the previous trip to understand arrival conditions
     for (let i = 1; i < sorted.length; i++) {
-      const prev = mapTrip(sorted[i - 1] as NormalizedWsfTrip); // A→B
-      const curr = mapTrip(sorted[i] as NormalizedWsfTrip); // B→C
+      const prevNormalized = sorted[i - 1] as NormalizedWsfTrip; // A→B
+      const currNormalized = sorted[i] as NormalizedWsfTrip; // B→C
+      const prev = mapTrip(prevNormalized);
+      const curr = mapTrip(currNormalized);
 
       // Ensure terminal continuity: previous trip must arrive where current trip departs
       // This validates that we're looking at a continuous vessel journey
@@ -284,6 +286,9 @@ export const createTrainingWindows = (
         slackBeforeCurrScheduledDepartMinutes: clampedSlackMinutes,
         meanAtDockMinutesForCurrPair,
         currScheduledDepartMs: curr.scheduledDepartMs,
+        prevHistory: prevNormalized.sourceHistory,
+        currHistory: currNormalized.sourceHistory,
+        nextHistory: null, // Will be set if next leg exists
       };
 
       // Optional depart-C info (requires the immediate next trip to depart from C).
@@ -294,6 +299,10 @@ export const createTrainingWindows = (
         windows.push({ ...baseWindow, kind: "no_depart_c" });
         continue;
       }
+
+      // Update nextHistory reference for windows with next leg
+      // nextRaw is guaranteed to be defined here because next is defined
+      baseWindow.nextHistory = nextRaw!.sourceHistory;
 
       const D = next.arriving;
       const nextPairKey = formatTerminalPairKey(C, D) as TerminalPairKey;
@@ -312,7 +321,7 @@ export const createTrainingWindows = (
 
       const isEligibleForDepartC =
         slackBeforeNextScheduledDepartMinutes <=
-          1.5 * meanAtDockMinutesForNextPair &&
+        1.5 * meanAtDockMinutesForNextPair &&
         slackBeforeNextScheduledDepartMinutes <= MAX_SLACK_MINUTES;
 
       if (!isEligibleForDepartC) {

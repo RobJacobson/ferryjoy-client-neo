@@ -30,6 +30,12 @@ export type NormalizedWsfTrip = {
 
   arrivingSource: ArrivingSource;
   estArrivalSource: EstArrivalSource;
+
+  /**
+   * Reference to the original VesselHistory record used to create this normalized trip.
+   * Used for debugging and logging during training.
+   */
+  sourceHistory: VesselHistory;
 };
 
 export type WsfNormalizationRejectReason =
@@ -126,14 +132,14 @@ export const normalizeWsfVesselHistories = (
 
 type NormalizeSingleResult =
   | {
-      kind: "ok";
-      trip: NormalizedWsfTrip;
-    }
+    kind: "ok";
+    trip: NormalizedWsfTrip;
+  }
   | {
-      kind: "rejected";
-      reason: WsfNormalizationRejectReason;
-      details: Record<string, unknown>;
-    };
+    kind: "rejected";
+    reason: WsfNormalizationRejectReason;
+    details: Record<string, unknown>;
+  };
 
 /**
  * Normalize one record, optionally using the next record for inference.
@@ -233,6 +239,7 @@ const normalizeSingleRecord = (
         estArrivalMs,
         arrivingSource: "wsf",
         estArrivalSource: "wsf",
+        sourceHistory: record,
       },
     };
   }
@@ -304,13 +311,13 @@ const normalizeSingleRecord = (
     ? { estArrivalMs: record.EstArrival.getTime(), estArrivalSource: "wsf" as const }
     : meanAtSeaMinutes > 0
       ? {
-          estArrivalMs: actualDepartMs + meanAtSeaMinutes * 60_000,
-          estArrivalSource: "projected_mean_at_sea" as const,
-        }
+        estArrivalMs: actualDepartMs + meanAtSeaMinutes * 60_000,
+        estArrivalSource: "projected_mean_at_sea" as const,
+      }
       : {
-          estArrivalMs: 0,
-          estArrivalSource: "projected_mean_at_sea" as const,
-        };
+        estArrivalMs: 0,
+        estArrivalSource: "projected_mean_at_sea" as const,
+      };
 
   if (!record.EstArrival && meanAtSeaMinutes <= 0) {
     return {
@@ -373,6 +380,7 @@ const normalizeSingleRecord = (
       estArrivalMs,
       arrivingSource: "inferred_from_next_departing",
       estArrivalSource,
+      sourceHistory: record,
     },
   };
 };

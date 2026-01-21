@@ -270,18 +270,22 @@ Inference is only accepted when it is “plausible” using existing ML threshol
 
 If the guard fails (e.g. long gap/layover), the record is rejected rather than incorrectly joined.
 
+**Source data preservation**: Each `NormalizedWsfTrip` includes a `sourceHistory` field containing a reference to the original `VesselHistory` record. This enables debugging and logging throughout the pipeline by maintaining access to the raw WSF data.
+
 #### 2. Window Creation (`createTrainingWindows`)
 **Purpose**: Build temporal training contexts from sequential trips
 **Logic**: Process each vessel's trips chronologically, creating A→B→C sequences
 **Validation**: Terminal continuity, duration bounds, timestamp validity (after normalization fills missing `Arriving` where safe)
-**Output**: TrainingWindow[] with full temporal context
+**VesselHistory References**: Each window includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records used to create the window. These references are extracted from the normalized trips' `sourceHistory` fields.
+**Output**: TrainingWindow[] with full temporal context and VesselHistory references
 
 #### 3. Feature Extraction (`createFeatureRecords`)
 **Purpose**: Transform windows into ML-ready feature vectors
 **Engineering**: Apply 20+ feature engineering functions with temporal safety
 **Targets**: Calculate prediction targets for each model type
 **Safety**: Prevent data leakage between at-dock/at-sea contexts
-**Output**: FeatureRecord[] ready for model training
+**VesselHistory Retention**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records. These references are retained in memory throughout training, enabling debugging and logging of the underlying raw data. The original `VesselHistory[]` array remains in memory as long as `FeatureRecord[]` references exist.
+**Output**: FeatureRecord[] ready for model training, with VesselHistory references for debugging
 
 #### 4. Data Bucketing (`createTrainingBuckets`)
 **Purpose**: Group training examples by route for specialized models
@@ -311,6 +315,12 @@ If the guard fails (e.g. long gap/layover), the record is rejected rather than i
 - **Terminal Mapping**: All terminals exist in validated terminal set
 - **Timestamp Validity**: No negative durations or impossible sequences
 - **Continuity Checks**: Vessel trips form logical journey sequences
+
+#### Debugging & Logging Support
+- **VesselHistory Retention**: Original `VesselHistory` records are retained in memory throughout the training pipeline via references in `FeatureRecord` objects
+- **Access Pattern**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields pointing to the original WSF data
+- **Use Cases**: Enables debugging of feature engineering, investigation of training examples, and logging of raw data during model training
+- **Memory Management**: VesselHistory records remain accessible as long as FeatureRecords exist in memory (typically for the duration of the training run)
 
 **Important note on missing WSF fields**
 - Missing `Arriving` is handled by normalization (inferred from next `Departing` with a duration guard).

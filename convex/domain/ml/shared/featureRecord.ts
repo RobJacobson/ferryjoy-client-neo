@@ -134,9 +134,9 @@ const getDockCuesAtCurr = (window: TrainingWindow) => {
   const arrivalAfterScheduledDepartureMinutes =
     arrivalAtCurrMs !== undefined
       ? Math.max(
-          0,
-          minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
-        )
+        0,
+        minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
+      )
       : 0;
 
   // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
@@ -320,11 +320,16 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
       // Only available when next leg data is present and eligible
       departNextFromNextScheduledMinutes: requireDepartNextWindow(window)
         ? minutesBetween(
-            window.nextLeg.scheduledDepartMs,
-            window.nextLeg.actualDepartMs
-          )
+          window.nextLeg.scheduledDepartMs,
+          window.nextLeg.actualDepartMs
+        )
         : null,
     },
+
+    // VesselHistory references for debugging/logging
+    prevHistory: window.prevHistory,
+    currHistory: window.currHistory,
+    nextHistory: window.nextHistory,
   };
 };
 
