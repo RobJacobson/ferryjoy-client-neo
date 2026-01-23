@@ -5,9 +5,7 @@
 
 import { View } from "react-native";
 import { Text } from "@/components/ui";
-import { STACKING } from "./config";
 import TripProgressCircle from "./TripProgressCircle";
-import type { TripProgressIndicatorModel } from "./useTripProgressMeterModel";
 
 // ============================================================================
 // Types
@@ -15,9 +13,17 @@ import type { TripProgressIndicatorModel } from "./useTripProgressMeterModel";
 
 type TripProgressIndicatorProps = {
   /**
-   * Indicator model to render, or null to hide the indicator.
+   * Progress value (0-1) for horizontal positioning within the parent bar.
    */
-  indicatorModel: TripProgressIndicatorModel | null;
+  progress: number;
+  /**
+   * Minutes remaining to display in the indicator.
+   */
+  minutesRemaining: number;
+  /**
+   * Optional z-index for stacking order.
+   */
+  zIndex?: number;
 };
 
 // ============================================================================
@@ -25,49 +31,33 @@ type TripProgressIndicatorProps = {
 // ============================================================================
 
 /**
- * Renders an absolute overlay (pointer-events none) containing the progress indicator.
- * This must be rendered inside the meter container to ensure the correct stacking
- * above bars and markers.
+ * Renders a progress indicator positioned based on progress value within the parent bar.
+ * The indicator is absolutely positioned and displays the minutes remaining.
  *
- * @param indicatorModel - Indicator model to render, or null to hide
- * @returns A View overlay containing the indicator when present
+ * @param progress - Progress value (0-1) for horizontal positioning
+ * @param minutesRemaining - Minutes remaining to display
+ * @param zIndex - Optional z-index for stacking order
+ * @returns A View component containing the indicator
  */
 const TripProgressIndicator = ({
-  indicatorModel,
+  progress,
+  minutesRemaining,
+  zIndex,
 }: TripProgressIndicatorProps) => {
-  if (!indicatorModel) {
-    return null;
-  }
-
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        zIndex: STACKING.progressCircle,
-        elevation: STACKING.progressCircle,
-      }}
+    <TripProgressCircle
+      left={`${progress * 100}%`}
+      backgroundColor="bg-pink-500"
+      borderColor=""
+      size={32}
+      zIndex={zIndex}
     >
-      <TripProgressCircle
-        left={`${indicatorModel.leftPercent}%`}
-        backgroundColor="bg-pink-500"
-        borderColor=""
-        size={32}
-        zIndex={STACKING.progressCircle}
-      >
-        <View className="border border-white p-1 rounded-full w-full items-center justify-center">
-          <Text className="text-sm font-semibold text-white">
-            {indicatorModel.minutesRemaining > 99
-              ? "--"
-              : indicatorModel.minutesRemaining}
-          </Text>
-        </View>
-      </TripProgressCircle>
-    </View>
+      <View className="border border-white p-1 rounded-full w-full items-center justify-center">
+        <Text className="text-sm font-semibold text-white">
+          {minutesRemaining > 99 ? "--" : minutesRemaining}
+        </Text>
+      </View>
+    </TripProgressCircle>
   );
 };
 

@@ -4,13 +4,9 @@
  */
 
 import { View } from "react-native";
-import { Text } from "@/components/ui";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { cn } from "@/lib/utils";
-import { STACKING } from "./config";
 import TripProgressBar from "./TripProgressBar";
-import TripProgressIndicator from "./TripProgressIndicator";
-import TripProgressMarker from "./TripProgressMarker";
 import { useTripProgressMeterModel } from "./useTripProgressMeterModel";
 
 type TripProgressMeterProps = {
@@ -33,25 +29,18 @@ type TripProgressMeterProps = {
  *
  * Time selection prioritizes actual times over predicted times over scheduled times for accuracy.
  * Width allocation dynamically distributes space between segments based on their relative durations,
- * with minimum/maximum constraints to ensure readability.
+ * using FlexBox flex-grow values with a minimum of 15% to ensure readability.
  *
  * The indicator is shown based on vessel state (AtDock property) rather than time-based progress,
  * allowing it to display correctly even when vessels are running late.
  *
  * @param trip - VesselTrip object containing actual, predicted, and scheduled timing data
  * @param className - Optional className for styling the meter container
- * @returns A View component with two progress bars, three markers, and optionally overlaid progress indicators
+ * @returns A View component with two self-contained progress bars
  */
 const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
-  const {
-    nowMs,
-    arriveATimeMs,
-    departATimeMs,
-    arriveBTimeMs,
-    firstWidthPercent,
-    secondWidthPercent,
-    indicatorModel,
-  } = useTripProgressMeterModel(trip);
+  const { arriveATimeMs, departATimeMs, arriveBTimeMs, isAtDock } =
+    useTripProgressMeterModel(trip);
 
   return (
     <View
@@ -60,41 +49,21 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
         className
       )}
     >
-      <TripProgressMarker zIndex={STACKING.marker}>
-        <View>
-          <Text className="text-sm">Arrive A</Text>
-        </View>
-      </TripProgressMarker>
-
       <TripProgressBar
-        startValue={arriveATimeMs}
-        endValue={departATimeMs}
-        currentValue={nowMs}
-        percentWidth={firstWidthPercent}
-        zIndex={STACKING.bar}
+        startTimeMs={arriveATimeMs}
+        endTimeMs={departATimeMs}
+        leftCircleLabel="Arrive A"
+        rightCircleLabel="Depart A"
+        active={isAtDock}
       />
 
-      <TripProgressMarker zIndex={STACKING.marker}>
-        <View>
-          <Text className="text-sm">Depart A</Text>
-        </View>
-      </TripProgressMarker>
-
       <TripProgressBar
-        startValue={departATimeMs}
-        endValue={arriveBTimeMs}
-        currentValue={nowMs}
-        percentWidth={secondWidthPercent}
-        zIndex={STACKING.bar}
+        startTimeMs={departATimeMs}
+        endTimeMs={arriveBTimeMs}
+        leftCircleLabel=""
+        rightCircleLabel="Arrive B"
+        active={!isAtDock}
       />
-
-      <TripProgressMarker zIndex={STACKING.marker}>
-        <View>
-          <Text className="text-sm">Arrive B</Text>
-        </View>
-      </TripProgressMarker>
-
-      <TripProgressIndicator indicatorModel={indicatorModel} />
     </View>
   );
 };
