@@ -28,6 +28,7 @@
  *
  * ## Data Quality Filters
  *
+ * - Indirect trip filtering (removes indirect trip segments, keeps only direct trips)
  * - Duration validation (at-sea and at-dock within reasonable bounds)
  * - Terminal continuity (consecutive trips must connect properly)
  * - Timestamp validity (no negative or extreme durations)
@@ -185,6 +186,47 @@ const mapHistoryToTrip = (record: VesselHistory): MappedTrip | null => {
   };
 };
 
+/**
+ * Filter out indirect trip segments, keeping only direct trips.
+ *
+ * WSF API data includes both direct trips (A→B) and indirect trips (A→C which
+ * passes through B). For ML training, we only want to train on direct trip segments.
+ *
+ * This function identifies trips with overlapping scheduled departures (same vessel,
+ * same scheduled departure time) and keeps only the shortest trip segment (earliest
+ * arrival), filtering out longer indirect trips.
+ *
+ * Example: From Orcas Island at 14:50, there may be trips to:
+ * - Shaw Island (15:05) - 15 minutes - direct trip (keep)
+ * - Lopez Island (15:35) - 45 minutes - indirect trip (filter)
+ * - Friday Harbor (16:30) - 100 minutes - indirect trip (filter)
+ *
+ * @param trips - Array of mapped trips to filter
+ * @returns Filtered array containing only direct trip segments
+ */
+const filterDirectTripsOnly = (trips: MappedTrip[]): MappedTrip[] => {
+  // Group by (vessel, scheduledDepart) - each vessel only departs from one terminal per scheduled departure
+  const groups = trips.reduce((acc, trip) => {
+    const key = `${trip.vesselAbbrev}|${trip.scheduledDepartMs}`;
+    const existing = acc.get(key) ?? [];
+    return acc.set(key, [...existing, trip]);
+  }, new Map<string, MappedTrip[]>());
+
+  // Process each group: keep single trips, or shortest trip for overlapping groups
+  return Array.from(groups.values()).flatMap((group) => {
+    if (group.length === 1) {
+      // Single trip - keep it
+      return group;
+    }
+    // Multiple overlapping trips - keep shortest (earliest arrival)
+    return [
+      group.reduce((min, trip) =>
+        trip.estArrivalMs < min.estArrivalMs ? trip : min
+      ),
+    ];
+  });
+};
+
 type TripCalculationsV1Compatible = {
   AtDockDuration: number;
   AtSeaDuration: number;
@@ -229,9 +271,10 @@ const areDurationsValidV1Compatible = (
  * ## Processing Logic
  *
  * 1. **Group by Vessel**: Process trips chronologically per vessel to maintain journey continuity
- * 2. **Build Windows**: For each consecutive trip pair (i, i+1), create a training window
- * 3. **Terminal Continuity**: Ensure prev arrival terminal matches curr departure terminal
- * 4. **Duration Validation**: Filter out trips with unrealistic at-dock/at-sea durations
+ * 2. **Filter Indirect Trips**: Remove indirect trip segments, keeping only direct trips (shortest segment per scheduled departure)
+ * 3. **Build Windows**: For each consecutive trip pair (i, i+1), create a training window
+ * 4. **Terminal Continuity**: Ensure prev arrival terminal matches curr departure terminal
+ * 5. **Duration Validation**: Filter out trips with unrealistic at-dock/at-sea durations
  * 6. **Optional Next Leg**: Include C→D context when available and relevant
  *
  * ## Window Structure
@@ -264,8 +307,13 @@ export const createTrainingWindows = (
       .map(mapHistoryToTrip)
       .filter((t): t is MappedTrip => t != null);
 
+    // Filter out indirect trip segments, keeping only direct trips
+    // This ensures we only train on direct trip segments (e.g., Orcas→Shaw)
+    // and not indirect segments (e.g., Orcas→Lopez, Orcas→Friday Harbor)
+    const directTripsOnly = filterDirectTripsOnly(mappedTrips);
+
     // Sort trips chronologically by scheduled departure time (A then B then C...)
-    const sorted = mappedTrips
+    const sorted = directTripsOnly
       .slice()
       .sort((a, b) => a.scheduledDepartMs - b.scheduledDepartMs);
 
