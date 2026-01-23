@@ -31,7 +31,10 @@ export const updateVesselOrchestrator = internalAction({
   handler: async (ctx) => {
     let locationsSuccess = false;
     let tripsSuccess = false;
-    const errors: { locations?: Error; trips?: Error } = {};
+    const errors: {
+      locations?: { message: string; stack?: string };
+      trips?: { message: string; stack?: string };
+    } = {};
 
     // Fetch and convert vessel locations
     let deduplicatedLocations: ConvexVesselLocation[] = [];
@@ -57,7 +60,7 @@ export const updateVesselOrchestrator = internalAction({
       locationsSuccess = true;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      errors.locations = err;
+      errors.locations = { message: err.message, stack: err.stack };
       console.error("updateVesselLocations failed:", err);
     }
 
@@ -67,7 +70,7 @@ export const updateVesselOrchestrator = internalAction({
       tripsSuccess = true;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      errors.trips = err;
+      errors.trips = { message: err.message, stack: err.stack };
       console.error("runUpdateVesselTrips failed:", err);
     }
 

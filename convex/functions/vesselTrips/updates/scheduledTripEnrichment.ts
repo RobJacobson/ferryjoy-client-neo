@@ -172,19 +172,14 @@ export const enrichTripStartUpdates = async (
 
   // Attempt lookup. If it fails, keep key in sync and optionally invalidate.
   try {
-    console.log("Querying ScheduledTrip for key:", tripKey);
     const scheduledTrip = await fetchScheduledTripFieldsByKey(ctx, tripKey);
     if (scheduledTrip) {
-      console.log("ScheduledTrip found for key:", tripKey);
       return {
         ...scheduledTrip,
         ...keyPatch,
       };
-    } else {
-      console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
     }
-  } catch (error) {
-    console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
+  } catch (_error) {
     return {
       ...keyPatch,
       ...invalidationPatch,

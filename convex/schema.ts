@@ -24,6 +24,7 @@ export default defineSchema({
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
+    .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
     .index("by_trip_end", ["TripEnd"])
     .index("by_timestamp", ["TimeStamp"])
     .index("by_key", ["Key"]),
@@ -76,6 +77,7 @@ export default defineSchema({
   // Completed ML predictions - one row per completed prediction
   predictions: defineTable(predictionRecordSchema)
     .index("by_key", ["Key"])
+    .index("by_key_and_type", ["Key", "PredictionType"])
     .index("by_vessel_abbreviation", ["VesselAbbreviation"])
     .index("by_prediction_type", ["PredictionType"])
     .index("by_pred_time", ["PredTime"])

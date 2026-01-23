@@ -40,30 +40,18 @@ export const getMostRecentCompletedTrip = query({
   args: { vesselAbbrev: v.string() },
   handler: async (ctx, args) => {
     try {
-      const trips = await ctx.db
+      const mostRecent = await ctx.db
         .query("completedVesselTrips")
-        .withIndex("by_vessel_abbrev", (q) =>
+        .withIndex("by_vessel_and_trip_end", (q) =>
           q.eq("VesselAbbrev", args.vesselAbbrev)
         )
-        .collect();
+        .order("desc")
+        .first();
 
-      if (trips.length === 0) {
-        return null;
-      }
-
-      // Sort by TripEnd descending to get the most recent completed trip
-      // Filter out trips without TripEnd (shouldn't happen, but defensive)
-      const tripsWithEnd = trips.filter((trip) => trip.TripEnd !== undefined);
-      if (tripsWithEnd.length === 0) {
-        return null;
-      }
-
-      tripsWithEnd.sort((a, b) => (b.TripEnd ?? 0) - (a.TripEnd ?? 0));
-      const mostRecent = tripsWithEnd[0];
       if (!mostRecent) {
         return null;
       }
-      // Strip Convex document metadata (_id, _creationTime) to return just the trip data.
+
       return stripConvexMeta(mostRecent) as ConvexVesselTrip;
     } catch (error) {
       throw new ConvexError({

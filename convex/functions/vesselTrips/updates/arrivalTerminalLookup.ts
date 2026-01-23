@@ -27,6 +27,7 @@ export const lookupArrivalTerminalFromSchedule = async (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Promise<string | undefined> => {
+
   // Only lookup when:
   // 1. Vessel is currently at dock
   // 2. Arriving terminal is missing (both in trip and current location)
@@ -56,11 +57,6 @@ export const lookupArrivalTerminalFromSchedule = async (
   };
 
   try {
-    console.log(
-      `[ArrivalTerminalLookup] Searching for scheduled trip:`,
-      JSON.stringify(queryParams)
-    );
-
     const scheduledTrip = await ctx.runQuery(
       api.functions.scheduledTrips.queries.findScheduledTripForArrivalLookup,
       queryParams
@@ -68,15 +64,7 @@ export const lookupArrivalTerminalFromSchedule = async (
 
     if (scheduledTrip) {
       const trip = stripConvexMeta(scheduledTrip);
-      console.log(
-        `[ArrivalTerminalLookup] Found scheduled trip. Arriving terminal: ${trip.ArrivingTerminalAbbrev}`
-      );
       return trip.ArrivingTerminalAbbrev;
-    } else {
-      console.log(
-        `[ArrivalTerminalLookup] Not found. No matching direct scheduled trip for:`,
-        JSON.stringify(queryParams)
-      );
     }
   } catch (error) {
     // Log error but don't throw - we'll wait for the API to report the terminal
