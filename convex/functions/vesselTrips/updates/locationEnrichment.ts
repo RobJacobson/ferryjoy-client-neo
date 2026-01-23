@@ -58,7 +58,12 @@ export const enrichTripFields = (
   }
 
   // ScheduledDeparture can be missing or updated by upstream feed.
-  if (currLocation.ScheduledDeparture !== existingTrip.ScheduledDeparture) {
+  // Only patch when the feed provides a value; do not clear an existing value
+  // when the upstream tick omits ScheduledDeparture.
+  if (
+    currLocation.ScheduledDeparture !== undefined &&
+    currLocation.ScheduledDeparture !== existingTrip.ScheduledDeparture
+  ) {
     updates.ScheduledDeparture = currLocation.ScheduledDeparture;
   }
 
@@ -67,9 +72,14 @@ export const enrichTripFields = (
   const effectiveLeftDock =
     updates.LeftDock ?? currLocation.LeftDock ?? existingTrip.LeftDock;
 
+  const effectiveScheduledDeparture =
+    updates.ScheduledDeparture ??
+    currLocation.ScheduledDeparture ??
+    existingTrip.ScheduledDeparture;
+
   // TripDelay is derived (minutes), so compute and patch if it changed.
   const tripDelay = calculateTimeDelta(
-    currLocation.ScheduledDeparture,
+    effectiveScheduledDeparture,
     effectiveLeftDock
   );
 
