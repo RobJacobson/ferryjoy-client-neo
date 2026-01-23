@@ -24,7 +24,6 @@ type VesselTripsWritePlan = {
   departNextBackfills: Array<{ vesselAbbrev: string; actualDepartMs: number }>;
   completedPredictionRecords: ConvexPredictionRecord[];
   errors: Array<{ vesselAbbrev: string; error: string }>;
-  stats: { firstTrip: number; tripBoundary: number; tripUpdate: number };
 };
 
 /**
@@ -120,23 +119,12 @@ export const runUpdateVesselTrips = async (
     );
   }
 
-  // 9) Report any per-vessel failures without failing the entire tick.
-  if (writePlan.errors.length > 0) {
-    console.warn("[VesselTrips] per-vessel errors:", writePlan.errors);
-  }
-
-  // 10) Log a lightweight tick summary for observability.
-  console.log("[VesselTrips] tick summary:", {
-    vessels: locations.length,
-    firstTripCount: writePlan.stats.firstTrip,
-    tripBoundaryCount: writePlan.stats.tripBoundary,
-    tripUpdateCount: writePlan.stats.tripUpdate,
-    activeUpserts: writePlan.activeUpserts.length,
-    completions: writePlan.completions.length,
-    departNextBackfills: writePlan.departNextBackfills.length,
-    completedPredictionRecords: allPredictionRecords.length,
-    uniquePredictionRecords: uniquePredictionRecords.length,
-    errors: writePlan.errors.length,
+  // Report any per-vessel failures without failing the entire tick.
+  writePlan.errors.forEach(({ vesselAbbrev, error }) => {
+    console.error(
+      `[VesselTrips] Error processing vessel ${vesselAbbrev}:`,
+      error
+    );
   });
 };
 
@@ -187,7 +175,6 @@ const makeInitialWritePlan = (): VesselTripsWritePlan => ({
   departNextBackfills: [],
   completedPredictionRecords: [],
   errors: [],
-  stats: { firstTrip: 0, tripBoundary: 0, tripUpdate: 0 },
 });
 
 /**
@@ -219,10 +206,6 @@ const reduceToWritePlan = (
   }
 
   acc.completedPredictionRecords.push(...plan.completedPredictionRecords);
-
-  if (plan.stats.event === "firstTrip") acc.stats.firstTrip += 1;
-  if (plan.stats.event === "tripBoundary") acc.stats.tripBoundary += 1;
-  if (plan.stats.event === "tripUpdate") acc.stats.tripUpdate += 1;
 
   return acc;
 };

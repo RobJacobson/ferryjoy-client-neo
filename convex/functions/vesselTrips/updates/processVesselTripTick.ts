@@ -49,14 +49,6 @@ export type VesselTripTickPlan = {
   completion?: TripCompletionPlan;
   departNextBackfill?: DepartNextBackfillPlan;
   completedPredictionRecords: ConvexPredictionRecord[];
-  stats: {
-    vesselAbbrev: string;
-    event: "firstTrip" | "tripBoundary" | "tripUpdate";
-    activeUpserted: boolean;
-    completedTripArchived: boolean;
-    departNextBackfillEmitted: boolean;
-    completedPredictionRecordsCount: number;
-  };
 };
 
 /**
@@ -91,14 +83,6 @@ export const processVesselTripTick = async (
       completion: undefined,
       departNextBackfill: undefined,
       completedPredictionRecords,
-      stats: {
-        vesselAbbrev: currLocation.VesselAbbrev,
-        event: "firstTrip",
-        activeUpserted: true,
-        completedTripArchived: false,
-        departNextBackfillEmitted: false,
-        completedPredictionRecordsCount: 0,
-      },
     });
   }
 
@@ -220,14 +204,6 @@ const buildTripBoundaryPlan = async (
     completion: { completedTrip, newTrip: newTripWithEnrichment },
     departNextBackfill: undefined,
     completedPredictionRecords,
-    stats: {
-      vesselAbbrev: existingTrip.VesselAbbrev,
-      event: "tripBoundary",
-      activeUpserted: false,
-      completedTripArchived: true,
-      departNextBackfillEmitted: false,
-      completedPredictionRecordsCount: completedPredictionRecords.length,
-    },
   });
 };
 
@@ -339,14 +315,6 @@ const buildTripUpdatePlan = async (
           }
         : undefined,
     completedPredictionRecords,
-    stats: {
-      vesselAbbrev: existingTrip.VesselAbbrev,
-      event: "tripUpdate",
-      activeUpserted: Boolean(activeUpsert),
-      completedTripArchived: false,
-      departNextBackfillEmitted: Boolean(didJustLeaveDock && baseTrip.LeftDock),
-      completedPredictionRecordsCount: completedPredictionRecords.length,
-    },
   });
 };
 
@@ -394,9 +362,5 @@ const finalizePlan = (plan: VesselTripTickPlan): VesselTripTickPlan => {
   return {
     ...plan,
     completedPredictionRecords: plan.completedPredictionRecords,
-    stats: {
-      ...plan.stats,
-      completedPredictionRecordsCount: plan.completedPredictionRecords.length,
-    },
   };
 };
