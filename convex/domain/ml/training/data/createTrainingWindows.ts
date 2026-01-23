@@ -66,20 +66,6 @@ const MAX_SLACK_MINUTES = 12 * MINUTES_PER_HOUR;
 const minutesBetween = (earlierMs: number, laterMs: number): number =>
   (laterMs - earlierMs) / 60000;
 
-/**
- * Get standardized terminal abbreviation from terminal name.
- *
- * @param terminalName - Full terminal name from WSF data
- * @returns Standardized terminal abbreviation or null if invalid
- */
-const getTerminalAbbrev = (terminalName: string): TerminalAbbrev | null => {
-  const abbrev = config.getTerminalAbbrev(terminalName);
-  if (!abbrev || abbrev === terminalName) {
-    return null;
-  }
-  return abbrev;
-};
-
 type MappedTrip = {
   vesselAbbrev: string;
   departing: TerminalAbbrev;
@@ -87,66 +73,117 @@ type MappedTrip = {
   scheduledDepartMs: number;
   actualDepartMs: number;
   estArrivalMs: number;
+  sourceHistory: VesselHistory;
 };
 
 /**
- * Transform raw WSF vessel trip data into structured format for training.
- *
- * Validates data completeness and terminal mappings, converting timestamps
- * to milliseconds for consistent processing.
- *
- * @param trip - Raw WSF vessel trip record
- * @returns Structured trip data or null if invalid
- */
-const mapTrip = (trip: VesselHistory): MappedTrip | null => {
-  if (
-    !trip.Vessel ||
-    !trip.Departing ||
-    !trip.Arriving ||
-    !trip.ScheduledDepart ||
-    !trip.ActualDepart ||
-    !trip.EstArrival
-  ) {
-    return null;
-  }
-
-  const departing = getTerminalAbbrev(trip.Departing);
-  const arriving = getTerminalAbbrev(trip.Arriving);
-  if (!departing || !arriving) {
-    return null;
-  }
-  if (!config.isValidTerminal(departing) || !config.isValidTerminal(arriving)) {
-    return null;
-  }
-
-  return {
-    vesselAbbrev: trip.Vessel,
-    departing,
-    arriving,
-    scheduledDepartMs: trip.ScheduledDepart.getTime(),
-    actualDepartMs: trip.ActualDepart.getTime(),
-    estArrivalMs: trip.EstArrival.getTime(),
-  };
-};
-
-/**
- * Group vessel trip records by vessel identifier for chronological processing.
+ * Group raw WSF records by vessel identifier for chronological processing.
  *
  * @param records - Array of vessel trip records to group
  * @returns Records grouped by vessel abbreviation
  */
 const groupByVessel = (
   records: VesselHistory[]
-): Record<string, VesselHistory[]> =>
-  records.reduce(
-    (groups, r) => {
-      const key = String(r.Vessel ?? "unknown");
-      groups[key] ??= [];
-      groups[key].push(r);
-      return groups;
-    },
-    {} as Record<string, VesselHistory[]>
+): Record<string, VesselHistory[]> => {
+  const groups: Record<string, VesselHistory[]> = {};
+
+  for (const record of records) {
+    const vesselRaw = record.Vessel;
+    if (!vesselRaw) {
+      continue;
+    }
+    const key = String(vesselRaw);
+    groups[key] ??= [];
+    groups[key].push(record);
+  }
+
+  return groups;
+};
+
+/**
+ * Map terminal name -> abbreviation (ML mapping) with strict validation.
+ *
+ * @param terminalName - Terminal name from WSF data
+ * @returns Terminal abbreviation or null if unmapped/invalid
+ */
+const getTerminalAbbrev = (terminalName: string): TerminalAbbrev | null => {
+  const abbrev = config.getTerminalAbbrev(terminalName);
+  if (!abbrev || abbrev === terminalName) {
+    return null;
+  }
+  if (!config.isValidTerminal(abbrev)) {
+    return null;
+  }
+  return abbrev;
+};
+
+/**
+ * Convert a raw WSF history record into a strict trip shape for windowing.
+ *
+ * We intentionally do **no inference**. If a required API field is missing
+ * (notably `Arriving` or `EstArrival`), this record is skipped for training.
+ *
+ * @param record - Raw WSF vessel history record
+ * @returns Mapped trip or null if the record is not usable for training
+ */
+const mapHistoryToTrip = (record: VesselHistory): MappedTrip | null => {
+  const vesselAbbrev = record.Vessel ? String(record.Vessel) : "";
+  const departingName = record.Departing ?? "";
+  const arrivingName = record.Arriving ?? "";
+
+  if (
+    !vesselAbbrev ||
+    !departingName ||
+    !arrivingName ||
+    !record.ScheduledDepart ||
+    !record.ActualDepart ||
+    !record.EstArrival
+  ) {
+    return null;
+  }
+
+  const departingAbbrev = getTerminalAbbrev(departingName);
+  const arrivingAbbrev = getTerminalAbbrev(arrivingName);
+  if (!departingAbbrev || !arrivingAbbrev) {
+    return null;
+  }
+
+  const scheduledDepartMs = record.ScheduledDepart.getTime();
+  const actualDepartMs = record.ActualDepart.getTime();
+  const estArrivalMs = record.EstArrival.getTime();
+
+  // Ignore suspicious early departures (WSF data occasionally contains these).
+  const EARLY_DEPARTURE_TOLERANCE_MINUTES = 5;
+  if (
+    actualDepartMs <
+    scheduledDepartMs - EARLY_DEPARTURE_TOLERANCE_MINUTES * 60_000
+  ) {
+    return null;
+  }
+
+  // Ignore implausibly short at-sea durations relative to route priors.
+  const atSeaMinutes = minutesBetween(actualDepartMs, estArrivalMs);
+  const meanAtSeaMinutes = config.getMeanAtSeaDuration(
+    formatTerminalPairKey(departingAbbrev, arrivingAbbrev)
   );
+  const MIN_AT_SEA_RATIO_OF_MEAN = 0.8;
+  if (
+    meanAtSeaMinutes > 0 &&
+    atSeaMinutes < MIN_AT_SEA_RATIO_OF_MEAN * meanAtSeaMinutes
+  ) {
+    return null;
+  }
+
+  return {
+    vesselAbbrev,
+    departing: departingAbbrev,
+    arriving: arrivingAbbrev,
+    scheduledDepartMs,
+    actualDepartMs,
+    estArrivalMs,
+    sourceHistory: record,
+  };
+};
 
 type TripCalculationsV1Compatible = {
   AtDockDuration: number;
@@ -223,30 +260,22 @@ export const createTrainingWindows = (
 
   // Process each vessel's trips independently to maintain journey continuity
   for (const vesselTrips of Object.values(vesselGroups)) {
-    // Sort trips chronologically by scheduled departure time
-    // This ensures we process trips in the order they actually occurred
-    const sorted = vesselTrips
+    const mappedTrips = vesselTrips
+      .map(mapHistoryToTrip)
+      .filter((t): t is MappedTrip => t != null);
+
+    // Sort trips chronologically by scheduled departure time (A then B then C...)
+    const sorted = mappedTrips
       .slice()
-      .sort(
-        (a, b) =>
-          (a.ScheduledDepart?.getTime() ?? 0) -
-          (b.ScheduledDepart?.getTime() ?? 0)
-      );
+      .sort((a, b) => a.scheduledDepartMs - b.scheduledDepartMs);
 
     // Process consecutive trip pairs (i-1, i) to build training windows
     // Each window needs context from the previous trip to understand arrival conditions
     for (let i = 1; i < sorted.length; i++) {
-      const prevRaw = sorted[i - 1]; // Previous trip (A→B)
-      const currRaw = sorted[i]; // Current trip (B→C)
-
-      // Transform raw WSF data into structured trip objects
-      const prev = mapTrip(prevRaw);
-      const curr = mapTrip(currRaw);
-
-      // Skip if either trip has invalid/missing data
-      if (!prev || !curr) {
-        continue;
-      }
+      const prevRaw = sorted[i - 1] as MappedTrip; // A→B
+      const currRaw = sorted[i] as MappedTrip; // B→C
+      const prev = prevRaw;
+      const curr = currRaw;
 
       // Ensure terminal continuity: previous trip must arrive where current trip departs
       // This validates that we're looking at a continuous vessel journey
@@ -316,17 +345,24 @@ export const createTrainingWindows = (
         slackBeforeCurrScheduledDepartMinutes: clampedSlackMinutes,
         meanAtDockMinutesForCurrPair,
         currScheduledDepartMs: curr.scheduledDepartMs,
+        prevHistory: prevRaw.sourceHistory,
+        currHistory: currRaw.sourceHistory,
+        nextHistory: null, // Will be set if next leg exists
       };
 
       // Optional depart-C info (requires the immediate next trip to depart from C).
-      const nextRaw = sorted[i + 1];
-      const next = nextRaw ? mapTrip(nextRaw) : null;
+      const nextRaw = sorted[i + 1] as MappedTrip | undefined;
 
-      if (!next || next.departing !== C) {
+      if (!nextRaw || nextRaw.departing !== C) {
         windows.push({ ...baseWindow, kind: "no_depart_c" });
         continue;
       }
 
+      // Update nextHistory reference for windows with next leg
+      // nextRaw is guaranteed to be defined here because we guarded above.
+      baseWindow.nextHistory = nextRaw.sourceHistory;
+
+      const next = nextRaw;
       const D = next.arriving;
       const nextPairKey = formatTerminalPairKey(C, D) as TerminalPairKey;
       const meanAtDockMinutesForNextPair =

@@ -80,7 +80,7 @@ const shouldLookupScheduledTrip = (
     trip.ScheduledTrip !== undefined && trip.RouteID !== 0;
   const seconds = new Date().getSeconds();
   return {
-    shouldLookup: !hasScheduledTripData && seconds < 15,
+    shouldLookup: !hasScheduledTripData && seconds < 5,
     existingKeyMismatch,
   };
 };
@@ -172,18 +172,14 @@ export const enrichTripStartUpdates = async (
 
   // Attempt lookup. If it fails, keep key in sync and optionally invalidate.
   try {
-    console.log("Querying ScheduledTrip for key:", tripKey);
     const scheduledTrip = await fetchScheduledTripFieldsByKey(ctx, tripKey);
     if (scheduledTrip) {
       return {
         ...scheduledTrip,
         ...keyPatch,
       };
-    } else {
-      console.log(`No matching ScheduledTrip found for key: ${tripKey}`);
     }
-  } catch (error) {
-    console.log(`Error querying ScheduledTrip for key ${tripKey}:`, error);
+  } catch (_error) {
     return {
       ...keyPatch,
       ...invalidationPatch,

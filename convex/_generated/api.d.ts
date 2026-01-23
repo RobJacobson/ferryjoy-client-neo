@@ -48,6 +48,7 @@ import type * as functions_scheduledTrips_sync_businessLogic from "../functions/
 import type * as functions_scheduledTrips_sync_dataTransformation from "../functions/scheduledTrips/sync/dataTransformation.js";
 import type * as functions_scheduledTrips_sync_index from "../functions/scheduledTrips/sync/index.js";
 import type * as functions_scheduledTrips_sync_infrastructure from "../functions/scheduledTrips/sync/infrastructure.js";
+import type * as functions_scheduledTrips_sync_officialCrossingTimes from "../functions/scheduledTrips/sync/officialCrossingTimes.js";
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
 import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
@@ -71,8 +72,10 @@ import type * as functions_vesselTrips_index from "../functions/vesselTrips/inde
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
+import type * as functions_vesselTrips_updates_arrivalTerminalLookup from "../functions/vesselTrips/updates/arrivalTerminalLookup.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_locationEnrichment from "../functions/vesselTrips/updates/locationEnrichment.js";
+import type * as functions_vesselTrips_updates_processVesselTripTick from "../functions/vesselTrips/updates/processVesselTripTick.js";
 import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
@@ -130,6 +133,7 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/dataTransformation": typeof functions_scheduledTrips_sync_dataTransformation;
   "functions/scheduledTrips/sync/index": typeof functions_scheduledTrips_sync_index;
   "functions/scheduledTrips/sync/infrastructure": typeof functions_scheduledTrips_sync_infrastructure;
+  "functions/scheduledTrips/sync/officialCrossingTimes": typeof functions_scheduledTrips_sync_officialCrossingTimes;
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
   "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
@@ -153,8 +157,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
+  "functions/vesselTrips/updates/arrivalTerminalLookup": typeof functions_vesselTrips_updates_arrivalTerminalLookup;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/locationEnrichment": typeof functions_vesselTrips_updates_locationEnrichment;
+  "functions/vesselTrips/updates/processVesselTripTick": typeof functions_vesselTrips_updates_processVesselTripTick;
   "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "shared/convertDates": typeof shared_convertDates;

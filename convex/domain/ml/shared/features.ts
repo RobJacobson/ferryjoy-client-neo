@@ -13,9 +13,10 @@
  * ## Feature Categories
  *
  * 1. **Time Features**: Smooth time-of-day representations using radial basis functions
- * 2. **Duration Features**: Historical averages and actual trip durations
- * 3. **Schedule Features**: Slack time, delays, and schedule adherence
- * 4. **Context Features**: Previous trip performance and arrival patterns
+ * 2. **Arrival Timing Features**: Smooth arrival-before-departure representations using radial basis functions
+ * 3. **Duration Features**: Historical averages and actual trip durations
+ * 4. **Schedule Features**: Slack time, delays, and schedule adherence
+ * 5. **Context Features**: Previous trip performance and arrival patterns
  *
  * ## Key Concepts
  *
@@ -113,7 +114,8 @@ export function extractFeatures(trip: UnifiedTrip) {
       trip.PrevLeftDock
     ),
     prevAtSeaDuration: getMinutesDelta(trip.PrevLeftDock, trip.TripStart), // Previous leg actual duration
-    lateArrival: lateArrival(trip, slackBeforeDepartureMinutes), // Schedule pressure feature (clamped at 1.5x mean)
+    // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
+    // lateArrival: lateArrival(trip, slackBeforeDepartureMinutes), // Schedule pressure feature (clamped at 1.5x mean)
   };
 }
 
@@ -136,30 +138,31 @@ export function extractFeatures(trip: UnifiedTrip) {
  * @param slackBeforeDepartureMinutes - Available time before scheduled departure
  * @returns Schedule pressure value (≥ 0)
  */
-const lateArrival = (
-  trip: UnifiedTrip,
-  slackBeforeDepartureMinutes: number
-): number => {
-  // This calculation uses only arrival time + schedule, so it's available at prediction
-  // time when actual departure (LeftDock) isn't known yet
-  if (!trip.TripStart || !trip.ScheduledDeparture) {
-    return 0;
-  }
-
-  // Get historical average turnaround time for this route (B->C)
-  const averageTurnaroundMinutes = config.getMeanAtDockDuration(
-    formatTerminalPairKey(
-      trip.DepartingTerminalAbbrev,
-      trip.ArrivingTerminalAbbrev
-    )
-  );
-
-  // Calculate pressure: how much below 1.5x average turnaround time we are
-  // Experiment: Clamp early departures at 1.5x mean at-dock time to increase layover sensitivity
-  // Higher values indicate tighter schedules and more operational pressure
-  const maxPressure = 1.5 * averageTurnaroundMinutes;
-  return Math.max(0, maxPressure - slackBeforeDepartureMinutes);
-};
+// FEATURE_GROUP: MeanAtDockDerived (DISABLED)
+// const lateArrival = (
+//   trip: UnifiedTrip,
+//   slackBeforeDepartureMinutes: number
+// ): number => {
+//   // This calculation uses only arrival time + schedule, so it's available at prediction
+//   // time when actual departure (LeftDock) isn't known yet
+//   if (!trip.TripStart || !trip.ScheduledDeparture) {
+//     return 0;
+//   }
+//
+//   // Get historical average turnaround time for this route (B->C)
+//   const averageTurnaroundMinutes = config.getMeanAtDockDuration(
+//     formatTerminalPairKey(
+//       trip.DepartingTerminalAbbrev,
+//       trip.ArrivingTerminalAbbrev
+//     )
+//   );
+//
+//   // Calculate pressure: how much below 1.5x average turnaround time we are
+//   // Experiment: Clamp early departures at 1.5x mean at-dock time to increase layover sensitivity
+//   // Higher values indicate tighter schedules and more operational pressure
+//   const maxPressure = 1.5 * averageTurnaroundMinutes;
+//   return Math.max(0, maxPressure - slackBeforeDepartureMinutes);
+// };
 
 /**
  * Calculate time delta in minutes between two timestamps
@@ -243,4 +246,55 @@ const getTimeFeature = (hourOfDay: number, center: number, sigma: number) => {
     24 - Math.abs(hourOfDay - center)
   );
   return Math.exp(-(distance * distance) / (2 * sigma * sigma));
+};
+
+// Feature centers for arrival-before-departure features (every 5 minutes from 0 to 30)
+const arrivalBeforeDepartCenters = [0, 5, 10, 15, 20, 25, 30];
+
+/**
+ * Extract smooth arrival-before-departure features using radial basis functions.
+ *
+ * Creates 7 Gaussian radial basis functions centered at 0, 5, 10, 15, 20, 25, and 30 minutes
+ * to capture how arrival timing relative to scheduled departure affects vessel behavior.
+ * This smooth representation allows the model to learn arrival timing effects while being
+ * robust to slight variations in arrival times.
+ *
+ * Each feature represents activation strength at a particular minutes-before-departure value:
+ * - Values range from 0 (far from center) to 1 (at center)
+ * - Overlapping Gaussians ensure smooth transitions
+ * - Standard deviation is set to provide good coverage while maintaining specificity
+ *
+ * The input is clamped to the 0-30 minute range:
+ * - Negative values (arrival after scheduled departure) are clamped to 0
+ * - Values greater than 30 minutes are clamped to 30
+ *
+ * @param minutesBeforeDeparture - Minutes before scheduled departure that vessel arrived (clamped to 0-30)
+ * @returns Arrival-before-departure features as key-value pairs (e.g., "arrivalBeforeDepart_0": 0.95, "arrivalBeforeDepart_5": 0.12)
+ */
+export const extractArrivalBeforeDepartureFeatures = (
+  minutesBeforeDeparture: number
+): Record<string, number> => {
+  // Clamp input to 0-30 minute range
+  // Negative values (arrival after scheduled departure) → 0
+  // Values > 30 minutes → 30
+  const clampedMinutes = Math.max(0, Math.min(30, minutesBeforeDeparture));
+
+  // Calculate standard deviation for Gaussian functions
+  // For N centers in 30 minutes: spacing = 30/N, sigma = spacing * 0.5 provides good overlap
+  // With 7 centers (every 5 minutes), sigma ≈ 2.14 for smooth transitions
+  const sigma = (30 / arrivalBeforeDepartCenters.length) * 0.5;
+
+  // Generate radial basis function features for each center
+  const features = arrivalBeforeDepartCenters.reduce(
+    (acc, center) => {
+      // Use linear distance (no circular distance needed for 0-30 minute range)
+      const distance = Math.abs(clampedMinutes - center);
+      const weight = Math.exp(-(distance * distance) / (2 * sigma * sigma));
+      acc[`arrivalBeforeDepart_${center}`] = weight;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  return features;
 };

@@ -239,21 +239,31 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 #### 1. Data Loading (`loadWsfTrainingData`)
 **Purpose**: Load historical training data with quality controls
 **Source**: WSF vessel trip records within the configured training window (see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
-**Filtering**: Removes invalid records, ensures data completeness
-**Output**: Cleaned VesselHistory[] array for window creation
+**Filtering**: Removes only truly unusable records (e.g. missing vessel/departure/timestamps)
+**Output**: Raw `VesselHistory[]` (not yet windowed) for window creation
+
+#### 1.5. WSF History Eligibility (no inference)
+WSF historical vessel records sometimes omit required fields like `Arriving` and `EstArrival`.
+We **do not infer** missing values for training or reporting.
+
+Instead, we apply strict eligibility rules during window creation:
+- If any required field is missing (`Vessel`, `Departing`, `Arriving`, `ScheduledDepart`, `ActualDepart`, `EstArrival`), that record is **skipped** for training.
+- Terminal names must successfully map to validated terminal abbreviations via `convex/domain/ml/shared/config.ts`.
 
 #### 2. Window Creation (`createTrainingWindows`)
 **Purpose**: Build temporal training contexts from sequential trips
 **Logic**: Process each vessel's trips chronologically, creating A→B→C sequences
-**Validation**: Terminal continuity, duration bounds, timestamp validity
-**Output**: TrainingWindow[] with full temporal context
+**Validation**: Terminal continuity, duration bounds, timestamp validity, strict required-field presence
+**VesselHistory References**: Each window includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records used to create the window.
+**Output**: TrainingWindow[] with full temporal context and VesselHistory references
 
 #### 3. Feature Extraction (`createFeatureRecords`)
 **Purpose**: Transform windows into ML-ready feature vectors
 **Engineering**: Apply 20+ feature engineering functions with temporal safety
 **Targets**: Calculate prediction targets for each model type
 **Safety**: Prevent data leakage between at-dock/at-sea contexts
-**Output**: FeatureRecord[] ready for model training
+**VesselHistory Retention**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records. These references are retained in memory throughout training, enabling debugging and logging of the underlying raw data. The original `VesselHistory[]` array remains in memory as long as `FeatureRecord[]` references exist.
+**Output**: FeatureRecord[] ready for model training, with VesselHistory references for debugging
 
 #### 4. Data Bucketing (`createTrainingBuckets`)
 **Purpose**: Group training examples by route for specialized models
@@ -283,6 +293,15 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 - **Terminal Mapping**: All terminals exist in validated terminal set
 - **Timestamp Validity**: No negative durations or impossible sequences
 - **Continuity Checks**: Vessel trips form logical journey sequences
+
+#### Debugging & Logging Support
+- **VesselHistory Retention**: Original `VesselHistory` records are retained in memory throughout the training pipeline via references in `FeatureRecord` objects
+- **Access Pattern**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields pointing to the original WSF data
+- **Use Cases**: Enables debugging of feature engineering, investigation of training examples, and logging of raw data during model training
+- **Memory Management**: VesselHistory records remain accessible as long as FeatureRecords exist in memory (typically for the duration of the training run)
+
+**Important note on missing WSF fields**
+- Missing `Arriving` or `EstArrival` means the record is **skipped** for training and therefore cannot contribute to window creation.
 
 #### Training Stability Safeguards
 - **Numerical Stability**: Detect and handle exploding coefficients

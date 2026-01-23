@@ -208,7 +208,7 @@ export const ML_CONFIG = {
      */
     duration: {
       atSea: { min: 2.0, max: 90.0 },
-      atDock: { min: 2.0, max: 30.0 },
+      atDock: { min: 2.0, max: 45.0 },
       arriveArriveTotal: { max: 120.0 },
     },
   },
@@ -229,8 +229,8 @@ export const ML_CONFIG = {
      */
     dataLoading: {
       daysBack: 365,
-      maxRecordsPerVessel: 5000,
-      maxSamplesPerRoute: 5000,
+      maxRecordsPerVessel: 7500,
+      maxSamplesPerRoute: 7500,
       samplingStrategy: "recent_first",
     },
     /**

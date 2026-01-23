@@ -6,6 +6,9 @@ import type { ConvexModelParameters } from "../../convex/functions/predictions/s
 
 type BucketType = "chain" | "pair";
 
+const DEV_TEMP_VERSION_TAG = "dev-temp";
+const MODEL_TYPES_PER_BUCKET = 5;
+
 type TrainingResultRow = {
   bucket_type: BucketType;
   bucket_key: string; // pairKey
@@ -70,15 +73,34 @@ const upsertRow = (
     row.created_at = new Date(model.createdAt).toISOString();
   }
 
-  // Prefer max stats (in case training wrote multiple docs during experiments)
-  row.total_records = Math.max(
-    row.total_records,
-    model.bucketStats.totalRecords
-  );
-  row.sampled_records = Math.max(
-    row.sampled_records,
-    model.bucketStats.sampledRecords
-  );
+  // For a single training run (dev-temp), bucketStats should be identical across
+  // model types for the same bucket. If not, something is stale or inconsistent.
+  if (row.total_records !== model.bucketStats.totalRecords) {
+    throw new Error(
+      [
+        "Inconsistent total_records across model types for bucket.",
+        `bucket=${key}`,
+        `existing=${row.total_records}`,
+        `incoming=${model.bucketStats.totalRecords}`,
+        `incoming_modelType=${model.modelType}`,
+        `incoming_versionTag=${model.versionTag}`,
+        `incoming_createdAt=${new Date(model.createdAt).toISOString()}`,
+      ].join(" ")
+    );
+  }
+  if (row.sampled_records !== model.bucketStats.sampledRecords) {
+    throw new Error(
+      [
+        "Inconsistent sampled_records across model types for bucket.",
+        `bucket=${key}`,
+        `existing=${row.sampled_records}`,
+        `incoming=${model.bucketStats.sampledRecords}`,
+        `incoming_modelType=${model.modelType}`,
+        `incoming_versionTag=${model.versionTag}`,
+        `incoming_createdAt=${new Date(model.createdAt).toISOString()}`,
+      ].join(" ")
+    );
+  }
 
   const { mae, r2, rmse, stdDev } = model.testMetrics;
 
@@ -114,6 +136,65 @@ const upsertRow = (
       row.at_sea_depart_next_stddev = stdDev;
       break;
   }
+};
+
+/**
+ * Summarize model type coverage for dev-temp export.
+ *
+ * @param models - Model parameter documents to export
+ * @returns Coverage summary information for logging/diagnostics
+ */
+const getCoverageSummary = (
+  models: ConvexModelParameters[]
+): {
+  bucketCount: number;
+  incompleteBuckets: Array<{
+    bucketType: string;
+    bucketKey: string;
+    modelTypesPresent: string[];
+  }>;
+} => {
+  const bucketToTypes = new Map<string, Set<string>>();
+  for (const m of models) {
+    const bucketKey = m.pairKey;
+    if (!bucketKey) {
+      continue;
+    }
+    const key = `${m.bucketType}|${bucketKey}`;
+    const existing = bucketToTypes.get(key);
+    if (existing) {
+      existing.add(m.modelType);
+    } else {
+      bucketToTypes.set(key, new Set([m.modelType]));
+    }
+  }
+
+  const incompleteBuckets = Array.from(bucketToTypes.entries())
+    .map(([key, types]) => {
+      const [bucketType, bucketKey] = key.split("|");
+      return {
+        bucketType,
+        bucketKey,
+        modelTypesPresent: Array.from(types).sort(),
+        modelTypeCount: types.size,
+      };
+    })
+    .filter((b) => b.modelTypeCount !== MODEL_TYPES_PER_BUCKET)
+    .sort((a, b) =>
+      `${a.bucketType}|${a.bucketKey}`.localeCompare(
+        `${b.bucketType}|${b.bucketKey}`
+      )
+    )
+    .map(({ bucketType, bucketKey, modelTypesPresent }) => ({
+      bucketType,
+      bucketKey,
+      modelTypesPresent,
+    }));
+
+  return {
+    bucketCount: bucketToTypes.size,
+    incompleteBuckets,
+  };
 };
 
 const generateCSV = (results: TrainingResultRow[]): string => {
@@ -177,10 +258,42 @@ async function exportTrainingResults() {
 
   const convex = new ConvexHttpClient(convexUrl);
   const models = await convex.query(
-    api.functions.predictions.queries.getAllModelParameters
+    api.functions.predictions.queries.getModelParametersByTag,
+    { versionTag: DEV_TEMP_VERSION_TAG }
   );
 
-  console.log(`Found ${models.length} model records`);
+  console.log(
+    `Found ${models.length} model records (versionTag=${DEV_TEMP_VERSION_TAG})`
+  );
+
+  if (models.length % MODEL_TYPES_PER_BUCKET !== 0) {
+    console.warn(
+      [
+        "Warning: dev-temp model record count is not a multiple of",
+        MODEL_TYPES_PER_BUCKET,
+        "(expected one model per bucket per modelType).",
+        "This can indicate a partial training run or stale dev-temp docs.",
+      ].join(" ")
+    );
+  }
+
+  const coverage = getCoverageSummary(models as ConvexModelParameters[]);
+  if (coverage.incompleteBuckets.length > 0) {
+    console.warn(
+      [
+        "Warning: some buckets do not have a full set of model types for dev-temp.",
+        `incompleteBuckets=${coverage.incompleteBuckets.length}`,
+      ].join(" ")
+    );
+    for (const b of coverage.incompleteBuckets.slice(0, 10)) {
+      console.warn("Incomplete bucket", b);
+    }
+    if (coverage.incompleteBuckets.length > 10) {
+      console.warn(
+        `...and ${coverage.incompleteBuckets.length - 10} more incomplete buckets`
+      );
+    }
+  }
 
   const bucketMap = new Map<string, TrainingResultRow>();
   for (const model of models as ConvexModelParameters[]) {

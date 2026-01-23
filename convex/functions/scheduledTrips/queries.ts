@@ -166,3 +166,56 @@ export const getScheduledTripsForSailingDay = query({
     }
   },
 });
+
+/**
+ * Find direct scheduled trips matching vessel, departing terminal, and exact scheduled departure.
+ * Used to infer arriving terminal when a vessel arrives at dock without one reported.
+ *
+ * Matches trips based on:
+ * - Vessel abbreviation
+ * - Departing terminal abbreviation
+ * - Exact scheduled departure time (no tolerance)
+ * - Trip type must be "direct"
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - The vessel abbreviation to match
+ * @param args.departingTerminalAbbrev - The departing terminal abbreviation to match
+ * @param args.scheduledDeparture - The scheduled departure time in epoch milliseconds (must match exactly)
+ * @returns The matching direct scheduled trip document, or null if none found
+ */
+export const findScheduledTripForArrivalLookup = query({
+  args: {
+    vesselAbbrev: v.string(),
+    departingTerminalAbbrev: v.string(),
+    scheduledDeparture: v.number(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Query using composite index for exact match on all four parameters
+      const matchingTrip = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_vessel_terminal_time_type", (q) =>
+          q
+            .eq("VesselAbbrev", args.vesselAbbrev)
+            .eq("DepartingTerminalAbbrev", args.departingTerminalAbbrev)
+            .eq("DepartingTime", args.scheduledDeparture)
+            .eq("TripType", "direct")
+        )
+        .first();
+
+      return matchingTrip ?? null;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to find scheduled trip for arrival lookup`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          vesselAbbrev: args.vesselAbbrev,
+          departingTerminalAbbrev: args.departingTerminalAbbrev,
+          scheduledDeparture: args.scheduledDeparture,
+          error: String(error),
+        },
+      });
+    }
+  },
+});

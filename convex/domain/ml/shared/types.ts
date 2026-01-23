@@ -2,6 +2,8 @@
 // ML - CORE TYPES (windowed training)
 // ============================================================================
 
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+
 /**
  * Terminal abbreviation code (3-letter codes like "BBI", "EDM", "MUK").
  *
@@ -41,6 +43,8 @@ export type TerminalChainKey =
  * Currently only supports WSF (Washington State Ferries) estimated arrival times.
  * These are treated as close proxies for actual dock arrival times.
  */
+// NOTE: We do not infer missing arrival data. If `EstArrival` is missing from
+// the API record, that record is skipped for training.
 export type ArrivalProxySource = "wsf_est_arrival";
 
 export type TripLeg = {
@@ -82,6 +86,13 @@ export type TrainingWindowBase = {
 
   // For ordering / sampling
   currScheduledDepartMs: EpochMs;
+
+  /**
+   * References to original VesselHistory records for debugging/logging.
+   */
+  prevHistory: VesselHistory | null;
+  currHistory: VesselHistory;
+  nextHistory: VesselHistory | null;
 };
 
 export type TrainingWindowWithDepartC = TrainingWindowBase & {
@@ -155,6 +166,13 @@ export type FeatureRecord = {
     // Minutes between Next scheduled departure and Next actual departure.
     departNextFromNextScheduledMinutes: number | null;
   };
+
+  /**
+   * References to original VesselHistory records for debugging/logging.
+   */
+  prevHistory: VesselHistory | null;
+  currHistory: VesselHistory;
+  nextHistory: VesselHistory | null;
 };
 
 /**

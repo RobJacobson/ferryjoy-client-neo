@@ -22,7 +22,7 @@
  *
  * - **Recency Bias**: Prioritize recent examples (last 720 days)
  * - **Volume Limits**: Cap samples per route to prevent overfitting
- * - **Sorting**: Most recent examples first to capture current patterns
+ * - **Sorting**: Sample by recency, then store oldest→newest for time split
  *
  * ## Quality Controls
  *
@@ -85,11 +85,15 @@ const getBucketKeyForRecord = (record: FeatureRecord): BucketKey => {
  * - **Statistics**: Total available vs sampled counts
  *
  * @param records - Feature records ready for training
+ * @param options - Options for bucketing and sampling
  * @returns Route-grouped training buckets with sampling applied
  */
 export const createTrainingBuckets = (
-  records: FeatureRecord[]
+  records: FeatureRecord[],
+  options?: { sampleRecords?: boolean }
 ): TrainingBucket[] => {
+  const sampleRecords = options?.sampleRecords ?? true;
+
   // Group records by terminal pair for route-specific model training
   const bucketMap = new Map<
     string,
@@ -115,19 +119,28 @@ export const createTrainingBuckets = (
     ({ key, records }) => {
       const totalRecords = records.length;
 
-      // Sample most recent records to prioritize current operational patterns
-      // Sort by scheduled departure time (descending = most recent first)
-      const sampled = records
-        .slice()
-        .sort((a, b) => b.currScheduledDepartMs - a.currScheduledDepartMs)
-        .slice(0, config.getMaxSamplesPerRoute()); // Limit to prevent overfitting
+      const sampledChronological = sampleRecords
+        ? // Sample most recent records to prioritize current operational patterns
+          // Important: `trainModel` assumes chronological order (oldest→newest) when
+          // doing its 80/20 time split. So we:
+          // 1) select the most recent N records (recency bias)
+          // 2) reorder that subset oldest→newest for a true time split.
+          records
+            .slice()
+            .sort((a, b) => b.currScheduledDepartMs - a.currScheduledDepartMs)
+            .slice(0, config.getMaxSamplesPerRoute()) // Limit to prevent overfitting
+            .sort((a, b) => a.currScheduledDepartMs - b.currScheduledDepartMs)
+        : // Diagnostics mode: keep all records, but ensure deterministic ordering.
+          records
+            .slice()
+            .sort((a, b) => a.currScheduledDepartMs - b.currScheduledDepartMs);
 
       return {
         bucketKey: key,
-        records: sampled,
+        records: sampledChronological,
         bucketStats: {
           totalRecords, // Total examples available for this route
-          sampledRecords: sampled.length, // Examples kept after sampling
+          sampledRecords: sampledChronological.length, // Examples kept after sampling
         },
       };
     }

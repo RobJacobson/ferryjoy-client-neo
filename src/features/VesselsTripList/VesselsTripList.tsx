@@ -1,7 +1,7 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { VesselTripCard } from "@/features/VesselTripCard";
+import { TripProgressCard } from "@/features/TripProgressCard";
 
 export type VesselsTripListProps = {
   /** Space reserved for translucent header overlay; lets content scroll under it. */
@@ -49,7 +49,7 @@ export const VesselsTripList = ({
         {activeVesselTrips
           .filter((trip) => trip.InService)
           .map((trip) => (
-            <VesselTripCard key={trip.VesselAbbrev} trip={trip} />
+            <TripProgressCard key={trip.VesselAbbrev} trip={trip} />
           ))}
       </View>
     </ScrollView>

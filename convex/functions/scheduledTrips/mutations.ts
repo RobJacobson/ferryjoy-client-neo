@@ -1,4 +1,4 @@
-import { mutation } from "_generated/server";
+import { internalMutation, mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { type ConvexScheduledTrip, scheduledTripSchema } from "./schemas";
 
@@ -73,5 +73,43 @@ export const insertScheduledTrips = mutation({
         },
       });
     }
+  },
+});
+
+/**
+ * Delete a batch of scheduled trips that depart before a cutoff time.
+ * Used by a daily internal purge job to keep ScheduledTrips bounded.
+ *
+ * This is intentionally batched so the caller can loop from an action without
+ * running an oversized mutation.
+ *
+ * @param ctx - Convex mutation context
+ * @param args.cutoffMs - Epoch ms cutoff; delete trips with DepartingTime < cutoffMs
+ * @param args.limit - Maximum number of docs to delete in this batch
+ * @returns Batch deletion summary
+ */
+export const deleteScheduledTripsBeforeBatch = internalMutation({
+  args: {
+    cutoffMs: v.number(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.max(1, Math.min(args.limit, 1000));
+
+    const tripsToDelete = await ctx.db
+      .query("scheduledTrips")
+      .withIndex("by_departing_time", (q) =>
+        q.lt("DepartingTime", args.cutoffMs)
+      )
+      .take(limit);
+
+    for (const trip of tripsToDelete) {
+      await ctx.db.delete(trip._id);
+    }
+
+    return {
+      deleted: tripsToDelete.length,
+      hasMore: tripsToDelete.length === limit,
+    };
   },
 });

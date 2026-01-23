@@ -1,3 +1,4 @@
+import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
@@ -187,6 +188,175 @@ export const completeAndStartNewTrip = mutation({
 });
 
 /**
+ * Apply a batch of vessel trip writes (best-effort per vessel).
+ *
+ * This mutation exists to reduce the number of per-vessel mutations executed
+ * every 5 seconds. It applies three categories of writes:
+ * - active trip upserts (insert/replace)
+ * - trip completions (insert completed + replace active)
+ * - depart-next actual backfills onto the most recent completed trip
+ *
+ * Failures are isolated per vessel: the mutation does not throw for a single
+ * vessel failure, and instead returns status entries.
+ *
+ * Note: Prediction record insertion is handled separately via a bulk predictions
+ * mutation.
+ *
+ * @param ctx - Convex context
+ * @param args.activeUpserts - Active trips to upsert (one per vessel)
+ * @param args.completions - Trip completion+start operations (one per vessel)
+ * @param args.departNextBackfills - Backfill operations for depart-next actuals
+ * @returns Status list and any updated completed trips (for prediction insertion)
+ */
+export const applyVesselTripsWritePlan = mutation({
+  args: {
+    activeUpserts: v.array(vesselTripSchema),
+    completions: v.array(
+      v.object({
+        completedTrip: vesselTripSchema,
+        newTrip: vesselTripSchema,
+      })
+    ),
+    departNextBackfills: v.array(
+      v.object({
+        vesselAbbrev: v.string(),
+        actualDepartMs: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const activeTrips = await ctx.db.query("activeVesselTrips").collect();
+    const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
+      activeTrips.map((t) => [t.VesselAbbrev, { _id: t._id }])
+    );
+
+    const completionVessels = new Set<string>();
+    const perVessel: Array<{
+      vesselAbbrev: string;
+      ok: boolean;
+      reason?: string;
+    }> = [];
+
+    // Any completed trips updated by depart-next backfill (for prediction insertion).
+    const departNextUpdatedTrips: ConvexVesselTrip[] = [];
+
+    for (const completion of args.completions) {
+      const vesselAbbrev = completion.completedTrip.VesselAbbrev;
+      completionVessels.add(vesselAbbrev);
+      try {
+        if (!completion.completedTrip.TripEnd) {
+          throw new ConvexError({
+            message: "Completed trip must have TripEnd set",
+            code: "INVALID_COMPLETED_TRIP",
+            severity: "error",
+            details: { vesselAbbrev },
+          });
+        }
+
+        const existingActive = activeByVessel.get(vesselAbbrev);
+        if (!existingActive) {
+          throw new ConvexError({
+            message: `No active trip found for vessel ${vesselAbbrev}`,
+            code: "ACTIVE_TRIP_NOT_FOUND",
+            severity: "error",
+            details: { vesselAbbrev },
+          });
+        }
+
+        await ctx.db.insert("completedVesselTrips", completion.completedTrip);
+        await ctx.db.replace(existingActive._id, completion.newTrip);
+        perVessel.push({ vesselAbbrev, ok: true });
+      } catch (error) {
+        perVessel.push({
+          vesselAbbrev,
+          ok: false,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    for (const trip of args.activeUpserts) {
+      const vesselAbbrev = trip.VesselAbbrev;
+      if (completionVessels.has(vesselAbbrev)) {
+        // Avoid conflicting operations in the same plan.
+        continue;
+      }
+
+      try {
+        const existing = activeByVessel.get(vesselAbbrev);
+        if (existing) {
+          await ctx.db.replace(existing._id, trip);
+        } else {
+          const id = await ctx.db.insert("activeVesselTrips", trip);
+          // Store a minimal entry so subsequent operations can see it.
+          activeByVessel.set(vesselAbbrev, { _id: id });
+        }
+        perVessel.push({ vesselAbbrev, ok: true });
+      } catch (error) {
+        perVessel.push({
+          vesselAbbrev,
+          ok: false,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    for (const backfill of args.departNextBackfills) {
+      const vesselAbbrev = backfill.vesselAbbrev;
+      try {
+        const mostRecent = await ctx.db
+          .query("completedVesselTrips")
+          .withIndex("by_vessel_and_trip_end", (q) =>
+            q.eq("VesselAbbrev", vesselAbbrev)
+          )
+          .order("desc")
+          .first();
+
+        if (!mostRecent) {
+          perVessel.push({
+            vesselAbbrev,
+            ok: false,
+            reason: "no_completed_trip",
+          });
+          continue;
+        }
+
+        const updates = computeDepartNextActualsPatch(
+          mostRecent as unknown as ConvexVesselTrip,
+          backfill.actualDepartMs
+        );
+
+        if (Object.keys(updates).length === 0) {
+          perVessel.push({
+            vesselAbbrev,
+            ok: false,
+            reason: "no_predictions_to_update",
+          });
+          continue;
+        }
+
+        await ctx.db.patch(mostRecent._id, updates);
+        const updatedTrip = await ctx.db.get(mostRecent._id);
+        if (updatedTrip) {
+          const { _id, _creationTime, ...tripData } = updatedTrip;
+          departNextUpdatedTrips.push(tripData as ConvexVesselTrip);
+        }
+
+        perVessel.push({ vesselAbbrev, ok: true });
+      } catch (error) {
+        perVessel.push({
+          vesselAbbrev,
+          ok: false,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return { perVessel, departNextUpdatedTrips };
+  },
+});
+
+/**
  * Backfill depart-next prediction actuals onto the most recent completed trip.
  *
  * When the current active trip leaves dock at terminal B (B->C LeftDock becomes
@@ -203,16 +373,13 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     actualDepartMs: v.number(),
   },
   handler: async (ctx, args) => {
-    const completedTrips = await ctx.db
+    const mostRecent = await ctx.db
       .query("completedVesselTrips")
-      .withIndex("by_vessel_abbrev", (q) =>
+      .withIndex("by_vessel_and_trip_end", (q) =>
         q.eq("VesselAbbrev", args.vesselAbbrev)
       )
-      .collect();
-
-    const tripsWithEnd = completedTrips.filter((t) => t.TripEnd !== undefined);
-    tripsWithEnd.sort((a, b) => (b.TripEnd ?? 0) - (a.TripEnd ?? 0));
-    const mostRecent = tripsWithEnd[0];
+      .order("desc")
+      .first();
     if (!mostRecent) {
       return {
         updated: false as const,
@@ -221,27 +388,10 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    const updates: Partial<ConvexVesselTrip> = {};
-
-    if (
-      mostRecent.AtDockDepartNext &&
-      mostRecent.AtDockDepartNext.Actual === undefined
-    ) {
-      updates.AtDockDepartNext = applyActualToPrediction(
-        mostRecent.AtDockDepartNext,
-        args.actualDepartMs
-      );
-    }
-
-    if (
-      mostRecent.AtSeaDepartNext &&
-      mostRecent.AtSeaDepartNext.Actual === undefined
-    ) {
-      updates.AtSeaDepartNext = applyActualToPrediction(
-        mostRecent.AtSeaDepartNext,
-        args.actualDepartMs
-      );
-    }
+    const updates = computeDepartNextActualsPatch(
+      mostRecent as unknown as ConvexVesselTrip,
+      args.actualDepartMs
+    );
 
     if (Object.keys(updates).length === 0) {
       return {
@@ -261,3 +411,37 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     };
   },
 });
+
+/**
+ * Compute patch to apply depart-next prediction actuals to a completed trip.
+ *
+ * When the current active trip leaves dock at terminal B (B->C LeftDock becomes
+ * known), that timestamp is the "actual depart-next" event for the previous
+ * completed trip (A->B) at terminal B.
+ *
+ * @param trip - Most recent completed trip for a vessel
+ * @param actualDepartMs - Actual departure timestamp of the *next* trip (epoch ms)
+ * @returns Partial trip patch (empty if no applicable predictions)
+ */
+function computeDepartNextActualsPatch(
+  trip: ConvexVesselTrip,
+  actualDepartMs: number
+): Partial<ConvexVesselTrip> {
+  const updates: Partial<ConvexVesselTrip> = {};
+
+  if (trip.AtDockDepartNext && trip.AtDockDepartNext.Actual === undefined) {
+    updates.AtDockDepartNext = applyActualToPrediction(
+      trip.AtDockDepartNext,
+      actualDepartMs
+    );
+  }
+
+  if (trip.AtSeaDepartNext && trip.AtSeaDepartNext.Actual === undefined) {
+    updates.AtSeaDepartNext = applyActualToPrediction(
+      trip.AtSeaDepartNext,
+      actualDepartMs
+    );
+  }
+
+  return updates;
+}

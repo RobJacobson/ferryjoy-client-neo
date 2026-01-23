@@ -28,10 +28,6 @@ export {
  */
 export {
   computeVesselTripPredictionsPatch,
-  predictAtDockArriveNext,
-  predictAtDockDepartCurr,
-  predictAtDockDepartNext,
-  predictAtSeaArriveNext,
-  predictAtSeaDepartNext,
+  predictVesselTripPrediction,
   updatePredictionsWithActuals,
 } from "./vesselTripPredictions";

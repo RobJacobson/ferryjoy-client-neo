@@ -19,14 +19,20 @@ export const enrichTripFields = (
   const updates: Partial<ConvexVesselTrip> = {};
 
   // Terminal changes are meaningful trip identity signals.
+  // Only update if the API provides a non-undefined value (to preserve looked-up values).
   if (
+    currLocation.ArrivingTerminalAbbrev !== undefined &&
     currLocation.ArrivingTerminalAbbrev !== existingTrip.ArrivingTerminalAbbrev
   ) {
     updates.ArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   }
 
   // AtDock can flip frequently and drives prediction strategy.
-  if (currLocation.AtDock !== existingTrip.AtDock) {
+  const atDockFlipped = currLocation.AtDock !== existingTrip.AtDock;
+  const atDockFlippedToFalse =
+    atDockFlipped && !currLocation.AtDock && existingTrip.AtDock;
+
+  if (atDockFlipped) {
     updates.AtDock = currLocation.AtDock;
   }
 
@@ -36,8 +42,19 @@ export const enrichTripFields = (
   }
 
   // LeftDock is the actual departure timestamp.
-  if (currLocation.LeftDock !== existingTrip.LeftDock) {
-    updates.LeftDock = currLocation.LeftDock;
+  // Handle LeftDock updates with priority rules:
+  // 1. If AtDock flips from true to false and LeftDock is missing, set it to
+  //    reported LeftDock (if any) or current update's TimeStamp
+  // 2. Official LeftDock from currLocation always takes priority over existing
+  if (atDockFlippedToFalse && !existingTrip.LeftDock) {
+    // Vessel just left dock and we don't have a LeftDock time yet
+    // Use reported LeftDock if available, otherwise use current update timestamp
+    updates.LeftDock = currLocation.LeftDock ?? currLocation.TimeStamp;
+  } else if (currLocation.LeftDock !== undefined) {
+    // Official LeftDock is provided - it always takes priority
+    if (currLocation.LeftDock !== existingTrip.LeftDock) {
+      updates.LeftDock = currLocation.LeftDock;
+    }
   }
 
   // ScheduledDeparture can be missing or updated by upstream feed.
@@ -45,10 +62,15 @@ export const enrichTripFields = (
     updates.ScheduledDeparture = currLocation.ScheduledDeparture;
   }
 
+  // Determine effective LeftDock value for derived field calculations.
+  // Use the value we just set in updates, or fall back to currLocation or existing.
+  const effectiveLeftDock =
+    updates.LeftDock ?? currLocation.LeftDock ?? existingTrip.LeftDock;
+
   // TripDelay is derived (minutes), so compute and patch if it changed.
   const tripDelay = calculateTimeDelta(
     currLocation.ScheduledDeparture,
-    currLocation.LeftDock
+    effectiveLeftDock
   );
 
   if (tripDelay !== undefined && tripDelay !== existingTrip.TripDelay) {
@@ -59,7 +81,7 @@ export const enrichTripFields = (
   // Time delta: LeftDock - TripStart
   const atDockDuration = calculateTimeDelta(
     existingTrip.TripStart,
-    currLocation.LeftDock
+    effectiveLeftDock
   );
 
   if (
