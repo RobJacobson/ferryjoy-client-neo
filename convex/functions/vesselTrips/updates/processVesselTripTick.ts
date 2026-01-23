@@ -123,6 +123,18 @@ export const processVesselTripTick = async (
 // Internal helpers
 // ============================================================================
 
+/**
+ * Build a write plan for trip boundary events.
+ *
+ * Trip boundary occurs when vessel arrives at a new terminal, completing one trip
+ * and starting another. Archives the completed trip with final calculations and
+ * starts a new trip with enriched data and immediate predictions.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param params.existingTrip - The trip being completed
+ * @param params.currLocation - Current vessel location data
+ * @returns Write plan with trip completion and new trip start
+ */
 const buildTripBoundaryPlan = async (
   ctx: ActionCtx,
   params: {
@@ -219,6 +231,18 @@ const buildTripBoundaryPlan = async (
   });
 };
 
+/**
+ * Build a write plan for trip update events.
+ *
+ * Trip update occurs when vessel location changes within the same terminal pair.
+ * Updates trip fields, enriches with scheduled data, computes predictions with
+ * throttling, and handles departure events that actualize predictions.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param params.existingTrip - Current active trip being updated
+ * @param params.currLocation - Latest vessel location data
+ * @returns Write plan with trip updates and optional prediction actualization
+ */
 const buildTripUpdatePlan = async (
   ctx: ActionCtx,
   params: {
@@ -326,6 +350,16 @@ const buildTripUpdatePlan = async (
   });
 };
 
+/**
+ * Extract all completed prediction records from a vessel trip.
+ *
+ * Converts prediction fields that have actual outcomes into database records
+ * for storage and analysis. Only includes predictions that have been actualized
+ * with real observed timestamps.
+ *
+ * @param trip - Vessel trip containing predictions to extract
+ * @returns Array of prediction records ready for database insertion
+ */
 const extractCompletedPredictionRecords = (
   trip: ConvexVesselTrip
 ): ConvexPredictionRecord[] => {
@@ -347,6 +381,15 @@ const extractCompletedPredictionRecords = (
   return records;
 };
 
+/**
+ * Finalize a vessel trip tick plan with computed statistics.
+ *
+ * Ensures the plan has consistent statistics and completed prediction records
+ * count. This is the final step before returning the plan for execution.
+ *
+ * @param plan - Partially built vessel trip tick plan
+ * @returns Complete vessel trip tick plan with final statistics
+ */
 const finalizePlan = (plan: VesselTripTickPlan): VesselTripTickPlan => {
   return {
     ...plan,

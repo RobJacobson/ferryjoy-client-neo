@@ -27,7 +27,6 @@ export const lookupArrivalTerminalFromSchedule = async (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Promise<string | undefined> => {
-
   // Only lookup when:
   // 1. Vessel is currently at dock
   // 2. Arriving terminal is missing (both in trip and current location)

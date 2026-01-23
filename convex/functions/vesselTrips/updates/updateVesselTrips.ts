@@ -17,7 +17,10 @@ type VesselTickResult =
 
 type VesselTripsWritePlan = {
   activeUpserts: ConvexVesselTrip[];
-  completions: Array<{ completedTrip: ConvexVesselTrip; newTrip: ConvexVesselTrip }>;
+  completions: Array<{
+    completedTrip: ConvexVesselTrip;
+    newTrip: ConvexVesselTrip;
+  }>;
   departNextBackfills: Array<{ vesselAbbrev: string; actualDepartMs: number }>;
   completedPredictionRecords: ConvexPredictionRecord[];
   errors: Array<{ vesselAbbrev: string; error: string }>;
@@ -90,10 +93,7 @@ export const runUpdateVesselTrips = async (
   // 6) Extract completed depart-next prediction rows from updated completed trips.
   const departNextPredictionRecords = departNextUpdatedTrips
     .flatMap(extractDepartNextPredictionRecords)
-    .filter(
-      (value): value is ConvexPredictionRecord =>
-        value !== null
-    );
+    .filter((value): value is ConvexPredictionRecord => value !== null);
 
   // 7) Combine all completed prediction rows for this tick.
   const allPredictionRecords = [

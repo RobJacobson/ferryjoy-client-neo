@@ -413,7 +413,11 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
 });
 
 /**
- * Compute patch to apply depart-next actuals to a completed trip.
+ * Compute patch to apply depart-next prediction actuals to a completed trip.
+ *
+ * When the current active trip leaves dock at terminal B (B->C LeftDock becomes
+ * known), that timestamp is the "actual depart-next" event for the previous
+ * completed trip (A->B) at terminal B.
  *
  * @param trip - Most recent completed trip for a vessel
  * @param actualDepartMs - Actual departure timestamp of the *next* trip (epoch ms)

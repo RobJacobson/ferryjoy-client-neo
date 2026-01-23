@@ -227,15 +227,14 @@ export const computeVesselTripPredictionsPatch = async (
     }))
   );
 
-  const updates = results.reduce<Partial<Record<PredictionField, ConvexPrediction>>>(
-    (acc, { spec, prediction }) => {
-      if (prediction) {
-        acc[spec.field] = prediction;
-      }
-      return acc;
-    },
-    {}
-  );
+  const updates = results.reduce<
+    Partial<Record<PredictionField, ConvexPrediction>>
+  >((acc, { spec, prediction }) => {
+    if (prediction) {
+      acc[spec.field] = prediction;
+    }
+    return acc;
+  }, {});
 
   return updates as Partial<ConvexVesselTrip>;
 };
