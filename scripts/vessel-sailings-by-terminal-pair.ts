@@ -13,8 +13,8 @@
  *   bunx tsx scripts/vessel-sailings-by-terminal-pair.ts 2026-01-01 2026-01-31 [--out ml/report.md]
  */
 
-import * as fs from "node:fs";
 import type { WriteStream } from "node:fs";
+import * as fs from "node:fs";
 import { writeFileSync } from "node:fs";
 import * as path from "node:path";
 
@@ -24,11 +24,10 @@ import {
 } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 
-import type {
-  WsfNormalizationReject,
-  WsfNormalizationRejectReason,
-} from "../convex/domain/ml/shared/normalizeWsfVesselHistories";
-import { normalizeWsfVesselHistories } from "../convex/domain/ml/shared/normalizeWsfVesselHistories";
+import {
+  config,
+  formatTerminalPairKey,
+} from "../convex/domain/ml/shared/config";
 import { getVesselAbbreviation } from "../src/domain/vesselAbbreviations";
 
 // ============================================================================
@@ -55,8 +54,14 @@ type FetchStats = {
   unknownVesselRecords: number;
 };
 
+type SkipReason =
+  | "missing_required_fields"
+  | "terminal_abbrev_unmapped"
+  | "terminal_invalid"
+  | "unknown_vessel";
+
 type RejectLogEntry = {
-  reason: WsfNormalizationRejectReason | "unknown_vessel";
+  reason: SkipReason;
   vesselName: string;
   details: Record<string, unknown>;
   record: unknown;
@@ -100,21 +105,23 @@ const parseArgs = (argv: string[]): CliArgs => {
     outArg && outArg.trim().length > 0
       ? outArg
       : path.join(
-        process.cwd(),
-        "ml",
-        `vessel-sailings-${dateStart}_to_${dateEnd}.md`
-      );
+          process.cwd(),
+          "ml",
+          `vessel-sailings-${dateStart}_to_${dateEnd}.md`
+        );
 
   const rejectsArg = rejectsIdx >= 0 ? argv[rejectsIdx + 1] : undefined;
   const rejectsPath =
     rejectsIdx >= 0
-      ? rejectsArg && !rejectsArg.startsWith("--") && rejectsArg.trim().length > 0
+      ? rejectsArg &&
+        !rejectsArg.startsWith("--") &&
+        rejectsArg.trim().length > 0
         ? rejectsArg
         : path.join(
-          process.cwd(),
-          "ml",
-          `vessel-sailings-rejects-${dateStart}_to_${dateEnd}.ndjson`
-        )
+            process.cwd(),
+            "ml",
+            `vessel-sailings-rejects-${dateStart}_to_${dateEnd}.ndjson`
+          )
       : undefined;
 
   return { dateStart, dateEnd, outPath, rejectsPath };
@@ -154,6 +161,115 @@ const normalizeVesselAbbrev = (vesselRaw: string): string => {
   }
 
   return getVesselAbbreviation(trimmed);
+};
+
+/**
+ * Map terminal name -> abbreviation (ML mapping) with strict validation.
+ *
+ * @param terminalName - Terminal name from WSF data
+ * @returns Terminal abbreviation or null if unmapped/invalid
+ */
+const getTerminalAbbrev = (terminalName: string): string | null => {
+  const abbrev = config.getTerminalAbbrev(terminalName);
+  if (!abbrev || abbrev === terminalName) {
+    return null;
+  }
+  if (!config.isValidTerminal(abbrev)) {
+    return null;
+  }
+  return abbrev;
+};
+
+/**
+ * Convert a WSF history record into a sailings-count row (strict, no inference).
+ *
+ * Required fields are intentionally strict to match ML training eligibility:
+ * - `Vessel`, `Departing`, `Arriving`, `ScheduledDepart`, `ActualDepart`, `EstArrival`.
+ *
+ * @param record - Raw WSF vessel history record
+ * @returns Ok sailing count data or a skip reason for logging
+ */
+const mapHistoryToSailing = (
+  record: VesselHistory
+):
+  | {
+      kind: "ok";
+      vesselRaw: string;
+      pairKey: string;
+      scheduledDepartMs: number;
+      departingName: string;
+      arrivingName: string;
+    }
+  | {
+      kind: "skip";
+      reason: SkipReason;
+      details: Record<string, unknown>;
+    } => {
+  const vesselRaw = record.Vessel ? String(record.Vessel) : "";
+  const departingName = record.Departing ?? "";
+  const arrivingName = record.Arriving ?? "";
+
+  const missing = [
+    !vesselRaw ? "Vessel" : null,
+    !departingName ? "Departing" : null,
+    !arrivingName ? "Arriving" : null,
+    !record.ScheduledDepart ? "ScheduledDepart" : null,
+    !record.ActualDepart ? "ActualDepart" : null,
+    !record.EstArrival ? "EstArrival" : null,
+  ].filter((v): v is string => v != null);
+
+  if (missing.length > 0) {
+    return {
+      kind: "skip",
+      reason: "missing_required_fields",
+      details: { missing },
+    };
+  }
+
+  const departingAbbrev = getTerminalAbbrev(departingName);
+  if (!departingAbbrev) {
+    return {
+      kind: "skip",
+      reason: "terminal_abbrev_unmapped",
+      details: { terminalName: departingName, which: "Departing" },
+    };
+  }
+
+  const arrivingAbbrev = getTerminalAbbrev(arrivingName);
+  if (!arrivingAbbrev) {
+    return {
+      kind: "skip",
+      reason: "terminal_abbrev_unmapped",
+      details: { terminalName: arrivingName, which: "Arriving" },
+    };
+  }
+
+  if (!config.isValidTerminal(departingAbbrev)) {
+    return {
+      kind: "skip",
+      reason: "terminal_invalid",
+      details: { terminalAbbrev: departingAbbrev, which: "Departing" },
+    };
+  }
+
+  if (!config.isValidTerminal(arrivingAbbrev)) {
+    return {
+      kind: "skip",
+      reason: "terminal_invalid",
+      details: { terminalAbbrev: arrivingAbbrev, which: "Arriving" },
+    };
+  }
+
+  const pairKey = formatTerminalPairKey(departingAbbrev, arrivingAbbrev);
+
+  return {
+    kind: "ok",
+    vesselRaw,
+    pairKey,
+    scheduledDepartMs: record.ScheduledDepart!.getTime(),
+    departingName,
+    arrivingName,
+  };
 };
 
 /**
@@ -393,7 +509,10 @@ const ensureDirectoryExists = (dirPath: string): void => {
  * @param stream - Output stream for reject log
  * @param entry - Reject log entry
  */
-const writeRejectLogLine = (stream: WriteStream, entry: RejectLogEntry): void => {
+const writeRejectLogLine = (
+  stream: WriteStream,
+  entry: RejectLogEntry
+): void => {
   stream.write(`${safeJsonStringify(entry)}\n`);
 };
 
@@ -459,9 +578,7 @@ const main = async (): Promise<void> => {
     unknownVesselRecords: 0,
   };
 
-  const rejectCounts: Partial<
-    Record<WsfNormalizationRejectReason | "unknown_vessel", number>
-  > = {};
+  const rejectCounts: Partial<Record<SkipReason, number>> = {};
   const rejectsStream =
     args.rejectsPath != null
       ? (ensureDirectoryExists(path.dirname(args.rejectsPath)),
@@ -485,24 +602,25 @@ const main = async (): Promise<void> => {
     stats.vesselsProcessed += 1;
     stats.fetchedRecords += historyRecords.length;
 
-    const normalized = normalizeWsfVesselHistories(historyRecords, {
-      vesselNameFallback: vesselName,
-    });
-
-    stats.validRecords += normalized.trips.length;
-    stats.skippedInvalidRecords += normalized.rejects.length;
-
-    if (normalized.rejects.length > 0) {
-      for (const reject of normalized.rejects) {
-        rejectCounts[reject.reason] = (rejectCounts[reject.reason] ?? 0) + 1;
+    for (const record of historyRecords) {
+      const mapped = mapHistoryToSailing(record);
+      if (mapped.kind === "skip") {
+        stats.skippedInvalidRecords += 1;
+        rejectCounts[mapped.reason] = (rejectCounts[mapped.reason] ?? 0) + 1;
         if (rejectsStream) {
-          writeRejectLogLine(rejectsStream, toRejectLogEntry(vesselName, reject));
+          writeRejectLogLine(rejectsStream, {
+            reason: mapped.reason,
+            vesselName,
+            details: mapped.details,
+            record,
+          });
         }
+        continue;
       }
-    }
 
-    for (const trip of normalized.trips) {
-      const vesselAbbrev = normalizeVesselAbbrev(trip.vesselRaw);
+      stats.validRecords += 1;
+
+      const vesselAbbrev = normalizeVesselAbbrev(mapped.vesselRaw);
       if (!vesselAbbrev) {
         stats.unknownVesselRecords += 1;
         rejectCounts.unknown_vessel = (rejectCounts.unknown_vessel ?? 0) + 1;
@@ -510,12 +628,12 @@ const main = async (): Promise<void> => {
           writeRejectLogLine(rejectsStream, {
             reason: "unknown_vessel",
             vesselName,
-            details: { vesselRaw: trip.vesselRaw },
+            details: { vesselRaw: mapped.vesselRaw },
             record: {
-              departingName: trip.departingName,
-              arrivingName: trip.arrivingName,
-              pairKey: trip.pairKey,
-              scheduledDepartMs: trip.scheduledDepartMs,
+              departingName: mapped.departingName,
+              arrivingName: mapped.arrivingName,
+              pairKey: mapped.pairKey,
+              scheduledDepartMs: mapped.scheduledDepartMs,
             },
           });
         }
@@ -525,9 +643,9 @@ const main = async (): Promise<void> => {
       discoveredVesselAbbrevs.add(vesselAbbrev);
 
       const pairMap =
-        grid.get(trip.pairKey) ?? new Map<VesselAbbrev, number>();
+        grid.get(mapped.pairKey) ?? new Map<VesselAbbrev, number>();
       pairMap.set(vesselAbbrev, (pairMap.get(vesselAbbrev) ?? 0) + 1);
-      grid.set(trip.pairKey, pairMap);
+      grid.set(mapped.pairKey, pairMap);
     }
 
     // Be polite to upstream.
@@ -562,29 +680,9 @@ const main = async (): Promise<void> => {
   rejectsStream?.end();
 };
 
-/**
- * Convert a normalizer reject into the report reject log entry shape.
- *
- * @param vesselName - Vessel name queried from WSF
- * @param reject - Normalizer reject
- * @returns Reject log entry
- */
-const toRejectLogEntry = (
-  vesselName: string,
-  reject: WsfNormalizationReject
-): RejectLogEntry => {
-  return {
-    reason: reject.reason,
-    vesselName,
-    details: reject.details,
-    record: reject.record,
-  };
-};
-
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error: unknown) => {
     console.error("Failed to generate vessel sailings report", error);
     process.exit(1);
   });
 }
-

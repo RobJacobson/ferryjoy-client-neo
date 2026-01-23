@@ -85,7 +85,10 @@ const formatUnknownError = (error: unknown) => {
  * Load all vessel history records from WSF API
  * Fails immediately if any vessel data fetch fails (data integrity requirement)
  */
-export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
+export const loadWsfTrainingData = async (options?: {
+  sampleRecords?: boolean;
+}): Promise<VesselHistory[]> => {
+  const sampleRecords = options?.sampleRecords ?? true;
   console.log("Loading all vessel history records from WSF API...");
 
   try {
@@ -110,7 +113,7 @@ export const loadWsfTrainingData = async (): Promise<VesselHistory[]> => {
 
       // Process this batch in parallel - fail immediately on any error
       const vesselPromises = vesselBatch.map((vessel) =>
-        fetchVesselData(vessel.VesselName)
+        fetchVesselData(vessel.VesselName, { sampleRecords })
       );
 
       // Use Promise.all (not allSettled) to fail fast on errors
@@ -177,8 +180,10 @@ const fetchVesselFleet = async (): Promise<
  * @returns Array of vessel history records for the specified vessel
  */
 const fetchVesselData = async (
-  vesselName: string | null
+  vesselName: string | null,
+  options?: { sampleRecords?: boolean }
 ): Promise<VesselHistory[]> => {
+  const sampleRecords = options?.sampleRecords ?? true;
   console.log(`Fetching data for vessel: ${vesselName}`);
 
   // Calculate date range
@@ -204,7 +209,9 @@ const fetchVesselData = async (
     );
 
     // Apply sampling strategy to manage data volume
-    const sampledRecords = applySamplingStrategy(historyRecords);
+    const sampledRecords = sampleRecords
+      ? applySamplingStrategy(historyRecords)
+      : historyRecords;
 
     if (sampledRecords.length < historyRecords.length) {
       console.log(

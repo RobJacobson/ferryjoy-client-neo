@@ -21,7 +21,6 @@ import type * as domain_ml_shared_featureRecord from "../domain/ml/shared/featur
 import type * as domain_ml_shared_features from "../domain/ml/shared/features.js";
 import type * as domain_ml_shared_index from "../domain/ml/shared/index.js";
 import type * as domain_ml_shared_models from "../domain/ml/shared/models.js";
-import type * as domain_ml_shared_normalizeWsfVesselHistories from "../domain/ml/shared/normalizeWsfVesselHistories.js";
 import type * as domain_ml_shared_types from "../domain/ml/shared/types.js";
 import type * as domain_ml_shared_unifiedTrip from "../domain/ml/shared/unifiedTrip.js";
 import type * as domain_ml_training_actions from "../domain/ml/training/actions.js";
@@ -73,6 +72,7 @@ import type * as functions_vesselTrips_index from "../functions/vesselTrips/inde
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
+import type * as functions_vesselTrips_updates_arrivalTerminalLookup from "../functions/vesselTrips/updates/arrivalTerminalLookup.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_locationEnrichment from "../functions/vesselTrips/updates/locationEnrichment.js";
 import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
@@ -105,7 +105,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/shared/features": typeof domain_ml_shared_features;
   "domain/ml/shared/index": typeof domain_ml_shared_index;
   "domain/ml/shared/models": typeof domain_ml_shared_models;
-  "domain/ml/shared/normalizeWsfVesselHistories": typeof domain_ml_shared_normalizeWsfVesselHistories;
   "domain/ml/shared/types": typeof domain_ml_shared_types;
   "domain/ml/shared/unifiedTrip": typeof domain_ml_shared_unifiedTrip;
   "domain/ml/training/actions": typeof domain_ml_training_actions;
@@ -157,6 +156,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
+  "functions/vesselTrips/updates/arrivalTerminalLookup": typeof functions_vesselTrips_updates_arrivalTerminalLookup;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/locationEnrichment": typeof functions_vesselTrips_updates_locationEnrichment;
   "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;

@@ -21,6 +21,7 @@
     "ml:export-results:convex": "bunx tsx scripts/ml/export-training-results-from-convex.ts",
     "ml:compare": "bunx tsx scripts/ml/compare-summaries.ts",
     "ml:debug-depart-next": "bunx tsx scripts/ml/debug-depart-next-eligibility.ts",
+    "ml:audit-outliers": "bunx tsx scripts/ml/audit-outlier-inputs.ts",
     "ml:rename-tag": "bunx tsx scripts/ml/ml-version-rename.ts",
     "ml:list-versions": "bunx tsx scripts/ml/ml-version-list.ts",
     "ml:switch-prod": "bunx tsx scripts/ml/ml-version-switch-prod.ts",

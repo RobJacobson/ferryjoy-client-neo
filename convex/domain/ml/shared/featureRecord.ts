@@ -31,8 +31,10 @@
  */
 
 import { getPacificTimeComponents } from "shared";
-import { config, formatTerminalPairKey } from "./config";
-import { extractTimeFeatures } from "./features";
+import {
+  extractTimeFeatures,
+  extractArrivalBeforeDepartureFeatures,
+} from "./features";
 import type {
   FeatureRecord,
   TrainingWindow,
@@ -75,46 +77,15 @@ const getTimeContext = (scheduledDepartMs: number) => {
  * @param window - Training window containing previous and current leg data
  * @returns Object with previous leg context features
  */
-const getPrevLegContextAtCurr = (window: TrainingWindow) => {
-  const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
-  const hasArrivalAtCurr = arrivalAtCurrMs !== undefined;
-
-  const prevPairKey = formatTerminalPairKey(
-    window.prevTerminalAbbrev,
-    window.currTerminalAbbrev
-  );
-  const meanAtSeaPrevMinutes = config.getMeanAtSeaDuration(prevPairKey);
-  const estimatedArrivalAtCurrMs =
-    window.prevLeg.scheduledDepartMs + meanAtSeaPrevMinutes * 60000;
-
-  const arrivalVsEstimatedScheduleMinutes = hasArrivalAtCurr
-    ? minutesBetween(estimatedArrivalAtCurrMs, arrivalAtCurrMs)
-    : 0;
+const getPrevContext = (window: TrainingWindow) => {
 
   const prevTripDelayMinutes = minutesBetween(
     window.prevLeg.scheduledDepartMs,
     window.prevLeg.actualDepartMs
   );
-  const prevAtSeaDurationMinutes = hasArrivalAtCurr
-    ? minutesBetween(window.prevLeg.actualDepartMs, arrivalAtCurrMs)
-    : 0;
 
   return {
-    meanAtSeaPrevMinutes,
-    atSeaDelay: hasArrivalAtCurr
-      ? prevAtSeaDurationMinutes - meanAtSeaPrevMinutes
-      : 0,
-    arrivalVsEstimatedScheduleMinutes,
-    arrivalAfterEstimatedScheduleMinutes: Math.max(
-      0,
-      arrivalVsEstimatedScheduleMinutes
-    ),
-    arrivalBeforeEstimatedScheduleMinutes: Math.max(
-      0,
-      -arrivalVsEstimatedScheduleMinutes
-    ),
-    prevTripDelayMinutes,
-    prevAtSeaDurationMinutes,
+    prevTripDelayMinutes: prevTripDelayMinutes,
   };
 };
 
@@ -127,7 +98,7 @@ const getPrevLegContextAtCurr = (window: TrainingWindow) => {
  * @param window - Training window with current terminal arrival information
  * @returns Arrival-time regime features for schedule pressure analysis
  */
-const getDockCuesAtCurr = (window: TrainingWindow) => {
+const getCurrContext = (window: TrainingWindow) => {
   const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
 
   // v1: arrivalAfterScheduledDepartureMinutes = max(0, arrivalAtCurr - schedDepartCurr)
@@ -139,37 +110,13 @@ const getDockCuesAtCurr = (window: TrainingWindow) => {
       )
       : 0;
 
-  // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
-  // v1 "lateArrival" (pressure) feature:
-  // max(0, meanAtDock(Curr->Next) - slackBeforeDepartureMinutes)
-  //
-  // const lateArrival = Math.max(
-  //   0,
-  //   window.meanAtDockMinutesForCurrPair -
-  //     window.slackBeforeCurrScheduledDepartMinutes
-  // );
-
-  return {
-    arrivalAfterScheduledDepartureMinutes,
-    // lateArrival,
-  };
-};
-
-/**
- * Extract route-specific historical averages for the current leg.
- *
- * Provides baseline expectations for at-dock and at-sea durations based on
- * historical performance data for the specific terminal pair (B→C).
- *
- * @param window - Training window with current leg route information
- * @returns Historical mean durations for the current route
- */
-const _getCurrLegRoutePriors = (window: TrainingWindow) => {
-  const meanAtSeaCurrMinutes = config.getMeanAtSeaDuration(window.currPairKey);
-  const meanAtDockCurrMinutes = config.getMeanAtDockDuration(
-    window.currPairKey
+  const lateArrivalMinutes = Math.min(
+    0,
+    window.slackBeforeCurrScheduledDepartMinutes -
+    window.meanAtDockMinutesForCurrPair
   );
-  return { meanAtSeaCurrMinutes, meanAtDockCurrMinutes };
+
+  return { lateArrivalMinutes, arrivalAfterScheduledDepartureMinutes };
 };
 
 /**
@@ -235,40 +182,36 @@ const requireDepartNextWindow = (
 export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
   // Extract contextual features from the training window
   const time = getTimeContext(window.currLeg.scheduledDepartMs); // Time-of-day features
-  const prev = getPrevLegContextAtCurr(window); // Previous leg performance
-  const cues = getDockCuesAtCurr(window); // Schedule pressure indicators
+  const prev = getPrevContext(window); // Previous leg performance
+  const curr = getCurrContext(window); // Schedule pressure indicators
+
+  // Calculate minutes before scheduled departure (clamped to 0-30)
+  // This represents how many minutes before scheduled departure the vessel arrived at dock
+  const minutesBeforeDeparture = Math.max(
+    0,
+    Math.min(30, window.slackBeforeCurrScheduledDepartMinutes)
+  );
+  const arrivalBeforeDepartFeatures =
+    extractArrivalBeforeDepartureFeatures(minutesBeforeDeparture);
 
   // Build at-dock feature set (available when vessel arrives at terminal)
   // Includes all contextual information except post-departure actuals
   const atDock = {
-    // FEATURE_GROUP: TimeContext (MVP)
+    // FEATURE_GROUP: TimeContext
     ...time.timeFeatures,
     isWeekend: time.isWeekend,
 
-    // FEATURE_GROUP: SlackAndArrival (MVP)
+    // FEATURE_GROUP: ArrivalTiming
+    // ...arrivalBeforeDepartFeatures,
+
+    // FEATURE_GROUP: SlackAndArrival
     slackBeforeCurrScheduledDepartMinutes:
       window.slackBeforeCurrScheduledDepartMinutes,
-    arrivalAfterScheduledDepartureMinutes:
-      cues.arrivalAfterScheduledDepartureMinutes,
+    arrivalAfterScheduledDepartureMinutes: curr.arrivalAfterScheduledDepartureMinutes,
+    lateArrivalMinutes: curr.lateArrivalMinutes,
 
     // FEATURE_GROUP: PrevLegPropagation (MVP)
     prevTripDelayMinutes: prev.prevTripDelayMinutes,
-
-    // FEATURE_GROUP: RoutePriors (DISABLED)
-    // meanAtSeaCurrMinutes: priors.meanAtSeaCurrMinutes,
-    // meanAtDockCurrMinutes: priors.meanAtDockCurrMinutes,
-
-    // FEATURE_GROUP: PrevLegTransitPerformance (DISABLED)
-    // atSeaDelay: prev.atSeaDelay,
-    // arrivalVsEstimatedScheduleMinutes: prev.arrivalVsEstimatedScheduleMinutes,
-    // arrivalAfterEstimatedScheduleMinutes:
-    //   prev.arrivalAfterEstimatedScheduleMinutes,
-    // arrivalBeforeEstimatedScheduleMinutes:
-    //   prev.arrivalBeforeEstimatedScheduleMinutes,
-    // prevAtSeaDurationMinutes: prev.prevAtSeaDurationMinutes,
-
-    // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
-    // lateArrival: cues.lateArrival,
   };
 
   // Extract features that become available after departure

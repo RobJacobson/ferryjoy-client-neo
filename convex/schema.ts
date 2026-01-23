@@ -41,7 +41,13 @@ export default defineSchema({
     .index("by_sailing_day", ["SailingDay"])
     .index("by_route_and_sailing_day", ["RouteID", "SailingDay"])
     .index("by_trip_type", ["TripType"])
-    .index("by_route_and_trip_type", ["RouteID", "TripType"]),
+    .index("by_route_and_trip_type", ["RouteID", "TripType"])
+    .index("by_vessel_terminal_time_type", [
+      "VesselAbbrev",
+      "DepartingTerminalAbbrev",
+      "DepartingTime",
+      "TripType",
+    ]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps
   vesselPings: defineTable(vesselPingListValidationSchema).index(
