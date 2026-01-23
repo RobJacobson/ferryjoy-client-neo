@@ -75,6 +75,7 @@ import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/sc
 import type * as functions_vesselTrips_updates_arrivalTerminalLookup from "../functions/vesselTrips/updates/arrivalTerminalLookup.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_locationEnrichment from "../functions/vesselTrips/updates/locationEnrichment.js";
+import type * as functions_vesselTrips_updates_processVesselTripTick from "../functions/vesselTrips/updates/processVesselTripTick.js";
 import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
@@ -159,6 +160,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/arrivalTerminalLookup": typeof functions_vesselTrips_updates_arrivalTerminalLookup;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/locationEnrichment": typeof functions_vesselTrips_updates_locationEnrichment;
+  "functions/vesselTrips/updates/processVesselTripTick": typeof functions_vesselTrips_updates_processVesselTripTick;
   "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "shared/convertDates": typeof shared_convertDates;

@@ -32,8 +32,8 @@
 
 import { getPacificTimeComponents } from "shared";
 import {
-  extractTimeFeatures,
   extractArrivalBeforeDepartureFeatures,
+  extractTimeFeatures,
 } from "./features";
 import type {
   FeatureRecord,
@@ -78,7 +78,6 @@ const getTimeContext = (scheduledDepartMs: number) => {
  * @returns Object with previous leg context features
  */
 const getPrevContext = (window: TrainingWindow) => {
-
   const prevTripDelayMinutes = minutesBetween(
     window.prevLeg.scheduledDepartMs,
     window.prevLeg.actualDepartMs
@@ -105,15 +104,15 @@ const getCurrContext = (window: TrainingWindow) => {
   const arrivalAfterScheduledDepartureMinutes =
     arrivalAtCurrMs !== undefined
       ? Math.max(
-        0,
-        minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
-      )
+          0,
+          minutesBetween(window.currLeg.scheduledDepartMs, arrivalAtCurrMs)
+        )
       : 0;
 
   const lateArrivalMinutes = Math.min(
     0,
     window.slackBeforeCurrScheduledDepartMinutes -
-    window.meanAtDockMinutesForCurrPair
+      window.meanAtDockMinutesForCurrPair
   );
 
   return { lateArrivalMinutes, arrivalAfterScheduledDepartureMinutes };
@@ -191,8 +190,9 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
     0,
     Math.min(30, window.slackBeforeCurrScheduledDepartMinutes)
   );
-  const arrivalBeforeDepartFeatures =
-    extractArrivalBeforeDepartureFeatures(minutesBeforeDeparture);
+  const arrivalBeforeDepartFeatures = extractArrivalBeforeDepartureFeatures(
+    minutesBeforeDeparture
+  );
 
   // Build at-dock feature set (available when vessel arrives at terminal)
   // Includes all contextual information except post-departure actuals
@@ -207,7 +207,8 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
     // FEATURE_GROUP: SlackAndArrival
     slackBeforeCurrScheduledDepartMinutes:
       window.slackBeforeCurrScheduledDepartMinutes,
-    arrivalAfterScheduledDepartureMinutes: curr.arrivalAfterScheduledDepartureMinutes,
+    arrivalAfterScheduledDepartureMinutes:
+      curr.arrivalAfterScheduledDepartureMinutes,
     lateArrivalMinutes: curr.lateArrivalMinutes,
 
     // FEATURE_GROUP: PrevLegPropagation (MVP)
@@ -263,9 +264,9 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
       // Only available when next leg data is present and eligible
       departNextFromNextScheduledMinutes: requireDepartNextWindow(window)
         ? minutesBetween(
-          window.nextLeg.scheduledDepartMs,
-          window.nextLeg.actualDepartMs
-        )
+            window.nextLeg.scheduledDepartMs,
+            window.nextLeg.actualDepartMs
+          )
         : null,
     },
 

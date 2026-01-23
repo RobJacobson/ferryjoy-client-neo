@@ -105,7 +105,9 @@ async function main(): Promise<void> {
         findOutliersForModel(bucket.records, modelType);
 
       const meanTarget =
-        nonNullTargets > 0 ? Math.round((sumTargets / nonNullTargets) * 100) / 100 : null;
+        nonNullTargets > 0
+          ? Math.round((sumTargets / nonNullTargets) * 100) / 100
+          : null;
       const skippedRecords = bucket.records.length - nonNullTargets;
 
       const payload: OutlierFile = {

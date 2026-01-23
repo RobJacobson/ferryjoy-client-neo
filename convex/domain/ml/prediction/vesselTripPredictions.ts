@@ -130,6 +130,13 @@ const shouldAttemptPrediction = (
       trip.LeftDock !== undefined;
     return justLeftDock || isThrottleWindow;
   } else {
+    // If we just arrived at dock (at-sea -> at-dock), compute at-dock predictions immediately.
+    const justArrivedDock =
+      existingTrip !== undefined && !existingTrip.AtDock && trip.AtDock;
+    if (justArrivedDock) {
+      return true;
+    }
+
     // AtDock predictions: run on first update with departure terminal OR every minute
     // Check if this is the first time we have required fields for predictions
     const hasRequiredFields = isPredictionReadyTrip(trip);
@@ -176,63 +183,21 @@ const predictFromSpec = async (
   }
 };
 
-const makePredictor =
-  (field: PredictionField) =>
-  async (
-    ctx: ActionCtx,
-    trip: ConvexVesselTrip
-  ): Promise<ConvexPrediction | null> =>
-    await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
-
 /**
- * Predicts departure delay from current terminal using at-dock context.
- * Uses at-dock-depart-curr model.
+ * Predict a single vessel trip prediction field.
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - The trip to predict for
- * @returns Promise resolving to departure prediction result
+ * @param field - Prediction field to compute (e.g., \"AtDockArriveNext\")
+ * @returns Prediction result or null if not ready / cannot be computed
  */
-export const predictAtDockDepartCurr = makePredictor("AtDockDepartCurr");
-
-/**
- * Predicts arrival time at next terminal using at-dock context.
- * Uses at-dock-arrive-next model.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict for
- * @returns Promise resolving to arrival prediction result
- */
-export const predictAtDockArriveNext = makePredictor("AtDockArriveNext");
-
-/**
- * Predicts departure delay from next terminal using at-dock context.
- * Uses at-dock-depart-next model.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict for
- * @returns Promise resolving to next departure prediction result
- */
-export const predictAtDockDepartNext = makePredictor("AtDockDepartNext");
-
-/**
- * Predicts arrival time at next terminal using at-sea context.
- * Uses at-sea-arrive-next model.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict for (must have LeftDock)
- * @returns Promise resolving to arrival prediction result
- */
-export const predictAtSeaArriveNext = makePredictor("AtSeaArriveNext");
-
-/**
- * Predicts departure delay from next terminal using at-sea context.
- * Uses at-sea-depart-next model.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict for (must have LeftDock)
- * @returns Promise resolving to next departure prediction result
- */
-export const predictAtSeaDepartNext = makePredictor("AtSeaDepartNext");
+export const predictVesselTripPrediction = async (
+  ctx: ActionCtx,
+  trip: ConvexVesselTrip,
+  field: PredictionField
+): Promise<ConvexPrediction | null> => {
+  return await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
+};
 
 /**
  * Compute prediction updates for a vessel trip with time-based throttling.
@@ -251,18 +216,26 @@ export const computeVesselTripPredictionsPatch = async (
   trip: ConvexVesselTrip,
   existingTrip?: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
-  const updates: Partial<Record<PredictionField, ConvexPrediction>> = {};
+  const specsToAttempt = Object.values(PREDICTION_SPECS).filter((spec) =>
+    shouldAttemptPrediction(spec, trip, existingTrip)
+  );
 
-  for (const spec of Object.values(PREDICTION_SPECS)) {
-    if (!shouldAttemptPrediction(spec, trip, existingTrip)) {
-      continue;
-    }
+  const results = await Promise.all(
+    specsToAttempt.map(async (spec) => ({
+      spec,
+      prediction: await predictFromSpec(ctx, trip, spec),
+    }))
+  );
 
-    const prediction = await predictFromSpec(ctx, trip, spec);
-    if (prediction) {
-      updates[spec.field] = prediction;
-    }
-  }
+  const updates = results.reduce<Partial<Record<PredictionField, ConvexPrediction>>>(
+    (acc, { spec, prediction }) => {
+      if (prediction) {
+        acc[spec.field] = prediction;
+      }
+      return acc;
+    },
+    {}
+  );
 
   return updates as Partial<ConvexVesselTrip>;
 };

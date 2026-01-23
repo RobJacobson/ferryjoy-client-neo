@@ -154,7 +154,10 @@ const mapHistoryToTrip = (record: VesselHistory): MappedTrip | null => {
 
   // Ignore suspicious early departures (WSF data occasionally contains these).
   const EARLY_DEPARTURE_TOLERANCE_MINUTES = 5;
-  if (actualDepartMs < scheduledDepartMs - EARLY_DEPARTURE_TOLERANCE_MINUTES * 60_000) {
+  if (
+    actualDepartMs <
+    scheduledDepartMs - EARLY_DEPARTURE_TOLERANCE_MINUTES * 60_000
+  ) {
     return null;
   }
 
@@ -377,7 +380,7 @@ export const createTrainingWindows = (
 
       const isEligibleForDepartC =
         slackBeforeNextScheduledDepartMinutes <=
-        1.5 * meanAtDockMinutesForNextPair &&
+          1.5 * meanAtDockMinutesForNextPair &&
         slackBeforeNextScheduledDepartMinutes <= MAX_SLACK_MINUTES;
 
       if (!isEligibleForDepartC) {
