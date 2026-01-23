@@ -12,6 +12,7 @@ import {
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { lookupArrivalTerminalFromSchedule } from "./arrivalTerminalLookup";
 import { enrichTripFields } from "./locationEnrichment";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
 
@@ -135,6 +136,17 @@ const handleNewTrip = async (
     PrevScheduledDeparture: completedTrip.ScheduledDeparture,
     PrevLeftDock: completedTrip.LeftDock,
   });
+
+  // Look up arriving terminal from scheduled trips if vessel is at dock
+  // without an identified arriving terminal.
+  const lookedUpArrivalTerminal = await lookupArrivalTerminalFromSchedule(
+    ctx,
+    newTrip,
+    currLocation
+  );
+  if (lookedUpArrivalTerminal && !newTrip.ArrivingTerminalAbbrev) {
+    newTrip.ArrivingTerminalAbbrev = lookedUpArrivalTerminal;
+  }
 
   // Store the completed trip and overwrite the active trip atomically.
   await ctx.runMutation(

@@ -19,7 +19,9 @@ export const enrichTripFields = (
   const updates: Partial<ConvexVesselTrip> = {};
 
   // Terminal changes are meaningful trip identity signals.
+  // Only update if the API provides a non-undefined value (to preserve looked-up values).
   if (
+    currLocation.ArrivingTerminalAbbrev !== undefined &&
     currLocation.ArrivingTerminalAbbrev !== existingTrip.ArrivingTerminalAbbrev
   ) {
     updates.ArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;

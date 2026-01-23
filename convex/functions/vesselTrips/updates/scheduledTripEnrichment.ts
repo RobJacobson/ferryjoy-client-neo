@@ -175,6 +175,7 @@ export const enrichTripStartUpdates = async (
     console.log("Querying ScheduledTrip for key:", tripKey);
     const scheduledTrip = await fetchScheduledTripFieldsByKey(ctx, tripKey);
     if (scheduledTrip) {
+      console.log("ScheduledTrip found for key:", tripKey);
       return {
         ...scheduledTrip,
         ...keyPatch,
