@@ -38,17 +38,17 @@ export const updateVesselOrchestrator = internalAction({
     } = {};
 
     // Fetch and convert vessel locations
-    let deduplicatedLocations: ConvexVesselLocation[] = [];
+    let convexLocations: ConvexVesselLocation[] = [];
 
     try {
       const rawLocations =
         (await fetchVesselLocations()) as unknown as DottieVesselLocation[];
 
-      const convexLocations = rawLocations
+      convexLocations = rawLocations
         .map(toConvexVesselLocation)
         .map(convertConvexVesselLocation);
 
-      deduplicatedLocations = dedupeVesselLocationsByTimestamp(convexLocations);
+      // deduplicatedLocations = dedupeVesselLocationsByTimestamp(convexLocations);
     } catch (error) {
       console.error("Failed to fetch or process vessel locations:", error);
       // If fetch fails, both subroutines will fail, but we still want to attempt them
@@ -58,11 +58,11 @@ export const updateVesselOrchestrator = internalAction({
     // Validate raw vessel locations for early departure anomalies (departed >10 min before scheduled).
     // This helps detect API data mismatches where a vessel's scheduled departure
     // doesn't match its actual departure time.
-    validateVesselLocationsForEarlyDeparture(deduplicatedLocations);
+    // validateVesselLocationsForEarlyDeparture(deduplicatedLocations);
 
     // Call updateVesselLocations subroutine with error isolation
     try {
-      await updateVesselLocations(ctx, deduplicatedLocations);
+      await updateVesselLocations(ctx, convexLocations);
       locationsSuccess = true;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -72,7 +72,7 @@ export const updateVesselOrchestrator = internalAction({
 
     // Call runUpdateVesselTrips subroutine with error isolation
     try {
-      await runUpdateVesselTrips(ctx, deduplicatedLocations);
+      await runUpdateVesselTrips(ctx, convexLocations);
       tripsSuccess = true;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -87,34 +87,6 @@ export const updateVesselOrchestrator = internalAction({
     };
   },
 });
-
-/**
- * Deduplicates vessel locations by vessel, keeping only the most recent location per vessel.
- *
- * Sorts locations by timestamp (oldest first), then reduces to a map keyed by vessel abbreviation.
- * Since we process oldest-to-newest, the newest record for each vessel overwrites prior ones,
- * ensuring we keep only the most recent location per vessel.
- *
- * @param locations - Array of vessel locations to deduplicate
- * @returns Array of deduplicated locations, one per vessel with most recent timestamp
- */
-export const dedupeVesselLocationsByTimestamp = (
-  locations: ConvexVesselLocation[]
-): ConvexVesselLocation[] => {
-  const sortedOldestFirst = [...locations].sort(
-    (a, b) => a.TimeStamp - b.TimeStamp
-  );
-
-  const byVessel = sortedOldestFirst.reduce<
-    Record<string, ConvexVesselLocation>
-  >((acc, location) => {
-    // Oldest-to-newest ordering means the newest record overwrites prior ones.
-    acc[location.VesselAbbrev] = location;
-    return acc;
-  }, {});
-
-  return Object.values(byVessel);
-};
 
 /**
  * Subroutine function for updating vessel locations in the database.
