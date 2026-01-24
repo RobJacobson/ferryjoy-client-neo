@@ -39,8 +39,8 @@ export const bulkUpsert = mutation({
       const existing = existingByVesselId.get(location.VesselID);
 
       if (existing) {
-        // Update the existing record
-        await ctx.db.patch(existing._id, location);
+        // Replace the existing record completely (null values will overwrite existing data)
+        await ctx.db.replace(existing._id, location);
         updatedCount++;
       } else {
         // Insert a new record
