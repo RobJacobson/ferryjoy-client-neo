@@ -40,16 +40,16 @@ type TripProgressBarProps = {
   /**
    * Label text for the left circle (displayed below the circle).
    */
-  leftCircleLabel?: string;
+  leftCircleLabel?: React.ReactNode;
   /**
    * Label text for the right circle (displayed below the circle).
    */
-  rightCircleLabel?: string;
+  rightCircleLabel?: React.ReactNode;
   /**
    * Whether this bar is active. Active bars show a progress indicator
    * and have a higher z-index than inactive bars.
    */
-  active?: boolean;
+  isActive?: boolean;
   zIndex?: number;
   className?: string;
   style?: ViewStyle;
@@ -86,7 +86,7 @@ const TripProgressBar = ({
   showRightCircle = true,
   leftCircleLabel,
   rightCircleLabel,
-  active = false,
+  isActive = false,
   zIndex,
   className,
   style,
@@ -99,15 +99,17 @@ const TripProgressBar = ({
     return () => clearInterval(id);
   }, []);
 
-  const progress = calculateProgress(startTimeMs, endTimeMs, nowMs);
+  const progress = calculateProgress(nowMs, isActive, startTimeMs, endTimeMs);
   const minutesRemaining = calculateMinutesRemaining(endTimeMs, nowMs);
 
   // Calculate flex-grow proportional to segment duration
   const durationMs = calculateDurationMs(startTimeMs, endTimeMs);
-  const flexGrow = durationMs; // Use duration directly for proportional sizing
+
+  // Use duration to set the flex-grow, and add 1ms to ensure the bar is always visible
+  const flexGrow = durationMs + 1;
 
   // Active bars have higher z-index
-  const effectiveZIndex = active
+  const effectiveZIndex = isActive
     ? STACKING.activeBar
     : (zIndex ?? STACKING.bar);
 
@@ -124,7 +126,7 @@ const TripProgressBar = ({
         zIndex: effectiveZIndex,
         elevation: effectiveZIndex,
         flexGrow,
-        minWidth: "20%",
+        minWidth: "25%",
         ...style,
       }}
     >
@@ -163,7 +165,7 @@ const TripProgressBar = ({
       )}
 
       {/* Progress indicator when active */}
-      {active && (
+      {isActive && (
         <TripProgressIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
@@ -179,7 +181,7 @@ const TripProgressBar = ({
 // ============================================================================
 
 type CircleLabelProps = {
-  label: string;
+  label: React.ReactNode;
   isRight?: boolean;
   zIndex?: number;
 };
@@ -200,6 +202,15 @@ const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
     setLabelWidth((prev) => (prev === width ? prev : width));
   };
 
+  const wrappedLabel =
+    typeof label === "string" || typeof label === "number" ? (
+      <Text className="text-xs leading-tight font-light text-center">
+        {label}
+      </Text>
+    ) : (
+      label
+    );
+
   return (
     <View
       className="absolute"
@@ -212,7 +223,7 @@ const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
       }}
       onLayout={handleLayout}
     >
-      <Text className="text-sm">{label}</Text>
+      {wrappedLabel}
     </View>
   );
 };
@@ -230,15 +241,18 @@ const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
  * @returns Progress value between 0 and 1
  */
 export const calculateProgress = (
+  currentTimeMs: number,
+  active: boolean,
   startTimeMs?: number,
-  endTimeMs?: number,
-  currentTimeMs?: number
+  endTimeMs?: number
 ): number => {
-  if (
-    startTimeMs === undefined ||
-    endTimeMs === undefined ||
-    currentTimeMs === undefined
-  ) {
+  // If the trip is not active and the current time is after the end time, return 1
+  if (endTimeMs && currentTimeMs > endTimeMs && !active) {
+    return 1;
+  }
+
+  // If the start or end time is not set, return 0
+  if (!startTimeMs || !endTimeMs) {
     return 0;
   }
 
@@ -264,8 +278,8 @@ const calculateDurationMs = (
   startTimeMs?: number,
   endTimeMs?: number
 ): number => {
-  if (startTimeMs === undefined || endTimeMs === undefined) {
-    return 1;
+  if (!startTimeMs || !endTimeMs) {
+    return 0;
   }
 
   return Math.max(0, endTimeMs - startTimeMs);

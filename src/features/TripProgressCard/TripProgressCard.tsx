@@ -50,7 +50,7 @@ export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
 
   return (
     // Card with overflow-visible to allow progress indicators to extend beyond boundaries
-    <Card className="overflow-visible">
+    <Card className="overflow-visible p-2 pb-12">
       <CardHeader>
         {/* Terminal route display with conditional destination */}
         <View className="flex-row items-center gap-2">

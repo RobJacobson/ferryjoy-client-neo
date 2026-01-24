@@ -42,7 +42,7 @@ export const VesselsTripList = ({
 
   return (
     <ScrollView className="flex-1 bg-background">
-      <View className="gap-6 px-6 pb-6 pt-6">
+      <View className="gap-6 p-2">
         <Text variant="h2" className="mb-4 text-center">
           Active Vessel Trips
         </Text>

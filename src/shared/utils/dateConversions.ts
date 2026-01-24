@@ -40,3 +40,13 @@ export const optionalEpochMsToDate = (
 export const optionalDateToEpochMs = (
   date: Date | undefined | null
 ): number | undefined => (date ? date.getTime() : undefined);
+
+/**
+ * Convert Date object to display time string in the format "HH:MM AM/PM"
+ * without leading zeros for the hours.
+ *
+ * @param date - Date object
+ * @returns Display time string in the format "HH:MM AM/PM"
+ */
+export const toDisplayTime = (date: Date): string =>
+  date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
