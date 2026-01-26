@@ -463,7 +463,17 @@ Depart-next predictions are anchored on `ScheduledTrip.NextDepartingTime` so the
 model’s output (minutes vs Next scheduled departure) can be stored as an absolute
 epoch-ms `PredTime`.
 
-- Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`computeVesselTripPredictionsPatch`)
+**Prediction Constraints**: Predictions are clamped to ensure they never fall below
+their corresponding scheduled departure times:
+- `AtDockDepartCurr`: Clamped to `ScheduledDeparture` (never earlier than scheduled)
+- `AtDockDepartNext`: Clamped to `ScheduledTrip.NextDepartingTime` (never earlier than next scheduled)
+- `AtSeaDepartNext`: Clamped to `ScheduledTrip.NextDepartingTime` (never earlier than next scheduled)
+
+When clamping occurs, the uncertainty bounds (`MinTime`/`MaxTime`) are recalculated
+based on the clamped `PredTime` to maintain proper statistical properties. If scheduled
+times are unavailable, predictions use the original ML model output without clamping.
+
+- Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`computeVesselTripPredictionsPatch`, `predictFromSpec`)
 
 #### 3) Prediction actualization (backfill)
 
