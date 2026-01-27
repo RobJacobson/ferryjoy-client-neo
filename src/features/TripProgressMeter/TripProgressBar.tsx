@@ -13,12 +13,14 @@ import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { clamp } from "@/shared/utils";
 import { STACKING, shadowStyle } from "./config";
-import TripProgressCircle from "./TripProgressCircle";
 import TripProgressIndicator from "./TripProgressIndicator";
+import TripProgressMarker from "./TripProgressMarker";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export type TripProgressBarStatus = "Pending" | "InProgress" | "Completed";
 
 type TripProgressBarProps = {
   /**
@@ -46,10 +48,16 @@ type TripProgressBarProps = {
    */
   rightCircleLabel?: React.ReactNode;
   /**
-   * Whether this bar is active. Active bars show a progress indicator
-   * and have a higher z-index than inactive bars.
+   * Status of the progress bar segment.
+   * - "Pending": Progress locked at 0%, no indicator shown
+   * - "InProgress": Progress displays normally, indicator shown
+   * - "Completed": Progress displays normally, indicator not shown
    */
-  isActive?: boolean;
+  status?: TripProgressBarStatus;
+  /**
+   * Optional vessel name to display above the progress indicator when in progress.
+   */
+  vesselName?: string;
   zIndex?: number;
   className?: string;
   style?: ViewStyle;
@@ -73,7 +81,8 @@ type TripProgressBarProps = {
  * @param showRightCircle - Whether to show right circle (default true)
  * @param leftCircleLabel - Label text for left circle
  * @param rightCircleLabel - Label text for right circle
- * @param active - Whether this bar is active (shows indicator and higher z-index)
+ * @param status - Status of the progress bar segment (default "Pending")
+ * @param vesselName - Optional vessel name to display above the indicator when in progress
  * @param zIndex - Z-index for layering the progress bar
  * @param className - Additional CSS classes for styling
  * @param style - Additional inline styles
@@ -86,7 +95,8 @@ const TripProgressBar = ({
   showRightCircle = true,
   leftCircleLabel,
   rightCircleLabel,
-  isActive = false,
+  status = "Pending",
+  vesselName,
   zIndex,
   className,
   style,
@@ -99,7 +109,7 @@ const TripProgressBar = ({
     return () => clearInterval(id);
   }, []);
 
-  const progress = calculateProgress(nowMs, isActive, startTimeMs, endTimeMs);
+  const progress = calculateProgress(nowMs, status, startTimeMs, endTimeMs);
   const minutesRemaining = calculateMinutesRemaining(endTimeMs, nowMs);
 
   // Calculate flex-grow proportional to segment duration
@@ -108,10 +118,9 @@ const TripProgressBar = ({
   // Use duration to set the flex-grow, and add 1ms to ensure the bar is always visible
   const flexGrow = durationMs + 1;
 
-  // Active bars have higher z-index
-  const effectiveZIndex = isActive
-    ? STACKING.activeBar
-    : (zIndex ?? STACKING.bar);
+  // InProgress bars have higher z-index
+  const effectiveZIndex =
+    status === "InProgress" ? STACKING.activeBar : (zIndex ?? STACKING.bar);
 
   // Establish z-order: indicator > circles > labels > progress bar
   const circlesZIndex = effectiveZIndex + 1;
@@ -132,7 +141,7 @@ const TripProgressBar = ({
     >
       {/* Left circle at 0% position */}
       {showLeftCircle && (
-        <TripProgressCircle
+        <TripProgressMarker
           left="0%"
           backgroundColor="bg-white"
           borderColor="border border-pink-500"
@@ -153,7 +162,7 @@ const TripProgressBar = ({
 
       {/* Right circle at 100% position */}
       {showRightCircle && (
-        <TripProgressCircle
+        <TripProgressMarker
           left="100%"
           backgroundColor="bg-white"
           borderColor="border border-pink-500"
@@ -164,12 +173,13 @@ const TripProgressBar = ({
         <CircleLabel label={rightCircleLabel} isRight zIndex={labelsZIndex} />
       )}
 
-      {/* Progress indicator when active */}
-      {isActive && (
+      {/* Progress indicator when in progress */}
+      {status === "InProgress" && (
         <TripProgressIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
           zIndex={indicatorZIndex}
+          labelAbove={vesselName}
         />
       )}
     </View>
@@ -233,22 +243,23 @@ const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
 // ============================================================================
 
 /**
- * Calculates progress value (0-1) from time values.
+ * Calculates progress value (0-1) from time values based on status.
  *
+ * @param currentTimeMs - Current time in milliseconds
+ * @param status - Status of the progress bar segment
  * @param startTimeMs - Start time in milliseconds
  * @param endTimeMs - End time in milliseconds
- * @param currentTimeMs - Current time in milliseconds
  * @returns Progress value between 0 and 1
  */
 export const calculateProgress = (
   currentTimeMs: number,
-  active: boolean,
+  status: TripProgressBarStatus,
   startTimeMs?: number,
   endTimeMs?: number
 ): number => {
-  // If the trip is not active and the current time is after the end time, return 1
-  if (endTimeMs && currentTimeMs > endTimeMs && !active) {
-    return 1;
+  // Pending status: lock progress at 0%
+  if (status === "Pending") {
+    return 0;
   }
 
   // If the start or end time is not set, return 0
@@ -259,6 +270,11 @@ export const calculateProgress = (
   // Handle invalid time ordering
   if (endTimeMs <= startTimeMs) {
     return currentTimeMs >= endTimeMs ? 1 : 0;
+  }
+
+  // If completed and current time is after end time, return 1
+  if (status === "Completed" || currentTimeMs > endTimeMs) {
+    return 1;
   }
 
   // Calculate progress using linear interpolation and clamp to [0, 1]

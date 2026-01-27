@@ -1,6 +1,6 @@
 /**
- * ProgressCircle component for rendering a centered circle indicator.
- * Used by TripProgressBar and TripProgressMarker components.
+ * TripProgressMarker component for rendering centered circle markers.
+ * Used by TripProgressBar to display visual markers at segment endpoints (0% and 100% positions).
  */
 
 import type { ReactNode } from "react";
@@ -8,7 +8,7 @@ import { type DimensionValue, View } from "react-native";
 import { cn } from "@/lib/utils";
 import { CIRCLE_SIZE, shadowStyle } from "./config";
 
-type TripProgressCircleProps = {
+type TripProgressMarkerProps = {
   /**
    * Left position as a percentage string (e.g., "50%") or number.
    */
@@ -37,9 +37,9 @@ type TripProgressCircleProps = {
 };
 
 /**
- * Renders a centered circle indicator with consistent sizing, positioning, and shadow.
+ * Renders a centered circle marker with consistent sizing, positioning, and shadow.
  * The circle is vertically centered and horizontally positioned based on the left prop.
- * Optionally renders children centered inside the circle.
+ * Used for visual markers at progress bar segment endpoints.
  *
  * @param left - Left position as percentage string or number
  * @param backgroundColor - Background color className
@@ -47,16 +47,16 @@ type TripProgressCircleProps = {
  * @param zIndex - Optional z-index for stacking order
  * @param size - Optional size in pixels to override default CIRCLE_SIZE
  * @param children - Optional children to render centered inside the circle
- * @returns A View component with absolutely positioned circle
+ * @returns A View component with absolutely positioned circle marker
  */
-const TripProgressCircle = ({
+const TripProgressMarker = ({
   left,
   backgroundColor,
   borderColor,
   zIndex,
   size = CIRCLE_SIZE,
   children,
-}: TripProgressCircleProps) => {
+}: TripProgressMarkerProps) => {
   return (
     <View
       className={cn(
@@ -81,4 +81,4 @@ const TripProgressCircle = ({
   );
 };
 
-export default TripProgressCircle;
+export default TripProgressMarker;
