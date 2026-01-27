@@ -62,6 +62,28 @@ const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 };
 
 /**
+ * Gets the minimum scheduled time for a prediction type.
+ * Returns null if no scheduled time is available.
+ *
+ * @param spec - Prediction specification
+ * @param trip - Vessel trip data
+ * @returns Minimum scheduled time in milliseconds, or null if not available
+ */
+const getMinimumScheduledTime = (
+  spec: PredictionSpec,
+  trip: ConvexVesselTrip
+): number | null => {
+  if (spec.field === "AtDockDepartCurr") {
+    return trip.ScheduledDeparture ?? null;
+  }
+  if (spec.field === "AtDockDepartNext" || spec.field === "AtSeaDepartNext") {
+    return trip.ScheduledTrip?.NextDepartingTime ?? null;
+  }
+  // AtDockArriveNext and AtSeaArriveNext don't have scheduled minimums
+  return null;
+};
+
+/**
  * Creates a prediction result from ML prediction data
  */
 const createPredictionResult = (
@@ -173,7 +195,15 @@ const predictFromSpec = async (
     } = await predictTripValue(ctx, trip, spec.modelType);
 
     const predictedMs = anchorMs + predictedMinutes * MINUTES_TO_MS;
-    return createPredictionResult(predictedMs, mae, stdDev);
+
+    // Clamp prediction to minimum scheduled time if applicable
+    const minimumScheduledTime = getMinimumScheduledTime(spec, trip);
+    const clampedPredictedMs =
+      minimumScheduledTime !== null
+        ? Math.max(predictedMs, minimumScheduledTime)
+        : predictedMs;
+
+    return createPredictionResult(clampedPredictedMs, mae, stdDev);
   } catch (error) {
     console.error(
       `[Prediction] ${spec.modelType} failed for ${trip.VesselAbbrev}:`,

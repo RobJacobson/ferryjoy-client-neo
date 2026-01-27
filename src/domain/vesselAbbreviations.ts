@@ -34,3 +34,21 @@ export const toVesselAbbreviation: Record<string, string> = {
 export const getVesselAbbreviation = (vesselName: string): string => {
   return toVesselAbbreviation[vesselName] || "";
 };
+
+/**
+ * Get vessel full name by abbreviation.
+ *
+ * @param abbrev - The vessel abbreviation (e.g., "KAL", "WEN")
+ * @returns The full vessel name if found, otherwise returns the abbreviation
+ */
+export const getVesselName = (abbrev: string): string => {
+  // Build reverse lookup map on first call
+  const abbrevToName = Object.entries(toVesselAbbreviation).reduce<
+    Record<string, string>
+  >((acc, [name, abbr]) => {
+    acc[abbr] = name;
+    return acc;
+  }, {});
+
+  return abbrevToName[abbrev] || abbrev;
+};

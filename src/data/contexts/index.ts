@@ -24,4 +24,6 @@ export * from "./SelectedVesselContext";
 
 export * from "./SmoothedVesselLocationsContext";
 
+export * from "./TripProgressTimeContext";
+
 export * from "./WsDottieContext";

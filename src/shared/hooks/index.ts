@@ -1,3 +1,4 @@
+export { useInterval } from "./useInterval";
 export { useMapPitch } from "./useMapPitch";
 export { useMapScale as useMarkerScale } from "./useMapScale";
 export { usePersistentState } from "./usePersistentState";

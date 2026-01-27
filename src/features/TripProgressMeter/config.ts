@@ -24,16 +24,7 @@ export const STACKING = {
   bar: 10,
   marker: 20,
   progressCircle: 30,
-} as const;
-
-/**
- * Width constraints for progress meter segments to ensure readability.
- * Prevents segments from becoming too narrow or dominant in the visualization.
- */
-export const WIDTH_CONSTRAINTS = {
-  minPercent: 20,
-  maxPercent: 50,
-  defaultPercent: 50,
+  activeBar: 40,
 } as const;
 
 /**

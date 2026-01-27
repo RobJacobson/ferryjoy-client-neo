@@ -1,84 +1,82 @@
 /**
- * TripProgressMarker component for displaying a marker between TripProgressBar components.
- * Displays a circle that overlaps with adjacent progress bars and a child component below it.
+ * TripProgressMarker component for rendering centered circle markers.
+ * Used by TripProgressBar to display visual markers at segment endpoints (0% and 100% positions).
  */
 
-import { useState } from "react";
-import { type LayoutChangeEvent, View } from "react-native";
+import type { ReactNode } from "react";
+import { type DimensionValue, View } from "react-native";
 import { cn } from "@/lib/utils";
-import { PROGRESS_BAR_HEIGHT, STACKING } from "./config";
-import TripProgressCircle from "./TripProgressCircle";
+import { CIRCLE_SIZE, shadowStyle } from "./config";
 
 type TripProgressMarkerProps = {
   /**
-   * Child component to display below the circle.
+   * Left position as a percentage string (e.g., "50%") or number.
    */
-  children: React.ReactNode;
+  left: DimensionValue;
   /**
-   * Optional className for styling the container.
+   * Background color className (e.g., "bg-pink-300" or "bg-white").
    */
-  className?: string;
+  backgroundColor: string;
   /**
-   * Optional zIndex for layering.
+   * Border color className (e.g., "border-white/50" or "border-black/25").
+   */
+  borderColor: string;
+  /**
+   * Optional z-index for stacking order.
+   * On Android, this is also used as the `elevation` to ensure correct stacking.
    */
   zIndex?: number;
+  /**
+   * Optional size in pixels. Overrides the default CIRCLE_SIZE from config.
+   */
+  size?: number;
+  /**
+   * Optional children to render centered inside the circle (e.g., a number string).
+   */
+  children?: ReactNode;
 };
 
 /**
- * Displays a circle marker that overlaps with TripProgressBar bars and a child component below it.
- * Uses zero width and absolute positioning to work seamlessly when placed between
- * TripProgressBar components.
+ * Renders a centered circle marker with consistent sizing, positioning, and shadow.
+ * The circle is vertically centered and horizontally positioned based on the left prop.
+ * Used for visual markers at progress bar segment endpoints.
  *
- * @param children - Child component to display below the circle
- * @param className - Optional className for styling the container
- * @param zIndex - Optional zIndex for layering
- * @returns A View component with absolutely positioned circle and child component
+ * @param left - Left position as percentage string or number
+ * @param backgroundColor - Background color className
+ * @param borderColor - Border color className
+ * @param zIndex - Optional z-index for stacking order
+ * @param size - Optional size in pixels to override default CIRCLE_SIZE
+ * @param children - Optional children to render centered inside the circle
+ * @returns A View component with absolutely positioned circle marker
  */
 const TripProgressMarker = ({
+  left,
+  backgroundColor,
+  borderColor,
+  zIndex,
+  size = CIRCLE_SIZE,
   children,
-  className,
-  zIndex = STACKING.marker,
 }: TripProgressMarkerProps) => {
-  const [childWidth, setChildWidth] = useState(0);
-
-  const handleChildLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setChildWidth((prev) => (prev === width ? prev : width));
-  };
-
   return (
     <View
-      className={cn("relative", className)}
+      className={cn(
+        "absolute rounded-full items-center justify-center",
+        backgroundColor,
+        borderColor
+      )}
+      pointerEvents="none"
       style={{
-        width: 0,
-        height: PROGRESS_BAR_HEIGHT,
-        overflow: "visible",
+        top: "50%",
+        left,
+        transform: [{ translateX: -size / 2 }, { translateY: -size / 2 }],
+        width: size,
+        height: size,
         zIndex,
-        elevation: zIndex,
+        ...shadowStyle,
+        elevation: zIndex ?? shadowStyle.elevation,
       }}
     >
-      {/* Circle positioned to overlap with progress bars */}
-      <TripProgressCircle
-        left="50%"
-        backgroundColor="bg-white"
-        borderColor="border border-pink-500"
-        zIndex={zIndex}
-      />
-      {/* Child component positioned below the circle */}
-      <View
-        className="absolute items-center"
-        style={{
-          top: "100%",
-          left: "50%",
-          transform: [{ translateX: -childWidth / 2 }],
-          marginTop: 8,
-          zIndex,
-          elevation: zIndex,
-        }}
-        onLayout={handleChildLayout}
-      >
-        {children}
-      </View>
+      {children}
     </View>
   );
 };

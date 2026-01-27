@@ -1,17 +1,19 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
+import { TripProgressTimeProvider } from "@/data/contexts";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { TripProgressCard } from "@/features/TripProgressCard";
 
-export type VesselsTripListProps = {
+export type TripProgressListProps = {
   /** Space reserved for translucent header overlay; lets content scroll under it. */
   contentInsetTop?: number;
 };
 
-export const VesselsTripList = ({
-  contentInsetTop = 0,
-}: VesselsTripListProps) => {
-  const { activeVesselTrips, isLoading, error } = useConvexVesselTrips();
+export const TripProgressList = ({
+  contentInsetTop: _contentInsetTop = 0,
+}: TripProgressListProps) => {
+  const { activeVesselTrips, isLoading, error, delayedVesselTrips } =
+    useConvexVesselTrips();
 
   if (isLoading) {
     return (
@@ -33,25 +35,27 @@ export const VesselsTripList = ({
     return (
       <View className="flex-1 justify-center items-center bg-white">
         <Text className="mb-4 text-xl font-bold">Active Vessel Trips</Text>
-        <Text className="text-gray-600">
-          No active vessel trip data available
-        </Text>
       </View>
     );
   }
 
+  const displayTrips = delayedVesselTrips.filter((trip) => trip.InService);
+
   return (
-    <ScrollView className="flex-1 bg-background">
-      <View className="gap-6 px-6 pb-6 pt-6">
-        <Text variant="h2" className="mb-4 text-center">
-          Active Vessel Trips
-        </Text>
-        {activeVesselTrips
-          .filter((trip) => trip.InService)
-          .map((trip) => (
-            <TripProgressCard key={trip.VesselAbbrev} trip={trip} />
+    <TripProgressTimeProvider>
+      <ScrollView className="flex-1 bg-background">
+        <View className="gap-6 p-2">
+          <Text variant="h2" className="mb-4 text-center">
+            Active Vessel Trips
+          </Text>
+          {displayTrips.map((trip) => (
+            <TripProgressCard
+              key={`${trip.VesselAbbrev}-${trip.DepartingTerminalAbbrev}-${trip.TripStart?.getTime() ?? trip.TripEnd?.getTime() ?? Date.now()}`}
+              trip={trip}
+            />
           ))}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </TripProgressTimeProvider>
   );
 };

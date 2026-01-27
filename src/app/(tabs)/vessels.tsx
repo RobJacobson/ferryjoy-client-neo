@@ -1,4 +1,4 @@
-import { VesselsTripList } from "@/features/VesselsTripList";
+import { VesselsTripList } from "@/features/TripProgressList";
 
 export default function VesselsScreen() {
   return <VesselsTripList />;

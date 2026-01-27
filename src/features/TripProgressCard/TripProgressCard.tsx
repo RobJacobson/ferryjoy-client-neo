@@ -1,6 +1,6 @@
 /**
  * TripProgressCard component for displaying vessel trip information with progress visualization.
- * Based on VesselTripCard but uses the improved TripProgressMeter component for progress display.
+ * Based on VesselTripCard but uses improved TripProgressMeter component for progress display.
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
@@ -41,7 +41,10 @@ const getVesselStatus = (trip: VesselTrip): string => {
  * a progress meter that visualizes the trip's progress through two sequential segments.
  * Uses ShadCN Card components for a polished, consistent design.
  *
- * @param trip - VesselTrip object with trip data
+ * The parent component (VesselsTripList) handles the 15-second "Arrived" delay
+ * by passing the appropriate trip (held or current) via props.
+ *
+ * @param trip - VesselTrip object with trip data (may be held completed trip or current trip)
  * @returns A Card component with trip header and progress meter
  */
 export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
@@ -50,7 +53,7 @@ export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
 
   return (
     // Card with overflow-visible to allow progress indicators to extend beyond boundaries
-    <Card className="overflow-visible">
+    <Card className="overflow-visible p-2 pb-12">
       <CardHeader>
         {/* Terminal route display with conditional destination */}
         <View className="flex-row items-center gap-2">
