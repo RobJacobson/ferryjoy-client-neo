@@ -68,11 +68,11 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
   // `useQuery` returns `undefined` while loading, so keep that distinct from
   // "loaded but empty".
   const rawActiveTrips = useQuery(
-    api.functions.vesselTrips.queries.getActiveTrips,
+    api.functions.vesselTrips.queries.getActiveTrips
   );
   const activeTrips = useMemo(
     () => rawActiveTrips?.map(toDomainVesselTrip) ?? [],
-    [rawActiveTrips],
+    [rawActiveTrips]
   );
 
   const isLoading = rawActiveTrips === undefined;
@@ -83,14 +83,14 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
 
   const delayedVesselTrips = useMemo(
     () => Object.values(delayedVesselTripsByAbbrev),
-    [delayedVesselTripsByAbbrev],
+    [delayedVesselTripsByAbbrev]
   );
 
   // Reconcile immediately when active trips change (prevents UI flicker).
   useEffect(() => {
     const nowMs = Date.now();
     setDelayedVesselTripsByAbbrev((prev) =>
-      reconcileDelayedVesselTrips(prev, activeTrips, nowMs),
+      reconcileDelayedVesselTrips(prev, activeTrips, nowMs)
     );
   }, [activeTrips]);
 
@@ -98,7 +98,7 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
   useInterval(() => {
     const nowMs = Date.now();
     setDelayedVesselTripsByAbbrev((prev) =>
-      reconcileDelayedVesselTrips(prev, activeTrips, nowMs),
+      reconcileDelayedVesselTrips(prev, activeTrips, nowMs)
     );
   }, 5000);
 
@@ -136,7 +136,7 @@ export const useConvexVesselTrips = () => {
   const context = useContext(ConvexVesselTripsContext);
   if (context === undefined) {
     throw new Error(
-      "useConvexVesselTrips must be used within ConvexVesselTripsProvider",
+      "useConvexVesselTrips must be used within ConvexVesselTripsProvider"
     );
   }
   return context;
@@ -171,7 +171,7 @@ type ResolveDelayedTripArgs = {
 const reconcileDelayedVesselTrips = (
   prev: Record<string, VesselTrip>,
   activeTrips: VesselTrip[],
-  nowMs: number,
+  nowMs: number
 ): Record<string, VesselTrip> => {
   const activeByAbbrev: Record<string, VesselTrip> = {};
   for (const trip of activeTrips) {

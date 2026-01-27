@@ -1,15 +1,14 @@
 /**
- * TripProgressBar component for rendering individual progress segments in the trip progress meter.
+ * TripProgressBar component for rendering individual progress segments in trip progress meter.
  * Displays a horizontal progress bar that calculates progress based on numeric values.
- * Uses FlexBox flex-grow for proportional width allocation based on segment duration,
- * with a minimum width of 15%.
+ * Uses FlexBox flex-grow for proportional width allocation based on segment duration.
  * Used as a building block within TripProgressMeter to create multi-segment progress visualizations.
  */
 
-import { useEffect, useState } from "react";
-import type { LayoutChangeEvent, ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
+import { useTripProgressTime } from "@/data/contexts";
 import { cn } from "@/lib/utils";
 import { clamp } from "@/shared/utils";
 import { STACKING, shadowStyle } from "./config";
@@ -32,11 +31,11 @@ type TripProgressBarProps = {
    */
   endTimeMs?: number;
   /**
-   * Whether to show the circle at the left end of the bar.
+   * Whether to show circle at the left end of the bar.
    */
   showLeftCircle?: boolean;
   /**
-   * Whether to show the circle at the right end of the bar.
+   * Whether to show circle at the right end of the bar.
    */
   showRightCircle?: boolean;
   /**
@@ -72,8 +71,8 @@ type TripProgressBarProps = {
  * The bar consists of a background track, a filled progress portion, optional circles at each end,
  * and optionally a progress indicator when active.
  *
- * Width is determined internally via FlexBox flex-grow based on segment duration,
- * with a minimum of 15% to ensure readability. Current time is obtained internally.
+ * Width is determined via FlexBox flex: 1 for proportional sizing.
+ * Current time is obtained from context.
  *
  * @param startTimeMs - Start time in milliseconds for progress calculation
  * @param endTimeMs - End time in milliseconds for progress calculation
@@ -101,31 +100,22 @@ const TripProgressBar = ({
   className,
   style,
 }: TripProgressBarProps) => {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const nowMs = useTripProgressTime();
 
-  useEffect(() => {
-    setNowMs(Date.now());
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  // Calculate progress
+  const progress = calculateProgress(status, nowMs, startTimeMs, endTimeMs);
 
-  const progress = calculateProgress(nowMs, status, startTimeMs, endTimeMs);
-  const minutesRemaining = calculateMinutesRemaining(endTimeMs, nowMs);
-
-  // Calculate flex-grow proportional to segment duration
-  const durationMs = calculateDurationMs(startTimeMs, endTimeMs);
-
-  // Use duration to set the flex-grow, and add 1ms to ensure the bar is always visible
-  const flexGrow = durationMs + 1;
+  // Calculate minutes remaining inline
+  const minutesRemaining =
+    endTimeMs === undefined || nowMs === undefined
+      ? 0
+      : Math.max(0, Math.ceil((endTimeMs - nowMs) / (1000 * 60)));
 
   // InProgress bars have higher z-index
-  const effectiveZIndex =
-    status === "InProgress" ? STACKING.activeBar : (zIndex ?? STACKING.bar);
-
-  // Establish z-order: indicator > circles > labels > progress bar
-  const circlesZIndex = effectiveZIndex + 1;
-  const labelsZIndex = effectiveZIndex;
-  const indicatorZIndex = effectiveZIndex + 2;
+  const isActive = status === "InProgress";
+  const effectiveZIndex = isActive
+    ? STACKING.activeBar
+    : (zIndex ?? STACKING.bar);
 
   return (
     <View
@@ -134,7 +124,7 @@ const TripProgressBar = ({
         overflow: "visible",
         zIndex: effectiveZIndex,
         elevation: effectiveZIndex,
-        flexGrow,
+        flex: 1,
         minWidth: "25%",
         ...style,
       }}
@@ -145,11 +135,11 @@ const TripProgressBar = ({
           left="0%"
           backgroundColor="bg-white"
           borderColor="border border-pink-500"
-          zIndex={circlesZIndex}
+          zIndex={effectiveZIndex + 1}
         />
       )}
       {showLeftCircle && leftCircleLabel && (
-        <CircleLabel label={leftCircleLabel} zIndex={labelsZIndex} />
+        <CircleLabel label={leftCircleLabel} zIndex={effectiveZIndex} />
       )}
 
       {/* Progress bar */}
@@ -166,24 +156,71 @@ const TripProgressBar = ({
           left="100%"
           backgroundColor="bg-white"
           borderColor="border border-pink-500"
-          zIndex={circlesZIndex}
+          zIndex={effectiveZIndex + 1}
         />
       )}
       {showRightCircle && rightCircleLabel && (
-        <CircleLabel label={rightCircleLabel} isRight zIndex={labelsZIndex} />
+        <CircleLabel
+          label={rightCircleLabel}
+          isRight
+          zIndex={effectiveZIndex}
+        />
       )}
 
       {/* Progress indicator when in progress */}
-      {status === "InProgress" && (
+      {isActive && (
         <TripProgressIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
-          zIndex={indicatorZIndex}
+          zIndex={effectiveZIndex + 2}
           labelAbove={vesselName}
         />
       )}
     </View>
   );
+};
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Calculates progress value based on time range and status.
+ *
+ * @param status - Current status of the progress segment
+ * @param nowMs - Current time in milliseconds
+ * @param startTimeMs - Start time in milliseconds
+ * @param endTimeMs - End time in milliseconds
+ * @returns Progress value between 0 and 1
+ */
+const calculateProgress = (
+  status: TripProgressBarStatus,
+  nowMs: number,
+  startTimeMs?: number,
+  endTimeMs?: number,
+): number => {
+  // No progress for pending segments or missing time data
+  if (status === "Pending" || !startTimeMs || !endTimeMs) {
+    return 0;
+  }
+
+  // Completed segments are fully complete
+  if (status === "Completed") {
+    return 1;
+  }
+
+  // Handle invalid time ranges
+  if (endTimeMs <= startTimeMs) {
+    return nowMs >= endTimeMs ? 1 : 0;
+  }
+
+  // Past the end time means fully complete
+  if (nowMs >= endTimeMs) {
+    return 1;
+  }
+
+  // Calculate proportional progress within valid time range
+  return clamp((nowMs - startTimeMs) / (endTimeMs - startTimeMs), 0, 1);
 };
 
 // ============================================================================
@@ -197,7 +234,7 @@ type CircleLabelProps = {
 };
 
 /**
- * Renders a label positioned below a circle marker.
+ * Renders a label positioned below a circle marker using CSS centering.
  *
  * @param label - Label text to display
  * @param isRight - Whether this is the right circle (affects position)
@@ -205,13 +242,6 @@ type CircleLabelProps = {
  * @returns A View component with the label
  */
 const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
-  const [labelWidth, setLabelWidth] = useState(0);
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setLabelWidth((prev) => (prev === width ? prev : width));
-  };
-
   const wrappedLabel =
     typeof label === "string" || typeof label === "number" ? (
       <Text className="text-xs leading-tight font-light text-center">
@@ -227,101 +257,14 @@ const CircleLabel = ({ label, isRight, zIndex }: CircleLabelProps) => {
       style={{
         top: "100%",
         left: isRight ? "100%" : "0%",
-        transform: [{ translateX: -labelWidth / 2 }],
+        transform: [{ translateX: "-50%" }],
         marginTop: 8,
         zIndex,
       }}
-      onLayout={handleLayout}
     >
       {wrappedLabel}
     </View>
   );
-};
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Calculates progress value (0-1) from time values based on status.
- *
- * @param currentTimeMs - Current time in milliseconds
- * @param status - Status of the progress bar segment
- * @param startTimeMs - Start time in milliseconds
- * @param endTimeMs - End time in milliseconds
- * @returns Progress value between 0 and 1
- */
-export const calculateProgress = (
-  currentTimeMs: number,
-  status: TripProgressBarStatus,
-  startTimeMs?: number,
-  endTimeMs?: number
-): number => {
-  // Pending status: lock progress at 0%
-  if (status === "Pending") {
-    return 0;
-  }
-
-  // If the start or end time is not set, return 0
-  if (!startTimeMs || !endTimeMs) {
-    return 0;
-  }
-
-  // Handle invalid time ordering
-  if (endTimeMs <= startTimeMs) {
-    return currentTimeMs >= endTimeMs ? 1 : 0;
-  }
-
-  // If completed and current time is after end time, return 1
-  if (status === "Completed" || currentTimeMs > endTimeMs) {
-    return 1;
-  }
-
-  // Calculate progress using linear interpolation and clamp to [0, 1]
-  const progressValue =
-    (currentTimeMs - startTimeMs) / (endTimeMs - startTimeMs);
-  return clamp(progressValue, 0, 1);
-};
-
-/**
- * Calculates duration in milliseconds between two times.
- *
- * @param startTimeMs - Start time in milliseconds
- * @param endTimeMs - End time in milliseconds
- * @returns Non-negative duration in milliseconds, or 0 if missing/invalid
- */
-const calculateDurationMs = (
-  startTimeMs?: number,
-  endTimeMs?: number
-): number => {
-  if (!startTimeMs || !endTimeMs) {
-    return 0;
-  }
-
-  return Math.max(0, endTimeMs - startTimeMs);
-};
-
-/**
- * Calculates minutes remaining until an end time from current time.
- *
- * @param endTimeMs - End time in milliseconds
- * @param currentTimeMs - Current time in milliseconds
- * @returns Minutes remaining, rounded up, or 0 if missing/elapsed
- */
-const calculateMinutesRemaining = (
-  endTimeMs?: number,
-  currentTimeMs?: number
-): number => {
-  if (endTimeMs === undefined || currentTimeMs === undefined) {
-    return 0;
-  }
-
-  const remainingMs = endTimeMs - currentTimeMs;
-  if (remainingMs <= 0) {
-    return 0;
-  }
-
-  return Math.ceil(remainingMs / (1000 * 60));
 };
 
 export default TripProgressBar;

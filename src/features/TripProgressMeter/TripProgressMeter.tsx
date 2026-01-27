@@ -199,21 +199,19 @@ const ArrivalTerminalText = ({ trip }: { trip: VesselTrip }) => (
 
 /**
  * Displays the predicted arrival time for the vessel trip.
- * @param predictedArrivalTime - The predicted arrival time.
+ * @param trip - The vessel trip object.
  * @returns A DisplayTime component with the predicted arrival time.
  */
-const ArrivalTime = ({ trip }: { trip: VesselTrip }) =>
-  trip.TripEnd ? (
-    <DisplayTime text={toDisplayTime(trip.TripEnd)} bold />
-  ) : (
-    getArrivalTime(trip) && (
-      <DisplayTime
-        text={toDisplayTime(getArrivalTime(trip)!)}
-        suffix="ETA"
-        bold
-      />
-    )
-  );
+const ArrivalTime = ({ trip }: { trip: VesselTrip }) => {
+  const arrivalTime = trip.TripEnd ? trip.TripEnd : getArrivalTime(trip);
+  return arrivalTime ? (
+    <DisplayTime
+      text={toDisplayTime(arrivalTime)}
+      suffix={trip.TripEnd ? undefined : "ETA"}
+      bold
+    />
+  ) : null;
+};
 
 /**
  * Displays a time with an optional suffix and bold styling.
