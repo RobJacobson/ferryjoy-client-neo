@@ -49,7 +49,10 @@ export const TripProgressList = ({
             Active Vessel Trips
           </Text>
           {displayTrips.map((trip) => (
-            <TripProgressCard key={trip.Key} trip={trip} />
+            <TripProgressCard
+              key={`${trip.VesselAbbrev}-${trip.DepartingTerminalAbbrev}-${trip.TripStart?.getTime() ?? trip.TripEnd?.getTime() ?? Date.now()}`}
+              trip={trip}
+            />
           ))}
         </View>
       </ScrollView>
