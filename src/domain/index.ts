@@ -1,4 +1,5 @@
 export * from "./vesselAbbreviations";
+export * from "./schedule";
 
 /**
  * Domain types re-exported from Convex schemas
