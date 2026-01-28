@@ -10,6 +10,7 @@ import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import TripProgressBar from "./shared/TripProgressBar";
+import TripProgressLabel from "./shared/TripProgressLabel";
 import { PropsWithChildren } from "react";
 
 type TripProgressMeterProps = {
@@ -56,27 +57,30 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
         className,
       )}
     >
+      <TripProgressLabel>
+        <AtDockStartLabel trip={trip} />
+      </TripProgressLabel>
       <TripProgressBar
         startTimeMs={arrivalTime?.getTime() || undefined}
         endTimeMs={predictedDepartureTime?.getTime() || undefined}
-        leftCircleLabel={<AtDockStartLabel trip={trip} />}
-        rightCircleLabel={
-          <AtDockDepartLabel
-            trip={trip}
-            predictedDepartureTime={predictedDepartureTime}
-          />
-        }
         status={trip.AtDock ? "InProgress" : "Completed"}
         vesselName={getVesselName(trip.VesselAbbrev)}
       />
+      <TripProgressLabel>
+        <AtDockDepartLabel
+          trip={trip}
+          predictedDepartureTime={predictedDepartureTime}
+        />
+      </TripProgressLabel>
       <TripProgressBar
         startTimeMs={departureTime?.getTime() || undefined}
         endTimeMs={predictedArrivalTime?.getTime() || undefined}
-        leftCircleLabel={undefined}
-        rightCircleLabel={<DestinationArriveLabel trip={trip} />}
         status={!trip.AtDock ? "InProgress" : "Pending"}
         vesselName={getVesselName(trip.VesselAbbrev)}
       />
+      <TripProgressLabel>
+        <DestinationArriveLabel trip={trip} />
+      </TripProgressLabel>
     </View>
   );
 };

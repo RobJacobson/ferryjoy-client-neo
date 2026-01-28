@@ -10,7 +10,7 @@ import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { useTripProgressTime } from "@/data/contexts";
 import { cn } from "@/lib/utils";
-import { calculateTimeProgress, getMinutesRemaining } from "@/shared/utils";
+import { calculateTimeProgress, getMinutesRemaining } from "./utils";
 import { TripProgressBarEndpoints } from "./TripProgressBarEndpoints";
 import TripProgressIndicator from "./TripProgressIndicator";
 import { TripProgressBarTrack } from "./TripProgressBarTrack";
@@ -30,16 +30,6 @@ type TripProgressBarProps = {
    * End time in milliseconds for progress calculation.
    */
   endTimeMs?: number;
-  /**
-   * Label ReactElement for the left circle (displayed below the circle).
-   * If provided, the left circle marker will be shown.
-   */
-  leftCircleLabel?: React.ReactElement | null;
-  /**
-   * Label ReactElement for the right circle (displayed below the circle).
-   * If provided, the right circle marker will be shown.
-   */
-  rightCircleLabel?: React.ReactElement | null;
   /**
    * Status of the progress bar segment.
    * - "Pending": Progress locked at 0%, no indicator shown
@@ -99,7 +89,7 @@ type TripProgressBarProps = {
 
 /**
  * Renders a horizontal progress bar that calculates progress automatically from time values.
- * The bar consists of a background track, a filled progress portion, optional circles at each end,
+ * The bar consists of a background track, a filled progress portion, circles at each end,
  * and optionally a progress indicator when active.
  *
  * Width is determined via FlexBox `flexGrow`, derived from the segment's time interval.
@@ -107,8 +97,6 @@ type TripProgressBarProps = {
  *
  * @param startTimeMs - Start time in milliseconds for progress calculation
  * @param endTimeMs - End time in milliseconds for progress calculation
- * @param leftCircleLabel - Optional label ReactElement for left circle (shows marker if provided)
- * @param rightCircleLabel - Optional label ReactElement for right circle (shows marker if provided)
  * @param status - Status of the progress bar segment (default "Pending")
  * @param vesselName - Optional vessel name to display above the indicator when in progress
  * @param circleSize - Size of the circle markers in pixels (default 20)
@@ -120,8 +108,6 @@ type TripProgressBarProps = {
 const TripProgressBar = ({
   startTimeMs,
   endTimeMs,
-  leftCircleLabel,
-  rightCircleLabel,
   status,
   vesselName,
   circleSize = 20,
@@ -176,8 +162,6 @@ const TripProgressBar = ({
       }}
     >
       <TripProgressBarEndpoints
-        leftCircleLabel={leftCircleLabel}
-        rightCircleLabel={rightCircleLabel}
         circleSize={circleSize}
         markerClassName={markerClassName}
         zIndex={effectiveZIndex}
@@ -195,7 +179,10 @@ const TripProgressBar = ({
           zIndex={effectiveZIndex + 2}
           labelAbove={
             vesselName ? (
-              <Text className={cn(indicatorLabelClassName)}>
+              <Text
+                className={cn("text-sm font-semibold", indicatorLabelClassName)}
+                style={{ flexShrink: 0 }}
+              >
                 {vesselName}
               </Text>
             ) : undefined
