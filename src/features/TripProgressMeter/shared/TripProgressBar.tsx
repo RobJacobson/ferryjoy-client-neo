@@ -46,7 +46,7 @@ type TripProgressBarProps = {
    * - "InProgress": Progress displays normally, indicator shown
    * - "Completed": Progress displays normally, indicator not shown
    */
-  status?: TripProgressBarStatus;
+  status: TripProgressBarStatus;
   /**
    * Optional vessel name to display above the progress indicator when in progress.
    */
@@ -122,7 +122,7 @@ const TripProgressBar = ({
   endTimeMs,
   leftCircleLabel,
   rightCircleLabel,
-  status = "Pending",
+  status,
   vesselName,
   circleSize = 20,
   barHeight = 12,
