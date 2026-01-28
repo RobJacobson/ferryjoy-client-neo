@@ -19,9 +19,10 @@ export const enrichTripFields = (
   const updates: Partial<ConvexVesselTrip> = {};
 
   // Terminal changes are meaningful trip identity signals.
-  // Only update if the API provides a non-undefined value (to preserve looked-up values).
+  // Only update if the API provides a truthy value and it differs from existing.
+  // This prevents overwriting non-null values with null/undefined.
   if (
-    currLocation.ArrivingTerminalAbbrev !== undefined &&
+    Boolean(currLocation.ArrivingTerminalAbbrev) &&
     currLocation.ArrivingTerminalAbbrev !== existingTrip.ArrivingTerminalAbbrev
   ) {
     updates.ArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
@@ -37,7 +38,9 @@ export const enrichTripFields = (
   }
 
   // ETA changes are used for UI and at-sea predictions.
-  if (currLocation.Eta !== existingTrip.Eta) {
+  // Only update if REST data provides a truthy value and it differs from existing.
+  // This prevents overwriting non-null values with null/undefined.
+  if (Boolean(currLocation.Eta) && currLocation.Eta !== existingTrip.Eta) {
     updates.Eta = currLocation.Eta;
   }
 
@@ -45,23 +48,26 @@ export const enrichTripFields = (
   // Handle LeftDock updates with priority rules:
   // 1. If AtDock flips from true to false and LeftDock is missing, set it to
   //    reported LeftDock (if any) or current update's TimeStamp
-  // 2. Official LeftDock from currLocation always takes priority over existing
+  // 2. Official LeftDock from currLocation always takes priority over existing,
+  //    but only if REST data provides a truthy value (prevents null overwrites)
   if (atDockFlippedToFalse && !existingTrip.LeftDock) {
     // Vessel just left dock and we don't have a LeftDock time yet
     // Use reported LeftDock if available, otherwise use current update timestamp
     updates.LeftDock = currLocation.LeftDock ?? currLocation.TimeStamp;
-  } else if (currLocation.LeftDock !== undefined) {
+  } else if (
+    Boolean(currLocation.LeftDock) &&
+    currLocation.LeftDock !== existingTrip.LeftDock
+  ) {
     // Official LeftDock is provided - it always takes priority
-    if (currLocation.LeftDock !== existingTrip.LeftDock) {
-      updates.LeftDock = currLocation.LeftDock;
-    }
+    // Only update if REST data provides a truthy value to prevent null overwrites
+    updates.LeftDock = currLocation.LeftDock;
   }
 
   // ScheduledDeparture can be missing or updated by upstream feed.
-  // Only patch when the feed provides a value; do not clear an existing value
-  // when the upstream tick omits ScheduledDeparture.
+  // Only update if REST data provides a truthy value and it differs from existing.
+  // This prevents overwriting non-null values with null/undefined.
   if (
-    currLocation.ScheduledDeparture !== undefined &&
+    Boolean(currLocation.ScheduledDeparture) &&
     currLocation.ScheduledDeparture !== existingTrip.ScheduledDeparture
   ) {
     updates.ScheduledDeparture = currLocation.ScheduledDeparture;
