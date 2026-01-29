@@ -1,6 +1,6 @@
 /**
  * TripProgressCard component for displaying vessel trip information with progress visualization.
- * Based on VesselTripCard but uses improved TripProgressMeter component for progress display.
+ * Based on VesselTripCard but uses TimelineMeter component for progress display.
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import TripProgressMeter from "@/features/TripProgressMeter";
+import TimelineMeter from "@/features/Timeline";
 
 type TripProgressCardProps = {
   /**
@@ -79,7 +79,7 @@ export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
       </CardHeader>
       {/* Progress meter container with overflow-visible for portal-rendered indicators */}
       <CardContent className="overflow-visible">
-        <TripProgressMeter trip={trip} />
+        <TimelineMeter trip={trip} />
       </CardContent>
     </Card>
   );

@@ -1,19 +1,19 @@
 /**
- * TripProgressIndicator component for rendering a progress indicator overlay
+ * TimelineIndicator component for rendering a progress indicator overlay
  * that displays minutes remaining in a circular badge.
  */
 
-import { useState } from "react";
-import type { LayoutChangeEvent } from "react-native";
+import type { ReactElement } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type TripProgressIndicatorProps = {
+type TimelineIndicatorProps = {
   /**
    * Progress value (0-1) for horizontal positioning within the parent bar.
    */
@@ -21,15 +21,21 @@ type TripProgressIndicatorProps = {
   /**
    * Minutes remaining to display in the indicator.
    */
-  minutesRemaining: number;
+  minutesRemaining?: number;
   /**
-   * Optional z-index for stacking order.
+   * Optional label content to display above the indicator.
+   * Must be a ReactElement (e.g., a Text component).
    */
-  zIndex?: number;
+  labelAbove?: ReactElement;
   /**
-   * Optional label text to display above the indicator.
+   * Optional className applied to the indicator circle container.
+   * Use this to theme background/border colors per feature.
    */
-  labelAbove?: string;
+  badgeClassName?: string;
+  /**
+   * Optional className applied to the minutes text inside the indicator.
+   */
+  minutesClassName?: string;
 };
 
 // ============================================================================
@@ -37,6 +43,7 @@ type TripProgressIndicatorProps = {
 // ============================================================================
 
 const INDICATOR_SIZE = 32;
+const INDICATOR_Z_INDEX = 50;
 
 /**
  * Renders a progress indicator positioned based on progress value within the parent bar.
@@ -45,81 +52,79 @@ const INDICATOR_SIZE = 32;
  *
  * @param progress - Progress value (0-1) for horizontal positioning
  * @param minutesRemaining - Minutes remaining to display
- * @param zIndex - Optional z-index for stacking order
  * @param labelAbove - Optional label text to display above the indicator
  * @returns A View component containing the indicator and optional label
  */
-const TripProgressIndicator = ({
+const TimelineIndicator = ({
   progress,
   minutesRemaining,
-  zIndex,
   labelAbove,
-}: TripProgressIndicatorProps) => {
-  const [labelWidth, setLabelWidth] = useState(0);
-
-  const handleLabelLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setLabelWidth((prev) => (prev === width ? prev : width));
-  };
+  badgeClassName,
+  minutesClassName,
+}: TimelineIndicatorProps) => {
+  const displayMinutes =
+    minutesRemaining === undefined ? "--" : String(minutesRemaining);
 
   return (
     <View
-      className="absolute"
+      className="absolute items-center justify-center"
       pointerEvents="none"
+      collapsable={false}
       style={{
         top: "50%",
         left: `${progress * 100}%`,
+        width: INDICATOR_SIZE,
+        height: INDICATOR_SIZE,
         transform: [
           { translateX: -INDICATOR_SIZE / 2 },
           { translateY: -INDICATOR_SIZE / 2 },
         ],
-        zIndex,
-        elevation: zIndex ?? shadowStyle.elevation,
+        zIndex: INDICATOR_Z_INDEX,
+        elevation: INDICATOR_Z_INDEX,
         overflow: "visible",
       }}
     >
-      {/* Label above indicator */}
+      {/* Label above indicator - centered horizontally via items-center on parent */}
       {labelAbove && (
         <View
-          className="absolute"
           pointerEvents="none"
+          collapsable={false}
+          className="absolute items-center"
           style={{
-            bottom: INDICATOR_SIZE / 2 + 20,
-            left: INDICATOR_SIZE / 2,
-            transform: [{ translateX: -labelWidth / 2 }],
-            overflow: "visible",
-            width: labelWidth > 0 ? labelWidth : 1000,
+            bottom: INDICATOR_SIZE + 2,
+            width: 200, // Sufficient width to prevent wrapping
           }}
-          onLayout={handleLabelLayout}
         >
-          <Text
-            className="text-sm leading-tight font-semibold text-center text-pink-500"
-            style={{
-              width: "100%",
-            }}
-          >
-            {labelAbove}
-          </Text>
+          {labelAbove}
         </View>
       )}
-
       {/* Indicator circle */}
       <View
-        className="rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500"
+        className={cn(
+          "rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500",
+          badgeClassName
+        )}
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
           ...shadowStyle,
         }}
       >
-        <View className="w-full items-center justify-center">
-          <Text className="text-sm font-bold text-pink-500">
-            {minutesRemaining > 99 ? "--" : minutesRemaining}
-          </Text>
-        </View>
+        <Text
+          className={cn(
+            "font-bold text-pink-500",
+            minutesClassName,
+            minutesRemaining === undefined || minutesRemaining < 100
+              ? "text-sm"
+              : "text-xs"
+          )}
+          // numberOfLines={1}
+        >
+          {displayMinutes}
+        </Text>
       </View>
     </View>
   );
 };
 
-export default TripProgressIndicator;
+export default TimelineIndicator;
