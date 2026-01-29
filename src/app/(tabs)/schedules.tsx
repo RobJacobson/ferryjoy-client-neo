@@ -3,10 +3,6 @@ import { Text as UIText } from "@/components/ui";
 import { TripTimelineCard } from "@/features/TripTimelineCard";
 
 export default function SchedulesScreen() {
-  const startTime = new Date(Date.now() - 10 * 60 * 1000);
-  const departTime = new Date(Date.now() + 5 * 60 * 1000);
-  const endTime = new Date(Date.now() + 55 * 60 * 1000);
-
   return (
     <ScrollView
       className="flex-1 bg-background"

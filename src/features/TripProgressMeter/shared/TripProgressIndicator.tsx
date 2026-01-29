@@ -102,7 +102,7 @@ const TripProgressIndicator = ({
       <View
         className={cn(
           "rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500",
-          badgeClassName,
+          badgeClassName
         )}
         style={{
           width: INDICATOR_SIZE,
@@ -116,7 +116,7 @@ const TripProgressIndicator = ({
             minutesClassName,
             minutesRemaining === undefined || minutesRemaining < 100
               ? "text-sm"
-              : "text-xs",
+              : "text-xs"
           )}
           // numberOfLines={1}
         >
