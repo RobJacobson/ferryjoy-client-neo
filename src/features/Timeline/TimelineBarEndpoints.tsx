@@ -1,12 +1,12 @@
 /**
- * Endpoint markers for `TripProgressBar`.
+ * Endpoint markers for `TimelineBar`.
  * Extracted to isolate absolute positioning concerns.
  */
 
 import { cn } from "@/lib/utils";
-import TripProgressMarker from "./TripProgressMarker";
+import TimelineMarker from "./TimelineMarker";
 
-export type TripProgressBarEndpointsProps = {
+export type TimelineBarEndpointsProps = {
   circleSize: number;
   markerClassName?: string;
   zIndex: number;
@@ -20,20 +20,20 @@ export type TripProgressBarEndpointsProps = {
  * @param zIndex - Base z-index for stacking
  * @returns Endpoint circle markers
  */
-export const TripProgressBarEndpoints = ({
+export const TimelineBarEndpoints = ({
   circleSize,
   markerClassName,
   zIndex,
-}: TripProgressBarEndpointsProps) => {
+}: TimelineBarEndpointsProps) => {
   return (
     <>
-      <TripProgressMarker
+      <TimelineMarker
         left="0%"
         className={cn("bg-white border border-pink-500", markerClassName)}
         zIndex={zIndex + 1}
         size={circleSize}
       />
-      <TripProgressMarker
+      <TimelineMarker
         left="100%"
         className={cn("bg-white border border-pink-500", markerClassName)}
         zIndex={zIndex + 1}

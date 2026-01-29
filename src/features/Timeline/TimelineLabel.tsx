@@ -1,7 +1,7 @@
 /**
- * TripProgressLabel component for rendering labels between progress bars.
+ * TimelineLabel component for rendering labels between progress bars.
  *
- * The label is rendered inline in the same flex row as the `TripProgressBar`s,
+ * The label is rendered inline in the same flex row as the `TimelineBar`s,
  * so its x-coordinate is already aligned with the logical point we care about.
  * We give the wrapper zero width so it does not create a visual gap, and then
  * render the actual label as an absolutely positioned child centered at that
@@ -12,7 +12,7 @@ import type { PropsWithChildren } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
 
-type TripProgressLabelProps = PropsWithChildren<{
+type TimelineLabelProps = PropsWithChildren<{
   /**
    * Optional className for styling the outer wrapper.
    */
@@ -26,7 +26,7 @@ type TripProgressLabelProps = PropsWithChildren<{
  * @param className - Optional className for styling the wrapper
  * @returns A View component with an absolutely positioned label
  */
-const TripProgressLabel = ({ children, className }: TripProgressLabelProps) => {
+const TimelineLabel = ({ children, className }: TimelineLabelProps) => {
   return (
     <View
       // Zero-width inline wrapper participates in flex layout but creates no gap.
@@ -53,4 +53,4 @@ const TripProgressLabel = ({ children, className }: TripProgressLabelProps) => {
   );
 };
 
-export default TripProgressLabel;
+export default TimelineLabel;

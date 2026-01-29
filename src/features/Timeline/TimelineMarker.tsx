@@ -1,6 +1,6 @@
 /**
- * TripProgressMarker component for rendering absolutely positioned circle markers.
- * Used by TripProgressBar to display visual markers at segment endpoints (0% and 100% positions).
+ * TimelineMarker component for rendering absolutely positioned circle markers.
+ * Used by TimelineBar to display visual markers at segment endpoints (0% and 100% positions).
  * The marker is vertically centered on the progress bar and horizontally positioned based on the left prop.
  * Supports custom styling, shadow effects, and optional centered children content.
  */
@@ -10,7 +10,7 @@ import { type DimensionValue, View } from "react-native";
 import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
-type TripProgressMarkerProps = {
+type TimelineMarkerProps = {
   /**
    * Left position as a percentage string (e.g., "50%") or number.
    */
@@ -48,13 +48,13 @@ type TripProgressMarkerProps = {
  * @param children - Optional children to render centered inside the circle
  * @returns A View component with absolutely positioned, vertically and horizontally centered circle marker
  */
-const TripProgressMarker = ({
+const TimelineMarker = ({
   left,
   className,
   zIndex,
   size = 20,
   children,
-}: TripProgressMarkerProps) => {
+}: TimelineMarkerProps) => {
   return (
     <View
       className={cn(
@@ -78,4 +78,4 @@ const TripProgressMarker = ({
   );
 };
 
-export default TripProgressMarker;
+export default TimelineMarker;

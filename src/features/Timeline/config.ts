@@ -1,5 +1,5 @@
 /**
- * Configuration constants for TripProgressMeter components.
+ * Configuration constants for TimelineMeter components.
  * Defines styling constants used across progress bars, markers, and indicators.
  * These values ensure consistent visual hierarchy and cross-platform compatibility (iOS/Android/Web).
  */

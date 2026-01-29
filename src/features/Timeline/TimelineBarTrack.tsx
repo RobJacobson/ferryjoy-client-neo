@@ -1,5 +1,5 @@
 /**
- * Track + fill rendering for `TripProgressBar`.
+ * Track + fill rendering for `TimelineBar`.
  * Kept separate to isolate pure visual concerns from time/progress logic.
  */
 
@@ -7,7 +7,7 @@ import { View } from "react-native";
 import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
-export type TripProgressBarTrackProps = {
+export type TimelineBarTrackProps = {
   /**
    * Progress value between 0 and 1.
    */
@@ -35,12 +35,12 @@ export type TripProgressBarTrackProps = {
  * @param fillClassName - Optional theme className for the fill
  * @returns Track + fill view
  */
-export const TripProgressBarTrack = ({
+export const TimelineBarTrack = ({
   progress,
   barHeight,
   trackClassName,
   fillClassName,
-}: TripProgressBarTrackProps) => (
+}: TimelineBarTrackProps) => (
   <View
     className={cn(
       "flex-1 rounded-full items-start bg-primary/20",

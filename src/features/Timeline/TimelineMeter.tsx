@@ -1,5 +1,5 @@
 /**
- * TripProgressMeter component for displaying vessel trip progress through two sequential time segments.
+ * TimelineMeter component for displaying vessel trip progress through two sequential time segments.
  * Shows progress from arriving at terminal A to departing A (first meter) and from departing A to arriving at B (second meter).
  */
 
@@ -10,10 +10,10 @@ import { Text } from "@/components/ui";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
-import TripProgressBar from "./shared/TripProgressBar";
-import TripProgressLabel from "./shared/TripProgressLabel";
+import TimelineBar from "./TimelineBar";
+import TimelineLabel from "./TimelineLabel";
 
-type TripProgressMeterProps = {
+type TimelineMeterProps = {
   /**
    * VesselTrip object containing trip data with actual, predicted, and scheduled times.
    */
@@ -44,7 +44,7 @@ type TripProgressMeterProps = {
  * @param className - Optional className for styling the meter container
  * @returns A View component with two self-contained progress bars
  */
-const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
+const TimelineMeter = ({ trip, className }: TimelineMeterProps) => {
   const arriveCurrTime = trip.TripStart;
   // const predictedDepartureTime = getPredictedDepartureTime(trip);
   const departCurrTime = getDepartureTime(trip);
@@ -58,31 +58,31 @@ const TripProgressMeter = ({ trip, className }: TripProgressMeterProps) => {
       )}
     >
       {/* At Dock Start Label */}
-      <TripProgressLabel>
+      <TimelineLabel>
         <ArriveCurrLabel trip={trip} />
-      </TripProgressLabel>
+      </TimelineLabel>
       {/* At Dock Progress Bar */}
-      <TripProgressBar
+      <TimelineBar
         startTimeMs={arriveCurrTime?.getTime()}
         endTimeMs={departCurrTime?.getTime()}
         status={trip.AtDock ? "InProgress" : "Completed"}
         vesselName={getVesselName(trip.VesselAbbrev)}
       />
       {/* Depart Curr Label */}
-      <TripProgressLabel>
+      <TimelineLabel>
         <DepartCurrLabel trip={trip} />
-      </TripProgressLabel>
+      </TimelineLabel>
       {/* At Sea Progress Bar */}
-      <TripProgressBar
+      <TimelineBar
         startTimeMs={departCurrTime?.getTime()}
         endTimeMs={predictedArrivalTime?.getTime()}
         status={!trip.AtDock ? "InProgress" : "Pending"}
         vesselName={getVesselName(trip.VesselAbbrev)}
       />
       {/* Destination Arrive Label */}
-      <TripProgressLabel>
+      <TimelineLabel>
         <DestinationArriveLabel trip={trip} />
-      </TripProgressLabel>
+      </TimelineLabel>
     </View>
   );
 };
@@ -218,4 +218,4 @@ const getDepartureTime = (trip: VesselTrip): Date | undefined =>
 const getArrivalTime = (trip: VesselTrip): Date | undefined =>
   trip.Eta || trip.AtSeaArriveNext?.PredTime || trip.AtDockArriveNext?.PredTime;
 
-export default TripProgressMeter;
+export default TimelineMeter;

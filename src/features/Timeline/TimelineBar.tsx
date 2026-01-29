@@ -1,8 +1,8 @@
 /**
- * TripProgressBar component for rendering individual progress segments in trip progress meter.
+ * TimelineBar component for rendering individual progress segments in timeline meter.
  * Displays a horizontal progress bar that calculates progress based on numeric values.
  * Uses FlexBox flex-grow for proportional width allocation based on segment duration.
- * Used as a building block within TripProgressMeter to create multi-segment progress visualizations.
+ * Used as a building block within TimelineMeter to create multi-segment progress visualizations.
  */
 
 import type { ViewStyle } from "react-native";
@@ -10,18 +10,18 @@ import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { useTripProgressTime } from "@/data/contexts";
 import { cn } from "@/lib/utils";
-import { TripProgressBarEndpoints } from "./TripProgressBarEndpoints";
-import { TripProgressBarTrack } from "./TripProgressBarTrack";
-import TripProgressIndicator from "./TripProgressIndicator";
+import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
+import { TimelineBarTrack } from "./TimelineBarTrack";
+import TimelineIndicator from "./TimelineIndicator";
 import { calculateTimeProgress, getMinutesRemaining } from "./utils";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type TripProgressBarStatus = "Pending" | "InProgress" | "Completed";
+export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
 
-type TripProgressBarProps = {
+type TimelineBarProps = {
   /**
    * Start time in milliseconds for progress calculation.
    */
@@ -36,7 +36,7 @@ type TripProgressBarProps = {
    * - "InProgress": Progress displays normally, indicator shown
    * - "Completed": Progress displays normally, indicator not shown
    */
-  status: TripProgressBarStatus;
+  status: TimelineBarStatus;
   /**
    * Optional vessel name to display above the progress indicator when in progress.
    */
@@ -105,7 +105,7 @@ type TripProgressBarProps = {
  * @param style - Additional inline styles
  * @returns A View containing the progress bar with circles and optional indicator
  */
-const TripProgressBar = ({
+const TimelineBar = ({
   startTimeMs,
   endTimeMs,
   status,
@@ -120,7 +120,7 @@ const TripProgressBar = ({
   indicatorLabelClassName,
   className,
   style,
-}: TripProgressBarProps) => {
+}: TimelineBarProps) => {
   const nowMs = useTripProgressTime();
 
   // Calculate progress
@@ -161,19 +161,19 @@ const TripProgressBar = ({
         ...style,
       }}
     >
-      <TripProgressBarEndpoints
+      <TimelineBarEndpoints
         circleSize={circleSize}
         markerClassName={markerClassName}
         zIndex={effectiveZIndex}
       />
-      <TripProgressBarTrack
+      <TimelineBarTrack
         progress={progress}
         barHeight={barHeight}
         trackClassName={trackClassName}
         fillClassName={fillClassName}
       />
       {isActive && (
-        <TripProgressIndicator
+        <TimelineIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
           labelAbove={
@@ -223,4 +223,4 @@ const getFlexGrowFromTimeIntervalMs = (
   return Math.max(1, minutes);
 };
 
-export default TripProgressBar;
+export default TimelineBar;

@@ -1,5 +1,5 @@
 /**
- * TripProgressIndicator component for rendering a progress indicator overlay
+ * TimelineIndicator component for rendering a progress indicator overlay
  * that displays minutes remaining in a circular badge.
  */
 
@@ -13,7 +13,7 @@ import { shadowStyle } from "./config";
 // Types
 // ============================================================================
 
-type TripProgressIndicatorProps = {
+type TimelineIndicatorProps = {
   /**
    * Progress value (0-1) for horizontal positioning within the parent bar.
    */
@@ -55,13 +55,13 @@ const INDICATOR_Z_INDEX = 50;
  * @param labelAbove - Optional label text to display above the indicator
  * @returns A View component containing the indicator and optional label
  */
-const TripProgressIndicator = ({
+const TimelineIndicator = ({
   progress,
   minutesRemaining,
   labelAbove,
   badgeClassName,
   minutesClassName,
-}: TripProgressIndicatorProps) => {
+}: TimelineIndicatorProps) => {
   const displayMinutes =
     minutesRemaining === undefined ? "--" : String(minutesRemaining);
 
@@ -127,4 +127,4 @@ const TripProgressIndicator = ({
   );
 };
 
-export default TripProgressIndicator;
+export default TimelineIndicator;

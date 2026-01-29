@@ -1,9 +1,9 @@
 /**
- * Time-based progress helpers for UI components.
+ * Time-based progress helpers for Timeline UI components.
  * Centralizes progress math so multiple components can share consistent semantics.
  */
 
-import { clamp } from "../../../shared/utils/clamp";
+import { clamp } from "@/shared/utils";
 
 // ============================================================================
 // Types
