@@ -142,7 +142,7 @@ const TimelineBar = ({
 
   const durationFlexGrow = getFlexGrowFromTimeIntervalMs(
     startTimeMs,
-    endTimeMs
+    endTimeMs,
   );
   const effectiveFlexGrow =
     typeof style?.flexGrow === "number" ? style.flexGrow : durationFlexGrow;
@@ -157,7 +157,7 @@ const TimelineBar = ({
         flexGrow: effectiveFlexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "15%",
+        minWidth: "18%",
         ...style,
       }}
     >
@@ -208,7 +208,7 @@ const TimelineBar = ({
  */
 const getFlexGrowFromTimeIntervalMs = (
   startTimeMs?: number,
-  endTimeMs?: number
+  endTimeMs?: number,
 ): number => {
   if (startTimeMs === undefined || endTimeMs === undefined) {
     return 1;
