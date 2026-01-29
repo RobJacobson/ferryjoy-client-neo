@@ -10,10 +10,10 @@ import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { useTripProgressTime } from "@/data/contexts";
 import { cn } from "@/lib/utils";
-import { calculateTimeProgress, getMinutesRemaining } from "./utils";
 import { TripProgressBarEndpoints } from "./TripProgressBarEndpoints";
-import TripProgressIndicator from "./TripProgressIndicator";
 import { TripProgressBarTrack } from "./TripProgressBarTrack";
+import TripProgressIndicator from "./TripProgressIndicator";
+import { calculateTimeProgress, getMinutesRemaining } from "./utils";
 
 // ============================================================================
 // Types
@@ -142,7 +142,7 @@ const TripProgressBar = ({
 
   const durationFlexGrow = getFlexGrowFromTimeIntervalMs(
     startTimeMs,
-    endTimeMs,
+    endTimeMs
   );
   const effectiveFlexGrow =
     typeof style?.flexGrow === "number" ? style.flexGrow : durationFlexGrow;
@@ -176,7 +176,6 @@ const TripProgressBar = ({
         <TripProgressIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
-          zIndex={effectiveZIndex + 2}
           labelAbove={
             vesselName ? (
               <Text
@@ -209,7 +208,7 @@ const TripProgressBar = ({
  */
 const getFlexGrowFromTimeIntervalMs = (
   startTimeMs?: number,
-  endTimeMs?: number,
+  endTimeMs?: number
 ): number => {
   if (startTimeMs === undefined || endTimeMs === undefined) {
     return 1;

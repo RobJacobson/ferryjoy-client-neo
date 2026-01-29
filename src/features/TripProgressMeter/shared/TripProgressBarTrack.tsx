@@ -44,7 +44,7 @@ export const TripProgressBarTrack = ({
   <View
     className={cn(
       "flex-1 rounded-full items-start bg-primary/20",
-      trackClassName,
+      trackClassName
     )}
     style={{ height: barHeight }}
   >

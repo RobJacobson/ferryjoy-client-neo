@@ -83,4 +83,3 @@ export const getMinutesRemaining = ({
   }
   return Math.max(0, Math.ceil((endTimeMs - nowMs) / (1000 * 60)));
 };
-

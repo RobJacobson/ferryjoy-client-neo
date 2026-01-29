@@ -8,9 +8,9 @@
  * x-coordinate.
  */
 
+import type { PropsWithChildren } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
-import type { PropsWithChildren } from "react";
 
 type TripProgressLabelProps = PropsWithChildren<{
   /**

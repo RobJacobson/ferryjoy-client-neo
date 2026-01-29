@@ -59,7 +59,7 @@ const TripProgressMarker = ({
     <View
       className={cn(
         "absolute rounded-full items-center justify-center",
-        className,
+        className
       )}
       pointerEvents="none"
       style={{
