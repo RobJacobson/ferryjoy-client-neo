@@ -3,12 +3,13 @@
 // ============================================================================
 // Renders a layered stack of animated waves with varying properties
 // Creates a depth effect through multiple wave layers with different colors
+// Uses transform-based animations for optimal 60 FPS performance
 // ============================================================================
 
 import type React from "react";
 import { ScrollView, View } from "react-native";
-import { AnimatedWave } from "./AnimatedWave";
 import { createColorGenerator } from "@/shared/utils";
+import { AnimatedWave } from "./AnimatedWave";
 
 // ============================================================================
 // CONFIGURATION
@@ -20,54 +21,52 @@ import { createColorGenerator } from "@/shared/utils";
 const blueColor = createColorGenerator("#3b82f6");
 
 /**
- * Color generator for green shades, using green-500 as base color.
- */
-const greenColor = createColorGenerator("#22c55e");
-
-/**
  * Starting period for the first wave layer.
+ * Larger period = fewer curves = better performance
  */
-const periodStart = 60;
+const periodStart = 100;
 
 /**
  * Increment in period for each subsequent wave layer.
  */
-const periodDelta = 60;
+const periodDelta = 75;
 
 /**
  * Starting height (vertical position) for the first wave layer.
  */
-const heightStart = 60;
+const heightStart = 55;
 
 /**
  * Vertical position delta for each subsequent wave layer.
  */
-const heightDelta = -5;
+const heightDelta = -4;
 
 /**
  * Starting amplitude for the first wave layer.
  */
-const amplitudeStart = 4;
+const amplitudeStart = 5;
 
 /**
  * Amplitude delta for each subsequent wave layer.
  */
-const amplitudeDelta = 4;
+const amplitudeDelta = 3;
 
 /**
  * Number of wave layers to render.
  */
-const waveCount = 8;
+const waveCount = 10;
 
 /**
  * Total width of the waves container in pixels.
+ * Wider width allows for oscillation without visible edges.
  */
-const containerWidth = 2400;
+const containerWidth = 4000;
 
 /**
  * Margin offset on left and right sides in pixels.
+ * Centers the 4000px width container.
  */
-const marginOffset = -200;
+const marginOffset = -1000;
 
 /**
  * Bottom offset for the entire wave container in pixels.
@@ -79,6 +78,50 @@ const bottomOffset = -10;
  */
 const grassMarginBottom = -10;
 
+/**
+ * Base animation duration in milliseconds.
+ */
+const animationDurationBase = 30000;
+
+/**
+ * Duration increment for each wave layer in milliseconds.
+ * Creates varied speeds for natural appearance.
+ */
+const animationDurationIncrement = 2500;
+
+/**
+ * Maximum horizontal displacement in pixels for wave oscillation.
+ * Wave will oscillate between -displacement and +displacement.
+ */
+const waveDisplacementBase = 100;
+
+/**
+ * Displacement increment for each wave layer in pixels.
+ */
+const waveDisplacementDelta = 50;
+
+/**
+ * Base animation delay in milliseconds before wave starts moving.
+ * Staggered delays create random appearance of motion direction.
+ */
+const animationDelayBase = 0;
+
+/**
+ * Delay increment for each wave layer in milliseconds.
+ */
+const animationDelayDelta = 10000;
+
+/**
+ * Color of the foreground grass.
+ */
+const foregroundGrassColor = "#56ab91";
+
+/**
+ * Color of the background grass. Color palette:
+ * https://coolors.co/palette/99e2b4-88d4ab-78c6a3-67b99a-56ab91-469d89-358f80-248277-14746f-036666
+ */
+const backgroundGrassColor = "#88d4ab";
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -88,6 +131,10 @@ const grassMarginBottom = -10;
  *
  * Creates a depth effect by stacking multiple wave layers with varying
  * amplitudes, periods, and colors. Includes a foreground grass layer.
+ * Each wave oscillates left and right with sinusoidal easing and staggered
+ * timing for a natural, organic appearance.
+ *
+ * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
  */
 export const AnimatedWaves: React.FC = () => {
   return (
@@ -111,28 +158,55 @@ export const AnimatedWaves: React.FC = () => {
           style={{ zIndex: 100, marginBottom: grassMarginBottom }}
         >
           <AnimatedWave
-            amplitude={5}
-            period={250}
-            fillColor={greenColor(500)}
-            height={15}
+            amplitude={20}
+            period={800}
+            fillColor={foregroundGrassColor}
+            height={10}
+            animationDuration={0}
+            waveDisplacement={0}
+            animationDelay={0}
           />
         </View>
 
-        {/* Wave layers */}
-        {Array.from({ length: waveCount }).map((_, index) => (
-          <View
-            key={index}
-            className="absolute inset-0"
-            style={{ zIndex: index + 1 }}
-          >
-            <AnimatedWave
-              amplitude={amplitudeStart + index * amplitudeDelta}
-              period={periodStart + index * periodDelta}
-              fillColor={blueColor(200 + index * 50)}
-              height={heightStart + index * heightDelta}
-            />
-          </View>
-        ))}
+        {/* Wave layers - biome-ignore lint/suspicious/noArrayIndexKey: waves never reorder */}
+        {Array.from({ length: waveCount }).map((_, index) => {
+          return (
+            <View
+              key={index}
+              className="absolute inset-0"
+              style={{ zIndex: index + 10 }}
+            >
+              <AnimatedWave
+                amplitude={amplitudeStart + index * amplitudeDelta}
+                period={periodStart + index * periodDelta}
+                fillColor={blueColor(200 + index * 20)}
+                height={heightStart + index * heightDelta}
+                animationDuration={
+                  animationDurationBase + index * animationDurationIncrement
+                }
+                waveDisplacement={
+                  waveDisplacementBase + index * waveDisplacementDelta
+                }
+                animationDelay={
+                  animationDelayBase - index * animationDelayDelta
+                }
+              />
+            </View>
+          );
+        })}
+
+        {/* Background grass */}
+        <View className="absolute inset-0" style={{ zIndex: 0 }}>
+          <AnimatedWave
+            amplitude={10}
+            period={300}
+            fillColor={backgroundGrassColor}
+            height={65}
+            animationDuration={0}
+            waveDisplacement={0}
+            animationDelay={0}
+          />
+        </View>
       </View>
     </ScrollView>
   );
