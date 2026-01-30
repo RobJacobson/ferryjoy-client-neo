@@ -1,5 +1,10 @@
 export { clamp } from "./clamp";
 export {
+  createColorGenerator,
+  generatePalette,
+  isValidColor,
+} from "./colorGenerator";
+export {
   dateToEpochMs,
   epochMsToDate,
   optionalDateToEpochMs,
