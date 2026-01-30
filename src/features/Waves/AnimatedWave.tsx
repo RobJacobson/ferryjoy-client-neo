@@ -6,14 +6,7 @@
 // ============================================================================
 
 import type React from "react";
-import Svg, {
-  Defs,
-  FeGaussianBlur,
-  Filter,
-  Mask,
-  Path,
-  Rect,
-} from "react-native-svg";
+import Svg, { Defs, Path } from "react-native-svg";
 
 /**
  * SVG dimensions constants for wave generation.
@@ -70,38 +63,6 @@ export interface AnimatedWaveProps {
    * Opacity of the wave stroke (0-1)
    */
   strokeOpacity?: number;
-
-  /**
-   * Glow color that creates an inset glow effect inside the wave at the top.
-   * When provided, the wave fill is solid fillColor, with an inset glow
-   * at the top edge that follows the wave curve using this color.
-   */
-  glowColor?: string;
-
-  /**
-   * Controls how deep the inset glow effect extends downward from the top.
-   * Higher values create a deeper, more prominent inset glow.
-   * Defaults to 10 if glowColor is provided, otherwise defaults to no glow.
-   */
-  glowIntensity?: number;
-
-  /**
-   * Opacity of the inset glow effect (0-1).
-   * Higher values make the glow brighter and more visible.
-   * Defaults to 1.0 if glowColor is provided, otherwise defaults to no glow.
-   * This is independent from fillOpacity, allowing you to have a dark solid fill
-   * with a bright visible glow.
-   */
-  glowOpacity?: number;
-
-  /**
-   * Width of the glow stroke in SVG units before blur is applied.
-   * Higher values create a thicker, more visible glow that can handle
-   * higher highlightIntensity values. Defaults to 3.
-   * Note: This is the stroke width BEFORE blur, so a value of 10 with
-   * highlightIntensity=20 will create a soft, diffuse glow.
-   */
-  glowStrokeWidth?: number;
 }
 
 /**
@@ -126,7 +87,7 @@ const generateWavePath = (
   amplitude: number,
   period: number,
   phaseOffset: number = 0,
-  centerY: number = SVG_HEIGHT / 2
+  centerY: number = SVG_HEIGHT / 2,
 ): string => {
   const peakY = centerY - amplitude;
   const troughY = centerY + amplitude;
@@ -176,24 +137,7 @@ const generateWavePath = (
  *   amplitude={92}
  *   period={660}
  *   fillColor="#3b82f6"
- *   fillOpacity={0.85}
  *   phaseOffset={0}
- *   height={50}
- * />
- * ```
- *
- * @example
- * ```tsx
- * <AnimatedWave
- *   amplitude={92}
- *   period={660}
- *   fillColor="#3b82f6"
- *   glowColor="#60a5fa"
- *   glowIntensity={15}
- *   glowOpacity={0.8}
- *   glowStrokeWidth={5}
- *   strokeColor="#1d4ed8"
- *   strokeWidth={2}
  *   height={50}
  * />
  * ```
@@ -202,32 +146,18 @@ export const AnimatedWave: React.FC<AnimatedWaveProps> = ({
   amplitude,
   period,
   phaseOffset = 0,
-  fillOpacity = 0.85,
+  fillOpacity = 1,
   fillColor,
   height = 50,
-  strokeColor,
-  strokeWidth,
-  strokeOpacity,
-  glowColor,
-  glowIntensity,
-  glowOpacity,
-  glowStrokeWidth = 3,
+  strokeColor = "white",
+  strokeWidth = 1,
+  strokeOpacity = 0.5,
 }) => {
   // Calculate centerY based on height percentage (0 = bottom, 100 = top)
   const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
 
   // Generate the wave path
   const wavePath = generateWavePath(amplitude, period, phaseOffset, centerY);
-
-  // Generate unique IDs
-  const waveMaskId = `wave-mask-${fillColor.replace(/[^a-zA-Z0-9]/g, "")}-${glowColor || "none"}`;
-  const waveFilterId = `wave-blur-filter-${fillColor.replace(/[^a-zA-Z0-9]/g, "")}-${glowColor || "none"}`;
-  const glowStrokeId = `wave-glow-stroke-${fillColor.replace(/[^a-zA-Z0-9]/g, "")}-${glowColor || "none"}`;
-
-  const highlightColor = glowColor || fillColor;
-  const hasHighlight =
-    glowColor !== undefined ||
-    (glowIntensity !== undefined && glowIntensity > 0);
 
   return (
     <Svg
@@ -236,27 +166,7 @@ export const AnimatedWave: React.FC<AnimatedWaveProps> = ({
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
       preserveAspectRatio="none"
     >
-      <Defs>
-        {hasHighlight && (
-          <>
-            <Mask id={waveMaskId}>
-              {/* White areas are visible, black areas are masked out */}
-              <Rect
-                x="0"
-                y="0"
-                width={SVG_WIDTH}
-                height={SVG_HEIGHT}
-                fill="black"
-              />
-              <Path d={wavePath} fill="white" />
-            </Mask>
-            <Filter id={waveFilterId}>
-              <FeGaussianBlur stdDeviation={glowIntensity || 10} />
-            </Filter>
-          </>
-        )}
-      </Defs>
-
+      <Defs />
       {/* Main wave fill */}
       <Path
         d={wavePath}
@@ -266,22 +176,6 @@ export const AnimatedWave: React.FC<AnimatedWaveProps> = ({
         strokeWidth={strokeWidth}
         strokeOpacity={strokeOpacity}
       />
-
-      {/* Inset glow that follows the wave curve from inside */}
-      {hasHighlight && (
-        <Path
-          id={glowStrokeId}
-          d={wavePath}
-          fill="none"
-          stroke={highlightColor}
-          strokeWidth={glowStrokeWidth}
-          filter={`url(#${waveFilterId})`}
-          mask={`url(#${waveMaskId})`}
-          opacity={
-            glowOpacity !== undefined ? glowOpacity : glowColor ? 1.0 : 0.6
-          }
-        />
-      )}
     </Svg>
   );
 };
