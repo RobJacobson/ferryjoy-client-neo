@@ -1,3 +1,3 @@
-export type { AnimatedWaveProps } from "./AnimatedWave";
-export { AnimatedWave } from "./AnimatedWave";
-export { AnimatedWaves } from "./AnimatedWaves";
+import AnimatedWaves from "./AnimatedWaves";
+
+export default AnimatedWaves;
