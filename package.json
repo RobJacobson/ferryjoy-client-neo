@@ -128,9 +128,11 @@
   "devDependencies": {
     "@babel/core": "^7.28.6",
     "@biomejs/biome": "^2.3.11",
+    "@types/chroma-js": "^3.1.2",
     "@types/react": "~19.2.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "baseline-browser-mapping": "^2.9.15",
+    "chroma-js": "^3.2.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
