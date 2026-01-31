@@ -8,7 +8,7 @@
 import { Path } from "react-native-svg";
 
 /** Number of shadow layers to render for depth effect. */
-const SHADOW_LAYERS = 2;
+const SHADOW_LAYERS = 3;
 
 /** Horizontal offset per shadow layer in SVG units. */
 const HORIZONTAL_OFFSET = -4;
