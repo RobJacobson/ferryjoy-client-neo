@@ -132,7 +132,7 @@ const AnimatedWave = ({
     period,
     centerY,
     svgRenderWidth,
-    SVG_HEIGHT,
+    SVG_HEIGHT
   );
 
   // Create sinusoidal animation keyframes
