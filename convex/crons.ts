@@ -31,7 +31,7 @@ crons.cron(
   "daily scheduled trips sync",
   "1 11 * * *", // 11:01 AM UTC daily (covers ~4:01 AM Pacific in both DST and standard time)
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-  { daysToSync: 2 } // Maintain a 2-day rolling window
+  { daysToSync: 14 } // Maintain a 14-day rolling window
 );
 
 // Daily purge of out-of-date scheduled trips at 11:00 AM UTC.

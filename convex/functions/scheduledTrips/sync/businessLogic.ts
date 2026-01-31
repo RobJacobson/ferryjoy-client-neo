@@ -199,6 +199,14 @@ export const resolveOverlappingGroup = (
  * for all trips.
  * Must be called after vessel-level filtering to ensure correct chronological order.
  *
+ * Algorithm for indirect trips:
+ * 1. Calculate arrival times for direct trips using historical mean at-sea durations
+ * 2. Build a lookup map of direct trip arrivals organized by vessel and terminal
+ * 3. Match indirect trips to the direct trip that completes their journey
+ * 4. Use the direct trip's arrival time as the indirect trip's arrival time
+ *
+ * This ensures indirect trips account for docking time at intermediate terminals.
+ *
  * @param trips - Array of scheduled trip records to enhance
  * @returns Array of trips with additional estimate fields populated
  */
@@ -210,11 +218,17 @@ export const calculateTripEstimates = (
   return Object.values(tripsByVessel).flatMap(calculateVesselTripEstimates);
 };
 
+
 /**
  * Calculates estimates for a single vessel's chronologically sorted trips.
  *
  * Computes PrevKey, NextKey, NextDepartingTime, and validates EstArriveCurr
  * by linking consecutive trips in the vessel's journey.
+ *
+ * Algorithm:
+ * 1. Calculate EstArriveNext for DIRECT trips only using historical mean at-sea durations
+ * 2. Match indirect trips to their completion direct trips to get correct arrival times
+ * 3. Set PrevKey/NextKey/NextDepartingTime/EstArriveCurr for all trips
  *
  * @param vesselTrips - Array of chronologically sorted trips for a single vessel
  * @returns Array of trips with calculated estimates (PrevKey, NextKey, etc.)
@@ -224,30 +238,87 @@ const calculateVesselTripEstimates = (
 ): ConvexScheduledTrip[] => {
   if (vesselTrips.length === 0) return [];
 
-  // First pass: calculate EstArriveNext for all trips
-  const tripsWithNextArrival = vesselTrips.map((trip) => ({
-    ...trip,
-    EstArriveNext: calculateEstArriveNext(trip),
-  }));
+  // Pass 1: Calculate arrival times for direct trips
+  const tripsWithDirectArrivals = calculateDirectTripArrivals(vesselTrips);
 
-  // Second pass: set PrevKey/NextKey/NextDepartingTime and compute EstArriveCurr.
-  //
-  // NOTE: WSF can emit multiple schedule options that share the same departure
-  // time + departing terminal (direct + indirect). We must not treat same-time
-  // siblings as "previous" trips, otherwise EstArriveCurr can be incorrectly
-  // cleared by the negative-layover guard.
+  // Pass 2: Match indirect trips to their completion direct trips
+  const tripsWithAllArrivals = calculateIndirectTripArrivals(
+    tripsWithDirectArrivals
+  );
+
+  // Pass 3: Set PrevKey/NextKey/NextDepartingTime/EstArriveCurr
+  return calculateTripConnections(tripsWithAllArrivals);
+};
+
+/**
+ * Calculates estimated arrival times for direct trips using historical mean at-sea durations.
+ *
+ * @param vesselTrips - Array of chronologically sorted trips for a single vessel
+ * @returns Array of trips with EstArriveNext populated for direct trips only
+ */
+const calculateDirectTripArrivals = (
+  vesselTrips: ConvexScheduledTrip[]
+): ConvexScheduledTrip[] => {
+  return vesselTrips.map((trip) => ({
+    ...trip,
+    EstArriveNext:
+      trip.TripType === "direct" ? calculateEstArriveNext(trip) : undefined,
+  }));
+};
+
+/**
+ * Matches indirect trips to their completion direct trips to get correct arrival times.
+ *
+ * @param trips - Array of trips with direct trip arrivals already calculated
+ * @returns Array of trips with EstArriveNext populated for both direct and indirect trips
+ */
+const calculateIndirectTripArrivals = (
+  trips: ConvexScheduledTrip[]
+): ConvexScheduledTrip[] => {
+  const directArrivalLookup = buildDirectArrivalLookup(trips);
+
+  return trips.map((trip) => {
+    if (trip.TripType === "direct") {
+      // Direct trips already have their arrival time
+      return trip;
+    }
+
+    // Indirect trip: find the completion direct trip
+    const completionArrival = findCompletionArrival(trip, directArrivalLookup);
+
+    return {
+      ...trip,
+      EstArriveNext: completionArrival,
+    };
+  });
+};
+
+/**
+ * Calculates PrevKey, NextKey, NextDepartingTime, and EstArriveCurr for all trips.
+ *
+ * NOTE: WSF can emit multiple schedule options that share the same departure
+ * time + departing terminal (direct + indirect). We must not treat same-time
+ * siblings as "previous" trips, otherwise EstArriveCurr can be incorrectly
+ * cleared by the negative-layover guard.
+ *
+ * @param trips - Array of trips with EstArriveNext populated
+ * @returns Array of trips with all estimate fields populated
+ */
+const calculateTripConnections = (
+  trips: ConvexScheduledTrip[]
+): ConvexScheduledTrip[] => {
   const lastArriveByTerminal: Record<string, number | undefined> = {};
   const lastDirectKeyByArrivingTerminal: Record<string, string | undefined> =
     {};
   const enhancedTrips: ConvexScheduledTrip[] = [];
 
-  for (let index = 0; index < tripsWithNextArrival.length; ) {
-    const referenceTrip = tripsWithNextArrival[index];
+  for (let index = 0; index < trips.length; ) {
+    const referenceTrip = trips[index];
     if (!referenceTrip) break;
 
     let groupEndExclusive = index + 1;
-    while (groupEndExclusive < tripsWithNextArrival.length) {
-      const candidate = tripsWithNextArrival[groupEndExclusive];
+    while (groupEndExclusive < trips.length) {
+      const candidate = trips[groupEndExclusive];
       if (!candidate) break;
 
       const isSameOverlapGroup =
@@ -262,7 +333,7 @@ const calculateVesselTripEstimates = (
 
     // Determine the next DIRECT trip after this overlap group (skip indirects and
     // skip same-departure siblings entirely).
-    const nextDirectTrip = tripsWithNextArrival
+    const nextDirectTrip = trips
       .slice(groupEndExclusive)
       .find((trip) => trip.TripType === "direct");
 
@@ -274,7 +345,7 @@ const calculateVesselTripEstimates = (
     // Compute patches for this overlap group using arrivals from *earlier*
     // departures only (i.e., map state as of group start).
     for (let i = index; i < groupEndExclusive; i += 1) {
-      const trip = tripsWithNextArrival[i];
+      const trip = trips[i];
       if (!trip) continue;
 
       // EstArriveCurr: last known DIRECT arrival into the current departing terminal,
@@ -297,7 +368,7 @@ const calculateVesselTripEstimates = (
     // Update arrival knowledge AFTER processing the whole overlap group so
     // siblings don't become each other's "previous" context.
     for (let i = index; i < groupEndExclusive; i += 1) {
-      const trip = tripsWithNextArrival[i];
+      const trip = trips[i];
       if (!trip) continue;
 
       if (trip.TripType !== "direct") continue;
@@ -312,6 +383,7 @@ const calculateVesselTripEstimates = (
 
   return enhancedTrips;
 };
+
 
 /**
  * Calculates estimated arrival time at the next terminal.
@@ -344,4 +416,98 @@ const calculateEstArriveNext = (
   const estimatedArrivalMs =
     trip.DepartingTime + meanDurationMinutes * 60 * 1000;
   return roundUpToNextMinute(estimatedArrivalMs);
+};
+
+/**
+ * Builds a lookup structure for matching indirect trips to their completion
+ * direct trips. Organizes direct trips by vessel and arrival terminal for
+ * efficient searching.
+ *
+ * @param trips - Array of trips including both direct and indirect
+ * @returns Map keyed by "vessel->arrivalTerminal" with sorted arrival times
+ */
+const buildDirectArrivalLookup = (
+  trips: ConvexScheduledTrip[]
+): Map<string, Array<{ departureTime: number; arrivalTime: number }>> => {
+  const lookup = new Map<
+    string,
+    Array<{ departureTime: number; arrivalTime: number }>
+  >();
+
+  for (const trip of trips) {
+    if (trip.TripType !== "direct") continue;
+    if (trip.EstArriveNext === undefined) continue;
+
+    const key = `${trip.VesselAbbrev}->${trip.ArrivingTerminalAbbrev}`;
+
+    if (!lookup.has(key)) {
+      lookup.set(key, []);
+    }
+
+    lookup.get(key)?.push({
+      departureTime: trip.DepartingTime,
+      arrivalTime: trip.EstArriveNext,
+    });
+  }
+
+  // Sort each array by departure time for efficient searching
+  for (const arr of lookup.values()) {
+    arr.sort((a, b) => a.departureTime - b.departureTime);
+  }
+
+  return lookup;
+};
+
+/**
+ * Finds the estimated arrival time for an indirect trip by matching it to
+ * the direct trip that completes the vessel's journey.
+ *
+ * Algorithm:
+ * 1. Look up direct trips for the same vessel arriving at the indirect trip's
+ *    arrival terminal
+ * 2. Find the first direct trip that departs AFTER the indirect trip's departure
+ * 3. Return that direct trip's arrival time
+ *
+ * This works because:
+ * - Indirect trips represent the vessel's complete journey from departure to arrival
+ * - The vessel will physically make the same stops and end at the same terminal
+ * - The direct trip that departs from that arrival terminal completes the journey
+ *
+ * @param indirectTrip - The indirect trip to find completion arrival for
+ * @param directArrivalLookup - Lookup map of direct trip arrivals
+ * @returns Estimated arrival time, or undefined if not found
+ */
+const findCompletionArrival = (
+  indirectTrip: ConvexScheduledTrip,
+  directArrivalLookup: Map<
+    string,
+    Array<{ departureTime: number; arrivalTime: number }>
+  >
+): number | undefined => {
+  const key = `${indirectTrip.VesselAbbrev}->${indirectTrip.ArrivingTerminalAbbrev}`;
+  const arrivals = directArrivalLookup.get(key);
+
+  if (!arrivals || arrivals.length === 0) {
+    console.warn(
+      `No direct trips found matching ${indirectTrip.VesselAbbrev}->` +
+        `${indirectTrip.ArrivingTerminalAbbrev} for indirect trip ${indirectTrip.Key}`
+    );
+    return undefined;
+  }
+
+  // Find the first direct trip that departs AFTER the indirect trip's departure
+  // Use binary search or simple iteration (sorted by departure time)
+  const completionTrip = arrivals.find(
+    (arrival) => arrival.departureTime > indirectTrip.DepartingTime
+  );
+
+  if (!completionTrip) {
+    console.warn(
+      `No direct trip departing after ${new Date(indirectTrip.DepartingTime).toISOString()} ` +
+        `found for ${indirectTrip.VesselAbbrev}->${indirectTrip.ArrivingTerminalAbbrev}`
+    );
+    return undefined;
+  }
+
+  return completionTrip.arrivalTime;
 };
