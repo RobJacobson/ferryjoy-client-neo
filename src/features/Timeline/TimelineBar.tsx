@@ -5,12 +5,11 @@
  * Used as a building block within TimelineMeter to create multi-segment progress visualizations.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { LayoutAnimation, View } from "react-native";
 import { Text } from "@/components/ui";
-import { cn } from "@/lib/utils";
-import { useInterval } from "@/shared/hooks";
+import { useNowMs } from "@/shared/hooks";
 import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
 import { TimelineBarTrack } from "./TimelineBarTrack";
 import TimelineIndicator from "./TimelineIndicator";
@@ -84,11 +83,7 @@ const TimelineBar = ({
   barHeight = 12,
   style,
 }: TimelineBarProps) => {
-  // Use local state to track current time
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  // Update current time every second
-  useInterval(() => setNowMs(Date.now()), 1000);
+  const nowMs = useNowMs(1000);
 
   // Calculate layout and progress
   const { progress, minutesRemaining, duration } = getTimelineLayout({
@@ -107,6 +102,7 @@ const TimelineBar = ({
   const flexGrow = style?.flexGrow ?? duration ?? 1;
 
   // Animate layout changes (like flexGrow/width) when they change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: animate the layout changes when flexGrow changes
   useEffect(() => {
     LayoutAnimation.configureNext({
       duration: 1000,
@@ -114,7 +110,6 @@ const TimelineBar = ({
         type: LayoutAnimation.Types.easeInEaseOut,
       },
     });
-    console.log("flexGrow", progress, minutesRemaining, flexGrow);
   }, [flexGrow]);
 
   return (
