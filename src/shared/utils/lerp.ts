@@ -33,6 +33,7 @@ export function lerp(
   outputEnd: number,
   easingFn?: EasingFunction
 ): number {
+  "worklet";
   // Normalize input value to 0-1 range
   const t = (value - inputStart) / (inputEnd - inputStart);
   if (t < 0) {

@@ -7,6 +7,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
+import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import {
   TimelineBar,
   TimelineDisplayTime,
@@ -47,6 +48,12 @@ type VesselTripTimelineProps = {
  * @returns A View component with two self-contained progress bars
  */
 const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
+  const { vesselLocations } = useConvexVesselLocations();
+  const currentVessel = vesselLocations.find(
+    (v) => v.VesselAbbrev === trip.VesselAbbrev
+  );
+  const vesselSpeed = currentVessel?.Speed ?? 0;
+
   const arriveCurrTime = trip.TripStart;
   const departCurrTime = getDepartureTime(trip);
   const predictedArrivalTime = getArrivalTime(trip);
@@ -79,6 +86,8 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
         endTimeMs={predictedArrivalTime?.getTime()}
         status={!trip.AtDock ? "InProgress" : "Pending"}
         vesselName={getVesselName(trip.VesselAbbrev)}
+        animate={!trip.AtDock && !trip.TripEnd}
+        speed={vesselSpeed}
       />
       {/* Destination Arrive Label */}
       <TimelineLabel>

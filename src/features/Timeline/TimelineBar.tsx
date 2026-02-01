@@ -5,12 +5,11 @@
  * Used as a building block within TimelineMeter to create multi-segment progress visualizations.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { LayoutAnimation, View } from "react-native";
 import { Text } from "@/components/ui";
-import { cn } from "@/lib/utils";
-import { useInterval } from "@/shared/hooks";
+import { useNowMs } from "@/shared/hooks";
 import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
 import { TimelineBarTrack } from "./TimelineBarTrack";
 import TimelineIndicator from "./TimelineIndicator";
@@ -43,6 +42,14 @@ type TimelineBarProps = {
    */
   vesselName?: string;
   /**
+   * Whether to animate the progress indicator when at sea.
+   */
+  animate?: boolean;
+  /**
+   * Current speed of the vessel in knots.
+   */
+  speed?: number;
+  /**
    * Size of the circle markers in pixels.
    */
   circleSize?: number;
@@ -69,6 +76,7 @@ type TimelineBarProps = {
  * @param endTimeMs - End time in milliseconds for progress calculation
  * @param status - Status of the progress bar segment (default "Pending")
  * @param vesselName - Optional vessel name to display above the indicator when in progress
+ * @param animate - Whether to animate the progress indicator when at sea
  * @param circleSize - Size of the circle markers in pixels (default 20)
  * @param barHeight - Height of the progress bar in pixels (default 12)
  * @param className - Additional CSS classes for styling
@@ -80,15 +88,13 @@ const TimelineBar = ({
   endTimeMs,
   status,
   vesselName,
+  animate = false,
+  speed = 0,
   circleSize = 20,
   barHeight = 12,
   style,
 }: TimelineBarProps) => {
-  // Use local state to track current time
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  // Update current time every second
-  useInterval(() => setNowMs(Date.now()), 1000);
+  const nowMs = useNowMs(1000);
 
   // Calculate layout and progress
   const { progress, minutesRemaining, duration } = getTimelineLayout({
@@ -107,6 +113,7 @@ const TimelineBar = ({
   const flexGrow = style?.flexGrow ?? duration ?? 1;
 
   // Animate layout changes (like flexGrow/width) when they change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: animate the layout changes when flexGrow changes
   useEffect(() => {
     LayoutAnimation.configureNext({
       duration: 1000,
@@ -114,7 +121,6 @@ const TimelineBar = ({
         type: LayoutAnimation.Types.easeInEaseOut,
       },
     });
-    console.log("flexGrow", progress, minutesRemaining, flexGrow);
   }, [flexGrow]);
 
   return (
@@ -127,7 +133,7 @@ const TimelineBar = ({
         flexGrow: flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "20%",
+        minWidth: "25%",
         ...style,
       }}
     >
@@ -140,6 +146,8 @@ const TimelineBar = ({
         <TimelineIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
+          animate={animate}
+          speed={speed}
           labelAbove={
             vesselName ? (
               <Text className="text-sm font-semibold" style={{ flexShrink: 0 }}>
