@@ -100,7 +100,7 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
     <TimelineLegendText bold={false}>
       {`Arrived ${trip.DepartingTerminalAbbrev}`}
     </TimelineLegendText>
-    <TimelineDisplayTime time={trip.TripStart} suffix="" bold />
+    <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
   </>
 );
 
@@ -120,12 +120,14 @@ const DepartCurrLabel = ({ trip }: { trip: VesselTrip }) => (
     {trip.AtDock && (
       <TimelineDisplayTime
         time={trip.AtDockDepartCurr?.PredTime}
-        suffix="ETD"
+        type="estimated"
         bold
       />
     )}
-    {!trip.AtDock && <TimelineDisplayTime time={trip.LeftDock} bold />}
-    <TimelineDisplayTime time={trip.ScheduledDeparture} suffix="Sched" />
+    {!trip.AtDock && (
+      <TimelineDisplayTime time={trip.LeftDock} type="actual" bold />
+    )}
+    <TimelineDisplayTime time={trip.ScheduledDeparture} type="scheduled" />
   </>
 );
 
@@ -148,11 +150,13 @@ const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
           trip.AtSeaArriveNext?.PredTime ||
           trip.AtDockArriveNext?.PredTime
         }
-        suffix="ETA"
+        type="estimated"
         bold
       />
     )}
-    {trip.TripEnd && <TimelineDisplayTime time={trip.TripEnd} bold />}
+    {trip.TripEnd && (
+      <TimelineDisplayTime time={trip.TripEnd} type="actual" bold />
+    )}
   </>
 );
 
