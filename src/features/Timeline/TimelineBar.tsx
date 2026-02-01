@@ -122,7 +122,7 @@ const TimelineBar = ({
         flexGrow: flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "20%",
+        minWidth: "25%",
         ...style,
       }}
     >
