@@ -49,21 +49,16 @@ const TimelineDisplayTime = ({
           ? CalendarClock
           : null;
 
-  const margin = type === "scheduled" ? 0 : -1.5;
-
   return (
-    <View className="flex-row items-center justify-center gap-x-1">
+    <View
+      className="flex-row items-center justify-center"
+      style={{ gap: type === "scheduled" ? 3 : 1 }}
+    >
       {Icon && (
-        <Icon
-          size={14}
-          strokeWidth={1.5}
-          color={bold ? "#000" : "#333"}
-          style={{ marginRight: margin }}
-        />
+        <Icon size={14} strokeWidth={1.5} color={bold ? "#000" : "#333"} />
       )}
       <Text
         className={`text-sm tracking-tight leading-tight ${bold ? "font-semibold" : "font-light "}`}
-        style={{ marginLeft: margin }}
       >
         {toDisplayTime(time)}
       </Text>
