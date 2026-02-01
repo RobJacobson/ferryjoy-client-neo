@@ -218,7 +218,6 @@ export const calculateTripEstimates = (
   return Object.values(tripsByVessel).flatMap(calculateVesselTripEstimates);
 };
 
-
 /**
  * Calculates estimates for a single vessel's chronologically sorted trips.
  *
@@ -383,7 +382,6 @@ const calculateTripConnections = (
 
   return enhancedTrips;
 };
-
 
 /**
  * Calculates estimated arrival time at the next terminal.

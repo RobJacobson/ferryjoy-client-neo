@@ -1,1 +1,1 @@
-export { TripProgressList as VesselsTripList } from "./TripProgressList";
+export { TripProgressList as VesselsTripList } from "../VesselTripCard/VesselTripList";

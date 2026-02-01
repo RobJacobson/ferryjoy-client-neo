@@ -6,7 +6,6 @@
 import type { ReactElement } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
 // ============================================================================
@@ -27,15 +26,6 @@ type TimelineIndicatorProps = {
    * Must be a ReactElement (e.g., a Text component).
    */
   labelAbove?: ReactElement;
-  /**
-   * Optional className applied to the indicator circle container.
-   * Use this to theme background/border colors per feature.
-   */
-  badgeClassName?: string;
-  /**
-   * Optional className applied to the minutes text inside the indicator.
-   */
-  minutesClassName?: string;
 };
 
 // ============================================================================
@@ -59,8 +49,6 @@ const TimelineIndicator = ({
   progress,
   minutesRemaining,
   labelAbove,
-  badgeClassName,
-  minutesClassName,
 }: TimelineIndicatorProps) => {
   const displayMinutes =
     minutesRemaining === undefined ? "--" : String(minutesRemaining);
@@ -100,10 +88,7 @@ const TimelineIndicator = ({
       )}
       {/* Indicator circle */}
       <View
-        className={cn(
-          "rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500",
-          badgeClassName
-        )}
+        className="rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500"
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
@@ -111,14 +96,12 @@ const TimelineIndicator = ({
         }}
       >
         <Text
-          className={cn(
-            "font-bold text-pink-500",
-            minutesClassName,
+          className="font-bold text-pink-500"
+          style={
             minutesRemaining === undefined || minutesRemaining < 100
-              ? "text-sm"
-              : "text-xs"
-          )}
-          // numberOfLines={1}
+              ? undefined
+              : { fontSize: 12 }
+          }
         >
           {displayMinutes}
         </Text>

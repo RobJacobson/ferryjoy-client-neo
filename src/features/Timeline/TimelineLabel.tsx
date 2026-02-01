@@ -41,7 +41,7 @@ const TimelineLabel = ({ children, className }: TimelineLabelProps) => {
     >
       <View
         // Absolutely positioned relative to this zero-width wrapper.
-        className="absolute flex-col items-center justify-start"
+        className="absolute flex-col items-center justify-start mt-4"
         style={{
           left: "50%",
           transform: [{ translateX: "-50%" }],
