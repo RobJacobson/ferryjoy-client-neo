@@ -42,6 +42,14 @@ type TimelineBarProps = {
    */
   vesselName?: string;
   /**
+   * Whether to animate the progress indicator when at sea.
+   */
+  animate?: boolean;
+  /**
+   * Current speed of the vessel in knots.
+   */
+  speed?: number;
+  /**
    * Size of the circle markers in pixels.
    */
   circleSize?: number;
@@ -68,6 +76,7 @@ type TimelineBarProps = {
  * @param endTimeMs - End time in milliseconds for progress calculation
  * @param status - Status of the progress bar segment (default "Pending")
  * @param vesselName - Optional vessel name to display above the indicator when in progress
+ * @param animate - Whether to animate the progress indicator when at sea
  * @param circleSize - Size of the circle markers in pixels (default 20)
  * @param barHeight - Height of the progress bar in pixels (default 12)
  * @param className - Additional CSS classes for styling
@@ -79,6 +88,8 @@ const TimelineBar = ({
   endTimeMs,
   status,
   vesselName,
+  animate = false,
+  speed = 0,
   circleSize = 20,
   barHeight = 12,
   style,
@@ -135,6 +146,8 @@ const TimelineBar = ({
         <TimelineIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
+          animate={animate}
+          speed={speed}
           labelAbove={
             vesselName ? (
               <Text className="text-sm font-semibold" style={{ flexShrink: 0 }}>
