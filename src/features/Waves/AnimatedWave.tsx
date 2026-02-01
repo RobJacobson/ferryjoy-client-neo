@@ -6,10 +6,9 @@
 // Uses transform-based animation for 60 FPS performance.
 // ============================================================================
 
+import { memo, useMemo } from "react";
 import Animated from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
-import WaveShadow from "./WaveShadow";
-import WaveTexturePattern from "./WaveTexturePattern";
+import Svg, { Defs, Path, Pattern, Image as SvgImage } from "react-native-svg";
 import { generateWavePath } from "./wavePath";
 
 /** Width of the SVG canvas. Wider width allows oscillation without visible edges. */
@@ -18,8 +17,13 @@ const SVG_WIDTH = 2000;
 /** Height of the SVG canvas. */
 const SVG_HEIGHT = 500;
 
-/** Unique ID for the wave texture pattern. */
-const TEXTURE_PATTERN_ID = "paperTexture";
+/**
+ * Base64 encoded 1x1 transparent PNG.
+ * Used as a placeholder to keep the SvgImage component active in the DOM
+ * while the actual texture is being decoded.
+ */
+const PLACEHOLDER =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 /**
  * Props for the AnimatedWave component.
@@ -88,118 +92,153 @@ export interface AnimatedWaveProps {
 
 /**
  * AnimatedWave component that renders a single animated wave.
- *
- * The wave is rendered as an SVG path with a cubic Bezier curve pattern.
- * Animation uses transform-based approach for optimal 60 FPS performance.
- * The wave oscillates left and right with sinusoidal easing.
- *
- * @example
- * ```tsx
- * <AnimatedWave
- *   amplitude={92}
- *   period={660}
- *   fillColor="#3b82f6"
- *   height={50}
- *   animationDuration={10000}
- *   waveDisplacement={500}
- *   animationDelay={1500}
- * />
- * ```
  */
-const AnimatedWave = ({
-  amplitude,
-  period,
-  animationDuration,
-  animationDelay = 0,
-  waveDisplacement = 0,
-  fillOpacity = 1,
-  fillColor,
-  height = 50,
-  strokeColor = "black",
-  strokeWidth = 0.5,
-  strokeOpacity = 0.1,
-}: AnimatedWaveProps) => {
-  // Calculate centerY based on height percentage (0 = bottom, 100 = top)
-  const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
-
-  // Overscan the SVG by the max horizontal displacement so edges never show.
-  const overscanX = Math.max(0, waveDisplacement);
-  const svgRenderWidth = SVG_WIDTH + overscanX * 2;
-
-  // Generate path
-  const pathData = generateWavePath(
+const AnimatedWave = memo(
+  ({
     amplitude,
     period,
-    centerY,
-    svgRenderWidth,
-    SVG_HEIGHT
-  );
+    animationDuration,
+    animationDelay = 0,
+    waveDisplacement = 0,
+    fillOpacity = 1,
+    fillColor,
+    height = 50,
+    strokeColor = "black",
+    strokeWidth = 0.5,
+    strokeOpacity = 0.1,
+  }: AnimatedWaveProps) => {
+    // Calculate centerY based on height percentage (0 = bottom, 100 = top)
+    const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
 
-  // Create sinusoidal animation keyframes
-  const sinusoidalAnimation = animationDuration
-    ? {
-        "0%": { transform: [{ translateX: 0 }] },
-        "50%": { transform: [{ translateX: -waveDisplacement }] },
-        "100%": { transform: [{ translateX: waveDisplacement }] },
-      }
-    : undefined;
+    // Overscan the SVG by the max horizontal displacement so edges never show.
+    const overscanX = Math.max(0, waveDisplacement);
+    const svgRenderWidth = SVG_WIDTH + overscanX * 2;
 
-  // Build animation style
-  const animationStyle = {
-    transform: [{ translateX: 0 }] as const,
-    ...(animationDuration && {
-      animationName: sinusoidalAnimation,
-      animationDuration,
-      animationDelay,
-      animationIterationCount: "infinite" as const,
-      animationTimingFunction: "ease-in-out" as const,
-      animationDirection: "alternate" as const,
-    }),
-  };
+    // Generate path
+    const pathData = useMemo(
+      () =>
+        generateWavePath(
+          amplitude,
+          period,
+          centerY,
+          svgRenderWidth,
+          SVG_HEIGHT
+        ),
+      [amplitude, period, centerY, svgRenderWidth]
+    );
 
-  return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          top: 0,
-          right: -overscanX,
-          bottom: 0,
-          left: -overscanX,
-        },
-        animationStyle,
-      ]}
-    >
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox={`0 0 ${svgRenderWidth} ${SVG_HEIGHT}`}
-        preserveAspectRatio="none"
+    // Create sinusoidal animation keyframes
+    const sinusoidalAnimation = useMemo(
+      () =>
+        animationDuration
+          ? {
+              "0%": { transform: [{ translateX: 0 }] },
+              "50%": { transform: [{ translateX: -waveDisplacement }] },
+              "100%": { transform: [{ translateX: waveDisplacement }] },
+            }
+          : undefined,
+      [animationDuration, waveDisplacement]
+    );
+
+    // Build animation style
+    const animationStyle = useMemo(
+      () => ({
+        transform: [{ translateX: 0 }] as const,
+        ...(animationDuration && {
+          animationName: sinusoidalAnimation,
+          animationDuration,
+          animationDelay,
+          animationIterationCount: "infinite" as const,
+          animationTimingFunction: "ease-in-out" as const,
+          animationDirection: "alternate" as const,
+        }),
+      }),
+      [sinusoidalAnimation, animationDuration, animationDelay]
+    );
+
+    const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
+
+    return (
+      <Animated.View
+        style={[
+          {
+            position: "absolute",
+            top: 0,
+            right: -overscanX,
+            bottom: 0,
+            left: -overscanX,
+          },
+          animationStyle,
+        ]}
       >
-        {/* Wave texture pattern definition */}
-        <WaveTexturePattern id={TEXTURE_PATTERN_ID} />
+        <Svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${svgRenderWidth} ${SVG_HEIGHT}`}
+          preserveAspectRatio="none"
+        >
+          <Defs>
+            <Pattern
+              id={LOCAL_TEXTURE_ID}
+              patternUnits="userSpaceOnUse"
+              width={512}
+              height={512}
+            >
+              {/* 
+                We use a layered approach for the image to prevent pop-in.
+                The placeholder keeps the pattern active while the high-res 
+                texture is being decoded by the native engine.
+            */}
+              <SvgImage href={PLACEHOLDER} width={512} height={512} />
+              <SvgImage
+                href={require("../../../assets/textures/paper-texture-5-bw.png")}
+                width={512}
+                height={512}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            </Pattern>
+          </Defs>
 
-        {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
-        <WaveShadow pathData={pathData} />
+          {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
+          <Path
+            d={pathData}
+            fill="black"
+            fillOpacity={0.04}
+            transform="translate(-9, -2)"
+          />
+          <Path
+            d={pathData}
+            fill="black"
+            fillOpacity={0.04}
+            transform="translate(-6, -1)"
+          />
+          <Path
+            d={pathData}
+            fill="black"
+            fillOpacity={0.04}
+            transform="translate(-3, -0.5)"
+          />
 
-        {/* Main wave fill */}
-        <Path
-          d={pathData}
-          fill={fillColor}
-          fillOpacity={fillOpacity}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          strokeOpacity={strokeOpacity}
-        />
+          {/* Main wave fill */}
+          <Path
+            d={pathData}
+            fill={fillColor}
+            fillOpacity={fillOpacity}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeOpacity={strokeOpacity}
+          />
 
-        {/* Paper texture overlay - adds surface texture while preserving color */}
-        <Path
-          d={pathData}
-          fill={`url(#${TEXTURE_PATTERN_ID})`}
-          fillOpacity={0.35}
-        />
-      </Svg>
-    </Animated.View>
-  );
-};
+          {/* Paper texture overlay - adds surface texture while preserving color */}
+          <Path
+            d={pathData}
+            fill={`url(#${LOCAL_TEXTURE_ID})`}
+            fillOpacity={0.2}
+          />
+        </Svg>
+      </Animated.View>
+    );
+  }
+);
+
 export default AnimatedWave;

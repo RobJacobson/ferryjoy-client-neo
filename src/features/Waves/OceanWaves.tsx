@@ -5,6 +5,7 @@
 // Uses transform-based animations for optimal 60 FPS performance.
 // ============================================================================
 
+import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator } from "@/shared/utils";
 import AnimatedWave from "./AnimatedWave";
@@ -71,12 +72,12 @@ const blueColor = createColorGenerator(BASE_COLOR);
  *
  * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
  */
-const OceanWaves = () => {
+const OceanWaves = memo(() => {
   return (
     <>
-      {/* biome-ignore lint/suspicious/noArrayIndexKey: waves never reorder */}
       {Array.from({ length: WAVE_COUNT }).map((_, index) => (
         <View
+          // biome-ignore lint/suspicious/noArrayIndexKey: waves never reorder
           key={index}
           className="absolute inset-0"
           style={{ zIndex: index + 10 }}
@@ -100,6 +101,6 @@ const OceanWaves = () => {
       ))}
     </>
   );
-};
+});
 
 export default OceanWaves;

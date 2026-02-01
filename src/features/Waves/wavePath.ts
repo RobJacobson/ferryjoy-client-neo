@@ -67,7 +67,7 @@ export const generateWavePath = (
   }
 
   // Close the path to fill the bottom
-  pathData += ` L${svgWidth} ${svgHeight} L0 ${svgHeight}`;
+  pathData += ` L${svgWidth},${svgHeight} L0,${svgHeight} Z`;
 
   return pathData;
 };
