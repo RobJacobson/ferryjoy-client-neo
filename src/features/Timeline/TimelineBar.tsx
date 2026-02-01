@@ -10,9 +10,9 @@ import type { ViewStyle } from "react-native";
 import { LayoutAnimation, View } from "react-native";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
-import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
 import { TimelineBarTrack } from "./TimelineBarTrack";
 import TimelineIndicator from "./TimelineIndicator";
+import TimelineMarker from "./TimelineMarker";
 import { getTimelineLayout } from "./utils";
 
 // ============================================================================
@@ -125,7 +125,7 @@ const TimelineBar = ({
 
   return (
     <View
-      className="relative"
+      className="relative flex-row items-center"
       style={{
         overflow: "visible",
         zIndex: effectiveStacking,
@@ -134,14 +134,21 @@ const TimelineBar = ({
         flexShrink: 1,
         flexBasis: 0,
         minWidth: "25%",
+        height: circleSize, // Explicit height to provide vertical centering context
         ...style,
       }}
     >
-      <TimelineBarEndpoints
-        circleSize={circleSize}
-        zIndex={effectiveStacking}
+      <TimelineMarker
+        className="bg-white border border-pink-500"
+        zIndex={effectiveStacking + 1}
+        size={circleSize}
       />
       <TimelineBarTrack progress={progress} barHeight={barHeight} />
+      <TimelineMarker
+        className="bg-white border border-pink-500"
+        zIndex={effectiveStacking + 1}
+        size={circleSize}
+      />
       {isActive && (
         <TimelineIndicator
           progress={progress}

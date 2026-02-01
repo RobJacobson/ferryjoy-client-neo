@@ -5,9 +5,9 @@
 
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
+import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
-import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import {
   TimelineBar,
   TimelineDisplayTime,

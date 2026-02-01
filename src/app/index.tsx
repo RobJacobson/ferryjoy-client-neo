@@ -35,7 +35,7 @@ export default function Home() {
       </View>
 
       <SafeAreaView className="flex-1 z-10">
-        {/* <View className="px-6 pt-12 pb-6">
+        <View className="px-6 pt-12 pb-6">
           <Text className="text-4xl font-bold text-white tracking-tight">
             Ferryjoy
           </Text>
@@ -43,7 +43,7 @@ export default function Home() {
           <RegionSelector onRegionChange={handleRegionChange} />
         </View>
 
-        <RoutesCarousel selectedRegion={selectedRegion} /> */}
+        <RoutesCarousel selectedRegion={selectedRegion} />
       </SafeAreaView>
     </View>
   );
