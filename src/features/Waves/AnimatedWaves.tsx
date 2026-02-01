@@ -6,7 +6,8 @@
 // Uses transform-based animations for optimal 60 FPS performance.
 // ============================================================================
 
-import { ScrollView, View } from "react-native";
+import { memo } from "react";
+import { Image, ScrollView, View } from "react-native";
 import OceanWaves from "./OceanWaves";
 import { BackgroundGrass, ForegroundGrass } from "./RollingGrass";
 
@@ -16,37 +17,45 @@ const containerWidth = 2000;
 /** Margin offset on left and right sides in pixels. */
 const marginOffset = -500;
 
+/** Paper texture image for wave surface texture effect. */
+const PAPER_TEXTURE = require("../../../assets/textures/paper-texture-5-bw.png");
+
 /**
  * AnimatedWaves component that composes three wave layers.
- *
- * Renders three layers in order: ForegroundGrass (top), OceanWaves (middle),
- * and BackgroundGrass (bottom). This creates a depth effect with grass
- * framing the animated ocean waves.
- *
- * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
  */
-const AnimatedWaves = () => {
+const AnimatedWaves = memo(() => {
   return (
-    <ScrollView
-      className="flex-1 bg-white"
-      horizontal
-      contentContainerStyle={{ height: "100%" }}
-      showsHorizontalScrollIndicator={false}
-    >
-      <View
-        className="relative h-full"
-        style={{
-          width: containerWidth,
-          marginLeft: marginOffset,
-          marginRight: marginOffset,
-        }}
+    <View className="flex-1 bg-white">
+      {/* 
+          Pre-load the texture image in a hidden native Image component.
+          This forces the OS to decode the image and keep it in the GPU cache.
+      */}
+      <Image
+        source={PAPER_TEXTURE}
+        style={{ width: 1, height: 1, position: "absolute", opacity: 0.01 }}
+      />
+
+      <ScrollView
+        className="flex-1"
+        horizontal
+        contentContainerStyle={{ height: "100%" }}
+        showsHorizontalScrollIndicator={false}
       >
-        <ForegroundGrass />
-        <OceanWaves />
-        <BackgroundGrass />
-      </View>
-    </ScrollView>
+        <View
+          className="relative h-full"
+          style={{
+            width: containerWidth,
+            marginLeft: marginOffset,
+            marginRight: marginOffset,
+          }}
+        >
+          <ForegroundGrass />
+          <OceanWaves />
+          <BackgroundGrass />
+        </View>
+      </ScrollView>
+    </View>
   );
-};
+});
 
 export default AnimatedWaves;
