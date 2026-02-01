@@ -5,16 +5,16 @@
  * Used as a building block within TimelineMeter to create multi-segment progress visualizations.
  */
 
+import { useEffect, useState } from "react";
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
+import { LayoutAnimation, View } from "react-native";
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useInterval } from "@/shared/hooks";
 import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
 import { TimelineBarTrack } from "./TimelineBarTrack";
 import TimelineIndicator from "./TimelineIndicator";
-import { calculateTimeProgress, getMinutesRemaining } from "./utils";
-import { useState } from "react";
-import { useInterval } from "@/shared/hooks";
+import { getTimelineLayout } from "./utils";
 
 // ============================================================================
 // Types
@@ -50,38 +50,7 @@ type TimelineBarProps = {
    * Height of the progress bar in pixels.
    */
   barHeight?: number;
-  className?: string;
   style?: ViewStyle;
-  /**
-   * ClassName applied to the track container (unfilled portion).
-   * Defaults match current styling.
-   */
-  trackClassName?: string;
-  /**
-   * ClassName applied to the filled portion.
-   * Defaults match current styling.
-   */
-  fillClassName?: string;
-  /**
-   * ClassName applied to endpoint circle markers (background + border).
-   * Defaults match current styling.
-   */
-  markerClassName?: string;
-  /**
-   * ClassName applied to the indicator badge (background + border).
-   * Defaults match current styling.
-   */
-  indicatorBadgeClassName?: string;
-  /**
-   * ClassName applied to the indicator minutes text.
-   * Defaults match current styling.
-   */
-  indicatorMinutesClassName?: string;
-  /**
-   * ClassName applied to the indicator label above (vessel name).
-   * Defaults match current styling.
-   */
-  indicatorLabelClassName?: string;
 };
 
 // ============================================================================
@@ -113,13 +82,6 @@ const TimelineBar = ({
   vesselName,
   circleSize = 20,
   barHeight = 12,
-  trackClassName,
-  fillClassName,
-  markerClassName,
-  indicatorBadgeClassName,
-  indicatorMinutesClassName,
-  indicatorLabelClassName,
-  className,
   style,
 }: TimelineBarProps) => {
   // Use local state to track current time
@@ -128,104 +90,67 @@ const TimelineBar = ({
   // Update current time every second
   useInterval(() => setNowMs(Date.now()), 1000);
 
-  // Calculate progress
-  const progress = calculateTimeProgress({
+  // Calculate layout and progress
+  const { progress, minutesRemaining, duration } = getTimelineLayout({
     status,
     nowMs,
     startTimeMs,
     endTimeMs,
   });
 
-  // InProgress bars have higher z-index
-  // Lower numbers render behind higher numbers. On Android, we also map this to
-  // `elevation` to ensure consistent stacking.
+  // InProgress bars have a higher stacking order to ensure they render on top
+  // of adjacent segments (important for overlapping markers).
+  // We use 2 and 3 because on Android, elevation also controls shadow size;
+  // these values keep the shadow refined while enforcing the correct order.
   const isActive = status === "InProgress";
-  const effectiveZIndex = isActive ? 40 : 10;
+  const effectiveStacking = isActive ? 3 : 2;
+  const flexGrow = style?.flexGrow ?? duration ?? 1;
 
-  // Calculate minutes remaining. Undefined means unknown, and will display as "--".
-  const minutesRemaining = getMinutesRemaining({ nowMs, endTimeMs });
-
-  const durationFlexGrow = getFlexGrowFromTimeIntervalMs(
-    startTimeMs,
-    endTimeMs,
-  );
-  const effectiveFlexGrow =
-    typeof style?.flexGrow === "number" ? style.flexGrow : durationFlexGrow;
+  // Animate layout changes (like flexGrow/width) when they change
+  useEffect(() => {
+    LayoutAnimation.configureNext({
+      duration: 1000,
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+    });
+    console.log("flexGrow", progress, minutesRemaining, flexGrow);
+  }, [flexGrow]);
 
   return (
     <View
-      className={cn("relative", className)}
+      className="relative"
       style={{
         overflow: "visible",
-        zIndex: effectiveZIndex,
-        elevation: effectiveZIndex,
-        flexGrow: effectiveFlexGrow,
+        zIndex: effectiveStacking,
+        elevation: effectiveStacking,
+        flexGrow: flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "18%",
+        minWidth: "20%",
         ...style,
       }}
     >
       <TimelineBarEndpoints
         circleSize={circleSize}
-        markerClassName={markerClassName}
-        zIndex={effectiveZIndex}
+        zIndex={effectiveStacking}
       />
-      <TimelineBarTrack
-        progress={progress}
-        barHeight={barHeight}
-        trackClassName={trackClassName}
-        fillClassName={fillClassName}
-      />
+      <TimelineBarTrack progress={progress} barHeight={barHeight} />
       {isActive && (
         <TimelineIndicator
           progress={progress}
           minutesRemaining={minutesRemaining}
           labelAbove={
             vesselName ? (
-              <Text
-                className={cn("text-sm font-semibold", indicatorLabelClassName)}
-                style={{ flexShrink: 0 }}
-              >
+              <Text className="text-sm font-semibold" style={{ flexShrink: 0 }}>
                 {vesselName}
               </Text>
             ) : undefined
           }
-          badgeClassName={indicatorBadgeClassName}
-          minutesClassName={indicatorMinutesClassName}
         />
       )}
     </View>
   );
-};
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Converts a time interval into a flexGrow value.
- * Uses minutes to keep numbers small while preserving ratios.
- *
- * @param startTimeMs - Start time in milliseconds
- * @param endTimeMs - End time in milliseconds
- * @returns flexGrow value (>= 1)
- */
-const getFlexGrowFromTimeIntervalMs = (
-  startTimeMs?: number,
-  endTimeMs?: number,
-): number => {
-  if (startTimeMs === undefined || endTimeMs === undefined) {
-    return 1;
-  }
-
-  const durationMs = endTimeMs - startTimeMs;
-  if (durationMs <= 0) {
-    return 1;
-  }
-
-  const minutes = Math.round(durationMs / (1000 * 60));
-  return Math.max(1, minutes);
 };
 
 export default TimelineBar;

@@ -6,7 +6,6 @@
 import type { ReactElement } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
 // ============================================================================
@@ -27,16 +26,6 @@ type TimelineIndicatorProps = {
    * Must be a ReactElement (e.g., a Text component).
    */
   labelAbove?: ReactElement;
-  /**
-   * Optional className applied to the indicator circle container.
-   * Use this to theme background/border colors.
-   */
-  badgeClassName?: string;
-  /**
-   * Optional className applied to the minutes text inside the indicator.
-   * Use this to theme the text color.
-   */
-  minutesClassName?: string;
 };
 
 // ============================================================================
@@ -54,16 +43,12 @@ const INDICATOR_Z_INDEX = 50;
  * @param progress - Progress value (0-1) for horizontal positioning
  * @param minutesRemaining - Minutes remaining to display
  * @param labelAbove - Optional label text to display above the indicator
- * @param badgeClassName - Optional theme className for the indicator circle
- * @param minutesClassName - Optional theme className for the minutes text
  * @returns A View component containing the indicator and optional label
  */
 const TimelineIndicator = ({
   progress,
   minutesRemaining,
   labelAbove,
-  badgeClassName,
-  minutesClassName,
 }: TimelineIndicatorProps) => {
   const displayMinutes =
     minutesRemaining === undefined ? "--" : String(minutesRemaining);
@@ -103,10 +88,7 @@ const TimelineIndicator = ({
       )}
       {/* Indicator circle */}
       <View
-        className={cn(
-          "rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500",
-          badgeClassName
-        )}
+        className="rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500"
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
@@ -114,7 +96,7 @@ const TimelineIndicator = ({
         }}
       >
         <Text
-          className={cn("font-bold text-pink-500", minutesClassName)}
+          className="font-bold text-pink-500"
           style={
             minutesRemaining === undefined || minutesRemaining < 100
               ? undefined

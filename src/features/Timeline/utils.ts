@@ -5,6 +5,8 @@
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { TimelineBarStatus } from "./TimelineBar";
 
+const MS_PER_MINUTE = 60000;
+
 /**
  * Gets the departure time for a trip, prioritizing actual over predicted over scheduled.
  * Used for progress bar start times when vessel is at sea.
@@ -13,7 +15,7 @@ import type { TimelineBarStatus } from "./TimelineBar";
  * @returns Departure time Date, or undefined if none available
  */
 export const getDepartureTime = (trip: VesselTrip): Date | undefined =>
-  trip.LeftDock || trip.AtDockDepartCurr?.PredTime || trip.ScheduledDeparture;
+  trip.LeftDock ?? trip.AtDockDepartCurr?.PredTime ?? trip.ScheduledDeparture;
 
 /**
  * Gets the arrival time for a trip, prioritizing ETA over predicted times.
@@ -22,19 +24,19 @@ export const getDepartureTime = (trip: VesselTrip): Date | undefined =>
  * @returns Arrival time Date, or undefined if none available
  */
 export const getArrivalTime = (trip: VesselTrip): Date | undefined =>
-  trip.Eta || trip.AtSeaArriveNext?.PredTime || trip.AtDockArriveNext?.PredTime;
+  trip.Eta ?? trip.AtSeaArriveNext?.PredTime ?? trip.AtDockArriveNext?.PredTime;
 
 /**
- * Calculates progress for a timeline bar based on status and time values.
- * Returns a progress value between 0 and 1.
+ * Computes all layout and progress data for a timeline bar in one go.
+ * Consolidates duration, progress, and remaining time calculations.
  *
- * @param status - Timeline bar status (Pending, InProgress, Completed)
+ * @param status - Timeline bar status
  * @param nowMs - Current time in milliseconds
  * @param startTimeMs - Start time in milliseconds
  * @param endTimeMs - End time in milliseconds
- * @returns Progress value (0 to 1), defaults to 0 if not calculable
+ * @returns Object containing progress, minutesRemaining, and flexGrow
  */
-export const calculateTimeProgress = ({
+export const getTimelineLayout = ({
   status,
   nowMs,
   startTimeMs,
@@ -44,54 +46,28 @@ export const calculateTimeProgress = ({
   nowMs: number;
   startTimeMs?: number;
   endTimeMs?: number;
-}): number => {
-  if (status === "Pending") {
-    return 0;
-  }
+}) => {
+  // 1. Calculate Duration (FlexGrow)
+  const durationMs = (endTimeMs ?? 0) - (startTimeMs ?? 0);
+  const duration = Math.round((durationMs / MS_PER_MINUTE) * 100) / 100;
 
-  if (status === "Completed") {
-    return 1;
-  }
+  // 2. Calculate Minutes Remaining
+  const remainingMs = (endTimeMs ?? 0) - nowMs;
+  const minutesRemaining = endTimeMs
+    ? Math.max(0, Math.ceil(remainingMs / MS_PER_MINUTE))
+    : undefined;
 
-  if (
-    startTimeMs === undefined ||
-    endTimeMs === undefined ||
-    nowMs < startTimeMs
-  ) {
-    return 0;
-  }
+  // 3. Calculate Progress (0-1)
+  const progress =
+    status === "Completed"
+      ? 1
+      : status === "InProgress" && duration > 0
+        ? Math.min(1, Math.max(0, (nowMs - (startTimeMs ?? 0)) / durationMs))
+        : 0;
 
-  const duration = endTimeMs - startTimeMs;
-  if (duration <= 0) {
-    return 0;
-  }
-
-  const elapsed = nowMs - startTimeMs;
-  return Math.min(1, Math.max(0, elapsed / duration));
-};
-
-/**
- * Calculates minutes remaining until end time.
- *
- * @param nowMs - Current time in milliseconds
- * @param endTimeMs - End time in milliseconds
- * @returns Minutes remaining, or undefined if not calculable
- */
-export const getMinutesRemaining = ({
-  nowMs,
-  endTimeMs,
-}: {
-  nowMs: number;
-  endTimeMs?: number;
-}): number | undefined => {
-  if (endTimeMs === undefined) {
-    return undefined;
-  }
-
-  const remainingMs = endTimeMs - nowMs;
-  if (remainingMs <= 0) {
-    return 0;
-  }
-
-  return Math.round(remainingMs / (1000 * 60));
+  return {
+    progress,
+    minutesRemaining,
+    duration,
+  };
 };

@@ -40,7 +40,7 @@ const TimelineDisplayTime = ({
     <View className="flex-row items-center justify-center">
       <TimelineLegendText bold={bold}>{toDisplayTime(time)}</TimelineLegendText>
       {suffix && (
-        <TimelineLegendText bold={false}>{` ${suffix}`}</TimelineLegendText>
+        <TimelineLegendText bold={false}>{` ${suffix}`}</TimelineLegendText>
       )}
     </View>
   );
