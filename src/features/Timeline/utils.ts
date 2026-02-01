@@ -1,33 +1,38 @@
 /**
- * Time-based progress helpers for Timeline UI components.
- * Centralizes progress math so multiple components can share consistent semantics.
+ * Timeline utility functions for time selection and trip data processing.
  */
 
-import { clamp } from "@/shared/utils";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export type TimeProgressStatus = "Pending" | "InProgress" | "Completed";
-
-// ============================================================================
-// Public Helpers
-// ============================================================================
+import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import type { TimelineBarStatus } from "./TimelineBar";
 
 /**
- * Calculates progress value based on time range and status.
+ * Gets the departure time for a trip, prioritizing actual over predicted over scheduled.
+ * Used for progress bar start times when vessel is at sea.
  *
- * Semantics:
- * - Pending: always 0
- * - Completed: always 1 (even if times are missing)
- * - InProgress: 0 if missing/invalid times; otherwise proportional progress
+ * @param trip - The vessel trip object
+ * @returns Departure time Date, or undefined if none available
+ */
+export const getDepartureTime = (trip: VesselTrip): Date | undefined =>
+  trip.LeftDock || trip.AtDockDepartCurr?.PredTime || trip.ScheduledDeparture;
+
+/**
+ * Gets the arrival time for a trip, prioritizing ETA over predicted times.
  *
- * @param status - Current status of the progress segment
+ * @param trip - The vessel trip object
+ * @returns Arrival time Date, or undefined if none available
+ */
+export const getArrivalTime = (trip: VesselTrip): Date | undefined =>
+  trip.Eta || trip.AtSeaArriveNext?.PredTime || trip.AtDockArriveNext?.PredTime;
+
+/**
+ * Calculates progress for a timeline bar based on status and time values.
+ * Returns a progress value between 0 and 1.
+ *
+ * @param status - Timeline bar status (Pending, InProgress, Completed)
  * @param nowMs - Current time in milliseconds
  * @param startTimeMs - Start time in milliseconds
  * @param endTimeMs - End time in milliseconds
- * @returns Progress value between 0 and 1
+ * @returns Progress value (0 to 1), defaults to 0 if not calculable
  */
 export const calculateTimeProgress = ({
   status,
@@ -35,7 +40,7 @@ export const calculateTimeProgress = ({
   startTimeMs,
   endTimeMs,
 }: {
-  status: TimeProgressStatus;
+  status: TimelineBarStatus;
   nowMs: number;
   startTimeMs?: number;
   endTimeMs?: number;
@@ -48,28 +53,29 @@ export const calculateTimeProgress = ({
     return 1;
   }
 
-  if (startTimeMs === undefined || endTimeMs === undefined) {
+  if (
+    startTimeMs === undefined ||
+    endTimeMs === undefined ||
+    nowMs < startTimeMs
+  ) {
     return 0;
   }
 
-  if (endTimeMs <= startTimeMs) {
-    return nowMs >= endTimeMs ? 1 : 0;
+  const duration = endTimeMs - startTimeMs;
+  if (duration <= 0) {
+    return 0;
   }
 
-  if (nowMs >= endTimeMs) {
-    return 1;
-  }
-
-  return clamp((nowMs - startTimeMs) / (endTimeMs - startTimeMs), 0, 1);
+  const elapsed = nowMs - startTimeMs;
+  return Math.min(1, Math.max(0, elapsed / duration));
 };
 
 /**
- * Computes minutes remaining until an end timestamp.
- * Returns undefined when the end timestamp is missing.
+ * Calculates minutes remaining until end time.
  *
  * @param nowMs - Current time in milliseconds
  * @param endTimeMs - End time in milliseconds
- * @returns Minutes remaining, or undefined if end time is missing
+ * @returns Minutes remaining, or undefined if not calculable
  */
 export const getMinutesRemaining = ({
   nowMs,
@@ -81,5 +87,11 @@ export const getMinutesRemaining = ({
   if (endTimeMs === undefined) {
     return undefined;
   }
-  return Math.max(0, Math.ceil((endTimeMs - nowMs) / (1000 * 60)));
+
+  const remainingMs = endTimeMs - nowMs;
+  if (remainingMs <= 0) {
+    return 0;
+  }
+
+  return Math.round(remainingMs / (1000 * 60));
 };

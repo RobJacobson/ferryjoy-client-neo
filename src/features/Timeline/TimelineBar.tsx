@@ -8,12 +8,13 @@
 import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
-import { useTripProgressTime } from "@/data/contexts";
 import { cn } from "@/lib/utils";
 import { TimelineBarEndpoints } from "./TimelineBarEndpoints";
 import { TimelineBarTrack } from "./TimelineBarTrack";
 import TimelineIndicator from "./TimelineIndicator";
 import { calculateTimeProgress, getMinutesRemaining } from "./utils";
+import { useState } from "react";
+import { useInterval } from "@/shared/hooks";
 
 // ============================================================================
 // Types
@@ -92,7 +93,7 @@ type TimelineBarProps = {
  * The bar consists of a background track, a filled progress portion, circles at each end,
  * and optionally a progress indicator when active.
  *
- * Width is determined via FlexBox `flexGrow`, derived from the segment's time interval.
+ * Width is determined via FlexBox `flexGrow`, derived from segment's time interval.
  * Current time is obtained from context.
  *
  * @param startTimeMs - Start time in milliseconds for progress calculation
@@ -121,7 +122,11 @@ const TimelineBar = ({
   className,
   style,
 }: TimelineBarProps) => {
-  const nowMs = useTripProgressTime();
+  // Use local state to track current time
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Update current time every second
+  useInterval(() => setNowMs(Date.now()), 1000);
 
   // Calculate progress
   const progress = calculateTimeProgress({
@@ -142,7 +147,7 @@ const TimelineBar = ({
 
   const durationFlexGrow = getFlexGrowFromTimeIntervalMs(
     startTimeMs,
-    endTimeMs
+    endTimeMs,
   );
   const effectiveFlexGrow =
     typeof style?.flexGrow === "number" ? style.flexGrow : durationFlexGrow;
@@ -208,7 +213,7 @@ const TimelineBar = ({
  */
 const getFlexGrowFromTimeIntervalMs = (
   startTimeMs?: number,
-  endTimeMs?: number
+  endTimeMs?: number,
 ): number => {
   if (startTimeMs === undefined || endTimeMs === undefined) {
     return 1;

@@ -1,19 +1,21 @@
 /**
- * TimelineMeter component for displaying vessel trip progress through two sequential time segments.
+ * TripProgressTimeline component for displaying vessel trip progress through two sequential time segments.
  * Shows progress from arriving at terminal A to departing A (first meter) and from departing A to arriving at B (second meter).
  */
 
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type { PropsWithChildren } from "react";
 import { View } from "react-native";
-import { Text } from "@/components/ui";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
-import { toDisplayTime } from "@/shared/utils/dateConversions";
-import TimelineBar from "./TimelineBar";
-import TimelineLabel from "./TimelineLabel";
+import {
+  TimelineBar,
+  TimelineDisplayTime,
+  TimelineLabel,
+  TimelineLegendText,
+} from "../Timeline";
+import { getArrivalTime, getDepartureTime } from "../Timeline/utils";
 
-type TimelineMeterProps = {
+type VesselTripTimelineProps = {
   /**
    * VesselTrip object containing trip data with actual, predicted, and scheduled times.
    */
@@ -27,7 +29,7 @@ type TimelineMeterProps = {
 /**
  * Displays vessel trip progress through two sequential time segments with intelligent time selection and dynamic width allocation.
  *
- * The meter visualizes a ferry trip as two distinct phases:
+ * The timeline visualizes a ferry trip as two distinct phases:
  * 1. First segment: Progress from arriving at terminal A to departing from A (docking/loading phase)
  * 2. Second segment: Progress from departing A to arriving at terminal B (at-sea transit phase)
  *
@@ -44,9 +46,8 @@ type TimelineMeterProps = {
  * @param className - Optional className for styling the meter container
  * @returns A View component with two self-contained progress bars
  */
-const TimelineMeter = ({ trip, className }: TimelineMeterProps) => {
+const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
   const arriveCurrTime = trip.TripStart;
-  // const predictedDepartureTime = getPredictedDepartureTime(trip);
   const departCurrTime = getDepartureTime(trip);
   const predictedArrivalTime = getArrivalTime(trip);
 
@@ -88,23 +89,23 @@ const TimelineMeter = ({ trip, className }: TimelineMeterProps) => {
 };
 
 /**
- * Renders the label for the left circle of the at-dock progress bar.
+ * Renders label for left circle of at-dock progress bar.
  * Displays the departing terminal name and actual arrival time.
  *
  * @param trip - VesselTrip object containing trip data
  * @returns A View component with terminal text and arrival time
  */
 const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
-  <View className="flex-col items-center justify-center mt-4">
-    <LegendText bold={false}>
+  <>
+    <TimelineLegendText bold={false}>
       {`Arrived ${trip.DepartingTerminalAbbrev}`}
-    </LegendText>
-    <DisplayTime time={trip.TripStart} suffix="" bold />
-  </View>
+    </TimelineLegendText>
+    <TimelineDisplayTime time={trip.TripStart} suffix="" bold />
+  </>
 );
 
 /**
- * Renders the label for the right circle of the at-dock progress bar.
+ * Renders label for the right circle of the at-dock progress bar.
  * Conditionally displays predicted departure time (when at dock), actual departure time (when left),
  * and scheduled departure time (if available).
  *
@@ -112,32 +113,36 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
  * @returns A View component with departure status text and time information
  */
 const DepartCurrLabel = ({ trip }: { trip: VesselTrip }) => (
-  <View className="flex-col items-center justify-center mt-4">
-    <LegendText bold={false}>
+  <>
+    <TimelineLegendText bold={false}>
       {trip.AtDock ? "Leaves" : "Left"} {trip.DepartingTerminalAbbrev}
-    </LegendText>
+    </TimelineLegendText>
     {trip.AtDock && (
-      <DisplayTime time={trip.AtDockDepartCurr?.PredTime} suffix="ETD" bold />
+      <TimelineDisplayTime
+        time={trip.AtDockDepartCurr?.PredTime}
+        suffix="ETD"
+        bold
+      />
     )}
-    {!trip.AtDock && <DisplayTime time={trip.LeftDock} bold />}
-    <DisplayTime time={trip.ScheduledDeparture} suffix="Sched" />
-  </View>
+    {!trip.AtDock && <TimelineDisplayTime time={trip.LeftDock} bold />}
+    <TimelineDisplayTime time={trip.ScheduledDeparture} suffix="Sched" />
+  </>
 );
 
 /**
- * Renders the label for the right circle of the at-sea progress bar.
+ * Renders label for the right circle of the at-sea progress bar.
  * Displays the arriving terminal name and predicted arrival time.
  *
  * @param trip - VesselTrip object containing trip data
  * @returns A View component with terminal text and arrival time
  */
 const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
-  <View className="flex-col items-center justify-center mt-4">
-    <LegendText bold={false}>
+  <>
+    <TimelineLegendText bold={false}>
       {`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-    </LegendText>
+    </TimelineLegendText>
     {!trip.TripEnd && (
-      <DisplayTime
+      <TimelineDisplayTime
         time={
           trip.Eta ||
           trip.AtSeaArriveNext?.PredTime ||
@@ -147,75 +152,8 @@ const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
         bold
       />
     )}
-    {trip.TripEnd && <DisplayTime time={trip.TripEnd} bold />}
-  </View>
+    {trip.TripEnd && <TimelineDisplayTime time={trip.TripEnd} bold />}
+  </>
 );
 
-/**
- * Displays a formatted time string with an optional suffix and bold styling.
- * Renders the time text and suffix in a horizontal row with centered alignment.
- *
- * @param time - Optional Date object containing the time to display
- * @param suffix - Optional string suffix to display after the time (e.g., "ETD", "ETA", "Sched")
- * @param bold - Optional boolean to apply bold styling to the time text (default false)
- * @returns A View component with the time and suffix in a row, or null if text is not provided
- */
-const DisplayTime = ({
-  time,
-  suffix,
-  bold,
-}: {
-  time?: Date;
-  suffix?: string;
-  bold?: boolean;
-}) =>
-  time && (
-    <View className="flex-row items-center justify-center">
-      <LegendText bold={bold}>{toDisplayTime(time)}</LegendText>
-      {suffix && <LegendText bold={false}>{` ${suffix}`}</LegendText>}
-    </View>
-  );
-
-/**
- * Renders text with consistent styling for progress meter labels.
- * Applies small text size with tight leading, and conditionally applies bold or light font weight.
- *
- * @param bold - Optional boolean to apply semibold font weight (default false, uses light weight)
- * @param children - React node content to display as text
- * @returns A Text component with standardized label styling
- */
-const LegendText = ({
-  bold,
-  children,
-}: PropsWithChildren<{ bold?: boolean }>) => (
-  <Text
-    className={`text-xs tracking-tight leading-tight ${bold ? "font-semibold" : "font-light "}`}
-  >
-    {children}
-  </Text>
-);
-
-// ============================================================================
-// Time Selection Helpers
-// ============================================================================
-
-/**
- * Gets the departure time for a trip, prioritizing actual over predicted over scheduled.
- * Used for progress bar start times when vessel is at sea.
- *
- * @param trip - The vessel trip object
- * @returns Departure time Date, or undefined if none available
- */
-const getDepartureTime = (trip: VesselTrip): Date | undefined =>
-  trip.LeftDock || trip.AtDockDepartCurr?.PredTime || trip.ScheduledDeparture;
-
-/**
- * Gets the arrival time for a trip, prioritizing ETA over predicted times.
- *
- * @param trip - The vessel trip object
- * @returns Arrival time Date, or undefined if none available
- */
-const getArrivalTime = (trip: VesselTrip): Date | undefined =>
-  trip.Eta || trip.AtSeaArriveNext?.PredTime || trip.AtDockArriveNext?.PredTime;
-
-export default TimelineMeter;
+export default VesselTripTimeline;

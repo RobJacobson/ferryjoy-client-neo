@@ -29,11 +29,12 @@ type TimelineIndicatorProps = {
   labelAbove?: ReactElement;
   /**
    * Optional className applied to the indicator circle container.
-   * Use this to theme background/border colors per feature.
+   * Use this to theme background/border colors.
    */
   badgeClassName?: string;
   /**
    * Optional className applied to the minutes text inside the indicator.
+   * Use this to theme the text color.
    */
   minutesClassName?: string;
 };
@@ -53,6 +54,8 @@ const INDICATOR_Z_INDEX = 50;
  * @param progress - Progress value (0-1) for horizontal positioning
  * @param minutesRemaining - Minutes remaining to display
  * @param labelAbove - Optional label text to display above the indicator
+ * @param badgeClassName - Optional theme className for the indicator circle
+ * @param minutesClassName - Optional theme className for the minutes text
  * @returns A View component containing the indicator and optional label
  */
 const TimelineIndicator = ({
@@ -111,14 +114,12 @@ const TimelineIndicator = ({
         }}
       >
         <Text
-          className={cn(
-            "font-bold text-pink-500",
-            minutesClassName,
+          className={cn("font-bold text-pink-500", minutesClassName)}
+          style={
             minutesRemaining === undefined || minutesRemaining < 100
-              ? "text-sm"
-              : "text-xs"
-          )}
-          // numberOfLines={1}
+              ? undefined
+              : { fontSize: 12 }
+          }
         >
           {displayMinutes}
         </Text>

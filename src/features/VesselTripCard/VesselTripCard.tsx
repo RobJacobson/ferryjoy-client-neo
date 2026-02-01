@@ -1,6 +1,6 @@
 /**
  * TripProgressCard component for displaying vessel trip information with progress visualization.
- * Based on VesselTripCard but uses TimelineMeter component for progress display.
+ * Uses TripProgressTimeline component for progress display.
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
@@ -13,9 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import TimelineMeter from "@/features/Timeline";
+import VesselTripTimeline from "./VesselTripTimeline";
 
-type TripProgressCardProps = {
+type VesselTripCardProps = {
   /**
    * VesselTrip object containing trip data with actual, predicted, and scheduled times.
    */
@@ -47,7 +47,7 @@ const getVesselStatus = (trip: VesselTrip): string => {
  * @param trip - VesselTrip object with trip data (may be held completed trip or current trip)
  * @returns A Card component with trip header and progress meter
  */
-export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
+export const VesselTripCard = ({ trip }: VesselTripCardProps) => {
   // Check if trip has a destination (some trips might be one-way or in transit)
   const hasDestination = !!trip.ArrivingTerminalAbbrev;
 
@@ -79,7 +79,7 @@ export const TripProgressCard = ({ trip }: TripProgressCardProps) => {
       </CardHeader>
       {/* Progress meter container with overflow-visible for portal-rendered indicators */}
       <CardContent className="overflow-visible">
-        <TimelineMeter trip={trip} />
+        <VesselTripTimeline trip={trip} />
       </CardContent>
     </Card>
   );

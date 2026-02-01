@@ -8,6 +8,9 @@ import TimelineMarker from "./TimelineMarker";
 
 export type TimelineBarEndpointsProps = {
   circleSize: number;
+  /**
+   * Optional className applied to the marker elements.
+   */
   markerClassName?: string;
   zIndex: number;
 };
