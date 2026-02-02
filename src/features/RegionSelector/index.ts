@@ -1,2 +1,9 @@
-export type { RegionSelectorProps } from "./RegionSelector";
-export { RegionSelector, useRegionSelector } from "./RegionSelector";
+export type {
+  RegionSelectorContextValue,
+  RegionSelectorProps,
+} from "./RegionSelector";
+export {
+  RegionSelector,
+  RegionSelectorProvider,
+  useRegionSelector,
+} from "./RegionSelector";

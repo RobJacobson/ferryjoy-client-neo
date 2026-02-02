@@ -2,11 +2,13 @@
  * Region Selector Component
  *
  * A dropdown selector for filtering terminals by region on the homepage.
- * Manages persistent state using KV store and usePersistentState hook.
+ * Manages persistent state using KV store via RegionSelectorProvider context.
+ * Use RegionSelectorProvider to wrap any tree that needs region selection;
+ * RegionSelector and useRegionSelector both consume the shared context.
  */
 
 import type { TriggerRef } from "@rn-primitives/select";
-import { useRef } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
@@ -57,13 +59,74 @@ const regionOptions: TerminalRegion[] = Object.keys(
 ) as TerminalRegion[];
 
 // ============================================================================
+// Context and provider
+// ============================================================================
+
+export type RegionSelectorContextValue = Readonly<{
+  selectedRegion: TerminalRegion;
+  setSelectedRegion: (region: TerminalRegion) => Promise<void>;
+  isHydrated: boolean;
+  error: Error | null;
+}>;
+
+const RegionSelectorContext = createContext<RegionSelectorContextValue | null>(
+  null
+);
+
+export interface RegionSelectorProviderProps {
+  /**
+   * Child components that need access to region selection state.
+   */
+  children: React.ReactNode;
+}
+
+/**
+ * Provider that owns the region selection persistent state.
+ * Wrap any tree that needs RegionSelector or useRegionSelector.
+ *
+ * @param props - Component props
+ * @param props.children - Child components
+ */
+export const RegionSelectorProvider = ({
+  children,
+}: RegionSelectorProviderProps) => {
+  const { value, setValue, isHydrated, error } =
+    usePersistentState<TerminalRegion>(regionFilterStorageKey, {
+      defaultValue: "All Terminals",
+      schema: terminalRegionSchema,
+    });
+
+  const setSelectedRegion = useCallback(
+    async (region: TerminalRegion) => {
+      await setValue(region);
+    },
+    [setValue]
+  );
+
+  const ctxValue: RegionSelectorContextValue = useMemo(
+    () => ({
+      selectedRegion: value ?? "All Terminals",
+      setSelectedRegion,
+      isHydrated,
+      error: error ?? null,
+    }),
+    [value, setSelectedRegion, isHydrated, error]
+  );
+
+  return (
+    <RegionSelectorContext.Provider value={ctxValue}>
+      {children}
+    </RegionSelectorContext.Provider>
+  );
+};
+
+// ============================================================================
 // Main component
 // ============================================================================
 
 export interface RegionSelectorProps {
   /**
    * Optional callback invoked when the selected region changes.
-   * Useful for triggering re-renders in parent components.
    *
    * @param region - The newly selected region
    */
@@ -71,8 +134,8 @@ export interface RegionSelectorProps {
 }
 
 /**
- * RegionSelector component that displays a dropdown for filtering terminals by region.
- * Manages persistent state internally using the same storage key as useRegionSelector hook.
+ * RegionSelector component that displays a dropdown for filtering terminals by
+ * region. Consumes RegionSelectorProvider context; must be rendered within it.
  *
  * @param props - Component props
  * @param props.onRegionChange - Optional callback when region selection changes
@@ -83,14 +146,15 @@ export const RegionSelector = ({
 }: RegionSelectorProps = {}) => {
   const ref = useRef<TriggerRef>(null);
   const insets = useSafeAreaInsets();
-  const {
-    value: selectedRegion,
-    setValue: setSelectedRegion,
-    isHydrated,
-  } = usePersistentState<TerminalRegion>(regionFilterStorageKey, {
-    defaultValue: "All Terminals",
-    schema: terminalRegionSchema,
-  });
+  const ctx = useContext(RegionSelectorContext);
+
+  if (!ctx) {
+    throw new Error(
+      "RegionSelector must be rendered within RegionSelectorProvider"
+    );
+  }
+
+  const { selectedRegion, setSelectedRegion, isHydrated } = ctx;
 
   const selectedOption: Option | undefined = isHydrated
     ? regionToOption(selectedRegion)
@@ -145,26 +209,21 @@ export const RegionSelector = ({
 };
 
 /**
- * Hook to get the current selected region from the RegionSelector's persistent state.
- * Useful when you need to read the current region without rendering the selector.
+ * Hook to get the current selected region from the RegionSelector context.
+ * Must be used within RegionSelectorProvider.
  *
  * @returns Object with selected region, hydration state, and error
  */
-export const useRegionSelector = () => {
-  const {
-    value: selectedRegion,
-    isHydrated,
-    error,
-  } = usePersistentState<TerminalRegion>(regionFilterStorageKey, {
-    defaultValue: "All Terminals",
-    schema: terminalRegionSchema,
-  });
+export const useRegionSelector = (): RegionSelectorContextValue => {
+  const ctx = useContext(RegionSelectorContext);
 
-  return {
-    selectedRegion: selectedRegion ?? "All Terminals",
-    isHydrated,
-    error,
-  };
+  if (!ctx) {
+    throw new Error(
+      "useRegionSelector must be used within RegionSelectorProvider"
+    );
+  }
+
+  return ctx;
 };
 
 // ============================================================================

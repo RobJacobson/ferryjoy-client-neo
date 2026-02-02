@@ -1,6 +1,7 @@
 import "../../global.css";
 
 import Mapbox from "@rnmapbox/maps";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { LogBox } from "react-native";
 import { Providers } from "@/data/Providers";
@@ -19,7 +20,17 @@ if (!accessToken) {
 }
 Mapbox.setAccessToken(accessToken);
 
+const PUFFBERRY_FONT = require("../../assets/fonts/puffberry.ttf");
+
 export default function Layout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Puffberry: PUFFBERRY_FONT,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <Providers>
       <Stack>
