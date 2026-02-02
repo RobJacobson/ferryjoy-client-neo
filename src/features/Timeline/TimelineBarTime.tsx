@@ -41,6 +41,14 @@ type TimelineBarTimeProps = {
    * Height of the progress bar in pixels.
    */
   barHeight?: number;
+  /**
+   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
+   */
+  atDockAbbrev?: string;
+  /**
+   * Whether the vessel has arrived at its destination terminal.
+   */
+  isArrived?: boolean;
   style?: ViewStyle;
 };
 
@@ -56,17 +64,25 @@ const TimelineBarTime = ({
   speed = 0,
   circleSize = 20,
   barHeight = 12,
+  atDockAbbrev,
+  isArrived,
   style,
 }: TimelineBarTimeProps) => {
   const nowMs = useNowMs(1000);
 
   // Calculate layout and progress
-  const { progress, minutesRemaining, duration } = getTimelineLayout({
+  const {
+    progress: timeProgress,
+    minutesRemaining,
+    duration,
+  } = getTimelineLayout({
     status,
     nowMs,
     startTimeMs,
     endTimeMs,
   });
+
+  const progress = isArrived ? 1 : timeProgress;
 
   return (
     <TimelineBar
@@ -79,6 +95,8 @@ const TimelineBarTime = ({
       speed={speed}
       circleSize={circleSize}
       barHeight={barHeight}
+      atDockAbbrev={atDockAbbrev}
+      isArrived={isArrived}
       style={style}
     />
   );

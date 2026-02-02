@@ -8,13 +8,13 @@ import distance from "@turf/distance";
 import { point } from "@turf/helpers";
 
 /**
- * Calculates the distance between two points in miles, rounded to the nearest 1/10th.
+ * Calculates the distance between two points in miles, rounded to the nearest 1/1000th.
  *
  * @param lat1 - Latitude of the first point
  * @param lon1 - Longitude of the first point
  * @param lat2 - Latitude of the second point
  * @param lon2 - Longitude of the second point
- * @returns The distance in miles rounded to 1 decimal place, or null if coordinates are invalid
+ * @returns The distance in miles rounded to 3 decimal places, or null if coordinates are invalid
  */
 export const calculateDistanceInMiles = (
   lat1: number | undefined | null,
@@ -42,8 +42,8 @@ export const calculateDistanceInMiles = (
 
     const dist = distance(from, to, options);
 
-    // Round to nearest 1/10th of a mile
-    return Math.round(dist * 10) / 10;
+    // Round to nearest 1/1000th of a mile
+    return Math.round(dist * 1000) / 1000;
   } catch (error) {
     console.error("Error calculating distance:", error);
     return undefined;

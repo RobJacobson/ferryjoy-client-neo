@@ -50,6 +50,14 @@ type TimelineBarDistanceProps = {
    * Height of the progress bar in pixels.
    */
   barHeight?: number;
+  /**
+   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
+   */
+  atDockAbbrev?: string;
+  /**
+   * Whether the vessel has arrived at its destination terminal.
+   */
+  isArrived?: boolean;
   style?: ViewStyle;
 };
 
@@ -68,6 +76,8 @@ const TimelineBarDistance = ({
   speed = 0,
   circleSize = 20,
   barHeight = 12,
+  atDockAbbrev,
+  isArrived,
   style,
 }: TimelineBarDistanceProps) => {
   const nowMs = useNowMs(1000);
@@ -86,7 +96,9 @@ const TimelineBarDistance = ({
 
   // Calculate distance-based progress
   let progress = timeProgress;
-  if (
+  if (isArrived) {
+    progress = 1;
+  } else if (
     status === "InProgress" &&
     departingDistance !== undefined &&
     arrivingDistance !== undefined &&
@@ -113,6 +125,9 @@ const TimelineBarDistance = ({
       speed={speed}
       circleSize={circleSize}
       barHeight={barHeight}
+      arrivingDistance={arrivingDistance}
+      atDockAbbrev={atDockAbbrev}
+      isArrived={isArrived}
       style={style}
     />
   );

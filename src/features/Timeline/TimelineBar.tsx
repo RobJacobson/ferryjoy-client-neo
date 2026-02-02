@@ -8,7 +8,12 @@
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { LayoutAnimation, View } from "react-native";
-import { Text } from "@/components/ui";
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { shadowStyle } from "./config";
 import TimelineIndicator from "./TimelineIndicator";
 
@@ -58,6 +63,18 @@ type TimelineBarProps = {
    * Height of the progress bar in pixels.
    */
   barHeight?: number;
+  /**
+   * Distance to arriving terminal in miles.
+   */
+  arrivingDistance?: number;
+  /**
+   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
+   */
+  atDockAbbrev?: string;
+  /**
+   * Whether the vessel has arrived at its destination terminal.
+   */
+  isArrived?: boolean;
   style?: ViewStyle;
 };
 
@@ -94,8 +111,24 @@ const TimelineBar = ({
   speed = 0,
   circleSize = 20,
   barHeight = 12,
+  arrivingDistance,
+  atDockAbbrev,
+  isArrived = false,
   style,
 }: TimelineBarProps) => {
+  // Use a shared value to animate progress changes smoothly
+  const animatedProgress = useSharedValue(progress);
+
+  // Update the animated value whenever the progress prop changes
+  useEffect(() => {
+    animatedProgress.value = withSpring(progress, {
+      damping: 100,
+      stiffness: 2,
+      mass: 5,
+      overshootClamping: true,
+    });
+  }, [progress, animatedProgress]);
+
   // InProgress bars have a higher stacking order to ensure they render on top
   // of adjacent segments (important for overlapping markers).
   // We use 2 and 3 because on Android, elevation also controls shadow size;
@@ -127,20 +160,17 @@ const TimelineBar = ({
         ...style,
       }}
     >
-      <TimelineBarTrack progress={progress} barHeight={barHeight} />
+      <TimelineBarTrack progress={animatedProgress} barHeight={barHeight} />
       {isActive && (
         <TimelineIndicator
-          progress={progress}
+          progress={animatedProgress}
           minutesRemaining={minutesRemaining}
           animate={animate}
           speed={speed}
-          labelAbove={
-            vesselName ? (
-              <Text className="text-sm font-semibold" style={{ flexShrink: 0 }}>
-                {vesselName}
-              </Text>
-            ) : undefined
-          }
+          arrivingDistance={arrivingDistance}
+          vesselName={vesselName}
+          atDockAbbrev={atDockAbbrev}
+          isArrived={isArrived}
         />
       )}
     </View>
@@ -155,9 +185,9 @@ export default TimelineBar;
 
 type TimelineBarTrackProps = {
   /**
-   * Progress value between 0 and 1.
+   * Animated progress value between 0 and 1.
    */
-  progress: number;
+  progress: SharedValue<number>;
   /**
    * Height of the bar in pixels.
    */
@@ -167,18 +197,24 @@ type TimelineBarTrackProps = {
 /**
  * Renders the track + filled segment for the progress bar.
  *
- * @param progress - Value between 0 and 1
+ * @param progress - Animated value between 0 and 1
  * @param barHeight - Height of the bar in pixels
  * @returns Track + fill view
  */
-const TimelineBarTrack = ({ progress, barHeight }: TimelineBarTrackProps) => (
-  <View
-    className="flex-1 rounded-full bg-primary/20"
-    style={{ height: barHeight }}
-  >
+const TimelineBarTrack = ({ progress, barHeight }: TimelineBarTrackProps) => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  return (
     <View
-      className="rounded-full h-full bg-pink-300"
-      style={{ width: `${progress * 100}%`, ...shadowStyle }}
-    />
-  </View>
-);
+      className="flex-1 rounded-full bg-primary/20"
+      style={{ height: barHeight }}
+    >
+      <Animated.View
+        className="rounded-full h-full bg-pink-300"
+        style={[animatedStyle, shadowStyle]}
+      />
+    </View>
+  );
+};

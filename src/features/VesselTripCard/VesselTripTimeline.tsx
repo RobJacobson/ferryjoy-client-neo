@@ -85,6 +85,7 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
         status={trip.AtDock ? "InProgress" : "Completed"}
         vesselName={getVesselName(trip.VesselAbbrev)}
         circleSize={circleSize}
+        atDockAbbrev={trip.DepartingTerminalAbbrev}
       />
 
       {/* Depart Curr Marker & Label */}
@@ -102,11 +103,15 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
         arrivingDistance={currentVessel?.ArrivingDistance}
         startTimeMs={departCurrTime?.getTime()}
         endTimeMs={predictedArrivalTime?.getTime()}
-        status={!trip.AtDock ? "InProgress" : "Pending"}
+        status={
+          trip.TripEnd ? "InProgress" : !trip.AtDock ? "InProgress" : "Pending"
+        }
         vesselName={getVesselName(trip.VesselAbbrev)}
         animate={!trip.AtDock && !trip.TripEnd}
         speed={vesselSpeed}
         circleSize={circleSize}
+        atDockAbbrev={undefined}
+        isArrived={!!trip.TripEnd}
       />
 
       {/* Destination Arrive Marker & Label */}
