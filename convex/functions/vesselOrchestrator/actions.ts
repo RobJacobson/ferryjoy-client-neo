@@ -5,9 +5,11 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
+import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { calculateTimeDelta } from "shared/durationUtils";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import { terminalLocations } from "src/data/terminalLocations";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -46,6 +48,29 @@ export const updateVesselOrchestrator = internalAction({
 
       convexLocations = rawLocations
         .map(toConvexVesselLocation)
+        .map((loc) => {
+          const departingTerminal =
+            terminalLocations[loc.DepartingTerminalAbbrev];
+          const arrivingTerminal = loc.ArrivingTerminalAbbrev
+            ? terminalLocations[loc.ArrivingTerminalAbbrev]
+            : undefined;
+
+          return {
+            ...loc,
+            DepartingDistance: calculateDistanceInMiles(
+              loc.Latitude,
+              loc.Longitude,
+              departingTerminal?.Latitude,
+              departingTerminal?.Longitude
+            ),
+            ArrivingDistance: calculateDistanceInMiles(
+              loc.Latitude,
+              loc.Longitude,
+              arrivingTerminal?.Latitude,
+              arrivingTerminal?.Longitude
+            ),
+          };
+        })
         .map(convertConvexVesselLocation);
 
       // deduplicatedLocations = dedupeVesselLocationsByTimestamp(convexLocations);

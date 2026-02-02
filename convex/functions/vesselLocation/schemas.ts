@@ -35,6 +35,8 @@ export const vesselLocationValidationSchema = v.object({
   OpRouteAbbrev: v.optional(v.string()),
   VesselPositionNum: v.optional(v.number()),
   TimeStamp: v.number(),
+  DepartingDistance: v.optional(v.number()),
+  ArrivingDistance: v.optional(v.number()),
 });
 
 /**
@@ -73,6 +75,8 @@ export const toConvexVesselLocation = (
   OpRouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
   VesselPositionNum: dvl.VesselPositionNum ?? undefined,
   TimeStamp: dateToEpochMs(dvl.TimeStamp),
+  DepartingDistance: undefined,
+  ArrivingDistance: undefined,
 });
 
 /**
