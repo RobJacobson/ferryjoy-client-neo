@@ -59,6 +59,15 @@ export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
   ArrivingTime: trip.ArrivingTime
     ? epochMsToDate(trip.ArrivingTime)
     : undefined,
+  EstArriveNext: trip.EstArriveNext
+    ? epochMsToDate(trip.EstArriveNext)
+    : undefined,
+  EstArriveCurr: trip.EstArriveCurr
+    ? epochMsToDate(trip.EstArriveCurr)
+    : undefined,
+  NextDepartingTime: trip.NextDepartingTime
+    ? epochMsToDate(trip.NextDepartingTime)
+    : undefined,
 });
 
 /**

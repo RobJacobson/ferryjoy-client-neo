@@ -80,6 +80,7 @@ import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
+import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "shared/convertDates": typeof shared_convertDates;
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
+  "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;

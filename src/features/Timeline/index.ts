@@ -4,7 +4,8 @@
  */
 
 export { default as TimelineBar } from "./TimelineBar";
+export { default as TimelineBarDistance } from "./TimelineBarDistance";
+export { default as TimelineBarTime } from "./TimelineBarTime";
 export { default as TimelineDisplayTime } from "./TimelineDisplayTime";
-export { default as TimelineLabel } from "./TimelineLabel";
 export { default as TimelineLegendText } from "./TimelineLegendText";
 export { default as TimelineMarker } from "./TimelineMarker";

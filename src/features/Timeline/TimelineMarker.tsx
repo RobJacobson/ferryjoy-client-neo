@@ -6,17 +6,17 @@
  */
 
 import type { ReactNode } from "react";
-import { type DimensionValue, View } from "react-native";
+import { View } from "react-native";
 import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
 type TimelineMarkerProps = {
   /**
-   * Left position as a percentage string (e.g., "50%") or number.
+   * Optional children to render as the label below the marker.
    */
-  left: DimensionValue;
+  children?: ReactNode;
   /**
-   * Optional className to theme the marker (e.g. background/border colors).
+   * Optional className to theme the marker circle (e.g. background/border colors).
    */
   className?: string;
   /**
@@ -28,52 +28,68 @@ type TimelineMarkerProps = {
    * Size in pixels for the circle marker.
    */
   size?: number;
-  /**
-   * Optional children to render centered inside the circle (e.g., a number string).
-   */
-  children?: ReactNode;
 };
 
 /**
- * Renders an absolutely positioned circle marker with consistent sizing, positioning, and shadow.
- * The circle is vertically centered on the progress bar using top: "50%" and transform translateY,
- * and horizontally positioned based on the left prop with transform translateX to center the circle
- * on its position point. Used for visual markers at progress bar segment endpoints (0% and 100%).
+ * Renders a timeline node consisting of a circle marker and an optional label.
+ * The component has zero width to ensure it bookends the TimelineBar without
+ * consuming horizontal space in a flex layout. The label is positioned absolutely
+ * below the marker.
  *
- * @param left - Left position as percentage string (e.g., "0%", "100%") or number for horizontal placement
- * @param backgroundColor - Background color className (e.g., "bg-white", "bg-pink-300")
- * @param borderColor - Border color className (e.g., "border border-pink-500", "border-white/50")
- * @param zIndex - Optional z-index for stacking order; on Android also used as elevation
+ * @param children - Optional label content to display below the marker
+ * @param className - Optional className for styling the marker circle
+ * @param zIndex - Optional z-index for stacking order
  * @param size - Size in pixels for the circle marker (default 20)
- * @param children - Optional children to render centered inside the circle
- * @returns A View component with absolutely positioned, vertically and horizontally centered circle marker
+ * @returns A View component with a centered circle and absolutely positioned label
  */
 const TimelineMarker = ({
-  left,
-  className,
-  zIndex,
-  size = 20,
   children,
+  className,
+  zIndex = 10,
+  size = 20,
 }: TimelineMarkerProps) => {
   return (
     <View
-      className={cn(
-        "absolute rounded-full items-center justify-center",
-        className
-      )}
       pointerEvents="none"
+      className="items-center justify-center"
       style={{
-        top: "50%",
-        left,
-        transform: [{ translateX: -size / 2 }, { translateY: -size / 2 }],
-        width: size,
-        height: size,
+        // The Anchor: Zero width ensures it doesn't shift other flex elements.
+        position: "relative",
+        width: 0,
+        height: size, // Match circle size instead of 100%
         zIndex,
-        ...shadowStyle,
-        elevation: zIndex ?? shadowStyle.elevation,
+        elevation: zIndex,
       }}
     >
-      {children}
+      {/* The Circle: Automatically centered on the zero-width anchor. */}
+      <View
+        className={cn(
+          "absolute rounded-full items-center justify-center bg-white",
+          className
+        )}
+        style={{
+          width: size,
+          height: size,
+          ...shadowStyle,
+          elevation: zIndex ?? shadowStyle.elevation,
+          top: 0, // Position at top 0 of the size-constrained container
+        }}
+      />
+
+      {/* The Label: Positioned below the marker. */}
+      {children && (
+        <View
+          className="absolute flex-col items-center justify-start mt-4"
+          style={{
+            top: size, // Position below the circle
+            left: "50%",
+            transform: [{ translateX: "-50%" }],
+            width: 200, // Provide enough width for label content to center correctly
+          }}
+        >
+          {children}
+        </View>
+      )}
     </View>
   );
 };

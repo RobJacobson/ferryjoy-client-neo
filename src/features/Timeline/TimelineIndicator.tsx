@@ -3,10 +3,10 @@
  * that displays minutes remaining in a circular badge.
  */
 
-import type { ReactElement } from "react";
 import { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import Animated, {
+  type SharedValue,
   useAnimatedStyle,
   useFrameCallback,
   useSharedValue,
@@ -23,15 +23,15 @@ const INDICATOR_SIZE = 32;
 const INDICATOR_Z_INDEX = 50;
 
 /** Maximum rotation angle in degrees */
-const MAX_ROTATION_DEG = 3;
+const MAX_ROTATION_DEG = 4;
 
 /** Speed range for animation scaling (knots) */
 const MIN_SPEED_KNOTS = 0;
-const MAX_SPEED_KNOTS = 30;
+const MAX_SPEED_KNOTS = 20;
 
 /** Animation period range in milliseconds */
-const PERIOD_SLOW_MS = 15000;
-const PERIOD_FAST_MS = 5000;
+const PERIOD_SLOW_MS = 30000;
+const PERIOD_FAST_MS = 7500;
 
 /** Decay factor for returning to 0deg (per frame) */
 const DECAY_FACTOR = 0.9;
@@ -45,18 +45,17 @@ const SNAP_THRESHOLD = 0.01;
 
 type TimelineIndicatorProps = {
   /**
-   * Progress value (0-1) for horizontal positioning within the parent bar.
+   * Animated progress value (0-1) for horizontal positioning within the parent bar.
    */
-  progress: number;
+  progress: SharedValue<number>;
   /**
    * Minutes remaining to display in the indicator.
    */
   minutesRemaining?: number;
   /**
-   * Optional label content to display above the indicator.
-   * Must be a ReactElement (e.g., a Text component).
+   * Optional vessel name to display above the indicator.
    */
-  labelAbove?: ReactElement;
+  vesselName?: string;
   /**
    * Whether to animate the indicator with a rocking motion.
    */
@@ -65,6 +64,18 @@ type TimelineIndicatorProps = {
    * Current speed of the vessel in knots.
    */
   speed?: number;
+  /**
+   * Distance to arriving terminal in miles.
+   */
+  arrivingDistance?: number;
+  /**
+   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
+   */
+  atDockAbbrev?: string;
+  /**
+   * Whether the vessel has arrived at its destination terminal.
+   */
+  isArrived?: boolean;
 };
 
 // ============================================================================
@@ -150,14 +161,21 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
 const TimelineIndicator = ({
   progress,
   minutesRemaining,
-  labelAbove,
+  vesselName,
   animate = false,
   speed = 0,
+  arrivingDistance,
+  atDockAbbrev,
+  isArrived = false,
 }: TimelineIndicatorProps) => {
   const displayMinutes =
     minutesRemaining === undefined ? "--" : String(minutesRemaining);
 
   const rockingStyle = useRockingAnimation(animate, speed);
+
+  const animatedPositionStyle = useAnimatedStyle(() => ({
+    left: `${progress.value * 100}%`,
+  }));
 
   return (
     <Animated.View
@@ -167,7 +185,6 @@ const TimelineIndicator = ({
       style={[
         {
           top: "50%",
-          left: `${progress * 100}%`,
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
           zIndex: INDICATOR_Z_INDEX,
@@ -175,10 +192,14 @@ const TimelineIndicator = ({
           overflow: "visible",
         },
         rockingStyle,
+        animatedPositionStyle,
       ]}
     >
       {/* Label above indicator - centered horizontally via items-center on parent */}
-      {labelAbove && (
+      {(vesselName ||
+        arrivingDistance !== undefined ||
+        atDockAbbrev ||
+        isArrived) && (
         <View
           pointerEvents="none"
           collapsable={false}
@@ -188,7 +209,27 @@ const TimelineIndicator = ({
             width: 200, // Sufficient width to prevent wrapping
           }}
         >
-          {labelAbove}
+          {vesselName && (
+            <Text
+              className="text-sm font-semibold leading-none"
+              style={{ flexShrink: 0 }}
+            >
+              {vesselName}
+            </Text>
+          )}
+          {isArrived && (
+            <Text className="text-xs text-muted-foreground">💕 Arrived 💕</Text>
+          )}
+          {atDockAbbrev && (
+            <Text className="text-xs text-muted-foreground">
+              At Dock {atDockAbbrev}
+            </Text>
+          )}
+          {arrivingDistance !== undefined && !isArrived && (
+            <Text className="text-xs text-muted-foreground">
+              {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
+            </Text>
+          )}
         </View>
       )}
       {/* Indicator circle */}
