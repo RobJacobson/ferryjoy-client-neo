@@ -23,15 +23,15 @@ const INDICATOR_SIZE = 32;
 const INDICATOR_Z_INDEX = 50;
 
 /** Maximum rotation angle in degrees */
-const MAX_ROTATION_DEG = 3;
+const MAX_ROTATION_DEG = 4;
 
 /** Speed range for animation scaling (knots) */
 const MIN_SPEED_KNOTS = 0;
 const MAX_SPEED_KNOTS = 30;
 
 /** Animation period range in milliseconds */
-const PERIOD_SLOW_MS = 15000;
-const PERIOD_FAST_MS = 5000;
+const PERIOD_SLOW_MS = 20000;
+const PERIOD_FAST_MS = 7500;
 
 /** Decay factor for returning to 0deg (per frame) */
 const DECAY_FACTOR = 0.9;

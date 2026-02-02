@@ -9,11 +9,8 @@ import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { LayoutAnimation, View } from "react-native";
 import { Text } from "@/components/ui";
-import { useNowMs } from "@/shared/hooks";
-import { TimelineBarTrack } from "./TimelineBarTrack";
+import { shadowStyle } from "./config";
 import TimelineIndicator from "./TimelineIndicator";
-import TimelineMarker from "./TimelineMarker";
-import { getTimelineLayout } from "./utils";
 
 // ============================================================================
 // Types
@@ -23,13 +20,17 @@ export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
 
 type TimelineBarProps = {
   /**
-   * Start time in milliseconds for progress calculation.
+   * Progress value between 0 and 1.
    */
-  startTimeMs?: number;
+  progress: number;
   /**
-   * End time in milliseconds for progress calculation.
+   * Duration in minutes (used for flex-grow width allocation).
    */
-  endTimeMs?: number;
+  duration: number;
+  /**
+   * Minutes remaining until end of segment.
+   */
+  minutesRemaining?: number;
   /**
    * Status of the progress bar segment.
    * - "Pending": Progress locked at 0%, no indicator shown
@@ -65,27 +66,28 @@ type TimelineBarProps = {
 // ============================================================================
 
 /**
- * Renders a horizontal progress bar that calculates progress automatically from time values.
- * The bar consists of a background track, a filled progress portion, circles at each end,
- * and optionally a progress indicator when active.
+ * Renders a horizontal progress bar that displays progress based on provided values.
+ * The bar consists of a background track, a filled progress portion, and optionally
+ * a progress indicator when active.
  *
- * Width is determined via FlexBox `flexGrow`, derived from segment's time interval.
- * Current time is obtained from context.
+ * Width is determined via FlexBox `flexGrow`, derived from segment's duration.
  *
- * @param startTimeMs - Start time in milliseconds for progress calculation
- * @param endTimeMs - End time in milliseconds for progress calculation
+ * @param progress - Progress value between 0 and 1
+ * @param duration - Duration in minutes for width allocation
+ * @param minutesRemaining - Minutes remaining until end of segment
  * @param status - Status of the progress bar segment (default "Pending")
  * @param vesselName - Optional vessel name to display above the indicator when in progress
  * @param animate - Whether to animate the progress indicator when at sea
+ * @param speed - Current speed of the vessel in knots
  * @param circleSize - Size of the circle markers in pixels (default 20)
  * @param barHeight - Height of the progress bar in pixels (default 12)
- * @param className - Additional CSS classes for styling
  * @param style - Additional inline styles
- * @returns A View containing the progress bar with circles and optional indicator
+ * @returns A View containing the progress bar and optional indicator
  */
 const TimelineBar = ({
-  startTimeMs,
-  endTimeMs,
+  progress,
+  duration,
+  minutesRemaining,
   status,
   vesselName,
   animate = false,
@@ -94,22 +96,11 @@ const TimelineBar = ({
   barHeight = 12,
   style,
 }: TimelineBarProps) => {
-  const nowMs = useNowMs(1000);
-
-  // Calculate layout and progress
-  const { progress, minutesRemaining, duration } = getTimelineLayout({
-    status,
-    nowMs,
-    startTimeMs,
-    endTimeMs,
-  });
-
   // InProgress bars have a higher stacking order to ensure they render on top
   // of adjacent segments (important for overlapping markers).
   // We use 2 and 3 because on Android, elevation also controls shadow size;
   // these values keep the shadow refined while enforcing the correct order.
   const isActive = status === "InProgress";
-  const effectiveStacking = isActive ? 3 : 2;
   const flexGrow = style?.flexGrow ?? duration ?? 1;
 
   // Animate layout changes (like flexGrow/width) when they change
@@ -128,8 +119,6 @@ const TimelineBar = ({
       className="relative flex-row items-center"
       style={{
         overflow: "visible",
-        zIndex: effectiveStacking,
-        elevation: effectiveStacking,
         flexGrow: flexGrow,
         flexShrink: 1,
         flexBasis: 0,
@@ -138,17 +127,7 @@ const TimelineBar = ({
         ...style,
       }}
     >
-      <TimelineMarker
-        className="bg-white border border-pink-500"
-        zIndex={effectiveStacking + 1}
-        size={circleSize}
-      />
       <TimelineBarTrack progress={progress} barHeight={barHeight} />
-      <TimelineMarker
-        className="bg-white border border-pink-500"
-        zIndex={effectiveStacking + 1}
-        size={circleSize}
-      />
       {isActive && (
         <TimelineIndicator
           progress={progress}
@@ -169,3 +148,37 @@ const TimelineBar = ({
 };
 
 export default TimelineBar;
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
+
+type TimelineBarTrackProps = {
+  /**
+   * Progress value between 0 and 1.
+   */
+  progress: number;
+  /**
+   * Height of the bar in pixels.
+   */
+  barHeight: number;
+};
+
+/**
+ * Renders the track + filled segment for the progress bar.
+ *
+ * @param progress - Value between 0 and 1
+ * @param barHeight - Height of the bar in pixels
+ * @returns Track + fill view
+ */
+const TimelineBarTrack = ({ progress, barHeight }: TimelineBarTrackProps) => (
+  <View
+    className="flex-1 rounded-full bg-primary/20"
+    style={{ height: barHeight }}
+  >
+    <View
+      className="rounded-full h-full bg-pink-300"
+      style={{ width: `${progress * 100}%`, ...shadowStyle }}
+    />
+  </View>
+);

@@ -9,10 +9,11 @@ import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLoc
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
 import {
-  TimelineBar,
+  TimelineBarDistance,
+  TimelineBarTime,
   TimelineDisplayTime,
-  TimelineLabel,
   TimelineLegendText,
+  TimelineMarker,
 } from "../Timeline";
 import { getArrivalTime, getDepartureTime } from "../Timeline/utils";
 
@@ -58,41 +59,64 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
   const departCurrTime = getDepartureTime(trip);
   const predictedArrivalTime = getArrivalTime(trip);
 
+  const circleSize = 20;
+
   return (
     <View
       className={cn(
         "relative flex-row items-center justify-between w-full overflow-visible m-2 pr-4",
         className
       )}
+      style={{ minHeight: 80 }} // Ensure enough height for markers and labels
     >
-      {/* At Dock Start Label */}
-      <TimelineLabel>
+      {/* At Dock Start Marker & Label */}
+      <TimelineMarker
+        size={circleSize}
+        className="bg-white border border-pink-500"
+        zIndex={10}
+      >
         <ArriveCurrLabel trip={trip} />
-      </TimelineLabel>
+      </TimelineMarker>
+
       {/* At Dock Progress Bar */}
-      <TimelineBar
+      <TimelineBarTime
         startTimeMs={arriveCurrTime?.getTime()}
         endTimeMs={departCurrTime?.getTime()}
         status={trip.AtDock ? "InProgress" : "Completed"}
         vesselName={getVesselName(trip.VesselAbbrev)}
+        circleSize={circleSize}
       />
-      {/* Depart Curr Label */}
-      <TimelineLabel>
+
+      {/* Depart Curr Marker & Label */}
+      <TimelineMarker
+        size={circleSize}
+        className="bg-white border border-pink-500"
+        zIndex={10}
+      >
         <DepartCurrLabel trip={trip} />
-      </TimelineLabel>
+      </TimelineMarker>
+
       {/* At Sea Progress Bar */}
-      <TimelineBar
+      <TimelineBarDistance
+        departingDistance={currentVessel?.DepartingDistance}
+        arrivingDistance={currentVessel?.ArrivingDistance}
         startTimeMs={departCurrTime?.getTime()}
         endTimeMs={predictedArrivalTime?.getTime()}
         status={!trip.AtDock ? "InProgress" : "Pending"}
         vesselName={getVesselName(trip.VesselAbbrev)}
         animate={!trip.AtDock && !trip.TripEnd}
         speed={vesselSpeed}
+        circleSize={circleSize}
       />
-      {/* Destination Arrive Label */}
-      <TimelineLabel>
+
+      {/* Destination Arrive Marker & Label */}
+      <TimelineMarker
+        size={circleSize}
+        className="bg-white border border-pink-500"
+        zIndex={10}
+      >
         <DestinationArriveLabel trip={trip} />
-      </TimelineLabel>
+      </TimelineMarker>
     </View>
   );
 };

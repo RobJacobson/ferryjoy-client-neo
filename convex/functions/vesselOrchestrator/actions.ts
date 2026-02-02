@@ -7,9 +7,9 @@ import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { calculateTimeDelta } from "shared/durationUtils";
+import { terminalLocations } from "src/data/terminalLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { terminalLocations } from "src/data/terminalLocations";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
