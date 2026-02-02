@@ -4,6 +4,7 @@ import {
 } from "../../../domain/ml/shared/config";
 import { roundUpToNextMinute } from "../../../shared/durationUtils";
 import type { ConvexScheduledTrip } from "../schemas";
+import { getOfficialCrossingTimeMinutes } from "./officialCrossingTimes";
 
 /**
  * Classifies trips as direct or indirect using a two-pointer chronological scan.
@@ -262,6 +263,8 @@ const calculateDirectTripArrivals = (
     ...trip,
     EstArriveNext:
       trip.TripType === "direct" ? calculateEstArriveNext(trip) : undefined,
+    SchedArriveNext:
+      trip.TripType === "direct" ? calculateSchedArriveNext(trip) : undefined,
   }));
 };
 
@@ -283,11 +286,15 @@ const calculateIndirectTripArrivals = (
     }
 
     // Indirect trip: find the completion direct trip
-    const completionArrival = findCompletionArrival(trip, directArrivalLookup);
+    const completionArrivals = findCompletionArrivals(
+      trip,
+      directArrivalLookup
+    );
 
     return {
       ...trip,
-      EstArriveNext: completionArrival,
+      EstArriveNext: completionArrivals.estArriveNext,
+      SchedArriveNext: completionArrivals.schedArriveNext,
     };
   });
 };
@@ -307,6 +314,7 @@ const calculateTripConnections = (
   trips: ConvexScheduledTrip[]
 ): ConvexScheduledTrip[] => {
   const lastArriveByTerminal: Record<string, number | undefined> = {};
+  const lastSchedArriveByTerminal: Record<string, number | undefined> = {};
   const lastDirectKeyByArrivingTerminal: Record<string, string | undefined> =
     {};
   const enhancedTrips: ConvexScheduledTrip[] = [];
@@ -354,6 +362,17 @@ const calculateTripConnections = (
         estArriveCurr = undefined;
       }
 
+      // SchedArriveCurr: last known DIRECT official arrival into the current departing terminal,
+      // but only if it's <= DepartingTime (avoid negative layover time).
+      let schedArriveCurr =
+        lastSchedArriveByTerminal[trip.DepartingTerminalAbbrev];
+      if (
+        schedArriveCurr !== undefined &&
+        schedArriveCurr > trip.DepartingTime
+      ) {
+        schedArriveCurr = undefined;
+      }
+
       enhancedTrips.push({
         ...trip,
         // Prev/Next are keyed to the vessel's DIRECT trip chain, not indirect options.
@@ -361,6 +380,7 @@ const calculateTripConnections = (
         NextKey: nextDirectKey,
         NextDepartingTime: nextDirectDepartingTime,
         EstArriveCurr: estArriveCurr,
+        SchedArriveCurr: schedArriveCurr,
       });
     }
 
@@ -371,9 +391,14 @@ const calculateTripConnections = (
       if (!trip) continue;
 
       if (trip.TripType !== "direct") continue;
-      if (trip.EstArriveNext === undefined) continue;
 
-      lastArriveByTerminal[trip.ArrivingTerminalAbbrev] = trip.EstArriveNext;
+      if (trip.EstArriveNext !== undefined) {
+        lastArriveByTerminal[trip.ArrivingTerminalAbbrev] = trip.EstArriveNext;
+      }
+      if (trip.SchedArriveNext !== undefined) {
+        lastSchedArriveByTerminal[trip.ArrivingTerminalAbbrev] =
+          trip.SchedArriveNext;
+      }
       lastDirectKeyByArrivingTerminal[trip.ArrivingTerminalAbbrev] = trip.Key;
     }
 
@@ -417,6 +442,30 @@ const calculateEstArriveNext = (
 };
 
 /**
+ * Calculates official arrival time at the next terminal using WSF official crossing times.
+ *
+ * @param trip - Scheduled trip with departure and terminal information
+ * @returns Official arrival time in milliseconds, or undefined if not configured
+ */
+const calculateSchedArriveNext = (
+  trip: ConvexScheduledTrip
+): number | undefined => {
+  const officialDurationMinutes = getOfficialCrossingTimeMinutes({
+    routeAbbrev: trip.RouteAbbrev,
+    departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+  });
+
+  if (officialDurationMinutes === undefined) {
+    return undefined;
+  }
+
+  const officialArrivalMs =
+    trip.DepartingTime + officialDurationMinutes * 60 * 1000;
+  return roundUpToNextMinute(officialArrivalMs);
+};
+
+/**
  * Builds a lookup structure for matching indirect trips to their completion
  * direct trips. Organizes direct trips by vessel and arrival terminal for
  * efficient searching.
@@ -426,15 +475,31 @@ const calculateEstArriveNext = (
  */
 const buildDirectArrivalLookup = (
   trips: ConvexScheduledTrip[]
-): Map<string, Array<{ departureTime: number; arrivalTime: number }>> => {
+): Map<
+  string,
+  Array<{
+    departureTime: number;
+    estArrivalTime: number | undefined;
+    schedArrivalTime: number | undefined;
+  }>
+> => {
   const lookup = new Map<
     string,
-    Array<{ departureTime: number; arrivalTime: number }>
+    Array<{
+      departureTime: number;
+      estArrivalTime: number | undefined;
+      schedArrivalTime: number | undefined;
+    }>
   >();
 
   for (const trip of trips) {
     if (trip.TripType !== "direct") continue;
-    if (trip.EstArriveNext === undefined) continue;
+    if (
+      trip.EstArriveNext === undefined &&
+      trip.SchedArriveNext === undefined
+    ) {
+      continue;
+    }
 
     const key = `${trip.VesselAbbrev}->${trip.ArrivingTerminalAbbrev}`;
 
@@ -444,7 +509,8 @@ const buildDirectArrivalLookup = (
 
     lookup.get(key)?.push({
       departureTime: trip.DepartingTime,
-      arrivalTime: trip.EstArriveNext,
+      estArrivalTime: trip.EstArriveNext,
+      schedArrivalTime: trip.SchedArriveNext,
     });
   }
 
@@ -457,31 +523,27 @@ const buildDirectArrivalLookup = (
 };
 
 /**
- * Finds the estimated arrival time for an indirect trip by matching it to
+ * Finds the estimated and official arrival times for an indirect trip by matching it to
  * the direct trip that completes the vessel's journey.
- *
- * Algorithm:
- * 1. Look up direct trips for the same vessel arriving at the indirect trip's
- *    arrival terminal
- * 2. Find the first direct trip that departs AFTER the indirect trip's departure
- * 3. Return that direct trip's arrival time
- *
- * This works because:
- * - Indirect trips represent the vessel's complete journey from departure to arrival
- * - The vessel will physically make the same stops and end at the same terminal
- * - The direct trip that departs from that arrival terminal completes the journey
  *
  * @param indirectTrip - The indirect trip to find completion arrival for
  * @param directArrivalLookup - Lookup map of direct trip arrivals
- * @returns Estimated arrival time, or undefined if not found
+ * @returns Object containing estArriveNext and schedArriveNext
  */
-const findCompletionArrival = (
+const findCompletionArrivals = (
   indirectTrip: ConvexScheduledTrip,
   directArrivalLookup: Map<
     string,
-    Array<{ departureTime: number; arrivalTime: number }>
+    Array<{
+      departureTime: number;
+      estArrivalTime: number | undefined;
+      schedArrivalTime: number | undefined;
+    }>
   >
-): number | undefined => {
+): {
+  estArriveNext: number | undefined;
+  schedArriveNext: number | undefined;
+} => {
   const key = `${indirectTrip.VesselAbbrev}->${indirectTrip.ArrivingTerminalAbbrev}`;
   const arrivals = directArrivalLookup.get(key);
 
@@ -490,11 +552,10 @@ const findCompletionArrival = (
       `No direct trips found matching ${indirectTrip.VesselAbbrev}->` +
         `${indirectTrip.ArrivingTerminalAbbrev} for indirect trip ${indirectTrip.Key}`
     );
-    return undefined;
+    return { estArriveNext: undefined, schedArriveNext: undefined };
   }
 
   // Find the first direct trip that departs AFTER the indirect trip's departure
-  // Use binary search or simple iteration (sorted by departure time)
   const completionTrip = arrivals.find(
     (arrival) => arrival.departureTime > indirectTrip.DepartingTime
   );
@@ -504,8 +565,11 @@ const findCompletionArrival = (
       `No direct trip departing after ${new Date(indirectTrip.DepartingTime).toISOString()} ` +
         `found for ${indirectTrip.VesselAbbrev}->${indirectTrip.ArrivingTerminalAbbrev}`
     );
-    return undefined;
+    return { estArriveNext: undefined, schedArriveNext: undefined };
   }
 
-  return completionTrip.arrivalTime;
+  return {
+    estArriveNext: completionTrip.estArrivalTime,
+    schedArriveNext: completionTrip.schedArrivalTime,
+  };
 };

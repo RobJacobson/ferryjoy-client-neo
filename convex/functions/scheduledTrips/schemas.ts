@@ -38,6 +38,8 @@ export const scheduledTripSchema = v.object({
   NextDepartingTime: v.optional(v.number()),
   EstArriveNext: v.optional(v.number()),
   EstArriveCurr: v.optional(v.number()),
+  SchedArriveNext: v.optional(v.number()),
+  SchedArriveCurr: v.optional(v.number()),
 });
 
 /**
@@ -64,6 +66,12 @@ export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
     : undefined,
   EstArriveCurr: trip.EstArriveCurr
     ? epochMsToDate(trip.EstArriveCurr)
+    : undefined,
+  SchedArriveNext: trip.SchedArriveNext
+    ? epochMsToDate(trip.SchedArriveNext)
+    : undefined,
+  SchedArriveCurr: trip.SchedArriveCurr
+    ? epochMsToDate(trip.SchedArriveCurr)
     : undefined,
   NextDepartingTime: trip.NextDepartingTime
     ? epochMsToDate(trip.NextDepartingTime)
