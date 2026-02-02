@@ -187,11 +187,11 @@ const AnimatedWave = memo(
               {/* 
                 We use a layered approach for the image to prevent pop-in.
                 The placeholder keeps the pattern active while the high-res 
-                texture is being decoded by the native engine.
+                texture is being decoded by the native6 engine.
             */}
-              <SvgImage href={PLACEHOLDER} width={512} height={512} />
+              {/* <SvgImage href={PLACEHOLDER} width={1} height={1} /> */}
               <SvgImage
-                href={require("../../../assets/textures/paper-texture-5-bw.png")}
+                href={require("../../../assets/textures/paper-texture-4-bw.png")}
                 width={512}
                 height={512}
                 preserveAspectRatio="xMidYMid slice"
@@ -203,19 +203,25 @@ const AnimatedWave = memo(
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.04}
+            fillOpacity={0.03}
+            transform="translate(-12, -3)"
+          />
+          <Path
+            d={pathData}
+            fill="black"
+            fillOpacity={0.03}
             transform="translate(-9, -2)"
           />
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.04}
+            fillOpacity={0.03}
             transform="translate(-6, -1)"
           />
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.04}
+            fillOpacity={0.03}
             transform="translate(-3, -0.5)"
           />
 
@@ -233,7 +239,7 @@ const AnimatedWave = memo(
           <Path
             d={pathData}
             fill={`url(#${LOCAL_TEXTURE_ID})`}
-            fillOpacity={0.2}
+            fillOpacity={0.25}
           />
         </Svg>
       </Animated.View>
