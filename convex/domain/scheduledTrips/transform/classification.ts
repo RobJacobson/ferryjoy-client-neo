@@ -53,22 +53,24 @@ const resolveOverlappingGroup = (
     return trips.map((trip) => ({ ...trip, TripType: "direct" }));
   }
 
-  // Find the trip that goes to the next departure terminal
-  const hasDirectMatch = trips.some(
+  const directMatch = trips.find(
     (trip) => trip.ArrivingTerminalAbbrev === nextTerminal
   );
 
-  if (!hasDirectMatch) {
+  if (!directMatch) {
     console.warn(
       `[CLASSIFY] No trip matches next terminal ${nextTerminal} for ${vesselAbbrev} at ${new Date(departingTime).toISOString()}`
     );
   }
 
+  const directKey = directMatch?.Key;
+
   return trips.map((trip) => ({
     ...trip,
     TripType:
-      !hasDirectMatch || trip.ArrivingTerminalAbbrev === nextTerminal
+      !directMatch || trip.ArrivingTerminalAbbrev === nextTerminal
         ? "direct"
         : "indirect",
+    DirectKey: directKey,
   }));
 };

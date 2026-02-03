@@ -39,7 +39,7 @@ When we sync data, we run a functional transformation pipeline:
 
 ### 2. Query Pipeline (`convex/domain/scheduledTrips/journeys.ts`)
 When a user views a terminal schedule, we reconstruct the journeys on-the-fly:
-
+c
 *   **Physical Scan**: We fetch all departures from the requested terminal for the current Sailing Day and group them into physical movements.
 *   **Chain Reconstruction**: Starting from the "Direct" segment of a departure, we follow the `NextKey` pointers until we reach the final destination of that logical journey.
 *   **Intelligent Target Selection**: If a user is looking at a specific destination (e.g., "Anacortes to Friday Harbor"), we pick that specific chain. If they are looking at "All Departures," we pick the furthest destination in each physical chain to represent the boat's full path.

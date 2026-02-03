@@ -201,26 +201,105 @@ export const toConvexVesselTrip = (
  * Manual conversion from epoch milliseconds to Date objects.
  *
  * @param trip - Convex vessel trip with numeric timestamps
- * @returns Domain vessel trip with Date objects
+ * @returns Domain vessel trip with Date objects and resolved predictions
  */
-export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
-  ...trip,
-  ScheduledTrip: trip.ScheduledTrip
-    ? toDomainScheduledTrip(trip.ScheduledTrip)
-    : undefined,
-  ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
-  Eta: optionalEpochMsToDate(trip.Eta),
-  LeftDock: optionalEpochMsToDate(trip.LeftDock),
-  TimeStamp: epochMsToDate(trip.TimeStamp),
-  TripStart: optionalEpochMsToDate(trip.TripStart),
-  TripEnd: optionalEpochMsToDate(trip.TripEnd),
-  // ML model predictions
-  AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
-  AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
-  AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
-  AtSeaArriveNext: optionalToDomainPrediction(trip.AtSeaArriveNext),
-  AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
-});
+export const toDomainVesselTrip = (trip: ConvexVesselTrip): VesselTrip => {
+  const domainTrip = {
+    ...trip,
+    ScheduledTrip: trip.ScheduledTrip
+      ? toDomainScheduledTrip(trip.ScheduledTrip)
+      : undefined,
+    ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
+    Eta: optionalEpochMsToDate(trip.Eta),
+    LeftDock: optionalEpochMsToDate(trip.LeftDock),
+    TimeStamp: epochMsToDate(trip.TimeStamp),
+    TripStart: optionalEpochMsToDate(trip.TripStart),
+    TripEnd: optionalEpochMsToDate(trip.TripEnd),
+    // ML model predictions
+    AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
+    AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
+    AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
+    AtSeaArriveNext: optionalToDomainPrediction(trip.AtSeaArriveNext),
+    AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
+  };
+
+  return {
+    ...domainTrip,
+    predictions: resolvePredictions(domainTrip),
+  };
+};
+
+/**
+ * Resolves the best available prediction for each milestone.
+ *
+ * @param trip - Domain vessel trip with Date-converted predictions
+ * @returns Resolved predictions for all milestones
+ */
+const resolvePredictions = (
+  trip: Omit<VesselTrip, "predictions">
+): ResolvedPredictions => {
+  // 1. Depart Current
+  const departCurr =
+    trip.LeftDock !== undefined
+      ? {
+          time: trip.LeftDock,
+          source: "wsf" as const,
+          variant: "at-dock" as const,
+        }
+      : trip.AtDockDepartCurr
+        ? {
+            time: trip.AtDockDepartCurr.PredTime,
+            source: "ml" as const,
+            variant: "at-dock" as const,
+            prediction: trip.AtDockDepartCurr,
+          }
+        : null;
+
+  // 2. Arrive Next
+  const arriveNext =
+    trip.TripEnd !== undefined
+      ? {
+          time: trip.TripEnd,
+          source: "wsf" as const,
+          variant: "at-sea" as const,
+        }
+      : trip.Eta !== undefined
+        ? { time: trip.Eta, source: "wsf" as const, variant: "at-sea" as const }
+        : trip.AtSeaArriveNext
+          ? {
+              time: trip.AtSeaArriveNext.PredTime,
+              source: "ml" as const,
+              variant: "at-sea" as const,
+              prediction: trip.AtSeaArriveNext,
+            }
+          : trip.AtDockArriveNext
+            ? {
+                time: trip.AtDockArriveNext.PredTime,
+                source: "ml" as const,
+                variant: "at-dock" as const,
+                prediction: trip.AtDockArriveNext,
+              }
+            : null;
+
+  // 3. Depart Next
+  const departNext = trip.AtSeaDepartNext
+    ? {
+        time: trip.AtSeaDepartNext.PredTime,
+        source: "ml" as const,
+        variant: "at-sea" as const,
+        prediction: trip.AtSeaDepartNext,
+      }
+    : trip.AtDockDepartNext
+      ? {
+          time: trip.AtDockDepartNext.PredTime,
+          source: "ml" as const,
+          variant: "at-dock" as const,
+          prediction: trip.AtDockDepartNext,
+        }
+      : null;
+
+  return { departCurr, arriveNext, departNext };
+};
 
 /**
  * A vessel trip that has all required fields for making predictions.
@@ -236,7 +315,56 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
 };
 
 /**
+ * A resolved prediction that abstracts away the source (ML vs WSF) and variant (at-dock vs at-sea).
+ */
+export type ResolvedPrediction = {
+  time: Date;
+  source: "wsf" | "ml";
+  variant: "at-dock" | "at-sea" | "scheduled";
+  prediction?: Prediction; // Original ML prediction if source is 'ml'
+};
+
+/**
+ * Standardized set of predictions for a vessel trip milestones.
+ */
+export type ResolvedPredictions = {
+  departCurr: ResolvedPrediction | null;
+  arriveNext: ResolvedPrediction | null;
+  departNext: ResolvedPrediction | null;
+};
+
+/**
  * Type for active vessel trip in domain layer (with Date objects)
  * Inferred from the return type of our conversion function
  */
-export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
+export type VesselTrip = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev?: string;
+  RouteID: number;
+  RouteAbbrev: string;
+  Key?: string;
+  SailingDay: string;
+  ScheduledTrip?: ReturnType<typeof toDomainScheduledTrip>;
+  PrevTerminalAbbrev?: string;
+  TripStart?: Date;
+  AtDock: boolean;
+  AtDockDuration?: number;
+  ScheduledDeparture?: Date;
+  LeftDock?: Date;
+  TripDelay?: number;
+  Eta?: Date;
+  TripEnd?: Date;
+  AtSeaDuration?: number;
+  TotalDuration?: number;
+  InService: boolean;
+  TimeStamp: Date;
+  PrevScheduledDeparture?: number;
+  PrevLeftDock?: number;
+  AtDockDepartCurr?: Prediction;
+  AtDockArriveNext?: Prediction;
+  AtDockDepartNext?: Prediction;
+  AtSeaArriveNext?: Prediction;
+  AtSeaDepartNext?: Prediction;
+  predictions: ResolvedPredictions;
+};

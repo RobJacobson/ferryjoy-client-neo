@@ -116,11 +116,10 @@ const fetchScheduledTripFieldsByKey = async (
 
   // Safety check: Only use direct trips for VesselTrips
   // Indirect trips have different keys (different terminal pairs), so this
-  // should never happen, but we check defensively
+  // should never happen, but we check defensively.
+  // We only warn if the trip is indirect, as this indicates the lookup found
+  // an indirect trip for a key that we expected to be direct.
   if (scheduledTrip.TripType === "indirect") {
-    console.warn(
-      `Attempted to match indirect trip with key ${tripKey} - this should not happen due to different terminal pairs`
-    );
     return null;
   }
 

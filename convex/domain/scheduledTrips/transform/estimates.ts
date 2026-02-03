@@ -109,7 +109,9 @@ const linkVesselSegments = (
       // Find the specific trip in the backfilled array to get its calculated arrivals
       const backfilled = trips.find((t) => t.Key === trip.Key);
       if (!backfilled) {
-        throw new Error(`[ESTIMATES] Trip ${trip.Key} not found in backfilled array`);
+        throw new Error(
+          `[ESTIMATES] Trip ${trip.Key} not found in backfilled array`
+        );
       }
       return {
         ...tripWithConnections,
