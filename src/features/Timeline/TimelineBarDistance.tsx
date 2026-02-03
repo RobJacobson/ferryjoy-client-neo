@@ -31,6 +31,12 @@ type TimelineBarDistanceProps = {
    */
   status: TimelineBarStatus;
   /**
+   * Optional prediction for the end time of this segment.
+   * If provided, progress will be calculated against this instead of endTimeMs
+   * when the vessel is delayed.
+   */
+  predictionEndTimeMs?: number;
+  /**
    * Optional vessel name to display above the progress indicator.
    */
   vesselName?: string;
@@ -71,6 +77,7 @@ const TimelineBarDistance = ({
   startTimeMs,
   endTimeMs,
   status,
+  predictionEndTimeMs,
   vesselName,
   animate = false,
   speed = 0,
@@ -92,6 +99,7 @@ const TimelineBarDistance = ({
     nowMs,
     startTimeMs,
     endTimeMs,
+    predictionEndTimeMs,
   });
 
   // Calculate distance-based progress

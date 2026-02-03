@@ -121,13 +121,22 @@ const TimelineBar = ({
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
-    animatedProgress.value = withSpring(progress, {
-      damping: 100,
-      stiffness: 2,
-      mass: 5,
-      overshootClamping: true,
-    });
-  }, [progress, animatedProgress]);
+    // If progress is 0, we want to jump to it immediately to prevent
+    // "leaking" progress from a previous segment when components are recycled.
+    // We use a small epsilon for floating point safety.
+    if (progress <= 0.001 || status === "Pending") {
+      animatedProgress.value = 0;
+    } else if (status === "Completed") {
+      animatedProgress.value = 1;
+    } else {
+      animatedProgress.value = withSpring(progress, {
+        damping: 100,
+        stiffness: 2,
+        mass: 5,
+        overshootClamping: true,
+      });
+    }
+  }, [progress, animatedProgress, status]);
 
   // InProgress bars have a higher stacking order to ensure they render on top
   // of adjacent segments (important for overlapping markers).
