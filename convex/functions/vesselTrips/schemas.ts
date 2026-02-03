@@ -1,6 +1,9 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+import {
+  scheduledTripSchema,
+  toDomainScheduledTrip,
+} from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
@@ -202,6 +205,9 @@ export const toConvexVesselTrip = (
  */
 export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
   ...trip,
+  ScheduledTrip: trip.ScheduledTrip
+    ? toDomainScheduledTrip(trip.ScheduledTrip)
+    : undefined,
   ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
   Eta: optionalEpochMsToDate(trip.Eta),
   LeftDock: optionalEpochMsToDate(trip.LeftDock),

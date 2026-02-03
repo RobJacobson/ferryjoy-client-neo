@@ -9,6 +9,7 @@ import {
   fetchVesselHistoriesByVesselAndDates,
 } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import { getSailingDay } from "../../../../shared/time";
 import { config } from "../../shared/config";
 
 /**
@@ -186,21 +187,20 @@ const fetchVesselData = async (
   const sampleRecords = options?.sampleRecords ?? true;
   console.log(`Fetching data for vessel: ${vesselName}`);
 
-  // Calculate date range
-  const endDate = new Date();
-  const startDate = new Date(
-    endDate.getTime() - config.getDaysBack() * 24 * 60 * 60 * 1000
+  // Calculate date range using sailing day logic
+  const now = new Date();
+  const endDateStr = getSailingDay(now);
+  const startDateStr = getSailingDay(
+    new Date(now.getTime() - config.getDaysBack() * 24 * 60 * 60 * 1000)
   );
-  const dateStart = startDate.toISOString().split("T")[0]; // YYYY-MM-DD
-  const dateEnd = endDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
   try {
     // Fetch vessel history
     const historyRecords = await fetchVesselHistoriesByVesselAndDates({
       params: {
         VesselName: vesselName || "",
-        DateStart: dateStart,
-        DateEnd: dateEnd,
+        DateStart: startDateStr,
+        DateEnd: endDateStr,
       },
     });
 
@@ -224,8 +224,8 @@ const fetchVesselData = async (
     const formatted = formatUnknownError(error);
     console.error(`Failed to fetch data for vessel ${vesselName}`, {
       vesselName,
-      dateStart,
-      dateEnd,
+      dateStart: startDateStr,
+      dateEnd: endDateStr,
       samplingStrategy: config.getSamplingStrategy(),
       maxRecordsPerVessel: config.getMaxRecordsPerVessel(),
       error: formatted,

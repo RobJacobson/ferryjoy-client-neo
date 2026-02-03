@@ -29,6 +29,47 @@ export const getActiveTrips = query({
 });
 
 /**
+ * API function for fetching all vessel trips for a specific sailing day.
+ * Used to show historical actual data on the daily schedule.
+ *
+ * @param ctx - Convex context
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format
+ * @returns Array of vessel trip documents for that day
+ */
+export const getVesselTripsForSailingDay = query({
+  args: { sailingDay: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      // We search both active and completed trips to get a full picture of the day
+      const [active, completed] = await Promise.all([
+        ctx.db.query("activeVesselTrips").collect(),
+        ctx.db
+          .query("completedVesselTrips")
+          .withIndex("by_timestamp", (q) => q.gte("TimeStamp", 0))
+          .collect(),
+      ]);
+
+      // Filter for the specific sailing day.
+      // Note: In a production app, we'd want a proper index on SailingDay for completedVesselTrips too.
+      const allTrips = [...active, ...completed].filter(
+        (t) =>
+          t.SailingDay === args.sailingDay ||
+          t.ScheduledTrip?.SailingDay === args.sailingDay
+      );
+
+      return allTrips;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch vessel trips for sailing day ${args.sailingDay}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { sailingDay: args.sailingDay, error: String(error) },
+      });
+    }
+  },
+});
+
+/**
  * API function for fetching the most recent completed trip for a vessel
  * Used by prediction logic to access previous trip data for context
  *

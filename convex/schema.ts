@@ -43,6 +43,7 @@ export default defineSchema({
     .index("by_route_and_sailing_day", ["RouteID", "SailingDay"])
     .index("by_trip_type", ["TripType"])
     .index("by_route_and_trip_type", ["RouteID", "TripType"])
+    .index("by_terminal_and_sailing_day", ["DepartingTerminalAbbrev", "SailingDay"])
     .index("by_vessel_terminal_time_type", [
       "VesselAbbrev",
       "DepartingTerminalAbbrev",

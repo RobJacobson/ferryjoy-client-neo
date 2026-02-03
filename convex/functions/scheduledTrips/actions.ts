@@ -5,7 +5,7 @@ import { getSailingDay } from "../../shared/time";
 import {
   syncScheduledTripsForDate,
   syncScheduledTripsForDateRange,
-} from "./sync/sync";
+} from "./sync";
 
 /**
  * Simplified manual sync that deletes all data for the current sailing day and downloads fresh data.
