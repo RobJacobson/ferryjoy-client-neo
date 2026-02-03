@@ -13,6 +13,7 @@ import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useInterval } from "@/shared/hooks";
+import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 export type { VesselTrip };
 
@@ -28,6 +29,8 @@ type ConvexVesselTripsContextType = {
   activeVesselTrips: VesselTrip[];
   /** Record of delayed vessel trips */
   delayedVesselTrips: VesselTrip[];
+  /** All trips for the current sailing day (including completed) */
+  dailyVesselTrips: VesselTrip[];
   /** Loading state for vessel trips data */
   isLoading: boolean;
   /** Error state for vessel trips data */
@@ -77,6 +80,18 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
 
   const isLoading = rawActiveTrips === undefined;
   const error: string | null = null;
+
+  // Fetch all vessel trips for today's sailing day
+  const sailingDay = getSailingDay(new Date());
+  const rawDailyTrips = useQuery(
+    api.functions.vesselTrips.queries.getVesselTripsForSailingDay,
+    { sailingDay }
+  );
+  const dailyTrips = useMemo(
+    () => rawDailyTrips?.map(toDomainVesselTrip) ?? [],
+    [rawDailyTrips]
+  );
+
   const [delayedVesselTripsByAbbrev, setDelayedVesselTripsByAbbrev] = useState<
     Record<string, VesselTrip>
   >({});
@@ -107,6 +122,7 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
     isLoading,
     error,
     delayedVesselTrips,
+    dailyVesselTrips: dailyTrips,
   };
   return (
     <ConvexVesselTripsContext.Provider value={contextValue}>

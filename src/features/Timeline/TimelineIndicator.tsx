@@ -206,7 +206,7 @@ const TimelineIndicator = ({
           className="absolute items-center"
           style={{
             bottom: INDICATOR_SIZE + 2,
-            width: 200, // Sufficient width to prevent wrapping
+            width: 250, // Sufficient width to prevent wrapping
           }}
         >
           {vesselName && (

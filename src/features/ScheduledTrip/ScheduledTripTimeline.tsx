@@ -1,175 +1,257 @@
-// /**
-//  * TripProgressTimeline component for displaying vessel trip progress through two sequential time segments.
-//  * Shows progress from arriving at terminal A to departing A (first meter) and from departing A to arriving at B (second meter).
-//  */
+/**
+ * ScheduledTripTimeline component for displaying a sequence of scheduled trip segments.
+ * Visualizes the journey from departure terminal to final destination, including intermediate stops.
+ */
 
-// import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
-// import { View } from "react-native";
-// import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
-// import { getVesselName } from "@/domain/vesselAbbreviations";
-// import { cn } from "@/lib/utils";
-// import {
-//   TimelineBar,
-//   TimelineDisplayTime,
-//   TimelineLabel,
-//   TimelineLegendText,
-// } from "../Timeline";
-// import { getArrivalTime, getDepartureTime } from "../Timeline/utils";
+import React from "react";
+import { View } from "react-native";
+import { Text } from "@/components/ui";
+import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
+import { getVesselName } from "@/domain/vesselAbbreviations";
+import {
+  TimelineBarTime,
+  TimelineDisplayTime,
+  TimelineMarker,
+} from "../Timeline";
 
-// type ScheduledTripTimelineProps = {
-//   /**
-//    * VesselTrip object containing trip data with actual, predicted, and scheduled times.
-//    */
-//   scheduledTrips: ScheduledTrip[];
-//   /**
-//    * Optional className for styling the container.
-//    */
-//   className?: string;
-// };
+/**
+ * Segment type representing a single leg of a journey.
+ */
+type Segment = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  DisplayArrivingTerminalAbbrev?: string;
+  DepartingTime: number;
+  ArrivingTime?: number;
+  SchedArriveNext?: number;
+  SchedArriveCurr?: number;
+  Key: string;
+};
 
-// /**
-//  * Displays vessel trip progress through two sequential time segments with intelligent time selection and dynamic width allocation.
-//  *
-//  * The timeline visualizes a ferry trip as two distinct phases:
-//  * 1. First segment: Progress from arriving at terminal A to departing from A (docking/loading phase)
-//  * 2. Second segment: Progress from departing A to arriving at terminal B (at-sea transit phase)
-//  *
-//  * Time selection prioritizes actual times over predicted times over scheduled times for accuracy.
-//  * Width allocation dynamically distributes space between segments based on their relative durations,
-//  * using FlexBox flex-grow values with a minimum of 15% to ensure readability.
-//  * Each segment sizes itself based on its own time interval, so this component is
-//  * agnostic about sizing logic.
-//  *
-//  * The indicator is shown based on vessel state (AtDock property) rather than time-based progress,
-//  * allowing it to display correctly even when vessels are running late.
-//  *
-//  * @param trip - VesselTrip object containing actual, predicted, and scheduled timing data
-//  * @param className - Optional className for styling the meter container
-//  * @returns A View component with two self-contained progress bars
-//  */
-// const ScheduledTripTimeline = ({
-//   scheduledTrips,
-//   className,
-// }: ScheduledTripTimelineProps) => {
-//   const { vesselLocations } = useConvexVesselLocations();
-//   const currentVessel = vesselLocations.find(
-//     (v) => v.VesselAbbrev === trip.VesselAbbrev
-//   );
-//   const vesselSpeed = currentVessel?.Speed ?? 0;
+type ScheduledTripTimelineProps = {
+  /**
+   * Array of segments forming the complete journey.
+   */
+  segments: Segment[];
+};
 
-//   const arriveCurrTime = trip.TripStart;
-//   const departCurrTime = getDepartureTime(trip);
-//   const predictedArrivalTime = getArrivalTime(trip);
+/**
+ * Displays a multi-segment timeline for scheduled ferry trips.
+ * Shows scheduled departure times and arrival times, with actual times overlaid if a matching
+ * active or recently completed trip is found.
+ *
+ * @param segments - Array of trip segments to display
+ * @returns A View component with a sequence of markers and progress bars
+ */
+export const ScheduledTripTimeline = ({
+  segments,
+}: ScheduledTripTimelineProps) => {
+  const { dailyVesselTrips } = useConvexVesselTrips();
+  const circleSize = 20;
 
-//   return (
-//     <View
-//       className={cn(
-//         "relative flex-row items-center justify-between w-full overflow-visible m-2 pr-4",
-//         className
-//       )}
-//     >
-//       {/* At Dock Start Label */}
-//       <TimelineLabel>
-//         <ArriveCurrLabel trip={trip} />
-//       </TimelineLabel>
-//       {/* At Dock Progress Bar */}
-//       <TimelineBar
-//         startTimeMs={arriveCurrTime?.getTime()}
-//         endTimeMs={departCurrTime?.getTime()}
-//         status={trip.AtDock ? "InProgress" : "Completed"}
-//         vesselName={getVesselName(trip.VesselAbbrev)}
-//       />
-//       {/* Depart Curr Label */}
-//       <TimelineLabel>
-//         <DepartCurrLabel trip={trip} />
-//       </TimelineLabel>
-//       {/* At Sea Progress Bar */}
-//       <TimelineBar
-//         startTimeMs={departCurrTime?.getTime()}
-//         endTimeMs={predictedArrivalTime?.getTime()}
-//         status={!trip.AtDock ? "InProgress" : "Pending"}
-//         vesselName={getVesselName(trip.VesselAbbrev)}
-//         animate={!trip.AtDock && !trip.TripEnd}
-//         speed={vesselSpeed}
-//       />
-//       {/* Destination Arrive Label */}
-//       <TimelineLabel>
-//         <DestinationArriveLabel trip={trip} />
-//       </TimelineLabel>
-//     </View>
-//   );
-// };
+  // Get the vessel abbreviation from the first segment to show the vessel name on progress bars
+  const vesselAbbrev = segments[0]?.Key.split("-")[0] || "";
+  const vesselName = getVesselName(vesselAbbrev);
 
-// /**
-//  * Renders label for left circle of at-dock progress bar.
-//  * Displays the departing terminal name and actual arrival time.
-//  *
-//  * @param trip - VesselTrip object containing trip data
-//  * @returns A View component with terminal text and arrival time
-//  */
-// const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
-//   <>
-//     <TimelineLegendText bold={false}>
-//       {`Arrived ${trip.DepartingTerminalAbbrev}`}
-//     </TimelineLegendText>
-//     <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
-//   </>
-// );
+  if (segments.length === 0) return null;
 
-// /**
-//  * Renders label for the right circle of the at-dock progress bar.
-//  * Conditionally displays predicted departure time (when at dock), actual departure time (when left),
-//  * and scheduled departure time (if available).
-//  *
-//  * @param trip - VesselTrip object containing trip data
-//  * @returns A View component with departure status text and time information
-//  */
-// const DepartCurrLabel = ({ trip }: { trip: VesselTrip }) => (
-//   <>
-//     <TimelineLegendText bold={false}>
-//       {trip.AtDock ? "Leaves" : "Left"} {trip.DepartingTerminalAbbrev}
-//     </TimelineLegendText>
-//     {trip.AtDock && (
-//       <TimelineDisplayTime
-//         time={trip.AtDockDepartCurr?.PredTime}
-//         type="estimated"
-//         bold
-//       />
-//     )}
-//     {!trip.AtDock && (
-//       <TimelineDisplayTime time={trip.LeftDock} type="actual" bold />
-//     )}
-//     <TimelineDisplayTime time={trip.ScheduledDeparture} type="scheduled" />
-//   </>
-// );
+  return (
+    <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
+      {/* Origin Arrival Marker & At-Dock Bar */}
+      {segments[0] && (
+        <>
+          <TimelineMarker
+            size={circleSize}
+            className="bg-white border border-blue-500"
+            zIndex={10}
+          >
+            <View className="items-center">
+              <Text className="text-xs text-muted-foreground">
+                {`Arrive ${segments[0].DepartingTerminalAbbrev}`}
+              </Text>
+              {segments[0].SchedArriveCurr !== undefined ? (
+                <TimelineDisplayTime
+                  time={new Date(segments[0].SchedArriveCurr)}
+                  type="scheduled"
+                  bold
+                />
+              ) : (
+                <Text className="text-xs text-muted-foreground">--:--</Text>
+              )}
+              {(() => {
+                // Match actual trip for the first segment to show actual arrival at origin
+                // We match based on Vessel, Departing Terminal, and Departing Time for better reliability
+                // than the composite Key, which might have different destination abbreviations.
+                const firstActual = dailyVesselTrips.find(
+                  (t) =>
+                    t.VesselAbbrev === segments[0].VesselAbbrev &&
+                    t.DepartingTerminalAbbrev ===
+                      segments[0].DepartingTerminalAbbrev &&
+                    (t.ScheduledDeparture?.getTime() ===
+                      segments[0].DepartingTime ||
+                      t.ScheduledTrip?.DepartingTime.getTime() ===
+                        segments[0].DepartingTime)
+                );
+                return (
+                  firstActual?.TripStart && (
+                    <TimelineDisplayTime
+                      time={firstActual.TripStart}
+                      type="actual"
+                    />
+                  )
+                );
+              })()}
+            </View>
+          </TimelineMarker>
 
-// /**
-//  * Renders label for the right circle of the at-sea progress bar.
-//  * Displays the arriving terminal name and predicted arrival time.
-//  *
-//  * @param trip - VesselTrip object containing trip data
-//  * @returns A View component with terminal text and arrival time
-//  */
-// const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
-//   <>
-//     <TimelineLegendText bold={false}>
-//       {`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-//     </TimelineLegendText>
-//     {!trip.TripEnd && (
-//       <TimelineDisplayTime
-//         time={
-//           trip.Eta ||
-//           trip.AtSeaArriveNext?.PredTime ||
-//           trip.AtDockArriveNext?.PredTime
-//         }
-//         type="estimated"
-//         bold
-//       />
-//     )}
-//     {trip.TripEnd && (
-//       <TimelineDisplayTime time={trip.TripEnd} type="actual" bold />
-//     )}
-//   </>
-// );
+          {/* At-Dock Progress Bar for Origin (Arrive -> Depart) */}
+          <TimelineBarTime
+            startTimeMs={segments[0].SchedArriveCurr}
+            endTimeMs={segments[0].DepartingTime}
+            status={(() => {
+              const firstActual = dailyVesselTrips.find(
+                (t) =>
+                  t.VesselAbbrev === segments[0].VesselAbbrev &&
+                  t.DepartingTerminalAbbrev ===
+                    segments[0].DepartingTerminalAbbrev &&
+                  (t.ScheduledDeparture?.getTime() ===
+                    segments[0].DepartingTime ||
+                    t.ScheduledTrip?.DepartingTime.getTime() ===
+                      segments[0].DepartingTime)
+              );
+              return firstActual
+                ? firstActual.LeftDock
+                  ? "Completed"
+                  : "InProgress"
+                : "Pending";
+            })()}
+            vesselName={vesselName}
+            circleSize={circleSize}
+            atDockAbbrev={segments[0].DepartingTerminalAbbrev}
+          />
+        </>
+      )}
 
-// export default ScheduledTripTimeline;
+      {/* Origin Departure Marker */}
+      <TimelineMarker
+        size={circleSize}
+        className="bg-white border border-blue-500"
+        zIndex={10}
+      >
+        <View className="items-center">
+          <Text className="text-xs text-muted-foreground">
+            {`Depart ${segments[0].DepartingTerminalAbbrev}`}
+          </Text>
+          <TimelineDisplayTime
+            time={new Date(segments[0].DepartingTime)}
+            type="scheduled"
+            bold
+          />
+          {(() => {
+            const firstActual = dailyVesselTrips.find(
+              (t) =>
+                t.VesselAbbrev === segments[0].VesselAbbrev &&
+                t.DepartingTerminalAbbrev ===
+                  segments[0].DepartingTerminalAbbrev &&
+                (t.ScheduledDeparture?.getTime() ===
+                  segments[0].DepartingTime ||
+                  t.ScheduledTrip?.DepartingTime.getTime() ===
+                    segments[0].DepartingTime)
+            );
+            return (
+              firstActual?.LeftDock && (
+                <TimelineDisplayTime
+                  time={firstActual.LeftDock}
+                  type="actual"
+                />
+              )
+            );
+          })()}
+        </View>
+      </TimelineMarker>
+
+      {segments.map((segment, index) => {
+        // For actual data matching, we need to be careful with multi-segment trips.
+        // The scheduled trip Key includes the final destination (e.g., ANA-FRH),
+        // but the actual vessel trip might be recorded with the immediate stop (e.g., ANA-LOP).
+        // We match based on Vessel, Departing Terminal, and Departing Time for better reliability.
+        const actualTrip = dailyVesselTrips.find(
+          (t) =>
+            t.VesselAbbrev === segment.VesselAbbrev &&
+            t.DepartingTerminalAbbrev === segment.DepartingTerminalAbbrev &&
+            (t.ScheduledDeparture?.getTime() === segment.DepartingTime ||
+              t.ScheduledTrip?.DepartingTime.getTime() ===
+                segment.DepartingTime)
+        );
+
+        // However, for intermediate stops, the arrival at B is ALSO the TripStart
+        // of the NEXT segment (B -> C). We should check both to be thorough.
+        const nextSegment = segments[index + 1];
+        const nextActualTrip = nextSegment
+          ? dailyVesselTrips.find(
+              (t) =>
+                t.VesselAbbrev === nextSegment.VesselAbbrev &&
+                t.DepartingTerminalAbbrev ===
+                  nextSegment.DepartingTerminalAbbrev &&
+                (t.ScheduledDeparture?.getTime() ===
+                  nextSegment.DepartingTime ||
+                  t.ScheduledTrip?.DepartingTime.getTime() ===
+                    nextSegment.DepartingTime)
+            )
+          : null;
+
+        const actualArrivalTime =
+          actualTrip?.TripEnd || nextActualTrip?.TripStart;
+
+        return (
+          <React.Fragment key={segment.Key}>
+            {/* At-Sea Progress Bar (Depart -> Arrive Next) */}
+            <TimelineBarTime
+              startTimeMs={segment.DepartingTime}
+              endTimeMs={segment.SchedArriveNext}
+              status={
+                actualTrip
+                  ? actualTrip.TripEnd
+                    ? "Completed"
+                    : !actualTrip.AtDock
+                      ? "InProgress"
+                      : "Pending"
+                  : "Pending"
+              }
+              vesselName={vesselName}
+              circleSize={circleSize}
+            />
+
+            {/* Arrival Marker & Label for this leg */}
+            <TimelineMarker
+              size={circleSize}
+              className="bg-white border border-blue-500"
+              zIndex={10}
+            >
+              <View className="items-center">
+                <Text className="text-xs text-muted-foreground">
+                  {`Arrive ${segment.DisplayArrivingTerminalAbbrev || segment.ArrivingTerminalAbbrev}`}
+                </Text>
+                {/* Scheduled arrival time is bold and on the first line */}
+                {segment.SchedArriveNext !== undefined ? (
+                  <TimelineDisplayTime
+                    time={new Date(segment.SchedArriveNext)}
+                    type="scheduled"
+                    bold
+                  />
+                ) : (
+                  <Text className="text-xs text-muted-foreground">--:--</Text>
+                )}
+                {/* Actual arrival time is non-bold and below it if available */}
+                {actualArrivalTime && (
+                  <TimelineDisplayTime time={actualArrivalTime} type="actual" />
+                )}
+              </View>
+            </TimelineMarker>
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};

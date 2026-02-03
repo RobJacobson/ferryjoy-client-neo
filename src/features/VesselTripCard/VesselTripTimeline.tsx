@@ -5,6 +5,7 @@
 
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
+import { Text } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,6 @@ import {
   TimelineBarDistance,
   TimelineBarTime,
   TimelineDisplayTime,
-  TimelineLegendText,
   TimelineMarker,
 } from "../Timeline";
 import { getArrivalTime, getDepartureTime } from "../Timeline/utils";
@@ -135,10 +135,16 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
  */
 const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
   <>
-    <TimelineLegendText bold={false}>
+    <Text className="text-xs text-muted-foreground">
       {`Arrived ${trip.DepartingTerminalAbbrev}`}
-    </TimelineLegendText>
+    </Text>
     <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
+    {trip.ScheduledTrip?.SchedArriveCurr && (
+      <TimelineDisplayTime
+        time={trip.ScheduledTrip?.SchedArriveCurr}
+        type="scheduled"
+      />
+    )}
   </>
 );
 
@@ -152,9 +158,9 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
  */
 const DepartCurrLabel = ({ trip }: { trip: VesselTrip }) => (
   <>
-    <TimelineLegendText bold={false}>
+    <Text className="text-xs text-muted-foreground">
       {trip.AtDock ? "Leaves" : "Left"} {trip.DepartingTerminalAbbrev}
-    </TimelineLegendText>
+    </Text>
     {trip.AtDock && (
       <TimelineDisplayTime
         time={trip.AtDockDepartCurr?.PredTime}
@@ -178,9 +184,9 @@ const DepartCurrLabel = ({ trip }: { trip: VesselTrip }) => (
  */
 const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
   <>
-    <TimelineLegendText bold={false}>
+    <Text className="text-xs text-muted-foreground">
       {`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-    </TimelineLegendText>
+    </Text>
     {!trip.TripEnd && (
       <TimelineDisplayTime
         time={
@@ -194,6 +200,12 @@ const DestinationArriveLabel = ({ trip }: { trip: VesselTrip }) => (
     )}
     {trip.TripEnd && (
       <TimelineDisplayTime time={trip.TripEnd} type="actual" bold />
+    )}
+    {trip.ScheduledTrip?.SchedArriveNext && (
+      <TimelineDisplayTime
+        time={trip.ScheduledTrip?.SchedArriveNext}
+        type="scheduled"
+      />
     )}
   </>
 );

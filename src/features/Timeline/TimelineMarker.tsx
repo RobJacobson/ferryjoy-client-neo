@@ -79,7 +79,7 @@ const TimelineMarker = ({
       {/* The Label: Positioned below the marker. */}
       {children && (
         <View
-          className="absolute flex-col items-center justify-start mt-4"
+          className="absolute flex-col items-center justify-start mt-3"
           style={{
             top: size, // Position below the circle
             left: "50%",

@@ -48,21 +48,32 @@ export const getTimelineLayout = ({
   endTimeMs?: number;
 }) => {
   // 1. Calculate Duration (FlexGrow)
-  const durationMs = (endTimeMs ?? 0) - (startTimeMs ?? 0);
-  const duration = Math.round((durationMs / MS_PER_MINUTE) * 100) / 100;
+  const durationMs =
+    startTimeMs !== undefined && endTimeMs !== undefined
+      ? endTimeMs - startTimeMs
+      : undefined;
+  const duration =
+    durationMs !== undefined
+      ? Math.round((durationMs / MS_PER_MINUTE) * 100) / 100
+      : undefined;
 
   // 2. Calculate Minutes Remaining
-  const remainingMs = (endTimeMs ?? 0) - nowMs;
-  const minutesRemaining = endTimeMs
-    ? Math.max(0, Math.ceil(remainingMs / MS_PER_MINUTE))
-    : undefined;
+  const remainingMs = endTimeMs !== undefined ? endTimeMs - nowMs : undefined;
+  const minutesRemaining =
+    remainingMs !== undefined
+      ? Math.max(0, Math.ceil(remainingMs / MS_PER_MINUTE))
+      : undefined;
 
   // 3. Calculate Progress (0-1)
   const progress =
     status === "Completed"
       ? 1
-      : status === "InProgress" && duration > 0
-        ? Math.min(1, Math.max(0, (nowMs - (startTimeMs ?? 0)) / durationMs))
+      : status === "InProgress" && duration !== undefined && duration > 0
+        ? Math.min(
+            1,
+            // biome-ignore lint/style/noNonNullAssertion: duration > 0 implies durationMs is defined
+            Math.max(0, (nowMs - (startTimeMs ?? 0)) / durationMs!)
+          )
         : 0;
 
   return {

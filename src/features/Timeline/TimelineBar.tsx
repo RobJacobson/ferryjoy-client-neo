@@ -31,7 +31,7 @@ type TimelineBarProps = {
   /**
    * Duration in minutes (used for flex-grow width allocation).
    */
-  duration: number;
+  duration?: number;
   /**
    * Minutes remaining until end of segment.
    */
@@ -134,13 +134,14 @@ const TimelineBar = ({
   // We use 2 and 3 because on Android, elevation also controls shadow size;
   // these values keep the shadow refined while enforcing the correct order.
   const isActive = status === "InProgress";
-  const flexGrow = style?.flexGrow ?? duration ?? 1;
+  const hasUnknownDuration = duration === undefined || duration <= 0;
+  const flexGrow = style?.flexGrow ?? (hasUnknownDuration ? 1 : duration);
 
   // Animate layout changes (like flexGrow/width) when they change
   // biome-ignore lint/correctness/useExhaustiveDependencies: animate the layout changes when flexGrow changes
   useEffect(() => {
     LayoutAnimation.configureNext({
-      duration: 1000,
+      duration: 5000,
       update: {
         type: LayoutAnimation.Types.easeInEaseOut,
       },
@@ -155,7 +156,7 @@ const TimelineBar = ({
         flexGrow: flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "25%",
+        minWidth: "20%",
         height: circleSize, // Explicit height to provide vertical centering context
         ...style,
       }}
