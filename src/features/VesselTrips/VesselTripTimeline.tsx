@@ -10,8 +10,8 @@ import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLoc
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { cn } from "@/lib/utils";
 import {
-  TimelineBarDistance,
-  TimelineBarTime,
+  TimelineBarAtDock,
+  TimelineBarAtSea,
   TimelineDisplayTime,
   TimelineMarker,
 } from "../Timeline";
@@ -79,12 +79,11 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
       </TimelineMarker>
 
       {/* At Dock Progress Bar */}
-      <TimelineBarTime
+      <TimelineBarAtDock
         startTimeMs={arriveCurrTime?.getTime()}
         endTimeMs={departCurrTime?.getTime()}
         status={trip.AtDock ? "InProgress" : "Completed"}
         vesselName={getVesselName(trip.VesselAbbrev)}
-        circleSize={circleSize}
         atDockAbbrev={trip.DepartingTerminalAbbrev}
       />
 
@@ -98,7 +97,7 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
       </TimelineMarker>
 
       {/* At Sea Progress Bar */}
-      <TimelineBarDistance
+      <TimelineBarAtSea
         departingDistance={currentVessel?.DepartingDistance}
         arrivingDistance={currentVessel?.ArrivingDistance}
         startTimeMs={departCurrTime?.getTime()}
@@ -109,8 +108,6 @@ const VesselTripTimeline = ({ trip, className }: VesselTripTimelineProps) => {
         vesselName={getVesselName(trip.VesselAbbrev)}
         animate={!trip.AtDock && !trip.TripEnd}
         speed={vesselSpeed}
-        circleSize={circleSize}
-        atDockAbbrev={undefined}
         isArrived={!!trip.TripEnd}
       />
 
