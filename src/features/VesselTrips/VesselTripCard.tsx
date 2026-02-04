@@ -5,14 +5,9 @@
  */
 
 import { Text, View } from "@/components/ui";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
+import { getVesselName } from "@/domain";
 import VesselTripTimeline from "./VesselTripTimeline";
 
 type VesselTripCardProps = {
@@ -53,29 +48,31 @@ export const VesselTripCard = ({ trip }: VesselTripCardProps) => {
 
   return (
     // Card with overflow-visible to allow progress indicators to extend beyond boundaries
-    <Card className="overflow-visible p-2 pb-14">
+    <Card className="mb-6 pt-2 pb-10 overflow-visible gap-4">
       <CardHeader>
-        {/* Terminal route display with conditional destination */}
-        <View className="flex-row items-center gap-2">
-          <CardTitle className="text-xl font-bold leading-tight">
-            {trip.DepartingTerminalAbbrev}
-          </CardTitle>
-          {hasDestination && (
-            <>
-              {/* Arrow separator for route visualization */}
-              <Text className="text-xl font-light leading-tight text-muted-foreground">
-                →
-              </Text>
-              <CardTitle className="text-xl font-semibold leading-tight">
-                {trip.ArrivingTerminalAbbrev}
-              </CardTitle>
-            </>
-          )}
+        {/* Terminal route display with vessel info on the right */}
+        <View className="w-full flex-row">
+          <View className="flex-1 flex-row items-center gap-2">
+            <CardTitle className="text-xl font-bold">
+              {trip.DepartingTerminalAbbrev}
+            </CardTitle>
+            {hasDestination && (
+              <>
+                {/* Arrow separator for route visualization */}
+                <Text className="mx-2 text-xl font-light text-muted-foreground">
+                  →
+                </Text>
+                <CardTitle className="text-xl font-semibold">
+                  {trip.ArrivingTerminalAbbrev}
+                </CardTitle>
+              </>
+            )}
+          </View>
+          {/* Vessel info and status on the right */}
+          <Text className="text-xl font-light text-muted-foreground">
+            {getVesselName(trip.VesselAbbrev)}
+          </Text>
         </View>
-        {/* Vessel info and status summary */}
-        <CardDescription className="text-base">
-          {`${trip.VesselAbbrev} • ${getVesselStatus(trip)}`}
-        </CardDescription>
       </CardHeader>
       {/* Progress meter container with overflow-visible for portal-rendered indicators */}
       <CardContent className="overflow-visible">

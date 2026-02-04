@@ -1,5 +1,5 @@
 import { useSelectedTerminalPair } from "@/data/contexts";
-import { ScheduledTripList } from "@/features/ScheduledTrip";
+import { ScheduledTripList } from "@/features/ScheduledTrips";
 
 export default function SchedulesScreen() {
   const { selectedTerminalPair } = useSelectedTerminalPair();
