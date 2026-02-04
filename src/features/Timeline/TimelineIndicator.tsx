@@ -1,8 +1,10 @@
 /**
  * TimelineIndicator component for rendering a progress indicator overlay
  * that displays minutes remaining in a circular badge.
+ * Pure presentation component - all business logic about what to display is handled by parent.
  */
 
+import type { ReactNode } from "react";
 import { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import Animated, {
@@ -20,10 +22,12 @@ import { shadowStyle } from "./config";
 // ============================================================================
 
 const INDICATOR_SIZE = 32;
-const INDICATOR_Z_INDEX = 50;
+
+/** Z-index value for stacking above markers and other timeline elements */
+const INDICATOR_Z_INDEX_VALUE = 20;
 
 /** Maximum rotation angle in degrees */
-const MAX_ROTATION_DEG = 4;
+const MAX_ROTATION_DEG = 3;
 
 /** Speed range for animation scaling (knots) */
 const MIN_SPEED_KNOTS = 0;
@@ -49,33 +53,40 @@ type TimelineIndicatorProps = {
    */
   progress: SharedValue<number>;
   /**
-   * Minutes remaining to display in the indicator.
-   */
-  minutesRemaining?: number;
-  /**
-   * Optional vessel name to display above the indicator.
-   */
-  vesselName?: string;
-  /**
    * Whether to animate the indicator with a rocking motion.
+   * Only used for at-sea segments.
    */
   animate?: boolean;
   /**
    * Current speed of the vessel in knots.
+   * Used to scale animation frequency.
    */
   speed?: number;
   /**
-   * Distance to arriving terminal in miles.
+   * Minutes remaining to display in the indicator badge.
+   * Can be a number or string like "--" for unknown.
    */
-  arrivingDistance?: number;
+  minutesRemaining?: number | string;
   /**
-   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
+   * NativeWind className for the indicator container.
+   * e.g., "bg-pink-50 border-pink-500"
    */
-  atDockAbbrev?: string;
+  indicatorStyle?: string;
   /**
-   * Whether the vessel has arrived at its destination terminal.
+   * NativeWind className for the minutes text.
+   * e.g., "text-pink-500 font-bold"
    */
-  isArrived?: boolean;
+  textStyle?: string;
+  /**
+   * Labels to display above the indicator.
+   * Provided by parent component (business logic).
+   */
+  children?: ReactNode;
+  /**
+   * Height of the container for proper vertical centering.
+   * Defaults to 32px to match TimelineBar height.
+   */
+  containerHeight?: number;
 };
 
 // ============================================================================
@@ -149,28 +160,29 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
 /**
  * Renders a progress indicator positioned based on progress value within the parent bar.
  * The indicator is absolutely positioned and displays the minutes remaining.
- * Optionally displays a label above the indicator when labelAbove is provided.
+ * Labels are passed as children to be displayed above the indicator.
+ * Uses elevation for stacking as a sibling of TimelineBar and TimelineMarker.
  *
  * @param progress - Progress value (0-1) for horizontal positioning
- * @param minutesRemaining - Minutes remaining to display
- * @param labelAbove - Optional label text to display above the indicator
- * @param animate - Whether to animate the indicator with a rocking motion
- * @param speed - Current speed of the vessel in knots
- * @returns A View component containing the indicator and optional label
+ * @param animate - Whether to animate with rocking motion (default false)
+ * @param speed - Current speed for animation frequency scaling (default 0)
+ * @param minutesRemaining - Minutes remaining to display (default "--")
+ * @param indicatorStyle - NativeWind className for indicator styling
+ * @param textStyle - NativeWind className for text styling
+ * @param children - Labels to display above the indicator
+ * @param containerHeight - Height of container for vertical centering (default 32)
+ * @returns A View component containing the indicator and optional labels
  */
 const TimelineIndicator = ({
   progress,
-  minutesRemaining,
-  vesselName,
   animate = false,
   speed = 0,
-  arrivingDistance,
-  atDockAbbrev,
-  isArrived = false,
+  minutesRemaining = "--",
+  indicatorStyle = "bg-pink-50 border-pink-500",
+  textStyle = "text-pink-500 font-bold",
+  children,
+  containerHeight = 32,
 }: TimelineIndicatorProps) => {
-  const displayMinutes =
-    minutesRemaining === undefined ? "--" : String(minutesRemaining);
-
   const rockingStyle = useRockingAnimation(animate, speed);
 
   const animatedPositionStyle = useAnimatedStyle(() => ({
@@ -187,19 +199,16 @@ const TimelineIndicator = ({
           top: "50%",
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
-          zIndex: INDICATOR_Z_INDEX,
-          elevation: INDICATOR_Z_INDEX,
+          zIndex: INDICATOR_Z_INDEX_VALUE,
+          elevation: INDICATOR_Z_INDEX_VALUE,
           overflow: "visible",
         },
         rockingStyle,
         animatedPositionStyle,
       ]}
     >
-      {/* Label above indicator - centered horizontally via items-center on parent */}
-      {(vesselName ||
-        arrivingDistance !== undefined ||
-        atDockAbbrev ||
-        isArrived) && (
+      {/* Labels above indicator - centered horizontally via items-center on parent */}
+      {children && (
         <View
           pointerEvents="none"
           collapsable={false}
@@ -209,32 +218,12 @@ const TimelineIndicator = ({
             width: 250, // Sufficient width to prevent wrapping
           }}
         >
-          {vesselName && (
-            <Text
-              className="text-sm font-semibold leading-none"
-              style={{ flexShrink: 0 }}
-            >
-              {vesselName}
-            </Text>
-          )}
-          {isArrived && (
-            <Text className="text-xs text-muted-foreground">💕 Arrived 💕</Text>
-          )}
-          {atDockAbbrev && (
-            <Text className="text-xs text-muted-foreground">
-              At Dock {atDockAbbrev}
-            </Text>
-          )}
-          {arrivingDistance !== undefined && !isArrived && (
-            <Text className="text-xs text-muted-foreground">
-              {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
-            </Text>
-          )}
+          {children}
         </View>
       )}
       {/* Indicator circle */}
       <View
-        className="rounded-full items-center justify-center border-2 bg-pink-50 border-pink-500"
+        className={`rounded-full items-center justify-center border-2 ${indicatorStyle}`}
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
@@ -242,14 +231,14 @@ const TimelineIndicator = ({
         }}
       >
         <Text
-          className="font-bold text-pink-500"
+          className={textStyle}
           style={
-            minutesRemaining === undefined || minutesRemaining < 100
-              ? undefined
-              : { fontSize: 12 }
+            typeof minutesRemaining === "number" && minutesRemaining >= 100
+              ? { fontSize: 12 }
+              : undefined
           }
         >
-          {displayMinutes}
+          {minutesRemaining}
         </Text>
       </View>
     </Animated.View>

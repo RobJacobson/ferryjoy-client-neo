@@ -1,6 +1,6 @@
 /**
- * TimelineBar component for rendering individual progress segments in timeline meter.
- * Displays a horizontal progress bar that calculates progress based on numeric values.
+ * TimelineBar base component for rendering individual progress segments.
+ * Pure presentation component that displays a horizontal progress bar based on provided values.
  * Uses FlexBox flex-grow for proportional width allocation based on segment duration.
  * Used as a building block within TimelineMeter to create multi-segment progress visualizations.
  */
@@ -15,7 +15,6 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { shadowStyle } from "./config";
-import TimelineIndicator from "./TimelineIndicator";
 
 // ============================================================================
 // Types
@@ -25,56 +24,28 @@ export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
 
 type TimelineBarProps = {
   /**
-   * Progress value between 0 and 1.
+   * FlexGrow value for proportional width allocation.
+   * Calculated by parent based on segment duration.
+   */
+  flexGrow: number;
+  /**
+   * Progress value between 0 and 1 for indicator positioning.
+   * Calculated by parent (time-based or distance-based).
    */
   progress: number;
   /**
-   * Duration in minutes (used for flex-grow width allocation).
+   * NativeWind className for the bar height and other track styling.
+   * e.g., "h-3", "h-4", "h-6"
    */
-  duration?: number;
+  barStyle?: string;
   /**
-   * Minutes remaining until end of segment.
+   * NativeWind className for the progress fill styling.
+   * e.g., "bg-pink-300", "bg-blue-400"
    */
-  minutesRemaining?: number;
+  progressStyle?: string;
   /**
-   * Status of the progress bar segment.
-   * - "Pending": Progress locked at 0%, no indicator shown
-   * - "InProgress": Progress displays normally, indicator shown
-   * - "Completed": Progress displays normally, indicator not shown
+   * Additional inline styles.
    */
-  status: TimelineBarStatus;
-  /**
-   * Optional vessel name to display above the progress indicator when in progress.
-   */
-  vesselName?: string;
-  /**
-   * Whether to animate the progress indicator when at sea.
-   */
-  animate?: boolean;
-  /**
-   * Current speed of the vessel in knots.
-   */
-  speed?: number;
-  /**
-   * Size of the circle markers in pixels.
-   */
-  circleSize?: number;
-  /**
-   * Height of the progress bar in pixels.
-   */
-  barHeight?: number;
-  /**
-   * Distance to arriving terminal in miles.
-   */
-  arrivingDistance?: number;
-  /**
-   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
-   */
-  atDockAbbrev?: string;
-  /**
-   * Whether the vessel has arrived at its destination terminal.
-   */
-  isArrived?: boolean;
   style?: ViewStyle;
 };
 
@@ -84,36 +55,22 @@ type TimelineBarProps = {
 
 /**
  * Renders a horizontal progress bar that displays progress based on provided values.
- * The bar consists of a background track, a filled progress portion, and optionally
- * a progress indicator when active.
+ * The bar consists of a background track and a filled progress portion.
  *
- * Width is determined via FlexBox `flexGrow`, derived from segment's duration.
+ * Width is determined via FlexBox `flexGrow`, provided by parent.
  *
+ * @param flexGrow - FlexGrow value for width allocation
  * @param progress - Progress value between 0 and 1
- * @param duration - Duration in minutes for width allocation
- * @param minutesRemaining - Minutes remaining until end of segment
- * @param status - Status of the progress bar segment (default "Pending")
- * @param vesselName - Optional vessel name to display above the indicator when in progress
- * @param animate - Whether to animate the progress indicator when at sea
- * @param speed - Current speed of the vessel in knots
- * @param circleSize - Size of the circle markers in pixels (default 20)
- * @param barHeight - Height of the progress bar in pixels (default 12)
+ * @param barStyle - NativeWind className for track styling (default "h-3")
+ * @param progressStyle - NativeWind className for fill styling (default "bg-pink-300")
  * @param style - Additional inline styles
- * @returns A View containing the progress bar and optional indicator
+ * @returns A View component containing the progress bar
  */
 const TimelineBar = ({
+  flexGrow,
   progress,
-  duration,
-  minutesRemaining,
-  status,
-  vesselName,
-  animate = false,
-  speed = 0,
-  circleSize = 20,
-  barHeight = 12,
-  arrivingDistance,
-  atDockAbbrev,
-  isArrived = false,
+  barStyle = "h-3",
+  progressStyle = "bg-pink-300",
   style,
 }: TimelineBarProps) => {
   // Use a shared value to animate progress changes smoothly
@@ -121,30 +78,13 @@ const TimelineBar = ({
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
-    // If progress is 0, we want to jump to it immediately to prevent
-    // "leaking" progress from a previous segment when components are recycled.
-    // We use a small epsilon for floating point safety.
-    if (progress <= 0.001 || status === "Pending") {
-      animatedProgress.value = 0;
-    } else if (status === "Completed") {
-      animatedProgress.value = 1;
-    } else {
-      animatedProgress.value = withSpring(progress, {
-        damping: 100,
-        stiffness: 2,
-        mass: 5,
-        overshootClamping: true,
-      });
-    }
-  }, [progress, animatedProgress, status]);
-
-  // InProgress bars have a higher stacking order to ensure they render on top
-  // of adjacent segments (important for overlapping markers).
-  // We use 2 and 3 because on Android, elevation also controls shadow size;
-  // these values keep the shadow refined while enforcing the correct order.
-  const isActive = status === "InProgress";
-  const hasUnknownDuration = duration === undefined || duration <= 0;
-  const flexGrow = style?.flexGrow ?? (hasUnknownDuration ? 1 : duration);
+    animatedProgress.value = withSpring(progress, {
+      damping: 100,
+      stiffness: 2,
+      mass: 5,
+      overshootClamping: true,
+    });
+  }, [progress, animatedProgress]);
 
   // Animate layout changes (like flexGrow/width) when they change
   // biome-ignore lint/correctness/useExhaustiveDependencies: animate the layout changes when flexGrow changes
@@ -162,27 +102,21 @@ const TimelineBar = ({
       className="relative flex-row items-center"
       style={{
         overflow: "visible",
-        flexGrow: flexGrow,
+        flexGrow,
         flexShrink: 1,
         flexBasis: 0,
         minWidth: "20%",
-        height: circleSize, // Explicit height to provide vertical centering context
+        height: 32, // Fixed height to accommodate 32px indicator with proper centering
+        zIndex: 2, // Always below markers (TimelineBar < TimelineMarker)
+        elevation: 2, // Elevation needed for Android stacking
         ...style,
       }}
     >
-      <TimelineBarTrack progress={animatedProgress} barHeight={barHeight} />
-      {isActive && (
-        <TimelineIndicator
-          progress={animatedProgress}
-          minutesRemaining={minutesRemaining}
-          animate={animate}
-          speed={speed}
-          arrivingDistance={arrivingDistance}
-          vesselName={vesselName}
-          atDockAbbrev={atDockAbbrev}
-          isArrived={isArrived}
-        />
-      )}
+      <TimelineBarProgress
+        progress={animatedProgress}
+        barStyle={barStyle}
+        progressStyle={progressStyle}
+      />
     </View>
   );
 };
@@ -193,36 +127,46 @@ export default TimelineBar;
 // Internal Helpers
 // ============================================================================
 
-type TimelineBarTrackProps = {
+type TimelineBarProgressProps = {
   /**
    * Animated progress value between 0 and 1.
    */
   progress: SharedValue<number>;
   /**
-   * Height of the bar in pixels.
+   * NativeWind className for the bar height and track styling.
    */
-  barHeight: number;
+  barStyle: string;
+  /**
+   * NativeWind className for the progress fill styling.
+   */
+  progressStyle: string;
 };
 
 /**
  * Renders the track + filled segment for the progress bar.
+ * Vertically centers the 12px track within the 32px container.
  *
  * @param progress - Animated value between 0 and 1
- * @param barHeight - Height of the bar in pixels
+ * @param barStyle - NativeWind className for track styling
+ * @param progressStyle - NativeWind className for fill styling
  * @returns Track + fill view
  */
-const TimelineBarTrack = ({ progress, barHeight }: TimelineBarTrackProps) => {
+const TimelineBarProgress = ({
+  progress,
+  barStyle,
+  progressStyle,
+}: TimelineBarProgressProps) => {
   const animatedStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
   }));
 
   return (
     <View
-      className="flex-1 rounded-full bg-primary/20"
-      style={{ height: barHeight }}
+      className={`flex-1 rounded-full bg-primary/20 ${barStyle}`}
+      style={{ height: 12 }} // Explicitly set height to 12px (h-3)
     >
       <Animated.View
-        className="rounded-full h-full bg-pink-300"
+        className={`rounded-full h-full ${progressStyle}`}
         style={[animatedStyle, shadowStyle]}
       />
     </View>

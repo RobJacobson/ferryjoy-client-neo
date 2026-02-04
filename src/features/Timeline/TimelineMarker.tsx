@@ -56,7 +56,7 @@ const TimelineMarker = ({
         // The Anchor: Zero width ensures it doesn't shift other flex elements.
         position: "relative",
         width: 0,
-        height: size, // Match circle size instead of 100%
+        height: 32, // Fixed height to match TimelineBar for consistent alignment
         zIndex,
         elevation: zIndex,
       }}
@@ -72,7 +72,7 @@ const TimelineMarker = ({
           height: size,
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
-          top: 0, // Position at top 0 of the size-constrained container
+          top: (32 - size) / 2, // Center circle within 32px container
         }}
       />
 
@@ -81,7 +81,7 @@ const TimelineMarker = ({
         <View
           className="absolute flex-col items-center justify-start mt-3"
           style={{
-            top: size, // Position below the circle
+            top: (32 - size) / 2 + size, // Position below the centered circle
             left: "50%",
             transform: [{ translateX: "-50%" }],
             width: 200, // Provide enough width for label content to center correctly
