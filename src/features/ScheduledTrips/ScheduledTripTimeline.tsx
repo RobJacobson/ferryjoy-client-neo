@@ -3,7 +3,6 @@
  * Visualizes the journey from departure terminal to final destination, including intermediate stops.
  */
 
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
@@ -36,30 +35,12 @@ export const ScheduledTripTimeline = ({
   vesselAbbrev,
   segments,
 }: ScheduledTripTimelineProps) => {
-  const { dailyVesselTrips, activeVesselTrips } = useConvexVesselTrips();
+  const { dailyVesselTrips } = useConvexVesselTrips();
   const { vesselLocations } = useConvexVesselLocations();
   const circleSize = 20;
 
   // Index vessel trips by Key for O(1) lookup
   const vesselTripMap = createVesselTripMap(dailyVesselTrips);
-
-  // Create a map of active trips for better matching
-  const activeVesselTripMap = createVesselTripMap(activeVesselTrips);
-
-  // Index trips by vessel for O(vessel) lookup
-  const vesselTripsByVessel = new Map<string, VesselTrip[]>();
-  for (const trip of dailyVesselTrips) {
-    const existing = vesselTripsByVessel.get(trip.VesselAbbrev) || [];
-    existing.push(trip);
-    vesselTripsByVessel.set(trip.VesselAbbrev, existing);
-  }
-
-  // Index trips by terminal and time for O(1) lookup
-  const tripsByTerminalAndTime = new Map<string, VesselTrip>();
-  for (const trip of dailyVesselTrips) {
-    const key = `${trip.DepartingTerminalAbbrev}_${trip.ScheduledDeparture?.getTime() || trip.ScheduledTrip?.DepartingTime.getTime()}`;
-    tripsByTerminalAndTime.set(key, trip);
-  }
 
   // Use the vessel name for progress bars
   const vesselName = getVesselName(vesselAbbrev);
@@ -85,9 +66,6 @@ export const ScheduledTripTimeline = ({
           vesselSpeed={vesselSpeed}
           circleSize={circleSize}
           vesselTripMap={vesselTripMap}
-          activeVesselTripMap={activeVesselTripMap}
-          vesselTripsByVessel={vesselTripsByVessel}
-          tripsByTerminalAndTime={tripsByTerminalAndTime}
           currentVessel={currentVessel}
           isFirst={index === 0}
           isLast={index === segments.length - 1}

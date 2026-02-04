@@ -6,14 +6,13 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
 import {
-  TimelineBarDistance,
-  TimelineBarTime,
+  TimelineBarAtDock,
+  TimelineBarAtSea,
   TimelineDisplayTime,
   TimelineMarker,
 } from "../../Timeline";
 import type { Segment } from "../types";
 import { matchVesselTrip } from "../utils/matchVesselTrip";
-import { OriginArrivalIndicator } from "./OriginArrivalIndicator";
 
 type TimelineSegmentLegProps = {
   segment: Segment;
@@ -22,9 +21,6 @@ type TimelineSegmentLegProps = {
   vesselSpeed: number;
   circleSize: number;
   vesselTripMap: Map<string, VesselTrip>;
-  activeVesselTripMap: Map<string, VesselTrip>;
-  vesselTripsByVessel: Map<string, VesselTrip[]>;
-  tripsByTerminalAndTime: Map<string, VesselTrip>;
   currentVessel?: {
     DepartingDistance?: number;
     ArrivingDistance?: number;
@@ -46,8 +42,6 @@ export const TimelineSegmentLeg = ({
   vesselSpeed,
   circleSize,
   vesselTripMap,
-  vesselTripsByVessel,
-  tripsByTerminalAndTime,
   currentVessel,
   isFirst = false,
   isLast = false,
@@ -56,45 +50,39 @@ export const TimelineSegmentLeg = ({
   const {
     displayTrip,
     isIncoming,
-    isAtDepartingTerminal,
-    isAtSeaForSegment,
-    isActuallyAtTerminal,
+    isAtOriginDock,
+    isInTransitForSegment,
+    isCorrectTrip,
   } = matchVesselTrip(
     segment,
-    vesselAbbrev,
-    vesselTripMap,
-    vesselTripsByVessel,
-    tripsByTerminalAndTime
+    vesselTripMap
   );
 
-  // For arrival predictions, if this is an incoming vessel, we want its arriveNext prediction.
-  // If it's the active trip, we also want arriveNext.
-  // BUT: We only show arrivalPrediction if displayTrip is NOT an incoming vessel,
-  // OR if it's an incoming vessel that is NOT the same as the vesselAbbrev for this schedule.
-  // This prevents the "vessel heading to origin" prediction from appearing at the destination.
-  const isIncomingForArrival =
-    isIncoming ||
-    (!!displayTrip &&
-      !displayTrip.AtDock &&
-      displayTrip.ArrivingTerminalAbbrev === segment.DepartingTerminalAbbrev);
+  /**
+   * Prediction Selection Logic
+   * 
+   * When vessel is at-dock for correct trip: show departCurr, arriveNext, departNext
+   * When vessel is at-sea for correct trip: show arriveNext, departNext
+   * When vessel is incoming (heading to origin): show departNext only
+   * When no match: show nothing
+   */
+  const departurePrediction =
+    isCorrectTrip && !isIncoming
+      ? displayTrip
+        ? displayTrip.predictions.departCurr
+        : null
+      : isIncoming && !isAtOriginDock
+        ? displayTrip
+          ? displayTrip.predictions.departNext
+          : null
+        : null;
 
   const arrivalPrediction =
-    isIncomingForArrival &&
-    displayTrip &&
-    displayTrip.VesselAbbrev === vesselAbbrev
-      ? null
-      : displayTrip
-        ? displayTrip.predictions.arriveNext
-        : null;
-
-  const departurePrediction =
-    isIncoming && !isAtDepartingTerminal
+    !isIncoming && isCorrectTrip
       ? displayTrip
-        ? displayTrip.predictions.departNext
+        ? displayTrip.predictions.arriveNext
         : null
-      : displayTrip
-        ? displayTrip.predictions.departCurr
-        : null;
+      : null;
 
   return (
     <>
@@ -119,34 +107,33 @@ export const TimelineSegmentLeg = ({
               ) : (
                 <Text className="text-xs text-muted-foreground">--:--</Text>
               )}
-              <OriginArrivalIndicator
-                vesselAbbrev={vesselAbbrev}
-                firstSegment={segment}
-                vesselTripsByVessel={vesselTripsByVessel}
-              />
             </View>
           </TimelineMarker>
 
-          <TimelineBarTime
+          <TimelineBarAtDock
             startTimeMs={segment.SchedArriveCurr?.getTime()}
             endTimeMs={segment.DepartingTime.getTime()}
             status={
               displayTrip
                 ? displayTrip.LeftDock
                   ? "Completed"
-                  : isAtDepartingTerminal && isActuallyAtTerminal
+                  : isAtOriginDock && isCorrectTrip
                     ? "InProgress"
                     : "Pending"
                 : "Pending"
             }
             vesselName={vesselName}
-            circleSize={circleSize}
             atDockAbbrev={
-              isAtDepartingTerminal && isActuallyAtTerminal
+              isAtOriginDock && isCorrectTrip
                 ? segment.DepartingTerminalAbbrev
                 : undefined
             }
-            predictionEndTimeMs={departurePrediction?.time.getTime()}
+            predictionEndTimeMs={
+              // Show departCurr when at-dock for correct trip
+              isAtOriginDock && isCorrectTrip
+                ? departurePrediction?.time.getTime()
+                : undefined
+            }
           />
         </>
       )}
@@ -179,7 +166,7 @@ export const TimelineSegmentLeg = ({
       </TimelineMarker>
 
       {/* At-Sea Progress Bar (Depart -> Arrive Next) */}
-      <TimelineBarDistance
+      <TimelineBarAtSea
         departingDistance={currentVessel?.DepartingDistance}
         arrivingDistance={currentVessel?.ArrivingDistance}
         startTimeMs={segment.DepartingTime.getTime()}
@@ -188,21 +175,25 @@ export const TimelineSegmentLeg = ({
           displayTrip
             ? displayTrip.TripEnd
               ? "Completed"
-              : isAtSeaForSegment
+              : isInTransitForSegment && isCorrectTrip
                 ? "InProgress"
                 : "Pending"
             : "Pending"
         }
         vesselName={vesselName}
-        animate={isAtSeaForSegment && !!displayTrip && !displayTrip.TripEnd}
+        animate={isInTransitForSegment && isCorrectTrip && !!displayTrip && !displayTrip.TripEnd}
         speed={vesselSpeed}
-        circleSize={circleSize}
         isArrived={
           !!displayTrip &&
           !!displayTrip.TripEnd &&
           displayTrip.ArrivingTerminalAbbrev === segment.ArrivingTerminalAbbrev
         }
-        predictionEndTimeMs={arrivalPrediction?.time.getTime()}
+        predictionEndTimeMs={
+          // Show arriveNext when at-sea for correct trip
+          isInTransitForSegment && isCorrectTrip && arrivalPrediction
+            ? arrivalPrediction.time.getTime()
+            : undefined
+        }
       />
 
       {/* Arrival Marker & Label for this leg */}
@@ -238,12 +229,17 @@ export const TimelineSegmentLeg = ({
 
       {/* Inter-segment At-Dock Progress Bar (Arrive -> Depart Next) */}
       {!isLast && segment.NextDepartingTime && (
-        <TimelineBarTime
+        <TimelineBarAtDock
           startTimeMs={segment.SchedArriveNext?.getTime()}
           endTimeMs={segment.NextDepartingTime.getTime()}
-          status="Pending" // This would need more complex logic to be InProgress
+          status="Pending"
           vesselName={vesselName}
-          circleSize={circleSize}
+        predictionEndTimeMs={
+          // Show departNext when at-dock for correct trip
+          isAtOriginDock && isCorrectTrip && displayTrip?.predictions.departNext?.time
+            ? displayTrip.predictions.departNext.time.getTime()
+            : undefined
+        }
         />
       )}
     </>
