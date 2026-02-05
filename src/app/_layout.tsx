@@ -20,11 +20,13 @@ if (!accessToken) {
 }
 Mapbox.setAccessToken(accessToken);
 
-const PUFFBERRY_FONT = require("../../assets/fonts/puffberry.ttf");
-
 export default function Layout() {
   const [fontsLoaded, fontError] = useFonts({
-    Puffberry: PUFFBERRY_FONT,
+    Puffberry: require("../../assets/fonts/puffberry/Puffberry.ttf"),
+    "Playwrite-Thin": require("../../assets/fonts/playwrite/Playwrite-Thin.ttf"),
+    "Playwrite-ExtraLight": require("../../assets/fonts/playwrite/Playwrite-ExtraLight.ttf"),
+    "Playwrite-Light": require("../../assets/fonts/playwrite/Playwrite-Light.ttf"),
+    "Playwrite-Regular": require("../../assets/fonts/playwrite/Playwrite-Regular.ttf"),
   });
 
   if (!fontsLoaded && !fontError) {

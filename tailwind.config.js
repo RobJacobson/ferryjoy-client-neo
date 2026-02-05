@@ -14,6 +14,10 @@ module.exports = {
     extend: {
       fontFamily: {
         puffberry: ["Puffberry"],
+        playwrite: ["Playwrite-Regular"],
+        "playwrite-thin": ["Playwrite-Thin"],
+        "playwrite-extralight": ["Playwrite-ExtraLight"],
+        "playwrite-light": ["Playwrite-Light"],
       },
       colors: {
         border: "hsl(var(--border))",
