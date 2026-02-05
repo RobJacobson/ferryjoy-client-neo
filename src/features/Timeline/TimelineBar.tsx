@@ -57,9 +57,11 @@ type TimelineBarProps = {
  * Renders a horizontal progress bar that displays progress based on provided values.
  * The bar consists of a background track and a filled progress portion.
  *
- * Width is determined via FlexBox `flexGrow`, provided by parent.
+ * Width is determined via FlexBox `flexGrow`. When used as a child of TimelineBarAtDock
+ * or TimelineBarAtSea, flexGrow is always 1 (fills parent container). The parent container
+ * handles proportional width allocation based on segment duration.
  *
- * @param flexGrow - FlexGrow value for width allocation
+ * @param flexGrow - FlexGrow value for width allocation (usually 1 when used with at-dock/at-sea containers)
  * @param progress - Progress value between 0 and 1
  * @param barStyle - NativeWind className for track styling (default "h-3")
  * @param progressStyle - NativeWind className for fill styling (default "bg-pink-300")

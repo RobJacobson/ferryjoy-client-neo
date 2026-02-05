@@ -26,4 +26,5 @@ export const toSegment = (
   NextDepartingTime: optionalEpochMsToDate(trip.NextDepartingTime),
   DirectKey: trip.DirectKey,
   Key: trip.Key,
+  SailingDay: trip.SailingDay,
 });

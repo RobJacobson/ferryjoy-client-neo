@@ -7,11 +7,7 @@
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { View } from "react-native";
-import Animated, {
-  type SharedValue,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
+import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
@@ -70,6 +66,15 @@ type TimelineBarAtSeaProps = {
    */
   isArrived?: boolean;
   /**
+   * Whether the trip is currently being held in its completed state.
+   */
+  isHeld?: boolean;
+  /**
+   * Whether to explicitly show the progress indicator.
+   * If provided, this overrides the default status-based visibility.
+   */
+  showIndicator?: boolean;
+  /**
    * Whether to animate the progress indicator with a rocking motion.
    */
   animate?: boolean;
@@ -88,6 +93,12 @@ type TimelineBarAtSeaProps = {
  * Calculates all business logic (progress, duration) and renders
  * using the presentation-only TimelineBar and TimelineIndicator components.
  * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
+ *
+ * Width allocation: The outer container uses flexGrow based on segment duration
+ * to create proportional widths across the timeline. Inner TimelineBar fills its parent.
+ *
+ * Hold period: When isArrived is true, the indicator remains visible during
+ * the 30-second hold period, showing "0 min" remaining instead of speed/distance.
  */
 const TimelineBarAtSea = ({
   departingDistance,
@@ -100,6 +111,8 @@ const TimelineBarAtSea = ({
   speed = 0,
   barStyle = "h-3",
   isArrived = false,
+  isHeld = false,
+  showIndicator,
   animate = false,
   style,
 }: TimelineBarAtSeaProps) => {
@@ -123,7 +136,7 @@ const TimelineBarAtSea = ({
 
   // Calculate distance-based progress (only for at-sea segments)
   let progress = timeProgress;
-  if (isArrived) {
+  if (isArrived || isHeld) {
     progress = 1;
   } else if (
     status === "InProgress" &&
@@ -139,6 +152,8 @@ const TimelineBarAtSea = ({
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
+    // Use withSpring for smooth transitions, but ensure it doesn't
+    // overshoot or jump when transitioning to/from hold states.
     animatedProgress.value = withSpring(progress, {
       damping: 100,
       stiffness: 2,
@@ -149,16 +164,13 @@ const TimelineBarAtSea = ({
 
   const flexGrow = duration ?? 1;
 
-  // Only render indicator when actively at sea (not arrived)
-  const shouldShowIndicator = status === "InProgress" && !isArrived;
+  // Render indicator during in-progress status, including the 30-second hold period after arrival
+  const shouldShowIndicator =
+    showIndicator ?? (status === "InProgress" || isArrived || isHeld);
 
   return (
-    <View style={{ height: 32, ...style }} className="relative flex-1">
-      <TimelineBar
-        flexGrow={flexGrow}
-        progress={progress}
-        barStyle={barStyle}
-      />
+    <View style={{ height: 32, flexGrow, ...style }} className="relative">
+      <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
       {shouldShowIndicator && (
         <TimelineIndicator
           progress={animatedProgress}
@@ -175,6 +187,9 @@ const TimelineBarAtSea = ({
             <Text className="text-xs text-muted-foreground">
               {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
             </Text>
+          )}
+          {isArrived && (
+            <Text className="text-xs text-muted-foreground">Arrived ❤️❤️❤️</Text>
           )}
         </TimelineIndicator>
       )}

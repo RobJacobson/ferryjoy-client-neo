@@ -4,10 +4,10 @@
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { getVesselName } from "@/domain";
 import VesselTripTimeline from "./VesselTripTimeline";
 
 type VesselTripCardProps = {
@@ -15,19 +15,11 @@ type VesselTripCardProps = {
    * VesselTrip object containing trip data with actual, predicted, and scheduled times.
    */
   trip: VesselTrip;
-};
-
-/**
- * Returns the vessel status string based on the trip's dock state.
- *
- * @param trip - VesselTrip object to check dock state
- * @returns "At Dock" if trip.AtDock is true, otherwise "At Sea"
- */
-const getVesselStatus = (trip: VesselTrip): string => {
-  if (trip.AtDock) {
-    return "At Dock";
-  }
-  return "At Sea";
+  /**
+   * VesselLocation object containing real-time WSF data.
+   * Passed from parent to ensure synchronization during hold window.
+   */
+  vesselLocation: VesselLocation;
 };
 
 /**
@@ -36,47 +28,53 @@ const getVesselStatus = (trip: VesselTrip): string => {
  * a progress meter that visualizes the trip's progress through two sequential segments.
  * Uses ShadCN Card components for a polished, consistent design.
  *
- * The parent component (VesselsTripList) handles the 15-second "Arrived" delay
- * by passing the appropriate trip (held or current) via props.
+ * The hold window logic is implemented in VesselTripList's
+ * useDelayedVesselTrips hook, which provides both the trip and the
+ * synchronized vesselLocation.
  *
- * @param trip - VesselTrip object with trip data (may be held completed trip or current trip)
+ * @param trip - VesselTrip object with trip data (may be in hold window or current active)
+ * @param vesselLocation - VesselLocation object (may be frozen during hold window)
  * @returns A Card component with trip header and progress meter
  */
-export const VesselTripCard = ({ trip }: VesselTripCardProps) => {
+export const VesselTripCard = ({
+  trip,
+  vesselLocation,
+}: VesselTripCardProps) => {
   // Check if trip has a destination (some trips might be one-way or in transit)
   const hasDestination = !!trip.ArrivingTerminalAbbrev;
 
   return (
-    // Card with overflow-visible to allow progress indicators to extend beyond boundaries
-    <Card className="mb-6 pt-2 pb-10 overflow-visible gap-4">
+    <Card className="mb-6 px-2 pt-4 pb-10 gap-4">
       <CardHeader>
         {/* Terminal route display with vessel info on the right */}
         <View className="w-full flex-row">
           <View className="flex-1 flex-row items-center gap-2">
             <CardTitle className="text-xl font-bold">
-              {trip.DepartingTerminalAbbrev}
+              {vesselLocation.DepartingTerminalAbbrev}
             </CardTitle>
             {hasDestination && (
               <>
                 {/* Arrow separator for route visualization */}
-                <Text className="mx-2 text-xl font-light text-muted-foreground">
+                <Text className="mx-1 text-xl font-light text-muted-foreground">
                   →
                 </Text>
                 <CardTitle className="text-xl font-semibold">
-                  {trip.ArrivingTerminalAbbrev}
+                  {vesselLocation.ArrivingTerminalAbbrev}
                 </CardTitle>
               </>
             )}
           </View>
           {/* Vessel info and status on the right */}
           <Text className="text-xl font-light text-muted-foreground">
-            {getVesselName(trip.VesselAbbrev)}
+            {vesselLocation.VesselName}
           </Text>
         </View>
       </CardHeader>
       {/* Progress meter container with overflow-visible for portal-rendered indicators */}
       <CardContent className="overflow-visible">
-        <VesselTripTimeline trip={trip} />
+        {vesselLocation && (
+          <VesselTripTimeline vesselLocation={vesselLocation} trip={trip} />
+        )}
       </CardContent>
     </Card>
   );

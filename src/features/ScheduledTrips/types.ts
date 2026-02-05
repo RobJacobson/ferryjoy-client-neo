@@ -13,4 +13,6 @@ export type Segment = {
   NextDepartingTime?: Date;
   DirectKey?: string;
   Key: string;
+  /** WSF operational day YYYY-MM-DD; used for completed trip lookups */
+  SailingDay?: string;
 };

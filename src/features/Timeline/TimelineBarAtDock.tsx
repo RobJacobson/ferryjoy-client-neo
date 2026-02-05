@@ -7,11 +7,7 @@
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { View } from "react-native";
-import Animated, {
-  type SharedValue,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
+import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
@@ -62,6 +58,15 @@ type TimelineBarAtDockProps = {
    */
   isArrived?: boolean;
   /**
+   * Whether the trip is currently being held in its completed state.
+   */
+  isHeld?: boolean;
+  /**
+   * Whether to explicitly show the progress indicator.
+   * If provided, this overrides the default status-based visibility.
+   */
+  showIndicator?: boolean;
+  /**
    * Additional inline styles.
    */
   style?: ViewStyle;
@@ -76,6 +81,9 @@ type TimelineBarAtDockProps = {
  * Calculates all business logic (progress, duration, what labels to show) and renders
  * using the presentation-only TimelineBar and TimelineIndicator components.
  * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
+ *
+ * Width allocation: The outer container uses flexGrow based on segment duration
+ * to create proportional widths across the timeline. Inner TimelineBar fills its parent.
  */
 const TimelineBarAtDock = ({
   startTimeMs,
@@ -86,6 +94,8 @@ const TimelineBarAtDock = ({
   barStyle = "h-3",
   atDockAbbrev,
   isArrived = false,
+  isHeld = false,
+  showIndicator,
   style,
 }: TimelineBarAtDockProps) => {
   const nowMs = useNowMs(1000);
@@ -110,6 +120,8 @@ const TimelineBarAtDock = ({
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
+    // Use withSpring for smooth transitions, but ensure it doesn't
+    // overshoot or jump when transitioning to/from hold states.
     animatedProgress.value = withSpring(progress, {
       damping: 100,
       stiffness: 2,
@@ -119,15 +131,12 @@ const TimelineBarAtDock = ({
   }, [progress, animatedProgress]);
 
   const flexGrow = duration ?? 1;
-  const shouldShowIndicator = status === "InProgress";
+  const shouldShowIndicator =
+    showIndicator ?? (status === "InProgress" && !isArrived && !isHeld);
 
   return (
-    <View style={{ height: 32, ...style }} className="relative flex-1">
-      <TimelineBar
-        flexGrow={flexGrow}
-        progress={progress}
-        barStyle={barStyle}
-      />
+    <View style={{ height: 32, flexGrow, ...style }} className="relative">
+      <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
       {shouldShowIndicator && (
         <TimelineIndicator
           progress={animatedProgress}

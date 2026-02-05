@@ -5,7 +5,7 @@
  */
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   type SharedValue,
@@ -34,11 +34,11 @@ const MIN_SPEED_KNOTS = 0;
 const MAX_SPEED_KNOTS = 20;
 
 /** Animation period range in milliseconds */
-const PERIOD_SLOW_MS = 30000;
+const PERIOD_SLOW_MS = 20000;
 const PERIOD_FAST_MS = 7500;
 
 /** Decay factor for returning to 0deg (per frame) */
-const DECAY_FACTOR = 0.9;
+const DECAY_FACTOR = 0.25;
 
 /** Minimum rotation threshold before snapping to 0 */
 const SNAP_THRESHOLD = 0.01;
@@ -102,10 +102,10 @@ type TimelineIndicatorProps = {
  */
 const useRockingAnimation = (animate: boolean, speed: number) => {
   // Memoize the random delay so it stays consistent for the lifetime of the component
-  const randomDelay = useMemo(() => Math.random() * 10000, []);
+  // const randomDelay = useMemo(() => Math.random() * 10000, []);
 
   // theta represents the phase of our sine wave animation (accumulated time * frequency)
-  const theta = useSharedValue(randomDelay);
+  const theta = useSharedValue(0);
   const rotation = useSharedValue(0);
 
   // Use a frame callback to drive the animation manually
@@ -170,7 +170,6 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
  * @param indicatorStyle - NativeWind className for indicator styling
  * @param textStyle - NativeWind className for text styling
  * @param children - Labels to display above the indicator
- * @param containerHeight - Height of container for vertical centering (default 32)
  * @returns A View component containing the indicator and optional labels
  */
 const TimelineIndicator = ({
@@ -181,13 +180,17 @@ const TimelineIndicator = ({
   indicatorStyle = "bg-pink-50 border-pink-500",
   textStyle = "text-pink-500 font-bold",
   children,
-  containerHeight = 32,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
 
-  const animatedPositionStyle = useAnimatedStyle(() => ({
-    left: `${progress.value * 100}%`,
-  }));
+  const animatedPositionStyle = useAnimatedStyle(() => {
+    // Clamp progress to 0-1 to prevent indicator from jumping outside bounds
+    // during fast transitions or hold window resets.
+    const clampedProgress = Math.min(1, Math.max(0, progress.value));
+    return {
+      left: `${clampedProgress * 100}%`,
+    };
+  }, [progress]);
 
   return (
     <Animated.View
