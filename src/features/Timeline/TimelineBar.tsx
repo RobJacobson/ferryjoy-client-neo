@@ -107,7 +107,7 @@ const TimelineBar = ({
         flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "20%",
+        minWidth: "22%",
         height: 32, // Fixed height to accommodate 32px indicator with proper centering
         zIndex: 2, // Always below markers (TimelineBar < TimelineMarker)
         elevation: 2, // Elevation needed for Android stacking

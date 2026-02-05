@@ -12,13 +12,22 @@ import {
   TimelineDisplayTime,
   TimelineMarker,
 } from "../../Timeline";
-import { getBestArrivalTime, getBestDepartureTime } from "../../Timeline/utils";
+import {
+  getBestArrivalTime,
+  getBestDepartureTime,
+  getBestNextDepartureTime,
+} from "../../Timeline/utils";
 import type { Segment } from "../types";
 
 type TimelineSegmentLegProps = {
   segment: Segment;
   vesselLocation: VesselLocation; // PRIMARY: real-time WSF data
   displayTrip?: VesselTrip; // SECONDARY: ML predictions, historical data
+  /**
+   * Trip that arrives at this segment's origin (previous leg).
+   * Used to show at-sea-depart-next / at-dock-depart-next estimated time under "Depart X".
+   */
+  tripArrivingAtOrigin?: VesselTrip;
   vesselTripMap?: Map<string, VesselTrip>;
   circleSize: number;
   isFirst?: boolean;
@@ -35,6 +44,7 @@ export const TimelineSegmentLeg = ({
   segment,
   vesselLocation,
   displayTrip,
+  tripArrivingAtOrigin,
   vesselTripMap,
   circleSize,
   isFirst = false,
@@ -84,6 +94,9 @@ export const TimelineSegmentLeg = ({
   const departurePrediction = getBestDepartureTime(vesselLocation, displayTrip);
 
   const arrivalPrediction = getBestArrivalTime(vesselLocation, displayTrip);
+
+  /** At-sea-depart-next / at-dock-depart-next: when vessel will leave this segment's origin (from previous leg's trip). */
+  const departNextPrediction = getBestNextDepartureTime(tripArrivingAtOrigin);
 
   return (
     <>
@@ -196,6 +209,13 @@ export const TimelineSegmentLeg = ({
               bold={false}
             />
           ) : null}
+          {!isHistoricalMatch && departNextPrediction && (
+            <TimelineDisplayTime
+              time={departNextPrediction}
+              type="estimated"
+              bold={false}
+            />
+          )}
         </View>
       </TimelineMarker>
 

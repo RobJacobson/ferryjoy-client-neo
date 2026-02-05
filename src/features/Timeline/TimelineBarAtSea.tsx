@@ -179,17 +179,19 @@ const TimelineBarAtSea = ({
           speed={speed}
         >
           {vesselName && (
-            <Text className="text-sm font-semibold leading-none">
+            <Text className="text-sm font-bold leading-none font-playwrite pt-4">
               {vesselName}
             </Text>
           )}
           {!isArrived && arrivingDistance !== undefined && (
-            <Text className="text-xs text-muted-foreground">
+            <Text className="text-xs text-muted-foreground font-playwrite-light">
               {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
             </Text>
           )}
           {isArrived && (
-            <Text className="text-xs text-muted-foreground">Arrived ❤️❤️❤️</Text>
+            <Text className="text-xs text-muted-foreground font-playwrite-light">
+              Arrived ❤️❤️❤️
+            </Text>
           )}
         </TimelineIndicator>
       )}

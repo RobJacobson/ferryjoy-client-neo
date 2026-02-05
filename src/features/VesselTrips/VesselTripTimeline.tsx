@@ -8,6 +8,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { getSailingDay } from "@/shared/utils/getSailingDay";
 import {
   TimelineBarAtDock,
   TimelineBarAtSea,
@@ -75,7 +76,7 @@ const VesselTripTimeline = ({
   return (
     <View
       className={cn(
-        "relative flex-row items-center justify-between w-full overflow-visible m-2 pr-4",
+        "relative flex-row items-center justify-between w-full overflow-visible",
         className
       )}
       style={{ minHeight: 80 }} // Ensure enough height for markers and labels
@@ -155,8 +156,24 @@ const VesselTripTimeline = ({
 };
 
 /**
+ * True when TripStart is on the same sailing day as the trip.
+ * Used to avoid showing a prior day's arrival (e.g. overnight) as "actual" for
+ * the first sailing of the day.
+ *
+ * @param trip - VesselTrip with optional TripStart and SailingDay
+ * @returns True if TripStart should be shown as actual arrival for this segment
+ */
+const isTripStartOnSailingDay = (trip: VesselTrip): boolean => {
+  if (!trip.TripStart || !trip.SailingDay) return false;
+  const tripStartDay = getSailingDay(trip.TripStart);
+  return tripStartDay === trip.SailingDay;
+};
+
+/**
  * Renders label for left circle of at-dock progress bar.
- * Displays the departing terminal name and actual arrival time.
+ * Displays the departing terminal name and actual arrival time when that
+ * arrival is on the same sailing day (avoids showing last night's arrival for
+ * first sailing of the day).
  *
  * @param trip - VesselTrip object containing trip data
  * @returns A View component with terminal text and arrival time
@@ -166,7 +183,9 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => (
     <Text className="text-xs text-muted-foreground">
       {`Arrived ${trip.DepartingTerminalAbbrev}`}
     </Text>
-    <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
+    {isTripStartOnSailingDay(trip) && (
+      <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
+    )}
     {trip.ScheduledTrip?.SchedArriveCurr && (
       <TimelineDisplayTime
         time={trip.ScheduledTrip?.SchedArriveCurr}
@@ -216,7 +235,7 @@ const DepartCurrLabel = ({
 
 /**
  * Renders label for the right circle of the at-sea progress bar.
- * Displays the arriving terminal name and predicted arrival time.
+ * Displays the arriving terminal name and predicted/actual arrival time.
  *
  * @param arrivalPrediction - Resolved arrival prediction
  * @param trip - VesselTrip object containing trip data
@@ -230,7 +249,7 @@ const DestinationArriveLabel = ({
   trip: VesselTrip;
 }) => (
   <>
-    <Text className="text-xs text-muted-foreground">
+    <Text className="text-[10px] text-muted-foreground">
       {`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
     </Text>
     {!trip.TripEnd && arrivalPrediction && (

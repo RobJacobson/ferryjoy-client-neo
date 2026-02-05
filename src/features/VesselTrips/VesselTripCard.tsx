@@ -44,25 +44,25 @@ export const VesselTripCard = ({
   const hasDestination = !!trip.ArrivingTerminalAbbrev;
 
   return (
-    <Card className="mb-6 px-2 pt-4 pb-10 gap-4">
-      <CardHeader>
+    <Card className="mb-6 px-4 pt-4 pb-12 gap-4">
+      <CardHeader className="z-10">
         {/* Terminal route display with vessel info on the right */}
         <View className="w-full flex-row">
-          <View className="flex-1 flex-row items-center gap-2">
-            <CardTitle className="text-xl font-bold">
+          <View className="flex-1 flex-row items-center ">
+            <CardTitle className="flex text-xl font-bold">
               {vesselLocation.DepartingTerminalAbbrev}
+              {hasDestination && (
+                <>
+                  {/* Arrow separator for route visualization */}
+                  <Text className="text-xl font-light text-muted-foreground">
+                    {" → "}
+                  </Text>
+                  <CardTitle className="text-xl font-semibold">
+                    {vesselLocation.ArrivingTerminalAbbrev}
+                  </CardTitle>
+                </>
+              )}
             </CardTitle>
-            {hasDestination && (
-              <>
-                {/* Arrow separator for route visualization */}
-                <Text className="mx-1 text-xl font-light text-muted-foreground">
-                  →
-                </Text>
-                <CardTitle className="text-xl font-semibold">
-                  {vesselLocation.ArrivingTerminalAbbrev}
-                </CardTitle>
-              </>
-            )}
           </View>
           {/* Vessel info and status on the right */}
           <Text className="text-xl font-light text-muted-foreground">
@@ -71,7 +71,7 @@ export const VesselTripCard = ({
         </View>
       </CardHeader>
       {/* Progress meter container with overflow-visible for portal-rendered indicators */}
-      <CardContent className="overflow-visible">
+      <CardContent className="overflow-visible z-10 pt-2">
         {vesselLocation && (
           <VesselTripTimeline vesselLocation={vesselLocation} trip={trip} />
         )}

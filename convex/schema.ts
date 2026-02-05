@@ -24,7 +24,10 @@ export default defineSchema({
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_vessel_abbrev_and_scheduled_departure", ["VesselAbbrev", "ScheduledDeparture"])
+    .index("by_vessel_abbrev_and_scheduled_departure", [
+      "VesselAbbrev",
+      "ScheduledDeparture",
+    ])
     .index("by_trip_end", ["TripEnd"])
     .index("by_timestamp", ["TimeStamp"])
     .index("by_key", ["Key"])

@@ -97,6 +97,13 @@ export const ScheduledTripTimeline = ({
           segment={segment}
           vesselLocation={vesselLocation} // PRIMARY: real-time WSF data (synchronized)
           displayTrip={vesselTripMap.get(segment.DirectKey || segment.Key)} // SECONDARY: ML predictions, historical data (synchronized)
+          tripArrivingAtOrigin={
+            index > 0
+              ? vesselTripMap.get(
+                  segments[index - 1].DirectKey || segments[index - 1].Key
+                )
+              : undefined
+          }
           vesselTripMap={vesselTripMap}
           circleSize={circleSize}
           isFirst={index === 0}

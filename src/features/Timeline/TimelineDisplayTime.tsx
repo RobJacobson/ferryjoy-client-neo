@@ -51,13 +51,15 @@ const TimelineDisplayTime = ({
 
   return (
     <View
-      className="flex-row items-center justify-center mt-0.5"
+      className="flex-row items-center justify-center"
       style={{ gap: type === "scheduled" ? 2 : 1 }}
     >
       {Icon && (
-        <Icon size={14} strokeWidth={1.5} color={bold ? "#000" : "#333"} />
+        <Icon size={12} strokeWidth={1.5} color={bold ? "#000" : "#333"} />
       )}
-      <Text className={`text-xs ${bold ? "font-semibold" : "font-light "}`}>
+      <Text
+        className={`text-[10px] ${bold ? "font-playwrite" : "font-playwrite-extralight"}`}
+      >
         {toDisplayTime(time)}
       </Text>
     </View>

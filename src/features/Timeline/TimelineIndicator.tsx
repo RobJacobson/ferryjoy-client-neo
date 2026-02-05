@@ -178,7 +178,7 @@ const TimelineIndicator = ({
   speed = 0,
   minutesRemaining = "--",
   indicatorStyle = "bg-pink-50 border-pink-500",
-  textStyle = "text-pink-500 font-bold",
+  textStyle = "text-pink-500 font-playwrite text-sm",
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
@@ -210,15 +210,19 @@ const TimelineIndicator = ({
         animatedPositionStyle,
       ]}
     >
-      {/* Labels above indicator - centered horizontally via items-center on parent */}
+      {/* Labels above indicator - centered horizontally via items-center on parent.
+          minHeight prevents clipping: when the label sits outside the parent's 32px
+          bounds, layout can measure it inconsistently (first paint vs after text
+          measure), so we reserve space to avoid a collapsed wrapper. */}
       {children && (
         <View
           pointerEvents="none"
           collapsable={false}
-          className="absolute items-center"
+          className="absolute items-center justify-end"
           style={{
             bottom: INDICATOR_SIZE + 2,
             width: 250, // Sufficient width to prevent wrapping
+            minHeight: 44, // Reserve space so content is never clipped (2 lines)
           }}
         >
           {children}
@@ -226,7 +230,7 @@ const TimelineIndicator = ({
       )}
       {/* Indicator circle */}
       <View
-        className={`rounded-full items-center justify-center border-2 ${indicatorStyle}`}
+        className={`rounded-full items-center justify-center border-2 ${indicatorStyle} `}
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,

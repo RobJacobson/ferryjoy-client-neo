@@ -143,12 +143,12 @@ const TimelineBarAtDock = ({
           minutesRemaining={minutesRemaining ?? "--"}
         >
           {vesselName && (
-            <Text className="text-sm font-semibold leading-none">
+            <Text className="text-sm leading-none font-playwrite pt-4">
               {vesselName}
             </Text>
           )}
           {atDockAbbrev && (
-            <Text className="text-xs text-muted-foreground">
+            <Text className="text-xs text-muted-foreground font-playwrite-light">
               At Dock {atDockAbbrev}
             </Text>
           )}
