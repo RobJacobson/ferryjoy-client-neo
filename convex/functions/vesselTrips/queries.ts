@@ -1,7 +1,5 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { stripConvexMeta } from "shared/stripConvexMeta";
-import type { ConvexVesselTrip } from "./schemas";
 
 /**
  * API function for fetching active vessel trips (currently in progress)
@@ -29,77 +27,50 @@ export const getActiveTrips = query({
 });
 
 /**
- * API function for fetching all vessel trips for a specific sailing day.
- * Used to show historical actual data on the daily schedule.
+ * Fetches completed vessel trips for a sailing day and set of departing terminals.
+ * Uses indexed lookups only; matches ScheduledTrips usage (sailing day + terminal).
  *
  * @param ctx - Convex context
- * @param args.sailingDay - The sailing day in YYYY-MM-DD format
- * @returns Array of vessel trip documents for that day
+ * @param args.sailingDay - Sailing day in YYYY-MM-DD format
+ * @param args.departingTerminalAbbrevs - Terminal abbreviations to include
+ * @returns Array of completed vessel trip documents, deduped by Key
  */
-export const getVesselTripsForSailingDay = query({
-  args: { sailingDay: v.string() },
-  handler: async (ctx, args) => {
-    try {
-      // We search both active and completed trips to get a full picture of the day
-      const [active, completed] = await Promise.all([
-        ctx.db.query("activeVesselTrips").collect(),
-        ctx.db
-          .query("completedVesselTrips")
-          .withIndex("by_timestamp", (q) => q.gte("TimeStamp", 0))
-          .collect(),
-      ]);
-
-      // Filter for the specific sailing day.
-      // Note: In a production app, we'd want a proper index on SailingDay for completedVesselTrips too.
-      const allTrips = [...active, ...completed].filter(
-        (t) =>
-          t.SailingDay === args.sailingDay ||
-          t.ScheduledTrip?.SailingDay === args.sailingDay
-      );
-
-      return allTrips;
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch vessel trips for sailing day ${args.sailingDay}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { sailingDay: args.sailingDay, error: String(error) },
-      });
-    }
+export const getCompletedTripsForSailingDayAndTerminals = query({
+  args: {
+    sailingDay: v.string(),
+    departingTerminalAbbrevs: v.array(v.string()),
   },
-});
-
-/**
- * API function for fetching the most recent completed trip for a vessel
- * Used by prediction logic to access previous trip data for context
- *
- * @param ctx - Convex context
- * @param args.vesselAbbrev - The vessel abbreviation to find completed trips for
- * @returns The most recent completed trip document or null if none found
- */
-export const getMostRecentCompletedTrip = query({
-  args: { vesselAbbrev: v.string() },
   handler: async (ctx, args) => {
     try {
-      const mostRecent = await ctx.db
-        .query("completedVesselTrips")
-        .withIndex("by_vessel_and_trip_end", (q) =>
-          q.eq("VesselAbbrev", args.vesselAbbrev)
+      const terminals = [...new Set(args.departingTerminalAbbrevs)];
+      const results = await Promise.all(
+        terminals.map((terminal) =>
+          ctx.db
+            .query("completedVesselTrips")
+            .withIndex("by_sailing_day_and_departing_terminal", (q) =>
+              q
+                .eq("SailingDay", args.sailingDay)
+                .eq("DepartingTerminalAbbrev", terminal)
+            )
+            .collect()
         )
-        .order("desc")
-        .first();
-
-      if (!mostRecent) {
-        return null;
+      );
+      const byKey = new Map<string, (typeof results)[0][number]>();
+      for (const batch of results) {
+        for (const doc of batch) {
+          if (doc.Key) byKey.set(doc.Key, doc);
+        }
       }
-
-      return stripConvexMeta(mostRecent) as ConvexVesselTrip;
+      return Array.from(byKey.values());
     } catch (error) {
       throw new ConvexError({
-        message: `Failed to fetch most recent completed trip for vessel ${args.vesselAbbrev}`,
+        message: `Failed to fetch completed trips for sailing day ${args.sailingDay}`,
         code: "QUERY_FAILED",
         severity: "error",
-        details: { vesselAbbrev: args.vesselAbbrev, error: String(error) },
+        details: {
+          sailingDay: args.sailingDay,
+          error: String(error),
+        },
       });
     }
   },
