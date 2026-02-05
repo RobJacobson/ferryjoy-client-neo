@@ -148,8 +148,23 @@ export const enrichTripStartUpdates = async (
   updatedTrip: ConvexVesselTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
   const tripKey = deriveTripKey(updatedTrip);
+
   if (!tripKey) {
-    return {};
+    // When tripKey is null (e.g., during repositioning), clear stale Key and ScheduledTrip data.
+    // This prevents displaying wrong scheduled times for unscheduled trips.
+    return {
+      Key: undefined,
+      ScheduledTrip: undefined,
+      RouteID: 0,
+      RouteAbbrev: "",
+      SailingDay: "",
+      // Clear stale predictions as well
+      AtDockDepartCurr: undefined,
+      AtDockArriveNext: undefined,
+      AtDockDepartNext: undefined,
+      AtSeaArriveNext: undefined,
+      AtSeaDepartNext: undefined,
+    };
   }
 
   const { shouldLookup, existingKeyMismatch } = shouldLookupScheduledTrip(

@@ -223,88 +223,9 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip): VesselTrip => {
     AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
   };
 
-  return {
-    ...domainTrip,
-    predictions: resolvePredictions(domainTrip),
-  };
+  return domainTrip;
 };
 
-/**
- * Resolves the best available prediction for each milestone.
- *
- * @param trip - Domain vessel trip with Date-converted predictions
- * @returns Resolved predictions for all milestones
- */
-const resolvePredictions = (
-  trip: Omit<VesselTrip, "predictions">
-): ResolvedPredictions => {
-  // 1. Depart Current
-  const departCurr =
-    trip.LeftDock !== undefined
-      ? {
-          time: trip.LeftDock,
-          source: "wsf" as const,
-          variant: "at-dock" as const,
-        }
-      : trip.AtDockDepartCurr
-        ? {
-            time: trip.AtDockDepartCurr.PredTime,
-            source: "ml" as const,
-            variant: "at-dock" as const,
-            prediction: trip.AtDockDepartCurr,
-          }
-        : null;
-
-  // 2. Arrive Next
-  const arriveNext =
-    trip.TripEnd !== undefined
-      ? {
-          time: trip.TripEnd,
-          source: "wsf" as const,
-          variant: "at-sea" as const,
-        }
-      : trip.Eta !== undefined
-        ? { time: trip.Eta, source: "wsf" as const, variant: "at-sea" as const }
-        : trip.AtSeaArriveNext
-          ? {
-              time: trip.AtSeaArriveNext.PredTime,
-              source: "ml" as const,
-              variant: "at-sea" as const,
-              prediction: trip.AtSeaArriveNext,
-            }
-          : trip.AtDockArriveNext
-            ? {
-                time: trip.AtDockArriveNext.PredTime,
-                source: "ml" as const,
-                variant: "at-dock" as const,
-                prediction: trip.AtDockArriveNext,
-              }
-            : null;
-
-  // 3. Depart Next
-  const departNext = trip.AtSeaDepartNext
-    ? {
-        time: trip.AtSeaDepartNext.PredTime,
-        source: "ml" as const,
-        variant: "at-sea" as const,
-        prediction: trip.AtSeaDepartNext,
-      }
-    : trip.AtDockDepartNext
-      ? {
-          time: trip.AtDockDepartNext.PredTime,
-          source: "ml" as const,
-          variant: "at-dock" as const,
-          prediction: trip.AtDockDepartNext,
-        }
-      : null;
-
-  return { departCurr, arriveNext, departNext };
-};
-
-/**
- * A vessel trip that has all required fields for making predictions.
- * This is a subset of ConvexVesselTrip where prediction-critical fields are guaranteed to be present.
- */
 export type PredictionReadyTrip = ConvexVesselTrip & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
@@ -312,25 +233,6 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
   TripStart: number;
   PrevScheduledDeparture: number;
   PrevLeftDock: number;
-};
-
-/**
- * A resolved prediction that abstracts away the source (ML vs WSF) and variant (at-dock vs at-sea).
- */
-export type ResolvedPrediction = {
-  time: Date;
-  source: "wsf" | "ml";
-  variant: "at-dock" | "at-sea" | "scheduled";
-  prediction?: Prediction; // Original ML prediction if source is 'ml'
-};
-
-/**
- * Standardized set of predictions for a vessel trip milestones.
- */
-export type ResolvedPredictions = {
-  departCurr: ResolvedPrediction | null;
-  arriveNext: ResolvedPrediction | null;
-  departNext: ResolvedPrediction | null;
 };
 
 /**
@@ -361,10 +263,10 @@ export type VesselTrip = {
   TimeStamp: Date;
   PrevScheduledDeparture?: number;
   PrevLeftDock?: number;
+  // ML model predictions (raw, no backend resolution)
   AtDockDepartCurr?: Prediction;
   AtDockArriveNext?: Prediction;
   AtDockDepartNext?: Prediction;
   AtSeaArriveNext?: Prediction;
   AtSeaDepartNext?: Prediction;
-  predictions: ResolvedPredictions;
 };
