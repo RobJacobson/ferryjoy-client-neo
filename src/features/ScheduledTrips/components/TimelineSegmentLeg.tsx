@@ -74,13 +74,17 @@ export const TimelineSegmentLeg = ({
       segment.DepartingTime.getTime();
 
   // For historical trips (completed earlier in the day), we match based on the segment's scheduled departure
+  // and same run: for non-first segments, the completed trip's PrevKey must match the previous leg's trip Key
+  // so we don't show actuals from a different run (e.g. morning LOP->ANA when viewing afternoon ORI->LOP->ANA).
+  const prevKeyMatchesRun =
+    !tripArrivingAtOrigin ||
+    displayTrip?.ScheduledTrip?.PrevKey === tripArrivingAtOrigin.Key;
   const isHistoricalMatch =
-    displayTrip &&
-    displayTrip.ScheduledDeparture &&
-    displayTrip.ScheduledDeparture.getTime() ===
+    displayTrip?.ScheduledDeparture?.getTime() ===
       segment.DepartingTime.getTime() &&
-    displayTrip.DepartingTerminalAbbrev === segment.DepartingTerminalAbbrev &&
-    displayTrip.ArrivingTerminalAbbrev === segment.ArrivingTerminalAbbrev;
+    displayTrip?.DepartingTerminalAbbrev === segment.DepartingTerminalAbbrev &&
+    displayTrip?.ArrivingTerminalAbbrev === segment.ArrivingTerminalAbbrev &&
+    prevKeyMatchesRun;
 
   /**
    * Prediction Selection Logic
@@ -98,6 +102,19 @@ export const TimelineSegmentLeg = ({
   /** At-sea-depart-next / at-dock-depart-next: when vessel will leave this segment's origin (from previous leg's trip). */
   const departNextPrediction = getBestNextDepartureTime(tripArrivingAtOrigin);
 
+  // Past tense for labels when the event is in the past (consistent with VesselTripTimeline).
+  const originArriveInPast =
+    (isHistoricalMatch && !!displayTrip?.LeftDock) ||
+    (segment.SchedArriveCurr != null &&
+      segment.SchedArriveCurr.getTime() < Date.now());
+  const departInPast =
+    (isHistoricalMatch && !!displayTrip?.LeftDock) ||
+    segment.DepartingTime.getTime() < Date.now();
+  const destArriveInPast =
+    (isHistoricalMatch && !!displayTrip?.TripEnd) ||
+    (segment.SchedArriveNext != null &&
+      segment.SchedArriveNext.getTime() < Date.now());
+
   return (
     <>
       {/* Absolute Origin Logic (Arrive Origin -> At-Dock Origin) */}
@@ -110,7 +127,7 @@ export const TimelineSegmentLeg = ({
           >
             <View className="items-center">
               <Text className="text-xs text-muted-foreground">
-                {`Arrive ${segment.DepartingTerminalAbbrev}`}
+                {`${originArriveInPast ? "Arrived" : "Arrive"} ${segment.DepartingTerminalAbbrev}`}
               </Text>
               {segment.SchedArriveCurr !== undefined ? (
                 <TimelineDisplayTime
@@ -132,16 +149,14 @@ export const TimelineSegmentLeg = ({
           </TimelineMarker>
 
           <TimelineBarAtDock
-            startTimeMs={
-              (isHistoricalMatch && displayTrip?.TripStart?.getTime()) ||
-              segment.SchedArriveCurr?.getTime()
-            }
-            endTimeMs={
-              (isHistoricalMatch && displayTrip?.LeftDock?.getTime()) ||
-              segment.DepartingTime.getTime()
-            }
-            status={
-              displayTrip
+            state={{
+              startTimeMs:
+                (isHistoricalMatch && displayTrip?.TripStart?.getTime()) ||
+                segment.SchedArriveCurr?.getTime(),
+              endTimeMs:
+                (isHistoricalMatch && displayTrip?.LeftDock?.getTime()) ||
+                segment.DepartingTime.getTime(),
+              status: displayTrip
                 ? displayTrip.LeftDock
                   ? "Completed"
                   : isAtOriginDock && isCorrectTrip
@@ -149,24 +164,27 @@ export const TimelineSegmentLeg = ({
                     : "Pending"
                 : segment.DepartingTime.getTime() < Date.now()
                   ? "Completed"
-                  : "Pending"
-            }
+                  : "Pending",
+              isArrived:
+                (isHistoricalMatch && !!displayTrip.LeftDock) ||
+                segment.DepartingTime.getTime() < Date.now(),
+              isHeld:
+                !!displayTrip &&
+                !!displayTrip.TripEnd &&
+                displayTrip.DepartingTerminalAbbrev ===
+                  segment.DepartingTerminalAbbrev &&
+                isCorrectTrip,
+              predictionEndTimeMs:
+                // Show departCurr when at-dock for correct trip
+                isAtOriginDock && isCorrectTrip
+                  ? departurePrediction?.getTime()
+                  : undefined,
+            }}
             vesselName={vesselLocation.VesselName}
             atDockAbbrev={
               isAtOriginDock && isCorrectTrip
                 ? segment.DepartingTerminalAbbrev
                 : undefined
-            }
-            isArrived={
-              (isHistoricalMatch && !!displayTrip.LeftDock) ||
-              segment.DepartingTime.getTime() < Date.now()
-            }
-            isHeld={
-              !!displayTrip &&
-              !!displayTrip.TripEnd &&
-              displayTrip.DepartingTerminalAbbrev ===
-                segment.DepartingTerminalAbbrev &&
-              isCorrectTrip
             }
             showIndicator={
               (isAtOriginDock && isCorrectTrip && !!displayTrip) ||
@@ -175,12 +193,6 @@ export const TimelineSegmentLeg = ({
                 displayTrip.DepartingTerminalAbbrev ===
                   segment.DepartingTerminalAbbrev &&
                 isCorrectTrip)
-            }
-            predictionEndTimeMs={
-              // Show departCurr when at-dock for correct trip
-              isAtOriginDock && isCorrectTrip
-                ? departurePrediction?.getTime()
-                : undefined
             }
           />
         </>
@@ -194,7 +206,7 @@ export const TimelineSegmentLeg = ({
       >
         <View className="items-center">
           <Text className="text-xs text-muted-foreground">
-            {`Depart ${segment.DepartingTerminalAbbrev}`}
+            {`${departInPast ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
           </Text>
           <TimelineDisplayTime
             time={segment.DepartingTime}
@@ -221,22 +233,18 @@ export const TimelineSegmentLeg = ({
 
       {/* At-Sea Progress Bar (Depart -> Arrive Next) */}
       <TimelineBarAtSea
-        departingDistance={vesselLocation.DepartingDistance}
-        arrivingDistance={vesselLocation.ArrivingDistance}
-        startTimeMs={
-          (isHistoricalMatch &&
-            (displayTrip?.LeftDock?.getTime() ||
-              displayTrip?.TripStart?.getTime())) ||
-          segment.DepartingTime.getTime()
-        }
-        endTimeMs={
-          (isHistoricalMatch &&
-            (displayTrip?.TripEnd?.getTime() ||
-              arrivalPrediction?.getTime())) ||
-          segment.SchedArriveNext?.getTime()
-        }
-        status={
-          displayTrip
+        state={{
+          startTimeMs:
+            (isHistoricalMatch &&
+              (displayTrip?.LeftDock?.getTime() ||
+                displayTrip?.TripStart?.getTime())) ||
+            segment.DepartingTime.getTime(),
+          endTimeMs:
+            (isHistoricalMatch &&
+              (displayTrip?.TripEnd?.getTime() ||
+                arrivalPrediction?.getTime())) ||
+            segment.SchedArriveNext?.getTime(),
+          status: displayTrip
             ? displayTrip.TripEnd
               ? "Completed"
               : isInTransitForSegment && isCorrectTrip
@@ -245,8 +253,25 @@ export const TimelineSegmentLeg = ({
             : segment.SchedArriveNext &&
                 segment.SchedArriveNext.getTime() < Date.now()
               ? "Completed"
-              : "Pending"
-        }
+              : "Pending",
+          isArrived:
+            (isHistoricalMatch && !!displayTrip.TripEnd) ||
+            (segment.SchedArriveNext &&
+              segment.SchedArriveNext.getTime() < Date.now()),
+          isHeld:
+            !!displayTrip &&
+            !!displayTrip.TripEnd &&
+            displayTrip.ArrivingTerminalAbbrev ===
+              segment.ArrivingTerminalAbbrev &&
+            isCorrectTrip,
+          predictionEndTimeMs:
+            // Show arriveNext when at-sea for correct trip
+            isInTransitForSegment && isCorrectTrip && arrivalPrediction
+              ? arrivalPrediction.getTime()
+              : undefined,
+        }}
+        departingDistance={vesselLocation.DepartingDistance}
+        arrivingDistance={vesselLocation.ArrivingDistance}
         vesselName={vesselLocation.VesselName}
         animate={
           isInTransitForSegment &&
@@ -255,18 +280,6 @@ export const TimelineSegmentLeg = ({
           !displayTrip.TripEnd
         }
         speed={vesselLocation.Speed}
-        isArrived={
-          (isHistoricalMatch && !!displayTrip.TripEnd) ||
-          (segment.SchedArriveNext &&
-            segment.SchedArriveNext.getTime() < Date.now())
-        }
-        isHeld={
-          !!displayTrip &&
-          !!displayTrip.TripEnd &&
-          displayTrip.ArrivingTerminalAbbrev ===
-            segment.ArrivingTerminalAbbrev &&
-          isCorrectTrip
-        }
         showIndicator={
           (isInTransitForSegment && isCorrectTrip && !!displayTrip) ||
           (!!displayTrip &&
@@ -274,12 +287,6 @@ export const TimelineSegmentLeg = ({
             displayTrip.ArrivingTerminalAbbrev ===
               segment.ArrivingTerminalAbbrev &&
             isCorrectTrip)
-        }
-        predictionEndTimeMs={
-          // Show arriveNext when at-sea for correct trip
-          isInTransitForSegment && isCorrectTrip && arrivalPrediction
-            ? arrivalPrediction.getTime()
-            : undefined
         }
       />
 
@@ -291,7 +298,7 @@ export const TimelineSegmentLeg = ({
       >
         <View className="items-center">
           <Text className="text-xs text-muted-foreground">
-            {`Arrive ${segment.DisplayArrivingTerminalAbbrev || segment.ArrivingTerminalAbbrev}`}
+            {`${destArriveInPast ? "Arrived" : "Arrive"} ${segment.DisplayArrivingTerminalAbbrev || segment.ArrivingTerminalAbbrev}`}
           </Text>
           {/* Scheduled arrival time is bold and on the first line */}
           {segment.SchedArriveNext !== undefined ? (
@@ -317,30 +324,28 @@ export const TimelineSegmentLeg = ({
       {/* Inter-segment At-Dock Progress Bar (Arrive -> Depart Next) */}
       {!isLast && segment.NextDepartingTime && (
         <TimelineBarAtDock
-          startTimeMs={
-            (isHistoricalMatch && displayTrip?.TripEnd?.getTime()) ||
-            segment.SchedArriveNext?.getTime()
-          }
-          endTimeMs={
-            (isHistoricalMatch &&
-              vesselTripMap
-                ?.get(segment.Key + "_next")
-                ?.TripStart?.getTime()) ||
-            segment.NextDepartingTime.getTime()
-          }
-          status={
-            segment.NextDepartingTime.getTime() < Date.now()
-              ? "Completed"
-              : "Pending"
-          }
+          state={{
+            startTimeMs:
+              (isHistoricalMatch && displayTrip?.TripEnd?.getTime()) ||
+              segment.SchedArriveNext?.getTime(),
+            endTimeMs:
+              (isHistoricalMatch &&
+                vesselTripMap
+                  ?.get(segment.Key + "_next")
+                  ?.TripStart?.getTime()) ||
+              segment.NextDepartingTime.getTime(),
+            status:
+              segment.NextDepartingTime.getTime() < Date.now()
+                ? "Completed"
+                : "Pending",
+            isArrived: segment.NextDepartingTime.getTime() < Date.now(),
+            predictionEndTimeMs:
+              // Show departNext when at-dock for correct trip
+              isAtOriginDock && isCorrectTrip && displayTrip?.AtDockDepartNext
+                ? displayTrip.AtDockDepartNext.PredTime.getTime()
+                : undefined,
+          }}
           vesselName={vesselLocation.VesselName}
-          isArrived={segment.NextDepartingTime.getTime() < Date.now()}
-          predictionEndTimeMs={
-            // Show departNext when at-dock for correct trip
-            isAtOriginDock && isCorrectTrip && displayTrip?.AtDockDepartNext
-              ? displayTrip.AtDockDepartNext.PredTime.getTime()
-              : undefined
-          }
         />
       )}
     </>

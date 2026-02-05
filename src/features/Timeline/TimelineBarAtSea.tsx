@@ -6,12 +6,13 @@
 
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
+import { TimelineSegment } from "./TimelineSegment";
+import type { TimelineSegmentState } from "./types";
 import { getTimelineLayout } from "./utils";
 
 // ============================================================================
@@ -20,6 +21,10 @@ import { getTimelineLayout } from "./utils";
 
 type TimelineBarAtSeaProps = {
   /**
+   * Grouped temporal state for the segment.
+   */
+  state: TimelineSegmentState;
+  /**
    * Distance from departing terminal in miles.
    */
   departingDistance?: number;
@@ -27,24 +32,6 @@ type TimelineBarAtSeaProps = {
    * Distance to arriving terminal in miles.
    */
   arrivingDistance?: number;
-  /**
-   * Start time in milliseconds (used for flex-grow width allocation).
-   */
-  startTimeMs?: number;
-  /**
-   * End time in milliseconds (used for flex-grow and minutes remaining).
-   */
-  endTimeMs?: number;
-  /**
-   * Status of the progress bar segment.
-   */
-  status: "Pending" | "InProgress" | "Completed";
-  /**
-   * Optional prediction for the end time of this segment.
-   * If provided, progress will be calculated against this instead of endTimeMs
-   * when the vessel is delayed.
-   */
-  predictionEndTimeMs?: number;
   /**
    * Optional vessel name to display above the progress indicator.
    */
@@ -61,14 +48,6 @@ type TimelineBarAtSeaProps = {
    * NativeWind className for the bar height.
    */
   barStyle?: string;
-  /**
-   * Whether the vessel has arrived at its destination terminal.
-   */
-  isArrived?: boolean;
-  /**
-   * Whether the trip is currently being held in its completed state.
-   */
-  isHeld?: boolean;
   /**
    * Whether to explicitly show the progress indicator.
    * If provided, this overrides the default status-based visibility.
@@ -94,24 +73,19 @@ type TimelineBarAtSeaProps = {
  * using the presentation-only TimelineBar and TimelineIndicator components.
  * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
  *
- * Width allocation: The outer container uses flexGrow based on segment duration
- * to create proportional widths across the timeline. Inner TimelineBar fills its parent.
+ * Width allocation: Uses SchematicSegment (flexGrow + minWidth) to create
+ * proportional widths across the timeline while ensuring legibility.
  *
  * Hold period: When isArrived is true, the indicator remains visible during
  * the 30-second hold period, showing "0 min" remaining instead of speed/distance.
  */
 const TimelineBarAtSea = ({
+  state,
   departingDistance,
   arrivingDistance,
-  startTimeMs,
-  endTimeMs,
-  status,
-  predictionEndTimeMs,
   vesselName,
   speed = 0,
   barStyle = "h-3",
-  isArrived = false,
-  isHeld = false,
   showIndicator,
   animate = false,
   style,
@@ -127,19 +101,19 @@ const TimelineBarAtSea = ({
     minutesRemaining,
     duration,
   } = getTimelineLayout({
-    status,
+    status: state.status,
     nowMs,
-    startTimeMs,
-    endTimeMs,
-    predictionEndTimeMs,
+    startTimeMs: state.startTimeMs,
+    endTimeMs: state.endTimeMs,
+    predictionEndTimeMs: state.predictionEndTimeMs,
   });
 
   // Calculate distance-based progress (only for at-sea segments)
   let progress = timeProgress;
-  if (isArrived || isHeld) {
+  if (state.isArrived || state.isHeld) {
     progress = 1;
   } else if (
-    status === "InProgress" &&
+    state.status === "InProgress" &&
     departingDistance !== undefined &&
     arrivingDistance !== undefined &&
     departingDistance + arrivingDistance > 0
@@ -162,14 +136,13 @@ const TimelineBarAtSea = ({
     });
   }, [progress, animatedProgress]);
 
-  const flexGrow = duration ?? 1;
-
   // Render indicator during in-progress status, including the 30-second hold period after arrival
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" || isArrived || isHeld);
+    showIndicator ??
+    (state.status === "InProgress" || state.isArrived || state.isHeld);
 
   return (
-    <View style={{ height: 32, flexGrow, ...style }} className="relative">
+    <TimelineSegment duration={duration ?? 1} style={style}>
       <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
       {shouldShowIndicator && (
         <TimelineIndicator
@@ -183,19 +156,19 @@ const TimelineBarAtSea = ({
               {vesselName}
             </Text>
           )}
-          {!isArrived && arrivingDistance !== undefined && (
+          {!state.isArrived && arrivingDistance !== undefined && (
             <Text className="text-xs text-muted-foreground font-playwrite-light">
               {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
             </Text>
           )}
-          {isArrived && (
+          {state.isArrived && (
             <Text className="text-xs text-muted-foreground font-playwrite-light">
               Arrived ❤️❤️❤️
             </Text>
           )}
         </TimelineIndicator>
       )}
-    </View>
+    </TimelineSegment>
   );
 };
 

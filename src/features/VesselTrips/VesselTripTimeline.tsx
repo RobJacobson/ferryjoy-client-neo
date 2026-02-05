@@ -92,19 +92,19 @@ const VesselTripTimeline = ({
 
       {/* At Dock Progress Bar */}
       <TimelineBarAtDock
-        startTimeMs={arriveCurrTime?.getTime()}
-        endTimeMs={departCurrTime?.getTime()}
-        status={
-          trip.TripEnd
+        state={{
+          startTimeMs: arriveCurrTime?.getTime(),
+          endTimeMs: departCurrTime?.getTime(),
+          status: trip.TripEnd
             ? "Completed"
             : vesselLocation?.AtDock
               ? "InProgress"
-              : "Completed"
-        }
+              : "Completed",
+          isArrived: !!trip.TripEnd,
+          isHeld: !!trip.TripEnd,
+        }}
         vesselName={vesselLocation.VesselName}
         atDockAbbrev={vesselLocation.DepartingTerminalAbbrev}
-        isArrived={!!trip.TripEnd}
-        isHeld={!!trip.TripEnd}
       />
 
       {/* Depart Curr Marker & Label */}
@@ -122,22 +122,22 @@ const VesselTripTimeline = ({
 
       {/* At Sea Progress Bar */}
       <TimelineBarAtSea
-        departingDistance={vesselLocation?.DepartingDistance}
-        arrivingDistance={vesselLocation?.ArrivingDistance}
-        startTimeMs={departCurrTime?.getTime()}
-        endTimeMs={predictedArrivalTime?.getTime()}
-        status={
-          trip.TripEnd
+        state={{
+          startTimeMs: departCurrTime?.getTime(),
+          endTimeMs: predictedArrivalTime?.getTime(),
+          status: trip.TripEnd
             ? "Completed"
             : !vesselLocation?.AtDock
               ? "InProgress"
-              : "Pending"
-        }
+              : "Pending",
+          isArrived: !!trip.TripEnd,
+          isHeld: !!trip.TripEnd,
+        }}
+        departingDistance={vesselLocation?.DepartingDistance}
+        arrivingDistance={vesselLocation?.ArrivingDistance}
         vesselName={vesselLocation.VesselName}
         animate={!vesselLocation?.AtDock && !trip.TripEnd}
         speed={vesselLocation?.Speed}
-        isArrived={!!trip.TripEnd}
-        isHeld={!!trip.TripEnd}
       />
 
       {/* Destination Arrive Marker & Label */}

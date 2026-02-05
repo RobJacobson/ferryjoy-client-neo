@@ -6,12 +6,13 @@
 
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
+import { TimelineSegment } from "./TimelineSegment";
+import type { TimelineSegmentState } from "./types";
 import { getTimelineLayout } from "./utils";
 
 // ============================================================================
@@ -20,23 +21,9 @@ import { getTimelineLayout } from "./utils";
 
 type TimelineBarAtDockProps = {
   /**
-   * Start time in milliseconds for progress calculation.
+   * Grouped temporal state for the segment.
    */
-  startTimeMs?: number;
-  /**
-   * End time in milliseconds for progress calculation.
-   */
-  endTimeMs?: number;
-  /**
-   * Status of the progress bar segment.
-   */
-  status: "Pending" | "InProgress" | "Completed";
-  /**
-   * Optional prediction for the end time of this segment.
-   * If provided, progress will be calculated against this instead of endTimeMs
-   * when the vessel is delayed.
-   */
-  predictionEndTimeMs?: number;
+  state: TimelineSegmentState;
   /**
    * Optional vessel name to display above the progress indicator.
    */
@@ -53,14 +40,6 @@ type TimelineBarAtDockProps = {
    * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
    */
   atDockAbbrev?: string;
-  /**
-   * Whether the vessel has arrived at its destination terminal.
-   */
-  isArrived?: boolean;
-  /**
-   * Whether the trip is currently being held in its completed state.
-   */
-  isHeld?: boolean;
   /**
    * Whether to explicitly show the progress indicator.
    * If provided, this overrides the default status-based visibility.
@@ -82,19 +61,14 @@ type TimelineBarAtDockProps = {
  * using the presentation-only TimelineBar and TimelineIndicator components.
  * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
  *
- * Width allocation: The outer container uses flexGrow based on segment duration
- * to create proportional widths across the timeline. Inner TimelineBar fills its parent.
+ * Width allocation: Uses SchematicSegment (flexGrow + minWidth) to create
+ * proportional widths across the timeline while ensuring legibility.
  */
 const TimelineBarAtDock = ({
-  startTimeMs,
-  endTimeMs,
-  status,
-  predictionEndTimeMs,
+  state,
   vesselName,
   barStyle = "h-3",
   atDockAbbrev,
-  isArrived = false,
-  isHeld = false,
   showIndicator,
   style,
 }: TimelineBarAtDockProps) => {
@@ -109,14 +83,14 @@ const TimelineBarAtDock = ({
     minutesRemaining,
     duration,
   } = getTimelineLayout({
-    status,
+    status: state.status,
     nowMs,
-    startTimeMs,
-    endTimeMs,
-    predictionEndTimeMs,
+    startTimeMs: state.startTimeMs,
+    endTimeMs: state.endTimeMs,
+    predictionEndTimeMs: state.predictionEndTimeMs,
   });
 
-  const progress = isArrived ? 1 : timeProgress;
+  const progress = state.isArrived ? 1 : timeProgress;
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
@@ -130,12 +104,12 @@ const TimelineBarAtDock = ({
     });
   }, [progress, animatedProgress]);
 
-  const flexGrow = duration ?? 1;
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" && !isArrived && !isHeld);
+    showIndicator ??
+    (state.status === "InProgress" && !state.isArrived && !state.isHeld);
 
   return (
-    <View style={{ height: 32, flexGrow, ...style }} className="relative">
+    <TimelineSegment duration={duration ?? 1} style={style}>
       <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
       {shouldShowIndicator && (
         <TimelineIndicator
@@ -154,7 +128,7 @@ const TimelineBarAtDock = ({
           )}
         </TimelineIndicator>
       )}
-    </View>
+    </TimelineSegment>
   );
 };
 

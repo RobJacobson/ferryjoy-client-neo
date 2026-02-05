@@ -108,9 +108,11 @@ export const ScheduledTripTimeline = ({
           circleSize={circleSize}
           isFirst={index === 0}
           isLast={index === segments.length - 1}
-          skipAtDock={segments.length > 1 && index === 0}
+          skipAtDock={false}
         />
       ))}
     </View>
   );
 };
+
+//segments.length > 1 && index === 0

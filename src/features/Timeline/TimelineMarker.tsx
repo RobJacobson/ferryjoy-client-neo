@@ -51,6 +51,7 @@ const TimelineMarker = ({
   return (
     <View
       pointerEvents="none"
+      collapsable={false}
       className="items-center justify-center"
       style={{
         // The Anchor: Zero width ensures it doesn't shift other flex elements.
