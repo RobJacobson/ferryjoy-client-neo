@@ -50,33 +50,54 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 
 - `actualTrip = vesselTripMap.get(segment.Key)`
 
+### Data loading behavior
+
+- `useScheduledTripsMaps` returns `null` when `departingTerminalAbbrevs.length > 0`
+  and the completed-trips query is still loading.
+- When maps are null, `useScheduledTripsPageData` treats status as `"loading"`, so no
+  cards render and the list shows "Loading schedule..." until both schedule and maps are ready.
+- When `departingTerminalAbbrevs.length === 0`, maps are built synchronously (no
+  completed-trips fetch), so maps are never null in that case.
+
 ---
 
 ## File map (where the logic lives)
 
 - `ScheduledTripList.tsx`
-  - calls `useScheduledTripsPageData()` for status, journeys, and card display state
+  - calls `useScheduledTripsPageData()` for status, journeys, card display state, and maps
   - handles loading / empty / ready states and renders a list of `ScheduledTripCard`
+  - wraps cards in `ScheduledTripsMapsProvider` so timeline can read maps from context
   - no direct data fetching or map building
+
+- `ScheduledTripsMapsContext.tsx`
+  - React context for `PageMaps`; provides maps to cards/timeline via
+    `ScheduledTripsMapsProvider` and `useScheduledTripsMapsContext`
 
 - `useScheduledTripsMaps.ts`
   - single place for map construction: takes `sailingDay` and `departingTerminalAbbrevs`
   - uses Convex vessel trips/locations contexts, `useDelayedVesselTrips`, and
     `getCompletedTripsForSailingDayAndTerminals` when terminals are non-empty
-  - calls `buildAllPageMaps()`; returns `PageMaps` or `null` when completed-trips are loading
+  - calls `buildAllPageMaps()`; returns `PageMaps` or `null` while the completed-trips
+    query is loading (when `departingTerminalAbbrevs.length > 0`)
 
 - `useScheduledTripsPageData.ts`
   - fetches schedule via `getScheduledTripsForTerminal`, derives `journeys` and
     `departingTerminalAbbrevs`
   - gets maps from `useScheduledTripsMaps({ sailingDay, departingTerminalAbbrevs })`
   - calls `computeCardDisplayStateForPage()` with those maps for one display state per journey card
-  - returns `status`, `journeys`, `cardDisplayStateByJourneyId`
+  - returns `status`, `journeys`, `cardDisplayStateByJourneyId`, `maps`
+  - status reflects both schedule and maps loading: treats page as loading when maps are
+    null and completed trips are needed
 
 - `utils/buildPageDataMaps.ts`
   - `buildAllPageMaps()` returns `vesselTripMap`, `vesselLocationByAbbrev`, `displayTripByAbbrev`
     in one call (completed → active → held precedence)
   - individual builders (`buildVesselTripMap`, `buildVesselLocationByAbbrev`,
     `buildDisplayTripByAbbrev`) are internal helpers, not exported
+
+- `utils/conversion.ts`
+  - `toSegment()`: converts raw Convex scheduled trip rows to frontend `Segment` shape with
+    Date timestamps; used when deriving journeys from schedule query
 
 - `utils/segmentUtils.ts`
   - `getDepartingTerminalAbbrevs()`: extracts unique departing terminal abbrevs from segments;
@@ -88,9 +109,10 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
     provisional (AtDock, next scheduled segment)
 
 - `utils/computePageDisplayState.ts`
-  - page-level display-state computation: `groupJourneysByVessel()` (Object.groupBy), then per vessel
+  - page-level display-state computation: `groupJourneysByVessel()` (reduce-based), then per vessel
     `computeCardDisplayStateForVessel()` which uses `selectActiveSegmentKeyForVessel` and
     `computeJourneyTimelineState`
+  - computes `inboundTripForFirstSegment` for next-trip predictions (strict `NextKey` matching)
   - returns `Map<journeyId, ScheduledTripCardDisplayState>`
   - exports types: `ScheduledTripCardDisplayState`, `ScheduledTripTimelineState`, etc.;
     `ScheduledTripJourney` is defined in `types.ts` and re-exported here
@@ -106,10 +128,12 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
   - requires `displayState` from the list; no per-card data fetching
 
 - `ScheduledTripTimeline.tsx`
-  - presentational only: requires `displayState` from parent (no hooks, no data fetching)
+  - presentational only: requires `displayState` from parent; reads maps via
+    `useScheduledTripsMapsContext`
   - single computation path: list uses `computeCardDisplayStateForPage` which uses
     `selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState`
-  - attaches “next-trip” predictions by strict `NextKey` matching (see below)
+  - uses pre-computed `inboundTripForFirstSegment` from display state for “next-trip”
+    predictions (see below)
 
 - `../Timeline/TimelineSegmentLeg.tsx`
   - UI component that renders a segment leg given:
@@ -203,13 +227,14 @@ However, the vessel’s current inbound trip often has predictions for what happ
 - `arrive-next` (estimated arrival to the next terminal)
 - `depart-next` (estimated next departure)
 
-These predictions are attached deterministically in `ScheduledTripTimeline.tsx` using the
-scheduled chain pointer:
+These predictions are computed in `computePageDisplayState.ts`
+(`getInboundTripForFirstSegment`) using the scheduled chain pointer:
 
 - `displayTrip.ScheduledTrip.NextKey === firstSegment.Key`
 
-When that matches, `displayTrip` is passed down as `prevActualTrip` so the shared timeline
-utilities can surface origin-arrival and depart-next predictions for that future segment.
+When that matches, the inbound trip is stored as `inboundTripForFirstSegment` in display
+state and passed down as `prevActualTrip` so the shared timeline utilities can surface
+origin-arrival and depart-next predictions for that future segment.
 
 This is strict key matching (not time-window inference) to prevent prediction leakage onto
 unrelated future cards.

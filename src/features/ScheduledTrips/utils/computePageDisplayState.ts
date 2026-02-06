@@ -19,10 +19,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { TimelineActivePhase } from "../../Timeline/resolveTimeline";
 import type { TimelineSegmentStatus } from "../../Timeline/types";
 import type { ScheduledTripJourney, Segment } from "../types";
-import {
-  type ActiveSelection,
-  selectActiveSegmentKeyForVessel,
-} from "./selectActiveSegmentKey";
+import { selectActiveSegmentKeyForVessel } from "./selectActiveSegmentKey";
 
 // ============================================================================
 // Types
@@ -41,9 +38,10 @@ export type ScheduledTripTimelineState = {
 };
 
 export type ScheduledTripCardDisplayState = {
-  vesselLocation?: VesselLocation;
-  displayTrip?: VesselTrip;
-  vesselTripMap: Map<string, VesselTrip>;
+  /**
+   * Vessel abbrev for looking up location and display trip from maps context.
+   */
+  vesselAbbrev: string;
   /**
    * Journey-level monotonic ordering for a vessel across the page.
    * - journeys before active: Completed
@@ -53,16 +51,11 @@ export type ScheduledTripCardDisplayState = {
    */
   journeyStatus?: "Pending" | "InProgress" | "Completed";
   timeline: ScheduledTripTimelineState;
-};
-
-/** Minimal journey shape for single-journey timeline computation (e.g. standalone timeline). */
-export type SingleJourneyForTimeline = {
-  id: string;
-  vesselAbbrev: string;
-  segments: Segment[];
-  /** Optional; derived from segments[0] if omitted. */
-  departureTime?: number;
-  routeAbbrev?: string;
+  /**
+   * For future cards: the inbound trip whose NextKey matches the first segment.
+   * Used for arrive-next and depart-next predictions on the first segment.
+   */
+  inboundTripForFirstSegment?: VesselTrip;
 };
 
 // ============================================================================
@@ -73,7 +66,13 @@ export type SingleJourneyForTimeline = {
 export const groupJourneysByVessel = (
   journeys: ScheduledTripJourney[]
 ): Partial<Record<string, ScheduledTripJourney[]>> =>
-  Object.groupBy(journeys, (j) => j.vesselAbbrev);
+  journeys.reduce<Partial<Record<string, ScheduledTripJourney[]>>>(
+    (acc, j) => ({
+      ...acc,
+      [j.vesselAbbrev]: [...(acc[j.vesselAbbrev] ?? []), j],
+    }),
+    {}
+  );
 
 /**
  * Computes card display state for a single vessel's journeys (one active per vessel).
@@ -120,34 +119,42 @@ const computeCardDisplayStateForVessel = (params: {
         )
       : -1;
 
-  const result = new Map<string, ScheduledTripCardDisplayState>();
-  for (const [idx, journey] of vesselJourneys.entries()) {
-    const journeyStatus =
-      activeJourneyIndex >= 0
-        ? idx < activeJourneyIndex
-          ? "Completed"
-          : idx === activeJourneyIndex
-            ? "InProgress"
-            : "Pending"
-        : undefined;
+  const getJourneyStatus = (
+    idx: number
+  ): "Pending" | "InProgress" | "Completed" | undefined =>
+    activeJourneyIndex >= 0
+      ? idx < activeJourneyIndex
+        ? ("Completed" as const)
+        : idx === activeJourneyIndex
+          ? ("InProgress" as const)
+          : ("Pending" as const)
+      : undefined;
 
-    const timeline = computeTimelineStateForOneJourney({
+  const entries = vesselJourneys.map((journey, idx) => {
+    const journeyStatus = getJourneyStatus(idx);
+    const timeline = computeJourneyTimelineState({
       journey,
       journeyStatus,
-      activeSelection,
+      activeKey: activeSelection.activeKey,
+      activeConfidence: activeSelection.activeConfidence,
       vesselLocation,
-      vesselTripMap,
+      nowMs: vesselLocation?.TimeStamp.getTime() ?? Date.now(),
+      tripsByKey: vesselTripMap,
     });
-
-    result.set(journey.id, {
-      vesselLocation,
-      displayTrip,
-      vesselTripMap,
-      journeyStatus,
-      timeline,
-    });
-  }
-  return result;
+    return [
+      journey.id,
+      {
+        vesselAbbrev,
+        journeyStatus,
+        timeline,
+        inboundTripForFirstSegment: getInboundTripForFirstSegment(
+          displayTrip,
+          journey.segments[0]
+        ),
+      },
+    ] as [string, ScheduledTripCardDisplayState];
+  });
+  return new Map(entries);
 };
 
 /**
@@ -189,9 +196,9 @@ export const computeCardDisplayStateForPage = (params: {
   } = params;
 
   const grouped = groupJourneysByVessel(journeys);
-  const displayStateEntries = Object.entries(grouped).flatMap(
-    ([vesselAbbrev, vesselJourneysUnsorted]) => {
-      if (!vesselJourneysUnsorted) return [];
+  const displayStateEntries = Object.entries(grouped)
+    .filter((entry): entry is [string, ScheduledTripJourney[]] => !!entry[1])
+    .flatMap(([vesselAbbrev, vesselJourneysUnsorted]) => {
       const vesselJourneys = [...vesselJourneysUnsorted].sort(
         (a, b) => a.departureTime - b.departureTime
       );
@@ -206,61 +213,9 @@ export const computeCardDisplayStateForPage = (params: {
           provisionalDepartBufferMs,
         }).entries()
       );
-    }
-  );
+    });
 
   return new Map(displayStateEntries);
-};
-
-/**
- * Computes timeline state for a single journey (e.g. standalone ScheduledTripTimeline).
- * Uses the same logic as the page: selectActiveSegmentKeyForVessel then computeJourneyTimelineState.
- * Single journey is always treated as InProgress for status purposes.
- *
- * @param params.terminalAbbrev - Departure terminal for active-segment selection
- * @param params.journey - Single journey (minimal shape: id, vesselAbbrev, segments)
- * @param params.vesselLocation - Resolved vessel location (synced or live)
- * @param params.displayTrip - Held/active trip from hold-window logic
- * @param params.vesselTripMap - Unified map of trip Key to VesselTrip
- * @param params.provisionalDepartBufferMs - Buffer for provisional inference (default 5 min)
- * @returns Timeline state for the journey
- */
-/** Kept for Option B refactor; currently unused after standalone path removal. */
-const _computeTimelineStateForJourney = (params: {
-  terminalAbbrev: string;
-  journey: SingleJourneyForTimeline;
-  vesselLocation: VesselLocation | undefined;
-  displayTrip: VesselTrip | undefined;
-  vesselTripMap: Map<string, VesselTrip>;
-  provisionalDepartBufferMs?: number;
-}): ScheduledTripTimelineState => {
-  const {
-    terminalAbbrev,
-    journey: minimalJourney,
-    vesselLocation,
-    displayTrip,
-    vesselTripMap,
-    provisionalDepartBufferMs = 5 * 60 * 1000,
-  } = params;
-
-  const journey = toScheduledTripJourney(minimalJourney);
-  const nowMs = vesselLocation?.TimeStamp.getTime() ?? Date.now();
-  const activeSelection = selectActiveSegmentKeyForVessel({
-    terminalAbbrev,
-    journeys: [journey],
-    vesselLocation,
-    displayTrip,
-    nowMs,
-    provisionalDepartBufferMs,
-  });
-
-  return computeTimelineStateForOneJourney({
-    journey,
-    journeyStatus: "InProgress",
-    activeSelection,
-    vesselLocation,
-    vesselTripMap,
-  });
 };
 
 // ============================================================================
@@ -268,45 +223,63 @@ const _computeTimelineStateForJourney = (params: {
 // ============================================================================
 
 /**
- * Converts a minimal SingleJourneyForTimeline to a full ScheduledTripJourney.
+ * Returns the displayTrip when it predicts the first segment (NextKey match).
+ * Used for arrive-next and depart-next predictions on future cards.
  *
- * @param minimal - Minimal journey shape (id, vesselAbbrev, segments; optional departureTime, routeAbbrev)
- * @returns Full ScheduledTripJourney with defaults applied
+ * @param displayTrip - Held/active trip for this vessel
+ * @param firstSegment - First segment of the journey (may be undefined)
+ * @returns displayTrip when ArrivingTerminal and NextKey match, else undefined
  */
-const toScheduledTripJourney = (
-  minimal: SingleJourneyForTimeline
-): ScheduledTripJourney => ({
-  id: minimal.id,
-  vesselAbbrev: minimal.vesselAbbrev,
-  routeAbbrev: minimal.routeAbbrev ?? "",
-  departureTime:
-    minimal.departureTime ?? minimal.segments[0]?.DepartingTime.getTime() ?? 0,
-  segments: minimal.segments,
-});
+const getInboundTripForFirstSegment = (
+  displayTrip: VesselTrip | undefined,
+  firstSegment: Segment | undefined
+): VesselTrip | undefined =>
+  firstSegment &&
+  displayTrip &&
+  displayTrip.ArrivingTerminalAbbrev === firstSegment.DepartingTerminalAbbrev &&
+  displayTrip.ScheduledTrip?.NextKey === firstSegment.Key
+    ? displayTrip
+    : undefined;
 
 /**
- * Computes timeline state for one journey using pre-computed active selection.
- * Centralizes the computeJourneyTimelineState call pattern for both page and standalone paths.
+ * Builds statusByKey when no active segment is known. Uses schedule bounds and
+ * TripEnd to derive Completed vs Pending per segment.
  *
- * @param params - Journey, status, active selection, vessel location, and trip map
- * @returns Timeline state for the journey
+ * @param params - Same as computeJourneyTimelineState
+ * @returns Map of segment Key to TimelineSegmentStatus
  */
-const computeTimelineStateForOneJourney = (params: {
+const buildStatusByKeyWhenNoActiveSegment = (params: {
   journey: ScheduledTripJourney;
-  journeyStatus: "Pending" | "InProgress" | "Completed" | undefined;
-  activeSelection: ActiveSelection;
-  vesselLocation: VesselLocation | undefined;
-  vesselTripMap: Map<string, VesselTrip>;
-}): ScheduledTripTimelineState =>
-  computeJourneyTimelineState({
-    journey: params.journey,
-    journeyStatus: params.journeyStatus,
-    activeKey: params.activeSelection.activeKey,
-    activeConfidence: params.activeSelection.activeConfidence,
-    vesselLocation: params.vesselLocation,
-    nowMs: params.vesselLocation?.TimeStamp.getTime() ?? Date.now(),
-    tripsByKey: params.vesselTripMap,
-  });
+  nowMs: number;
+  tripsByKey: Map<string, VesselTrip>;
+}): Map<string, TimelineSegmentStatus> => {
+  const firstStartMs = params.journey.segments[0]?.DepartingTime.getTime() ?? 0;
+  const lastEndMs =
+    params.journey.segments
+      .map(
+        (s) =>
+          s.SchedArriveNext?.getTime() ??
+          s.ArrivingTime?.getTime() ??
+          s.NextDepartingTime?.getTime() ??
+          s.DepartingTime.getTime()
+      )
+      .reduce((max, v) => Math.max(max, v), 0) ?? 0;
+  const defaultStatus: TimelineSegmentStatus =
+    params.nowMs < firstStartMs
+      ? "Pending"
+      : params.nowMs > lastEndMs
+        ? "Completed"
+        : "Pending";
+  return new Map(
+    params.journey.segments.map((segment) => {
+      const actualTrip = params.tripsByKey.get(segment.Key);
+      const segmentStatus: TimelineSegmentStatus = actualTrip?.TripEnd
+        ? "Completed"
+        : defaultStatus;
+      return [segment.Key, segmentStatus] as const;
+    })
+  );
+};
 
 /**
  * Computes per-segment statuses and active phase for a single journey.
@@ -337,15 +310,12 @@ const computeJourneyTimelineState = (params: {
     vesselLocation,
   } = params;
 
-  const statusByKey = new Map<string, TimelineSegmentStatus>();
-
   // If the page has determined this journey is not active, force all segments to match
   // the journey-level monotonic status.
   if (journeyStatus && journeyStatus !== "InProgress") {
-    for (const segment of journey.segments) {
-      statusByKey.set(segment.Key, journeyStatus);
-    }
-
+    const statusByKey = new Map(
+      journey.segments.map((s) => [s.Key, journeyStatus] as const)
+    );
     return {
       activeKey: null,
       activeConfidence,
@@ -360,58 +330,19 @@ const computeJourneyTimelineState = (params: {
       ? journey.segments.findIndex((s) => s.Key === activeKey)
       : -1;
 
-  if (activeIndex >= 0) {
-    for (const [idx, segment] of journey.segments.entries()) {
-      statusByKey.set(
-        segment.Key,
-        idx < activeIndex
-          ? "Completed"
-          : idx === activeIndex
-            ? "InProgress"
-            : "Pending"
-      );
-    }
-  } else {
-    // No safely known active segment.
-    //
-    // We intentionally avoid selecting a schedule-time "InProgress" segment (phantom
-    // indicators are worse than none). However, we still want stable Completed vs Pending
-    // styling so *past* journeys show as completed even when the vessel is not currently
-    // serving this terminal.
-    const firstStartMs = journey.segments[0]?.DepartingTime.getTime() ?? 0;
-    const lastEndMs =
-      journey.segments
-        .map((s) => {
-          return (
-            s.SchedArriveNext?.getTime() ??
-            s.ArrivingTime?.getTime() ??
-            s.NextDepartingTime?.getTime() ??
-            s.DepartingTime.getTime()
-          );
-        })
-        .reduce((max, v) => Math.max(max, v), 0) ?? 0;
-
-    const defaultStatus: TimelineSegmentStatus =
-      params.nowMs < firstStartMs
-        ? "Pending"
-        : params.nowMs > lastEndMs
-          ? "Completed"
-          : "Pending";
-
-    for (const segment of journey.segments) {
-      const actualTrip = params.tripsByKey.get(segment.Key);
-
-      // If we have a matching trip record with a TripEnd, we can confidently mark
-      // this segment Completed. This fixes cases where the page cannot determine
-      // a single active journey for the vessel (e.g. a missing/late Key), but we
-      // still have authoritative completed trip data for past segments.
-      const segmentStatus: TimelineSegmentStatus = actualTrip?.TripEnd
-        ? "Completed"
-        : defaultStatus;
-
-      statusByKey.set(segment.Key, segmentStatus);
-    }
-  }
+  const statusByKey =
+    activeIndex >= 0
+      ? new Map(
+          journey.segments.map((segment, idx) => [
+            segment.Key,
+            (idx < activeIndex
+              ? "Completed"
+              : idx === activeIndex
+                ? "InProgress"
+                : "Pending") as TimelineSegmentStatus,
+          ])
+        )
+      : buildStatusByKeyWhenNoActiveSegment(params);
 
   const activePhase: TimelineActivePhase =
     activeIndex >= 0 && vesselLocation

@@ -8,6 +8,7 @@ import { useQuery } from "convex/react";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 import type { ScheduledTripJourney } from "./types";
 import { useScheduledTripsMaps } from "./useScheduledTripsMaps";
+import type { PageMaps } from "./utils/buildPageDataMaps";
 import {
   computeCardDisplayStateForPage,
   type ScheduledTripCardDisplayState,
@@ -24,6 +25,8 @@ type UseScheduledTripsPageDataResult = {
   status: "loading" | "empty" | "ready";
   journeys: ScheduledTripJourney[] | undefined;
   cardDisplayStateByJourneyId: Map<string, ScheduledTripCardDisplayState>;
+  /** Page maps (non-null when status is ready). */
+  maps: PageMaps | null;
 };
 
 /**
@@ -75,11 +78,18 @@ export const useScheduledTripsPageData = ({
       : new Map<string, ScheduledTripCardDisplayState>();
 
   const status: UseScheduledTripsPageDataResult["status"] =
-    trips === undefined ? "loading" : trips.length === 0 ? "empty" : "ready";
+    trips === undefined
+      ? "loading"
+      : trips.length === 0
+        ? "empty"
+        : departingTerminalAbbrevs.length > 0 && maps === null
+          ? "loading"
+          : "ready";
 
   return {
     status,
     journeys,
     cardDisplayStateByJourneyId,
+    maps,
   };
 };

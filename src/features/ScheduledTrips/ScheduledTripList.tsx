@@ -6,6 +6,7 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { ScheduledTripCard } from "./ScheduledTripCard";
+import { ScheduledTripsMapsProvider } from "./ScheduledTripsMapsContext";
 import { useScheduledTripsPageData } from "./useScheduledTripsPageData";
 
 type ScheduledTripListProps = {
@@ -34,7 +35,7 @@ export const ScheduledTripList = ({
   terminalAbbrev = "P52",
   destinationAbbrev,
 }: ScheduledTripListProps) => {
-  const { status, journeys, cardDisplayStateByJourneyId } =
+  const { status, journeys, cardDisplayStateByJourneyId, maps } =
     useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
   if (status === "loading") {
     return (
@@ -54,25 +55,30 @@ export const ScheduledTripList = ({
     );
   }
 
+  // When status is ready, maps is non-null (status treats maps loading as loading).
+  if (!maps) return null;
+
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="p-4">
         <Text variant="h2" className="mb-6 text-center">
           Daily Schedule
         </Text>
-        {/* Only render cards that have pre-computed display state. */}
-        {(journeys ?? [])
-          .flatMap((trip) => {
-            const displayState = cardDisplayStateByJourneyId.get(trip.id);
-            return displayState != null ? [{ trip, displayState }] : [];
-          })
-          .map(({ trip, displayState }) => (
-            <ScheduledTripCard
-              key={trip.id}
-              trip={trip}
-              displayState={displayState}
-            />
-          ))}
+        <ScheduledTripsMapsProvider maps={maps}>
+          {/* Only render cards that have pre-computed display state. */}
+          {(journeys ?? [])
+            .flatMap((trip) => {
+              const displayState = cardDisplayStateByJourneyId.get(trip.id);
+              return displayState != null ? [{ trip, displayState }] : [];
+            })
+            .map(({ trip, displayState }) => (
+              <ScheduledTripCard
+                key={trip.id}
+                trip={trip}
+                displayState={displayState}
+              />
+            ))}
+        </ScheduledTripsMapsProvider>
       </View>
     </ScrollView>
   );
