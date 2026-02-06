@@ -9,11 +9,10 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { toDomainVesselTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
-import { useMemo } from "react";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { createVesselTripMap } from "../Timeline/utils";
 import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
+import { buildVesselTripMap } from "./utils/buildPageDataMaps";
 
 type UseScheduledTripDisplayDataParams = {
   /** Vessel abbreviation for the trip. */
@@ -44,8 +43,10 @@ type UseScheduledTripDisplayDataResult = {
  * Resolves vesselLocation from synchronized displayData (for correct trip state during hold)
  * or falls back to live vessel location.
  *
- * @param params - Vessel abbrev, sailing day, and departing terminals for completed trip query
- * @returns vesselLocation and vesselTripMap for timeline rendering
+ * @param params.vesselAbbrev - Vessel abbreviation for the trip
+ * @param params.sailingDay - WSF operational day (YYYY-MM-DD) for completed trip lookups
+ * @param params.departingTerminalAbbrevs - Departing terminals for completed trip lookups
+ * @returns vesselLocation, displayTrip, and vesselTripMap for timeline rendering
  */
 export const useScheduledTripDisplayData = ({
   vesselAbbrev,
@@ -59,6 +60,7 @@ export const useScheduledTripDisplayData = ({
     vesselLocations
   );
 
+  // Skip completed-trips query when no sailing day or terminals (e.g. card has overrides).
   const rawCompletedTrips = useQuery(
     api.functions.vesselTrips.queries
       .getCompletedTripsForSailingDayAndTerminals,
@@ -68,18 +70,11 @@ export const useScheduledTripDisplayData = ({
   );
   const completedTrips = rawCompletedTrips?.map(toDomainVesselTrip) ?? [];
 
-  // Index vessel trips by Key for O(1) lookup. Historical (completed) first,
-  // then active, then displayData so current/held state wins.
-  const vesselTripMap = useMemo(() => {
-    const map = createVesselTripMap(completedTrips);
-    for (const trip of activeVesselTrips) {
-      if (trip.Key) map.set(trip.Key, trip);
-    }
-    for (const d of displayData) {
-      if (d.trip.Key) map.set(d.trip.Key, d.trip);
-    }
-    return map;
-  }, [completedTrips, activeVesselTrips, displayData]);
+  const vesselTripMap = buildVesselTripMap(
+    completedTrips,
+    activeVesselTrips,
+    displayData
+  );
 
   // Find the synchronized vessel location from displayData
   const synchronizedData = displayData.find(

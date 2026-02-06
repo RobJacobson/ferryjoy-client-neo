@@ -9,8 +9,8 @@ import type { Segment } from "../types";
 /**
  * Converts a raw Convex scheduled trip to a frontend Segment with Date objects.
  *
- * @param trip - The raw scheduled trip from Convex
- * @returns A Segment object with Date timestamps
+ * @param trip - Raw scheduled trip from Convex; may include optional DisplayArrivingTerminalAbbrev
+ * @returns Segment with Date timestamps for timeline display
  */
 export const toSegment = (
   trip: ConvexScheduledTrip & { DisplayArrivingTerminalAbbrev?: string }

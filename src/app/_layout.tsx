@@ -1,4 +1,5 @@
 import "../../global.css";
+import "@/shared/polyfills/object-group-by";
 
 import Mapbox from "@rnmapbox/maps";
 import { useFonts } from "expo-font";
