@@ -59,10 +59,17 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
   - handles loading / empty / ready states and renders a list of `ScheduledTripCard`
   - no direct data fetching or map building
 
+- `useScheduledTripsMaps.ts`
+  - single place for map construction: takes `sailingDay` and `departingTerminalAbbrevs`
+  - uses Convex vessel trips/locations contexts, `useDelayedVesselTrips`, and
+    `getCompletedTripsForSailingDayAndTerminals` when terminals are non-empty
+  - calls `buildAllPageMaps()`; returns `PageMaps` or `null` when completed-trips are loading
+
 - `useScheduledTripsPageData.ts`
-  - fetches schedule journeys, completed/active trips, and real-time contexts
-  - builds all three maps in one call via `buildAllPageMaps()` in `utils/buildPageDataMaps`
-  - calls `computeCardDisplayStateForPage()` for one display state per journey card
+  - fetches schedule via `getScheduledTripsForTerminal`, derives `journeys` and
+    `departingTerminalAbbrevs`
+  - gets maps from `useScheduledTripsMaps({ sailingDay, departingTerminalAbbrevs })`
+  - calls `computeCardDisplayStateForPage()` with those maps for one display state per journey card
   - returns `status`, `journeys`, `cardDisplayStateByJourneyId`
 
 - `utils/buildPageDataMaps.ts`
@@ -73,7 +80,7 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 
 - `utils/segmentUtils.ts`
   - `getDepartingTerminalAbbrevs()`: extracts unique departing terminal abbrevs from segments;
-    used by page and standalone for completed-trip lookups
+    used by page for completed-trip lookups
 
 - `utils/selectActiveSegmentKey.ts`
   - `selectActiveSegmentKeyForVessel`: selects one active segment key per vessel
@@ -85,7 +92,6 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
     `computeCardDisplayStateForVessel()` which uses `selectActiveSegmentKeyForVessel` and
     `computeJourneyTimelineState`
   - returns `Map<journeyId, ScheduledTripCardDisplayState>`
-  - exports `computeTimelineStateForJourney` for standalone timeline (same computation path)
   - exports types: `ScheduledTripCardDisplayState`, `ScheduledTripTimelineState`, etc.;
     `ScheduledTripJourney` is defined in `types.ts` and re-exported here
 
@@ -97,22 +103,13 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 - `ScheduledTripCard.tsx`
   - card wrapper that composes `ScheduledTripRouteHeader` (terminals, vessel name)
     and embeds `ScheduledTripTimeline`
-  - passes single `displayState` prop when present; timeline does not call
-    `useScheduledTripDisplayData` when display state is provided
+  - requires `displayState` from the list; no per-card data fetching
 
 - `ScheduledTripTimeline.tsx`
-  - when `displayState` is provided: renders presentational content only (no hook)
-  - when `displayState` is missing: renders `ScheduledTripTimelineWithData`, which
-    calls `useScheduledTripDisplayData` and `computeTimelineStateForJourney`
-  - single computation path: list and standalone both use
-    `selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState` / `computeTimelineStateForJourney`
+  - presentational only: requires `displayState` from parent (no hooks, no data fetching)
+  - single computation path: list uses `computeCardDisplayStateForPage` which uses
+    `selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState`
   - attaches “next-trip” predictions by strict `NextKey` matching (see below)
-
-- `useScheduledTripDisplayData.ts`
-  - per-vessel fetch hook used only when a timeline is rendered **without** display state
-    (e.g. standalone use of `ScheduledTripTimeline`); list cards do not call it
-  - builds all three maps via `buildAllPageMaps`; includes 30s hold via
-    `useDelayedVesselTrips()`
 
 - `../Timeline/TimelineSegmentLeg.tsx`
   - UI component that renders a segment leg given:
@@ -147,10 +144,9 @@ Direct vs indirect:
 
 ## Trip overlay preparation (completed + active + held)
 
-The schedules page builds a unified `Map<string, VesselTrip>` in `useScheduledTripsPageData`;
-when a timeline is used without display state (standalone), `useScheduledTripDisplayData` builds
-it. In both cases the map is keyed by `trip.Key`, using `createVesselTripMap` from
-`../Timeline/utils` as the base:
+The schedules page gets its unified `Map<string, VesselTrip>` from `useScheduledTripsMaps`,
+which calls `buildAllPageMaps` (completed → active → held precedence). The map is keyed by
+`trip.Key`, using `createVesselTripMap` from `../Timeline/utils` as the base:
 
 - completed trips inserted first (via `createVesselTripMap(completedTrips)`)
 - active trips overwrite by key
@@ -233,8 +229,8 @@ unrelated future cards.
 - **Phantom indicator on unrelated past/future journey card**
   - Root cause: schedule-time heuristics selecting an “active” leg without evidence.
   - Fix: ScheduledTrips uses a single computation path
-    (`selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState` / `computeTimelineStateForJourney`)
-    with no schedule-time fallback; provisional selection only when AtDock at page terminal.
+    (`selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState`) with no schedule-time
+    fallback; provisional selection only when AtDock at page terminal.
 
 ---
 

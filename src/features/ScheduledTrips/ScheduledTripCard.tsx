@@ -18,10 +18,9 @@ type ScheduledTripCardProps = {
    */
   trip: ScheduledTripJourney;
   /**
-   * Optional page-level display state. When provided, the card/timeline does not refetch
-   * realtime data per card.
+   * Pre-computed page-level display state. Required; card/timeline do not fetch realtime data.
    */
-  displayState?: ScheduledTripCardDisplayState;
+  displayState: ScheduledTripCardDisplayState;
 };
 
 /**
@@ -67,7 +66,7 @@ const ScheduledTripRouteHeader = ({
  * Displays a card with route information and a multi-segment timeline for a scheduled trip.
  *
  * @param trip - The trip data to display
- * @param displayState - Optional page-level display state; when provided, card/timeline does not refetch realtime data per card
+ * @param displayState - Pre-computed page-level display state (required)
  * @returns A Card component containing the trip header and timeline
  */
 export const ScheduledTripCard = ({
@@ -83,11 +82,8 @@ export const ScheduledTripCard = ({
       />
     }
   >
-    {/* When displayState is provided, timeline does not call useScheduledTripDisplayData. */}
     <ScheduledTripTimeline
-      vesselAbbrev={trip.vesselAbbrev}
       segments={trip.segments}
-      terminalAbbrev={trip.segments[0]?.DepartingTerminalAbbrev}
       displayState={displayState}
     />
   </TripCard>

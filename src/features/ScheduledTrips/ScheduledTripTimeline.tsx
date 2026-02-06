@@ -1,6 +1,7 @@
 /**
  * ScheduledTripTimeline renders a sequence of scheduled trip segments (departure → stops → destination).
  * Shows scheduled times with actual/predicted times overlaid when real-time data is available.
+ * Presentational only: requires displayState from parent (no data fetching).
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -9,13 +10,10 @@ import { View } from "react-native";
 import { TimelineSegmentLeg } from "../Timeline";
 import { TIMELINE_CIRCLE_SIZE } from "../Timeline/config";
 import type { Segment } from "./types";
-import { useScheduledTripDisplayData } from "./useScheduledTripDisplayData";
-import {
-  computeTimelineStateForJourney,
-  type ScheduledTripCardDisplayState,
-  type ScheduledTripTimelineState,
+import type {
+  ScheduledTripCardDisplayState,
+  ScheduledTripTimelineState,
 } from "./utils/computePageDisplayState";
-import { getDepartingTerminalAbbrevs } from "./utils/segmentUtils";
 
 // ============================================================================
 // Types
@@ -23,23 +21,13 @@ import { getDepartingTerminalAbbrevs } from "./utils/segmentUtils";
 
 type ScheduledTripTimelineProps = {
   /**
-   * Vessel abbreviation for the trip.
-   */
-  vesselAbbrev: string;
-  /**
    * Array of segments forming the complete journey.
    */
   segments: Segment[];
   /**
-   * Departure terminal for active-segment selection. When omitted, derived from
-   * segments[0].DepartingTerminalAbbrev.
+   * Pre-computed display state from the list page. Required; timeline does not fetch data.
    */
-  terminalAbbrev?: string;
-  /**
-   * When provided, the timeline is purely presentational and does not call
-   * useScheduledTripDisplayData. Use for list cards that receive page-level display state.
-   */
-  displayState?: ScheduledTripCardDisplayState;
+  displayState: ScheduledTripCardDisplayState;
 };
 
 type ScheduledTripTimelineContentProps = {
@@ -56,48 +44,16 @@ type ScheduledTripTimelineContentProps = {
 
 /**
  * Displays a multi-segment timeline for scheduled ferry trips.
- * When displayState is provided (e.g. from the list page), renders presentational content only
- * and does not fetch. Otherwise fetches via useScheduledTripDisplayData and computes with
- * computeTimelineStateForJourney.
+ * Presentational only: requires displayState from parent (e.g. from ScheduledTripList).
  *
- * @param vesselAbbrev - Vessel abbreviation for the trip
  * @param segments - Array of trip segments to display
- * @param displayState - Optional full card display state; when set, no hook is called
+ * @param displayState - Pre-computed card display state (required)
  * @returns A View component with a sequence of markers and progress bars, or null
  */
-export const ScheduledTripTimeline = (props: ScheduledTripTimelineProps) => {
-  if (props.displayState != null) {
-    return (
-      <ScheduledTripTimelineFromDisplayState
-        displayState={props.displayState}
-        segments={props.segments}
-      />
-    );
-  }
-  return (
-    <ScheduledTripTimelineWithData
-      vesselAbbrev={props.vesselAbbrev}
-      segments={props.segments}
-      terminalAbbrev={props.terminalAbbrev}
-    />
-  );
-};
-
-// ============================================================================
-// Display-state path (no hook, presentational only)
-// ============================================================================
-
-/**
- * Renders timeline from page-level display state. Returns null when display state is
- * incomplete (missing vesselLocation, vesselTripMap, or timeline).
- */
-const ScheduledTripTimelineFromDisplayState = ({
-  displayState,
+export const ScheduledTripTimeline = ({
   segments,
-}: {
-  displayState: ScheduledTripCardDisplayState;
-  segments: Segment[];
-}) => {
+  displayState,
+}: ScheduledTripTimelineProps) => {
   const vesselLocation = displayState.vesselLocation;
   const vesselTripMap = displayState.vesselTripMap;
   const timeline = displayState.timeline;
@@ -116,71 +72,17 @@ const ScheduledTripTimelineFromDisplayState = ({
 };
 
 // ============================================================================
-// Data-fetching path (no display state from parent)
-// ============================================================================
-
-/**
- * Fetches vessel/trip data and computes timeline via computeTimelineStateForJourney,
- * then renders ScheduledTripTimelineContent. Only mounted when parent does not provide display state.
- */
-const ScheduledTripTimelineWithData = ({
-  vesselAbbrev,
-  segments,
-  terminalAbbrev,
-}: {
-  vesselAbbrev: string;
-  segments: Segment[];
-  terminalAbbrev?: string;
-}) => {
-  const sailingDay = segments[0]?.SailingDay;
-  const departingTerminalAbbrevs = getDepartingTerminalAbbrevs(segments);
-
-  const fetched = useScheduledTripDisplayData({
-    vesselAbbrev,
-    sailingDay,
-    departingTerminalAbbrevs,
-  });
-
-  const vesselLocation = fetched.vesselLocation;
-  const displayTrip = fetched.displayTrip;
-  const vesselTripMap = fetched.vesselTripMap;
-
-  if (!vesselLocation || !vesselTripMap || segments.length === 0) return null;
-
-  const resolvedTerminalAbbrev =
-    terminalAbbrev ?? segments[0]?.DepartingTerminalAbbrev ?? "";
-  const journey = {
-    id: `${vesselAbbrev}-${segments[0]?.Key ?? "single"}`,
-    vesselAbbrev,
-    segments,
-  };
-
-  const timelineState = computeTimelineStateForJourney({
-    terminalAbbrev: resolvedTerminalAbbrev,
-    journey,
-    vesselLocation,
-    displayTrip,
-    vesselTripMap,
-  });
-
-  return (
-    <ScheduledTripTimelineContent
-      segments={segments}
-      vesselLocation={vesselLocation}
-      vesselTripMap={vesselTripMap}
-      displayTrip={displayTrip}
-      timelineState={timelineState}
-    />
-  );
-};
-
-// ============================================================================
 // Presentational content (no hooks, no display-state logic)
 // ============================================================================
 
 /**
- * Renders timeline legs from pre-computed data. Used by both the display-state path
- * (list cards) and the with-data path (standalone timeline).
+ * Renders timeline legs from pre-computed data.
+ *
+ * @param segments - Ordered segments for this journey
+ * @param vesselLocation - Resolved vessel location
+ * @param vesselTripMap - Map of segment Key to VesselTrip
+ * @param displayTrip - Held/active trip for this vessel
+ * @param timelineState - Pre-computed active key, phase, and status per segment
  */
 const ScheduledTripTimelineContent = ({
   segments,

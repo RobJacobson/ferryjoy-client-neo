@@ -225,7 +225,8 @@ export const computeCardDisplayStateForPage = (params: {
  * @param params.provisionalDepartBufferMs - Buffer for provisional inference (default 5 min)
  * @returns Timeline state for the journey
  */
-export const computeTimelineStateForJourney = (params: {
+/** Kept for Option B refactor; currently unused after standalone path removal. */
+const _computeTimelineStateForJourney = (params: {
   terminalAbbrev: string;
   journey: SingleJourneyForTimeline;
   vesselLocation: VesselLocation | undefined;

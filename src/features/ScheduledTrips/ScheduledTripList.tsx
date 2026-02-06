@@ -60,14 +60,19 @@ export const ScheduledTripList = ({
         <Text variant="h2" className="mb-6 text-center">
           Daily Schedule
         </Text>
-        {/* Each card receives pre-computed display state when available to avoid per-card fetch. */}
-        {(journeys ?? []).map((trip) => (
-          <ScheduledTripCard
-            key={trip.id}
-            trip={trip}
-            displayState={cardDisplayStateByJourneyId.get(trip.id)}
-          />
-        ))}
+        {/* Only render cards that have pre-computed display state. */}
+        {(journeys ?? [])
+          .flatMap((trip) => {
+            const displayState = cardDisplayStateByJourneyId.get(trip.id);
+            return displayState != null ? [{ trip, displayState }] : [];
+          })
+          .map(({ trip, displayState }) => (
+            <ScheduledTripCard
+              key={trip.id}
+              trip={trip}
+              displayState={displayState}
+            />
+          ))}
       </View>
     </ScrollView>
   );
