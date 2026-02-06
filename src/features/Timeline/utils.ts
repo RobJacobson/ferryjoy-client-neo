@@ -42,6 +42,7 @@ export const getPredictedDepartCurrTime = (
  * Gets arrival time for the next segment of the trip using predicted arrival time.
  *
  * @param trip - The vessel trip object
+ * @param vesselLocation - VesselLocation with Eta
  * @returns Arrival time Date, or undefined if none available
  */
 export const getPredictedArriveNextTime = (
@@ -51,17 +52,6 @@ export const getPredictedArriveNextTime = (
   vesselLocation.Eta ??
   trip.AtSeaArriveNext?.PredTime ??
   trip.AtDockArriveNext?.PredTime;
-
-/**
- * Gets departure time for the next segment of the trip using predicted departure time.
- *
- * @param trip - The vessel trip object
- * @returns Departure time Date, or undefined if none available
- */
-export const getPredictedDepartNextTime = (
-  trip: VesselTrip
-): Date | undefined =>
-  trip.AtSeaDepartNext?.PredTime ?? trip.AtDockDepartNext?.PredTime;
 
 /**
  * Gets the best available departure time for a trip.
@@ -121,7 +111,7 @@ export const getBestNextDepartureTime = (
   trip?.AtSeaDepartNext?.PredTime ?? trip?.AtDockDepartNext?.PredTime;
 
 /**
- * Derived state for TimelineSegmentLeg.
+ * Derived state for timeline leg components (e.g. ScheduledTripLeg).
  * All values computed from segment, vesselLocation, actualTrip, and prevActualTrip.
  */
 export type SegmentLegDerivedState = {
@@ -158,7 +148,7 @@ export type SegmentLegDerivedState = {
  * @param actualTrip - Actual/predicted trip record for this segment Key (SECONDARY)
  * @param prevActualTrip - Actual/predicted trip for previous leg (for depart-next prediction)
  * @param nowMs - Current time for past-tense checks (defaults to Date.now())
- * @returns Derived state object for TimelineSegmentLeg
+ * @returns Derived state object for timeline leg components (e.g. ScheduledTripLeg)
  */
 export const getSegmentLegDerivedState = (
   segment: Segment,
