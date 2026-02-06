@@ -3,17 +3,13 @@
  * Visualizes the journey from departure terminal to final destination, including intermediate stops.
  */
 
-import { api } from "convex/_generated/api";
-import { toDomainVesselTrip } from "convex/functions/vesselTrips/schemas";
-import { useQuery } from "convex/react";
-import { useMemo } from "react";
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
-import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
-import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { createVesselTripMap } from "../Timeline/utils";
-import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
-import { TimelineSegmentLeg } from "./components/TimelineSegmentLeg";
+import { resolveTimeline, TimelineSegmentLeg } from "../Timeline";
+import { TIMELINE_CIRCLE_SIZE } from "../Timeline/config";
 import type { Segment } from "./types";
+import { useScheduledTripDisplayData } from "./useScheduledTripDisplayData";
 
 type ScheduledTripTimelineProps = {
   /**
@@ -24,6 +20,24 @@ type ScheduledTripTimelineProps = {
    * Array of segments forming the complete journey.
    */
   segments: Segment[];
+  /**
+   * Optional override: resolved vessel location for this vessel (already synchronized for hold).
+   * When provided, ScheduledTripTimeline becomes purely presentational and does not fetch.
+   */
+  vesselLocationOverride?: VesselLocation;
+  /**
+   * Optional override: active/held trip for this vessel (used to lock activeKey during hold).
+   */
+  displayTripOverride?: VesselTrip;
+  /**
+   * Optional override: unified trip map (completed + active + held).
+   */
+  vesselTripMapOverride?: Map<string, VesselTrip>;
+  /**
+   * Optional override: journey-level status for page-wide monotonic ordering.
+   * When set to Completed/Pending, no segment-level active inference is performed.
+   */
+  journeyStatusOverride?: "Pending" | "InProgress" | "Completed";
 };
 
 /**
@@ -41,53 +55,51 @@ type ScheduledTripTimelineProps = {
 export const ScheduledTripTimeline = ({
   vesselAbbrev,
   segments,
+  vesselLocationOverride,
+  displayTripOverride,
+  vesselTripMapOverride,
+  journeyStatusOverride,
 }: ScheduledTripTimelineProps) => {
-  const { activeVesselTrips } = useConvexVesselTrips();
-  const { vesselLocations } = useConvexVesselLocations();
-  const { displayData } = useDelayedVesselTrips(
-    activeVesselTrips,
-    vesselLocations
-  );
-  const circleSize = 20;
-
   const sailingDay = segments[0]?.SailingDay;
   const departingTerminalAbbrevs = [
     ...new Set(segments.map((s) => s.DepartingTerminalAbbrev)),
   ];
-  const rawCompletedTrips = useQuery(
-    api.functions.vesselTrips.queries
-      .getCompletedTripsForSailingDayAndTerminals,
-    sailingDay && departingTerminalAbbrevs.length > 0
-      ? { sailingDay, departingTerminalAbbrevs }
-      : "skip"
-  );
-  const completedTrips = rawCompletedTrips?.map(toDomainVesselTrip) ?? [];
 
-  // Index vessel trips by Key for O(1) lookup. Historical (completed) first,
-  // then active, then displayData so current/held state wins.
-  // useMemo keeps map reference stable for children that receive it as a prop.
-  const vesselTripMap = useMemo(() => {
-    const map = createVesselTripMap(completedTrips);
-    for (const trip of activeVesselTrips) {
-      if (trip.Key) map.set(trip.Key, trip);
-    }
-    for (const d of displayData) {
-      map.set(d.trip.Key || "", d.trip);
-    }
-    return map;
-  }, [completedTrips, activeVesselTrips, displayData]);
+  const shouldFetch = !vesselLocationOverride || !vesselTripMapOverride;
+  const fetched = useScheduledTripDisplayData({
+    vesselAbbrev,
+    sailingDay: shouldFetch ? sailingDay : undefined,
+    departingTerminalAbbrevs: shouldFetch ? departingTerminalAbbrevs : [],
+  });
 
-  // Find the synchronized vessel location from displayData
-  const synchronizedData = displayData.find(
-    (d) => d.trip.VesselAbbrev === vesselAbbrev
-  );
+  const vesselLocation = vesselLocationOverride ?? fetched.vesselLocation;
+  const displayTrip = displayTripOverride ?? fetched.displayTrip;
+  const vesselTripMap = vesselTripMapOverride ?? fetched.vesselTripMap;
 
-  // Fallback to live location if no synchronized data is found (e.g. vessel not in a trip)
-  const vesselLocation =
-    synchronizedData?.vesselLocation ||
-    vesselLocations.find((v) => v.VesselAbbrev === vesselAbbrev);
+  if (!vesselLocation || !vesselTripMap || segments.length === 0) return null;
 
-  if (!vesselLocation || segments.length === 0) return null;
+  const resolution =
+    journeyStatusOverride && journeyStatusOverride !== "InProgress"
+      ? {
+          activeKey: null,
+          activeIndex: null,
+          activePhase: "Unknown" as const,
+          resolvedSegments: segments.map((s) => ({
+            scheduled: s,
+            actual: vesselTripMap.get(s.Key),
+          })),
+          statusByKey: new Map(
+            segments.map((s) => [s.Key, journeyStatusOverride] as const)
+          ),
+        }
+      : resolveTimeline({
+          segments,
+          vesselLocation,
+          tripsByKey: vesselTripMap,
+          nowMs: vesselLocation.TimeStamp.getTime(),
+          heldTripKey: displayTrip?.Key,
+          allowScheduleFallback: false,
+        });
 
   return (
     <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
@@ -95,24 +107,25 @@ export const ScheduledTripTimeline = ({
         <TimelineSegmentLeg
           key={segment.Key}
           segment={segment}
-          vesselLocation={vesselLocation} // PRIMARY: real-time WSF data (synchronized)
-          displayTrip={vesselTripMap.get(segment.DirectKey || segment.Key)} // SECONDARY: ML predictions, historical data (synchronized)
-          tripArrivingAtOrigin={
-            index > 0
-              ? vesselTripMap.get(
-                  segments[index - 1].DirectKey || segments[index - 1].Key
-                )
+          vesselLocation={vesselLocation}
+          actualTrip={vesselTripMap.get(segment.Key)}
+          prevActualTrip={
+            index > 0 ? vesselTripMap.get(segments[index - 1].Key) : undefined
+          }
+          nextActualTrip={
+            index < segments.length - 1
+              ? vesselTripMap.get(segments[index + 1].Key)
               : undefined
           }
-          vesselTripMap={vesselTripMap}
-          circleSize={circleSize}
+          circleSize={TIMELINE_CIRCLE_SIZE}
           isFirst={index === 0}
           isLast={index === segments.length - 1}
           skipAtDock={false}
+          legStatus={resolution.statusByKey.get(segment.Key) ?? "Pending"}
+          activeKey={resolution.activeKey}
+          activePhase={resolution.activePhase}
         />
       ))}
     </View>
   );
 };
-
-//segments.length > 1 && index === 0

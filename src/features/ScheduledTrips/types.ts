@@ -1,18 +1,6 @@
 /**
- * Segment type representing a single leg of a journey.
+ * ScheduledTrips types.
+ * Re-exports Segment from Timeline for backward compatibility.
  */
-export type Segment = {
-  VesselAbbrev: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-  DisplayArrivingTerminalAbbrev?: string;
-  DepartingTime: Date;
-  ArrivingTime?: Date;
-  SchedArriveNext?: Date;
-  SchedArriveCurr?: Date;
-  NextDepartingTime?: Date;
-  DirectKey?: string;
-  Key: string;
-  /** WSF operational day YYYY-MM-DD; used for completed trip lookups */
-  SailingDay?: string;
-};
+
+export type { Segment } from "../Timeline/types";

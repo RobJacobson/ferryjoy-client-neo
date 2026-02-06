@@ -28,6 +28,7 @@ export default defineSchema({
       "VesselAbbrev",
       "ScheduledDeparture",
     ])
+    .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
     .index("by_trip_end", ["TripEnd"])
     .index("by_timestamp", ["TimeStamp"])
     .index("by_key", ["Key"])
