@@ -6,7 +6,7 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { ScheduledTripJourney } from "../types";
-import type { ActiveConfidence } from "./resolveScheduledTripsPageResolution";
+import type { ActiveConfidence } from "./computePageDisplayState";
 
 /** Result of active segment selection: key (or null) and confidence level. */
 export type ActiveSelection = {

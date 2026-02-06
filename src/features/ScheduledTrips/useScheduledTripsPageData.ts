@@ -1,6 +1,6 @@
 /**
  * Hook that fetches and resolves all data needed to render the ScheduledTrips list.
- * Returns status (loading/empty/ready), journeys, and page resolution per journey.
+ * Returns status (loading/empty/ready), journeys, and card display state per journey.
  */
 
 import { api } from "convex/_generated/api";
@@ -12,9 +12,12 @@ import { getSailingDay } from "@/shared/utils/getSailingDay";
 import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
 import type { ScheduledTripJourney } from "./types";
 import { buildAllPageMaps } from "./utils/buildPageDataMaps";
+import {
+  computeCardDisplayStateForPage,
+  type ScheduledTripCardDisplayState,
+} from "./utils/computePageDisplayState";
 import { toSegment } from "./utils/conversion";
-import type { ScheduledTripCardResolution } from "./utils/resolveScheduledTripsPageResolution";
-import { resolveScheduledTripsPageResolution } from "./utils/resolveScheduledTripsPageResolution";
+import { getDepartingTerminalAbbrevs } from "./utils/segmentUtils";
 
 type UseScheduledTripsPageDataParams = {
   terminalAbbrev: string;
@@ -24,16 +27,16 @@ type UseScheduledTripsPageDataParams = {
 type UseScheduledTripsPageDataResult = {
   status: "loading" | "empty" | "ready";
   journeys: ScheduledTripJourney[] | undefined;
-  pageResolutionByTripId: Map<string, ScheduledTripCardResolution>;
+  cardDisplayStateByJourneyId: Map<string, ScheduledTripCardDisplayState>;
 };
 
 /**
- * Fetches scheduled trips, completed/active/hold data, and resolves one resolution
+ * Fetches scheduled trips, completed/active/hold data, and computes one display state
  * per journey card (one active per vessel). Use for the ScheduledTrips list page.
  *
  * @param params.terminalAbbrev - Departure terminal to load schedule for
  * @param params.destinationAbbrev - Optional destination filter
- * @returns status, journeys, and pageResolutionByTripId for rendering
+ * @returns status, journeys, and cardDisplayStateByJourneyId for rendering
  */
 export const useScheduledTripsPageData = ({
   terminalAbbrev,
@@ -68,13 +71,7 @@ export const useScheduledTripsPageData = ({
   const departingTerminalAbbrevs =
     trips == null
       ? []
-      : [
-          ...new Set(
-            trips.flatMap((t) =>
-              t.segments.map((s) => s.DepartingTerminalAbbrev)
-            )
-          ),
-        ];
+      : getDepartingTerminalAbbrevs(trips.flatMap((t) => t.segments));
 
   const rawCompletedTrips = useQuery(
     api.functions.vesselTrips.queries
@@ -94,11 +91,11 @@ export const useScheduledTripsPageData = ({
       displayData
     );
 
-  // One resolution per journey id; each card receives pre-resolved data to avoid per-card fetch.
-  const pageResolutionByTripId =
+  // One display state per journey id; each card receives pre-computed data to avoid per-card fetch.
+  const cardDisplayStateByJourneyId =
     journeys == null
-      ? new Map<string, ScheduledTripCardResolution>()
-      : resolveScheduledTripsPageResolution({
+      ? new Map<string, ScheduledTripCardDisplayState>()
+      : computeCardDisplayStateForPage({
           terminalAbbrev,
           journeys,
           vesselLocationByAbbrev,
@@ -112,6 +109,6 @@ export const useScheduledTripsPageData = ({
   return {
     status,
     journeys,
-    pageResolutionByTripId,
+    cardDisplayStateByJourneyId,
   };
 };

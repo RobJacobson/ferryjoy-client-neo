@@ -11,10 +11,11 @@ import { TIMELINE_CIRCLE_SIZE } from "../Timeline/config";
 import type { Segment } from "./types";
 import { useScheduledTripDisplayData } from "./useScheduledTripDisplayData";
 import {
-  resolveSingleJourneyTimeline,
-  type ScheduledTripCardResolution,
-  type ScheduledTripTimelineResolution,
-} from "./utils/resolveScheduledTripsPageResolution";
+  computeTimelineStateForJourney,
+  type ScheduledTripCardDisplayState,
+  type ScheduledTripTimelineState,
+} from "./utils/computePageDisplayState";
+import { getDepartingTerminalAbbrevs } from "./utils/segmentUtils";
 
 // ============================================================================
 // Types
@@ -30,10 +31,15 @@ type ScheduledTripTimelineProps = {
    */
   segments: Segment[];
   /**
-   * When provided, the timeline is purely presentational and does not call
-   * useScheduledTripDisplayData. Use for list cards that receive page-level resolution.
+   * Departure terminal for active-segment selection. When omitted, derived from
+   * segments[0].DepartingTerminalAbbrev.
    */
-  resolution?: ScheduledTripCardResolution;
+  terminalAbbrev?: string;
+  /**
+   * When provided, the timeline is purely presentational and does not call
+   * useScheduledTripDisplayData. Use for list cards that receive page-level display state.
+   */
+  displayState?: ScheduledTripCardDisplayState;
 };
 
 type ScheduledTripTimelineContentProps = {
@@ -41,7 +47,7 @@ type ScheduledTripTimelineContentProps = {
   vesselLocation: VesselLocation;
   vesselTripMap: Map<string, VesselTrip>;
   displayTrip: VesselTrip | undefined;
-  timelineResolution: ScheduledTripTimelineResolution;
+  timelineState: ScheduledTripTimelineState;
 };
 
 // ============================================================================
@@ -50,70 +56,84 @@ type ScheduledTripTimelineContentProps = {
 
 /**
  * Displays a multi-segment timeline for scheduled ferry trips.
- * When resolution is provided (e.g. from the list page), renders presentational content only
- * and does not fetch. Otherwise fetches via useScheduledTripDisplayData and resolves with
- * resolveSingleJourneyTimeline.
+ * When displayState is provided (e.g. from the list page), renders presentational content only
+ * and does not fetch. Otherwise fetches via useScheduledTripDisplayData and computes with
+ * computeTimelineStateForJourney.
  *
  * @param vesselAbbrev - Vessel abbreviation for the trip
  * @param segments - Array of trip segments to display
- * @param resolution - Optional full card resolution; when set, no hook is called
+ * @param displayState - Optional full card display state; when set, no hook is called
  * @returns A View component with a sequence of markers and progress bars, or null
  */
-export const ScheduledTripTimeline = ({
-  vesselAbbrev,
-  segments,
-  resolution,
-}: ScheduledTripTimelineProps) => {
-  if (resolution != null) {
-    const vesselLocation = resolution.vesselLocation;
-    const vesselTripMap = resolution.vesselTripMap;
-    const timeline = resolution.timeline;
-    if (
-      !vesselLocation ||
-      !vesselTripMap ||
-      !timeline ||
-      segments.length === 0
-    ) {
-      return null;
-    }
+export const ScheduledTripTimeline = (props: ScheduledTripTimelineProps) => {
+  if (props.displayState != null) {
     return (
-      <ScheduledTripTimelineContent
-        segments={segments}
-        vesselLocation={vesselLocation}
-        vesselTripMap={vesselTripMap}
-        displayTrip={resolution.displayTrip}
-        timelineResolution={timeline}
+      <ScheduledTripTimelineFromDisplayState
+        displayState={props.displayState}
+        segments={props.segments}
       />
     );
   }
-
   return (
     <ScheduledTripTimelineWithData
-      vesselAbbrev={vesselAbbrev}
-      segments={segments}
+      vesselAbbrev={props.vesselAbbrev}
+      segments={props.segments}
+      terminalAbbrev={props.terminalAbbrev}
     />
   );
 };
 
 // ============================================================================
-// Data-fetching path (no resolution from parent)
+// Display-state path (no hook, presentational only)
 // ============================================================================
 
 /**
- * Fetches vessel/trip data and resolves timeline via resolveSingleJourneyTimeline,
- * then renders ScheduledTripTimelineContent. Only mounted when parent does not provide resolution.
+ * Renders timeline from page-level display state. Returns null when display state is
+ * incomplete (missing vesselLocation, vesselTripMap, or timeline).
+ */
+const ScheduledTripTimelineFromDisplayState = ({
+  displayState,
+  segments,
+}: {
+  displayState: ScheduledTripCardDisplayState;
+  segments: Segment[];
+}) => {
+  const vesselLocation = displayState.vesselLocation;
+  const vesselTripMap = displayState.vesselTripMap;
+  const timeline = displayState.timeline;
+  if (!vesselLocation || !vesselTripMap || !timeline || segments.length === 0) {
+    return null;
+  }
+  return (
+    <ScheduledTripTimelineContent
+      segments={segments}
+      vesselLocation={vesselLocation}
+      vesselTripMap={vesselTripMap}
+      displayTrip={displayState.displayTrip}
+      timelineState={timeline}
+    />
+  );
+};
+
+// ============================================================================
+// Data-fetching path (no display state from parent)
+// ============================================================================
+
+/**
+ * Fetches vessel/trip data and computes timeline via computeTimelineStateForJourney,
+ * then renders ScheduledTripTimelineContent. Only mounted when parent does not provide display state.
  */
 const ScheduledTripTimelineWithData = ({
   vesselAbbrev,
   segments,
+  terminalAbbrev,
 }: {
   vesselAbbrev: string;
   segments: Segment[];
+  terminalAbbrev?: string;
 }) => {
   const sailingDay = segments[0]?.SailingDay;
-  const departingTerminalAbbrevs = [
-    ...new Set(segments.map((s) => s.DepartingTerminalAbbrev)),
-  ];
+  const departingTerminalAbbrevs = getDepartingTerminalAbbrevs(segments);
 
   const fetched = useScheduledTripDisplayData({
     vesselAbbrev,
@@ -127,15 +147,16 @@ const ScheduledTripTimelineWithData = ({
 
   if (!vesselLocation || !vesselTripMap || segments.length === 0) return null;
 
-  const terminalAbbrev = segments[0]?.DepartingTerminalAbbrev ?? "";
+  const resolvedTerminalAbbrev =
+    terminalAbbrev ?? segments[0]?.DepartingTerminalAbbrev ?? "";
   const journey = {
     id: `${vesselAbbrev}-${segments[0]?.Key ?? "single"}`,
     vesselAbbrev,
     segments,
   };
 
-  const timelineResolution = resolveSingleJourneyTimeline({
-    terminalAbbrev,
+  const timelineState = computeTimelineStateForJourney({
+    terminalAbbrev: resolvedTerminalAbbrev,
     journey,
     vesselLocation,
     displayTrip,
@@ -148,17 +169,17 @@ const ScheduledTripTimelineWithData = ({
       vesselLocation={vesselLocation}
       vesselTripMap={vesselTripMap}
       displayTrip={displayTrip}
-      timelineResolution={timelineResolution}
+      timelineState={timelineState}
     />
   );
 };
 
 // ============================================================================
-// Presentational content (no hooks, no resolution logic)
+// Presentational content (no hooks, no display-state logic)
 // ============================================================================
 
 /**
- * Renders timeline legs from pre-resolved data. Used by both the resolution path
+ * Renders timeline legs from pre-computed data. Used by both the display-state path
  * (list cards) and the with-data path (standalone timeline).
  */
 const ScheduledTripTimelineContent = ({
@@ -166,7 +187,7 @@ const ScheduledTripTimelineContent = ({
   vesselLocation,
   vesselTripMap,
   displayTrip,
-  timelineResolution,
+  timelineState,
 }: ScheduledTripTimelineContentProps) => {
   // For future cards, attach "arrive-next" and "depart-next" predictions from
   // the current inbound VesselTrip when displayTrip.ScheduledTrip.NextKey matches
@@ -207,11 +228,9 @@ const ScheduledTripTimelineContent = ({
           isFirst={index === 0}
           isLast={index === segments.length - 1}
           skipAtDock={false}
-          legStatus={
-            timelineResolution.statusByKey.get(segment.Key) ?? "Pending"
-          }
-          activeKey={timelineResolution.activeKey}
-          activePhase={timelineResolution.activePhase}
+          legStatus={timelineState.statusByKey.get(segment.Key) ?? "Pending"}
+          activeKey={timelineState.activeKey}
+          activePhase={timelineState.activePhase}
         />
       ))}
     </View>

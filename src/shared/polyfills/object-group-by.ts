@@ -4,7 +4,9 @@
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy
  */
 
-if (typeof (Object as unknown as { groupBy?: unknown }).groupBy === "undefined") {
+if (
+  typeof (Object as unknown as { groupBy?: unknown }).groupBy === "undefined"
+) {
   const groupBy = <T, K extends string | number | symbol>(
     items: Iterable<T>,
     keySelector: (item: T, index: number) => K

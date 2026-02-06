@@ -55,59 +55,63 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 ## File map (where the logic lives)
 
 - `ScheduledTripList.tsx`
-  - calls `useScheduledTripsPageData()` for status, journeys, and page resolution
+  - calls `useScheduledTripsPageData()` for status, journeys, and card display state
   - handles loading / empty / ready states and renders a list of `ScheduledTripCard`
   - no direct data fetching or map building
 
 - `useScheduledTripsPageData.ts`
   - fetches schedule journeys, completed/active trips, and real-time contexts
   - builds all three maps in one call via `buildAllPageMaps()` in `utils/buildPageDataMaps`
-  - calls `resolveScheduledTripsPageResolution()` for one resolution per journey card
-  - returns `status`, `journeys`, `pageResolutionByTripId`
+  - calls `computeCardDisplayStateForPage()` for one display state per journey card
+  - returns `status`, `journeys`, `cardDisplayStateByJourneyId`
 
 - `utils/buildPageDataMaps.ts`
   - `buildAllPageMaps()` returns `vesselTripMap`, `vesselLocationByAbbrev`, `displayTripByAbbrev`
     in one call (completed → active → held precedence)
-  - individual helpers still available: `buildVesselTripMap`, `buildVesselLocationByAbbrev`,
-    `buildDisplayTripByAbbrev`
+  - individual builders (`buildVesselTripMap`, `buildVesselLocationByAbbrev`,
+    `buildDisplayTripByAbbrev`) are internal helpers, not exported
+
+- `utils/segmentUtils.ts`
+  - `getDepartingTerminalAbbrevs()`: extracts unique departing terminal abbrevs from segments;
+    used by page and standalone for completed-trip lookups
 
 - `utils/selectActiveSegmentKey.ts`
   - `selectActiveSegmentKeyForVessel`: selects one active segment key per vessel
   - priority: held (`displayTrip.Key`) → exact (terminals + ScheduledDeparture) →
     provisional (AtDock, next scheduled segment)
 
-- `utils/resolveScheduledTripsPageResolution.ts`
-  - page-level resolver: `groupJourneysByVessel()` (Object.groupBy), then per vessel
-    `resolveResolutionsForVessel()` which uses `selectActiveSegmentKeyForVessel` and
-    `resolveJourneyTimeline`
-  - returns `Map<journeyId, ScheduledTripCardResolution>`
-  - exports `resolveSingleJourneyTimeline` for standalone timeline (same resolution path)
-  - exports types: `ScheduledTripCardResolution`, `ScheduledTripTimelineResolution`, etc.;
+- `utils/computePageDisplayState.ts`
+  - page-level display-state computation: `groupJourneysByVessel()` (Object.groupBy), then per vessel
+    `computeCardDisplayStateForVessel()` which uses `selectActiveSegmentKeyForVessel` and
+    `computeJourneyTimelineState`
+  - returns `Map<journeyId, ScheduledTripCardDisplayState>`
+  - exports `computeTimelineStateForJourney` for standalone timeline (same computation path)
+  - exports types: `ScheduledTripCardDisplayState`, `ScheduledTripTimelineState`, etc.;
     `ScheduledTripJourney` is defined in `types.ts` and re-exported here
 
 - `types.ts`
   - defines `ScheduledTripJourney` (id, vesselAbbrev, routeAbbrev, departureTime, segments);
-    used by list, resolver, and card
+    used by list, display-state computation, and card
   - re-exports `Segment` from Timeline
 
 - `ScheduledTripCard.tsx`
   - card wrapper that composes `ScheduledTripRouteHeader` (terminals, vessel name)
     and embeds `ScheduledTripTimeline`
-  - passes single `resolution` prop when present; timeline does not call
-    `useScheduledTripDisplayData` when resolution is provided
+  - passes single `displayState` prop when present; timeline does not call
+    `useScheduledTripDisplayData` when display state is provided
 
 - `ScheduledTripTimeline.tsx`
-  - when `resolution` is provided: renders presentational content only (no hook)
-  - when `resolution` is missing: renders `ScheduledTripTimelineWithData`, which
-    calls `useScheduledTripDisplayData` and `resolveSingleJourneyTimeline`
-  - single resolution path: list and standalone both use
-    `selectActiveSegmentKeyForVessel` + `resolveJourneyTimeline` / `resolveSingleJourneyTimeline`
+  - when `displayState` is provided: renders presentational content only (no hook)
+  - when `displayState` is missing: renders `ScheduledTripTimelineWithData`, which
+    calls `useScheduledTripDisplayData` and `computeTimelineStateForJourney`
+  - single computation path: list and standalone both use
+    `selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState` / `computeTimelineStateForJourney`
   - attaches “next-trip” predictions by strict `NextKey` matching (see below)
 
 - `useScheduledTripDisplayData.ts`
-  - per-vessel fetch hook used only when a timeline is rendered **without** resolution
+  - per-vessel fetch hook used only when a timeline is rendered **without** display state
     (e.g. standalone use of `ScheduledTripTimeline`); list cards do not call it
-  - builds `vesselTripMap` via `buildPageDataMaps`; includes 30s hold via
+  - builds all three maps via `buildAllPageMaps`; includes 30s hold via
     `useDelayedVesselTrips()`
 
 - `../Timeline/TimelineSegmentLeg.tsx`
@@ -144,7 +148,7 @@ Direct vs indirect:
 ## Trip overlay preparation (completed + active + held)
 
 The schedules page builds a unified `Map<string, VesselTrip>` in `useScheduledTripsPageData`;
-when a timeline is used without resolution (standalone), `useScheduledTripDisplayData` builds
+when a timeline is used without display state (standalone), `useScheduledTripDisplayData` builds
 it. In both cases the map is keyed by `trip.Key`, using `createVesselTripMap` from
 `../Timeline/utils` as the base:
 
@@ -167,7 +171,7 @@ The hold behavior lives in `src/features/VesselTrips/useDelayedVesselTrips.ts`:
 ## Page-level active selection + statuses
 
 The schedules page enforces **one active journey per vessel** via
-`resolveScheduledTripsPageResolution.ts`.
+`computePageDisplayState.ts`.
 
 ### Active key selection priority (per vessel)
 
@@ -224,12 +228,12 @@ unrelated future cards.
 
 - **Multiple “InProgress” segments**
   - Root cause: per-segment inference with conflicting booleans.
-  - Fix: resolver selects a single `activeKey` and derives monotonic statuses.
+  - Fix: display-state computation selects a single `activeKey` and derives monotonic statuses.
 
 - **Phantom indicator on unrelated past/future journey card**
   - Root cause: schedule-time heuristics selecting an “active” leg without evidence.
-  - Fix: ScheduledTrips uses a single resolution path
-    (`selectActiveSegmentKeyForVessel` + `resolveJourneyTimeline` / `resolveSingleJourneyTimeline`)
+  - Fix: ScheduledTrips uses a single computation path
+    (`selectActiveSegmentKeyForVessel` + `computeJourneyTimelineState` / `computeTimelineStateForJourney`)
     with no schedule-time fallback; provisional selection only when AtDock at page terminal.
 
 ---

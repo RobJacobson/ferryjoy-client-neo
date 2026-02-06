@@ -12,7 +12,7 @@ import { useQuery } from "convex/react";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
-import { buildVesselTripMap } from "./utils/buildPageDataMaps";
+import { buildAllPageMaps } from "./utils/buildPageDataMaps";
 
 type UseScheduledTripDisplayDataParams = {
   /** Vessel abbreviation for the trip. */
@@ -70,25 +70,17 @@ export const useScheduledTripDisplayData = ({
   );
   const completedTrips = rawCompletedTrips?.map(toDomainVesselTrip) ?? [];
 
-  const vesselTripMap = buildVesselTripMap(
-    completedTrips,
-    activeVesselTrips,
-    displayData
-  );
-
-  // Find the synchronized vessel location from displayData
-  const synchronizedData = displayData.find(
-    (d) => d.trip.VesselAbbrev === vesselAbbrev
-  );
-
-  // Fallback to live location if no synchronized data is found (e.g. vessel not in a trip)
-  const vesselLocation =
-    synchronizedData?.vesselLocation ||
-    vesselLocations.find((v) => v.VesselAbbrev === vesselAbbrev);
+  const { vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev } =
+    buildAllPageMaps(
+      completedTrips,
+      activeVesselTrips,
+      vesselLocations,
+      displayData
+    );
 
   return {
-    vesselLocation,
-    displayTrip: synchronizedData?.trip,
+    vesselLocation: vesselLocationByAbbrev.get(vesselAbbrev),
+    displayTrip: displayTripByAbbrev.get(vesselAbbrev),
     vesselTripMap,
   };
 };

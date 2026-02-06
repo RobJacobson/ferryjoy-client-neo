@@ -18,7 +18,7 @@ type DisplayDataItem = { trip: VesselTrip; vesselLocation: VesselLocation };
  * @param displayData - Hold-window display data (trip + synced location per vessel)
  * @returns Map of trip Key to VesselTrip for O(1) lookup
  */
-export const buildVesselTripMap = (
+const buildVesselTripMap = (
   completedTrips: VesselTrip[],
   activeVesselTrips: VesselTrip[],
   displayData: DisplayDataItem[]
@@ -41,7 +41,7 @@ export const buildVesselTripMap = (
  * @param displayData - Hold-window data (synced location wins per vessel)
  * @returns Map of vessel abbrev to VesselLocation
  */
-export const buildVesselLocationByAbbrev = (
+const buildVesselLocationByAbbrev = (
   vesselLocations: VesselLocation[],
   displayData: DisplayDataItem[]
 ): Map<string, VesselLocation> => {
@@ -64,7 +64,7 @@ export const buildVesselLocationByAbbrev = (
  * @param displayData - Hold-window data (trip per vessel)
  * @returns Map of vessel abbrev to VesselTrip
  */
-export const buildDisplayTripByAbbrev = (
+const buildDisplayTripByAbbrev = (
   displayData: DisplayDataItem[]
 ): Map<string, VesselTrip> =>
   new Map(displayData.map((d) => [d.trip.VesselAbbrev, d.trip]));

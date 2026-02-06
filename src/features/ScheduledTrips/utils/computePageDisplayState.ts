@@ -1,8 +1,8 @@
 /**
- * ScheduledTrips page-level resolver.
+ * ScheduledTrips page-level display state computation.
  *
- * This module converts the raw scheduled journeys for a terminal into a single,
- * deterministic render resolution per journey card.
+ * This module converts raw scheduled journeys for a terminal into deterministic
+ * display state per journey card.
  *
  * Design goals:
  * - One active journey per vessel on the page (never multiple indicators).
@@ -19,7 +19,10 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { TimelineActivePhase } from "../../Timeline/resolveTimeline";
 import type { TimelineSegmentStatus } from "../../Timeline/types";
 import type { ScheduledTripJourney, Segment } from "../types";
-import { selectActiveSegmentKeyForVessel } from "./selectActiveSegmentKey";
+import {
+  type ActiveSelection,
+  selectActiveSegmentKeyForVessel,
+} from "./selectActiveSegmentKey";
 
 // ============================================================================
 // Types
@@ -30,14 +33,14 @@ export type ActiveConfidence = "Exact" | "Provisional" | "None";
 /** Re-export for consumers that import from this module. */
 export type { ScheduledTripJourney } from "../types";
 
-export type ScheduledTripTimelineResolution = {
+export type ScheduledTripTimelineState = {
   activeKey: string | null;
   activeConfidence: ActiveConfidence;
   activePhase: TimelineActivePhase;
   statusByKey: Map<string, TimelineSegmentStatus>;
 };
 
-export type ScheduledTripCardResolution = {
+export type ScheduledTripCardDisplayState = {
   vesselLocation?: VesselLocation;
   displayTrip?: VesselTrip;
   vesselTripMap: Map<string, VesselTrip>;
@@ -49,11 +52,11 @@ export type ScheduledTripCardResolution = {
    * - undefined when we cannot safely pick an active journey
    */
   journeyStatus?: "Pending" | "InProgress" | "Completed";
-  timeline: ScheduledTripTimelineResolution;
+  timeline: ScheduledTripTimelineState;
 };
 
-/** Minimal journey shape for single-journey resolution (e.g. standalone timeline). */
-export type SingleJourneyForResolution = {
+/** Minimal journey shape for single-journey timeline computation (e.g. standalone timeline). */
+export type SingleJourneyForTimeline = {
   id: string;
   vesselAbbrev: string;
   segments: Segment[];
@@ -66,43 +69,19 @@ export type SingleJourneyForResolution = {
 // Public API
 // ============================================================================
 
-/**
- * Resolves scheduled journey cards for a terminal page.
- *
- * Important behavioral rules:
- * - The page can contain multiple journeys for the same vessel; only one can be active.
- * - `displayTrip.Key` (held trip) always wins when present for that vessel.
- * - When a vessel is at dock at the page terminal but `ScheduledDeparture` is missing
- *   (known backend latency window for the newly-started trip), we select the *next*
- *   scheduled segment deterministically and mark it Provisional.
- *
- * @param params.terminalAbbrev - Page departure terminal (used for active-segment selection)
- * @param params.journeys - All scheduled journeys for the page (may include multiple per vessel)
- * @param params.vesselLocationByAbbrev - Resolved vessel location per vessel (synced or live)
- * @param params.displayTripByAbbrev - Held/active trip per vessel from hold-window logic
- * @param params.vesselTripMap - Unified map of trip Key to VesselTrip
- * @param params.provisionalDepartBufferMs - Buffer for provisional departure inference (default 5 min)
- * @returns Map of journey id to card resolution
- */
-/**
- * Groups journeys by vessel abbrev so only one journey per vessel can be active.
- * Uses Object.groupBy (ES2024).
- *
- * @param journeys - All scheduled journeys for the page
- * @returns Record of vessel abbrev to that vessel's journeys (unsorted)
- */
+/** Groups journeys by vessel abbrev for one-active-per-vessel display state. */
 export const groupJourneysByVessel = (
   journeys: ScheduledTripJourney[]
 ): Partial<Record<string, ScheduledTripJourney[]>> =>
   Object.groupBy(journeys, (j) => j.vesselAbbrev);
 
 /**
- * Resolves card resolutions for a single vessel's journeys (one active per vessel).
+ * Computes card display state for a single vessel's journeys (one active per vessel).
  *
  * @param params - Vessel abbrev, sorted journeys, maps, and options
- * @returns Map of journey id to ScheduledTripCardResolution for this vessel
+ * @returns Map of journey id to ScheduledTripCardDisplayState for this vessel
  */
-const resolveResolutionsForVessel = (params: {
+const computeCardDisplayStateForVessel = (params: {
   vesselAbbrev: string;
   vesselJourneys: ScheduledTripJourney[];
   terminalAbbrev: string;
@@ -110,7 +89,7 @@ const resolveResolutionsForVessel = (params: {
   displayTripByAbbrev: Map<string, VesselTrip>;
   vesselTripMap: Map<string, VesselTrip>;
   provisionalDepartBufferMs: number;
-}): Map<string, ScheduledTripCardResolution> => {
+}): Map<string, ScheduledTripCardDisplayState> => {
   const {
     vesselAbbrev,
     vesselJourneys,
@@ -141,7 +120,7 @@ const resolveResolutionsForVessel = (params: {
         )
       : -1;
 
-  const result = new Map<string, ScheduledTripCardResolution>();
+  const result = new Map<string, ScheduledTripCardDisplayState>();
   for (const [idx, journey] of vesselJourneys.entries()) {
     const journeyStatus =
       activeJourneyIndex >= 0
@@ -152,14 +131,12 @@ const resolveResolutionsForVessel = (params: {
             : "Pending"
         : undefined;
 
-    const timeline = resolveJourneyTimeline({
+    const timeline = computeTimelineStateForOneJourney({
       journey,
       journeyStatus,
-      activeKey: activeSelection.activeKey,
-      activeConfidence: activeSelection.activeConfidence,
+      activeSelection,
       vesselLocation,
-      nowMs,
-      tripsByKey: vesselTripMap,
+      vesselTripMap,
     });
 
     result.set(journey.id, {
@@ -174,7 +151,7 @@ const resolveResolutionsForVessel = (params: {
 };
 
 /**
- * Resolves scheduled journey cards for a terminal page.
+ * Computes card display state for all journeys on a terminal page.
  *
  * Important behavioral rules:
  * - The page can contain multiple journeys for the same vessel; only one can be active.
@@ -189,9 +166,9 @@ const resolveResolutionsForVessel = (params: {
  * @param params.displayTripByAbbrev - Held/active trip per vessel from hold-window logic
  * @param params.vesselTripMap - Unified map of trip Key to VesselTrip
  * @param params.provisionalDepartBufferMs - Buffer for provisional departure inference (default 5 min)
- * @returns Map of journey id to card resolution
+ * @returns Map of journey id to card display state
  */
-export const resolveScheduledTripsPageResolution = (params: {
+export const computeCardDisplayStateForPage = (params: {
   terminalAbbrev: string;
   journeys: ScheduledTripJourney[];
   vesselLocationByAbbrev: Map<string, VesselLocation>;
@@ -202,7 +179,7 @@ export const resolveScheduledTripsPageResolution = (params: {
    * very near "now" (e.g., a few seconds after the scheduled time).
    */
   provisionalDepartBufferMs?: number;
-}): Map<string, ScheduledTripCardResolution> => {
+}): Map<string, ScheduledTripCardDisplayState> => {
   const {
     journeys,
     vesselLocationByAbbrev,
@@ -212,14 +189,14 @@ export const resolveScheduledTripsPageResolution = (params: {
   } = params;
 
   const grouped = groupJourneysByVessel(journeys);
-  const resolutionEntries = Object.entries(grouped).flatMap(
+  const displayStateEntries = Object.entries(grouped).flatMap(
     ([vesselAbbrev, vesselJourneysUnsorted]) => {
       if (!vesselJourneysUnsorted) return [];
       const vesselJourneys = [...vesselJourneysUnsorted].sort(
         (a, b) => a.departureTime - b.departureTime
       );
       return Array.from(
-        resolveResolutionsForVessel({
+        computeCardDisplayStateForVessel({
           vesselAbbrev,
           vesselJourneys,
           terminalAbbrev: params.terminalAbbrev,
@@ -232,12 +209,12 @@ export const resolveScheduledTripsPageResolution = (params: {
     }
   );
 
-  return new Map(resolutionEntries);
+  return new Map(displayStateEntries);
 };
 
 /**
- * Resolves timeline for a single journey (e.g. standalone ScheduledTripTimeline).
- * Uses the same logic as the page: selectActiveSegmentKeyForVessel then resolveJourneyTimeline.
+ * Computes timeline state for a single journey (e.g. standalone ScheduledTripTimeline).
+ * Uses the same logic as the page: selectActiveSegmentKeyForVessel then computeJourneyTimelineState.
  * Single journey is always treated as InProgress for status purposes.
  *
  * @param params.terminalAbbrev - Departure terminal for active-segment selection
@@ -246,16 +223,16 @@ export const resolveScheduledTripsPageResolution = (params: {
  * @param params.displayTrip - Held/active trip from hold-window logic
  * @param params.vesselTripMap - Unified map of trip Key to VesselTrip
  * @param params.provisionalDepartBufferMs - Buffer for provisional inference (default 5 min)
- * @returns Timeline resolution for the journey
+ * @returns Timeline state for the journey
  */
-export const resolveSingleJourneyTimeline = (params: {
+export const computeTimelineStateForJourney = (params: {
   terminalAbbrev: string;
-  journey: SingleJourneyForResolution;
+  journey: SingleJourneyForTimeline;
   vesselLocation: VesselLocation | undefined;
   displayTrip: VesselTrip | undefined;
   vesselTripMap: Map<string, VesselTrip>;
   provisionalDepartBufferMs?: number;
-}): ScheduledTripTimelineResolution => {
+}): ScheduledTripTimelineState => {
   const {
     terminalAbbrev,
     journey: minimalJourney,
@@ -265,17 +242,7 @@ export const resolveSingleJourneyTimeline = (params: {
     provisionalDepartBufferMs = 5 * 60 * 1000,
   } = params;
 
-  const journey: ScheduledTripJourney = {
-    id: minimalJourney.id,
-    vesselAbbrev: minimalJourney.vesselAbbrev,
-    routeAbbrev: minimalJourney.routeAbbrev ?? "",
-    departureTime:
-      minimalJourney.departureTime ??
-      minimalJourney.segments[0]?.DepartingTime.getTime() ??
-      0,
-    segments: minimalJourney.segments,
-  };
-
+  const journey = toScheduledTripJourney(minimalJourney);
   const nowMs = vesselLocation?.TimeStamp.getTime() ?? Date.now();
   const activeSelection = selectActiveSegmentKeyForVessel({
     terminalAbbrev,
@@ -286,14 +253,12 @@ export const resolveSingleJourneyTimeline = (params: {
     provisionalDepartBufferMs,
   });
 
-  return resolveJourneyTimeline({
+  return computeTimelineStateForOneJourney({
     journey,
     journeyStatus: "InProgress",
-    activeKey: activeSelection.activeKey,
-    activeConfidence: activeSelection.activeConfidence,
+    activeSelection,
     vesselLocation,
-    nowMs,
-    tripsByKey: vesselTripMap,
+    vesselTripMap,
   });
 };
 
@@ -302,18 +267,59 @@ export const resolveSingleJourneyTimeline = (params: {
 // ============================================================================
 
 /**
- * Resolve per-segment statuses and active phase for a single journey.
+ * Converts a minimal SingleJourneyForTimeline to a full ScheduledTripJourney.
  *
- * @param params.journey - The journey to resolve
+ * @param minimal - Minimal journey shape (id, vesselAbbrev, segments; optional departureTime, routeAbbrev)
+ * @returns Full ScheduledTripJourney with defaults applied
+ */
+const toScheduledTripJourney = (
+  minimal: SingleJourneyForTimeline
+): ScheduledTripJourney => ({
+  id: minimal.id,
+  vesselAbbrev: minimal.vesselAbbrev,
+  routeAbbrev: minimal.routeAbbrev ?? "",
+  departureTime:
+    minimal.departureTime ?? minimal.segments[0]?.DepartingTime.getTime() ?? 0,
+  segments: minimal.segments,
+});
+
+/**
+ * Computes timeline state for one journey using pre-computed active selection.
+ * Centralizes the computeJourneyTimelineState call pattern for both page and standalone paths.
+ *
+ * @param params - Journey, status, active selection, vessel location, and trip map
+ * @returns Timeline state for the journey
+ */
+const computeTimelineStateForOneJourney = (params: {
+  journey: ScheduledTripJourney;
+  journeyStatus: "Pending" | "InProgress" | "Completed" | undefined;
+  activeSelection: ActiveSelection;
+  vesselLocation: VesselLocation | undefined;
+  vesselTripMap: Map<string, VesselTrip>;
+}): ScheduledTripTimelineState =>
+  computeJourneyTimelineState({
+    journey: params.journey,
+    journeyStatus: params.journeyStatus,
+    activeKey: params.activeSelection.activeKey,
+    activeConfidence: params.activeSelection.activeConfidence,
+    vesselLocation: params.vesselLocation,
+    nowMs: params.vesselLocation?.TimeStamp.getTime() ?? Date.now(),
+    tripsByKey: params.vesselTripMap,
+  });
+
+/**
+ * Computes per-segment statuses and active phase for a single journey.
+ *
+ * @param params.journey - The journey to compute
  * @param params.journeyStatus - Page-level status for this journey (Completed/InProgress/Pending or undefined)
  * @param params.activeKey - Selected active segment key for this vessel
  * @param params.activeConfidence - Confidence of the active selection (Exact/Provisional/None)
  * @param params.vesselLocation - Resolved vessel location (synced or live)
  * @param params.nowMs - Current time for phase and fallback status
  * @param params.tripsByKey - Unified map of segment Key to VesselTrip
- * @returns Timeline resolution for the journey
+ * @returns Timeline state for the journey
  */
-const resolveJourneyTimeline = (params: {
+const computeJourneyTimelineState = (params: {
   journey: ScheduledTripJourney;
   journeyStatus: "Pending" | "InProgress" | "Completed" | undefined;
   activeKey: string | null;
@@ -321,7 +327,7 @@ const resolveJourneyTimeline = (params: {
   vesselLocation: VesselLocation | undefined;
   nowMs: number;
   tripsByKey: Map<string, VesselTrip>;
-}): ScheduledTripTimelineResolution => {
+}): ScheduledTripTimelineState => {
   const {
     journey,
     journeyStatus,

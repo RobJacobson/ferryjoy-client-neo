@@ -34,10 +34,8 @@ export const ScheduledTripList = ({
   terminalAbbrev = "P52",
   destinationAbbrev,
 }: ScheduledTripListProps) => {
-  const { status, journeys, pageResolutionByTripId } =
+  const { status, journeys, cardDisplayStateByJourneyId } =
     useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
-
-  // status: loading | empty | ready; journeys: trip list; pageResolutionByTripId: pre-resolved data per trip id.
   if (status === "loading") {
     return (
       <View className="flex-1 justify-center items-center p-4">
@@ -62,12 +60,12 @@ export const ScheduledTripList = ({
         <Text variant="h2" className="mb-6 text-center">
           Daily Schedule
         </Text>
-        {/* Each card receives pre-resolved resolution when available to avoid per-card fetch. */}
+        {/* Each card receives pre-computed display state when available to avoid per-card fetch. */}
         {(journeys ?? []).map((trip) => (
           <ScheduledTripCard
             key={trip.id}
             trip={trip}
-            resolution={pageResolutionByTripId.get(trip.id)}
+            displayState={cardDisplayStateByJourneyId.get(trip.id)}
           />
         ))}
       </View>

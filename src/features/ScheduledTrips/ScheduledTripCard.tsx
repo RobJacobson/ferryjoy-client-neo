@@ -10,7 +10,7 @@ import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
-import type { ScheduledTripCardResolution } from "./utils/resolveScheduledTripsPageResolution";
+import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
 
 type ScheduledTripCardProps = {
   /**
@@ -18,10 +18,10 @@ type ScheduledTripCardProps = {
    */
   trip: ScheduledTripJourney;
   /**
-   * Optional page-level resolution props. When provided, the card/timeline does not refetch
+   * Optional page-level display state. When provided, the card/timeline does not refetch
    * realtime data per card.
    */
-  resolution?: ScheduledTripCardResolution;
+  displayState?: ScheduledTripCardDisplayState;
 };
 
 /**
@@ -67,12 +67,12 @@ const ScheduledTripRouteHeader = ({
  * Displays a card with route information and a multi-segment timeline for a scheduled trip.
  *
  * @param trip - The trip data to display
- * @param resolution - Optional page-level resolution; when provided, card/timeline does not refetch realtime data per card
+ * @param displayState - Optional page-level display state; when provided, card/timeline does not refetch realtime data per card
  * @returns A Card component containing the trip header and timeline
  */
 export const ScheduledTripCard = ({
   trip,
-  resolution,
+  displayState,
 }: ScheduledTripCardProps) => (
   <TripCard
     cardClassName="pt-2 pb-10 overflow-visible"
@@ -83,11 +83,12 @@ export const ScheduledTripCard = ({
       />
     }
   >
-    {/* When resolution is provided, timeline does not call useScheduledTripDisplayData. */}
+    {/* When displayState is provided, timeline does not call useScheduledTripDisplayData. */}
     <ScheduledTripTimeline
       vesselAbbrev={trip.vesselAbbrev}
       segments={trip.segments}
-      resolution={resolution}
+      terminalAbbrev={trip.segments[0]?.DepartingTerminalAbbrev}
+      displayState={displayState}
     />
   </TripCard>
 );
