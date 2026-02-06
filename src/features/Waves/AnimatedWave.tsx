@@ -236,11 +236,11 @@ const AnimatedWave = memo(
           />
 
           {/* Paper texture overlay - adds surface texture while preserving color */}
-          <Path
+          {/* <Path
             d={pathData}
             fill={`url(#${LOCAL_TEXTURE_ID})`}
             fillOpacity={0.25}
-          />
+          /> */}
         </Svg>
       </Animated.View>
     );
