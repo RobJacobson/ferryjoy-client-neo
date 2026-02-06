@@ -4,6 +4,12 @@
  * These values ensure consistent visual hierarchy and cross-platform compatibility (iOS/Android/Web).
  */
 
+/** Size in pixels for timeline circle markers. */
+export const TIMELINE_CIRCLE_SIZE = 20;
+
+/** Tailwind classes for timeline marker circle (background + border). */
+export const TIMELINE_MARKER_CLASS = "bg-white border border-pink-500";
+
 /**
  * Shadow style configuration for circles and progress bars.
  * Provides consistent shadow styling across iOS, Android, and Web platforms.

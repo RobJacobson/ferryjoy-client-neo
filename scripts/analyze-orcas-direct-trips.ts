@@ -17,6 +17,7 @@
 
 import type { Schedule } from "ws-dottie/wsf-schedule";
 import { fetchScheduleByTripDateAndRouteId } from "ws-dottie/wsf-schedule";
+import { getSailingDay } from "../src/shared/utils/getSailingDay";
 
 // ============================================================================
 // Types
@@ -97,7 +98,7 @@ const calculateDuration = (departure: string, arrival: string): number => {
  * @returns Formatted date string
  */
 const formatDateForApi = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+  return getSailingDay(date);
 };
 
 /**
@@ -157,7 +158,7 @@ const groupTripsByVesselAndTime = (
   const groups = new Map<string, OrcasTrip[]>();
 
   for (const trip of trips) {
-    const departDate = new Date(trip.DepartingTime).toISOString().split("T")[0];
+    const departDate = getSailingDay(new Date(trip.DepartingTime));
     const departTime = new Date(trip.DepartingTime)
       .toISOString()
       .substring(11, 16);
@@ -232,7 +233,7 @@ const generateSummary = (
     if (isDirect) {
       terminalSummary.directTripCount++;
       terminalSummary.directDepartureTimes.push(
-        `${new Date(trip.DepartingTime).toISOString().split("T")[0]} ${formatTime(trip.DepartingTime)}`
+        `${getSailingDay(new Date(trip.DepartingTime))} ${formatTime(trip.DepartingTime)}`
       );
     } else {
       terminalSummary.indirectTripCount++;

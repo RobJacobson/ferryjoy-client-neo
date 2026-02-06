@@ -1,11 +1,9 @@
 import type { ActionCtx } from "_generated/server";
-import type { Route } from "ws-dottie/wsf-schedule";
-import type { ConvexScheduledTrip } from "../schemas";
-import { calculateTripEstimates, classifyTripsByType } from "./businessLogic";
-import { createScheduledTrip } from "./dataTransformation";
-import { fetchActiveRoutes, fetchRouteSchedule } from "./infrastructure";
-import { performSafeDataReplacement } from "./persistence";
-import type { DaySyncResult, VesselSailing } from "./types";
+import { runTransformationPipeline } from "../../../domain/scheduledTrips/transform/index";
+import { getSailingDay } from "../../../shared/time";
+import { downloadAllRouteData, fetchActiveRoutes } from "./fetching";
+import { saveFinalTrips } from "./persistence";
+import type { DaySyncResult } from "./types";
 
 const logPrefix = "[SYNC TRIPS]";
 
@@ -100,7 +98,7 @@ export const syncScheduledTripsForDate = async (
 
     // Phase 1: Fetch all active routes
     console.log(`${logPrefix}Fetching routes for ${targetDate}`);
-    const routes: Route[] = await fetchActiveRoutes(targetDate);
+    const routes = await fetchActiveRoutes(targetDate);
     console.log(
       `${logPrefix}Found ${routes.length} routes:`,
       routes
@@ -114,17 +112,32 @@ export const syncScheduledTripsForDate = async (
     }
 
     // Phase 2: Download ALL fresh data before making any changes
-    const routeData = await downloadRouteData(routes, targetDate);
+    const routeData = await downloadAllRouteData(routes, targetDate);
 
     // Phase 3: Combine and classify trips
-    const { finalTrips, totalIndirect } = combineAndFilterTrips(routeData);
+    const allRawTrips = routeData.flatMap((data) => data.trips);
+    console.log(
+      `${logPrefix} Applying vessel-level classification to ${allRawTrips.length} total trips across all routes`
+    );
+
+    // Run the core transformation pipeline (classification and estimates)
+    const finalTrips = runTransformationPipeline(allRawTrips);
+
+    const totalIndirect = finalTrips.filter(
+      (trip) => trip.TripType === "indirect"
+    ).length;
 
     console.log(
-      `${logPrefix}Successfully downloaded ${finalTrips.length} trips across ${routeData.length} routes`
+      `${logPrefix} Vessel classification: ${allRawTrips.length} total trips, ` +
+        `${finalTrips.length - totalIndirect} direct, ${totalIndirect} indirect`
+    );
+
+    console.log(
+      `${logPrefix} Trip estimates calculated for ${finalTrips.length} trips`
     );
 
     // Phase 4: Only now that we have all data, perform safe replacement
-    const { deleted, inserted } = await performSafeDataReplacement(
+    const { deleted, inserted } = await saveFinalTrips(
       ctx,
       targetDate,
       finalTrips
@@ -151,102 +164,6 @@ export const syncScheduledTripsForDate = async (
 };
 
 /**
- * Downloads and processes schedule data for all routes on a specific date.
- * Fetches raw schedule data from WSF API and converts to scheduled trip records.
- *
- * @param routes - Array of active routes to download data for
- * @param tripDate - Trip date in YYYY-MM-DD format to fetch schedules for
- * @returns Array of route data objects containing processed trips and metadata
- */
-const downloadRouteData = async (
-  routes: Route[],
-  tripDate: string
-): Promise<
-  {
-    route: Route;
-    trips: ConvexScheduledTrip[];
-    rawTripCount: number;
-  }[]
-> => {
-  console.log(`${logPrefix} Downloading fresh data for all routes`);
-
-  const routePromises = routes.map(async (route) => {
-    console.log(
-      `${logPrefix}Downloading route ${route.RouteID} (${route.RouteAbbrev || "no abbrev"})`
-    );
-
-    // Fetch schedule data
-    const schedule = await fetchRouteSchedule(route.RouteID, tripDate);
-
-    // Convert to trips (raw data only, skip filtering for now)
-    const rawTripCount = schedule.TerminalCombos.flatMap(
-      (terminalCombo) => (terminalCombo.Times as VesselSailing[]).length
-    ).reduce((sum, count) => sum + count, 0);
-
-    const routeTrips = schedule.TerminalCombos.flatMap((terminalCombo) =>
-      (terminalCombo.Times as VesselSailing[])
-        .map((vesselSailing) =>
-          createScheduledTrip(vesselSailing, terminalCombo, route, tripDate)
-        )
-        .filter((trip): trip is ConvexScheduledTrip => trip !== null)
-    );
-
-    console.log(
-      `${logPrefix}Route ${route.RouteID} downloaded ${routeTrips.length} raw trips ` +
-        `(from ${rawTripCount} API entries)`
-    );
-
-    return { route, trips: routeTrips, rawTripCount };
-  });
-
-  const routeData = await Promise.all(routePromises);
-
-  return routeData;
-};
-
-/**
- * Combines trips from all routes and applies vessel-level classification.
- * Classifies trips as direct or indirect and calculates trip estimates.
- *
- * @param routeData - Array of route data objects containing trips from each route
- * @returns Object containing final classified trips with estimates and classification statistics
- */
-const combineAndFilterTrips = (
-  routeData: {
-    route: Route;
-    trips: ConvexScheduledTrip[];
-    rawTripCount: number;
-  }[]
-): { finalTrips: ConvexScheduledTrip[]; totalIndirect: number } => {
-  const logPrefix = "[SYNC TRIPS]";
-  // Combine all trips from all routes
-  const allRawTrips = routeData.flatMap((data) => data.trips);
-  console.log(
-    `${logPrefix} Applying vessel-level classification to ${allRawTrips.length} total trips across all routes`
-  );
-
-  // Apply vessel-level classification to mark trips as direct or indirect
-  const classifiedTrips = classifyTripsByType(allRawTrips);
-  const totalIndirect = classifiedTrips.filter(
-    (trip) => trip.TripType === "indirect"
-  ).length;
-
-  console.log(
-    `${logPrefix} Vessel classification: ${allRawTrips.length} total trips, ` +
-      `${classifiedTrips.length - totalIndirect} direct, ${totalIndirect} indirect`
-  );
-
-  // Calculate trip estimates using the classified, chronologically ordered trips
-  const finalTrips = calculateTripEstimates(classifiedTrips);
-
-  console.log(
-    `${logPrefix} Trip estimates calculated for ${finalTrips.length} trips`
-  );
-
-  return { finalTrips, totalIndirect };
-};
-
-/**
  * Helper function to add days to a date string.
  * @param dateString - Date string in YYYY-MM-DD format
  * @param days - Number of days to add (can be negative)
@@ -259,5 +176,5 @@ const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
   date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+  return getSailingDay(date);
 };

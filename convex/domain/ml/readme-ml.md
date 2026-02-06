@@ -392,7 +392,7 @@ During sync, we compute (per ScheduledTrip):
 - `TripType`: classification as "direct" or "indirect" trip
   - Direct trips: consecutive terminal pairs (A→B, B→C)
   - Indirect trips: skip intermediate terminals (A→C when A→B→C exists)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`classifyTripsByType`)
+  - Implementation: `convex/functions/scheduledTrips/sync/logic/classification.ts` (`classifyTripsByType`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `PrevKey`: the previous trip’s `Key` for this vessel (chronological chain)
   - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)

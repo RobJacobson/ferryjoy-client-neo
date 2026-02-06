@@ -1,6 +1,9 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+import {
+  scheduledTripSchema,
+  toDomainScheduledTrip,
+} from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
@@ -198,28 +201,31 @@ export const toConvexVesselTrip = (
  * Manual conversion from epoch milliseconds to Date objects.
  *
  * @param trip - Convex vessel trip with numeric timestamps
- * @returns Domain vessel trip with Date objects
+ * @returns Domain vessel trip with Date objects and resolved predictions
  */
-export const toDomainVesselTrip = (trip: ConvexVesselTrip) => ({
-  ...trip,
-  ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
-  Eta: optionalEpochMsToDate(trip.Eta),
-  LeftDock: optionalEpochMsToDate(trip.LeftDock),
-  TimeStamp: epochMsToDate(trip.TimeStamp),
-  TripStart: optionalEpochMsToDate(trip.TripStart),
-  TripEnd: optionalEpochMsToDate(trip.TripEnd),
-  // ML model predictions
-  AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
-  AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
-  AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
-  AtSeaArriveNext: optionalToDomainPrediction(trip.AtSeaArriveNext),
-  AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
-});
+export const toDomainVesselTrip = (trip: ConvexVesselTrip): VesselTrip => {
+  const domainTrip = {
+    ...trip,
+    ScheduledTrip: trip.ScheduledTrip
+      ? toDomainScheduledTrip(trip.ScheduledTrip)
+      : undefined,
+    ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
+    Eta: optionalEpochMsToDate(trip.Eta),
+    LeftDock: optionalEpochMsToDate(trip.LeftDock),
+    TimeStamp: epochMsToDate(trip.TimeStamp),
+    TripStart: optionalEpochMsToDate(trip.TripStart),
+    TripEnd: optionalEpochMsToDate(trip.TripEnd),
+    // ML model predictions
+    AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
+    AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
+    AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
+    AtSeaArriveNext: optionalToDomainPrediction(trip.AtSeaArriveNext),
+    AtSeaDepartNext: optionalToDomainPrediction(trip.AtSeaDepartNext),
+  };
 
-/**
- * A vessel trip that has all required fields for making predictions.
- * This is a subset of ConvexVesselTrip where prediction-critical fields are guaranteed to be present.
- */
+  return domainTrip;
+};
+
 export type PredictionReadyTrip = ConvexVesselTrip & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
@@ -233,4 +239,34 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
  * Type for active vessel trip in domain layer (with Date objects)
  * Inferred from the return type of our conversion function
  */
-export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
+export type VesselTrip = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev?: string;
+  RouteID: number;
+  RouteAbbrev: string;
+  Key?: string;
+  SailingDay: string;
+  ScheduledTrip?: ReturnType<typeof toDomainScheduledTrip>;
+  PrevTerminalAbbrev?: string;
+  TripStart?: Date;
+  AtDock: boolean;
+  AtDockDuration?: number;
+  ScheduledDeparture?: Date;
+  LeftDock?: Date;
+  TripDelay?: number;
+  Eta?: Date;
+  TripEnd?: Date;
+  AtSeaDuration?: number;
+  TotalDuration?: number;
+  InService: boolean;
+  TimeStamp: Date;
+  PrevScheduledDeparture?: number;
+  PrevLeftDock?: number;
+  // ML model predictions (raw, no backend resolution)
+  AtDockDepartCurr?: Prediction;
+  AtDockArriveNext?: Prediction;
+  AtDockDepartNext?: Prediction;
+  AtSeaArriveNext?: Prediction;
+  AtSeaDepartNext?: Prediction;
+};

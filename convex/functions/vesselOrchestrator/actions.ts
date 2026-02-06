@@ -6,7 +6,6 @@ import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
-import { calculateTimeDelta } from "shared/durationUtils";
 import { terminalLocations } from "src/data/terminalLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
@@ -80,11 +79,6 @@ export const updateVesselOrchestrator = internalAction({
       // with empty array to maintain error isolation structure
     }
 
-    // Validate raw vessel locations for early departure anomalies (departed >10 min before scheduled).
-    // This helps detect API data mismatches where a vessel's scheduled departure
-    // doesn't match its actual departure time.
-    // validateVesselLocationsForEarlyDeparture(deduplicatedLocations);
-
     // Call updateVesselLocations subroutine with error isolation
     try {
       await updateVesselLocations(ctx, convexLocations);
@@ -128,54 +122,5 @@ async function updateVesselLocations(
 ): Promise<void> {
   await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
     locations,
-  });
-}
-
-/**
- * Validate raw vessel locations for early departure anomalies.
- *
- * Detects cases where a vessel departed significantly before its scheduled departure time,
- * which may indicate API data mismatches or incorrect trip assignments.
- *
- * @param locations - Array of vessel locations to validate
- */
-function validateVesselLocationsForEarlyDeparture(
-  locations: ConvexVesselLocation[]
-): void {
-  locations.forEach((location) => {
-    // Only check if we have both LeftDock and ScheduledDeparture
-    if (!location.LeftDock || !location.ScheduledDeparture) {
-      return;
-    }
-
-    // Calculate departure delay in minutes (LeftDock - ScheduledDeparture)
-    const departureDelay = calculateTimeDelta(
-      location.ScheduledDeparture,
-      location.LeftDock
-    );
-
-    // If vessel departed more than 10 minutes before scheduled time, log error
-    if (departureDelay !== undefined && departureDelay < -10) {
-      console.error(
-        `[VesselOrchestrator] EARLY DEPARTURE ANOMALY DETECTED: Vessel ${location.VesselAbbrev} departed ${Math.abs(departureDelay).toFixed(1)} minutes BEFORE scheduled time.`,
-        {
-          vesselAbbrev: location.VesselAbbrev,
-          vesselName: location.VesselName,
-          departingTerminal: location.DepartingTerminalAbbrev,
-          arrivingTerminal: location.ArrivingTerminalAbbrev,
-          scheduledDeparture: location.ScheduledDeparture
-            ? new Date(location.ScheduledDeparture).toISOString()
-            : undefined,
-          actualDeparture: location.LeftDock
-            ? new Date(location.LeftDock).toISOString()
-            : undefined,
-          departureDelayMinutes: departureDelay,
-          timestamp: new Date(location.TimeStamp).toISOString(),
-          atDock: location.AtDock,
-          inService: location.InService,
-          completeLocation: location,
-        }
-      );
-    }
   });
 }

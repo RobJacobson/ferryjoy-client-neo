@@ -1,5 +1,6 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { reconstructJourneys } from "../../domain/scheduledTrips";
 
 /**
  * Fetch a scheduled trip by its composite key
@@ -159,6 +160,76 @@ export const getScheduledTripsForSailingDay = query({
         code: "QUERY_FAILED",
         severity: "error",
         details: {
+          sailingDay: args.sailingDay,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Fetches scheduled trips for a terminal, optionally filtered by destination.
+ * Reconstructs indirect trip chains into logical segments.
+ *
+ * @param ctx - Convex context
+ * @param args.terminalAbbrev - The departure terminal abbreviation
+ * @param args.destinationAbbrev - Optional arrival terminal abbreviation
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format
+ * @returns Array of reconstructed trip chains
+ */
+export const getScheduledTripsForTerminal = query({
+  args: {
+    terminalAbbrev: v.string(),
+    destinationAbbrev: v.optional(v.string()),
+    sailingDay: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // 1. Find all physical departures from this terminal today
+      const startingTrips = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_terminal_and_sailing_day", (q) =>
+          q
+            .eq("DepartingTerminalAbbrev", args.terminalAbbrev)
+            .eq("SailingDay", args.sailingDay)
+        )
+        .collect();
+
+      if (startingTrips.length === 0) return [];
+
+      // 2. Fetch all trips for these specific vessels to reconstruct their chains
+      const vesselAbbrevs = Array.from(
+        new Set(startingTrips.map((t) => t.VesselAbbrev))
+      );
+      const allVesselTrips = (
+        await Promise.all(
+          vesselAbbrevs.map((vessel) =>
+            ctx.db
+              .query("scheduledTrips")
+              .withIndex("by_vessel_and_departing_time", (q) =>
+                q.eq("VesselAbbrev", vessel)
+              )
+              .filter((q) => q.eq(q.field("SailingDay"), args.sailingDay))
+              .collect()
+          )
+        )
+      ).flat();
+
+      // 3. Reconstruct journeys using domain logic
+      return reconstructJourneys({
+        startingTrips,
+        allVesselTrips,
+        destinationAbbrev: args.destinationAbbrev,
+      });
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch scheduled trips for terminal ${args.terminalAbbrev}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          terminalAbbrev: args.terminalAbbrev,
+          destinationAbbrev: args.destinationAbbrev,
           sailingDay: args.sailingDay,
           error: String(error),
         },

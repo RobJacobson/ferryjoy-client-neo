@@ -1,5 +1,5 @@
-import { api } from "_generated/api";
-import type { ActionCtx } from "_generated/server";
+import { api } from "../../../_generated/api";
+import type { ActionCtx } from "../../../_generated/server";
 import type { ConvexScheduledTrip } from "../schemas";
 
 const logPrefix = "[SYNC TRIPS]";
@@ -28,7 +28,7 @@ export type InsertResult = {
  * @param trips - Array of fresh scheduled trip records to insert
  * @returns Object containing count of deleted and inserted records
  */
-export const performSafeDataReplacement = async (
+export const saveFinalTrips = async (
   ctx: ActionCtx,
   sailingDay: string,
   trips: ConvexScheduledTrip[]

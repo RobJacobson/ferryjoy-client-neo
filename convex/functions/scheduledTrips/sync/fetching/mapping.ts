@@ -1,7 +1,7 @@
 import type { Route, TerminalCombo } from "ws-dottie/wsf-schedule";
-import type { ConvexScheduledTrip } from "../schemas";
-import { getTerminalAbbreviation, getVesselAbbreviation } from "../schemas";
-import type { VesselSailing } from "./types";
+import type { ConvexScheduledTrip } from "../../schemas";
+import { getTerminalAbbreviation, getVesselAbbreviation } from "../../schemas";
+import type { VesselSailing } from "../types";
 
 /**
  * Extracts annotations from terminal combo using the sailing's annotation indexes.
@@ -115,6 +115,12 @@ export const createScheduledTrip = (
     // Default to "direct" as most trips are direct; classification will correct this
     TripType: "direct",
   };
+
+  // Route 9 (Anacortes Island) has WSF-provided arrival times that we use as official times.
+  // For other routes, SchedArriveCurr/SchedArriveNext are backfilled during sync.
+  if (trip.RouteID === 9 && trip.ArrivingTime) {
+    trip.SchedArriveCurr = trip.ArrivingTime;
+  }
 
   return trip;
 };

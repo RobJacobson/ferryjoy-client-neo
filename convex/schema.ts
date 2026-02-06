@@ -24,10 +24,18 @@ export default defineSchema({
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
+    .index("by_vessel_abbrev_and_scheduled_departure", [
+      "VesselAbbrev",
+      "ScheduledDeparture",
+    ])
     .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
     .index("by_trip_end", ["TripEnd"])
     .index("by_timestamp", ["TimeStamp"])
-    .index("by_key", ["Key"]),
+    .index("by_key", ["Key"])
+    .index("by_sailing_day_and_departing_terminal", [
+      "SailingDay",
+      "DepartingTerminalAbbrev",
+    ]),
 
   // Scheduled trips - planned ferry trips with departure/arrival times
   scheduledTrips: defineTable(scheduledTripSchema)
@@ -43,6 +51,10 @@ export default defineSchema({
     .index("by_route_and_sailing_day", ["RouteID", "SailingDay"])
     .index("by_trip_type", ["TripType"])
     .index("by_route_and_trip_type", ["RouteID", "TripType"])
+    .index("by_terminal_and_sailing_day", [
+      "DepartingTerminalAbbrev",
+      "SailingDay",
+    ])
     .index("by_vessel_terminal_time_type", [
       "VesselAbbrev",
       "DepartingTerminalAbbrev",
