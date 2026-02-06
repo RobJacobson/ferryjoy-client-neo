@@ -7,8 +7,7 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
-import { TimelineSegmentLeg } from "../Timeline";
-import { TIMELINE_CIRCLE_SIZE } from "../Timeline/config";
+import { ScheduledTripLeg } from "./ScheduledTripLeg";
 import { useScheduledTripsMapsContext } from "./ScheduledTripsMapsContext";
 import type { Segment } from "./types";
 import type {
@@ -97,7 +96,7 @@ const ScheduledTripTimelineContent = ({
 }: ScheduledTripTimelineContentProps) => (
   <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
     {segments.map((segment, index) => (
-      <TimelineSegmentLeg
+      <ScheduledTripLeg
         key={segment.Key}
         segment={segment}
         vesselLocation={vesselLocation}
@@ -112,13 +111,12 @@ const ScheduledTripTimelineContent = ({
             ? vesselTripMap.get(segments[index + 1].Key)
             : undefined
         }
-        circleSize={TIMELINE_CIRCLE_SIZE}
-        isFirst={index === 0}
-        isLast={index === segments.length - 1}
-        skipAtDock={false}
+        predictionTrip={index === 0 ? inboundTripForFirstSegment : undefined}
         legStatus={timelineState.statusByKey.get(segment.Key) ?? "Pending"}
         activeKey={timelineState.activeKey}
         activePhase={timelineState.activePhase}
+        isFirst={index === 0}
+        isLast={index === segments.length - 1}
       />
     ))}
   </View>

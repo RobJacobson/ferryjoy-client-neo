@@ -12,7 +12,7 @@ import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
 import { TimelineSegment } from "./TimelineSegment";
-import type { TimelineSegmentState } from "./types";
+import type { TimelineSegmentStatus } from "./types";
 import { getTimelineLayout } from "./utils";
 
 // ============================================================================
@@ -20,34 +20,17 @@ import { getTimelineLayout } from "./utils";
 // ============================================================================
 
 type TimelineBarAtDockProps = {
-  /**
-   * Grouped temporal state for the segment.
-   */
-  state: TimelineSegmentState;
-  /**
-   * Optional vessel name to display above the progress indicator.
-   */
+  startTimeMs?: number;
+  endTimeMs?: number;
+  status: TimelineSegmentStatus;
+  predictionEndTimeMs?: number;
+  isArrived?: boolean;
+  isHeld?: boolean;
   vesselName?: string;
-  /**
-   * Size of the circle markers in pixels.
-   */
   circleSize?: number;
-  /**
-   * NativeWind className for the bar height.
-   */
   barStyle?: string;
-  /**
-   * Optional terminal abbreviation to display when at dock (e.g., "At Dock SEA").
-   */
   atDockAbbrev?: string;
-  /**
-   * Whether to explicitly show the progress indicator.
-   * If provided, this overrides the default status-based visibility.
-   */
   showIndicator?: boolean;
-  /**
-   * Additional inline styles.
-   */
   style?: ViewStyle;
 };
 
@@ -65,7 +48,12 @@ type TimelineBarAtDockProps = {
  * proportional widths across the timeline while ensuring legibility.
  */
 const TimelineBarAtDock = ({
-  state,
+  startTimeMs,
+  endTimeMs,
+  status,
+  predictionEndTimeMs,
+  isArrived = false,
+  isHeld = false,
   vesselName,
   barStyle = "h-3",
   atDockAbbrev,
@@ -74,28 +62,23 @@ const TimelineBarAtDock = ({
 }: TimelineBarAtDockProps) => {
   const nowMs = useNowMs(1000);
 
-  // Create a shared value for progress animation
   const animatedProgress = useSharedValue(0);
 
-  // Calculate layout and progress
   const {
     progress: timeProgress,
     minutesRemaining,
     duration,
   } = getTimelineLayout({
-    status: state.status,
+    status,
     nowMs,
-    startTimeMs: state.startTimeMs,
-    endTimeMs: state.endTimeMs,
-    predictionEndTimeMs: state.predictionEndTimeMs,
+    startTimeMs,
+    endTimeMs,
+    predictionEndTimeMs,
   });
 
-  const progress = state.isArrived ? 1 : timeProgress;
+  const progress = isArrived ? 1 : timeProgress;
 
-  // Update the animated value whenever the progress prop changes
   useEffect(() => {
-    // Use withSpring for smooth transitions, but ensure it doesn't
-    // overshoot or jump when transitioning to/from hold states.
     animatedProgress.value = withSpring(progress, {
       damping: 100,
       stiffness: 2,
@@ -105,8 +88,7 @@ const TimelineBarAtDock = ({
   }, [progress, animatedProgress]);
 
   const shouldShowIndicator =
-    showIndicator ??
-    (state.status === "InProgress" && !state.isArrived && !state.isHeld);
+    showIndicator ?? (status === "InProgress" && !isArrived && !isHeld);
 
   return (
     <TimelineSegment duration={duration ?? 1} style={style}>

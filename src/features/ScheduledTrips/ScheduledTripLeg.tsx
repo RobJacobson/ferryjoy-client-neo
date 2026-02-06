@@ -13,9 +13,15 @@ import {
   TimelineDisplayTime,
   TimelineMarker,
 } from "../Timeline";
-import { TIMELINE_CIRCLE_SIZE, TIMELINE_MARKER_CLASS } from "../Timeline/config";
-import type { TimelineActivePhase } from "../Timeline/resolveTimeline";
-import type { Segment, TimelineSegmentStatus } from "../Timeline/types";
+import {
+  TIMELINE_CIRCLE_SIZE,
+  TIMELINE_MARKER_CLASS,
+} from "../Timeline/config";
+import type {
+  Segment,
+  TimelineActivePhase,
+  TimelineSegmentStatus,
+} from "../Timeline/types";
 import { getSegmentLegDerivedState } from "../Timeline/utils";
 
 // ============================================================================
@@ -194,18 +200,23 @@ export const ScheduledTripLeg = ({
           {legState.isHistoricalMatch &&
           (actualTrip?.LeftDock ?? legState.departurePrediction) != null ? (
             <TimelineDisplayTime
-              time={actualTrip?.LeftDock ?? legState.departurePrediction ?? segment.DepartingTime}
+              time={
+                actualTrip?.LeftDock ??
+                legState.departurePrediction ??
+                segment.DepartingTime
+              }
               type={actualTrip?.LeftDock != null ? "actual" : "estimated"}
               bold={false}
             />
           ) : null}
-          {!legState.isHistoricalMatch && legState.departNextPrediction != null && (
-            <TimelineDisplayTime
-              time={legState.departNextPrediction}
-              type="estimated"
-              bold={false}
-            />
-          )}
+          {!legState.isHistoricalMatch &&
+            legState.departNextPrediction != null && (
+              <TimelineDisplayTime
+                time={legState.departNextPrediction}
+                type="estimated"
+                bold={false}
+              />
+            )}
         </View>
       </TimelineMarker>
 
@@ -216,7 +227,9 @@ export const ScheduledTripLeg = ({
         isArrived={isHeld || atSeaStatus === "Completed"}
         isHeld={isHeld}
         predictionEndTimeMs={
-          isActive && activePhase === "AtSea" && legState.arrivalPrediction != null
+          isActive &&
+          activePhase === "AtSea" &&
+          legState.arrivalPrediction != null
             ? legState.arrivalPrediction.getTime()
             : undefined
         }
@@ -249,7 +262,11 @@ export const ScheduledTripLeg = ({
           {legState.isHistoricalMatch &&
           (actualTrip?.TripEnd ?? legState.arrivalPrediction) != null ? (
             <TimelineDisplayTime
-              time={actualTrip?.TripEnd ?? legState.arrivalPrediction ?? segment.SchedArriveNext}
+              time={
+                actualTrip?.TripEnd ??
+                legState.arrivalPrediction ??
+                segment.SchedArriveNext
+              }
               type={actualTrip?.TripEnd != null ? "actual" : "estimated"}
               bold={false}
             />
