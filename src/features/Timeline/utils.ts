@@ -128,6 +128,15 @@ export type SegmentLegDerivedState = {
   isHistoricalMatch: boolean;
   /** True when we should show actualTrip.TripStart as actual arrival (on same sailing day). */
   showOriginActualTime: boolean;
+  /**
+   * Predicted arrival time at the segment's *origin* (DepartingTerminalAbbrev).
+   *
+   * This is primarily used for direct scheduled segments that have an `Arrive <origin>`
+   * marker (via `SchedArriveCurr`) but do not yet have a matching `actualTrip` record.
+   * In that case, the prediction typically lives on the vessel's current trip (arrive-next),
+   * not on the upcoming scheduled segment's key.
+   */
+  originArrivePrediction: Date | undefined;
   departurePrediction: Date | undefined;
   arrivalPrediction: Date | undefined;
   departNextPrediction: Date | undefined;
@@ -156,13 +165,24 @@ export const getSegmentLegDerivedState = (
   vesselLocation: VesselLocation,
   actualTrip: VesselTrip | undefined,
   prevActualTrip: VesselTrip | undefined,
+  predictionTrip: VesselTrip | undefined,
   nowMs = Date.now()
 ): SegmentLegDerivedState => {
   const isHistoricalMatch = actualTrip !== undefined;
 
   const departurePrediction = getBestDepartureTime(vesselLocation, actualTrip);
   const arrivalPrediction = getBestArrivalTime(vesselLocation, actualTrip);
-  const departNextPrediction = getBestNextDepartureTime(prevActualTrip);
+  const departNextPrediction = getBestNextDepartureTime(
+    prevActualTrip ?? predictionTrip
+  );
+
+  const originArrivePrediction =
+    !isHistoricalMatch &&
+    !vesselLocation.AtDock &&
+    predictionTrip &&
+    vesselLocation.ArrivingTerminalAbbrev === segment.DepartingTerminalAbbrev
+      ? getPredictedArriveNextTime(predictionTrip, vesselLocation)
+      : undefined;
 
   const showOriginActualTime = !!(
     isHistoricalMatch &&
@@ -186,6 +206,7 @@ export const getSegmentLegDerivedState = (
   return {
     isHistoricalMatch,
     showOriginActualTime,
+    originArrivePrediction,
     departurePrediction,
     arrivalPrediction,
     departNextPrediction,

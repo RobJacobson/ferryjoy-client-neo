@@ -21,7 +21,9 @@ export const vesselTripToSegment = (trip: VesselTrip): Segment => ({
   DepartingTime: trip.ScheduledDeparture ?? new Date(0),
   SchedArriveCurr: trip.ScheduledTrip?.SchedArriveCurr,
   SchedArriveNext: trip.ScheduledTrip?.SchedArriveNext,
-  Key: trip.Key ?? `${trip.VesselAbbrev}-${trip.ScheduledDeparture?.getTime() ?? "unknown"}`,
+  Key:
+    trip.Key ??
+    `${trip.VesselAbbrev}-${trip.ScheduledDeparture?.getTime() ?? "unknown"}`,
   DirectKey: trip.Key,
   SailingDay: trip.SailingDay,
 });

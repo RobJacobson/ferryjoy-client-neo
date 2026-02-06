@@ -16,7 +16,10 @@ import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsCo
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 import { createVesselTripMap } from "../Timeline/utils";
 import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
+import type { ScheduledTripCardResolution } from "./resolveScheduledTripsPageResolution";
+import { resolveScheduledTripsPageResolution } from "./resolveScheduledTripsPageResolution";
 import { ScheduledTripCard } from "./ScheduledTripCard";
+import { toSegment } from "./utils/conversion";
 
 type ScheduledTripListProps = {
   /**
@@ -60,6 +63,15 @@ export const ScheduledTripList = ({
       sailingDay,
     }
   );
+
+  const journeys = useMemo(() => {
+    if (!trips) return undefined;
+
+    return trips.map((trip) => ({
+      ...trip,
+      segments: trip.segments.map(toSegment),
+    }));
+  }, [trips]);
 
   const departingTerminalAbbrevs = useMemo(() => {
     if (!trips) return [];
@@ -119,76 +131,19 @@ export const ScheduledTripList = ({
   }, [displayData]);
 
   const pageResolutionByTripId = useMemo(() => {
-    if (!trips) {
-      return new Map<
-        string,
-        {
-          vesselLocation?: VesselLocation;
-          displayTrip?: VesselTrip;
-          vesselTripMap?: Map<string, VesselTrip>;
-          journeyStatus?: "Pending" | "InProgress" | "Completed";
-        }
-      >();
-    }
-    // Group journeys by vessel so only one journey per vessel can be active.
-    const byVessel = new Map<string, typeof trips>();
-    for (const t of trips) {
-      const list = byVessel.get(t.vesselAbbrev) ?? [];
-      list.push(t);
-      byVessel.set(t.vesselAbbrev, list);
+    if (!journeys) {
+      return new Map<string, ScheduledTripCardResolution>();
     }
 
-    const resolutionById = new Map<
-      string,
-      {
-        vesselLocation?: VesselLocation;
-        displayTrip?: VesselTrip;
-        vesselTripMap?: Map<string, VesselTrip>;
-        journeyStatus?: "Pending" | "InProgress" | "Completed";
-      }
-    >();
-
-    for (const [vesselAbbrev, vesselTrips] of byVessel) {
-      const displayTripKey = displayTripByAbbrev.get(vesselAbbrev)?.Key ?? null;
-      const vesselLocation = vesselLocationByAbbrev.get(vesselAbbrev);
-
-      const activeKey =
-        displayTripKey ??
-        deriveActiveKeyFromVesselLocation({
-          journeys: vesselTrips,
-          vesselLocation,
-          terminalAbbrev,
-        });
-
-      const activeJourneyIndex =
-        activeKey != null
-          ? vesselTrips.findIndex((j) =>
-              j.segments.some((s) => s.Key === activeKey)
-            )
-          : -1;
-
-      for (const [idx, journey] of vesselTrips.entries()) {
-        const journeyStatus =
-          activeJourneyIndex >= 0
-            ? idx < activeJourneyIndex
-              ? "Completed"
-              : idx === activeJourneyIndex
-                ? "InProgress"
-                : "Pending"
-            : undefined;
-
-        resolutionById.set(journey.id, {
-          vesselLocation: vesselLocationByAbbrev.get(vesselAbbrev),
-          displayTrip: displayTripByAbbrev.get(vesselAbbrev),
-          vesselTripMap,
-          journeyStatus,
-        });
-      }
-    }
-
-    return resolutionById;
+    return resolveScheduledTripsPageResolution({
+      terminalAbbrev,
+      journeys,
+      vesselLocationByAbbrev,
+      displayTripByAbbrev,
+      vesselTripMap,
+    });
   }, [
-    trips,
+    journeys,
     displayTripByAbbrev,
     vesselLocationByAbbrev,
     vesselTripMap,
@@ -221,7 +176,7 @@ export const ScheduledTripList = ({
         <Text variant="h2" className="mb-6 text-center">
           Daily Schedule
         </Text>
-        {trips.map((trip) => (
+        {(journeys ?? []).map((trip) => (
           <ScheduledTripCard
             key={trip.id}
             trip={trip}
@@ -231,57 +186,4 @@ export const ScheduledTripList = ({
       </View>
     </ScrollView>
   );
-};
-
-/**
- * Best-effort derivation of an active scheduled segment Key from realtime VesselLocation.
- *
- * This exists to avoid shipping a precomputed key on every VesselLocation tick. Instead,
- * we use the authoritative realtime terminals and ScheduledDeparture to select the
- * closest matching scheduled segment Key from the page's journeys.
- *
- * @param params - Journeys for a single vessel and its current realtime location
- * @returns Matching scheduled segment Key or null when we cannot safely disambiguate
- */
-const deriveActiveKeyFromVesselLocation = (params: {
-  journeys: Array<{
-    segments: Array<{
-      Key: string;
-      DepartingTime: number;
-      DepartingTerminalAbbrev: string;
-      ArrivingTerminalAbbrev: string;
-    }>;
-  }>;
-  vesselLocation: VesselLocation | undefined;
-  terminalAbbrev: string;
-}): string | null => {
-  const { journeys, vesselLocation, terminalAbbrev } = params;
-
-  if (!vesselLocation) return null;
-
-  // Only attempt to select an "active" journey on this page when the vessel's realtime
-  // departing terminal matches the page's departing terminal.
-  if (vesselLocation.DepartingTerminalAbbrev !== terminalAbbrev) return null;
-
-  const scheduledDepartureMs = vesselLocation.ScheduledDeparture?.getTime();
-  if (scheduledDepartureMs == null) return null;
-
-  const arrivingAbbrev = vesselLocation.ArrivingTerminalAbbrev;
-
-  const candidates: string[] = [];
-  for (const journey of journeys) {
-    for (const segment of journey.segments) {
-      if (segment.DepartingTerminalAbbrev !== terminalAbbrev) continue;
-      if (!vesselLocation.AtDock) {
-        if (!arrivingAbbrev) continue;
-        if (segment.ArrivingTerminalAbbrev !== arrivingAbbrev) continue;
-      }
-
-      if (segment.DepartingTime === scheduledDepartureMs) {
-        candidates.push(segment.Key);
-      }
-    }
-  }
-
-  return candidates[0] ?? null;
 };

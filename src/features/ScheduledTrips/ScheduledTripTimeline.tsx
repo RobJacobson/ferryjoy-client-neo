@@ -8,6 +8,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { resolveTimeline, TimelineSegmentLeg } from "../Timeline";
 import { TIMELINE_CIRCLE_SIZE } from "../Timeline/config";
+import type { ScheduledTripTimelineResolution } from "./resolveScheduledTripsPageResolution";
 import type { Segment } from "./types";
 import { useScheduledTripDisplayData } from "./useScheduledTripDisplayData";
 
@@ -38,6 +39,11 @@ type ScheduledTripTimelineProps = {
    * When set to Completed/Pending, no segment-level active inference is performed.
    */
   journeyStatusOverride?: "Pending" | "InProgress" | "Completed";
+  /**
+   * Optional override: fully resolved timeline state (active key/phase + per-segment statuses).
+   * When provided, ScheduledTripTimeline becomes a pure renderer and does not run resolution logic.
+   */
+  timelineOverride?: ScheduledTripTimelineResolution;
 };
 
 /**
@@ -59,6 +65,7 @@ export const ScheduledTripTimeline = ({
   displayTripOverride,
   vesselTripMapOverride,
   journeyStatusOverride,
+  timelineOverride,
 }: ScheduledTripTimelineProps) => {
   const sailingDay = segments[0]?.SailingDay;
   const departingTerminalAbbrevs = [
@@ -78,28 +85,64 @@ export const ScheduledTripTimeline = ({
 
   if (!vesselLocation || !vesselTripMap || segments.length === 0) return null;
 
-  const resolution =
-    journeyStatusOverride && journeyStatusOverride !== "InProgress"
+  // For future cards, we still want to show "arrive-next" and "depart-next" predictions
+  // even when the future segment does not yet have its own VesselTrip record.
+  //
+  // Those predictions live on the *current* (inbound) VesselTrip. We attach them
+  // deterministically using the scheduled chain pointer:
+  // - `displayTrip.ScheduledTrip.NextKey` is the Key of the *next scheduled trip* that
+  //   the inbound trip is predicting (arrive-next/depart-next).
+  //
+  // This is strict key matching, not time-window inference. It prevents the bug where
+  // morning/late-night trips accidentally show predictions for the current evening run.
+  const inboundTripForFirstSegmentIfMatching = (() => {
+    const firstSegment = segments[0];
+    if (!firstSegment) return undefined;
+    if (!displayTrip) return undefined;
+
+    // Only borrow predictions from an inbound trip that is arriving at this segment's
+    // departing terminal.
+    if (
+      displayTrip.ArrivingTerminalAbbrev !==
+      firstSegment.DepartingTerminalAbbrev
+    ) {
+      return undefined;
+    }
+
+    const nextKey = displayTrip.ScheduledTrip?.NextKey;
+    if (!nextKey) return undefined;
+
+    return nextKey === firstSegment.Key ? displayTrip : undefined;
+  })();
+
+  const resolution = timelineOverride
+    ? timelineOverride
+    : journeyStatusOverride && journeyStatusOverride !== "InProgress"
       ? {
           activeKey: null,
-          activeIndex: null,
+          activeConfidence: "None" as const,
           activePhase: "Unknown" as const,
-          resolvedSegments: segments.map((s) => ({
-            scheduled: s,
-            actual: vesselTripMap.get(s.Key),
-          })),
           statusByKey: new Map(
             segments.map((s) => [s.Key, journeyStatusOverride] as const)
           ),
         }
-      : resolveTimeline({
-          segments,
-          vesselLocation,
-          tripsByKey: vesselTripMap,
-          nowMs: vesselLocation.TimeStamp.getTime(),
-          heldTripKey: displayTrip?.Key,
-          allowScheduleFallback: false,
-        });
+      : (() => {
+          const r = resolveTimeline({
+            segments,
+            vesselLocation,
+            tripsByKey: vesselTripMap,
+            nowMs: vesselLocation.TimeStamp.getTime(),
+            heldTripKey: displayTrip?.Key,
+            allowScheduleFallback: false,
+          });
+
+          return {
+            activeKey: r.activeKey,
+            activeConfidence: "None" as const,
+            activePhase: r.activePhase,
+            statusByKey: r.statusByKey,
+          };
+        })();
 
   return (
     <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
@@ -110,7 +153,9 @@ export const ScheduledTripTimeline = ({
           vesselLocation={vesselLocation}
           actualTrip={vesselTripMap.get(segment.Key)}
           prevActualTrip={
-            index > 0 ? vesselTripMap.get(segments[index - 1].Key) : undefined
+            index > 0
+              ? vesselTripMap.get(segments[index - 1].Key)
+              : inboundTripForFirstSegmentIfMatching
           }
           nextActualTrip={
             index < segments.length - 1

@@ -54,6 +54,7 @@ export const TimelineSegmentLeg = ({
     vesselLocation,
     actualTrip,
     prevActualTrip,
+    prevActualTrip,
     vesselLocation.TimeStamp.getTime()
   );
 
@@ -109,6 +110,14 @@ export const TimelineSegmentLeg = ({
                   bold={false}
                 />
               )}
+              {!legState.isHistoricalMatch &&
+                legState.originArrivePrediction && (
+                  <TimelineDisplayTime
+                    time={legState.originArrivePrediction}
+                    type="estimated"
+                    bold={false}
+                  />
+                )}
             </View>
           </TimelineMarker>
 

@@ -3,16 +3,14 @@
  * Uses ShadCN Card components for consistent UI.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
+import type { ScheduledTripCardResolution } from "./resolveScheduledTripsPageResolution";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
-import { toSegment } from "./utils/conversion";
+import type { Segment } from "./types";
 
 type ScheduledTripCardProps = {
   /**
@@ -23,20 +21,13 @@ type ScheduledTripCardProps = {
     vesselAbbrev: string;
     routeAbbrev: string;
     departureTime: number;
-    segments: (ConvexScheduledTrip & {
-      DisplayArrivingTerminalAbbrev?: string;
-    })[];
+    segments: Segment[];
   };
   /**
    * Optional page-level resolution props. When provided, the card/timeline does not refetch
    * realtime data per card.
    */
-  resolution?: {
-    vesselLocation?: VesselLocation;
-    displayTrip?: VesselTrip;
-    vesselTripMap?: Map<string, VesselTrip>;
-    journeyStatus?: "Pending" | "InProgress" | "Completed";
-  };
+  resolution?: ScheduledTripCardResolution;
 };
 
 /**
@@ -49,8 +40,6 @@ export const ScheduledTripCard = ({
   trip,
   resolution,
 }: ScheduledTripCardProps) => {
-  const segments = trip.segments.map(toSegment);
-
   const routeContent = (
     <View className="w-full flex-row">
       <View className="flex-1 flex-row flex-wrap">
@@ -83,11 +72,12 @@ export const ScheduledTripCard = ({
     >
       <ScheduledTripTimeline
         vesselAbbrev={trip.vesselAbbrev}
-        segments={segments}
+        segments={trip.segments}
         vesselLocationOverride={resolution?.vesselLocation}
         displayTripOverride={resolution?.displayTrip}
         vesselTripMapOverride={resolution?.vesselTripMap}
         journeyStatusOverride={resolution?.journeyStatus}
+        timelineOverride={resolution?.timeline}
       />
     </TripCard>
   );

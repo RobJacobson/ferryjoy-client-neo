@@ -76,7 +76,7 @@ export const useScheduledTripDisplayData = ({
       if (trip.Key) map.set(trip.Key, trip);
     }
     for (const d of displayData) {
-      map.set(d.trip.Key || "", d.trip);
+      if (d.trip.Key) map.set(d.trip.Key, d.trip);
     }
     return map;
   }, [completedTrips, activeVesselTrips, displayData]);
