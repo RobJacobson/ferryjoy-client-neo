@@ -22,10 +22,7 @@ import type {
   TimelineActivePhase,
   TimelineSegmentStatus,
 } from "../Timeline/types";
-import {
-  getSegmentLegDerivedState,
-  type SegmentLegDerivedState,
-} from "./utils/segmentLegDerivedState";
+import { getSegmentLegDerivedState } from "./utils/segmentLegDerivedState";
 
 // ============================================================================
 // Types
@@ -44,8 +41,6 @@ type ScheduledTripLegProps = {
   activePhase: TimelineActivePhase;
   isFirst: boolean;
   isLast: boolean;
-  /** Pre-computed in pipeline; when provided, leg does not call getSegmentLegDerivedState. */
-  legState?: SegmentLegDerivedState;
 };
 
 // ============================================================================
@@ -55,8 +50,8 @@ type ScheduledTripLegProps = {
 /**
  * Renders one leg of a scheduled trip timeline using Timeline primitives.
  * Composes origin-arrive, at-dock, depart, at-sea, and arrive markers/bars with
- * schedule + actual/prediction times. Status and phase come from pipeline or
- * derived state.
+ * schedule + actual/prediction times. Follows "render if exists" pattern: when
+ * overlay data (actualTrip, vesselLocation) is absent, falls back to schedule-only.
  *
  * @param segment - Scheduled segment (leg) for this portion of the journey
  * @param vesselLocation - Real-time vessel location when available; null for schedule-only
@@ -69,7 +64,6 @@ type ScheduledTripLegProps = {
  * @param activePhase - Whether vessel is AtDock or AtSea when active
  * @param isFirst - True when this is the first segment of the journey
  * @param isLast - True when this is the last segment of the journey
- * @param legStateFromProps - Pre-computed derived state from pipeline; when missing, leg computes it
  * @returns Fragment of Timeline markers and bars for this leg
  */
 export const ScheduledTripLeg = ({
@@ -84,19 +78,16 @@ export const ScheduledTripLeg = ({
   activePhase,
   isFirst,
   isLast,
-  legState: legStateFromProps,
 }: ScheduledTripLegProps) => {
   const nowMs = vesselLocation?.TimeStamp?.getTime() ?? Date.now();
-  const legState =
-    legStateFromProps ??
-    getSegmentLegDerivedState(
-      segment,
-      vesselLocation ?? undefined,
-      actualTrip,
-      prevActualTrip,
-      predictionTrip ?? prevActualTrip,
-      nowMs
-    );
+  const legState = getSegmentLegDerivedState(
+    segment,
+    vesselLocation ?? undefined,
+    actualTrip,
+    prevActualTrip,
+    predictionTrip ?? prevActualTrip,
+    nowMs
+  );
 
   const isActive = activeKey != null && activeKey === segment.Key;
   const isHeld = isActive && !!actualTrip?.TripEnd;
@@ -123,7 +114,8 @@ export const ScheduledTripLeg = ({
             ? "Pending"
             : "Pending";
 
-  // Use actual times when we have a historical match; otherwise scheduled times.
+  // Render if exists: use actual times when we have a historical match;
+  // otherwise fall back to scheduled times (graceful degradation when overlay absent).
   const originDockStartMs =
     (legState.isHistoricalMatch && actualTrip?.TripStart?.getTime()) ||
     segment.SchedArriveCurr?.getTime();
@@ -172,6 +164,7 @@ export const ScheduledTripLeg = ({
               ) : (
                 <Text className="text-xs text-muted-foreground">--:--</Text>
               )}
+              {/* Render if exists: actual arrival only when we have a match. */}
               {legState.showOriginActualTime && actualTrip?.TripStart && (
                 <TimelineDisplayTime
                   time={actualTrip.TripStart}
@@ -179,6 +172,7 @@ export const ScheduledTripLeg = ({
                   bold={false}
                 />
               )}
+              {/* Render if exists: origin-arrive prediction from inbound trip. */}
               {!legState.isHistoricalMatch &&
                 legState.originArrivePrediction != null && (
                   <TimelineDisplayTime

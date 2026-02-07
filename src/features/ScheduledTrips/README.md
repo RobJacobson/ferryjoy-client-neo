@@ -45,7 +45,7 @@ Data is processed in two pipelines:
 
 2. **Pipeline 2 (map)**  
    Input: segment tuples plus vessel locations and terminal.  
-   Operation: compute card display state (one active per vessel) and per-segment leg props (status, leg derived state).  
+   Operation: compute card display state (one active per vessel) and per-segment leg props (status, joined trips).  
    Output: `legPropsByJourneyId` (and internally card display state for building leg props). The list passes
    `legPropsByJourneyId.get(trip.id)` to each card; the timeline renders from these
    **leg props** only (no context or Key lookup at render).
@@ -107,7 +107,7 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 
 - `utils/scheduledTripsPipeline.ts`
   - **Pipeline 1**: `buildSegmentTuples(journeys, vesselTripMap)` → one `SegmentTuple` per segment (join by Key)
-  - **Pipeline 2**: card display state via `computeCardDisplayStateForPage`; then map tuples to leg props (status, legState) per journey
+  - **Pipeline 2**: card display state via `computeCardDisplayStateForPage`; then map tuples to leg props (status, joined trips) per journey
   - **Runner**: `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)`; when `maps` is null, uses empty vesselTripMap → schedule-only render
 
 - `utils/buildPageDataMaps.ts`
@@ -117,6 +117,10 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 - `utils/reconstructJourneys.ts`
   - client-side journey reconstruction from flat domain segments: group by physical departure,
     build chains via NextKey, filter by destination; produces `ScheduledTripJourney[]`
+
+- `utils/segmentLegDerivedState.ts`
+  - `getSegmentLegDerivedState`: computes display-oriented state (predictions, past-tense
+    flags) from segment, vesselLocation, and actual/prev/prediction trips; used by `ScheduledTripLeg`
 
 - `utils/selectActiveSegmentKey.ts`
   - `selectActiveSegmentKeyForVessel`: selects one active segment key per vessel
@@ -148,9 +152,10 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 - `ScheduledTripLeg.tsx`
   - Renders one leg (origin arrive → at-dock → depart → at-sea → arrive) using
     Timeline primitives: `TimelineMarker`, `TimelineBarAtDock`, `TimelineBarAtSea`,
-    `TimelineDisplayTime`. Receives `SegmentLegProps` from pipeline (or computes
-    `legState` when not pre-computed). Uses `legStatus`, `activeKey`, `activePhase`,
-    and joined trips (`actualTrip`, `prevActualTrip`, `nextActualTrip`, `predictionTrip`).
+    `TimelineDisplayTime`. Receives `SegmentLegProps` from pipeline; computes
+    derived state (predictions, past-tense flags) via `getSegmentLegDerivedState`.
+    Follows "render if exists" pattern: when overlay data is absent, falls back
+    to schedule-only display.
 
 ---
 

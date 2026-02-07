@@ -43,12 +43,13 @@ export const useScheduledTripsPageData = ({
 }: UseScheduledTripsPageDataParams): UseScheduledTripsPageDataResult => {
   const sailingDay = getSailingDay(new Date());
 
-  // Never persist raw Convex data: map to domain in the same expression as useQuery.
-  const flatDomain =
-    useQuery(
-      api.functions.scheduledTrips.queries.getScheduledTripsForTerminal,
-      { terminalAbbrev, destinationAbbrev, sailingDay }
-    )?.map(toDomainScheduledTrip) ?? [];
+  const rawSchedule = useQuery(
+    api.functions.scheduledTrips.queries.getScheduledTripsForTerminal,
+    { terminalAbbrev, destinationAbbrev, sailingDay }
+  );
+
+  // Map to domain only when query has resolved; avoid treating loading as empty.
+  const flatDomain = rawSchedule?.map(toDomainScheduledTrip) ?? [];
 
   // Client-side journey reconstruction (grouping and chain building).
   const journeys = reconstructJourneys(
@@ -69,8 +70,9 @@ export const useScheduledTripsPageData = ({
       ? runScheduledTripsPipeline(journeys, maps, terminalAbbrev)
       : { legPropsByJourneyId: new Map<string, SegmentLegProps[]>() };
 
+  // Treat undefined query result as loading; only then distinguish empty vs ready.
   const status: UseScheduledTripsPageDataResult["status"] =
-    journeys === undefined
+    rawSchedule === undefined
       ? "loading"
       : journeys.length === 0
         ? "empty"

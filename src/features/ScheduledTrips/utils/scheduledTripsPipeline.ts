@@ -14,10 +14,6 @@ import type { ScheduledTripJourney, SegmentTuple } from "../types";
 import type { PageMaps } from "./buildPageDataMaps";
 import type { ScheduledTripCardDisplayState } from "./computePageDisplayState";
 import { computeCardDisplayStateForPage } from "./computePageDisplayState";
-import {
-  getSegmentLegDerivedState,
-  type SegmentLegDerivedState,
-} from "./segmentLegDerivedState";
 
 // ============================================================================
 // Types
@@ -37,8 +33,6 @@ export type SegmentLegProps = {
   activePhase: TimelineActivePhase;
   isFirst: boolean;
   isLast: boolean;
-  /** Pre-computed in pipeline so leg is a pure renderer. */
-  legState: SegmentLegDerivedState;
 };
 
 /** Result of runScheduledTripsPipeline; only leg props are returned (display state is used internally). */
@@ -83,7 +77,6 @@ export const runScheduledTripsPipeline = (
     vesselTripMap,
   });
 
-  const nowMs = Date.now();
   const legPropsByJourneyId = new Map<string, SegmentLegProps[]>();
 
   for (const journey of journeys) {
@@ -98,8 +91,7 @@ export const runScheduledTripsPipeline = (
       segmentTuplesForJourney,
       vesselTripMap,
       vesselLocationByAbbrev,
-      displayState,
-      nowMs
+      displayState
     );
     legPropsByJourneyId.set(journey.id, legProps);
   }
@@ -143,7 +135,6 @@ type TupleToLegPropsContext = {
   timeline: ScheduledTripCardDisplayState["timeline"];
   inboundTripForFirstSegment: VesselTrip | undefined;
   vesselTripMap: Map<string, VesselTrip>;
-  nowMs: number;
 };
 
 /**
@@ -165,7 +156,6 @@ const tupleToLegProps = (
     timeline,
     inboundTripForFirstSegment,
     vesselTripMap,
-    nowMs,
   } = ctx;
 
   const prevSegment = index > 0 ? segments[index - 1] : undefined;
@@ -180,15 +170,6 @@ const tupleToLegProps = (
   const predictionTrip = index === 0 ? inboundTripForFirstSegment : undefined;
   const legStatus = timeline.statusByKey.get(tuple.segment.Key) ?? "Pending";
 
-  const legState = getSegmentLegDerivedState(
-    tuple.segment,
-    vesselLocation,
-    tuple.actualTrip,
-    prevActualTrip,
-    predictionTrip ?? prevActualTrip,
-    nowMs
-  );
-
   return {
     segment: tuple.segment,
     vesselLocation,
@@ -201,7 +182,6 @@ const tupleToLegProps = (
     activePhase: timeline.activePhase,
     isFirst: index === 0,
     isLast: index === segments.length - 1,
-    legState,
   };
 };
 
@@ -213,7 +193,6 @@ const tupleToLegProps = (
  * @param vesselTripMap - For prev/next lookup
  * @param vesselLocationByAbbrev - Resolved location per vessel (or empty)
  * @param displayState - Pre-computed card display state for this journey
- * @param nowMs - Current time for derived state
  * @returns Array of SegmentLegProps in segment order
  */
 const buildLegPropsForJourney = (
@@ -221,8 +200,7 @@ const buildLegPropsForJourney = (
   segmentTuplesForJourney: SegmentTuple[],
   vesselTripMap: Map<string, VesselTrip>,
   vesselLocationByAbbrev: Map<string, VesselLocation>,
-  displayState: ScheduledTripCardDisplayState,
-  nowMs: number
+  displayState: ScheduledTripCardDisplayState
 ): SegmentLegProps[] => {
   const vesselLocation =
     vesselLocationByAbbrev.get(journey.vesselAbbrev) ?? null;
@@ -233,7 +211,6 @@ const buildLegPropsForJourney = (
     timeline,
     inboundTripForFirstSegment,
     vesselTripMap,
-    nowMs,
   };
   return segmentTuplesForJourney.map((tuple, index) =>
     tupleToLegProps(tuple, index, ctx)
