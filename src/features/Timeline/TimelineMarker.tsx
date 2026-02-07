@@ -10,11 +10,14 @@ import { View } from "react-native";
 import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
+type TimelineMarkerRenderProp = () => ReactNode;
+
 type TimelineMarkerProps = {
   /**
    * Optional children to render as the label below the marker.
+   * Can be a node or a function (render-prop).
    */
-  children?: ReactNode;
+  children?: ReactNode | TimelineMarkerRenderProp;
   /**
    * Optional className to theme the marker circle (e.g. background/border colors).
    */
@@ -48,6 +51,11 @@ const TimelineMarker = ({
   zIndex = 10,
   size = 20,
 }: TimelineMarkerProps) => {
+  const label =
+    typeof children === "function"
+      ? (children as TimelineMarkerRenderProp)()
+      : children;
+
   return (
     <View
       pointerEvents="none"
@@ -78,7 +86,7 @@ const TimelineMarker = ({
       />
 
       {/* The Label: Positioned below the marker. */}
-      {children && (
+      {label && (
         <View
           className="absolute flex-col items-center justify-start mt-3"
           style={{
@@ -88,7 +96,7 @@ const TimelineMarker = ({
             width: 200, // Provide enough width for label content to center correctly
           }}
         >
-          {children}
+          {label}
         </View>
       )}
     </View>

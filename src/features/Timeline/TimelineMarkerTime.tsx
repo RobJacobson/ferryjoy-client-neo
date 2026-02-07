@@ -9,7 +9,7 @@ import { toDisplayTime } from "@/shared/utils/dateConversions";
 
 export type TimelineTimeType = "actual" | "estimated" | "scheduled";
 
-type TimelineDisplayTimeProps = {
+export type TimelineMarkerTimeProps = {
   /**
    * Date object containing the time to display.
    */
@@ -33,11 +33,7 @@ type TimelineDisplayTimeProps = {
  * @param bold - Optional boolean to apply bold styling to the time text (default false)
  * @returns A View component with the time and icon in a row, or null if time is not provided
  */
-const TimelineDisplayTime = ({
-  time,
-  type,
-  bold,
-}: TimelineDisplayTimeProps) => {
+const TimelineMarkerTime = ({ time, type, bold }: TimelineMarkerTimeProps) => {
   if (!time) return null;
 
   const Icon =
@@ -66,4 +62,4 @@ const TimelineDisplayTime = ({
   );
 };
 
-export default TimelineDisplayTime;
+export default TimelineMarkerTime;

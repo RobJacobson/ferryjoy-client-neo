@@ -4,9 +4,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { getSailingDay } from "@/shared/utils/getSailingDay";
 import type { TimelineBarStatus } from "./TimelineBar";
-import type { Segment } from "./types";
 
 const MS_PER_MINUTE = 60000;
 
@@ -109,102 +107,6 @@ export const getBestNextDepartureTime = (
   trip: VesselTrip | undefined
 ): Date | undefined =>
   trip?.AtSeaDepartNext?.PredTime ?? trip?.AtDockDepartNext?.PredTime;
-
-/**
- * Derived state for timeline leg components (e.g. ScheduledTripLeg).
- * All values computed from segment, vesselLocation, actualTrip, and prevActualTrip.
- */
-export type SegmentLegDerivedState = {
-  isHistoricalMatch: boolean;
-  /** True when we should show actualTrip.TripStart as actual arrival (on same sailing day). */
-  showOriginActualTime: boolean;
-  /**
-   * Predicted arrival time at the segment's *origin* (DepartingTerminalAbbrev).
-   *
-   * This is primarily used for direct scheduled segments that have an `Arrive <origin>`
-   * marker (via `SchedArriveCurr`) but do not yet have a matching `actualTrip` record.
-   * In that case, the prediction typically lives on the vessel's current trip (arrive-next),
-   * not on the upcoming scheduled segment's key.
-   */
-  originArrivePrediction: Date | undefined;
-  departurePrediction: Date | undefined;
-  arrivalPrediction: Date | undefined;
-  departNextPrediction: Date | undefined;
-  originArriveInPast: boolean;
-  departInPast: boolean;
-  destArriveInPast: boolean;
-};
-
-/**
- * Computes all derived state for a timeline segment leg.
- *
- * This is intentionally *display-oriented* derived state:
- * - `isHistoricalMatch` is true when an `actualTrip` exists for this segment Key
- * - predictions are computed from VesselLocation + actualTrip fields
- * - past-tense flags control label wording only (not segment completion state)
- *
- * @param segment - The segment (leg) being rendered
- * @param vesselLocation - Real-time WSF vessel data (PRIMARY source)
- * @param actualTrip - Actual/predicted trip record for this segment Key (SECONDARY)
- * @param prevActualTrip - Actual/predicted trip for previous leg (for depart-next prediction)
- * @param nowMs - Current time for past-tense checks (defaults to Date.now())
- * @returns Derived state object for timeline leg components (e.g. ScheduledTripLeg)
- */
-export const getSegmentLegDerivedState = (
-  segment: Segment,
-  vesselLocation: VesselLocation,
-  actualTrip: VesselTrip | undefined,
-  prevActualTrip: VesselTrip | undefined,
-  predictionTrip: VesselTrip | undefined,
-  nowMs = Date.now()
-): SegmentLegDerivedState => {
-  const isHistoricalMatch = actualTrip !== undefined;
-
-  const departurePrediction = getBestDepartureTime(vesselLocation, actualTrip);
-  const arrivalPrediction = getBestArrivalTime(vesselLocation, actualTrip);
-  const departNextPrediction = getBestNextDepartureTime(
-    prevActualTrip ?? predictionTrip
-  );
-
-  const originArrivePrediction =
-    !isHistoricalMatch &&
-    !vesselLocation.AtDock &&
-    predictionTrip &&
-    vesselLocation.ArrivingTerminalAbbrev === segment.DepartingTerminalAbbrev
-      ? getPredictedArriveNextTime(predictionTrip, vesselLocation)
-      : undefined;
-
-  const showOriginActualTime = !!(
-    isHistoricalMatch &&
-    actualTrip?.TripStart &&
-    (!segment.SailingDay ||
-      getSailingDay(actualTrip.TripStart) === segment.SailingDay)
-  );
-
-  const originArriveInPast =
-    (isHistoricalMatch && !!actualTrip?.LeftDock) ||
-    (segment.SchedArriveCurr != null &&
-      segment.SchedArriveCurr.getTime() < nowMs);
-  const departInPast =
-    (isHistoricalMatch && !!actualTrip?.LeftDock) ||
-    segment.DepartingTime.getTime() < nowMs;
-  const destArriveInPast =
-    (isHistoricalMatch && !!actualTrip?.TripEnd) ||
-    (segment.SchedArriveNext != null &&
-      segment.SchedArriveNext.getTime() < nowMs);
-
-  return {
-    isHistoricalMatch,
-    showOriginActualTime,
-    originArrivePrediction,
-    departurePrediction,
-    arrivalPrediction,
-    departNextPrediction,
-    originArriveInPast,
-    departInPast,
-    destArriveInPast,
-  };
-};
 
 /**
  * Computes all layout and progress data for a timeline bar in one go.

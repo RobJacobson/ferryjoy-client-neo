@@ -6,7 +6,6 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { ScheduledTripCard } from "./ScheduledTripCard";
-import { ScheduledTripsMapsProvider } from "./ScheduledTripsMapsContext";
 import { useScheduledTripsPageData } from "./useScheduledTripsPageData";
 
 type ScheduledTripListProps = {
@@ -35,8 +34,14 @@ export const ScheduledTripList = ({
   terminalAbbrev = "P52",
   destinationAbbrev,
 }: ScheduledTripListProps) => {
-  const { status, journeys, cardDisplayStateByJourneyId, maps } =
-    useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
+  const {
+    status,
+    journeys,
+    segmentTuplesByJourneyId,
+    displayStateByJourneyId,
+    vesselLocationByAbbrev,
+  } = useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
+
   if (status === "loading") {
     return (
       <View className="flex-1 justify-center items-center p-4">
@@ -55,30 +60,33 @@ export const ScheduledTripList = ({
     );
   }
 
-  // When status is ready, maps is non-null (status treats maps loading as loading).
-  if (!maps) return null;
-
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="p-4">
         <Text variant="h2" className="mb-6 text-center">
           Daily Schedule
         </Text>
-        <ScheduledTripsMapsProvider maps={maps}>
-          {/* Only render cards that have pre-computed display state. */}
-          {(journeys ?? [])
-            .flatMap((trip) => {
-              const displayState = cardDisplayStateByJourneyId.get(trip.id);
-              return displayState != null ? [{ trip, displayState }] : [];
-            })
-            .map(({ trip, displayState }) => (
-              <ScheduledTripCard
-                key={trip.id}
-                trip={trip}
-                displayState={displayState}
-              />
-            ))}
-        </ScheduledTripsMapsProvider>
+        {(journeys ?? [])
+          .flatMap((trip) => {
+            const segmentTuples = segmentTuplesByJourneyId.get(trip.id);
+            const displayState = displayStateByJourneyId.get(trip.id);
+            const vesselLocation =
+              vesselLocationByAbbrev.get(trip.vesselAbbrev) ?? null;
+            return segmentTuples != null &&
+              segmentTuples.length > 0 &&
+              displayState != null
+              ? [{ trip, segmentTuples, displayState, vesselLocation }]
+              : [];
+          })
+          .map(({ trip, segmentTuples, displayState, vesselLocation }) => (
+            <ScheduledTripCard
+              key={trip.id}
+              trip={trip}
+              segmentTuples={segmentTuples}
+              displayState={displayState}
+              vesselLocation={vesselLocation}
+            />
+          ))}
       </View>
     </ScrollView>
   );

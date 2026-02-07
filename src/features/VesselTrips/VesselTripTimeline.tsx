@@ -6,14 +6,13 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
-import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 import {
   TimelineBarAtDock,
   TimelineBarAtSea,
-  TimelineDisplayTime,
   TimelineMarker,
+  TimelineMarkerlLabel,
 } from "../Timeline";
 import {
   TIMELINE_CIRCLE_SIZE,
@@ -85,7 +84,7 @@ const VesselTripTimeline = ({
         className={TIMELINE_MARKER_CLASS}
         zIndex={10}
       >
-        <ArriveCurrLabel trip={trip} />
+        {() => <ArriveCurrLabel trip={trip} />}
       </TimelineMarker>
 
       <TimelineBarAtDock
@@ -103,11 +102,13 @@ const VesselTripTimeline = ({
         className={TIMELINE_MARKER_CLASS}
         zIndex={10}
       >
-        <DepartCurrLabel
-          vesselLocation={vesselLocation}
-          departurePrediction={departurePrediction}
-          trip={trip}
-        />
+        {() => (
+          <DepartCurrLabel
+            vesselLocation={vesselLocation}
+            departurePrediction={departurePrediction}
+            trip={trip}
+          />
+        )}
       </TimelineMarker>
 
       <TimelineBarAtSea
@@ -128,10 +129,12 @@ const VesselTripTimeline = ({
         className={TIMELINE_MARKER_CLASS}
         zIndex={10}
       >
-        <DestinationArriveLabel
-          arrivalPrediction={arrivalPrediction}
-          trip={trip}
-        />
+        {() => (
+          <DestinationArriveLabel
+            arrivalPrediction={arrivalPrediction}
+            trip={trip}
+          />
+        )}
       </TimelineMarker>
     </View>
   );
@@ -146,20 +149,18 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => {
     !!trip.TripStart &&
     (!trip.SailingDay || getSailingDay(trip.TripStart) === trip.SailingDay);
   return (
-    <>
-      <Text className="text-xs text-muted-foreground">
-        {`Arrived ${trip.DepartingTerminalAbbrev}`}
-      </Text>
-      {showActual && (
-        <TimelineDisplayTime time={trip.TripStart} type="actual" bold />
-      )}
-      {trip.ScheduledTrip?.SchedArriveCurr && (
-        <TimelineDisplayTime
-          time={trip.ScheduledTrip.SchedArriveCurr}
-          type="scheduled"
-        />
-      )}
-    </>
+    <TimelineMarkerlLabel
+      LabelText={`Arrived ${trip.DepartingTerminalAbbrev}`}
+      TimeOne={showActual ? { time: trip.TripStart, type: "actual" } : null}
+      TimeTwo={
+        trip.ScheduledTrip?.SchedArriveCurr
+          ? ({
+              time: trip.ScheduledTrip.SchedArriveCurr,
+              type: "scheduled",
+            })
+          : null
+      }
+    />
   );
 };
 
@@ -172,23 +173,18 @@ const DepartCurrLabel = ({
   departurePrediction: Date | undefined;
   trip: VesselTrip;
 }) => (
-  <>
-    <Text className="text-xs text-muted-foreground">
-      {vesselLocation?.AtDock ? "Leaves" : "Left"}{" "}
-      {trip.DepartingTerminalAbbrev}
-    </Text>
-    {vesselLocation?.AtDock && departurePrediction && (
-      <TimelineDisplayTime time={departurePrediction} type="estimated" bold />
-    )}
-    {!vesselLocation?.AtDock && (trip.LeftDock || departurePrediction) && (
-      <TimelineDisplayTime
-        time={trip.LeftDock ?? departurePrediction}
-        type={trip.LeftDock ? "actual" : "estimated"}
-        bold
-      />
-    )}
-    <TimelineDisplayTime time={trip.ScheduledDeparture} type="scheduled" />
-  </>
+  <TimelineMarkerlLabel
+    LabelText={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
+    TimeOne={
+      vesselLocation?.AtDock
+        ? ({ time: departurePrediction, type: "estimated" })
+        : ({
+            time: trip.LeftDock ?? departurePrediction,
+            type: trip.LeftDock ? "actual" : "estimated",
+          })
+    }
+    TimeTwo={{ time: trip.ScheduledDeparture, type: "scheduled" }}
+  />
 );
 
 const DestinationArriveLabel = ({
@@ -198,23 +194,22 @@ const DestinationArriveLabel = ({
   arrivalPrediction: Date | undefined;
   trip: VesselTrip;
 }) => (
-  <>
-    <Text className="text-xs text-muted-foreground">
-      {`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-    </Text>
-    {!trip.TripEnd && arrivalPrediction && (
-      <TimelineDisplayTime time={arrivalPrediction} type="estimated" bold />
-    )}
-    {trip.TripEnd && (
-      <TimelineDisplayTime time={trip.TripEnd} type="actual" bold />
-    )}
-    {trip.ScheduledTrip?.SchedArriveNext && (
-      <TimelineDisplayTime
-        time={trip.ScheduledTrip.SchedArriveNext}
-        type="scheduled"
-      />
-    )}
-  </>
+  <TimelineMarkerlLabel
+    LabelText={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
+    TimeOne={
+      !trip.TripEnd
+        ? ({ time: arrivalPrediction, type: "estimated" })
+        : ({ time: trip.TripEnd, type: "actual" })
+    }
+    TimeTwo={
+      trip.ScheduledTrip?.SchedArriveNext
+        ? ({
+            time: trip.ScheduledTrip.SchedArriveNext,
+            type: "scheduled",
+          })
+        : null
+    }
+  />
 );
 
 export default VesselTripTimeline;

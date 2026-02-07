@@ -35,7 +35,6 @@ import type * as domain_ml_training_models_trainModels from "../domain/ml/traini
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
 import type * as domain_scheduledTrips_grouping from "../domain/scheduledTrips/grouping.js";
 import type * as domain_scheduledTrips_index from "../domain/scheduledTrips/index.js";
-import type * as domain_scheduledTrips_journeys from "../domain/scheduledTrips/journeys.js";
 import type * as domain_scheduledTrips_transform_classification from "../domain/scheduledTrips/transform/classification.js";
 import type * as domain_scheduledTrips_transform_estimates from "../domain/scheduledTrips/transform/estimates.js";
 import type * as domain_scheduledTrips_transform_index from "../domain/scheduledTrips/transform/index.js";
@@ -129,7 +128,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
   "domain/scheduledTrips/grouping": typeof domain_scheduledTrips_grouping;
   "domain/scheduledTrips/index": typeof domain_scheduledTrips_index;
-  "domain/scheduledTrips/journeys": typeof domain_scheduledTrips_journeys;
   "domain/scheduledTrips/transform/classification": typeof domain_scheduledTrips_transform_classification;
   "domain/scheduledTrips/transform/estimates": typeof domain_scheduledTrips_transform_estimates;
   "domain/scheduledTrips/transform/index": typeof domain_scheduledTrips_transform_index;

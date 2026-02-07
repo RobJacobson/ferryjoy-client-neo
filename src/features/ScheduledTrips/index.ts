@@ -1,6 +1,6 @@
 /**
- * Index file for ScheduledTrip feature.
- * Exports components for use in other parts of the application.
+ * ScheduledTrips feature: public API.
+ * Exports list, card, timeline components and types for the scheduled trips list screen.
  */
 
 export * from "./ScheduledTripCard";
