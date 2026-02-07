@@ -281,3 +281,45 @@ export const findScheduledTripForArrivalLookup = query({
     }
   },
 });
+
+/**
+ * Fetch all direct scheduled trips for a specific vessel and sailing day.
+ * Used for the vertical daily timeline view.
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - The vessel abbreviation to filter by
+ * @param args.sailingDay - The sailing day in YYYY-MM-DD format
+ * @returns Array of direct scheduled trip documents sorted by departing time
+ */
+export const getDirectScheduledTripsForVessel = query({
+  args: {
+    vesselAbbrev: v.string(),
+    sailingDay: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const trips = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_vessel_sailing_day_trip_type", (q) =>
+          q
+            .eq("VesselAbbrev", args.vesselAbbrev)
+            .eq("SailingDay", args.sailingDay)
+            .eq("TripType", "direct")
+        )
+        .collect();
+
+      return trips;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch direct scheduled trips for vessel ${args.vesselAbbrev} on sailing day ${args.sailingDay}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          vesselAbbrev: args.vesselAbbrev,
+          sailingDay: args.sailingDay,
+          error: String(error),
+        },
+      });
+    }
+  },
+});

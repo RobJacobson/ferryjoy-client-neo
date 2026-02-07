@@ -5,6 +5,7 @@
 
 export { default as TimelineBarAtDock } from "./TimelineBarAtDock";
 export { default as TimelineBarAtSea } from "./TimelineBarAtSea";
+export { default as TimelineIndicator } from "./TimelineIndicator";
 export { default as TimelineMarker } from "./TimelineMarker";
 export { default as TimelineMarkerlLabel } from "./TimelineMarkerlLabel";
 export { default as TimelineMarkerTime } from "./TimelineMarkerTime";

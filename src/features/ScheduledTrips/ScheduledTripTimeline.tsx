@@ -154,21 +154,21 @@ export const ScheduledTripTimeline = ({
                       LabelText={`${legState.originArriveInPast ? "Arrived" : "Arrive"} ${segment.DepartingTerminalAbbrev}`}
                       TimeOne={
                         segment.SchedArriveCurr !== undefined
-                          ? ({
+                          ? {
                               time: segment.SchedArriveCurr,
                               type: "scheduled",
-                            })
+                            }
                           : null
                       }
                       TimeTwo={
                         legState.showOriginActualTime && actualTrip?.TripStart
-                          ? ({ time: actualTrip.TripStart, type: "actual" })
+                          ? { time: actualTrip.TripStart, type: "actual" }
                           : !legState.isHistoricalMatch &&
                               legState.originArrivePrediction != null
-                            ? ({
+                            ? {
                                 time: legState.originArrivePrediction,
                                 type: "estimated",
-                              })
+                              }
                             : null
                       }
                     />
@@ -207,25 +207,28 @@ export const ScheduledTripTimeline = ({
               {() => (
                 <TimelineMarkerlLabel
                   LabelText={`${legState.departInPast ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
-                  TimeOne={
-                    { time: segment.DepartingTime, type: "scheduled" }
-                  }
+                  TimeOne={{ time: segment.DepartingTime, type: "scheduled" }}
                   TimeTwo={
                     legState.isHistoricalMatch &&
                     (actualTrip?.LeftDock ?? legState.departurePrediction) !=
-                      null ? (
-                      {
-                        time:
-                          actualTrip?.LeftDock ??
-                          legState.departurePrediction ??
-                          segment.DepartingTime,
-                        type:
-                          actualTrip?.LeftDock != null ? "actual" : "estimated",
-                      }
-                    ) : !legState.isHistoricalMatch &&
-                      legState.departNextPrediction != null ? (
-                      { time: legState.departNextPrediction, type: "estimated" }
-                    ) : null
+                      null
+                      ? {
+                          time:
+                            actualTrip?.LeftDock ??
+                            legState.departurePrediction ??
+                            segment.DepartingTime,
+                          type:
+                            actualTrip?.LeftDock != null
+                              ? "actual"
+                              : "estimated",
+                        }
+                      : !legState.isHistoricalMatch &&
+                          legState.departNextPrediction != null
+                        ? {
+                            time: legState.departNextPrediction,
+                            type: "estimated",
+                          }
+                        : null
                   }
                 />
               )}
@@ -264,25 +267,26 @@ export const ScheduledTripTimeline = ({
                   LabelText={`${legState.destArriveInPast ? "Arrived" : "Arrive"} ${segment.DisplayArrivingTerminalAbbrev ?? segment.ArrivingTerminalAbbrev}`}
                   TimeOne={
                     segment.SchedArriveNext !== undefined
-                      ? ({
+                      ? {
                           time: segment.SchedArriveNext,
                           type: "scheduled",
-                        })
+                        }
                       : null
                   }
                   TimeTwo={
                     legState.isHistoricalMatch &&
-                    (actualTrip?.TripEnd ?? legState.arrivalPrediction) !=
-                      null ? (
-                      {
-                        time:
-                          actualTrip?.TripEnd ??
-                          legState.arrivalPrediction ??
-                          segment.SchedArriveNext,
-                        type:
-                          actualTrip?.TripEnd != null ? "actual" : "estimated",
-                      }
-                    ) : null
+                    (actualTrip?.TripEnd ?? legState.arrivalPrediction) != null
+                      ? {
+                          time:
+                            actualTrip?.TripEnd ??
+                            legState.arrivalPrediction ??
+                            segment.SchedArriveNext,
+                          type:
+                            actualTrip?.TripEnd != null
+                              ? "actual"
+                              : "estimated",
+                        }
+                      : null
                   }
                 />
               )}

@@ -60,6 +60,11 @@ export default defineSchema({
       "DepartingTerminalAbbrev",
       "DepartingTime",
       "TripType",
+    ])
+    .index("by_vessel_sailing_day_trip_type", [
+      "VesselAbbrev",
+      "SailingDay",
+      "TripType",
     ]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps

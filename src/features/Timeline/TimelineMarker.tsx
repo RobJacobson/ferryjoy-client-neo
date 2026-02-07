@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
 import { shadowStyle } from "./config";
 
@@ -14,7 +14,7 @@ type TimelineMarkerRenderProp = () => ReactNode;
 
 type TimelineMarkerProps = {
   /**
-   * Optional children to render as the label below the marker.
+   * Optional children to render as the label.
    * Can be a node or a function (render-prop).
    */
   children?: ReactNode | TimelineMarkerRenderProp;
@@ -31,30 +31,44 @@ type TimelineMarkerProps = {
    * Size in pixels for the circle marker.
    */
   size?: number;
+  /**
+   * Position of the label relative to the marker circle.
+   * Defaults to "bottom".
+   */
+  labelPosition?: "bottom" | "left" | "right";
+  /**
+   * Additional inline styles for the container.
+   */
+  style?: ViewStyle;
 };
 
 /**
  * Renders a timeline node consisting of a circle marker and an optional label.
- * The component has zero width to ensure it bookends the TimelineBar without
- * consuming horizontal space in a flex layout. The label is positioned absolutely
- * below the marker.
+ * The component has zero width/height (depending on orientation) to ensure it
+ * bookends the TimelineBar without consuming space in a flex layout.
  *
- * @param children - Optional label content to display below the marker
+ * @param children - Optional label content to display
  * @param className - Optional className for styling the marker circle
  * @param zIndex - Optional z-index for stacking order
  * @param size - Size in pixels for the circle marker (default 20)
- * @returns A View component with a centered circle and absolutely positioned label
+ * @param labelPosition - Position of the label relative to the marker
+ * @param style - Additional inline styles
+ * @returns A View component with a centered circle and positioned label
  */
 const TimelineMarker = ({
   children,
   className,
   zIndex = 10,
   size = 20,
+  labelPosition = "bottom",
+  style,
 }: TimelineMarkerProps) => {
   const label =
     typeof children === "function"
       ? (children as TimelineMarkerRenderProp)()
       : children;
+
+  const isVertical = labelPosition === "left" || labelPosition === "right";
 
   return (
     <View
@@ -62,15 +76,16 @@ const TimelineMarker = ({
       collapsable={false}
       className="items-center justify-center"
       style={{
-        // The Anchor: Zero width ensures it doesn't shift other flex elements.
-        position: "relative",
-        width: 0,
+        // The Anchor: Zero width/height ensures it doesn't shift other flex elements.
+        position: isVertical ? "absolute" : "relative",
+        width: isVertical ? "100%" : 0,
         height: 32, // Fixed height to match TimelineBar for consistent alignment
         zIndex,
         elevation: zIndex,
+        ...style,
       }}
     >
-      {/* The Circle: Automatically centered on the zero-width anchor. */}
+      {/* The Circle: Automatically centered on the anchor. */}
       <View
         className={cn(
           "absolute rounded-full items-center justify-center bg-white",
@@ -82,18 +97,32 @@ const TimelineMarker = ({
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
           top: (32 - size) / 2, // Center circle within 32px container
+          left: isVertical ? "50%" : undefined,
+          marginLeft: isVertical ? -size / 2 : undefined,
         }}
       />
 
-      {/* The Label: Positioned below the marker. */}
+      {/* The Label: Positioned relative to the marker. */}
       {label && (
         <View
-          className="absolute flex-col items-center justify-start mt-3"
+          className={cn(
+            "absolute flex-col",
+            labelPosition === "bottom"
+              ? "items-center justify-start mt-3"
+              : labelPosition === "left"
+                ? "items-end justify-center pr-4"
+                : "items-start justify-center pl-4"
+          )}
           style={{
-            top: (32 - size) / 2 + size, // Position below the centered circle
-            left: "50%",
-            transform: [{ translateX: "-50%" }],
-            width: 200, // Provide enough width for label content to center correctly
+            top: labelPosition === "bottom" ? (32 - size) / 2 + size : 0,
+            bottom: isVertical ? 0 : undefined,
+            left: labelPosition === "bottom" ? "50%" : undefined,
+            right: labelPosition === "left" ? "50%" : undefined,
+            marginLeft: labelPosition === "right" ? size / 2 : undefined,
+            marginRight: labelPosition === "left" ? size / 2 : undefined,
+            transform:
+              labelPosition === "bottom" ? [{ translateX: "-50%" }] : undefined,
+            width: 200, // Provide enough width for label content
           }}
         >
           {label}

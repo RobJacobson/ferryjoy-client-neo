@@ -154,10 +154,10 @@ const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => {
       TimeOne={showActual ? { time: trip.TripStart, type: "actual" } : null}
       TimeTwo={
         trip.ScheduledTrip?.SchedArriveCurr
-          ? ({
+          ? {
               time: trip.ScheduledTrip.SchedArriveCurr,
               type: "scheduled",
-            })
+            }
           : null
       }
     />
@@ -177,11 +177,11 @@ const DepartCurrLabel = ({
     LabelText={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
     TimeOne={
       vesselLocation?.AtDock
-        ? ({ time: departurePrediction, type: "estimated" })
-        : ({
+        ? { time: departurePrediction, type: "estimated" }
+        : {
             time: trip.LeftDock ?? departurePrediction,
             type: trip.LeftDock ? "actual" : "estimated",
-          })
+          }
     }
     TimeTwo={{ time: trip.ScheduledDeparture, type: "scheduled" }}
   />
@@ -198,15 +198,15 @@ const DestinationArriveLabel = ({
     LabelText={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
     TimeOne={
       !trip.TripEnd
-        ? ({ time: arrivalPrediction, type: "estimated" })
-        : ({ time: trip.TripEnd, type: "actual" })
+        ? { time: arrivalPrediction, type: "estimated" }
+        : { time: trip.TripEnd, type: "actual" }
     }
     TimeTwo={
       trip.ScheduledTrip?.SchedArriveNext
-        ? ({
+        ? {
             time: trip.ScheduledTrip.SchedArriveNext,
             type: "scheduled",
-          })
+          }
         : null
     }
   />
