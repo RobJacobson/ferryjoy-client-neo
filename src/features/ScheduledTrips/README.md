@@ -4,8 +4,9 @@ This feature renders **scheduled ferry journeys** (WSF schedule) as multi-leg ti
 optionally overlaying **actual / estimated** timing data from our real-time system.
 
 **Quick reference:** Entry point is `ScheduledTripList`; data comes from
-`useScheduledTripsPageData` → `runScheduledTripsPipeline`. Cards receive `trip` + **leg props**
-(`SegmentLegProps[]` from pipeline); timeline renders from leg props only (no context lookup).
+`useScheduledTripsPageData` → `runScheduledTripsPipeline`. Cards receive `trip` + **segment tuples**
+(`SegmentTuple[]` from pipeline Stage 1) plus per-journey **display state** (active selection + statuses).
+The timeline renders directly from tuples + display state (flat composition; no Stage 2 leg-props mapping).
 
 - [Data-flow pipeline](#data-flow-pipeline-schedule-primary)
 - [Data sources & loading](#big-picture)
@@ -36,19 +37,17 @@ The key engineering rule is also simple:
 
 ## Data-flow pipeline (schedule primary)
 
-Data is processed in two pipelines:
+Data is processed in two stages:
 
 1. **Pipeline 1 (reduce/join)**  
    Inputs: all scheduled trips (as journeys with segments), all completed trips, all active trips (plus hold-window display data).  
    Operation: for each **scheduled** segment, attach optional overlay by Key (active wins over completed for same Key).  
    Output: one **SegmentTuple** per segment: `{ segment, actualTrip?, journeyId, vesselAbbrev, segmentIndex }`.
 
-2. **Pipeline 2 (map)**  
-   Input: segment tuples plus vessel locations and terminal.  
-   Operation: compute card display state (one active per vessel) and per-segment leg props (status, joined trips).  
-   Output: `legPropsByJourneyId` (and internally card display state for building leg props). The list passes
-   `legPropsByJourneyId.get(trip.id)` to each card; the timeline renders from these
-   **leg props** only (no context or Key lookup at render).
+2. **Page display state (deterministic selection)**  
+   Input: journeys, vessel locations, and held/active display trips.  
+   Operation: compute per-journey display state (one active per vessel, monotonic segment statuses, inbound-trip prediction wiring).  
+   Output: `displayStateByJourneyId` (`Map<journeyId, ScheduledTripCardDisplayState>`). Rendering consumes this map plus stage 1 tuples.
 
 Schedule is **primary**: the page is **ready** when the schedule is loaded. Overlay (completed/active) is optional; when missing or still loading, the pipeline runs with empty overlay and the UI shows a **basic schedule** (scheduled times only).
 
@@ -87,9 +86,9 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 ## File map (where the logic lives)
 
 - `ScheduledTripList.tsx`
-  - calls `useScheduledTripsPageData()` for status, journeys, and leg props
+  - calls `useScheduledTripsPageData()` for status, journeys, segment tuples, and display state
   - ready when schedule is loaded
-  - passes `legPropsByJourneyId.get(trip.id)` to each card so timeline can render from pipeline output
+  - passes `segmentTuplesByJourneyId.get(trip.id)` + `displayStateByJourneyId.get(trip.id)` to each card
 
 - `useScheduledTripsMaps.ts`
   - builds `PageMaps` from completed trips, active trips, vessel locations, and hold-window display data
@@ -102,13 +101,13 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
   - derives unique departing terminal abbrevs from flat segments (for completed-trip lookups)
   - gets maps from `useScheduledTripsMaps` (may be null)
   - runs `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)` to produce
-    `legPropsByJourneyId` (and internally display state for building leg props)
+    `segmentTuplesByJourneyId` + `displayStateByJourneyId`
   - status **ready** when schedule is loaded (not when maps are ready)
 
 - `utils/scheduledTripsPipeline.ts`
-  - **Pipeline 1**: `buildSegmentTuples(journeys, vesselTripMap)` → one `SegmentTuple` per segment (join by Key)
-  - **Pipeline 2**: card display state via `computeCardDisplayStateForPage`; then map tuples to leg props (status, joined trips) per journey
-  - **Runner**: `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)`; when `maps` is null, uses empty vesselTripMap → schedule-only render
+  - **Pipeline 1**: join schedule with overlay by Key → `SegmentTuple[]` per journey (`segmentTuplesByJourneyId`)
+  - **Display state**: `computeCardDisplayStateForPage` → `displayStateByJourneyId`
+  - **Runner**: `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)`; when `maps` is null, uses empty maps → schedule-only render
 
 - `utils/buildPageDataMaps.ts`
   - `buildAllPageMaps()` returns `vesselTripMap`, `vesselLocationByAbbrev`, `displayTripByAbbrev`
@@ -117,10 +116,6 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 - `utils/reconstructJourneys.ts`
   - client-side journey reconstruction from flat domain segments: group by physical departure,
     build chains via NextKey, filter by destination; produces `ScheduledTripJourney[]`
-
-- `utils/segmentLegDerivedState.ts`
-  - `getSegmentLegDerivedState`: computes display-oriented state (predictions, past-tense
-    flags) from segment, vesselLocation, and actual/prev/prediction trips; used by `ScheduledTripLeg`
 
 - `utils/selectActiveSegmentKey.ts`
   - `selectActiveSegmentKeyForVessel`: selects one active segment key per vessel
@@ -143,19 +138,12 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 
 - `ScheduledTripCard.tsx`
   - Card wrapper: `ScheduledTripRouteHeader` (terminals, vessel name) +
-    `ScheduledTripTimeline`. Receives `trip` and `legProps` from the list; no
+    `ScheduledTripTimeline`. Receives `trip`, segment tuples, display state, and vessel location; no
     per-card data fetching.
 
 - `ScheduledTripTimeline.tsx`
-  - Presentational: receives `segments` and `legProps` from the card. Renders one
-    `ScheduledTripLeg` per segment; no context lookup—all data comes from leg props.
-- `ScheduledTripLeg.tsx`
-  - Renders one leg (origin arrive → at-dock → depart → at-sea → arrive) using
-    Timeline primitives: `TimelineMarker`, `TimelineBarAtDock`, `TimelineBarAtSea`,
-    `TimelineDisplayTime`. Receives `SegmentLegProps` from pipeline; computes
-    derived state (predictions, past-tense flags) via `getSegmentLegDerivedState`.
-    Follows "render if exists" pattern: when overlay data is absent, falls back
-    to schedule-only display.
+  - Flat composer: receives `SegmentTuple[]` + per-journey display state and renders
+    Timeline primitives directly using a “render if exists” pattern (schedule-only fallback).
 
 ---
 

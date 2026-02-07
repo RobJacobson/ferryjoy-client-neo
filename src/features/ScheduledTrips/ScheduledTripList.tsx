@@ -34,10 +34,13 @@ export const ScheduledTripList = ({
   terminalAbbrev = "P52",
   destinationAbbrev,
 }: ScheduledTripListProps) => {
-  const { status, journeys, legPropsByJourneyId } = useScheduledTripsPageData({
-    terminalAbbrev,
-    destinationAbbrev,
-  });
+  const {
+    status,
+    journeys,
+    segmentTuplesByJourneyId,
+    displayStateByJourneyId,
+    vesselLocationByAbbrev,
+  } = useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
 
   if (status === "loading") {
     return (
@@ -65,13 +68,24 @@ export const ScheduledTripList = ({
         </Text>
         {(journeys ?? [])
           .flatMap((trip) => {
-            const legProps = legPropsByJourneyId.get(trip.id);
-            return legProps != null && legProps.length > 0
-              ? [{ trip, legProps }]
+            const segmentTuples = segmentTuplesByJourneyId.get(trip.id);
+            const displayState = displayStateByJourneyId.get(trip.id);
+            const vesselLocation =
+              vesselLocationByAbbrev.get(trip.vesselAbbrev) ?? null;
+            return segmentTuples != null &&
+              segmentTuples.length > 0 &&
+              displayState != null
+              ? [{ trip, segmentTuples, displayState, vesselLocation }]
               : [];
           })
-          .map(({ trip, legProps }) => (
-            <ScheduledTripCard key={trip.id} trip={trip} legProps={legProps} />
+          .map(({ trip, segmentTuples, displayState, vesselLocation }) => (
+            <ScheduledTripCard
+              key={trip.id}
+              trip={trip}
+              segmentTuples={segmentTuples}
+              displayState={displayState}
+              vesselLocation={vesselLocation}
+            />
           ))}
       </View>
     </ScrollView>

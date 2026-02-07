@@ -3,14 +3,15 @@
  * and a multi-segment timeline. Uses TripCard and ShadCN Card for consistent UI.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
-import type { ScheduledTripJourney, Segment } from "./types";
-import type { SegmentLegProps } from "./utils/scheduledTripsPipeline";
+import type { ScheduledTripJourney, Segment, SegmentTuple } from "./types";
+import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
 
 type ScheduledTripCardProps = {
   /**
@@ -18,9 +19,17 @@ type ScheduledTripCardProps = {
    */
   trip: ScheduledTripJourney;
   /**
-   * Pre-computed leg props from pipeline (one per segment). Required for timeline render.
+   * Segment tuples (schedule + optional overlay trip) for this journey.
    */
-  legProps: SegmentLegProps[];
+  segmentTuples: SegmentTuple[];
+  /**
+   * Page-level display state for this journey: active selection + segment statuses and prediction wiring.
+   */
+  displayState: ScheduledTripCardDisplayState;
+  /**
+   * Real-time vessel location when available; null when overlay data is missing.
+   */
+  vesselLocation: VesselLocation | null;
 };
 
 /**
@@ -28,12 +37,16 @@ type ScheduledTripCardProps = {
  * Route header shows terminals (depart → arrive) and vessel name; timeline uses legProps only.
  *
  * @param trip - Journey data (id, vessel, route, segments) to display
- * @param legProps - Pre-computed leg props from pipeline; one per segment, required
+ * @param segmentTuples - Segment tuples for this journey, one per segment, required
+ * @param displayState - Page-level display state for this journey
+ * @param vesselLocation - Real-time vessel location when available; null for schedule-only
  * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
  */
 export const ScheduledTripCard = ({
   trip,
-  legProps,
+  segmentTuples,
+  displayState,
+  vesselLocation,
 }: ScheduledTripCardProps) => (
   <TripCard
     cardClassName="pt-2 pb-10 overflow-visible"
@@ -44,7 +57,11 @@ export const ScheduledTripCard = ({
       />
     }
   >
-    <ScheduledTripTimeline segments={trip.segments} legProps={legProps} />
+    <ScheduledTripTimeline
+      segmentTuples={segmentTuples}
+      displayState={displayState}
+      vesselLocation={vesselLocation}
+    />
   </TripCard>
 );
 
