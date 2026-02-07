@@ -15,7 +15,7 @@ import {
 import {
   PIXELS_PER_HOUR,
   useVesselDailyTimeline,
-} from "./hooks/useVesselDailyTimeline";
+} from "../VesselTrips/hooks/useVesselDailyTimeline";
 
 // ============================================================================
 // Types
