@@ -52,11 +52,14 @@ export type ConvexScheduledTrip = Infer<typeof scheduledTripSchema>;
 /**
  * Convert Convex scheduled trip (numbers) to domain scheduled trip (Dates).
  * Manual conversion from epoch milliseconds to Date objects.
+ * Accepts optional DisplayArrivingTerminalAbbrev so query results (formatSegments) are preserved.
  *
- * @param trip - Convex scheduled trip with numeric timestamps
+ * @param trip - Convex scheduled trip with numeric timestamps; may include DisplayArrivingTerminalAbbrev from query
  * @returns Domain scheduled trip with Date objects
  */
-export const toDomainScheduledTrip = (trip: ConvexScheduledTrip) => ({
+export const toDomainScheduledTrip = (
+  trip: ConvexScheduledTrip & { DisplayArrivingTerminalAbbrev?: string }
+) => ({
   ...trip,
   DepartingTime: epochMsToDate(trip.DepartingTime),
   ArrivingTime: trip.ArrivingTime

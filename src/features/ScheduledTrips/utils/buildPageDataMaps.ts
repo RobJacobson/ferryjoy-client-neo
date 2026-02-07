@@ -1,6 +1,7 @@
 /**
- * Pure helpers for building page-level maps used by ScheduledTrips list and cards.
- * Merges completed trips, active trips, and displayData (hold window) with defined precedence.
+ * Pure helpers for building ScheduledTrips page-level maps.
+ * Merges completed trips, active trips, and displayData (hold window) with
+ * precedence: completed first, then active, then displayData wins per key/vessel.
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -24,7 +25,7 @@ const buildVesselTripMap = (
   displayData: DisplayDataItem[]
 ): Map<string, VesselTrip> => {
   const map = createVesselTripMap(completedTrips);
-  // Active trips overlay completed; displayData (hold window) wins over both.
+  // Active trips overlay completed; displayData (hold window) wins over both for same Key.
   for (const trip of activeVesselTrips) {
     if (trip.Key) map.set(trip.Key, trip);
   }
@@ -49,7 +50,7 @@ const buildVesselLocationByAbbrev = (
   for (const d of displayData) {
     synced.set(d.trip.VesselAbbrev, d.vesselLocation);
   }
-  // Per vessel: synced location during hold, else live location.
+  // Per vessel: use synced location when in hold window, otherwise live location.
   return new Map(
     vesselLocations.map((loc) => [
       loc.VesselAbbrev,

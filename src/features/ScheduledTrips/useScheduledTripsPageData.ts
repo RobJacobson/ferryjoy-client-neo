@@ -1,20 +1,20 @@
 /**
  * Hook that fetches and resolves all data needed to render the ScheduledTrips list.
- * Returns status (loading/empty/ready), journeys, and card display state per journey.
+ * Schedule is primary; overlay (completed/active) is optional and does not block "ready".
+ * Runs pipeline: join schedule + overlay by Key → card display state and leg props.
  */
 
 import { api } from "convex/_generated/api";
+import { toDomainScheduledTrip } from "convex/functions/scheduledTrips/schemas";
 import { useQuery } from "convex/react";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 import type { ScheduledTripJourney } from "./types";
 import { useScheduledTripsMaps } from "./useScheduledTripsMaps";
-import type { PageMaps } from "./utils/buildPageDataMaps";
+import { reconstructJourneys } from "./utils/reconstructJourneys";
 import {
-  computeCardDisplayStateForPage,
-  type ScheduledTripCardDisplayState,
-} from "./utils/computePageDisplayState";
-import { toSegment } from "./utils/conversion";
-import { getDepartingTerminalAbbrevs } from "./utils/segmentUtils";
+  runScheduledTripsPipeline,
+  type SegmentLegProps,
+} from "./utils/scheduledTripsPipeline";
 
 type UseScheduledTripsPageDataParams = {
   terminalAbbrev: string;
@@ -24,18 +24,18 @@ type UseScheduledTripsPageDataParams = {
 type UseScheduledTripsPageDataResult = {
   status: "loading" | "empty" | "ready";
   journeys: ScheduledTripJourney[] | undefined;
-  cardDisplayStateByJourneyId: Map<string, ScheduledTripCardDisplayState>;
-  /** Page maps (non-null when status is ready). */
-  maps: PageMaps | null;
+  /** Per-journey leg props from pipeline; timeline uses these (no context lookup). */
+  legPropsByJourneyId: Map<string, SegmentLegProps[]>;
 };
 
 /**
- * Fetches scheduled trips, gets maps via useScheduledTripsMaps, and computes one
- * display state per journey card (one active per vessel). Use for the ScheduledTrips list page.
+ * Fetches schedule first (primary), then overlay (completed/active). Runs pipeline to
+ * produce card display state and leg props. Ready when schedule is loaded; overlay
+ * is optional (basic schedule when missing).
  *
- * @param params.terminalAbbrev - Departure terminal to load schedule for
- * @param params.destinationAbbrev - Optional destination filter
- * @returns status, journeys, and cardDisplayStateByJourneyId for rendering
+ * @param terminalAbbrev - Departure terminal to load schedule for (e.g. "P52")
+ * @param destinationAbbrev - Optional destination terminal to filter trips
+ * @returns Object with status ("loading" | "empty" | "ready"), journeys, legPropsByJourneyId
  */
 export const useScheduledTripsPageData = ({
   terminalAbbrev,
@@ -43,53 +43,42 @@ export const useScheduledTripsPageData = ({
 }: UseScheduledTripsPageDataParams): UseScheduledTripsPageDataResult => {
   const sailingDay = getSailingDay(new Date());
 
-  const trips = useQuery(
-    api.functions.scheduledTrips.queries.getScheduledTripsForTerminal,
-    {
-      terminalAbbrev,
-      destinationAbbrev,
-      sailingDay,
-    }
+  // Never persist raw Convex data: map to domain in the same expression as useQuery.
+  const flatDomain =
+    useQuery(
+      api.functions.scheduledTrips.queries.getScheduledTripsForTerminal,
+      { terminalAbbrev, destinationAbbrev, sailingDay }
+    )?.map(toDomainScheduledTrip) ?? [];
+
+  // Client-side journey reconstruction (grouping and chain building).
+  const journeys = reconstructJourneys(
+    flatDomain,
+    terminalAbbrev,
+    destinationAbbrev
   );
 
-  const journeys = trips
-    ? trips.map((trip) => ({
-        ...trip,
-        segments: trip.segments.map(toSegment),
-      }))
-    : undefined;
-
-  const departingTerminalAbbrevs =
-    trips == null
-      ? []
-      : getDepartingTerminalAbbrevs(trips.flatMap((t) => t.segments));
+  // Unique departing terminal abbrevs from flat segments (for completed-trip lookups).
+  const departingTerminalAbbrevs = [
+    ...new Set(flatDomain.map((s) => s.DepartingTerminalAbbrev)),
+  ];
 
   const maps = useScheduledTripsMaps({ sailingDay, departingTerminalAbbrevs });
 
-  const cardDisplayStateByJourneyId =
-    journeys != null && maps != null
-      ? computeCardDisplayStateForPage({
-          terminalAbbrev,
-          journeys,
-          vesselLocationByAbbrev: maps.vesselLocationByAbbrev,
-          displayTripByAbbrev: maps.displayTripByAbbrev,
-          vesselTripMap: maps.vesselTripMap,
-        })
-      : new Map<string, ScheduledTripCardDisplayState>();
+  const pipelineResult =
+    journeys != null && journeys.length > 0
+      ? runScheduledTripsPipeline(journeys, maps, terminalAbbrev)
+      : { legPropsByJourneyId: new Map<string, SegmentLegProps[]>() };
 
   const status: UseScheduledTripsPageDataResult["status"] =
-    trips === undefined
+    journeys === undefined
       ? "loading"
-      : trips.length === 0
+      : journeys.length === 0
         ? "empty"
-        : departingTerminalAbbrevs.length > 0 && maps === null
-          ? "loading"
-          : "ready";
+        : "ready";
 
   return {
     status,
     journeys,
-    cardDisplayStateByJourneyId,
-    maps,
+    legPropsByJourneyId: pipelineResult.legPropsByJourneyId,
   };
 };

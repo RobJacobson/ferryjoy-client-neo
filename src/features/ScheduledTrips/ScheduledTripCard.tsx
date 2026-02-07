@@ -10,7 +10,7 @@ import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
-import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
+import type { SegmentLegProps } from "./utils/scheduledTripsPipeline";
 
 type ScheduledTripCardProps = {
   /**
@@ -18,10 +18,35 @@ type ScheduledTripCardProps = {
    */
   trip: ScheduledTripJourney;
   /**
-   * Pre-computed page-level display state. Required; card/timeline do not fetch realtime data.
+   * Pre-computed leg props from pipeline (one per segment). Required for timeline render.
    */
-  displayState: ScheduledTripCardDisplayState;
+  legProps: SegmentLegProps[];
 };
+
+/**
+ * Displays a card with route information and a multi-segment timeline for a scheduled trip.
+ * Route header shows terminals (depart → arrive) and vessel name; timeline uses legProps only.
+ *
+ * @param trip - Journey data (id, vessel, route, segments) to display
+ * @param legProps - Pre-computed leg props from pipeline; one per segment, required
+ * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
+ */
+export const ScheduledTripCard = ({
+  trip,
+  legProps,
+}: ScheduledTripCardProps) => (
+  <TripCard
+    cardClassName="pt-2 pb-10 overflow-visible"
+    routeContent={
+      <ScheduledTripRouteHeader
+        segments={trip.segments}
+        vesselAbbrev={trip.vesselAbbrev}
+      />
+    }
+  >
+    <ScheduledTripTimeline segments={trip.segments} legProps={legProps} />
+  </TripCard>
+);
 
 /**
  * Presentational header for a scheduled trip: route (terminals + arrow) and vessel name.
@@ -60,31 +85,4 @@ const ScheduledTripRouteHeader = ({
       {getVesselName(vesselAbbrev)}
     </Text>
   </View>
-);
-
-/**
- * Displays a card with route information and a multi-segment timeline for a scheduled trip.
- *
- * @param trip - The trip data to display
- * @param displayState - Pre-computed page-level display state (required)
- * @returns A Card component containing the trip header and timeline
- */
-export const ScheduledTripCard = ({
-  trip,
-  displayState,
-}: ScheduledTripCardProps) => (
-  <TripCard
-    cardClassName="pt-2 pb-10 overflow-visible"
-    routeContent={
-      <ScheduledTripRouteHeader
-        segments={trip.segments}
-        vesselAbbrev={trip.vesselAbbrev}
-      />
-    }
-  >
-    <ScheduledTripTimeline
-      segments={trip.segments}
-      displayState={displayState}
-    />
-  </TripCard>
 );

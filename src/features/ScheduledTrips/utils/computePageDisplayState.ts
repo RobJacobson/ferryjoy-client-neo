@@ -64,7 +64,12 @@ export type ScheduledTripCardDisplayState = {
 // Public API
 // ============================================================================
 
-/** Groups journeys by vessel abbrev for one-active-per-vessel display state. */
+/**
+ * Groups journeys by vessel abbrev for one-active-per-vessel display state.
+ *
+ * @param journeys - All scheduled journeys for the page
+ * @returns Partial record of vessel abbrev to that vessel's journeys (unsorted)
+ */
 export const groupJourneysByVessel = (
   journeys: ScheduledTripJourney[]
 ): Partial<Record<string, ScheduledTripJourney[]>> =>
@@ -79,7 +84,13 @@ export const groupJourneysByVessel = (
 /**
  * Computes card display state for a single vessel's journeys (one active per vessel).
  *
- * @param params - Vessel abbrev, sorted journeys, maps, and options
+ * @param params.vesselAbbrev - Vessel abbreviation for this group
+ * @param params.vesselJourneys - This vessel's journeys sorted by departure time
+ * @param params.terminalAbbrev - Page departure terminal for active-segment selection
+ * @param params.vesselLocationByAbbrev - Resolved location per vessel
+ * @param params.displayTripByAbbrev - Held/active trip per vessel
+ * @param params.vesselTripMap - Unified map of segment Key to VesselTrip
+ * @param params.provisionalDepartBufferMs - Buffer for provisional next-segment inference
  * @returns Map of journey id to ScheduledTripCardDisplayState for this vessel
  */
 const computeCardDisplayStateForVessel = (params: {
@@ -312,8 +323,7 @@ const computeJourneyTimelineState = (params: {
     vesselLocation,
   } = params;
 
-  // If the page has determined this journey is not active, force all segments to match
-  // the journey-level monotonic status.
+  // Non-active journey: all segments get the same status (Completed or Pending).
   if (journeyStatus && journeyStatus !== "InProgress") {
     const statusByKey = new Map(
       journey.segments.map((s) => [s.Key, journeyStatus] as const)

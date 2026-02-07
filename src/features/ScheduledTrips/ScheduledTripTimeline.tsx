@@ -1,123 +1,38 @@
 /**
  * ScheduledTripTimeline renders a sequence of scheduled trip segments (departure → stops → destination).
- * Shows scheduled times with actual/predicted times overlaid when real-time data is available.
- * Presentational only: requires displayState from parent and reads maps from ScheduledTripsMapsContext.
+ * Renders from pipeline-produced legProps only (no context lookup).
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { ScheduledTripLeg } from "./ScheduledTripLeg";
-import { useScheduledTripsMapsContext } from "./ScheduledTripsMapsContext";
 import type { Segment } from "./types";
-import type {
-  ScheduledTripCardDisplayState,
-  ScheduledTripTimelineState,
-} from "./utils/computePageDisplayState";
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { SegmentLegProps } from "./utils/scheduledTripsPipeline";
 
 type ScheduledTripTimelineProps = {
-  /**
-   * Array of segments forming the complete journey.
-   */
   segments: Segment[];
-  /**
-   * Pre-computed display state from the list page. Required; timeline does not fetch data.
-   */
-  displayState: ScheduledTripCardDisplayState;
+  /** Pre-computed leg props from pipeline (one per segment). Required. */
+  legProps: SegmentLegProps[];
 };
-
-type ScheduledTripTimelineContentProps = {
-  segments: Segment[];
-  vesselLocation: VesselLocation;
-  vesselTripMap: Map<string, VesselTrip>;
-  timelineState: ScheduledTripTimelineState;
-  inboundTripForFirstSegment?: VesselTrip;
-};
-
-// ============================================================================
-// Public API
-// ============================================================================
 
 /**
- * Displays a multi-segment timeline for scheduled ferry trips.
- * Presentational only: requires displayState from parent (e.g. from ScheduledTripList).
+ * Displays a multi-segment timeline for scheduled ferry trips from pipeline leg props.
+ * Renders one ScheduledTripLeg per segment; no context lookup—all data comes from legProps.
  *
- * @param segments - Array of trip segments to display
- * @param displayState - Pre-computed card display state (required)
- * @returns A View component with a sequence of markers and progress bars, or null
+ * @param segments - Ordered segments for this journey (for structure only; legProps carry data)
+ * @param legProps - Pre-computed leg props from pipeline, one per segment; required
+ * @returns View of horizontal timeline or null when segments/legProps empty
  */
 export const ScheduledTripTimeline = ({
   segments,
-  displayState,
+  legProps,
 }: ScheduledTripTimelineProps) => {
-  const maps = useScheduledTripsMapsContext();
-  const vesselLocation = maps?.vesselLocationByAbbrev.get(
-    displayState.vesselAbbrev
-  );
-  const vesselTripMap = maps?.vesselTripMap;
-  const timeline = displayState.timeline;
-  if (!vesselLocation || !vesselTripMap || !timeline || segments.length === 0) {
-    return null;
-  }
+  if (segments.length === 0 || legProps.length === 0) return null;
+
   return (
-    <ScheduledTripTimelineContent
-      segments={segments}
-      vesselLocation={vesselLocation}
-      vesselTripMap={vesselTripMap}
-      timelineState={timeline}
-      inboundTripForFirstSegment={displayState.inboundTripForFirstSegment}
-    />
+    <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
+      {legProps.map((props) => (
+        <ScheduledTripLeg key={props.segment.Key} {...props} />
+      ))}
+    </View>
   );
 };
-
-// ============================================================================
-// Presentational content (no hooks, no display-state logic)
-// ============================================================================
-
-/**
- * Renders timeline legs from pre-computed data.
- *
- * @param segments - Ordered segments for this journey
- * @param vesselLocation - Resolved vessel location
- * @param vesselTripMap - Map of segment Key to VesselTrip
- * @param displayTrip - Held/active trip for this vessel
- * @param timelineState - Pre-computed active key, phase, and status per segment
- */
-const ScheduledTripTimelineContent = ({
-  segments,
-  vesselLocation,
-  vesselTripMap,
-  timelineState,
-  inboundTripForFirstSegment,
-}: ScheduledTripTimelineContentProps) => (
-  <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
-    {segments.map((segment, index) => (
-      <ScheduledTripLeg
-        key={segment.Key}
-        segment={segment}
-        vesselLocation={vesselLocation}
-        actualTrip={vesselTripMap.get(segment.Key)}
-        prevActualTrip={
-          index > 0
-            ? vesselTripMap.get(segments[index - 1].Key)
-            : inboundTripForFirstSegment
-        }
-        nextActualTrip={
-          index < segments.length - 1
-            ? vesselTripMap.get(segments[index + 1].Key)
-            : undefined
-        }
-        predictionTrip={index === 0 ? inboundTripForFirstSegment : undefined}
-        legStatus={timelineState.statusByKey.get(segment.Key) ?? "Pending"}
-        activeKey={timelineState.activeKey}
-        activePhase={timelineState.activePhase}
-        isFirst={index === 0}
-        isLast={index === segments.length - 1}
-      />
-    ))}
-  </View>
-);

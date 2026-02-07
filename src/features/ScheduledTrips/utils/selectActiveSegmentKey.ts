@@ -88,10 +88,10 @@ const findNextScheduledSegmentKey = (params: {
  * Selects the active scheduled segment key for a vessel on this terminal page.
  *
  * Selection priority:
- * 1. `displayTrip.Key` (held/current trip identity) when present
- * 2. Exact match using `VesselLocation` terminals + `ScheduledDeparture`
- * 3. Provisional inference (AtDock, missing ScheduledDeparture): pick the next scheduled
- *    segment departing from this page's terminal.
+ * 1. displayTrip.Key (held/current trip identity) when present
+ * 2. Exact match using VesselLocation terminals + ScheduledDeparture
+ * 3. Provisional inference (AtDock, missing ScheduledDeparture): next scheduled
+ *    segment departing from this page's terminal
  *
  * @param params.terminalAbbrev - Page departure terminal
  * @param params.journeys - All journeys for this vessel (sorted by departure)
@@ -99,7 +99,7 @@ const findNextScheduledSegmentKey = (params: {
  * @param params.displayTrip - Held/active trip from hold-window logic
  * @param params.nowMs - Current time for provisional inference
  * @param params.provisionalDepartBufferMs - Buffer for provisional next-segment selection
- * @returns Selected key (or null) and confidence
+ * @returns ActiveSelection with activeKey (or null) and activeConfidence
  */
 export const selectActiveSegmentKeyForVessel = (params: {
   terminalAbbrev: string;

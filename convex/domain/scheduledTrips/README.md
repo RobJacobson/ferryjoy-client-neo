@@ -37,12 +37,8 @@ When we sync data, we run a functional transformation pipeline:
 *   **Key Linking**: We link segments using `PrevKey` and `NextKey` pointers in a single stateful pass, creating a linked-list of the vessel's entire day.
 *   **Time Estimation**: We backfill missing arrival times for indirect trips by looking ahead to their corresponding direct completion segments.
 
-### 2. Query Pipeline (`convex/domain/scheduledTrips/journeys.ts`)
-When a user views a terminal schedule, we reconstruct the journeys on-the-fly:
-c
-*   **Physical Scan**: We fetch all departures from the requested terminal for the current Sailing Day and group them into physical movements.
-*   **Chain Reconstruction**: Starting from the "Direct" segment of a departure, we follow the `NextKey` pointers until we reach the final destination of that logical journey.
-*   **Intelligent Target Selection**: If a user is looking at a specific destination (e.g., "Anacortes to Friday Harbor"), we pick that specific chain. If they are looking at "All Departures," we pick the furthest destination in each physical chain to represent the boat's full path.
+### 2. Query and journey reconstruction
+The frontend query `getScheduledTripsForTerminal` returns raw scheduled trip rows. The client maps them to domain (Dates) and reconstructs journeys in `src/features/ScheduledTrips/utils/reconstructJourneys.ts` (grouping, chain building via `NextKey`, destination filter).
 
 ---
 
@@ -50,7 +46,6 @@ c
 
 ### `convex/domain/scheduledTrips/`
 *   **`grouping.ts`**: **Standardized utility** for identifying physical vessel movements. Defines the `PhysicalDeparture` type used across the domain.
-*   **`journeys.ts`**: High-level logic for reconstructing physical chains into UI-ready `ScheduledJourney` objects.
 *   **`transform/`**: The ingestion pipeline logic.
     *   `pipeline.ts`: Coordinates the classification and estimation steps.
     *   `classification.ts`: Functional logic for distinguishing Direct vs. Indirect trips using lookahead.
@@ -62,5 +57,5 @@ c
     *   `sync.ts`: High-level coordinator for the daily sync process.
     *   `fetching/`: WSF API clients and raw data mapping.
     *   `persistence.ts`: Atomic database replacement logic.
-*   **`queries.ts`**: Public API for the frontend, delegating reconstruction to the domain layer.
-*   **`schemas.ts`**: Zod/Convex schemas defining the `ScheduledTrip` and `ScheduledJourney` types.
+*   **`queries.ts`**: Public API for the frontend; returns raw scheduled trip rows (no server-side reconstruction).
+*   **`schemas.ts`**: Zod/Convex schemas defining the `ScheduledTrip` type and `toDomainScheduledTrip`.

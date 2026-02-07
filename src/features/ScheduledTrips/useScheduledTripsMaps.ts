@@ -1,7 +1,7 @@
 /**
- * Single place for ScheduledTrips map construction.
- * Uses Convex contexts, delayed vessel trips (hold window), completed-trips query,
- * and buildAllPageMaps. Consumed by useScheduledTripsPageData and available for future reuse.
+ * Single place for ScheduledTrips page-level map construction.
+ * Uses Convex vessel trips/locations, delayed (hold-window) display data, and
+ * completed-trips query; merges via buildAllPageMaps. Used by useScheduledTripsPageData.
  */
 
 import { api } from "convex/_generated/api";
@@ -26,9 +26,9 @@ type UseScheduledTripsMapsParams = {
  * Uses active vessel trips, vessel locations, delayed/hold-window data, and
  * completed trips for the sailing day/terminals, then merges via buildAllPageMaps.
  *
- * @param params.sailingDay - WSF operational day (YYYY-MM-DD)
- * @param params.departingTerminalAbbrevs - Departing terminals for completed trip query
- * @returns PageMaps when ready, or null when completed-trips query is still loading
+ * @param sailingDay - WSF operational day (YYYY-MM-DD) for completed-trip lookups
+ * @param departingTerminalAbbrevs - Departing terminal abbrevs for completed-trip query
+ * @returns PageMaps when ready; null while completed-trips query is loading (when terminals non-empty)
  */
 export const useScheduledTripsMaps = ({
   sailingDay,

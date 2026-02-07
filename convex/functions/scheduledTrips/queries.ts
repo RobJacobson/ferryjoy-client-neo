@@ -1,6 +1,5 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { reconstructJourneys } from "../../domain/scheduledTrips";
 
 /**
  * Fetch a scheduled trip by its composite key
@@ -169,14 +168,13 @@ export const getScheduledTripsForSailingDay = query({
 });
 
 /**
- * Fetches scheduled trips for a terminal, optionally filtered by destination.
- * Reconstructs indirect trip chains into logical segments.
+ * Returns raw scheduled trip rows for a terminal and sailing day.
+ * No server-side aggregation: the client maps to domain and reconstructs journeys.
  *
  * @param ctx - Convex context
- * @param args.terminalAbbrev - The departure terminal abbreviation
- * @param args.destinationAbbrev - Optional arrival terminal abbreviation
- * @param args.sailingDay - The sailing day in YYYY-MM-DD format
- * @returns Array of reconstructed trip chains
+ * @param args.terminalAbbrev - Departure terminal abbreviation
+ * @param args.sailingDay - Sailing day YYYY-MM-DD
+ * @returns Flat array of scheduled trip documents (vessels that depart from this terminal that day)
  */
 export const getScheduledTripsForTerminal = query({
   args: {
@@ -186,7 +184,6 @@ export const getScheduledTripsForTerminal = query({
   },
   handler: async (ctx, args) => {
     try {
-      // 1. Find all physical departures from this terminal today
       const startingTrips = await ctx.db
         .query("scheduledTrips")
         .withIndex("by_terminal_and_sailing_day", (q) =>
@@ -198,7 +195,6 @@ export const getScheduledTripsForTerminal = query({
 
       if (startingTrips.length === 0) return [];
 
-      // 2. Fetch all trips for these specific vessels to reconstruct their chains
       const vesselAbbrevs = Array.from(
         new Set(startingTrips.map((t) => t.VesselAbbrev))
       );
@@ -216,12 +212,7 @@ export const getScheduledTripsForTerminal = query({
         )
       ).flat();
 
-      // 3. Reconstruct journeys using domain logic
-      return reconstructJourneys({
-        startingTrips,
-        allVesselTrips,
-        destinationAbbrev: args.destinationAbbrev,
-      });
+      return allVesselTrips;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch scheduled trips for terminal ${args.terminalAbbrev}`,
