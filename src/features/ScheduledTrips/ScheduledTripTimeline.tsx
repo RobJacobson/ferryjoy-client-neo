@@ -18,6 +18,7 @@ import {
   TIMELINE_CIRCLE_SIZE,
   TIMELINE_MARKER_CLASS,
 } from "../Timeline/config";
+import type { TimelineBarStatus } from "../Timeline/TimelineBar";
 import type { TimelineSegmentStatus } from "../Timeline/types";
 import {
   getBestArrivalTime,
@@ -91,7 +92,7 @@ export const ScheduledTripTimeline = ({
         });
 
         // Origin dock: Completed if journey done or leg done; InProgress if active and at dock (not held).
-        const originDockStatus: TimelineSegmentStatus =
+        const originDockStatus: TimelineBarStatus =
           legStatus === "Completed"
             ? "Completed"
             : isActive && timeline.activePhase === "AtDock" && !isHeld
@@ -101,7 +102,7 @@ export const ScheduledTripTimeline = ({
                 : "Pending";
 
         // At-sea: Completed if held or journey done; InProgress if active and at sea; else Pending.
-        const atSeaStatus: TimelineSegmentStatus =
+        const atSeaStatus: TimelineBarStatus =
           legStatus === "Completed"
             ? "Completed"
             : isHeld
@@ -109,6 +110,11 @@ export const ScheduledTripTimeline = ({
               : isActive && timeline.activePhase === "AtSea"
                 ? "InProgress"
                 : "Pending";
+
+        const showAtDockMarker =
+          isActive && timeline.activePhase === "AtDock" && !isHeld;
+        const showAtSeaMarker =
+          isActive && (timeline.activePhase === "AtSea" || isHeld);
 
         // Render if exists: use actual times when we have a historical match;
         // otherwise fall back to scheduled times (graceful degradation when overlay absent).
@@ -192,9 +198,7 @@ export const ScheduledTripTimeline = ({
                       ? segment.DepartingTerminalAbbrev
                       : undefined
                   }
-                  showIndicator={
-                    isActive && timeline.activePhase === "AtDock" && !isHeld
-                  }
+                  showIndicator={showAtDockMarker}
                 />
               </>
             )}
@@ -252,9 +256,7 @@ export const ScheduledTripTimeline = ({
               vesselName={vesselLocation?.VesselName}
               animate={isActive && timeline.activePhase === "AtSea" && !isHeld}
               speed={vesselLocation?.Speed}
-              showIndicator={
-                isActive && (timeline.activePhase === "AtSea" || isHeld)
-              }
+              showIndicator={showAtSeaMarker}
             />
 
             <TimelineMarker

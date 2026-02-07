@@ -71,8 +71,6 @@ const TimelineBarAtSea = ({
 }: TimelineBarAtSeaProps) => {
   const nowMs = useNowMs(1000);
 
-  const animatedProgress = useSharedValue(0);
-
   const {
     progress: timeProgress,
     minutesRemaining,
@@ -98,13 +96,20 @@ const TimelineBarAtSea = ({
     progress = Math.min(1, Math.max(0, progress));
   }
 
+  const animatedProgress = useSharedValue(progress);
+
   useEffect(() => {
-    animatedProgress.value = withSpring(progress, {
-      damping: 100,
-      stiffness: 2,
-      mass: 5,
-      overshootClamping: true,
-    });
+    // If progress is 1 or 0, we jump immediately without spring to avoid initial animation glitch
+    if (progress === 1 || progress === 0) {
+      animatedProgress.value = progress;
+    } else {
+      animatedProgress.value = withSpring(progress, {
+        damping: 100,
+        stiffness: 2,
+        mass: 5,
+        overshootClamping: true,
+      });
+    }
   }, [progress, animatedProgress]);
 
   const shouldShowIndicator =

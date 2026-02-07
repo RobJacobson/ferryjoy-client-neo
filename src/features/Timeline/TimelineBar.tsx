@@ -75,17 +75,21 @@ const TimelineBar = ({
   progressStyle = "bg-pink-300",
   style,
 }: TimelineBarProps) => {
-  // Use a shared value to animate progress changes smoothly
   const animatedProgress = useSharedValue(progress);
 
   // Update the animated value whenever the progress prop changes
   useEffect(() => {
-    animatedProgress.value = withSpring(progress, {
-      damping: 100,
-      stiffness: 2,
-      mass: 5,
-      overshootClamping: true,
-    });
+    // If progress is 1 or 0, we jump immediately without spring to avoid initial animation glitch
+    if (progress === 1 || progress === 0) {
+      animatedProgress.value = progress;
+    } else {
+      animatedProgress.value = withSpring(progress, {
+        damping: 100,
+        stiffness: 2,
+        mass: 5,
+        overshootClamping: true,
+      });
+    }
   }, [progress, animatedProgress]);
 
   // Animate layout changes (like flexGrow/width) when they change
