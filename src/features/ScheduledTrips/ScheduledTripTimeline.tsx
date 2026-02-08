@@ -17,7 +17,6 @@ import type {
 import { getBestArrivalTime, getBestDepartureTime } from "../Timeline/utils";
 import { ScheduledTripArriveMarker } from "./ScheduledTripArriveMarker";
 import { ScheduledTripDepartMarker } from "./ScheduledTripDepartMarker";
-import { ScheduledTripNextMarker } from "./ScheduledTripNextMarker";
 import type { ScheduledTripTimelineState } from "./utils/computePageDisplayState";
 
 // ============================================================================
@@ -179,6 +178,7 @@ export const ScheduledTripTimeline = ({
             {flags.showOriginBlock && (
               <>
                 <ScheduledTripArriveMarker
+                  variant="origin"
                   segment={segment}
                   actualTrip={actualTrip}
                   vesselLocation={vesselLocation}
@@ -257,7 +257,8 @@ export const ScheduledTripTimeline = ({
               showIndicator={flags.showAtSeaMarker}
             />
 
-            <ScheduledTripNextMarker
+            <ScheduledTripArriveMarker
+              variant="destination"
               segment={segment}
               actualTrip={actualTrip}
               vesselLocation={vesselLocation}

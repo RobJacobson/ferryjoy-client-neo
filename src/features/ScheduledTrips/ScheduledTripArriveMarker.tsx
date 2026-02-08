@@ -1,6 +1,6 @@
 /**
- * Origin-arrive marker for ScheduledTripTimeline: "Arrive/Arrived" + DepartingTerminalAbbrev.
- * Label and TimeTwo use real-time data only (actual arrival, else estimated).
+ * Arrive marker for ScheduledTripTimeline: "Arrive/Arrived" + terminal.
+ * Handles both origin (arrive at segment start) and destination (arrive at segment end).
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -12,55 +12,72 @@ import {
   TimelineMarkerTime,
 } from "../Timeline";
 import type { Segment } from "../Timeline/types";
-import { getPredictedArriveNextTime } from "../Timeline/utils";
+import {
+  getBestArrivalTime,
+  getPredictedArriveNextTime,
+} from "../Timeline/utils";
 
-/**
- * Renders the origin-arrive marker for a segment (arrive at departing terminal).
- * Uses actual TripStart when available, else estimated arrival from prediction trip.
- * Only uses vesselLocation when the previous segment is active (ETA targets this origin).
- *
- * @param segment - Segment for this leg
- * @param actualTrip - VesselTrip overlay for this segment, if any
- * @param vesselLocation - Real-time vessel location, or undefined
- * @param predictionTrip - Prev-leg trip for estimated arrival
- * @param isPrevSegmentActive - True when the vessel is on the previous leg approaching this origin
- * @returns TimelineMarker with "Arrive/Arrived" label and times
- */
-export const ScheduledTripArriveMarker = ({
-  segment,
-  actualTrip,
-  vesselLocation,
-  predictionTrip,
-  isPrevSegmentActive,
-}: {
+type ScheduledTripArriveMarkerProps = {
   segment: Segment;
   actualTrip: VesselTrip | undefined;
   vesselLocation: VesselLocation | undefined;
-  predictionTrip: VesselTrip | undefined;
-  isPrevSegmentActive: boolean;
-}) => {
-  const effectiveVesselLocation = isPrevSegmentActive
-    ? vesselLocation
-    : undefined;
-  const estimatedArrival = getPredictedArriveNextTime(
-    predictionTrip,
-    effectiveVesselLocation
-  );
+} & (
+  | {
+      variant: "origin";
+      predictionTrip: VesselTrip | undefined;
+      isPrevSegmentActive: boolean;
+    }
+  | {
+      variant: "destination";
+      isActive: boolean;
+    }
+);
+
+/**
+ * Renders the arrive marker for a segment (origin or destination terminal).
+ * Uses actual arrival when available, else estimated; only uses vesselLocation
+ * when the relevant leg is active.
+ *
+ * @param props - Segment, trip overlay, location, and variant-specific params
+ * @returns TimelineMarker with "Arrive/Arrived" label and times
+ */
+export const ScheduledTripArriveMarker = (
+  props: ScheduledTripArriveMarkerProps
+) => {
+  const { segment, actualTrip, vesselLocation } = props;
+
+  const isOrigin = props.variant === "origin";
+  const effectiveVesselLocation = isOrigin
+    ? props.isPrevSegmentActive
+      ? vesselLocation
+      : undefined
+    : props.isActive
+      ? vesselLocation
+      : undefined;
+  const estimatedArrival = isOrigin
+    ? getPredictedArriveNextTime(props.predictionTrip, effectiveVesselLocation)
+    : getBestArrivalTime(effectiveVesselLocation, actualTrip);
+
+  const actualTime = isOrigin ? actualTrip?.TripStart : actualTrip?.TripEnd;
+  const terminalLabel = isOrigin
+    ? segment.DepartingTerminalAbbrev
+    : (segment.DisplayArrivingTerminalAbbrev ?? segment.ArrivingTerminalAbbrev);
+  const scheduledTime = isOrigin
+    ? segment.SchedArriveCurr
+    : segment.SchedArriveNext;
+
+  const displayTime = actualTime ?? estimatedArrival;
 
   return (
     <TimelineMarker zIndex={10}>
       <TimelineMarkerContent>
         <TimelineMarkerLabel
-          text={`${actualTrip?.TripStart ? "Arrived" : "Arrive"} ${segment.DepartingTerminalAbbrev}`}
+          text={`${actualTime ? "Arrived" : "Arrive"} ${terminalLabel}`}
         />
+        <TimelineMarkerTime time={scheduledTime} type="scheduled" isBold />
         <TimelineMarkerTime
-          time={segment.SchedArriveCurr}
-          type="scheduled"
-          isBold
-        />
-        <TimelineMarkerTime
-          time={actualTrip?.TripStart ?? estimatedArrival}
-          type={actualTrip?.TripStart ? "actual" : "estimated"}
+          time={displayTime}
+          type={actualTime ? "actual" : "estimated"}
         />
       </TimelineMarkerContent>
     </TimelineMarker>
