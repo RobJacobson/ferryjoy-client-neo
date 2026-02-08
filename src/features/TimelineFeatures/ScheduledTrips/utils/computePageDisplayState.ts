@@ -16,10 +16,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type {
-  TimelineActivePhase,
-  TimelineSegmentStatus,
-} from "../../Timeline/types";
+import type { TimelineActivePhase } from "../../Timeline/types";
 import type { ScheduledTripJourney } from "../types";
 import { selectActiveSegmentKeyForVessel } from "./selectActiveSegmentKey";
 
@@ -37,7 +34,7 @@ export type { ScheduledTripJourney } from "../types";
 export type ScheduledTripTimelineState = {
   activeKey: string | null;
   activePhase: TimelineActivePhase;
-  statusByKey: Map<string, TimelineSegmentStatus>;
+  activeSegmentIndex?: number;
 };
 
 export type ScheduledTripCardDisplayState = {
@@ -152,7 +149,6 @@ const computeCardDisplayStateForVessel = (params: {
     terminalAbbrev,
     vesselLocationByAbbrev,
     displayTripByAbbrev,
-    vesselTripMap,
     provisionalDepartBufferMs,
   } = params;
 
@@ -174,7 +170,7 @@ const computeCardDisplayStateForVessel = (params: {
 
   const activeKey = active?.activeKey ?? null;
   const activeJourneyIndex = active?.activeJourneyIndex ?? null;
-  const activeSegmentIndex = active?.activeSegmentIndex ?? null;
+  const activeSegmentIndexForVessel = active?.activeSegmentIndex ?? null;
 
   const getJourneyStatus = (
     idx: number
@@ -189,17 +185,24 @@ const computeCardDisplayStateForVessel = (params: {
 
   const entries = vesselJourneys.map((journey, idx) => {
     const journeyStatus = getJourneyStatus(idx);
-    const segmentIndexForTimeline =
-      idx === activeJourneyIndex ? activeSegmentIndex : undefined;
-    const timeline = computeJourneyTimelineState(
-      journey,
-      journeyStatus,
-      activeKey,
-      segmentIndexForTimeline,
-      vesselLocation,
-      vesselLocation?.TimeStamp.getTime() ?? Date.now(),
-      vesselTripMap
-    );
+    const activeSegmentIndex =
+      idx === activeJourneyIndex
+        ? (activeSegmentIndexForVessel ?? undefined)
+        : undefined;
+
+    const activePhase: TimelineActivePhase =
+      idx === activeJourneyIndex && vesselLocation
+        ? vesselLocation.AtDock
+          ? "AtDock"
+          : "AtSea"
+        : "Unknown";
+
+    const timeline: ScheduledTripTimelineState = {
+      activeKey: idx === activeJourneyIndex ? activeKey : null,
+      activePhase,
+      activeSegmentIndex,
+    };
+
     return [journey.id, { vesselAbbrev, journeyStatus, timeline }] as [
       string,
       ScheduledTripCardDisplayState,
@@ -247,112 +250,4 @@ const groupJourneysByVessel = (
     {}
   );
   return new Map(Object.entries(grouped));
-};
-
-/**
- * Builds statusByKey when no active segment is known. Uses schedule bounds and
- * TripEnd to derive Completed vs Pending per segment.
- *
- * @param params.journey - The journey to compute
- * @param params.nowMs - Current time for fallback status
- * @param params.tripsByKey - Unified map of segment Key to VesselTrip
- * @returns Map of segment Key to TimelineSegmentStatus
- */
-const buildStatusByKeyWhenNoActiveSegment = (params: {
-  journey: ScheduledTripJourney;
-  nowMs: number;
-  tripsByKey: Map<string, VesselTrip>;
-}): Map<string, TimelineSegmentStatus> => {
-  const firstStartMs = params.journey.segments[0]?.DepartingTime.getTime() ?? 0;
-  const lastEndMs =
-    params.journey.segments
-      .map(
-        (s) =>
-          s.SchedArriveNext?.getTime() ??
-          s.ArrivingTime?.getTime() ??
-          s.NextDepartingTime?.getTime() ??
-          s.DepartingTime.getTime()
-      )
-      .reduce((max, v) => Math.max(max, v), 0) ?? 0;
-  const defaultStatus: TimelineSegmentStatus =
-    params.nowMs < firstStartMs
-      ? "Pending"
-      : params.nowMs > lastEndMs
-        ? "Completed"
-        : "Pending";
-  return new Map(
-    params.journey.segments.map((segment) => {
-      const actualTrip = params.tripsByKey.get(segment.Key);
-      const segmentStatus: TimelineSegmentStatus = actualTrip?.TripEnd
-        ? "Completed"
-        : defaultStatus;
-      return [segment.Key, segmentStatus] as const;
-    })
-  );
-};
-
-/**
- * Computes per-segment statuses and active phase for a single journey.
- *
- * @param journey - The journey to compute
- * @param journeyStatus - Page-level status for this journey (Completed/InProgress/Pending or undefined)
- * @param activeKey - Selected active segment key for this vessel
- * @param activeSegmentIndex - Pre-resolved segment index when this journey is active (null/undefined when not active)
- * @param vesselLocation - Resolved vessel location (synced or live)
- * @param nowMs - Current time for phase and fallback status
- * @param tripsByKey - Unified map of segment Key to VesselTrip
- * @returns Timeline state for the journey
- */
-const computeJourneyTimelineState = (
-  journey: ScheduledTripJourney,
-  journeyStatus: "Pending" | "InProgress" | "Completed" | undefined,
-  activeKey: string | null,
-  activeSegmentIndex: number | null | undefined,
-  vesselLocation: VesselLocation | undefined,
-  nowMs: number,
-  tripsByKey: Map<string, VesselTrip>
-): ScheduledTripTimelineState => {
-  // Non-active journey: all segments get the same status (Completed or Pending).
-  if (journeyStatus && journeyStatus !== "InProgress") {
-    const statusByKey = new Map(
-      journey.segments.map((s) => [s.Key, journeyStatus] as const)
-    );
-    return {
-      activeKey: null,
-      activePhase: "Unknown",
-      statusByKey,
-    };
-  }
-
-  // Active journey: use pre-resolved segment index from selector (index 0 is valid; null/undefined = none).
-  const hasActive = activeSegmentIndex != null;
-
-  const statusByKey = hasActive
-    ? (() => {
-        const segIdx = activeSegmentIndex as number;
-        return new Map(
-          journey.segments.map((segment, idx) => [
-            segment.Key,
-            (idx < segIdx
-              ? "Completed"
-              : idx === segIdx
-                ? "InProgress"
-                : "Pending") as TimelineSegmentStatus,
-          ])
-        );
-      })()
-    : buildStatusByKeyWhenNoActiveSegment({ journey, nowMs, tripsByKey });
-
-  const activePhase: TimelineActivePhase =
-    hasActive && vesselLocation
-      ? vesselLocation.AtDock
-        ? "AtDock"
-        : "AtSea"
-      : "Unknown";
-
-  return {
-    activeKey: hasActive ? activeKey : null,
-    activePhase,
-    statusByKey,
-  };
 };

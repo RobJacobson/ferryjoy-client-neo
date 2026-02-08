@@ -7,10 +7,9 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type {
   Segment,
   TimelineActivePhase,
-  TimelineSegmentStatus,
   TimePoint,
   TripSegment,
-} from "./types";
+} from "../../Timeline/types";
 
 /**
  * Synthesizes a list of raw segments into TripSegment View Models.
@@ -20,7 +19,8 @@ import type {
  * @param params.vesselLocation - Real-time vessel location
  * @param params.activeKey - The currently active segment key for the vessel
  * @param params.activePhase - The current phase (AtDock/AtSea) for the vessel
- * @param params.statusByKey - Map of segment Key to status (Completed/InProgress/Pending)
+ * @param params.activeSegmentIndex - The index of the active segment within this journey
+ * @param params.journeyStatus - The status of the entire journey (Completed/InProgress/Pending)
  * @returns Array of synthesized TripSegment objects
  */
 export const synthesizeTripSegments = (params: {
@@ -29,7 +29,8 @@ export const synthesizeTripSegments = (params: {
   vesselLocation: VesselLocation | undefined;
   activeKey: string | null;
   activePhase: TimelineActivePhase;
-  statusByKey: Map<string, TimelineSegmentStatus>;
+  activeSegmentIndex?: number;
+  journeyStatus?: "Pending" | "InProgress" | "Completed";
 }): TripSegment[] => {
   const {
     segments,
@@ -37,18 +38,46 @@ export const synthesizeTripSegments = (params: {
     vesselLocation,
     activeKey,
     activePhase,
-    statusByKey,
+    activeSegmentIndex,
+    journeyStatus,
   } = params;
 
-  return segments.map((segment, _index) => {
+  return segments.map((segment, index) => {
     const actualTrip = vesselTripMap.get(segment.Key);
-    const _prevActualTrip = segment.PrevKey
-      ? vesselTripMap.get(segment.PrevKey)
-      : undefined;
 
-    const legStatus = statusByKey.get(segment.Key) ?? "Pending";
     const isActive = activeKey === segment.Key;
     const isHeld = isActive && !!actualTrip?.TripEnd;
+
+    // Monotonic status logic:
+    // 1. If journey is Completed, all segments are past.
+    // 2. If journey is Pending, all segments are future.
+    // 3. If journey is InProgress:
+    //    - segments before activeSegmentIndex are past
+    //    - segment at activeSegmentIndex is ongoing
+    //    - segments after activeSegmentIndex are future
+    let status: "past" | "ongoing" | "future" = "future";
+    if (journeyStatus === "Completed") {
+      status = "past";
+    } else if (
+      journeyStatus === "InProgress" &&
+      activeSegmentIndex !== undefined
+    ) {
+      if (index < activeSegmentIndex) status = "past";
+      else if (index === activeSegmentIndex) status = "ongoing";
+      else status = "future";
+    }
+
+    // Phase logic:
+    // 1. If status is past, phase is completed.
+    // 2. If status is ongoing, phase is at-sea or at-dock based on activePhase.
+    // 3. If status is future, phase is pending.
+    // 4. Special case: isHeld means the segment is technically completed (at dock).
+    let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
+    if (status === "past" || isHeld) {
+      phase = "completed";
+    } else if (status === "ongoing") {
+      phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
+    }
 
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
@@ -81,19 +110,6 @@ export const synthesizeTripSegments = (params: {
             actualTrip?.AtDockArriveNext?.PredTime)
           : undefined,
     };
-
-    // Determine Status
-    let status: "past" | "ongoing" | "future" = "future";
-    if (legStatus === "Completed") status = "past";
-    else if (legStatus === "InProgress") status = "ongoing";
-
-    // Determine Phase
-    let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
-    if (legStatus === "Completed" || isHeld) {
-      phase = "completed";
-    } else if (isActive) {
-      phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
-    }
 
     return {
       id: segment.Key,
