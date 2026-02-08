@@ -3,10 +3,10 @@
  * Uses absolute positioning based on a pixels-per-hour constant.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { ScrollView, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Text } from "@/components/ui";
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import {
   TimelineIndicator,
   TimelineMarker,

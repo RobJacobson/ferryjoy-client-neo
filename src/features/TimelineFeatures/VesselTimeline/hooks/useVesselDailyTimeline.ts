@@ -3,12 +3,12 @@
  * and maps it to a vertical time-scaled timeline.
  */
 
-import { useQuery } from "convex/react";
-import { useMemo } from "react";
 import { api } from "convex/_generated/api";
 import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
 import { toDomainScheduledTrip } from "convex/functions/scheduledTrips/schemas";
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import { useQuery } from "convex/react";
+import { useMemo } from "react";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 // ============================================================================
