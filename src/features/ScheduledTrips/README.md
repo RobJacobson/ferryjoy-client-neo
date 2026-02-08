@@ -124,7 +124,7 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
     provisional (AtDock, next scheduled segment)
 
 - `utils/computePageDisplayState.ts`
-  - page-level display-state computation: `groupJourneysByVessel()` (reduce-based), then per vessel
+  - page-level display-state computation: groups journeys by vessel internally (Map-based), then per vessel
     `computeCardDisplayStateForVessel()` which uses `selectActiveSegmentKeyForVessel` and
     `computeJourneyTimelineState`
   - predictionTrip for first segment derived in timeline from prevActualTrip (vesselTripMap.get(segment.PrevKey))
