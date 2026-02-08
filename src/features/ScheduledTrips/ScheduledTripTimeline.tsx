@@ -145,7 +145,7 @@ export const ScheduledTripTimeline = ({
   if (segments.length === 0) return null;
 
   return (
-    <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
+    <View className="relative flex-row items-center w-full overflow-visible px-4 py-8">
       {segments.map((segment, index) => {
         const actualTrip = vesselTripMap.get(segment.Key);
         const prevActualTrip = vesselTripMap.get(segment.PrevKey ?? "");
@@ -172,6 +172,9 @@ export const ScheduledTripTimeline = ({
           vesselLocation,
           actualTrip
         );
+        // Layout uses scheduled arrival when no actual/prediction so bar width is proportional
+        const scheduledArrivalMs =
+          segment.SchedArriveNext?.getTime() ?? segment.ArrivingTime?.getTime();
 
         return (
           <React.Fragment key={segment.Key}>
@@ -233,7 +236,11 @@ export const ScheduledTripTimeline = ({
                 segment.DepartingTime.getTime()
               }
               endTimeMs={
-                actualTrip?.TripEnd?.getTime() ?? arrivalPrediction?.getTime()
+                actualTrip?.TripEnd?.getTime() ??
+                (legStatus === "Pending"
+                  ? scheduledArrivalMs
+                  : arrivalPrediction?.getTime()) ??
+                scheduledArrivalMs
               }
               status={flags.atSeaStatus}
               isArrived={flags.isHeld}
