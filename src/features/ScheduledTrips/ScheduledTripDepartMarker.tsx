@@ -46,13 +46,6 @@ export const ScheduledTripDepartMarker = ({
     prevActualTrip ?? predictionTrip
   );
 
-  const timeTwo = actualTrip
-    ? (actualTrip?.LeftDock ?? departurePrediction ?? segment.DepartingTime)
-    : departNextPrediction;
-  const timeTwoType = actualTrip?.LeftDock
-    ? ("actual" as const)
-    : ("estimated" as const);
-
   return (
     <TimelineMarker zIndex={10}>
       <TimelineMarkerContent>
@@ -64,9 +57,16 @@ export const ScheduledTripDepartMarker = ({
           type="scheduled"
           isBold
         />
-        {timeTwo != null && (
-          <TimelineMarkerTime time={timeTwo} type={timeTwoType} />
-        )}
+        <TimelineMarkerTime
+          time={
+            actualTrip
+              ? (actualTrip?.LeftDock ??
+                departurePrediction ??
+                segment.DepartingTime)
+              : departNextPrediction
+          }
+          type={actualTrip?.LeftDock ? "actual" : "estimated"}
+        />
       </TimelineMarkerContent>
     </TimelineMarker>
   );

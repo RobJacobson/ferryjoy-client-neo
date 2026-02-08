@@ -183,6 +183,10 @@ export const ScheduledTripTimeline = ({
                   actualTrip={actualTrip}
                   vesselLocation={vesselLocation}
                   predictionTrip={predictionTrip}
+                  isPrevSegmentActive={
+                    segment.PrevKey != null &&
+                    timeline.activeKey === segment.PrevKey
+                  }
                 />
 
                 <TimelineBarAtDock
@@ -257,6 +261,7 @@ export const ScheduledTripTimeline = ({
               segment={segment}
               actualTrip={actualTrip}
               vesselLocation={vesselLocation}
+              isActive={flags.isActive}
             />
 
             {flags.showNextDockBlock && (
