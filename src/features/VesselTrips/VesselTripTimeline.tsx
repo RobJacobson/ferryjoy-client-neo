@@ -15,10 +15,6 @@ import {
   TimelineMarkerlLabel,
 } from "../Timeline";
 import {
-  TIMELINE_CIRCLE_SIZE,
-  TIMELINE_MARKER_CLASS,
-} from "../Timeline/config";
-import {
   getBestArrivalTime,
   getBestDepartureTime,
   getPredictedArriveNextTime,
@@ -79,11 +75,7 @@ const VesselTripTimeline = ({
       )}
       style={{ minHeight: 80 }}
     >
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
+      <TimelineMarker zIndex={10}>
         {() => <ArriveCurrLabel trip={trip} />}
       </TimelineMarker>
 
@@ -97,11 +89,7 @@ const VesselTripTimeline = ({
         atDockAbbrev={vesselLocation.DepartingTerminalAbbrev}
       />
 
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
+      <TimelineMarker zIndex={10}>
         {() => (
           <DepartCurrLabel
             vesselLocation={vesselLocation}
@@ -124,11 +112,7 @@ const VesselTripTimeline = ({
         speed={vesselLocation?.Speed}
       />
 
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
+      <TimelineMarker zIndex={10}>
         {() => (
           <DestinationArriveLabel
             arrivalPrediction={arrivalPrediction}

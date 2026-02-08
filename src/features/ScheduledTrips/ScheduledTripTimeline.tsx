@@ -7,28 +7,17 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { View } from "react-native";
-import {
-  TimelineBarAtDock,
-  TimelineBarAtSea,
-  TimelineMarker,
-  TimelineMarkerlLabel,
-} from "../Timeline";
-import {
-  TIMELINE_CIRCLE_SIZE,
-  TIMELINE_MARKER_CLASS,
-} from "../Timeline/config";
+import { TimelineBarAtDock, TimelineBarAtSea } from "../Timeline";
 import type { TimelineBarStatus } from "../Timeline/TimelineBar";
 import type {
   Segment,
   TimelineActivePhase,
   TimelineSegmentStatus,
 } from "../Timeline/types";
-import {
-  getBestArrivalTime,
-  getBestDepartureTime,
-  getBestNextDepartureTime,
-  getPredictedArriveNextTime,
-} from "../Timeline/utils";
+import { getBestArrivalTime, getBestDepartureTime } from "../Timeline/utils";
+import { ScheduledTripArriveMarker } from "./ScheduledTripArriveMarker";
+import { ScheduledTripDepartMarker } from "./ScheduledTripDepartMarker";
+import { ScheduledTripNextMarker } from "./ScheduledTripNextMarker";
 import type { ScheduledTripTimelineState } from "./utils/computePageDisplayState";
 
 // ============================================================================
@@ -115,31 +104,8 @@ const computeSegmentDisplayFlags = (params: {
 };
 
 // ============================================================================
-// Marker primitive types (narrow per marker)
+// Timeline props
 // ============================================================================
-
-type OriginArriveMarkerPrimitives = {
-  segment: Segment;
-  actualTrip: VesselTrip | undefined;
-  vesselLocation: VesselLocation | null;
-  predictionTrip: VesselTrip | undefined;
-};
-
-type DepartMarkerPrimitives = {
-  segment: Segment;
-  actualTrip: VesselTrip | undefined;
-  vesselLocation: VesselLocation | null;
-  prevActualTrip: VesselTrip | undefined;
-  predictionTrip: VesselTrip | undefined;
-  nowMs: number;
-};
-
-type DestinationArriveMarkerPrimitives = {
-  segment: Segment;
-  actualTrip: VesselTrip | undefined;
-  vesselLocation: VesselLocation | null;
-  nowMs: number;
-};
 
 type ScheduledTripTimelineProps = {
   /**
@@ -155,9 +121,9 @@ type ScheduledTripTimelineProps = {
    */
   timeline: ScheduledTripTimelineState;
   /**
-   * Real-time vessel location when available; null for schedule-only rendering.
+   * Real-time vessel location when available; undefined for schedule-only rendering.
    */
-  vesselLocation: VesselLocation | null;
+  vesselLocation: VesselLocation | undefined;
 };
 
 /**
@@ -168,7 +134,7 @@ type ScheduledTripTimelineProps = {
  * @param segments - Segments for this journey
  * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
  * @param timeline - Timeline state for this journey
- * @param vesselLocation - Real-time vessel location, or null
+ * @param vesselLocation - Real-time vessel location, or undefined when unavailable
  * @returns View of horizontal timeline or null when no segments
  */
 export const ScheduledTripTimeline = ({
@@ -178,8 +144,6 @@ export const ScheduledTripTimeline = ({
   vesselLocation,
 }: ScheduledTripTimelineProps) => {
   if (segments.length === 0) return null;
-
-  const nowMs = vesselLocation?.TimeStamp?.getTime() ?? Date.now();
 
   return (
     <View className="relative flex-row items-center justify-between w-full overflow-visible px-4 py-8">
@@ -202,11 +166,11 @@ export const ScheduledTripTimeline = ({
         });
 
         const arrivalPrediction = getBestArrivalTime(
-          vesselLocation ?? undefined,
+          vesselLocation,
           actualTrip
         );
         const departurePrediction = getBestDepartureTime(
-          vesselLocation ?? undefined,
+          vesselLocation,
           actualTrip
         );
 
@@ -214,7 +178,7 @@ export const ScheduledTripTimeline = ({
           <React.Fragment key={segment.Key}>
             {flags.showOriginBlock && (
               <>
-                <OriginArriveMarker
+                <ScheduledTripArriveMarker
                   segment={segment}
                   actualTrip={actualTrip}
                   vesselLocation={vesselLocation}
@@ -251,13 +215,12 @@ export const ScheduledTripTimeline = ({
               </>
             )}
 
-            <DepartMarker
+            <ScheduledTripDepartMarker
               segment={segment}
               actualTrip={actualTrip}
               vesselLocation={vesselLocation}
               prevActualTrip={prevActualTrip}
               predictionTrip={predictionTrip}
-              nowMs={nowMs}
             />
 
             <TimelineBarAtSea
@@ -290,11 +253,10 @@ export const ScheduledTripTimeline = ({
               showIndicator={flags.showAtSeaMarker}
             />
 
-            <DestinationArriveMarker
+            <ScheduledTripNextMarker
               segment={segment}
               actualTrip={actualTrip}
               vesselLocation={vesselLocation}
-              nowMs={nowMs}
             />
 
             {flags.showNextDockBlock && (
@@ -326,163 +288,3 @@ export const ScheduledTripTimeline = ({
   );
 };
 
-// ============================================================================
-// Marker label components (ScheduledTrips-owned)
-// ============================================================================
-
-/**
- * Origin arrive marker: "Arrive/Arrived" + DepartingTerminalAbbrev.
- * Label and TimeTwo use real-time data only (actual arrival, else estimated).
- */
-const OriginArriveMarker = ({
-  segment,
-  actualTrip,
-  vesselLocation,
-  predictionTrip,
-}: OriginArriveMarkerPrimitives) => {
-  // predictionTrip is prevActualTrip when index === 0 (trip for segment.PrevKey).
-  const estimatedArrival =
-    !actualTrip && vesselLocation && !vesselLocation.AtDock && predictionTrip
-      ? getPredictedArriveNextTime(predictionTrip, vesselLocation)
-      : undefined;
-
-  return (
-    <TimelineMarker
-      size={TIMELINE_CIRCLE_SIZE}
-      className={TIMELINE_MARKER_CLASS}
-      zIndex={10}
-    >
-      {() => (
-        <TimelineMarkerlLabel
-          LabelText={`${actualTrip?.TripStart ? "Arrived" : "Arrive"} ${segment.DepartingTerminalAbbrev}`}
-          TimeOne={
-            segment.SchedArriveCurr !== undefined
-              ? {
-                  time: segment.SchedArriveCurr,
-                  type: "scheduled",
-                }
-              : null
-          }
-          TimeTwo={
-            actualTrip?.TripStart
-              ? { time: actualTrip.TripStart, type: "actual" }
-              : estimatedArrival != null
-                ? { time: estimatedArrival, type: "estimated" }
-                : null
-          }
-        />
-      )}
-    </TimelineMarker>
-  );
-};
-
-/**
- * Depart marker: "Depart/Left" + DepartingTerminalAbbrev.
- * Localized state: departInPast, departurePrediction, departNextPrediction.
- */
-const DepartMarker = ({
-  segment,
-  actualTrip,
-  vesselLocation,
-  prevActualTrip,
-  predictionTrip,
-  nowMs,
-}: DepartMarkerPrimitives) => {
-  const departInPast =
-    !!actualTrip?.LeftDock || segment.DepartingTime.getTime() < nowMs;
-  const departurePrediction = getBestDepartureTime(
-    vesselLocation ?? undefined,
-    actualTrip
-  );
-  const departNextPrediction = getBestNextDepartureTime(
-    prevActualTrip ?? predictionTrip
-  );
-  const isHistoricalMatch = actualTrip !== undefined;
-
-  return (
-    <TimelineMarker
-      size={TIMELINE_CIRCLE_SIZE}
-      className={TIMELINE_MARKER_CLASS}
-      zIndex={10}
-    >
-      {() => (
-        <TimelineMarkerlLabel
-          LabelText={`${departInPast ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
-          TimeOne={{ time: segment.DepartingTime, type: "scheduled" }}
-          TimeTwo={
-            isHistoricalMatch &&
-            (actualTrip?.LeftDock ?? departurePrediction) != null
-              ? {
-                  time:
-                    actualTrip?.LeftDock ??
-                    departurePrediction ??
-                    segment.DepartingTime,
-                  type: actualTrip?.LeftDock != null ? "actual" : "estimated",
-                }
-              : !isHistoricalMatch && departNextPrediction != null
-                ? {
-                    time: departNextPrediction,
-                    type: "estimated",
-                  }
-                : null
-          }
-        />
-      )}
-    </TimelineMarker>
-  );
-};
-
-/**
- * Destination arrive marker: "Arrive/Arrived" + ArrivingTerminalAbbrev.
- * Localized state: destArriveInPast, arrivalPrediction.
- */
-const DestinationArriveMarker = ({
-  segment,
-  actualTrip,
-  vesselLocation,
-  nowMs,
-}: DestinationArriveMarkerPrimitives) => {
-  const destArriveInPast =
-    !!actualTrip?.TripEnd ||
-    (segment.SchedArriveNext != null &&
-      segment.SchedArriveNext.getTime() < nowMs);
-  const arrivalPrediction = getBestArrivalTime(
-    vesselLocation ?? undefined,
-    actualTrip
-  );
-  const isHistoricalMatch = actualTrip !== undefined;
-
-  return (
-    <TimelineMarker
-      size={TIMELINE_CIRCLE_SIZE}
-      className={TIMELINE_MARKER_CLASS}
-      zIndex={10}
-    >
-      {() => (
-        <TimelineMarkerlLabel
-          LabelText={`${destArriveInPast ? "Arrived" : "Arrive"} ${segment.DisplayArrivingTerminalAbbrev ?? segment.ArrivingTerminalAbbrev}`}
-          TimeOne={
-            segment.SchedArriveNext !== undefined
-              ? {
-                  time: segment.SchedArriveNext,
-                  type: "scheduled",
-                }
-              : null
-          }
-          TimeTwo={
-            isHistoricalMatch &&
-            (actualTrip?.TripEnd ?? arrivalPrediction) != null
-              ? {
-                  time:
-                    actualTrip?.TripEnd ??
-                    arrivalPrediction ??
-                    segment.SchedArriveNext,
-                  type: actualTrip?.TripEnd != null ? "actual" : "estimated",
-                }
-              : null
-          }
-        />
-      )}
-    </TimelineMarker>
-  );
-};

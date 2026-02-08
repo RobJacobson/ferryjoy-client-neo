@@ -24,9 +24,9 @@ type ScheduledTripCardProps = {
    */
   displayState: ScheduledTripCardDisplayState;
   /**
-   * Real-time vessel location when available; null when overlay data is missing.
+   * Real-time vessel location when available; undefined when overlay data is missing.
    */
-  vesselLocation: VesselLocation | null;
+  vesselLocation: VesselLocation | undefined;
   /**
    * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
    */
@@ -39,7 +39,7 @@ type ScheduledTripCardProps = {
  *
  * @param trip - Journey data (id, vessel, route, segments) to display
  * @param displayState - Page-level display state for this journey
- * @param vesselLocation - Real-time vessel location when available; null for schedule-only
+ * @param vesselLocation - Real-time vessel location when available; undefined for schedule-only
  * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
  * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
  */

@@ -70,7 +70,7 @@ export const ScheduledTripList = ({
           .flatMap((trip) => {
             const displayState = displayStateByJourneyId.get(trip.id);
             const vesselLocation =
-              vesselLocationByAbbrev.get(trip.vesselAbbrev) ?? null;
+              vesselLocationByAbbrev.get(trip.vesselAbbrev);
             return displayState != null && trip.segments.length > 0
               ? [{ trip, displayState, vesselLocation, vesselTripMap }]
               : [];

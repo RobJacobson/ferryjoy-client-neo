@@ -8,7 +8,11 @@
 import type { ReactNode } from "react";
 import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
-import { shadowStyle } from "./config";
+import {
+  TIMELINE_CIRCLE_SIZE,
+  TIMELINE_MARKER_CLASS,
+  shadowStyle,
+} from "./config";
 
 type TimelineMarkerRenderProp = () => ReactNode;
 
@@ -48,18 +52,18 @@ type TimelineMarkerProps = {
  * bookends the TimelineBar without consuming space in a flex layout.
  *
  * @param children - Optional label content to display
- * @param className - Optional className for styling the marker circle
+ * @param className - Optional className for marker circle (defaults to TIMELINE_MARKER_CLASS from config)
  * @param zIndex - Optional z-index for stacking order
- * @param size - Size in pixels for the circle marker (default 20)
+ * @param size - Optional size in pixels for the circle (defaults to TIMELINE_CIRCLE_SIZE from config)
  * @param labelPosition - Position of the label relative to the marker
  * @param style - Additional inline styles
  * @returns A View component with a centered circle and positioned label
  */
 const TimelineMarker = ({
   children,
-  className,
+  className = TIMELINE_MARKER_CLASS,
   zIndex = 10,
-  size = 20,
+  size = TIMELINE_CIRCLE_SIZE,
   labelPosition = "bottom",
   style,
 }: TimelineMarkerProps) => {
@@ -88,7 +92,7 @@ const TimelineMarker = ({
       {/* The Circle: Automatically centered on the anchor. */}
       <View
         className={cn(
-          "absolute rounded-full items-center justify-center bg-white",
+          "absolute rounded-full items-center justify-center",
           className
         )}
         style={{
