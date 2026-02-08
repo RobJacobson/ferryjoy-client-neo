@@ -37,7 +37,7 @@ export const ScheduledTripList = ({
   const {
     status,
     journeys,
-    segmentTuplesByJourneyId,
+    vesselTripMap,
     displayStateByJourneyId,
     vesselLocationByAbbrev,
   } = useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
@@ -68,23 +68,20 @@ export const ScheduledTripList = ({
         </Text>
         {(journeys ?? [])
           .flatMap((trip) => {
-            const segmentTuples = segmentTuplesByJourneyId.get(trip.id);
             const displayState = displayStateByJourneyId.get(trip.id);
             const vesselLocation =
               vesselLocationByAbbrev.get(trip.vesselAbbrev) ?? null;
-            return segmentTuples != null &&
-              segmentTuples.length > 0 &&
-              displayState != null
-              ? [{ trip, segmentTuples, displayState, vesselLocation }]
+            return displayState != null && trip.segments.length > 0
+              ? [{ trip, displayState, vesselLocation, vesselTripMap }]
               : [];
           })
-          .map(({ trip, segmentTuples, displayState, vesselLocation }) => (
+          .map(({ trip, displayState, vesselLocation, vesselTripMap }) => (
             <ScheduledTripCard
               key={trip.id}
               trip={trip}
-              segmentTuples={segmentTuples}
               displayState={displayState}
               vesselLocation={vesselLocation}
+              vesselTripMap={vesselTripMap}
             />
           ))}
       </View>

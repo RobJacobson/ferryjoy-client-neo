@@ -6,13 +6,9 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { ScheduledTripJourney } from "../types";
-import type { ActiveConfidence } from "./computePageDisplayState";
 
-/** Result of active segment selection: key (or null) and confidence level. */
-export type ActiveSelection = {
-  activeKey: string | null;
-  activeConfidence: ActiveConfidence;
-};
+/** Selected active segment key, or null when none. */
+export type ActiveKey = string | null;
 
 /**
  * Finds an exact scheduled segment match by ScheduledDeparture time and terminals.
@@ -99,7 +95,7 @@ const findNextScheduledSegmentKey = (params: {
  * @param params.displayTrip - Held/active trip from hold-window logic
  * @param params.nowMs - Current time for provisional inference
  * @param params.provisionalDepartBufferMs - Buffer for provisional next-segment selection
- * @returns ActiveSelection with activeKey (or null) and activeConfidence
+ * @returns ActiveKey (segment key or null)
  */
 export const selectActiveSegmentKeyForVessel = (params: {
   terminalAbbrev: string;
@@ -108,7 +104,7 @@ export const selectActiveSegmentKeyForVessel = (params: {
   displayTrip: VesselTrip | undefined;
   nowMs: number;
   provisionalDepartBufferMs: number;
-}): ActiveSelection => {
+}): ActiveKey => {
   const {
     terminalAbbrev,
     journeys,
@@ -120,17 +116,17 @@ export const selectActiveSegmentKeyForVessel = (params: {
 
   const displayTripKey = displayTrip?.Key;
   if (displayTripKey) {
-    return { activeKey: displayTripKey, activeConfidence: "Exact" };
+    return displayTripKey;
   }
 
   if (!vesselLocation) {
-    return { activeKey: null, activeConfidence: "None" };
+    return null;
   }
 
   // Only attempt to select an active journey when the vessel is currently serving
   // this page's departing terminal.
   if (vesselLocation.DepartingTerminalAbbrev !== terminalAbbrev) {
-    return { activeKey: null, activeConfidence: "None" };
+    return null;
   }
 
   const scheduledDepartureMs = vesselLocation.ScheduledDeparture?.getTime();
@@ -144,14 +140,14 @@ export const selectActiveSegmentKeyForVessel = (params: {
       scheduledDepartureMs,
     });
 
-    if (exact) return { activeKey: exact, activeConfidence: "Exact" };
+    if (exact) return exact;
   }
 
   // Provisional selection: known latency window where the new trip has started in the
   // backend (DepartingTerminal switched), but ScheduledDeparture/ArrivingTerminal/Key
   // are not yet available. AtDock is required to avoid guessing while at sea.
   if (!vesselLocation.AtDock) {
-    return { activeKey: null, activeConfidence: "None" };
+    return null;
   }
 
   const provisional = findNextScheduledSegmentKey({
@@ -161,7 +157,5 @@ export const selectActiveSegmentKeyForVessel = (params: {
     bufferMs: provisionalDepartBufferMs,
   });
 
-  return provisional
-    ? { activeKey: provisional, activeConfidence: "Provisional" }
-    : { activeKey: null, activeConfidence: "None" };
+  return provisional ?? null;
 };

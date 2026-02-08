@@ -7,9 +7,10 @@
 import { api } from "convex/_generated/api";
 import { toDomainScheduledTrip } from "convex/functions/scheduledTrips/schemas";
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
-import type { ScheduledTripJourney, SegmentTuple } from "./types";
+import type { ScheduledTripJourney } from "./types";
 import { useScheduledTripsMaps } from "./useScheduledTripsMaps";
 import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
 import { reconstructJourneys } from "./utils/reconstructJourneys";
@@ -24,10 +25,9 @@ type UseScheduledTripsPageDataResult = {
   status: "loading" | "empty" | "ready";
   journeys: ScheduledTripJourney[] | undefined;
   /**
-   * Segment tuples grouped per journey. Each tuple contains the scheduled segment plus
-   * optional overlay trip matched by Key.
+   * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
    */
-  segmentTuplesByJourneyId: Map<string, SegmentTuple[]>;
+  vesselTripMap: Map<string, VesselTrip>;
   /**
    * Page-level display state per journey (one-active-per-vessel selection + statuses).
    */
@@ -41,12 +41,12 @@ type UseScheduledTripsPageDataResult = {
 
 /**
  * Fetches schedule first (primary), then overlay (completed/active). Runs pipeline to
- * produce segment tuples and card display state. Ready when schedule is loaded;
+ * produce vesselTripMap and card display state. Ready when schedule is loaded;
  * overlay is optional (basic schedule when missing).
  *
  * @param terminalAbbrev - Departure terminal to load schedule for (e.g. "P52")
  * @param destinationAbbrev - Optional destination terminal to filter trips
- * @returns Object with status ("loading" | "empty" | "ready"), journeys, tuples + display state
+ * @returns Object with status ("loading" | "empty" | "ready"), journeys, vesselTripMap + display state
  */
 export const useScheduledTripsPageData = ({
   terminalAbbrev,
@@ -80,7 +80,7 @@ export const useScheduledTripsPageData = ({
     journeys != null && journeys.length > 0
       ? runScheduledTripsPipeline(journeys, maps, terminalAbbrev)
       : {
-          segmentTuplesByJourneyId: new Map<string, SegmentTuple[]>(),
+          vesselTripMap: new Map<string, VesselTrip>(),
           displayStateByJourneyId: new Map<
             string,
             ScheduledTripCardDisplayState
@@ -98,7 +98,7 @@ export const useScheduledTripsPageData = ({
   return {
     status,
     journeys,
-    segmentTuplesByJourneyId: pipelineResult.segmentTuplesByJourneyId,
+    vesselTripMap: pipelineResult.vesselTripMap,
     displayStateByJourneyId: pipelineResult.displayStateByJourneyId,
     vesselLocationByAbbrev:
       maps?.vesselLocationByAbbrev ?? new Map<string, VesselLocation>(),

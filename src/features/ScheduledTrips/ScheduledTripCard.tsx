@@ -4,13 +4,14 @@
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
-import type { ScheduledTripJourney, Segment, SegmentTuple } from "./types";
+import type { ScheduledTripJourney, Segment } from "./types";
 import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
 
 type ScheduledTripCardProps = {
@@ -19,10 +20,6 @@ type ScheduledTripCardProps = {
    */
   trip: ScheduledTripJourney;
   /**
-   * Segment tuples (schedule + optional overlay trip) for this journey.
-   */
-  segmentTuples: SegmentTuple[];
-  /**
    * Page-level display state for this journey: active selection + segment statuses and prediction wiring.
    */
   displayState: ScheduledTripCardDisplayState;
@@ -30,23 +27,27 @@ type ScheduledTripCardProps = {
    * Real-time vessel location when available; null when overlay data is missing.
    */
   vesselLocation: VesselLocation | null;
+  /**
+   * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
+   */
+  vesselTripMap: Map<string, VesselTrip>;
 };
 
 /**
  * Displays a card with route information and a multi-segment timeline for a scheduled trip.
- * Route header shows terminals (depart → arrive) and vessel name; timeline uses legProps only.
+ * Route header shows terminals (depart → arrive) and vessel name; timeline uses segments + vesselTripMap.
  *
  * @param trip - Journey data (id, vessel, route, segments) to display
- * @param segmentTuples - Segment tuples for this journey, one per segment, required
  * @param displayState - Page-level display state for this journey
  * @param vesselLocation - Real-time vessel location when available; null for schedule-only
+ * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
  * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
  */
 export const ScheduledTripCard = ({
   trip,
-  segmentTuples,
   displayState,
   vesselLocation,
+  vesselTripMap,
 }: ScheduledTripCardProps) => (
   <TripCard
     cardClassName="pt-2 pb-10 overflow-visible"
@@ -58,8 +59,9 @@ export const ScheduledTripCard = ({
     }
   >
     <ScheduledTripTimeline
-      segmentTuples={segmentTuples}
-      displayState={displayState}
+      segments={trip.segments}
+      vesselTripMap={vesselTripMap}
+      timeline={displayState.timeline}
       vesselLocation={vesselLocation}
     />
   </TripCard>
