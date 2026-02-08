@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { Text } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
-import { VesselTripTimelineVertical } from "@/features/VesselTrips";
+import { VesselTimeline } from "@/features/TimelineFeatures/VesselTimeline";
 
 /**
  * ChatScreen serves as a placeholder to demonstrate the new VesselTripTimelineVertical.
@@ -27,7 +27,7 @@ export default function ChatScreen() {
       </View>
 
       {demoVessel ? (
-        <VesselTripTimelineVertical
+        <VesselTimeline
           vesselAbbrev={demoVessel.VesselAbbrev}
           vesselLocation={demoVessel}
           className="flex-1"

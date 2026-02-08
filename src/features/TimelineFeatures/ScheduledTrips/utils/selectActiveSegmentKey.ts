@@ -5,7 +5,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type { Segment } from "../../TimelineFeatures/Timeline/types";
+import type { Segment } from "../../Timeline/types";
 
 // ============================================================================
 // Types (internal)

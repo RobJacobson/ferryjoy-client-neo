@@ -6,7 +6,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { createVesselTripMap } from "../../TimelineFeatures/Timeline/utils";
+import { createVesselTripMap } from "../../Timeline/utils";
 
 /** Display data item shape from useDelayedVesselTrips (trip + synced location). */
 type DisplayDataItem = { trip: VesselTrip; vesselLocation: VesselLocation };

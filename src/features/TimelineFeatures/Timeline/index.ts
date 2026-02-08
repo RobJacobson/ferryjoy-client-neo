@@ -11,4 +11,5 @@ export { default as TimelineMarkerContent } from "./TimelineMarkerContent";
 export { default as TimelineMarkerLabel } from "./TimelineMarkerLabel";
 export type { TimelineTimeType } from "./TimelineMarkerTime";
 export { default as TimelineMarkerTime } from "./TimelineMarkerTime";
+export { TimelineSegment } from "./TimelineSegment";
 export * from "./types";

@@ -19,7 +19,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type {
   TimelineActivePhase,
   TimelineSegmentStatus,
-} from "../../TimelineFeatures/Timeline/types";
+} from "../../Timeline/types";
 import type { ScheduledTripJourney } from "../types";
 import { selectActiveSegmentKeyForVessel } from "./selectActiveSegmentKey";
 

@@ -90,7 +90,7 @@ const TimelineMarker = ({
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
           top: (timelineMarkerConfig.containerHeight - size) / 2,
-          left: "50%",
+          left: 0,
           marginLeft: -size / 2,
         }}
       />

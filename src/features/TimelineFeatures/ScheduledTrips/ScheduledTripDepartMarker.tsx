@@ -3,71 +3,42 @@
  * Shows scheduled departure and actual or estimated departure time.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import {
   TimelineMarker,
   TimelineMarkerContent,
   TimelineMarkerLabel,
   TimelineMarkerTime,
-} from "../TimelineFeatures/Timeline";
-import type { Segment } from "../TimelineFeatures/Timeline/types";
-import {
-  getBestDepartureTime,
-  getBestNextDepartureTime,
-} from "../TimelineFeatures/Timeline/utils";
+} from "../Timeline";
+import type { TimePoint } from "../Timeline/types";
 
 /**
  * Renders the depart marker for a segment (left/depart from terminal).
- * Uses actual LeftDock when available, else departure prediction or next prediction.
+ * Uses the clean TripSegment data structure.
  *
- * @param segment - Segment for this leg
- * @param actualTrip - VesselTrip overlay for this segment, if any
- * @param vesselLocation - Real-time vessel location, or undefined
- * @param prevActualTrip - Trip for previous segment (PrevKey), for next-depart prediction
- * @param predictionTrip - Fallback trip for next-depart prediction when no prev actual
+ * @param terminalAbbrev - Terminal abbreviation
+ * @param leaveTime - Time point for departure
+ * @param isLeft - Whether the vessel has already left
  * @returns TimelineMarker with "Depart/Left" label and times
  */
 export const ScheduledTripDepartMarker = ({
-  segment,
-  actualTrip,
-  vesselLocation,
-  prevActualTrip,
-  predictionTrip,
+  terminalAbbrev,
+  leaveTime,
+  isLeft,
 }: {
-  segment: Segment;
-  actualTrip: VesselTrip | undefined;
-  vesselLocation: VesselLocation | undefined;
-  prevActualTrip: VesselTrip | undefined;
-  predictionTrip: VesselTrip | undefined;
-}) => {
-  const departurePrediction = getBestDepartureTime(vesselLocation, actualTrip);
-  const departNextPrediction = getBestNextDepartureTime(
-    prevActualTrip ?? predictionTrip
-  );
-
-  return (
-    <TimelineMarker zIndex={10}>
-      <TimelineMarkerContent>
-        <TimelineMarkerLabel
-          text={`${actualTrip?.LeftDock ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
-        />
-        <TimelineMarkerTime
-          time={segment.DepartingTime}
-          type="scheduled"
-          isBold
-        />
-        <TimelineMarkerTime
-          time={
-            actualTrip
-              ? (actualTrip?.LeftDock ??
-                departurePrediction ??
-                segment.DepartingTime)
-              : departNextPrediction
-          }
-          type={actualTrip?.LeftDock ? "actual" : "estimated"}
-        />
-      </TimelineMarkerContent>
-    </TimelineMarker>
-  );
-};
+  terminalAbbrev: string;
+  leaveTime: TimePoint;
+  isLeft: boolean;
+}) => (
+  <TimelineMarker zIndex={10}>
+    <TimelineMarkerContent>
+      <TimelineMarkerLabel
+        text={`${isLeft ? "Left" : "Depart"} ${terminalAbbrev}`}
+      />
+      <TimelineMarkerTime time={leaveTime.scheduled} type="scheduled" isBold />
+      <TimelineMarkerTime
+        time={leaveTime.actual ?? leaveTime.estimated}
+        type={leaveTime.actual ? "actual" : "estimated"}
+      />
+    </TimelineMarkerContent>
+  </TimelineMarker>
+);

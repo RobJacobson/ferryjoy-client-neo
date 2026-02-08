@@ -5,11 +5,11 @@
 
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
-import { api } from "../../../../convex/_generated/api";
-import type { ScheduledTrip } from "../../../../convex/functions/scheduledTrips/schemas";
-import { toDomainScheduledTrip } from "../../../../convex/functions/scheduledTrips/schemas";
-import type { VesselLocation } from "../../../../convex/functions/vesselLocation/schemas";
-import { getSailingDay } from "../../../shared/utils/getSailingDay";
+import { api } from "convex/_generated/api";
+import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
+import { toDomainScheduledTrip } from "convex/functions/scheduledTrips/schemas";
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 // ============================================================================
 // Constants

@@ -3,303 +3,119 @@
  * ScheduledTrips owns composition (like VesselTrips) and uses only Timeline primitives.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { View } from "react-native";
 import {
   TimelineBarAtDock,
   TimelineBarAtSea,
-} from "../TimelineFeatures/Timeline";
-import type { TimelineBarStatus } from "../TimelineFeatures/Timeline/TimelineBar";
-import type {
-  Segment,
-  TimelineActivePhase,
-  TimelineSegmentStatus,
-} from "../TimelineFeatures/Timeline/types";
-import {
-  getBestArrivalTime,
-  getBestDepartureTime,
-} from "../TimelineFeatures/Timeline/utils";
+  TimelineSegment,
+} from "../Timeline";
+import type { TripSegment } from "../Timeline/types";
 import { ScheduledTripArriveMarker } from "./ScheduledTripArriveMarker";
 import { ScheduledTripDepartMarker } from "./ScheduledTripDepartMarker";
-import type { ScheduledTripTimelineState } from "./utils/computePageDisplayState";
-
-// ============================================================================
-// Segment display flags helper
-// ============================================================================
-
-type TimelineForFlags = {
-  activeKey: string | null;
-  activePhase: TimelineActivePhase;
-};
-
-/**
- * Computes display flags for a segment in the timeline.
- *
- * @param params.segment - The segment to compute flags for
- * @param params.index - Segment index in the journey
- * @param params.segmentCount - Total number of segments in the journey
- * @param params.legStatus - Segment status (Completed/InProgress/Pending)
- * @param params.timeline - Timeline state with activeKey and activePhase
- * @param params.actualTrip - VesselTrip overlay for this segment, if any
- * @returns Display flags for bars, markers, and block visibility
- */
-const computeSegmentDisplayFlags = (params: {
-  segment: Segment;
-  index: number;
-  segmentCount: number;
-  legStatus: TimelineSegmentStatus;
-  timeline: TimelineForFlags;
-  actualTrip: VesselTrip | undefined;
-}): {
-  isActive: boolean;
-  isHeld: boolean;
-  originDockStatus: TimelineBarStatus;
-  atSeaStatus: TimelineBarStatus;
-  showAtDockMarker: boolean;
-  showAtSeaMarker: boolean;
-  showOriginBlock: boolean;
-  showNextDockBlock: boolean;
-} => {
-  const { segment, index, segmentCount, legStatus, timeline, actualTrip } =
-    params;
-
-  const isActive =
-    timeline.activeKey != null && timeline.activeKey === segment.Key;
-  const isHeld = isActive && !!actualTrip?.TripEnd;
-
-  const originDockStatus: TimelineBarStatus =
-    legStatus === "Completed"
-      ? "Completed"
-      : isActive && timeline.activePhase === "AtDock" && !isHeld
-        ? "InProgress"
-        : isActive
-          ? "Completed"
-          : "Pending";
-
-  const atSeaStatus: TimelineBarStatus =
-    legStatus === "Completed"
-      ? "Completed"
-      : isHeld
-        ? "Completed"
-        : isActive && timeline.activePhase === "AtSea"
-          ? "InProgress"
-          : "Pending";
-
-  const showAtDockMarker =
-    isActive && timeline.activePhase === "AtDock" && !isHeld;
-  const showAtSeaMarker =
-    isActive && (timeline.activePhase === "AtSea" || isHeld);
-
-  const showOriginBlock = index === 0;
-  const showNextDockBlock =
-    index < segmentCount - 1 && segment.NextDepartingTime != null;
-
-  return {
-    isActive,
-    isHeld,
-    originDockStatus,
-    atSeaStatus,
-    showAtDockMarker,
-    showAtSeaMarker,
-    showOriginBlock,
-    showNextDockBlock,
-  };
-};
-
-// ============================================================================
-// Timeline props
-// ============================================================================
 
 type ScheduledTripTimelineProps = {
   /**
-   * Segments for this journey, in segment order. Overlay trips looked up via vesselTripMap + PrevKey/NextKey.
+   * Synthesized segments for this journey.
    */
-  segments: Segment[];
-  /**
-   * Map of segment Key to VesselTrip for O(1) lookup. PrevKey/NextKey used for prev/next trips.
-   */
-  vesselTripMap: Map<string, VesselTrip>;
-  /**
-   * Timeline state for this journey (activeKey, activePhase, statusByKey).
-   */
-  timeline: ScheduledTripTimelineState;
-  /**
-   * Real-time vessel location when available; undefined for schedule-only rendering.
-   */
-  vesselLocation: VesselLocation | undefined;
+  segments: TripSegment[];
 };
 
 /**
  * Displays a multi-segment timeline for scheduled ferry journeys, composing Timeline primitives
- * directly from segments and page-level display state (flat rendering, VesselTrips-style).
- * Uses vesselTripMap + PrevKey/NextKey for prev/next trip lookups.
+ * directly from synthesized TripSegment objects.
  *
- * @param segments - Segments for this journey
- * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
- * @param timeline - Timeline state for this journey
- * @param vesselLocation - Real-time vessel location, or undefined when unavailable
+ * @param segments - Synthesized segments for this journey
  * @returns View of horizontal timeline or null when no segments
  */
 export const ScheduledTripTimeline = ({
   segments,
-  vesselTripMap,
-  timeline,
-  vesselLocation,
 }: ScheduledTripTimelineProps) => {
   if (segments.length === 0) return null;
 
   return (
     <View className="relative flex-row items-center w-full overflow-visible px-4 py-8">
-      {segments.map((segment, index) => {
-        const actualTrip = vesselTripMap.get(segment.Key);
-        const prevActualTrip = vesselTripMap.get(segment.PrevKey ?? "");
-        const nextActualTrip = vesselTripMap.get(segment.NextKey ?? "");
-        const predictionTrip = index === 0 ? prevActualTrip : undefined;
-
-        const legStatus: TimelineSegmentStatus =
-          timeline.statusByKey.get(segment.Key) ?? "Pending";
-
-        const flags = computeSegmentDisplayFlags({
-          segment,
-          index,
-          segmentCount: segments.length,
-          legStatus,
-          timeline,
-          actualTrip,
-        });
-
-        const arrivalPrediction = getBestArrivalTime(
-          vesselLocation,
-          actualTrip
+      {segments.map((segment) => {
+        // Duration for layout (using scheduled times to keep bars consistent)
+        // Ensure a minimum duration of 1 minute for the dock segment to prevent marker overlap
+        const dockDuration = Math.max(
+          1,
+          (segment.leaveCurr.scheduled.getTime() -
+            segment.arriveCurr.scheduled.getTime()) /
+            60000
         );
-        const departurePrediction = getBestDepartureTime(
-          vesselLocation,
-          actualTrip
-        );
-        // Layout uses scheduled arrival when no actual/prediction so bar width is proportional
-        const scheduledArrivalMs =
-          segment.SchedArriveNext?.getTime() ?? segment.ArrivingTime?.getTime();
+        const seaDuration =
+          (segment.arriveNext.scheduled.getTime() -
+            segment.leaveCurr.scheduled.getTime()) /
+          60000;
 
         return (
-          <React.Fragment key={segment.Key}>
-            {flags.showOriginBlock && (
-              <>
-                <ScheduledTripArriveMarker
-                  variant="origin"
-                  segment={segment}
-                  actualTrip={actualTrip}
-                  vesselLocation={vesselLocation}
-                  predictionTrip={predictionTrip}
-                  isPrevSegmentActive={
-                    segment.PrevKey != null &&
-                    timeline.activeKey === segment.PrevKey
-                  }
-                />
+          <React.Fragment key={segment.id}>
+            <TimelineSegment duration={dockDuration}>
+              <ScheduledTripArriveMarker
+                terminalAbbrev={segment.currTerminal.abbrev}
+                arriveTime={segment.arriveCurr}
+                isArrived={!!segment.arriveCurr.actual}
+              />
 
-                <TimelineBarAtDock
-                  startTimeMs={
-                    actualTrip?.TripStart?.getTime() ??
-                    segment.SchedArriveCurr?.getTime()
-                  }
-                  endTimeMs={
-                    actualTrip?.LeftDock?.getTime() ??
-                    segment.DepartingTime.getTime()
-                  }
-                  status={flags.originDockStatus}
-                  isArrived={flags.originDockStatus === "Completed"}
-                  isHeld={false}
-                  predictionEndTimeMs={
-                    flags.isActive && timeline.activePhase === "AtDock"
-                      ? departurePrediction?.getTime()
-                      : undefined
-                  }
-                  vesselName={vesselLocation?.VesselName}
-                  atDockAbbrev={
-                    flags.isActive &&
-                    timeline.activePhase === "AtDock" &&
-                    !flags.isHeld
-                      ? segment.DepartingTerminalAbbrev
-                      : undefined
-                  }
-                  showIndicator={flags.showAtDockMarker}
-                />
-              </>
-            )}
-
-            <ScheduledTripDepartMarker
-              segment={segment}
-              actualTrip={actualTrip}
-              vesselLocation={vesselLocation}
-              prevActualTrip={prevActualTrip}
-              predictionTrip={predictionTrip}
-            />
-
-            <TimelineBarAtSea
-              startTimeMs={
-                actualTrip?.TripStart?.getTime() ??
-                segment.DepartingTime.getTime()
-              }
-              endTimeMs={
-                actualTrip?.TripEnd?.getTime() ??
-                (legStatus === "Pending"
-                  ? scheduledArrivalMs
-                  : arrivalPrediction?.getTime()) ??
-                scheduledArrivalMs
-              }
-              status={flags.atSeaStatus}
-              isArrived={flags.isHeld}
-              isHeld={flags.isHeld}
-              predictionEndTimeMs={
-                flags.isActive &&
-                timeline.activePhase === "AtSea" &&
-                arrivalPrediction != null
-                  ? arrivalPrediction.getTime()
-                  : undefined
-              }
-              departingDistance={vesselLocation?.DepartingDistance}
-              arrivingDistance={vesselLocation?.ArrivingDistance}
-              vesselName={vesselLocation?.VesselName}
-              animate={
-                flags.isActive &&
-                timeline.activePhase === "AtSea" &&
-                !flags.isHeld
-              }
-              speed={vesselLocation?.Speed}
-              showIndicator={flags.showAtSeaMarker}
-            />
-
-            <ScheduledTripArriveMarker
-              variant="destination"
-              segment={segment}
-              actualTrip={actualTrip}
-              vesselLocation={vesselLocation}
-              isActive={flags.isActive}
-            />
-
-            {flags.showNextDockBlock && (
               <TimelineBarAtDock
-                startTimeMs={
-                  nextActualTrip?.TripStart?.getTime() ??
-                  segment.NextDepartingTime?.getTime()
+                startTimeMs={segment.arriveCurr.scheduled.getTime()}
+                endTimeMs={segment.leaveCurr.scheduled.getTime()}
+                status={
+                  segment.phase === "at-dock"
+                    ? "InProgress"
+                    : segment.phase === "at-sea" ||
+                        segment.phase === "completed"
+                      ? "Completed"
+                      : "Pending"
                 }
-                endTimeMs={
-                  nextActualTrip?.TripEnd?.getTime() ??
-                  arrivalPrediction?.getTime()
+                isArrived={
+                  segment.phase === "at-sea" || segment.phase === "completed"
                 }
-                status={legStatus === "Completed" ? "Completed" : "Pending"}
-                isArrived={legStatus === "Completed"}
-                predictionEndTimeMs={
-                  flags.isActive &&
-                  timeline.activePhase === "AtDock" &&
-                  actualTrip?.AtDockDepartNext != null
-                    ? actualTrip.AtDockDepartNext.PredTime.getTime()
+                isHeld={segment.isHeld}
+                predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
+                vesselName={segment.vesselName}
+                atDockAbbrev={
+                  segment.phase === "at-dock"
+                    ? segment.currTerminal.abbrev
                     : undefined
                 }
-                vesselName={vesselLocation?.VesselName}
+                showIndicator={segment.phase === "at-dock"}
               />
-            )}
+            </TimelineSegment>
+
+            <TimelineSegment duration={seaDuration}>
+              <ScheduledTripDepartMarker
+                terminalAbbrev={segment.currTerminal.abbrev}
+                leaveTime={segment.leaveCurr}
+                isLeft={!!segment.leaveCurr.actual}
+              />
+
+              <TimelineBarAtSea
+                startTimeMs={segment.leaveCurr.scheduled.getTime()}
+                endTimeMs={segment.arriveNext.scheduled.getTime()}
+                status={
+                  segment.phase === "at-sea"
+                    ? "InProgress"
+                    : segment.phase === "completed"
+                      ? "Completed"
+                      : "Pending"
+                }
+                isArrived={segment.phase === "completed"}
+                isHeld={segment.isHeld}
+                predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
+                vesselName={segment.vesselName}
+                animate={segment.phase === "at-sea"}
+                speed={segment.speed}
+                showIndicator={segment.phase === "at-sea" || segment.isHeld}
+              />
+
+              <ScheduledTripArriveMarker
+                terminalAbbrev={segment.nextTerminal.abbrev}
+                arriveTime={segment.arriveNext}
+                isArrived={!!segment.arriveNext.actual}
+              />
+            </TimelineSegment>
           </React.Fragment>
         );
       })}
