@@ -4,9 +4,9 @@
  * Rendering uses segments + vesselTripMap with PrevKey/NextKey for prev/next trip lookups.
  */
 
-import type { Segment } from "../Timeline/types";
+import type { Segment } from "../TimelineFeatures/Timeline/types";
 
-export type { Segment } from "../Timeline/types";
+export type { Segment } from "../TimelineFeatures/Timeline/types";
 
 /** Journey shape for scheduled trips: list, resolver, and card all use this. */
 export type ScheduledTripJourney = {

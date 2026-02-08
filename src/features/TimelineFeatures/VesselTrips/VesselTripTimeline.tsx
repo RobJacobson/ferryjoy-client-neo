@@ -15,13 +15,13 @@ import {
   TimelineMarkerContent,
   TimelineMarkerLabel,
   TimelineMarkerTime,
-} from "../Timeline";
+} from "../TimelineFeatures/Timeline";
 import {
   getBestArrivalTime,
   getBestDepartureTime,
   getPredictedArriveNextTime,
   getPredictedDepartCurrTime,
-} from "../Timeline/utils";
+} from "../TimelineFeatures/Timeline/utils";
 
 // ============================================================================
 // Types

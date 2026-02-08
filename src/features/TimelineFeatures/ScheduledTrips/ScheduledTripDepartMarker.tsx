@@ -10,12 +10,12 @@ import {
   TimelineMarkerContent,
   TimelineMarkerLabel,
   TimelineMarkerTime,
-} from "../Timeline";
-import type { Segment } from "../Timeline/types";
+} from "../TimelineFeatures/Timeline";
+import type { Segment } from "../TimelineFeatures/Timeline/types";
 import {
   getBestDepartureTime,
   getBestNextDepartureTime,
-} from "../Timeline/utils";
+} from "../TimelineFeatures/Timeline/utils";
 
 /**
  * Renders the depart marker for a segment (left/depart from terminal).

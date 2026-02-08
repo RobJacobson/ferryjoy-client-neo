@@ -6,7 +6,8 @@
 import { ScrollView, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Text } from "@/components/ui";
-import type { VesselLocation } from "../../../convex/functions/vesselLocation/schemas";
+import type { VesselLocation } from "../../../../convex/functions/vesselLocation/schemas";
+import { useVesselDailyTimeline } from "../../VesselTrips/hooks/useVesselDailyTimeline";
 import {
   TimelineIndicator,
   TimelineMarker,
@@ -14,7 +15,6 @@ import {
   TimelineMarkerLabel,
   TimelineMarkerTime,
 } from "../Timeline";
-import { useVesselDailyTimeline } from "../VesselTrips/hooks/useVesselDailyTimeline";
 
 // ============================================================================
 // Types

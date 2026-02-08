@@ -7,14 +7,20 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { View } from "react-native";
-import { TimelineBarAtDock, TimelineBarAtSea } from "../Timeline";
-import type { TimelineBarStatus } from "../Timeline/TimelineBar";
+import {
+  TimelineBarAtDock,
+  TimelineBarAtSea,
+} from "../TimelineFeatures/Timeline";
+import type { TimelineBarStatus } from "../TimelineFeatures/Timeline/TimelineBar";
 import type {
   Segment,
   TimelineActivePhase,
   TimelineSegmentStatus,
-} from "../Timeline/types";
-import { getBestArrivalTime, getBestDepartureTime } from "../Timeline/utils";
+} from "../TimelineFeatures/Timeline/types";
+import {
+  getBestArrivalTime,
+  getBestDepartureTime,
+} from "../TimelineFeatures/Timeline/utils";
 import { ScheduledTripArriveMarker } from "./ScheduledTripArriveMarker";
 import { ScheduledTripDepartMarker } from "./ScheduledTripDepartMarker";
 import type { ScheduledTripTimelineState } from "./utils/computePageDisplayState";
