@@ -5,7 +5,12 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { TimelineMarker, TimelineMarkerlLabel } from "../Timeline";
+import {
+  TimelineMarker,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
+} from "../Timeline";
 import type { Segment } from "../Timeline/types";
 import { getBestArrivalTime } from "../Timeline/utils";
 
@@ -31,30 +36,22 @@ export const ScheduledTripNextMarker = ({
 
   return (
     <TimelineMarker zIndex={10}>
-      {() => (
-        <TimelineMarkerlLabel
-          LabelText={`${actualTrip?.TripEnd ? "Arrived" : "Arrive"} ${segment.DisplayArrivingTerminalAbbrev ?? segment.ArrivingTerminalAbbrev}`}
-          TimeOne={
-            segment.SchedArriveNext !== undefined
-              ? {
-                  time: segment.SchedArriveNext,
-                  type: "scheduled",
-                }
-              : null
-          }
-          TimeTwo={
-            (actualTrip?.TripEnd ?? arrivalPrediction) != null
-              ? {
-                  time:
-                    actualTrip?.TripEnd ??
-                    arrivalPrediction ??
-                    segment.SchedArriveNext,
-                  type: actualTrip?.TripEnd != null ? "actual" : "estimated",
-                }
-              : null
-          }
+      <TimelineMarkerContent>
+        <TimelineMarkerLabel
+          text={`${actualTrip?.TripEnd ? "Arrived" : "Arrive"} ${segment.DisplayArrivingTerminalAbbrev ?? segment.ArrivingTerminalAbbrev}`}
         />
-      )}
+        <TimelineMarkerTime
+          time={segment.SchedArriveNext}
+          type="scheduled"
+          isBold
+        />
+        <TimelineMarkerTime
+          time={
+            actualTrip?.TripEnd ?? arrivalPrediction ?? segment.SchedArriveNext
+          }
+          type={actualTrip?.TripEnd ? "actual" : "estimated"}
+        />
+      </TimelineMarkerContent>
     </TimelineMarker>
   );
 };

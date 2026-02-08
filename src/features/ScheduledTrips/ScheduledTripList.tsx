@@ -69,8 +69,9 @@ export const ScheduledTripList = ({
         {(journeys ?? [])
           .flatMap((trip) => {
             const displayState = displayStateByJourneyId.get(trip.id);
-            const vesselLocation =
-              vesselLocationByAbbrev.get(trip.vesselAbbrev);
+            const vesselLocation = vesselLocationByAbbrev.get(
+              trip.vesselAbbrev
+            );
             return displayState != null && trip.segments.length > 0
               ? [{ trip, displayState, vesselLocation, vesselTripMap }]
               : [];

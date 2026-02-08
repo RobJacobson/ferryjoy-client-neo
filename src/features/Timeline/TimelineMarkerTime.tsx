@@ -19,9 +19,9 @@ export type TimelineMarkerTimeProps = {
    */
   type?: TimelineTimeType;
   /**
-   * Boolean to apply bold styling to the time text.
+   * When true, applies bold styling (e.g. for the first/primary time row).
    */
-  bold?: boolean;
+  isBold?: boolean;
 };
 
 /**
@@ -30,10 +30,14 @@ export type TimelineMarkerTimeProps = {
  *
  * @param time - Optional Date object containing the time to display
  * @param type - The type of time being displayed ("actual", "estimated", or "scheduled")
- * @param bold - Optional boolean to apply bold styling to the time text (default false)
+ * @param isBold - Optional; when true applies bold styling (default false)
  * @returns A View component with the time and icon in a row, or null if time is not provided
  */
-const TimelineMarkerTime = ({ time, type, bold }: TimelineMarkerTimeProps) => {
+const TimelineMarkerTime = ({
+  time,
+  type,
+  isBold = false,
+}: TimelineMarkerTimeProps) => {
   if (!time) return null;
 
   const Icon =
@@ -51,10 +55,10 @@ const TimelineMarkerTime = ({ time, type, bold }: TimelineMarkerTimeProps) => {
       style={{ gap: type === "scheduled" ? 2 : 1 }}
     >
       {Icon && (
-        <Icon size={12} strokeWidth={1.5} color={bold ? "#000" : "#333"} />
+        <Icon size={12} strokeWidth={1.5} color={isBold ? "#000" : "#333"} />
       )}
       <Text
-        className={`text-[10px] ${bold ? "font-playwrite" : "font-playwrite-extralight"}`}
+        className={`text-[10px] ${isBold ? "font-playwrite" : "font-playwrite-extralight"}`}
       >
         {toDisplayTime(time)}
       </Text>

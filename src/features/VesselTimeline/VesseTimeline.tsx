@@ -10,12 +10,11 @@ import type { VesselLocation } from "../../../convex/functions/vesselLocation/sc
 import {
   TimelineIndicator,
   TimelineMarker,
-  TimelineMarkerlLabel,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
 } from "../Timeline";
-import {
-  PIXELS_PER_HOUR,
-  useVesselDailyTimeline,
-} from "../VesselTrips/hooks/useVesselDailyTimeline";
+import { useVesselDailyTimeline } from "../VesselTrips/hooks/useVesselDailyTimeline";
 
 // ============================================================================
 // Types
@@ -118,8 +117,8 @@ export const VesselTripTimelineVertical = ({
           return (
             <TimelineMarker
               key={event.id}
-              labelPosition={isArrival ? "left" : "right"}
-              className={
+              orientation="vertical"
+              circleClassName={
                 isCompleted
                   ? "bg-pink-100 border-pink-300"
                   : "bg-white border-muted"
@@ -127,16 +126,22 @@ export const VesselTripTimelineVertical = ({
               style={{ top: event.offsetY }}
               zIndex={10}
             >
-              {() => (
-                <TimelineMarkerlLabel
-                  LabelText={`${isArrival ? "Arrive" : "Depart"} ${event.terminal}`}
-                  TimeOne={{
-                    time: event.time,
-                    type: event.isActual ? "actual" : "scheduled",
-                  }}
-                  orientation="horizontal"
+              <TimelineMarkerContent
+                className={
+                  isArrival
+                    ? "flex-1 flex-row justify-end items-center pr-4"
+                    : "flex-1 flex-row justify-start items-center pl-4"
+                }
+              >
+                <TimelineMarkerLabel
+                  text={`${isArrival ? "Arrive" : "Depart"} ${event.terminal}`}
                 />
-              )}
+                <TimelineMarkerTime
+                  time={event.time}
+                  type={event.isActual ? "actual" : "scheduled"}
+                  isBold
+                />
+              </TimelineMarkerContent>
             </TimelineMarker>
           );
         })}

@@ -5,7 +5,12 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { TimelineMarker, TimelineMarkerlLabel } from "../Timeline";
+import {
+  TimelineMarker,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
+} from "../Timeline";
 import type { Segment } from "../Timeline/types";
 import {
   getBestDepartureTime,
@@ -40,27 +45,29 @@ export const ScheduledTripDepartMarker = ({
   const departNextPrediction = getBestNextDepartureTime(
     prevActualTrip ?? predictionTrip
   );
-  const isHistoricalMatch = actualTrip !== undefined;
+
+  const timeTwo = actualTrip
+    ? (actualTrip?.LeftDock ?? departurePrediction ?? segment.DepartingTime)
+    : departNextPrediction;
+  const timeTwoType = actualTrip?.LeftDock
+    ? ("actual" as const)
+    : ("estimated" as const);
 
   return (
     <TimelineMarker zIndex={10}>
-      {() => (
-        <TimelineMarkerlLabel
-          LabelText={`${actualTrip?.LeftDock ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
-          TimeOne={{ time: segment.DepartingTime, type: "scheduled" }}
-          TimeTwo={{
-            time: isHistoricalMatch
-              ? (actualTrip?.LeftDock ??
-                departurePrediction ??
-                segment.DepartingTime)
-              : departNextPrediction,
-            type:
-              actualTrip?.LeftDock != null
-                ? ("actual" as const)
-                : ("estimated" as const),
-          }}
+      <TimelineMarkerContent>
+        <TimelineMarkerLabel
+          text={`${actualTrip?.LeftDock ? "Left" : "Depart"} ${segment.DepartingTerminalAbbrev}`}
         />
-      )}
+        <TimelineMarkerTime
+          time={segment.DepartingTime}
+          type="scheduled"
+          isBold
+        />
+        {timeTwo != null && (
+          <TimelineMarkerTime time={timeTwo} type={timeTwoType} />
+        )}
+      </TimelineMarkerContent>
     </TimelineMarker>
   );
 };
