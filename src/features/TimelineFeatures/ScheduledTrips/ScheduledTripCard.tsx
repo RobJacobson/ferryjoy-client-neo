@@ -10,10 +10,10 @@ import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
-import { synthesizeTripSegments } from "../Timeline/synthesizeTripSegments";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
 import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
+import { synthesizeTripSegments } from "./utils/synthesizeTripSegments";
 
 type ScheduledTripCardProps = {
   /**
@@ -58,9 +58,16 @@ export const ScheduledTripCard = ({
         vesselLocation,
         activeKey: displayState.timeline.activeKey,
         activePhase: displayState.timeline.activePhase,
-        statusByKey: displayState.timeline.statusByKey as any,
+        activeSegmentIndex: displayState.timeline.activeSegmentIndex,
+        journeyStatus: displayState.journeyStatus,
       }),
-    [trip.segments, vesselTripMap, vesselLocation, displayState.timeline]
+    [
+      trip.segments,
+      vesselTripMap,
+      vesselLocation,
+      displayState.timeline,
+      displayState.journeyStatus,
+    ]
   );
 
   return (

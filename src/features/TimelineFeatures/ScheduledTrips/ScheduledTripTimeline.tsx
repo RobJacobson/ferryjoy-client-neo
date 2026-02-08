@@ -8,11 +8,17 @@ import { View } from "react-native";
 import {
   TimelineBarAtDock,
   TimelineBarAtSea,
+  TimelineMarker,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
   TimelineSegment,
 } from "../Timeline";
-import type { TripSegment } from "../Timeline/types";
-import { ScheduledTripArriveMarker } from "./ScheduledTripArriveMarker";
-import { ScheduledTripDepartMarker } from "./ScheduledTripDepartMarker";
+import type { TimePoint, TripSegment } from "../Timeline/types";
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 type ScheduledTripTimelineProps = {
   /**
@@ -122,3 +128,71 @@ export const ScheduledTripTimeline = ({
     </View>
   );
 };
+
+// ============================================================================
+// Internal Helper Components
+// ============================================================================
+
+/**
+ * Arrive marker for ScheduledTripTimeline: "Arrive/Arrived" + terminal.
+ * Handles both origin (arrive at segment start) and destination (arrive at segment end).
+ *
+ * @param terminalAbbrev - Terminal abbrev
+ * @param arriveTime - Time point for arrival
+ * @param isArrived - Whether the vessel has already arrived
+ * @returns TimelineMarker with "Arrive/Arrived" label and times
+ */
+const ScheduledTripArriveMarker = ({
+  terminalAbbrev,
+  arriveTime,
+  isArrived,
+}: {
+  terminalAbbrev: string;
+  arriveTime: TimePoint;
+  isArrived: boolean;
+}) => (
+  <TimelineMarker zIndex={10}>
+    <TimelineMarkerContent>
+      <TimelineMarkerLabel
+        text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
+      />
+      <TimelineMarkerTime time={arriveTime.scheduled} type="scheduled" isBold />
+      <TimelineMarkerTime
+        time={arriveTime.actual ?? arriveTime.estimated}
+        type={arriveTime.actual ? "actual" : "estimated"}
+      />
+    </TimelineMarkerContent>
+  </TimelineMarker>
+);
+
+/**
+ * Depart marker for ScheduledTripTimeline: "Depart/Left" + DepartingTerminalAbbrev.
+ * Shows scheduled departure and actual or estimated departure time.
+ *
+ * @param terminalAbbrev - Terminal abbreviation
+ * @param leaveTime - Time point for departure
+ * @param isLeft - Whether the vessel has already left
+ * @returns TimelineMarker with "Depart/Left" label and times
+ */
+const ScheduledTripDepartMarker = ({
+  terminalAbbrev,
+  leaveTime,
+  isLeft,
+}: {
+  terminalAbbrev: string;
+  leaveTime: TimePoint;
+  isLeft: boolean;
+}) => (
+  <TimelineMarker zIndex={10}>
+    <TimelineMarkerContent>
+      <TimelineMarkerLabel
+        text={`${isLeft ? "Left" : "Depart"} ${terminalAbbrev}`}
+      />
+      <TimelineMarkerTime time={leaveTime.scheduled} type="scheduled" isBold />
+      <TimelineMarkerTime
+        time={leaveTime.actual ?? leaveTime.estimated}
+        type={leaveTime.actual ? "actual" : "estimated"}
+      />
+    </TimelineMarkerContent>
+  </TimelineMarker>
+);
