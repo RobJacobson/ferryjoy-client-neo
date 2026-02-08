@@ -16,6 +16,10 @@ export type Segment = {
   SchedArriveCurr?: Date;
   NextDepartingTime?: Date;
   DirectKey?: string;
+  /** Previous segment Key in the linked-list chain; used for prev/next trip lookups. */
+  PrevKey?: string;
+  /** Next segment Key in the linked-list chain; used for prev/next trip lookups. */
+  NextKey?: string;
   Key: string;
   /** WSF operational day YYYY-MM-DD; used for completed trip lookups */
   SailingDay?: string;

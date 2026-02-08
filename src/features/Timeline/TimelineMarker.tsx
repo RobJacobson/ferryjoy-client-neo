@@ -1,27 +1,26 @@
 /**
- * TimelineMarker component for rendering absolutely positioned circle markers.
- * Used by TimelineBar to display visual markers at segment endpoints (0% and 100% positions).
- * The marker is vertically centered on the progress bar and horizontally positioned based on the left prop.
- * Supports custom styling, shadow effects, and optional centered children content.
+ * TimelineMarker provides the anchor, circle, and flex container for marker content.
+ * Used by TimelineBar and vertical timelines. Content positioning is handled by TimelineMarkerContent.
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
-import { shadowStyle } from "./config";
-
-type TimelineMarkerRenderProp = () => ReactNode;
+import { shadowStyle, timelineMarkerConfig } from "./config";
 
 type TimelineMarkerProps = {
   /**
-   * Optional children to render as the label below the marker.
-   * Can be a node or a function (render-prop).
+   * Optional children (e.g. TimelineMarkerContent wrapping label + times).
    */
-  children?: ReactNode | TimelineMarkerRenderProp;
+  children?: ReactNode;
   /**
-   * Optional className to theme the marker circle (e.g. background/border colors).
+   * Optional className for the outer container (flex anchor).
    */
   className?: string;
+  /**
+   * Optional className for the circle (defaults to timelineMarkerConfig.markerClass).
+   */
+  circleClassName?: string;
   /**
    * Optional z-index for stacking order.
    * On Android, this is also used as the `elevation` to ensure correct stacking.
@@ -31,74 +30,71 @@ type TimelineMarkerProps = {
    * Size in pixels for the circle marker.
    */
   size?: number;
+  /**
+   * Layout: horizontal (zero-width anchor, circle absolute) or vertical (full-width, circle in flow).
+   */
+  orientation?: "horizontal" | "vertical";
+  /**
+   * Additional inline styles for the container.
+   */
+  style?: ViewStyle;
 };
 
 /**
- * Renders a timeline node consisting of a circle marker and an optional label.
- * The component has zero width to ensure it bookends the TimelineBar without
- * consuming horizontal space in a flex layout. The label is positioned absolutely
- * below the marker.
+ * Renders a timeline node: anchor container, circle, and children (e.g. TimelineMarkerContent).
  *
- * @param children - Optional label content to display below the marker
- * @param className - Optional className for styling the marker circle
+ * @param children - Optional content (typically TimelineMarkerContent)
+ * @param className - Optional className for the container
+ * @param circleClassName - Optional className for the circle (defaults to timelineMarkerConfig.markerClass)
  * @param zIndex - Optional z-index for stacking order
- * @param size - Size in pixels for the circle marker (default 20)
- * @returns A View component with a centered circle and absolutely positioned label
+ * @param size - Optional size in pixels for the circle
+ * @param orientation - horizontal (default) or vertical
+ * @param style - Additional inline styles for the container
+ * @returns A View with circle and flex container for children
  */
 const TimelineMarker = ({
   children,
   className,
+  circleClassName = timelineMarkerConfig.markerClass,
   zIndex = 10,
-  size = 20,
+  size = timelineMarkerConfig.circleSize,
+  orientation = "horizontal",
+  style,
 }: TimelineMarkerProps) => {
-  const label =
-    typeof children === "function"
-      ? (children as TimelineMarkerRenderProp)()
-      : children;
+  const isVertical = orientation === "vertical";
 
   return (
     <View
       pointerEvents="none"
       collapsable={false}
-      className="items-center justify-center"
+      className={cn("items-center justify-center", className)}
       style={{
-        // The Anchor: Zero width ensures it doesn't shift other flex elements.
-        position: "relative",
-        width: 0,
-        height: 32, // Fixed height to match TimelineBar for consistent alignment
+        position: isVertical ? "absolute" : "relative",
+        width: isVertical ? "100%" : 0,
+        height: timelineMarkerConfig.containerHeight,
+        flexDirection: isVertical ? "row" : "column",
         zIndex,
         elevation: zIndex,
+        ...style,
       }}
     >
-      {/* The Circle: Automatically centered on the zero-width anchor. */}
+      {/* Circle: absolute and centered so it sits on the track in both orientations */}
       <View
         className={cn(
-          "absolute rounded-full items-center justify-center bg-white",
-          className
+          "absolute rounded-full items-center justify-center",
+          circleClassName
         )}
         style={{
           width: size,
           height: size,
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
-          top: (32 - size) / 2, // Center circle within 32px container
+          top: (timelineMarkerConfig.containerHeight - size) / 2,
+          left: "50%",
+          marginLeft: -size / 2,
         }}
       />
-
-      {/* The Label: Positioned below the marker. */}
-      {label && (
-        <View
-          className="absolute flex-col items-center justify-start mt-3"
-          style={{
-            top: (32 - size) / 2 + size, // Position below the centered circle
-            left: "50%",
-            transform: [{ translateX: "-50%" }],
-            width: 200, // Provide enough width for label content to center correctly
-          }}
-        >
-          {label}
-        </View>
-      )}
+      {children}
     </View>
   );
 };

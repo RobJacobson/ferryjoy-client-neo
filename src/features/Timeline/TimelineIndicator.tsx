@@ -14,6 +14,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { Text } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { lerp } from "@/shared/utils/lerp";
 import { shadowStyle } from "./config";
 
@@ -49,9 +50,14 @@ const SNAP_THRESHOLD = 0.01;
 
 type TimelineIndicatorProps = {
   /**
-   * Animated progress value (0-1) for horizontal positioning within the parent bar.
+   * Animated progress value (0-1) for positioning within the parent bar.
    */
   progress: SharedValue<number>;
+  /**
+   * Orientation of the timeline.
+   * Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
   /**
    * Whether to animate the indicator with a rocking motion.
    * Only used for at-sea segments.
@@ -78,7 +84,7 @@ type TimelineIndicatorProps = {
    */
   textStyle?: string;
   /**
-   * Labels to display above the indicator.
+   * Labels to display above (horizontal) or beside (vertical) the indicator.
    * Provided by parent component (business logic).
    */
   children?: ReactNode;
@@ -174,6 +180,7 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
  */
 const TimelineIndicator = ({
   progress,
+  orientation = "horizontal",
   animate = false,
   speed = 0,
   minutesRemaining = "--",
@@ -187,10 +194,16 @@ const TimelineIndicator = ({
     // Clamp progress to 0-1 to prevent indicator from jumping outside bounds
     // during fast transitions or hold window resets.
     const clampedProgress = Math.min(1, Math.max(0, progress.value));
-    return {
-      left: `${clampedProgress * 100}%`,
-    };
-  }, [progress]);
+    return orientation === "horizontal"
+      ? {
+          left: `${clampedProgress * 100}%`,
+        }
+      : {
+          top: `${clampedProgress * 100}%`,
+        };
+  }, [progress, orientation]);
+
+  const isVertical = orientation === "vertical";
 
   return (
     <Animated.View
@@ -199,7 +212,8 @@ const TimelineIndicator = ({
       collapsable={false}
       style={[
         {
-          top: "50%",
+          top: isVertical ? undefined : "50%",
+          left: isVertical ? "50%" : undefined,
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
           zIndex: INDICATOR_Z_INDEX_VALUE,
@@ -210,7 +224,7 @@ const TimelineIndicator = ({
         animatedPositionStyle,
       ]}
     >
-      {/* Labels above indicator - centered horizontally via items-center on parent.
+      {/* Labels above/beside indicator - centered horizontally/vertically via items-center on parent.
           minHeight prevents clipping: when the label sits outside the parent's 32px
           bounds, layout can measure it inconsistently (first paint vs after text
           measure), so we reserve space to avoid a collapsed wrapper. */}
@@ -218,11 +232,15 @@ const TimelineIndicator = ({
         <View
           pointerEvents="none"
           collapsable={false}
-          className="absolute items-center justify-end"
+          className={cn(
+            "absolute items-center",
+            isVertical ? "justify-center" : "justify-end"
+          )}
           style={{
-            bottom: INDICATOR_SIZE + 2,
+            bottom: isVertical ? undefined : INDICATOR_SIZE + 2,
+            left: isVertical ? INDICATOR_SIZE + 8 : undefined,
             width: 250, // Sufficient width to prevent wrapping
-            minHeight: 44, // Reserve space so content is never clipped (2 lines)
+            minHeight: isVertical ? undefined : 44, // Reserve space so content is never clipped (2 lines)
           }}
         >
           {children}

@@ -12,12 +12,10 @@ import {
   TimelineBarAtDock,
   TimelineBarAtSea,
   TimelineMarker,
-  TimelineMarkerlLabel,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
 } from "../Timeline";
-import {
-  TIMELINE_CIRCLE_SIZE,
-  TIMELINE_MARKER_CLASS,
-} from "../Timeline/config";
 import {
   getBestArrivalTime,
   getBestDepartureTime,
@@ -79,12 +77,25 @@ const VesselTripTimeline = ({
       )}
       style={{ minHeight: 80 }}
     >
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
-        {() => <ArriveCurrLabel trip={trip} />}
+      <TimelineMarker zIndex={10}>
+        <TimelineMarkerContent>
+          <TimelineMarkerLabel
+            text={`Arrived ${trip.DepartingTerminalAbbrev}`}
+          />
+          {(() => {
+            const showActual =
+              !!trip.TripStart &&
+              (!trip.SailingDay ||
+                getSailingDay(trip.TripStart) === trip.SailingDay);
+            return showActual && trip.TripStart ? (
+              <TimelineMarkerTime time={trip.TripStart} type="actual" isBold />
+            ) : null;
+          })()}
+          <TimelineMarkerTime
+            time={trip.ScheduledTrip?.SchedArriveCurr}
+            type="scheduled"
+          />
+        </TimelineMarkerContent>
       </TimelineMarker>
 
       <TimelineBarAtDock
@@ -97,18 +108,32 @@ const VesselTripTimeline = ({
         atDockAbbrev={vesselLocation.DepartingTerminalAbbrev}
       />
 
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
-        {() => (
-          <DepartCurrLabel
-            vesselLocation={vesselLocation}
-            departurePrediction={departurePrediction}
-            trip={trip}
+      <TimelineMarker zIndex={10}>
+        <TimelineMarkerContent>
+          <TimelineMarkerLabel
+            text={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
           />
-        )}
+          {(() => {
+            const primaryTime = vesselLocation?.AtDock
+              ? departurePrediction
+              : (trip.LeftDock ?? departurePrediction);
+            const primaryType =
+              vesselLocation?.AtDock || !trip.LeftDock ? "estimated" : "actual";
+            return primaryTime != null ? (
+              <TimelineMarkerTime
+                time={primaryTime}
+                type={primaryType}
+                isBold
+              />
+            ) : null;
+          })()}
+          {trip.ScheduledDeparture != null && (
+            <TimelineMarkerTime
+              time={trip.ScheduledDeparture}
+              type="scheduled"
+            />
+          )}
+        </TimelineMarkerContent>
       </TimelineMarker>
 
       <TimelineBarAtSea
@@ -124,92 +149,30 @@ const VesselTripTimeline = ({
         speed={vesselLocation?.Speed}
       />
 
-      <TimelineMarker
-        size={TIMELINE_CIRCLE_SIZE}
-        className={TIMELINE_MARKER_CLASS}
-        zIndex={10}
-      >
-        {() => (
-          <DestinationArriveLabel
-            arrivalPrediction={arrivalPrediction}
-            trip={trip}
+      <TimelineMarker zIndex={10}>
+        <TimelineMarkerContent>
+          <TimelineMarkerLabel
+            text={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
           />
-        )}
+          {!trip.TripEnd && arrivalPrediction != null ? (
+            <TimelineMarkerTime
+              time={arrivalPrediction}
+              type="estimated"
+              isBold
+            />
+          ) : trip.TripEnd != null ? (
+            <TimelineMarkerTime time={trip.TripEnd} type="actual" isBold />
+          ) : null}
+          {trip.ScheduledTrip?.SchedArriveNext != null && (
+            <TimelineMarkerTime
+              time={trip.ScheduledTrip.SchedArriveNext}
+              type="scheduled"
+            />
+          )}
+        </TimelineMarkerContent>
       </TimelineMarker>
     </View>
   );
 };
-
-// ============================================================================
-// Marker label components (VesselTrips-owned; customizable)
-// ============================================================================
-
-const ArriveCurrLabel = ({ trip }: { trip: VesselTrip }) => {
-  const showActual =
-    !!trip.TripStart &&
-    (!trip.SailingDay || getSailingDay(trip.TripStart) === trip.SailingDay);
-  return (
-    <TimelineMarkerlLabel
-      LabelText={`Arrived ${trip.DepartingTerminalAbbrev}`}
-      TimeOne={showActual ? { time: trip.TripStart, type: "actual" } : null}
-      TimeTwo={
-        trip.ScheduledTrip?.SchedArriveCurr
-          ? ({
-              time: trip.ScheduledTrip.SchedArriveCurr,
-              type: "scheduled",
-            })
-          : null
-      }
-    />
-  );
-};
-
-const DepartCurrLabel = ({
-  vesselLocation,
-  departurePrediction,
-  trip,
-}: {
-  vesselLocation: VesselLocation;
-  departurePrediction: Date | undefined;
-  trip: VesselTrip;
-}) => (
-  <TimelineMarkerlLabel
-    LabelText={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
-    TimeOne={
-      vesselLocation?.AtDock
-        ? ({ time: departurePrediction, type: "estimated" })
-        : ({
-            time: trip.LeftDock ?? departurePrediction,
-            type: trip.LeftDock ? "actual" : "estimated",
-          })
-    }
-    TimeTwo={{ time: trip.ScheduledDeparture, type: "scheduled" }}
-  />
-);
-
-const DestinationArriveLabel = ({
-  arrivalPrediction,
-  trip,
-}: {
-  arrivalPrediction: Date | undefined;
-  trip: VesselTrip;
-}) => (
-  <TimelineMarkerlLabel
-    LabelText={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-    TimeOne={
-      !trip.TripEnd
-        ? ({ time: arrivalPrediction, type: "estimated" })
-        : ({ time: trip.TripEnd, type: "actual" })
-    }
-    TimeTwo={
-      trip.ScheduledTrip?.SchedArriveNext
-        ? ({
-            time: trip.ScheduledTrip.SchedArriveNext,
-            type: "scheduled",
-          })
-        : null
-    }
-  />
-);
 
 export default VesselTripTimeline;

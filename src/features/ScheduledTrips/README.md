@@ -4,9 +4,10 @@ This feature renders **scheduled ferry journeys** (WSF schedule) as multi-leg ti
 optionally overlaying **actual / estimated** timing data from our real-time system.
 
 **Quick reference:** Entry point is `ScheduledTripList`; data comes from
-`useScheduledTripsPageData` → `runScheduledTripsPipeline`. Cards receive `trip` + **segment tuples**
-(`SegmentTuple[]` from pipeline Stage 1) plus per-journey **display state** (active selection + statuses).
-The timeline renders directly from tuples + display state (flat composition; no Stage 2 leg-props mapping).
+`useScheduledTripsPageData` → `runScheduledTripsPipeline`. Cards receive `trip` + **segments** +
+**vesselTripMap** plus per-journey **display state** (active selection + statuses). The timeline
+renders directly from segments + vesselTripMap + display state, using PrevKey/NextKey for prev/next
+trip lookups (flat composition; no pre-joined tuples).
 
 - [Data-flow pipeline](#data-flow-pipeline-schedule-primary)
 - [Data sources & loading](#big-picture)
@@ -37,19 +38,20 @@ The key engineering rule is also simple:
 
 ## Data-flow pipeline (schedule primary)
 
-Data is processed in two stages:
+Data is processed in two outputs:
 
-1. **Pipeline 1 (reduce/join)**  
-   Inputs: all scheduled trips (as journeys with segments), all completed trips, all active trips (plus hold-window display data).  
-   Operation: for each **scheduled** segment, attach optional overlay by Key (active wins over completed for same Key).  
-   Output: one **SegmentTuple** per segment: `{ segment, actualTrip?, journeyId, vesselAbbrev, segmentIndex }`.
+1. **vesselTripMap**  
+   Inputs: completed trips, active trips, hold-window display data (from `useScheduledTripsMaps`).  
+   Operation: unified map of segment Key → VesselTrip (completed → active → held precedence).  
+   Output: `vesselTripMap`. Rendering looks up overlay via `vesselTripMap.get(segment.Key)` and uses
+   `segment.PrevKey`/`segment.NextKey` for prev/next trip lookups.
 
 2. **Page display state (deterministic selection)**  
-   Input: journeys, vessel locations, and held/active display trips.  
+   Input: journeys, vessel locations, held/active display trips, vesselTripMap.  
    Operation: compute per-journey display state (one active per vessel, monotonic segment statuses, inbound-trip prediction wiring).  
-   Output: `displayStateByJourneyId` (`Map<journeyId, ScheduledTripCardDisplayState>`). Rendering consumes this map plus stage 1 tuples.
+   Output: `displayStateByJourneyId` (`Map<journeyId, ScheduledTripCardDisplayState>`). Rendering consumes this map plus segments + vesselTripMap.
 
-Schedule is **primary**: the page is **ready** when the schedule is loaded. Overlay (completed/active) is optional; when missing or still loading, the pipeline runs with empty overlay and the UI shows a **basic schedule** (scheduled times only).
+Schedule is **primary**: the page is **ready** when the schedule is loaded. Overlay (completed/active) is optional; when missing or still loading, the pipeline runs with empty vesselTripMap and the UI shows a **basic schedule** (scheduled times only).
 
 ---
 
@@ -86,9 +88,9 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 ## File map (where the logic lives)
 
 - `ScheduledTripList.tsx`
-  - calls `useScheduledTripsPageData()` for status, journeys, segment tuples, and display state
+  - calls `useScheduledTripsPageData()` for status, journeys, vesselTripMap, and display state
   - ready when schedule is loaded
-  - passes `segmentTuplesByJourneyId.get(trip.id)` + `displayStateByJourneyId.get(trip.id)` to each card
+  - passes `trip.segments` + `vesselTripMap` + `displayStateByJourneyId.get(trip.id)` + `vesselLocation` to each card
 
 - `useScheduledTripsMaps.ts`
   - builds `PageMaps` from completed trips, active trips, vessel locations, and hold-window display data
@@ -101,12 +103,11 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
   - derives unique departing terminal abbrevs from flat segments (for completed-trip lookups)
   - gets maps from `useScheduledTripsMaps` (may be null)
   - runs `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)` to produce
-    `segmentTuplesByJourneyId` + `displayStateByJourneyId`
+    `vesselTripMap` + `displayStateByJourneyId`
   - status **ready** when schedule is loaded (not when maps are ready)
 
 - `utils/scheduledTripsPipeline.ts`
-  - **Pipeline 1**: join schedule with overlay by Key → `SegmentTuple[]` per journey (`segmentTuplesByJourneyId`)
-  - **Display state**: `computeCardDisplayStateForPage` → `displayStateByJourneyId`
+  - **Pipeline**: `computeCardDisplayStateForPage` → `displayStateByJourneyId`; vesselTripMap from maps
   - **Runner**: `runScheduledTripsPipeline(journeys, maps, terminalAbbrev)`; when `maps` is null, uses empty maps → schedule-only render
 
 - `utils/buildPageDataMaps.ts`
@@ -123,10 +124,10 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
     provisional (AtDock, next scheduled segment)
 
 - `utils/computePageDisplayState.ts`
-  - page-level display-state computation: `groupJourneysByVessel()` (reduce-based), then per vessel
+  - page-level display-state computation: groups journeys by vessel internally (Map-based), then per vessel
     `computeCardDisplayStateForVessel()` which uses `selectActiveSegmentKeyForVessel` and
     `computeJourneyTimelineState`
-  - computes `inboundTripForFirstSegment` for next-trip predictions (strict `NextKey` matching)
+  - predictionTrip for first segment derived in timeline from prevActualTrip (vesselTripMap.get(segment.PrevKey))
   - returns `Map<journeyId, ScheduledTripCardDisplayState>`
   - Exports types: `ScheduledTripCardDisplayState`, `ScheduledTripTimelineState`, etc.
     `ScheduledTripJourney` is defined in `types.ts`; this module re-exports it.
@@ -138,12 +139,12 @@ For each scheduled `Segment`, the corresponding actual/predicted trip is:
 
 - `ScheduledTripCard.tsx`
   - Card wrapper: `ScheduledTripRouteHeader` (terminals, vessel name) +
-    `ScheduledTripTimeline`. Receives `trip`, segment tuples, display state, and vessel location; no
+    `ScheduledTripTimeline`. Receives `trip`, display state, vessel location, and vesselTripMap; no
     per-card data fetching.
 
 - `ScheduledTripTimeline.tsx`
-  - Flat composer: receives `SegmentTuple[]` + per-journey display state and renders
-    Timeline primitives directly using a “render if exists” pattern (schedule-only fallback).
+  - Flat composer: receives `segments` + `vesselTripMap` + per-journey display state and renders
+    Timeline primitives directly. Uses PrevKey/NextKey for prev/next trip lookups (schedule-only fallback when overlay missing).
 
 ---
 
@@ -159,6 +160,9 @@ Important `Segment` fields:
 - `Key` (string)
   - deterministic unique ID for this physical (direct) leg
   - primary join key into `vesselTripMap`
+- `PrevKey`, `NextKey` (optional)
+  - linked-list pointers to previous/next segment in the journey chain
+  - used for prev/next trip lookups: `vesselTripMap.get(segment.PrevKey)`, `vesselTripMap.get(segment.NextKey)`
 - `DepartingTerminalAbbrev`, `ArrivingTerminalAbbrev`
 - `DepartingTime` (Date)
 - `SchedArriveCurr`, `SchedArriveNext`, `NextDepartingTime`
@@ -207,7 +211,6 @@ The schedules page enforces **one active journey per vessel** via
 3. **Provisional next selection** (AtDock, missing ScheduledDeparture)
    - known backend latency window for the newly-started trip (key fields not yet present)
    - select the earliest scheduled segment departing this terminal at/after now
-   - mark confidence as `Provisional`
 
 ### Segment statuses
 
@@ -224,25 +227,17 @@ If we cannot safely identify an active segment for the journey:
 
 ---
 
-## “Next trip” predictions on future cards (strict `NextKey` matching)
+## “Next trip” predictions on future cards (PrevKey chain)
 
 For future segments, a VesselTrip record for `segment.Key` may not exist yet.
-However, the vessel’s current inbound trip often has predictions for what happens next:
+However, the vessel’s trip for the previous segment (by segment.PrevKey) often has predictions for what happens next:
 
 - `arrive-next` (estimated arrival to the next terminal)
 - `depart-next` (estimated next departure)
 
-These predictions are computed in `computePageDisplayState.ts`
-(`getInboundTripForFirstSegment`) using the scheduled chain pointer:
-
-- `displayTrip.ScheduledTrip.NextKey === firstSegment.Key`
-
-When that matches, the inbound trip is stored as `inboundTripForFirstSegment` in display
-state and passed down as `prevActualTrip` so the shared timeline utilities can surface
-origin-arrival and depart-next predictions for that future segment.
-
-This is strict key matching (not time-window inference) to prevent prediction leakage onto
-unrelated future cards.
+The timeline derives `predictionTrip` for the first segment (index === 0) as `prevActualTrip`, i.e.
+`vesselTripMap.get(segment.PrevKey)`—the trip for the inbound leg. The shared timeline utilities
+surface origin-arrival and depart-next predictions from that trip.
 
 ---
 

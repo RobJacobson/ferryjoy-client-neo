@@ -5,87 +5,31 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type { ScheduledTripJourney } from "../types";
-import type { ActiveConfidence } from "./computePageDisplayState";
+import type { Segment } from "../../Timeline/types";
 
-/** Result of active segment selection: key (or null) and confidence level. */
-export type ActiveSelection = {
-  activeKey: string | null;
-  activeConfidence: ActiveConfidence;
+// ============================================================================
+// Types (internal)
+// ============================================================================
+
+/** Result when an active segment is selected: key plus journey/segment indices. */
+type ActiveSegmentResult = {
+  activeKey: string;
+  activeJourneyIndex: number | null;
+  activeSegmentIndex: number | null;
 };
 
-/**
- * Finds an exact scheduled segment match by ScheduledDeparture time and terminals.
- *
- * @param params.journeys - All journeys for this vessel (sorted by departure)
- * @param params.terminalAbbrev - Page departure terminal
- * @param params.arrivingTerminalAbbrev - Optional; when at dock we match any arrival
- * @param params.scheduledDepartureMs - Scheduled departure time in ms
- * @returns The matching scheduled Segment Key, or undefined
- */
-const findExactScheduledSegmentKey = (params: {
-  journeys: ScheduledTripJourney[];
-  terminalAbbrev: string;
-  arrivingTerminalAbbrev: string | undefined;
-  scheduledDepartureMs: number;
-}): string | undefined => {
-  const {
-    journeys,
-    terminalAbbrev,
-    arrivingTerminalAbbrev,
-    scheduledDepartureMs,
-  } = params;
+type KeyToPosition = Map<
+  string,
+  { journeyIndex: number; segmentIndex: number }
+>;
 
-  // Flatten journeys and segments to find the exact match.
-  const match = journeys
-    .flatMap((j) => j.segments)
-    .find(
-      (segment) =>
-        segment.DepartingTerminalAbbrev === terminalAbbrev &&
-        (arrivingTerminalAbbrev == null ||
-          segment.ArrivingTerminalAbbrev === arrivingTerminalAbbrev) &&
-        segment.DepartingTime.getTime() === scheduledDepartureMs
-    );
-  return match?.Key;
-};
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
- * Finds the next scheduled segment departing from this terminal, using time ordering.
- *
- * This is used only during the post-arrival latency window when the new VesselTrip
- * identity isn't fully known yet.
- *
- * @param params.journeys - All journeys for this vessel
- * @param params.terminalAbbrev - Page departure terminal
- * @param params.nowMs - Current time for filtering past segments
- * @param params.bufferMs - Segments with departure before nowMs - bufferMs are excluded
- * @returns The Segment Key of the next scheduled segment, or undefined
- */
-const findNextScheduledSegmentKey = (params: {
-  journeys: ScheduledTripJourney[];
-  terminalAbbrev: string;
-  nowMs: number;
-  bufferMs: number;
-}): string | undefined => {
-  const { journeys, terminalAbbrev, nowMs, bufferMs } = params;
-
-  // Filter segments by terminal and time.
-  const cutoffMs = nowMs - bufferMs;
-  const candidates = journeys.flatMap((journey) =>
-    journey.segments.flatMap((segment) => {
-      if (segment.DepartingTerminalAbbrev !== terminalAbbrev) return [];
-      const departingTimeMs = segment.DepartingTime.getTime();
-      if (departingTimeMs < cutoffMs) return [];
-      return [{ key: segment.Key, departingTimeMs }];
-    })
-  );
-
-  candidates.sort((a, b) => a.departingTimeMs - b.departingTimeMs);
-  return candidates[0]?.key;
-};
-
-/**
- * Selects the active scheduled segment key for a vessel on this terminal page.
+ * Selects the active scheduled segment key for a vessel on this terminal page,
+ * and resolves its position in the vessel's sorted journeys.
  *
  * Selection priority:
  * 1. displayTrip.Key (held/current trip identity) when present
@@ -94,24 +38,27 @@ const findNextScheduledSegmentKey = (params: {
  *    segment departing from this page's terminal
  *
  * @param params.terminalAbbrev - Page departure terminal
- * @param params.journeys - All journeys for this vessel (sorted by departure)
+ * @param params.flatSegments - Flattened segments for this vessel's journeys (in order)
+ * @param params.keyToPosition - Map from segment Key to journey/segment indices for position lookup
  * @param params.vesselLocation - Resolved vessel location (synced or live)
  * @param params.displayTrip - Held/active trip from hold-window logic
  * @param params.nowMs - Current time for provisional inference
  * @param params.provisionalDepartBufferMs - Buffer for provisional next-segment selection
- * @returns ActiveSelection with activeKey (or null) and activeConfidence
+ * @returns ActiveSegmentResult when an active segment is selected, null otherwise
  */
 export const selectActiveSegmentKeyForVessel = (params: {
   terminalAbbrev: string;
-  journeys: ScheduledTripJourney[];
+  flatSegments: Segment[];
+  keyToPosition: KeyToPosition;
   vesselLocation: VesselLocation | undefined;
   displayTrip: VesselTrip | undefined;
   nowMs: number;
   provisionalDepartBufferMs: number;
-}): ActiveSelection => {
+}): ActiveSegmentResult | null => {
   const {
     terminalAbbrev,
-    journeys,
+    flatSegments,
+    keyToPosition,
     vesselLocation,
     displayTrip,
     nowMs,
@@ -120,23 +67,21 @@ export const selectActiveSegmentKeyForVessel = (params: {
 
   const displayTripKey = displayTrip?.Key;
   if (displayTripKey) {
-    return { activeKey: displayTripKey, activeConfidence: "Exact" };
+    const pos = keyToPosition.get(displayTripKey);
+    return {
+      activeKey: displayTripKey,
+      activeJourneyIndex: pos?.journeyIndex ?? null,
+      activeSegmentIndex: pos?.segmentIndex ?? null,
+    };
   }
 
-  if (!vesselLocation) {
-    return { activeKey: null, activeConfidence: "None" };
-  }
-
-  // Only attempt to select an active journey when the vessel is currently serving
-  // this page's departing terminal.
-  if (vesselLocation.DepartingTerminalAbbrev !== terminalAbbrev) {
-    return { activeKey: null, activeConfidence: "None" };
-  }
+  if (!vesselLocation) return null;
+  if (vesselLocation.DepartingTerminalAbbrev !== terminalAbbrev) return null;
 
   const scheduledDepartureMs = vesselLocation.ScheduledDeparture?.getTime();
   if (scheduledDepartureMs != null) {
     const exact = findExactScheduledSegmentKey({
-      journeys,
+      flatSegments,
       terminalAbbrev,
       arrivingTerminalAbbrev: vesselLocation.AtDock
         ? undefined
@@ -144,24 +89,102 @@ export const selectActiveSegmentKeyForVessel = (params: {
       scheduledDepartureMs,
     });
 
-    if (exact) return { activeKey: exact, activeConfidence: "Exact" };
+    if (exact) {
+      const pos = keyToPosition.get(exact);
+      return {
+        activeKey: exact,
+        activeJourneyIndex: pos?.journeyIndex ?? null,
+        activeSegmentIndex: pos?.segmentIndex ?? null,
+      };
+    }
   }
 
-  // Provisional selection: known latency window where the new trip has started in the
-  // backend (DepartingTerminal switched), but ScheduledDeparture/ArrivingTerminal/Key
-  // are not yet available. AtDock is required to avoid guessing while at sea.
-  if (!vesselLocation.AtDock) {
-    return { activeKey: null, activeConfidence: "None" };
-  }
+  if (!vesselLocation.AtDock) return null;
 
   const provisional = findNextScheduledSegmentKey({
-    journeys,
+    flatSegments,
     terminalAbbrev,
     nowMs,
     bufferMs: provisionalDepartBufferMs,
   });
 
-  return provisional
-    ? { activeKey: provisional, activeConfidence: "Provisional" }
-    : { activeKey: null, activeConfidence: "None" };
+  if (provisional == null) return null;
+
+  const pos = keyToPosition.get(provisional);
+  return {
+    activeKey: provisional,
+    activeJourneyIndex: pos?.journeyIndex ?? null,
+    activeSegmentIndex: pos?.segmentIndex ?? null,
+  };
+};
+
+// ============================================================================
+// Internal helpers
+// ============================================================================
+
+/**
+ * Finds an exact scheduled segment match by ScheduledDeparture time and terminals.
+ *
+ * @param params.flatSegments - Flattened segments for the vessel's journeys (in order)
+ * @param params.terminalAbbrev - Page departure terminal
+ * @param params.arrivingTerminalAbbrev - Optional; when at dock we match any arrival
+ * @param params.scheduledDepartureMs - Scheduled departure time in ms
+ * @returns The matching segment Key, or undefined
+ */
+const findExactScheduledSegmentKey = (params: {
+  flatSegments: Segment[];
+  terminalAbbrev: string;
+  arrivingTerminalAbbrev: string | undefined;
+  scheduledDepartureMs: number;
+}): string | undefined => {
+  const {
+    flatSegments,
+    terminalAbbrev,
+    arrivingTerminalAbbrev,
+    scheduledDepartureMs,
+  } = params;
+
+  const match = flatSegments.find(
+    (segment) =>
+      segment.DepartingTerminalAbbrev === terminalAbbrev &&
+      (arrivingTerminalAbbrev == null ||
+        segment.ArrivingTerminalAbbrev === arrivingTerminalAbbrev) &&
+      segment.DepartingTime.getTime() === scheduledDepartureMs
+  );
+  return match?.Key;
+};
+
+/**
+ * Finds the next scheduled segment departing from this terminal, using time ordering.
+ * Used only during the post-arrival latency window when the new VesselTrip identity
+ * isn't fully known yet.
+ *
+ * @param params.flatSegments - Flattened segments for the vessel's journeys (in order)
+ * @param params.terminalAbbrev - Page departure terminal
+ * @param params.nowMs - Current time for filtering past segments
+ * @param params.bufferMs - Segments with departure before nowMs - bufferMs are excluded
+ * @returns The Segment Key of the next scheduled segment, or undefined
+ */
+const findNextScheduledSegmentKey = (params: {
+  flatSegments: Segment[];
+  terminalAbbrev: string;
+  nowMs: number;
+  bufferMs: number;
+}): string | undefined => {
+  const { flatSegments, terminalAbbrev, nowMs, bufferMs } = params;
+
+  const cutoffMs = nowMs - bufferMs;
+  const candidates = flatSegments
+    .filter((segment) => {
+      if (segment.DepartingTerminalAbbrev !== terminalAbbrev) return false;
+      const departingTimeMs = segment.DepartingTime.getTime();
+      return departingTimeMs >= cutoffMs;
+    })
+    .map((segment) => ({
+      key: segment.Key,
+      departingTimeMs: segment.DepartingTime.getTime(),
+    }));
+
+  candidates.sort((a, b) => a.departingTimeMs - b.departingTimeMs);
+  return candidates[0]?.key;
 };

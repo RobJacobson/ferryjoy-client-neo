@@ -38,18 +38,19 @@ export const getPredictedDepartCurrTime = (
 
 /**
  * Gets arrival time for the next segment of the trip using predicted arrival time.
+ * Returns undefined when trip or vesselLocation is missing.
  *
- * @param trip - The vessel trip object
- * @param vesselLocation - VesselLocation with Eta
- * @returns Arrival time Date, or undefined if none available
+ * @param trip - The vessel trip object (optional)
+ * @param vesselLocation - VesselLocation with Eta (optional)
+ * @returns Arrival time Date, or undefined if none available or inputs missing
  */
 export const getPredictedArriveNextTime = (
-  trip: VesselTrip,
-  vesselLocation: VesselLocation
+  trip: VesselTrip | undefined,
+  vesselLocation: VesselLocation | undefined
 ): Date | undefined =>
-  vesselLocation.Eta ??
-  trip.AtSeaArriveNext?.PredTime ??
-  trip.AtDockArriveNext?.PredTime;
+  vesselLocation?.Eta ??
+  trip?.AtSeaArriveNext?.PredTime ??
+  trip?.AtDockArriveNext?.PredTime;
 
 /**
  * Gets the best available departure time for a trip.

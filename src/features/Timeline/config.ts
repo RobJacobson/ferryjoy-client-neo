@@ -4,11 +4,17 @@
  * These values ensure consistent visual hierarchy and cross-platform compatibility (iOS/Android/Web).
  */
 
-/** Size in pixels for timeline circle markers. */
-export const TIMELINE_CIRCLE_SIZE = 20;
-
-/** Tailwind classes for timeline marker circle (background + border). */
-export const TIMELINE_MARKER_CLASS = "bg-white border border-pink-500";
+/** Timeline marker layout and styling (circle size, container height, content width, default circle class). */
+export const timelineMarkerConfig = {
+  /** Size in pixels for timeline circle markers. */
+  circleSize: 20,
+  /** Height in pixels of the timeline marker container (anchor + circle row). */
+  containerHeight: 32,
+  /** Width in pixels reserved for marker label/time content. */
+  contentWidth: 200,
+  /** Tailwind classes for timeline marker circle (background + border). */
+  markerClass: "bg-white border border-pink-500",
+} as const;
 
 /**
  * Shadow style configuration for circles and progress bars.
