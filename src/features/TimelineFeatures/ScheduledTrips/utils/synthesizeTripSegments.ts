@@ -72,9 +72,18 @@ export const synthesizeTripSegments = (params: {
     // 2. If status is ongoing, phase is at-sea or at-dock based on activePhase.
     // 3. If status is future, phase is pending.
     // 4. Special case: isHeld means the segment is technically completed (at dock).
+    // 5. Fallback: when journeyStatus is undefined (vessel moved to different terminal,
+    //    e.g. ANA page but vessel at ORI), use overlay data: actualTrip.TripEnd proves
+    //    the segment completed. Show pink bar from completed-trips overlay.
     let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
-    if (status === "past" || isHeld) {
+    const hasCompletedOverlay = !!actualTrip?.TripEnd;
+    if (
+      status === "past" ||
+      isHeld ||
+      (journeyStatus === undefined && hasCompletedOverlay)
+    ) {
       phase = "completed";
+      if (journeyStatus === undefined && hasCompletedOverlay) status = "past";
     } else if (status === "ongoing") {
       phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
     }
