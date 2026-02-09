@@ -7,7 +7,6 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
-import { timelineMarkerConfig } from "./config";
 
 type TimelineMarkerContentProps = {
   /**
@@ -20,9 +19,6 @@ type TimelineMarkerContentProps = {
   className?: string;
 };
 
-const slotHeight = timelineMarkerConfig.containerHeight;
-const contentWidth = timelineMarkerConfig.contentWidth;
-
 /**
  * Wraps marker label and times in a content slot (fixed width, centered). Default is centered on the
  * circle; use className to position (e.g. mt-4 for below, ml-8/mr-8 for vertical).
@@ -34,17 +30,14 @@ const TimelineMarkerContent = ({
   return (
     <View
       pointerEvents="box-none"
-      className="items-center justify-center"
+      className={cn("items-center justify-center", className)}
       style={{
-        position: "absolute",
-        left: -contentWidth / 2,
-        width: contentWidth,
-        top: 0,
-        height: slotHeight,
+        width: 500,
+        height: 200,
         overflow: "visible",
       }}
     >
-      <View className={cn("flex-col items-center", className)}>{children}</View>
+      {children}
     </View>
   );
 };

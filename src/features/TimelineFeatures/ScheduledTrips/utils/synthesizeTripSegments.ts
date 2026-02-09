@@ -102,11 +102,12 @@ export const synthesizeTripSegments = (params: {
     };
 
     // 2. LeaveCurr TimePoint (Departure from origin terminal)
+    // Show depart estimate when at dock and we have a prediction, even if segment is held.
     const leaveCurr: TimePoint = {
       scheduled: segment.DepartingTime,
       actual: actualTrip?.LeftDock ?? undefined,
       estimated:
-        isActive && activePhase === "AtDock" && !isHeld
+        isActive && activePhase === "AtDock"
           ? actualTrip?.AtDockDepartCurr?.PredTime
           : undefined,
     };

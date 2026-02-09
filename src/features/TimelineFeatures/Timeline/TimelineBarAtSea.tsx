@@ -84,11 +84,11 @@ const TimelineBarAtSea = ({
   });
 
   // Position indicator: end of segment when arrived, or when held after completion.
-  // When held but still in progress (vessel at sea), use time/distance progress so indicator is along the bar.
+  // When held at origin (at-dock), status is Pending — do not set progress = 1 (would show bar as green).
   let progress = timeProgress;
   if (isArrived) {
     progress = 1;
-  } else if (isHeld && status !== "InProgress") {
+  } else if (isHeld && status === "Completed") {
     progress = 1;
   } else if (
     status === "InProgress" &&

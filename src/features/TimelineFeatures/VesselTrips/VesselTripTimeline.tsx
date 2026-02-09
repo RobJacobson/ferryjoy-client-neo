@@ -78,7 +78,7 @@ const VesselTripTimeline = ({
       style={{ minHeight: 80 }}
     >
       <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-14">
+        <TimelineMarkerContent className="mt-[82px]">
           <TimelineMarkerLabel
             text={`Arrived ${trip.DepartingTerminalAbbrev}`}
           />
@@ -109,7 +109,7 @@ const VesselTripTimeline = ({
       />
 
       <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-14">
+        <TimelineMarkerContent className="mt-[82px]">
           <TimelineMarkerLabel
             text={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
           />
@@ -150,7 +150,7 @@ const VesselTripTimeline = ({
       />
 
       <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-14">
+        <TimelineMarkerContent className="mt-[82px]">
           <TimelineMarkerLabel
             text={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
           />

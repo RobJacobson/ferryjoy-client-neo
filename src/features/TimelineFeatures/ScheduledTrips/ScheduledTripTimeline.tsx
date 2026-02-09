@@ -137,9 +137,8 @@ export const ScheduledTripTimeline = ({
                       : "Pending"
                 }
                 isArrived={
-                  // Never show "Arrived" while this segment is the active at-sea leg (vessel en route).
-                  segment.phase !== "at-sea" &&
-                  (!!segment.arriveNext.actual || segment.isHeld)
+                  // Only show "Arrived" when we have actual arrival at destination, not when held at origin.
+                  segment.phase !== "at-sea" && !!segment.arriveNext.actual
                 }
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
@@ -148,7 +147,10 @@ export const ScheduledTripTimeline = ({
                 speed={segment.speed}
                 departingDistance={segment.departingDistance}
                 arrivingDistance={segment.arrivingDistance}
-                showIndicator={segment.phase === "at-sea" || segment.isHeld}
+                showIndicator={
+                  segment.phase === "at-sea" ||
+                  (segment.isHeld && segment.phase === "completed")
+                }
               />
 
               <ScheduledTripArriveMarker
@@ -187,7 +189,7 @@ const ScheduledTripArriveMarker = ({
   isArrived: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-14">
+    <TimelineMarkerContent className="mt-[82px]">
       <TimelineMarkerLabel
         text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
       />
@@ -219,7 +221,7 @@ const ScheduledTripDepartMarker = ({
   isLeft: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-14">
+    <TimelineMarkerContent className="mt-[82px]">
       <TimelineMarkerLabel
         text={`${isLeft ? "Left" : "Depart"} ${terminalAbbrev}`}
       />

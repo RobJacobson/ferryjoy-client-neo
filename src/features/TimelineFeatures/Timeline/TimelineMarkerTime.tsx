@@ -38,7 +38,12 @@ const TimelineMarkerTime = ({
   type,
   isBold = false,
 }: TimelineMarkerTimeProps) => {
-  if (!time) return null;
+  if (!time)
+    return (
+      <View>
+        <Text> </Text>
+      </View>
+    );
 
   const Icon =
     type === "actual"
