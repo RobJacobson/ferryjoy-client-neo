@@ -42,6 +42,8 @@ export const TimelineSegment = ({
         flexGrow: Math.max(1, duration),
         minWidth: "22%",
         height: 32,
+        flexDirection: "row",
+        alignItems: "center",
       },
       style,
     ]}

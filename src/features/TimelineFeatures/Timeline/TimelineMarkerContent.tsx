@@ -41,14 +41,14 @@ const TimelineMarkerContent = ({
     <View
       className={cn(
         "flex-col items-center justify-start",
-        isHorizontal && "absolute mt-3",
+        isHorizontal && "absolute",
         className
       )}
       style={
         isHorizontal
           ? {
               top: defaultContentTop,
-              left: "50%",
+              left: 0,
               marginLeft: -timelineMarkerConfig.contentWidth / 2,
               width: timelineMarkerConfig.contentWidth,
             }

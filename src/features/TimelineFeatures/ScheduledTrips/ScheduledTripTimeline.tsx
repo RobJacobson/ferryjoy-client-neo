@@ -1,0 +1,198 @@
+/**
+ * ScheduledTripTimeline renders a sequence of scheduled trip segments (departure → stops → destination).
+ * ScheduledTrips owns composition (like VesselTrips) and uses only Timeline primitives.
+ */
+
+import React from "react";
+import { View } from "react-native";
+import {
+  TimelineBarAtDock,
+  TimelineBarAtSea,
+  TimelineMarker,
+  TimelineMarkerContent,
+  TimelineMarkerLabel,
+  TimelineMarkerTime,
+  TimelineSegment,
+} from "../Timeline";
+import type { TimePoint, TripSegment } from "../Timeline/types";
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+type ScheduledTripTimelineProps = {
+  /**
+   * Synthesized segments for this journey.
+   */
+  segments: TripSegment[];
+};
+
+/**
+ * Displays a multi-segment timeline for scheduled ferry journeys, composing Timeline primitives
+ * directly from synthesized TripSegment objects.
+ *
+ * @param segments - Synthesized segments for this journey
+ * @returns View of horizontal timeline or null when no segments
+ */
+export const ScheduledTripTimeline = ({
+  segments,
+}: ScheduledTripTimelineProps) => {
+  if (segments.length === 0) return null;
+
+  return (
+    <View className="relative flex-row items-center w-full overflow-visible px-4 py-8">
+      {segments.map((segment) => {
+        // Duration for layout (using scheduled times to keep bars consistent)
+        // Ensure a minimum duration of 1 minute for the dock segment to prevent marker overlap
+        const dockDuration = Math.max(
+          1,
+          (segment.leaveCurr.scheduled.getTime() -
+            segment.arriveCurr.scheduled.getTime()) /
+            60000
+        );
+        const seaDuration =
+          (segment.arriveNext.scheduled.getTime() -
+            segment.leaveCurr.scheduled.getTime()) /
+          60000;
+
+        return (
+          <React.Fragment key={segment.id}>
+            <TimelineSegment duration={dockDuration}>
+              <ScheduledTripArriveMarker
+                terminalAbbrev={segment.currTerminal.abbrev}
+                arriveTime={segment.arriveCurr}
+                isArrived={!!segment.arriveCurr.actual}
+              />
+
+              <TimelineBarAtDock
+                startTimeMs={segment.arriveCurr.scheduled.getTime()}
+                endTimeMs={segment.leaveCurr.scheduled.getTime()}
+                status={
+                  segment.phase === "at-dock"
+                    ? "InProgress"
+                    : segment.phase === "at-sea" ||
+                        segment.phase === "completed"
+                      ? "Completed"
+                      : "Pending"
+                }
+                isArrived={
+                  segment.phase === "at-sea" || segment.phase === "completed"
+                }
+                isHeld={segment.isHeld}
+                predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
+                vesselName={segment.vesselName}
+                atDockAbbrev={
+                  segment.phase === "at-dock"
+                    ? segment.currTerminal.abbrev
+                    : undefined
+                }
+                showIndicator={segment.phase === "at-dock"}
+              />
+            </TimelineSegment>
+
+            <TimelineSegment duration={seaDuration}>
+              <ScheduledTripDepartMarker
+                terminalAbbrev={segment.currTerminal.abbrev}
+                leaveTime={segment.leaveCurr}
+                isLeft={!!segment.leaveCurr.actual}
+              />
+
+              <TimelineBarAtSea
+                startTimeMs={segment.leaveCurr.scheduled.getTime()}
+                endTimeMs={segment.arriveNext.scheduled.getTime()}
+                status={
+                  segment.phase === "at-sea"
+                    ? "InProgress"
+                    : segment.phase === "completed"
+                      ? "Completed"
+                      : "Pending"
+                }
+                isArrived={segment.phase === "completed"}
+                isHeld={segment.isHeld}
+                predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
+                vesselName={segment.vesselName}
+                animate={segment.phase === "at-sea"}
+                speed={segment.speed}
+                showIndicator={segment.phase === "at-sea" || segment.isHeld}
+              />
+
+              <ScheduledTripArriveMarker
+                terminalAbbrev={segment.nextTerminal.abbrev}
+                arriveTime={segment.arriveNext}
+                isArrived={!!segment.arriveNext.actual}
+              />
+            </TimelineSegment>
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};
+
+// ============================================================================
+// Internal Helper Components
+// ============================================================================
+
+/**
+ * Arrive marker for ScheduledTripTimeline: "Arrive/Arrived" + terminal.
+ * Handles both origin (arrive at segment start) and destination (arrive at segment end).
+ *
+ * @param terminalAbbrev - Terminal abbrev
+ * @param arriveTime - Time point for arrival
+ * @param isArrived - Whether the vessel has already arrived
+ * @returns TimelineMarker with "Arrive/Arrived" label and times
+ */
+const ScheduledTripArriveMarker = ({
+  terminalAbbrev,
+  arriveTime,
+  isArrived,
+}: {
+  terminalAbbrev: string;
+  arriveTime: TimePoint;
+  isArrived: boolean;
+}) => (
+  <TimelineMarker zIndex={10}>
+    <TimelineMarkerContent>
+      <TimelineMarkerLabel
+        text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
+      />
+      <TimelineMarkerTime time={arriveTime.scheduled} type="scheduled" isBold />
+      <TimelineMarkerTime
+        time={arriveTime.actual ?? arriveTime.estimated}
+        type={arriveTime.actual ? "actual" : "estimated"}
+      />
+    </TimelineMarkerContent>
+  </TimelineMarker>
+);
+
+/**
+ * Depart marker for ScheduledTripTimeline: "Depart/Left" + DepartingTerminalAbbrev.
+ * Shows scheduled departure and actual or estimated departure time.
+ *
+ * @param terminalAbbrev - Terminal abbreviation
+ * @param leaveTime - Time point for departure
+ * @param isLeft - Whether the vessel has already left
+ * @returns TimelineMarker with "Depart/Left" label and times
+ */
+const ScheduledTripDepartMarker = ({
+  terminalAbbrev,
+  leaveTime,
+  isLeft,
+}: {
+  terminalAbbrev: string;
+  leaveTime: TimePoint;
+  isLeft: boolean;
+}) => (
+  <TimelineMarker zIndex={10}>
+    <TimelineMarkerContent>
+      <TimelineMarkerLabel
+        text={`${isLeft ? "Left" : "Depart"} ${terminalAbbrev}`}
+      />
+      <TimelineMarkerTime time={leaveTime.scheduled} type="scheduled" isBold />
+      <TimelineMarkerTime
+        time={leaveTime.actual ?? leaveTime.estimated}
+        type={leaveTime.actual ? "actual" : "estimated"}
+      />
+    </TimelineMarkerContent>
+  </TimelineMarker>
+);

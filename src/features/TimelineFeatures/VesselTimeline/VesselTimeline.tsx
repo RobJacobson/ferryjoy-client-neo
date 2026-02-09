@@ -3,10 +3,10 @@
  * Uses absolute positioning based on a pixels-per-hour constant.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { ScrollView, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Text } from "@/components/ui";
-import type { VesselLocation } from "../../../convex/functions/vesselLocation/schemas";
 import {
   TimelineIndicator,
   TimelineMarker,
@@ -14,13 +14,13 @@ import {
   TimelineMarkerLabel,
   TimelineMarkerTime,
 } from "../Timeline";
-import { useVesselDailyTimeline } from "../VesselTrips/hooks/useVesselDailyTimeline";
+import { useVesselDailyTimeline } from "./hooks";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type VesselTripTimelineVerticalProps = {
+type VesselTimeline = {
   vesselAbbrev: string;
   vesselLocation: VesselLocation | null;
   className?: string;
@@ -38,11 +38,11 @@ type VesselTripTimelineVerticalProps = {
  * @param vesselLocation - Real-time vessel location data
  * @param className - Optional container styling
  */
-export const VesselTripTimelineVertical = ({
+export const VesselTimeline = ({
   vesselAbbrev,
   vesselLocation,
   className,
-}: VesselTripTimelineVerticalProps) => {
+}: VesselTimeline) => {
   const timelineData = useVesselDailyTimeline(vesselAbbrev, vesselLocation);
   const progressValue = useSharedValue(0);
 

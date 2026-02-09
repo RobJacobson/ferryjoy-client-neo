@@ -107,9 +107,6 @@ type TimelineIndicatorProps = {
  * @returns An animated style object for the rotation transform
  */
 const useRockingAnimation = (animate: boolean, speed: number) => {
-  // Memoize the random delay so it stays consistent for the lifetime of the component
-  // const randomDelay = useMemo(() => Math.random() * 10000, []);
-
   // theta represents the phase of our sine wave animation (accumulated time * frequency)
   const theta = useSharedValue(0);
   const rotation = useSharedValue(0);
