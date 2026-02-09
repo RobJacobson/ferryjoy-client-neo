@@ -45,6 +45,8 @@ export type TripSegment = {
   // Real-time metadata
   speed?: number;
   isHeld: boolean;
+  isArrived: boolean;
+  isLeft: boolean;
 };
 
 /**

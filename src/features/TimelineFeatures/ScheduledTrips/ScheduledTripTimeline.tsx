@@ -3,7 +3,9 @@
  * ScheduledTrips owns composition (like VesselTrips) and uses only Timeline primitives.
  */
 
-import React from "react";
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import React, { useMemo } from "react";
 import { View } from "react-native";
 import {
   TimelineBarAtDock,
@@ -14,7 +16,9 @@ import {
   TimelineMarkerTime,
   TimelineSegment,
 } from "../Timeline";
-import type { TimePoint, TripSegment } from "../Timeline/types";
+import type { TimePoint } from "../Timeline/types";
+import type { ScheduledTripJourney } from "./types";
+import { synthesizeTripSegments } from "./utils/synthesizeTripSegments";
 
 // ============================================================================
 // Main Component
@@ -22,21 +26,47 @@ import type { TimePoint, TripSegment } from "../Timeline/types";
 
 type ScheduledTripTimelineProps = {
   /**
-   * Synthesized segments for this journey.
+   * Scheduled journey data.
    */
-  segments: TripSegment[];
+  journey: ScheduledTripJourney;
+  /**
+   * Unified map of segment Key to VesselTrip (actuals/predictions).
+   */
+  vesselTripMap: Map<string, VesselTrip>;
+  /**
+   * Real-time vessel location.
+   */
+  vesselLocation: VesselLocation | undefined;
+  /**
+   * The trip currently being held (if any).
+   */
+  heldTrip?: VesselTrip;
 };
 
 /**
  * Displays a multi-segment timeline for scheduled ferry journeys, composing Timeline primitives
  * directly from synthesized TripSegment objects.
  *
- * @param segments - Synthesized segments for this journey
+ * @param props - ScheduledTripTimelineProps
  * @returns View of horizontal timeline or null when no segments
  */
 export const ScheduledTripTimeline = ({
-  segments,
+  journey,
+  vesselTripMap,
+  vesselLocation,
+  heldTrip,
 }: ScheduledTripTimelineProps) => {
+  const segments = useMemo(
+    () =>
+      synthesizeTripSegments({
+        segments: journey.segments,
+        vesselTripMap,
+        vesselLocation,
+        heldTrip,
+      }),
+    [journey.segments, vesselTripMap, vesselLocation, heldTrip]
+  );
+
   if (segments.length === 0) return null;
 
   return (
@@ -70,14 +100,13 @@ export const ScheduledTripTimeline = ({
                 status={
                   segment.phase === "at-dock"
                     ? "InProgress"
-                    : segment.phase === "at-sea" ||
+                    : segment.status === "past" ||
+                        segment.phase === "at-sea" ||
                         segment.phase === "completed"
                       ? "Completed"
                       : "Pending"
                 }
-                isArrived={
-                  segment.phase === "at-sea" || segment.phase === "completed"
-                }
+                isArrived={segment.isArrived}
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
                 vesselName={segment.vesselName}
@@ -94,7 +123,7 @@ export const ScheduledTripTimeline = ({
               <ScheduledTripDepartMarker
                 terminalAbbrev={segment.currTerminal.abbrev}
                 leaveTime={segment.leaveCurr}
-                isLeft={!!segment.leaveCurr.actual}
+                isLeft={segment.isLeft}
               />
 
               <TimelineBarAtSea
@@ -103,11 +132,11 @@ export const ScheduledTripTimeline = ({
                 status={
                   segment.phase === "at-sea"
                     ? "InProgress"
-                    : segment.phase === "completed"
+                    : segment.status === "past" || segment.phase === "completed"
                       ? "Completed"
                       : "Pending"
                 }
-                isArrived={segment.phase === "completed"}
+                isArrived={segment.status === "past" || segment.isHeld}
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
                 vesselName={segment.vesselName}

@@ -113,7 +113,7 @@ const TimelineBarAtSea = ({
   }, [progress, animatedProgress]);
 
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" || isArrived || isHeld);
+    showIndicator ?? (status === "InProgress" || isHeld);
 
   return (
     <TimelineSegment duration={duration ?? 1} style={style}>

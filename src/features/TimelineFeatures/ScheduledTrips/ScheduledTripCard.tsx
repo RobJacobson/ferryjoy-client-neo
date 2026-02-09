@@ -5,25 +5,19 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import React, { useMemo } from "react";
+import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
-import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
-import { synthesizeTripSegments } from "./utils/synthesizeTripSegments";
 
 type ScheduledTripCardProps = {
   /**
    * Trip object containing vessel information and journey segments.
    */
   trip: ScheduledTripJourney;
-  /**
-   * Page-level display state for this journey: active selection + segment statuses and prediction wiring.
-   */
-  displayState: ScheduledTripCardDisplayState;
   /**
    * Real-time vessel location when available; undefined when overlay data is missing.
    */
@@ -32,6 +26,10 @@ type ScheduledTripCardProps = {
    * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
    */
   vesselTripMap: Map<string, VesselTrip>;
+  /**
+   * The trip currently being held (if any).
+   */
+  heldTrip?: VesselTrip;
 };
 
 /**
@@ -39,37 +37,17 @@ type ScheduledTripCardProps = {
  * Route header shows terminals (depart → arrive) and vessel name; timeline uses synthesized segments.
  *
  * @param trip - Journey data (id, vessel, route, segments) to display
- * @param displayState - Page-level display state for this journey
  * @param vesselLocation - Real-time vessel location when available; undefined for schedule-only
  * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
+ * @param heldTrip - The trip currently being held (if any)
  * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
  */
 export const ScheduledTripCard = ({
   trip,
-  displayState,
   vesselLocation,
   vesselTripMap,
+  heldTrip,
 }: ScheduledTripCardProps) => {
-  const synthesizedSegments = useMemo(
-    () =>
-      synthesizeTripSegments({
-        segments: trip.segments as any, // Segment types are compatible but may need explicit cast if types.ts differs slightly
-        vesselTripMap,
-        vesselLocation,
-        activeKey: displayState.timeline.activeKey,
-        activePhase: displayState.timeline.activePhase,
-        activeSegmentIndex: displayState.timeline.activeSegmentIndex,
-        journeyStatus: displayState.journeyStatus,
-      }),
-    [
-      trip.segments,
-      vesselTripMap,
-      vesselLocation,
-      displayState.timeline,
-      displayState.journeyStatus,
-    ]
-  );
-
   return (
     <TripCard
       cardClassName="pt-2 pb-10 overflow-visible"
@@ -80,7 +58,12 @@ export const ScheduledTripCard = ({
         />
       }
     >
-      <ScheduledTripTimeline segments={synthesizedSegments} />
+      <ScheduledTripTimeline
+        journey={trip}
+        vesselTripMap={vesselTripMap}
+        vesselLocation={vesselLocation}
+        heldTrip={heldTrip}
+      />
     </TripCard>
   );
 };

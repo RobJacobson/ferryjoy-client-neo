@@ -74,7 +74,7 @@ const TimelineBarAtDock = ({
     predictionEndTimeMs,
   });
 
-  const progress = isArrived ? 1 : timeProgress;
+  const progress = timeProgress;
 
   const animatedProgress = useSharedValue(progress);
 
@@ -94,7 +94,7 @@ const TimelineBarAtDock = ({
   }, [progress, animatedProgress]);
 
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" && !isArrived && !isHeld);
+    showIndicator ?? (status === "InProgress" && isArrived && !isHeld);
 
   return (
     <TimelineSegment duration={duration ?? 1} style={style}>
