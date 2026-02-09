@@ -187,7 +187,7 @@ const ScheduledTripArriveMarker = ({
   isArrived: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent>
+    <TimelineMarkerContent className="mt-14">
       <TimelineMarkerLabel
         text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
       />
@@ -219,7 +219,7 @@ const ScheduledTripDepartMarker = ({
   isLeft: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent>
+    <TimelineMarkerContent className="mt-14">
       <TimelineMarkerLabel
         text={`${isLeft ? "Left" : "Depart"} ${terminalAbbrev}`}
       />

@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 
 /** Tailwind class names for timeline accent color (use with cn() for styling). */
 export const colors = {
-  border: "border-pink-500",
-  text: "text-pink-500",
-  progress: "bg-pink-300",
-  background: "bg-pink-100",
+  border: "border-green-500",
+  text: "text-green-500",
+  progress: "bg-green-300",
+  background: "bg-green-100",
 } as const;
 
 /** Timeline marker layout and styling (circle size, container height, content width, default circle class). */

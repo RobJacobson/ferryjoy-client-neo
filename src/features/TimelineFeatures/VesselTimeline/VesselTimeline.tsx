@@ -129,8 +129,8 @@ export const VesselTimeline = ({
               <TimelineMarkerContent
                 className={
                   isArrival
-                    ? "flex-1 flex-row justify-end items-center pr-4"
-                    : "flex-1 flex-row justify-start items-center pl-4"
+                    ? "ml-14 flex-row justify-end items-center"
+                    : "mr-14 flex-row justify-start items-center"
                 }
               >
                 <TimelineMarkerLabel
