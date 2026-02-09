@@ -16,7 +16,7 @@ import Animated, {
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { lerp } from "@/shared/utils/lerp";
-import { shadowStyle } from "./config";
+import { colors, shadowStyle } from "./config";
 
 // ============================================================================
 // Constants
@@ -75,12 +75,12 @@ type TimelineIndicatorProps = {
   minutesRemaining?: number | string;
   /**
    * NativeWind className for the indicator container.
-   * e.g., "bg-pink-50 border-pink-500"
+   * Defaults to cn(colors.background, colors.border).
    */
   indicatorStyle?: string;
   /**
    * NativeWind className for the minutes text.
-   * e.g., "text-pink-500 font-bold"
+   * Defaults to cn(colors.text, "font-playwrite text-sm").
    */
   textStyle?: string;
   /**
@@ -181,8 +181,8 @@ const TimelineIndicator = ({
   animate = false,
   speed = 0,
   minutesRemaining = "--",
-  indicatorStyle = "bg-pink-50 border-pink-500",
-  textStyle = "text-pink-500 font-playwrite text-sm",
+  indicatorStyle = cn(colors.background, colors.border),
+  textStyle = cn(colors.text, "font-playwrite text-sm"),
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
@@ -245,7 +245,10 @@ const TimelineIndicator = ({
       )}
       {/* Indicator circle */}
       <View
-        className={`rounded-full items-center justify-center border-2 ${indicatorStyle} `}
+        className={cn(
+          "rounded-full items-center justify-center border-2",
+          indicatorStyle
+        )}
         style={{
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,

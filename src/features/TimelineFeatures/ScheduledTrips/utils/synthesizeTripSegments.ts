@@ -150,6 +150,14 @@ export const synthesizeTripSegments = (params: {
       status,
       phase,
       speed: vesselLocation?.Speed,
+      departingDistance:
+        isActive && activePhase === "AtSea"
+          ? vesselLocation?.DepartingDistance
+          : undefined,
+      arrivingDistance:
+        isActive && activePhase === "AtSea"
+          ? vesselLocation?.ArrivingDistance
+          : undefined,
       isHeld,
       isArrived: isArrivedAtDock,
       isLeft: isLeftDock,

@@ -146,6 +146,8 @@ export const ScheduledTripTimeline = ({
                 vesselName={segment.vesselName}
                 animate={segment.phase === "at-sea"}
                 speed={segment.speed}
+                departingDistance={segment.departingDistance}
+                arrivingDistance={segment.arrivingDistance}
                 showIndicator={segment.phase === "at-sea" || segment.isHeld}
               />
 

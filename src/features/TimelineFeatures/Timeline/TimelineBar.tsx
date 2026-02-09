@@ -14,7 +14,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { shadowStyle } from "./config";
+import { cn } from "@/lib/utils";
+import { colors, shadowStyle } from "./config";
 
 // ============================================================================
 // Types
@@ -40,7 +41,7 @@ type TimelineBarProps = {
   barStyle?: string;
   /**
    * NativeWind className for the progress fill styling.
-   * e.g., "bg-pink-300", "bg-blue-400"
+   * Defaults to colors.progress.
    */
   progressStyle?: string;
   /**
@@ -72,7 +73,7 @@ const TimelineBar = ({
   flexGrow,
   progress,
   barStyle = "h-3",
-  progressStyle = "bg-pink-300",
+  progressStyle = colors.progress,
   style,
 }: TimelineBarProps) => {
   const animatedProgress = useSharedValue(progress);
@@ -168,11 +169,11 @@ const TimelineBarProgress = ({
 
   return (
     <View
-      className={`flex-1 rounded-full bg-primary/20 ${barStyle}`}
+      className={cn("flex-1 rounded-full bg-primary/20", barStyle)}
       style={{ height: 12 }} // Explicitly set height to 12px (h-3)
     >
       <Animated.View
-        className={`rounded-full h-full ${progressStyle}`}
+        className={cn("rounded-full h-full", progressStyle)}
         style={[animatedStyle, shadowStyle]}
       />
     </View>
