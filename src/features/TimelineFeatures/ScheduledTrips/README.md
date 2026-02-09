@@ -30,8 +30,8 @@ As each `ScheduledTripCard` renders, it calls `synthesizeTripSegments`. This is 
   - `ongoing`: The segment's `Key` matches the vessel's current `activeKey` (derived from `heldTrip` or `vesselLocation.ScheduledDeparture`).
   - `future`: Default state.
 - **Phase Determination**:
-  - `completed`: Status is `past` or the segment is currently being "held" after arrival.
-  - `at-sea` / `at-dock`: Status is `ongoing`, resolved via `vesselLocation.AtDock`.
+  - `completed`: Status is `past`, or the segment is held and not ongoing (i.e. held after arrival). Ongoing segments never get `completed` phase, so the at-sea bar never shows "Arrived" while the vessel is en route, even when the trip is in the hold window.
+  - `at-sea` / `at-dock`: Status is `ongoing`, resolved via `vesselLocation.AtDock` (held or not).
   - `pending`: Default state.
 
 ---
@@ -86,4 +86,5 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 
 - **Missing Indicator**: Check if the `vesselLocation.ScheduledDeparture` matches the `segment.DepartingTime`. If they don't match exactly, the segment won't be marked as `ongoing`.
 - **Wrong Status**: Verify the `vesselTripMap`. If a trip has a `TripEnd`, it will always be `past`.
+- **"Arrived" while en route**: If the at-sea bar shows "Arrived" and "--" when the vessel is still at sea, the segment likely has `phase === "completed"` instead of `at-sea`. Ensure phase is only `completed` when status is `past` or when held and not ongoing (see Phase Determination above).
 - **Predictions**: Predictions for a future leg are often pulled from the *previous* segment's `VesselTrip` (using `segment.PrevKey`).

@@ -70,26 +70,27 @@ export const synthesizeTripSegments = (params: {
     const isHeld = isActive && !!heldTrip;
 
     // Self-resolving status:
-    // - If we have a TripEnd in the map, it's definitely past.
-    // - If it's the active key, it's ongoing.
+    // - Active segment is always ongoing (so we never show "Arrived" on the bar while en route).
+    // - If we have TripEnd and this segment is not active, it's past.
     // - Otherwise, it's future.
     let status: "past" | "ongoing" | "future" = "future";
-    if (actualTrip?.TripEnd) {
-      status = "past";
-    } else if (isActive) {
+    if (isActive) {
       status = "ongoing";
+    } else if (actualTrip?.TripEnd) {
+      status = "past";
     }
 
     // Phase logic:
-    // - Past status or held means completed.
-    // - Ongoing status uses the activePhase.
-    // - Future status is pending.
+    // - Past status means completed. Held + past also completed.
+    // - Ongoing status always uses activePhase (at-sea vs at-dock) so we never show "Arrived" on
+    //   the at-sea bar while the vessel is en route, even when the trip is held (displayData).
+    // - Held + ongoing was incorrectly forcing phase to "completed", causing "Arrived" + "--".
     let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
-    if (status === "past" || isHeld) {
+    if (status === "past") {
+      phase = "completed";
+    } else if (isHeld && status !== "ongoing") {
       phase = "completed";
     } else if (status === "ongoing") {
-      // Refinement: If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
-      // If status is ongoing but we are AtDock, the indicator should be in the at-dock segment.
       phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
     }
 

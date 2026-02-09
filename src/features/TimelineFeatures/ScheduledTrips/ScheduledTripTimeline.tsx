@@ -136,7 +136,11 @@ export const ScheduledTripTimeline = ({
                       ? "Completed"
                       : "Pending"
                 }
-                isArrived={segment.status === "past" || segment.isHeld}
+                isArrived={
+                  // Never show "Arrived" while this segment is the active at-sea leg (vessel en route).
+                  segment.phase !== "at-sea" &&
+                  (!!segment.arriveNext.actual || segment.isHeld)
+                }
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
                 vesselName={segment.vesselName}
