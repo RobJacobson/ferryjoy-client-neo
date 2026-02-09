@@ -12,9 +12,7 @@ import { useQuery } from "convex/react";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 import type { ScheduledTripJourney } from "./types";
 import { useScheduledTripsMaps } from "./useScheduledTripsMaps";
-import type { ScheduledTripCardDisplayState } from "./utils/computePageDisplayState";
 import { reconstructJourneys } from "./utils/reconstructJourneys";
-import { runScheduledTripsPipeline } from "./utils/scheduledTripsPipeline";
 
 type UseScheduledTripsPageDataParams = {
   terminalAbbrev: string;
@@ -29,24 +27,23 @@ type UseScheduledTripsPageDataResult = {
    */
   vesselTripMap: Map<string, VesselTrip>;
   /**
-   * Page-level display state per journey (one-active-per-vessel selection + statuses).
-   */
-  displayStateByJourneyId: Map<string, ScheduledTripCardDisplayState>;
-  /**
    * Vessel location map used during render for real-time status/phase and bar animations.
    * Empty when overlay data is missing or still loading.
    */
   vesselLocationByAbbrev: Map<string, VesselLocation>;
+  /**
+   * Held trip map used to preserve UX identity during arrival transitions.
+   */
+  displayTripByAbbrev: Map<string, VesselTrip>;
 };
 
 /**
- * Fetches schedule first (primary), then overlay (completed/active). Runs pipeline to
- * produce vesselTripMap and card display state. Ready when schedule is loaded;
+ * Fetches schedule first (primary), then overlay (completed/active). Ready when schedule is loaded;
  * overlay is optional (basic schedule when missing).
  *
  * @param terminalAbbrev - Departure terminal to load schedule for (e.g. "P52")
  * @param destinationAbbrev - Optional destination terminal to filter trips
- * @returns Object with status ("loading" | "empty" | "ready"), journeys, vesselTripMap + display state
+ * @returns Object with status ("loading" | "empty" | "ready"), journeys, vesselTripMap, etc.
  */
 export const useScheduledTripsPageData = ({
   terminalAbbrev,
@@ -76,17 +73,6 @@ export const useScheduledTripsPageData = ({
 
   const maps = useScheduledTripsMaps({ sailingDay, departingTerminalAbbrevs });
 
-  const pipelineResult =
-    journeys != null && journeys.length > 0
-      ? runScheduledTripsPipeline(journeys, maps, terminalAbbrev)
-      : {
-          vesselTripMap: new Map<string, VesselTrip>(),
-          displayStateByJourneyId: new Map<
-            string,
-            ScheduledTripCardDisplayState
-          >(),
-        };
-
   // Treat undefined query result as loading; only then distinguish empty vs ready.
   const status: UseScheduledTripsPageDataResult["status"] =
     rawSchedule === undefined
@@ -98,9 +84,10 @@ export const useScheduledTripsPageData = ({
   return {
     status,
     journeys,
-    vesselTripMap: pipelineResult.vesselTripMap,
-    displayStateByJourneyId: pipelineResult.displayStateByJourneyId,
+    vesselTripMap: maps?.vesselTripMap ?? new Map<string, VesselTrip>(),
     vesselLocationByAbbrev:
       maps?.vesselLocationByAbbrev ?? new Map<string, VesselLocation>(),
+    displayTripByAbbrev:
+      maps?.displayTripByAbbrev ?? new Map<string, VesselTrip>(),
   };
 };

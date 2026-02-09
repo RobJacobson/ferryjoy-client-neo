@@ -1,5 +1,9 @@
 /**
  * Utility for synthesizing raw ferry data into a unified TripSegment View Model.
+ *
+ * This version uses a self-resolving "pull-based" logic: each segment determines
+ * its own status (past/ongoing/future) and phase (at-dock/at-sea/completed/pending)
+ * by looking at the vesselTripMap (for actuals) and vesselLocation (for current activity).
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -11,88 +15,89 @@ import type {
   TripSegment,
 } from "../../Timeline/types";
 
+/** Max ms difference for matching ScheduledDeparture to segment.DepartingTime. */
+const SCHEDULED_DEPARTURE_TOLERANCE_MS = 60_000;
+
 /**
  * Synthesizes a list of raw segments into TripSegment View Models.
  *
  * @param params.segments - Raw scheduled segments
  * @param params.vesselTripMap - Map of segment Key to VesselTrip (actuals/predictions)
  * @param params.vesselLocation - Real-time vessel location
- * @param params.activeKey - The currently active segment key for the vessel
- * @param params.activePhase - The current phase (AtDock/AtSea) for the vessel
- * @param params.activeSegmentIndex - The index of the active segment within this journey
- * @param params.journeyStatus - The status of the entire journey (Completed/InProgress/Pending)
+ * @param params.heldTrip - The trip currently being held (if any)
  * @returns Array of synthesized TripSegment objects
  */
 export const synthesizeTripSegments = (params: {
   segments: Segment[];
   vesselTripMap: Map<string, VesselTrip>;
   vesselLocation: VesselLocation | undefined;
-  activeKey: string | null;
-  activePhase: TimelineActivePhase;
-  activeSegmentIndex?: number;
-  journeyStatus?: "Pending" | "InProgress" | "Completed";
+  heldTrip?: VesselTrip;
 }): TripSegment[] => {
-  const {
-    segments,
-    vesselTripMap,
-    vesselLocation,
-    activeKey,
-    activePhase,
-    activeSegmentIndex,
-    journeyStatus,
-  } = params;
+  const { segments, vesselTripMap, vesselLocation, heldTrip } = params;
 
-  return segments.map((segment, index) => {
+  // 1. Identify the active segment key for the vessel.
+  // Priority: Held Trip Key -> VesselLocation ScheduledDeparture (tolerant match) -> AtDock terminal fallback.
+  const schedDepartureMs = vesselLocation?.ScheduledDeparture?.getTime();
+  const activeKey =
+    heldTrip?.Key ??
+    (schedDepartureMs !== undefined
+      ? segments.find((s) => {
+          const segMs = s.DepartingTime.getTime();
+          return (
+            Math.abs(schedDepartureMs - segMs) <=
+            SCHEDULED_DEPARTURE_TOLERANCE_MS
+          );
+        })?.Key
+      : undefined) ??
+    (vesselLocation?.AtDock && vesselLocation?.DepartingTerminalAbbrev
+      ? segments.find(
+          (s) =>
+            s.DepartingTerminalAbbrev ===
+              vesselLocation.DepartingTerminalAbbrev &&
+            !vesselTripMap.get(s.Key)?.TripEnd
+        )?.Key
+      : undefined);
+
+  const activePhase: TimelineActivePhase = vesselLocation
+    ? vesselLocation.AtDock
+      ? "AtDock"
+      : "AtSea"
+    : "Unknown";
+
+  return segments.map((segment) => {
     const actualTrip = vesselTripMap.get(segment.Key);
+    const isActive = !!activeKey && activeKey === segment.Key;
+    const isHeld = isActive && !!heldTrip;
 
-    const isActive = activeKey === segment.Key;
-    const isHeld = isActive && !!actualTrip?.TripEnd;
-
-    // Monotonic status logic:
-    // 1. If journey is Completed, all segments are past.
-    // 2. If journey is Pending, all segments are future.
-    // 3. If journey is InProgress:
-    //    - segments before activeSegmentIndex are past
-    //    - segment at activeSegmentIndex is ongoing
-    //    - segments after activeSegmentIndex are future
+    // Self-resolving status:
+    // - If we have a TripEnd in the map, it's definitely past.
+    // - If it's the active key, it's ongoing.
+    // - Otherwise, it's future.
     let status: "past" | "ongoing" | "future" = "future";
-    if (journeyStatus === "Completed") {
+    if (actualTrip?.TripEnd) {
       status = "past";
-    } else if (
-      journeyStatus === "InProgress" &&
-      activeSegmentIndex !== undefined
-    ) {
-      if (index < activeSegmentIndex) status = "past";
-      else if (index === activeSegmentIndex) status = "ongoing";
-      else status = "future";
+    } else if (isActive) {
+      status = "ongoing";
     }
 
     // Phase logic:
-    // 1. If status is past, phase is completed.
-    // 2. If status is ongoing, phase is at-sea or at-dock based on activePhase.
-    // 3. If status is future, phase is pending.
-    // 4. Special case: isHeld means the segment is technically completed (at dock).
-    // 5. Fallback: when journeyStatus is undefined (vessel moved to different terminal,
-    //    e.g. ANA page but vessel at ORI), use overlay data: actualTrip.TripEnd proves
-    //    the segment completed. Show pink bar from completed-trips overlay.
+    // - Past status or held means completed.
+    // - Ongoing status uses the activePhase.
+    // - Future status is pending.
     let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
-    const hasCompletedOverlay = !!actualTrip?.TripEnd;
-    if (
-      status === "past" ||
-      isHeld ||
-      (journeyStatus === undefined && hasCompletedOverlay)
-    ) {
+    if (status === "past" || isHeld) {
       phase = "completed";
-      if (journeyStatus === undefined && hasCompletedOverlay) status = "past";
     } else if (status === "ongoing") {
+      // Refinement: If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
+      // If status is ongoing but we are AtDock, the indicator should be in the at-dock segment.
       phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
     }
 
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
-      scheduled: segment.SchedArriveCurr ?? segment.DepartingTime, // Fallback to departure if no arrival
+      scheduled: segment.SchedArriveCurr ?? segment.DepartingTime,
       actual: actualTrip?.TripStart ?? undefined,
-      estimated: undefined, // Currently not provided for origin arrival
+      estimated: undefined,
     };
 
     // 2. LeaveCurr TimePoint (Departure from origin terminal)
@@ -120,6 +125,14 @@ export const synthesizeTripSegments = (params: {
           : undefined,
     };
 
+    // Refinement: If status is ongoing but we are AtDock and have already arrived
+    // (TripStart exists), but haven't left yet (LeftDock is missing), the indicator
+    // should be in the at-dock segment.
+    // If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
+    // The current phase logic handles this via `activePhase`.
+    const isArrivedAtDock = !!actualTrip?.TripStart;
+    const isLeftDock = !!actualTrip?.LeftDock;
+
     return {
       id: segment.Key,
       vesselAbbrev: segment.VesselAbbrev,
@@ -137,6 +150,8 @@ export const synthesizeTripSegments = (params: {
       phase,
       speed: vesselLocation?.Speed,
       isHeld,
+      isArrived: isArrivedAtDock,
+      isLeft: isLeftDock,
     };
   });
 };

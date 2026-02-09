@@ -180,15 +180,20 @@ export const getTimelineLayout = ({
   } else if (
     status === "InProgress" &&
     startTimeMs !== undefined &&
-    effectiveEndTimeMs !== undefined &&
-    nowMs >= startTimeMs
+    effectiveEndTimeMs !== undefined
   ) {
-    const progressDurationMs = Math.max(
-      durationMs ?? 0,
-      effectiveEndTimeMs - startTimeMs
-    );
-    if (progressDurationMs > 0) {
-      progress = Math.min(1, (nowMs - startTimeMs) / progressDurationMs);
+    // If we haven't reached the start time yet, progress is 0.
+    // This handles the "Arrived at dock but scheduled departure is in the future" case.
+    if (nowMs < startTimeMs) {
+      progress = 0;
+    } else {
+      const progressDurationMs = Math.max(
+        durationMs ?? 0,
+        effectiveEndTimeMs - startTimeMs
+      );
+      if (progressDurationMs > 0) {
+        progress = Math.min(1, (nowMs - startTimeMs) / progressDurationMs);
+      }
     }
   }
 
