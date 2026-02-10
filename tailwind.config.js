@@ -18,6 +18,12 @@ module.exports = {
         "playwrite-thin": ["Playwrite-Thin"],
         "playwrite-extralight": ["Playwrite-ExtraLight"],
         "playwrite-light": ["Playwrite-Light"],
+        "fira-sans-condensed-400": ["FiraSansCondensed-Regular"],
+        "fira-sans-condensed-200": ["FiraSansCondensed-ExtraLight"],
+        "fira-sans-condensed-200-italic": [
+          "FiraSansCondensed-ExtraLightItalic",
+        ],
+        "fira-sans-condensed-400-italic": ["FiraSansCondensed-Italic"],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -28,6 +28,10 @@ export default function Layout() {
     "Playwrite-ExtraLight": require("../../assets/fonts/playwrite/Playwrite-ExtraLight.ttf"),
     "Playwrite-Light": require("../../assets/fonts/playwrite/Playwrite-Light.ttf"),
     "Playwrite-Regular": require("../../assets/fonts/playwrite/Playwrite-Regular.ttf"),
+    "FiraSansCondensed-ExtraLight": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-ExtraLight.ttf"),
+    "FiraSansCondensed-ExtraLightItalic": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-ExtraLightItalic.ttf"),
+    "FiraSansCondensed-Regular": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-Regular.ttf"),
+    "FiraSansCondensed-Italic": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-Italic.ttf"),
   });
 
   if (!fontsLoaded && !fontError) {
