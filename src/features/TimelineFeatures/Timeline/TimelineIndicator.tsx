@@ -5,28 +5,15 @@
  */
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
-  useFrameCallback,
-  useSharedValue,
 } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { lerp } from "@/shared/utils/lerp";
 import { colors, shadowStyle, timelineIndicatorConfig } from "./config";
-
-// ============================================================================
-// Constants (animation tuning; not in timelineIndicatorConfig)
-// ============================================================================
-
-/** Decay factor for returning to 0deg (per frame) */
-const DECAY_FACTOR = 0.25;
-
-/** Minimum rotation threshold before snapping to 0 */
-const SNAP_THRESHOLD = 0.01;
+import { useRockingAnimation } from "./useRockingAnimation.timing";
 
 // ============================================================================
 // Types
@@ -72,68 +59,6 @@ type TimelineIndicatorProps = {
    * Defaults to timelineIndicatorConfig.size to match TimelineBar height.
    */
   containerHeight?: number;
-};
-
-// ============================================================================
-// Hooks
-// ============================================================================
-
-/**
- * Custom hook to manage the rocking animation phase and rotation.
- *
- * @param animate - Whether the animation should be active
- * @param speed - Current vessel speed for frequency scaling
- * @returns An animated style object for the rotation transform
- */
-const useRockingAnimation = (animate: boolean, speed: number) => {
-  // theta represents the phase of our sine wave animation (accumulated time * frequency)
-  const theta = useSharedValue(0);
-  const rotation = useSharedValue(0);
-
-  // Use a frame callback to drive the animation manually
-  const frameCallback = useFrameCallback((frameInfo) => {
-    if (!animate || !frameInfo.timeSincePreviousFrame) {
-      // Smoothly return to 0 when not animating
-      if (rotation.value !== 0) {
-        rotation.value = rotation.value * DECAY_FACTOR;
-        if (Math.abs(rotation.value) < SNAP_THRESHOLD) rotation.value = 0;
-      }
-      return;
-    }
-
-    // Map speed to angular velocity (rad/ms)
-    const minFreq = (2 * Math.PI) / timelineIndicatorConfig.periodSlowMs;
-    const maxFreq = (2 * Math.PI) / timelineIndicatorConfig.periodFastMs;
-    const angularVelocity = lerp(
-      speed,
-      timelineIndicatorConfig.minSpeedKnots,
-      timelineIndicatorConfig.maxSpeedKnots,
-      minFreq,
-      maxFreq
-    );
-
-    // Advance theta based on elapsed time and current speed
-    theta.value += angularVelocity * frameInfo.timeSincePreviousFrame;
-
-    // Map theta to rotation using sine
-    rotation.value =
-      Math.sin(theta.value) * timelineIndicatorConfig.maxRotationDeg;
-  });
-
-  // Start/stop the frame callback based on the animate prop
-  useEffect(() => {
-    // We keep the callback active even when not animating to allow for the decay to 0
-    frameCallback.setActive(true);
-    return () => frameCallback.setActive(false);
-  }, [frameCallback]);
-
-  return useAnimatedStyle(() => ({
-    transform: [
-      { translateX: -timelineIndicatorConfig.size / 2 },
-      { translateY: -timelineIndicatorConfig.size / 2 },
-      { rotate: `${rotation.value}deg` },
-    ],
-  }));
 };
 
 // ============================================================================

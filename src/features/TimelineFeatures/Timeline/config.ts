@@ -32,8 +32,8 @@ export const timelineIndicatorConfig = {
   maxRotationDeg: 3,
   minSpeedKnots: 0,
   maxSpeedKnots: 20,
-  periodSlowMs: 20000,
-  periodFastMs: 5000,
+  periodSlowMs: 25000,
+  periodFastMs: 7500,
 } as const;
 
 /** Timeline segment/bar layout (flex-grow + min-width for proportional segments). */
