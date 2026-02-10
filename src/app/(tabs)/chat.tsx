@@ -16,7 +16,7 @@ export default function ChatScreen() {
   return (
     <View className="flex-1 bg-background">
       <View className="px-6 pt-12 pb-4 border-b border-border bg-card">
-        <Text className="text-2xl font-playwrite-bold text-primary">
+        <Text className="text-2xl font-playpen-600 text-primary">
           Vessel Daily Log
         </Text>
         <Text className="text-sm text-muted-foreground">

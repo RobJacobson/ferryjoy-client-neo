@@ -1,13 +1,12 @@
 /**
  * TimelineMarkerContent wraps label and time(s) for a timeline marker.
- * Provides default horizontal positioning (below circle); vertical/left/right
- * via consumer className override.
+ * Provides the content slot (sizing/positioning so content doesn't clip in zero-width horizontal layout)
+ * and centers content by default; use className (e.g. "mt-4", "ml-8") to position.
  */
 
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
-import { timelineMarkerConfig } from "./config";
 
 type TimelineMarkerContentProps = {
   /**
@@ -15,45 +14,28 @@ type TimelineMarkerContentProps = {
    */
   children: ReactNode;
   /**
-   * Optional className to override layout (e.g. vertical left/right).
+   * Optional className for layout (e.g. "mt-4" below circle, "ml-8" / "mr-8" beside for vertical).
    */
   className?: string;
 };
 
-const defaultContentTop =
-  (timelineMarkerConfig.containerHeight - timelineMarkerConfig.circleSize) / 2 +
-  timelineMarkerConfig.circleSize;
-
 /**
- * Wraps marker label and times with default horizontal layout; override with className for vertical.
- *
- * @param children - TimelineMarkerLabel and TimelineMarkerTime(s)
- * @param className - Optional layout override (e.g. flex-1 flex-row justify-end pr-4 order-first for vertical left)
- * @returns A View positioning content below the circle by default
+ * Wraps marker label and times in a content slot (fixed width, centered). Default is centered on the
+ * circle; use className to position (e.g. mt-4 for below, ml-8/mr-8 for vertical).
  */
 const TimelineMarkerContent = ({
   children,
   className,
 }: TimelineMarkerContentProps) => {
-  const isHorizontal = className == null || className === "";
-
   return (
     <View
-      className={cn(
-        "flex-col items-center justify-start",
-        isHorizontal && "absolute",
-        className
-      )}
-      style={
-        isHorizontal
-          ? {
-              top: defaultContentTop,
-              left: 0,
-              marginLeft: -timelineMarkerConfig.contentWidth / 2,
-              width: timelineMarkerConfig.contentWidth,
-            }
-          : undefined
-      }
+      pointerEvents="box-none"
+      className={cn("items-center justify-center", className)}
+      style={{
+        width: 500,
+        height: 200,
+        overflow: "visible",
+      }}
     >
       {children}
     </View>

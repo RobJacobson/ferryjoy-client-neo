@@ -14,10 +14,20 @@ module.exports = {
     extend: {
       fontFamily: {
         puffberry: ["Puffberry"],
-        playwrite: ["Playwrite-Regular"],
-        "playwrite-thin": ["Playwrite-Thin"],
-        "playwrite-extralight": ["Playwrite-ExtraLight"],
-        "playwrite-light": ["Playwrite-Light"],
+        "fira-sans-condensed-400": ["FiraSansCondensed-Regular"],
+        "fira-sans-condensed-200": ["FiraSansCondensed-ExtraLight"],
+        "fira-sans-condensed-200-italic": [
+          "FiraSansCondensed-ExtraLightItalic",
+        ],
+        "fira-sans-condensed-400-italic": ["FiraSansCondensed-Italic"],
+        "playpen-100": ["PlaypenSans-Thin"],
+        "playpen-200": ["PlaypenSans-ExtraLight"],
+        "playpen-300": ["PlaypenSans-Light"],
+        "playpen-400": ["PlaypenSans-Regular"],
+        "playpen-500": ["PlaypenSans-Medium"],
+        "playpen-600": ["PlaypenSans-SemiBold"],
+        "playpen-700": ["PlaypenSans-Bold"],
+        "playpen-800": ["PlaypenSans-ExtraBold"],
       },
       colors: {
         border: "hsl(var(--border))",

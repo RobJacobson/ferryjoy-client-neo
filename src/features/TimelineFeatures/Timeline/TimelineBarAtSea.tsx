@@ -4,10 +4,11 @@
  * Handles rocking animation for at-sea segments.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
-import { Text } from "@/components/ui";
+import { Text, View } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
@@ -26,20 +27,14 @@ type TimelineBarAtSeaProps = {
   predictionEndTimeMs?: number;
   isArrived?: boolean;
   isHeld?: boolean;
-  departingDistance?: number;
-  arrivingDistance?: number;
-  vesselName?: string;
-  speed?: number;
+  vesselLocation?: VesselLocation;
   circleSize?: number;
+  orientation?: "horizontal" | "vertical";
   barStyle?: string;
   showIndicator?: boolean;
   animate?: boolean;
   style?: ViewStyle;
 };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * A component that renders an at-sea progress segment with distance-based progress.
@@ -60,10 +55,8 @@ const TimelineBarAtSea = ({
   predictionEndTimeMs,
   isArrived = false,
   isHeld = false,
-  departingDistance,
-  arrivingDistance,
-  vesselName,
-  speed = 0,
+  vesselLocation,
+  orientation = "horizontal",
   barStyle = "h-3",
   showIndicator,
   animate = false,
@@ -83,16 +76,22 @@ const TimelineBarAtSea = ({
     predictionEndTimeMs,
   });
 
+  // Position indicator: end of segment when arrived, or when held after completion.
+  // When held at origin (at-dock), status is Pending — do not set progress = 1 (would show bar as green).
   let progress = timeProgress;
-  if (isArrived || isHeld) {
+  if (isArrived) {
+    progress = 1;
+  } else if (isHeld && status === "Completed") {
     progress = 1;
   } else if (
     status === "InProgress" &&
-    departingDistance !== undefined &&
-    arrivingDistance !== undefined &&
-    departingDistance + arrivingDistance > 0
+    vesselLocation?.DepartingDistance !== undefined &&
+    vesselLocation?.ArrivingDistance !== undefined &&
+    vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0
   ) {
-    progress = departingDistance / (departingDistance + arrivingDistance);
+    progress =
+      vesselLocation.DepartingDistance /
+      (vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance);
     progress = Math.min(1, Math.max(0, progress));
   }
 
@@ -116,28 +115,39 @@ const TimelineBarAtSea = ({
     showIndicator ?? (status === "InProgress" || isHeld);
 
   return (
-    <TimelineSegment duration={duration ?? 1} style={style}>
-      <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
+    <TimelineSegment
+      duration={duration ?? 1}
+      orientation={orientation}
+      style={style}
+    >
+      <TimelineBar
+        flexGrow={1}
+        progress={progress}
+        orientation={orientation}
+        barStyle={barStyle}
+      />
       {shouldShowIndicator && (
         <TimelineIndicator
           progress={animatedProgress}
+          orientation={orientation}
           minutesRemaining={minutesRemaining ?? "--"}
           animate={animate}
-          speed={speed}
+          speed={vesselLocation?.Speed ?? 0}
         >
-          {vesselName && (
-            <Text className="text-sm font-bold leading-none font-playwrite pt-4">
-              {vesselName}
+          {vesselLocation?.VesselName && (
+            <Text className="text-sm font-playpen-600">
+              {vesselLocation.VesselName}
             </Text>
           )}
-          {!isArrived && arrivingDistance !== undefined && (
-            <Text className="text-xs text-muted-foreground font-playwrite-light">
-              {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
+          {!isArrived && vesselLocation?.ArrivingDistance !== undefined && (
+            <Text className="text-sm text-muted-foreground font-playpen-300 leading-[1.15]">
+              {(vesselLocation?.Speed ?? 0).toFixed(0)} kn{" · "}
+              {vesselLocation?.ArrivingDistance?.toFixed(1)} mi
             </Text>
           )}
           {isArrived && (
-            <Text className="text-xs text-muted-foreground font-playwrite-light">
-              Arrived ❤️❤️❤️
+            <Text className="text-xs text-muted-foreground font-playpen-300 leading-[1.15]">
+              ❤️ Arrived! ❤️
             </Text>
           )}
         </TimelineIndicator>

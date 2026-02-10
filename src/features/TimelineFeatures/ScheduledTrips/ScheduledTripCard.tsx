@@ -11,6 +11,7 @@ import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
+import { ScheduledTripTimelineVertical } from "./ScheduledTripTimelineVertical";
 import type { ScheduledTripJourney, Segment } from "./types";
 
 type ScheduledTripCardProps = {
@@ -58,6 +59,12 @@ export const ScheduledTripCard = ({
         />
       }
     >
+      {/* <ScheduledTripTimelineVertical
+        journey={trip}
+        vesselTripMap={vesselTripMap}
+        vesselLocation={vesselLocation}
+        height={250} // Optional, defaults to 250
+      /> */}
       <ScheduledTripTimeline
         journey={trip}
         vesselTripMap={vesselTripMap}

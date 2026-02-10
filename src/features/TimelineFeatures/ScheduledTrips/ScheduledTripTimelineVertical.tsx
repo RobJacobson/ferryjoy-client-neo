@@ -1,6 +1,6 @@
 /**
- * ScheduledTripTimeline renders a sequence of scheduled trip segments (departure → stops → destination).
- * ScheduledTrips owns composition (like VesselTrips) and uses only Timeline primitives.
+ * ScheduledTripTimelineVertical renders a vertical sequence of scheduled trip segments.
+ * Fixed height container with markers on left/right of the central track.
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -24,7 +24,7 @@ import { synthesizeTripSegments } from "./utils/synthesizeTripSegments";
 // Main Component
 // ============================================================================
 
-type ScheduledTripTimelineProps = {
+type ScheduledTripTimelineVerticalProps = {
   /**
    * Scheduled journey data.
    */
@@ -41,21 +41,25 @@ type ScheduledTripTimelineProps = {
    * The trip currently being held (if any).
    */
   heldTrip?: VesselTrip;
+  /**
+   * Fixed height for the vertical timeline.
+   */
+  height?: number;
 };
 
 /**
- * Displays a multi-segment timeline for scheduled ferry journeys, composing Timeline primitives
- * directly from synthesized TripSegment objects.
+ * Displays a vertical multi-segment timeline for scheduled ferry journeys.
  *
- * @param props - ScheduledTripTimelineProps
- * @returns View of horizontal timeline or null when no segments
+ * @param props - ScheduledTripTimelineVerticalProps
+ * @returns View of vertical timeline or null when no segments
  */
-export const ScheduledTripTimeline = ({
+export const ScheduledTripTimelineVertical = ({
   journey,
   vesselTripMap,
   vesselLocation,
   heldTrip,
-}: ScheduledTripTimelineProps) => {
+  height = 250,
+}: ScheduledTripTimelineVerticalProps) => {
   const segments = useMemo(
     () =>
       synthesizeTripSegments({
@@ -69,15 +73,15 @@ export const ScheduledTripTimeline = ({
 
   if (segments.length === 0) return null;
 
-  // Two timeline segments per journey segment (at-dock + at-sea)
   const totalSegmentCount = segments.length * 2;
   const equalWidth = totalSegmentCount === 4;
 
   return (
-    <View className="relative flex-row items-center w-full overflow-visible px-4 py-8">
+    <View
+      className="relative items-center w-full overflow-visible"
+      style={{ height, paddingVertical: 20 }}
+    >
       {segments.map((segment) => {
-        // Duration for layout (using scheduled times to keep bars consistent)
-        // Ensure a minimum duration of 1 minute for the dock segment to prevent marker overlap
         const dockDuration = Math.max(
           1,
           (segment.leaveCurr.scheduled.getTime() -
@@ -95,6 +99,7 @@ export const ScheduledTripTimeline = ({
               duration={dockDuration}
               equalWidth={equalWidth}
               segmentCount={totalSegmentCount}
+              orientation="vertical"
             >
               <ScheduledTripArriveMarker
                 terminalAbbrev={segment.currTerminal.abbrev}
@@ -119,6 +124,7 @@ export const ScheduledTripTimeline = ({
                 predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
                 vesselLocation={vesselLocation}
                 showIndicator={segment.phase === "at-dock"}
+                orientation="vertical"
               />
             </TimelineSegment>
 
@@ -126,6 +132,7 @@ export const ScheduledTripTimeline = ({
               duration={seaDuration}
               equalWidth={equalWidth}
               segmentCount={totalSegmentCount}
+              orientation="vertical"
             >
               <ScheduledTripDepartMarker
                 terminalAbbrev={segment.currTerminal.abbrev}
@@ -144,7 +151,6 @@ export const ScheduledTripTimeline = ({
                       : "Pending"
                 }
                 isArrived={
-                  // Only show "Arrived" when we have actual arrival at destination, not when held at origin.
                   segment.phase !== "at-sea" && !!segment.arriveNext.actual
                 }
                 isHeld={segment.isHeld}
@@ -155,6 +161,7 @@ export const ScheduledTripTimeline = ({
                   segment.phase === "at-sea" ||
                   (segment.isHeld && segment.phase === "completed")
                 }
+                orientation="vertical"
               />
 
               <ScheduledTripArriveMarker
@@ -174,15 +181,6 @@ export const ScheduledTripTimeline = ({
 // Internal Helper Components
 // ============================================================================
 
-/**
- * Arrive marker for ScheduledTripTimeline: "Arrive/Arrived" + terminal.
- * Handles both origin (arrive at segment start) and destination (arrive at segment end).
- *
- * @param terminalAbbrev - Terminal abbrev
- * @param arriveTime - Time point for arrival
- * @param isArrived - Whether the vessel has already arrived
- * @returns TimelineMarker with "Arrive/Arrived" label and times
- */
 const ScheduledTripArriveMarker = ({
   terminalAbbrev,
   arriveTime,
@@ -192,8 +190,8 @@ const ScheduledTripArriveMarker = ({
   arriveTime: TimePoint;
   isArrived: boolean;
 }) => (
-  <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-[90px]">
+  <TimelineMarker zIndex={10} orientation="vertical">
+    <TimelineMarkerContent className="mr-[380px] flex-row items-center justify-end gap-x-2">
       <TimelineMarkerLabel
         text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
       />
@@ -206,15 +204,6 @@ const ScheduledTripArriveMarker = ({
   </TimelineMarker>
 );
 
-/**
- * Depart marker for ScheduledTripTimeline: "Depart/Left" + DepartingTerminalAbbrev.
- * Shows scheduled departure and actual or estimated departure time.
- *
- * @param terminalAbbrev - Terminal abbreviation
- * @param leaveTime - Time point for departure
- * @param isLeft - Whether the vessel has already left
- * @returns TimelineMarker with "Depart/Left" label and times
- */
 const ScheduledTripDepartMarker = ({
   terminalAbbrev,
   leaveTime,
@@ -224,16 +213,22 @@ const ScheduledTripDepartMarker = ({
   leaveTime: TimePoint;
   isLeft: boolean;
 }) => (
-  <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-[90px]">
+  <TimelineMarker zIndex={10} orientation="vertical">
+    <TimelineMarkerContent className="ml-[380px] flex-row items-center justify-start gap-x-2">
       <TimelineMarkerLabel
         text={`${isLeft ? "Left" : "Leave"} ${terminalAbbrev}`}
       />
-      <TimelineMarkerTime time={leaveTime.scheduled} type="scheduled" isBold />
-      <TimelineMarkerTime
-        time={leaveTime.actual ?? leaveTime.estimated}
-        type={leaveTime.actual ? "actual" : "estimated"}
-      />
+      <View className="flex-col items-end start gap-x-2">
+        <TimelineMarkerTime
+          time={leaveTime.scheduled}
+          type="scheduled"
+          isBold
+        />
+        <TimelineMarkerTime
+          time={leaveTime.actual ?? leaveTime.estimated}
+          type={leaveTime.actual ? "actual" : "estimated"}
+        />
+      </View>
     </TimelineMarkerContent>
   </TimelineMarker>
 );

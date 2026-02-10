@@ -5,44 +5,15 @@
  */
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
-  useFrameCallback,
-  useSharedValue,
 } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { lerp } from "@/shared/utils/lerp";
-import { shadowStyle } from "./config";
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const INDICATOR_SIZE = 32;
-
-/** Z-index value for stacking above markers and other timeline elements */
-const INDICATOR_Z_INDEX_VALUE = 20;
-
-/** Maximum rotation angle in degrees */
-const MAX_ROTATION_DEG = 3;
-
-/** Speed range for animation scaling (knots) */
-const MIN_SPEED_KNOTS = 0;
-const MAX_SPEED_KNOTS = 20;
-
-/** Animation period range in milliseconds */
-const PERIOD_SLOW_MS = 20000;
-const PERIOD_FAST_MS = 7500;
-
-/** Decay factor for returning to 0deg (per frame) */
-const DECAY_FACTOR = 0.25;
-
-/** Minimum rotation threshold before snapping to 0 */
-const SNAP_THRESHOLD = 0.01;
+import { colors, shadowStyle, timelineIndicatorConfig } from "./config";
+import { useRockingAnimation } from "./useRockingAnimation.timing";
 
 // ============================================================================
 // Types
@@ -75,14 +46,9 @@ type TimelineIndicatorProps = {
   minutesRemaining?: number | string;
   /**
    * NativeWind className for the indicator container.
-   * e.g., "bg-pink-50 border-pink-500"
+   * Defaults to cn(colors.background, colors.border).
    */
   indicatorStyle?: string;
-  /**
-   * NativeWind className for the minutes text.
-   * e.g., "text-pink-500 font-bold"
-   */
-  textStyle?: string;
   /**
    * Labels to display above (horizontal) or beside (vertical) the indicator.
    * Provided by parent component (business logic).
@@ -90,70 +56,9 @@ type TimelineIndicatorProps = {
   children?: ReactNode;
   /**
    * Height of the container for proper vertical centering.
-   * Defaults to 32px to match TimelineBar height.
+   * Defaults to timelineIndicatorConfig.size to match TimelineBar height.
    */
   containerHeight?: number;
-};
-
-// ============================================================================
-// Hooks
-// ============================================================================
-
-/**
- * Custom hook to manage the rocking animation phase and rotation.
- *
- * @param animate - Whether the animation should be active
- * @param speed - Current vessel speed for frequency scaling
- * @returns An animated style object for the rotation transform
- */
-const useRockingAnimation = (animate: boolean, speed: number) => {
-  // theta represents the phase of our sine wave animation (accumulated time * frequency)
-  const theta = useSharedValue(0);
-  const rotation = useSharedValue(0);
-
-  // Use a frame callback to drive the animation manually
-  const frameCallback = useFrameCallback((frameInfo) => {
-    if (!animate || !frameInfo.timeSincePreviousFrame) {
-      // Smoothly return to 0 when not animating
-      if (rotation.value !== 0) {
-        rotation.value = rotation.value * DECAY_FACTOR;
-        if (Math.abs(rotation.value) < SNAP_THRESHOLD) rotation.value = 0;
-      }
-      return;
-    }
-
-    // Map speed to angular velocity (rad/ms)
-    const minFreq = (2 * Math.PI) / PERIOD_SLOW_MS;
-    const maxFreq = (2 * Math.PI) / PERIOD_FAST_MS;
-    const angularVelocity = lerp(
-      speed,
-      MIN_SPEED_KNOTS,
-      MAX_SPEED_KNOTS,
-      minFreq,
-      maxFreq
-    );
-
-    // Advance theta based on elapsed time and current speed
-    theta.value += angularVelocity * frameInfo.timeSincePreviousFrame;
-
-    // Map theta to rotation using sine
-    rotation.value = Math.sin(theta.value) * MAX_ROTATION_DEG;
-  });
-
-  // Start/stop the frame callback based on the animate prop
-  useEffect(() => {
-    // We keep the callback active even when not animating to allow for the decay to 0
-    frameCallback.setActive(true);
-    return () => frameCallback.setActive(false);
-  }, [frameCallback]);
-
-  return useAnimatedStyle(() => ({
-    transform: [
-      { translateX: -INDICATOR_SIZE / 2 },
-      { translateY: -INDICATOR_SIZE / 2 },
-      { rotate: `${rotation.value}deg` },
-    ],
-  }));
 };
 
 // ============================================================================
@@ -181,8 +86,7 @@ const TimelineIndicator = ({
   animate = false,
   speed = 0,
   minutesRemaining = "--",
-  indicatorStyle = "bg-pink-50 border-pink-500",
-  textStyle = "text-pink-500 font-playwrite text-sm",
+  indicatorStyle = cn(colors.background, colors.border),
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
@@ -200,8 +104,6 @@ const TimelineIndicator = ({
         };
   }, [progress, orientation]);
 
-  const isVertical = orientation === "vertical";
-
   return (
     <Animated.View
       className="absolute items-center justify-center"
@@ -209,12 +111,12 @@ const TimelineIndicator = ({
       collapsable={false}
       style={[
         {
-          top: isVertical ? undefined : "50%",
-          left: isVertical ? "50%" : undefined,
-          width: INDICATOR_SIZE,
-          height: INDICATOR_SIZE,
-          zIndex: INDICATOR_Z_INDEX_VALUE,
-          elevation: INDICATOR_Z_INDEX_VALUE,
+          top: "50%",
+          left: "50%",
+          width: timelineIndicatorConfig.size,
+          height: timelineIndicatorConfig.size,
+          zIndex: timelineIndicatorConfig.zIndex,
+          elevation: timelineIndicatorConfig.zIndex,
           overflow: "visible",
         },
         rockingStyle,
@@ -222,22 +124,17 @@ const TimelineIndicator = ({
       ]}
     >
       {/* Labels above/beside indicator - centered horizontally/vertically via items-center on parent.
-          minHeight prevents clipping: when the label sits outside the parent's 32px
-          bounds, layout can measure it inconsistently (first paint vs after text
-          measure), so we reserve space to avoid a collapsed wrapper. */}
+          minHeight prevents clipping: when the label sits outside the parent's
+          indicator size bounds, layout can measure it inconsistently (first paint
+          vs after text measure), so we reserve space to avoid a collapsed wrapper. */}
       {children && (
         <View
           pointerEvents="none"
           collapsable={false}
-          className={cn(
-            "absolute items-center",
-            isVertical ? "justify-center" : "justify-end"
-          )}
+          className="absolute items-center"
           style={{
-            bottom: isVertical ? undefined : INDICATOR_SIZE + 2,
-            left: isVertical ? INDICATOR_SIZE + 8 : undefined,
+            bottom: timelineIndicatorConfig.size + 2,
             width: 250, // Sufficient width to prevent wrapping
-            minHeight: isVertical ? undefined : 44, // Reserve space so content is never clipped (2 lines)
           }}
         >
           {children}
@@ -245,20 +142,24 @@ const TimelineIndicator = ({
       )}
       {/* Indicator circle */}
       <View
-        className={`rounded-full items-center justify-center border-2 ${indicatorStyle} `}
+        className={cn(
+          "rounded-full items-center justify-center border-[2px]",
+          indicatorStyle
+        )}
         style={{
-          width: INDICATOR_SIZE,
-          height: INDICATOR_SIZE,
+          width: timelineIndicatorConfig.size,
+          height: timelineIndicatorConfig.size,
           ...shadowStyle,
         }}
       >
         <Text
-          className={textStyle}
-          style={
+          className={cn(
+            colors.text,
+            "font-playpen-600",
             typeof minutesRemaining === "number" && minutesRemaining >= 100
-              ? { fontSize: 12 }
-              : undefined
-          }
+              ? "mt-1 text-base"
+              : "mt-[-1px] text-lg"
+          )}
         >
           {minutesRemaining}
         </Text>

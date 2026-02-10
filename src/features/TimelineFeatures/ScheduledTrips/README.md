@@ -24,15 +24,16 @@ A unified `vesselTripMap` is built with a strict precedence rule:
 The `Key` (deterministic scheduled trip ID) is the universal join key.
 
 ### 4. On-Demand Synthesis (`synthesizeTripSegments`)
-As each `ScheduledTripCard` renders, it calls `synthesizeTripSegments`. This is where the "magic" happens. Each segment self-resolves its status:
+As each `ScheduledTripCard` renders, it calls `synthesizeTripSegments`. This is where the "magic" happens. Each segment self-resolves its status, phase, and estimated times:
 - **Status Determination**:
   - `past`: The `vesselTripMap` contains a record with a `TripEnd` for this segment's `Key`.
   - `ongoing`: The segment's `Key` matches the vessel's current `activeKey` (derived from `heldTrip` or `vesselLocation.ScheduledDeparture`).
   - `future`: Default state.
 - **Phase Determination**:
-  - `completed`: Status is `past` or the segment is currently being "held" after arrival.
-  - `at-sea` / `at-dock`: Status is `ongoing`, resolved via `vesselLocation.AtDock`.
+  - `completed`: Status is `past`, or the segment is held and not ongoing (i.e. held after arrival). Ongoing segments never get `completed` phase, so the at-sea bar never shows "Arrived" while the vessel is en route, even when the trip is in the hold window.
+  - `at-sea` / `at-dock`: Status is `ongoing`, resolved via `vesselLocation.AtDock` (held or not).
   - `pending`: Default state.
+- **Estimated times for future segments**: For a segment with status `future`, estimated arrival at the segment's origin and estimated departure from that origin are pulled from the *previous* segment's `VesselTrip` via `segment.PrevKey`. This allows cards for the next leg (e.g. BBI → P52) to show "Arrive BBI" and "Leave BBI" estimates while the vessel is still on the current leg (e.g. P52 → BBI). See **Predictions** under Implementation Notes.
 
 ---
 
@@ -86,4 +87,5 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 
 - **Missing Indicator**: Check if the `vesselLocation.ScheduledDeparture` matches the `segment.DepartingTime`. If they don't match exactly, the segment won't be marked as `ongoing`.
 - **Wrong Status**: Verify the `vesselTripMap`. If a trip has a `TripEnd`, it will always be `past`.
-- **Predictions**: Predictions for a future leg are often pulled from the *previous* segment's `VesselTrip` (using `segment.PrevKey`).
+- **"Arrived" while en route**: If the at-sea bar shows "Arrived" and "--" when the vessel is still at sea, the segment likely has `phase === "completed"` instead of `at-sea`. Ensure phase is only `completed` when status is `past` or when held and not ongoing (see Phase Determination above).
+- **Predictions (future segments)**: For a *future* segment (e.g. BBI → P52 while the vessel is on P52 → BBI), estimated times are resolved from the previous segment's `VesselTrip` via `segment.PrevKey`. `arriveCurr.estimated` (arrival at this segment's origin) uses `vesselLocation.Eta`, then `prevTrip.AtSeaArriveNext?.PredTime`, then `prevTrip.AtDockArriveNext?.PredTime`. `leaveCurr.estimated` (departure from that origin) uses `prevTrip.AtDockDepartNext?.PredTime` or `prevTrip.AtSeaDepartNext?.PredTime`. This ensures the next leg's card shows projected arrival and departure at the connecting terminal.

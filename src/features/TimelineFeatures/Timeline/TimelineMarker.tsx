@@ -1,6 +1,5 @@
 /**
- * TimelineMarker provides the anchor, circle, and flex container for marker content.
- * Used by TimelineBar and vertical timelines. Content positioning is handled by TimelineMarkerContent.
+ * TimelineMarker provides the anchor and circle. Use TimelineMarkerContent as child for the content slot (centered by default; use its className to position).
  */
 
 import type { ReactNode } from "react";
@@ -31,7 +30,8 @@ type TimelineMarkerProps = {
    */
   size?: number;
   /**
-   * Layout: horizontal (zero-width anchor, circle absolute) or vertical (full-width, circle in flow).
+   * Outer slot only: horizontal = zero-width anchor; vertical = full-width row.
+   * Content slot is always the same; use TimelineMarkerContent className (e.g. mt-4, ml-8, mr-8) to position.
    */
   orientation?: "horizontal" | "vertical";
   /**
@@ -41,16 +41,7 @@ type TimelineMarkerProps = {
 };
 
 /**
- * Renders a timeline node: anchor container, circle, and children (e.g. TimelineMarkerContent).
- *
- * @param children - Optional content (typically TimelineMarkerContent)
- * @param className - Optional className for the container
- * @param circleClassName - Optional className for the circle (defaults to timelineMarkerConfig.markerClass)
- * @param zIndex - Optional z-index for stacking order
- * @param size - Optional size in pixels for the circle
- * @param orientation - horizontal (default) or vertical
- * @param style - Additional inline styles for the container
- * @returns A View with circle and flex container for children
+ * Renders a timeline node: anchor container and circle. Children (e.g. TimelineMarkerContent) provide the content slot.
  */
 const TimelineMarker = ({
   children,
@@ -62,6 +53,8 @@ const TimelineMarker = ({
   style,
 }: TimelineMarkerProps) => {
   const isVertical = orientation === "vertical";
+  const slotHeight = timelineMarkerConfig.containerHeight;
+  const circleTop = (slotHeight - size) / 2;
 
   return (
     <View
@@ -69,16 +62,14 @@ const TimelineMarker = ({
       collapsable={false}
       className={cn("items-center justify-center", className)}
       style={{
-        position: isVertical ? "absolute" : "relative",
+        position: "relative",
         width: isVertical ? "100%" : 0,
-        height: timelineMarkerConfig.containerHeight,
-        flexDirection: isVertical ? "row" : "column",
+        height: isVertical ? 0 : slotHeight,
         zIndex,
         elevation: zIndex,
         ...style,
       }}
     >
-      {/* Circle: absolute and centered so it sits on the track in both orientations */}
       <View
         className={cn(
           "absolute rounded-full items-center justify-center",
@@ -89,8 +80,8 @@ const TimelineMarker = ({
           height: size,
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
-          top: (timelineMarkerConfig.containerHeight - size) / 2,
-          left: 0,
+          top: isVertical ? -size / 2 : circleTop,
+          left: isVertical ? "50%" : 0,
           marginLeft: -size / 2,
         }}
       />

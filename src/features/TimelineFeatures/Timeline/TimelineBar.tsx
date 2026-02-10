@@ -14,7 +14,13 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { shadowStyle } from "./config";
+import { cn } from "@/lib/utils";
+import {
+  colors,
+  shadowStyle,
+  timelineIndicatorConfig,
+  timelineSegmentConfig,
+} from "./config";
 
 // ============================================================================
 // Types
@@ -34,13 +40,18 @@ type TimelineBarProps = {
    */
   progress: number;
   /**
+   * Orientation of the timeline.
+   * Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
+  /**
    * NativeWind className for the bar height and other track styling.
    * e.g., "h-3", "h-4", "h-6"
    */
   barStyle?: string;
   /**
    * NativeWind className for the progress fill styling.
-   * e.g., "bg-pink-300", "bg-blue-400"
+   * Defaults to colors.progress.
    */
   progressStyle?: string;
   /**
@@ -49,21 +60,18 @@ type TimelineBarProps = {
   style?: ViewStyle;
 };
 
-// ============================================================================
-// Component
-// ============================================================================
-
 /**
- * Renders a horizontal progress bar that displays progress based on provided values.
+ * Renders a progress bar that displays progress based on provided values.
  * The bar consists of a background track and a filled progress portion.
  *
- * Width is determined via FlexBox `flexGrow`. When used as a child of TimelineBarAtDock
+ * Width/Height is determined via FlexBox `flexGrow`. When used as a child of TimelineBarAtDock
  * or TimelineBarAtSea, flexGrow is always 1 (fills parent container). The parent container
- * handles proportional width allocation based on segment duration.
+ * handles proportional allocation based on segment duration.
  *
- * @param flexGrow - FlexGrow value for width allocation (usually 1 when used with at-dock/at-sea containers)
+ * @param flexGrow - FlexGrow value for allocation (usually 1 when used with at-dock/at-sea containers)
  * @param progress - Progress value between 0 and 1
- * @param barStyle - NativeWind className for track styling (default "h-3")
+ * @param orientation - Orientation of the timeline
+ * @param barStyle - NativeWind className for track styling (default "h-4")
  * @param progressStyle - NativeWind className for fill styling (default "bg-pink-300")
  * @param style - Additional inline styles
  * @returns A View component containing the progress bar
@@ -71,10 +79,12 @@ type TimelineBarProps = {
 const TimelineBar = ({
   flexGrow,
   progress,
-  barStyle = "h-3",
-  progressStyle = "bg-pink-300",
+  orientation = "horizontal",
+  barStyle = "h-4",
+  progressStyle = colors.progress,
   style,
 }: TimelineBarProps) => {
+  const isVertical = orientation === "vertical";
   const animatedProgress = useSharedValue(progress);
 
   // Update the animated value whenever the progress prop changes
@@ -105,14 +115,19 @@ const TimelineBar = ({
 
   return (
     <View
-      className="relative flex-row items-center"
+      className={cn(
+        "relative items-center",
+        isVertical ? "flex-column" : "flex-row"
+      )}
       style={{
         overflow: "visible",
         flexGrow,
         flexShrink: 1,
         flexBasis: 0,
-        minWidth: "22%",
-        height: 32, // Fixed height to accommodate 32px indicator with proper centering
+        [isVertical ? "minHeight" : "minWidth"]: isVertical
+          ? "10%"
+          : timelineSegmentConfig.minWidth,
+        [isVertical ? "width" : "height"]: timelineIndicatorConfig.size, // Match indicator for centering
         zIndex: 2, // Always below markers (TimelineBar < TimelineMarker)
         elevation: 2, // Elevation needed for Android stacking
         ...style,
@@ -120,6 +135,7 @@ const TimelineBar = ({
     >
       <TimelineBarProgress
         progress={animatedProgress}
+        orientation={orientation}
         barStyle={barStyle}
         progressStyle={progressStyle}
       />
@@ -139,6 +155,10 @@ type TimelineBarProgressProps = {
    */
   progress: SharedValue<number>;
   /**
+   * Orientation of the timeline.
+   */
+  orientation: "horizontal" | "vertical";
+  /**
    * NativeWind className for the bar height and track styling.
    */
   barStyle: string;
@@ -150,29 +170,36 @@ type TimelineBarProgressProps = {
 
 /**
  * Renders the track + filled segment for the progress bar.
- * Vertically centers the 12px track within the 32px container.
+ * Centers the 12px track within the indicator-sized container.
  *
  * @param progress - Animated value between 0 and 1
+ * @param orientation - Orientation of the timeline
  * @param barStyle - NativeWind className for track styling
  * @param progressStyle - NativeWind className for fill styling
  * @returns Track + fill view
  */
 const TimelineBarProgress = ({
   progress,
+  orientation,
   barStyle,
   progressStyle,
 }: TimelineBarProgressProps) => {
+  const isVertical = orientation === "vertical";
   const animatedStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
+    [isVertical ? "height" : "width"]: `${progress.value * 100}%`,
   }));
 
   return (
     <View
-      className={`flex-1 rounded-full bg-primary/20 ${barStyle}`}
-      style={{ height: 12 }} // Explicitly set height to 12px (h-3)
+      className={cn("flex-1 rounded-full bg-primary/20", barStyle)}
+      style={isVertical ? { width: 12 } : { height: 12 }} // Explicitly set thickness to 12px
     >
       <Animated.View
-        className={`rounded-full h-full ${progressStyle}`}
+        className={cn(
+          "rounded-full",
+          progressStyle,
+          isVertical ? "w-full" : "h-full"
+        )}
         style={[animatedStyle, shadowStyle]}
       />
     </View>

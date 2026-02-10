@@ -14,6 +14,7 @@ import {
   TimelineMarkerLabel,
   TimelineMarkerTime,
 } from "../Timeline";
+import { timelineIndicatorConfig } from "../Timeline/config";
 import { useVesselDailyTimeline } from "./hooks";
 
 // ============================================================================
@@ -129,8 +130,8 @@ export const VesselTimeline = ({
               <TimelineMarkerContent
                 className={
                   isArrival
-                    ? "flex-1 flex-row justify-end items-center pr-4"
-                    : "flex-1 flex-row justify-start items-center pl-4"
+                    ? "ml-14 flex-row justify-end items-center"
+                    : "mr-14 flex-row justify-start items-center"
                 }
               >
                 <TimelineMarkerLabel
@@ -149,7 +150,11 @@ export const VesselTimeline = ({
         {/* 4. The Indicator (Rocking Vessel) */}
         <View
           className="absolute left-0 right-0"
-          style={{ top: currentOffsetY, height: 0, zIndex: 20 }}
+          style={{
+            top: currentOffsetY,
+            height: 0,
+            zIndex: timelineIndicatorConfig.zIndex,
+          }}
         >
           <TimelineIndicator
             progress={progressValue}
@@ -160,7 +165,7 @@ export const VesselTimeline = ({
             indicatorStyle="bg-pink-50 border-pink-500"
           >
             <View className="bg-white/90 px-2 py-1 rounded-md border border-pink-200 shadow-sm">
-              <Text className="text-[10px] font-playwrite-bold text-pink-600">
+              <Text className="text-xs font-playpen-600 text-pink-600">
                 {vesselName ?? vesselAbbrev}
               </Text>
             </View>

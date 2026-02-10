@@ -4,6 +4,16 @@
  * These values ensure consistent visual hierarchy and cross-platform compatibility (iOS/Android/Web).
  */
 
+import { cn } from "@/lib/utils";
+
+/** Tailwind class names for timeline accent color (use with cn() for styling). */
+export const colors = {
+  border: "border-green-500",
+  text: "text-green-500",
+  progress: "bg-green-300",
+  background: "bg-green-100",
+} as const;
+
 /** Timeline marker layout and styling (circle size, container height, content width, default circle class). */
 export const timelineMarkerConfig = {
   /** Size in pixels for timeline circle markers. */
@@ -13,7 +23,23 @@ export const timelineMarkerConfig = {
   /** Width in pixels reserved for marker label/time content. */
   contentWidth: 200,
   /** Tailwind classes for timeline marker circle (background + border). */
-  markerClass: "bg-white border border-pink-500",
+  markerClass: cn("bg-white border-[2px]", colors.border),
+} as const;
+
+export const timelineIndicatorConfig = {
+  size: 34,
+  zIndex: 20,
+  maxRotationDeg: 3,
+  minSpeedKnots: 0,
+  maxSpeedKnots: 20,
+  periodSlowMs: 25000,
+  periodFastMs: 7500,
+} as const;
+
+/** Timeline segment/bar layout (flex-grow + min-width for proportional segments). */
+export const timelineSegmentConfig = {
+  /** Minimum width for each segment (percentage string for flex layout). */
+  minWidth: "20%",
 } as const;
 
 /**

@@ -20,7 +20,7 @@ type TimelineMarkerLabelProps = {
  */
 const TimelineMarkerLabel = ({ text }: TimelineMarkerLabelProps) => {
   if (text === "") return null;
-  return <Text className="text-xs text-muted-foreground">{text}</Text>;
+  return <Text className="font-playpen-200 text-xs">{text}</Text>;
 };
 
 export default TimelineMarkerLabel;

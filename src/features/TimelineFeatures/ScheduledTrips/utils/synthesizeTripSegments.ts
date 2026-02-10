@@ -66,48 +66,69 @@ export const synthesizeTripSegments = (params: {
 
   return segments.map((segment) => {
     const actualTrip = vesselTripMap.get(segment.Key);
+    const prevTrip = segment.PrevKey
+      ? vesselTripMap.get(segment.PrevKey)
+      : undefined;
     const isActive = !!activeKey && activeKey === segment.Key;
     const isHeld = isActive && !!heldTrip;
 
     // Self-resolving status:
-    // - If we have a TripEnd in the map, it's definitely past.
-    // - If it's the active key, it's ongoing.
+    // - Active segment is always ongoing (so we never show "Arrived" on the bar while en route).
+    // - If we have TripEnd and this segment is not active, it's past.
     // - Otherwise, it's future.
     let status: "past" | "ongoing" | "future" = "future";
-    if (actualTrip?.TripEnd) {
-      status = "past";
-    } else if (isActive) {
+    if (isActive) {
       status = "ongoing";
+    } else if (actualTrip?.TripEnd) {
+      status = "past";
     }
 
     // Phase logic:
-    // - Past status or held means completed.
-    // - Ongoing status uses the activePhase.
-    // - Future status is pending.
+    // - Past status means completed. Held + past also completed.
+    // - Ongoing status always uses activePhase (at-sea vs at-dock) so we never show "Arrived" on
+    //   the at-sea bar while the vessel is en route, even when the trip is held (displayData).
+    // - Held + ongoing was incorrectly forcing phase to "completed", causing "Arrived" + "--".
     let phase: "at-dock" | "at-sea" | "completed" | "pending" = "pending";
-    if (status === "past" || isHeld) {
+    if (status === "past") {
+      phase = "completed";
+    } else if (isHeld && status !== "ongoing") {
       phase = "completed";
     } else if (status === "ongoing") {
-      // Refinement: If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
-      // If status is ongoing but we are AtDock, the indicator should be in the at-dock segment.
       phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
     }
+
+    // Estimated arrival at this segment's origin: from this trip's actuals or from previous leg's predictions.
+    const arriveCurrEstimated =
+      status === "future" && prevTrip
+        ? (vesselLocation?.Eta ??
+          prevTrip.AtSeaArriveNext?.PredTime ??
+          prevTrip.AtDockArriveNext?.PredTime)
+        : undefined;
+
+    // Estimated departure from this segment's origin: from this trip or from previous leg's "depart next" predictions.
+    const leaveCurrEstimatedFromPrev =
+      status === "future" && prevTrip
+        ? (prevTrip.AtDockDepartNext?.PredTime ??
+          prevTrip.AtSeaDepartNext?.PredTime)
+        : undefined;
 
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
       scheduled: segment.SchedArriveCurr ?? segment.DepartingTime,
       actual: actualTrip?.TripStart ?? undefined,
-      estimated: undefined,
+      estimated: arriveCurrEstimated,
     };
 
     // 2. LeaveCurr TimePoint (Departure from origin terminal)
+    // Show depart estimate when at dock and we have a prediction, even if segment is held.
+    // For future segments, use previous leg's AtDockDepartNext/AtSeaDepartNext.
     const leaveCurr: TimePoint = {
       scheduled: segment.DepartingTime,
       actual: actualTrip?.LeftDock ?? undefined,
       estimated:
-        isActive && activePhase === "AtDock" && !isHeld
+        isActive && activePhase === "AtDock"
           ? actualTrip?.AtDockDepartCurr?.PredTime
-          : undefined,
+          : leaveCurrEstimatedFromPrev,
     };
 
     // 3. ArriveNext TimePoint (Arrival at destination terminal)
@@ -149,6 +170,14 @@ export const synthesizeTripSegments = (params: {
       status,
       phase,
       speed: vesselLocation?.Speed,
+      departingDistance:
+        isActive && activePhase === "AtSea"
+          ? vesselLocation?.DepartingDistance
+          : undefined,
+      arrivingDistance:
+        isActive && activePhase === "AtSea"
+          ? vesselLocation?.ArrivingDistance
+          : undefined,
       isHeld,
       isArrived: isArrivedAtDock,
       isLeft: isLeftDock,

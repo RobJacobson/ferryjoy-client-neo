@@ -44,6 +44,10 @@ export type TripSegment = {
 
   // Real-time metadata
   speed?: number;
+  /** Distance in miles from departing terminal (when at sea). */
+  departingDistance?: number;
+  /** Distance in miles to arriving terminal (when at sea). */
+  arrivingDistance?: number;
   isHeld: boolean;
   isArrived: boolean;
   isLeft: boolean;

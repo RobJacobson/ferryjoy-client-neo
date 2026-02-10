@@ -38,7 +38,12 @@ const TimelineMarkerTime = ({
   type,
   isBold = false,
 }: TimelineMarkerTimeProps) => {
-  if (!time) return null;
+  if (!time)
+    return (
+      <View>
+        <Text> </Text>
+      </View>
+    );
 
   const Icon =
     type === "actual"
@@ -52,13 +57,11 @@ const TimelineMarkerTime = ({
   return (
     <View
       className="flex-row items-center justify-center"
-      style={{ gap: type === "scheduled" ? 2 : 1 }}
+      style={{ gap: type === "actual" ? 3 : 2 }}
     >
-      {Icon && (
-        <Icon size={12} strokeWidth={1.5} color={isBold ? "#000" : "#333"} />
-      )}
+      {Icon && <Icon size={14} strokeWidth={1.5} color="#333" />}
       <Text
-        className={`text-[10px] ${isBold ? "font-playwrite" : "font-playwrite-extralight"}`}
+        className={`text-xs ${isBold ? "font-playpen-600" : "font-playpen-300"}`}
       >
         {toDisplayTime(time)}
       </Text>
