@@ -31,15 +31,12 @@ type TimelineBarAtSeaProps = {
   vesselName?: string;
   speed?: number;
   circleSize?: number;
+  orientation?: "horizontal" | "vertical";
   barStyle?: string;
   showIndicator?: boolean;
   animate?: boolean;
   style?: ViewStyle;
 };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * A component that renders an at-sea progress segment with distance-based progress.
@@ -64,6 +61,7 @@ const TimelineBarAtSea = ({
   arrivingDistance,
   vesselName,
   speed = 0,
+  orientation = "horizontal",
   barStyle = "h-3",
   showIndicator,
   animate = false,
@@ -120,11 +118,21 @@ const TimelineBarAtSea = ({
     showIndicator ?? (status === "InProgress" || isHeld);
 
   return (
-    <TimelineSegment duration={duration ?? 1} style={style}>
-      <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
+    <TimelineSegment
+      duration={duration ?? 1}
+      orientation={orientation}
+      style={style}
+    >
+      <TimelineBar
+        flexGrow={1}
+        progress={progress}
+        orientation={orientation}
+        barStyle={barStyle}
+      />
       {shouldShowIndicator && (
         <TimelineIndicator
           progress={animatedProgress}
+          orientation={orientation}
           minutesRemaining={minutesRemaining ?? "--"}
           animate={animate}
           speed={speed}

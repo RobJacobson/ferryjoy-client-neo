@@ -62,10 +62,9 @@ const TimelineMarker = ({
       collapsable={false}
       className={cn("items-center justify-center", className)}
       style={{
-        position: isVertical ? "absolute" : "relative",
+        position: "relative",
         width: isVertical ? "100%" : 0,
-        height: slotHeight,
-        flexDirection: isVertical ? "row" : "column",
+        height: isVertical ? 0 : slotHeight,
         zIndex,
         elevation: zIndex,
         ...style,
@@ -81,8 +80,8 @@ const TimelineMarker = ({
           height: size,
           ...shadowStyle,
           elevation: zIndex ?? shadowStyle.elevation,
-          top: circleTop,
-          left: 0,
+          top: isVertical ? -size / 2 : circleTop,
+          left: isVertical ? "50%" : 0,
           marginLeft: -size / 2,
         }}
       />

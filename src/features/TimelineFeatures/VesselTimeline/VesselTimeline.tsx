@@ -14,6 +14,7 @@ import {
   TimelineMarkerLabel,
   TimelineMarkerTime,
 } from "../Timeline";
+import { timelineIndicatorConfig } from "../Timeline/config";
 import { useVesselDailyTimeline } from "./hooks";
 
 // ============================================================================
@@ -149,7 +150,11 @@ export const VesselTimeline = ({
         {/* 4. The Indicator (Rocking Vessel) */}
         <View
           className="absolute left-0 right-0"
-          style={{ top: currentOffsetY, height: 0, zIndex: 20 }}
+          style={{
+            top: currentOffsetY,
+            height: 0,
+            zIndex: timelineIndicatorConfig.zIndex,
+          }}
         >
           <TimelineIndicator
             progress={progressValue}

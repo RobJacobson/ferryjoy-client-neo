@@ -23,7 +23,23 @@ export const timelineMarkerConfig = {
   /** Width in pixels reserved for marker label/time content. */
   contentWidth: 200,
   /** Tailwind classes for timeline marker circle (background + border). */
-  markerClass: cn("bg-white border", colors.border),
+  markerClass: cn("bg-white border-[2px]", colors.border),
+} as const;
+
+export const timelineIndicatorConfig = {
+  size: 36,
+  zIndex: 20,
+  maxRotationDeg: 3,
+  minSpeedKnots: 0,
+  maxSpeedKnots: 20,
+  periodSlowMs: 20000,
+  periodFastMs: 5000,
+} as const;
+
+/** Timeline segment/bar layout (flex-grow + min-width for proportional segments). */
+export const timelineSegmentConfig = {
+  /** Minimum width for each segment (percentage string for flex layout). */
+  minWidth: "20%",
 } as const;
 
 /**

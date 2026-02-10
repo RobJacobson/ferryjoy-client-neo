@@ -6,4 +6,5 @@
 export * from "./ScheduledTripCard";
 export * from "./ScheduledTripList";
 export * from "./ScheduledTripTimeline";
+export * from "./ScheduledTripTimelineVertical";
 export * from "./types";

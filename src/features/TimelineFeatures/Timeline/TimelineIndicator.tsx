@@ -16,27 +16,11 @@ import Animated, {
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { lerp } from "@/shared/utils/lerp";
-import { colors, shadowStyle } from "./config";
+import { colors, shadowStyle, timelineIndicatorConfig } from "./config";
 
 // ============================================================================
-// Constants
+// Constants (animation tuning; not in timelineIndicatorConfig)
 // ============================================================================
-
-const INDICATOR_SIZE = 32;
-
-/** Z-index value for stacking above markers and other timeline elements */
-const INDICATOR_Z_INDEX_VALUE = 20;
-
-/** Maximum rotation angle in degrees */
-const MAX_ROTATION_DEG = 3;
-
-/** Speed range for animation scaling (knots) */
-const MIN_SPEED_KNOTS = 0;
-const MAX_SPEED_KNOTS = 20;
-
-/** Animation period range in milliseconds */
-const PERIOD_SLOW_MS = 20000;
-const PERIOD_FAST_MS = 7500;
 
 /** Decay factor for returning to 0deg (per frame) */
 const DECAY_FACTOR = 0.25;
@@ -90,7 +74,7 @@ type TimelineIndicatorProps = {
   children?: ReactNode;
   /**
    * Height of the container for proper vertical centering.
-   * Defaults to 32px to match TimelineBar height.
+   * Defaults to timelineIndicatorConfig.size to match TimelineBar height.
    */
   containerHeight?: number;
 };
@@ -123,12 +107,12 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
     }
 
     // Map speed to angular velocity (rad/ms)
-    const minFreq = (2 * Math.PI) / PERIOD_SLOW_MS;
-    const maxFreq = (2 * Math.PI) / PERIOD_FAST_MS;
+    const minFreq = (2 * Math.PI) / timelineIndicatorConfig.periodSlowMs;
+    const maxFreq = (2 * Math.PI) / timelineIndicatorConfig.periodFastMs;
     const angularVelocity = lerp(
       speed,
-      MIN_SPEED_KNOTS,
-      MAX_SPEED_KNOTS,
+      timelineIndicatorConfig.minSpeedKnots,
+      timelineIndicatorConfig.maxSpeedKnots,
       minFreq,
       maxFreq
     );
@@ -137,7 +121,8 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
     theta.value += angularVelocity * frameInfo.timeSincePreviousFrame;
 
     // Map theta to rotation using sine
-    rotation.value = Math.sin(theta.value) * MAX_ROTATION_DEG;
+    rotation.value =
+      Math.sin(theta.value) * timelineIndicatorConfig.maxRotationDeg;
   });
 
   // Start/stop the frame callback based on the animate prop
@@ -149,8 +134,8 @@ const useRockingAnimation = (animate: boolean, speed: number) => {
 
   return useAnimatedStyle(() => ({
     transform: [
-      { translateX: -INDICATOR_SIZE / 2 },
-      { translateY: -INDICATOR_SIZE / 2 },
+      { translateX: -timelineIndicatorConfig.size / 2 },
+      { translateY: -timelineIndicatorConfig.size / 2 },
       { rotate: `${rotation.value}deg` },
     ],
   }));
@@ -182,7 +167,7 @@ const TimelineIndicator = ({
   speed = 0,
   minutesRemaining = "--",
   indicatorStyle = cn(colors.background, colors.border),
-  textStyle = cn(colors.text, "font-playwrite text-sm"),
+  textStyle = cn(colors.text, "font-playwrite text-md"),
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
@@ -200,8 +185,6 @@ const TimelineIndicator = ({
         };
   }, [progress, orientation]);
 
-  const isVertical = orientation === "vertical";
-
   return (
     <Animated.View
       className="absolute items-center justify-center"
@@ -209,12 +192,12 @@ const TimelineIndicator = ({
       collapsable={false}
       style={[
         {
-          top: isVertical ? undefined : "50%",
-          left: isVertical ? "50%" : undefined,
-          width: INDICATOR_SIZE,
-          height: INDICATOR_SIZE,
-          zIndex: INDICATOR_Z_INDEX_VALUE,
-          elevation: INDICATOR_Z_INDEX_VALUE,
+          top: "50%",
+          left: "50%",
+          width: timelineIndicatorConfig.size,
+          height: timelineIndicatorConfig.size,
+          zIndex: timelineIndicatorConfig.zIndex,
+          elevation: timelineIndicatorConfig.zIndex,
           overflow: "visible",
         },
         rockingStyle,
@@ -222,22 +205,17 @@ const TimelineIndicator = ({
       ]}
     >
       {/* Labels above/beside indicator - centered horizontally/vertically via items-center on parent.
-          minHeight prevents clipping: when the label sits outside the parent's 32px
-          bounds, layout can measure it inconsistently (first paint vs after text
-          measure), so we reserve space to avoid a collapsed wrapper. */}
+          minHeight prevents clipping: when the label sits outside the parent's
+          indicator size bounds, layout can measure it inconsistently (first paint
+          vs after text measure), so we reserve space to avoid a collapsed wrapper. */}
       {children && (
         <View
           pointerEvents="none"
           collapsable={false}
-          className={cn(
-            "absolute items-center",
-            isVertical ? "justify-center" : "justify-end"
-          )}
+          className="absolute items-center"
           style={{
-            bottom: isVertical ? undefined : INDICATOR_SIZE + 2,
-            left: isVertical ? INDICATOR_SIZE + 8 : undefined,
+            bottom: timelineIndicatorConfig.size + 2,
             width: 250, // Sufficient width to prevent wrapping
-            minHeight: isVertical ? undefined : 44, // Reserve space so content is never clipped (2 lines)
           }}
         >
           {children}
@@ -246,12 +224,12 @@ const TimelineIndicator = ({
       {/* Indicator circle */}
       <View
         className={cn(
-          "rounded-full items-center justify-center border-2",
+          "rounded-full items-center justify-center border-[2px]",
           indicatorStyle
         )}
         style={{
-          width: INDICATOR_SIZE,
-          height: INDICATOR_SIZE,
+          width: timelineIndicatorConfig.size,
+          height: timelineIndicatorConfig.size,
           ...shadowStyle,
         }}
       >
@@ -259,7 +237,7 @@ const TimelineIndicator = ({
           className={textStyle}
           style={
             typeof minutesRemaining === "number" && minutesRemaining >= 100
-              ? { fontSize: 12 }
+              ? { fontSize: 11 }
               : undefined
           }
         >

@@ -4,18 +4,35 @@
  */
 
 import type { ReactNode } from "react";
-import type { ViewStyle } from "react-native";
+import type { DimensionValue, ViewStyle } from "react-native";
 import { View } from "react-native";
+import { timelineIndicatorConfig, timelineSegmentConfig } from "./config";
 
 type TimelineSegmentProps = {
   /**
    * Proportional width allocation based on duration.
+   * Ignored when equalWidth is true.
    */
   duration: number;
   /**
    * Segment content (TimelineBar, TimelineIndicator, etc).
    */
   children: ReactNode;
+  /**
+   * When true, use equal flexGrow (1) so each segment gets the same width (e.g. 25% for 4 segments).
+   * Use when total segment count is 4 to avoid expansion beyond 100%.
+   */
+  equalWidth?: boolean;
+  /**
+   * Total number of segments in the row. Only used when equalWidth is true, to set minWidth to 100/segmentCount%
+   * so each segment gets exactly equal width (e.g. 25% for 4 segments). When equalWidth is false, config minWidth is used.
+   */
+  segmentCount?: number;
+  /**
+   * Orientation of the timeline.
+   * Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
   /**
    * Optional additional styles.
    */
@@ -25,30 +42,51 @@ type TimelineSegmentProps = {
 /**
  * A layout wrapper that enforces the "schematic" timeline design.
  * Uses flex-grow for proportional width while maintaining a minimum width
- * to prevent label overlap and ensure legibility.
+ * to prevent label overlap and ensure legibility. Uses flexBasis: 0 so width
+ * is determined only by flex distribution (not content), keeping the row within 100%.
  *
- * @param duration - FlexGrow value (minutes)
+ * @param duration - FlexGrow value (minutes); ignored when equalWidth is true
  * @param children - Segment content
+ * @param equalWidth - When true, use flexGrow 1 for equal-width segments (e.g. 25% each for 4)
+ * @param segmentCount - Total segments in row; minWidth set to 100/segmentCount% to avoid overflow
+ * @param orientation - Orientation of the timeline
  * @param style - Optional inline styles
  */
 export const TimelineSegment = ({
   duration,
   children,
+  equalWidth = false,
+  segmentCount,
+  orientation = "horizontal",
   style,
-}: TimelineSegmentProps) => (
-  <View
-    style={[
-      {
-        flexGrow: Math.max(1, duration),
-        minWidth: "22%",
-        height: 32,
-        flexDirection: "row",
-        alignItems: "center",
-      },
-      style,
-    ]}
-    className="relative"
-  >
-    {children}
-  </View>
-);
+}: TimelineSegmentProps) => {
+  const isVertical = orientation === "vertical";
+
+  // Only use segmentCount-based minWidth when equalWidth; otherwise use config so duration-based flexGrow can distribute space
+  const minDimension: DimensionValue =
+    equalWidth && segmentCount
+      ? `${100 / segmentCount}%`
+      : isVertical
+        ? "10%" // Minimum height for vertical segments
+        : timelineSegmentConfig.minWidth;
+
+  return (
+    <View
+      style={[
+        {
+          flexBasis: 0,
+          flexGrow: equalWidth ? 1 : Math.max(1, duration),
+          flexShrink: 1,
+          [isVertical ? "minHeight" : "minWidth"]: minDimension,
+          [isVertical ? "width" : "height"]: timelineIndicatorConfig.size,
+          flexDirection: isVertical ? "column" : "row",
+          alignItems: "center",
+        },
+        style,
+      ]}
+      className="relative"
+    >
+      {children}
+    </View>
+  );
+};

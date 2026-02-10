@@ -66,6 +66,9 @@ export const synthesizeTripSegments = (params: {
 
   return segments.map((segment) => {
     const actualTrip = vesselTripMap.get(segment.Key);
+    const prevTrip = segment.PrevKey
+      ? vesselTripMap.get(segment.PrevKey)
+      : undefined;
     const isActive = !!activeKey && activeKey === segment.Key;
     const isHeld = isActive && !!heldTrip;
 
@@ -94,22 +97,38 @@ export const synthesizeTripSegments = (params: {
       phase = activePhase === "AtSea" ? "at-sea" : "at-dock";
     }
 
+    // Estimated arrival at this segment's origin: from this trip's actuals or from previous leg's predictions.
+    const arriveCurrEstimated =
+      status === "future" && prevTrip
+        ? vesselLocation?.Eta ??
+          prevTrip.AtSeaArriveNext?.PredTime ??
+          prevTrip.AtDockArriveNext?.PredTime
+        : undefined;
+
+    // Estimated departure from this segment's origin: from this trip or from previous leg's "depart next" predictions.
+    const leaveCurrEstimatedFromPrev =
+      status === "future" && prevTrip
+        ? prevTrip.AtDockDepartNext?.PredTime ??
+          prevTrip.AtSeaDepartNext?.PredTime
+        : undefined;
+
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
       scheduled: segment.SchedArriveCurr ?? segment.DepartingTime,
       actual: actualTrip?.TripStart ?? undefined,
-      estimated: undefined,
+      estimated: arriveCurrEstimated,
     };
 
     // 2. LeaveCurr TimePoint (Departure from origin terminal)
     // Show depart estimate when at dock and we have a prediction, even if segment is held.
+    // For future segments, use previous leg's AtDockDepartNext/AtSeaDepartNext.
     const leaveCurr: TimePoint = {
       scheduled: segment.DepartingTime,
       actual: actualTrip?.LeftDock ?? undefined,
       estimated:
         isActive && activePhase === "AtDock"
           ? actualTrip?.AtDockDepartCurr?.PredTime
-          : undefined,
+          : leaveCurrEstimatedFromPrev,
     };
 
     // 3. ArriveNext TimePoint (Arrival at destination terminal)

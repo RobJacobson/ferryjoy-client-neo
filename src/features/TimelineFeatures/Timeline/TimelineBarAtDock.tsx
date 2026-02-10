@@ -28,15 +28,12 @@ type TimelineBarAtDockProps = {
   isHeld?: boolean;
   vesselName?: string;
   circleSize?: number;
+  orientation?: "horizontal" | "vertical";
   barStyle?: string;
   atDockAbbrev?: string;
   showIndicator?: boolean;
   style?: ViewStyle;
 };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * A component that renders an at-dock progress segment with time-based progress.
@@ -55,6 +52,7 @@ const TimelineBarAtDock = ({
   isArrived = false,
   isHeld = false,
   vesselName,
+  orientation = "horizontal",
   barStyle = "h-3",
   atDockAbbrev,
   showIndicator,
@@ -97,11 +95,21 @@ const TimelineBarAtDock = ({
     showIndicator ?? (status === "InProgress" && isArrived && !isHeld);
 
   return (
-    <TimelineSegment duration={duration ?? 1} style={style}>
-      <TimelineBar flexGrow={1} progress={progress} barStyle={barStyle} />
+    <TimelineSegment
+      duration={duration ?? 1}
+      orientation={orientation}
+      style={style}
+    >
+      <TimelineBar
+        flexGrow={1}
+        progress={progress}
+        orientation={orientation}
+        barStyle={barStyle}
+      />
       {shouldShowIndicator && (
         <TimelineIndicator
           progress={animatedProgress}
+          orientation={orientation}
           minutesRemaining={minutesRemaining ?? "--"}
         >
           {vesselName && (
