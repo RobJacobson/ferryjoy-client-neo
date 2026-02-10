@@ -1,11 +1,11 @@
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useState } from "react";
 
-import type { CameraState } from "@/features/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
 import {
   DEFAULT_MAP_STYLE,
   DEFAULT_NATIVE_CAMERA_STATE,
-} from "@/features/MapComponent/shared";
+} from "@/features/MapFeatures/MapComponent/shared";
 import type { MapDimensions } from "@/shared/utils/mapProjection";
 
 /**

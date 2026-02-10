@@ -10,7 +10,7 @@
  *   npx tsx scripts/generateMapEntities.ts
  */
 
-import type { CameraState } from "@/features/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
 
 export type MapEntityKind = "terminal" | "route";
 

@@ -12,9 +12,9 @@ import {
 } from "@/data/contexts";
 import { getMapEntity, MAP_NAV_CONFIG } from "@/data/mapEntities";
 import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
-import type { CameraState } from "@/features/MapComponent/shared";
-import { useMapSlugCameraAnimation } from "@/features/MapNavigation/useMapSlugCameraAnimation";
-import { MapScreenLayout } from "@/features/MapScreen";
+import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
+import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation/useMapSlugCameraAnimation";
+import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
 import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomSheet/TerminalOrRouteBottomSheet";
 
 /**

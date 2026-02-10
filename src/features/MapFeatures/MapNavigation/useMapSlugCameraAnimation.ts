@@ -2,7 +2,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useRef } from "react";
 
 import type { MapCameraController } from "@/data/contexts";
-import type { CameraState } from "@/features/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
 import {
   shouldAnimateFromPreviousPath as defaultShouldAnimateFromPreviousPath,
   type FlyToConfig,
