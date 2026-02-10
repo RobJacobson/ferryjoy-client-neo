@@ -165,7 +165,7 @@ export const VesselTimeline = ({
             indicatorStyle="bg-pink-50 border-pink-500"
           >
             <View className="bg-white/90 px-2 py-1 rounded-md border border-pink-200 shadow-sm">
-              <Text className="text-[10px] font-playwrite-bold text-pink-600">
+              <Text className="text-xs font-playpen-600 text-pink-600">
                 {vesselName ?? vesselAbbrev}
               </Text>
             </View>

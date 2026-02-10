@@ -100,16 +100,16 @@ export const synthesizeTripSegments = (params: {
     // Estimated arrival at this segment's origin: from this trip's actuals or from previous leg's predictions.
     const arriveCurrEstimated =
       status === "future" && prevTrip
-        ? vesselLocation?.Eta ??
+        ? (vesselLocation?.Eta ??
           prevTrip.AtSeaArriveNext?.PredTime ??
-          prevTrip.AtDockArriveNext?.PredTime
+          prevTrip.AtDockArriveNext?.PredTime)
         : undefined;
 
     // Estimated departure from this segment's origin: from this trip or from previous leg's "depart next" predictions.
     const leaveCurrEstimatedFromPrev =
       status === "future" && prevTrip
-        ? prevTrip.AtDockDepartNext?.PredTime ??
-          prevTrip.AtSeaDepartNext?.PredTime
+        ? (prevTrip.AtDockDepartNext?.PredTime ??
+          prevTrip.AtSeaDepartNext?.PredTime)
         : undefined;
 
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)

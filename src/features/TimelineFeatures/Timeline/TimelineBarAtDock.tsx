@@ -4,6 +4,7 @@
  * Handles at-dock status labels.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
@@ -26,11 +27,10 @@ type TimelineBarAtDockProps = {
   predictionEndTimeMs?: number;
   isArrived?: boolean;
   isHeld?: boolean;
-  vesselName?: string;
+  vesselLocation?: VesselLocation;
   circleSize?: number;
   orientation?: "horizontal" | "vertical";
   barStyle?: string;
-  atDockAbbrev?: string;
   showIndicator?: boolean;
   style?: ViewStyle;
 };
@@ -51,10 +51,9 @@ const TimelineBarAtDock = ({
   predictionEndTimeMs,
   isArrived = false,
   isHeld = false,
-  vesselName,
+  vesselLocation,
   orientation = "horizontal",
   barStyle = "h-3",
-  atDockAbbrev,
   showIndicator,
   style,
 }: TimelineBarAtDockProps) => {
@@ -112,14 +111,14 @@ const TimelineBarAtDock = ({
           orientation={orientation}
           minutesRemaining={minutesRemaining ?? "--"}
         >
-          {vesselName && (
-            <Text className="text-sm leading-none font-playwrite pt-4">
-              {vesselName}
+          {vesselLocation?.VesselName && (
+            <Text className="text-sm font-playpen-600">
+              {vesselLocation.VesselName}
             </Text>
           )}
-          {atDockAbbrev && (
-            <Text className="text-xs text-muted-foreground font-playwrite-light">
-              At Dock {atDockAbbrev}
+          {vesselLocation?.DepartingTerminalAbbrev && (
+            <Text className="text-sm text-muted-foreground font-playpen-300 leading-[1.15]">
+              At Dock {vesselLocation.DepartingTerminalAbbrev}
             </Text>
           )}
         </TimelineIndicator>

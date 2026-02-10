@@ -63,11 +63,6 @@ type TimelineIndicatorProps = {
    */
   indicatorStyle?: string;
   /**
-   * NativeWind className for the minutes text.
-   * Defaults to cn(colors.text, "font-playwrite text-sm").
-   */
-  textStyle?: string;
-  /**
    * Labels to display above (horizontal) or beside (vertical) the indicator.
    * Provided by parent component (business logic).
    */
@@ -167,7 +162,6 @@ const TimelineIndicator = ({
   speed = 0,
   minutesRemaining = "--",
   indicatorStyle = cn(colors.background, colors.border),
-  textStyle = cn(colors.text, "font-playwrite text-md"),
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
@@ -234,12 +228,13 @@ const TimelineIndicator = ({
         }}
       >
         <Text
-          className={textStyle}
-          style={
+          className={cn(
+            colors.text,
+            "font-playpen-600",
             typeof minutesRemaining === "number" && minutesRemaining >= 100
-              ? { fontSize: 11 }
-              : undefined
-          }
+              ? "mt-1 text-base"
+              : "mt-[-1px] text-lg"
+          )}
         >
           {minutesRemaining}
         </Text>

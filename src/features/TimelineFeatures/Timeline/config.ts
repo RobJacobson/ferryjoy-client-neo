@@ -27,7 +27,7 @@ export const timelineMarkerConfig = {
 } as const;
 
 export const timelineIndicatorConfig = {
-  size: 36,
+  size: 34,
   zIndex: 20,
   maxRotationDeg: 3,
   minSpeedKnots: 0,

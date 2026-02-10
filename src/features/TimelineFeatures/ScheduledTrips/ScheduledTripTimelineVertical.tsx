@@ -122,12 +122,7 @@ export const ScheduledTripTimelineVertical = ({
                 isArrived={segment.isArrived}
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
-                vesselName={segment.vesselName}
-                atDockAbbrev={
-                  segment.phase === "at-dock"
-                    ? segment.currTerminal.abbrev
-                    : undefined
-                }
+                vesselLocation={vesselLocation}
                 showIndicator={segment.phase === "at-dock"}
                 orientation="vertical"
               />
@@ -160,11 +155,8 @@ export const ScheduledTripTimelineVertical = ({
                 }
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
-                vesselName={segment.vesselName}
+                vesselLocation={vesselLocation}
                 animate={segment.phase === "at-sea"}
-                speed={segment.speed}
-                departingDistance={segment.departingDistance}
-                arrivingDistance={segment.arrivingDistance}
                 showIndicator={
                   segment.phase === "at-sea" ||
                   (segment.isHeld && segment.phase === "completed")

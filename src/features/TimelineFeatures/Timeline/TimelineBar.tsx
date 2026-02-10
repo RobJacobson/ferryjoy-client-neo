@@ -195,7 +195,11 @@ const TimelineBarProgress = ({
       style={isVertical ? { width: 12 } : { height: 12 }} // Explicitly set thickness to 12px
     >
       <Animated.View
-        className={cn("rounded-full", progressStyle, isVertical ? "w-full" : "h-full")}
+        className={cn(
+          "rounded-full",
+          progressStyle,
+          isVertical ? "w-full" : "h-full"
+        )}
         style={[animatedStyle, shadowStyle]}
       />
     </View>

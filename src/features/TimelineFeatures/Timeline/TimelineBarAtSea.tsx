@@ -4,10 +4,11 @@
  * Handles rocking animation for at-sea segments.
  */
 
+import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
-import { Text } from "@/components/ui";
+import { Text, View } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
@@ -26,10 +27,7 @@ type TimelineBarAtSeaProps = {
   predictionEndTimeMs?: number;
   isArrived?: boolean;
   isHeld?: boolean;
-  departingDistance?: number;
-  arrivingDistance?: number;
-  vesselName?: string;
-  speed?: number;
+  vesselLocation?: VesselLocation;
   circleSize?: number;
   orientation?: "horizontal" | "vertical";
   barStyle?: string;
@@ -57,10 +55,7 @@ const TimelineBarAtSea = ({
   predictionEndTimeMs,
   isArrived = false,
   isHeld = false,
-  departingDistance,
-  arrivingDistance,
-  vesselName,
-  speed = 0,
+  vesselLocation,
   orientation = "horizontal",
   barStyle = "h-3",
   showIndicator,
@@ -90,11 +85,13 @@ const TimelineBarAtSea = ({
     progress = 1;
   } else if (
     status === "InProgress" &&
-    departingDistance !== undefined &&
-    arrivingDistance !== undefined &&
-    departingDistance + arrivingDistance > 0
+    vesselLocation?.DepartingDistance !== undefined &&
+    vesselLocation?.ArrivingDistance !== undefined &&
+    vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0
   ) {
-    progress = departingDistance / (departingDistance + arrivingDistance);
+    progress =
+      vesselLocation.DepartingDistance /
+      (vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance);
     progress = Math.min(1, Math.max(0, progress));
   }
 
@@ -135,21 +132,22 @@ const TimelineBarAtSea = ({
           orientation={orientation}
           minutesRemaining={minutesRemaining ?? "--"}
           animate={animate}
-          speed={speed}
+          speed={vesselLocation?.Speed ?? 0}
         >
-          {vesselName && (
-            <Text className="text-sm font-bold leading-none font-playwrite pt-4">
-              {vesselName}
+          {vesselLocation?.VesselName && (
+            <Text className="text-sm font-playpen-600">
+              {vesselLocation.VesselName}
             </Text>
           )}
-          {!isArrived && arrivingDistance !== undefined && (
-            <Text className="text-xs text-muted-foreground font-playwrite-light">
-              {speed.toFixed(0)} kn · {arrivingDistance.toFixed(1)} mi
+          {!isArrived && vesselLocation?.ArrivingDistance !== undefined && (
+            <Text className="text-sm text-muted-foreground font-playpen-300 leading-[1.15]">
+              {(vesselLocation?.Speed ?? 0).toFixed(0)} kn{" · "}
+              {vesselLocation?.ArrivingDistance?.toFixed(1)} mi
             </Text>
           )}
           {isArrived && (
-            <Text className="text-xs text-muted-foreground font-playwrite-light">
-              Arrived ❤️❤️❤️
+            <Text className="text-xs text-muted-foreground font-playpen-300 leading-[1.15]">
+              ❤️ Arrived! ❤️
             </Text>
           )}
         </TimelineIndicator>

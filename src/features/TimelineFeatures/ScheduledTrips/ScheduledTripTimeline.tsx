@@ -117,12 +117,7 @@ export const ScheduledTripTimeline = ({
                 isArrived={segment.isArrived}
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.leaveCurr.estimated?.getTime()}
-                vesselName={segment.vesselName}
-                atDockAbbrev={
-                  segment.phase === "at-dock"
-                    ? segment.currTerminal.abbrev
-                    : undefined
-                }
+                vesselLocation={vesselLocation}
                 showIndicator={segment.phase === "at-dock"}
               />
             </TimelineSegment>
@@ -154,11 +149,8 @@ export const ScheduledTripTimeline = ({
                 }
                 isHeld={segment.isHeld}
                 predictionEndTimeMs={segment.arriveNext.estimated?.getTime()}
-                vesselName={segment.vesselName}
+                vesselLocation={vesselLocation}
                 animate={segment.phase === "at-sea"}
-                speed={segment.speed}
-                departingDistance={segment.departingDistance}
-                arrivingDistance={segment.arrivingDistance}
                 showIndicator={
                   segment.phase === "at-sea" ||
                   (segment.isHeld && segment.phase === "completed")
@@ -201,7 +193,7 @@ const ScheduledTripArriveMarker = ({
   isArrived: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-[82px]">
+    <TimelineMarkerContent className="mt-[90px]">
       <TimelineMarkerLabel
         text={`${isArrived ? "Arrived" : "Arrive"} ${terminalAbbrev}`}
       />
@@ -233,7 +225,7 @@ const ScheduledTripDepartMarker = ({
   isLeft: boolean;
 }) => (
   <TimelineMarker zIndex={10}>
-    <TimelineMarkerContent className="mt-[82px]">
+    <TimelineMarkerContent className="mt-[90px]">
       <TimelineMarkerLabel
         text={`${isLeft ? "Left" : "Leave"} ${terminalAbbrev}`}
       />
