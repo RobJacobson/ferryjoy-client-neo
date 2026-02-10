@@ -24,7 +24,7 @@ const ForegroundGrass = () => {
         amplitude={20}
         period={800}
         fillColor="#56ab91"
-        height={10}
+        height={12}
         animationDuration={0}
         waveDisplacement={0}
         animationDelay={0}
@@ -46,7 +46,7 @@ const BackgroundGrass = () => {
         amplitude={10}
         period={300}
         fillColor="#88d4ab"
-        height={65}
+        height={45}
         animationDuration={0}
         waveDisplacement={0}
         animationDelay={0}

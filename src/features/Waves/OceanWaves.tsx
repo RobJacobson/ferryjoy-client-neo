@@ -14,7 +14,7 @@ import AnimatedWave from "./AnimatedWave";
 const BASE_COLOR = "#00a6fb";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 10;
+const WAVE_COUNT = 8;
 
 /** Starting period for the first wave layer in SVG units. */
 const PERIOD_BASE = 100;
@@ -23,34 +23,28 @@ const PERIOD_BASE = 100;
 const PERIOD_DELTA = 50;
 
 /** Starting height (vertical position) for the first wave layer (0-100). */
-const HEIGHT_BASE = 55;
+const HEIGHT_BASE = 40;
 
 /** Vertical position delta for each subsequent wave layer. */
-const HEIGHT_DELTA = -4;
+const HEIGHT_DELTA = -3;
 
 /** Starting amplitude for the first wave layer in SVG units. */
 const AMPLITUDE_BASE = 5;
 
 /** Amplitude delta for each subsequent wave layer in SVG units. */
-const AMPLITUDE_DELTA = 2;
+const AMPLITUDE_DELTA = 3;
 
 /** Base animation duration in milliseconds. */
-const ANIMATION_DURATION_BASE = 20000;
+const ANIMATION_DURATION_BASE = 60000;
 
 /** Duration increment for each wave layer in milliseconds. */
-const ANIMATION_DURATION_INCREMENT = 2500;
+const ANIMATION_DURATION_INCREMENT = 0;
 
 /** Maximum horizontal displacement in pixels for wave oscillation. */
 const WAVE_DISPLACEMENT_BASE = 100;
 
 /** Displacement increment for each wave layer in pixels. */
-const WAVE_DISPLACEMENT_DELTA = 50;
-
-/** Base animation delay in milliseconds. */
-const ANIMATION_DELAY_BASE = 0;
-
-/** Delay increment for each wave layer in milliseconds. */
-const ANIMATION_DELAY_DELTA = 10000;
+const WAVE_DISPLACEMENT_DELTA = 100;
 
 /** Starting lightness value for color generation. */
 const LIGHTNESS_BASE = 200;
@@ -93,9 +87,8 @@ const OceanWaves = memo(() => {
             waveDisplacement={
               WAVE_DISPLACEMENT_BASE + index * WAVE_DISPLACEMENT_DELTA
             }
-            animationDelay={
-              ANIMATION_DELAY_BASE - index * ANIMATION_DELAY_DELTA
-            }
+            animationDelay={0}
+            phaseOffset={computePhaseOffset(index)}
           />
         </View>
       ))}
@@ -104,3 +97,17 @@ const OceanWaves = memo(() => {
 });
 
 export default OceanWaves;
+
+/**
+ * Computes a deterministic phase offset for a wave layer.
+ * This keeps layers out of phase (different start position + direction) without
+ * relying on animation delays.
+ *
+ * @param index - Wave layer index (0-based)
+ * @returns Phase offset in radians
+ */
+const computePhaseOffset = (index: number): number => {
+  // Simple integer hash -> [0, 1)
+  const t = ((index * 73) % 101) / 101;
+  return t * 2 * Math.PI;
+};

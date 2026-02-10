@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { memo } from "react";
-import { Image, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import OceanWaves from "./OceanWaves";
 import { BackgroundGrass, ForegroundGrass } from "./RollingGrass";
 
@@ -17,24 +17,12 @@ const containerWidth = 2000;
 /** Margin offset on left and right sides in pixels. */
 const marginOffset = -500;
 
-/** Paper texture image for wave surface texture effect. */
-const PAPER_TEXTURE = require("../../../assets/textures/paper-texture-5-bw.png");
-
 /**
  * AnimatedWaves component that composes three wave layers.
  */
 const AnimatedWaves = memo(() => {
   return (
     <View className="flex-1 bg-white">
-      {/* 
-          Pre-load the texture image in a hidden native Image component.
-          This forces the OS to decode the image and keep it in the GPU cache.
-      */}
-      <Image
-        source={PAPER_TEXTURE}
-        style={{ width: 1, height: 1, position: "absolute", opacity: 0.01 }}
-      />
-
       <ScrollView
         className="flex-1"
         horizontal
