@@ -37,10 +37,6 @@ export default function Layout() {
   const [textureReady, setTextureReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Puffberry: require("../../assets/fonts/puffberry/Puffberry.ttf"),
-    "FiraSansCondensed-ExtraLight": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-ExtraLight.ttf"),
-    "FiraSansCondensed-ExtraLightItalic": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-ExtraLightItalic.ttf"),
-    "FiraSansCondensed-Regular": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-Regular.ttf"),
-    "FiraSansCondensed-Italic": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-Italic.ttf"),
     "PlaypenSans-Thin": require("../../assets/fonts/playpen-sans/PlaypenSans-Thin.ttf"),
     "PlaypenSans-ExtraLight": require("../../assets/fonts/playpen-sans/PlaypenSans-ExtraLight.ttf"),
     "PlaypenSans-Light": require("../../assets/fonts/playpen-sans/PlaypenSans-Light.ttf"),
