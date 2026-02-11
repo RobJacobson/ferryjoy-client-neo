@@ -2,7 +2,6 @@ import { Stack } from "expo-router";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "@/components/ui";
-// import { RegionSelector, useRegionSelector } from "@/features/RegionSelector";
 import { RoutesCarousel } from "@/features/RoutesCarousel/RoutesCarousel";
 import AnimatedWaves from "@/features/Waves";
 
@@ -21,11 +20,9 @@ export default function Home() {
           <Text className="text-4xl font-bold text-white tracking-tight">
             Ferryjoy
           </Text>
-
-          {/* <RegionSelector /> */}
         </View>
 
-        {/* <RoutesCarousel selectedRegion={undefined} /> */}
+        <RoutesCarousel />
       </SafeAreaView>
     </View>
   );
