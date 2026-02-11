@@ -1,7 +1,7 @@
 // ============================================================================
 // Animated Waves Component
 // ============================================================================
-// Composes three layers: ForegroundGrass, OceanWaves, and BackgroundGrass.
+// Composes three layers: Foreground, OceanWaves, and Background.
 // Creates a depth effect with grass framing and animated ocean waves.
 // Uses transform-based animations for optimal 60 FPS performance.
 // ============================================================================
@@ -9,7 +9,7 @@
 import { memo } from "react";
 import { ScrollView, View } from "react-native";
 import OceanWaves from "./OceanWaves";
-import { BackgroundGrass, ForegroundGrass } from "./RollingGrass";
+import { Background, Foreground } from "./RollingGrass";
 import { WaveTextureReadyProvider } from "./WaveTextureReadyContext";
 
 /** Total width of the waves container in pixels. */
@@ -39,9 +39,9 @@ const AnimatedWaves = memo(() => {
               marginRight: marginOffset,
             }}
           >
-            <ForegroundGrass />
+            <Foreground />
             <OceanWaves />
-            <BackgroundGrass />
+            <Background />
           </View>
         </ScrollView>
       </View>

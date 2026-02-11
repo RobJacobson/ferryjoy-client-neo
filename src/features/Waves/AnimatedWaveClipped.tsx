@@ -8,6 +8,7 @@
 
 import type { ComponentProps } from "react";
 import { memo, useMemo } from "react";
+import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import Svg, {
   ClipPath,
@@ -18,21 +19,20 @@ import Svg, {
   Rect,
   Image as SvgImage,
 } from "react-native-svg";
-import { View } from "react-native";
 import type { AnimatedWaveProps } from "./AnimatedWave";
-import { useWaveTextureReady } from "./WaveTextureReadyContext";
 import { useWaveOscillation } from "./useWaveOscillation";
+import { useWaveTextureReady } from "./WaveTextureReadyContext";
 import { generateWavePath } from "./wavePath";
 
 /** Height of the SVG canvas. */
 const SVG_HEIGHT = 500;
 
-const PAPER_TEXTURE_OPACITY = 0.25;
+const PAPER_TEXTURE_OPACITY = 0.2;
 const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 
 const STROKE_COLOR = "black";
-const STROKE_WIDTH = 0.5;
-const STROKE_OPACITY = 0.1;
+const STROKE_WIDTH = 1;
+const STROKE_OPACITY = 0.05;
 
 /**
  * Clip-path variant of AnimatedWave: same visual via clipped rects.
@@ -116,8 +116,8 @@ const AnimatedWaveClipped = memo(
               <Pattern
                 id={textureId}
                 patternUnits="userSpaceOnUse"
-                width={400}
-                height={400}
+                width={512}
+                height={512}
               >
                 <SvgImage
                   href={PAPER_TEXTURE}
@@ -133,19 +133,19 @@ const AnimatedWaveClipped = memo(
             <Path
               d={pathData}
               fill="black"
-              fillOpacity={0.04}
+              fillOpacity={0.03}
               transform="translate(-9, -2)"
             />
             <Path
               d={pathData}
               fill="black"
-              fillOpacity={0.04}
+              fillOpacity={0.03}
               transform="translate(-6, -1)"
             />
             <Path
               d={pathData}
               fill="black"
-              fillOpacity={0.04}
+              fillOpacity={0.03}
               transform="translate(-3, -0.5)"
             />
 

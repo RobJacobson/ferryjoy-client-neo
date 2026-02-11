@@ -9,11 +9,11 @@
 import {
   createContext,
   memo,
+  type ReactNode,
   useCallback,
   useContext,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 
 type WaveTextureReadyContextValue = {
@@ -43,20 +43,20 @@ type WaveTextureReadyProviderProps = { children: ReactNode };
  * markReady() when their SvgImage onLoad fires; the first call flips ready
  * to true so all waves can show together.
  */
-export const WaveTextureReadyProvider = memo(
-  function WaveTextureReadyProvider({ children }: WaveTextureReadyProviderProps) {
-    const [ready, setReady] = useState(false);
-    const didMark = useRef(false);
-    const markReady = useCallback(() => {
-      if (didMark.current) return;
-      didMark.current = true;
-      setReady(true);
-    }, []);
-    const value: WaveTextureReadyContextValue = { ready, markReady };
-    return (
-      <WaveTextureReadyContext.Provider value={value}>
-        {children}
-      </WaveTextureReadyContext.Provider>
-    );
-  }
-);
+export const WaveTextureReadyProvider = memo(function WaveTextureReadyProvider({
+  children,
+}: WaveTextureReadyProviderProps) {
+  const [ready, setReady] = useState(false);
+  const didMark = useRef(false);
+  const markReady = useCallback(() => {
+    if (didMark.current) return;
+    didMark.current = true;
+    setReady(true);
+  }, []);
+  const value: WaveTextureReadyContextValue = { ready, markReady };
+  return (
+    <WaveTextureReadyContext.Provider value={value}>
+      {children}
+    </WaveTextureReadyContext.Provider>
+  );
+});
