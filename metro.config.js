@@ -20,14 +20,19 @@ config.watchFolders = [...(config.watchFolders ?? []), wsDottieRoot];
 //   module instances that break hooks/contexts on web.
 const appNodeModules = path.resolve(projectRoot, "node_modules");
 
-// Prevent Metro from resolving a second copy of React (or other deps) from
-// inside `../ws-dottie/node_modules`, which breaks hooks/contexts on web.
+// Force resolution to app node_modules only. Without this, Metro's hierarchical
+// lookup can resolve React/react-query from ../ws-dottie/node_modules when
+// bundling ws-dottie code, causing duplicate module instances and broken
+// hooks/context on web. Expo doctor expects false here; we keep true by design.
 config.resolver.disableHierarchicalLookup = true;
 
 config.resolver.nodeModulesPaths = [appNodeModules];
 
+// Resolve Node built-in "buffer" to the npm buffer package so it gets bundled
+// (react-native-svg uses it for base64 data URIs; RN runtime has no Node builtins).
 config.resolver.extraNodeModules = {
   "ws-dottie": wsDottieRoot,
+  buffer: path.join(appNodeModules, "buffer"),
   react: path.join(appNodeModules, "react"),
   "react-dom": path.join(appNodeModules, "react-dom"),
   "@tanstack/react-query": path.join(

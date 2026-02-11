@@ -3,7 +3,7 @@
  * Simple wrapper around react-map-gl
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import MapboxGL from "react-map-gl/mapbox";
 
@@ -23,14 +23,17 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   const { updateCameraState, updateMapDimensions } = useMapState();
   const { registerController } = useMapCameraController();
   const mapRef = useRef<MapRef>(null);
+  // Mapbox GL requires style to be loaded before adding sources/layers
+  const [styleLoaded, setStyleLoaded] = useState(false);
 
   // Keep track of previous camera state to avoid unnecessary updates
   const previousCameraStateRef = useRef<CameraState>(
     initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
   );
 
-  // Convert CameraState to ViewState for map
-  const viewState = {
+  // Use initialViewState only (uncontrolled). Passing viewState from context
+  // would create a loop: onMove → updateCameraState → re-render → new viewState → onMove.
+  const initialViewState = {
     ...cameraStateToViewState(
       initialCameraState || DEFAULT_NATIVE_CAMERA_STATE
     ),
@@ -75,14 +78,15 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
     <div className="flex-1 relative">
       <MapboxGL
         ref={mapRef}
-        viewState={viewState}
+        initialViewState={initialViewState}
         style={{ flex: 1 }}
         mapStyle={MAP_COMPONENT_CONFIG.styleURL}
         projection="mercator"
         onMove={handleMove}
+        onLoad={() => setStyleLoaded(true)}
         reuseMaps
       >
-        {children}
+        {styleLoaded ? children : null}
       </MapboxGL>
     </div>
   );

@@ -54,9 +54,9 @@ export const VesselTripCard = ({
               <Text className="text-xl font-light text-muted-foreground">
                 {" → "}
               </Text>
-              <CardTitle className="text-xl font-semibold">
+              <Text className="text-xl font-semibold">
                 {vesselLocation.ArrivingTerminalAbbrev}
-              </CardTitle>
+              </Text>
             </>
           )}
         </CardTitle>
