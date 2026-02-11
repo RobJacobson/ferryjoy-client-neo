@@ -14,12 +14,6 @@ module.exports = {
     extend: {
       fontFamily: {
         puffberry: ["Puffberry"],
-        "fira-sans-condensed-400": ["FiraSansCondensed-Regular"],
-        "fira-sans-condensed-200": ["FiraSansCondensed-ExtraLight"],
-        "fira-sans-condensed-200-italic": [
-          "FiraSansCondensed-ExtraLightItalic",
-        ],
-        "fira-sans-condensed-400-italic": ["FiraSansCondensed-Italic"],
         "playpen-100": ["PlaypenSans-Thin"],
         "playpen-200": ["PlaypenSans-ExtraLight"],
         "playpen-300": ["PlaypenSans-Light"],

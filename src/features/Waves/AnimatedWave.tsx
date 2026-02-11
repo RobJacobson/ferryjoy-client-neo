@@ -6,24 +6,22 @@
 // Uses transform-based animation for 60 FPS performance.
 // ============================================================================
 
+import type { ComponentProps } from "react";
 import { memo, useMemo } from "react";
 import Animated from "react-native-reanimated";
 import Svg, { Defs, Path, Pattern, Image as SvgImage } from "react-native-svg";
+import { useWaveOscillation } from "./useWaveOscillation";
 import { generateWavePath } from "./wavePath";
-
-/** Width of the SVG canvas. Wider width allows oscillation without visible edges. */
-const SVG_WIDTH = 2000;
 
 /** Height of the SVG canvas. */
 const SVG_HEIGHT = 500;
 
-/**
- * Base64 encoded 1x1 transparent PNG.
- * Used as a placeholder to keep the SvgImage component active in the DOM
- * while the actual texture is being decoded.
- */
-const PLACEHOLDER =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+const PAPER_TEXTURE_OPACITY = 0.25;
+const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
+
+const STROKE_COLOR = "black";
+const STROKE_WIDTH = 0.5;
+const STROKE_OPACITY = 0.1;
 
 /**
  * Props for the AnimatedWave component.
@@ -59,6 +57,12 @@ export interface AnimatedWaveProps {
   waveDisplacement?: number;
 
   /**
+   * Phase offset for the wave oscillation in radians.
+   * Use this to de-sync layers without animation delays.
+   */
+  phaseOffset?: number;
+
+  /**
    * Opacity of the wave fill (0-1).
    */
   fillOpacity?: number;
@@ -73,21 +77,6 @@ export interface AnimatedWaveProps {
    * 0 = bottom, 50 = middle, 100 = top.
    */
   height?: number;
-
-  /**
-   * Color of the wave stroke (border).
-   */
-  strokeColor?: string;
-
-  /**
-   * Width of the wave stroke in SVG units.
-   */
-  strokeWidth?: number;
-
-  /**
-   * Opacity of the wave stroke (0-1).
-   */
-  strokeOpacity?: number;
 }
 
 /**
@@ -100,21 +89,21 @@ const AnimatedWave = memo(
     animationDuration,
     animationDelay = 0,
     waveDisplacement = 0,
+    phaseOffset = 0,
     fillOpacity = 1,
     fillColor,
     height = 50,
-    strokeColor = "black",
-    strokeWidth = 0.5,
-    strokeOpacity = 0.1,
   }: AnimatedWaveProps) => {
-    // Calculate centerY based on height percentage (0 = bottom, 100 = top)
+    const { animatedOscillationStyle, overscanX, svgRenderWidth } =
+      useWaveOscillation({
+        animationDuration,
+        animationDelay,
+        waveDisplacement,
+        phaseOffset,
+      });
+
     const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
 
-    // Overscan the SVG by the max horizontal displacement so edges never show.
-    const overscanX = Math.max(0, waveDisplacement);
-    const svgRenderWidth = SVG_WIDTH + overscanX * 2;
-
-    // Generate path
     const pathData = useMemo(
       () =>
         generateWavePath(
@@ -125,35 +114,6 @@ const AnimatedWave = memo(
           SVG_HEIGHT
         ),
       [amplitude, period, centerY, svgRenderWidth]
-    );
-
-    // Create sinusoidal animation keyframes
-    const sinusoidalAnimation = useMemo(
-      () =>
-        animationDuration
-          ? {
-              "0%": { transform: [{ translateX: 0 }] },
-              "50%": { transform: [{ translateX: -waveDisplacement }] },
-              "100%": { transform: [{ translateX: waveDisplacement }] },
-            }
-          : undefined,
-      [animationDuration, waveDisplacement]
-    );
-
-    // Build animation style
-    const animationStyle = useMemo(
-      () => ({
-        transform: [{ translateX: 0 }] as const,
-        ...(animationDuration && {
-          animationName: sinusoidalAnimation,
-          animationDuration,
-          animationDelay,
-          animationIterationCount: "infinite" as const,
-          animationTimingFunction: "ease-in-out" as const,
-          animationDirection: "alternate" as const,
-        }),
-      }),
-      [sinusoidalAnimation, animationDuration, animationDelay]
     );
 
     const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
@@ -168,7 +128,9 @@ const AnimatedWave = memo(
             bottom: 0,
             left: -overscanX,
           },
-          animationStyle,
+          animatedOscillationStyle as ComponentProps<
+            typeof Animated.View
+          >["style"],
         ]}
       >
         <Svg
@@ -181,17 +143,11 @@ const AnimatedWave = memo(
             <Pattern
               id={LOCAL_TEXTURE_ID}
               patternUnits="userSpaceOnUse"
-              width={512}
-              height={512}
+              width={400}
+              height={400}
             >
-              {/* 
-                We use a layered approach for the image to prevent pop-in.
-                The placeholder keeps the pattern active while the high-res 
-                texture is being decoded by the native6 engine.
-            */}
-              {/* <SvgImage href={PLACEHOLDER} width={1} height={1} /> */}
               <SvgImage
-                href={require("../../../assets/textures/paper-texture-4-bw.png")}
+                href={PAPER_TEXTURE}
                 width={512}
                 height={512}
                 preserveAspectRatio="xMidYMid slice"
@@ -203,44 +159,38 @@ const AnimatedWave = memo(
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.03}
-            transform="translate(-12, -3)"
-          />
-          <Path
-            d={pathData}
-            fill="black"
-            fillOpacity={0.03}
+            fillOpacity={0.04}
             transform="translate(-9, -2)"
           />
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.03}
+            fillOpacity={0.04}
             transform="translate(-6, -1)"
           />
           <Path
             d={pathData}
             fill="black"
-            fillOpacity={0.03}
+            fillOpacity={0.04}
             transform="translate(-3, -0.5)"
           />
 
-          {/* Main wave fill */}
+          {/* Main wave fill with paper-noise filter (fine grain overlay) */}
           <Path
             d={pathData}
             fill={fillColor}
             fillOpacity={fillOpacity}
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-            strokeOpacity={strokeOpacity}
+            stroke={STROKE_COLOR}
+            strokeWidth={STROKE_WIDTH}
+            strokeOpacity={STROKE_OPACITY}
           />
 
           {/* Paper texture overlay - adds surface texture while preserving color */}
-          {/* <Path
+          <Path
             d={pathData}
             fill={`url(#${LOCAL_TEXTURE_ID})`}
-            fillOpacity={0.25}
-          /> */}
+            fillOpacity={PAPER_TEXTURE_OPACITY}
+          />
         </Svg>
       </Animated.View>
     );

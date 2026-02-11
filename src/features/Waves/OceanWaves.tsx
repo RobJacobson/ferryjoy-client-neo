@@ -1,62 +1,40 @@
 // ============================================================================
 // Ocean Waves Component
 // ============================================================================
-// Renders multiple animated wave layers creating a depth effect.
+// Renders multiple animated wave layers (clip-path variant) creating a depth effect.
 // Uses transform-based animations for optimal 60 FPS performance.
+// Wave properties use { min, max } ranges and lerp by index (first wave = min,
+// last wave = max) so changing WAVE_COUNT preserves the approximate look.
 // ============================================================================
 
 import { memo } from "react";
 import { View } from "react-native";
-import { createColorGenerator } from "@/shared/utils";
-import AnimatedWave from "./AnimatedWave";
+import { createColorGenerator, lerp } from "@/shared/utils";
+import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for ocean waves (blue). */
-const BASE_COLOR = "#00a6fb";
+const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 10;
+const WAVE_COUNT = 15;
 
-/** Starting period for the first wave layer in SVG units. */
-const PERIOD_BASE = 100;
+/** Period in SVG units: lerped from min (first wave) to max (last wave). */
+const PERIOD = { min: 100, max: 500 };
 
-/** Increment in period for each subsequent wave layer. */
-const PERIOD_DELTA = 50;
+/** Height (vertical position 0–100): lerped from min (first) to max (last). */
+const HEIGHT = { min: 40, max: 10 };
 
-/** Starting height (vertical position) for the first wave layer (0-100). */
-const HEIGHT_BASE = 55;
+/** Amplitude in SVG units: lerped from min (first wave) to max (last wave). */
+const AMPLITUDE = { min: 4, max: 24 };
 
-/** Vertical position delta for each subsequent wave layer. */
-const HEIGHT_DELTA = -4;
+/** Animation duration in ms: lerped from min to max (same value = constant). */
+const ANIMATION_DURATION = { min: 30000, max: 120000 };
 
-/** Starting amplitude for the first wave layer in SVG units. */
-const AMPLITUDE_BASE = 5;
+/** Max horizontal displacement in px: lerped from min to max. */
+const WAVE_DISPLACEMENT = { min: 100, max: 800 };
 
-/** Amplitude delta for each subsequent wave layer in SVG units. */
-const AMPLITUDE_DELTA = 2;
-
-/** Base animation duration in milliseconds. */
-const ANIMATION_DURATION_BASE = 20000;
-
-/** Duration increment for each wave layer in milliseconds. */
-const ANIMATION_DURATION_INCREMENT = 2500;
-
-/** Maximum horizontal displacement in pixels for wave oscillation. */
-const WAVE_DISPLACEMENT_BASE = 100;
-
-/** Displacement increment for each wave layer in pixels. */
-const WAVE_DISPLACEMENT_DELTA = 50;
-
-/** Base animation delay in milliseconds. */
-const ANIMATION_DELAY_BASE = 0;
-
-/** Delay increment for each wave layer in milliseconds. */
-const ANIMATION_DELAY_DELTA = 10000;
-
-/** Starting lightness value for color generation. */
-const LIGHTNESS_BASE = 200;
-
-/** Lightness increment for each wave layer. */
-const LIGHTNESS_INCREMENT = 25;
+/** Lightness for color generation: lerped from min (first) to max (last). */
+const LIGHTNESS = { min: 200, max: 600 };
 
 /**
  * Color generator for blue shades, using blue-500 as base color.
@@ -73,34 +51,61 @@ const blueColor = createColorGenerator(BASE_COLOR);
  * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
  */
 const OceanWaves = memo(() => {
+  const tForIndex = (index: number) =>
+    WAVE_COUNT > 1 ? index / (WAVE_COUNT - 1) : 0;
+
   return (
     <>
-      {Array.from({ length: WAVE_COUNT }).map((_, index) => (
-        <View
-          // biome-ignore lint/suspicious/noArrayIndexKey: waves never reorder
-          key={index}
-          className="absolute inset-0"
-          style={{ zIndex: index + 10 }}
-        >
-          <AnimatedWave
-            amplitude={AMPLITUDE_BASE + index * AMPLITUDE_DELTA}
-            period={PERIOD_BASE + index * PERIOD_DELTA}
-            fillColor={blueColor(LIGHTNESS_BASE + index * LIGHTNESS_INCREMENT)}
-            height={HEIGHT_BASE + index * HEIGHT_DELTA}
-            animationDuration={
-              ANIMATION_DURATION_BASE + index * ANIMATION_DURATION_INCREMENT
-            }
-            waveDisplacement={
-              WAVE_DISPLACEMENT_BASE + index * WAVE_DISPLACEMENT_DELTA
-            }
-            animationDelay={
-              ANIMATION_DELAY_BASE - index * ANIMATION_DELAY_DELTA
-            }
-          />
-        </View>
-      ))}
+      {Array.from({ length: WAVE_COUNT }).map((_, index) => {
+        const t = tForIndex(index);
+        return (
+          <View
+            // biome-ignore lint/suspicious/noArrayIndexKey: waves never reorder
+            key={index}
+            className="absolute inset-0"
+            style={{ zIndex: index + 10 }}
+          >
+            <AnimatedWaveClipped
+              amplitude={lerp(t, 0, 1, AMPLITUDE.min, AMPLITUDE.max)}
+              period={lerp(t, 0, 1, PERIOD.min, PERIOD.max)}
+              fillColor={blueColor(lerp(t, 0, 1, LIGHTNESS.min, LIGHTNESS.max))}
+              height={lerp(t, 0, 1, HEIGHT.min, HEIGHT.max)}
+              animationDuration={lerp(
+                t,
+                0,
+                1,
+                ANIMATION_DURATION.min,
+                ANIMATION_DURATION.max
+              )}
+              waveDisplacement={lerp(
+                t,
+                0,
+                1,
+                WAVE_DISPLACEMENT.min,
+                WAVE_DISPLACEMENT.max
+              )}
+              animationDelay={0}
+              phaseOffset={computePhaseOffset(index)}
+            />
+          </View>
+        );
+      })}
     </>
   );
 });
 
 export default OceanWaves;
+
+/**
+ * Computes a deterministic phase offset for a wave layer.
+ * This keeps layers out of phase (different start position + direction) without
+ * relying on animation delays.
+ *
+ * @param index - Wave layer index (0-based)
+ * @returns Phase offset in radians
+ */
+const computePhaseOffset = (index: number): number => {
+  // Simple integer hash -> [0, 1)
+  const t = ((index * 73) % 101) / 101;
+  return t * 2 * Math.PI;
+};

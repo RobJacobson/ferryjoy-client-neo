@@ -5,7 +5,10 @@
 
 import { useSmoothedVesselLocations } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
-import { type MapMarkerData, MapMarkers } from "@/features/MapMarkers";
+import {
+  type MapMarkerData,
+  MapMarkers,
+} from "@/features/MapFeatures/MapMarkers";
 import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
@@ -62,7 +65,7 @@ export const MapVesselMarkers = ({
   return (
     <MapMarkers
       data={vesselMarkerData}
-      renderMarker={(vessel) => (
+      renderMarker={(vessel: VesselMarkerData) => (
         <MapVesselMarker
           key={vessel.VesselID}
           vessel={vessel}

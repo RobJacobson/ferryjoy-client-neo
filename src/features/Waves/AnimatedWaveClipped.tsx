@@ -1,0 +1,189 @@
+// ============================================================================
+// Animated Wave (clip-path variant)
+// ============================================================================
+// Clip-path version for comparison and testing: clips texture + color rects
+// to the wave shape instead of filling the path. Same props and animation
+// as AnimatedWave; uses useWaveOscillation and generateWavePath.
+// ============================================================================
+
+import type { ComponentProps } from "react";
+import { memo, useMemo } from "react";
+import { View } from "react-native";
+import Animated from "react-native-reanimated";
+import Svg, {
+  ClipPath,
+  Defs,
+  G,
+  Path,
+  Pattern,
+  Rect,
+  Image as SvgImage,
+} from "react-native-svg";
+import type { AnimatedWaveProps } from "./AnimatedWave";
+import { useWaveOscillation } from "./useWaveOscillation";
+import { useWaveTextureReady } from "./WaveTextureReadyContext";
+import { generateWavePath } from "./wavePath";
+
+/** Height of the SVG canvas. */
+const SVG_HEIGHT = 500;
+
+const PAPER_TEXTURE_OPACITY = 0.2;
+const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
+
+const STROKE_COLOR = "black";
+const STROKE_WIDTH = 1;
+const STROKE_OPACITY = 0.05;
+
+/**
+ * Clip-path variant of AnimatedWave: same visual via clipped rects.
+ * Use for comparison and performance testing.
+ */
+const AnimatedWaveClipped = memo(
+  ({
+    amplitude,
+    period,
+    animationDuration,
+    animationDelay = 0,
+    waveDisplacement = 0,
+    phaseOffset = 0,
+    fillOpacity = 1,
+    fillColor,
+    height = 50,
+  }: AnimatedWaveProps) => {
+    const { ready: textureReady, markReady: markTextureReady } =
+      useWaveTextureReady();
+    const { animatedOscillationStyle, overscanX, svgRenderWidth } =
+      useWaveOscillation({
+        animationDuration,
+        animationDelay,
+        waveDisplacement,
+        phaseOffset,
+      });
+
+    const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
+
+    const pathData = useMemo(
+      () =>
+        generateWavePath(
+          amplitude,
+          period,
+          centerY,
+          svgRenderWidth,
+          SVG_HEIGHT
+        ),
+      [amplitude, period, centerY, svgRenderWidth]
+    );
+
+    const clipId = `clip-wave-${amplitude}-${period}`;
+    const textureId = `texture-${amplitude}-${period}`;
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          right: -overscanX,
+          bottom: 0,
+          left: -overscanX,
+          opacity: textureReady ? 1 : 0,
+        }}
+        pointerEvents="box-none"
+      >
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              top: 0,
+              right: -overscanX,
+              bottom: 0,
+              left: -overscanX,
+            },
+            animatedOscillationStyle as ComponentProps<
+              typeof Animated.View
+            >["style"],
+          ]}
+        >
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${svgRenderWidth} ${SVG_HEIGHT}`}
+            preserveAspectRatio="none"
+          >
+            <Defs>
+              <ClipPath id={clipId}>
+                <Path d={pathData} />
+              </ClipPath>
+              <Pattern
+                id={textureId}
+                patternUnits="userSpaceOnUse"
+                width={512}
+                height={512}
+              >
+                <SvgImage
+                  href={PAPER_TEXTURE}
+                  width={512}
+                  height={512}
+                  preserveAspectRatio="xMidYMid slice"
+                  onLoad={markTextureReady}
+                />
+              </Pattern>
+            </Defs>
+
+            {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
+            <Path
+              d={pathData}
+              fill="black"
+              fillOpacity={0.03}
+              transform="translate(-9, -2)"
+            />
+            <Path
+              d={pathData}
+              fill="black"
+              fillOpacity={0.03}
+              transform="translate(-6, -1)"
+            />
+            <Path
+              d={pathData}
+              fill="black"
+              fillOpacity={0.03}
+              transform="translate(-3, -0.5)"
+            />
+
+            {/* Clipped group: color rect then texture rect */}
+            <G clipPath={`url(#${clipId})`}>
+              <Rect
+                x={0}
+                y={0}
+                width={svgRenderWidth}
+                height={SVG_HEIGHT}
+                fill={fillColor}
+                fillOpacity={fillOpacity}
+              />
+              <Rect
+                x={0}
+                y={0}
+                width={svgRenderWidth}
+                height={SVG_HEIGHT}
+                fill={`url(#${textureId})`}
+                fillOpacity={PAPER_TEXTURE_OPACITY}
+              />
+            </G>
+
+            {/* Stroke outline to match AnimatedWave */}
+            <Path
+              d={pathData}
+              fill="none"
+              stroke={STROKE_COLOR}
+              strokeWidth={STROKE_WIDTH}
+              strokeOpacity={STROKE_OPACITY}
+            />
+          </Svg>
+        </Animated.View>
+      </View>
+    );
+  }
+);
+
+AnimatedWaveClipped.displayName = "AnimatedWaveClipped";
+
+export default AnimatedWaveClipped;

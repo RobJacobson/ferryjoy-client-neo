@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { SmoothedVesselLocationsProvider, useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
-import { MapComponent } from "@/features/MapComponent";
-import { MapDebugOverlay } from "@/features/MapDebugOverlay/MapDebugOverlay";
+import { MapComponent } from "@/features/MapFeatures/MapComponent";
+import { MapDebugOverlay } from "@/features/MapFeatures/MapDebugOverlay/MapDebugOverlay";
 import { VesselCircleMarkers } from "@/features/VesselCircleMarkers";
 import { VesselLines } from "@/features/VesselLines";
 

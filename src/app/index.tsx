@@ -25,7 +25,7 @@ export default function Home() {
           {/* <RegionSelector /> */}
         </View>
 
-        <RoutesCarousel selectedRegion={undefined} />
+        {/* <RoutesCarousel selectedRegion={undefined} /> */}
       </SafeAreaView>
     </View>
   );
