@@ -10,6 +10,7 @@ import { memo } from "react";
 import { ScrollView, View } from "react-native";
 import OceanWaves from "./OceanWaves";
 import { BackgroundGrass, ForegroundGrass } from "./RollingGrass";
+import { WaveTextureReadyProvider } from "./WaveTextureReadyContext";
 
 /** Total width of the waves container in pixels. */
 const containerWidth = 2000;
@@ -22,27 +23,29 @@ const marginOffset = -500;
  */
 const AnimatedWaves = memo(() => {
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView
-        className="flex-1"
-        horizontal
-        contentContainerStyle={{ height: "100%" }}
-        showsHorizontalScrollIndicator={false}
-      >
-        <View
-          className="relative h-full"
-          style={{
-            width: containerWidth,
-            marginLeft: marginOffset,
-            marginRight: marginOffset,
-          }}
+    <WaveTextureReadyProvider>
+      <View className="flex-1 bg-white">
+        <ScrollView
+          className="flex-1"
+          horizontal
+          contentContainerStyle={{ height: "100%" }}
+          showsHorizontalScrollIndicator={false}
         >
-          <ForegroundGrass />
-          <OceanWaves />
-          <BackgroundGrass />
-        </View>
-      </ScrollView>
-    </View>
+          <View
+            className="relative h-full"
+            style={{
+              width: containerWidth,
+              marginLeft: marginOffset,
+              marginRight: marginOffset,
+            }}
+          >
+            <ForegroundGrass />
+            <OceanWaves />
+            <BackgroundGrass />
+          </View>
+        </ScrollView>
+      </View>
+    </WaveTextureReadyProvider>
   );
 });
 

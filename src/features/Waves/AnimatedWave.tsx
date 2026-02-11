@@ -6,25 +6,15 @@
 // Uses transform-based animation for 60 FPS performance.
 // ============================================================================
 
-import { memo, useEffect, useMemo } from "react";
-import Animated, {
-  useAnimatedStyle,
-  useDerivedValue,
-  useFrameCallback,
-  useSharedValue,
-} from "react-native-reanimated";
+import type { ComponentProps } from "react";
+import { memo, useMemo } from "react";
+import Animated from "react-native-reanimated";
 import Svg, { Defs, Path, Pattern, Image as SvgImage } from "react-native-svg";
+import { useWaveOscillation } from "./useWaveOscillation";
 import { generateWavePath } from "./wavePath";
-
-/** Width of the SVG canvas. Wider width allows oscillation without visible edges. */
-const SVG_WIDTH = 2000;
 
 /** Height of the SVG canvas. */
 const SVG_HEIGHT = 500;
-
-const BASE_FRAME_MS = 1000 / 60;
-const MAX_FRAME_DT_MS = 34;
-const TWO_PI = 2 * Math.PI;
 
 const PAPER_TEXTURE_OPACITY = 0.25;
 const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
@@ -104,14 +94,16 @@ const AnimatedWave = memo(
     fillColor,
     height = 50,
   }: AnimatedWaveProps) => {
-    // Calculate centerY based on height percentage (0 = bottom, 100 = top)
+    const { animatedOscillationStyle, overscanX, svgRenderWidth } =
+      useWaveOscillation({
+        animationDuration,
+        animationDelay,
+        waveDisplacement,
+        phaseOffset,
+      });
+
     const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
 
-    // Overscan the SVG by the max horizontal displacement so edges never show.
-    const overscanX = Math.max(0, waveDisplacement);
-    const svgRenderWidth = SVG_WIDTH + overscanX * 2;
-
-    // Generate path
     const pathData = useMemo(
       () =>
         generateWavePath(
@@ -123,87 +115,6 @@ const AnimatedWave = memo(
         ),
       [amplitude, period, centerY, svgRenderWidth]
     );
-
-    const shouldAnimate = Boolean(animationDuration) && waveDisplacement !== 0;
-
-    const animateSV = useSharedValue(shouldAnimate);
-    const delayRemainingMsSV = useSharedValue(Math.max(0, animationDelay));
-    const angularVelocityRadPerMsSV = useSharedValue(
-      shouldAnimate ? TWO_PI / Math.max(1, animationDuration ?? 1) : 0
-    );
-    const displacementSV = useSharedValue(waveDisplacement);
-
-    // theta is the phase for the sine wave in radians.
-    const theta = useSharedValue(phaseOffset);
-    const translateX = useDerivedValue(() => {
-      return Math.sin(theta.value) * displacementSV.value;
-    });
-
-    useEffect(() => {
-      animateSV.value = shouldAnimate;
-      displacementSV.value = waveDisplacement;
-      delayRemainingMsSV.value = Math.max(0, animationDelay);
-      angularVelocityRadPerMsSV.value = shouldAnimate
-        ? TWO_PI / Math.max(1, animationDuration ?? 1)
-        : 0;
-
-      // Ensure phase is correct immediately (no "jump" after mount).
-      theta.value = phaseOffset;
-    }, [
-      animateSV,
-      animationDelay,
-      animationDuration,
-      angularVelocityRadPerMsSV,
-      delayRemainingMsSV,
-      displacementSV,
-      phaseOffset,
-      theta,
-      waveDisplacement,
-      shouldAnimate,
-    ]);
-
-    const frameCallback = useFrameCallback((frameInfo) => {
-      "worklet";
-
-      const rawDtMs = frameInfo.timeSincePreviousFrame;
-      const dtMs = rawDtMs ?? BASE_FRAME_MS;
-      const cappedDtMs = Math.min(MAX_FRAME_DT_MS, dtMs);
-
-      if (!animateSV.value || rawDtMs == null) {
-        return;
-      }
-
-      if (delayRemainingMsSV.value > 0) {
-        delayRemainingMsSV.value = Math.max(
-          0,
-          delayRemainingMsSV.value - cappedDtMs
-        );
-        return;
-      }
-
-      theta.value += angularVelocityRadPerMsSV.value * cappedDtMs;
-      if (theta.value > TWO_PI) {
-        // Keep bounded to avoid long-run float growth.
-        theta.value = theta.value % TWO_PI;
-      }
-    });
-
-    useEffect(() => {
-      frameCallback.setActive(true);
-      return () => frameCallback.setActive(false);
-    }, [frameCallback]);
-
-    const animatedOscillationStyle = useAnimatedStyle(() => {
-      if (!animationDuration || waveDisplacement === 0) {
-        return {
-          transform: [{ translateX: 0 }],
-        };
-      }
-
-      return {
-        transform: [{ translateX: translateX.value }],
-      };
-    }, [animationDuration, translateX, waveDisplacement]);
 
     const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
 
@@ -217,7 +128,9 @@ const AnimatedWave = memo(
             bottom: 0,
             left: -overscanX,
           },
-          animatedOscillationStyle,
+          animatedOscillationStyle as ComponentProps<
+            typeof Animated.View
+          >["style"],
         ]}
       >
         <Svg

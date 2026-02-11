@@ -1,11 +1,23 @@
+// ============================================================================
+// Root layout: fonts, splash screen, and wave texture preload.
+// Keeps splash visible until fonts and the paper texture (used by waves) are
+// ready. Texture is loaded via the same SVG path the waves use so the cache
+// is warm when the homepage mounts.
+// ============================================================================
+
 import "../../global.css";
 import "@/shared/polyfills/object-group-by";
 
 import Mapbox from "@rnmapbox/maps";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import { LogBox } from "react-native";
+import { SplashScreen, Stack } from "expo-router";
+import { useEffect, useState } from "react";
+import { LogBox, View } from "react-native";
+import Svg, { Image as SvgImage } from "react-native-svg";
 import { Providers } from "@/data/Providers";
+
+/** Same asset as wave components; load here via SVG so splash stays until ready. */
+const PAPER_TEXTURE = require("../../assets/textures/paper-texture-4-bw.png");
 
 // Suppress SafeAreaView deprecation warning from React Native's Button component
 LogBox.ignoreLogs([
@@ -22,6 +34,7 @@ if (!accessToken) {
 Mapbox.setAccessToken(accessToken);
 
 export default function Layout() {
+  const [textureReady, setTextureReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Puffberry: require("../../assets/fonts/puffberry/Puffberry.ttf"),
     "FiraSansCondensed-ExtraLight": require("../../assets/fonts/fira-sans-condensed/FiraSansCondensed-ExtraLight.ttf"),
@@ -38,8 +51,27 @@ export default function Layout() {
     "PlaypenSans-ExtraBold": require("../../assets/fonts/playpen-sans/PlaypenSans-ExtraBold.ttf"),
   });
 
+  useEffect(() => {
+    SplashScreen.preventAutoHideAsync();
+  }, []);
+
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  if (!textureReady) {
+    return (
+      <View style={{ flex: 1, opacity: 0 }} pointerEvents="none">
+        <Svg width={1} height={1}>
+          <SvgImage
+            href={PAPER_TEXTURE}
+            width={1}
+            height={1}
+            onLoad={() => setTextureReady(true)}
+          />
+        </Svg>
+      </View>
+    );
   }
 
   return (

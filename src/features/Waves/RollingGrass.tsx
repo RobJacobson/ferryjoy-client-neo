@@ -1,12 +1,12 @@
 // ============================================================================
 // Rolling Grass Component
 // ============================================================================
-// Renders static grass layers using AnimatedWave.
+// Renders static grass layers using AnimatedWaveClipped (clip-path variant).
 // Creates top and bottom framing with no animation.
 // ============================================================================
 
 import { View } from "react-native";
-import AnimatedWave from "./AnimatedWave";
+import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /**
  * ForegroundGrass component that renders the top grass layer.
@@ -20,7 +20,7 @@ const ForegroundGrass = () => {
       className="absolute inset-0"
       style={{ zIndex: 100, marginBottom: -10 }}
     >
-      <AnimatedWave
+      <AnimatedWaveClipped
         amplitude={20}
         period={800}
         fillColor="#56ab91"
@@ -42,7 +42,7 @@ const ForegroundGrass = () => {
 const BackgroundGrass = () => {
   return (
     <View className="absolute inset-0" style={{ zIndex: 0 }}>
-      <AnimatedWave
+      <AnimatedWaveClipped
         amplitude={10}
         period={300}
         fillColor="#88d4ab"

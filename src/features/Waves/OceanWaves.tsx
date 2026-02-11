@@ -1,14 +1,14 @@
 // ============================================================================
 // Ocean Waves Component
 // ============================================================================
-// Renders multiple animated wave layers creating a depth effect.
+// Renders multiple animated wave layers (clip-path variant) creating a depth effect.
 // Uses transform-based animations for optimal 60 FPS performance.
 // ============================================================================
 
 import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator } from "@/shared/utils";
-import AnimatedWave from "./AnimatedWave";
+import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for ocean waves (blue). */
 const BASE_COLOR = "#00a6fb";
@@ -76,7 +76,7 @@ const OceanWaves = memo(() => {
           className="absolute inset-0"
           style={{ zIndex: index + 10 }}
         >
-          <AnimatedWave
+          <AnimatedWaveClipped
             amplitude={AMPLITUDE_BASE + index * AMPLITUDE_DELTA}
             period={PERIOD_BASE + index * PERIOD_DELTA}
             fillColor={blueColor(LIGHTNESS_BASE + index * LIGHTNESS_INCREMENT)}

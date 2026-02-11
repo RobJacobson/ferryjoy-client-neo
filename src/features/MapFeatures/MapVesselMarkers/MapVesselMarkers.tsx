@@ -5,7 +5,10 @@
 
 import { useSmoothedVesselLocations } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
-import { type MapMarkerData, MapMarkers } from "@/features/MapFeatures/MapMarkers";
+import {
+  type MapMarkerData,
+  MapMarkers,
+} from "@/features/MapFeatures/MapMarkers";
 import { MapVesselMarker } from "./MapVesselMarker";
 
 /**
