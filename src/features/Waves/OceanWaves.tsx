@@ -13,7 +13,7 @@ import { createColorGenerator, lerp } from "@/shared/utils";
 import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for ocean waves (blue). */
-const BASE_COLOR = "#00a6fb";
+const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
 const WAVE_COUNT = 15;

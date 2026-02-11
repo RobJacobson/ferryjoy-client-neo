@@ -13,7 +13,7 @@ import AnimatedWaveClipped from "./AnimatedWaveClipped";
 // const BASE_COLOR = "#159947";
 // const BASE_COLOR = "#56ab91";
 // const BASE_COLOR = "#3ecc00";
-const BASE_COLOR = "#4e6";
+const BASE_COLOR = "#5c5";
 
 /**
  * Color generator for grass shades.
