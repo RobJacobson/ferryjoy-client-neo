@@ -23,6 +23,9 @@ module.exports = {
         "playpen-700": ["PlaypenSans-Bold"],
         "playpen-800": ["PlaypenSans-ExtraBold"],
       },
+      boxShadow: {
+        glass: "2px 2px 5px rgba(0, 0, 0, 0.05)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

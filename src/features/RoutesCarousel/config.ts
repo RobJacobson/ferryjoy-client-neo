@@ -25,3 +25,6 @@ export const SCALE_CENTER = 0.9;
 
 /** Scale when card is one slot left or right. */
 export const SCALE_SIDES = 0.6;
+
+/** Rotation when card is one slot left or right. */
+export const ROTATION_SIDES = 30;

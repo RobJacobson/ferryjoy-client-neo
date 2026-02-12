@@ -11,6 +11,7 @@ import {
 } from "react-native-reanimated";
 import {
   PARALLAX_OFFSET,
+  ROTATION_SIDES,
   SCALE_CENTER,
   SCALE_SIDES,
 } from "@/features/RoutesCarousel/config";
@@ -65,7 +66,11 @@ const getAnimatedStyles = (
     [-1, 0, 1],
     [-slotWidth + parallaxOffset, 0, slotWidth - parallaxOffset]
   );
-  const rotate = interpolate(value, [-1, 0, 1], [-20, 0, 20]);
+  const rotate = interpolate(
+    value,
+    [-1, 0, 1],
+    [-ROTATION_SIDES, 0, ROTATION_SIDES]
+  );
   const zIndex = Math.round(
     interpolate(value, [-1, 0, 1], [0, slotWidth, 0], Extrapolation.CLAMP)
   );

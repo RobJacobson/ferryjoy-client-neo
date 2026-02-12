@@ -23,8 +23,7 @@ interface RouteCardProps {
   destinations: Destination[];
 }
 
-const borderStyle =
-  "border border-t-white/25 border-l-white/25 border-r-black/10 border-b-black/10 ";
+const glassStyle = "border border-white/40 bg-white/25";
 
 export const RouteCard = ({
   blurTargetRef,
@@ -46,21 +45,21 @@ export const RouteCard = ({
   return (
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={10}
+      intensity={12}
       blurMethod="dimezisBlurView"
-      className="h-full w-full overflow-hidden rounded-[32px]"
+      className="h-full w-full overflow-visible rounded-[32px]"
     >
-      <View className={cn("flex-1 gap-4 bg-white/30 p-4", borderStyle)}>
+      <View className={cn("flex-1 gap-4 rounded-[32px] p-4", glassStyle)}>
         <View
           className={cn(
             "aspect-[3/4] w-full items-center justify-center rounded-3xl bg-gray-200",
-            borderStyle,
+            glassStyle,
           )}
         >
           <Text className="text-gray-400">Photo Placeholder</Text>
         </View>
 
-        <Text className="text-center font-playpen-500 text-3xl text-blue-800">
+        <Text className="text-center font-puffberry text-3xl text-blue-800">
           {terminalName}
         </Text>
 
@@ -71,11 +70,11 @@ export const RouteCard = ({
               variant="secondary"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
               className={cn(
-                "w-full rounded-full bg-white/25 p-1 font-playpen-500 text-blue-800",
-                borderStyle,
+                "w-full rounded-full p-1 font-playpen-500 text-blue-800",
+                glassStyle,
               )}
             >
-              <Text className="font-playpen-500 text-blue-800 text-lg">
+              <Text className="font-playpen-500 text-black/75 text-lg">
                 → {destination.terminalName}
               </Text>
             </Button>
