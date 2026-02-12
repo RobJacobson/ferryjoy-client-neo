@@ -59,7 +59,7 @@ const RoutesCarousel = ({
   if (selectedRegion && selectedRegion !== "All Terminals") {
     const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
     terminalCards = terminalCards.filter((card) =>
-      regionTerminalIds.includes(card.terminalId),
+      regionTerminalIds.includes(card.terminalId)
     );
   }
 
@@ -77,7 +77,7 @@ const RoutesCarousel = ({
 
   const getItemLayout = (
     _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number,
+    index: number
   ) => ({
     length: SLOT_WIDTH,
     offset: index * SLOT_WIDTH,
