@@ -24,6 +24,12 @@
       },
       "performance": {
         "noAccumulatingSpread": "off"
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "level": "warn",
+          "fix": "safe"
+        }
       }
     }
   },

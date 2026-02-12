@@ -40,7 +40,7 @@ export const TerminalSelectionHeader = () => {
   return (
     <View className="flex-row items-center justify-center">
       <Text
-        className="text-[17px] font-semibold text-slate-900 max-w-[260px]"
+        className="max-w-[260px] font-semibold text-[17px] text-slate-900"
         numberOfLines={1}
         ellipsizeMode="tail"
       >

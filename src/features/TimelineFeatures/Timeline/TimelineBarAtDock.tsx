@@ -112,12 +112,12 @@ const TimelineBarAtDock = ({
           minutesRemaining={minutesRemaining ?? "--"}
         >
           {vesselLocation?.VesselName && (
-            <Text className="text-sm font-playpen-600">
+            <Text className="font-playpen-600 text-sm">
               {vesselLocation.VesselName}
             </Text>
           )}
           {vesselLocation?.DepartingTerminalAbbrev && (
-            <Text className="text-sm text-muted-foreground font-playpen-300 leading-[1.15]">
+            <Text className="font-playpen-300 text-muted-foreground text-sm leading-[1.15]">
               At Dock {vesselLocation.DepartingTerminalAbbrev}
             </Text>
           )}

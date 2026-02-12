@@ -78,7 +78,7 @@ export const ScheduledTripTimelineVertical = ({
 
   return (
     <View
-      className="relative items-center w-full overflow-visible"
+      className="relative w-full items-center overflow-visible"
       style={{ height, paddingVertical: 20 }}
     >
       {segments.map((segment) => {
@@ -218,7 +218,7 @@ const ScheduledTripDepartMarker = ({
       <TimelineMarkerLabel
         text={`${isLeft ? "Left" : "Leave"} ${terminalAbbrev}`}
       />
-      <View className="flex-col items-end start gap-x-2">
+      <View className="start flex-col items-end gap-x-2">
         <TimelineMarkerTime
           time={leaveTime.scheduled}
           type="scheduled"

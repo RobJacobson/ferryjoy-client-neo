@@ -1,8 +1,11 @@
+import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import type { RefObject } from "react";
+import { Text, View } from "react-native";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
+import { cn } from "@/shared/utils/cn";
 
 interface Destination {
   terminalId: number;
@@ -11,16 +14,19 @@ interface Destination {
 }
 
 interface RouteCardProps {
+  /**
+   * Ref to BlurTargetView; card uses BlurView with this as blur source.
+   */
+  blurTargetRef: RefObject<View | null>;
   terminalName: string;
   terminalSlug: string;
   destinations: Destination[];
 }
 
-/**
- * RouteCard component that displays a terminal with buttons for reachable destinations.
- * Each destination button shows "To [destination name]" format.
- */
+const glassStyle = "border border-white/40 bg-white/25";
+
 export const RouteCard = ({
+  blurTargetRef,
   terminalName,
   terminalSlug,
   destinations,
@@ -37,36 +43,44 @@ export const RouteCard = ({
   };
 
   return (
-    <View className="overflow-hidden h-full bg-white rounded-3xl border border-gray-100 shadow-sm">
-      <ScrollView
-        contentContainerStyle={{
-          padding: 24,
-          flexGrow: 1,
-          justifyContent: "space-between",
-        }}
-      >
-        <View>
-          <View className="justify-center items-center mb-6 h-40 bg-gray-200 rounded-xl">
-            <Text className="text-gray-400">Photo Placeholder</Text>
-          </View>
-          <Text className="mb-6 text-2xl font-bold leading-tight text-center text-slate-900">
-            {terminalName}
-          </Text>
+    <BlurView
+      blurTarget={blurTargetRef}
+      intensity={12}
+      blurMethod="dimezisBlurView"
+      className="h-full w-full overflow-visible rounded-[32px]"
+    >
+      <View className={cn("flex-1 gap-4 rounded-[32px] p-4", glassStyle)}>
+        <View
+          className={cn(
+            "aspect-[3/4] w-full items-center justify-center rounded-3xl bg-gray-200",
+            glassStyle,
+          )}
+        >
+          <Text className="text-gray-400">Photo Placeholder</Text>
         </View>
 
-        <View className="gap-3 pb-4">
+        <Text className="text-center font-puffberry text-3xl text-blue-800">
+          {terminalName}
+        </Text>
+
+        <View className="flex-1 items-center justify-center gap-3 py-4">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
               variant="secondary"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className="w-full"
+              className={cn(
+                "w-full rounded-full p-1 font-playpen-500 text-blue-800",
+                glassStyle,
+              )}
             >
-              <Text>To {destination.terminalName}</Text>
+              <Text className="font-playpen-500 text-black/75 text-lg">
+                → {destination.terminalName}
+              </Text>
             </Button>
           ))}
         </View>
-      </ScrollView>
-    </View>
+      </View>
+    </BlurView>
   );
 };

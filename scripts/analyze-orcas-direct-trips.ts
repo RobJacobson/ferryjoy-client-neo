@@ -64,7 +64,7 @@ interface DirectTripSummary {
 // ============================================================================
 
 const ORCAS_TERMINAL_ID = 15;
-const ORCAS_TERMINAL_NAME = "Orcas Island";
+const _ORCAS_TERMINAL_NAME = "Orcas Island";
 const ROUTE_ID = 9;
 
 /**
@@ -167,7 +167,7 @@ const groupTripsByVesselAndTime = (
     if (!groups.has(key)) {
       groups.set(key, []);
     }
-    groups.get(key)!.push(trip);
+    groups.get(key)?.push(trip);
   }
 
   return groups;
@@ -185,7 +185,7 @@ const identifyDirectTrips = (trips: OrcasTrip[]): Set<string> => {
   const directTripKeys = new Set<string>();
   const groups = groupTripsByVesselAndTime(trips);
 
-  for (const [groupKey, groupTrips] of Array.from(groups.entries())) {
+  for (const [_groupKey, groupTrips] of Array.from(groups.entries())) {
     // Sort by duration (ascending) to find the shortest trip
     const sortedTrips = [...groupTrips].sort(
       (a, b) => a.durationMinutes - b.durationMinutes

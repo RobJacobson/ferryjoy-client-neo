@@ -112,18 +112,16 @@ const MapTerminalPairPage = () => {
   }
 
   return (
-    <>
-      <MapScreenLayout
-        bottomSheet={
-          <TerminalOrRouteBottomSheet
-            title={title}
-            kind="terminal"
-            snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
-            initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
-          />
-        }
-      />
-    </>
+    <MapScreenLayout
+      bottomSheet={
+        <TerminalOrRouteBottomSheet
+          title={title}
+          kind="terminal"
+          snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
+          initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
+        />
+      }
+    />
   );
 };
 

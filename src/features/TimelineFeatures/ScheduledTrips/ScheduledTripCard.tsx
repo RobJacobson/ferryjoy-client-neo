@@ -11,7 +11,6 @@ import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
-import { ScheduledTripTimelineVertical } from "./ScheduledTripTimelineVertical";
 import type { ScheduledTripJourney, Segment } from "./types";
 
 type ScheduledTripCardProps = {
@@ -94,21 +93,21 @@ const ScheduledTripRouteHeader = ({
       {/* Each segment: departing terminal, arrow; only the last segment shows final destination. */}
       {segments.map((segment, index) => (
         <React.Fragment key={segment.Key}>
-          <CardTitle className="text-xl font-bold">
+          <CardTitle className="font-bold text-xl">
             {segment.DepartingTerminalAbbrev}
           </CardTitle>
-          <Text className="mx-2 text-xl font-light text-muted-foreground">
+          <Text className="mx-2 font-light text-muted-foreground text-xl">
             →
           </Text>
           {index === segments.length - 1 && (
-            <CardTitle className="text-xl font-semibold">
+            <CardTitle className="font-semibold text-xl">
               {segment.ArrivingTerminalAbbrev}
             </CardTitle>
           )}
         </React.Fragment>
       ))}
     </View>
-    <Text className="text-xl font-light text-muted-foreground">
+    <Text className="font-light text-muted-foreground text-xl">
       {getVesselName(vesselAbbrev)}
     </Text>
   </View>

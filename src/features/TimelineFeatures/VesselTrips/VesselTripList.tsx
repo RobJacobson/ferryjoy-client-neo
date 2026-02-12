@@ -42,7 +42,7 @@ export const TripProgressList = ({
 
   if (tripsLoading || locationsLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <View className="flex-1 items-center justify-center bg-white">
         <Text className="text-xl">Loading active vessel trips...</Text>
       </View>
     );
@@ -50,8 +50,8 @@ export const TripProgressList = ({
 
   if (tripsError || locationsError) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <Text className="text-xl text-red-500">
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-red-500 text-xl">
           Error: {tripsError || locationsError}
         </Text>
       </View>
@@ -60,8 +60,8 @@ export const TripProgressList = ({
 
   if (!displayData || displayData.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <Text className="mb-4 text-xl font-bold">Active Vessel Trips</Text>
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="mb-4 font-bold text-xl">Active Vessel Trips</Text>
       </View>
     );
   }

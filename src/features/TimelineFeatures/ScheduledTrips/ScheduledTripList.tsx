@@ -44,7 +44,7 @@ export const ScheduledTripList = ({
 
   if (status === "loading") {
     return (
-      <View className="flex-1 justify-center items-center p-4">
+      <View className="flex-1 items-center justify-center p-4">
         <Text className="text-lg">Loading schedule...</Text>
       </View>
     );
@@ -52,7 +52,7 @@ export const ScheduledTripList = ({
 
   if (status === "empty") {
     return (
-      <View className="flex-1 justify-center items-center p-4">
+      <View className="flex-1 items-center justify-center p-4">
         <Text className="text-lg text-muted-foreground">
           No scheduled trips found for this terminal today.
         </Text>

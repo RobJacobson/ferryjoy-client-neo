@@ -153,7 +153,7 @@ export const useDelayedVesselTrips = (
   // Reconcile immediately when inputs change
   useEffect(() => {
     reconcile(Date.now());
-  }, [activeTrips, vesselLocations, reconcile]);
+  }, [reconcile]);
 
   // Reconcile periodically for expirations
   useInterval(() => {

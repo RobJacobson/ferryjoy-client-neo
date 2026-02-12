@@ -16,7 +16,7 @@ import AnimatedWaveClipped from "./AnimatedWaveClipped";
 const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 15;
+const WAVE_COUNT = 8;
 
 /** Period in SVG units: lerped from min (first wave) to max (last wave). */
 const PERIOD = { min: 100, max: 500 };

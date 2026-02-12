@@ -187,7 +187,7 @@ export const RegionSelector = ({
       <Select value={selectedOption} onValueChange={handleValueChange}>
         <SelectTrigger
           ref={ref}
-          className="bg-white/10 border-white/20 [&_*]:text-white"
+          className="border-white/20 bg-white/10 [&_*]:text-white"
           onPress={Platform.OS === "ios" ? handlePress : undefined}
           onTouchStart={Platform.OS !== "ios" ? handlePress : undefined}
         >

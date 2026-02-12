@@ -266,7 +266,7 @@ const mapHistoryToSailing = (
     kind: "ok",
     vesselRaw,
     pairKey,
-    scheduledDepartMs: record.ScheduledDepart!.getTime(),
+    scheduledDepartMs: record.ScheduledDepart?.getTime(),
     departingName,
     arrivingName,
   };

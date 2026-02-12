@@ -2,8 +2,8 @@ import { Text, View } from "@/components/ui";
 
 const FerryJoy = () => {
   return (
-    <View className="flex-1 items-center justify-start h-20 bg-green-500">
-      <Text className="text-4xl font-puffberry">FerryJoy</Text>
+    <View className="h-20 flex-1 items-center justify-start bg-green-500">
+      <Text className="font-puffberry text-4xl">FerryJoy</Text>
     </View>
   );
 };

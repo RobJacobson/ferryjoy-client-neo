@@ -36,7 +36,7 @@ export const VesselMarkerContent = ({ vessel }: { vessel: VesselLocation }) => {
     <View className={cn("rounded-full border-[0.5px]", borderColor)}>
       <View
         className={cn(
-          "rounded-full border-[6px] justify-center items-center w-20 h-20",
+          "h-20 w-20 items-center justify-center rounded-full border-[6px]",
           backgroundColor,
           vessel.InService ? "border-white" : "border-white/50"
         )}
@@ -73,7 +73,7 @@ const VesselArrow = ({ vessel }: { vessel: VesselLocation }) => {
       <View
         className={cn((vessel.Speed ?? 0) > 0 ? "opacity-100" : "opacity-50")}
       >
-        <Text className="text-white font-bold text-lg">{" )"}</Text>
+        <Text className="font-bold text-lg text-white">{" )"}</Text>
       </View>
     </View>
   );

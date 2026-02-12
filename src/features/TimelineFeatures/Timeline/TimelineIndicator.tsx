@@ -143,7 +143,7 @@ const TimelineIndicator = ({
       {/* Indicator circle */}
       <View
         className={cn(
-          "rounded-full items-center justify-center border-[2px]",
+          "items-center justify-center rounded-full border-[2px]",
           indicatorStyle
         )}
         style={{

@@ -1,89 +1,134 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Dimensions, View } from "react-native";
-import type { ICarouselInstance } from "react-native-reanimated-carousel";
-import Carousel from "react-native-reanimated-carousel";
+/**
+ * RoutesCarouselFlatList – FlatList-based carousel drop-in for RoutesCarousel.
+ * Uses Animated.FlatList + Reanimated with a normalized value in [-1, 0, 1] for parallax.
+ */
+
+import type { RefObject } from "react";
+import { useEffect, useRef } from "react";
+import { View } from "react-native";
+import Animated, {
+  type ScrollEvent,
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
+import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
 import { TERMINAL_REGIONS, type TerminalRegion } from "@/data/terminalRegions";
+import { SLOT_HEIGHT, SLOT_WIDTH } from "@/features/RoutesCarousel/config";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
+import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
-const { width, height } = Dimensions.get("window");
+// ============================================================================
+// Types
+// ============================================================================
 
-interface RoutesCarouselProps {
+type RoutesCarouselProps = {
+  /**
+   * Ref to BlurTargetView that BlurViews in each RouteCard will use as blur source.
+   */
+  blurTargetRef: RefObject<View | null>;
   /**
    * Selected region filter. When null or "All Terminals", shows all terminals.
    * Otherwise filters to terminals in the selected region.
    */
   selectedRegion?: TerminalRegion | null;
-}
+};
+
+// ============================================================================
+// RoutesCarouselFlatList
+// ============================================================================
 
 /**
- * RoutesCarousel component that displays terminal cards in a carousel.
- * Each card shows a terminal with buttons for all reachable destinations.
- * Uses static terminal connections data to ensure all known terminal pairs
- * are always available, even if temporarily unavailable from the API.
+ * FlatList-based carousel that displays terminal cards. Drop-in replacement for
+ * RoutesCarousel: same props and behavior, using native scroll and a
+ * normalized value for parallax (scale + translateX + zIndex).
  *
- * @param props - Component props
- * @param props.selectedRegion - Optional region filter to apply to terminal cards
+ * @param props - blurTargetRef and optional selectedRegion
  */
-export const RoutesCarousel = ({ selectedRegion }: RoutesCarouselProps) => {
-  const carouselRef = useRef<ICarouselInstance>(null);
+const RoutesCarousel = ({
+  blurTargetRef,
+  selectedRegion,
+}: RoutesCarouselProps) => {
+  const scrollX = useSharedValue(0);
+  const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
 
-  // Transform static terminal connections data into card data and filter by region
-  const terminalCards = useMemo(() => {
-    let cards = transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+  let terminalCards = transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+  if (selectedRegion && selectedRegion !== "All Terminals") {
+    const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
+    terminalCards = terminalCards.filter((card) =>
+      regionTerminalIds.includes(card.terminalId),
+    );
+  }
 
-    // Filter by region if a specific region is selected (not "All Terminals" or null)
-    if (selectedRegion && selectedRegion !== "All Terminals") {
-      const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
-      cards = cards.filter((card) =>
-        regionTerminalIds.includes(card.terminalId)
-      );
-    }
-
-    return cards;
-  }, [selectedRegion]);
-
-  // Reset carousel to beginning when region changes
-  // This ensures we don't show a blank screen when switching from a region with many terminals
-  // to one with fewer terminals (e.g., from index 10 to a list with only 5 items)
   useEffect(() => {
-    if (carouselRef.current && terminalCards.length > 0) {
-      carouselRef.current.scrollTo({ index: 0, animated: true });
+    if (listRef.current && terminalCards.length > 0) {
+      listRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   }, [terminalCards.length]);
 
-  // Use 80% of the screen height, but ensure aspect ratio isn't too wild
-  const carouselHeight = height * 0.8;
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event: ScrollEvent) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  const getItemLayout = (
+    _data: ArrayLike<TerminalCardData> | null | undefined,
+    index: number,
+  ) => ({
+    length: SLOT_WIDTH,
+    offset: index * SLOT_WIDTH,
+    index,
+  });
 
   return (
-    <View className="flex-1 justify-center items-center">
-      <Carousel
+    <View className="w-full flex-1 items-center justify-center">
+      <Animated.FlatList<TerminalCardData>
         key={selectedRegion ?? "all"}
-        ref={carouselRef}
-        loop={false}
-        width={width}
-        height={carouselHeight}
-        autoPlay={false}
+        ref={listRef}
         data={terminalCards}
-        scrollAnimationDuration={1000}
-        mode="parallax"
-        modeConfig={{
-          parallaxScrollingScale: 0.9,
-          parallaxScrollingOffset: 50,
-        }}
-        renderItem={({ item }) => (
-          <View className="flex-1 px-2 py-4">
-            <RouteCard
-              terminalName={item.terminalName}
-              terminalSlug={item.terminalSlug}
-              destinations={item.destinations}
-            />
-          </View>
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={SLOT_WIDTH}
+        snapToAlignment="start"
+        decelerationRate={0.994}
+        bounces={false}
+        scrollEventThrottle={16}
+        onScroll={onScroll}
+        getItemLayout={getItemLayout}
+        keyExtractor={(item) => item.terminalSlug}
+        accessibilityRole="list"
+        accessibilityLabel="Terminal routes"
+        renderItem={({ item, index }) => (
+          <RoutesCarouselItem
+            index={index}
+            scrollX={scrollX}
+            slotWidth={SLOT_WIDTH}
+            slotHeight={SLOT_HEIGHT}
+            accessibilityLabel={item.terminalName}
+          >
+            <View
+              style={{
+                width: SLOT_WIDTH,
+                height: SLOT_HEIGHT,
+                overflow: "hidden",
+              }}
+            >
+              <RouteCard
+                blurTargetRef={blurTargetRef}
+                terminalName={item.terminalName}
+                terminalSlug={item.terminalSlug}
+                destinations={item.destinations}
+              />
+            </View>
+          </RoutesCarouselItem>
         )}
       />
     </View>
   );
 };
+
+export default RoutesCarousel;

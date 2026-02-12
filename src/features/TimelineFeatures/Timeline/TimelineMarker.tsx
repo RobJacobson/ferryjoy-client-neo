@@ -72,7 +72,7 @@ const TimelineMarker = ({
     >
       <View
         className={cn(
-          "absolute rounded-full items-center justify-center",
+          "absolute items-center justify-center rounded-full",
           circleClassName
         )}
         style={{

@@ -49,7 +49,7 @@ export function generateWavePath(
 
     // Apply phase offset to shift the wave shape
     // This creates the animation effect when phaseOffset changes over time
-    const normalizedPhase = (phaseOffset % period) / period;
+    const _normalizedPhase = (phaseOffset % period) / period;
 
     // First curve (peak phase)
     pathData += ` C${xPeak1},${yPeak} ${xPeak2},${yPeak} ${xEnd},${yCenter}`;
