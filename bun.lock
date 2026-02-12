@@ -56,7 +56,7 @@
         "d3": "^7.9.0",
         "d3-geo": "^3.1.1",
         "expo": "^55.0.0-preview.10",
-        "expo-blur": "^15.0.8",
+        "expo-blur": "~55.0.5",
         "expo-constants": "~55.0.4",
         "expo-dev-client": "~55.0.5",
         "expo-font": "55",
@@ -1624,7 +1624,7 @@
 
     "expo-asset": ["expo-asset@55.0.4", "", { "dependencies": { "@expo/image-utils": "^0.8.12", "expo-constants": "~55.0.4" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-eaPPe9Sw4V0nL/KkEvuWpyeeSoGhP2fu1ZA7wkldqywhMVhhY+7kerMkQ7nPgJVtevIfkQRw7wD8ghZEzrKzmg=="],
 
-    "expo-blur": ["expo-blur@15.0.8", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-rWyE1NBRZEu9WD+X+5l7gyPRszw7n12cW3IRNAb5i6KFzaBp8cxqT5oeaphJapqURvcqhkOZn2k5EtBSbsuU7w=="],
+    "expo-blur": ["expo-blur@55.0.5", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-6F6Vwr3gRy6FbYziT7kDDRG/kwP826Y/5E76VecyWBcXu9NgeTwOskc8Mk9tphupPjJOvGn0wcCmK1ZZBLWIkA=="],
 
     "expo-constants": ["expo-constants@55.0.4", "", { "dependencies": { "@expo/config": "~55.0.4", "@expo/env": "~2.1.0" }, "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-zdPxsYnL8LrW91sXivdBIH5nouTDUG0npMZxaYhvEO/2p60iN0W4jK3n2sRFrPl31WctLWSs4ato/wIKnRuUFA=="],
 
