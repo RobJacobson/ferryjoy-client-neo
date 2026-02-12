@@ -51,12 +51,12 @@ const Foreground = () => {
           amplitude={10}
           period={700}
           fillColor={grassColor(400)}
-          height={10}
+          height={8}
           animationDuration={0}
           waveDisplacement={20}
           animationDelay={0}
         />
-        <AnimatedWaveClipped
+        {/* <AnimatedWaveClipped
           amplitude={15}
           period={900}
           fillColor={grassColor(350)}
@@ -64,7 +64,7 @@ const Foreground = () => {
           animationDuration={0}
           waveDisplacement={100}
           animationDelay={0}
-        />
+        /> */}
       </View>
     </>
   );
