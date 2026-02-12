@@ -99,18 +99,16 @@ const MapSlugPage = () => {
   }
 
   return (
-    <>
-      <MapScreenLayout
-        bottomSheet={
-          <TerminalOrRouteBottomSheet
-            title={title}
-            kind={kind}
-            snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
-            initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
-          />
-        }
-      />
-    </>
+    <MapScreenLayout
+      bottomSheet={
+        <TerminalOrRouteBottomSheet
+          title={title}
+          kind={kind}
+          snapPoints={MAP_NAV_CONFIG.bottomSheet.snapPoints}
+          initialIndex={MAP_NAV_CONFIG.bottomSheet.initialIndex}
+        />
+      }
+    />
   );
 };
 

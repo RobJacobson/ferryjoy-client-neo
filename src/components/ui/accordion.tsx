@@ -98,18 +98,18 @@ function AccordionTrigger({
             className={cn(
               "flex-row items-start justify-between gap-4 rounded-md py-4 disabled:opacity-50",
               Platform.select({
-                web: "focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 outline-none transition-all hover:underline focus-visible:ring-[3px] disabled:pointer-events-none [&[data-state=open]>svg]:rotate-180",
+                web: "flex flex-1 outline-none transition-all hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none [&[data-state=open]>svg]:rotate-180",
               }),
               className
             )}
           >
-            <>{children}</>
+            {children}
             <Animated.View style={chevronStyle}>
               <Icon
                 as={ChevronDown}
                 size={16}
                 className={cn(
-                  "text-muted-foreground shrink-0",
+                  "shrink-0 text-muted-foreground",
                   Platform.select({
                     web: "pointer-events-none translate-y-0.5 transition-transform duration-200",
                   })

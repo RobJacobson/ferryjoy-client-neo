@@ -190,7 +190,7 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
     0,
     Math.min(30, window.slackBeforeCurrScheduledDepartMinutes)
   );
-  const arrivalBeforeDepartFeatures = extractArrivalBeforeDepartureFeatures(
+  const _arrivalBeforeDepartFeatures = extractArrivalBeforeDepartureFeatures(
     minutesBeforeDeparture
   );
 

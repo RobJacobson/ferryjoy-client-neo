@@ -49,7 +49,7 @@ export const VesselTimeline = ({
 
   if (!timelineData) {
     return (
-      <View className="p-8 items-center justify-center">
+      <View className="items-center justify-center p-8">
         <Text className="text-muted-foreground">
           No schedule data available for this vessel today.
         </Text>
@@ -96,13 +96,13 @@ export const VesselTimeline = ({
       >
         {/* 1. The Vertical Track (Background) */}
         <View
-          className="absolute left-1/2 -ml-[2px] w-[4px] h-full bg-muted/20 rounded-full"
+          className="absolute left-1/2 -ml-[2px] h-full w-[4px] rounded-full bg-muted/20"
           style={{ zIndex: 1 }}
         />
 
         {/* 2. The Progress Bar (Pink) */}
         <View
-          className="absolute left-1/2 -ml-[2px] w-[4px] bg-pink-300 rounded-full"
+          className="absolute left-1/2 -ml-[2px] w-[4px] rounded-full bg-pink-300"
           style={{
             top: firstEventOffsetY,
             height: pinkBarHeight,
@@ -130,8 +130,8 @@ export const VesselTimeline = ({
               <TimelineMarkerContent
                 className={
                   isArrival
-                    ? "ml-14 flex-row justify-end items-center"
-                    : "mr-14 flex-row justify-start items-center"
+                    ? "ml-14 flex-row items-center justify-end"
+                    : "mr-14 flex-row items-center justify-start"
                 }
               >
                 <TimelineMarkerLabel
@@ -149,7 +149,7 @@ export const VesselTimeline = ({
 
         {/* 4. The Indicator (Rocking Vessel) */}
         <View
-          className="absolute left-0 right-0"
+          className="absolute right-0 left-0"
           style={{
             top: currentOffsetY,
             height: 0,
@@ -164,8 +164,8 @@ export const VesselTimeline = ({
             minutesRemaining={speed !== undefined ? Math.round(speed) : "--"}
             indicatorStyle="bg-pink-50 border-pink-500"
           >
-            <View className="bg-white/90 px-2 py-1 rounded-md border border-pink-200 shadow-sm">
-              <Text className="text-xs font-playpen-600 text-pink-600">
+            <View className="rounded-md border border-pink-200 bg-white/90 px-2 py-1 shadow-sm">
+              <Text className="font-playpen-600 text-pink-600 text-xs">
                 {vesselName ?? vesselAbbrev}
               </Text>
             </View>

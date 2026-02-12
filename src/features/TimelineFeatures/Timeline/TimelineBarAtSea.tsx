@@ -8,7 +8,7 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
 import { useSharedValue, withSpring } from "react-native-reanimated";
-import { Text, View } from "@/components/ui";
+import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
 import TimelineIndicator from "./TimelineIndicator";
@@ -135,18 +135,18 @@ const TimelineBarAtSea = ({
           speed={vesselLocation?.Speed ?? 0}
         >
           {vesselLocation?.VesselName && (
-            <Text className="text-sm font-playpen-600">
+            <Text className="font-playpen-600 text-sm">
               {vesselLocation.VesselName}
             </Text>
           )}
           {!isArrived && vesselLocation?.ArrivingDistance !== undefined && (
-            <Text className="text-sm text-muted-foreground font-playpen-300 leading-[1.15]">
+            <Text className="font-playpen-300 text-muted-foreground text-sm leading-[1.15]">
               {(vesselLocation?.Speed ?? 0).toFixed(0)} kn{" · "}
               {vesselLocation?.ArrivingDistance?.toFixed(1)} mi
             </Text>
           )}
           {isArrived && (
-            <Text className="text-xs text-muted-foreground font-playpen-300 leading-[1.15]">
+            <Text className="font-playpen-300 text-muted-foreground text-xs leading-[1.15]">
               ❤️ Arrived! ❤️
             </Text>
           )}

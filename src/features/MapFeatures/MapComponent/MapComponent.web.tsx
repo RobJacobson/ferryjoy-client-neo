@@ -75,7 +75,7 @@ export const MapComponent = ({ children, initialCameraState }: MapProps) => {
   };
 
   return (
-    <div className="flex-1 relative">
+    <div className="relative flex-1">
       <MapboxGL
         ref={mapRef}
         initialViewState={initialViewState}

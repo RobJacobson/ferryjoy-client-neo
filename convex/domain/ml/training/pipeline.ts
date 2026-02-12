@@ -31,7 +31,6 @@
  * - Feature leakage prevention through careful temporal ordering
  */
 
-import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { createFeatureRecords } from "../shared/featureRecord";
 import type { ModelParameters, TrainingResponse } from "../shared/types";

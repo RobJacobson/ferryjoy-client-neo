@@ -47,21 +47,21 @@ export const VesselTripCard = ({
   const routeContent = (
     <View className="w-full flex-row">
       <View className="flex-1 flex-row items-center">
-        <CardTitle className="flex text-xl font-bold">
+        <CardTitle className="flex font-bold text-xl">
           {vesselLocation.DepartingTerminalAbbrev}
           {hasDestination && (
             <>
-              <Text className="text-xl font-light text-muted-foreground">
+              <Text className="font-light text-muted-foreground text-xl">
                 {" → "}
               </Text>
-              <Text className="text-xl font-semibold">
+              <Text className="font-semibold text-xl">
                 {vesselLocation.ArrivingTerminalAbbrev}
               </Text>
             </>
           )}
         </CardTitle>
       </View>
-      <Text className="text-xl font-light text-muted-foreground">
+      <Text className="font-light text-muted-foreground text-xl">
         {vesselLocation.VesselName}
       </Text>
     </View>

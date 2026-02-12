@@ -74,7 +74,7 @@ export const ScheduledTripTimeline = ({
   const equalWidth = totalSegmentCount === 4;
 
   return (
-    <View className="relative flex-row items-center w-full overflow-visible px-4 py-8">
+    <View className="relative w-full flex-row items-center overflow-visible px-4 py-8">
       {segments.map((segment) => {
         // Duration for layout (using scheduled times to keep bars consistent)
         // Ensure a minimum duration of 1 minute for the dock segment to prevent marker overlap
