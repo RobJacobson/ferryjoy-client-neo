@@ -59,7 +59,7 @@ const Sky = () => {
           opacity: PAPER_TEXTURE_OPACITY,
         }}
       />
-      <SunburstLayout rayCount={18} centerX={25} centerY={15} size={1000} />
+      <SunburstLayout rayCount={12} centerX={25} centerY={20} size={1000} />
     </View>
   );
 };
