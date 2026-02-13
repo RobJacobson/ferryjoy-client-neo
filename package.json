@@ -40,7 +40,7 @@
     "convex:auth": "bunx convex auth",
     "convex:init": "bunx convex init",
     "convex:dev:all": "npm run convex:dev & npm run start",
-    "eas:build": "bash scripts/eas-build-avoid-yallist.sh"
+    "eas:build": "npm exec eas-cli -- build"
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
@@ -76,7 +76,7 @@
     "@rn-primitives/toggle-group": "^1.2.0",
     "@rn-primitives/tooltip": "^1.2.0",
     "@rnmapbox/maps": "^10.2.10",
-    "@shopify/react-native-skia": "2.4.14",
+    "@shopify/react-native-skia": "2.4.19",
     "@tanstack/react-query": "^5.90.21",
     "@turf/bezier-spline": "^7.3.4",
     "@turf/destination": "^7.3.4",

@@ -1,13 +1,13 @@
 {
-  "cli": {
-    "requireCommit": true
-  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
         "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "@RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-16.4"
       }
     },
     "preview": {
