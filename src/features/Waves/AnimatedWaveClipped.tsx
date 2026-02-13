@@ -19,7 +19,6 @@ import Svg, {
   Rect,
   Image as SvgImage,
 } from "react-native-svg";
-import type { AnimatedWaveProps } from "./AnimatedWave";
 import { useWaveOscillation } from "./useWaveOscillation";
 import { useWaveTextureReady } from "./WaveTextureReadyContext";
 import { generateWavePath } from "./wavePath";
@@ -33,6 +32,69 @@ const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 const STROKE_COLOR = "black";
 const STROKE_WIDTH = 1;
 const STROKE_OPACITY = 0.05;
+
+export const SHADOW_OPACITY = 0.05;
+export const SHADOW_LAYERS: [number, number][] = [
+  [9, -2],
+  [6, -1],
+  [3, -0.5],
+];
+
+/**
+ * Props for the AnimatedWave component.
+ */
+export interface AnimatedWaveProps {
+  /**
+   * Wave amplitude in SVG units (height from center to peak/trough).
+   */
+  amplitude: number;
+
+  /**
+   * Wave period in SVG units (width of one complete cycle).
+   */
+  period: number;
+
+  /**
+   * Animation duration in milliseconds.
+   * If provided, the wave will animate continuously with sinusoidal easing.
+   * If omitted, the wave will be static.
+   */
+  animationDuration?: number;
+
+  /**
+   * Delay before animation starts in milliseconds.
+   * Creates staggered start times for a natural layered appearance.
+   */
+  animationDelay?: number;
+
+  /**
+   * Maximum horizontal displacement in SVG units.
+   * The wave will oscillate between -displacement and +displacement.
+   */
+  waveDisplacement?: number;
+
+  /**
+   * Phase offset for the wave oscillation in radians.
+   * Use this to de-sync layers without animation delays.
+   */
+  phaseOffset?: number;
+
+  /**
+   * Opacity of the wave fill (0-1).
+   */
+  fillOpacity?: number;
+
+  /**
+   * Color of the wave fill.
+   */
+  fillColor: string;
+
+  /**
+   * Vertical position of the wave centerline as a percentage (0-100).
+   * 0 = bottom, 50 = middle, 100 = top.
+   */
+  height?: number;
+}
 
 /**
  * Clip-path variant of AnimatedWave: same visual via clipped rects.
@@ -69,9 +131,9 @@ const AnimatedWaveClipped = memo(
           period,
           centerY,
           svgRenderWidth,
-          SVG_HEIGHT
+          SVG_HEIGHT,
         ),
-      [amplitude, period, centerY, svgRenderWidth]
+      [amplitude, period, centerY, svgRenderWidth],
     );
 
     const clipId = `clip-wave-${amplitude}-${period}`;
@@ -129,25 +191,16 @@ const AnimatedWaveClipped = memo(
               </Pattern>
             </Defs>
 
-            {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
-            <Path
-              d={pathData}
-              fill="black"
-              fillOpacity={0.03}
-              transform="translate(-9, -2)"
-            />
-            <Path
-              d={pathData}
-              fill="black"
-              fillOpacity={0.03}
-              transform="translate(-6, -1)"
-            />
-            <Path
-              d={pathData}
-              fill="black"
-              fillOpacity={0.03}
-              transform="translate(-3, -0.5)"
-            />
+            {/* Pseudo-drop shadow: layered black copies (shared with AnimatedWave) */}
+            {SHADOW_LAYERS.map(([dx, dy]) => (
+              <Path
+                key={`shadow-${dx}-${dy}`}
+                d={pathData}
+                fill="black"
+                fillOpacity={SHADOW_OPACITY}
+                transform={`translate(${dx}, ${dy})`}
+              />
+            ))}
 
             {/* Clipped group: color rect then texture rect */}
             <G clipPath={`url(#${clipId})`}>
@@ -181,7 +234,7 @@ const AnimatedWaveClipped = memo(
         </Animated.View>
       </View>
     );
-  }
+  },
 );
 
 AnimatedWaveClipped.displayName = "AnimatedWaveClipped";

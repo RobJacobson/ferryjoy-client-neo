@@ -199,7 +199,7 @@ const Sunburst = ({
  * @param spiralStrength - Curve strength (0 = straight; ~0.15 = moderate spiral)
  * @returns Array of path "d" strings, one per ray (empty if rayCount is 0)
  */
-const buildRayPaths = (
+export const buildRayPaths = (
   center: number,
   radius: number,
   rayCount: number,

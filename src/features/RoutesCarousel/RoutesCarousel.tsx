@@ -48,7 +48,12 @@ type CarouselRowProps = {
 /**
  * Single carousel row; React Compiler optimizes re-renders when props are stable.
  */
-const CarouselRow = ({ item, index, blurTargetRef, scrollX }: CarouselRowProps) => (
+const CarouselRow = ({
+  item,
+  index,
+  blurTargetRef,
+  scrollX,
+}: CarouselRowProps) => (
   <RoutesCarouselItem
     index={index}
     scrollX={scrollX}

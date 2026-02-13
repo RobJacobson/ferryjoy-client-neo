@@ -2,7 +2,6 @@ import { BlurTargetView } from "expo-blur";
 import { Stack } from "expo-router";
 import { useRef } from "react";
 import { View } from "react-native";
-import RoutesCarousel from "@/features/RoutesCarousel/RoutesCarousel";
 import { Sky } from "@/features/Sky";
 import AnimatedWaves from "@/features/Waves";
 
@@ -19,7 +18,7 @@ export default function Home() {
           <AnimatedWaves />
         </View>
       </BlurTargetView>
-      <RoutesCarousel blurTargetRef={blurTargetRef} />
+      {/* <RoutesCarousel blurTargetRef={blurTargetRef} /> */}
     </View>
   );
 }

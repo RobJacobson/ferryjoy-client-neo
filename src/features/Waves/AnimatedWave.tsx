@@ -23,6 +23,14 @@ const STROKE_COLOR = "black";
 const STROKE_WIDTH = 0.5;
 const STROKE_OPACITY = 0.1;
 
+/** Pseudo-drop shadow: [dx, dy] offsets and opacity (layered black copies). Exported for AnimatedWaveClipped. */
+export const SHADOW_OPACITY = 0.1;
+export const SHADOW_LAYERS: [number, number][] = [
+  [9, -2],
+  [6, -1],
+  [3, -0.5],
+];
+
 /**
  * Props for the AnimatedWave component.
  */
@@ -111,9 +119,9 @@ const AnimatedWave = memo(
           period,
           centerY,
           svgRenderWidth,
-          SVG_HEIGHT
+          SVG_HEIGHT,
         ),
-      [amplitude, period, centerY, svgRenderWidth]
+      [amplitude, period, centerY, svgRenderWidth],
     );
 
     const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
@@ -156,24 +164,15 @@ const AnimatedWave = memo(
           </Defs>
 
           {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
-          <Path
-            d={pathData}
-            fill="black"
-            fillOpacity={0.04}
-            transform="translate(-9, -2)"
-          />
-          <Path
-            d={pathData}
-            fill="black"
-            fillOpacity={0.04}
-            transform="translate(-6, -1)"
-          />
-          <Path
-            d={pathData}
-            fill="black"
-            fillOpacity={0.04}
-            transform="translate(-3, -0.5)"
-          />
+          {SHADOW_LAYERS.map(([dx, dy]) => (
+            <Path
+              key={`shadow-${dx}-${dy}`}
+              d={pathData}
+              fill="black"
+              fillOpacity={SHADOW_OPACITY}
+              transform={`translate(${dx}, ${dy})`}
+            />
+          ))}
 
           {/* Main wave fill with paper-noise filter (fine grain overlay) */}
           <Path
@@ -194,7 +193,7 @@ const AnimatedWave = memo(
         </Svg>
       </Animated.View>
     );
-  }
+  },
 );
 
 export default AnimatedWave;
