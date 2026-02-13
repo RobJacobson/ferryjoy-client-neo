@@ -40,7 +40,7 @@
     "convex:auth": "bunx convex auth",
     "convex:init": "bunx convex init",
     "convex:dev:all": "npm run convex:dev & npm run start",
-    "eas:build": "npm exec eas-cli -- build"
+    "eas:build": "bash scripts/eas-build-avoid-yallist.sh"
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
