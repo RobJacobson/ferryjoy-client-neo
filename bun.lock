@@ -38,7 +38,7 @@
         "@rn-primitives/toggle-group": "^1.2.0",
         "@rn-primitives/tooltip": "^1.2.0",
         "@rnmapbox/maps": "^10.2.10",
-        "@shopify/react-native-skia": "2.4.14",
+        "@shopify/react-native-skia": "2.4.19",
         "@tanstack/react-query": "^5.90.21",
         "@turf/bezier-spline": "^7.3.4",
         "@turf/destination": "^7.3.4",
@@ -696,7 +696,7 @@
 
     "@rnmapbox/maps": ["@rnmapbox/maps@10.2.10", "", { "dependencies": { "@turf/along": "6.5.0", "@turf/distance": "6.5.0", "@turf/helpers": "6.5.0", "@turf/length": "6.5.0", "@turf/nearest-point-on-line": "6.5.0", "@types/geojson": "^7946.0.7", "debounce": "^2.2.0" }, "peerDependencies": { "expo": ">=47.0.0", "mapbox-gl": "^2.9.0", "react": ">=17.0.0", "react-dom": ">= 17.0.0", "react-native": ">=0.69" }, "optionalPeers": ["expo", "mapbox-gl", "react-dom"] }, "sha512-OfjW0rHp5bUWfzBo5fZ7qdKwAzGoocXYTsSssSPVMxZ2Y7axuhcbmsO5bV6gg+BJs5RwEsghzwTIoGydBNUClA=="],
 
-    "@shopify/react-native-skia": ["@shopify/react-native-skia@2.4.14", "", { "dependencies": { "canvaskit-wasm": "0.40.0", "react-reconciler": "0.31.0" }, "peerDependencies": { "react": ">=19.0", "react-native": ">=0.78", "react-native-reanimated": ">=3.19.1" }, "optionalPeers": ["react-native", "react-native-reanimated"], "bin": { "setup-skia-web": "scripts/setup-canvaskit.js" } }, "sha512-zFxjAQbfrdOxoNJoaOCZQzZliuAWXjFkrNZv2PtofG2RAUPWIxWmk2J/oOROpTwXgkmh1JLvFp3uONccTXUthQ=="],
+    "@shopify/react-native-skia": ["@shopify/react-native-skia@2.4.19", "", { "dependencies": { "canvaskit-wasm": "0.40.0", "react-reconciler": "0.31.0" }, "peerDependencies": { "react": ">=19.0", "react-native": ">=0.78", "react-native-reanimated": ">=3.19.1" }, "optionalPeers": ["react-native", "react-native-reanimated"], "bin": { "setup-skia-web": "scripts/setup-canvaskit.js" } }, "sha512-wDbdRncFltuHpcr3jJ58XS6Sc7SjN1OHuQujaHKTJaw95zDS0+yjDWAV355iZYHtkb1JJfHMsy6SOrtFb/2stA=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.27.8", "", {}, "sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA=="],
 
