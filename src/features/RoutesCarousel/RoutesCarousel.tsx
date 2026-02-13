@@ -4,8 +4,9 @@
  */
 
 import type { RefObject } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import Animated, {
   type ScrollEvent,
   useAnimatedScrollHandler,
@@ -37,6 +38,46 @@ type RoutesCarouselProps = {
   selectedRegion?: TerminalRegion | null;
 };
 
+type CarouselRowProps = {
+  item: TerminalCardData;
+  index: number;
+  blurTargetRef: RefObject<View | null>;
+  scrollX: SharedValue<number>;
+};
+
+/**
+ * Single carousel row; React Compiler optimizes re-renders when props are stable.
+ */
+const CarouselRow = ({
+  item,
+  index,
+  blurTargetRef,
+  scrollX,
+}: CarouselRowProps) => (
+  <RoutesCarouselItem
+    index={index}
+    scrollX={scrollX}
+    slotWidth={SLOT_WIDTH}
+    slotHeight={SLOT_HEIGHT}
+    accessibilityLabel={item.terminalName}
+  >
+    <View
+      style={{
+        width: SLOT_WIDTH,
+        height: SLOT_HEIGHT,
+        overflow: "hidden",
+      }}
+    >
+      <RouteCard
+        blurTargetRef={blurTargetRef}
+        terminalName={item.terminalName}
+        terminalSlug={item.terminalSlug}
+        destinations={item.destinations}
+      />
+    </View>
+  </RoutesCarouselItem>
+);
+
 // ============================================================================
 // RoutesCarouselFlatList
 // ============================================================================
@@ -55,13 +96,16 @@ const RoutesCarousel = ({
   const scrollX = useSharedValue(0);
   const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
 
-  let terminalCards = transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
-  if (selectedRegion && selectedRegion !== "All Terminals") {
-    const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
-    terminalCards = terminalCards.filter((card) =>
-      regionTerminalIds.includes(card.terminalId),
-    );
-  }
+  const terminalCards = useMemo(() => {
+    const cards = transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+    if (selectedRegion && selectedRegion !== "All Terminals") {
+      const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
+      return cards.filter((card) =>
+        regionTerminalIds.includes(card.terminalId)
+      );
+    }
+    return cards;
+  }, [selectedRegion]);
 
   useEffect(() => {
     if (listRef.current && terminalCards.length > 0) {
@@ -77,7 +121,7 @@ const RoutesCarousel = ({
 
   const getItemLayout = (
     _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number,
+    index: number
   ) => ({
     length: SLOT_WIDTH,
     offset: index * SLOT_WIDTH,
@@ -100,31 +144,19 @@ const RoutesCarousel = ({
         onScroll={onScroll}
         getItemLayout={getItemLayout}
         keyExtractor={(item) => item.terminalSlug}
+        initialNumToRender={3}
+        maxToRenderPerBatch={2}
+        windowSize={5}
+        removeClippedSubviews={true}
         accessibilityRole="list"
         accessibilityLabel="Terminal routes"
         renderItem={({ item, index }) => (
-          <RoutesCarouselItem
+          <CarouselRow
+            item={item}
             index={index}
+            blurTargetRef={blurTargetRef}
             scrollX={scrollX}
-            slotWidth={SLOT_WIDTH}
-            slotHeight={SLOT_HEIGHT}
-            accessibilityLabel={item.terminalName}
-          >
-            <View
-              style={{
-                width: SLOT_WIDTH,
-                height: SLOT_HEIGHT,
-                overflow: "hidden",
-              }}
-            >
-              <RouteCard
-                blurTargetRef={blurTargetRef}
-                terminalName={item.terminalName}
-                terminalSlug={item.terminalSlug}
-                destinations={item.destinations}
-              />
-            </View>
-          </RoutesCarouselItem>
+          />
         )}
       />
     </View>

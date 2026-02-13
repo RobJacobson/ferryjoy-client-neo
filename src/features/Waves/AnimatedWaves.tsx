@@ -24,7 +24,7 @@ const marginOffset = -500;
 const AnimatedWaves = memo(() => {
   return (
     <WaveTextureReadyProvider>
-      <View className="flex-1 bg-white">
+      <View className="flex-1">
         <ScrollView
           className="flex-1"
           horizontal

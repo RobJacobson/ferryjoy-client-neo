@@ -53,7 +53,7 @@ export const RouteCard = ({
         <View
           className={cn(
             "aspect-[3/4] w-full items-center justify-center rounded-3xl bg-gray-200",
-            glassStyle,
+            glassStyle
           )}
         >
           <Text className="text-gray-400">Photo Placeholder</Text>
@@ -71,7 +71,7 @@ export const RouteCard = ({
               onPress={() => handleDestinationPress(destination.terminalSlug)}
               className={cn(
                 "w-full rounded-full p-1 font-playpen-500 text-blue-800",
-                glassStyle,
+                glassStyle
               )}
             >
               <Text className="font-playpen-500 text-black/75 text-lg">
