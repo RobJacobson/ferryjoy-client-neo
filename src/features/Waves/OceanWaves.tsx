@@ -16,13 +16,13 @@ import AnimatedWaveClipped from "./AnimatedWaveClipped";
 const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 8;
+const WAVE_COUNT = 12;
 
 /** Period in SVG units: lerped from min (first wave) to max (last wave). */
 const PERIOD = { min: 100, max: 500 };
 
 /** Height (vertical position 0–100): lerped from min (first) to max (last). */
-const HEIGHT = { min: 40, max: 10 };
+const HEIGHT = { min: 40, max: 12 };
 
 /** Amplitude in SVG units: lerped from min (first wave) to max (last wave). */
 const AMPLITUDE = { min: 4, max: 24 };
@@ -34,7 +34,7 @@ const ANIMATION_DURATION = { min: 30000, max: 120000 };
 const WAVE_DISPLACEMENT = { min: 100, max: 800 };
 
 /** Lightness for color generation: lerped from min (first) to max (last). */
-const LIGHTNESS = { min: 200, max: 600 };
+const LIGHTNESS = { min: 150, max: 500 };
 
 /**
  * Color generator for blue shades, using blue-500 as base color.
@@ -75,14 +75,14 @@ const OceanWaves = memo(() => {
                 0,
                 1,
                 ANIMATION_DURATION.min,
-                ANIMATION_DURATION.max
+                ANIMATION_DURATION.max,
               )}
               waveDisplacement={lerp(
                 t,
                 0,
                 1,
                 WAVE_DISPLACEMENT.min,
-                WAVE_DISPLACEMENT.max
+                WAVE_DISPLACEMENT.max,
               )}
               animationDelay={0}
               phaseOffset={computePhaseOffset(index)}
