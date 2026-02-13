@@ -39,7 +39,8 @@
     "convex:dashboard": "bunx convex dashboard",
     "convex:auth": "bunx convex auth",
     "convex:init": "bunx convex init",
-    "convex:dev:all": "npm run convex:dev & npm run start"
+    "convex:dev:all": "npm run convex:dev & npm run start",
+    "eas:build": "npm exec eas-cli -- build"
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
