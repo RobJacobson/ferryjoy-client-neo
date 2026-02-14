@@ -76,10 +76,10 @@ const Sky = ({ paperTextureUrl }: SkyProps) => {
       )}
       <SunburstLayout
         paperTextureUrl={paperTextureUrl}
-        rayCount={18}
+        rayCount={16}
         centerX={25}
         centerY={20}
-        size={1000}
+        size={2000}
       />
     </View>
   );

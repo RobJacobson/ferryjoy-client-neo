@@ -12,7 +12,7 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import type { PaperTextureSource } from "../types";
 import { Sun } from "./Sun";
-import SunburstClipped from "./SunburstClipped";
+import { Sunburst } from "./Sunburst";
 
 export type SunburstLayoutProps = {
   /**
@@ -64,7 +64,7 @@ const sunburstRotationStyle = {
  */
 const SunburstLayout = ({
   paperTextureUrl,
-  rayCount = 10,
+  rayCount = 4,
   centerX = 50,
   centerY = 50,
   size = 1500,
@@ -96,14 +96,14 @@ const SunburstLayout = ({
         ]}
         pointerEvents="none"
       >
-        <SunburstClipped
+        <Sunburst
           paperTextureUrl={paperTextureUrl}
           rayCount={rayCount}
           size={size}
           startColor={PINK_300}
           endColor={PINK_200}
           preserveAspectRatio="xMidYMid slice"
-          spiralStrength={-0.3}
+          spiralStrength={-0.5}
         />
       </Animated.View>
       <View

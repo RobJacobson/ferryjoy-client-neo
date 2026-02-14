@@ -1,7 +1,7 @@
 // ============================================================================
 // Ocean Waves Component
 // ============================================================================
-// Renders multiple animated wave layers (clip-path variant) creating a depth effect.
+// Renders multiple animated wave layers creating a depth effect.
 // Uses transform-based animations for optimal 60 FPS performance.
 // Wave properties use { min, max } ranges and lerp by index (first wave = min,
 // last wave = max) so changing WAVE_COUNT preserves the approximate look.
@@ -11,19 +11,19 @@ import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator, lerp } from "@/shared/utils";
 import type { PaperTextureSource } from "../types";
-import AnimatedWaveClipped from "./AnimatedWaveClipped";
+import AnimatedWave from "./AnimatedWave";
 
 /** Base color for ocean waves (blue). */
 const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 12;
+const WAVE_COUNT = 16;
 
 /** Period in SVG units: lerped from min (first wave) to max (last wave). */
 const PERIOD = { min: 100, max: 500 };
 
 /** Height (vertical position 0–100): lerped from min (first) to max (last). */
-const HEIGHT = { min: 40, max: 12 };
+const HEIGHT = { min: 50, max: 12 };
 
 /** Amplitude in SVG units: lerped from min (first wave) to max (last wave). */
 const AMPLITUDE = { min: 4, max: 24 };
@@ -56,7 +56,7 @@ export type OceanWavesProps = {
  *
  * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
  *
- * @param props - paperTextureUrl passed to each AnimatedWaveClipped
+ * @param props - paperTextureUrl passed to each AnimatedWave
  */
 const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
   const tForIndex = (index: number) =>
@@ -73,7 +73,7 @@ const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
             className="absolute inset-0"
             style={{ zIndex: index + 10 }}
           >
-            <AnimatedWaveClipped
+            <AnimatedWave
               paperTextureUrl={paperTextureUrl}
               amplitude={lerp(t, 0, 1, AMPLITUDE.min, AMPLITUDE.max)}
               period={lerp(t, 0, 1, PERIOD.min, PERIOD.max)}
@@ -84,14 +84,14 @@ const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
                 0,
                 1,
                 ANIMATION_DURATION.min,
-                ANIMATION_DURATION.max
+                ANIMATION_DURATION.max,
               )}
               waveDisplacement={lerp(
                 t,
                 0,
                 1,
                 WAVE_DISPLACEMENT.min,
-                WAVE_DISPLACEMENT.max
+                WAVE_DISPLACEMENT.max,
               )}
               animationDelay={0}
               phaseOffset={computePhaseOffset(index)}

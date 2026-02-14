@@ -2,7 +2,7 @@
 // useWaveOscillation Hook
 // ============================================================================
 // Shared animation logic for horizontal wave oscillation.
-// Used by AnimatedWave and AnimatedWaveClipped so both stay in sync.
+// Used by AnimatedWave.
 // Uses Reanimated frame callback and transform for 60 FPS performance.
 // ============================================================================
 

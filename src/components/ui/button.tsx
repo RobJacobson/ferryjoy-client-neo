@@ -49,7 +49,7 @@ const buttonVariants = cva(
           Platform.select({ web: "has-[>svg]:px-3" }),
         ),
         sm: cn(
-          "min-h-9 gap-1.5 rounded-md px-3 sm:min-h-8",
+          "rounded-md px-3 sm:min-h-8",
           Platform.select({ web: "has-[>svg]:px-2.5" }),
         ),
         lg: cn(

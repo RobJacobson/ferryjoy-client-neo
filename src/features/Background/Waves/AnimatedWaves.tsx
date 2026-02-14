@@ -11,7 +11,6 @@ import { ScrollView, View } from "react-native";
 import type { PaperTextureSource } from "../types";
 import OceanWaves from "./OceanWaves";
 import { Background, Foreground } from "./RollingGrass";
-import { WaveTextureReadyProvider } from "./WaveTextureReadyContext";
 
 /** Total width of the waves container in pixels. */
 const containerWidth = 2000;
@@ -33,29 +32,27 @@ export type AnimatedWavesProps = {
  */
 const AnimatedWaves = memo(({ paperTextureUrl }: AnimatedWavesProps) => {
   return (
-    <WaveTextureReadyProvider>
-      <View className="flex-1">
-        <ScrollView
-          className="flex-1"
-          horizontal
-          contentContainerStyle={{ height: "100%" }}
-          showsHorizontalScrollIndicator={false}
+    <View className="flex-1">
+      <ScrollView
+        className="flex-1"
+        horizontal
+        contentContainerStyle={{ height: "100%" }}
+        showsHorizontalScrollIndicator={false}
+      >
+        <View
+          className="relative h-full"
+          style={{
+            width: containerWidth,
+            marginLeft: marginOffset,
+            marginRight: marginOffset,
+          }}
         >
-          <View
-            className="relative h-full"
-            style={{
-              width: containerWidth,
-              marginLeft: marginOffset,
-              marginRight: marginOffset,
-            }}
-          >
-            <Foreground paperTextureUrl={paperTextureUrl} />
-            <OceanWaves paperTextureUrl={paperTextureUrl} />
-            <Background paperTextureUrl={paperTextureUrl} />
-          </View>
-        </ScrollView>
-      </View>
-    </WaveTextureReadyProvider>
+          <Foreground paperTextureUrl={paperTextureUrl} />
+          <OceanWaves paperTextureUrl={paperTextureUrl} />
+          <Background paperTextureUrl={paperTextureUrl} />
+        </View>
+      </ScrollView>
+    </View>
   );
 });
 
