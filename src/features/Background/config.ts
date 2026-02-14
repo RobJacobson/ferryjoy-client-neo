@@ -9,4 +9,25 @@
 export const MAX_PARALLAX_PX = 50;
 
 /** Sky layer parallax multiplier (0–100). Farthest layer, moves least. */
-export const SKY_PARALLAX_MULTIPLIER = 12;
+export const SKY_PARALLAX_MULTIPLIER = 8;
+
+// ----------------------------------------------------------------------------
+// Wave layer parallax ranges (0–100)
+// ----------------------------------------------------------------------------
+// Each wave gets its own multiplier by lerping within the range (back = min, front = max).
+
+/** Background grass waves: min = farthest, max = closest to ocean. */
+export const PARALLAX_BG_GRASS = { min: 10, max: 30 } as const;
+
+/** Ocean waves: min = back, max = front. */
+export const PARALLAX_OCEAN = { min: 20, max: 60 } as const;
+
+/** Foreground grass waves: min = back, max = front (closest to viewer). */
+export const PARALLAX_FG_GRASS = { min: 80, max: 100 } as const;
+
+/** Worst-case parallax multiplier for the waves container (max of all wave layers). */
+export const PARALLAX_WAVES_MAX = Math.max(
+  PARALLAX_BG_GRASS.max,
+  PARALLAX_OCEAN.max,
+  PARALLAX_FG_GRASS.max
+);

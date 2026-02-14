@@ -9,7 +9,9 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
 import { MAX_PARALLAX_PX, SKY_PARALLAX_MULTIPLIER } from "../config";
+import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
@@ -38,8 +40,25 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
     return { transform: [{ translateX }] };
   }, [slotWidth]);
 
+  const skyWidth = computeRequiredBackgroundWidth(
+    slotWidth,
+    NUM_TERMINAL_CARDS,
+    SKY_PARALLAX_MULTIPLIER
+  );
+
   return (
-    <Animated.View className="absolute inset-0" style={parallaxStyle}>
+    <Animated.View
+      style={[
+        parallaxStyle,
+        {
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: skyWidth,
+        },
+      ]}
+    >
       <View className="absolute inset-0">
         <LinearGradient
           colors={[config.gradient.start, config.gradient.end]}

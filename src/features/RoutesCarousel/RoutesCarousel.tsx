@@ -67,7 +67,7 @@ const RoutesCarousel = ({
 
   const getItemLayout = (
     _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number,
+    index: number
   ) => ({
     length: slotWidth,
     offset: index * slotWidth,

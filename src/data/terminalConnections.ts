@@ -378,3 +378,7 @@ export const transformConnectionsToTerminalCards = (
   // Sort alphabetically by terminal name
   return cards.sort((a, b) => a.terminalName.localeCompare(b.terminalName));
 };
+
+/** Number of terminal cards (computed once at module load). Used for parallax width. */
+export const NUM_TERMINAL_CARDS =
+  transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS).length;

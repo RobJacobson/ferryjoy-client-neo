@@ -10,10 +10,11 @@ import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { MAX_PARALLAX_PX } from "../config";
+import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
+import { MAX_PARALLAX_PX, PARALLAX_WAVES_MAX } from "../config";
+import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { Wave } from "./AnimatedWave";
-import { WAVES_CONTAINER } from "./config";
 import { buildWaveStackLayers } from "./waveLayers";
 
 export type AnimatedWavesProps = BackgroundParallaxProps & {
@@ -82,15 +83,20 @@ const AnimatedWaves = ({
   slotWidth,
 }: AnimatedWavesProps) => {
   const layers = buildWaveStackLayers(paperTextureUrl);
+  const wavesWidth = computeRequiredBackgroundWidth(
+    slotWidth,
+    NUM_TERMINAL_CARDS,
+    PARALLAX_WAVES_MAX
+  );
 
   return (
     <View className="flex-1">
       <View
         className="relative h-full"
         style={{
-          width: WAVES_CONTAINER.width,
-          marginLeft: WAVES_CONTAINER.marginOffset,
-          marginRight: WAVES_CONTAINER.marginOffset,
+          width: wavesWidth,
+          marginLeft: 0,
+          marginRight: 0,
         }}
       >
         {layers.map((layer) => {

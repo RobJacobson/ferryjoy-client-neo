@@ -36,16 +36,6 @@ export const SHADOW_LAYERS: [number, number][] = [
 ];
 
 // ----------------------------------------------------------------------------
-// AnimatedWaves container (ScrollView content)
-// ----------------------------------------------------------------------------
-
-/** Total width of the waves container in pixels. */
-export const WAVES_CONTAINER = {
-  width: 2000,
-  marginOffset: -500,
-} as const;
-
-// ----------------------------------------------------------------------------
 // Ocean waves (lerped by layer index)
 // ----------------------------------------------------------------------------
 
@@ -102,10 +92,10 @@ export const BACKGROUND_LAYERS: Array<{
   lightness?: number;
 }> = [
   {
-    amplitude: 18,
+    amplitude: 40,
     period: 200,
     fillColor: "#DEF",
-    height: 59,
+    height: 55,
     waveDisplacement: 50,
   },
   {

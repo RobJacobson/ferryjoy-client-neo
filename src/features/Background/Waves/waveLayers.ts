@@ -8,6 +8,11 @@
 
 import type { ViewStyle } from "react-native";
 import { createColorGenerator, lerp } from "@/shared/utils";
+import {
+  PARALLAX_BG_GRASS,
+  PARALLAX_FG_GRASS,
+  PARALLAX_OCEAN,
+} from "../config";
 import type { PaperTextureSource } from "../types";
 import type { AnimatedWaveProps } from "./AnimatedWave";
 import {
@@ -19,11 +24,6 @@ import {
 
 const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
 const grassColor = createColorGenerator(GRASS_BASE_COLOR);
-
-/** Parallax strength 0–100; higher = more horizontal movement with scroll. */
-const PARALLAX_BG_GRASS = 30;
-const PARALLAX_OCEAN = 50;
-const PARALLAX_FG_GRASS = 90;
 
 /**
  * A single layer in the wave stack: key + optional wrapper style + parallax + Wave props.
@@ -58,7 +58,9 @@ const buildOceanWaveLayers = (): WaveLayer[] => {
     return {
       key: `ocean-${index}`,
       zIndex: 10 + index,
-      parallaxMultiplier: PARALLAX_OCEAN,
+      parallaxMultiplier: Math.round(
+        lerp(t, PARALLAX_OCEAN.min, PARALLAX_OCEAN.max)
+      ),
       amplitude: lerp(t, OCEAN_WAVES.amplitude.min, OCEAN_WAVES.amplitude.max),
       period: lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max),
       fillColor: blueColor(
@@ -83,38 +85,52 @@ const buildOceanWaveLayers = (): WaveLayer[] => {
 
 /**
  * Builds foreground grass layers (static waves). Order: [0] back, [1] front.
- * Reversed when stacking so foreground[0] is on top.
+ * Reversed when stacking so foreground[0] is on top. Distinct zIndex so both
+ * layers are visible (front = 101, back = 100). Each wave gets its own parallax.
  */
 const buildForegroundGrassLayers = (): WaveLayer[] =>
-  FOREGROUND_LAYERS.map((layer, i) => ({
-    key: `fg-${i}-${layer.height}-${layer.period}`,
-    zIndex: 100,
-    wrapperStyle: { marginBottom: i === 0 ? 0 : -10 } as ViewStyle,
-    parallaxMultiplier: PARALLAX_FG_GRASS,
-    amplitude: layer.amplitude,
-    period: layer.period,
-    fillColor: grassColor(layer.lightness),
-    height: layer.height,
-    animationDuration: 0,
-    waveDisplacement: layer.waveDisplacement,
-    animationDelay: 0,
-  }));
+  FOREGROUND_LAYERS.map((layer, i) => {
+    const t =
+      FOREGROUND_LAYERS.length > 1 ? i / (FOREGROUND_LAYERS.length - 1) : 0;
+    return {
+      key: `fg-${i}-${layer.height}-${layer.period}`,
+      zIndex: i === 0 ? 100 : 101,
+      wrapperStyle: { marginBottom: i === 0 ? 0 : -10 } as ViewStyle,
+      parallaxMultiplier: Math.round(
+        lerp(t, PARALLAX_FG_GRASS.min, PARALLAX_FG_GRASS.max)
+      ),
+      amplitude: layer.amplitude,
+      period: layer.period,
+      fillColor: grassColor(layer.lightness),
+      height: layer.height,
+      animationDuration: 0,
+      waveDisplacement: layer.waveDisplacement,
+      animationDelay: 0,
+    };
+  });
 
 /**
- * Builds background grass layers (static waves).
+ * Builds background grass layers (static waves). Each wave gets its own
+ * parallax multiplier (lerped across the range by index).
  */
 const buildBackgroundGrassLayers = (): WaveLayer[] =>
-  BACKGROUND_LAYERS.map((layer, i) => ({
-    key: `bg-${i}-${layer.height}-${layer.period}`,
-    parallaxMultiplier: PARALLAX_BG_GRASS,
-    amplitude: layer.amplitude,
-    period: layer.period,
-    fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
-    height: layer.height,
-    animationDuration: 0,
-    waveDisplacement: layer.waveDisplacement,
-    animationDelay: 0,
-  }));
+  BACKGROUND_LAYERS.map((layer, i) => {
+    const t =
+      BACKGROUND_LAYERS.length > 1 ? i / (BACKGROUND_LAYERS.length - 1) : 0;
+    return {
+      key: `bg-${i}-${layer.height}-${layer.period}`,
+      parallaxMultiplier: Math.round(
+        lerp(t, PARALLAX_BG_GRASS.min, PARALLAX_BG_GRASS.max)
+      ),
+      amplitude: layer.amplitude,
+      period: layer.period,
+      fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
+      height: layer.height,
+      animationDuration: 0,
+      waveDisplacement: layer.waveDisplacement,
+      animationDelay: 0,
+    };
+  });
 
 /** Precomputed ocean and grass layer arrays (stable references). */
 const OCEAN_LAYERS = buildOceanWaveLayers();
