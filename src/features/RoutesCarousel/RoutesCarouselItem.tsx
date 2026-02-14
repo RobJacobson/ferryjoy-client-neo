@@ -44,8 +44,8 @@ export const RoutesCarouselItem = ({
 
   return (
     <Animated.View
-      style={[animatedStyle, { width: slotWidth, flex: 1 }]}
-      className="overflow-hidden"
+      style={[animatedStyle, { width: slotWidth }]}
+      className="flex-1 items-center justify-center overflow-hidden"
       accessibilityLabel={accessibilityLabel}
     >
       {children}

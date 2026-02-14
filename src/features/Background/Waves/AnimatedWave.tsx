@@ -23,8 +23,8 @@ const STROKE_COLOR = "black";
 const STROKE_WIDTH = 0.5;
 const STROKE_OPACITY = 0.1;
 
-/** Pseudo-drop shadow: [dx, dy] offsets and opacity (layered black copies). Exported for AnimatedWaveClipped. */
-export const SHADOW_OPACITY = 0.1;
+/** Pseudo-drop shadow: [dx, dy] offsets and opacity (layered black copies). */
+export const SHADOW_OPACITY = 0.02;
 export const SHADOW_LAYERS: [number, number][] = [
   [9, -2],
   [6, -1],
@@ -125,9 +125,9 @@ const AnimatedWave = memo(
           period,
           centerY,
           svgRenderWidth,
-          SVG_HEIGHT
+          SVG_HEIGHT,
         ),
-      [amplitude, period, centerY, svgRenderWidth]
+      [amplitude, period, centerY, svgRenderWidth],
     );
 
     const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
@@ -203,7 +203,7 @@ const AnimatedWave = memo(
         </Svg>
       </Animated.View>
     );
-  }
+  },
 );
 
 export default AnimatedWave;

@@ -1,14 +1,14 @@
 // ============================================================================
 // Foreground (grass layer)
 // ============================================================================
-// Top static grass layer using AnimatedWaveClipped. No animation for a stable
+// Top static grass layer using AnimatedWave. No animation for a stable
 // foreground frame.
 // ============================================================================
 
 import { View } from "react-native";
 import { createColorGenerator } from "@/shared/utils";
 import type { PaperTextureSource } from "../types";
-import AnimatedWaveClipped from "./AnimatedWaveClipped";
+import AnimatedWave from "./AnimatedWave";
 
 /** Base color for grass (green). */
 // const BASE_COLOR = "#159947";
@@ -32,7 +32,7 @@ export type ForegroundProps = {
  * Static wave with larger amplitude and period, positioned at the top.
  * No animation to create a stable foreground frame.
  *
- * @param props - paperTextureUrl passed to AnimatedWaveClipped instances
+ * @param props - paperTextureUrl passed to AnimatedWave instances
  */
 const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
   return (
@@ -41,7 +41,7 @@ const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
         className="absolute inset-0"
         style={{ zIndex: 100, marginBottom: 0 }}
       >
-        <AnimatedWaveClipped
+        <AnimatedWave
           paperTextureUrl={paperTextureUrl}
           amplitude={5}
           period={400}
@@ -56,7 +56,7 @@ const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
         className="absolute inset-0"
         style={{ zIndex: 100, marginBottom: -10 }}
       >
-        <AnimatedWaveClipped
+        <AnimatedWave
           paperTextureUrl={paperTextureUrl}
           amplitude={10}
           period={700}
@@ -66,7 +66,7 @@ const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
           waveDisplacement={20}
           animationDelay={0}
         />
-        {/* <AnimatedWaveClipped
+        {/* <AnimatedWave
           amplitude={15}
           period={900}
           fillColor={grassColor(350)}
