@@ -114,7 +114,7 @@ export const RouteCard = ({
                   <Text
                     className={cn(
                       "font-playpen-600 text-pink-600",
-                      isTablet ? "text-sm" : "text-base",
+                      isTablet ? "text-sm" : "text-base"
                     )}
                   >
                     → {destination.terminalName}

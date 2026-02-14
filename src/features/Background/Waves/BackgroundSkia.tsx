@@ -1,34 +1,30 @@
 // ============================================================================
-// Background (grass layer)
+// Background Skia (grass layer)
 // ============================================================================
-// Bottom static grass layer using AnimatedWave. No animation for a
-// stable background frame.
+// Bottom static grass layer using AnimatedWaveSkia.
 // ============================================================================
 
+import type { SkImage } from "@shopify/react-native-skia";
 import { View } from "react-native";
-import type { PaperTextureSource } from "../types";
-import AnimatedWave from "./AnimatedWave";
-import { grassColor } from "./Foreground";
+import AnimatedWaveSkia from "./AnimatedWaveSkia";
+import { grassColor } from "./ForegroundSkia";
 
-export type BackgroundProps = {
-  /** Paper texture source. When null, wave SVGs do not render texture. */
-  paperTextureUrl: PaperTextureSource;
+export type BackgroundSkiaProps = {
+  /** Skia Image for the paper texture. */
+  paperTexture?: SkImage | null;
 };
 
 /**
- * Background component that renders the bottom grass layer.
+ * BackgroundSkia component that renders the bottom grass layer using Skia.
  *
- * Static wave with smaller amplitude and period, positioned at the bottom.
- * No animation to create a stable background frame.
- *
- * @param props - paperTextureUrl passed to each AnimatedWave
+ * @param props - Optional paper texture
  */
-const Background = ({ paperTextureUrl }: BackgroundProps) => {
+const BackgroundSkia = ({ paperTexture }: BackgroundSkiaProps) => {
   return (
     <>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={18}
           period={200}
           fillColor={"#DEF"}
@@ -39,8 +35,8 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
         />
       </View>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={18}
           period={300}
           fillColor={grassColor(600)}
@@ -51,8 +47,8 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
         />
       </View>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={16}
           period={450}
           fillColor={grassColor(550)}
@@ -63,8 +59,8 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
         />
       </View>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={12}
           period={450}
           fillColor={grassColor(500)}
@@ -75,8 +71,8 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
         />
       </View>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={10}
           period={400}
           fillColor={grassColor(450)}
@@ -87,8 +83,8 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
         />
       </View>
       <View className="absolute inset-0">
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={2}
           period={300}
           fillColor={grassColor(400)}
@@ -102,4 +98,6 @@ const Background = ({ paperTextureUrl }: BackgroundProps) => {
   );
 };
 
-export default Background;
+BackgroundSkia.displayName = "BackgroundSkia";
+
+export default BackgroundSkia;

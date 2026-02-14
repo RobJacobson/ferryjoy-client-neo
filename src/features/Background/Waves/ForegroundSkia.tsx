@@ -1,48 +1,36 @@
 // ============================================================================
-// Foreground (grass layer)
+// Foreground Skia (grass layer)
 // ============================================================================
-// Top static grass layer using AnimatedWave. No animation for a stable
-// foreground frame.
+// Top static grass layer using AnimatedWaveSkia.
 // ============================================================================
 
+import type { SkImage } from "@shopify/react-native-skia";
 import { View } from "react-native";
 import { createColorGenerator } from "@/shared/utils";
-import type { PaperTextureSource } from "../types";
-import AnimatedWave from "./AnimatedWave";
+import AnimatedWaveSkia from "./AnimatedWaveSkia";
 
-/** Base color for grass (green). */
-// const BASE_COLOR = "#159947";
-// const BASE_COLOR = "#56ab91";
-// const BASE_COLOR = "#3ecc00";
 const BASE_COLOR = "#5c5";
-
-/**
- * Color generator for grass shades.
- */
 export const grassColor = createColorGenerator(BASE_COLOR);
 
-export type ForegroundProps = {
-  /** Paper texture source. When null, wave SVG does not render texture. */
-  paperTextureUrl: PaperTextureSource;
+export type ForegroundSkiaProps = {
+  /** Skia Image for the paper texture. */
+  paperTexture?: SkImage | null;
 };
 
 /**
- * Foreground component that renders the top grass layer.
+ * ForegroundSkia component that renders the top grass layer using Skia.
  *
- * Static wave with larger amplitude and period, positioned at the top.
- * No animation to create a stable foreground frame.
- *
- * @param props - paperTextureUrl passed to AnimatedWave instances
+ * @param props - Optional paper texture
  */
-const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
+const ForegroundSkia = ({ paperTexture }: ForegroundSkiaProps) => {
   return (
     <>
       <View
         className="absolute inset-0"
         style={{ zIndex: 100, marginBottom: 0 }}
       >
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={5}
           period={400}
           fillColor={grassColor(450)}
@@ -56,8 +44,8 @@ const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
         className="absolute inset-0"
         style={{ zIndex: 100, marginBottom: -10 }}
       >
-        <AnimatedWave
-          paperTextureUrl={paperTextureUrl}
+        <AnimatedWaveSkia
+          paperTexture={paperTexture}
           amplitude={10}
           period={700}
           fillColor={grassColor(400)}
@@ -71,4 +59,6 @@ const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
   );
 };
 
-export default Foreground;
+ForegroundSkia.displayName = "ForegroundSkia";
+
+export default ForegroundSkia;

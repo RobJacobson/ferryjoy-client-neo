@@ -8,6 +8,7 @@
 
 import { useEffect } from "react";
 import {
+  type SharedValue,
   useAnimatedStyle,
   useDerivedValue,
   useFrameCallback,
@@ -60,6 +61,9 @@ export interface UseWaveOscillationResult {
 
   /** Total SVG render width (SVG_WIDTH + 2 * overscanX). */
   svgRenderWidth: number;
+
+  /** Shared value for translateX oscillation. */
+  translateX: Readonly<SharedValue<number>>;
 }
 
 /**
@@ -67,7 +71,7 @@ export interface UseWaveOscillationResult {
  * Returns style for the wrapper View and layout values for the SVG.
  *
  * @param props - Animation parameters (duration, delay, displacement, phase)
- * @returns animatedOscillationStyle, overscanX, svgRenderWidth
+ * @returns animatedOscillationStyle, overscanX, svgRenderWidth, translateX
  */
 export function useWaveOscillation({
   animationDuration,
@@ -158,5 +162,6 @@ export function useWaveOscillation({
     animatedOscillationStyle,
     overscanX,
     svgRenderWidth,
+    translateX,
   };
 }

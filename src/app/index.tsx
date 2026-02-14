@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { useRef } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Background } from "@/features/Background";
+import { BackgroundSkia } from "@/features/Background";
 import RoutesCarousel from "@/features/RoutesCarousel";
 
 export default function Home() {
@@ -19,7 +19,7 @@ export default function Home() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <BlurTargetView ref={blurTargetRef} className="absolute inset-0">
-        <Background />
+        <BackgroundSkia />
       </BlurTargetView>
       <RoutesCarousel blurTargetRef={blurTargetRef} />
     </View>
