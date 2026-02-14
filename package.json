@@ -76,7 +76,6 @@
     "@rn-primitives/toggle-group": "^1.2.0",
     "@rn-primitives/tooltip": "^1.2.0",
     "@rnmapbox/maps": "^10.2.10",
-    "@shopify/react-native-skia": "2.4.19",
     "@tanstack/react-query": "^5.90.21",
     "@turf/bezier-spline": "^7.3.4",
     "@turf/destination": "^7.3.4",
