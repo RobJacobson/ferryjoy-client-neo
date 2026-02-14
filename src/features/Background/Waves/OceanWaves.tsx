@@ -50,45 +50,25 @@ const OceanWaves = ({ paperTextureUrl }: OceanWavesProps) => {
               paperTextureUrl={paperTextureUrl}
               amplitude={lerp(
                 t,
-                0,
-                1,
                 OCEAN_WAVES.amplitude.min,
                 OCEAN_WAVES.amplitude.max,
               )}
-              period={lerp(
-                t,
-                0,
-                1,
-                OCEAN_WAVES.period.min,
-                OCEAN_WAVES.period.max,
-              )}
+              period={lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max)}
               fillColor={blueColor(
                 lerp(
                   t,
-                  0,
-                  1,
                   OCEAN_WAVES.lightness.min,
                   OCEAN_WAVES.lightness.max,
                 ),
               )}
-              height={lerp(
-                t,
-                0,
-                1,
-                OCEAN_WAVES.height.min,
-                OCEAN_WAVES.height.max,
-              )}
+              height={lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max)}
               animationDuration={lerp(
                 t,
-                0,
-                1,
                 OCEAN_WAVES.animationDuration.min,
                 OCEAN_WAVES.animationDuration.max,
               )}
               waveDisplacement={lerp(
                 t,
-                0,
-                1,
                 OCEAN_WAVES.waveDisplacement.min,
                 OCEAN_WAVES.waveDisplacement.max,
               )}
