@@ -48,7 +48,13 @@ const Sun = ({
   size = config.sun.viewBoxSize,
   preserveAspectRatio,
 }: SunProps) => {
-  const pathStrings = buildSunRayPaths(0, 0, innerRadius, outerRadius, rayCount);
+  const pathStrings = buildSunRayPaths(
+    0,
+    0,
+    innerRadius,
+    outerRadius,
+    rayCount
+  );
 
   const half = size / 2;
 

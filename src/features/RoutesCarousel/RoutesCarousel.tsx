@@ -6,20 +6,17 @@
 import type { RefObject } from "react";
 import { useRef } from "react";
 import { View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import Animated, {
   type ScrollEvent,
   useAnimatedScrollHandler,
-  useSharedValue,
 } from "react-native-reanimated";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
-import {
-  CAROUSEL_Z_INDEX,
-  useCarouselLayout,
-} from "@/features/RoutesCarousel/config";
+import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
@@ -32,6 +29,14 @@ type RoutesCarouselProps = {
    * Ref to BlurTargetView that BlurViews in each RouteCard will use as blur source.
    */
   blurTargetRef: RefObject<View | null>;
+  /**
+   * Shared scroll offset (x). Updated by carousel onScroll; used for card and background parallax.
+   */
+  scrollX: SharedValue<number>;
+  /**
+   * Width of one carousel slot (e.g. from useCarouselLayout).
+   */
+  slotWidth: number;
 };
 
 // ============================================================================
@@ -42,11 +47,13 @@ type RoutesCarouselProps = {
  * FlatList-based carousel that displays terminal cards. Uses native scroll and
  * a normalized value in [-1, 0, 1] for parallax (scale + translateX + zIndex).
  *
- * @param props - blurTargetRef
+ * @param props - blurTargetRef, scrollX, slotWidth
  */
-const RoutesCarousel = ({ blurTargetRef }: RoutesCarouselProps) => {
-  const { slotWidth } = useCarouselLayout();
-  const scrollX = useSharedValue(0);
+const RoutesCarousel = ({
+  blurTargetRef,
+  scrollX,
+  slotWidth,
+}: RoutesCarouselProps) => {
   const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
 
   const terminalCards =
@@ -60,7 +67,7 @@ const RoutesCarousel = ({ blurTargetRef }: RoutesCarouselProps) => {
 
   const getItemLayout = (
     _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number
+    index: number,
   ) => ({
     length: slotWidth,
     offset: index * slotWidth,

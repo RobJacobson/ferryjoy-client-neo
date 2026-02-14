@@ -20,14 +20,21 @@ import {
 const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
 const grassColor = createColorGenerator(GRASS_BASE_COLOR);
 
+/** Parallax strength 0–100; higher = more horizontal movement with scroll. */
+const PARALLAX_BG_GRASS = 30;
+const PARALLAX_OCEAN = 50;
+const PARALLAX_FG_GRASS = 90;
+
 /**
- * A single layer in the wave stack: key + optional wrapper style + Wave props.
+ * A single layer in the wave stack: key + optional wrapper style + parallax + Wave props.
  * Spread ...waveProps onto <Wave />; use key and wrapperStyle on the wrapper View.
  */
 export type WaveLayer = {
   key: string;
   zIndex?: number;
   wrapperStyle?: ViewStyle;
+  /** Parallax multiplier 0–100 for scroll-driven translateX. */
+  parallaxMultiplier: number;
 } & AnimatedWaveProps;
 
 /**
@@ -51,6 +58,7 @@ const buildOceanWaveLayers = (): WaveLayer[] => {
     return {
       key: `ocean-${index}`,
       zIndex: 10 + index,
+      parallaxMultiplier: PARALLAX_OCEAN,
       amplitude: lerp(t, OCEAN_WAVES.amplitude.min, OCEAN_WAVES.amplitude.max),
       period: lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max),
       fillColor: blueColor(
@@ -82,6 +90,7 @@ const buildForegroundGrassLayers = (): WaveLayer[] =>
     key: `fg-${i}-${layer.height}-${layer.period}`,
     zIndex: 100,
     wrapperStyle: { marginBottom: i === 0 ? 0 : -10 } as ViewStyle,
+    parallaxMultiplier: PARALLAX_FG_GRASS,
     amplitude: layer.amplitude,
     period: layer.period,
     fillColor: grassColor(layer.lightness),
@@ -97,6 +106,7 @@ const buildForegroundGrassLayers = (): WaveLayer[] =>
 const buildBackgroundGrassLayers = (): WaveLayer[] =>
   BACKGROUND_LAYERS.map((layer, i) => ({
     key: `bg-${i}-${layer.height}-${layer.period}`,
+    parallaxMultiplier: PARALLAX_BG_GRASS,
     amplitude: layer.amplitude,
     period: layer.period,
     fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
