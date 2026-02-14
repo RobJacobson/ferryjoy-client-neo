@@ -8,6 +8,17 @@
 /** Max parallax movement in pixels per card for the strongest layer (multiplier 100). */
 export const MAX_PARALLAX_PX = 50;
 
+/**
+ * Effective max parallax from screen orientation. Doubles in landscape so the
+ * effect is more pronounced on wide screens. Call with isLandscape from
+ * useIsLandscape (uses native orientation API for reliable iPad detection).
+ *
+ * @param isLandscape - true when screen is in landscape (from useIsLandscape)
+ * @returns MAX_PARALLAX_PX in portrait, MAX_PARALLAX_PX * 2 in landscape
+ */
+export const getMaxParallaxPx = (isLandscape: boolean): number =>
+  isLandscape ? MAX_PARALLAX_PX * 2 : MAX_PARALLAX_PX;
+
 /** Sky layer parallax multiplier (0–100). Farthest layer, moves least. */
 export const SKY_PARALLAX_MULTIPLIER = 8;
 

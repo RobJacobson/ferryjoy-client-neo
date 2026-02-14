@@ -1,4 +1,5 @@
 export { useInterval } from "./useInterval";
+export { useIsLandscape } from "./useIsLandscape";
 export { useMapPitch } from "./useMapPitch";
 export { useMapScale as useMarkerScale } from "./useMapScale";
 export { useNowMs } from "./useNowMs";

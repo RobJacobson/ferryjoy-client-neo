@@ -10,7 +10,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
-import { MAX_PARALLAX_PX, SKY_PARALLAX_MULTIPLIER } from "../config";
+import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
+import { getMaxParallaxPx, SKY_PARALLAX_MULTIPLIER } from "../config";
 import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import config from "./config";
@@ -30,20 +31,24 @@ export type SkyProps = BackgroundParallaxProps & {
  * @param props - paperTextureUrl, scrollX, slotWidth
  */
 const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
+  const isLandscape = useIsLandscape();
+  const maxParallaxPx = getMaxParallaxPx(isLandscape);
+
   const parallaxStyle = useAnimatedStyle(() => {
     if (slotWidth === 0) {
       return { transform: [{ translateX: 0 }] };
     }
     const progress = scrollX.value / slotWidth;
     const translateX =
-      -progress * (SKY_PARALLAX_MULTIPLIER / 100) * MAX_PARALLAX_PX;
+      -progress * (SKY_PARALLAX_MULTIPLIER / 100) * maxParallaxPx;
     return { transform: [{ translateX }] };
-  }, [slotWidth]);
+  }, [slotWidth, maxParallaxPx]);
 
   const skyWidth = computeRequiredBackgroundWidth(
     slotWidth,
     NUM_TERMINAL_CARDS,
-    SKY_PARALLAX_MULTIPLIER
+    SKY_PARALLAX_MULTIPLIER,
+    maxParallaxPx
   );
 
   return (

@@ -40,7 +40,8 @@
     "convex:auth": "bunx convex auth",
     "convex:init": "bunx convex init",
     "convex:dev:all": "npm run convex:dev & npm run start",
-    "eas:build": "npm exec eas-cli -- build"
+    "eas:build": "npm exec eas-cli -- build",
+    "eas:build:ios": "npx eas-cli build --platform ios --profile development"
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
@@ -101,6 +102,7 @@
     "expo-linking": "~55.0.4",
     "expo-location": "~55.0.6",
     "expo-router": "~55.0.0-preview.7",
+    "expo-screen-orientation": "~55.0.5",
     "expo-status-bar": "~55.0.2",
     "expo-system-ui": "~55.0.5",
     "expo-web-browser": "~55.0.5",

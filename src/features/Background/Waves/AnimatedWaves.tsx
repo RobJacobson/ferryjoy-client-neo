@@ -11,7 +11,8 @@ import { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
-import { MAX_PARALLAX_PX, PARALLAX_WAVES_MAX } from "../config";
+import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
+import { getMaxParallaxPx, PARALLAX_WAVES_MAX } from "../config";
 import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { Wave } from "./AnimatedWave";
@@ -32,6 +33,7 @@ type ParallaxWaveLayerProps = {
   scrollX: SharedValue<number>;
   slotWidth: number;
   parallaxMultiplier: number;
+  maxParallaxPx: number;
   zIndex?: number;
   wrapperStyle?: ViewStyle;
   children: ReactNode;
@@ -44,6 +46,7 @@ const ParallaxWaveLayer = ({
   scrollX,
   slotWidth,
   parallaxMultiplier,
+  maxParallaxPx,
   zIndex,
   wrapperStyle,
   children,
@@ -53,9 +56,9 @@ const ParallaxWaveLayer = ({
       return { transform: [{ translateX: 0 }] };
     }
     const progress = scrollX.value / slotWidth;
-    const translateX = -progress * (parallaxMultiplier / 100) * MAX_PARALLAX_PX;
+    const translateX = -progress * (parallaxMultiplier / 100) * maxParallaxPx;
     return { transform: [{ translateX }] };
-  }, [slotWidth, parallaxMultiplier]);
+  }, [slotWidth, parallaxMultiplier, maxParallaxPx]);
 
   return (
     <Animated.View
@@ -83,10 +86,13 @@ const AnimatedWaves = ({
   slotWidth,
 }: AnimatedWavesProps) => {
   const layers = buildWaveStackLayers(paperTextureUrl);
+  const isLandscape = useIsLandscape();
+  const maxParallaxPx = getMaxParallaxPx(isLandscape);
   const wavesWidth = computeRequiredBackgroundWidth(
     slotWidth,
     NUM_TERMINAL_CARDS,
-    PARALLAX_WAVES_MAX
+    PARALLAX_WAVES_MAX,
+    maxParallaxPx
   );
 
   return (
@@ -113,6 +119,7 @@ const AnimatedWaves = ({
               scrollX={scrollX}
               slotWidth={slotWidth}
               parallaxMultiplier={parallaxMultiplier}
+              maxParallaxPx={maxParallaxPx}
               zIndex={zIndex}
               wrapperStyle={wrapperStyle}
             >

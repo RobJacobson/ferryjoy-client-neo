@@ -15,11 +15,13 @@ import { MAX_PARALLAX_PX } from "./config";
  * @param screenWidth - Slot width from useCarouselLayout (matches viewport width)
  * @param numCards - Number of carousel cards
  * @param parallaxMultiplier - 0–100 (e.g. SKY_PARALLAX_MULTIPLIER or PARALLAX_WAVES_MAX)
+ * @param maxParallaxPx - Effective max from getMaxParallaxPx(width, height)
  * @returns Minimum width in pixels for the layer to cover the viewport at max scroll
  */
 export const computeRequiredBackgroundWidth = (
   screenWidth: number,
   numCards: number,
-  parallaxMultiplier: number
+  parallaxMultiplier: number,
+  maxParallaxPx = MAX_PARALLAX_PX
 ): number =>
-  screenWidth + (numCards - 1) * (parallaxMultiplier / 100) * MAX_PARALLAX_PX;
+  screenWidth + (numCards - 1) * (parallaxMultiplier / 100) * maxParallaxPx;
