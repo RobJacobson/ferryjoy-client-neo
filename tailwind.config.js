@@ -12,6 +12,9 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      screens: {
+        xs: "400px",
+      },
       fontFamily: {
         puffberry: ["Puffberry"],
         "playpen-100": ["PlaypenSans-Thin"],
