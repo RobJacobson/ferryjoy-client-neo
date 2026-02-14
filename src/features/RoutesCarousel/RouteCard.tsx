@@ -7,11 +7,19 @@ import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
-import { Text, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 import { GlassView } from "@/components/GlassView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
+import { cn } from "@/lib/utils";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Width above which we treat as tablet; use smaller destination text to avoid clipping. */
+const TABLET_BREAKPOINT_WIDTH = 600;
 
 // ============================================================================
 // Types
@@ -44,6 +52,8 @@ export const RouteCard = ({
 }: RouteCardProps) => {
   const router = useRouter();
   const { setPair } = useSelectedTerminalPair();
+  const { width: windowWidth } = useWindowDimensions();
+  const isTablet = windowWidth >= TABLET_BREAKPOINT_WIDTH;
 
   const handleDestinationPress = (destinationSlug: string) => {
     // Convert both origin and destination slugs to uppercase abbreviations
@@ -73,12 +83,12 @@ export const RouteCard = ({
           </View>
 
           <Button
-            className="w-full items-center justify-center rounded-full bg-pink-500 active:bg-pink-300"
-            size="lg"
+            className="w-full items-center justify-center rounded-full bg-pink-500 hover:bg-pink-400 active:bg-pink-600"
+            size="default"
             variant="glass"
           >
             <Text
-              className="p-3 font-puffberry text-lg text-white leading-none"
+              className="translate-y-1 pt-2 font-puffberry text-white text-xl leading-none"
               style={{
                 textShadowColor: "rgba(0,0,0,0.2)",
                 textShadowOffset: { width: 1, height: 2 },
@@ -89,7 +99,7 @@ export const RouteCard = ({
             </Text>
           </Button>
 
-          <View className="h-full w-full flex-1 items-center justify-center gap-3.5">
+          <View className="h-full w-full flex-1 items-center justify-center gap-2">
             {destinations.map((destination) => (
               <View key={destination.terminalSlug} className="w-full">
                 <Button
@@ -99,9 +109,14 @@ export const RouteCard = ({
                   onPress={() =>
                     handleDestinationPress(destination.terminalSlug)
                   }
-                  className="w-full rounded-full"
+                  className="w-full rounded-full py-1"
                 >
-                  <Text className="font-playpen-600 text-pink-600">
+                  <Text
+                    className={cn(
+                      "font-playpen-600 text-pink-600",
+                      isTablet ? "text-sm" : "text-base",
+                    )}
+                  >
                     → {destination.terminalName}
                   </Text>
                 </Button>

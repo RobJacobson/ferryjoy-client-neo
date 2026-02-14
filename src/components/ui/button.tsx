@@ -38,22 +38,22 @@ const buttonVariants = cva(
           Platform.select({ web: "hover:bg-accent dark:hover:bg-accent/50" }),
         ),
         glass: cn(
-          "border border-white/40 bg-white/25 active:bg-white/60",
-          Platform.select({ web: "hover:bg-white/40" }),
+          "border border-white/40 bg-white/50 active:bg-white/75",
+          Platform.select({ web: "hover:bg-white/60" }),
         ),
         link: "",
       },
       size: {
         default: cn(
-          "h-10 px-4 py-2 sm:h-9",
+          "min-h-10 px-4 py-2 sm:min-h-9",
           Platform.select({ web: "has-[>svg]:px-3" }),
         ),
         sm: cn(
-          "h-9 gap-1.5 rounded-md px-3 sm:h-8",
+          "min-h-9 gap-1.5 rounded-md px-3 sm:min-h-8",
           Platform.select({ web: "has-[>svg]:px-2.5" }),
         ),
         lg: cn(
-          "h-11 rounded-md px-6 sm:h-10",
+          "min-h-11 rounded-md px-6 py-2 sm:min-h-10",
           Platform.select({ web: "has-[>svg]:px-4" }),
         ),
         icon: "h-10 w-10 sm:h-9 sm:w-9",
