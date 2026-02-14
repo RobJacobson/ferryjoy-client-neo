@@ -10,6 +10,7 @@ import type { ComponentProps } from "react";
 import { memo, useMemo } from "react";
 import Animated from "react-native-reanimated";
 import Svg, { Defs, Path, Pattern, Image as SvgImage } from "react-native-svg";
+import type { PaperTextureSource } from "../types";
 import { useWaveOscillation } from "./useWaveOscillation";
 import { generateWavePath } from "./wavePath";
 
@@ -17,7 +18,6 @@ import { generateWavePath } from "./wavePath";
 const SVG_HEIGHT = 500;
 
 const PAPER_TEXTURE_OPACITY = 0.25;
-const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 
 const STROKE_COLOR = "black";
 const STROKE_WIDTH = 0.5;
@@ -85,6 +85,11 @@ export interface AnimatedWaveProps {
    * 0 = bottom, 50 = middle, 100 = top.
    */
   height?: number;
+
+  /**
+   * Paper texture source. When null, SVG does not render the texture overlay.
+   */
+  paperTextureUrl?: PaperTextureSource;
 }
 
 /**
@@ -101,6 +106,7 @@ const AnimatedWave = memo(
     fillOpacity = 1,
     fillColor,
     height = 50,
+    paperTextureUrl,
   }: AnimatedWaveProps) => {
     const { animatedOscillationStyle, overscanX, svgRenderWidth } =
       useWaveOscillation({
@@ -119,9 +125,9 @@ const AnimatedWave = memo(
           period,
           centerY,
           svgRenderWidth,
-          SVG_HEIGHT,
+          SVG_HEIGHT
         ),
-      [amplitude, period, centerY, svgRenderWidth],
+      [amplitude, period, centerY, svgRenderWidth]
     );
 
     const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
@@ -148,19 +154,21 @@ const AnimatedWave = memo(
           preserveAspectRatio="none"
         >
           <Defs>
-            <Pattern
-              id={LOCAL_TEXTURE_ID}
-              patternUnits="userSpaceOnUse"
-              width={400}
-              height={400}
-            >
-              <SvgImage
-                href={PAPER_TEXTURE}
-                width={512}
-                height={512}
-                preserveAspectRatio="xMidYMid slice"
-              />
-            </Pattern>
+            {paperTextureUrl != null && (
+              <Pattern
+                id={LOCAL_TEXTURE_ID}
+                patternUnits="userSpaceOnUse"
+                width={400}
+                height={400}
+              >
+                <SvgImage
+                  href={paperTextureUrl}
+                  width={512}
+                  height={512}
+                  preserveAspectRatio="xMidYMid slice"
+                />
+              </Pattern>
+            )}
           </Defs>
 
           {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
@@ -184,16 +192,18 @@ const AnimatedWave = memo(
             strokeOpacity={STROKE_OPACITY}
           />
 
-          {/* Paper texture overlay - adds surface texture while preserving color */}
-          <Path
-            d={pathData}
-            fill={`url(#${LOCAL_TEXTURE_ID})`}
-            fillOpacity={PAPER_TEXTURE_OPACITY}
-          />
+          {/* Paper texture overlay - only when paperTextureUrl set */}
+          {paperTextureUrl != null && (
+            <Path
+              d={pathData}
+              fill={`url(#${LOCAL_TEXTURE_ID})`}
+              fillOpacity={PAPER_TEXTURE_OPACITY}
+            />
+          )}
         </Svg>
       </Animated.View>
     );
-  },
+  }
 );
 
 export default AnimatedWave;

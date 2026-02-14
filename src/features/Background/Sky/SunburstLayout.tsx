@@ -10,10 +10,15 @@ import { useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
+import type { PaperTextureSource } from "../types";
 import { Sun } from "./Sun";
 import SunburstClipped from "./SunburstClipped";
 
 export type SunburstLayoutProps = {
+  /**
+   * Paper texture source. When null, sunburst SVG does not render texture.
+   */
+  paperTextureUrl: PaperTextureSource;
   /** Number of rays in the sunburst (default 10). */
   rayCount?: number;
   /** Horizontal center of the sunburst, 0–100 (default 50). */
@@ -58,6 +63,7 @@ const sunburstRotationStyle = {
  * @returns Container view with positioned Sunburst
  */
 const SunburstLayout = ({
+  paperTextureUrl,
   rayCount = 10,
   centerX = 50,
   centerY = 50,
@@ -91,6 +97,7 @@ const SunburstLayout = ({
         pointerEvents="none"
       >
         <SunburstClipped
+          paperTextureUrl={paperTextureUrl}
           rayCount={rayCount}
           size={size}
           startColor={PINK_300}

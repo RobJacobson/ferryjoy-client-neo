@@ -8,6 +8,7 @@
 
 import { memo } from "react";
 import { ScrollView, View } from "react-native";
+import type { PaperTextureSource } from "../types";
 import OceanWaves from "./OceanWaves";
 import { Background, Foreground } from "./RollingGrass";
 import { WaveTextureReadyProvider } from "./WaveTextureReadyContext";
@@ -18,10 +19,19 @@ const containerWidth = 2000;
 /** Margin offset on left and right sides in pixels. */
 const marginOffset = -500;
 
+export type AnimatedWavesProps = {
+  /**
+   * Paper texture source. When null, wave SVGs do not render the texture overlay.
+   */
+  paperTextureUrl: PaperTextureSource;
+};
+
 /**
  * AnimatedWaves component that composes three wave layers.
+ *
+ * @param props - paperTextureUrl passed to Foreground, OceanWaves, Background
  */
-const AnimatedWaves = memo(() => {
+const AnimatedWaves = memo(({ paperTextureUrl }: AnimatedWavesProps) => {
   return (
     <WaveTextureReadyProvider>
       <View className="flex-1">
@@ -39,9 +49,9 @@ const AnimatedWaves = memo(() => {
               marginRight: marginOffset,
             }}
           >
-            <Foreground />
-            <OceanWaves />
-            <Background />
+            <Foreground paperTextureUrl={paperTextureUrl} />
+            <OceanWaves paperTextureUrl={paperTextureUrl} />
+            <Background paperTextureUrl={paperTextureUrl} />
           </View>
         </ScrollView>
       </View>

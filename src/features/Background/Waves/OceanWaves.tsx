@@ -10,6 +10,7 @@
 import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator, lerp } from "@/shared/utils";
+import type { PaperTextureSource } from "../types";
 import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for ocean waves (blue). */
@@ -41,6 +42,11 @@ const LIGHTNESS = { min: 150, max: 500 };
  */
 const blueColor = createColorGenerator(BASE_COLOR);
 
+export type OceanWavesProps = {
+  /** Paper texture source. When null, wave SVGs do not render texture. */
+  paperTextureUrl: PaperTextureSource;
+};
+
 /**
  * OceanWaves component that renders a layered stack of animated waves.
  *
@@ -49,8 +55,10 @@ const blueColor = createColorGenerator(BASE_COLOR);
  * with sinusoidal easing and staggered timing for a natural, organic appearance.
  *
  * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
+ *
+ * @param props - paperTextureUrl passed to each AnimatedWaveClipped
  */
-const OceanWaves = memo(() => {
+const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
   const tForIndex = (index: number) =>
     WAVE_COUNT > 1 ? index / (WAVE_COUNT - 1) : 0;
 
@@ -66,6 +74,7 @@ const OceanWaves = memo(() => {
             style={{ zIndex: index + 10 }}
           >
             <AnimatedWaveClipped
+              paperTextureUrl={paperTextureUrl}
               amplitude={lerp(t, 0, 1, AMPLITUDE.min, AMPLITUDE.max)}
               period={lerp(t, 0, 1, PERIOD.min, PERIOD.max)}
               fillColor={blueColor(lerp(t, 0, 1, LIGHTNESS.min, LIGHTNESS.max))}
@@ -75,14 +84,14 @@ const OceanWaves = memo(() => {
                 0,
                 1,
                 ANIMATION_DURATION.min,
-                ANIMATION_DURATION.max,
+                ANIMATION_DURATION.max
               )}
               waveDisplacement={lerp(
                 t,
                 0,
                 1,
                 WAVE_DISPLACEMENT.min,
-                WAVE_DISPLACEMENT.max,
+                WAVE_DISPLACEMENT.max
               )}
               animationDelay={0}
               phaseOffset={computePhaseOffset(index)}

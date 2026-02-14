@@ -1,12 +1,11 @@
 /**
- * RoutesCarouselFlatList – FlatList-based carousel drop-in for RoutesCarousel.
+ * RoutesCarousel – FlatList-based carousel of terminal route cards.
  * Uses Animated.FlatList + Reanimated with a normalized value in [-1, 0, 1] for parallax.
  */
 
 import type { RefObject } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useRef } from "react";
 import { View } from "react-native";
-import type { SharedValue } from "react-native-reanimated";
 import Animated, {
   type ScrollEvent,
   useAnimatedScrollHandler,
@@ -17,8 +16,7 @@ import {
   TERMINAL_CONNECTIONS,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
-import { TERMINAL_REGIONS, type TerminalRegion } from "@/data/terminalRegions";
-import { SLOT_HEIGHT, SLOT_WIDTH } from "@/features/RoutesCarousel/config";
+import { useCarouselLayout } from "@/features/RoutesCarousel/config";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
@@ -31,87 +29,25 @@ type RoutesCarouselProps = {
    * Ref to BlurTargetView that BlurViews in each RouteCard will use as blur source.
    */
   blurTargetRef: RefObject<View | null>;
-  /**
-   * Selected region filter. When null or "All Terminals", shows all terminals.
-   * Otherwise filters to terminals in the selected region.
-   */
-  selectedRegion?: TerminalRegion | null;
 };
-
-type CarouselRowProps = {
-  item: TerminalCardData;
-  index: number;
-  blurTargetRef: RefObject<View | null>;
-  scrollX: SharedValue<number>;
-};
-
-/**
- * Single carousel row; React Compiler optimizes re-renders when props are stable.
- */
-const CarouselRow = ({
-  item,
-  index,
-  blurTargetRef,
-  scrollX,
-}: CarouselRowProps) => (
-  <RoutesCarouselItem
-    index={index}
-    scrollX={scrollX}
-    slotWidth={SLOT_WIDTH}
-    slotHeight={SLOT_HEIGHT}
-    accessibilityLabel={item.terminalName}
-  >
-    <View
-      style={{
-        width: SLOT_WIDTH,
-        height: SLOT_HEIGHT,
-        overflow: "hidden",
-      }}
-    >
-      <RouteCard
-        blurTargetRef={blurTargetRef}
-        terminalName={item.terminalName}
-        terminalSlug={item.terminalSlug}
-        destinations={item.destinations}
-      />
-    </View>
-  </RoutesCarouselItem>
-);
 
 // ============================================================================
-// RoutesCarouselFlatList
+// RoutesCarousel
 // ============================================================================
 
 /**
- * FlatList-based carousel that displays terminal cards. Drop-in replacement for
- * RoutesCarousel: same props and behavior, using native scroll and a
- * normalized value for parallax (scale + translateX + zIndex).
+ * FlatList-based carousel that displays terminal cards. Uses native scroll and
+ * a normalized value in [-1, 0, 1] for parallax (scale + translateX + zIndex).
  *
- * @param props - blurTargetRef and optional selectedRegion
+ * @param props - blurTargetRef
  */
-const RoutesCarousel = ({
-  blurTargetRef,
-  selectedRegion,
-}: RoutesCarouselProps) => {
+const RoutesCarousel = ({ blurTargetRef }: RoutesCarouselProps) => {
+  const { slotWidth } = useCarouselLayout();
   const scrollX = useSharedValue(0);
   const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
 
-  const terminalCards = useMemo(() => {
-    const cards = transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
-    if (selectedRegion && selectedRegion !== "All Terminals") {
-      const regionTerminalIds = TERMINAL_REGIONS[selectedRegion];
-      return cards.filter((card) =>
-        regionTerminalIds.includes(card.terminalId)
-      );
-    }
-    return cards;
-  }, [selectedRegion]);
-
-  useEffect(() => {
-    if (listRef.current && terminalCards.length > 0) {
-      listRef.current.scrollToOffset({ offset: 0, animated: true });
-    }
-  }, [terminalCards.length]);
+  const terminalCards =
+    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event: ScrollEvent) => {
@@ -121,22 +57,22 @@ const RoutesCarousel = ({
 
   const getItemLayout = (
     _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number
+    index: number,
   ) => ({
-    length: SLOT_WIDTH,
-    offset: index * SLOT_WIDTH,
+    length: slotWidth,
+    offset: index * slotWidth,
     index,
   });
 
   return (
-    <View className="w-full flex-1 items-center justify-center">
+    <View className="w-full flex-1 items-center">
       <Animated.FlatList<TerminalCardData>
-        key={selectedRegion ?? "all"}
         ref={listRef}
         data={terminalCards}
         horizontal
+        contentContainerStyle={{ minHeight: "100%" }}
         showsHorizontalScrollIndicator={false}
-        snapToInterval={SLOT_WIDTH}
+        snapToInterval={slotWidth}
         snapToAlignment="start"
         decelerationRate={0.994}
         bounces={false}
@@ -151,12 +87,19 @@ const RoutesCarousel = ({
         accessibilityRole="list"
         accessibilityLabel="Terminal routes"
         renderItem={({ item, index }) => (
-          <CarouselRow
-            item={item}
+          <RoutesCarouselItem
             index={index}
-            blurTargetRef={blurTargetRef}
             scrollX={scrollX}
-          />
+            slotWidth={slotWidth}
+            accessibilityLabel={item.terminalName}
+          >
+            <RouteCard
+              blurTargetRef={blurTargetRef}
+              terminalName={item.terminalName}
+              terminalSlug={item.terminalSlug}
+              destinations={item.destinations}
+            />
+          </RoutesCarouselItem>
         )}
       />
     </View>

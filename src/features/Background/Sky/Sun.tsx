@@ -68,7 +68,7 @@ const Sun = ({
 }: SunProps) => {
   const pathStrings = useMemo(
     () => buildSunRayPaths(0, 0, innerRadius, outerRadius, rayCount),
-    [innerRadius, outerRadius, rayCount],
+    [innerRadius, outerRadius, rayCount]
   );
 
   const half = size / 2;
@@ -132,7 +132,7 @@ const polarToCartesian = (
   cx: number,
   cy: number,
   r: number,
-  angle: number,
+  angle: number
 ): [number, number] => [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
 
 /**
@@ -151,7 +151,7 @@ const buildSunRayPaths = (
   cy: number,
   innerRadius: number,
   outerRadius: number,
-  rayCount: number,
+  rayCount: number
 ): string[] => {
   if (rayCount < 1 || outerRadius <= innerRadius) return [];
 
@@ -170,13 +170,13 @@ const buildSunRayPaths = (
       cx,
       cy,
       innerRadius,
-      midAngle - baseHalfAngle,
+      midAngle - baseHalfAngle
     );
     const [dx, dy] = polarToCartesian(
       cx,
       cy,
       innerRadius,
-      midAngle + baseHalfAngle,
+      midAngle + baseHalfAngle
     );
 
     // Tip points (at outer radius)
@@ -184,13 +184,13 @@ const buildSunRayPaths = (
       cx,
       cy,
       outerRadius,
-      midAngle - tipHalfAngle,
+      midAngle - tipHalfAngle
     );
     const [cxOut, cyOut] = polarToCartesian(
       cx,
       cy,
       outerRadius,
-      midAngle + tipHalfAngle,
+      midAngle + tipHalfAngle
     );
 
     // Control point for the rounded tip bulge.
@@ -198,7 +198,7 @@ const buildSunRayPaths = (
       cx,
       cy,
       outerRadius + rayHeight * OUTER_BULGE_FRACTION,
-      midAngle,
+      midAngle
     );
 
     // Path: Move to BaseLeft, Line to TipLeft, Quadratic to TipRight (bulging), Line to BaseRight, Close

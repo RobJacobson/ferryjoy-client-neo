@@ -1,30 +1,41 @@
+/**
+ * RouteCard – Glass-style card for a terminal and its destination buttons.
+ * Uses BlurView with an external blur target; navigates to map with selected pair.
+ */
+
 import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
 import { Text, View } from "react-native";
+import { GlassView } from "@/components/GlassView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
-import { cn } from "@/shared/utils/cn";
+import type { TerminalCardData } from "@/data/terminalConnections";
 
-interface Destination {
-  terminalId: number;
-  terminalName: string;
-  terminalSlug: string;
-}
+// ============================================================================
+// Types
+// ============================================================================
 
-interface RouteCardProps {
-  /**
-   * Ref to BlurTargetView; card uses BlurView with this as blur source.
-   */
+type RouteCardProps = {
+  /** Ref to BlurTargetView; card uses BlurView with this as blur source. */
   blurTargetRef: RefObject<View | null>;
   terminalName: string;
   terminalSlug: string;
-  destinations: Destination[];
-}
+  destinations: TerminalCardData["destinations"];
+};
 
-const glassStyle = "border border-white/40 bg-white/25";
+// ============================================================================
+// RouteCard
+// ============================================================================
 
+/**
+ * Renders a single terminal card with blur background and destination buttons.
+ * Card fills container via flex and maintains 9:16 aspect ratio.
+ * Tapping a destination sets the terminal pair and navigates to the map tab.
+ *
+ * @param props - blurTargetRef, terminal name/slug, destinations
+ */
 export const RouteCard = ({
   blurTargetRef,
   terminalName,
@@ -43,44 +54,62 @@ export const RouteCard = ({
   };
 
   return (
-    <BlurView
-      blurTarget={blurTargetRef}
-      intensity={12}
-      blurMethod="dimezisBlurView"
-      className="h-full w-full overflow-visible rounded-[32px]"
+    <View
+      className="flex-1 items-center justify-center"
+      pointerEvents="box-none"
     >
-      <View className={cn("flex-1 gap-4 rounded-[32px] p-4", glassStyle)}>
-        <View
-          className={cn(
-            "aspect-[3/4] w-full items-center justify-center rounded-3xl bg-gray-200",
-            glassStyle
-          )}
-        >
-          <Text className="text-gray-400">Photo Placeholder</Text>
-        </View>
+      <BlurView
+        blurTarget={blurTargetRef}
+        intensity={12}
+        blurMethod="dimezisBlurView"
+        className="h-full max-w-full"
+        style={{ aspectRatio: 9 / 16, overflow: "visible", borderRadius: 32 }}
+      >
+        <GlassView className="flex-1 gap-4 rounded-[32px] p-4">
+          <View className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl">
+            <GlassView className="h-full w-full items-center justify-center bg-gray-200/25">
+              <Text className="text-gray-400">Photo Placeholder</Text>
+            </GlassView>
+          </View>
 
-        <Text className="text-center font-puffberry text-3xl text-blue-800">
-          {terminalName}
-        </Text>
-
-        <View className="flex-1 items-center justify-center gap-3 py-4">
-          {destinations.map((destination) => (
-            <Button
-              key={destination.terminalSlug}
-              variant="secondary"
-              onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className={cn(
-                "w-full rounded-full p-1 font-playpen-500 text-blue-800",
-                glassStyle
-              )}
+          <Button
+            className="w-full items-center justify-center rounded-full bg-pink-500 active:bg-pink-300"
+            size="lg"
+            variant="glass"
+          >
+            <Text
+              className="p-3 font-puffberry text-lg text-white leading-none"
+              style={{
+                textShadowColor: "rgba(0,0,0,0.2)",
+                textShadowOffset: { width: 1, height: 2 },
+                textShadowRadius: 2,
+              }}
             >
-              <Text className="font-playpen-500 text-black/75 text-lg">
-                → {destination.terminalName}
-              </Text>
-            </Button>
-          ))}
-        </View>
-      </View>
-    </BlurView>
+              {terminalName}
+            </Text>
+          </Button>
+
+          <View className="h-full w-full flex-1 items-center justify-center gap-3.5">
+            {destinations.map((destination) => (
+              <View key={destination.terminalSlug} className="w-full">
+                <Button
+                  key={destination.terminalSlug}
+                  variant="glass"
+                  size="sm"
+                  onPress={() =>
+                    handleDestinationPress(destination.terminalSlug)
+                  }
+                  className="w-full rounded-full"
+                >
+                  <Text className="font-playpen-600 text-pink-600">
+                    → {destination.terminalName}
+                  </Text>
+                </Button>
+              </View>
+            ))}
+          </View>
+        </GlassView>
+      </BlurView>
+    </View>
   );
 };

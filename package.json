@@ -141,9 +141,13 @@
   },
   "expo": {
     "install": {
-      "exclude": ["@shopify/react-native-skia"]
+      "exclude": [
+        "@shopify/react-native-skia"
+      ]
     }
   },
   "private": true,
-  "trustedDependencies": ["@shopify/react-native-skia"]
+  "trustedDependencies": [
+    "@shopify/react-native-skia"
+  ]
 }
