@@ -19,6 +19,7 @@ import Svg, {
   Rect,
   Image as SvgImage,
 } from "react-native-svg";
+import type { PaperTextureSource } from "../types";
 import { useWaveOscillation } from "./useWaveOscillation";
 import { useWaveTextureReady } from "./WaveTextureReadyContext";
 import { generateWavePath } from "./wavePath";
@@ -27,7 +28,6 @@ import { generateWavePath } from "./wavePath";
 const SVG_HEIGHT = 500;
 
 const PAPER_TEXTURE_OPACITY = 0.2;
-const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 
 const STROKE_COLOR = "black";
 const STROKE_WIDTH = 1;
@@ -94,6 +94,11 @@ export interface AnimatedWaveProps {
    * 0 = bottom, 50 = middle, 100 = top.
    */
   height?: number;
+
+  /**
+   * Paper texture source. When null, SVG does not render the texture overlay.
+   */
+  paperTextureUrl?: PaperTextureSource;
 }
 
 /**
@@ -111,9 +116,12 @@ const AnimatedWaveClipped = memo(
     fillOpacity = 1,
     fillColor,
     height = 50,
+    paperTextureUrl,
   }: AnimatedWaveProps) => {
     const { ready: textureReady, markReady: markTextureReady } =
       useWaveTextureReady();
+    // When no texture is passed, show wave immediately (no wait for texture load).
+    const effectiveReady = paperTextureUrl == null || textureReady;
     const { animatedOscillationStyle, overscanX, svgRenderWidth } =
       useWaveOscillation({
         animationDuration,
@@ -131,9 +139,9 @@ const AnimatedWaveClipped = memo(
           period,
           centerY,
           svgRenderWidth,
-          SVG_HEIGHT,
+          SVG_HEIGHT
         ),
-      [amplitude, period, centerY, svgRenderWidth],
+      [amplitude, period, centerY, svgRenderWidth]
     );
 
     const clipId = `clip-wave-${amplitude}-${period}`;
@@ -147,7 +155,7 @@ const AnimatedWaveClipped = memo(
           right: -overscanX,
           bottom: 0,
           left: -overscanX,
-          opacity: textureReady ? 1 : 0,
+          opacity: effectiveReady ? 1 : 0,
         }}
         pointerEvents="box-none"
       >
@@ -175,20 +183,22 @@ const AnimatedWaveClipped = memo(
               <ClipPath id={clipId}>
                 <Path d={pathData} />
               </ClipPath>
-              <Pattern
-                id={textureId}
-                patternUnits="userSpaceOnUse"
-                width={512}
-                height={512}
-              >
-                <SvgImage
-                  href={PAPER_TEXTURE}
+              {paperTextureUrl != null && (
+                <Pattern
+                  id={textureId}
+                  patternUnits="userSpaceOnUse"
                   width={512}
                   height={512}
-                  preserveAspectRatio="xMidYMid slice"
-                  onLoad={markTextureReady}
-                />
-              </Pattern>
+                >
+                  <SvgImage
+                    href={paperTextureUrl}
+                    width={512}
+                    height={512}
+                    preserveAspectRatio="xMidYMid slice"
+                    onLoad={markTextureReady}
+                  />
+                </Pattern>
+              )}
             </Defs>
 
             {/* Pseudo-drop shadow: layered black copies (shared with AnimatedWave) */}
@@ -202,7 +212,7 @@ const AnimatedWaveClipped = memo(
               />
             ))}
 
-            {/* Clipped group: color rect then texture rect */}
+            {/* Clipped group: color rect then texture rect (when paperTextureUrl set) */}
             <G clipPath={`url(#${clipId})`}>
               <Rect
                 x={0}
@@ -212,14 +222,16 @@ const AnimatedWaveClipped = memo(
                 fill={fillColor}
                 fillOpacity={fillOpacity}
               />
-              <Rect
-                x={0}
-                y={0}
-                width={svgRenderWidth}
-                height={SVG_HEIGHT}
-                fill={`url(#${textureId})`}
-                fillOpacity={PAPER_TEXTURE_OPACITY}
-              />
+              {paperTextureUrl != null && (
+                <Rect
+                  x={0}
+                  y={0}
+                  width={svgRenderWidth}
+                  height={SVG_HEIGHT}
+                  fill={`url(#${textureId})`}
+                  fillOpacity={PAPER_TEXTURE_OPACITY}
+                />
+              )}
             </G>
 
             {/* Stroke outline to match AnimatedWave */}
@@ -234,7 +246,7 @@ const AnimatedWaveClipped = memo(
         </Animated.View>
       </View>
     );
-  },
+  }
 );
 
 AnimatedWaveClipped.displayName = "AnimatedWaveClipped";

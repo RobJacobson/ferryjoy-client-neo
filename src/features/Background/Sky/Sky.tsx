@@ -2,11 +2,12 @@
 // Sky
 // ============================================================================
 // Full-bleed sky background with linear gradient (pink-300 → white at 45°),
-// tiled paper texture overlay at 25% opacity, and a centered sunburst.
+// optional tiled paper texture overlay at 25% opacity, and a centered sunburst.
 // ============================================================================
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
+import type { PaperTextureSource } from "../types";
 import SunburstLayout from "./SunburstLayout";
 
 // ============================================================================
@@ -32,13 +33,21 @@ const PINK_500 = "#ec4899";
 const PINK_600 = "#db2777";
 
 const PAPER_TEXTURE_OPACITY = 0.25;
-const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
+
+export type SkyProps = {
+  /**
+   * Paper texture source (e.g. require() asset). When null, no texture overlay.
+   */
+  paperTextureUrl: PaperTextureSource;
+};
 
 /**
- * Sky background: linear gradient at 45°, tiled paper texture at 25% opacity,
- * and sunburst overlay.
+ * Sky background: linear gradient at 45°, optional tiled paper texture at 25%
+ * opacity, and sunburst overlay.
+ *
+ * @param props - paperTextureUrl for optional texture overlay
  */
-const Sky = () => {
+const Sky = ({ paperTextureUrl }: SkyProps) => {
   return (
     <View className="absolute inset-0">
       <LinearGradient
@@ -47,19 +56,31 @@ const Sky = () => {
         end={{ x: 1, y: 1 }}
         style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
       />
-      <Image
-        source={PAPER_TEXTURE}
-        resizeMode="repeat"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: PAPER_TEXTURE_OPACITY,
-        }}
+      {paperTextureUrl != null && (
+        <Image
+          source={
+            typeof paperTextureUrl === "string"
+              ? { uri: paperTextureUrl }
+              : paperTextureUrl
+          }
+          resizeMode="repeat"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            opacity: PAPER_TEXTURE_OPACITY,
+          }}
+        />
+      )}
+      <SunburstLayout
+        paperTextureUrl={paperTextureUrl}
+        rayCount={18}
+        centerX={25}
+        centerY={20}
+        size={1000}
       />
-      <SunburstLayout rayCount={18} centerX={25} centerY={20} size={1000} />
     </View>
   );
 };

@@ -21,7 +21,6 @@ import Svg, {
 // ============================================================================
 
 const PAPER_TEXTURE_OPACITY = 0.25;
-const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 
 /** ViewBox and default size for the sunburst SVG; single source of truth for layout. */
 export const SUNBURST_VIEWBOX_SIZE = 1000;
@@ -29,6 +28,10 @@ export const SUNBURST_VIEWBOX_SIZE = 1000;
 const DEFAULT_SIZE = SUNBURST_VIEWBOX_SIZE;
 
 export type SunburstProps = {
+  /**
+   * Paper texture source. When null, SVG does not render the texture overlay.
+   */
+  paperTextureUrl?: number | string | null;
   /** Number of white rays (gaps = same count). */
   rayCount: number;
   /** Solid fill when gradient not used. */
@@ -63,6 +66,7 @@ export type SunburstProps = {
  * @returns SVG sunburst element
  */
 const Sunburst = ({
+  paperTextureUrl,
   rayCount,
   color = "white",
   opacity = 0.5,
@@ -112,19 +116,21 @@ const Sunburst = ({
             <Stop offset="1" stopColor={endColor} />
           </RadialGradient>
         )}
-        <Pattern
-          id={textureId}
-          patternUnits="userSpaceOnUse"
-          width={400}
-          height={400}
-        >
-          <SvgImage
-            href={PAPER_TEXTURE}
-            width={512}
-            height={512}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </Pattern>
+        {paperTextureUrl != null && (
+          <Pattern
+            id={textureId}
+            patternUnits="userSpaceOnUse"
+            width={400}
+            height={400}
+          >
+            <SvgImage
+              href={paperTextureUrl}
+              width={512}
+              height={512}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          </Pattern>
+        )}
       </Defs>
       {/* Pseudo-drop shadow: angular offset so each ray has the same shadow direction */}
       {pathStrings.map((d, i) => (
@@ -169,16 +175,17 @@ const Sunburst = ({
           strokeWidth={0.5}
         />
       ))}
-      {/* Paper texture overlay - same as AnimatedWave */}
-      {pathStrings.map((d, i) => (
-        <Path
-          // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
-          key={`tex-${i}`}
-          d={d}
-          fill={`url(#${textureId})`}
-          fillOpacity={PAPER_TEXTURE_OPACITY}
-        />
-      ))}
+      {/* Paper texture overlay - same as AnimatedWave (only when paperTextureUrl set) */}
+      {paperTextureUrl != null &&
+        pathStrings.map((d, i) => (
+          <Path
+            // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
+            key={`tex-${i}`}
+            d={d}
+            fill={`url(#${textureId})`}
+            fillOpacity={PAPER_TEXTURE_OPACITY}
+          />
+        ))}
     </Svg>
   );
 };

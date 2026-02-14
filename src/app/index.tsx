@@ -2,23 +2,26 @@ import { BlurTargetView } from "expo-blur";
 import { Stack } from "expo-router";
 import { useRef } from "react";
 import { View } from "react-native";
-import { Sky } from "@/features/Sky";
-import AnimatedWaves from "@/features/Waves";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Background } from "@/features/Background";
+import RoutesCarousel from "@/features/RoutesCarousel";
 
 export default function Home() {
-  // const { selectedRegion } = useRegionSelector();
   const blurTargetRef = useRef<View | null>(null);
-
+  const insets = useSafeAreaInsets();
   return (
-    <View className="flex-1">
+    <View
+      className="h-full w-full flex-1"
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+      }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <BlurTargetView ref={blurTargetRef} className="absolute inset-0">
-        <Sky />
-        <View className="absolute top-0 right-0 bottom-0 left-0">
-          <AnimatedWaves />
-        </View>
+        <Background />
       </BlurTargetView>
-      {/* <RoutesCarousel blurTargetRef={blurTargetRef} /> */}
+      <RoutesCarousel blurTargetRef={blurTargetRef} />
     </View>
   );
 }

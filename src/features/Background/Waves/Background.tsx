@@ -6,20 +6,29 @@
 // ============================================================================
 
 import { View } from "react-native";
+import type { PaperTextureSource } from "../types";
 import AnimatedWaveClipped from "./AnimatedWaveClipped";
 import { grassColor } from "./Foreground";
+
+export type BackgroundProps = {
+  /** Paper texture source. When null, wave SVGs do not render texture. */
+  paperTextureUrl: PaperTextureSource;
+};
 
 /**
  * Background component that renders the bottom grass layer.
  *
  * Static wave with smaller amplitude and period, positioned at the bottom.
  * No animation to create a stable background frame.
+ *
+ * @param props - paperTextureUrl passed to each AnimatedWaveClipped
  */
-const Background = () => {
+const Background = ({ paperTextureUrl }: BackgroundProps) => {
   return (
     <>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={18}
           period={200}
           fillColor={"#DEF"}
@@ -31,6 +40,7 @@ const Background = () => {
       </View>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={18}
           period={300}
           fillColor={grassColor(600)}
@@ -42,6 +52,7 @@ const Background = () => {
       </View>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={16}
           period={450}
           fillColor={grassColor(550)}
@@ -53,6 +64,7 @@ const Background = () => {
       </View>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={12}
           period={450}
           fillColor={grassColor(500)}
@@ -64,6 +76,7 @@ const Background = () => {
       </View>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={10}
           period={400}
           fillColor={grassColor(450)}
@@ -75,6 +88,7 @@ const Background = () => {
       </View>
       <View className="absolute inset-0">
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={2}
           period={300}
           fillColor={grassColor(400)}

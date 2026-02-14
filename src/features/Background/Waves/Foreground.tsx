@@ -7,6 +7,7 @@
 
 import { View } from "react-native";
 import { createColorGenerator } from "@/shared/utils";
+import type { PaperTextureSource } from "../types";
 import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for grass (green). */
@@ -20,13 +21,20 @@ const BASE_COLOR = "#5c5";
  */
 export const grassColor = createColorGenerator(BASE_COLOR);
 
+export type ForegroundProps = {
+  /** Paper texture source. When null, wave SVG does not render texture. */
+  paperTextureUrl: PaperTextureSource;
+};
+
 /**
  * Foreground component that renders the top grass layer.
  *
  * Static wave with larger amplitude and period, positioned at the top.
  * No animation to create a stable foreground frame.
+ *
+ * @param props - paperTextureUrl passed to AnimatedWaveClipped instances
  */
-const Foreground = () => {
+const Foreground = ({ paperTextureUrl }: ForegroundProps) => {
   return (
     <>
       <View
@@ -34,6 +42,7 @@ const Foreground = () => {
         style={{ zIndex: 100, marginBottom: 0 }}
       >
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={5}
           period={400}
           fillColor={grassColor(450)}
@@ -48,6 +57,7 @@ const Foreground = () => {
         style={{ zIndex: 100, marginBottom: -10 }}
       >
         <AnimatedWaveClipped
+          paperTextureUrl={paperTextureUrl}
           amplitude={10}
           period={700}
           fillColor={grassColor(400)}

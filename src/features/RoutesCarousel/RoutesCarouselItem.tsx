@@ -19,8 +19,6 @@ type RoutesCarouselItemProps = {
   scrollX: SharedValue<number>;
   /** Width of one carousel slot. */
   slotWidth: number;
-  /** Height of one carousel slot. */
-  slotHeight: number;
   /** Accessibility label for the item. */
   accessibilityLabel: string;
 };
@@ -39,7 +37,6 @@ export const RoutesCarouselItem = ({
   index,
   scrollX,
   slotWidth,
-  slotHeight,
   accessibilityLabel,
   children,
 }: PropsWithChildren<RoutesCarouselItemProps>) => {
@@ -47,13 +44,8 @@ export const RoutesCarouselItem = ({
 
   return (
     <Animated.View
-      style={[
-        animatedStyle,
-        {
-          width: slotWidth,
-          height: slotHeight,
-        },
-      ]}
+      style={[animatedStyle, { width: slotWidth, flex: 1 }]}
+      className="overflow-hidden"
       accessibilityLabel={accessibilityLabel}
     >
       {children}

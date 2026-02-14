@@ -5,7 +5,7 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "ios:build": "expo run:ios --device --clean",
+    "ios:build": "expo run:ios --device",
     "start": "expo start",
     "prebuild": "expo prebuild",
     "lint": "biome lint .",
@@ -39,7 +39,8 @@
     "convex:dashboard": "bunx convex dashboard",
     "convex:auth": "bunx convex auth",
     "convex:init": "bunx convex init",
-    "convex:dev:all": "npm run convex:dev & npm run start"
+    "convex:dev:all": "npm run convex:dev & npm run start",
+    "eas:build": "npm exec eas-cli -- build"
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
@@ -75,6 +76,7 @@
     "@rn-primitives/toggle-group": "^1.2.0",
     "@rn-primitives/tooltip": "^1.2.0",
     "@rnmapbox/maps": "^10.2.10",
+    "@shopify/react-native-skia": "2.4.19",
     "@tanstack/react-query": "^5.90.21",
     "@turf/bezier-spline": "^7.3.4",
     "@turf/destination": "^7.3.4",
@@ -122,7 +124,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "viewport-mercator-project": "^7.0.4",
-    "ws-dottie": "file:../ws-dottie",
+    "ws-dottie": "^1.6.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -137,5 +139,15 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
   },
-  "private": true
+  "expo": {
+    "install": {
+      "exclude": [
+        "@shopify/react-native-skia"
+      ]
+    }
+  },
+  "private": true,
+  "trustedDependencies": [
+    "@shopify/react-native-skia"
+  ]
 }

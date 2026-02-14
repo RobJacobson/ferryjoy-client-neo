@@ -1,30 +1,36 @@
 /**
  * Layout and animation configuration for the routes carousel.
- * Single place to tune slot size, parallax inset, and scale values.
+ * Slot width from window; height uses flex to fill available space.
  */
 
-import { Dimensions } from "react-native";
+import { useWindowDimensions } from "react-native";
 
 // ============================================================================
-// Sizing constants
+// Animation constants
 // ============================================================================
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-/** Width of each carousel slot (full screen). */
-export const SLOT_WIDTH = SCREEN_WIDTH;
-
-/** Height of each carousel slot. */
-export const SLOT_HEIGHT = SCREEN_HEIGHT * 0.9;
 
 /** Horizontal offset for parallax so adjacent cards sit slightly inset. */
 export const PARALLAX_OFFSET = 200;
 
 /** Scale when card is centered. */
-export const SCALE_CENTER = 0.9;
+export const SCALE_CENTER = 1.0;
 
 /** Scale when card is one slot left or right. */
 export const SCALE_SIDES = 0.6;
 
 /** Rotation when card is one slot left or right. */
 export const ROTATION_SIDES = 30;
+
+// ============================================================================
+// Layout hook
+// ============================================================================
+
+/**
+ * Returns carousel slot width from window dimensions. Height fills via flex.
+ *
+ * @returns slotWidth (full window width)
+ */
+export const useCarouselLayout = () => {
+  const { width } = useWindowDimensions();
+  return { slotWidth: width };
+};

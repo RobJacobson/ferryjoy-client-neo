@@ -28,7 +28,6 @@ import {
 // ============================================================================
 
 const PAPER_TEXTURE_OPACITY = 0.25;
-const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 
 const STROKE_COLOR = "black";
 const STROKE_WIDTH = 0.5;
@@ -52,6 +51,7 @@ const DEFAULT_SIZE = SUNBURST_VIEWBOX_SIZE;
  * @returns SVG sunburst element
  */
 const SunburstClipped = ({
+  paperTextureUrl,
   rayCount,
   color = "white",
   opacity = 0.5,
@@ -77,7 +77,7 @@ const SunburstClipped = ({
 
   const pathStrings = useMemo(
     () => buildRayPaths(center, radius, rayCount, spiralStrength),
-    [center, radius, rayCount, spiralStrength],
+    [center, radius, rayCount, spiralStrength]
   );
 
   return (
@@ -111,19 +111,21 @@ const SunburstClipped = ({
             <Stop offset="1" stopColor={endColor} />
           </RadialGradient>
         )}
-        <Pattern
-          id={textureId}
-          patternUnits="userSpaceOnUse"
-          width={512}
-          height={512}
-        >
-          <SvgImage
-            href={PAPER_TEXTURE}
+        {paperTextureUrl != null && (
+          <Pattern
+            id={textureId}
+            patternUnits="userSpaceOnUse"
             width={512}
             height={512}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </Pattern>
+          >
+            <SvgImage
+              href={paperTextureUrl}
+              width={512}
+              height={512}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          </Pattern>
+        )}
       </Defs>
 
       {/* Pseudo-drop shadow: angular offset (same as Sunburst) */}
@@ -154,14 +156,16 @@ const SunburstClipped = ({
           fill={useGradient ? `url(#${gradientIdSafe})` : color}
           fillOpacity={useGradient ? undefined : opacity}
         />
-        <Rect
-          x={0}
-          y={0}
-          width={size}
-          height={size}
-          fill={`url(#${textureId})`}
-          fillOpacity={PAPER_TEXTURE_OPACITY}
-        />
+        {paperTextureUrl != null && (
+          <Rect
+            x={0}
+            y={0}
+            width={size}
+            height={size}
+            fill={`url(#${textureId})`}
+            fillOpacity={PAPER_TEXTURE_OPACITY}
+          />
+        )}
       </G>
 
       {/* Stroke outline to match Sunburst */}

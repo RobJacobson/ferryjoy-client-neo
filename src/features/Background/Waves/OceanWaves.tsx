@@ -10,19 +10,20 @@
 import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator, lerp } from "@/shared/utils";
+import type { PaperTextureSource } from "../types";
 import AnimatedWaveClipped from "./AnimatedWaveClipped";
 
 /** Base color for ocean waves (blue). */
 const BASE_COLOR = "#28e";
 
 /** Number of wave layers to render. */
-const WAVE_COUNT = 8;
+const WAVE_COUNT = 12;
 
 /** Period in SVG units: lerped from min (first wave) to max (last wave). */
 const PERIOD = { min: 100, max: 500 };
 
 /** Height (vertical position 0–100): lerped from min (first) to max (last). */
-const HEIGHT = { min: 40, max: 10 };
+const HEIGHT = { min: 40, max: 12 };
 
 /** Amplitude in SVG units: lerped from min (first wave) to max (last wave). */
 const AMPLITUDE = { min: 4, max: 24 };
@@ -34,12 +35,17 @@ const ANIMATION_DURATION = { min: 30000, max: 120000 };
 const WAVE_DISPLACEMENT = { min: 100, max: 800 };
 
 /** Lightness for color generation: lerped from min (first) to max (last). */
-const LIGHTNESS = { min: 200, max: 600 };
+const LIGHTNESS = { min: 150, max: 500 };
 
 /**
  * Color generator for blue shades, using blue-500 as base color.
  */
 const blueColor = createColorGenerator(BASE_COLOR);
+
+export type OceanWavesProps = {
+  /** Paper texture source. When null, wave SVGs do not render texture. */
+  paperTextureUrl: PaperTextureSource;
+};
 
 /**
  * OceanWaves component that renders a layered stack of animated waves.
@@ -49,8 +55,10 @@ const blueColor = createColorGenerator(BASE_COLOR);
  * with sinusoidal easing and staggered timing for a natural, organic appearance.
  *
  * Animation uses GPU-accelerated transforms for optimal performance (60 FPS).
+ *
+ * @param props - paperTextureUrl passed to each AnimatedWaveClipped
  */
-const OceanWaves = memo(() => {
+const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
   const tForIndex = (index: number) =>
     WAVE_COUNT > 1 ? index / (WAVE_COUNT - 1) : 0;
 
@@ -66,6 +74,7 @@ const OceanWaves = memo(() => {
             style={{ zIndex: index + 10 }}
           >
             <AnimatedWaveClipped
+              paperTextureUrl={paperTextureUrl}
               amplitude={lerp(t, 0, 1, AMPLITUDE.min, AMPLITUDE.max)}
               period={lerp(t, 0, 1, PERIOD.min, PERIOD.max)}
               fillColor={blueColor(lerp(t, 0, 1, LIGHTNESS.min, LIGHTNESS.max))}
