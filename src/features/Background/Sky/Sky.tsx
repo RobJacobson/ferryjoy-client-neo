@@ -7,11 +7,11 @@
 // ============================================================================
 
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, View } from "react-native";
+import { Image, useWindowDimensions, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPx, SKY_PARALLAX_MULTIPLIER } from "../config";
+import { getMaxParallaxPxSafe, SKY_PARALLAX_MULTIPLIER } from "../config";
 import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import config from "./config";
@@ -32,7 +32,8 @@ export type SkyProps = BackgroundParallaxProps & {
  */
 const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
   const isLandscape = useIsLandscape();
-  const maxParallaxPx = getMaxParallaxPx(isLandscape);
+  const { width, height } = useWindowDimensions();
+  const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
 
   const parallaxStyle = useAnimatedStyle(() => {
     if (slotWidth === 0) {

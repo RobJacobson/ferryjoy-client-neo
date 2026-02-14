@@ -10,14 +10,32 @@ export const MAX_PARALLAX_PX = 50;
 
 /**
  * Effective max parallax from screen orientation. Doubles in landscape so the
- * effect is more pronounced on wide screens. Call with isLandscape from
- * useIsLandscape (uses native orientation API for reliable iPad detection).
+ * effect is more pronounced on wide screens.
  *
- * @param isLandscape - true when screen is in landscape (from useIsLandscape)
+ * @param isLandscape - true when screen is in landscape
  * @returns MAX_PARALLAX_PX in portrait, MAX_PARALLAX_PX * 2 in landscape
  */
 export const getMaxParallaxPx = (isLandscape: boolean): number =>
   isLandscape ? MAX_PARALLAX_PX * 2 : MAX_PARALLAX_PX;
+
+/**
+ * Effective max parallax using both orientation API and dimensions. Uses the
+ * maximum of both to avoid under-provisioning when either misreports on iPad.
+ *
+ * @param isLandscape - from useIsLandscape (native orientation API)
+ * @param width - from useWindowDimensions
+ * @param height - from useWindowDimensions
+ * @returns MAX_PARALLAX_PX * 2 if either source indicates landscape
+ */
+export const getMaxParallaxPxSafe = (
+  isLandscape: boolean,
+  width: number,
+  height: number
+): number =>
+  Math.max(
+    getMaxParallaxPx(isLandscape),
+    getMaxParallaxPx(width > height)
+  );
 
 /** Sky layer parallax multiplier (0–100). Farthest layer, moves least. */
 export const SKY_PARALLAX_MULTIPLIER = 8;

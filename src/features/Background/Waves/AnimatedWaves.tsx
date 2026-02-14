@@ -7,12 +7,12 @@
 
 import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPx, PARALLAX_WAVES_MAX } from "../config";
+import { getMaxParallaxPxSafe, PARALLAX_WAVES_MAX } from "../config";
 import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { Wave } from "./AnimatedWave";
@@ -87,7 +87,8 @@ const AnimatedWaves = ({
 }: AnimatedWavesProps) => {
   const layers = buildWaveStackLayers(paperTextureUrl);
   const isLandscape = useIsLandscape();
-  const maxParallaxPx = getMaxParallaxPx(isLandscape);
+  const { width, height } = useWindowDimensions();
+  const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
   const wavesWidth = computeRequiredBackgroundWidth(
     slotWidth,
     NUM_TERMINAL_CARDS,
