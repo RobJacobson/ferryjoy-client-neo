@@ -4,43 +4,16 @@
 // Renders multiple animated wave layers creating a depth effect.
 // Uses transform-based animations for optimal 60 FPS performance.
 // Wave properties use { min, max } ranges and lerp by index (first wave = min,
-// last wave = max) so changing WAVE_COUNT preserves the approximate look.
+// last wave = max) so changing count preserves the approximate look.
 // ============================================================================
 
-import { memo } from "react";
 import { View } from "react-native";
 import { createColorGenerator, lerp } from "@/shared/utils";
 import type { PaperTextureSource } from "../types";
 import AnimatedWave from "./AnimatedWave";
+import { OCEAN_WAVES } from "./config";
 
-/** Base color for ocean waves (blue). */
-const BASE_COLOR = "#28e";
-
-/** Number of wave layers to render. */
-const WAVE_COUNT = 16;
-
-/** Period in SVG units: lerped from min (first wave) to max (last wave). */
-const PERIOD = { min: 100, max: 500 };
-
-/** Height (vertical position 0–100): lerped from min (first) to max (last). */
-const HEIGHT = { min: 50, max: 12 };
-
-/** Amplitude in SVG units: lerped from min (first wave) to max (last wave). */
-const AMPLITUDE = { min: 4, max: 24 };
-
-/** Animation duration in ms: lerped from min to max (same value = constant). */
-const ANIMATION_DURATION = { min: 30000, max: 120000 };
-
-/** Max horizontal displacement in px: lerped from min to max. */
-const WAVE_DISPLACEMENT = { min: 100, max: 800 };
-
-/** Lightness for color generation: lerped from min (first) to max (last). */
-const LIGHTNESS = { min: 150, max: 500 };
-
-/**
- * Color generator for blue shades, using blue-500 as base color.
- */
-const blueColor = createColorGenerator(BASE_COLOR);
+const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
 
 export type OceanWavesProps = {
   /** Paper texture source. When null, wave SVGs do not render texture. */
@@ -58,13 +31,13 @@ export type OceanWavesProps = {
  *
  * @param props - paperTextureUrl passed to each AnimatedWave
  */
-const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
-  const tForIndex = (index: number) =>
-    WAVE_COUNT > 1 ? index / (WAVE_COUNT - 1) : 0;
+const OceanWaves = ({ paperTextureUrl }: OceanWavesProps) => {
+  const { count } = OCEAN_WAVES;
+  const tForIndex = (index: number) => (count > 1 ? index / (count - 1) : 0);
 
   return (
     <>
-      {Array.from({ length: WAVE_COUNT }).map((_, index) => {
+      {Array.from({ length: count }).map((_, index) => {
         const t = tForIndex(index);
         return (
           <View
@@ -75,23 +48,49 @@ const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
           >
             <AnimatedWave
               paperTextureUrl={paperTextureUrl}
-              amplitude={lerp(t, 0, 1, AMPLITUDE.min, AMPLITUDE.max)}
-              period={lerp(t, 0, 1, PERIOD.min, PERIOD.max)}
-              fillColor={blueColor(lerp(t, 0, 1, LIGHTNESS.min, LIGHTNESS.max))}
-              height={lerp(t, 0, 1, HEIGHT.min, HEIGHT.max)}
+              amplitude={lerp(
+                t,
+                0,
+                1,
+                OCEAN_WAVES.amplitude.min,
+                OCEAN_WAVES.amplitude.max,
+              )}
+              period={lerp(
+                t,
+                0,
+                1,
+                OCEAN_WAVES.period.min,
+                OCEAN_WAVES.period.max,
+              )}
+              fillColor={blueColor(
+                lerp(
+                  t,
+                  0,
+                  1,
+                  OCEAN_WAVES.lightness.min,
+                  OCEAN_WAVES.lightness.max,
+                ),
+              )}
+              height={lerp(
+                t,
+                0,
+                1,
+                OCEAN_WAVES.height.min,
+                OCEAN_WAVES.height.max,
+              )}
               animationDuration={lerp(
                 t,
                 0,
                 1,
-                ANIMATION_DURATION.min,
-                ANIMATION_DURATION.max,
+                OCEAN_WAVES.animationDuration.min,
+                OCEAN_WAVES.animationDuration.max,
               )}
               waveDisplacement={lerp(
                 t,
                 0,
                 1,
-                WAVE_DISPLACEMENT.min,
-                WAVE_DISPLACEMENT.max,
+                OCEAN_WAVES.waveDisplacement.min,
+                OCEAN_WAVES.waveDisplacement.max,
               )}
               animationDelay={0}
               phaseOffset={computePhaseOffset(index)}
@@ -101,7 +100,7 @@ const OceanWaves = memo(({ paperTextureUrl }: OceanWavesProps) => {
       })}
     </>
   );
-});
+};
 
 export default OceanWaves;
 

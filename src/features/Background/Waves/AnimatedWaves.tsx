@@ -6,17 +6,11 @@
 // Uses transform-based animations for optimal 60 FPS performance.
 // ============================================================================
 
-import { memo } from "react";
 import { ScrollView, View } from "react-native";
 import type { PaperTextureSource } from "../types";
+import { WAVES_CONTAINER } from "./config";
 import OceanWaves from "./OceanWaves";
 import { Background, Foreground } from "./RollingGrass";
-
-/** Total width of the waves container in pixels. */
-const containerWidth = 2000;
-
-/** Margin offset on left and right sides in pixels. */
-const marginOffset = -500;
 
 export type AnimatedWavesProps = {
   /**
@@ -30,8 +24,7 @@ export type AnimatedWavesProps = {
  *
  * @param props - paperTextureUrl passed to Foreground, OceanWaves, Background
  */
-const AnimatedWaves = memo(({ paperTextureUrl }: AnimatedWavesProps) => {
-  return (
+const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => (
     <View className="flex-1">
       <ScrollView
         className="flex-1"
@@ -42,9 +35,9 @@ const AnimatedWaves = memo(({ paperTextureUrl }: AnimatedWavesProps) => {
         <View
           className="relative h-full"
           style={{
-            width: containerWidth,
-            marginLeft: marginOffset,
-            marginRight: marginOffset,
+            width: WAVES_CONTAINER.width,
+            marginLeft: WAVES_CONTAINER.marginOffset,
+            marginRight: WAVES_CONTAINER.marginOffset,
           }}
         >
           <Foreground paperTextureUrl={paperTextureUrl} />
@@ -53,7 +46,6 @@ const AnimatedWaves = memo(({ paperTextureUrl }: AnimatedWavesProps) => {
         </View>
       </ScrollView>
     </View>
-  );
-});
+);
 
 export default AnimatedWaves;

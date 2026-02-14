@@ -5,11 +5,7 @@
 // No React dependencies - fully testable and reusable.
 // ============================================================================
 
-/** Width of the SVG canvas. Wider width allows oscillation without visible edges. */
-const SVG_WIDTH = 2000;
-
-/** Height of the SVG canvas. */
-const SVG_HEIGHT = 500;
+import { SVG_HEIGHT, SVG_WIDTH } from "./config";
 
 /**
  * Generates an SVG path data string for a single wave.
