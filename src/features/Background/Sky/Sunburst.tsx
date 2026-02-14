@@ -6,7 +6,7 @@
 // spiral effect. Optional radial gradient (startColor → endColor).
 // ============================================================================
 
-import { useId, useMemo } from "react";
+import { useId } from "react";
 import Svg, {
   Defs,
   Path,
@@ -15,17 +15,11 @@ import Svg, {
   Stop,
   Image as SvgImage,
 } from "react-native-svg";
+import config from "./config";
 
 // ============================================================================
-// Constants / types
+// Types
 // ============================================================================
-
-const PAPER_TEXTURE_OPACITY = 0.25;
-
-/** ViewBox and default size for the sunburst SVG; single source of truth for layout. */
-export const SUNBURST_VIEWBOX_SIZE = 1000;
-
-const DEFAULT_SIZE = SUNBURST_VIEWBOX_SIZE;
 
 export type SunburstProps = {
   /**
@@ -42,7 +36,7 @@ export type SunburstProps = {
   startColor?: string;
   /** If set with startColor, use radial gradient center→edge. */
   endColor?: string;
-  /** ViewBox and rendered size in px (default SUNBURST_VIEWBOX_SIZE). */
+  /** ViewBox and rendered size in px (default from config). */
   size?: number;
   /** How viewBox maps to viewport (e.g. "xMidYMid slice" = cover, centered). */
   preserveAspectRatio?: string;
@@ -72,9 +66,9 @@ const Sunburst = ({
   opacity = 0.5,
   startColor,
   endColor,
-  size = DEFAULT_SIZE,
+  size = config.sunburst.defaultSize,
   preserveAspectRatio,
-  spiralStrength = -0.15,
+  spiralStrength = config.sunburst.spiralStrength,
 }: SunburstProps) => {
   const gradientId = useId();
   const textureId = `${gradientId}-tex`.replace(/:/g, "-");
@@ -87,10 +81,7 @@ const Sunburst = ({
   const center = size / 2;
   const radius = size / 2;
 
-  const pathStrings = useMemo(
-    () => buildRayPaths(center, radius, rayCount, spiralStrength),
-    [center, radius, rayCount, spiralStrength]
-  );
+  const pathStrings = buildRayPaths(center, radius, rayCount, spiralStrength);
 
   const gradientIdSafe = gradientId.replace(/:/g, "-");
 
@@ -133,36 +124,18 @@ const Sunburst = ({
         )}
       </Defs>
       {/* Pseudo-drop shadow: angular offset so each ray has the same shadow direction */}
-      {pathStrings.map((d, i) => (
-        <Path
-          // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
-          key={`shadow-far-${i}`}
-          d={d}
-          fill="black"
-          fillOpacity={0.02}
-          transform={`rotate(1.5, ${center}, ${center})`}
-        />
-      ))}
-      {pathStrings.map((d, i) => (
-        <Path
-          // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
-          key={`shadow-mid-${i}`}
-          d={d}
-          fill="black"
-          fillOpacity={0.02}
-          transform={`rotate(1, ${center}, ${center})`}
-        />
-      ))}
-      {pathStrings.map((d, i) => (
-        <Path
-          // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
-          key={`shadow-near-${i}`}
-          d={d}
-          fill="black"
-          fillOpacity={0.02}
-          transform={`rotate(0.5, ${center}, ${center})`}
-        />
-      ))}
+      {[1.5, 1, 0.5].flatMap((rotation, layerIdx) =>
+        pathStrings.map((d, i) => (
+          <Path
+            // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
+            key={`shadow-${layerIdx}-${i}`}
+            d={d}
+            fill="black"
+            fillOpacity={0.02}
+            transform={`rotate(${rotation}, ${center}, ${center})`}
+          />
+        ))
+      )}
       {pathStrings.map((d, i) => (
         <Path
           // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
@@ -183,7 +156,7 @@ const Sunburst = ({
             key={`tex-${i}`}
             d={d}
             fill={`url(#${textureId})`}
-            fillOpacity={PAPER_TEXTURE_OPACITY}
+            fillOpacity={config.paperTextureOpacity}
           />
         ))}
     </Svg>
