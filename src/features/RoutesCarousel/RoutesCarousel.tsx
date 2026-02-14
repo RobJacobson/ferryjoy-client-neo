@@ -16,7 +16,10 @@ import {
   TERMINAL_CONNECTIONS,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
-import { useCarouselLayout } from "@/features/RoutesCarousel/config";
+import {
+  CAROUSEL_Z_INDEX,
+  useCarouselLayout,
+} from "@/features/RoutesCarousel/config";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
@@ -65,7 +68,10 @@ const RoutesCarousel = ({ blurTargetRef }: RoutesCarouselProps) => {
   });
 
   return (
-    <View className="w-full flex-1 items-center">
+    <View
+      className="w-full flex-1 items-center"
+      style={{ zIndex: CAROUSEL_Z_INDEX }}
+    >
       <Animated.FlatList<TerminalCardData>
         ref={listRef}
         data={terminalCards}

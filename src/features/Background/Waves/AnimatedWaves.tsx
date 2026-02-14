@@ -1,16 +1,16 @@
 // ============================================================================
-// Animated Waves Component
+// Animated Waves (wave stack)
 // ============================================================================
-// Composes three layers: Foreground, OceanWaves, and Background.
-// Creates a depth effect with grass framing and animated ocean waves.
-// Uses transform-based animations for optimal 60 FPS performance.
+// Renders a single stack of Wave layers: background grass, ocean waves, then
+// foreground grass. All layers are precomputed; ocean count and lerping stay
+// flexible via config.
 // ============================================================================
 
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import type { PaperTextureSource } from "../types";
+import { Wave } from "./AnimatedWave";
 import { WAVES_CONTAINER } from "./config";
-import OceanWaves from "./OceanWaves";
-import { Background, Foreground } from "./RollingGrass";
+import { buildWaveStackLayers } from "./waveLayers";
 
 export type AnimatedWavesProps = {
   /**
@@ -20,32 +20,37 @@ export type AnimatedWavesProps = {
 };
 
 /**
- * AnimatedWaves component that composes three wave layers.
- *
- * @param props - paperTextureUrl passed to Foreground, OceanWaves, Background
+ * Renders the full wave stack (background grass, ocean waves, foreground grass)
+ * as a single list of <Wave /> components with precomputed props.
  */
-const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => (
+const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => {
+  const layers = buildWaveStackLayers(paperTextureUrl);
+
+  return (
     <View className="flex-1">
-      <ScrollView
-        className="flex-1"
-        horizontal
-        contentContainerStyle={{ height: "100%" }}
-        showsHorizontalScrollIndicator={false}
+      <View
+        className="relative h-full"
+        style={{
+          width: WAVES_CONTAINER.width,
+          marginLeft: WAVES_CONTAINER.marginOffset,
+          marginRight: WAVES_CONTAINER.marginOffset,
+        }}
       >
-        <View
-          className="relative h-full"
-          style={{
-            width: WAVES_CONTAINER.width,
-            marginLeft: WAVES_CONTAINER.marginOffset,
-            marginRight: WAVES_CONTAINER.marginOffset,
-          }}
-        >
-          <Foreground paperTextureUrl={paperTextureUrl} />
-          <OceanWaves paperTextureUrl={paperTextureUrl} />
-          <Background paperTextureUrl={paperTextureUrl} />
-        </View>
-      </ScrollView>
+        {layers.map((layer) => {
+          const { key, zIndex, wrapperStyle, ...waveProps } = layer;
+          return (
+            <View
+              key={key}
+              className="absolute inset-0"
+              style={[{ zIndex }, wrapperStyle]}
+            >
+              <Wave {...waveProps} />
+            </View>
+          );
+        })}
+      </View>
     </View>
-);
+  );
+};
 
 export default AnimatedWaves;

@@ -21,6 +21,9 @@ export const SCALE_SIDES = 0.6;
 /** Rotation when card is one slot left or right. */
 export const ROTATION_SIDES = 30;
 
+/** z-index so carousel sits above Background wave stack (foreground grass = 100). */
+export const CAROUSEL_Z_INDEX = 200;
+
 // ============================================================================
 // Layout hook
 // ============================================================================

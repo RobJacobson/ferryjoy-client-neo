@@ -184,8 +184,11 @@ const AnimatedWave = ({
           />
         )}
       </Svg>
-      </Animated.View>
-    );
+    </Animated.View>
+  );
 };
 
 export default AnimatedWave;
+
+/** Alias for use in wave stack (single Wave component). */
+export const Wave = AnimatedWave;
