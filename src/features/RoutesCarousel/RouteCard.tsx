@@ -7,7 +7,7 @@ import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { GlassView } from "@/components/GlassView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
@@ -58,7 +58,7 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={12}
       blurMethod="dimezisBlurView"
-      className="m-14 aspect-[9/16] border-radius-[32px]"
+      className="m-8 aspect-[8.5/16] border-radius-[32px]"
     >
       <GlassView className="flex-1 gap-4 rounded-[24px] p-4">
         <View className="relative aspect-[3/4] w-full">
@@ -91,16 +91,16 @@ export const RouteCard = ({
           </View>
         </View>
 
-        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-1 xs:gap-2">
+        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-2 xs:gap-3">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
               variant="glass"
               size="sm"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className="w-2/3 rounded-full py-1 sm:py-2"
+              className="w-2/3 rounded-full py-1"
             >
-              <Text className="font-playpen-600 text-pink-600 text-sm">
+              <Text className="font-playpen-400 text-gray-700 text-sm xs:text-base">
                 → {destination.terminalName}
               </Text>
             </Button>

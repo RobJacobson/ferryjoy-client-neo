@@ -38,7 +38,7 @@ const buttonVariants = cva(
           Platform.select({ web: "hover:bg-accent dark:hover:bg-accent/50" }),
         ),
         glass: cn(
-          "border border-white/40 bg-white/50 active:bg-white/75",
+          "border border-white/40 bg-white/35 active:bg-white/50",
           Platform.select({ web: "hover:bg-white/60" }),
         ),
         link: "",
@@ -82,7 +82,7 @@ const buttonTextVariants = cva(
         ),
         secondary: "text-secondary-foreground",
         ghost: "group-active:text-accent-foreground",
-        glass: "text-black/75",
+        glass: "text-black/10",
         link: cn(
           "text-primary group-active:underline",
           Platform.select({
