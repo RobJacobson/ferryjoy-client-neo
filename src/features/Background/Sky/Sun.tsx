@@ -6,30 +6,12 @@
 // sampling). Gear-like, exact paths.
 // ============================================================================
 
-import { useMemo } from "react";
 import Svg, { Circle, G, Path } from "react-native-svg";
+import config from "./config";
 
 // ============================================================================
-// Constants / types
+// Types
 // ============================================================================
-
-/** Default viewBox extent when size prop is omitted. ViewBox is origin-centered: (-half,-half) to (half,half). */
-const DEFAULT_VIEWBOX_SIZE = 1000;
-
-/** Fraction of the angular slice each ray base occupies (0-1). < 1 creates gaps. */
-const RAY_BASE_WIDTH_FRACTION = 1;
-/** Fraction of the base width the ray tip occupies (0-1). < 1 creates taper. */
-const RAY_TIP_WIDTH_FRACTION = 0.2;
-/** How much the ray tip bulges beyond outerRadius (fraction of ray height). */
-const OUTER_BULGE_FRACTION = 0.2;
-
-/** Pseudo-drop shadow: opacity and offsets (same pattern as AnimatedWave). */
-const SHADOW_OPACITY = 0.04;
-const SHADOW_LAYERS: [number, number][] = [
-  [-3, 3],
-  [-2, 2],
-  [-1, 1],
-];
 
 export type SunProps = {
   /** Number of rays/teeth. */
@@ -40,7 +22,7 @@ export type SunProps = {
   innerRadius: number;
   /** Outer radius in SVG units. */
   outerRadius: number;
-  /** ViewBox and rendered width/height in px (default DEFAULT_VIEWBOX_SIZE). */
+  /** ViewBox and rendered width/height in px (default from config). */
   size?: number;
   /** How viewBox maps to viewport (e.g. "xMidYMid slice"). */
   preserveAspectRatio?: string;
@@ -63,32 +45,42 @@ const Sun = ({
   color,
   innerRadius,
   outerRadius,
-  size = DEFAULT_VIEWBOX_SIZE,
+  size = config.sun.viewBoxSize,
   preserveAspectRatio,
 }: SunProps) => {
-  const pathStrings = useMemo(
-    () => buildSunRayPaths(0, 0, innerRadius, outerRadius, rayCount),
-    [innerRadius, outerRadius, rayCount]
+  const pathStrings = buildSunRayPaths(
+    0,
+    0,
+    innerRadius,
+    outerRadius,
+    rayCount
   );
 
-  const half = size / 2;
+  // ViewBox must fit geometry: rays extend to outerRadius + bulge. When size
+  // is small (scaled on phones), use minimum so rays are not clipped.
+  const rayHeight = outerRadius - innerRadius;
+  const maxExtent =
+    outerRadius + rayHeight * config.sun.rayGeometry.outerBulgeFraction;
+  const minViewBoxHalf = maxExtent + 5;
+  const viewBoxHalf = Math.max(size / 2, minViewBoxHalf);
 
   const shadowFill = "black";
 
+  const viewBoxSize = viewBoxHalf * 2;
   return (
     <Svg
       width="100%"
       height="100%"
-      viewBox={`${-half} ${-half} ${size} ${size}`}
+      viewBox={`${-viewBoxHalf} ${-viewBoxHalf} ${viewBoxSize} ${viewBoxSize}`}
       preserveAspectRatio={preserveAspectRatio}
     >
       {/* Pseudo-drop shadow: layered black copies (same pattern as AnimatedWave) */}
-      {SHADOW_LAYERS.map(([dx, dy]) => (
+      {config.sun.shadowLayers.map(([dx, dy]) => (
         <G
           key={`shadow-${dx}-${dy}`}
           transform={`translate(${dx}, ${dy})`}
           fill={shadowFill}
-          fillOpacity={SHADOW_OPACITY}
+          fillOpacity={config.sun.shadowOpacity}
         >
           <Circle cx={0} cy={0} r={innerRadius + 1} />
           {pathStrings.map((d, i) => (
@@ -155,15 +147,17 @@ const buildSunRayPaths = (
 ): string[] => {
   if (rayCount < 1 || outerRadius <= innerRadius) return [];
 
+  const { baseWidthFraction, tipWidthFraction, outerBulgeFraction } =
+    config.sun.rayGeometry;
   const sliceAngle = (2 * Math.PI) / rayCount;
   const rayHeight = outerRadius - innerRadius;
   const paths: string[] = [];
 
   for (let i = 0; i < rayCount; i++) {
     const midAngle = i * sliceAngle;
-    const baseHalfAngle = (sliceAngle * RAY_BASE_WIDTH_FRACTION) / 2;
+    const baseHalfAngle = (sliceAngle * baseWidthFraction) / 2;
     const tipHalfAngle =
-      (sliceAngle * RAY_BASE_WIDTH_FRACTION * RAY_TIP_WIDTH_FRACTION) / 2;
+      (sliceAngle * baseWidthFraction * tipWidthFraction) / 2;
 
     // Base points (at inner radius)
     const [ax, ay] = polarToCartesian(
@@ -197,7 +191,7 @@ const buildSunRayPaths = (
     const [outerTipX, outerTipY] = polarToCartesian(
       cx,
       cy,
-      outerRadius + rayHeight * OUTER_BULGE_FRACTION,
+      outerRadius + rayHeight * outerBulgeFraction,
       midAngle
     );
 

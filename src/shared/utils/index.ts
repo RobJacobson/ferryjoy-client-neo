@@ -16,9 +16,3 @@ export {
   lerp,
 } from "./lerp";
 export { mapProjectionUtils } from "./mapProjection";
-export {
-  generateWavePath,
-  generateWaveSvg,
-  WAVE_SVG_HEIGHT,
-  WAVE_SVG_WIDTH,
-} from "./waveSvg";

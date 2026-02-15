@@ -13,9 +13,7 @@ import {
   useFrameCallback,
   useSharedValue,
 } from "react-native-reanimated";
-
-/** Base width of the SVG canvas. Overscan is added for displacement. */
-const SVG_WIDTH = 2000;
+import { SVG_WIDTH } from "./config";
 
 const BASE_FRAME_MS = 1000 / 60;
 const MAX_FRAME_DT_MS = 34;
@@ -152,7 +150,7 @@ export function useWaveOscillation({
     return {
       transform: [{ translateX: translateX.value }],
     };
-  }, [animationDuration, translateX, waveDisplacement]);
+  }, [animationDuration, waveDisplacement]);
 
   return {
     animatedOscillationStyle,

@@ -7,7 +7,7 @@ import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { GlassView } from "@/components/GlassView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
@@ -58,26 +58,20 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={12}
       blurMethod="dimezisBlurView"
-      className="m-14 aspect-[9/16] border-radius-[32px]"
+      className="m-4 xs:m-8 aspect-[8.5/16] border-radius-[32px]"
     >
-      <GlassView className="flex-1 gap-4 rounded-[24px] p-4">
+      <GlassView borderRadius={24} className="flex-1 gap-4 rounded-[24px] p-4">
         <View className="relative aspect-[3/4] w-full">
-          <GlassView className="h-full w-full items-center justify-center rounded-3xl bg-gray-200/25">
+          <View className="h-full w-full items-center justify-center rounded-3xl border border-white bg-pink-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
-          </GlassView>
-          <View className="absolute right-0 bottom-[-22px] left-0">
+          </View>
+          <View className="absolute right-0 bottom-[-18px] xs:bottom-[-25px] left-0">
             <Button
-              className="max-w-full self-center rounded-full bg-pink-600 hover:bg-pink-300 active:bg-pink-400"
-              style={{
-                shadowColor: "rgba(0,0,0,0.2)",
-                shadowOffset: { width: 2, height: 2 },
-                shadowRadius: 4,
-                elevation: 4,
-              }}
+              className="self-center border border-white bg-pink-600 hover:bg-pink-500 active:bg-pink-400"
               variant="glass"
             >
               <Text
-                className="translate-y-1 whitespace-normal px-4 pt-[2px] text-center font-puffberry text-lg text-white leading-none tracking-wide sm:px-16"
+                className="translate-y-[2px] whitespace-normal px-4 pt-[2px] text-center font-puffberry text-lg text-white xs:text-xl leading-none tracking-wide"
                 style={{
                   textShadowColor: "rgba(0,0,0,0.2)",
                   textShadowOffset: { width: 2, height: 2 },
@@ -91,16 +85,16 @@ export const RouteCard = ({
           </View>
         </View>
 
-        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-1 xs:gap-2">
+        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-[6px] xs:gap-3">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
               variant="glass"
               size="sm"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className="w-2/3 rounded-full py-1 sm:py-2"
+              className="w-3/4 py-1"
             >
-              <Text className="font-playpen-600 text-pink-600 text-sm">
+              <Text className="font-playpen-500 text-gray-700 text-sm xs:text-base">
                 → {destination.terminalName}
               </Text>
             </Button>

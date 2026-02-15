@@ -5,26 +5,25 @@
 export type EasingFunction = (t: number) => number;
 
 /**
- * Linear interpolation function
- * Maps a value from one range to another with optional easing
+ * Linear interpolation: maps a value from one range to another with optional easing.
  *
- * @param value - The input value to interpolate
- * @param inputStart - The start of input range
- * @param inputEnd - The end of input range
- * @param outputStart - The start of output range
- * @param outputEnd - The end of output range
- * @param easingFn - Optional easing function to apply to the interpolation
- * @returns The interpolated value in the output range
+ * - **3-arg:** `lerp(value, outputStart, outputEnd)` — input range is [0, 1].
+ * - **4-arg:** `lerp(value, outputStart, outputEnd, easingFn)` — input [0, 1], with easing.
+ * - **5-arg:** `lerp(value, inputStart, inputEnd, outputStart, outputEnd)` — custom input range.
+ * - **6-arg:** add optional easing as last parameter.
+ *
+ * @returns The interpolated value in the output range.
  *
  * @example
- * ```typescript
- * // Basic linear interpolation
- * lerp(5, 0, 10, 0, 100); // returns 50
- *
- * // With easing function
- * lerp(5, 0, 10, 0, 100, EasingFunctions.easeOutCubic); // returns eased value
- * ```
+ * lerp(0.5, 100, 500); // 300 (input [0,1] → [100,500])
+ * lerp(5, 0, 10, 0, 100); // 50 (input [0,10] → [0,100])
  */
+export function lerp(
+  value: number,
+  outputStart: number,
+  outputEnd: number,
+  easingFn?: EasingFunction
+): number;
 export function lerp(
   value: number,
   inputStart: number,
@@ -32,22 +31,52 @@ export function lerp(
   outputStart: number,
   outputEnd: number,
   easingFn?: EasingFunction
+): number;
+export function lerp(
+  value: number,
+  a: number,
+  b: number,
+  c?: number | EasingFunction,
+  d?: number,
+  easingFn?: EasingFunction
 ): number {
   "worklet";
+  let inputStart: number;
+  let inputEnd: number;
+  let outStart: number;
+  let outEnd: number;
+  let easing: EasingFunction | undefined;
+
+  if (d !== undefined) {
+    // 5 or 6 args: value, inputStart, inputEnd, outputStart, outputEnd [, easingFn]
+    inputStart = a;
+    inputEnd = b;
+    outStart = c as number;
+    outEnd = d;
+    easing = easingFn;
+  } else {
+    // 3 or 4 args: value, outputStart, outputEnd [, easingFn] — input range [0, 1]
+    inputStart = 0;
+    inputEnd = 1;
+    outStart = a;
+    outEnd = b;
+    easing = typeof c === "function" ? (c as EasingFunction) : undefined;
+  }
+
   // Normalize input value to 0-1 range
   const t = (value - inputStart) / (inputEnd - inputStart);
   if (t < 0) {
-    return outputStart;
+    return outStart;
   }
   if (t > 1) {
-    return outputEnd;
+    return outEnd;
   }
 
   // Apply easing function if provided, otherwise use linear
-  const easedT = easingFn ? easingFn(t) : t;
+  const easedT = easing ? easing(t) : t;
 
   // Interpolate to output range
-  return outputStart + (outputEnd - outputStart) * easedT;
+  return outStart + (outEnd - outStart) * easedT;
 }
 
 /**
