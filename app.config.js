@@ -36,7 +36,6 @@ export default {
     },
     assetBundlePatterns: ["**/*"],
     ios: {
-      requireFullScreen: true,
       supportsTablet: true,
       bundleIdentifier: "com.robthecoder.ferryjoyclientneo",
       infoPlist: {

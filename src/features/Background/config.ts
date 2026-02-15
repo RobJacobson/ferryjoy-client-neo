@@ -32,10 +32,7 @@ export const getMaxParallaxPxSafe = (
   width: number,
   height: number
 ): number =>
-  Math.max(
-    getMaxParallaxPx(isLandscape),
-    getMaxParallaxPx(width > height)
-  );
+  Math.max(getMaxParallaxPx(isLandscape), getMaxParallaxPx(width > height));
 
 /** Sky layer parallax multiplier (0–100). Farthest layer, moves least. */
 export const SKY_PARALLAX_MULTIPLIER = 8;

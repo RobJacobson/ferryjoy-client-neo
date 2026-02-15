@@ -56,15 +56,22 @@ const Sun = ({
     rayCount
   );
 
-  const half = size / 2;
+  // ViewBox must fit geometry: rays extend to outerRadius + bulge. When size
+  // is small (scaled on phones), use minimum so rays are not clipped.
+  const rayHeight = outerRadius - innerRadius;
+  const maxExtent =
+    outerRadius + rayHeight * config.sun.rayGeometry.outerBulgeFraction;
+  const minViewBoxHalf = maxExtent + 5;
+  const viewBoxHalf = Math.max(size / 2, minViewBoxHalf);
 
   const shadowFill = "black";
 
+  const viewBoxSize = viewBoxHalf * 2;
   return (
     <Svg
       width="100%"
       height="100%"
-      viewBox={`${-half} ${-half} ${size} ${size}`}
+      viewBox={`${-viewBoxHalf} ${-viewBoxHalf} ${viewBoxSize} ${viewBoxSize}`}
       preserveAspectRatio={preserveAspectRatio}
     >
       {/* Pseudo-drop shadow: layered black copies (same pattern as AnimatedWave) */}

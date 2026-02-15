@@ -63,7 +63,7 @@ const Sunburst = ({
   paperTextureUrl,
   rayCount,
   color = "white",
-  opacity = 0.5,
+  opacity = 1,
   startColor,
   endColor,
   size = config.sunburst.defaultSize,

@@ -42,8 +42,27 @@ const sunburstRotationStyle = {
 };
 
 /**
+ * Minimum sunburst size multiplier so it extends to the container's right edge
+ * when scrolled. With centerX=25%, sunburst right edge = 0.25*width + size/2.
+ * Requiring that >= width gives size >= 1.5*width.
+ */
+const SUNBURST_WIDTH_MULTIPLIER = 1.5;
+
+/**
+ * Max sunburst size multiplier on small screens. Keeps the spiral visible and
+ * rays curved; on phones, 2000px would make rays appear nearly straight.
+ */
+const SUNBURST_MAX_SCREEN_MULTIPLIER = 2.5;
+
+/**
+ * Sun disc max fraction of screen width. Prevents disproportionate size on phones.
+ */
+const SUN_MAX_WIDTH_FRACTION = 0.22;
+
+/**
  * Lays out the Sunburst so its center is at (centerX%, centerY%) of the
- * container. Size is the size prop (px) or config default.
+ * container. Size scales with container width so the sunburst always covers
+ * the full visible area when the carousel is panned (e.g. iPad landscape).
  *
  * @param props - paperTextureUrl, rayCount (required), centerX, centerY (0–100), optional size (px)
  * @returns Container view with positioned Sunburst
@@ -53,7 +72,7 @@ const SunburstLayout = ({
   rayCount,
   centerX = config.sunburst.centerX,
   centerY = config.sunburst.centerY,
-  layoutSize = config.sunburst.defaultSize,
+  layoutSize: layoutSizeProp = config.sunburst.defaultSize,
 }: SunburstLayoutProps) => {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
 
@@ -62,7 +81,19 @@ const SunburstLayout = ({
     setLayout({ width, height });
   };
 
-  const { sizePx: sunSizePx } = config.sun;
+  // Cover right edge at max scroll; cap on small screens so rays stay curved
+  const minForCoverage = layout.width * SUNBURST_WIDTH_MULTIPLIER;
+  const maxForPhones = layout.width * SUNBURST_MAX_SCREEN_MULTIPLIER;
+  const layoutSize = Math.max(
+    minForCoverage,
+    Math.min(layoutSizeProp, maxForPhones)
+  );
+
+  const { sizePx: sunSizePxConfig } = config.sun;
+  const sunSizePx =
+    layout.width > 0
+      ? Math.min(sunSizePxConfig, layout.width * SUN_MAX_WIDTH_FRACTION)
+      : sunSizePxConfig;
   const left = layout.width * (centerX / 100) - layoutSize / 2;
   const top = layout.height * (centerY / 100) - layoutSize / 2;
   const sunLeft = layout.width * (centerX / 100) - sunSizePx / 2;

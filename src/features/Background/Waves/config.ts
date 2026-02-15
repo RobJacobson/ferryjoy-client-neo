@@ -45,8 +45,8 @@ export const OCEAN_WAVES = {
   baseColor: "#28e",
   period: { min: 100, max: 500 },
   height: { min: 50, max: 12 },
-  amplitude: { min: 4, max: 24 },
-  animationDuration: { min: 30000, max: 120000 },
+  amplitude: { min: 2, max: 20 },
+  animationDuration: { min: 40000, max: 120000 },
   waveDisplacement: { min: 100, max: 800 },
   lightness: { min: 150, max: 500 },
 } as const;
