@@ -98,13 +98,7 @@ export const GlassView = ({
           >
             <Defs>
               <Mask id={maskId}>
-                <Rect
-                  x={0}
-                  y={0}
-                  width={svgW}
-                  height={svgH}
-                  fill="white"
-                />
+                <Rect x={0} y={0} width={svgW} height={svgH} fill="white" />
                 <Rect
                   x={0}
                   y={0}

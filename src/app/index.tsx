@@ -12,7 +12,7 @@ export default function Home() {
   const blurTargetRef = useRef<View | null>(null);
   const insets = useSafeAreaInsets();
   const scrollX = useSharedValue(0);
-  const { slotWidth } = useCarouselLayout();
+  const { slotWidth, width } = useCarouselLayout();
 
   return (
     <View
@@ -30,6 +30,7 @@ export default function Home() {
         blurTargetRef={blurTargetRef}
         scrollX={scrollX}
         slotWidth={slotWidth}
+        viewportWidth={width}
       />
     </View>
   );

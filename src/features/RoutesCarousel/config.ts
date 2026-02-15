@@ -1,9 +1,12 @@
 /**
  * Layout and animation configuration for the routes carousel.
  * Slot width from window; height uses flex to fill available space.
+ * In landscape, slot width is capped so the next card appears before the current
+ * one scrolls off (e.g. on iPad).
  */
 
 import { useWindowDimensions } from "react-native";
+import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
 
 // ============================================================================
 // Animation constants
@@ -11,6 +14,9 @@ import { useWindowDimensions } from "react-native";
 
 /** Horizontal offset for parallax so adjacent cards sit slightly inset. */
 export const PARALLAX_OFFSET = 200;
+
+/** Max slot width in landscape; prevents one card scrolling off before next appears. */
+export const MAX_SLOT_WIDTH_LANDSCAPE = 600;
 
 /** Scale when card is centered. */
 export const SCALE_CENTER = 1.0;
@@ -29,11 +35,17 @@ export const CAROUSEL_Z_INDEX = 200;
 // ============================================================================
 
 /**
- * Returns carousel slot width from window dimensions. Height fills via flex.
+ * Returns carousel slot width and viewport width from window dimensions.
+ * In landscape, slot width is capped so the next card appears before the
+ * current one scrolls off. Height fills via flex.
  *
- * @returns slotWidth (full window width)
+ * @returns slotWidth (full width in portrait, capped in landscape), width (viewport)
  */
 export const useCarouselLayout = () => {
   const { width } = useWindowDimensions();
-  return { slotWidth: width };
+  const isLandscape = useIsLandscape();
+  const slotWidth = isLandscape
+    ? Math.min(width, MAX_SLOT_WIDTH_LANDSCAPE)
+    : width;
+  return { slotWidth, width };
 };

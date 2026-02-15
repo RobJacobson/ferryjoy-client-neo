@@ -12,7 +12,7 @@ import { MAX_PARALLAX_PX } from "./config";
  * Required width for a parallax layer so it never shows empty space when
  * scrolled right, given screen width, number of cards, and parallax multiplier.
  *
- * @param screenWidth - Slot width from useCarouselLayout (matches viewport width)
+ * @param screenWidth - Viewport width (visible screen width) for layer coverage
  * @param numCards - Number of carousel cards
  * @param parallaxMultiplier - 0–100 (e.g. SKY_PARALLAX_MULTIPLIER or PARALLAX_WAVES_MAX)
  * @param maxParallaxPx - Effective max from getMaxParallaxPx(width, height)

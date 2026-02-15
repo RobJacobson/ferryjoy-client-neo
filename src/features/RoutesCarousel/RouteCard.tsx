@@ -58,7 +58,7 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={12}
       blurMethod="dimezisBlurView"
-      className="m-4 xs:m-12 aspect-[8.5/16] border-radius-[32px] md:m-8"
+      className="m-4 xs:m-8 aspect-[8.5/16] border-radius-[32px]"
     >
       <GlassView borderRadius={24} className="flex-1 gap-4 rounded-[24px] p-4">
         <View className="relative aspect-[3/4] w-full">

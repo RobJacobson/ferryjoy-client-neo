@@ -90,7 +90,7 @@ const AnimatedWaves = ({
   const { width, height } = useWindowDimensions();
   const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
   const wavesWidth = computeRequiredBackgroundWidth(
-    slotWidth,
+    width,
     NUM_TERMINAL_CARDS,
     PARALLAX_WAVES_MAX,
     maxParallaxPx

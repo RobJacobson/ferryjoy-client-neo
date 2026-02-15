@@ -46,7 +46,7 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
   }, [slotWidth, maxParallaxPx]);
 
   const skyWidth = computeRequiredBackgroundWidth(
-    slotWidth,
+    width,
     NUM_TERMINAL_CARDS,
     SKY_PARALLAX_MULTIPLIER,
     maxParallaxPx

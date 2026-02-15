@@ -6,7 +6,7 @@
 // ============================================================================
 
 /** Max parallax movement in pixels per card for the strongest layer (multiplier 100). */
-export const MAX_PARALLAX_PX = 50;
+export const MAX_PARALLAX_PX = 100;
 
 /**
  * Effective max parallax from screen orientation. Doubles in landscape so the

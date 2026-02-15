@@ -37,6 +37,10 @@ type RoutesCarouselProps = {
    * Width of one carousel slot (e.g. from useCarouselLayout).
    */
   slotWidth: number;
+  /**
+   * Viewport width; when larger than slotWidth (e.g. landscape), used to center the active card.
+   */
+  viewportWidth: number;
 };
 
 // ============================================================================
@@ -53,11 +57,16 @@ const RoutesCarousel = ({
   blurTargetRef,
   scrollX,
   slotWidth,
+  viewportWidth,
 }: RoutesCarouselProps) => {
   const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
 
   const terminalCards =
     transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+
+  // When viewport is wider than slot (e.g. landscape), pad so the active card centers.
+  const horizontalPadding =
+    viewportWidth > slotWidth ? (viewportWidth - slotWidth) / 2 : 0;
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event: ScrollEvent) => {
@@ -70,7 +79,7 @@ const RoutesCarousel = ({
     index: number
   ) => ({
     length: slotWidth,
-    offset: index * slotWidth,
+    offset: horizontalPadding + index * slotWidth,
     index,
   });
 
@@ -83,7 +92,10 @@ const RoutesCarousel = ({
         ref={listRef}
         data={terminalCards}
         horizontal
-        contentContainerStyle={{ minHeight: "100%" }}
+        contentContainerStyle={{
+          minHeight: "100%",
+          paddingHorizontal: horizontalPadding,
+        }}
         showsHorizontalScrollIndicator={false}
         snapToInterval={slotWidth}
         snapToAlignment="start"
