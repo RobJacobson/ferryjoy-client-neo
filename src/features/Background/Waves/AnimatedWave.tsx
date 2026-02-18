@@ -96,13 +96,12 @@ const AnimatedWave = ({
   height = 50,
   paperTextureUrl,
 }: AnimatedWaveProps) => {
-  const { animatedOscillationStyle, overscanX, svgRenderWidth } =
-    useWaveOscillation({
-      animationDuration,
-      animationDelay,
-      waveDisplacement,
-      phaseOffset,
-    });
+  const { animatedOscillationStyle, svgRenderWidth } = useWaveOscillation({
+    animationDuration,
+    animationDelay,
+    waveDisplacement,
+    phaseOffset,
+  });
 
   const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
   const pathData = generateWavePath(
@@ -122,9 +121,9 @@ const AnimatedWave = ({
           {
             position: "absolute",
             top: 0,
-            right: -overscanX,
+            right: 0,
             bottom: 0,
-            left: -overscanX,
+            left: 0,
           },
           animatedOscillationStyle,
         ] as (ViewStyle | AnimatedStyle<ViewStyle>)[]

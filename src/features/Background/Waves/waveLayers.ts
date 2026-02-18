@@ -119,6 +119,7 @@ const buildBackgroundGrassLayers = (): WaveLayer[] =>
       BACKGROUND_LAYERS.length > 1 ? i / (BACKGROUND_LAYERS.length - 1) : 0;
     return {
       key: `bg-${i}-${layer.height}-${layer.period}`,
+      zIndex: i + 1,
       parallaxMultiplier: Math.round(
         lerp(t, PARALLAX_BG_GRASS.min, PARALLAX_BG_GRASS.max)
       ),
