@@ -62,8 +62,18 @@ const ParallaxWaveLayer = ({
 
   return (
     <Animated.View
-      className="absolute inset-0"
-      style={[parallaxStyle, { zIndex }, wrapperStyle]}
+      style={[
+        parallaxStyle,
+        {
+          position: "absolute",
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          zIndex,
+        },
+        wrapperStyle,
+      ]}
     >
       {children}
     </Animated.View>
@@ -97,7 +107,15 @@ const AnimatedWaves = ({
   );
 
   return (
-    <View className="flex-1">
+    <View
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+      }}
+    >
       <View
         className="relative h-full"
         style={{
