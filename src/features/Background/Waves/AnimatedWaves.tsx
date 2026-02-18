@@ -7,14 +7,13 @@
 
 import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
-import { useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
-import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPxSafe, PARALLAX_WAVES_MAX } from "../config";
-import { computeRequiredBackgroundWidth } from "../parallaxWidth";
+import Animated from "react-native-reanimated";
+import { PARALLAX_WAVES_MAX } from "../config";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
+import { useBackgroundLayout } from "../useBackgroundLayout";
+import { useParallaxScroll } from "../useParallaxScroll";
 import { Wave } from "./AnimatedWave";
 import { buildWaveStackLayers } from "./waveLayers";
 
@@ -51,14 +50,12 @@ const ParallaxWaveLayer = ({
   wrapperStyle,
   children,
 }: ParallaxWaveLayerProps) => {
-  const parallaxStyle = useAnimatedStyle(() => {
-    if (slotWidth === 0) {
-      return { transform: [{ translateX: 0 }] };
-    }
-    const progress = scrollX.value / slotWidth;
-    const translateX = -progress * (parallaxMultiplier / 100) * maxParallaxPx;
-    return { transform: [{ translateX }] };
-  }, [slotWidth, parallaxMultiplier, maxParallaxPx]);
+  const parallaxStyle = useParallaxScroll({
+    scrollX,
+    slotWidth,
+    parallaxMultiplier,
+    maxParallaxPx,
+  });
 
   return (
     <Animated.View
@@ -96,15 +93,9 @@ const AnimatedWaves = ({
   slotWidth,
 }: AnimatedWavesProps) => {
   const layers = buildWaveStackLayers(paperTextureUrl);
-  const isLandscape = useIsLandscape();
-  const { width, height } = useWindowDimensions();
-  const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
-  const wavesWidth = computeRequiredBackgroundWidth(
-    width,
-    NUM_TERMINAL_CARDS,
-    PARALLAX_WAVES_MAX,
-    maxParallaxPx
-  );
+  const { maxParallaxPx, requiredWidth: wavesWidth } = useBackgroundLayout({
+    parallaxMultiplier: PARALLAX_WAVES_MAX,
+  });
 
   return (
     <View
