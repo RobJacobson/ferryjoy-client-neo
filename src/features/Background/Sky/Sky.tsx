@@ -37,7 +37,7 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
   const parallaxStyle = useParallaxScroll({
     scrollX,
     slotWidth,
-    parallaxMultiplier: maxParallaxPx,
+    parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
     maxParallaxPx,
   });
 
