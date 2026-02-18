@@ -14,7 +14,7 @@ import type {
 
 /**
  * Drives horizontal sinusoidal oscillation for wave components using CSS animations.
- * Uses negative animationDelay to achieve phase offsets without waiting.
+ * Uses negative animationDelay to achieve phase offsetcs without waiting.
  * Wave oscillates from center (translateX: 0) to +displacement and back.
  *
  * @param animationDuration - Animation duration in milliseconds

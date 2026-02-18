@@ -43,7 +43,7 @@ export const SHADOW_LAYERS: [number, number][] = [
 export const OCEAN_WAVES = {
   count: 16,
   baseColor: "#28e",
-  period: { min: 100, max: 500 },
+  period: { min: 75, max: 750 },
   height: { min: 50, max: 12 },
   amplitude: { min: 2, max: 20 },
   animationDuration: { min: 40000, max: 120000 },
