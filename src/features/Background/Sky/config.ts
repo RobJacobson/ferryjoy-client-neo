@@ -22,22 +22,22 @@ const orange = {
 
 /** Sky gradient and paper overlay. */
 const gradient = {
-  start: pink[3],
-  end: "white",
+  start: pink[1],
+  end: pink[3],
 } as const;
 
 /** Sunburst layout, rotation, and radial gradient. */
 const sunburst = {
   viewBoxSize: 1000,
   defaultSize: 2000,
-  rayCount: 16,
+  rayCount: 12,
   centerX: 25,
   centerY: 20,
   spiralStrength: -0.5,
-  rotationDurationMs: 120_000,
+  rotationDurationMs: 180_000,
   preserveAspectRatio: "xMidYMid slice" as const,
-  startColor: pink[3],
-  endColor: pink[2],
+  startColor: pink[1],
+  endColor: pink[4],
 } as const;
 
 /** Sun disc: layout, shadow, and ray path geometry. */

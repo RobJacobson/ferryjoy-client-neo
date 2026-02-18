@@ -3,7 +3,8 @@
 // ============================================================================
 // SVG sunburst effect: configurable number of rays as curved triangular paths
 // from center, alternating with gaps. Rays use quadratic Bézier curves for a
-// spiral effect. Optional radial gradient (startColor → endColor).
+// spiral effect. Solid fill from startColor, or radial gradient (startColor →
+// endColor) when endColor is provided.
 // ============================================================================
 
 import { useId } from "react";
@@ -26,15 +27,11 @@ export type SunburstProps = {
    * Paper texture source. When null, SVG does not render the texture overlay.
    */
   paperTextureUrl?: number | string | null;
-  /** Number of white rays (gaps = same count). */
+  /** Number of rays (gaps = same count). */
   rayCount: number;
-  /** Solid fill when gradient not used. */
-  color?: string;
-  /** Solid fill opacity when gradient not used. */
-  opacity?: number;
-  /** If set with endColor, use radial gradient center→edge. */
-  startColor?: string;
-  /** If set with startColor, use radial gradient center→edge. */
+  /** Required solid or gradient start color. */
+  startColor: string;
+  /** Optional gradient end color. If omitted, solid fill with startColor. */
   endColor?: string;
   /** ViewBox and rendered size in px (default from config). */
   size?: number;
@@ -53,17 +50,15 @@ export type SunburstProps = {
 
 /**
  * Renders an SVG sunburst: rays as curved triangles from center, alternating with
- * gaps. Supports solid fill (color/opacity) or radial gradient (startColor/endColor).
+ * gaps. Supports solid fill (startColor) or radial gradient (startColor → endColor).
  * When rayCount is 0, renders an empty SVG.
  *
- * @param props - Sunburst props (rayCount required; color, opacity, startColor, endColor, size, spiralStrength optional)
+ * @param props - Sunburst props (rayCount, startColor required; endColor, size, spiralStrength optional)
  * @returns SVG sunburst element
  */
 const Sunburst = ({
   paperTextureUrl,
   rayCount,
-  color = "white",
-  opacity = 1,
   startColor,
   endColor,
   size = config.sunburst.defaultSize,
@@ -72,11 +67,7 @@ const Sunburst = ({
 }: SunburstProps) => {
   const gradientId = useId();
   const textureId = `${gradientId}-tex`.replace(/:/g, "-");
-  const useGradient =
-    startColor != null &&
-    startColor !== "" &&
-    endColor != null &&
-    endColor !== "";
+  const useGradient = endColor != null && endColor !== "";
 
   const center = size / 2;
   const radius = size / 2;
@@ -141,8 +132,7 @@ const Sunburst = ({
           // biome-ignore lint/suspicious/noArrayIndexKey: rays are deterministic from rayCount, never reorder
           key={i}
           d={d}
-          fill={useGradient ? `url(#${gradientIdSafe})` : color}
-          fillOpacity={useGradient ? undefined : opacity}
+          fill={useGradient ? `url(#${gradientIdSafe})` : startColor}
           stroke="black"
           strokeOpacity={0.15}
           strokeWidth={0.5}
