@@ -8,11 +8,10 @@
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { SKY_PARALLAX_MULTIPLIER } from "../config";
+import { ParallaxLayer } from "../ParallaxLayer";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
-import { useParallaxScroll } from "../useParallaxScroll";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
 
@@ -34,25 +33,19 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
     parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
   });
 
-  const parallaxStyle = useParallaxScroll({
-    scrollX,
-    slotWidth,
-    parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
-    maxParallaxPx,
-  });
-
   return (
-    <Animated.View
-      style={[
-        parallaxStyle,
-        {
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: skyWidth,
-        },
-      ]}
+    <ParallaxLayer
+      scrollX={scrollX}
+      slotWidth={slotWidth}
+      parallaxMultiplier={SKY_PARALLAX_MULTIPLIER}
+      maxParallaxPx={maxParallaxPx}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: skyWidth,
+      }}
     >
       <View className="absolute inset-0">
         <LinearGradient
@@ -87,7 +80,7 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
           layoutSize={config.sunburst.defaultSize}
         />
       </View>
-    </Animated.View>
+    </ParallaxLayer>
   );
 };
 

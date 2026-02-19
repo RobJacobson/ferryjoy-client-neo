@@ -5,78 +5,34 @@
 // foreground grass. All layers are precomputed; parallax per layer from scroll.
 // ============================================================================
 
-import type { ReactNode } from "react";
-import type { ViewStyle } from "react-native";
-import { View } from "react-native";
-import type { SharedValue } from "react-native-reanimated";
-import Animated from "react-native-reanimated";
-import { PARALLAX_WAVES_MAX } from "../config";
+import { useWindowDimensions, View } from "react-native";
+import { createColorGenerator, lerp } from "@/shared/utils";
+import {
+  PARALLAX_BG_GRASS,
+  PARALLAX_FG_GRASS,
+  PARALLAX_OCEAN,
+  PARALLAX_WAVES_MAX,
+} from "../config";
+import { ParallaxLayer } from "../ParallaxLayer";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
-import { useParallaxScroll } from "../useParallaxScroll";
-import { AnimatedWave } from "./AnimatedWave";
-import { SVG_WIDTH } from "./config";
-import { WaveSvg } from "./WaveSvg";
-import { buildWaveStackLayers } from "./waveLayers";
+import {
+  BACKGROUND_LAYERS,
+  FOREGROUND_LAYERS,
+  GRASS_BASE_COLOR,
+  OCEAN_WAVES,
+} from "./config";
+import { WaveLayerView } from "./WaveLayerView";
+
+const OCEAN_LAYER_INDICES = Array(OCEAN_WAVES.count)
+  .fill(0)
+  .map((_, index) => index);
 
 export type AnimatedWavesProps = BackgroundParallaxProps & {
   /**
    * Paper texture source. When null, wave SVGs do not render the texture overlay.
    */
   paperTextureUrl: PaperTextureSource;
-};
-
-// ============================================================================
-// ParallaxWaveLayer
-// ============================================================================
-
-type ParallaxWaveLayerProps = {
-  scrollX: SharedValue<number>;
-  slotWidth: number;
-  parallaxMultiplier: number;
-  maxParallaxPx: number;
-  zIndex?: number;
-  wrapperStyle?: ViewStyle;
-  children: ReactNode;
-};
-
-/**
- * Wrapper that applies scroll-driven translateX for one wave layer.
- */
-const ParallaxWaveLayer = ({
-  scrollX,
-  slotWidth,
-  parallaxMultiplier,
-  maxParallaxPx,
-  zIndex,
-  wrapperStyle,
-  children,
-}: ParallaxWaveLayerProps) => {
-  const parallaxStyle = useParallaxScroll({
-    scrollX,
-    slotWidth,
-    parallaxMultiplier,
-    maxParallaxPx,
-  });
-
-  return (
-    <Animated.View
-      style={[
-        parallaxStyle,
-        {
-          position: "absolute",
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: 0,
-          zIndex,
-        },
-        wrapperStyle,
-      ]}
-    >
-      {children}
-    </Animated.View>
-  );
 };
 
 // ============================================================================
@@ -94,10 +50,18 @@ const AnimatedWaves = ({
   scrollX,
   slotWidth,
 }: AnimatedWavesProps) => {
-  const layers = buildWaveStackLayers(paperTextureUrl);
+  const { height: containerHeightPx } = useWindowDimensions();
   const { maxParallaxPx, requiredWidth: wavesWidth } = useBackgroundLayout({
     parallaxMultiplier: PARALLAX_WAVES_MAX,
   });
+
+  const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
+  const grassColor = createColorGenerator(GRASS_BASE_COLOR);
+
+  const computePhaseOffset = (index: number): number => {
+    const t = ((index * 73) % 101) / 101;
+    return t * 2 * Math.PI;
+  };
 
   return (
     <View
@@ -117,46 +81,137 @@ const AnimatedWaves = ({
           marginRight: 0,
         }}
       >
-        {layers.map((layer) => {
-          const {
-            key,
-            zIndex,
-            wrapperStyle,
-            parallaxMultiplier,
-            ...waveProps
-          } = layer;
+        {BACKGROUND_LAYERS.map((layer, i) => {
+          const t =
+            BACKGROUND_LAYERS.length > 1
+              ? i / (BACKGROUND_LAYERS.length - 1)
+              : 0;
           return (
-            <ParallaxWaveLayer
-              key={key}
+            <ParallaxLayer
+              key={`bg-${layer.height}-${layer.period}-${layer.amplitude}`}
               scrollX={scrollX}
               slotWidth={slotWidth}
-              parallaxMultiplier={parallaxMultiplier}
-              maxParallaxPx={maxParallaxPx}
-              zIndex={zIndex}
-              wrapperStyle={wrapperStyle}
-            >
-              {waveProps.animationDuration && waveProps.waveDisplacement ? (
-                <AnimatedWave {...waveProps} />
-              ) : (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: 0,
-                  }}
-                >
-                  <WaveSvg
-                    {...waveProps}
-                    svgRenderWidth={
-                      SVG_WIDTH +
-                      2 * Math.max(0, waveProps.waveDisplacement ?? 0)
-                    }
-                  />
-                </View>
+              parallaxMultiplier={Math.round(
+                lerp(t, PARALLAX_BG_GRASS.min, PARALLAX_BG_GRASS.max),
               )}
-            </ParallaxWaveLayer>
+              maxParallaxPx={maxParallaxPx}
+              style={[
+                {
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: i + 1,
+                },
+              ]}
+            >
+              <WaveLayerView
+                amplitude={layer.amplitude}
+                period={layer.period}
+                fillColor={layer.fillColor ?? grassColor(layer.lightness ?? 0)}
+                height={layer.height}
+                waveDisplacementPx={layer.waveDisplacementPx}
+                paperTextureUrl={paperTextureUrl}
+                containerWidthPx={wavesWidth}
+                containerHeightPx={containerHeightPx}
+              />
+            </ParallaxLayer>
+          );
+        })}
+
+        {OCEAN_LAYER_INDICES.map((index) => {
+          const t = OCEAN_WAVES.count > 1 ? index / (OCEAN_WAVES.count - 1) : 0;
+          const zIndex = 10 + index;
+          return (
+            <ParallaxLayer
+              key={`ocean-${zIndex}`}
+              scrollX={scrollX}
+              slotWidth={slotWidth}
+              parallaxMultiplier={Math.round(
+                lerp(t, PARALLAX_OCEAN.min, PARALLAX_OCEAN.max),
+              )}
+              maxParallaxPx={maxParallaxPx}
+              style={[
+                {
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex,
+                },
+              ]}
+            >
+              <WaveLayerView
+                amplitude={lerp(
+                  t,
+                  OCEAN_WAVES.amplitude.min,
+                  OCEAN_WAVES.amplitude.max,
+                )}
+                period={lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max)}
+                fillColor={blueColor(
+                  lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max),
+                )}
+                height={lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max)}
+                animationDuration={lerp(
+                  t,
+                  OCEAN_WAVES.animationDuration.min,
+                  OCEAN_WAVES.animationDuration.max,
+                )}
+                waveDisplacementPx={lerp(
+                  t,
+                  OCEAN_WAVES.waveDisplacementPx.min,
+                  OCEAN_WAVES.waveDisplacementPx.max,
+                )}
+                phaseOffset={computePhaseOffset(index)}
+                paperTextureUrl={paperTextureUrl}
+                containerWidthPx={wavesWidth}
+                containerHeightPx={containerHeightPx}
+              />
+            </ParallaxLayer>
+          );
+        })}
+
+        {[...FOREGROUND_LAYERS].reverse().map((layer, i) => {
+          const t =
+            FOREGROUND_LAYERS.length > 1
+              ? i / (FOREGROUND_LAYERS.length - 1)
+              : 0;
+          const zIndex = i === 0 ? 101 : 100;
+          const wrapperStyle = { marginBottom: i === 0 ? -10 : 0 };
+          return (
+            <ParallaxLayer
+              key={`fg-${layer.height}-${layer.period}-${layer.amplitude}`}
+              scrollX={scrollX}
+              slotWidth={slotWidth}
+              parallaxMultiplier={Math.round(
+                lerp(t, PARALLAX_FG_GRASS.min, PARALLAX_FG_GRASS.max),
+              )}
+              maxParallaxPx={maxParallaxPx}
+              style={[
+                {
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex,
+                },
+                wrapperStyle,
+              ]}
+            >
+              <WaveLayerView
+                amplitude={layer.amplitude}
+                period={layer.period}
+                fillColor={grassColor(layer.lightness)}
+                height={layer.height}
+                waveDisplacementPx={layer.waveDisplacementPx}
+                paperTextureUrl={paperTextureUrl}
+                containerWidthPx={wavesWidth}
+                containerHeightPx={containerHeightPx}
+              />
+            </ParallaxLayer>
           );
         })}
       </View>

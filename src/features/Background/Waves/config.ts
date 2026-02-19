@@ -47,7 +47,7 @@ export const OCEAN_WAVES = {
   height: { min: 50, max: 12 },
   amplitude: { min: 2, max: 20 },
   animationDuration: { min: 40000, max: 120000 },
-  waveDisplacement: { min: 100, max: 800 },
+  waveDisplacementPx: { min: 100, max: 800 },
   lightness: { min: 150, max: 500 },
 } as const;
 
@@ -68,14 +68,14 @@ export const FOREGROUND_LAYERS = [
     period: 400,
     lightness: 450,
     height: 12,
-    waveDisplacement: 0,
+    waveDisplacementPx: 0,
   },
   {
     amplitude: 10,
     period: 700,
     lightness: 400,
     height: 8,
-    waveDisplacement: 20,
+    waveDisplacementPx: 20,
   },
 ] as const;
 
@@ -87,7 +87,7 @@ export const BACKGROUND_LAYERS: Array<{
   amplitude: number;
   period: number;
   height: number;
-  waveDisplacement: number;
+  waveDisplacementPx: number;
   fillColor?: string;
   lightness?: number;
 }> = [
@@ -96,41 +96,41 @@ export const BACKGROUND_LAYERS: Array<{
     period: 200,
     fillColor: "#DEF",
     height: 55,
-    waveDisplacement: 50,
+    waveDisplacementPx: 50,
   },
   {
     amplitude: 18,
     period: 300,
     lightness: 600,
     height: 58,
-    waveDisplacement: 0,
+    waveDisplacementPx: 0,
   },
   {
     amplitude: 16,
     period: 450,
     lightness: 550,
     height: 57,
-    waveDisplacement: 200,
+    waveDisplacementPx: 200,
   },
   {
     amplitude: 12,
     period: 450,
     lightness: 500,
     height: 56,
-    waveDisplacement: 0,
+    waveDisplacementPx: 0,
   },
   {
     amplitude: 10,
     period: 400,
     lightness: 450,
     height: 55,
-    waveDisplacement: 0,
+    waveDisplacementPx: 0,
   },
   {
     amplitude: 2,
     period: 300,
     lightness: 400,
     height: 52,
-    waveDisplacement: 50,
+    waveDisplacementPx: 50,
   },
 ];

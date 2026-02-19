@@ -23,7 +23,8 @@ export type WaveSvgProps = {
   fillOpacity?: number;
   height?: number;
   paperTextureUrl?: PaperTextureSource;
-  svgRenderWidth: number;
+  renderWidthPx: number;
+  renderHeightPx: number;
 };
 
 /**
@@ -36,14 +37,16 @@ export const WaveSvg = ({
   fillOpacity = 1,
   height = 50,
   paperTextureUrl,
-  svgRenderWidth,
+  renderWidthPx,
+  renderHeightPx,
 }: WaveSvgProps) => {
+  const viewBoxWidth = (renderWidthPx / renderHeightPx) * SVG_HEIGHT;
   const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
   const pathData = generateWavePath(
     amplitude,
     period,
     centerY,
-    svgRenderWidth,
+    viewBoxWidth,
     SVG_HEIGHT
   );
   const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
@@ -52,7 +55,7 @@ export const WaveSvg = ({
     <Svg
       width="100%"
       height="100%"
-      viewBox={`0 0 ${svgRenderWidth} ${SVG_HEIGHT}`}
+      viewBox={`0 0 ${viewBoxWidth} ${SVG_HEIGHT}`}
       preserveAspectRatio="none"
     >
       <Defs>

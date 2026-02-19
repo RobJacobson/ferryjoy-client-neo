@@ -7,7 +7,6 @@
 // ============================================================================
 
 import type { ViewStyle } from "react-native";
-import { SVG_WIDTH } from "./config";
 
 /** Props for the wave oscillation animation. */
 export interface UseWaveOscillationProps {
@@ -15,8 +14,8 @@ export interface UseWaveOscillationProps {
   animationDuration?: number;
   /** Delay before animation starts in milliseconds. */
   animationDelay?: number;
-  /** Maximum horizontal displacement in SVG units. */
-  waveDisplacement?: number;
+  /** Maximum horizontal displacement in pixels. */
+  waveDisplacementPx?: number;
   /** Phase offset for the wave oscillation in radians. */
   phaseOffset?: number;
 }
@@ -25,42 +24,44 @@ export interface UseWaveOscillationProps {
 export interface UseWaveOscillationResult {
   /** Style to apply to the wrapper Animated.View for horizontal oscillation. */
   animatedOscillationStyle: ViewStyle;
-  /** Horizontal overscan in SVG units (for layout and viewBox). */
-  overscanX: number;
-  /** Total SVG render width (SVG_WIDTH + 2 * overscanX). */
-  svgRenderWidth: number;
 }
 
 /**
  * Drives horizontal sinusoidal oscillation for wave components using CSS animations.
  * Uses negative animationDelay to achieve phase offsets without waiting.
- * Wave oscillates from center (translateX: 0) to +displacement and back.
+ * Wave oscillates from -displacement to +displacement and back.
  *
  * @param props - Animation parameters (duration, delay, displacement, phase)
- * @returns animatedOscillationStyle, overscanX, svgRenderWidth
+ * @returns animatedOscillationStyle
  */
-export const useWaveOscillationCSS = ({
+export const useWaveOscillation = ({
   animationDuration,
   animationDelay = 0,
-  waveDisplacement = 0,
+  waveDisplacementPx = 0,
   phaseOffset = 0,
 }: UseWaveOscillationProps): UseWaveOscillationResult => {
-  const overscanX = Math.max(0, waveDisplacement);
-  const svgRenderWidth = SVG_WIDTH + overscanX * 2;
+  const displacementPx = Math.max(0, waveDisplacementPx);
+  const shouldAnimate = (animationDuration ?? 0) > 0 && displacementPx > 0;
 
-  // Convert phase offset to negative delay: starts animation immediately at correct phase
+  if (!shouldAnimate) {
+    return { animatedOscillationStyle: {} };
+  }
+
+  const durationMs = animationDuration ?? 0;
+
+  // Convert phase offset to negative delay: starts animation immediately at
+  // correct phase (no waiting).
   // phaseOffset of 0 = no delay, phaseOffset of π = -50% of duration
-  // biome-ignore lint/style/noNonNullAssertion: Already checked via shouldAnimate
-  const phaseDelay = -(phaseOffset / (2 * Math.PI)) * animationDuration!;
+  const phaseDelay = -(phaseOffset / (2 * Math.PI)) * durationMs;
   const totalDelay = animationDelay + phaseDelay;
 
   const animatedOscillationStyle: ViewStyle = {
     animationName: {
-      "0%": { transform: [{ translateX: 0 }] },
-      "50%": { transform: [{ translateX: waveDisplacement }] },
-      "100%": { transform: [{ translateX: 0 }] },
+      "0%": { transform: [{ translateX: -displacementPx }] },
+      "50%": { transform: [{ translateX: displacementPx }] },
+      "100%": { transform: [{ translateX: -displacementPx }] },
     },
-    animationDuration,
+    animationDuration: durationMs,
     animationDelay: totalDelay,
     animationIterationCount: "infinite",
     animationTimingFunction: "ease-in-out",
@@ -68,7 +69,5 @@ export const useWaveOscillationCSS = ({
 
   return {
     animatedOscillationStyle,
-    overscanX,
-    svgRenderWidth,
   };
 };
