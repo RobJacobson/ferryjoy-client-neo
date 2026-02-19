@@ -5,6 +5,8 @@
 // layout, ocean wave lerp ranges, and grass layer definitions.
 // ============================================================================
 
+import { createColorGenerator } from "@/shared/utils";
+
 /** Width of the wave SVG canvas. Wider width allows oscillation without visible edges. */
 export const SVG_WIDTH = 2000;
 
@@ -19,7 +21,7 @@ export const SVG_HEIGHT = 500;
 export const WAVE_STROKE = {
   color: "black",
   width: 0.5,
-  opacity: 0.1,
+  opacity: 0.08,
 } as const;
 
 /** Opacity of the paper texture overlay on waves. */
@@ -41,12 +43,12 @@ export const SHADOW_LAYERS: [number, number][] = [
 
 /** Ocean wave layer count and lerp ranges. First wave = min, last wave = max. */
 export const OCEAN_WAVES = {
-  count: 16,
+  count: 20,
   baseColor: "#28e",
-  period: { min: 20, max: 400 },
+  period: { min: 40, max: 400 },
   height: { min: 50, max: 12 },
   amplitude: { min: 2, max: 20 },
-  animationDuration: { min: 40000, max: 120000 },
+  animationDuration: { min: 300000, max: 60000 },
   maxXShiftPx: 800,
   lightness: { min: 150, max: 500 },
 } as const;
@@ -57,6 +59,12 @@ export const OCEAN_WAVES = {
 
 /** Base color for grass (green). Used with createColorGenerator for lightness. */
 export const GRASS_BASE_COLOR = "#5c5";
+
+/** Color generator for ocean waves. lightness 0–1000. */
+export const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
+
+/** Color generator for grass layers. lightness 0–1000. */
+export const grassColor = createColorGenerator(GRASS_BASE_COLOR);
 
 /**
  * Foreground grass layer config. Each layer is a static AnimatedWave.
@@ -92,10 +100,24 @@ export const BACKGROUND_LAYERS: Array<{
   lightness?: number;
 }> = [
   {
-    amplitude: 40,
-    period: 100,
+    amplitude: 80,
+    period: 400,
     fillColor: "#DEF",
-    height: 55,
+    height: 50,
+    xOffsetPx: 400,
+  },
+  {
+    amplitude: 70,
+    period: 300,
+    fillColor: "#DEF",
+    height: 50,
+    xOffsetPx: 325,
+  },
+  {
+    amplitude: 60,
+    period: 200,
+    fillColor: "#DEF",
+    height: 50,
     xOffsetPx: 0,
   },
   {
@@ -103,28 +125,28 @@ export const BACKGROUND_LAYERS: Array<{
     period: 275,
     lightness: 600,
     height: 58,
-    xOffsetPx: 200,
+    xOffsetPx: 10,
   },
   {
     amplitude: 16,
     period: 250,
     lightness: 550,
     height: 57,
-    xOffsetPx: 100,
+    xOffsetPx: 25,
   },
   {
     amplitude: 12,
     period: 225,
     lightness: 500,
     height: 56,
-    xOffsetPx: 0,
+    xOffsetPx: 10,
   },
   {
     amplitude: 10,
     period: 200,
     lightness: 450,
-    height: 55,
-    xOffsetPx: 0,
+    height: 54,
+    xOffsetPx: 25,
   },
   {
     amplitude: 5,

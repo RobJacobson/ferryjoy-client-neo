@@ -67,7 +67,8 @@ export type WaveLayerContentProps = {
   /**
    * Maximum expected horizontal shift magnitude in pixels.
    * This is used only for rail overscan sizing (to keep SVG edges offscreen).
-   * It should be a stable per-group maximum, not computed from xOffsetPx.
+   * It should be a stable per-group maximum (e.g., ocean oscillation distance,
+   * or max |xOffsetPx| across all grass layers), not computed per-layer.
    *
    * When animationDuration is provided, this also becomes the oscillation
    * distance (translateX runs between -maxXShiftPx and +maxXShiftPx).
@@ -162,12 +163,7 @@ export const WaveLayerView = ({
 
   return (
     <View style={ABSOLUTE_FILL}>
-      <View
-        style={[
-          ABSOLUTE_FILL,
-          offsetPx !== 0 && { transform: [{ translateX: offsetPx }] },
-        ]}
-      >
+      <View style={ABSOLUTE_FILL}>
         <Animated.View
           style={
             [
@@ -175,7 +171,7 @@ export const WaveLayerView = ({
                 position: "absolute",
                 top: 0,
                 bottom: 0,
-                left: -overscanPx,
+                left: -overscanPx + offsetPx,
                 width: railWidthPx,
               },
               animatedOscillationStyle,

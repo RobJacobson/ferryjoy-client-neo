@@ -42,14 +42,44 @@ export const WaveSvg = ({
 }: WaveSvgProps) => {
   const viewBoxWidth = (renderWidthPx / renderHeightPx) * SVG_HEIGHT;
   const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
+  const pathWidth = viewBoxWidth;
   const pathData = generateWavePath(
     amplitude,
     period,
     centerY,
-    viewBoxWidth,
+    pathWidth,
     SVG_HEIGHT
   );
   const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
+
+  const pathContent = (
+    <>
+      {SHADOW_LAYERS.map(([dx, dy]) => (
+        <Path
+          key={`shadow-${dx}-${dy}`}
+          d={pathData}
+          fill="black"
+          fillOpacity={SHADOW_OPACITY}
+          transform={`translate(${dx}, ${dy})`}
+        />
+      ))}
+      <Path
+        d={pathData}
+        fill={fillColor}
+        fillOpacity={fillOpacity}
+        stroke={WAVE_STROKE.color}
+        strokeWidth={WAVE_STROKE.width}
+        strokeOpacity={WAVE_STROKE.opacity}
+      />
+      {paperTextureUrl != null && (
+        <Path
+          d={pathData}
+          fill={`url(#${LOCAL_TEXTURE_ID})`}
+          fillOpacity={PAPER_TEXTURE_OPACITY}
+        />
+      )}
+    </>
+  );
 
   return (
     <Svg
@@ -75,30 +105,7 @@ export const WaveSvg = ({
           </Pattern>
         )}
       </Defs>
-      {SHADOW_LAYERS.map(([dx, dy]) => (
-        <Path
-          key={`shadow-${dx}-${dy}`}
-          d={pathData}
-          fill="black"
-          fillOpacity={SHADOW_OPACITY}
-          transform={`translate(${dx}, ${dy})`}
-        />
-      ))}
-      <Path
-        d={pathData}
-        fill={fillColor}
-        fillOpacity={fillOpacity}
-        stroke={WAVE_STROKE.color}
-        strokeWidth={WAVE_STROKE.width}
-        strokeOpacity={WAVE_STROKE.opacity}
-      />
-      {paperTextureUrl != null && (
-        <Path
-          d={pathData}
-          fill={`url(#${LOCAL_TEXTURE_ID})`}
-          fillOpacity={PAPER_TEXTURE_OPACITY}
-        />
-      )}
+      {pathContent}
     </Svg>
   );
 };

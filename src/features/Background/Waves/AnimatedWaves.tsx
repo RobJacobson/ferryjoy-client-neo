@@ -7,7 +7,7 @@
 
 import type { StyleProp, ViewStyle } from "react-native";
 import { useWindowDimensions, View } from "react-native";
-import { createColorGenerator, lerp } from "@/shared/utils";
+import { lerp } from "@/shared/utils";
 import {
   PARALLAX_BG_GRASS,
   PARALLAX_FG_GRASS,
@@ -19,8 +19,9 @@ import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
   BACKGROUND_LAYERS,
+  blueColor,
   FOREGROUND_LAYERS,
-  GRASS_BASE_COLOR,
+  grassColor,
   OCEAN_WAVES,
 } from "./config";
 import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
@@ -31,9 +32,6 @@ export type AnimatedWavesProps = BackgroundParallaxProps & {
    */
   paperTextureUrl: PaperTextureSource;
 };
-
-const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
-const grassColor = createColorGenerator(GRASS_BASE_COLOR);
 
 const OCEAN_PHASE_OFFSETS = Array.from(
   { length: OCEAN_WAVES.count },
@@ -130,10 +128,14 @@ const AnimatedWaves = ({
 const indexToT = (index: number, count: number): number =>
   count > 1 ? index / (count - 1) : 0;
 
-const MAX_GRASS_X_OFFSET_PX = Math.max(
-  ...BACKGROUND_LAYERS.map((layer) => Math.abs(layer.xOffsetPx)),
-  ...FOREGROUND_LAYERS.map((layer) => Math.abs(layer.xOffsetPx))
-);
+/**
+ * Overscan budget for grass layers, in pixels.
+ *
+ * Important: this must be stable and NOT derived from per-layer `xOffsetPx`.
+ * Otherwise, changing one layer's xOffset would change the render rail width
+ * for every grass layer and make unrelated layers appear to shift.
+ */
+const GRASS_MAX_X_SHIFT_PX = 120;
 
 const MAX_OCEAN_X_SHIFT_PX = OCEAN_WAVES.maxXShiftPx;
 
@@ -156,7 +158,7 @@ const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
         fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
         height: layer.height,
         xOffsetPx: layer.xOffsetPx,
-        maxXShiftPx: MAX_GRASS_X_OFFSET_PX,
+        maxXShiftPx: GRASS_MAX_X_SHIFT_PX,
       },
     };
   }
@@ -218,7 +220,7 @@ const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
         fillColor: grassColor(layer.lightness),
         height: layer.height,
         xOffsetPx: layer.xOffsetPx,
-        maxXShiftPx: MAX_GRASS_X_OFFSET_PX,
+        maxXShiftPx: GRASS_MAX_X_SHIFT_PX,
       },
     };
   });
