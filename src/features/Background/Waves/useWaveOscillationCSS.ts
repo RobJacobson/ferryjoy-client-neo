@@ -48,18 +48,6 @@ export const useWaveOscillationCSS = ({
   const overscanX = Math.max(0, waveDisplacement);
   const svgRenderWidth = SVG_WIDTH + overscanX * 2;
 
-  const shouldAnimate = Boolean(animationDuration) && waveDisplacement !== 0;
-
-  if (!shouldAnimate) {
-    return {
-      animatedOscillationStyle: {
-        transform: [{ translateX: 0 }],
-      },
-      overscanX,
-      svgRenderWidth,
-    };
-  }
-
   // Convert phase offset to negative delay: starts animation immediately at correct phase
   // phaseOffset of 0 = no delay, phaseOffset of π = -50% of duration
   // biome-ignore lint/style/noNonNullAssertion: Already checked via shouldAnimate

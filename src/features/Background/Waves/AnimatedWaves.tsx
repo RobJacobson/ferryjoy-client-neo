@@ -14,7 +14,9 @@ import { PARALLAX_WAVES_MAX } from "../config";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import { useParallaxScroll } from "../useParallaxScroll";
-import { Wave } from "./AnimatedWave";
+import { AnimatedWave } from "./AnimatedWave";
+import { SVG_WIDTH } from "./config";
+import { WaveSvg } from "./WaveSvg";
 import { buildWaveStackLayers } from "./waveLayers";
 
 export type AnimatedWavesProps = BackgroundParallaxProps & {
@@ -133,7 +135,27 @@ const AnimatedWaves = ({
               zIndex={zIndex}
               wrapperStyle={wrapperStyle}
             >
-              <Wave {...waveProps} />
+              {waveProps.animationDuration && waveProps.waveDisplacement ? (
+                <AnimatedWave {...waveProps} />
+              ) : (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    left: 0,
+                  }}
+                >
+                  <WaveSvg
+                    {...waveProps}
+                    svgRenderWidth={
+                      SVG_WIDTH +
+                      2 * Math.max(0, waveProps.waveDisplacement ?? 0)
+                    }
+                  />
+                </View>
+              )}
             </ParallaxWaveLayer>
           );
         })}

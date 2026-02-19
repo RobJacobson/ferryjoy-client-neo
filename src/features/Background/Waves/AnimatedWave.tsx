@@ -1,24 +1,15 @@
 // ============================================================================
 // Animated Wave Component
 // ============================================================================
-// Renders a single animated wave using cubic Bezier curves.
-// The wave is centered and repeated across the SVG bounding box.
-// Uses transform-based animation for 60 FPS performance.
+// Renders a single animated wave. Uses useWaveOscillationCSS and wraps WaveSvg
+// in Animated.View. For static waves, use a plain View wrapping WaveSvg.
 // ============================================================================
 
 import type { ViewStyle } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
-import Svg, { Defs, Path, Pattern, Image as SvgImage } from "react-native-svg";
 import type { PaperTextureSource } from "../types";
-import {
-  PAPER_TEXTURE_OPACITY,
-  SHADOW_LAYERS,
-  SHADOW_OPACITY,
-  SVG_HEIGHT,
-  WAVE_STROKE,
-} from "./config";
 import { useWaveOscillationCSS } from "./useWaveOscillationCSS";
-import { generateWavePath } from "./wavePath";
+import { WaveSvg } from "./WaveSvg";
 
 /**
  * Props for the AnimatedWave component.
@@ -81,113 +72,37 @@ export interface AnimatedWaveProps {
   paperTextureUrl?: PaperTextureSource;
 }
 
+const ABSOLUTE_FILL: ViewStyle = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+};
+
 /**
- * AnimatedWave component that renders a single animated wave.
+ * Animated wave (ocean). Uses useWaveOscillationCSS and Animated.View wrapper.
  */
-const AnimatedWave = ({
-  amplitude,
-  period,
-  animationDuration,
-  animationDelay = 0,
-  waveDisplacement = 0,
-  phaseOffset = 0,
-  fillOpacity = 1,
-  fillColor,
-  height = 50,
-  paperTextureUrl,
-}: AnimatedWaveProps) => {
+const AnimatedWave = (props: AnimatedWaveProps) => {
   const { animatedOscillationStyle, svgRenderWidth } = useWaveOscillationCSS({
-    animationDuration,
-    animationDelay,
-    waveDisplacement,
-    phaseOffset,
+    animationDuration: props.animationDuration,
+    animationDelay: props.animationDelay ?? 0,
+    waveDisplacement: props.waveDisplacement ?? 0,
+    phaseOffset: props.phaseOffset ?? 0,
   });
-
-  const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
-  const pathData = generateWavePath(
-    amplitude,
-    period,
-    centerY,
-    svgRenderWidth,
-    SVG_HEIGHT
-  );
-
-  const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
-
   return (
     <Animated.View
       style={
-        [
-          {
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-          },
-          animatedOscillationStyle,
-        ] as (ViewStyle | AnimatedStyle<ViewStyle>)[]
+        [ABSOLUTE_FILL, animatedOscillationStyle] as (
+          | ViewStyle
+          | AnimatedStyle<ViewStyle>
+        )[]
       }
     >
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox={`0 0 ${svgRenderWidth} ${SVG_HEIGHT}`}
-        preserveAspectRatio="none"
-      >
-        <Defs>
-          {paperTextureUrl != null && (
-            <Pattern
-              id={LOCAL_TEXTURE_ID}
-              patternUnits="userSpaceOnUse"
-              width={400}
-              height={400}
-            >
-              <SvgImage
-                href={paperTextureUrl}
-                width={512}
-                height={512}
-                preserveAspectRatio="xMidYMid slice"
-              />
-            </Pattern>
-          )}
-        </Defs>
-
-        {/* Pseudo-drop shadow: layered black copies of wave creating depth effect */}
-        {SHADOW_LAYERS.map(([dx, dy]) => (
-          <Path
-            key={`shadow-${dx}-${dy}`}
-            d={pathData}
-            fill="black"
-            fillOpacity={SHADOW_OPACITY}
-            transform={`translate(${dx}, ${dy})`}
-          />
-        ))}
-
-        {/* Main wave fill with paper-noise filter (fine grain overlay) */}
-        <Path
-          d={pathData}
-          fill={fillColor}
-          fillOpacity={fillOpacity}
-          stroke={WAVE_STROKE.color}
-          strokeWidth={WAVE_STROKE.width}
-          strokeOpacity={WAVE_STROKE.opacity}
-        />
-
-        {/* Paper texture overlay - only when paperTextureUrl set */}
-        {paperTextureUrl != null && (
-          <Path
-            d={pathData}
-            fill={`url(#${LOCAL_TEXTURE_ID})`}
-            fillOpacity={PAPER_TEXTURE_OPACITY}
-          />
-        )}
-      </Svg>
+      <WaveSvg {...props} svgRenderWidth={svgRenderWidth} />
     </Animated.View>
   );
 };
 
 export default AnimatedWave;
-
-/** Alias for use in wave stack (single Wave component). */
-export const Wave = AnimatedWave;
+export { AnimatedWave };
