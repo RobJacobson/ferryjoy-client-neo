@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { useWindowDimensions, View } from "react-native";
+import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
 import { createColorGenerator, lerp } from "@/shared/utils";
 import {
   PARALLAX_BG_GRASS,
@@ -14,6 +15,7 @@ import {
   PARALLAX_WAVES_MAX,
 } from "../config";
 import { ParallaxLayer } from "../ParallaxLayer";
+import { computeRequiredBackgroundWidth } from "../parallaxWidth";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
@@ -50,8 +52,9 @@ const AnimatedWaves = ({
   scrollX,
   slotWidth,
 }: AnimatedWavesProps) => {
-  const { height: containerHeightPx } = useWindowDimensions();
-  const { maxParallaxPx, requiredWidth: wavesWidth } = useBackgroundLayout({
+  const { width: screenWidth, height: containerHeightPx } =
+    useWindowDimensions();
+  const { maxParallaxPx } = useBackgroundLayout({
     parallaxMultiplier: PARALLAX_WAVES_MAX,
   });
 
@@ -71,150 +74,155 @@ const AnimatedWaves = ({
         top: 0,
         right: 0,
         bottom: 0,
+        overflow: "hidden",
       }}
     >
-      <View
-        className="relative h-full"
-        style={{
-          width: wavesWidth,
-          marginLeft: 0,
-          marginRight: 0,
-        }}
-      >
-        {BACKGROUND_LAYERS.map((layer, i) => {
-          const t =
-            BACKGROUND_LAYERS.length > 1
-              ? i / (BACKGROUND_LAYERS.length - 1)
-              : 0;
-          return (
-            <ParallaxLayer
-              key={`bg-${layer.height}-${layer.period}-${layer.amplitude}`}
-              scrollX={scrollX}
-              slotWidth={slotWidth}
-              parallaxMultiplier={Math.round(
-                lerp(t, PARALLAX_BG_GRASS.min, PARALLAX_BG_GRASS.max),
-              )}
-              maxParallaxPx={maxParallaxPx}
-              style={[
-                {
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex: i + 1,
-                },
-              ]}
-            >
-              <WaveLayerView
-                amplitude={layer.amplitude}
-                period={layer.period}
-                fillColor={layer.fillColor ?? grassColor(layer.lightness ?? 0)}
-                height={layer.height}
-                waveDisplacementPx={layer.waveDisplacementPx}
-                paperTextureUrl={paperTextureUrl}
-                containerWidthPx={wavesWidth}
-                containerHeightPx={containerHeightPx}
-              />
-            </ParallaxLayer>
-          );
-        })}
+      {BACKGROUND_LAYERS.map((layer, i) => {
+        const t =
+          BACKGROUND_LAYERS.length > 1 ? i / (BACKGROUND_LAYERS.length - 1) : 0;
+        const parallaxMultiplier = Math.round(
+          lerp(t, PARALLAX_BG_GRASS.min, PARALLAX_BG_GRASS.max)
+        );
+        const layerWidth = computeRequiredBackgroundWidth(
+          screenWidth,
+          NUM_TERMINAL_CARDS,
+          parallaxMultiplier,
+          maxParallaxPx
+        );
+        return (
+          <ParallaxLayer
+            key={`bg-${layer.height}-${layer.period}-${layer.amplitude}`}
+            scrollX={scrollX}
+            slotWidth={slotWidth}
+            parallaxMultiplier={parallaxMultiplier}
+            maxParallaxPx={maxParallaxPx}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: layerWidth,
+              zIndex: i + 1,
+            }}
+          >
+            <WaveLayerView
+              amplitude={layer.amplitude}
+              period={layer.period}
+              fillColor={layer.fillColor ?? grassColor(layer.lightness ?? 0)}
+              height={layer.height}
+              waveDisplacementPx={layer.waveDisplacementPx}
+              paperTextureUrl={paperTextureUrl}
+              containerWidthPx={layerWidth}
+              containerHeightPx={containerHeightPx}
+            />
+          </ParallaxLayer>
+        );
+      })}
 
-        {OCEAN_LAYER_INDICES.map((index) => {
-          const t = OCEAN_WAVES.count > 1 ? index / (OCEAN_WAVES.count - 1) : 0;
-          const zIndex = 10 + index;
-          return (
-            <ParallaxLayer
-              key={`ocean-${zIndex}`}
-              scrollX={scrollX}
-              slotWidth={slotWidth}
-              parallaxMultiplier={Math.round(
-                lerp(t, PARALLAX_OCEAN.min, PARALLAX_OCEAN.max),
+      {OCEAN_LAYER_INDICES.map((index) => {
+        const t = OCEAN_WAVES.count > 1 ? index / (OCEAN_WAVES.count - 1) : 0;
+        const zIndex = 10 + index;
+        const parallaxMultiplier = Math.round(
+          lerp(t, PARALLAX_OCEAN.min, PARALLAX_OCEAN.max)
+        );
+        const layerWidth = computeRequiredBackgroundWidth(
+          screenWidth,
+          NUM_TERMINAL_CARDS,
+          parallaxMultiplier,
+          maxParallaxPx
+        );
+        return (
+          <ParallaxLayer
+            key={`ocean-${zIndex}`}
+            scrollX={scrollX}
+            slotWidth={slotWidth}
+            parallaxMultiplier={parallaxMultiplier}
+            maxParallaxPx={maxParallaxPx}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: layerWidth,
+              zIndex,
+            }}
+          >
+            <WaveLayerView
+              amplitude={lerp(
+                t,
+                OCEAN_WAVES.amplitude.min,
+                OCEAN_WAVES.amplitude.max
               )}
-              maxParallaxPx={maxParallaxPx}
-              style={[
-                {
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex,
-                },
-              ]}
-            >
-              <WaveLayerView
-                amplitude={lerp(
-                  t,
-                  OCEAN_WAVES.amplitude.min,
-                  OCEAN_WAVES.amplitude.max,
-                )}
-                period={lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max)}
-                fillColor={blueColor(
-                  lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max),
-                )}
-                height={lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max)}
-                animationDuration={lerp(
-                  t,
-                  OCEAN_WAVES.animationDuration.min,
-                  OCEAN_WAVES.animationDuration.max,
-                )}
-                waveDisplacementPx={lerp(
-                  t,
-                  OCEAN_WAVES.waveDisplacementPx.min,
-                  OCEAN_WAVES.waveDisplacementPx.max,
-                )}
-                phaseOffset={computePhaseOffset(index)}
-                paperTextureUrl={paperTextureUrl}
-                containerWidthPx={wavesWidth}
-                containerHeightPx={containerHeightPx}
-              />
-            </ParallaxLayer>
-          );
-        })}
+              period={lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max)}
+              fillColor={blueColor(
+                lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max)
+              )}
+              height={lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max)}
+              animationDuration={lerp(
+                t,
+                OCEAN_WAVES.animationDuration.min,
+                OCEAN_WAVES.animationDuration.max
+              )}
+              waveDisplacementPx={lerp(
+                t,
+                OCEAN_WAVES.waveDisplacementPx.min,
+                OCEAN_WAVES.waveDisplacementPx.max
+              )}
+              phaseOffset={computePhaseOffset(index)}
+              paperTextureUrl={paperTextureUrl}
+              containerWidthPx={layerWidth}
+              containerHeightPx={containerHeightPx}
+            />
+          </ParallaxLayer>
+        );
+      })}
 
-        {[...FOREGROUND_LAYERS].reverse().map((layer, i) => {
-          const t =
-            FOREGROUND_LAYERS.length > 1
-              ? i / (FOREGROUND_LAYERS.length - 1)
-              : 0;
-          const zIndex = i === 0 ? 101 : 100;
-          const wrapperStyle = { marginBottom: i === 0 ? -10 : 0 };
-          return (
-            <ParallaxLayer
-              key={`fg-${layer.height}-${layer.period}-${layer.amplitude}`}
-              scrollX={scrollX}
-              slotWidth={slotWidth}
-              parallaxMultiplier={Math.round(
-                lerp(t, PARALLAX_FG_GRASS.min, PARALLAX_FG_GRASS.max),
-              )}
-              maxParallaxPx={maxParallaxPx}
-              style={[
-                {
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex,
-                },
-                wrapperStyle,
-              ]}
-            >
-              <WaveLayerView
-                amplitude={layer.amplitude}
-                period={layer.period}
-                fillColor={grassColor(layer.lightness)}
-                height={layer.height}
-                waveDisplacementPx={layer.waveDisplacementPx}
-                paperTextureUrl={paperTextureUrl}
-                containerWidthPx={wavesWidth}
-                containerHeightPx={containerHeightPx}
-              />
-            </ParallaxLayer>
-          );
-        })}
-      </View>
+      {[...FOREGROUND_LAYERS].reverse().map((layer, i) => {
+        const t =
+          FOREGROUND_LAYERS.length > 1 ? i / (FOREGROUND_LAYERS.length - 1) : 0;
+        const zIndex = i === 0 ? 101 : 100;
+        const parallaxMultiplier = Math.round(
+          lerp(t, PARALLAX_FG_GRASS.min, PARALLAX_FG_GRASS.max)
+        );
+        const layerWidth = computeRequiredBackgroundWidth(
+          screenWidth,
+          NUM_TERMINAL_CARDS,
+          parallaxMultiplier,
+          maxParallaxPx
+        );
+        const wrapperStyle = { marginBottom: i === 0 ? -10 : 0 };
+        return (
+          <ParallaxLayer
+            key={`fg-${layer.height}-${layer.period}-${layer.amplitude}`}
+            scrollX={scrollX}
+            slotWidth={slotWidth}
+            parallaxMultiplier={parallaxMultiplier}
+            maxParallaxPx={maxParallaxPx}
+            style={[
+              {
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: layerWidth,
+                zIndex,
+              },
+              wrapperStyle,
+            ]}
+          >
+            <WaveLayerView
+              amplitude={layer.amplitude}
+              period={layer.period}
+              fillColor={grassColor(layer.lightness)}
+              height={layer.height}
+              waveDisplacementPx={layer.waveDisplacementPx}
+              paperTextureUrl={paperTextureUrl}
+              containerWidthPx={layerWidth}
+              containerHeightPx={containerHeightPx}
+            />
+          </ParallaxLayer>
+        );
+      })}
     </View>
   );
 };
