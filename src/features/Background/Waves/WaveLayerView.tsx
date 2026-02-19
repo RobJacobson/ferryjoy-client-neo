@@ -49,7 +49,7 @@ export type WaveLayerContentProps = {
 
   /**
    * Animation duration in milliseconds.
-   * When provided (and waveDisplacementPx > 0), oscillation is enabled.
+   * When provided (and maxXShiftPx > 0), oscillation is enabled.
    */
   animationDuration?: number;
 
@@ -59,10 +59,20 @@ export type WaveLayerContentProps = {
   animationDelay?: number;
 
   /**
-   * Maximum horizontal displacement in pixels.
-   * Oscillation runs between -waveDisplacementPx and +waveDisplacementPx.
+   * Static horizontal offset for the wave rail in pixels.
+   * Used to de-sync static layers (e.g., grass) so they don't align perfectly.
    */
-  waveDisplacementPx?: number;
+  xOffsetPx?: number;
+
+  /**
+   * Maximum expected horizontal shift magnitude in pixels.
+   * This is used only for rail overscan sizing (to keep SVG edges offscreen).
+   * It should be a stable per-group maximum, not computed from xOffsetPx.
+   *
+   * When animationDuration is provided, this also becomes the oscillation
+   * distance (translateX runs between -maxXShiftPx and +maxXShiftPx).
+   */
+  maxXShiftPx?: number;
 
   /**
    * Phase offset for the wave oscillation in radians.
@@ -106,6 +116,7 @@ const ABSOLUTE_FILL: ViewStyle = {
   right: 0,
   bottom: 0,
   left: 0,
+  overflow: "visible",
 };
 
 const SEAM_MARGIN_PX = 16;
@@ -128,52 +139,61 @@ export const WaveLayerView = ({
   period,
   animationDuration,
   animationDelay,
-  waveDisplacementPx,
+  xOffsetPx,
+  maxXShiftPx,
   phaseOffset,
   fillOpacity,
   fillColor,
   height,
   paperTextureUrl,
 }: WaveLayerViewProps) => {
-  const displacementPx = Math.max(0, waveDisplacementPx ?? 0);
-  const shouldOscillate = (animationDuration ?? 0) > 0 && displacementPx > 0;
-  const overscanPx = shouldOscillate ? displacementPx + SEAM_MARGIN_PX : 0;
+  const offsetPx = xOffsetPx ?? 0;
+  const xShiftPx = Math.max(0, maxXShiftPx ?? 0);
+  const shouldOscillate = (animationDuration ?? 0) > 0 && xShiftPx > 0;
+  const overscanPx = xShiftPx + SEAM_MARGIN_PX;
   const railWidthPx = containerWidthPx + 2 * overscanPx;
 
   const { animatedOscillationStyle } = useWaveOscillation({
     animationDuration: shouldOscillate ? animationDuration : undefined,
     animationDelay: animationDelay ?? 0,
-    waveDisplacementPx: displacementPx,
+    maxXShiftPx: xShiftPx,
     phaseOffset: phaseOffset ?? 0,
   });
 
   return (
     <View style={ABSOLUTE_FILL}>
-      <Animated.View
-        style={
-          [
-            {
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: -overscanPx,
-              width: railWidthPx,
-            },
-            animatedOscillationStyle,
-          ] as (ViewStyle | AnimatedStyle<ViewStyle>)[]
-        }
+      <View
+        style={[
+          ABSOLUTE_FILL,
+          offsetPx !== 0 && { transform: [{ translateX: offsetPx }] },
+        ]}
       >
-        <WaveSvg
-          amplitude={amplitude}
-          period={period}
-          fillColor={fillColor}
-          fillOpacity={fillOpacity}
-          height={height}
-          paperTextureUrl={paperTextureUrl}
-          renderWidthPx={railWidthPx}
-          renderHeightPx={containerHeightPx}
-        />
-      </Animated.View>
+        <Animated.View
+          style={
+            [
+              {
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: -overscanPx,
+                width: railWidthPx,
+              },
+              animatedOscillationStyle,
+            ] as (ViewStyle | AnimatedStyle<ViewStyle>)[]
+          }
+        >
+          <WaveSvg
+            amplitude={amplitude}
+            period={period}
+            fillColor={fillColor}
+            fillOpacity={fillOpacity}
+            height={height}
+            paperTextureUrl={paperTextureUrl}
+            renderWidthPx={railWidthPx}
+            renderHeightPx={containerHeightPx}
+          />
+        </Animated.View>
+      </View>
     </View>
   );
 };

@@ -40,7 +40,7 @@ const OCEAN_PHASE_OFFSETS = Array.from(
   (_, index) => {
     const t = ((index * 73) % 101) / 101;
     return t * 2 * Math.PI;
-  },
+  }
 );
 
 const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
@@ -96,6 +96,7 @@ const AnimatedWaves = ({
             bottom: 0,
             width: layerWidth,
             zIndex: spec.zIndex,
+            overflow: "visible",
           },
           spec.wrapperStyle,
         ]}
@@ -118,7 +119,7 @@ const AnimatedWaves = ({
         top: 0,
         right: 0,
         bottom: 0,
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {LAYER_SPECS.map(renderWaveLayer)}
@@ -129,13 +130,20 @@ const AnimatedWaves = ({
 const indexToT = (index: number, count: number): number =>
   count > 1 ? index / (count - 1) : 0;
 
+const MAX_GRASS_X_OFFSET_PX = Math.max(
+  ...BACKGROUND_LAYERS.map((layer) => Math.abs(layer.xOffsetPx)),
+  ...FOREGROUND_LAYERS.map((layer) => Math.abs(layer.xOffsetPx))
+);
+
+const MAX_OCEAN_X_SHIFT_PX = OCEAN_WAVES.maxXShiftPx;
+
 const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
   (layer, index) => {
     const t = indexToT(index, BACKGROUND_LAYERS.length);
     const parallaxMultiplier = lerp(
       t,
       PARALLAX_BG_GRASS.min,
-      PARALLAX_BG_GRASS.max,
+      PARALLAX_BG_GRASS.max
     );
 
     return {
@@ -147,10 +155,11 @@ const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
         period: layer.period,
         fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
         height: layer.height,
-        waveDisplacementPx: layer.waveDisplacementPx,
+        xOffsetPx: layer.xOffsetPx,
+        maxXShiftPx: MAX_GRASS_X_OFFSET_PX,
       },
     };
-  },
+  }
 );
 
 const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
@@ -168,27 +177,23 @@ const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
         amplitude: lerp(
           t,
           OCEAN_WAVES.amplitude.min,
-          OCEAN_WAVES.amplitude.max,
+          OCEAN_WAVES.amplitude.max
         ),
         period: lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max),
         fillColor: blueColor(
-          lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max),
+          lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max)
         ),
         height: lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max),
         animationDuration: lerp(
           t,
           OCEAN_WAVES.animationDuration.min,
-          OCEAN_WAVES.animationDuration.max,
+          OCEAN_WAVES.animationDuration.max
         ),
-        waveDisplacementPx: lerp(
-          t,
-          OCEAN_WAVES.waveDisplacementPx.min,
-          OCEAN_WAVES.waveDisplacementPx.max,
-        ),
+        maxXShiftPx: MAX_OCEAN_X_SHIFT_PX,
         phaseOffset: OCEAN_PHASE_OFFSETS[index],
       },
     };
-  },
+  }
 );
 
 const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
@@ -197,7 +202,7 @@ const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
     const parallaxMultiplier = lerp(
       t,
       PARALLAX_FG_GRASS.min,
-      PARALLAX_FG_GRASS.max,
+      PARALLAX_FG_GRASS.max
     );
     const zIndex = index === 0 ? 101 : 100;
     const wrapperStyle = index === 0 ? { marginBottom: -10 } : undefined;
@@ -212,7 +217,8 @@ const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
         period: layer.period,
         fillColor: grassColor(layer.lightness),
         height: layer.height,
-        waveDisplacementPx: layer.waveDisplacementPx,
+        xOffsetPx: layer.xOffsetPx,
+        maxXShiftPx: MAX_GRASS_X_OFFSET_PX,
       },
     };
   });

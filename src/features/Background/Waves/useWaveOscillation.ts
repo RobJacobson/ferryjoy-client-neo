@@ -14,8 +14,8 @@ export interface UseWaveOscillationProps {
   animationDuration?: number;
   /** Delay before animation starts in milliseconds. */
   animationDelay?: number;
-  /** Maximum horizontal displacement in pixels. */
-  waveDisplacementPx?: number;
+  /** Maximum horizontal oscillation distance in pixels. */
+  maxXShiftPx?: number;
   /** Phase offset for the wave oscillation in radians. */
   phaseOffset?: number;
 }
@@ -37,11 +37,11 @@ export interface UseWaveOscillationResult {
 export const useWaveOscillation = ({
   animationDuration,
   animationDelay = 0,
-  waveDisplacementPx = 0,
+  maxXShiftPx = 0,
   phaseOffset = 0,
 }: UseWaveOscillationProps): UseWaveOscillationResult => {
-  const displacementPx = Math.max(0, waveDisplacementPx);
-  const shouldAnimate = (animationDuration ?? 0) > 0 && displacementPx > 0;
+  const oscillationPx = Math.max(0, maxXShiftPx);
+  const shouldAnimate = (animationDuration ?? 0) > 0 && oscillationPx > 0;
 
   if (!shouldAnimate) {
     return { animatedOscillationStyle: {} };
@@ -57,9 +57,9 @@ export const useWaveOscillation = ({
 
   const animatedOscillationStyle: ViewStyle = {
     animationName: {
-      "0%": { transform: [{ translateX: -displacementPx }] },
-      "50%": { transform: [{ translateX: displacementPx }] },
-      "100%": { transform: [{ translateX: -displacementPx }] },
+      "0%": { transform: [{ translateX: -oscillationPx }] },
+      "50%": { transform: [{ translateX: oscillationPx }] },
+      "100%": { transform: [{ translateX: -oscillationPx }] },
     },
     animationDuration: durationMs,
     animationDelay: totalDelay,
