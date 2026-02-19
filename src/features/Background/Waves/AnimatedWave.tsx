@@ -17,7 +17,7 @@ import {
   SVG_HEIGHT,
   WAVE_STROKE,
 } from "./config";
-import { useWaveOscillation } from "./useWaveOscillation";
+import { useWaveOscillationCSS } from "./useWaveOscillationCSS";
 import { generateWavePath } from "./wavePath";
 
 /**
@@ -96,7 +96,7 @@ const AnimatedWave = ({
   height = 50,
   paperTextureUrl,
 }: AnimatedWaveProps) => {
-  const { animatedOscillationStyle, svgRenderWidth } = useWaveOscillation({
+  const { animatedOscillationStyle, svgRenderWidth } = useWaveOscillationCSS({
     animationDuration,
     animationDelay,
     waveDisplacement,
