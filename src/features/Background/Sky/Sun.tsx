@@ -13,7 +13,7 @@ import config from "./config";
 // Types
 // ============================================================================
 
-export type SunProps = {
+type SunProps = {
   /** Number of rays/teeth. */
   rayCount: number;
   /** Fill color for all rays. */

@@ -16,7 +16,7 @@ import {
 } from "./config";
 import { generateWavePath } from "./wavePath";
 
-export type WaveSvgProps = {
+type WaveSvgProps = {
   amplitude: number;
   period: number;
   fillColor: string;
@@ -42,12 +42,11 @@ export const WaveSvg = ({
 }: WaveSvgProps) => {
   const viewBoxWidth = (renderWidthPx / renderHeightPx) * SVG_HEIGHT;
   const centerY = SVG_HEIGHT - (SVG_HEIGHT * height) / 100;
-  const pathWidth = viewBoxWidth;
   const pathData = generateWavePath(
     amplitude,
     period,
     centerY,
-    pathWidth,
+    viewBoxWidth,
     SVG_HEIGHT
   );
   const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;

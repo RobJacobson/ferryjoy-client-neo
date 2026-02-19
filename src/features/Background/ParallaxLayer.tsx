@@ -16,7 +16,7 @@ import { useParallaxScroll } from "./useParallaxScroll";
 // Types
 // ============================================================================
 
-export type ParallaxLayerProps = {
+type ParallaxLayerProps = {
   /**
    * Shared scroll offset (x) from the carousel.
    */

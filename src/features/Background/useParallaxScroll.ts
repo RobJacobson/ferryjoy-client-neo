@@ -16,7 +16,7 @@ import { useAnimatedStyle } from "react-native-reanimated";
 /**
  * Props for useParallaxScroll hook.
  */
-export interface UseParallaxScrollProps {
+interface UseParallaxScrollProps {
   /**
    * Shared scroll offset (x) from carousel.
    */

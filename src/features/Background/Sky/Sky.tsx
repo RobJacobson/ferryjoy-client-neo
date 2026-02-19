@@ -15,7 +15,7 @@ import { useBackgroundLayout } from "../useBackgroundLayout";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
 
-export type SkyProps = BackgroundParallaxProps & {
+type SkyProps = BackgroundParallaxProps & {
   /**
    * Paper texture source (e.g. require() asset). When null, no texture overlay.
    */

@@ -58,7 +58,7 @@ export const OCEAN_WAVES = {
 // ----------------------------------------------------------------------------
 
 /** Base color for grass (green). Used with createColorGenerator for lightness. */
-export const GRASS_BASE_COLOR = "#5c5";
+const GRASS_BASE_COLOR = "#5c5";
 
 /** Color generator for ocean waves. lightness 0–1000. */
 export const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);

@@ -22,7 +22,7 @@ import config from "./config";
 // Types
 // ============================================================================
 
-export type SunburstProps = {
+type SunburstProps = {
   /**
    * Paper texture source. When null, SVG does not render the texture overlay.
    */
@@ -169,7 +169,7 @@ const Sunburst = ({
  * @param spiralStrength - Curve strength (0 = straight; ~0.15 = moderate spiral)
  * @returns Array of path "d" strings, one per ray (empty if rayCount is 0)
  */
-export const buildRayPaths = (
+const buildRayPaths = (
   center: number,
   radius: number,
   rayCount: number,

@@ -15,7 +15,7 @@ import config from "./config";
 import { Sun } from "./Sun";
 import { Sunburst } from "./Sunburst";
 
-export type SunburstLayoutProps = {
+type SunburstLayoutProps = {
   /**
    * Paper texture source. When null, sunburst SVG does not render texture.
    */

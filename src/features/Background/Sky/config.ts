@@ -11,10 +11,10 @@ import { createColorGenerator } from "@/shared/utils";
  * Base color for pink (magenta). Used with createColorGenerator for lightness.
  * See pink color palettes: https://www.notebookandpenguin.com/pink-color-codes/
  * */
-export const PINK_BASE_COLOR = "#FF00FF";
+const PINK_BASE_COLOR = "#FF00FF";
 
 /** Color generator for pink. lightness 0–1000. */
-export const pinkColor = createColorGenerator(PINK_BASE_COLOR);
+const pinkColor = createColorGenerator(PINK_BASE_COLOR);
 
 /** Tailwind orange for sun fill. */
 const orange = {

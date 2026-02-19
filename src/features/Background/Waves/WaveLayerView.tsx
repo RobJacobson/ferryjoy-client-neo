@@ -21,7 +21,7 @@ import { WaveSvg } from "./WaveSvg";
 /**
  * Pixel sizing for a wave layer container.
  */
-export type WaveLayerContainerSize = {
+type WaveLayerContainerSize = {
   /**
    * Width of the layer container in pixels (the parallax-provisioned width).
    */
@@ -36,7 +36,7 @@ export type WaveLayerContainerSize = {
 /**
  * Props for rendering a wave layer.
  */
-export type WaveLayerContentProps = {
+type WaveLayerContentProps = {
   /**
    * Wave amplitude in pixels (height from center to peak/trough).
    */

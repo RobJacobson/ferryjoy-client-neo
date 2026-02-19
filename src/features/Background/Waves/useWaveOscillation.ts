@@ -9,7 +9,7 @@
 import type { ViewStyle } from "react-native";
 
 /** Props for the wave oscillation animation. */
-export interface UseWaveOscillationProps {
+interface UseWaveOscillationProps {
   /** Animation duration in milliseconds. */
   animationDuration?: number;
   /** Delay before animation starts in milliseconds. */
@@ -21,7 +21,7 @@ export interface UseWaveOscillationProps {
 }
 
 /** Return value from useWaveOscillationCSS. */
-export interface UseWaveOscillationResult {
+interface UseWaveOscillationResult {
   /** Style to apply to the wrapper Animated.View for horizontal oscillation. */
   animatedOscillationStyle: ViewStyle;
 }

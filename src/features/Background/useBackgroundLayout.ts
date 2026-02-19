@@ -19,7 +19,7 @@ import { computeRequiredBackgroundWidth } from "./parallaxWidth";
 /**
  * Props for useBackgroundLayout hook.
  */
-export interface UseBackgroundLayoutProps {
+interface UseBackgroundLayoutProps {
   /**
    * Parallax multiplier (0-100) for this background layer.
    * Higher values create more movement. Sky uses lower values,
@@ -31,7 +31,7 @@ export interface UseBackgroundLayoutProps {
 /**
  * Return value from useBackgroundLayout hook.
  */
-export interface UseBackgroundLayoutResult {
+interface UseBackgroundLayoutResult {
   /**
    * Maximum parallax movement in pixels.
    * Computed from screen orientation (doubled in landscape).

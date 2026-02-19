@@ -26,7 +26,7 @@ import {
 } from "./config";
 import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
 
-export type AnimatedWavesProps = BackgroundParallaxProps & {
+type AnimatedWavesProps = BackgroundParallaxProps & {
   /**
    * Paper texture source. When null, wave SVGs do not render the texture overlay.
    */
