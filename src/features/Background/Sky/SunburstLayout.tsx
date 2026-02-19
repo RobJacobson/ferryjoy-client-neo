@@ -138,7 +138,7 @@ const SunburstLayout = ({
       >
         <Sun
           rayCount={rayCount}
-          color={config.colors.orange[300]}
+          color={config.sun.color}
           innerRadius={config.sun.innerRadiusPx}
           outerRadius={config.sun.outerRadiusPx}
           size={sunSizePx}

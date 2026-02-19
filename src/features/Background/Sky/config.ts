@@ -5,25 +5,26 @@
 // Colors use Tailwind palette. Index for pink: 0=50, 1=100, 2=200, 3=300, 4=400, 5=500.
 // ============================================================================
 
-/** Tailwind pink shades 50–500 (index 0–5). */
-const pink = [
-  "#fdf2f8", // 50
-  "#fce7f3", // 100
-  "#fbcfe8", // 200
-  "#f9a8d4", // 300
-  "#f472b6", // 400
-  "#ec4899", // 500
-] as const;
+import { createColorGenerator } from "@/shared/utils";
+
+/**
+ * Base color for pink (magenta). Used with createColorGenerator for lightness.
+ * See pink color palettes: https://www.notebookandpenguin.com/pink-color-codes/
+ * */
+export const PINK_BASE_COLOR = "#FF00FF";
+
+/** Color generator for pink. lightness 0–1000. */
+export const pinkColor = createColorGenerator(PINK_BASE_COLOR);
 
 /** Tailwind orange for sun fill. */
 const orange = {
-  300: "#fdba74",
+  300: "#F6E473",
 } as const;
 
 /** Sky gradient and paper overlay. */
 const gradient = {
-  start: pink[1],
-  end: pink[3],
+  start: pinkColor(100),
+  end: pinkColor(300),
 } as const;
 
 /** Sunburst layout, rotation, and radial gradient. */
@@ -36,11 +37,11 @@ const sunburst = {
   spiralStrength: -0.5,
   rotationDurationMs: 180_000,
   preserveAspectRatio: "xMidYMid slice" as const,
-  startColor: pink[1],
-  endColor: pink[4],
+  startColor: pinkColor(100),
+  endColor: pinkColor(450),
 } as const;
 
-/** Sun disc: layout, shadow, and ray path geometry. */
+/** Sun disc: layout, shadow, stroke, and ray path geometry. */
 const sun = {
   innerRadiusPx: 40,
   outerRadiusPx: 50,
@@ -52,18 +53,23 @@ const sun = {
     [-2, 2],
     [-1, 1],
   ] as [number, number][],
+  stroke: {
+    color: "black",
+    width: 0.5,
+    opacity: 0.15,
+  },
   rayGeometry: {
     baseWidthFraction: 1,
     tipWidthFraction: 0.2,
     outerBulgeFraction: 0.2,
   },
+  color: orange[300],
 } as const;
 
 /** Paper texture opacity for Sky and Sunburst (aligns with Waves). */
 const paperTextureOpacity = 0.25;
 
 const config = {
-  colors: { pink, orange },
   gradient,
   sunburst,
   sun,
