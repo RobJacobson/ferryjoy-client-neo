@@ -78,7 +78,7 @@ Translate the SVG structure to Skia's declarative API.
 - **Path Compatibility:** Skia's `<Path />` accepts the exact same string format as `react-native-svg`'s `d` prop.
 - **Image Tiling:** Ensure `tx="repeat"` and `ty="repeat"` are set on the `ImageShader` to match the current `<Pattern>` behavior.
 - **Z-Index:** Since Skia components render in a single `Canvas`, manage the layering of waves by their order in the JSX tree.
-- **Performance:** Keep the `useWaveOscillation` hook but adapt it to return a `useDerivedValue` for the Skia `transform` prop instead of an `animatedStyle`.
+- **Performance:** Keep the `useWaveOscillationCSS` hook but adapt it to return a `useDerivedValue` for the Skia `transform` prop instead of an `animatedStyle`.
 
 ---
 **Memo Prepared By:** Senior Frontend Architect

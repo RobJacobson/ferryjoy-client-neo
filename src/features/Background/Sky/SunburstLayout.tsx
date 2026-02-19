@@ -15,7 +15,7 @@ import config from "./config";
 import { Sun } from "./Sun";
 import { Sunburst } from "./Sunburst";
 
-export type SunburstLayoutProps = {
+type SunburstLayoutProps = {
   /**
    * Paper texture source. When null, sunburst SVG does not render texture.
    */
@@ -138,7 +138,7 @@ const SunburstLayout = ({
       >
         <Sun
           rayCount={rayCount}
-          color={config.colors.orange[300]}
+          color={config.sun.color}
           innerRadius={config.sun.innerRadiusPx}
           outerRadius={config.sun.outerRadiusPx}
           size={sunSizePx}

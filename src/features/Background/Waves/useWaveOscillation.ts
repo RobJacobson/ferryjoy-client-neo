@@ -1,160 +1,73 @@
 // ============================================================================
-// useWaveOscillation Hook
+// useWaveOscillationCSS Hook
 // ============================================================================
-// Shared animation logic for horizontal wave oscillation.
-// Used by AnimatedWave.
-// Uses Reanimated frame callback and transform for 60 FPS performance.
+// Simplified wave oscillation using Reanimated 4's CSS animations.
+// Replaces frame-callback physics with declarative keyframes and negative delays.
+// Replaces deprecated useWaveOscillation.ts.
 // ============================================================================
 
-import { useEffect } from "react";
-import {
-  useAnimatedStyle,
-  useDerivedValue,
-  useFrameCallback,
-  useSharedValue,
-} from "react-native-reanimated";
-import { SVG_WIDTH } from "./config";
+import type { ViewStyle } from "react-native";
 
-const BASE_FRAME_MS = 1000 / 60;
-const MAX_FRAME_DT_MS = 34;
-const TWO_PI = 2 * Math.PI;
-
-/**
- * Props used by the wave oscillation animation.
- * Subset of AnimatedWaveProps; shared so the hook can be reused.
- */
-export interface UseWaveOscillationProps {
-  /**
-   * Animation duration in milliseconds.
-   * If provided with waveDisplacement, the wave oscillates horizontally.
-   */
+/** Props for the wave oscillation animation. */
+interface UseWaveOscillationProps {
+  /** Animation duration in milliseconds. */
   animationDuration?: number;
-
-  /**
-   * Delay before animation starts in milliseconds.
-   */
+  /** Delay before animation starts in milliseconds. */
   animationDelay?: number;
-
-  /**
-   * Maximum horizontal displacement in SVG units.
-   */
-  waveDisplacement?: number;
-
-  /**
-   * Phase offset for the wave oscillation in radians.
-   */
+  /** Maximum horizontal oscillation distance in pixels. */
+  maxXShiftPx?: number;
+  /** Phase offset for the wave oscillation in radians. */
   phaseOffset?: number;
 }
 
-/**
- * Return value from useWaveOscillation.
- */
-export interface UseWaveOscillationResult {
+/** Return value from useWaveOscillationCSS. */
+interface UseWaveOscillationResult {
   /** Style to apply to the wrapper Animated.View for horizontal oscillation. */
-  animatedOscillationStyle: ReturnType<typeof useAnimatedStyle>;
-
-  /** Horizontal overscan in SVG units (for layout and viewBox). */
-  overscanX: number;
-
-  /** Total SVG render width (SVG_WIDTH + 2 * overscanX). */
-  svgRenderWidth: number;
+  animatedOscillationStyle: ViewStyle;
 }
 
 /**
- * Drives horizontal sinusoidal oscillation for wave components.
- * Returns style for the wrapper View and layout values for the SVG.
+ * Drives horizontal sinusoidal oscillation for wave components using CSS animations.
+ * Uses negative animationDelay to achieve phase offsets without waiting.
+ * Wave oscillates from -displacement to +displacement and back.
  *
  * @param props - Animation parameters (duration, delay, displacement, phase)
- * @returns animatedOscillationStyle, overscanX, svgRenderWidth
+ * @returns animatedOscillationStyle
  */
-export function useWaveOscillation({
+export const useWaveOscillation = ({
   animationDuration,
   animationDelay = 0,
-  waveDisplacement = 0,
+  maxXShiftPx = 0,
   phaseOffset = 0,
-}: UseWaveOscillationProps): UseWaveOscillationResult {
-  const overscanX = Math.max(0, waveDisplacement);
-  const svgRenderWidth = SVG_WIDTH + overscanX * 2;
+}: UseWaveOscillationProps): UseWaveOscillationResult => {
+  const oscillationPx = Math.max(0, maxXShiftPx);
+  const shouldAnimate = (animationDuration ?? 0) > 0 && oscillationPx > 0;
 
-  const shouldAnimate = Boolean(animationDuration) && waveDisplacement !== 0;
+  if (!shouldAnimate) {
+    return { animatedOscillationStyle: {} };
+  }
 
-  const animateSV = useSharedValue(shouldAnimate);
-  const delayRemainingMsSV = useSharedValue(Math.max(0, animationDelay));
-  const angularVelocityRadPerMsSV = useSharedValue(
-    shouldAnimate ? TWO_PI / Math.max(1, animationDuration ?? 1) : 0
-  );
-  const displacementSV = useSharedValue(waveDisplacement);
-  const theta = useSharedValue(phaseOffset);
+  const durationMs = animationDuration ?? 0;
 
-  const translateX = useDerivedValue(() => {
-    return Math.sin(theta.value) * displacementSV.value;
-  });
+  // Convert phase offset to negative delay: starts animation immediately at
+  // correct phase (no waiting).
+  // phaseOffset of 0 = no delay, phaseOffset of π = -50% of duration
+  const phaseDelay = -(phaseOffset / (2 * Math.PI)) * durationMs;
+  const totalDelay = animationDelay + phaseDelay;
 
-  useEffect(() => {
-    animateSV.value = shouldAnimate;
-    displacementSV.value = waveDisplacement;
-    delayRemainingMsSV.value = Math.max(0, animationDelay);
-    angularVelocityRadPerMsSV.value = shouldAnimate
-      ? TWO_PI / Math.max(1, animationDuration ?? 1)
-      : 0;
-    theta.value = phaseOffset;
-  }, [
-    animateSV,
-    animationDelay,
-    animationDuration,
-    angularVelocityRadPerMsSV,
-    delayRemainingMsSV,
-    displacementSV,
-    phaseOffset,
-    theta,
-    waveDisplacement,
-    shouldAnimate,
-  ]);
-
-  const frameCallback = useFrameCallback((frameInfo) => {
-    "worklet";
-
-    const rawDtMs = frameInfo.timeSincePreviousFrame;
-    const dtMs = rawDtMs ?? BASE_FRAME_MS;
-    const cappedDtMs = Math.min(MAX_FRAME_DT_MS, dtMs);
-
-    if (!animateSV.value || rawDtMs == null) {
-      return;
-    }
-
-    if (delayRemainingMsSV.value > 0) {
-      delayRemainingMsSV.value = Math.max(
-        0,
-        delayRemainingMsSV.value - cappedDtMs
-      );
-      return;
-    }
-
-    theta.value += angularVelocityRadPerMsSV.value * cappedDtMs;
-    if (theta.value > TWO_PI) {
-      theta.value = theta.value % TWO_PI;
-    }
-  });
-
-  useEffect(() => {
-    frameCallback.setActive(true);
-    return () => frameCallback.setActive(false);
-  }, [frameCallback]);
-
-  const animatedOscillationStyle = useAnimatedStyle(() => {
-    if (!animationDuration || waveDisplacement === 0) {
-      return {
-        transform: [{ translateX: 0 }],
-      };
-    }
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  }, [animationDuration, waveDisplacement]);
+  const animatedOscillationStyle: ViewStyle = {
+    animationName: {
+      "0%": { transform: [{ translateX: -oscillationPx }] },
+      "50%": { transform: [{ translateX: oscillationPx }] },
+      "100%": { transform: [{ translateX: -oscillationPx }] },
+    },
+    animationDuration: durationMs,
+    animationDelay: totalDelay,
+    animationIterationCount: "infinite",
+    animationTimingFunction: "ease-in-out",
+  };
 
   return {
     animatedOscillationStyle,
-    overscanX,
-    svgRenderWidth,
   };
-}
+};

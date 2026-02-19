@@ -5,8 +5,8 @@ import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Background } from "@/features/Background";
-import RoutesCarousel from "@/features/RoutesCarousel";
 import { useCarouselLayout } from "@/features/RoutesCarousel/config";
+import RoutesCarousel from "@/features/RoutesCarousel/RoutesCarousel";
 
 export default function Home() {
   const blurTargetRef = useRef<View | null>(null);

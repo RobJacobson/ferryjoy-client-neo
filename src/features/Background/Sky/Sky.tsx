@@ -7,17 +7,15 @@
 // ============================================================================
 
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, useWindowDimensions, View } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
-import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPxSafe, SKY_PARALLAX_MULTIPLIER } from "../config";
-import { computeRequiredBackgroundWidth } from "../parallaxWidth";
+import { Image, View } from "react-native";
+import { SKY_PARALLAX_MULTIPLIER } from "../config";
+import { ParallaxLayer } from "../ParallaxLayer";
 import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
+import { useBackgroundLayout } from "../useBackgroundLayout";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
 
-export type SkyProps = BackgroundParallaxProps & {
+type SkyProps = BackgroundParallaxProps & {
   /**
    * Paper texture source (e.g. require() asset). When null, no texture overlay.
    */
@@ -31,39 +29,23 @@ export type SkyProps = BackgroundParallaxProps & {
  * @param props - paperTextureUrl, scrollX, slotWidth
  */
 const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
-  const isLandscape = useIsLandscape();
-  const { width, height } = useWindowDimensions();
-  const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
-
-  const parallaxStyle = useAnimatedStyle(() => {
-    if (slotWidth === 0) {
-      return { transform: [{ translateX: 0 }] };
-    }
-    const progress = scrollX.value / slotWidth;
-    const translateX =
-      -progress * (SKY_PARALLAX_MULTIPLIER / 100) * maxParallaxPx;
-    return { transform: [{ translateX }] };
-  }, [slotWidth, maxParallaxPx]);
-
-  const skyWidth = computeRequiredBackgroundWidth(
-    width,
-    NUM_TERMINAL_CARDS,
-    SKY_PARALLAX_MULTIPLIER,
-    maxParallaxPx
-  );
+  const { maxParallaxPx, requiredWidth: skyWidth } = useBackgroundLayout({
+    parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
+  });
 
   return (
-    <Animated.View
-      style={[
-        parallaxStyle,
-        {
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: skyWidth,
-        },
-      ]}
+    <ParallaxLayer
+      scrollX={scrollX}
+      slotWidth={slotWidth}
+      parallaxMultiplier={SKY_PARALLAX_MULTIPLIER}
+      maxParallaxPx={maxParallaxPx}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: skyWidth,
+      }}
     >
       <View className="absolute inset-0">
         <LinearGradient
@@ -98,7 +80,7 @@ const Sky = ({ paperTextureUrl, scrollX, slotWidth }: SkyProps) => {
           layoutSize={config.sunburst.defaultSize}
         />
       </View>
-    </Animated.View>
+    </ParallaxLayer>
   );
 };
 
