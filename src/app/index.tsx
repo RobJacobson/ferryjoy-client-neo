@@ -6,12 +6,13 @@ import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Background } from "@/features/Background";
 import { useCarouselLayout } from "@/features/RoutesCarousel/config";
+import RoutesCarousel from "@/features/RoutesCarousel/RoutesCarousel";
 
 export default function Home() {
   const blurTargetRef = useRef<View | null>(null);
   const insets = useSafeAreaInsets();
   const scrollX = useSharedValue(0);
-  const { slotWidth } = useCarouselLayout();
+  const { slotWidth, width } = useCarouselLayout();
 
   return (
     <View
@@ -25,12 +26,12 @@ export default function Home() {
       <BlurTargetView ref={blurTargetRef} className="absolute inset-0">
         <Background scrollX={scrollX} slotWidth={slotWidth} />
       </BlurTargetView>
-      {/* <RoutesCarousel
+      <RoutesCarousel
         blurTargetRef={blurTargetRef}
         scrollX={scrollX}
         slotWidth={slotWidth}
         viewportWidth={width}
-      /> */}
+      />
     </View>
   );
 }
