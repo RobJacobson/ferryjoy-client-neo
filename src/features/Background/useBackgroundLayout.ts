@@ -43,6 +43,15 @@ export interface UseBackgroundLayoutResult {
    * Ensures layer extends past viewport to avoid empty space at max scroll.
    */
   requiredWidth: number;
+
+  /**
+   * Computes required width for any parallax multiplier (0–100) using the
+   * current screen dimensions and maxParallaxPx.
+   *
+   * @param parallaxMultiplier - Parallax strength (0-100) for a layer
+   * @returns Minimum width in pixels for the layer to cover the viewport at max scroll
+   */
+  getRequiredWidth: (parallaxMultiplier: number) => number;
 }
 
 // ============================================================================
@@ -75,12 +84,15 @@ export const useBackgroundLayout = ({
   const isLandscape = useIsLandscape();
   const { width, height } = useWindowDimensions();
   const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, width, height);
-  const requiredWidth = computeRequiredBackgroundWidth(
-    width,
-    NUM_TERMINAL_CARDS,
-    parallaxMultiplier,
-    maxParallaxPx
-  );
+  const getRequiredWidth = (layerParallaxMultiplier: number): number =>
+    computeRequiredBackgroundWidth(
+      width,
+      NUM_TERMINAL_CARDS,
+      layerParallaxMultiplier,
+      maxParallaxPx
+    );
 
-  return { maxParallaxPx, requiredWidth };
+  const requiredWidth = getRequiredWidth(parallaxMultiplier);
+
+  return { maxParallaxPx, requiredWidth, getRequiredWidth };
 };
