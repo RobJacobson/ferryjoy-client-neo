@@ -38,7 +38,7 @@ const buttonVariants = cva(
           Platform.select({ web: "hover:bg-accent dark:hover:bg-accent/50" }),
         ),
         glass: cn(
-          "border border-white/60 bg-black/10 active:bg-black/20",
+          "border border-white/50 bg-black/10 active:bg-black/20",
           Platform.select({ web: "hover:bg-black/30" }),
         ),
         link: "",

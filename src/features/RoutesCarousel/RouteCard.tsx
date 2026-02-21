@@ -63,6 +63,7 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={16}
       blurMethod="dimezisBlurView"
+      tint="extraLight"
       style={{ width, height, borderRadius: 24 }}
     >
       <View className="flex-1 gap-1 rounded-[24px] border border-white/50 p-4">
