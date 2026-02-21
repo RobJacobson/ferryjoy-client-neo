@@ -1,5 +1,5 @@
 import type { VesselLocation, VesselPing } from "@/domain";
-import { CIRCLE_LAYER_IDS } from "@/features/VesselCircleMarkers/constants";
+import { CIRCLE_LAYER_IDS } from "@/features/MapFeatures/VesselCircleMarkers/constants";
 import { useZoomScale } from "@/shared/hooks";
 import { LineLayer } from "./components/LineLayer"; // Will be resolved to platform-specific version
 import { VESSEL_LINE_CONFIG } from "./config";
