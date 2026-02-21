@@ -1,12 +1,17 @@
 /**
- * Single carousel item wrapper that applies parallax animated style.
- * Receives slot dimensions and scroll shared value; renders children inside Animated.View.
+ * Single carousel item wrapper with scroll-driven animations.
+ * Applies zIndex, opacity, scale, and rotate based on scroll position.
  */
 
 import type { PropsWithChildren } from "react";
+import type { ViewStyle } from "react-native";
+import { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import Animated from "react-native-reanimated";
-import { useCarouselItemAnimatedStyle } from "@/features/RoutesCarousel/useCarouselItemAnimatedStyle";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 
 // ============================================================================
 // Types
@@ -15,10 +20,12 @@ import { useCarouselItemAnimatedStyle } from "@/features/RoutesCarousel/useCarou
 type RoutesCarouselItemProps = {
   /** Item index in the list. */
   index: number;
-  /** Shared scroll offset (x). */
+  /** Shared scroll value (normalized to index, e.g. scrollOffset / snapInterval). */
   scrollX: SharedValue<number>;
-  /** Width of one carousel slot. */
-  slotWidth: number;
+  /** Width of the carousel slot. */
+  width: number;
+  /** Height of the carousel slot. */
+  height: number;
   /** Accessibility label for the item. */
   accessibilityLabel: string;
 };
@@ -29,26 +36,67 @@ type RoutesCarouselItemProps = {
 
 /**
  * Wrapper that applies animated style to a carousel item from scroll position.
- * Display structure (e.g. View + RouteCard) is passed as children from parent.
+ * Uses opacity, scale, rotate, and zIndex for the active-item effect.
  *
- * @param props - index, scroll shared value, slot dimensions, accessibility label, children
+ * @param props - index, scrollX, width, height, accessibilityLabel, children
  */
 export const RoutesCarouselItem = ({
   index,
   scrollX,
-  slotWidth,
+  width,
+  height,
   accessibilityLabel,
   children,
 }: PropsWithChildren<RoutesCarouselItemProps>) => {
-  const animatedStyle = useCarouselItemAnimatedStyle(index, scrollX, slotWidth);
+  const zIndexStyle = useAnimatedStyle(() => ({
+    zIndex: Math.round(
+      interpolate(
+        scrollX.value,
+        [index - 1, index, index + 1],
+        [0, 10, 0],
+        Extrapolation.CLAMP
+      )
+    ),
+  }));
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollX.value,
+      [index - 1.1, index, index + 1.1],
+      [0.0, 1, 0.0],
+      Extrapolation.CLAMP
+    ),
+    transform: [
+      {
+        scale: interpolate(
+          scrollX.value,
+          [index - 1, index, index + 1],
+          [0.9, 1, 0.9],
+          Extrapolation.CLAMP
+        ),
+      },
+      {
+        rotate: `${interpolate(
+          scrollX.value,
+          [index - 1, index, index + 1],
+          [15, 0, -15],
+          Extrapolation.CLAMP
+        )}deg`,
+      },
+    ],
+  }));
 
   return (
     <Animated.View
-      style={[animatedStyle, { width: slotWidth }]}
-      className="flex-1 items-center justify-center overflow-hidden"
+      className="relative"
+      style={[
+        { width, height },
+        { scrollSnapAlign: "center", overflow: "visible" } as ViewStyle,
+        zIndexStyle,
+        animatedStyle,
+      ]}
       accessibilityLabel={accessibilityLabel}
     >
-      {children}
+      <View style={{ width, height }}>{children}</View>
     </Animated.View>
   );
 };

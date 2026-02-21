@@ -23,6 +23,10 @@ type RouteCardProps = {
   terminalName: string;
   terminalSlug: string;
   destinations: TerminalCardData["destinations"];
+  /** Width to fill the carousel slot (Option A). */
+  width: number;
+  /** Height to fill the carousel slot (Option A). */
+  height: number;
 };
 
 // ============================================================================
@@ -41,6 +45,8 @@ export const RouteCard = ({
   terminalName,
   terminalSlug,
   destinations,
+  width,
+  height,
 }: RouteCardProps) => {
   const router = useRouter();
   const { setPair } = useSelectedTerminalPair();
@@ -58,7 +64,8 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={12}
       blurMethod="dimezisBlurView"
-      className="m-4 xs:m-8 aspect-[8.5/16] border-radius-[32px]"
+      className="border-radius-[32px]"
+      style={{ width, height }}
     >
       <GlassView borderRadius={24} className="flex-1 gap-4 rounded-[24px] p-4">
         <View className="relative aspect-[3/4] w-full">

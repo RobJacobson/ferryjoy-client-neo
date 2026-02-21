@@ -24,6 +24,7 @@ export default function Home() {
       </BlurTargetView>
       <View style={{ zIndex: CAROUSEL_Z_INDEX }} className="relative flex-1">
         <RoutesCarousel
+          blurTargetRef={blurTargetRef}
           scrollX={scrollX}
           onSlotWidthChange={onSlotWidthChange}
         />
