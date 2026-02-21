@@ -17,14 +17,20 @@ import type { TerminalCardData } from "@/data/terminalConnections";
 // ============================================================================
 
 type RouteCardProps = {
-  /** Ref to BlurTargetView; card uses BlurView with this as blur source. */
+  /**
+   * Ref to BlurTargetView; card uses BlurView with this as blur source.
+   * Required for glassmorphism effect behind the card.
+   */
   blurTargetRef: RefObject<View | null>;
+  /** Display name of the terminal (e.g., "Bainbridge Island"). */
   terminalName: string;
+  /** Slug identifier for the terminal (e.g., "bi"). */
   terminalSlug: string;
+  /** Array of destinations reachable from this terminal. */
   destinations: TerminalCardData["destinations"];
-  /** Width to fill the carousel slot (Option A). */
+  /** Width to fill the carousel slot in pixels. */
   width: number;
-  /** Height to fill the carousel slot (Option A). */
+  /** Height to fill the carousel slot in pixels. */
   height: number;
 };
 
@@ -37,7 +43,12 @@ type RouteCardProps = {
  * Card fills container via flex and maintains 9:16 aspect ratio.
  * Tapping a destination sets the terminal pair and navigates to the map tab.
  *
- * @param props - blurTargetRef, terminal name/slug, destinations
+ * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
+ * @param terminalName - Display name of the terminal
+ * @param terminalSlug - Slug identifier for the terminal
+ * @param destinations - Array of destinations reachable from this terminal
+ * @param width - Width of the carousel slot in pixels
+ * @param height - Height of the carousel slot in pixels
  */
 export const RouteCard = ({
   blurTargetRef,
@@ -52,6 +63,7 @@ export const RouteCard = ({
 
   const handleDestinationPress = (destinationSlug: string) => {
     // Convert both origin and destination slugs to uppercase abbreviations
+    // This ensures consistent navigation and state management
     const fromAbbrev = terminalSlug.toUpperCase();
     const destAbbrev = destinationSlug.toUpperCase();
     void setPair(fromAbbrev, destAbbrev);

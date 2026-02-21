@@ -382,3 +382,6 @@ export const transformConnectionsToTerminalCards = (
 /** Number of terminal cards (computed once at module load). Used for parallax width. */
 export const NUM_TERMINAL_CARDS =
   transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS).length;
+
+/** Total carousel items including the blank placeholder at index 0. */
+export const TOTAL_CAROUSEL_ITEMS = NUM_TERMINAL_CARDS + 1;

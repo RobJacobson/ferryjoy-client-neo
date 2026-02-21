@@ -18,15 +18,21 @@ import Animated, {
 // ============================================================================
 
 type RoutesCarouselItemProps = {
-  /** Item index in the list. */
+  /**
+   * Item index in the carousel list.
+   * Used to calculate animated styles based on scroll position.
+   */
   index: number;
-  /** Shared scroll value (normalized to index, e.g. scrollOffset / snapInterval). */
+  /**
+   * Shared scroll value normalized to index (scrollOffset / snapInterval).
+   * A value of 2.5 means the carousel is scrolled 2.5 slots from the start.
+   */
   scrollX: SharedValue<number>;
-  /** Width of the carousel slot. */
+  /** Width of the carousel slot in pixels. */
   width: number;
-  /** Height of the carousel slot. */
+  /** Height of the carousel slot in pixels. */
   height: number;
-  /** Accessibility label for the item. */
+  /** Accessibility label for the item (used by screen readers). */
   accessibilityLabel: string;
 };
 
@@ -38,7 +44,12 @@ type RoutesCarouselItemProps = {
  * Wrapper that applies animated style to a carousel item from scroll position.
  * Uses opacity, scale, rotate, and zIndex for the active-item effect.
  *
- * @param props - index, scrollX, width, height, accessibilityLabel, children
+ * @param index - Item index in the carousel list
+ * @param scrollX - Shared scroll value normalized to index
+ * @param width - Width of the carousel slot in pixels
+ * @param height - Height of the carousel slot in pixels
+ * @param accessibilityLabel - Accessibility label for the item
+ * @param children - Child content to render
  */
 export const RoutesCarouselItem = ({
   index,
