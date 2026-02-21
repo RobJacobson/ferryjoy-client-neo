@@ -8,7 +8,6 @@ import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
 import { Text, View } from "react-native";
-import { GlassView } from "@/components/GlassView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
@@ -62,12 +61,12 @@ export const RouteCard = ({
   return (
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={12}
+      intensity={16}
       blurMethod="dimezisBlurView"
       className="border-radius-[32px]"
       style={{ width, height }}
     >
-      <GlassView borderRadius={24} className="flex-1 gap-4 rounded-[24px] p-4">
+      <View className="flex-1 gap-4 rounded-[24px] p-4">
         <View className="relative aspect-[3/4] w-full">
           <View className="h-full w-full items-center justify-center rounded-3xl border border-white bg-pink-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
@@ -107,7 +106,7 @@ export const RouteCard = ({
             </Button>
           ))}
         </View>
-      </GlassView>
+      </View>
     </BlurView>
   );
 };

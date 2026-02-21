@@ -61,7 +61,7 @@ export const GlassView = ({
       setLayout({ width, height });
       onLayout?.(e);
     },
-    [onLayout]
+    [onLayout],
   );
 
   const w = layout?.width ?? 0;
@@ -132,7 +132,7 @@ export const GlassView = ({
         {...props}
         onLayout={handleLayout}
         style={[styles.glass, style]}
-        className={cn("border border-white/40 bg-white/25", className)}
+        className={cn("border border-white/40 bg-black/25", className)}
       >
         {children}
       </View>

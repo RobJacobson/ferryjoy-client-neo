@@ -54,24 +54,24 @@ export const RoutesCarouselItem = ({
         scrollX.value,
         [index - 1, index, index + 1],
         [0, 10, 0],
-        Extrapolation.CLAMP
-      )
+        Extrapolation.CLAMP,
+      ),
     ),
   }));
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollX.value,
-      [index - 1.1, index, index + 1.1],
+      [index - 0.5, index, index + 0.5],
       [0.0, 1, 0.0],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     ),
     transform: [
       {
         scale: interpolate(
           scrollX.value,
           [index - 1, index, index + 1],
-          [0.9, 1, 0.9],
-          Extrapolation.CLAMP
+          [0.75, 1, 0.75],
+          Extrapolation.CLAMP,
         ),
       },
       {
@@ -79,7 +79,7 @@ export const RoutesCarouselItem = ({
           scrollX.value,
           [index - 1, index, index + 1],
           [15, 0, -15],
-          Extrapolation.CLAMP
+          Extrapolation.CLAMP,
         )}deg`,
       },
     ],
