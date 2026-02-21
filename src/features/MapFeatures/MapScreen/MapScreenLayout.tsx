@@ -4,8 +4,8 @@ import { SmoothedVesselLocationsProvider, useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapFeatures/MapComponent";
 import { MapDebugOverlay } from "@/features/MapFeatures/MapDebugOverlay/MapDebugOverlay";
-import { VesselCircleMarkers } from "@/features/VesselCircleMarkers";
-import { VesselLines } from "@/features/VesselLines";
+import { VesselCircleMarkers } from "@/features/MapFeatures/VesselCircleMarkers";
+import { VesselLines } from "@/features/MapFeatures/VesselLines";
 
 export interface MapScreenLayoutProps {
   /** Optional callback when a vessel marker is selected */

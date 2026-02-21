@@ -13,10 +13,6 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 type RoutesCarouselItemProps = {
   /**
    * Item index in the carousel list.
@@ -35,10 +31,6 @@ type RoutesCarouselItemProps = {
   /** Accessibility label for the item (used by screen readers). */
   accessibilityLabel: string;
 };
-
-// ============================================================================
-// RoutesCarouselItem
-// ============================================================================
 
 /**
  * Wrapper that applies animated style to a carousel item from scroll position.
@@ -65,8 +57,8 @@ export const RoutesCarouselItem = ({
         scrollX.value,
         [index - 2, index, index + 2],
         [0, 10, 0],
-        Extrapolation.CLAMP,
-      ),
+        Extrapolation.CLAMP
+      )
     ),
   }));
   const animatedStyle = useAnimatedStyle(() => ({
@@ -82,7 +74,7 @@ export const RoutesCarouselItem = ({
         index + 2,
       ],
       [0, 0.1, 0.8, 1, 0.8, 0.1, 0],
-      Extrapolation.CLAMP,
+      Extrapolation.CLAMP
     ),
     transform: [
       {
@@ -90,7 +82,7 @@ export const RoutesCarouselItem = ({
           scrollX.value,
           [index - 1, index, index + 1],
           [0.75, 1, 0.75],
-          Extrapolation.CLAMP,
+          Extrapolation.CLAMP
         ),
       },
       {
@@ -98,7 +90,7 @@ export const RoutesCarouselItem = ({
           scrollX.value,
           [index - 1, index, index + 1],
           [45, 0, -45],
-          Extrapolation.CLAMP,
+          Extrapolation.CLAMP
         )}deg`,
       },
     ],

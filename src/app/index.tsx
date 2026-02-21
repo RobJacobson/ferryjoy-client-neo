@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Background } from "@/features/Background";
-import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
 import { RoutesCarouselSection } from "@/features/RoutesCarousel/RoutesCarouselSection";
 
 export default function Home() {
@@ -17,7 +16,7 @@ export default function Home() {
       <BlurTargetView ref={blurTargetRef} className="absolute inset-0">
         <Background scrollProgress={scrollProgress} />
       </BlurTargetView>
-      <View style={{ zIndex: CAROUSEL_Z_INDEX }} className="relative flex-1">
+      <View className="relative z-[200] flex-1">
         <RoutesCarouselSection
           scrollProgress={scrollProgress}
           blurTargetRef={blurTargetRef}
