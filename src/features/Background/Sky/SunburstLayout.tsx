@@ -30,7 +30,10 @@ type SunburstLayoutProps = {
   layoutSize?: number;
 };
 
-/** Reanimated 4 CSS rotation: one full rotation over rotationDurationMs, counterclockwise. */
+/**
+ * Reanimated 4 CSS rotation: one full rotation over rotationDurationMs, counterclockwise.
+ * Creates continuous slow rotation for the sunburst effect.
+ */
 const sunburstRotationStyle = {
   animationName: {
     from: { transform: [{ rotate: "0deg" }] },
@@ -64,7 +67,11 @@ const SUN_MAX_WIDTH_FRACTION = 0.22;
  * container. Size scales with container width so the sunburst always covers
  * the full visible area when the carousel is panned (e.g. iPad landscape).
  *
- * @param props - paperTextureUrl, rayCount (required), centerX, centerY (0–100), optional size (px)
+ * @param paperTextureUrl - Paper texture source (null for no texture)
+ * @param rayCount - Number of rays in the sunburst
+ * @param centerX - Horizontal center of the sunburst (0-100, default 50)
+ * @param centerY - Vertical center of the sunburst (0-100, default 50)
+ * @param layoutSize - Rendered size in pixels (default from config)
  * @returns Container view with positioned Sunburst
  */
 const SunburstLayout = ({

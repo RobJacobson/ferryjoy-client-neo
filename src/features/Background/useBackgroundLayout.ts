@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { useWindowDimensions } from "react-native";
-import { NUM_TERMINAL_CARDS } from "@/data/terminalConnections";
+import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
 import { getMaxParallaxPxSafe } from "./config";
 import { computeRequiredBackgroundWidth } from "./parallaxWidth";
@@ -87,7 +87,7 @@ export const useBackgroundLayout = ({
   const getRequiredWidth = (layerParallaxMultiplier: number): number =>
     computeRequiredBackgroundWidth(
       width,
-      NUM_TERMINAL_CARDS,
+      TOTAL_CAROUSEL_ITEMS,
       layerParallaxMultiplier,
       maxParallaxPx
     );

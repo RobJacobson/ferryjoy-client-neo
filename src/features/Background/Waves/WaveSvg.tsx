@@ -17,18 +17,54 @@ import {
 import { generateWavePath } from "./wavePath";
 
 type WaveSvgProps = {
+  /**
+   * Wave amplitude in pixels (height from center to peak/trough).
+   */
   amplitude: number;
+  /**
+   * Wave period in pixels (width of one complete cycle).
+   */
   period: number;
+  /**
+   * Color of the wave fill.
+   */
   fillColor: string;
+  /**
+   * Opacity of the wave fill (0-1). Default is 1.
+   */
   fillOpacity?: number;
+  /**
+   * Vertical position of the wave centerline as a percentage (0-100).
+   * 0 = bottom, 50 = middle, 100 = top. Default is 50.
+   */
   height?: number;
+  /**
+   * Paper texture source. When null, SVG does not render the texture overlay.
+   */
   paperTextureUrl?: PaperTextureSource;
+  /**
+   * Width of the wave SVG render area in pixels.
+   */
   renderWidthPx: number;
+  /**
+   * Height of the wave SVG render area in pixels.
+   */
   renderHeightPx: number;
 };
 
 /**
- * Renders the wave SVG.
+ * Renders the wave SVG with optional shadow layers, stroke, and paper texture overlay.
+ * The wave is rendered as a fill path with an optional stroke for definition.
+ *
+ * @param amplitude - Wave amplitude in pixels
+ * @param period - Wave period in pixels
+ * @param fillColor - Color of the wave fill
+ * @param fillOpacity - Opacity of the wave fill (default: 1)
+ * @param height - Vertical position as percentage (default: 50)
+ * @param paperTextureUrl - Optional paper texture overlay
+ * @param renderWidthPx - Render area width in pixels
+ * @param renderHeightPx - Render area height in pixels
+ * @returns SVG element containing the wave
  */
 export const WaveSvg = ({
   amplitude,
@@ -49,6 +85,7 @@ export const WaveSvg = ({
     viewBoxWidth,
     SVG_HEIGHT
   );
+  // Unique ID for pattern referencing (avoids conflicts between multiple wave layers)
   const LOCAL_TEXTURE_ID = `texture-${amplitude}-${period}`;
 
   const pathContent = (

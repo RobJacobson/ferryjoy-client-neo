@@ -53,7 +53,13 @@ type SunburstProps = {
  * gaps. Supports solid fill (startColor) or radial gradient (startColor → endColor).
  * When rayCount is 0, renders an empty SVG.
  *
- * @param props - Sunburst props (rayCount, startColor required; endColor, size, spiralStrength optional)
+ * @param paperTextureUrl - Paper texture source (null for no texture)
+ * @param rayCount - Number of rays (gaps = same count)
+ * @param startColor - Solid or gradient start color
+ * @param endColor - Optional gradient end color (omitted for solid fill)
+ * @param size - ViewBox and rendered size in pixels (default from config)
+ * @param preserveAspectRatio - How viewBox maps to viewport
+ * @param spiralStrength - Spiral curve strength for ray edges (0 = straight)
  * @returns SVG sunburst element
  */
 const Sunburst = ({
