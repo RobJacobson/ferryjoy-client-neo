@@ -12,7 +12,7 @@ export default function Home() {
   const scrollX = useSharedValue(0);
   const [slotWidth, setSlotWidth] = useState(0);
 
-  const onSlotWidthChange = useCallback((w: number) => {
+  const handleSlotWidthChange = useCallback((w: number) => {
     setSlotWidth(w);
   }, []);
 
@@ -26,7 +26,7 @@ export default function Home() {
         <RoutesCarousel
           blurTargetRef={blurTargetRef}
           scrollX={scrollX}
-          onSlotWidthChange={onSlotWidthChange}
+          onSlotWidthChange={handleSlotWidthChange}
         />
       </View>
     </View>

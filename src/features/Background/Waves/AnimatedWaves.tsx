@@ -19,10 +19,10 @@ import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
   BACKGROUND_LAYERS,
-  blueColor,
   FOREGROUND_LAYERS,
   grassColor,
   OCEAN_WAVES,
+  oceanColor,
 } from "./config";
 import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
 
@@ -38,7 +38,7 @@ const OCEAN_PHASE_OFFSETS = Array.from(
   (_, index) => {
     const t = ((index * 73) % 101) / 101;
     return t * 2 * Math.PI;
-  }
+  },
 );
 
 const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
@@ -145,7 +145,7 @@ const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
     const parallaxMultiplier = lerp(
       t,
       PARALLAX_BG_GRASS.min,
-      PARALLAX_BG_GRASS.max
+      PARALLAX_BG_GRASS.max,
     );
 
     return {
@@ -161,7 +161,7 @@ const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
         maxXShiftPx: GRASS_MAX_X_SHIFT_PX,
       },
     };
-  }
+  },
 );
 
 const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
@@ -179,23 +179,23 @@ const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
         amplitude: lerp(
           t,
           OCEAN_WAVES.amplitude.min,
-          OCEAN_WAVES.amplitude.max
+          OCEAN_WAVES.amplitude.max,
         ),
         period: lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max),
-        fillColor: blueColor(
-          lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max)
+        fillColor: oceanColor(
+          lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max),
         ),
         height: lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max),
         animationDuration: lerp(
           t,
           OCEAN_WAVES.animationDuration.min,
-          OCEAN_WAVES.animationDuration.max
+          OCEAN_WAVES.animationDuration.max,
         ),
         maxXShiftPx: MAX_OCEAN_X_SHIFT_PX,
         phaseOffset: OCEAN_PHASE_OFFSETS[index],
       },
     };
-  }
+  },
 );
 
 const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
@@ -204,7 +204,7 @@ const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
     const parallaxMultiplier = lerp(
       t,
       PARALLAX_FG_GRASS.min,
-      PARALLAX_FG_GRASS.max
+      PARALLAX_FG_GRASS.max,
     );
     const zIndex = index === 0 ? 101 : 100;
     const wrapperStyle = index === 0 ? { marginBottom: -10 } : undefined;

@@ -56,7 +56,7 @@ const RoutesCarousel = ({
   useScrollOffset(animatedRef, scrollX);
   const scrollXNormalized = useDerivedValue(
     () => scrollX.value / snapInterval,
-    [snapInterval],
+    [snapInterval]
   );
 
   useEffect(() => {

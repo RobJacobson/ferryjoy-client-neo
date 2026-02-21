@@ -52,34 +52,34 @@ export const RoutesCarouselItem = ({
     zIndex: Math.round(
       interpolate(
         scrollX.value,
-        [index - 1, index, index + 1],
+        [index - 2, index, index + 2],
         [0, 10, 0],
-        Extrapolation.CLAMP,
-      ),
+        Extrapolation.CLAMP
+      )
     ),
   }));
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollX.value,
       [index - 1, index, index + 1],
-      [0.25, 1, 0.25],
-      Extrapolation.CLAMP,
+      [0.1, 1, 0.1],
+      Extrapolation.CLAMP
     ),
     transform: [
       {
         scale: interpolate(
           scrollX.value,
           [index - 1, index, index + 1],
-          [0.5, 1, 0.5],
-          Extrapolation.CLAMP,
+          [0.75, 1, 0.75],
+          Extrapolation.CLAMP
         ),
       },
       {
         rotate: `${interpolate(
           scrollX.value,
           [index - 1, index, index + 1],
-          [25, 0, -25],
-          Extrapolation.CLAMP,
+          [15, 0, -15],
+          Extrapolation.CLAMP
         )}deg`,
       },
     ],
