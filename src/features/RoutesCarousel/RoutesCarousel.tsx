@@ -1,133 +1,181 @@
 /**
- * RoutesCarousel – FlatList-based carousel of terminal route cards.
- * Uses Animated.FlatList + Reanimated with a normalized value in [-1, 0, 1] for parallax.
+ * RoutesCarousel – ScrollView-based carousel of Pexels photos.
+ * Parallax background (BlurTargetView + Background) is rendered behind in index.tsx.
  */
 
-import type { RefObject } from "react";
-import { useRef } from "react";
-import { View } from "react-native";
-import type { SharedValue } from "react-native-reanimated";
-import Animated, {
-  type ScrollEvent,
-  useAnimatedScrollHandler,
-} from "react-native-reanimated";
-import type { TerminalCardData } from "@/data/terminalConnections";
+import { Image } from "expo-image";
+import { useEffect } from "react";
 import {
-  TERMINAL_CONNECTIONS,
-  transformConnectionsToTerminalCards,
-} from "@/data/terminalConnections";
-import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
-import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
-import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
+  ActivityIndicator,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useDerivedValue,
+  useScrollOffset,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  type Photo as PexelsPhoto,
+  usePexelsData,
+} from "@/shared/hooks/usePexelsData";
 
-// ============================================================================
-// Types
-// ============================================================================
+const SPACING = 12;
+const CARD_RADIUS = 16;
+const PORTRAIT_ASPECT_RATIO = 9 / 16;
 
 type RoutesCarouselProps = {
-  /**
-   * Ref to BlurTargetView that BlurViews in each RouteCard will use as blur source.
-   */
-  blurTargetRef: RefObject<View | null>;
-  /**
-   * Shared scroll offset (x). Updated by carousel onScroll; used for card and background parallax.
-   */
+  /** Shared scroll offset (x) in pixels; updated by useScrollOffset for Background parallax. */
   scrollX: SharedValue<number>;
-  /**
-   * Width of one carousel slot (e.g. from useCarouselLayout).
-   */
-  slotWidth: number;
-  /**
-   * Viewport width; when larger than slotWidth (e.g. landscape), used to center the active card.
-   */
-  viewportWidth: number;
+  /** Called when slot width (snap interval) is computed; used for Background parallax. */
+  onSlotWidthChange: (slotWidth: number) => void;
 };
 
-// ============================================================================
-// RoutesCarousel
-// ============================================================================
-
-/**
- * FlatList-based carousel that displays terminal cards. Uses native scroll and
- * a normalized value in [-1, 0, 1] for parallax (scale + translateX + zIndex).
- *
- * @param props - blurTargetRef, scrollX, slotWidth
- */
 const RoutesCarousel = ({
-  blurTargetRef,
   scrollX,
-  slotWidth,
-  viewportWidth,
+  onSlotWidthChange,
 }: RoutesCarouselProps) => {
-  const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
+  const { data, isLoading } = usePexelsData();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
-  const terminalCards =
-    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+  // Largest 9:16 rect that fits in 90% of viewport (width and height)
+  const maxW = windowWidth * 0.9;
+  const maxH = windowHeight * 0.9;
+  const widthBinds = maxW * (16 / 9) <= maxH;
+  const imageWidth = widthBinds ? maxW : maxH * PORTRAIT_ASPECT_RATIO;
+  const imageHeight = widthBinds ? maxW * (16 / 9) : maxH;
 
-  // When viewport is wider than slot (e.g. landscape), pad so the active card centers.
-  const horizontalPadding =
-    viewportWidth > slotWidth ? (viewportWidth - slotWidth) / 2 : 0;
+  const snapInterval = imageWidth + SPACING;
+  const photos = data?.photos ?? [];
+  const sidePadding = Math.max(0, (windowWidth - imageWidth) / 2);
 
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event: ScrollEvent) => {
-      scrollX.value = event.contentOffset.x;
-    },
-  });
+  const animatedRef = useAnimatedRef<Animated.ScrollView>();
+  useScrollOffset(animatedRef, scrollX);
+  const scrollXNormalized = useDerivedValue(
+    () => scrollX.value / snapInterval,
+    [snapInterval],
+  );
 
-  const getItemLayout = (
-    _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number
-  ) => ({
-    length: slotWidth,
-    offset: horizontalPadding + index * slotWidth,
-    index,
-  });
+  useEffect(() => {
+    onSlotWidthChange(snapInterval);
+  }, [snapInterval, onSlotWidthChange]);
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
   return (
-    <View
-      className="w-full flex-1 items-center"
-      style={{ zIndex: CAROUSEL_Z_INDEX }}
-    >
-      <Animated.FlatList<TerminalCardData>
-        ref={listRef}
-        data={terminalCards}
+    <View className="relative flex-1 items-center justify-center">
+      <Animated.ScrollView
+        ref={animatedRef}
         horizontal
         contentContainerStyle={{
-          minHeight: "100%",
-          paddingHorizontal: horizontalPadding,
+          gap: SPACING,
+          paddingHorizontal: sidePadding,
+          paddingTop: 24 + insets.top,
+          paddingBottom: 24 + insets.bottom,
         }}
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={slotWidth}
-        snapToAlignment="start"
-        decelerationRate={0.994}
-        bounces={false}
+        style={[
+          { width: "100%", flexGrow: 0 },
+          { scrollSnapType: "x mandatory" } as ViewStyle,
+        ]}
         scrollEventThrottle={16}
-        onScroll={onScroll}
-        getItemLayout={getItemLayout}
-        keyExtractor={(item) => item.terminalSlug}
-        initialNumToRender={3}
-        maxToRenderPerBatch={2}
-        windowSize={5}
-        removeClippedSubviews={true}
-        accessibilityRole="list"
-        accessibilityLabel="Terminal routes"
-        renderItem={({ item, index }) => (
-          <RoutesCarouselItem
+        snapToInterval={snapInterval}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        showsHorizontalScrollIndicator={false}
+      >
+        {photos.map((photo, index) => (
+          <Photo
+            key={photo.id}
+            item={photo}
             index={index}
-            scrollX={scrollX}
-            slotWidth={slotWidth}
-            accessibilityLabel={item.terminalName}
-          >
-            <RouteCard
-              blurTargetRef={blurTargetRef}
-              terminalName={item.terminalName}
-              terminalSlug={item.terminalSlug}
-              destinations={item.destinations}
-            />
-          </RoutesCarouselItem>
-        )}
-      />
+            imageWidth={imageWidth}
+            imageHeight={imageHeight}
+            scrollX={scrollXNormalized}
+          />
+        ))}
+      </Animated.ScrollView>
     </View>
+  );
+};
+
+const Photo = ({
+  item,
+  index,
+  imageWidth,
+  imageHeight,
+  scrollX,
+}: {
+  item: PexelsPhoto;
+  index: number;
+  imageWidth: number;
+  imageHeight: number;
+  scrollX: SharedValue<number>;
+}) => {
+  const zIndexStyle = useAnimatedStyle(() => ({
+    zIndex: Math.round(
+      interpolate(
+        scrollX.value,
+        [index - 1, index, index + 1],
+        [0, 10, 0],
+        Extrapolation.CLAMP,
+      ),
+    ),
+  }));
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollX.value,
+      [index - 1.1, index, index + 1.1],
+      [0.0, 1, 0.0],
+      Extrapolation.CLAMP,
+    ),
+    transform: [
+      {
+        scale: interpolate(
+          scrollX.value,
+          [index - 1, index, index + 1],
+          [0.9, 1, 0.9],
+          Extrapolation.CLAMP,
+        ),
+      },
+      {
+        rotate: `${interpolate(
+          scrollX.value,
+          [index - 1, index, index + 1],
+          [15, 0, -15],
+          Extrapolation.CLAMP,
+        )}deg`,
+      },
+    ],
+  }));
+  return (
+    <Animated.View
+      className="relative"
+      style={[
+        { width: imageWidth, height: imageHeight },
+        { scrollSnapAlign: "center", overflow: "visible" } as ViewStyle,
+        zIndexStyle,
+        animatedStyle,
+      ]}
+    >
+      <Image
+        source={{ uri: item.src.large }}
+        style={[StyleSheet.absoluteFill, { borderRadius: CARD_RADIUS }]}
+        contentFit="cover"
+      />
+    </Animated.View>
   );
 };
 
