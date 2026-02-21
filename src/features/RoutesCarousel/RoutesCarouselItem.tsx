@@ -61,8 +61,8 @@ export const RoutesCarouselItem = ({
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollX.value,
-      [index - 0.5, index, index + 0.5],
-      [0.0, 1, 0.0],
+      [index - 1, index, index + 1],
+      [0.25, 1, 0.25],
       Extrapolation.CLAMP,
     ),
     transform: [
@@ -70,7 +70,7 @@ export const RoutesCarouselItem = ({
         scale: interpolate(
           scrollX.value,
           [index - 1, index, index + 1],
-          [0.75, 1, 0.75],
+          [0.5, 1, 0.5],
           Extrapolation.CLAMP,
         ),
       },
@@ -78,7 +78,7 @@ export const RoutesCarouselItem = ({
         rotate: `${interpolate(
           scrollX.value,
           [index - 1, index, index + 1],
-          [15, 0, -15],
+          [25, 0, -25],
           Extrapolation.CLAMP,
         )}deg`,
       },
@@ -90,7 +90,7 @@ export const RoutesCarouselItem = ({
       className="relative"
       style={[
         { width, height },
-        { scrollSnapAlign: "center", overflow: "visible" } as ViewStyle,
+        { scrollSnapAlign: "center", overflow: "hidden" } as ViewStyle,
         zIndexStyle,
         animatedStyle,
       ]}

@@ -21,7 +21,7 @@ import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
 const SPACING = 12;
-const PORTRAIT_ASPECT_RATIO = 9 / 16;
+const PORTRAIT_ASPECT_RATIO = 8 / 16;
 
 type RoutesCarouselProps = {
   /** Ref to BlurTargetView; passed to RouteCards for BlurView. */
@@ -46,9 +46,8 @@ const RoutesCarousel = ({
   // Largest 9:16 rect that fits in 90% of viewport (width and height)
   const maxW = windowWidth * 0.9;
   const maxH = windowHeight * 0.9;
-  const widthBinds = maxW * (16 / 9) <= maxH;
-  const slotWidth = widthBinds ? maxW : maxH * PORTRAIT_ASPECT_RATIO;
-  const slotHeight = widthBinds ? maxW * (16 / 9) : maxH;
+  const slotWidth = Math.min(maxW, maxH * PORTRAIT_ASPECT_RATIO);
+  const slotHeight = Math.min(maxH, maxW / PORTRAIT_ASPECT_RATIO);
 
   const snapInterval = slotWidth + SPACING;
   const sidePadding = Math.max(0, (windowWidth - slotWidth) / 2);
@@ -57,7 +56,7 @@ const RoutesCarousel = ({
   useScrollOffset(animatedRef, scrollX);
   const scrollXNormalized = useDerivedValue(
     () => scrollX.value / snapInterval,
-    [snapInterval]
+    [snapInterval],
   );
 
   useEffect(() => {

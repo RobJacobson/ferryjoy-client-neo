@@ -61,7 +61,7 @@ export const GlassView = ({
       setLayout({ width, height });
       onLayout?.(e);
     },
-    [onLayout],
+    [onLayout]
   );
 
   const w = layout?.width ?? 0;

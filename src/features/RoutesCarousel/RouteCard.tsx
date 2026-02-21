@@ -3,11 +3,11 @@
  * Uses BlurView with an external blur target; navigates to map with selected pair.
  */
 
-import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
 import { Text, View } from "react-native";
+import { BlurView } from "@/components/BlurView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
@@ -63,17 +63,16 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={16}
       blurMethod="dimezisBlurView"
-      className="border-radius-[32px]"
-      style={{ width, height }}
+      style={{ width, height, borderRadius: 24 }}
     >
-      <View className="flex-1 gap-4 rounded-[24px] p-4">
-        <View className="relative aspect-[3/4] w-full">
-          <View className="h-full w-full items-center justify-center rounded-3xl border border-white bg-pink-200">
+      <View className="flex-1 gap-1 rounded-[24px] border border-white/50 p-4">
+        <View className="relative mb-6 aspect-[3/4] w-full">
+          <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-pink-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
-          <View className="absolute right-0 bottom-[-18px] xs:bottom-[-25px] left-0">
+          <View className="absolute right-0 bottom-[-20px] left-0">
             <Button
-              className="self-center border border-white bg-pink-600 hover:bg-pink-500 active:bg-pink-400"
+              className="self-center border bg-pink-600 py-1 hover:bg-pink-500 active:bg-pink-400"
               variant="glass"
             >
               <Text
@@ -91,16 +90,15 @@ export const RouteCard = ({
           </View>
         </View>
 
-        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-[6px] xs:gap-3">
+        <View className="flex-1 items-center justify-center gap-2 xs:gap-2">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
               variant="glass"
-              size="sm"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className="w-3/4 py-1"
+              className="w-3/4"
             >
-              <Text className="font-playpen-500 text-gray-700 text-sm xs:text-base">
+              <Text className="font-playpen-500 text-sm text-white xs:text-base">
                 → {destination.terminalName}
               </Text>
             </Button>
