@@ -75,17 +75,16 @@ export const RouteCard = ({
       blurTarget={blurTargetRef}
       intensity={16}
       blurMethod="dimezisBlurView"
-      tint="extraLight"
       style={{ width, height, borderRadius: 24 }}
     >
-      <View className="flex-1 gap-1 rounded-[24px] border border-white/50 p-4">
+      <View className="flex-1 gap-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
         <View className="relative mb-6 aspect-[3/4] w-full">
-          <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-pink-200">
+          <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-fuscia-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
           <View className="absolute right-0 bottom-[-20px] left-0">
             <Button
-              className="self-center border bg-pink-600 py-1 hover:bg-pink-500 active:bg-pink-400"
+              className="self-center border bg-fuscia-600 py-1 hover:bg-fuscia-500 active:bg-fuscia-400"
               variant="glass"
             >
               <Text

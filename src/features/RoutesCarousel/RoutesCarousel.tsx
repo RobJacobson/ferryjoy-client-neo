@@ -90,7 +90,7 @@ const RoutesCarousel = ({
   // Normalize scroll position to 0-1 range for index calculations
   const scrollXNormalized = useDerivedValue(
     () => scrollX.value / snapInterval,
-    [snapInterval]
+    [snapInterval],
   );
 
   useImperativeHandle(
@@ -106,7 +106,7 @@ const RoutesCarousel = ({
         });
       },
     }),
-    [snapInterval, animatedRef]
+    [snapInterval, animatedRef],
   );
 
   useEffect(() => {
@@ -130,7 +130,7 @@ const RoutesCarousel = ({
         ]}
         scrollEventThrottle={16}
         snapToInterval={snapInterval}
-        decelerationRate="fast"
+        decelerationRate={0.999}
         disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
       >

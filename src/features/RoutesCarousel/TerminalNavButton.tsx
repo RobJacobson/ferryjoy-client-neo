@@ -44,7 +44,7 @@ export const TerminalNavButton = ({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      className="h-10 w-10 items-center justify-center rounded-full bg-white/20"
+      className="h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/20 hover:bg-white/35 active:bg-white/45"
     >
       <View className="items-center justify-center">
         <Icon size={20} color={ICON_COLOR} strokeWidth={2.5} />
