@@ -7,14 +7,8 @@
 
 import { createColorGenerator } from "@/shared/utils";
 
-/**
- * Base color for pink (magenta). Used with createColorGenerator for lightness.
- * See pink color palettes: https://www.notebookandpenguin.com/pink-color-codes/
- * */
-const PINK_BASE_COLOR = "#FF00FF";
-
 /** Color generator for pink. lightness 0–1000. */
-const pinkColor = createColorGenerator(PINK_BASE_COLOR);
+const fuscia = createColorGenerator("ff22ee");
 
 /** Tailwind orange for sun fill. */
 const orange = {
@@ -23,8 +17,8 @@ const orange = {
 
 /** Sky gradient and paper overlay. */
 const gradient = {
-  start: pinkColor(100),
-  end: pinkColor(300),
+  start: fuscia(100),
+  end: fuscia(300),
 } as const;
 
 /** Sunburst layout, rotation, and radial gradient. */
@@ -37,8 +31,8 @@ const sunburst = {
   spiralStrength: -0.5,
   rotationDurationMs: 180_000,
   preserveAspectRatio: "xMidYMid slice" as const,
-  startColor: pinkColor(100),
-  endColor: pinkColor(450),
+  startColor: fuscia(100),
+  endColor: fuscia(400),
 } as const;
 
 /** Sun disc: layout, shadow, stroke, and ray path geometry. */

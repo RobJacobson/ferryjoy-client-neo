@@ -111,6 +111,7 @@ export type WaveLayerViewProps = WaveLayerContentProps & WaveLayerContainerSize;
 // Constants
 // ============================================================================
 
+/** Style to fill parent container absolutely with visible overflow */
 const ABSOLUTE_FILL: ViewStyle = {
   position: "absolute",
   top: 0,
@@ -120,6 +121,7 @@ const ABSOLUTE_FILL: ViewStyle = {
   overflow: "visible",
 };
 
+/** Additional margin beyond max shift to ensure SVG seams never appear */
 const SEAM_MARGIN_PX = 16;
 
 // ============================================================================
@@ -131,7 +133,19 @@ const SEAM_MARGIN_PX = 16;
  * it horizontally. Overscan is done with layout (left + width) to guarantee
  * SVG edges never enter the visible viewport.
  *
- * @param props - Wave rendering params plus container pixel size
+ * @param containerWidthPx - Width of the layer container in pixels
+ * @param containerHeightPx - Height of the layer container in pixels
+ * @param amplitude - Wave amplitude in pixels (height from center to peak/trough)
+ * @param period - Wave period in pixels (width of one complete cycle)
+ * @param animationDuration - Animation duration in milliseconds (optional)
+ * @param animationDelay - Delay before animation starts in milliseconds (optional)
+ * @param xOffsetPx - Static horizontal offset for the wave rail in pixels (optional)
+ * @param maxXShiftPx - Maximum expected horizontal shift magnitude in pixels (optional)
+ * @param phaseOffset - Phase offset for the wave oscillation in radians (optional)
+ * @param fillOpacity - Opacity of the wave fill (optional)
+ * @param fillColor - Color of the wave fill
+ * @param height - Vertical position of the wave centerline as percentage 0-100 (optional)
+ * @param paperTextureUrl - Paper texture source (optional)
  */
 export const WaveLayerView = ({
   containerWidthPx,

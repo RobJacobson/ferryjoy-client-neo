@@ -18,14 +18,9 @@ import { useParallaxScroll } from "./useParallaxScroll";
 
 type ParallaxLayerProps = {
   /**
-   * Shared scroll offset (x) from the carousel.
+   * Shared scroll progress (0 = first item, 1 = last item).
    */
-  scrollX: SharedValue<number>;
-
-  /**
-   * Width of one carousel slot in pixels.
-   */
-  slotWidth: number;
+  scrollProgress: SharedValue<number>;
 
   /**
    * Parallax multiplier (0–100). Higher values create more movement.
@@ -55,20 +50,22 @@ type ParallaxLayerProps = {
 /**
  * Applies scroll-driven translateX to its children.
  *
- * @param props - scrollX, slotWidth, parallaxMultiplier, maxParallaxPx, style, children
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
+ * @param parallaxMultiplier - Parallax multiplier (0-100), higher values create more movement
+ * @param maxParallaxPx - Maximum parallax movement in pixels
+ * @param style - Additional style(s) for the layer container
+ * @param children - Child content to be translated by the parallax transform
  * @returns Parallax-translated Animated.View wrapper
  */
 export const ParallaxLayer = ({
-  scrollX,
-  slotWidth,
+  scrollProgress,
   parallaxMultiplier,
   maxParallaxPx,
   style,
   children,
 }: ParallaxLayerProps) => {
   const parallaxStyle = useParallaxScroll({
-    scrollX,
-    slotWidth,
+    scrollProgress,
     parallaxMultiplier,
     maxParallaxPx,
   });

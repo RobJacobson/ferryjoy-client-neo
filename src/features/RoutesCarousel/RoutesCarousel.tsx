@@ -1,121 +1,153 @@
 /**
- * RoutesCarousel – FlatList-based carousel of terminal route cards.
- * Uses Animated.FlatList + Reanimated with a normalized value in [-1, 0, 1] for parallax.
+ * RoutesCarousel – ScrollView-based carousel of terminal RouteCards.
+ * Parallax background (BlurTargetView + Background) is rendered behind in index.tsx.
+ * First item is a blank invisible placeholder for alignment.
  */
 
 import type { RefObject } from "react";
-import { useRef } from "react";
-import { View } from "react-native";
-import type { SharedValue } from "react-native-reanimated";
+import { useEffect, useImperativeHandle } from "react";
+import { useWindowDimensions, View, type ViewStyle } from "react-native";
 import Animated, {
-  type ScrollEvent,
-  useAnimatedScrollHandler,
+  type SharedValue,
+  scrollTo,
+  useAnimatedRef,
+  useDerivedValue,
+  useScrollOffset,
 } from "react-native-reanimated";
-import type { TerminalCardData } from "@/data/terminalConnections";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnUI } from "react-native-worklets";
 import {
   TERMINAL_CONNECTIONS,
+  TOTAL_CAROUSEL_ITEMS,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
-import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
 
-// ============================================================================
-// Types
-// ============================================================================
+/** Horizontal spacing between carousel items */
+const SPACING = 12;
+/** Portrait aspect ratio for RouteCards (8:16) */
+const PORTRAIT_ASPECT_RATIO = 8 / 16;
+
+/**
+ * Imperative handle for programmatic carousel navigation.
+ * Allows parent components to scroll to specific indices.
+ */
+export type RoutesCarouselRef = {
+  scrollToIndex: (index: number) => void;
+};
 
 type RoutesCarouselProps = {
   /**
-   * Ref to BlurTargetView that BlurViews in each RouteCard will use as blur source.
+   * Ref for imperative scrollToIndex control.
+   * Parent components can use this to programmatically scroll the carousel.
+   */
+  ref?: React.Ref<RoutesCarouselRef>;
+  /**
+   * Ref to BlurTargetView; passed to RouteCards for BlurView.
+   * Required for glassmorphism effects on RouteCards.
    */
   blurTargetRef: RefObject<View | null>;
   /**
-   * Shared scroll offset (x). Updated by carousel onScroll; used for card and background parallax.
+   * Shared scroll offset (x) in pixels; updated by useScrollOffset for Background parallax.
+   * This value drives the parallax animation of background layers.
    */
   scrollX: SharedValue<number>;
   /**
-   * Width of one carousel slot (e.g. from useCarouselLayout).
+   * Called when slot width (snap interval) is computed.
+   * Allows parent to use the computed layout dimensions.
    */
-  slotWidth: number;
-  /**
-   * Viewport width; when larger than slotWidth (e.g. landscape), used to center the active card.
-   */
-  viewportWidth: number;
+  onSlotWidthChange: (slotWidth: number) => void;
 };
 
-// ============================================================================
-// RoutesCarousel
-// ============================================================================
-
-/**
- * FlatList-based carousel that displays terminal cards. Uses native scroll and
- * a normalized value in [-1, 0, 1] for parallax (scale + translateX + zIndex).
- *
- * @param props - blurTargetRef, scrollX, slotWidth
- */
 const RoutesCarousel = ({
+  ref,
   blurTargetRef,
   scrollX,
-  slotWidth,
-  viewportWidth,
+  onSlotWidthChange,
 }: RoutesCarouselProps) => {
-  const listRef = useRef<Animated.FlatList<TerminalCardData>>(null);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
+  // Transform terminal connection data into carousel card format
   const terminalCards =
     transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
 
-  // When viewport is wider than slot (e.g. landscape), pad so the active card centers.
-  const horizontalPadding =
-    viewportWidth > slotWidth ? (viewportWidth - slotWidth) / 2 : 0;
+  // Largest 9:16 rect that fits in 90% of viewport (width and height)
+  const maxW = windowWidth * 0.9;
+  const maxH = windowHeight * 0.9;
+  const slotWidth = Math.min(maxW, maxH * PORTRAIT_ASPECT_RATIO);
+  const slotHeight = Math.min(maxH, maxW / PORTRAIT_ASPECT_RATIO);
 
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event: ScrollEvent) => {
-      scrollX.value = event.contentOffset.x;
-    },
-  });
+  // Distance between snap points (card width + spacing)
+  const snapInterval = slotWidth + SPACING;
+  // Center padding creates visual balance by centering the first/last items
+  const sidePadding = Math.max(0, (windowWidth - slotWidth) / 2);
 
-  const getItemLayout = (
-    _data: ArrayLike<TerminalCardData> | null | undefined,
-    index: number
-  ) => ({
-    length: slotWidth,
-    offset: horizontalPadding + index * slotWidth,
-    index,
-  });
+  const animatedRef = useAnimatedRef<Animated.ScrollView>();
+  // Track scroll offset for parallax background animation
+  useScrollOffset(animatedRef, scrollX);
+  // Normalize scroll position to 0-1 range for index calculations
+  const scrollXNormalized = useDerivedValue(
+    () => scrollX.value / snapInterval,
+    [snapInterval],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToIndex: (index: number) => {
+        const clamped = Math.max(0, Math.min(index, TOTAL_CAROUSEL_ITEMS - 1));
+        const x = clamped * snapInterval;
+        // Schedule scroll on UI thread for smooth animation
+        scheduleOnUI(() => {
+          "worklet";
+          scrollTo(animatedRef, x, 0, true);
+        });
+      },
+    }),
+    [snapInterval, animatedRef],
+  );
+
+  useEffect(() => {
+    onSlotWidthChange(snapInterval);
+  }, [snapInterval, onSlotWidthChange]);
 
   return (
-    <View
-      className="w-full flex-1 items-center"
-      style={{ zIndex: CAROUSEL_Z_INDEX }}
-    >
-      <Animated.FlatList<TerminalCardData>
-        ref={listRef}
-        data={terminalCards}
+    <View className="relative flex-1 items-center justify-center">
+      <Animated.ScrollView
+        ref={animatedRef}
         horizontal
         contentContainerStyle={{
-          minHeight: "100%",
-          paddingHorizontal: horizontalPadding,
+          gap: SPACING,
+          paddingHorizontal: sidePadding,
+          paddingTop: 24 + insets.top,
+          paddingBottom: 24 + insets.bottom,
         }}
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={slotWidth}
-        snapToAlignment="start"
-        decelerationRate={0.994}
-        bounces={false}
+        style={[
+          { width: "100%", flexGrow: 0 },
+          { scrollSnapType: "x mandatory" } as ViewStyle,
+        ]}
         scrollEventThrottle={16}
-        onScroll={onScroll}
-        getItemLayout={getItemLayout}
-        keyExtractor={(item) => item.terminalSlug}
-        initialNumToRender={3}
-        maxToRenderPerBatch={2}
-        windowSize={5}
-        removeClippedSubviews={true}
-        accessibilityRole="list"
-        accessibilityLabel="Terminal routes"
-        renderItem={({ item, index }) => (
+        snapToInterval={snapInterval}
+        decelerationRate={0.999}
+        disableIntervalMomentum
+        showsHorizontalScrollIndicator={false}
+      >
+        <View
+          key="__placeholder__"
+          style={[
+            { width: slotWidth, height: slotHeight },
+            { opacity: 0, pointerEvents: "none" } as ViewStyle,
+          ]}
+        />
+        {terminalCards.map((item, index) => (
           <RoutesCarouselItem
-            index={index}
-            scrollX={scrollX}
-            slotWidth={slotWidth}
+            key={item.terminalSlug}
+            index={index + 1}
+            scrollX={scrollXNormalized}
+            width={slotWidth}
+            height={slotHeight}
             accessibilityLabel={item.terminalName}
           >
             <RouteCard
@@ -123,10 +155,12 @@ const RoutesCarousel = ({
               terminalName={item.terminalName}
               terminalSlug={item.terminalSlug}
               destinations={item.destinations}
+              width={slotWidth}
+              height={slotHeight}
             />
           </RoutesCarouselItem>
-        )}
-      />
+        ))}
+      </Animated.ScrollView>
     </View>
   );
 };

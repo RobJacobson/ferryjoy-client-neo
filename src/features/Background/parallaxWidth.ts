@@ -8,6 +8,10 @@
 
 import { MAX_PARALLAX_PX } from "./config";
 
+// ============================================================================
+// Functions
+// ============================================================================
+
 /**
  * Required width for a parallax layer so it never shows empty space when
  * scrolled right, given screen width, number of cards, and parallax multiplier.

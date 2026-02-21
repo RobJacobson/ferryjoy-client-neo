@@ -31,8 +31,11 @@ interface UseWaveOscillationResult {
  * Uses negative animationDelay to achieve phase offsets without waiting.
  * Wave oscillates from -displacement to +displacement and back.
  *
- * @param props - Animation parameters (duration, delay, displacement, phase)
- * @returns animatedOscillationStyle
+ * @param animationDuration - Animation duration in milliseconds
+ * @param animationDelay - Delay before animation starts in milliseconds (default 0)
+ * @param maxXShiftPx - Maximum horizontal oscillation distance in pixels (default 0)
+ * @param phaseOffset - Phase offset for the wave oscillation in radians (default 0)
+ * @returns Object containing animatedOscillationStyle for the Animated.View
  */
 export const useWaveOscillation = ({
   animationDuration,

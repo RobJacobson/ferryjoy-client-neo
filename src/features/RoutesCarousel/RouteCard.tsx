@@ -3,12 +3,11 @@
  * Uses BlurView with an external blur target; navigates to map with selected pair.
  */
 
-import { BlurView } from "expo-blur";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import type { RefObject } from "react";
 import { Text, View } from "react-native";
-import { GlassView } from "@/components/GlassView";
+import { BlurView } from "@/components/BlurView";
 import { Button } from "@/components/ui";
 import { useSelectedTerminalPair } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
@@ -18,11 +17,21 @@ import type { TerminalCardData } from "@/data/terminalConnections";
 // ============================================================================
 
 type RouteCardProps = {
-  /** Ref to BlurTargetView; card uses BlurView with this as blur source. */
+  /**
+   * Ref to BlurTargetView; card uses BlurView with this as blur source.
+   * Required for glassmorphism effect behind the card.
+   */
   blurTargetRef: RefObject<View | null>;
+  /** Display name of the terminal (e.g., "Bainbridge Island"). */
   terminalName: string;
+  /** Slug identifier for the terminal (e.g., "bi"). */
   terminalSlug: string;
+  /** Array of destinations reachable from this terminal. */
   destinations: TerminalCardData["destinations"];
+  /** Width to fill the carousel slot in pixels. */
+  width: number;
+  /** Height to fill the carousel slot in pixels. */
+  height: number;
 };
 
 // ============================================================================
@@ -34,19 +43,27 @@ type RouteCardProps = {
  * Card fills container via flex and maintains 9:16 aspect ratio.
  * Tapping a destination sets the terminal pair and navigates to the map tab.
  *
- * @param props - blurTargetRef, terminal name/slug, destinations
+ * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
+ * @param terminalName - Display name of the terminal
+ * @param terminalSlug - Slug identifier for the terminal
+ * @param destinations - Array of destinations reachable from this terminal
+ * @param width - Width of the carousel slot in pixels
+ * @param height - Height of the carousel slot in pixels
  */
 export const RouteCard = ({
   blurTargetRef,
   terminalName,
   terminalSlug,
   destinations,
+  width,
+  height,
 }: RouteCardProps) => {
   const router = useRouter();
   const { setPair } = useSelectedTerminalPair();
 
   const handleDestinationPress = (destinationSlug: string) => {
     // Convert both origin and destination slugs to uppercase abbreviations
+    // This ensures consistent navigation and state management
     const fromAbbrev = terminalSlug.toUpperCase();
     const destAbbrev = destinationSlug.toUpperCase();
     void setPair(fromAbbrev, destAbbrev);
@@ -56,18 +73,18 @@ export const RouteCard = ({
   return (
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={12}
+      intensity={16}
       blurMethod="dimezisBlurView"
-      className="m-4 xs:m-8 aspect-[8.5/16] border-radius-[32px]"
+      style={{ width, height, borderRadius: 24 }}
     >
-      <GlassView borderRadius={24} className="flex-1 gap-4 rounded-[24px] p-4">
-        <View className="relative aspect-[3/4] w-full">
-          <View className="h-full w-full items-center justify-center rounded-3xl border border-white bg-pink-200">
+      <View className="flex-1 gap-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
+        <View className="relative mb-6 aspect-[3/4] w-full">
+          <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-fuscia-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
-          <View className="absolute right-0 bottom-[-18px] xs:bottom-[-25px] left-0">
+          <View className="absolute right-0 bottom-[-20px] left-0">
             <Button
-              className="self-center border border-white bg-pink-600 hover:bg-pink-500 active:bg-pink-400"
+              className="self-center border bg-fuscia-600 py-1 hover:bg-fuscia-500 active:bg-fuscia-400"
               variant="glass"
             >
               <Text
@@ -85,22 +102,21 @@ export const RouteCard = ({
           </View>
         </View>
 
-        <View className="mt-4 h-full w-full flex-1 items-center justify-center gap-[6px] xs:gap-3">
+        <View className="flex-1 items-center justify-center gap-2 xs:gap-2">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
               variant="glass"
-              size="sm"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
-              className="w-3/4 py-1"
+              className="w-3/4"
             >
-              <Text className="font-playpen-500 text-gray-700 text-sm xs:text-base">
+              <Text className="font-playpen-500 text-sm text-white xs:text-base">
                 → {destination.terminalName}
               </Text>
             </Button>
           ))}
         </View>
-      </GlassView>
+      </View>
     </BlurView>
   );
 };

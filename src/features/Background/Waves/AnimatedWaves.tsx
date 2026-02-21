@@ -19,10 +19,10 @@ import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
   BACKGROUND_LAYERS,
-  blueColor,
   FOREGROUND_LAYERS,
   grassColor,
   OCEAN_WAVES,
+  oceanColor,
 } from "./config";
 import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
 
@@ -33,6 +33,11 @@ type AnimatedWavesProps = BackgroundParallaxProps & {
   paperTextureUrl: PaperTextureSource;
 };
 
+/**
+ * Precomputed phase offsets for ocean waves using prime number-based distribution.
+ * Using 73 as a multiplier creates non-repeating phase offsets that prevent waves
+ * from appearing synchronized.
+ */
 const OCEAN_PHASE_OFFSETS = Array.from(
   { length: OCEAN_WAVES.count },
   (_, index) => {
@@ -41,6 +46,10 @@ const OCEAN_PHASE_OFFSETS = Array.from(
   }
 );
 
+/**
+ * Reversed foreground layers for proper z-index ordering.
+ * The first layer needs higher z-index to appear on top.
+ */
 const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
 
 type WaveLayerBaseProps = Omit<
@@ -48,11 +57,20 @@ type WaveLayerBaseProps = Omit<
   "containerWidthPx" | "containerHeightPx" | "paperTextureUrl"
 >;
 
+/**
+ * Precomputed render specification for a single wave layer.
+ * Contains all data needed to render a wave with parallax and oscillation.
+ */
 type WaveRenderSpec = {
+  /** Unique React key for this wave layer */
   key: string;
+  /** Z-index for layer ordering (lower = farther, higher = closer) */
   zIndex: number;
+  /** Parallax multiplier (0-100) for scroll-driven horizontal movement */
   parallaxMultiplier: number;
+  /** Optional additional styles for the layer wrapper view */
   wrapperStyle?: StyleProp<ViewStyle>;
+  /** Props for the WaveLayerView component */
   waveProps: WaveLayerBaseProps;
 };
 
@@ -64,26 +82,32 @@ type WaveRenderSpec = {
  * Renders the full wave stack (background grass, ocean waves, foreground grass)
  * as a single list of <Wave /> components with precomputed props and parallax.
  *
- * @param props - paperTextureUrl, scrollX, slotWidth
+ * @param paperTextureUrl - Paper texture source (null for no texture)
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
  */
 const AnimatedWaves = ({
   paperTextureUrl,
-  scrollX,
-  slotWidth,
+  scrollProgress,
 }: AnimatedWavesProps) => {
   const { height: containerHeightPx } = useWindowDimensions();
   const { maxParallaxPx, getRequiredWidth } = useBackgroundLayout({
     parallaxMultiplier: PARALLAX_WAVES_MAX,
   });
 
+  /**
+   * Renders a single wave layer with parallax.
+   * Wraps the wave content in ParallaxLayer for scroll-driven translation.
+   *
+   * @param spec - Render specification including key, zIndex, parallax settings, and wave props
+   * @returns Animated.View with parallax and wave layer content
+   */
   const renderWaveLayer = (spec: WaveRenderSpec) => {
     const layerWidth = getRequiredWidth(spec.parallaxMultiplier);
 
     return (
       <ParallaxLayer
         key={spec.key}
-        scrollX={scrollX}
-        slotWidth={slotWidth}
+        scrollProgress={scrollProgress}
         parallaxMultiplier={spec.parallaxMultiplier}
         maxParallaxPx={maxParallaxPx}
         style={[
@@ -125,6 +149,14 @@ const AnimatedWaves = ({
   );
 };
 
+/**
+ * Normalizes an index to a 0-1 range based on the count of items.
+ * Handles edge case where count is 1 by returning 0.
+ *
+ * @param index - Current index in the sequence
+ * @param count - Total number of items
+ * @returns Normalized value between 0 and 1
+ */
 const indexToT = (index: number, count: number): number =>
   count > 1 ? index / (count - 1) : 0;
 
@@ -182,7 +214,7 @@ const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
           OCEAN_WAVES.amplitude.max
         ),
         period: lerp(t, OCEAN_WAVES.period.min, OCEAN_WAVES.period.max),
-        fillColor: blueColor(
+        fillColor: oceanColor(
           lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max)
         ),
         height: lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max),

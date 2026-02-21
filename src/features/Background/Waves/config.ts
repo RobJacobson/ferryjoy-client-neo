@@ -32,9 +32,9 @@ export const SHADOW_OPACITY = 0.02;
 
 /** Pseudo-drop shadow [dx, dy] offsets for each layer (creates depth). */
 export const SHADOW_LAYERS: [number, number][] = [
-  [9, -2],
-  [6, -1],
-  [3, -0.5],
+  [-9, -2],
+  [-6, -1],
+  [-3, -0.5],
 ];
 
 // ----------------------------------------------------------------------------
@@ -43,28 +43,25 @@ export const SHADOW_LAYERS: [number, number][] = [
 
 /** Ocean wave layer count and lerp ranges. First wave = min, last wave = max. */
 export const OCEAN_WAVES = {
-  count: 20,
-  baseColor: "#28e",
+  count: 14,
+  baseColor: "#0099ff",
   period: { min: 40, max: 400 },
-  height: { min: 50, max: 12 },
+  height: { min: 50, max: 15 },
   amplitude: { min: 2, max: 20 },
   animationDuration: { min: 300000, max: 60000 },
   maxXShiftPx: 800,
-  lightness: { min: 150, max: 500 },
+  lightness: { min: 250, max: 500 },
 } as const;
 
 // ----------------------------------------------------------------------------
 // Grass layers (foreground and background)
 // ----------------------------------------------------------------------------
 
-/** Base color for grass (green). Used with createColorGenerator for lightness. */
-const GRASS_BASE_COLOR = "#5c5";
-
 /** Color generator for ocean waves. lightness 0–1000. */
-export const blueColor = createColorGenerator(OCEAN_WAVES.baseColor);
+export const oceanColor = createColorGenerator(OCEAN_WAVES.baseColor);
 
 /** Color generator for grass layers. lightness 0–1000. */
-export const grassColor = createColorGenerator(GRASS_BASE_COLOR);
+export const grassColor = createColorGenerator("#5c5");
 
 /**
  * Foreground grass layer config. Each layer is a static AnimatedWave.

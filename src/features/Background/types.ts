@@ -14,8 +14,6 @@ export type PaperTextureSource = number | string | null;
  * Props for Background and its children (Sky, AnimatedWaves) for scroll-driven parallax.
  */
 export type BackgroundParallaxProps = {
-  /** Shared scroll offset (x) from carousel. */
-  scrollX: SharedValue<number>;
-  /** Width of one carousel slot. */
-  slotWidth: number;
+  /** Shared scroll progress (0 = first item, 1 = last item). */
+  scrollProgress: SharedValue<number>;
 };

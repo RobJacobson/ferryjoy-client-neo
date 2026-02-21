@@ -37,7 +37,12 @@ type SunProps = {
  * rounded tips (quadratic Bézier). When rayCount < 1 or outerRadius <=
  * innerRadius, renders nothing.
  *
- * @param props - rayCount, color, innerRadius, outerRadius; optional size, preserveAspectRatio
+ * @param rayCount - Number of rays/teeth
+ * @param color - Fill color for all rays
+ * @param innerRadius - Inner radius in SVG units
+ * @param outerRadius - Outer radius in SVG units
+ * @param size - ViewBox and rendered width/height in pixels (default from config)
+ * @param preserveAspectRatio - How viewBox maps to viewport
  * @returns SVG sun element or empty SVG
  */
 const Sun = ({

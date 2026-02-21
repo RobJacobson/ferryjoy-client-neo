@@ -3,35 +3,26 @@ import { Stack } from "expo-router";
 import { useRef } from "react";
 import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Background } from "@/features/Background";
-import { useCarouselLayout } from "@/features/RoutesCarousel/config";
-import RoutesCarousel from "@/features/RoutesCarousel/RoutesCarousel";
+import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
+import { RoutesCarouselSection } from "@/features/RoutesCarousel/RoutesCarouselSection";
 
 export default function Home() {
   const blurTargetRef = useRef<View | null>(null);
-  const insets = useSafeAreaInsets();
-  const scrollX = useSharedValue(0);
-  const { slotWidth, width } = useCarouselLayout();
+  const scrollProgress = useSharedValue(0);
 
   return (
-    <View
-      className="h-full w-full flex-1"
-      style={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-      }}
-    >
+    <View className="h-full w-full flex-1">
       <Stack.Screen options={{ headerShown: false }} />
       <BlurTargetView ref={blurTargetRef} className="absolute inset-0">
-        <Background scrollX={scrollX} slotWidth={slotWidth} />
+        <Background scrollProgress={scrollProgress} />
       </BlurTargetView>
-      <RoutesCarousel
-        blurTargetRef={blurTargetRef}
-        scrollX={scrollX}
-        slotWidth={slotWidth}
-        viewportWidth={width}
-      />
+      <View style={{ zIndex: CAROUSEL_Z_INDEX }} className="relative flex-1">
+        <RoutesCarouselSection
+          scrollProgress={scrollProgress}
+          blurTargetRef={blurTargetRef}
+        />
+      </View>
     </View>
   );
 }
