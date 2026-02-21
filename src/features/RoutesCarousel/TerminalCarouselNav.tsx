@@ -4,18 +4,11 @@
  * is a previous or next terminal to navigate to.
  */
 
-import type { RefObject } from "react";
+import type { PropsWithChildren, RefObject } from "react";
 import { View } from "react-native";
-import { CAROUSEL_Z_INDEX } from "@/features/RoutesCarousel/config";
-import type { RoutesCarouselRef } from "@/features/RoutesCarousel/RoutesCarousel";
 import { TerminalNavButton } from "@/features/RoutesCarousel/TerminalNavButton";
-
-/** Z-index for navigation buttons, ensuring they appear above carousel content */
-const NAV_BUTTON_Z_INDEX = CAROUSEL_Z_INDEX + 10;
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
+import { cn } from "@/lib/utils";
 
 type TerminalCarouselNavProps = {
   /** Ref to the carousel for imperative scrollToIndex. */
@@ -25,10 +18,6 @@ type TerminalCarouselNavProps = {
   /** Total number of carousel items (including placeholder). */
   totalCount: number;
 };
-
-// ============================================================================
-// TerminalCarouselNav
-// ============================================================================
 
 /**
  * Renders prev/next navigation buttons for the terminal carousel.
@@ -53,29 +42,43 @@ export const TerminalCarouselNav = ({
   return (
     <>
       {showPrev && (
-        <View
-          className="absolute top-1/2 left-2 -translate-y-1/2"
-          style={{ zIndex: NAV_BUTTON_Z_INDEX }}
-        >
+        <NavButtonContainer positionClass="left-2">
           <TerminalNavButton
             direction="prev"
             onPress={() => carouselRef.current?.scrollToIndex(currentIndex - 1)}
             accessibilityLabel="Previous terminal"
           />
-        </View>
+        </NavButtonContainer>
       )}
       {showNext && (
-        <View
-          className="absolute top-1/2 right-2 -translate-y-1/2"
-          style={{ zIndex: NAV_BUTTON_Z_INDEX }}
-        >
+        <NavButtonContainer positionClass="right-2">
           <TerminalNavButton
             direction="next"
             onPress={() => carouselRef.current?.scrollToIndex(currentIndex + 1)}
             accessibilityLabel="Next terminal"
           />
-        </View>
+        </NavButtonContainer>
       )}
     </>
   );
 };
+
+/**
+ * Positions a navigation button at 50% vertical height with specified
+ * horizontal position and z-index.
+ *
+ * @param positionClass - Tailwind class for horizontal positioning
+ * @param children - Navigation button component
+ */
+const NavButtonContainer = ({
+  positionClass,
+  children,
+}: PropsWithChildren<{
+  positionClass: string;
+}>) => (
+  <View
+    className={cn("absolute top-1/2 z-[210] -translate-y-1/2", positionClass)}
+  >
+    {children}
+  </View>
+);

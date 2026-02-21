@@ -5,8 +5,8 @@
  */
 
 import type { RefObject } from "react";
-import { useEffect, useImperativeHandle } from "react";
-import { useWindowDimensions, View, type ViewStyle } from "react-native";
+import { useImperativeHandle } from "react";
+import { View, type ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
   scrollTo,
@@ -14,28 +14,12 @@ import Animated, {
   useDerivedValue,
   useScrollOffset,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnUI } from "react-native-worklets";
-import {
-  TERMINAL_CONNECTIONS,
-  TOTAL_CAROUSEL_ITEMS,
-  transformConnectionsToTerminalCards,
-} from "@/data/terminalConnections";
+import type { TerminalCardData } from "@/data/terminalConnections";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
-
-/** Horizontal spacing between carousel items */
-const SPACING = 12;
-/** Portrait aspect ratio for RouteCards (8:16) */
-const PORTRAIT_ASPECT_RATIO = 8 / 16;
-
-/**
- * Imperative handle for programmatic carousel navigation.
- * Allows parent components to scroll to specific indices.
- */
-export type RoutesCarouselRef = {
-  scrollToIndex: (index: number) => void;
-};
+import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
+import type { CarouselLayout } from "@/features/RoutesCarousel/useCarouselLayout";
 
 type RoutesCarouselProps = {
   /**
@@ -54,64 +38,65 @@ type RoutesCarouselProps = {
    */
   scrollX: SharedValue<number>;
   /**
-   * Called when slot width (snap interval) is computed.
-   * Allows parent to use the computed layout dimensions.
+   * Layout dimensions from useCarouselLayout (slot size, snap interval, padding).
    */
-  onSlotWidthChange: (slotWidth: number) => void;
+  layout: CarouselLayout;
+  /**
+   * Terminal cards to render in the carousel.
+   */
+  terminalCards: TerminalCardData[];
 };
 
+/**
+ * Renders a ScrollView-based carousel of terminal RouteCards with scroll-driven
+ * animations. The carousel uses imperative handle for programmatic navigation,
+ * updates scrollX for background parallax, and includes a blank placeholder
+ * item for visual alignment.
+ *
+ * @param ref - Ref for imperative scrollToIndex control
+ * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
+ * @param scrollX - Shared scroll offset in pixels for parallax
+ * @param layout - Layout dimensions from useCarouselLayout
+ * @param terminalCards - Terminal cards to render
+ */
 const RoutesCarousel = ({
   ref,
   blurTargetRef,
   scrollX,
-  onSlotWidthChange,
+  layout,
+  terminalCards,
 }: RoutesCarouselProps) => {
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-
-  // Transform terminal connection data into carousel card format
-  const terminalCards =
-    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
-
-  // Largest 9:16 rect that fits in 90% of viewport (width and height)
-  const maxW = windowWidth * 0.9;
-  const maxH = windowHeight * 0.9;
-  const slotWidth = Math.min(maxW, maxH * PORTRAIT_ASPECT_RATIO);
-  const slotHeight = Math.min(maxH, maxW / PORTRAIT_ASPECT_RATIO);
-
-  // Distance between snap points (card width + spacing)
-  const snapInterval = slotWidth + SPACING;
-  // Center padding creates visual balance by centering the first/last items
-  const sidePadding = Math.max(0, (windowWidth - slotWidth) / 2);
+  const totalCount = terminalCards.length + 1;
+  const {
+    slotWidth,
+    slotHeight,
+    snapInterval,
+    sidePadding,
+    contentPadding,
+    spacing,
+  } = layout;
 
   const animatedRef = useAnimatedRef<Animated.ScrollView>();
-  // Track scroll offset for parallax background animation
   useScrollOffset(animatedRef, scrollX);
-  // Normalize scroll position to 0-1 range for index calculations
   const scrollXNormalized = useDerivedValue(
     () => scrollX.value / snapInterval,
-    [snapInterval],
+    [snapInterval]
   );
 
   useImperativeHandle(
     ref,
     () => ({
       scrollToIndex: (index: number) => {
-        const clamped = Math.max(0, Math.min(index, TOTAL_CAROUSEL_ITEMS - 1));
+        const clamped = Math.max(0, Math.min(index, totalCount - 1));
         const x = clamped * snapInterval;
-        // Schedule scroll on UI thread for smooth animation
         scheduleOnUI(() => {
           "worklet";
           scrollTo(animatedRef, x, 0, true);
         });
       },
     }),
-    [snapInterval, animatedRef],
+    [snapInterval, animatedRef, totalCount]
   );
-
-  useEffect(() => {
-    onSlotWidthChange(snapInterval);
-  }, [snapInterval, onSlotWidthChange]);
 
   return (
     <View className="relative flex-1 items-center justify-center">
@@ -119,10 +104,10 @@ const RoutesCarousel = ({
         ref={animatedRef}
         horizontal
         contentContainerStyle={{
-          gap: SPACING,
+          gap: spacing,
           paddingHorizontal: sidePadding,
-          paddingTop: 24 + insets.top,
-          paddingBottom: 24 + insets.bottom,
+          paddingTop: contentPadding.paddingTop,
+          paddingBottom: contentPadding.paddingBottom,
         }}
         style={[
           { width: "100%", flexGrow: 0 },
@@ -166,3 +151,4 @@ const RoutesCarousel = ({
 };
 
 export default RoutesCarousel;
+export type { RoutesCarouselRef } from "./types";

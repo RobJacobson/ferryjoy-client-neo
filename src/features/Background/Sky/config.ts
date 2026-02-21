@@ -5,6 +5,11 @@
 // Colors use Tailwind palette. Index for pink: 0=50, 1=100, 2=200, 3=300, 4=400, 5=500.
 // ============================================================================
 
+/**
+ * Configuration constants for the Sky feature including gradient colors,
+ * sunburst layout/rotation, sun disc styling, and paper texture opacity.
+ */
+
 import { createColorGenerator } from "@/shared/utils";
 
 /** Color generator for pink. lightness 0–1000. */

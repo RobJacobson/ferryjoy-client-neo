@@ -3,18 +3,12 @@
  * Uses BlurView with an external blur target; navigates to map with selected pair.
  */
 
-import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
 import type { RefObject } from "react";
 import { Text, View } from "react-native";
 import { BlurView } from "@/components/BlurView";
 import { Button } from "@/components/ui";
-import { useSelectedTerminalPair } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { useDestinationNavigation } from "@/shared/hooks";
 
 type RouteCardProps = {
   /**
@@ -33,10 +27,6 @@ type RouteCardProps = {
   /** Height to fill the carousel slot in pixels. */
   height: number;
 };
-
-// ============================================================================
-// RouteCard
-// ============================================================================
 
 /**
  * Renders a single terminal card with blur background and destination buttons.
@@ -58,17 +48,7 @@ export const RouteCard = ({
   width,
   height,
 }: RouteCardProps) => {
-  const router = useRouter();
-  const { setPair } = useSelectedTerminalPair();
-
-  const handleDestinationPress = (destinationSlug: string) => {
-    // Convert both origin and destination slugs to uppercase abbreviations
-    // This ensures consistent navigation and state management
-    const fromAbbrev = terminalSlug.toUpperCase();
-    const destAbbrev = destinationSlug.toUpperCase();
-    void setPair(fromAbbrev, destAbbrev);
-    router.push(`/(tabs)/map/${fromAbbrev}/${destAbbrev}` as Href);
-  };
+  const handleDestinationPress = useDestinationNavigation(terminalSlug);
 
   return (
     <BlurView

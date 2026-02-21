@@ -4,24 +4,19 @@
  */
 
 import type { RefObject } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
-import RoutesCarousel, {
-  type RoutesCarouselRef,
-} from "@/features/RoutesCarousel/RoutesCarousel";
+import {
+  TERMINAL_CONNECTIONS,
+  transformConnectionsToTerminalCards,
+} from "@/data/terminalConnections";
+import RoutesCarousel from "@/features/RoutesCarousel/RoutesCarousel";
 import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
+import useCarouselLayout from "@/features/RoutesCarousel/useCarouselLayout";
 
 type RoutesCarouselSectionProps = {
   /**
@@ -36,12 +31,8 @@ type RoutesCarouselSectionProps = {
   blurTargetRef: RefObject<View | null>;
 };
 
-// ============================================================================
-// RoutesCarouselSection
-// ============================================================================
-
 /**
- * Composes RoutesCarousel and TerminalCarouselNav. Owns scrollX, snapInterval,
+ * Composes RoutesCarousel and TerminalCarouselNav. Owns scrollX, layout,
  * currentIndex. Updates scrollProgress when carousel scrolls.
  *
  * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
@@ -51,35 +42,36 @@ export const RoutesCarouselSection = ({
   scrollProgress,
   blurTargetRef,
 }: RoutesCarouselSectionProps) => {
+  const layout = useCarouselLayout();
   const scrollX = useSharedValue(0);
   const carouselRef = useRef<RoutesCarouselRef>(null);
-  const [snapInterval, setSnapInterval] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const handleSlotWidthChange = useCallback((interval: number) => {
-    setSnapInterval(interval);
-  }, []);
+  const terminalCards =
+    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+  const totalCount = terminalCards.length + 1;
 
-  // Update scrollProgress for background parallax when carousel scrolls
   useAnimatedReaction(
     () => scrollX.value,
     (offset) => {
-      const maxScroll = Math.max((TOTAL_CAROUSEL_ITEMS - 1) * snapInterval, 1);
+      const maxScroll = Math.max(
+        (totalCount - 1) * layout.snapInterval,
+        1
+      );
       scrollProgress.value = Math.min(1, Math.max(0, offset / maxScroll));
     },
-    [snapInterval]
+    [layout.snapInterval, totalCount]
   );
 
-  // Update currentIndex for nav button visibility when carousel scrolls
   useAnimatedReaction(
     () => scrollX.value,
     (offset) => {
-      if (snapInterval <= 0) return;
-      const idx = Math.round(offset / snapInterval);
-      const clamped = Math.max(0, Math.min(idx, TOTAL_CAROUSEL_ITEMS - 1));
+      if (layout.snapInterval <= 0) return;
+      const idx = Math.round(offset / layout.snapInterval);
+      const clamped = Math.max(0, Math.min(idx, totalCount - 1));
       scheduleOnRN(setCurrentIndex, clamped);
     },
-    [snapInterval]
+    [layout.snapInterval, totalCount]
   );
 
   return (
@@ -88,12 +80,13 @@ export const RoutesCarouselSection = ({
         ref={carouselRef}
         blurTargetRef={blurTargetRef}
         scrollX={scrollX}
-        onSlotWidthChange={handleSlotWidthChange}
+        layout={layout}
+        terminalCards={terminalCards}
       />
       <TerminalCarouselNav
         carouselRef={carouselRef}
         currentIndex={currentIndex}
-        totalCount={TOTAL_CAROUSEL_ITEMS}
+        totalCount={totalCount}
       />
     </>
   );
