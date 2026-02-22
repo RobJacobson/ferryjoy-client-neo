@@ -5,13 +5,16 @@ import { generateTripKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Patch applied when the computed trip key changes.
+ * Patch applied when derived trip data should be cleared.
  *
- * Key changes imply we're now looking at a different scheduled trip identity, so
- * we must clear any cached ScheduledTrip snapshot and prediction fields that were
- * computed under the old identity.
+ * Used in two scenarios:
+ * 1. Key changes (trip identity changed): we must clear any cached
+ *    ScheduledTrip snapshot and prediction fields computed under old identity
+ * 2. Repositioning (tripKey is null): vessel is between scheduled trips
+ *    and we must clear stale data to prevent displaying wrong times
  */
-const CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE: Partial<ConvexVesselTrip> = {
+const CLEAR_DERIVED_TRIP_DATA: Partial<ConvexVesselTrip> = {
+  Key: undefined,
   RouteID: 0,
   RouteAbbrev: "",
   SailingDay: "",
@@ -152,19 +155,25 @@ export const enrichTripStartUpdates = async (
   if (!tripKey) {
     // When tripKey is null (e.g., during repositioning), clear stale Key and ScheduledTrip data.
     // This prevents displaying wrong scheduled times for unscheduled trips.
-    return {
-      Key: undefined,
-      ScheduledTrip: undefined,
-      RouteID: 0,
-      RouteAbbrev: "",
-      SailingDay: "",
-      // Clear stale predictions as well
-      AtDockDepartCurr: undefined,
-      AtDockArriveNext: undefined,
-      AtDockDepartNext: undefined,
-      AtSeaArriveNext: undefined,
-      AtSeaDepartNext: undefined,
-    };
+
+    // Check if trip is already in the cleared state to avoid redundant DB writes
+    const alreadyCleared =
+      updatedTrip.Key === undefined &&
+      updatedTrip.ScheduledTrip === undefined &&
+      updatedTrip.RouteID === 0 &&
+      updatedTrip.RouteAbbrev === "" &&
+      updatedTrip.SailingDay === "" &&
+      updatedTrip.AtDockDepartCurr === undefined &&
+      updatedTrip.AtDockArriveNext === undefined &&
+      updatedTrip.AtDockDepartNext === undefined &&
+      updatedTrip.AtSeaArriveNext === undefined &&
+      updatedTrip.AtSeaDepartNext === undefined;
+
+    if (alreadyCleared) {
+      return {};
+    }
+
+    return CLEAR_DERIVED_TRIP_DATA;
   }
 
   const { shouldLookup, existingKeyMismatch } = shouldLookupScheduledTrip(
@@ -175,9 +184,7 @@ export const enrichTripStartUpdates = async (
   // If we can compute a key, keep it in sync even if we don't look up yet.
   const keyPatch: Partial<ConvexVesselTrip> =
     updatedTrip.Key === tripKey ? {} : { Key: tripKey };
-  const invalidationPatch = existingKeyMismatch
-    ? CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE
-    : {};
+  const invalidationPatch = existingKeyMismatch ? CLEAR_DERIVED_TRIP_DATA : {};
 
   // Key is correct, and we either already have data or we're throttling.
   if (!shouldLookup) {
