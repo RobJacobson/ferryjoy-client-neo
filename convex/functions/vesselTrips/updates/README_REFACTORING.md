@@ -758,7 +758,7 @@ The vesselOrchestrator code is well-architected but complex. Two simplifications
 | Query | `getScheduledTripByKey` | Per vessel, when Key derivable + shouldLookup | 0–N |
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs | 0–5N (or 0–1 with batch) |
 | Mutation | `bulkUpsert` (vessel locations) | Once | 1 |
-| Mutation | `applyVesselTripsWritePlan` | Once if has writes | 0–1 |
+| Mutation | `applyVesselTripsBatch` | Once if has writes | 0–1 |
 | Mutation | `bulkInsertPredictions` | Once if has predictions | 0–1 |
 
 **Call frequency note:** Most of these queries are triggered once per trip—either at trip start (arrival at dock) or when leaving dock. They are not called every 5 seconds; they run roughly once per 30 minutes or hour per vessel. The intrinsic vesselOrchestrator action runs every 5 seconds, but the expensive lookups and predictions are event-gated. Appropriate conditional checks prevent runaway behavior where they would be called every tick.

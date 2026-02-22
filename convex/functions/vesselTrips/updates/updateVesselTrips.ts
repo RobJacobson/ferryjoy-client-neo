@@ -11,27 +11,23 @@ type VesselTickResult =
   | {
       ok: true;
       vesselAbbrev: string;
-      plan: Awaited<ReturnType<typeof processVesselTripTick>>;
+      batch: Awaited<ReturnType<typeof processVesselTripTick>>;
     }
   | { ok: false; vesselAbbrev: string; error: string };
 
-type VesselTripsWritePlan = {
+type VesselTripsBatch = {
   activeUpserts: ConvexVesselTrip[];
-  completions: Array<{
-    completedTrip: ConvexVesselTrip;
-    newTrip: ConvexVesselTrip;
-  }>;
   departNextBackfills: Array<{ vesselAbbrev: string; actualDepartMs: number }>;
   completedPredictionRecords: ConvexPredictionRecord[];
   errors: Array<{ vesselAbbrev: string; error: string }>;
 };
 
 /**
- * Main orchestration function for updating active vessel trips.
+ * Main orchestration for updating active vessel trips.
  *
  * Processes vessel locations and active trips to handle trip lifecycle events
- * (first trips, new trips, trip updates). Manages trip enrichment, prediction
- * generation, and database persistence.
+ * (first trips, boundaries, regular updates). Uses build-then-compare for
+ * regular updates: constructs full intended state, writes only if different.
  *
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to process (already converted and deduplicated)
@@ -52,7 +48,8 @@ export const runUpdateVesselTrips = async (
     existingTripsList.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ConvexVesselTrip>;
 
-  // 3) Compute per-vessel update plans (best-effort per vessel).
+  // 3) Build per-vessel tick results (build-then-compare; each may contain
+  //    active upsert, completion, or depart-next backfill).
   const perVesselResults: VesselTickResult[] = await Promise.all(
     locations.map(async (currLocation) => {
       return await processVesselLocationTick(
@@ -63,44 +60,59 @@ export const runUpdateVesselTrips = async (
     })
   );
 
-  // 4) Reduce per-vessel plans into one batched write plan.
-  const writePlan = perVesselResults.reduce<VesselTripsWritePlan>(
-    reduceToWritePlan,
-    makeInitialWritePlan()
+  // 4) Process completions inline (one mutation per completion; rare events).
+  const completions = perVesselResults
+    .filter(
+      (
+        r
+      ): r is VesselTickResult & { ok: true; batch: { completion: object } } =>
+        r.ok && r.batch.completion !== undefined
+    )
+    .map((r) => r.batch.completion);
+  await Promise.all(
+    completions.map((c) =>
+      ctx.runMutation(
+        api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+        c
+      )
+    )
   );
 
-  // 5) Apply trip writes in a single batch mutation.
+  // 5) Aggregate per-vessel results into one vessel trip batch.
+  const batch = perVesselResults.reduce<VesselTripsBatch>(
+    reduceToBatch,
+    makeInitialBatch()
+  );
+
+  // 6) Apply vessel trip batch (active upserts + backfills only).
   const hasAnyTripWrites =
-    writePlan.activeUpserts.length > 0 ||
-    writePlan.completions.length > 0 ||
-    writePlan.departNextBackfills.length > 0;
+    batch.activeUpserts.length > 0 || batch.departNextBackfills.length > 0;
 
   let departNextUpdatedTrips: ConvexVesselTrip[] = [];
   if (hasAnyTripWrites) {
     const result = await ctx.runMutation(
-      api.functions.vesselTrips.mutations.applyVesselTripsWritePlan,
+      api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
       {
-        activeUpserts: writePlan.activeUpserts,
-        completions: writePlan.completions,
-        departNextBackfills: writePlan.departNextBackfills,
+        activeUpserts: batch.activeUpserts,
+        departNextBackfills: batch.departNextBackfills,
       }
     );
     departNextUpdatedTrips = (result?.departNextUpdatedTrips ??
       []) as ConvexVesselTrip[];
   }
 
-  // 6) Extract completed depart-next prediction rows from updated completed trips.
+  // 7) Extract completed depart-next prediction rows from updated completed trips.
   const departNextPredictionRecords = departNextUpdatedTrips
     .flatMap(extractDepartNextPredictionRecords)
     .filter((value): value is ConvexPredictionRecord => value !== null);
 
-  // 7) Combine all completed prediction rows for this tick.
+  // 8) Combine all completed prediction rows for this tick.
   const allPredictionRecords = [
-    ...writePlan.completedPredictionRecords,
+    ...batch.completedPredictionRecords,
     ...departNextPredictionRecords,
   ];
 
-  // 8) Deduplicate by Key + PredictionType, then bulk insert.
+  // 9) Deduplicate by Key + PredictionType, then bulk insert.
   const uniquePredictionRecords = Array.from(
     new Map(
       allPredictionRecords.map((record) => [
@@ -120,7 +132,7 @@ export const runUpdateVesselTrips = async (
   }
 
   // Report any per-vessel failures without failing the entire tick.
-  writePlan.errors.forEach(({ vesselAbbrev, error }) => {
+  batch.errors.forEach(({ vesselAbbrev, error }) => {
     console.error(
       `[VesselTrips] Error processing vessel ${vesselAbbrev}:`,
       error
@@ -133,13 +145,15 @@ export const runUpdateVesselTrips = async (
 // ============================================================================
 
 /**
- * Process a single vessel location tick into a per-vessel plan result.
+ * Build tick result for a single vessel's location.
+ *
+ * Uses build-then-compare for regular updates: constructs full intended state,
+ * compares to existing, writes only if different.
  *
  * @param ctx - Convex action context
  * @param existingTripsDict - Active trips indexed by vessel abbreviation
- * @param nowMs - Single tick time reference in epoch ms
  * @param currLocation - Current vessel location tick
- * @returns Best-effort per-vessel plan result
+ * @returns Per-vessel tick result (active upsert, completion, or backfill)
  */
 const processVesselLocationTick = async (
   ctx: ActionCtx,
@@ -150,11 +164,11 @@ const processVesselLocationTick = async (
   const existingTrip = existingTripsDict[vesselAbbrev];
 
   try {
-    const plan = await processVesselTripTick(ctx, {
+    const tickBatch = await processVesselTripTick(ctx, {
       existingTrip,
       currLocation,
     });
-    return { ok: true, vesselAbbrev, plan };
+    return { ok: true, vesselAbbrev, batch: tickBatch };
   } catch (error) {
     return {
       ok: false,
@@ -165,47 +179,43 @@ const processVesselLocationTick = async (
 };
 
 /**
- * Create the initial accumulator for a tick write plan.
+ * Create the initial accumulator for the vessel trip batch.
  *
- * @returns Empty write plan accumulator
+ * @returns Empty vessel trip batch
  */
-const makeInitialWritePlan = (): VesselTripsWritePlan => ({
+const makeInitialBatch = (): VesselTripsBatch => ({
   activeUpserts: [],
-  completions: [],
   departNextBackfills: [],
   completedPredictionRecords: [],
   errors: [],
 });
 
 /**
- * Reduce a per-vessel result into the tick write plan accumulator.
+ * Aggregate a per-vessel tick result into the vessel trip batch.
  *
- * @param acc - Accumulated write plan
- * @param result - Per-vessel processing result
- * @returns Updated accumulator
+ * @param acc - Accumulated vessel trip batch
+ * @param result - Per-vessel tick result
+ * @returns Updated batch
  */
-const reduceToWritePlan = (
-  acc: VesselTripsWritePlan,
+const reduceToBatch = (
+  acc: VesselTripsBatch,
   result: VesselTickResult
-): VesselTripsWritePlan => {
+): VesselTripsBatch => {
   if (!result.ok) {
     acc.errors.push({ vesselAbbrev: result.vesselAbbrev, error: result.error });
     return acc;
   }
 
-  const { plan } = result;
+  const { batch: tickBatch } = result;
 
-  if (plan.activeUpsert) {
-    acc.activeUpserts.push(plan.activeUpsert);
+  if (tickBatch.activeUpsert) {
+    acc.activeUpserts.push(tickBatch.activeUpsert);
   }
-  if (plan.completion) {
-    acc.completions.push(plan.completion);
-  }
-  if (plan.departNextBackfill) {
-    acc.departNextBackfills.push(plan.departNextBackfill);
+  if (tickBatch.departNextBackfill) {
+    acc.departNextBackfills.push(tickBatch.departNextBackfill);
   }
 
-  acc.completedPredictionRecords.push(...plan.completedPredictionRecords);
+  acc.completedPredictionRecords.push(...tickBatch.completedPredictionRecords);
 
   return acc;
 };

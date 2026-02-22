@@ -80,10 +80,11 @@ import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
 import type * as functions_vesselTrips_updates_arrivalTerminalLookup from "../functions/vesselTrips/updates/arrivalTerminalLookup.js";
+import type * as functions_vesselTrips_updates_buildCompleteTrip from "../functions/vesselTrips/updates/buildCompleteTrip.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
-import type * as functions_vesselTrips_updates_locationEnrichment from "../functions/vesselTrips/updates/locationEnrichment.js";
 import type * as functions_vesselTrips_updates_processVesselTripTick from "../functions/vesselTrips/updates/processVesselTripTick.js";
 import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
+import type * as functions_vesselTrips_updates_tripEquality from "../functions/vesselTrips/updates/tripEquality.js";
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
@@ -173,10 +174,11 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
   "functions/vesselTrips/updates/arrivalTerminalLookup": typeof functions_vesselTrips_updates_arrivalTerminalLookup;
+  "functions/vesselTrips/updates/buildCompleteTrip": typeof functions_vesselTrips_updates_buildCompleteTrip;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
-  "functions/vesselTrips/updates/locationEnrichment": typeof functions_vesselTrips_updates_locationEnrichment;
   "functions/vesselTrips/updates/processVesselTripTick": typeof functions_vesselTrips_updates_processVesselTripTick;
   "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;
+  "functions/vesselTrips/updates/tripEquality": typeof functions_vesselTrips_updates_tripEquality;
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "shared/convertDates": typeof shared_convertDates;
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;

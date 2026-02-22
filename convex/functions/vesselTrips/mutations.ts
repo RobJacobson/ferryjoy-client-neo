@@ -188,13 +188,14 @@ export const completeAndStartNewTrip = mutation({
 });
 
 /**
- * Apply a batch of vessel trip writes (best-effort per vessel).
+ * Upsert a vessel trip batch (best-effort per vessel).
  *
- * This mutation exists to reduce the number of per-vessel mutations executed
- * every 5 seconds. It applies three categories of writes:
+ * Reduces per-vessel mutations by batching two categories of writes:
  * - active trip upserts (insert/replace)
- * - trip completions (insert completed + replace active)
  * - depart-next actual backfills onto the most recent completed trip
+ *
+ * Trip completions are handled separately via completeAndStartNewTrip (inline,
+ * one call per completion).
  *
  * Failures are isolated per vessel: the mutation does not throw for a single
  * vessel failure, and instead returns status entries.
@@ -204,19 +205,12 @@ export const completeAndStartNewTrip = mutation({
  *
  * @param ctx - Convex context
  * @param args.activeUpserts - Active trips to upsert (one per vessel)
- * @param args.completions - Trip completion+start operations (one per vessel)
  * @param args.departNextBackfills - Backfill operations for depart-next actuals
  * @returns Status list and any updated completed trips (for prediction insertion)
  */
-export const applyVesselTripsWritePlan = mutation({
+export const upsertVesselTripsBatch = mutation({
   args: {
     activeUpserts: v.array(vesselTripSchema),
-    completions: v.array(
-      v.object({
-        completedTrip: vesselTripSchema,
-        newTrip: vesselTripSchema,
-      })
-    ),
     departNextBackfills: v.array(
       v.object({
         vesselAbbrev: v.string(),
@@ -230,7 +224,6 @@ export const applyVesselTripsWritePlan = mutation({
       activeTrips.map((t) => [t.VesselAbbrev, { _id: t._id }])
     );
 
-    const completionVessels = new Set<string>();
     const perVessel: Array<{
       vesselAbbrev: string;
       ok: boolean;
@@ -240,48 +233,8 @@ export const applyVesselTripsWritePlan = mutation({
     // Any completed trips updated by depart-next backfill (for prediction insertion).
     const departNextUpdatedTrips: ConvexVesselTrip[] = [];
 
-    for (const completion of args.completions) {
-      const vesselAbbrev = completion.completedTrip.VesselAbbrev;
-      completionVessels.add(vesselAbbrev);
-      try {
-        if (!completion.completedTrip.TripEnd) {
-          throw new ConvexError({
-            message: "Completed trip must have TripEnd set",
-            code: "INVALID_COMPLETED_TRIP",
-            severity: "error",
-            details: { vesselAbbrev },
-          });
-        }
-
-        const existingActive = activeByVessel.get(vesselAbbrev);
-        if (!existingActive) {
-          throw new ConvexError({
-            message: `No active trip found for vessel ${vesselAbbrev}`,
-            code: "ACTIVE_TRIP_NOT_FOUND",
-            severity: "error",
-            details: { vesselAbbrev },
-          });
-        }
-
-        await ctx.db.insert("completedVesselTrips", completion.completedTrip);
-        await ctx.db.replace(existingActive._id, completion.newTrip);
-        perVessel.push({ vesselAbbrev, ok: true });
-      } catch (error) {
-        perVessel.push({
-          vesselAbbrev,
-          ok: false,
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
     for (const trip of args.activeUpserts) {
       const vesselAbbrev = trip.VesselAbbrev;
-      if (completionVessels.has(vesselAbbrev)) {
-        // Avoid conflicting operations in the same plan.
-        continue;
-      }
-
       try {
         const existing = activeByVessel.get(vesselAbbrev);
         if (existing) {

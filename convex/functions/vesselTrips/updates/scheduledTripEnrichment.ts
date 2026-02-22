@@ -6,13 +6,13 @@ import { generateTripKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Patch applied when derived trip data should be cleared.
+ * Fields to clear when derived trip data is invalid.
  *
- * Used in two scenarios:
- * 1. Key changes (trip identity changed): we must clear any cached
- *    ScheduledTrip snapshot and prediction fields computed under old identity
- * 2. Repositioning (tripKey is null): vessel is between scheduled trips
- *    and we must clear stale data to prevent displaying wrong times
+ * Used when:
+ * 1. Key changes (trip identity changed): clear cached ScheduledTrip snapshot
+ *    and prediction fields computed under old identity
+ * 2. Repositioning (tripKey is null): vessel is between scheduled trips;
+ *    clear stale data to prevent displaying wrong times
  */
 const CLEAR_DERIVED_TRIP_DATA: Partial<ConvexVesselTrip> = {
   Key: undefined,
@@ -90,18 +90,17 @@ const shouldLookupScheduledTrip = (
 };
 
 /**
- * Fetch the ScheduledTrip for a given key and convert it into a VesselTrip patch.
+ * Fetch the ScheduledTrip for a given key and return fields to merge into the trip.
  *
- * We store a snapshot copy (`ScheduledTrip`) for debugging/explainability and
- * keep a few core fields denormalized at the top-level for quick access.
+ * Stores a snapshot copy (`ScheduledTrip`) for debugging/explainability and
+ * denormalizes RouteID, RouteAbbrev, SailingDay at the top level.
  *
  * Safety check: Only matches direct trips. Indirect trips have different terminal
- * pairs (A->C vs A->B), so they have different keys and won't match. This explicit
- * check provides additional defensive programming.
+ * pairs (A->C vs A->B), so they have different keys and won't match.
  *
  * @param ctx - Convex action context for database queries
  * @param tripKey - Composite trip key to lookup ScheduledTrip
- * @returns Partial VesselTrip patch with ScheduledTrip data, or null if not found or indirect
+ * @returns ScheduledTrip-derived fields to merge, or null if not found or indirect
  */
 const fetchScheduledTripFieldsByKey = async (
   ctx: ActionCtx,
@@ -136,10 +135,10 @@ const fetchScheduledTripFieldsByKey = async (
 };
 
 /**
- * Convert a scheduled trip doc to a VesselTrip patch (ScheduledTrip snapshot + denormalized fields).
+ * Extract ScheduledTrip-derived fields from a scheduled trip doc.
  *
  * @param scheduledTrip - Scheduled trip document
- * @returns Partial VesselTrip with ScheduledTrip, RouteID, RouteAbbrev, SailingDay
+ * @returns Fields to merge: ScheduledTrip, RouteID, RouteAbbrev, SailingDay
  */
 const scheduledTripToPatch = (
   scheduledTrip: ConvexScheduledTrip
@@ -151,21 +150,19 @@ const scheduledTripToPatch = (
 });
 
 /**
- * Enrich an active trip with key + ScheduledTrip snapshot.
+ * Enrich a trip with Key + ScheduledTrip snapshot (schedule-derived fields).
  *
- * This is the only place that mutates trip identity derived from schedule:
- * - Keeps `Key` in sync with current trip identity
- * - Looks up the matching ScheduledTrip doc when appropriate (or uses cached doc)
- * - Clears stale derived data when the key changes
+ * Keeps `Key` in sync with current trip identity; looks up ScheduledTrip when
+ * appropriate or uses cached doc. Clears stale derived data when key changes.
  *
  * When `cachedScheduledTrip` is provided and its Key matches the derived tripKey,
  * uses it instead of calling getScheduledTripByKey—eliminating one query per vessel
  * when arrival lookup already returned the same scheduled trip.
  *
  * @param ctx - Convex action context for database operations
- * @param updatedTrip - Current vessel trip state to enrich with scheduled data
+ * @param updatedTrip - Current vessel trip state to enrich
  * @param cachedScheduledTrip - Optional scheduled trip from arrival lookup (avoids second query)
- * @returns Partial trip update with scheduled trip fields and key synchronization
+ * @returns Schedule-derived fields to merge into the trip (Key, RouteID, RouteAbbrev, SailingDay, ScheduledTrip, or cleared state)
  */
 export const enrichTripStartUpdates = async (
   ctx: ActionCtx,
@@ -176,25 +173,7 @@ export const enrichTripStartUpdates = async (
 
   if (!tripKey) {
     // When tripKey is null (e.g., during repositioning), clear stale Key and ScheduledTrip data.
-    // This prevents displaying wrong scheduled times for unscheduled trips.
-
-    // Check if trip is already in the cleared state to avoid redundant DB writes
-    const alreadyCleared =
-      updatedTrip.Key === undefined &&
-      updatedTrip.ScheduledTrip === undefined &&
-      updatedTrip.RouteID === 0 &&
-      updatedTrip.RouteAbbrev === "" &&
-      updatedTrip.SailingDay === "" &&
-      updatedTrip.AtDockDepartCurr === undefined &&
-      updatedTrip.AtDockArriveNext === undefined &&
-      updatedTrip.AtDockDepartNext === undefined &&
-      updatedTrip.AtSeaArriveNext === undefined &&
-      updatedTrip.AtSeaDepartNext === undefined;
-
-    if (alreadyCleared) {
-      return {};
-    }
-
+    // Always return cleared state; tripsAreEqual handles "no change" when already cleared.
     return CLEAR_DERIVED_TRIP_DATA;
   }
 

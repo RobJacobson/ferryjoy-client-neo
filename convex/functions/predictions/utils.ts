@@ -9,12 +9,19 @@ import type {
 } from "functions/predictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-type PredictionField =
-  | "AtDockDepartCurr"
-  | "AtDockArriveNext"
-  | "AtDockDepartNext"
-  | "AtSeaArriveNext"
-  | "AtSeaDepartNext";
+/**
+ * All prediction fields that can be extracted as records.
+ * Single source of truth for iteration over prediction fields.
+ */
+export const PREDICTION_FIELDS = [
+  "AtDockDepartCurr",
+  "AtDockArriveNext",
+  "AtDockDepartNext",
+  "AtSeaArriveNext",
+  "AtSeaDepartNext",
+] as const;
+
+export type PredictionField = (typeof PREDICTION_FIELDS)[number];
 
 /**
  * Maps prediction field names to PascalCase prediction types (for predictions table)

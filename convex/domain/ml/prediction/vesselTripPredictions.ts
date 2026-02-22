@@ -120,16 +120,16 @@ const isPredictionReadyTrip = (
   Boolean(trip.PrevLeftDock);
 
 /**
- * Determines if a prediction should be attempted based on throttling rules.
+ * Determines if a prediction should be attempted based on event-based triggers.
  *
- * Predictions are throttled to once per minute using time-based logic:
- * - AtDock predictions: run on first update with required fields OR every minute
- * - AtSea predictions: run on first update with LeftDock OR every minute
- * - Skip if prediction already exists
+ * - Arrive-dock (AtDockArriveNext, AtDockDepartNext): Run once when vessel first
+ *   arrives at dock (at-sea -> at-dock). Requires isPredictionReadyTrip.
+ * - Depart-dock (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once
+ *   when vessel physically departs dock (LeftDock transitions undefined -> defined).
  *
  * @param spec - Prediction specification
  * @param trip - Current vessel trip state
- * @param existingTrip - Previous vessel trip state (for detecting first-time conditions)
+ * @param existingTrip - Previous vessel trip state (for detecting events)
  * @returns True if prediction should be attempted
  */
 const shouldAttemptPrediction = (
@@ -137,37 +137,21 @@ const shouldAttemptPrediction = (
   trip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): boolean => {
-  // Don't attempt if we already have a valid prediction
   if (trip[spec.field] !== undefined) {
     return false;
   }
 
-  const seconds = new Date().getSeconds();
-  const isThrottleWindow = seconds < 5; // Once per minute
-
   if (spec.requiresLeftDock) {
-    // AtSea predictions: run on first LeftDock OR every minute
     const justLeftDock =
       existingTrip !== undefined &&
       existingTrip.LeftDock === undefined &&
       trip.LeftDock !== undefined;
-    return justLeftDock || isThrottleWindow;
-  } else {
-    // If we just arrived at dock (at-sea -> at-dock), compute at-dock predictions immediately.
-    const justArrivedDock =
-      existingTrip !== undefined && !existingTrip.AtDock && trip.AtDock;
-    if (justArrivedDock) {
-      return true;
-    }
-
-    // AtDock predictions: run on first update with departure terminal OR every minute
-    // Check if this is the first time we have required fields for predictions
-    const hasRequiredFields = isPredictionReadyTrip(trip);
-    const hadRequiredFields =
-      existingTrip && isPredictionReadyTrip(existingTrip);
-    const firstTimeWithFields = hasRequiredFields && !hadRequiredFields;
-    return firstTimeWithFields || isThrottleWindow;
+    return justLeftDock;
   }
+
+  const justArrivedDock =
+    existingTrip !== undefined && !existingTrip.AtDock && trip.AtDock;
+  return justArrivedDock && isPredictionReadyTrip(trip);
 };
 
 type ModelDoc = {
@@ -239,15 +223,14 @@ export const predictVesselTripPrediction = async (
 };
 
 /**
- * Compute prediction updates for a vessel trip with time-based throttling.
+ * Compute prediction updates for a vessel trip with event-based triggers.
  *
- * Predictions are throttled to prevent repeated failures from being attempted
- * every 5 seconds. AtDock predictions run on first update with required fields
- * or every minute. AtSea predictions run on first update with LeftDock or every minute.
+ * Arrive-dock predictions run once when vessel first arrives at dock.
+ * Depart-dock predictions run once when vessel physically departs dock.
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
- * @param existingTrip - Previous vessel trip state (optional, for detecting first-time conditions)
+ * @param existingTrip - Previous vessel trip state (for detecting events)
  * @returns Partial trip update with new predictions
  */
 export const computeVesselTripPredictionsPatch = async (

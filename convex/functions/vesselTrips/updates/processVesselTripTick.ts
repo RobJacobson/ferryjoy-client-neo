@@ -1,9 +1,9 @@
 /**
- * Vessel trip update reducer.
+ * Vessel trip tick processor (build-then-compare pipeline).
  *
- * This file centralizes the VesselTrips update pipeline into a single-path
- * reducer that runs the same stages for every tick, emitting a write plan that
- * can be applied in bulk.
+ * For each tick, builds the full intended trip state, compares to existing,
+ * and emits a vessel trip batch for only what changed. Regular updates use deep
+ * equality to skip writes when semantic state is unchanged.
  *
  * Invariants and event conditions:
  * - One active trip per vessel (keyed by `VesselAbbrev`) in `activeVesselTrips`.
@@ -22,7 +22,11 @@ import {
   updatePredictionsWithActuals,
 } from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import { extractPredictionRecord } from "functions/predictions/utils";
+import {
+  extractPredictionRecord,
+  PREDICTION_FIELDS,
+} from "functions/predictions/utils";
+import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   type ConvexVesselTrip,
@@ -31,36 +35,38 @@ import {
 import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { lookupArrivalTerminalFromSchedule } from "./arrivalTerminalLookup";
-import { enrichTripFields } from "./locationEnrichment";
+import { buildCompleteTrip } from "./buildCompleteTrip";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
+import { tripsAreEqual } from "./tripEquality";
 
-type TripCompletionPlan = {
+type TripCompletionBatch = {
   completedTrip: ConvexVesselTrip;
   newTrip: ConvexVesselTrip;
 };
 
-type DepartNextBackfillPlan = {
+type DepartNextBackfillBatch = {
   vesselAbbrev: string;
   actualDepartMs: number;
 };
 
-export type VesselTripTickPlan = {
+export type VesselTripTickBatch = {
   activeUpsert?: ConvexVesselTrip;
-  completion?: TripCompletionPlan;
-  departNextBackfill?: DepartNextBackfillPlan;
+  completion?: TripCompletionBatch;
+  departNextBackfill?: DepartNextBackfillBatch;
   completedPredictionRecords: ConvexPredictionRecord[];
 };
 
 /**
- * Process a single vessel's location tick into a write plan.
+ * Build tick result for a single vessel's location.
  *
- * The returned plan is intended to be applied later in a batch mutation.
+ * Uses build-then-compare for regular updates: constructs full intended state,
+ * deep-compares to existing, writes only if different. Boundary and first-trip
+ * paths always produce writes.
  *
  * @param ctx - Convex action context
  * @param params.existingTrip - Existing active trip (if any)
  * @param params.currLocation - Current vessel location tick
- * @param params.nowMs - Single tick time reference in epoch ms
- * @returns Plan containing optional trip writes and completed prediction records
+ * @returns Tick result (active upsert, completion, backfill, prediction records)
  */
 export const processVesselTripTick = async (
   ctx: ActionCtx,
@@ -68,7 +74,7 @@ export const processVesselTripTick = async (
     existingTrip: ConvexVesselTrip | undefined;
     currLocation: ConvexVesselLocation;
   }
-): Promise<VesselTripTickPlan> => {
+): Promise<VesselTripTickBatch> => {
   const { existingTrip, currLocation } = params;
 
   const completedPredictionRecords: ConvexPredictionRecord[] = [];
@@ -78,12 +84,12 @@ export const processVesselTripTick = async (
   // ============================================================================
   if (!existingTrip) {
     const newTrip = toConvexVesselTrip(currLocation, {});
-    return finalizePlan({
+    return {
       activeUpsert: newTrip,
       completion: undefined,
       departNextBackfill: undefined,
       completedPredictionRecords,
-    });
+    };
   }
 
   const isTripBoundary =
@@ -91,13 +97,13 @@ export const processVesselTripTick = async (
     currLocation.DepartingTerminalAbbrev;
 
   if (isTripBoundary) {
-    return await buildTripBoundaryPlan(ctx, {
+    return await buildTripBoundaryBatch(ctx, {
       existingTrip,
       currLocation,
     });
   }
 
-  return await buildTripUpdatePlan(ctx, {
+  return await buildTripUpdateBatch(ctx, {
     existingTrip,
     currLocation,
   });
@@ -108,7 +114,40 @@ export const processVesselTripTick = async (
 // ============================================================================
 
 /**
- * Build a write plan for trip boundary events.
+ * Enrich trip with scheduled identity (Key, RouteID, etc.) and ML predictions.
+ * Shared by boundary and update paths to avoid duplication.
+ *
+ * @param ctx - Convex action context for database operations
+ * @param trip - Trip to enrich
+ * @param existingTrip - Previous trip state (for event-based prediction triggers)
+ * @param cachedScheduledTrip - Optional scheduled trip from arrival lookup
+ * @returns Enriched trip and prediction updates
+ */
+const enrichTripWithScheduleAndPredictions = async (
+  ctx: ActionCtx,
+  trip: ConvexVesselTrip,
+  existingTrip: ConvexVesselTrip | undefined,
+  cachedScheduledTrip?: ConvexScheduledTrip
+): Promise<{
+  tripWithScheduled: ConvexVesselTrip;
+  predictionUpdates: Partial<ConvexVesselTrip>;
+}> => {
+  const tripStartUpdates = await enrichTripStartUpdates(
+    ctx,
+    trip,
+    cachedScheduledTrip
+  );
+  const tripWithScheduled = { ...trip, ...tripStartUpdates };
+  const predictionUpdates = await computeVesselTripPredictionsPatch(
+    ctx,
+    tripWithScheduled,
+    existingTrip
+  );
+  return { tripWithScheduled, predictionUpdates };
+};
+
+/**
+ * Build tick result for trip boundary events.
  *
  * Trip boundary occurs when vessel arrives at a new terminal, completing one trip
  * and starting another. Archives the completed trip with final calculations and
@@ -117,15 +156,15 @@ export const processVesselTripTick = async (
  * @param ctx - Convex action context for database operations
  * @param params.existingTrip - The trip being completed
  * @param params.currLocation - Current vessel location data
- * @returns Write plan with trip completion and new trip start
+ * @returns Tick result with trip completion and new trip start
  */
-const buildTripBoundaryPlan = async (
+const buildTripBoundaryBatch = async (
   ctx: ActionCtx,
   params: {
     existingTrip: ConvexVesselTrip;
     currLocation: ConvexVesselLocation;
   }
-): Promise<VesselTripTickPlan> => {
+): Promise<VesselTripTickBatch> => {
   const { existingTrip, currLocation } = params;
   const completedPredictionRecords: ConvexPredictionRecord[] = [];
 
@@ -182,129 +221,102 @@ const buildTripBoundaryPlan = async (
 
   // Immediately derive Key / ScheduledTrip snapshot and compute at-dock predictions
   // for the newly-started trip (so UI sees them on the same tick as arrival).
-  // Reuse scheduled trip from arrival lookup when available to avoid second query.
-  const tripStartUpdates = await enrichTripStartUpdates(
-    ctx,
-    newTrip,
-    arrivalLookup?.scheduledTripDoc
-  );
-  const tripForPredictions: ConvexVesselTrip = {
-    ...newTrip,
-    ...tripStartUpdates,
-  };
-  const predictionUpdates = await computeVesselTripPredictionsPatch(
-    ctx,
-    tripForPredictions,
-    undefined
-  );
+  const { tripWithScheduled, predictionUpdates } =
+    await enrichTripWithScheduleAndPredictions(
+      ctx,
+      newTrip,
+      undefined,
+      arrivalLookup?.scheduledTripDoc
+    );
 
   const newTripWithEnrichment: ConvexVesselTrip = {
-    ...newTrip,
-    ...tripStartUpdates,
+    ...tripWithScheduled,
     ...predictionUpdates,
   };
 
-  return finalizePlan({
+  return {
     activeUpsert: undefined,
     completion: { completedTrip, newTrip: newTripWithEnrichment },
     departNextBackfill: undefined,
     completedPredictionRecords,
-  });
+  };
 };
 
 /**
- * Build a write plan for trip update events.
+ * Build tick result for trip update events.
  *
  * Trip update occurs when vessel location changes within the same terminal pair.
- * Updates trip fields, enriches with scheduled data, computes predictions with
- * throttling, and handles departure events that actualize predictions.
+ * Uses build-then-compare: always construct full intended state, then write only
+ * if different from existing.
  *
  * @param ctx - Convex action context for database operations
  * @param params.existingTrip - Current active trip being updated
  * @param params.currLocation - Latest vessel location data
- * @returns Write plan with trip updates and optional prediction actualization
+ * @returns Tick result with trip updates and optional prediction actualization
  */
-const buildTripUpdatePlan = async (
+const buildTripUpdateBatch = async (
   ctx: ActionCtx,
   params: {
     existingTrip: ConvexVesselTrip;
     currLocation: ConvexVesselLocation;
   }
-): Promise<VesselTripTickPlan> => {
+): Promise<VesselTripTickBatch> => {
   const { existingTrip, currLocation } = params;
   const completedPredictionRecords: ConvexPredictionRecord[] = [];
 
-  // 1) Location-derived patch.
-  const tripFieldUpdates = enrichTripFields(existingTrip, currLocation);
-  const baseTrip: ConvexVesselTrip = {
+  // 1) Base trip for lookup: include latest ScheduledDeparture for arrival lookup.
+  const baseTripForLookup: ConvexVesselTrip = {
     ...existingTrip,
-    ...tripFieldUpdates,
+    ScheduledDeparture:
+      currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture,
   };
 
-  // Best-effort arriving terminal inference before scheduled identity derivation.
+  // 2) Arrival lookup (I/O-conditioned; only when at dock + missing ArrivingTerminal).
   const arrivalLookup = await lookupArrivalTerminalFromSchedule(
     ctx,
-    baseTrip,
+    baseTripForLookup,
     currLocation
   );
-  const arrivingTerminalPatch: Partial<ConvexVesselTrip> = {
-    ...(arrivalLookup?.arrivalTerminal && !baseTrip.ArrivingTerminalAbbrev
-      ? { ArrivingTerminalAbbrev: arrivalLookup.arrivalTerminal }
-      : {}),
-  };
 
-  const forTripIdentity: ConvexVesselTrip = {
-    ...baseTrip,
-    ...arrivingTerminalPatch,
-  };
-
-  // 2) Scheduled identity + snapshot. Reuse scheduled trip from arrival lookup when available.
-  const tripStartUpdates = await enrichTripStartUpdates(
-    ctx,
-    forTripIdentity,
-    arrivalLookup?.scheduledTripDoc
+  // 3) Build complete trip from location + enrichment.
+  const proposedTrip = buildCompleteTrip(
+    existingTrip,
+    currLocation,
+    arrivalLookup
   );
 
-  // 3) Predictions (throttled).
-  const tripForPredictions: ConvexVesselTrip = {
-    ...forTripIdentity,
-    ...tripStartUpdates,
-  };
-  const predictionUpdates = await computeVesselTripPredictionsPatch(
-    ctx,
-    tripForPredictions,
-    existingTrip
-  );
+  // 4) Scheduled identity + snapshot and predictions.
+  const { tripWithScheduled, predictionUpdates } =
+    await enrichTripWithScheduleAndPredictions(
+      ctx,
+      proposedTrip,
+      existingTrip,
+      arrivalLookup?.scheduledTripDoc
+    );
 
-  // 4) Actualize predictions from events observable on the same trip.
-  const didJustLeaveDock = !existingTrip.LeftDock && baseTrip.LeftDock;
+  // 5) Actualize predictions when vessel just left dock.
+  const didJustLeaveDock =
+    !existingTrip.LeftDock && tripWithScheduled.LeftDock !== undefined;
   const actualUpdates = didJustLeaveDock
     ? updatePredictionsWithActuals(existingTrip, {
-        ...tripForPredictions,
+        ...tripWithScheduled,
         ...predictionUpdates,
       })
     : {};
 
-  const updatedData: Partial<ConvexVesselTrip> = {
-    ...tripFieldUpdates,
-    ...arrivingTerminalPatch,
-    ...tripStartUpdates,
+  const finalProposed: ConvexVesselTrip = {
+    ...tripWithScheduled,
     ...predictionUpdates,
     ...actualUpdates,
+    TimeStamp: currLocation.TimeStamp,
   };
 
-  const hasAnyUpdates = Object.keys(updatedData).length > 0;
+  // 6) Write only if different (build-then-compare).
+  const activeUpsert = tripsAreEqual(existingTrip, finalProposed)
+    ? undefined
+    : finalProposed;
 
-  const activeUpsert = hasAnyUpdates
-    ? ({
-        ...existingTrip,
-        ...updatedData,
-        TimeStamp: currLocation.TimeStamp,
-      } satisfies ConvexVesselTrip)
-    : undefined;
-
-  if (didJustLeaveDock && baseTrip.LeftDock) {
-    // Insert completed AtDockDepartCurr prediction record (current trip).
+  if (didJustLeaveDock) {
     if (activeUpsert) {
       const record = extractPredictionRecord(activeUpsert, "AtDockDepartCurr");
       if (record) {
@@ -313,18 +325,19 @@ const buildTripUpdatePlan = async (
     }
   }
 
-  return finalizePlan({
+  const leftDockMs = tripWithScheduled.LeftDock;
+  return {
     activeUpsert,
     completion: undefined,
     departNextBackfill:
-      didJustLeaveDock && baseTrip.LeftDock
+      didJustLeaveDock && leftDockMs !== undefined
         ? {
             vesselAbbrev: existingTrip.VesselAbbrev,
-            actualDepartMs: baseTrip.LeftDock,
+            actualDepartMs: leftDockMs,
           }
         : undefined,
     completedPredictionRecords,
-  });
+  };
 };
 
 /**
@@ -340,36 +353,12 @@ const buildTripUpdatePlan = async (
 const extractCompletedPredictionRecords = (
   trip: ConvexVesselTrip
 ): ConvexPredictionRecord[] => {
-  const fields = [
-    "AtDockDepartCurr",
-    "AtDockArriveNext",
-    "AtDockDepartNext",
-    "AtSeaArriveNext",
-    "AtSeaDepartNext",
-  ] as const;
-
   const records: ConvexPredictionRecord[] = [];
-  for (const field of fields) {
+  for (const field of PREDICTION_FIELDS) {
     const record = extractPredictionRecord(trip, field);
     if (record) {
       records.push(record);
     }
   }
   return records;
-};
-
-/**
- * Finalize a vessel trip tick plan with computed statistics.
- *
- * Ensures the plan has consistent statistics and completed prediction records
- * count. This is the final step before returning the plan for execution.
- *
- * @param plan - Partially built vessel trip tick plan
- * @returns Complete vessel trip tick plan with final statistics
- */
-const finalizePlan = (plan: VesselTripTickPlan): VesselTripTickPlan => {
-  return {
-    ...plan,
-    completedPredictionRecords: plan.completedPredictionRecords,
-  };
 };

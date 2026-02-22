@@ -25,13 +25,13 @@ export type ArrivalLookupResult = {
  * enrichTripStartUpdates to avoid a second query (getScheduledTripByKey).
  *
  * @param ctx - Convex action context for database queries
- * @param existingTrip - Current vessel trip state
+ * @param tripForLookup - Trip state for lookup (existing trip or newly created)
  * @param currLocation - Latest vessel location data
  * @returns Arrival terminal and optional scheduled trip doc, or undefined
  */
 export const lookupArrivalTerminalFromSchedule = async (
   ctx: ActionCtx,
-  existingTrip: ConvexVesselTrip,
+  tripForLookup: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): Promise<ArrivalLookupResult | undefined> => {
   // Only lookup when:
@@ -40,26 +40,26 @@ export const lookupArrivalTerminalFromSchedule = async (
   // 3. We have the required fields for lookup
   const isAtDock = currLocation.AtDock;
   const missingArrivingTerminal =
-    !existingTrip.ArrivingTerminalAbbrev &&
+    !tripForLookup.ArrivingTerminalAbbrev &&
     !currLocation.ArrivingTerminalAbbrev;
   const hasRequiredFields =
-    existingTrip.VesselAbbrev &&
-    existingTrip.DepartingTerminalAbbrev &&
-    existingTrip.ScheduledDeparture;
+    tripForLookup.VesselAbbrev &&
+    tripForLookup.DepartingTerminalAbbrev &&
+    tripForLookup.ScheduledDeparture;
 
   if (!isAtDock || !missingArrivingTerminal || !hasRequiredFields) {
     return undefined;
   }
 
   // TypeScript guard: we've already checked hasRequiredFields, so this is safe
-  if (!existingTrip.ScheduledDeparture) {
+  if (!tripForLookup.ScheduledDeparture) {
     return undefined;
   }
 
   const queryParams = {
-    vesselAbbrev: existingTrip.VesselAbbrev,
-    departingTerminalAbbrev: existingTrip.DepartingTerminalAbbrev,
-    scheduledDeparture: existingTrip.ScheduledDeparture,
+    vesselAbbrev: tripForLookup.VesselAbbrev,
+    departingTerminalAbbrev: tripForLookup.DepartingTerminalAbbrev,
+    scheduledDeparture: tripForLookup.ScheduledDeparture,
   };
 
   try {
@@ -80,7 +80,7 @@ export const lookupArrivalTerminalFromSchedule = async (
   } catch (error) {
     // Log error but don't throw - we'll wait for the API to report the terminal
     console.error(
-      `[ArrivalTerminalLookup] Failed to lookup arrival terminal for vessel ${existingTrip.VesselAbbrev}:`,
+      `[ArrivalTerminalLookup] Failed to lookup arrival terminal for vessel ${tripForLookup.VesselAbbrev}:`,
       error
     );
   }
