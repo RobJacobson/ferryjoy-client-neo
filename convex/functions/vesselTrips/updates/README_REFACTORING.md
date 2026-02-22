@@ -33,8 +33,8 @@ The vesselOrchestrator handles several complex business problems:
 The orchestrator manages three event types:
 
 1. **First Trip**: Create a new trip when a vessel appears with no existing active trip (rare, usually only on the first run of the function).
-2. **Trip Boundary**: Complete current trip and start a new one when `DepartingTerminalAbbrev` changes
-3. **Regular Updates**: Update existing trip with new location data (most common case)
+2. **Trip Boundary**: Complete current trip and start a new one when `DepartingTerminalAbbrev` changes. **Always triggers writes**: (1) archive completed trip with `TripEnd` set to `currLocation.TimeStamp`, (2) create new active trip. Build-then-compare does not apply here—boundary always writes.
+3. **Regular Updates**: Update existing trip with new location data (most common case). Build-then-compare applies: construct full state, compare, write only if different.
 
 ### 2.2 VesselTrip vs VesselLocation
 
@@ -132,7 +132,10 @@ The orchestrator minimizes unnecessary database writes by:
 
 **Known gotchas** (from domain knowledge—do not "simplify" away):
 
-1. **ArrivingTerminalAbbrev**: Never use `currLocation.ArrivingTerminalAbbrev ?? existingTrip.ArrivingTerminalAbbrev`. At trip boundary, old trip's ArrivingTerminalAbbrev equals new trip's DepartingTerminalAbbrev—wrong terminal. With hard-reset rule, direct assignment `currLocation.ArrivingTerminalAbbrev` is correct. REST persists once set; no case where currLocation is falsey while existingTrip has data.
+1. **ArrivingTerminalAbbrev**: Never use `currLocation.ArrivingTerminalAbbrev ?? existingTrip.ArrivingTerminalAbbrev` **at trip boundary**—old trip's ArrivingTerminalAbbrev equals new trip's DepartingTerminalAbbrev (wrong terminal). For **regular updates** (same trip), use this fallback chain in `buildCompleteTrip`:
+   - `currLocation.ArrivingTerminalAbbrev` when truthy
+   - Else `arrivalLookup?.arrivalTerminal` when available (schedule inference)
+   - Else `existingTrip.ArrivingTerminalAbbrev` (only when same trip—REST may not have reported it yet)
 
 2. **ScheduledDeparture, Eta, LeftDock**: Only update when currLocation provides truthy value. Prevents overwriting good data with null from REST glitches.
 
@@ -186,7 +189,7 @@ if (atDockFlipped) {
 }
 ```
 
-*With hard-reset rule (Section 2.7): ArrivingTerminalAbbrev can be simplified to direct assignment `currLocation.ArrivingTerminalAbbrev`.*
+*With build-then-compare: ArrivingTerminalAbbrev uses the fallback chain (Section 2.7)—direct at boundary, fallback chain for regular updates.*
 
 #### Example 2: Scheduled Trip Enrichment
 
@@ -209,6 +212,8 @@ if (alreadyCleared) {
   return {};
 }
 ```
+
+*With build-then-compare*: The `alreadyCleared` optimization is preserved semantically. We build the full object (including cleared state when `tripKey` is null), compare via `tripsAreEqual`, and skip the write when equal. The enrichment layer can be simplified to always return a complete object instead of `{}`; the equality check handles the "no change" case.
 
 #### Example 3: Trip Update Plan
 
@@ -339,15 +344,19 @@ Implementing deep equality is straightforward. Here's a simple implementation:
  * Deep equality check for VesselTrip objects.
  * Handles nested objects, undefined/null differences, and type checking.
  *
+ * Note: undefined vs undefined returns true via the initial `a === b` check.
+ * undefined vs null returns false (null/undefined mismatch). Key and other
+ * optional fields can be undefined; both sides undefined must compare equal.
+ *
  * @param a - First object to compare
  * @param b - Second object to compare
  * @returns true if objects are deeply equal, false otherwise
  */
 const deepEqual = (a: unknown, b: unknown): boolean => {
-  // Handle primitives
+  // Handle primitives (includes undefined === undefined, null === null)
   if (a === b) return true;
 
-  // Handle null/undefined mismatch
+  // Handle null/undefined mismatch (one null, one undefined)
   if (a == null || b == null) return false;
 
   // Handle arrays
@@ -511,11 +520,11 @@ return updates;
 **`enrichTripFields` (Proposed):**
 ```typescript
 // Returns: ConvexVesselTrip (with all fields populated)
-// Identity fields: direct from currLocation (no ?? fallback to existing)
+// Identity fields: direct from currLocation; ArrivingTerminalAbbrev uses fallback chain (Section 2.7)
 // Computed fields: derive from effective values
 return {
   ...trip,
-  ArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,  // direct, no conditional
+  ArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev ?? arrivalLookup?.arrivalTerminal ?? trip.ArrivingTerminalAbbrev,
   AtDock: currLocation.AtDock,
   Eta: currLocation.Eta ?? trip.Eta,  // only fields where null-overwrite is impossible
   ScheduledDeparture: currLocation.ScheduledDeparture ?? trip.ScheduledDeparture,
@@ -556,6 +565,8 @@ const activeUpsert = tripsAreEqual(existingTrip, proposedTrip)
 - **Depart-dock** (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once when `!existingTrip.LeftDock && trip.LeftDock` (first physical departure).
 
 Remove: `isThrottleWindow` (seconds < 5), `firstTimeWithFields`, and any "run again every minute" logic. If prediction fails once, do not retry until next trip/event.
+
+**First-trip case**: When `!existingTrip` (first trip for a vessel), `isPredictionReadyTrip` requires `PrevTerminalAbbrev`, `PrevScheduledDeparture`, `PrevLeftDock`—which come from a completed trip. First trips have none of these, so at-dock predictions will not run. This is intentional; behavior is unchanged.
 
 **Return pattern** (for build-then-compare): When not running prediction, pass through existing value. When running, use new result.
 
@@ -790,8 +801,9 @@ Conditional checks ensure expensive operations are not called every tick:
 | 1.0 | 2026-02-21 | Initial analysis |
 | 1.1 | 2026-02-21 | Added: Executive summary revisions (prediction simplification, logical equivalence); Section 2.2 VesselTrip vs VesselLocation; Section 2.7 Refactoring Gotchas & Invariants; Field Reference table (2.6); Revised ML Predictions to event-based model; Phase 4 prediction simplification; Implementation strategy updates; Logical-equivalence testing; Document metadata |
 | 1.2 | 2026-02-22 | Added: Section 11 Convex Function Call Optimization; Implemented consolidated arrival + scheduled trip lookup; Implemented batch model loading for predictions; Call frequency clarification (once per trip, not every tick); Runaway prevention checks |
+| 1.3 | 2026-02-22 | Clarified: ArrivingTerminalAbbrev fallback chain for regular updates (Section 2.7); deepEqual undefined handling (Section 4.4); Trip boundary always triggers writes including TripEnd (Section 2.1); alreadyCleared optimization preserved by build-then-compare (Section 3.2); First-trip case for PredictionReadyTrip (Section 5.4) |
 
 ---
 
-*Document Version: 1.2*
+*Document Version: 1.3*
 *Last Updated: 2026-02-22*
