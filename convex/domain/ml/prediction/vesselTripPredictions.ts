@@ -9,8 +9,9 @@ import type {
   ConvexVesselTrip,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
+import { formatTerminalPairKey } from "../shared/config";
 import type { ModelType } from "../shared/types";
-import { predictTripValue } from "./predictTrip";
+import { loadModelsForPairBatch, predictTripValue } from "./predictTrip";
 
 const MINUTES_TO_MS = 60 * 1000;
 
@@ -169,10 +170,18 @@ const shouldAttemptPrediction = (
   }
 };
 
+type ModelDoc = {
+  featureKeys: string[];
+  coefficients: number[];
+  intercept: number;
+  testMetrics: { mae: number; stdDev: number };
+};
+
 const predictFromSpec = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
-  spec: PredictionSpec
+  spec: PredictionSpec,
+  preloadedModel?: ModelDoc | null
 ): Promise<ConvexPrediction | null> => {
   if (!isPredictionReadyTrip(trip)) {
     return null;
@@ -192,7 +201,7 @@ const predictFromSpec = async (
       predictedValue: predictedMinutes,
       mae,
       stdDev,
-    } = await predictTripValue(ctx, trip, spec.modelType);
+    } = await predictTripValue(ctx, trip, spec.modelType, preloadedModel);
 
     const predictedMs = anchorMs + predictedMinutes * MINUTES_TO_MS;
 
@@ -250,10 +259,33 @@ export const computeVesselTripPredictionsPatch = async (
     shouldAttemptPrediction(spec, trip, existingTrip)
   );
 
+  // Batch load all models in one query when we have multiple specs to attempt.
+  let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
+    ModelType,
+    ModelDoc | null
+  >;
+  if (
+    specsToAttempt.length > 1 &&
+    trip.ArrivingTerminalAbbrev &&
+    trip.DepartingTerminalAbbrev
+  ) {
+    const pairKey = formatTerminalPairKey(
+      trip.DepartingTerminalAbbrev,
+      trip.ArrivingTerminalAbbrev
+    );
+    const modelTypes = specsToAttempt.map((s) => s.modelType);
+    modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
+  }
+
   const results = await Promise.all(
     specsToAttempt.map(async (spec) => ({
       spec,
-      prediction: await predictFromSpec(ctx, trip, spec),
+      prediction: await predictFromSpec(
+        ctx,
+        trip,
+        spec,
+        specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
+      ),
     }))
   );
 

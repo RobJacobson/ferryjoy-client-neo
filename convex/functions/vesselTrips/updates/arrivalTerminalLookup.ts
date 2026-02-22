@@ -1,8 +1,14 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+
+export type ArrivalLookupResult = {
+  arrivalTerminal?: string;
+  scheduledTripDoc?: ConvexScheduledTrip;
+};
 
 /**
  * Look up arriving terminal from scheduled trips when vessel arrives at dock
@@ -14,19 +20,20 @@ import { stripConvexMeta } from "shared/stripConvexMeta";
  * - Scheduled departure (ScheduledDeparture)
  * - Prefers direct trips if both direct and indirect trips match
  *
- * If a match is found, returns the arriving terminal abbreviation.
- * If no match is found, returns undefined (we'll wait for the API to report it).
+ * When a match is found, returns both the arriving terminal and the full
+ * scheduled trip doc. The caller can reuse the scheduled trip for
+ * enrichTripStartUpdates to avoid a second query (getScheduledTripByKey).
  *
  * @param ctx - Convex action context for database queries
  * @param existingTrip - Current vessel trip state
  * @param currLocation - Latest vessel location data
- * @returns Arriving terminal abbreviation if found, undefined otherwise
+ * @returns Arrival terminal and optional scheduled trip doc, or undefined
  */
 export const lookupArrivalTerminalFromSchedule = async (
   ctx: ActionCtx,
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
-): Promise<string | undefined> => {
+): Promise<ArrivalLookupResult | undefined> => {
   // Only lookup when:
   // 1. Vessel is currently at dock
   // 2. Arriving terminal is missing (both in trip and current location)
@@ -62,8 +69,13 @@ export const lookupArrivalTerminalFromSchedule = async (
     );
 
     if (scheduledTrip) {
-      const trip = stripConvexMeta(scheduledTrip);
-      return trip.ArrivingTerminalAbbrev;
+      const trip = stripConvexMeta(
+        scheduledTrip as Record<string, unknown>
+      ) as ConvexScheduledTrip;
+      return {
+        arrivalTerminal: trip.ArrivingTerminalAbbrev,
+        scheduledTripDoc: trip,
+      };
     }
   } catch (error) {
     // Log error but don't throw - we'll wait for the API to report the terminal

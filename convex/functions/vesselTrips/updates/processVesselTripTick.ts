@@ -171,18 +171,23 @@ const buildTripBoundaryPlan = async (
   });
 
   // Best-effort arriving terminal inference before scheduled identity derivation.
-  const lookedUpArrivalTerminal = await lookupArrivalTerminalFromSchedule(
+  const arrivalLookup = await lookupArrivalTerminalFromSchedule(
     ctx,
     newTrip,
     currLocation
   );
-  if (lookedUpArrivalTerminal && !newTrip.ArrivingTerminalAbbrev) {
-    newTrip.ArrivingTerminalAbbrev = lookedUpArrivalTerminal;
+  if (arrivalLookup?.arrivalTerminal && !newTrip.ArrivingTerminalAbbrev) {
+    newTrip.ArrivingTerminalAbbrev = arrivalLookup.arrivalTerminal;
   }
 
   // Immediately derive Key / ScheduledTrip snapshot and compute at-dock predictions
   // for the newly-started trip (so UI sees them on the same tick as arrival).
-  const tripStartUpdates = await enrichTripStartUpdates(ctx, newTrip);
+  // Reuse scheduled trip from arrival lookup when available to avoid second query.
+  const tripStartUpdates = await enrichTripStartUpdates(
+    ctx,
+    newTrip,
+    arrivalLookup?.scheduledTripDoc
+  );
   const tripForPredictions: ConvexVesselTrip = {
     ...newTrip,
     ...tripStartUpdates,
@@ -237,14 +242,14 @@ const buildTripUpdatePlan = async (
   };
 
   // Best-effort arriving terminal inference before scheduled identity derivation.
-  const lookedUpArrivalTerminal = await lookupArrivalTerminalFromSchedule(
+  const arrivalLookup = await lookupArrivalTerminalFromSchedule(
     ctx,
     baseTrip,
     currLocation
   );
   const arrivingTerminalPatch: Partial<ConvexVesselTrip> = {
-    ...(lookedUpArrivalTerminal && !baseTrip.ArrivingTerminalAbbrev
-      ? { ArrivingTerminalAbbrev: lookedUpArrivalTerminal }
+    ...(arrivalLookup?.arrivalTerminal && !baseTrip.ArrivingTerminalAbbrev
+      ? { ArrivingTerminalAbbrev: arrivalLookup.arrivalTerminal }
       : {}),
   };
 
@@ -253,8 +258,12 @@ const buildTripUpdatePlan = async (
     ...arrivingTerminalPatch,
   };
 
-  // 2) Scheduled identity + snapshot.
-  const tripStartUpdates = await enrichTripStartUpdates(ctx, forTripIdentity);
+  // 2) Scheduled identity + snapshot. Reuse scheduled trip from arrival lookup when available.
+  const tripStartUpdates = await enrichTripStartUpdates(
+    ctx,
+    forTripIdentity,
+    arrivalLookup?.scheduledTripDoc
+  );
 
   // 3) Predictions (throttled).
   const tripForPredictions: ConvexVesselTrip = {

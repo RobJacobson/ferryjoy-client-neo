@@ -1,5 +1,6 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -135,20 +136,41 @@ const fetchScheduledTripFieldsByKey = async (
 };
 
 /**
+ * Convert a scheduled trip doc to a VesselTrip patch (ScheduledTrip snapshot + denormalized fields).
+ *
+ * @param scheduledTrip - Scheduled trip document
+ * @returns Partial VesselTrip with ScheduledTrip, RouteID, RouteAbbrev, SailingDay
+ */
+const scheduledTripToPatch = (
+  scheduledTrip: ConvexScheduledTrip
+): Partial<ConvexVesselTrip> => ({
+  ScheduledTrip: scheduledTrip,
+  RouteID: scheduledTrip.RouteID,
+  RouteAbbrev: scheduledTrip.RouteAbbrev,
+  SailingDay: scheduledTrip.SailingDay,
+});
+
+/**
  * Enrich an active trip with key + ScheduledTrip snapshot.
  *
  * This is the only place that mutates trip identity derived from schedule:
  * - Keeps `Key` in sync with current trip identity
- * - Looks up the matching ScheduledTrip doc when appropriate
+ * - Looks up the matching ScheduledTrip doc when appropriate (or uses cached doc)
  * - Clears stale derived data when the key changes
+ *
+ * When `cachedScheduledTrip` is provided and its Key matches the derived tripKey,
+ * uses it instead of calling getScheduledTripByKey—eliminating one query per vessel
+ * when arrival lookup already returned the same scheduled trip.
  *
  * @param ctx - Convex action context for database operations
  * @param updatedTrip - Current vessel trip state to enrich with scheduled data
+ * @param cachedScheduledTrip - Optional scheduled trip from arrival lookup (avoids second query)
  * @returns Partial trip update with scheduled trip fields and key synchronization
  */
 export const enrichTripStartUpdates = async (
   ctx: ActionCtx,
-  updatedTrip: ConvexVesselTrip
+  updatedTrip: ConvexVesselTrip,
+  cachedScheduledTrip?: ConvexScheduledTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
   const tripKey = deriveTripKey(updatedTrip);
 
@@ -185,6 +207,17 @@ export const enrichTripStartUpdates = async (
   const keyPatch: Partial<ConvexVesselTrip> =
     updatedTrip.Key === tripKey ? {} : { Key: tripKey };
   const invalidationPatch = existingKeyMismatch ? CLEAR_DERIVED_TRIP_DATA : {};
+
+  // Use cached scheduled trip from arrival lookup when key matches (avoids second query).
+  if (cachedScheduledTrip && cachedScheduledTrip.Key === tripKey) {
+    if (cachedScheduledTrip.TripType === "indirect") {
+      return { ...keyPatch, ...invalidationPatch };
+    }
+    return {
+      ...scheduledTripToPatch(cachedScheduledTrip),
+      ...keyPatch,
+    };
+  }
 
   // Key is correct, and we either already have data or we're throttling.
   if (!shouldLookup) {

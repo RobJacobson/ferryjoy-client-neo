@@ -130,6 +130,32 @@ const loadModelForPair = async (
   return doc as ModelDoc | null;
 };
 
+/**
+ * Load multiple ML models for a terminal pair in one query.
+ * Used when computing multiple predictions for a vessel to reduce Convex function calls.
+ *
+ * @param ctx - Convex action context (mutations use direct DB, not this)
+ * @param pairKey - Terminal pair identifier
+ * @param modelTypes - Array of model types to load
+ * @returns Record mapping model type to model doc (null if not found)
+ */
+export const loadModelsForPairBatch = async (
+  ctx: ActionCtx,
+  pairKey: string,
+  modelTypes: ModelType[]
+): Promise<Record<ModelType, ModelDoc | null>> => {
+  if (modelTypes.length === 0) {
+    return {} as Record<ModelType, ModelDoc | null>;
+  }
+
+  const batch = await ctx.runQuery(
+    api.functions.predictions.queries.getModelParametersForProductionBatch,
+    { pairKey, modelTypes }
+  );
+
+  return batch as Record<ModelType, ModelDoc | null>;
+};
+
 const requireTripField = <T>(
   value: T | null | undefined,
   message: string
@@ -236,16 +262,22 @@ const toTrainingWindow = (trip: ConvexVesselTrip): TrainingWindow => {
  * extracts features from the trip data, and returns the predicted value
  * along with the model's training MAE for uncertainty indication.
  *
+ * When preloadedModel is provided (e.g. from batch load), uses it instead
+ * of querying the database—reduces Convex function calls when computing
+ * multiple predictions for the same vessel.
+ *
  * @param ctx - Convex action/mutation context
  * @param trip - Vessel trip data
  * @param modelType - Type of ML model to use for prediction
+ * @param preloadedModel - Optional pre-loaded model (avoids query when batch loading)
  * @returns Object containing predicted value and model MAE
  * @throws Error if required trip data is missing or model not found
  */
 export const predictTripValue = async (
   ctx: ActionCtx | MutationCtx,
   trip: ConvexVesselTrip,
-  modelType: ModelType
+  modelType: ModelType,
+  preloadedModel?: ModelDoc | null
 ): Promise<{
   predictedValue: number;
   mae: number;
@@ -258,8 +290,11 @@ export const predictTripValue = async (
   );
   const pairKey = formatTerminalPairKey(trip.DepartingTerminalAbbrev, arriving);
 
-  // Load the trained model for this specific route and prediction type
-  const model = await loadModelForPair(ctx, pairKey, modelType);
+  // Use preloaded model when available; otherwise load from DB
+  const model =
+    preloadedModel !== undefined
+      ? preloadedModel
+      : await loadModelForPair(ctx, pairKey, modelType);
   if (!model) {
     throw new Error(`No trained model found for ${pairKey} ${modelType}`);
   }
