@@ -16,15 +16,16 @@ runUpdateVesselTrips (entry point)
         └─> processVesselLocationTick (per vessel; errors logged and discarded)
             └─> processVesselTripTick (event dispatcher)
                 ├─> First trip: toConvexVesselTrip → return
-                ├─> Trip boundary: buildTripBoundaryBatch
-                │       ├─> finalizeCompletedTripPredictions (completed trip)
-                │       ├─> enrichTripWithSchedule + processPredictionsForTrip (new trip)
+                ├─> Trip boundary: compute predictions → completeAndStartNewTrip (mutation)
+                │       ├─> updatePredictionsWithActuals (completed trip)
+                │       ├─> enrichTripStartUpdates (new trip)
+                │       ├─> computeTripWithPredictions (new trip)
                 │       └─> completeAndStartNewTrip (mutation)
-                └─> Regular update: buildTripUpdateBatch
+                └─> Regular update: buildAndEnrichTrip
                         ├─> lookupArrivalTerminalFromSchedule (I/O-conditioned)
                         ├─> buildCompleteTrip (location-derived fields)
-                        ├─> enrichTripWithSchedule (scheduled identity)
-                        ├─> processPredictionsForTrip (ML; actualizes when didJustLeaveDock)
+                        ├─> enrichTripStartUpdates (scheduled identity)
+                        ├─> computeTripWithPredictions (ML; actualizes when didJustLeaveDock)
                         ├─> tripsAreEqual → write only if different
                         └─> setDepartNextActualsForMostRecentCompletedTrip (mutation, when didJustLeaveDock)
 ```
@@ -35,11 +36,9 @@ runUpdateVesselTrips (entry point)
 |------|---------|
 | `updateVesselTrips.ts` | Main orchestrator: loads active trips, processes each location via Promise.all + flatMap, applies mutations |
 | `processVesselTripTick.ts` | Event dispatcher: first trip, trip boundary, or regular update; coordinates enrichment and mutations |
-| `predictionFacade.ts` | Prediction facade: `processPredictionsForTrip`, `finalizeCompletedTripPredictions` — ML compute, actualize, extract |
-| `buildCompleteTrip.ts` | Builds complete trip from `existingTrip` + `currLocation` + `arrivalLookup` (regular update path) |
-| `tripEquality.ts` | `deepEqual` and `tripsAreEqual` for build-then-compare |
-| `arrivalTerminalLookup.ts` | Infers `ArrivingTerminalAbbrev` from schedule when REST doesn't provide it |
-| `scheduledTripEnrichment.ts` | Derives Key, RouteID, RouteAbbrev, SailingDay, ScheduledTrip snapshot |
+| `enrichment.ts` | Location-derived fields, arrival terminal lookup, scheduled trip enrichment |
+| `utils.ts` | Deep equality utilities for build-then-compare |
+| `tripEnrichment.ts` | Full enrichment pipeline: arrival lookup, location fields, schedule enrichment, predictions, actualization |
 
 **External dependencies**:
 - `convex/domain/ml/prediction/vesselTripPredictions.ts` — ML predictions and actualization

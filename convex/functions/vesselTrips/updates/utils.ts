@@ -1,11 +1,12 @@
 /**
- * Deep equality utilities for VesselTrip comparison.
- *
- * Used by the build-then-compare refactor to determine whether a proposed
- * trip state differs from the existing one before writing to the database.
+ * Utility functions for vessel trips - equality checking, type guards, etc.
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+
+// ============================================================================
+// Deep Equality Utilities
+// ============================================================================
 
 const FIELDS_TO_COMPARE: Array<keyof ConvexVesselTrip> = [
   "VesselAbbrev",
