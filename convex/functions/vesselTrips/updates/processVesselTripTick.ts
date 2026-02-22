@@ -5,27 +5,21 @@
  * and emits a vessel trip batch for only what changed. Regular updates use deep
  * equality to skip writes when semantic state is unchanged.
  *
+ * Completions and depart-next backfills are handled locally where detected:
+ * - Trip boundary: calls completeAndStartNewTrip immediately (no return).
+ * - didJustLeaveDock: calls setDepartNextActualsForMostRecentCompletedTrip
+ *   immediately, extracts prediction records (no return).
+ *
  * Invariants and event conditions:
  * - One active trip per vessel (keyed by `VesselAbbrev`) in `activeVesselTrips`.
  * - `firstTrip`: no existing active trip for `VesselAbbrev` → create active.
- * - `tripBoundary`: `DepartingTerminalAbbrev` changes between active trip and
- *   current location → complete existing trip and start a new one.
- * - `didJustLeaveDock`: `LeftDock` transitions from undefined → defined on the
- *   current active trip (typically driven by `AtDock` flipping true→false).
- *   This triggers two side effects:
- *   1) Backfill depart-next actuals onto the *previous* completed trip.
- *   2) Actualize `AtDockDepartCurr` on the *current* active trip.
+ * - `tripBoundary`: `DepartingTerminalAbbrev` changes → complete + start new (mutation).
+ * - `didJustLeaveDock`: `LeftDock` transitions undefined → defined → backfill (mutation).
  */
+import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  computeVesselTripPredictionsPatch,
-  updatePredictionsWithActuals,
-} from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import {
-  extractPredictionRecord,
-  PREDICTION_FIELDS,
-} from "functions/predictions/utils";
+import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
@@ -36,23 +30,15 @@ import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { lookupArrivalTerminalFromSchedule } from "./arrivalTerminalLookup";
 import { buildCompleteTrip } from "./buildCompleteTrip";
+import {
+  finalizeCompletedTripPredictions,
+  processPredictionsForTrip,
+} from "./predictionFacade";
 import { enrichTripStartUpdates } from "./scheduledTripEnrichment";
 import { tripsAreEqual } from "./tripEquality";
 
-type TripCompletionBatch = {
-  completedTrip: ConvexVesselTrip;
-  newTrip: ConvexVesselTrip;
-};
-
-type DepartNextBackfillBatch = {
-  vesselAbbrev: string;
-  actualDepartMs: number;
-};
-
 export type VesselTripTickBatch = {
   activeUpsert?: ConvexVesselTrip;
-  completion?: TripCompletionBatch;
-  departNextBackfill?: DepartNextBackfillBatch;
   completedPredictionRecords: ConvexPredictionRecord[];
 };
 
@@ -84,12 +70,7 @@ export const processVesselTripTick = async (
   // ============================================================================
   if (!existingTrip) {
     const newTrip = toConvexVesselTrip(currLocation, {});
-    return {
-      activeUpsert: newTrip,
-      completion: undefined,
-      departNextBackfill: undefined,
-      completedPredictionRecords,
-    };
+    return { activeUpsert: newTrip, completedPredictionRecords };
   }
 
   const isTripBoundary =
@@ -114,36 +95,25 @@ export const processVesselTripTick = async (
 // ============================================================================
 
 /**
- * Enrich trip with scheduled identity (Key, RouteID, etc.) and ML predictions.
- * Shared by boundary and update paths to avoid duplication.
+ * Enrich trip with scheduled identity (Key, RouteID, RouteAbbrev, SailingDay,
+ * ScheduledTrip). Prediction logic is handled by the prediction facade.
  *
  * @param ctx - Convex action context for database operations
  * @param trip - Trip to enrich
- * @param existingTrip - Previous trip state (for event-based prediction triggers)
  * @param cachedScheduledTrip - Optional scheduled trip from arrival lookup
- * @returns Enriched trip and prediction updates
+ * @returns Trip with scheduled identity applied
  */
-const enrichTripWithScheduleAndPredictions = async (
+const enrichTripWithSchedule = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
-  existingTrip: ConvexVesselTrip | undefined,
   cachedScheduledTrip?: ConvexScheduledTrip
-): Promise<{
-  tripWithScheduled: ConvexVesselTrip;
-  predictionUpdates: Partial<ConvexVesselTrip>;
-}> => {
+): Promise<ConvexVesselTrip> => {
   const tripStartUpdates = await enrichTripStartUpdates(
     ctx,
     trip,
     cachedScheduledTrip
   );
-  const tripWithScheduled = { ...trip, ...tripStartUpdates };
-  const predictionUpdates = await computeVesselTripPredictionsPatch(
-    ctx,
-    tripWithScheduled,
-    existingTrip
-  );
-  return { tripWithScheduled, predictionUpdates };
+  return { ...trip, ...tripStartUpdates };
 };
 
 /**
@@ -193,14 +163,15 @@ const buildTripBoundaryBatch = async (
     completedTripBase.TotalDuration = totalDuration;
   }
 
+  const { actualUpdates, completedRecords } = finalizeCompletedTripPredictions(
+    existingTripClean,
+    completedTripBase
+  );
   const completedTrip: ConvexVesselTrip = {
     ...completedTripBase,
-    ...updatePredictionsWithActuals(existingTripClean, completedTripBase),
+    ...actualUpdates,
   };
-
-  completedPredictionRecords.push(
-    ...extractCompletedPredictionRecords(completedTrip)
-  );
+  completedPredictionRecords.push(...completedRecords);
 
   const newTrip = toConvexVesselTrip(currLocation, {
     TripStart: currLocation.TimeStamp,
@@ -219,27 +190,28 @@ const buildTripBoundaryBatch = async (
     newTrip.ArrivingTerminalAbbrev = arrivalLookup.arrivalTerminal;
   }
 
-  // Immediately derive Key / ScheduledTrip snapshot and compute at-dock predictions
-  // for the newly-started trip (so UI sees them on the same tick as arrival).
-  const { tripWithScheduled, predictionUpdates } =
-    await enrichTripWithScheduleAndPredictions(
-      ctx,
-      newTrip,
-      undefined,
-      arrivalLookup?.scheduledTripDoc
-    );
+  // Derive Key / ScheduledTrip snapshot and compute at-dock predictions for the
+  // newly-started trip (so UI sees them on the same tick as arrival).
+  const tripWithScheduled = await enrichTripWithSchedule(
+    ctx,
+    newTrip,
+    arrivalLookup?.scheduledTripDoc
+  );
+  const { tripWithPredictions } = await processPredictionsForTrip(
+    ctx,
+    tripWithScheduled,
+    undefined
+  );
 
-  const newTripWithEnrichment: ConvexVesselTrip = {
-    ...tripWithScheduled,
-    ...predictionUpdates,
-  };
+  const newTripWithEnrichment = tripWithPredictions;
 
-  return {
-    activeUpsert: undefined,
-    completion: { completedTrip, newTrip: newTripWithEnrichment },
-    departNextBackfill: undefined,
-    completedPredictionRecords,
-  };
+  // Persist completion locally; do not pass up.
+  await ctx.runMutation(
+    api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+    { completedTrip, newTrip: newTripWithEnrichment }
+  );
+
+  return { activeUpsert: undefined, completedPredictionRecords };
 };
 
 /**
@@ -285,29 +257,23 @@ const buildTripUpdateBatch = async (
     arrivalLookup
   );
 
-  // 4) Scheduled identity + snapshot and predictions.
-  const { tripWithScheduled, predictionUpdates } =
-    await enrichTripWithScheduleAndPredictions(
-      ctx,
-      proposedTrip,
-      existingTrip,
-      arrivalLookup?.scheduledTripDoc
-    );
-
-  // 5) Actualize predictions when vessel just left dock.
+  // 4) Scheduled identity + predictions (actualize when vessel just left dock).
+  const tripWithScheduled = await enrichTripWithSchedule(
+    ctx,
+    proposedTrip,
+    arrivalLookup?.scheduledTripDoc
+  );
   const didJustLeaveDock =
     !existingTrip.LeftDock && tripWithScheduled.LeftDock !== undefined;
-  const actualUpdates = didJustLeaveDock
-    ? updatePredictionsWithActuals(existingTrip, {
-        ...tripWithScheduled,
-        ...predictionUpdates,
-      })
-    : {};
+  const { tripWithPredictions, completedRecords: predictionRecords } =
+    await processPredictionsForTrip(ctx, tripWithScheduled, existingTrip, {
+      didJustLeaveDock,
+    });
+
+  completedPredictionRecords.push(...predictionRecords);
 
   const finalProposed: ConvexVesselTrip = {
-    ...tripWithScheduled,
-    ...predictionUpdates,
-    ...actualUpdates,
+    ...tripWithPredictions,
     TimeStamp: currLocation.TimeStamp,
   };
 
@@ -317,48 +283,29 @@ const buildTripUpdateBatch = async (
     : finalProposed;
 
   if (didJustLeaveDock) {
-    if (activeUpsert) {
-      const record = extractPredictionRecord(activeUpsert, "AtDockDepartCurr");
-      if (record) {
-        completedPredictionRecords.push(record);
+    // Backfill depart-next actuals locally; do not pass up.
+    const leftDockMs = tripWithScheduled.LeftDock;
+    if (leftDockMs !== undefined) {
+      const result = await ctx.runMutation(
+        api.functions.vesselTrips.mutations
+          .setDepartNextActualsForMostRecentCompletedTrip,
+        {
+          vesselAbbrev: existingTrip.VesselAbbrev,
+          actualDepartMs: leftDockMs,
+        }
+      );
+      if (result?.updated === true && result?.updatedTrip !== undefined) {
+        const tripData = stripConvexMeta(
+          result.updatedTrip as Record<string, unknown>
+        ) as ConvexVesselTrip;
+        const departNextRecords = [
+          extractPredictionRecord(tripData, "AtDockDepartNext"),
+          extractPredictionRecord(tripData, "AtSeaDepartNext"),
+        ].filter((r): r is ConvexPredictionRecord => r !== null);
+        completedPredictionRecords.push(...departNextRecords);
       }
     }
   }
 
-  const leftDockMs = tripWithScheduled.LeftDock;
-  return {
-    activeUpsert,
-    completion: undefined,
-    departNextBackfill:
-      didJustLeaveDock && leftDockMs !== undefined
-        ? {
-            vesselAbbrev: existingTrip.VesselAbbrev,
-            actualDepartMs: leftDockMs,
-          }
-        : undefined,
-    completedPredictionRecords,
-  };
-};
-
-/**
- * Extract all completed prediction records from a vessel trip.
- *
- * Converts prediction fields that have actual outcomes into database records
- * for storage and analysis. Only includes predictions that have been actualized
- * with real observed timestamps.
- *
- * @param trip - Vessel trip containing predictions to extract
- * @returns Array of prediction records ready for database insertion
- */
-const extractCompletedPredictionRecords = (
-  trip: ConvexVesselTrip
-): ConvexPredictionRecord[] => {
-  const records: ConvexPredictionRecord[] = [];
-  for (const field of PREDICTION_FIELDS) {
-    const record = extractPredictionRecord(trip, field);
-    if (record) {
-      records.push(record);
-    }
-  }
-  return records;
+  return { activeUpsert, completedPredictionRecords };
 };

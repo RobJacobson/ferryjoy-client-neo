@@ -82,6 +82,7 @@ import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/sc
 import type * as functions_vesselTrips_updates_arrivalTerminalLookup from "../functions/vesselTrips/updates/arrivalTerminalLookup.js";
 import type * as functions_vesselTrips_updates_buildCompleteTrip from "../functions/vesselTrips/updates/buildCompleteTrip.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
+import type * as functions_vesselTrips_updates_predictionFacade from "../functions/vesselTrips/updates/predictionFacade.js";
 import type * as functions_vesselTrips_updates_processVesselTripTick from "../functions/vesselTrips/updates/processVesselTripTick.js";
 import type * as functions_vesselTrips_updates_scheduledTripEnrichment from "../functions/vesselTrips/updates/scheduledTripEnrichment.js";
 import type * as functions_vesselTrips_updates_tripEquality from "../functions/vesselTrips/updates/tripEquality.js";
@@ -176,6 +177,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/arrivalTerminalLookup": typeof functions_vesselTrips_updates_arrivalTerminalLookup;
   "functions/vesselTrips/updates/buildCompleteTrip": typeof functions_vesselTrips_updates_buildCompleteTrip;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
+  "functions/vesselTrips/updates/predictionFacade": typeof functions_vesselTrips_updates_predictionFacade;
   "functions/vesselTrips/updates/processVesselTripTick": typeof functions_vesselTrips_updates_processVesselTripTick;
   "functions/vesselTrips/updates/scheduledTripEnrichment": typeof functions_vesselTrips_updates_scheduledTripEnrichment;
   "functions/vesselTrips/updates/tripEquality": typeof functions_vesselTrips_updates_tripEquality;

@@ -285,6 +285,27 @@ export const computeVesselTripPredictionsPatch = async (
 };
 
 /**
+ * Compute predictions for a trip and return the trip with predictions applied.
+ *
+ * @param ctx - Convex action context for running ML predictions
+ * @param trip - Current vessel trip state
+ * @param existingTrip - Previous vessel trip state (for detecting events)
+ * @returns Trip with prediction fields applied
+ */
+export const computeTripWithPredictions = async (
+  ctx: ActionCtx,
+  trip: ConvexVesselTrip,
+  existingTrip?: ConvexVesselTrip
+): Promise<ConvexVesselTrip> => {
+  const patch = await computeVesselTripPredictionsPatch(
+    ctx,
+    trip,
+    existingTrip
+  );
+  return { ...trip, ...patch };
+};
+
+/**
  * Updates existing predictions with actual times and calculates deltas
  *
  * Note: "depart-next" prediction actualization is handled when the *next* trip
