@@ -54,10 +54,7 @@ export const RoutesCarouselSection = ({
   useAnimatedReaction(
     () => scrollX.value,
     (offset) => {
-      const maxScroll = Math.max(
-        (totalCount - 1) * layout.snapInterval,
-        1
-      );
+      const maxScroll = Math.max((totalCount - 1) * layout.snapInterval, 1);
       scrollProgress.value = Math.min(1, Math.max(0, offset / maxScroll));
     },
     [layout.snapInterval, totalCount]
