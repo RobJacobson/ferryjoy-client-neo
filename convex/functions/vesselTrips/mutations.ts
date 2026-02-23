@@ -6,6 +6,7 @@ import {
   type ConvexVesselTrip,
   vesselTripSchema,
 } from "functions/vesselTrips/schemas";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 
 const MS_PER_MINUTE = 60 * 1000;
 
@@ -297,13 +298,11 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     await ctx.db.patch(mostRecent._id, updates);
 
     // Return the updated trip (schema shape) so the action layer can insert predictions.
-    // Strip metadata inline; stripConvexMeta is reserved for queries only.
     const updatedTrip = await ctx.db.get(mostRecent._id);
     if (!updatedTrip) {
       return { updated: true as const, updatedTrip: undefined };
     }
-    const { _id: _ignoredId, _creationTime: _ignoredCreationTime, ...tripData } =
-      updatedTrip;
+    const tripData = stripConvexMeta(updatedTrip);
     return { updated: true as const, updatedTrip: tripData };
   },
 });
