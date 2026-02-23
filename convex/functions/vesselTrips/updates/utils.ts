@@ -18,8 +18,6 @@ const FIELDS_TO_COMPARE: Array<keyof ConvexVesselTrip> = [
   "VesselAbbrev",
   "DepartingTerminalAbbrev",
   "ArrivingTerminalAbbrev",
-  "RouteID",
-  "RouteAbbrev",
   "Key",
   "SailingDay",
   "PrevTerminalAbbrev",

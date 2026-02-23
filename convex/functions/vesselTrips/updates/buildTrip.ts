@@ -3,9 +3,9 @@
  *
  * Single function that constructs the full ConvexVesselTrip using simple
  * assignment statements per Field Reference 2.6. SailingDay comes from raw
- * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived
- * fields (Key, RouteID, RouteAbbrev, ScheduledTrip) are left default;
- * buildTripWithSchedule fills those.
+ * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived:
+ * Key from raw data; ScheduledTrip from buildTripWithSchedule (RouteID/RouteAbbrev
+ * live on ScheduledTrip).
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -24,8 +24,8 @@ import { updateAndExtractPredictions } from "./utils";
  *
  * Handles first trip, trip boundary (new trip), and regular update. Per Field
  * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
- * Key derived from raw data, used for schedule lookup. RouteID, RouteAbbrev,
- * ScheduledTrip left default; filled by buildTripWithSchedule.
+ * Key derived from raw data, used for schedule lookup. ScheduledTrip from
+ * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
@@ -92,8 +92,6 @@ export const buildTripFromVesselLocation = (
     VesselAbbrev: currLocation.VesselAbbrev,
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    RouteID: 0,
-    RouteAbbrev: "",
     Key: key,
     SailingDay: sailingDay,
     ScheduledTrip: undefined,
@@ -167,3 +165,6 @@ export const buildCompletedTrip = (
 
   return updatedTrip;
 };
+
+/** Alias for buildTripFromVesselLocation (used by tests and docs) */
+export const buildTripFromRawData = buildTripFromVesselLocation;

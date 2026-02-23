@@ -41,8 +41,6 @@ describe("buildTripFromRawData", () => {
     expect(trip.TimeStamp).toBe(1700000000000);
     expect(trip.ScheduledDeparture).toBe(1700000100000);
     expect(trip.Eta).toBe(1700000200000);
-    expect(trip.RouteID).toBe(0);
-    expect(trip.RouteAbbrev).toBe("");
     expect(trip.Key).toBeTruthy(); // Derived from raw data when fields available
     expect(trip.ScheduledTrip).toBeUndefined();
     expect(trip.PrevTerminalAbbrev).toBeUndefined();
@@ -63,10 +61,9 @@ describe("buildTripFromRawData", () => {
   test("regular update: carries TripStart and uses arrival fallback chain", () => {
     const existingTrip: ConvexVesselTrip = {
       ...baseLocation,
-      RouteID: 0,
-      RouteAbbrev: "",
       SailingDay: "2024-01-01",
       TripStart: 1699999900000,
+      ArrivingTerminalAbbrev: "TB",
       PrevTerminalAbbrev: "TX",
       PrevScheduledDeparture: 1699999800000,
       PrevLeftDock: 1699999850000,
@@ -76,9 +73,7 @@ describe("buildTripFromRawData", () => {
       ...baseLocation,
       ArrivingTerminalAbbrev: undefined,
     };
-    const trip = buildTripFromRawData(locNoArriving, existingTrip, undefined, {
-      arrivalTerminal: "TB",
-    });
+    const trip = buildTripFromRawData(locNoArriving, existingTrip);
 
     expect(trip.TripStart).toBe(1699999900000);
     expect(trip.ArrivingTerminalAbbrev).toBe("TB");
@@ -88,8 +83,6 @@ describe("buildTripFromRawData", () => {
   test("LeftDock inference when AtDock flips false and LeftDock missing", () => {
     const existingTrip: ConvexVesselTrip = {
       ...baseLocation,
-      RouteID: 0,
-      RouteAbbrev: "",
       SailingDay: "2024-01-01",
       TripStart: 1699999900000,
       AtDock: true,
@@ -111,8 +104,6 @@ describe("buildTripFromRawData", () => {
   test("null-overwrite protection: preserves existing when currLocation has null", () => {
     const existingTrip: ConvexVesselTrip = {
       ...baseLocation,
-      RouteID: 0,
-      RouteAbbrev: "",
       SailingDay: "2024-01-01",
       ScheduledDeparture: 1700000100000,
       Eta: 1700000200000,
@@ -136,8 +127,6 @@ describe("buildTripFromRawData", () => {
   test("boundary: TripStart from currLocation, Prev* from completedTrip", () => {
     const completedTrip: ConvexVesselTrip = {
       ...baseLocation,
-      RouteID: 0,
-      RouteAbbrev: "",
       SailingDay: "2024-01-01",
       DepartingTerminalAbbrev: "TA",
       ArrivingTerminalAbbrev: "TB",

@@ -1,10 +1,9 @@
 /**
- * Scheduled trip lookup - returns trip with schedule data merged.
+ * Scheduled trip lookup - returns trip with ScheduledTrip merged.
  *
  * Takes base trip (Key from buildTripFromRawData), performs I/O-conditioned
- * lookup by Key, and returns the complete trip with RouteID, RouteAbbrev,
- * ScheduledTrip merged. Clears stale predictions when Key is undefined
- * (repositioning) or key changed.
+ * lookup by Key. RouteID/RouteAbbrev live on ScheduledTrip. Clears stale
+ * predictions when Key is undefined (repositioning) or key changed.
  */
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
@@ -78,8 +77,6 @@ export const lookupScheduleAtArrival = async (
       return {
         ...baseTrip,
         ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-        RouteID: trip.RouteID,
-        RouteAbbrev: trip.RouteAbbrev,
         ScheduledTrip: trip,
       };
     }
@@ -113,13 +110,14 @@ const CLEARED_PREDICTIONS: Partial<ConvexVesselTrip> = {
  * 1. Both ArrivingTerminalAbbrev and ScheduledDeparture just became available (first time with derivable Key)
  * 2. OR Key changed from existing trip
  *
- * Returns trip with RouteID, RouteAbbrev, ScheduledTrip merged.
+ * Reuse path: merges ScheduledTrip only. Fresh lookup: merges ScheduledTrip
+ * (RouteID/RouteAbbrev live on ScheduledTrip).
  * When key invalid or repositioning, clears predictions.
  *
  * @param ctx - Convex action context for database queries
  * @param baseTrip - Trip from buildTripFromRawData (has Key when derivable)
  * @param existingTrip - Previous trip (for key-changed detection and reuse)
- * @returns Trip with RouteID, RouteAbbrev, ScheduledTrip merged
+ * @returns Trip with ScheduledTrip merged
  */
 export const buildTripWithSchedule = async (
   ctx: ActionCtx,
@@ -132,31 +130,13 @@ export const buildTripWithSchedule = async (
     return { ...baseTrip, ...CLEARED_PREDICTIONS };
   }
 
-  // Event: Arrival data just became available (first time with derivable Key)
-  const didArrivalDataBecomeAvailable =
-    existingTrip &&
-    !existingTrip.ArrivingTerminalAbbrev &&
-    baseTrip.ArrivingTerminalAbbrev &&
-    !existingTrip.ScheduledDeparture &&
-    baseTrip.ScheduledDeparture;
-
   // Event: Key changed from existing trip
   const keyChanged =
     existingTrip?.Key !== undefined && tripKey !== existingTrip.Key;
 
-  // Bail out: none of the trigger events met
-  if (!didArrivalDataBecomeAvailable && !keyChanged) {
-    // Reuse existing schedule data
-    if (existingTrip?.ScheduledTrip && existingTrip?.RouteID) {
-      return {
-        ...baseTrip,
-        RouteID: existingTrip.RouteID,
-        RouteAbbrev: existingTrip.RouteAbbrev,
-        ScheduledTrip: existingTrip.ScheduledTrip,
-      };
-    }
-    // No existing schedule data - return baseTrip as-is
-    return baseTrip;
+  // Bail out: none of the trigger events met - reuse existing ScheduledTrip
+  if (existingTrip?.ScheduledTrip && !keyChanged) {
+    return { ...baseTrip, ScheduledTrip: existingTrip.ScheduledTrip };
   }
 
   // Perform lookup (triggered by Event 2 or 3)
@@ -174,8 +154,6 @@ export const buildTripWithSchedule = async (
 
     return {
       ...baseTrip,
-      RouteID: scheduledTrip.RouteID,
-      RouteAbbrev: scheduledTrip.RouteAbbrev,
       ScheduledTrip: scheduledTrip as ConvexScheduledTrip,
     };
   } catch {

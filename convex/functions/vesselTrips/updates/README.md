@@ -77,7 +77,7 @@ runUpdateVesselTrips (entry point)
 **Behavior**:
 1. Arrival lookup (event-driven: only when AtDock false→true + missing ArrivingTerminal).
 2. `buildTripFromRawData` — full location-derived state.
-3. `buildTripWithSchedule` — Key, RouteID, RouteAbbrev, ScheduledTrip (returns tripWithSchedule).
+3. `buildTripWithSchedule` — ScheduledTrip (RouteID/RouteAbbrev live on ScheduledTrip).
 4. `buildTripWithPredictions` — ML predictions; actualizes and extracts when `didJustLeaveDock`.
 5. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
 6. When `didJustLeaveDock`: call `setDepartNextActualsForMostRecentCompletedTrip` to backfill previous trip's depart-next actuals.
@@ -106,7 +106,7 @@ runUpdateVesselTrips (entry point)
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
 | **ArrivingTerminalAbbrev** | currLocation, scheduleArrival, or existingTrip | `currLocation` when truthy; else `scheduleArrival?.trip.ArrivingTerminalAbbrev`; else `existingTrip` (regular updates only; never old trip at boundary) |
 | **Key** | Raw data | From `generateTripKey` in buildTripFromRawData; used for schedule lookup |
-| **RouteID, RouteAbbrev, ScheduledTrip** | ScheduledTrip lookup | From `buildTripWithSchedule`; cleared when Key invalid or repositioning |
+| **ScheduledTrip** | Schedule lookup | From `buildTripWithSchedule` (RouteID/RouteAbbrev live on ScheduledTrip); cleared when Key invalid or repositioning |
 | **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture ?? TripStart ?? TimeStamp)` in buildTripFromRawData; prefer ScheduledDeparture |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip | Set once at trip boundary; not updated mid-trip |
 | **TripStart** | Inferred at boundary | `currLocation.TimeStamp` when vessel arrives at dock; carried forward |
@@ -213,7 +213,7 @@ Predictions are **event-based**, not time-based:
 
 ### Optimizations
 
-- **Consolidated arrival + scheduled trip lookup**: When `lookupScheduleAtArrival` returns a scheduled trip doc, that doc contains Key, RouteID, RouteAbbrev, ScheduledTrip. `buildTripWithSchedule` can reuse existing schedule data when key matches.
+- **Consolidated arrival + scheduled trip lookup**: When `lookupScheduleAtArrival` returns a scheduled trip doc, that doc becomes `ScheduledTrip`. `buildTripWithSchedule` can reuse existing `ScheduledTrip` when key matches.
 - **Batch model loading**: `computeVesselTripPredictionsPatch` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
 
 ---

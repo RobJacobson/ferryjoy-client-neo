@@ -102,8 +102,6 @@ export const vesselTripSchema = v.object({
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
-  RouteID: v.number(),
-  RouteAbbrev: v.string(),
   Key: v.optional(v.string()), // Optional given need for departing terminal
   SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
   ScheduledTrip: v.optional(scheduledTripSchema),
@@ -169,8 +167,6 @@ export const toConvexVesselTrip = (
     VesselAbbrev: cvl.VesselAbbrev,
     DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
-    RouteID: 0, // Not available in vessel location data
-    RouteAbbrev: "", // Not available in vessel location data
     SailingDay: "", // Not available in vessel location data
     ScheduledTrip: undefined,
     // VesselTrip-specific fields
@@ -243,8 +239,6 @@ export type VesselTrip = {
   VesselAbbrev: string;
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev?: string;
-  RouteID: number;
-  RouteAbbrev: string;
   Key?: string;
   SailingDay: string;
   ScheduledTrip?: ReturnType<typeof toDomainScheduledTrip>;
