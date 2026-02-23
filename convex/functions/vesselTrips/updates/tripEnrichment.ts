@@ -1,13 +1,6 @@
 import type { ActionCtx } from "_generated/server";
-import {
-  computeTripWithPredictions,
-  updatePredictionsWithActuals,
-} from "domain/ml/prediction";
+import { computeTripWithPredictions } from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import {
-  extractPredictionRecord,
-  PREDICTION_FIELDS,
-} from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -15,6 +8,7 @@ import {
   enrichTripStartUpdates,
   lookupArrivalTerminalFromSchedule,
 } from "./enrichment";
+import { updateAndExtractPredictions } from "./utils";
 
 export type EnrichmentResult = {
   enrichedTrip: ConvexVesselTrip;
@@ -109,18 +103,10 @@ export const buildAndEnrichTrip = async (
   // ==========================================================================
   // Step 6: Prediction actualization (when didJustLeaveDock)
   // ==========================================================================
-  const actualUpdates =
+  const { updatedTrip: tripWithActuals, completedRecords } =
     didJustLeaveDock && existingTrip
-      ? updatePredictionsWithActuals(existingTrip, tripWithPredictions)
-      : {};
-  const tripWithActuals = { ...tripWithPredictions, ...actualUpdates };
-
-  // Extract completed prediction records using existing utility
-  const completedRecords = didJustLeaveDock
-    ? PREDICTION_FIELDS.map((field) =>
-        extractPredictionRecord(tripWithActuals, field)
-      ).filter((r): r is ConvexPredictionRecord => r !== null)
-    : [];
+      ? updateAndExtractPredictions(existingTrip, tripWithPredictions)
+      : { updatedTrip: tripWithPredictions, completedRecords: [] };
 
   completedPredictionRecords.push(...completedRecords);
 

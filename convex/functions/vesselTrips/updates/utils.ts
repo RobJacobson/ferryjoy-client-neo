@@ -2,6 +2,12 @@
  * Utility functions for vessel trips - equality checking, type guards, etc.
  */
 
+import { updatePredictionsWithActuals } from "domain/ml/prediction";
+import type { ConvexPredictionRecord } from "functions/predictions/schemas";
+import {
+  extractPredictionRecord,
+  PREDICTION_FIELDS,
+} from "functions/predictions/utils";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 // ============================================================================
@@ -96,4 +102,33 @@ export const tripsAreEqual = (
   }
 
   return true;
+};
+
+// ============================================================================
+// Prediction Utilities
+// ============================================================================
+
+/**
+ * Update predictions with actuals and extract completed records.
+ *
+ * Consolidates the pattern of calling updatePredictionsWithActuals
+ * and extracting prediction records that's used in multiple places.
+ *
+ * @param existingTrip - Trip before updates
+ * @param finalTrip - Trip after all updates applied
+ * @returns Updated trip with actuals and completed prediction records
+ */
+export const updateAndExtractPredictions = (
+  existingTrip: ConvexVesselTrip,
+  finalTrip: ConvexVesselTrip
+): {
+  updatedTrip: ConvexVesselTrip;
+  completedRecords: ConvexPredictionRecord[];
+} => {
+  const updates = updatePredictionsWithActuals(existingTrip, finalTrip);
+  const updated = { ...finalTrip, ...updates };
+  const records = PREDICTION_FIELDS.map((field) =>
+    extractPredictionRecord(updated, field)
+  ).filter((r): r is ConvexPredictionRecord => r !== null);
+  return { updatedTrip: updated, completedRecords: records };
 };

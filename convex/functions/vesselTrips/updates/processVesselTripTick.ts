@@ -13,15 +13,9 @@
  */
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  computeTripWithPredictions,
-  updatePredictionsWithActuals,
-} from "domain/ml/prediction";
+import { computeTripWithPredictions } from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import {
-  extractPredictionRecord,
-  PREDICTION_FIELDS,
-} from "functions/predictions/utils";
+import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   type ConvexVesselTrip,
@@ -34,7 +28,7 @@ import {
   lookupArrivalTerminalFromSchedule,
 } from "./enrichment";
 import { buildAndEnrichTrip } from "./tripEnrichment";
-import { tripsAreEqual } from "./utils";
+import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
 export type VesselTripTickBatch = {
   activeUpsert?: ConvexVesselTrip;
@@ -101,14 +95,8 @@ export const processVesselTripTick = async (
     }
 
     // Actualize predictions and extract records
-    const actualUpdates = updatePredictionsWithActuals(
-      existingTripClean,
-      completedTripBase
-    );
-    const completedTrip = { ...completedTripBase, ...actualUpdates };
-    const completedRecords = PREDICTION_FIELDS.map((field) =>
-      extractPredictionRecord(completedTrip, field)
-    ).filter((r): r is ConvexPredictionRecord => r !== null);
+    const { updatedTrip: completedTrip, completedRecords } =
+      updateAndExtractPredictions(existingTripClean, completedTripBase);
 
     // Build new trip
     const newTrip = toConvexVesselTrip(currLocation, {

@@ -12,6 +12,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { getSailingDay } from "shared/time";
 
 // ============================================================================
 // Types
@@ -67,14 +68,11 @@ export const lookupArrivalTerminalFromSchedule = async (
     return undefined;
   }
 
-  if (!tripForLookup.ScheduledDeparture) {
-    return undefined;
-  }
-
   const queryParams = {
     vesselAbbrev: tripForLookup.VesselAbbrev,
     departingTerminalAbbrev: tripForLookup.DepartingTerminalAbbrev,
-    scheduledDeparture: tripForLookup.ScheduledDeparture,
+    // biome-ignore lint/style/noNonNullAssertion: hasRequiredFields ensures ScheduledDeparture is defined
+    scheduledDeparture: tripForLookup.ScheduledDeparture!,
   };
 
   try {
@@ -140,6 +138,11 @@ export const buildCompleteTrip = (
   const tripDelay = calculateTimeDelta(scheduledDeparture, leftDock);
   const atDockDuration = calculateTimeDelta(existingTrip.TripStart, leftDock);
 
+  // Derive SailingDay from TripStart using WSF sailing day logic
+  const sailingDay = existingTrip.TripStart
+    ? getSailingDay(new Date(existingTrip.TripStart))
+    : "";
+
   return {
     ...existingTrip,
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -156,6 +159,7 @@ export const buildCompleteTrip = (
     LeftDock: leftDock,
     TripDelay: tripDelay ?? existingTrip.TripDelay,
     AtDockDuration: atDockDuration ?? existingTrip.AtDockDuration,
+    SailingDay: sailingDay,
   };
 };
 
@@ -186,47 +190,14 @@ const CLEAR_DERIVED_TRIP_DATA: Partial<ConvexVesselTrip> = {
 };
 
 /**
- * Derive the composite trip key from an active vessel trip.
- *
- * The key is only derivable once we have:
- * - `ScheduledDeparture` (for date/time in Pacific)
- * - `DepartingTerminalAbbrev`
- * - `ArrivingTerminalAbbrev`
- *
- * @param trip - Active vessel trip with required fields for key derivation
- * @returns Composite trip key string or null if required fields are missing
- */
-const deriveTripKey = (trip: ConvexVesselTrip): string | null => {
-  if (
-    !trip.ScheduledDeparture ||
-    !trip.DepartingTerminalAbbrev ||
-    !trip.ArrivingTerminalAbbrev
-  ) {
-    return null;
-  }
-
-  return (
-    generateTripKey(
-      trip.VesselAbbrev,
-      trip.DepartingTerminalAbbrev,
-      trip.ArrivingTerminalAbbrev,
-      new Date(trip.ScheduledDeparture)
-    ) ?? null
-  );
-};
-
-/**
  * Fetch ScheduledTrip for a given key and return fields to merge into trip.
  *
  * Stores a snapshot copy (`ScheduledTrip`) for debugging/explainability and
  * denormalizes RouteID, RouteAbbrev, SailingDay at the top level.
  *
- * Safety check: Only matches direct trips. Indirect trips have different terminal
- * pairs (A->C vs A->B), so they have different keys and won't match.
- *
  * @param ctx - Convex action context for database queries
  * @param tripKey - Composite trip key to lookup ScheduledTrip
- * @returns ScheduledTrip-derived fields to merge, or null if not found or indirect
+ * @returns ScheduledTrip-derived fields to merge, or null if not found
  */
 const fetchScheduledTripFieldsByKey = async (
   ctx: ActionCtx,
@@ -250,9 +221,6 @@ const fetchScheduledTripFieldsByKey = async (
 
   return {
     ScheduledTrip: scheduledTrip,
-    RouteID: scheduledTrip.RouteID,
-    RouteAbbrev: scheduledTrip.RouteAbbrev,
-    SailingDay: scheduledTrip.SailingDay,
   } as Partial<ConvexVesselTrip>;
 };
 
@@ -276,66 +244,58 @@ export const enrichTripStartUpdates = async (
   updatedTrip: ConvexVesselTrip,
   cachedScheduledTrip?: ConvexScheduledTrip
 ): Promise<Partial<ConvexVesselTrip>> => {
-  const tripKey = deriveTripKey(updatedTrip);
+  const tripKey =
+    generateTripKey(
+      updatedTrip.VesselAbbrev,
+      updatedTrip.DepartingTerminalAbbrev,
+      updatedTrip.ArrivingTerminalAbbrev,
+      updatedTrip.ScheduledDeparture
+        ? new Date(updatedTrip.ScheduledDeparture)
+        : undefined
+    ) ?? null;
 
+  // Early return: no key means repositioning
   if (!tripKey) {
-    // When tripKey is null (e.g., during repositioning), clear stale Key and ScheduledTrip data.
     return CLEAR_DERIVED_TRIP_DATA;
   }
 
-  const existingKeyMismatch =
-    updatedTrip.Key !== undefined && updatedTrip.Key !== tripKey;
-  const hasExistingKey = updatedTrip.Key !== undefined;
-
-  // If we can compute a key, keep it in sync even if we don't look up yet.
+  // Compute patches
   const keyPatch: Partial<ConvexVesselTrip> =
     updatedTrip.Key === tripKey ? {} : { Key: tripKey };
-  const invalidationPatch = existingKeyMismatch ? CLEAR_DERIVED_TRIP_DATA : {};
+  const invalidationPatch =
+    updatedTrip.Key !== undefined && updatedTrip.Key !== tripKey
+      ? CLEAR_DERIVED_TRIP_DATA
+      : {};
 
-  // Use cached scheduled trip from arrival lookup when key matches (avoids second query).
-  if (cachedScheduledTrip && cachedScheduledTrip.Key === tripKey) {
-    if (cachedScheduledTrip.TripType === "indirect") {
-      return { ...keyPatch, ...invalidationPatch };
-    }
+  // Use cached scheduled trip if key matches
+  if (cachedScheduledTrip?.Key === tripKey) {
+    const sailingDay = updatedTrip.ScheduledDeparture
+      ? getSailingDay(new Date(updatedTrip.ScheduledDeparture))
+      : "";
     return {
       ScheduledTrip: cachedScheduledTrip,
-      RouteID: cachedScheduledTrip.RouteID,
-      RouteAbbrev: cachedScheduledTrip.RouteAbbrev,
-      SailingDay: cachedScheduledTrip.SailingDay,
+      SailingDay: sailingDay,
       ...keyPatch,
     };
   }
 
-  // Look up when: key is missing, key changed, or we don't have data yet (with throttle)
+  // Determine if we need to lookup
   const hasScheduledTripData =
     updatedTrip.ScheduledTrip !== undefined && updatedTrip.RouteID !== 0;
-  const seconds = new Date().getSeconds();
   const shouldLookup =
-    existingKeyMismatch ||
-    !hasExistingKey ||
-    (!hasScheduledTripData && seconds < 5);
+    keyPatch.Key !== undefined || !updatedTrip.Key || !hasScheduledTripData;
 
   if (!shouldLookup) {
     return keyPatch;
   }
 
+  // Fetch scheduled trip
   try {
     const scheduledTrip = await fetchScheduledTripFieldsByKey(ctx, tripKey);
-    if (scheduledTrip) {
-      return {
-        ...scheduledTrip,
-        ...keyPatch,
-      };
-    }
-  } catch (_error) {
-    return {
-      ...keyPatch,
-      ...invalidationPatch,
-    };
+    return scheduledTrip
+      ? { ...scheduledTrip, ...keyPatch }
+      : { ...keyPatch, ...invalidationPatch };
+  } catch {
+    return { ...keyPatch, ...invalidationPatch };
   }
-
-  return {
-    ...keyPatch,
-    ...invalidationPatch,
-  };
 };
