@@ -14,34 +14,6 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 // Deep Equality Utilities
 // ============================================================================
 
-const FIELDS_TO_COMPARE: Array<keyof ConvexVesselTrip> = [
-  "VesselAbbrev",
-  "DepartingTerminalAbbrev",
-  "ArrivingTerminalAbbrev",
-  "Key",
-  "SailingDay",
-  "PrevTerminalAbbrev",
-  "TripStart",
-  "AtDock",
-  "AtDockDuration",
-  "ScheduledDeparture",
-  "LeftDock",
-  "TripDelay",
-  "Eta",
-  "TripEnd",
-  "AtSeaDuration",
-  "TotalDuration",
-  "InService",
-  "PrevScheduledDeparture",
-  "PrevLeftDock",
-  "AtDockDepartCurr",
-  "AtDockArriveNext",
-  "AtDockDepartNext",
-  "AtSeaArriveNext",
-  "AtSeaDepartNext",
-  "ScheduledTrip",
-];
-
 /**
  * Deep equality check for arbitrary values.
  *
@@ -80,26 +52,40 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
 };
 
 /**
- * Optimized deep equality for ConvexVesselTrip objects.
+ * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
  *
- * Skips TimeStamp (changes every tick) and read-only Convex fields (_id,
- * _creationTime). Compares all semantic fields per Field Reference 2.6.
+ * Compares all fields in both directions, excluding only TimeStamp (which changes
+ * every tick and is not semantically significant). This ensures that any new
+ * fields added to the schema are automatically included in equality checks.
  *
  * @param existing - Existing trip from database
  * @param proposed - Newly constructed trip
- * @returns true if semantic fields are deeply equal
+ * @returns true if all non-TimeStamp fields are deeply equal
  */
 export const tripsAreEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip
 ): boolean => {
-  for (const field of FIELDS_TO_COMPARE) {
-    if (!deepEqual(existing[field], proposed[field])) {
-      return false;
-    }
-  }
+  const excludeFields = new Set<keyof ConvexVesselTrip>(["TimeStamp"]);
 
-  return true;
+  const compareFields = (source: ConvexVesselTrip): boolean => {
+    for (const key in source) {
+      if (!excludeFields.has(key as keyof ConvexVesselTrip)) {
+        if (
+          !deepEqual(
+            existing[key as keyof ConvexVesselTrip],
+            proposed[key as keyof ConvexVesselTrip]
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // Compare all fields from existing and proposed (except excluded)
+  return compareFields(existing) && compareFields(proposed);
 };
 
 // ============================================================================
