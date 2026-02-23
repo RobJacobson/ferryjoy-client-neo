@@ -74,8 +74,8 @@ export const buildTripFromRawData = (
   const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev
     ? currLocation.ArrivingTerminalAbbrev
     : isRegularUpdate
-        ? existingTrip?.ArrivingTerminalAbbrev
-        : undefined;
+      ? existingTrip?.ArrivingTerminalAbbrev
+      : undefined;
 
   // Key: derived from raw data, used for schedule lookup (independent of ScheduledTrip)
   const key =

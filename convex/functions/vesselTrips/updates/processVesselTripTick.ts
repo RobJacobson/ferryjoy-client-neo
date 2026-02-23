@@ -75,58 +75,33 @@ export const processVesselTripTick = async (
       TripEnd: currLocation.TimeStamp,
     };
 
-    const atSeaDuration = calculateTimeDelta(
+    completedTripBase.AtSeaDuration = calculateTimeDelta(
       completedTripBase.LeftDock,
       completedTripBase.TripEnd
     );
-    if (atSeaDuration !== undefined) {
-      completedTripBase.AtSeaDuration = atSeaDuration;
-    }
 
-    const totalDuration = calculateTimeDelta(
+    completedTripBase.TotalDuration = calculateTimeDelta(
       completedTripBase.TripStart,
       completedTripBase.TripEnd
     );
-    if (totalDuration !== undefined) {
-      completedTripBase.TotalDuration = totalDuration;
-    }
 
     // Actualize predictions and extract records
     const { updatedTrip: completedTrip, completedRecords } =
       updateAndExtractPredictions(existingTripClean, completedTripBase);
 
     // Build new trip with Prev* from completed trip
-    const baseForLookup = buildTripFromRawData(
-      currLocation,
-      undefined,
-      completedTrip
-    );
-    const arrivalTrip = await lookupScheduleAtArrival(
-      ctx,
-      baseForLookup,
-      undefined
-    );
     const newTrip = buildTripFromRawData(
       currLocation,
       undefined,
       completedTrip
     );
-
-    // Merge arrival data into new trip (if available)
-    const mergedTrip = {
-      ...newTrip,
-      ArrivingTerminalAbbrev: arrivalTrip.ArrivingTerminalAbbrev ||
-        newTrip.ArrivingTerminalAbbrev,
-      RouteID: arrivalTrip.RouteID || newTrip.RouteID,
-      RouteAbbrev: arrivalTrip.RouteAbbrev || newTrip.RouteAbbrev,
-      ScheduledTrip: arrivalTrip.ScheduledTrip || newTrip.ScheduledTrip,
-    };
+    const arrivalTrip = await lookupScheduleAtArrival(ctx, newTrip, undefined);
 
     // Derive Key / ScheduledTrip snapshot and compute at-dock predictions for the
     // newly-started trip (so UI sees them on the same tick as arrival).
     const tripWithScheduled = await lookupScheduleOnUpdate(
       ctx,
-      mergedTrip,
+      arrivalTrip,
       undefined
     );
 
@@ -148,35 +123,17 @@ export const processVesselTripTick = async (
   }
 
   // Regular update path: build → schedule → predictions → actualize
-  const baseTripForLookup: ConvexVesselTrip = {
-    ...existingTrip,
-    ScheduledDeparture:
-      currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture,
-  };
+  const baseTrip = buildTripFromRawData(currLocation, existingTrip);
+
   const arrivalTrip = await lookupScheduleAtArrival(
     ctx,
-    baseTripForLookup,
+    baseTrip,
     existingTrip
   );
-
-  const baseTrip = buildTripFromRawData(
-    currLocation,
-    existingTrip
-  );
-
-  // Merge arrival data into base trip (if available)
-  const mergedTrip = {
-    ...baseTrip,
-    ArrivingTerminalAbbrev: arrivalTrip.ArrivingTerminalAbbrev ||
-      baseTrip.ArrivingTerminalAbbrev,
-    RouteID: arrivalTrip.RouteID || baseTrip.RouteID,
-    RouteAbbrev: arrivalTrip.RouteAbbrev || baseTrip.RouteAbbrev,
-    ScheduledTrip: arrivalTrip.ScheduledTrip || baseTrip.ScheduledTrip,
-  };
 
   const tripWithSchedule = await lookupScheduleOnUpdate(
     ctx,
-    mergedTrip,
+    arrivalTrip,
     existingTrip
   );
 
