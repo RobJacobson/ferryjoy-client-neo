@@ -216,14 +216,9 @@ const processCurrentTrips = async (
 
   for (const { existingTrip, currLocation } of currentTrips) {
     const baseTrip = buildTripFromVesselLocation(currLocation, existingTrip);
-    const arrivalTrip = await lookupScheduleAtArrival(
-      ctx,
-      baseTrip,
-      existingTrip
-    );
     const tripWithSchedule = await buildTripWithSchedule(
       ctx,
-      arrivalTrip,
+      baseTrip,
       existingTrip
     );
     const tripWithPredictions = await buildTripWithPredictions(
