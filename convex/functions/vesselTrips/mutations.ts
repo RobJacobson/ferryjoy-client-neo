@@ -260,6 +260,11 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     vesselAbbrev: v.string(),
     actualDepartMs: v.number(),
   },
+  returns: v.object({
+    updated: v.boolean(),
+    reason: v.optional(v.string()),
+    updatedTrip: v.optional(vesselTripSchema),
+  }),
   handler: async (ctx, args) => {
     const mostRecent = await ctx.db
       .query("completedVesselTrips")
@@ -291,12 +296,15 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
 
     await ctx.db.patch(mostRecent._id, updates);
 
-    // Return the updated trip so the action layer can insert predictions
+    // Return the updated trip (schema shape) so the action layer can insert predictions.
+    // Strip metadata inline; stripConvexMeta is reserved for queries only.
     const updatedTrip = await ctx.db.get(mostRecent._id);
-    return {
-      updated: true as const,
-      updatedTrip: updatedTrip ?? undefined,
-    };
+    if (!updatedTrip) {
+      return { updated: true as const, updatedTrip: undefined };
+    }
+    const { _id: _ignoredId, _creationTime: _ignoredCreationTime, ...tripData } =
+      updatedTrip;
+    return { updated: true as const, updatedTrip: tripData };
   },
 });
 

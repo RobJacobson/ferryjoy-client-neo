@@ -4,6 +4,9 @@
  * Convex documents frequently include `_id` and `_creationTime` metadata. This
  * helper removes those fields so callers can work with plain domain records.
  *
+ * Use only in query handlers. Queries should strip before returning so callers
+ * receive schema-shaped data without _id/_creationTime.
+ *
  * @param doc - Convex document with metadata fields
  * @returns Document with metadata fields removed
  */

@@ -11,7 +11,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 import { getSailingDay } from "shared/time";
 import { updateAndExtractPredictions } from "./utils";
 
@@ -140,10 +139,8 @@ export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  const existingTripClean = stripConvexMeta(existingTrip) as ConvexVesselTrip;
-
   const completedTripBase: ConvexVesselTrip = {
-    ...existingTripClean,
+    ...existingTrip,
     TripEnd: currLocation.TimeStamp,
   };
 
@@ -159,7 +156,7 @@ export const buildCompletedTrip = (
 
   // Actualize predictions
   const { updatedTrip } = updateAndExtractPredictions(
-    existingTripClean,
+    existingTrip,
     completedTripBase
   );
 

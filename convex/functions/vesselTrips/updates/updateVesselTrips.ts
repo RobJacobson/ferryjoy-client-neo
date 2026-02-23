@@ -5,7 +5,6 @@ import type { ConvexPredictionRecord } from "functions/predictions/schemas";
 import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 import { buildCompletedTrip, buildTripFromVesselLocation } from "./buildTrip";
 import {
   buildTripWithSchedule,
@@ -53,10 +52,8 @@ export const runUpdateVesselTrips = async (
   locations: ConvexVesselLocation[]
 ): Promise<void> => {
   // 1) Load current active trips once (for O(1) per-vessel lookup).
-  const existingTripsList = (
-    await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips)
-  ).map(
-    (doc) => stripConvexMeta(doc as Record<string, unknown>) as ConvexVesselTrip
+  const existingTripsList = await ctx.runQuery(
+    api.functions.vesselTrips.queries.getActiveTrips
   );
 
   // 2) Index active trips by vessel abbreviation.
@@ -172,7 +169,7 @@ const processCompletedTrips = async (
 
     // Extract prediction records from completed trip
     const { completedRecords } = updateAndExtractPredictions(
-      stripConvexMeta(existingTrip) as ConvexVesselTrip,
+      existingTrip,
       completedTrip
     );
 
@@ -285,9 +282,7 @@ const processCurrentTrips = async (
       backfillResult?.updated === true &&
       backfillResult?.updatedTrip !== undefined
     ) {
-      const tripData = stripConvexMeta(
-        backfillResult.updatedTrip as Record<string, unknown>
-      ) as ConvexVesselTrip;
+      const tripData = backfillResult.updatedTrip;
       const departNextRecords = [
         extractPredictionRecord(tripData, "AtDockDepartNext"),
         extractPredictionRecord(tripData, "AtSeaDepartNext"),

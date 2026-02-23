@@ -7,9 +7,7 @@
  */
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 
 // ============================================================================
 // lookupScheduleAtArrival
@@ -71,13 +69,10 @@ export const lookupScheduleAtArrival = async (
     );
 
     if (scheduledTrip) {
-      const trip = stripConvexMeta(
-        scheduledTrip as Record<string, unknown>
-      ) as ConvexScheduledTrip;
       return {
         ...baseTrip,
-        ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-        ScheduledTrip: trip,
+        ArrivingTerminalAbbrev: scheduledTrip.ArrivingTerminalAbbrev,
+        ScheduledTrip: scheduledTrip,
       };
     }
   } catch (error) {
@@ -141,20 +136,18 @@ export const buildTripWithSchedule = async (
 
   // Perform lookup (triggered by Event 2 or 3)
   try {
-    const scheduledTripDoc = await ctx.runQuery(
+    const scheduledTrip = await ctx.runQuery(
       api.functions.scheduledTrips.queries.getScheduledTripByKey,
       { key: tripKey }
     );
 
-    if (!scheduledTripDoc) {
+    if (!scheduledTrip) {
       return keyChanged ? { ...baseTrip, ...CLEARED_PREDICTIONS } : baseTrip;
     }
 
-    const scheduledTrip = stripConvexMeta(scheduledTripDoc);
-
     return {
       ...baseTrip,
-      ScheduledTrip: scheduledTrip as ConvexScheduledTrip,
+      ScheduledTrip: scheduledTrip,
     };
   } catch {
     return keyChanged ? { ...baseTrip, ...CLEARED_PREDICTIONS } : baseTrip;
