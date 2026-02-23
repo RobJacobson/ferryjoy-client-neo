@@ -285,14 +285,14 @@ export const computeVesselTripPredictionsPatch = async (
 };
 
 /**
- * Compute predictions for a trip and return the trip with predictions applied.
+ * Add predictions to a trip when event-triggered (arrive-dock, depart-dock).
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
  * @param existingTrip - Previous vessel trip state (for detecting events)
  * @returns Trip with prediction fields applied
  */
-export const computeTripWithPredictions = async (
+export const addPredictionsToTrip = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
   existingTrip?: ConvexVesselTrip

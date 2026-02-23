@@ -13,21 +13,18 @@
  */
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { computeTripWithPredictions } from "domain/ml/prediction";
+import { addPredictionsToTrip } from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
 import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import {
-  type ConvexVesselTrip,
-  toConvexVesselTrip,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { buildTripFromRawData } from "./buildTrip";
 import {
-  enrichTripStartUpdates,
   lookupArrivalTerminalFromSchedule,
-} from "./enrichment";
-import { buildAndEnrichTrip } from "./tripEnrichment";
+  lookupScheduledTrip,
+} from "./lookupScheduledTrip";
 import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
 export type VesselTripTickBatch = {
@@ -61,7 +58,7 @@ export const processVesselTripTick = async (
   // Stage 0: identify event type
   // ============================================================================
   if (!existingTrip) {
-    const newTrip = toConvexVesselTrip(currLocation, {});
+    const newTrip = buildTripFromRawData(currLocation);
     return { activeUpsert: newTrip, completedPredictionRecords };
   }
 
@@ -98,34 +95,34 @@ export const processVesselTripTick = async (
     const { updatedTrip: completedTrip, completedRecords } =
       updateAndExtractPredictions(existingTripClean, completedTripBase);
 
-    // Build new trip
-    const newTrip = toConvexVesselTrip(currLocation, {
-      TripStart: currLocation.TimeStamp,
-      PrevTerminalAbbrev: completedTrip.DepartingTerminalAbbrev,
-      PrevScheduledDeparture: completedTrip.ScheduledDeparture,
-      PrevLeftDock: completedTrip.LeftDock,
-    });
-
-    // Best-effort arriving terminal inference before scheduled identity derivation.
+    // Build new trip with Prev* from completed trip
+    const baseForLookup = buildTripFromRawData(
+      currLocation,
+      undefined,
+      completedTrip
+    );
     const arrivalLookup = await lookupArrivalTerminalFromSchedule(
       ctx,
-      newTrip,
+      baseForLookup,
       currLocation
     );
-    if (arrivalLookup?.arrivalTerminal && !newTrip.ArrivingTerminalAbbrev) {
-      newTrip.ArrivingTerminalAbbrev = arrivalLookup.arrivalTerminal;
-    }
+    const newTrip = buildTripFromRawData(
+      currLocation,
+      undefined,
+      completedTrip,
+      arrivalLookup
+    );
 
     // Derive Key / ScheduledTrip snapshot and compute at-dock predictions for the
     // newly-started trip (so UI sees them on the same tick as arrival).
-    const tripStartUpdates = await enrichTripStartUpdates(
+    const tripWithScheduled = await lookupScheduledTrip(
       ctx,
       newTrip,
-      arrivalLookup?.scheduledTripDoc
+      arrivalLookup?.scheduledTripDoc,
+      undefined
     );
-    const tripWithScheduled = { ...newTrip, ...tripStartUpdates };
 
-    const tripWithPredictions = await computeTripWithPredictions(
+    const tripWithPredictions = await addPredictionsToTrip(
       ctx,
       tripWithScheduled,
       undefined
@@ -142,9 +139,45 @@ export const processVesselTripTick = async (
     };
   }
 
-  // Regular update path
-  const result = await buildAndEnrichTrip(ctx, existingTrip, currLocation);
-  const { enrichedTrip, didJustLeaveDock, predictionRecords } = result;
+  // Regular update path: build → schedule → predictions → actualize
+  const baseTripForLookup: ConvexVesselTrip = {
+    ...existingTrip,
+    ScheduledDeparture:
+      currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture,
+  };
+  const arrivalLookup = await lookupArrivalTerminalFromSchedule(
+    ctx,
+    baseTripForLookup,
+    currLocation
+  );
+
+  const baseTrip = buildTripFromRawData(
+    currLocation,
+    existingTrip,
+    undefined,
+    arrivalLookup
+  );
+  const tripWithSchedule = await lookupScheduledTrip(
+    ctx,
+    baseTrip,
+    arrivalLookup?.scheduledTripDoc,
+    existingTrip
+  );
+
+  const didJustLeaveDock =
+    existingTrip.LeftDock === undefined &&
+    tripWithSchedule.LeftDock !== undefined;
+
+  const tripWithPredictions = await addPredictionsToTrip(
+    ctx,
+    tripWithSchedule,
+    existingTrip
+  );
+
+  const { updatedTrip: enrichedTrip, completedRecords: predictionRecords } =
+    didJustLeaveDock
+      ? updateAndExtractPredictions(existingTrip, tripWithPredictions)
+      : { updatedTrip: tripWithPredictions, completedRecords: [] };
 
   const finalProposed: ConvexVesselTrip = {
     ...enrichedTrip,
