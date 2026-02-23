@@ -5,13 +5,15 @@
  * assignment statements per Field Reference 2.6. SailingDay comes from raw
  * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived
  * fields (Key, RouteID, RouteAbbrev, ScheduledTrip) are left default;
- * lookupScheduledTrip fills those.
+ * buildTripWithSchedule fills those.
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 import { getSailingDay } from "shared/time";
+import { updateAndExtractPredictions } from "./utils";
 
 // ============================================================================
 // buildTripFromRawData
@@ -23,14 +25,14 @@ import { getSailingDay } from "shared/time";
  * Handles first trip, trip boundary (new trip), and regular update. Per Field
  * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
  * Key derived from raw data, used for schedule lookup. RouteID, RouteAbbrev,
- * ScheduledTrip left default; filled by lookupScheduleOnUpdate.
+ * ScheduledTrip left default; filled by buildTripWithSchedule.
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
  * @param completedTrip - Completed trip at boundary (provides Prev* for new trip)
  * @returns Complete ConvexVesselTrip with location-derived fields
  */
-export const buildTripFromRawData = (
+export const buildTripFromVesselLocation = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
   completedTrip?: ConvexVesselTrip
@@ -46,12 +48,13 @@ export const buildTripFromRawData = (
     existingTrip?.AtDock;
 
   const leftDock =
-    atDockFlippedToFalse && !existingTrip?.LeftDock
-      ? (currLocation.LeftDock ?? currLocation.TimeStamp)
-      : (currLocation.LeftDock ?? existingTrip?.LeftDock);
+    existingTrip?.LeftDock ??
+    currLocation.LeftDock ??
+    (atDockFlippedToFalse ? currLocation.TimeStamp : undefined);
 
   const scheduledDeparture =
     currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+
   const eta = currLocation.Eta ?? existingTrip?.Eta;
 
   // TripStart: boundary = currLocation.TimeStamp; regular = carry from existing
@@ -60,8 +63,7 @@ export const buildTripFromRawData = (
     : existingTrip?.TripStart;
 
   // SailingDay: prefer ScheduledDeparture (core business logic from raw data)
-  const sailingDayTimestamp =
-    scheduledDeparture ?? tripStart ?? currLocation.TimeStamp;
+  const sailingDayTimestamp = scheduledDeparture ?? tripStart;
   const sailingDay = sailingDayTimestamp
     ? getSailingDay(new Date(sailingDayTimestamp))
     : "";
@@ -113,11 +115,55 @@ export const buildTripFromRawData = (
     PrevScheduledDeparture:
       completedTrip?.ScheduledDeparture ?? existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: completedTrip?.LeftDock ?? existingTrip?.PrevLeftDock,
-    // Carry predictions from existing trip; addPredictionsToTrip merges new ones
+    // Carry predictions from existing trip; buildTripWithPredictions merges new ones
     AtDockDepartCurr: existingTrip?.AtDockDepartCurr,
     AtDockArriveNext: existingTrip?.AtDockArriveNext,
     AtDockDepartNext: existingTrip?.AtDockDepartNext,
     AtSeaArriveNext: existingTrip?.AtSeaArriveNext,
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
+};
+
+// ============================================================================
+// buildCompletedTrip
+// ============================================================================
+
+/**
+ * Build completed trip with TripEnd, durations, and actualized predictions.
+ *
+ * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip and
+ * actualizes predictions (AtDockDepartCurr, AtSeaArriveNext).
+ *
+ * @param existingTrip - Trip being completed
+ * @param currLocation - Current location with TripEnd timestamp
+ * @returns Completed trip with all completion fields set
+ */
+export const buildCompletedTrip = (
+  existingTrip: ConvexVesselTrip,
+  currLocation: ConvexVesselLocation
+): ConvexVesselTrip => {
+  const existingTripClean = stripConvexMeta(existingTrip) as ConvexVesselTrip;
+
+  const completedTripBase: ConvexVesselTrip = {
+    ...existingTripClean,
+    TripEnd: currLocation.TimeStamp,
+  };
+
+  completedTripBase.AtSeaDuration = calculateTimeDelta(
+    completedTripBase.LeftDock,
+    completedTripBase.TripEnd
+  );
+
+  completedTripBase.TotalDuration = calculateTimeDelta(
+    completedTripBase.TripStart,
+    completedTripBase.TripEnd
+  );
+
+  // Actualize predictions
+  const { updatedTrip } = updateAndExtractPredictions(
+    existingTripClean,
+    completedTripBase
+  );
+
+  return updatedTrip;
 };

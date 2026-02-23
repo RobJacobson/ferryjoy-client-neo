@@ -94,7 +94,7 @@ export const lookupScheduleAtArrival = async (
 };
 
 // ============================================================================
-// lookupScheduleOnUpdate
+// buildTripWithSchedule
 // ============================================================================
 
 /** Prediction fields to clear when repositioning or key changed (stale from old trip) */
@@ -107,7 +107,7 @@ const CLEARED_PREDICTIONS: Partial<ConvexVesselTrip> = {
 };
 
 /**
- * Look up scheduled trip using deterministic key.
+ * Look up scheduled trip using deterministic key and merge schedule data.
  *
  * Performs lookup when:
  * 1. Both ArrivingTerminalAbbrev and ScheduledDeparture just became available (first time with derivable Key)
@@ -121,7 +121,7 @@ const CLEARED_PREDICTIONS: Partial<ConvexVesselTrip> = {
  * @param existingTrip - Previous trip (for key-changed detection and reuse)
  * @returns Trip with RouteID, RouteAbbrev, ScheduledTrip merged
  */
-export const lookupScheduleOnUpdate = async (
+export const buildTripWithSchedule = async (
   ctx: ActionCtx,
   baseTrip: ConvexVesselTrip,
   existingTrip?: ConvexVesselTrip

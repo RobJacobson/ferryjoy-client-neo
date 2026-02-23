@@ -292,7 +292,7 @@ export const computeVesselTripPredictionsPatch = async (
  * @param existingTrip - Previous vessel trip state (for detecting events)
  * @returns Trip with prediction fields applied
  */
-export const addPredictionsToTrip = async (
+export const buildTripWithPredictions = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
   existingTrip?: ConvexVesselTrip
