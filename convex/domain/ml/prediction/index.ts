@@ -27,7 +27,6 @@ export {
  * Vessel trip prediction orchestration and lifecycle management
  */
 export {
-  buildTripWithPredictions,
   computeVesselTripPredictionsPatch,
   predictVesselTripPrediction,
   updatePredictionsWithActuals,

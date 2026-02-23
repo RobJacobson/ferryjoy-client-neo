@@ -5,4 +5,5 @@
  * constructs full intended state per tick, writes only when different from existing.
  */
 
+export { buildTripWithPredictions } from "./buildTripWithPredictions";
 export { runUpdateVesselTrips } from "./updateVesselTrips";

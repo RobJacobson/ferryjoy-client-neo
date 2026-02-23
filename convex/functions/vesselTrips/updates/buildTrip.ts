@@ -36,11 +36,11 @@ export const buildTripFromVesselLocation = (
   existingTrip?: ConvexVesselTrip,
   completedTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
-  const isBoundary = completedTrip !== undefined;
-  const isRegularUpdate = existingTrip !== undefined && !isBoundary;
+  const isNewTrip = completedTrip !== undefined;
+  const isRegularUpdate = existingTrip !== undefined && !isNewTrip;
 
   // LeftDock: infer when AtDock flips false and LeftDock missing
-  const atDockFlippedToFalse =
+  const justLeftDock =
     isRegularUpdate &&
     currLocation.AtDock !== existingTrip?.AtDock &&
     !currLocation.AtDock &&
@@ -49,61 +49,45 @@ export const buildTripFromVesselLocation = (
   const leftDock =
     existingTrip?.LeftDock ??
     currLocation.LeftDock ??
-    (atDockFlippedToFalse ? currLocation.TimeStamp : undefined);
-
-  const scheduledDeparture =
-    currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
-
-  const eta = currLocation.Eta ?? existingTrip?.Eta;
+    (justLeftDock ? currLocation.TimeStamp : undefined);
 
   // TripStart: boundary = currLocation.TimeStamp; regular = carry from existing
-  const tripStart = isBoundary
+  const tripStart = isNewTrip
     ? currLocation.TimeStamp
     : existingTrip?.TripStart;
 
-  // SailingDay: prefer ScheduledDeparture (core business logic from raw data)
-  const sailingDayTimestamp = scheduledDeparture ?? tripStart;
-  const sailingDay = sailingDayTimestamp
-    ? getSailingDay(new Date(sailingDayTimestamp))
-    : "";
-
-  // Computed durations
-  const tripDelay = calculateTimeDelta(scheduledDeparture, leftDock);
-  const atDockDuration = calculateTimeDelta(tripStart, leftDock);
-
   // ArrivingTerminalAbbrev: never use existingTrip at boundary (wrong terminal)
-  const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev
-    ? currLocation.ArrivingTerminalAbbrev
-    : isRegularUpdate
-      ? existingTrip?.ArrivingTerminalAbbrev
-      : undefined;
-
-  // Key: derived from raw data, used for schedule lookup (independent of ScheduledTrip)
-  const key =
-    generateTripKey(
-      currLocation.VesselAbbrev,
-      currLocation.DepartingTerminalAbbrev,
-      arrivingTerminalAbbrev,
-      scheduledDeparture ? new Date(scheduledDeparture) : undefined
-    ) ?? undefined;
+  const arrivingTerminalAbbrev =
+    currLocation.ArrivingTerminalAbbrev ??
+    (isRegularUpdate ? existingTrip?.ArrivingTerminalAbbrev : undefined);
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    Key: key,
-    SailingDay: sailingDay,
+    Key:
+      generateTripKey(
+        currLocation.VesselAbbrev,
+        currLocation.DepartingTerminalAbbrev,
+        arrivingTerminalAbbrev,
+        currLocation.ScheduledDeparture
+          ? new Date(currLocation.ScheduledDeparture)
+          : undefined
+      ) ?? undefined,
+    SailingDay: currLocation.ScheduledDeparture
+      ? getSailingDay(new Date(currLocation.ScheduledDeparture))
+      : "",
     ScheduledTrip: undefined,
     PrevTerminalAbbrev:
       completedTrip?.DepartingTerminalAbbrev ??
       existingTrip?.PrevTerminalAbbrev,
     TripStart: tripStart,
     AtDock: currLocation.AtDock,
-    AtDockDuration: atDockDuration ?? existingTrip?.AtDockDuration,
-    ScheduledDeparture: scheduledDeparture,
+    AtDockDuration: calculateTimeDelta(tripStart, leftDock),
+    ScheduledDeparture: currLocation.ScheduledDeparture,
     LeftDock: leftDock,
-    TripDelay: tripDelay ?? existingTrip?.TripDelay,
-    Eta: eta,
+    TripDelay: calculateTimeDelta(currLocation.ScheduledDeparture, leftDock),
+    Eta: currLocation.Eta ?? existingTrip?.Eta,
     TripEnd: undefined,
     AtSeaDuration: existingTrip?.AtSeaDuration,
     TotalDuration: existingTrip?.TotalDuration,
@@ -162,6 +146,3 @@ export const buildCompletedTrip = (
 
   return updatedTrip;
 };
-
-/** Alias for buildTripFromVesselLocation (used by tests and docs) */
-export const buildTripFromRawData = buildTripFromVesselLocation;

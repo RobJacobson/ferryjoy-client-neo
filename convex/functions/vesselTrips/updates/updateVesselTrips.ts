@@ -1,11 +1,11 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { buildTripWithPredictions } from "domain/ml/prediction";
 import type { ConvexPredictionRecord } from "functions/predictions/schemas";
 import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip, buildTripFromVesselLocation } from "./buildTrip";
+import { buildTripWithPredictions } from "./buildTripWithPredictions";
 import {
   buildTripWithSchedule,
   lookupScheduleAtArrival,

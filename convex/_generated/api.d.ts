@@ -80,6 +80,7 @@ import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
 import type * as functions_vesselTrips_updates_buildTrip from "../functions/vesselTrips/updates/buildTrip.js";
+import type * as functions_vesselTrips_updates_buildTripWithPredictions from "../functions/vesselTrips/updates/buildTripWithPredictions.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_lookupScheduledTrip from "../functions/vesselTrips/updates/lookupScheduledTrip.js";
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
@@ -172,6 +173,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
   "functions/vesselTrips/updates/buildTrip": typeof functions_vesselTrips_updates_buildTrip;
+  "functions/vesselTrips/updates/buildTripWithPredictions": typeof functions_vesselTrips_updates_buildTripWithPredictions;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/lookupScheduledTrip": typeof functions_vesselTrips_updates_lookupScheduledTrip;
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;

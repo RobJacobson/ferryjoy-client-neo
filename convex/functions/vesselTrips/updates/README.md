@@ -41,11 +41,12 @@ runUpdateVesselTrips (entry point)
 |------|---------|
 | `updateVesselTrips.ts` | Main orchestrator: categorizes vessels into new/completed/current, delegates to processing functions |
 | `buildTrip.ts` | `buildTripFromRawData`, `buildCompletedTrip` — location-derived fields, completion logic |
+| `buildTripWithPredictions.ts` | `buildTripWithPredictions` — ML predictions when event-triggered (arrive-dock, depart-dock) |
 | `lookupScheduledTrip.ts` | `lookupScheduleAtArrival`, `buildTripWithSchedule` — event-driven schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `updateAndExtractPredictions` |
 
 **External dependencies**:
-- `convex/domain/ml/prediction/vesselTripPredictions.ts` — `buildTripWithPredictions`, `updatePredictionsWithActuals`
+- `convex/domain/ml/prediction/vesselTripPredictions.ts` — `computeVesselTripPredictionsPatch`, `updatePredictionsWithActuals`
 - `convex/functions/vesselTrips/mutations.ts` — `completeAndStartNewTrip`, `upsertVesselTripsBatch`, `setDepartNextActualsForMostRecentCompletedTrip`
 
 ---
