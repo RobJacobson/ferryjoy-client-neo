@@ -89,7 +89,7 @@ The orchestrator minimizes unnecessary database writes by:
 |-------|--------|-------------|-------|
 | **VesselAbbrev** | currLocation | Direct copy every tick | Never from existingTrip |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy every tick | Trip boundary trigger; never from existingTrip |
-| **ArrivingTerminalAbbrev** | currLocation, currTrip, or schedule lookup | `currLocation.ArrivingTerminalAbbrev` (direct, no conditional) | With hard-reset rule: no carry from old trip. If REST missing, use currTrip if present, or `lookupArrivalTerminalFromSchedule` as fallback when at dock |
+| **ArrivingTerminalAbbrev** | currLocation, currTrip, or schedule lookup | `currLocation.ArrivingTerminalAbbrev` (direct, no conditional) | With hard-reset rule: no carry from old trip. If REST missing, use currTrip if present, or `lookupScheduleAtArrival` as fallback when at dock |
 | **RouteID** | ScheduledTrip lookup | From `enrichTripStartUpdates` | 0 until scheduled trip found; cleared when Key invalid |
 | **RouteAbbrev** | ScheduledTrip lookup | From `enrichTripStartUpdates` | "" until scheduled trip found |
 | **Key** | Derived from terminals + ScheduledDeparture | From `enrichTripStartUpdates` | `generateTripKey(...)`; cleared when tripKey null (repositioning) |
@@ -120,7 +120,7 @@ The orchestrator minimizes unnecessary database writes by:
 - currLocation: REST/API vessel location feed
 - existingTrip: Current active trip in DB (same trip, prior tick)
 - completedTrip: Trip being archived at boundary (provides Prev* for new trip)
-- schedule lookup: `lookupArrivalTerminalFromSchedule`, `fetchScheduledTripFieldsByKey`
+- schedule lookup: `lookupScheduleAtArrival`, `fetchScheduledTripFieldsByKey`
 - computed: Derived from other fields (e.g. time deltas)
 - ML model: `predictTripValue` via `computeVesselTripPredictionsPatch`
 
@@ -143,7 +143,7 @@ The orchestrator minimizes unnecessary database writes by:
 
 4. **Event detection (side effects)**: `didJustLeaveDock` drives backfill of depart-next actuals onto previous trip, actualization of AtDockDepartCurr, and completedPredictionRecords. These must remain conditional—build-then-compare does not eliminate event-driven side effects.
 
-5. **I/O-conditioned lookups**: `lookupArrivalTerminalFromSchedule` and `fetchScheduledTripFieldsByKey` are conditional to avoid unnecessary DB calls. Keep those conditions; change only how results are applied (full object vs patch).
+5. **Event-driven lookups**: `lookupScheduleAtArrival` and `fetchScheduledTripFieldsByKey` are event-driven to avoid unnecessary DB calls. Only execute when specific events occur (arrive at dock, arrival data available, key changed).
 
 ---
 
@@ -160,7 +160,7 @@ runUpdateVesselTrips (entry point)
             ├─> buildTripBoundaryPlan (terminal change)
             └─> buildTripUpdatePlan (regular update)
                 ├─> enrichTripFields (location data)
-                ├─> lookupArrivalTerminalFromSchedule (terminal inference)
+                ├─> lookupScheduleAtArrival (terminal inference)
                 ├─> enrichTripStartUpdates (scheduled trip lookup)
                 └─> computeVesselTripPredictionsPatch (ML predictions)
 ```
@@ -775,8 +775,8 @@ In Convex, reads and writes are done by **queries** and **mutations**, not by se
 ### 11.3 Implemented Optimizations
 
 **Consolidate arrival lookup + scheduled trip lookup (implemented):**
-- When `lookupArrivalTerminalFromSchedule` returns a trip, that document already contains `Key`, `RouteID`, `RouteAbbrev`, `SailingDay`, and full `ScheduledTrip` data.
-- `lookupArrivalTerminalFromSchedule` now returns `{ arrivalTerminal?, scheduledTripDoc? }`.
+- When `lookupScheduleAtArrival` returns a trip, that document already contains `Key`, `RouteID`, `RouteAbbrev`, `SailingDay`, and full `ScheduledTrip` data.
+- `lookupScheduleAtArrival` now returns `{ trip, scheduledTripDoc? }`.
 - `enrichTripStartUpdates` accepts optional `cachedScheduledTrip`; when provided and key matches, skips `getScheduledTripByKey`.
 - **Savings:** Up to 1 query per vessel when both lookups would have run.
 

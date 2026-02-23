@@ -12,7 +12,6 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import type { ArrivalLookupResult } from "./lookupScheduledTrip";
 
 // ============================================================================
 // buildTripFromRawData
@@ -24,19 +23,17 @@ import type { ArrivalLookupResult } from "./lookupScheduledTrip";
  * Handles first trip, trip boundary (new trip), and regular update. Per Field
  * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
  * Key derived from raw data, used for schedule lookup. RouteID, RouteAbbrev,
- * ScheduledTrip left default; filled by lookupScheduledTrip.
+ * ScheduledTrip left default; filled by lookupScheduleOnUpdate.
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
  * @param completedTrip - Completed trip at boundary (provides Prev* for new trip)
- * @param arrivalLookup - Optional result from lookupArrivalTerminalFromSchedule
  * @returns Complete ConvexVesselTrip with location-derived fields
  */
 export const buildTripFromRawData = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
-  completedTrip?: ConvexVesselTrip,
-  arrivalLookup?: ArrivalLookupResult
+  completedTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
   const isBoundary = completedTrip !== undefined;
   const isRegularUpdate = existingTrip !== undefined && !isBoundary;
@@ -76,9 +73,7 @@ export const buildTripFromRawData = (
   // ArrivingTerminalAbbrev: never use existingTrip at boundary (wrong terminal)
   const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev
     ? currLocation.ArrivingTerminalAbbrev
-    : arrivalLookup?.arrivalTerminal
-      ? arrivalLookup.arrivalTerminal
-      : isRegularUpdate
+    : isRegularUpdate
         ? existingTrip?.ArrivingTerminalAbbrev
         : undefined;
 

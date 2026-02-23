@@ -6,8 +6,9 @@ This module synchronizes active vessel trips with live location data. It runs as
 
 **Three-function design**:
 1. `buildTripFromRawData` — main object from raw location data (simple assignments); derives Key from raw data for schedule lookup
-2. `lookupScheduledTrip` — schedule lookup by Key; returns trip with RouteID, RouteAbbrev, ScheduledTrip merged
-3. `addPredictionsToTrip` — ML predictions when event-triggered (arrive-dock, depart-dock)
+2. `lookupScheduleAtArrival` — arrival terminal lookup when vessel arrives at dock (event-driven: AtDock false→true)
+3. `lookupScheduleOnUpdate` — schedule lookup by Key when arrival data available or key changed (event-driven)
+4. `addPredictionsToTrip` — ML predictions when event-triggered (arrive-dock, depart-dock)
 
 ---
 
@@ -24,13 +25,15 @@ runUpdateVesselTrips (entry point)
                 ├─> Trip boundary: completeAndStartNewTrip (mutation)
                 │       ├─> updatePredictionsWithActuals (completed trip)
                 │       ├─> buildTripFromRawData (new trip)
-                │       ├─> lookupScheduledTrip (returns tripWithSchedule)
+                │       ├─> lookupScheduleAtArrival (when arrived at dock)
+                │       ├─> buildTripFromRawData (new trip with arrival terminal)
+                │       ├─> lookupScheduleOnUpdate (returns tripWithSchedule)
                 │       ├─> addPredictionsToTrip (new trip)
                 │       └─> completeAndStartNewTrip (mutation)
                 └─> Regular update: build → schedule → predictions
-                        ├─> lookupArrivalTerminalFromSchedule (I/O-conditioned)
+                        ├─> lookupScheduleAtArrival (event: AtDock false→true)
                         ├─> buildTripFromRawData (location-derived fields)
-                        ├─> lookupScheduledTrip (returns tripWithSchedule)
+                        ├─> lookupScheduleOnUpdate (event: arrival data available or key changed)
                         ├─> addPredictionsToTrip (ML; actualizes when didJustLeaveDock)
                         ├─> tripsAreEqual → write only if different
                         └─> setDepartNextActualsForMostRecentCompletedTrip (mutation, when didJustLeaveDock)
@@ -43,7 +46,7 @@ runUpdateVesselTrips (entry point)
 | `updateVesselTrips.ts` | Main orchestrator: loads active trips, processes each location via Promise.all + flatMap, applies mutations |
 | `processVesselTripTick.ts` | Event dispatcher: first trip, trip boundary, or regular update |
 | `buildTrip.ts` | `buildTripFromRawData` — location-derived fields from raw data |
-| `lookupScheduledTrip.ts` | `lookupScheduledTrip`, `lookupArrivalTerminalFromSchedule` — schedule lookup by Key, returns tripWithSchedule |
+| `lookupScheduledTrip.ts` | `lookupScheduleAtArrival`, `lookupScheduleOnUpdate` — event-driven schedule lookup by Key, returns tripWithSchedule |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `updateAndExtractPredictions` |
 
 **External dependencies**:
@@ -77,9 +80,9 @@ runUpdateVesselTrips (entry point)
 **Condition**: Same `DepartingTerminalAbbrev` (vessel still on same leg).
 
 **Behavior**:
-1. Arrival lookup (I/O-conditioned: only when at dock + missing ArrivingTerminal).
+1. Arrival lookup (event-driven: only when AtDock false→true + missing ArrivingTerminal).
 2. `buildTripFromRawData` — full location-derived state.
-3. `lookupScheduledTrip` — Key, RouteID, RouteAbbrev, ScheduledTrip (returns tripWithSchedule).
+3. `lookupScheduleOnUpdate` — Key, RouteID, RouteAbbrev, ScheduledTrip (returns tripWithSchedule).
 4. `addPredictionsToTrip` — ML predictions; actualizes and extracts when `didJustLeaveDock`.
 5. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
 6. When `didJustLeaveDock`: call `setDepartNextActualsForMostRecentCompletedTrip` to backfill previous trip's depart-next actuals.
@@ -106,9 +109,9 @@ runUpdateVesselTrips (entry point)
 |-------|--------|-------------|
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
-| **ArrivingTerminalAbbrev** | currLocation, arrivalLookup, or existingTrip | `currLocation` when truthy; else `arrivalLookup?.arrivalTerminal`; else `existingTrip` (regular updates only; never old trip at boundary) |
+| **ArrivingTerminalAbbrev** | currLocation, scheduleArrival, or existingTrip | `currLocation` when truthy; else `scheduleArrival?.trip.ArrivingTerminalAbbrev`; else `existingTrip` (regular updates only; never old trip at boundary) |
 | **Key** | Raw data | From `generateTripKey` in buildTripFromRawData; used for schedule lookup |
-| **RouteID, RouteAbbrev, ScheduledTrip** | ScheduledTrip lookup | From `lookupScheduledTrip`; cleared when Key invalid or repositioning |
+| **RouteID, RouteAbbrev, ScheduledTrip** | ScheduledTrip lookup | From `lookupScheduleOnUpdate`; cleared when Key invalid or repositioning |
 | **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture ?? TripStart ?? TimeStamp)` in buildTripFromRawData; prefer ScheduledDeparture |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip | Set once at trip boundary; not updated mid-trip |
 | **TripStart** | Inferred at boundary | `currLocation.TimeStamp` when vessel arrives at dock; carried forward |
@@ -156,10 +159,10 @@ These remain conditional; build-then-compare does not eliminate event-driven sid
 
 `SailingDay` is core business logic (WSF sailing day, 3 AM Pacific cutoff). It comes from raw data via `getSailingDay` in `buildTripFromRawData`, not from schedule lookup. Prefer `ScheduledDeparture`; fallback to `TripStart` then `TimeStamp`. Needed whether or not we have a schedule match.
 
-### I/O-Conditioned Lookups
+### Event-Driven Lookups
 
-- `lookupArrivalTerminalFromSchedule`: Only when at dock + missing ArrivingTerminal + has required fields.
-- `lookupScheduledTrip`: I/O-conditioned (key mismatch, no existing data, or cached from arrival lookup).
+- `lookupScheduleAtArrival`: Event-driven (AtDock: false→true + missing ArrivingTerminal + has required fields).
+- `lookupScheduleOnUpdate`: Event-driven (arrival data became available OR key changed OR cached from arrival lookup).
 
 ---
 
@@ -167,7 +170,7 @@ These remain conditional; build-then-compare does not eliminate event-driven sid
 
 ### Flow
 
-1. Build `proposedTrip` via `buildTripFromRawData` + `lookupScheduledTrip` + `addPredictionsToTrip` + actuals.
+1. Build `proposedTrip` via `buildTripFromRawData` + `lookupScheduleOnUpdate` + `addPredictionsToTrip` + actuals.
 2. Compare `tripsAreEqual(existingTrip, finalProposed)`.
 3. If equal: `activeUpsert = undefined` (no write).
 4. If different: `activeUpsert = finalProposed`.
@@ -215,7 +218,7 @@ Predictions are **event-based**, not time-based:
 
 ### Optimizations
 
-- **Consolidated arrival + scheduled trip lookup**: When `lookupArrivalTerminalFromSchedule` returns a trip, that doc contains Key, RouteID, RouteAbbrev, ScheduledTrip. `lookupScheduledTrip` accepts `cachedScheduledTrip`; when key matches, skips `getScheduledTripByKey`.
+- **Consolidated arrival + scheduled trip lookup**: When `lookupScheduleAtArrival` returns a scheduled trip doc, that doc contains Key, RouteID, RouteAbbrev, ScheduledTrip. `lookupScheduleOnUpdate` accepts `cachedScheduledTrip`; when key matches, skips `getScheduledTripByKey`.
 - **Batch model loading**: `computeVesselTripPredictionsPatch` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
 
 ---

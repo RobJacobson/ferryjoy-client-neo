@@ -22,8 +22,8 @@ import { calculateTimeDelta } from "shared/durationUtils";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { buildTripFromRawData } from "./buildTrip";
 import {
-  lookupArrivalTerminalFromSchedule,
-  lookupScheduledTrip,
+  lookupScheduleAtArrival,
+  lookupScheduleOnUpdate,
 } from "./lookupScheduledTrip";
 import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
@@ -101,24 +101,32 @@ export const processVesselTripTick = async (
       undefined,
       completedTrip
     );
-    const arrivalLookup = await lookupArrivalTerminalFromSchedule(
+    const arrivalTrip = await lookupScheduleAtArrival(
       ctx,
       baseForLookup,
-      currLocation
+      undefined
     );
     const newTrip = buildTripFromRawData(
       currLocation,
       undefined,
-      completedTrip,
-      arrivalLookup
+      completedTrip
     );
+
+    // Merge arrival data into new trip (if available)
+    const mergedTrip = {
+      ...newTrip,
+      ArrivingTerminalAbbrev: arrivalTrip.ArrivingTerminalAbbrev ||
+        newTrip.ArrivingTerminalAbbrev,
+      RouteID: arrivalTrip.RouteID || newTrip.RouteID,
+      RouteAbbrev: arrivalTrip.RouteAbbrev || newTrip.RouteAbbrev,
+      ScheduledTrip: arrivalTrip.ScheduledTrip || newTrip.ScheduledTrip,
+    };
 
     // Derive Key / ScheduledTrip snapshot and compute at-dock predictions for the
     // newly-started trip (so UI sees them on the same tick as arrival).
-    const tripWithScheduled = await lookupScheduledTrip(
+    const tripWithScheduled = await lookupScheduleOnUpdate(
       ctx,
-      newTrip,
-      arrivalLookup?.scheduledTripDoc,
+      mergedTrip,
       undefined
     );
 
@@ -145,22 +153,30 @@ export const processVesselTripTick = async (
     ScheduledDeparture:
       currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture,
   };
-  const arrivalLookup = await lookupArrivalTerminalFromSchedule(
+  const arrivalTrip = await lookupScheduleAtArrival(
     ctx,
     baseTripForLookup,
-    currLocation
+    existingTrip
   );
 
   const baseTrip = buildTripFromRawData(
     currLocation,
-    existingTrip,
-    undefined,
-    arrivalLookup
+    existingTrip
   );
-  const tripWithSchedule = await lookupScheduledTrip(
+
+  // Merge arrival data into base trip (if available)
+  const mergedTrip = {
+    ...baseTrip,
+    ArrivingTerminalAbbrev: arrivalTrip.ArrivingTerminalAbbrev ||
+      baseTrip.ArrivingTerminalAbbrev,
+    RouteID: arrivalTrip.RouteID || baseTrip.RouteID,
+    RouteAbbrev: arrivalTrip.RouteAbbrev || baseTrip.RouteAbbrev,
+    ScheduledTrip: arrivalTrip.ScheduledTrip || baseTrip.ScheduledTrip,
+  };
+
+  const tripWithSchedule = await lookupScheduleOnUpdate(
     ctx,
-    baseTrip,
-    arrivalLookup?.scheduledTripDoc,
+    mergedTrip,
     existingTrip
   );
 
