@@ -1,10 +1,10 @@
 /**
- * Build vessel trip from raw location data.
+ * Base vessel trip from raw location data.
  *
  * Single function that constructs the full ConvexVesselTrip using simple
  * assignment statements per Field Reference 2.6. SailingDay comes from raw
  * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived:
- * Key from raw data; ScheduledTrip from buildTripWithFinalSchedule (RouteID/RouteAbbrev
+ * Key from raw data; ScheduledTrip from appendFinalSchedule (RouteID/RouteAbbrev
  * live on ScheduledTrip).
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -14,33 +14,33 @@ import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 
 /**
- * Build complete VesselTrip from raw location data using simple assignments.
+ * Base complete VesselTrip from raw location data using simple assignments.
  *
  * Handles first trip, trip boundary (new trip), and regular update. Per Field
  * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
  * Key derived from raw data, used for schedule lookup. ScheduledTrip from
- * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
+ * appendFinalSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
  * @param isTripStart - True for trip start (vessel just arrived at dock), false for continuing
  * @returns Complete ConvexVesselTrip with location-derived fields
  */
-export const buildTripFromVesselLocation = (
+export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
   isTripStart?: boolean
 ): ConvexVesselTrip =>
   isTripStart
-    ? buildTripForStart(currLocation, existingTrip)
-    : buildTripForContinuing(currLocation, existingTrip);
+    ? baseTripForStart(currLocation, existingTrip)
+    : baseTripForContinuing(currLocation, existingTrip);
 
 // ============================================================================
-// buildTripFromVesselLocation
+// baseTripFromLocation
 // ============================================================================
 
 /**
- * Build trip for trip start scenario (vessel just arrived at dock after completing
+ * Base trip for trip start scenario (vessel just arrived at dock after completing
  * previous trip). At this point, `existingTrip` is the trip being completed.
  *
  * Key characteristics:
@@ -53,7 +53,7 @@ export const buildTripFromVesselLocation = (
  * @param existingTrip - The trip being completed (provides Prev* fields)
  * @returns Complete ConvexVesselTrip for new trip start
  */
-const buildTripForStart = (
+const baseTripForStart = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
@@ -63,7 +63,7 @@ const buildTripForStart = (
     VesselAbbrev: currLocation.VesselAbbrev,
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    OpRouteAbbrev: currLocation.OpRouteAbbrev,
+    RouteAbbrev: currLocation.RouteAbbrev,
     Key:
       generateTripKey(
         currLocation.VesselAbbrev,
@@ -101,7 +101,7 @@ const buildTripForStart = (
 };
 
 /**
- * Build trip for continuing scenario (vessel is on the same trip as existingTrip,
+ * Base trip for continuing scenario (vessel is on the same trip as existingTrip,
  * or this is the first trip with no existingTrip).
  *
  * Key characteristics:
@@ -115,7 +115,7 @@ const buildTripForStart = (
  * @param existingTrip - Current ongoing trip (undefined for first appearance)
  * @returns Complete ConvexVesselTrip for continuing trip
  */
-const buildTripForContinuing = (
+const baseTripForContinuing = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
@@ -135,7 +135,7 @@ const buildTripForContinuing = (
     VesselAbbrev: currLocation.VesselAbbrev,
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    OpRouteAbbrev: currLocation.OpRouteAbbrev,
+    RouteAbbrev: currLocation.RouteAbbrev,
     Key:
       generateTripKey(
         currLocation.VesselAbbrev,

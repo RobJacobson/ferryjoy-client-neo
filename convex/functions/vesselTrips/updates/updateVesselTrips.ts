@@ -4,7 +4,8 @@ import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
-import { buildTrip } from "./buildTripWithAllData";
+import { buildTrip } from "./buildTrip";
+import { detectTripEvents } from "./eventDetection";
 import { tripsAreEqual } from "./utils";
 
 // ============================================================================
@@ -55,15 +56,10 @@ export const runUpdateVesselTrips = async (
   const currentTrips: TripGroup[] = [];
 
   for (const currLocation of locations) {
-    const vesselAbbrev = currLocation.VesselAbbrev;
-    const existingTrip = existingTripsDict[vesselAbbrev];
+    const existingTrip = existingTripsDict[currLocation.VesselAbbrev];
+    const events = detectTripEvents(existingTrip, currLocation);
 
-    const isCompletedTrip =
-      existingTrip &&
-      existingTrip.DepartingTerminalAbbrev !==
-        currLocation.DepartingTerminalAbbrev;
-
-    if (isCompletedTrip) {
+    if (events.isCompletedTrip) {
       completedTrips.push({ currLocation, existingTrip });
     } else {
       currentTrips.push({
@@ -143,10 +139,7 @@ const processCurrentTrips = async (
       false
     );
 
-    const didJustLeaveDock =
-      existingTrip &&
-      existingTrip.LeftDock === undefined &&
-      tripWithPredictions.LeftDock !== undefined;
+    const events = detectTripEvents(existingTrip, currLocation);
 
     const finalProposed: ConvexVesselTrip = {
       ...tripWithPredictions,
@@ -157,7 +150,7 @@ const processCurrentTrips = async (
       activeUpserts.push(finalProposed);
 
       // Handle prediction events
-      if (didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+      if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
         // Get previous completed trip for backfill
         const previousTripResult = await ctx.runQuery(
           api.functions.vesselTrips.queries.getMostRecentCompletedTrip,

@@ -12,9 +12,9 @@ import {
 } from "functions/predictions/utils";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import {
-  buildTripWithArriveDockPredictions,
-  buildTripWithLeaveDockPredictions,
-} from "../../../functions/vesselTrips/updates/buildTripWithPredictions";
+  appendArriveDockPredictions,
+  appendLeaveDockPredictions,
+} from "../../../functions/vesselTrips/updates/appendPredictions";
 
 /**
  * Types of prediction lifecycle events that can occur during vessel trips.
@@ -75,7 +75,7 @@ const handleArriveDockEvent = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
-  return buildTripWithArriveDockPredictions(ctx, trip);
+  return appendArriveDockPredictions(ctx, trip);
 };
 
 /**
@@ -146,7 +146,7 @@ export const computeLeaveDockPredictions = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
-  return buildTripWithLeaveDockPredictions(ctx, trip);
+  return appendLeaveDockPredictions(ctx, trip);
 };
 
 // ============================================================================

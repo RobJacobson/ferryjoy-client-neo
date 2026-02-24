@@ -1,8 +1,8 @@
 /**
  * Build completed trip with TripEnd, durations, and actualized predictions.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip and
- * actualizes predictions (AtDockDepartCurr, AtSeaArriveNext).
+ * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip.
+ * Prediction actualization is handled separately by the prediction service.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";

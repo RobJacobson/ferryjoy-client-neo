@@ -4,29 +4,30 @@
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildTripFromVesselLocation } from "./buildTripFromVesselLocation";
+import { baseTripFromLocation } from "./baseTripFromLocation";
 import {
-  buildTripWithArriveDockPredictions,
-  buildTripWithLeaveDockPredictions,
-} from "./buildTripWithPredictions";
+  appendArriveDockPredictions,
+  appendLeaveDockPredictions,
+} from "./appendPredictions";
 import {
-  buildTripWithFinalSchedule,
-  buildTripWithInitialSchedule,
-} from "./buildTripWithSchedule";
+  appendFinalSchedule,
+  appendInitialSchedule,
+} from "./appendSchedule";
+import { detectTripEvents } from "./eventDetection";
 
 /**
  * Build complete vessel trip from raw location data with all enrichments.
  *
  * Handles building, schedule lookups, and ML predictions in one place:
- * - Calls buildTripFromVesselLocation for base trip
- * - Detects events (arrive-dock, depart-dock, key changed)
+ * - Calls baseTripFromLocation for base trip
+ * - Detects events using centralized event detection
  * - Runs appropriate schedule lookups and predictions
  * - Returns fully enriched trip ready for persistence
  *
  * @param ctx - Convex action context
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
- * @param completedTrip - Completed trip at boundary (provides Prev* for new trip)
+ * @param tripStart - True for new trip (boundary or first), false for continuing
  * @returns Fully enriched vessel trip
  */
 export const buildTrip = async (
@@ -36,46 +37,39 @@ export const buildTrip = async (
   tripStart: boolean
 ): Promise<ConvexVesselTrip> => {
   // Build base trip from raw data
-  const baseTrip = buildTripFromVesselLocation(
+  const baseTrip = baseTripFromLocation(
     currLocation,
     existingTrip,
     tripStart
   );
 
-  // Detect events
-  const didJustArriveAtDock =
-    existingTrip && !existingTrip.AtDock && baseTrip.AtDock;
-  const didJustLeaveDock =
-    existingTrip?.LeftDock === undefined && baseTrip.LeftDock !== undefined;
-  const keyChanged =
-    existingTrip?.Key !== undefined && baseTrip.Key !== existingTrip.Key;
+  // Detect events using centralized event detection
+  const events = detectTripEvents(existingTrip, currLocation);
 
   let enrichedTrip = baseTrip;
 
   // Event: Arrive at dock (schedule lookup for arriving terminal)
-  if (didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
-    enrichedTrip = await buildTripWithInitialSchedule(ctx, enrichedTrip);
-    console.log("Arrived at dock", enrichedTrip);
+  if (events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
+    enrichedTrip = await appendInitialSchedule(ctx, baseTrip);
   }
 
   // Event: Key changed or have departure info (schedule lookup by Key)
-  if (keyChanged) {
-    enrichedTrip = await buildTripWithFinalSchedule(
+  if (events.keyChanged) {
+    enrichedTrip = await appendFinalSchedule(
       ctx,
-      enrichedTrip,
+      baseTrip,
       existingTrip
     );
-    console.log("Key changed", enrichedTrip);
   }
 
   // Event: Arrive at dock (at-dock predictions)
-  if (didJustArriveAtDock) {
-    enrichedTrip = await buildTripWithArriveDockPredictions(ctx, enrichedTrip);
+  if (events.didJustArriveAtDock) {
+    enrichedTrip = await appendArriveDockPredictions(ctx, enrichedTrip);
   }
 
   // Event: Leave dock (leave-dock predictions)
-  if (didJustLeaveDock) {
-    enrichedTrip = await buildTripWithLeaveDockPredictions(ctx, enrichedTrip);
+  if (events.didJustLeaveDock) {
+    enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
   }
 
   return enrichedTrip;

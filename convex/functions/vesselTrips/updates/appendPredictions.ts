@@ -1,6 +1,6 @@
 // ============================================================================
-// Build Trip With Predictions
-// Adds ML predictions to vessel trips when event-triggered (arrive-dock, depart-dock)
+// Append ML Predictions
+// Enriches vessel trips with ML predictions when event-triggered (arrive-dock, depart-dock)
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
@@ -101,16 +101,16 @@ const computePredictions = async (
 };
 
 /**
- * Add at-dock predictions when vessel first arrives at dock.
+ * Enrich trip with at-dock predictions when vessel first arrives at dock.
  *
  * Predicts AtDockArriveNext and AtDockDepartNext when vessel transitions
  * from at-sea to at-dock and trip has required context (isPredictionReadyTrip).
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
- * @returns Trip with at-dock prediction fields applied
+ * @returns Trip enriched with at-dock prediction fields
  */
-export const buildTripWithArriveDockPredictions = async (
+export const appendArriveDockPredictions = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
@@ -121,16 +121,16 @@ export const buildTripWithArriveDockPredictions = async (
 };
 
 /**
- * Add leave-dock predictions when vessel physically departs.
+ * Enrich trip with leave-dock predictions when vessel physically departs.
  *
  * Predicts AtDockDepartCurr, AtSeaArriveNext, and AtSeaDepartNext when
  * LeftDock transitions from undefined to defined (vessel leaves dock).
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
- * @returns Trip with leave-dock prediction fields applied
+ * @returns Trip enriched with leave-dock prediction fields
  */
-export const buildTripWithLeaveDockPredictions = async (
+export const appendLeaveDockPredictions = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
