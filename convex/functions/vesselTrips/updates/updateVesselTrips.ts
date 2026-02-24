@@ -4,34 +4,39 @@ import type { ConvexPredictionRecord } from "functions/predictions/schemas";
 import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { stripConvexMeta } from "shared/stripConvexMeta";
-import { processVesselTripTick } from "./processVesselTripTick";
+import { buildCompletedTrip } from "./buildCompletedTrip";
+import { buildTripWithAllData } from "./buildTripWithAllData";
+import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
-type VesselTickResult =
-  | {
-      ok: true;
-      vesselAbbrev: string;
-      plan: Awaited<ReturnType<typeof processVesselTripTick>>;
-    }
-  | { ok: false; vesselAbbrev: string; error: string };
+// ============================================================================
+// Group Types
+// Used to categorize vessels during the orchestration phase
+// ============================================================================
 
-type VesselTripsWritePlan = {
-  activeUpserts: ConvexVesselTrip[];
-  completions: Array<{
-    completedTrip: ConvexVesselTrip;
-    newTrip: ConvexVesselTrip;
-  }>;
-  departNextBackfills: Array<{ vesselAbbrev: string; actualDepartMs: number }>;
-  completedPredictionRecords: ConvexPredictionRecord[];
-  errors: Array<{ vesselAbbrev: string; error: string }>;
-};
+interface NewTripGroup {
+  currLocation: ConvexVesselLocation;
+}
+
+interface CompletedTripGroup {
+  currLocation: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip;
+}
+
+interface CurrentTripGroup {
+  currLocation: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip;
+}
+
+// ============================================================================
+// Main Orchestrator
+// ============================================================================
 
 /**
- * Main orchestration function for updating active vessel trips.
+ * Main orchestration for updating active vessel trips.
  *
- * Processes vessel locations and active trips to handle trip lifecycle events
- * (first trips, new trips, trip updates). Manages trip enrichment, prediction
- * generation, and database persistence.
+ * Fundamentally simplified: categorizes vessels into three groups (new, completed,
+ * current), delegates to processing functions that handle their own database
+ * persistence.
  *
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to process (already converted and deduplicated)
@@ -41,10 +46,8 @@ export const runUpdateVesselTrips = async (
   locations: ConvexVesselLocation[]
 ): Promise<void> => {
   // 1) Load current active trips once (for O(1) per-vessel lookup).
-  const existingTripsList = (
-    await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips)
-  ).map(
-    (doc) => stripConvexMeta(doc as Record<string, unknown>) as ConvexVesselTrip
+  const existingTripsList = await ctx.runQuery(
+    api.functions.vesselTrips.queries.getActiveTrips
   );
 
   // 2) Index active trips by vessel abbreviation.
@@ -52,173 +55,224 @@ export const runUpdateVesselTrips = async (
     existingTripsList.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ConvexVesselTrip>;
 
-  // 3) Compute per-vessel update plans (best-effort per vessel).
-  const perVesselResults: VesselTickResult[] = await Promise.all(
-    locations.map(async (currLocation) => {
-      return await processVesselLocationTick(
-        ctx,
-        existingTripsDict,
-        currLocation
-      );
-    })
-  );
+  // 3) Categorize vessel/location tuples into three groups.
+  const newTrips: NewTripGroup[] = [];
+  const completedTrips: CompletedTripGroup[] = [];
+  const currentTrips: CurrentTripGroup[] = [];
 
-  // 4) Reduce per-vessel plans into one batched write plan.
-  const writePlan = perVesselResults.reduce<VesselTripsWritePlan>(
-    reduceToWritePlan,
-    makeInitialWritePlan()
-  );
+  for (const currLocation of locations) {
+    const vesselAbbrev = currLocation.VesselAbbrev;
+    const existingTrip = existingTripsDict[vesselAbbrev];
 
-  // 5) Apply trip writes in a single batch mutation.
-  const hasAnyTripWrites =
-    writePlan.activeUpserts.length > 0 ||
-    writePlan.completions.length > 0 ||
-    writePlan.departNextBackfills.length > 0;
+    if (!existingTrip) {
+      newTrips.push({ currLocation });
+      continue;
+    }
 
-  let departNextUpdatedTrips: ConvexVesselTrip[] = [];
-  if (hasAnyTripWrites) {
-    const result = await ctx.runMutation(
-      api.functions.vesselTrips.mutations.applyVesselTripsWritePlan,
-      {
-        activeUpserts: writePlan.activeUpserts,
-        completions: writePlan.completions,
-        departNextBackfills: writePlan.departNextBackfills,
-      }
-    );
-    departNextUpdatedTrips = (result?.departNextUpdatedTrips ??
-      []) as ConvexVesselTrip[];
+    const isTripBoundary =
+      existingTrip.DepartingTerminalAbbrev !==
+      currLocation.DepartingTerminalAbbrev;
+
+    if (isTripBoundary) {
+      completedTrips.push({ currLocation, existingTrip });
+    } else {
+      currentTrips.push({ currLocation, existingTrip });
+    }
   }
 
-  // 6) Extract completed depart-next prediction rows from updated completed trips.
-  const departNextPredictionRecords = departNextUpdatedTrips
-    .flatMap(extractDepartNextPredictionRecords)
-    .filter((value): value is ConvexPredictionRecord => value !== null);
-
-  // 7) Combine all completed prediction rows for this tick.
-  const allPredictionRecords = [
-    ...writePlan.completedPredictionRecords,
-    ...departNextPredictionRecords,
-  ];
-
-  // 8) Deduplicate by Key + PredictionType, then bulk insert.
-  const uniquePredictionRecords = Array.from(
-    new Map(
-      allPredictionRecords.map((record) => [
-        `${record.Key}:${record.PredictionType}`,
-        record,
-      ])
-    ).values()
-  );
-
-  if (uniquePredictionRecords.length > 0) {
-    await ctx.runMutation(
-      api.functions.predictions.mutations.bulkInsertPredictions,
-      {
-        predictions: uniquePredictionRecords,
-      }
-    );
-  }
-
-  // Report any per-vessel failures without failing the entire tick.
-  writePlan.errors.forEach(({ vesselAbbrev, error }) => {
-    console.error(
-      `[VesselTrips] Error processing vessel ${vesselAbbrev}:`,
-      error
-    );
-  });
+  // 4) Delegate to processing functions (each handles its own persistence).
+  await processNewTrips(ctx, newTrips);
+  await processCompletedTrips(ctx, completedTrips);
+  await processCurrentTrips(ctx, currentTrips);
 };
 
 // ============================================================================
-// Internal helpers
+// Processing Functions
 // ============================================================================
 
 /**
- * Process a single vessel location tick into a per-vessel plan result.
+ * Process vessels with no existing trip (first appearance).
+ *
+ * Takes array of new vessels, builds and persists each directly to database.
  *
  * @param ctx - Convex action context
- * @param existingTripsDict - Active trips indexed by vessel abbreviation
- * @param nowMs - Single tick time reference in epoch ms
- * @param currLocation - Current vessel location tick
- * @returns Best-effort per-vessel plan result
+ * @param newTrips - Array of vessels without existing trips
  */
-const processVesselLocationTick = async (
+const processNewTrips = async (
   ctx: ActionCtx,
-  existingTripsDict: Record<string, ConvexVesselTrip>,
-  currLocation: ConvexVesselLocation
-): Promise<VesselTickResult> => {
-  const vesselAbbrev = currLocation.VesselAbbrev;
-  const existingTrip = existingTripsDict[vesselAbbrev];
+  newTrips: NewTripGroup[]
+): Promise<void> => {
+  for (const { currLocation } of newTrips) {
+    const trip = await buildTripWithAllData(ctx, currLocation);
 
-  try {
-    const plan = await processVesselTripTick(ctx, {
-      existingTrip,
+    await ctx.runMutation(
+      api.functions.vesselTrips.mutations.upsertActiveTrip,
+      { trip }
+    );
+  }
+};
+
+/**
+ * Process trip boundaries: complete current trip and start new one.
+ *
+ * Takes array of vessels at trip boundaries, completes each and starts new trip.
+ *
+ * @param ctx - Convex action context
+ * @param completedTrips - Array of vessels at trip boundaries
+ */
+const processCompletedTrips = async (
+  ctx: ActionCtx,
+  completedTrips: CompletedTripGroup[]
+): Promise<void> => {
+  for (const { existingTrip, currLocation } of completedTrips) {
+    // Build completed trip
+    const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
+
+    // Build new trip
+    const newTrip = await buildTripWithAllData(
+      ctx,
       currLocation,
-    });
-    return { ok: true, vesselAbbrev, plan };
-  } catch (error) {
-    return {
-      ok: false,
-      vesselAbbrev,
-      error: error instanceof Error ? error.message : String(error),
+      undefined,
+      tripToComplete
+    );
+
+    // Extract prediction records from completed trip
+    const { completedRecords } = updateAndExtractPredictions(
+      existingTrip,
+      tripToComplete
+    );
+
+    // Persist atomically (complete + start)
+    await ctx.runMutation(
+      api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+      {
+        completedTrip: tripToComplete,
+        newTrip,
+      }
+    );
+
+    // Insert prediction records
+    if (completedRecords.length > 0) {
+      await ctx.runMutation(
+        api.functions.predictions.mutations.bulkInsertPredictions,
+        { predictions: completedRecords }
+      );
+    }
+  }
+};
+
+/**
+ * Process ongoing trips (not a boundary).
+ *
+ * Takes array of vessels continuing same trip, builds and persists in batch.
+ *
+ * @param ctx - Convex action context
+ * @param currentTrips - Array of vessels with ongoing trips
+ */
+const processCurrentTrips = async (
+  ctx: ActionCtx,
+  currentTrips: CurrentTripGroup[]
+): Promise<void> => {
+  const activeUpserts: ConvexVesselTrip[] = [];
+  const predictionRecords: ConvexPredictionRecord[] = [];
+  // Track vessels that need backfill after batch upsert completes
+  const backfillNeeded: Array<{
+    vesselAbbrev: string;
+    leftDockMs: number;
+  }> = [];
+
+  for (const { existingTrip, currLocation } of currentTrips) {
+    const tripWithPredictions = await buildTripWithAllData(
+      ctx,
+      currLocation,
+      existingTrip
+    );
+
+    const didJustLeaveDock =
+      existingTrip.LeftDock === undefined &&
+      tripWithPredictions.LeftDock !== undefined;
+
+    const { updatedTrip, completedRecords } = didJustLeaveDock
+      ? updateAndExtractPredictions(existingTrip, tripWithPredictions)
+      : { updatedTrip: tripWithPredictions, completedRecords: [] };
+
+    predictionRecords.push(...completedRecords);
+
+    const finalProposed: ConvexVesselTrip = {
+      ...updatedTrip,
+      TimeStamp: currLocation.TimeStamp,
     };
+
+    if (!tripsAreEqual(existingTrip, finalProposed)) {
+      activeUpserts.push(finalProposed);
+
+      if (didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+        backfillNeeded.push({
+          vesselAbbrev: currLocation.VesselAbbrev,
+          leftDockMs: finalProposed.LeftDock,
+        });
+      }
+    }
+  }
+
+  // Batch upsert all current trips
+  if (activeUpserts.length > 0) {
+    await ctx.runMutation(
+      api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
+      { activeUpserts }
+    );
+  }
+
+  // Insert prediction records
+  if (predictionRecords.length > 0) {
+    await ctx.runMutation(
+      api.functions.predictions.mutations.bulkInsertPredictions,
+      { predictions: predictionRecords }
+    );
+  }
+
+  // Handle depart-next backfills
+  for (const { vesselAbbrev, leftDockMs } of backfillNeeded) {
+    await backfillDepartNextActuals(ctx, vesselAbbrev, leftDockMs);
   }
 };
 
 /**
- * Create the initial accumulator for a tick write plan.
+ * Backfill depart-next actuals for previous completed trip.
  *
- * @returns Empty write plan accumulator
- */
-const makeInitialWritePlan = (): VesselTripsWritePlan => ({
-  activeUpserts: [],
-  completions: [],
-  departNextBackfills: [],
-  completedPredictionRecords: [],
-  errors: [],
-});
-
-/**
- * Reduce a per-vessel result into the tick write plan accumulator.
+ * When current trip leaves dock, updates previous trip's AtDockDepartNext and
+ * AtSeaDepartNext with actual departure time, and inserts prediction records.
  *
- * @param acc - Accumulated write plan
- * @param result - Per-vessel processing result
- * @returns Updated accumulator
+ * @param ctx - Convex action context
+ * @param vesselAbbrev - Vessel abbreviation
+ * @param leftDockMs - Actual departure timestamp in milliseconds
  */
-const reduceToWritePlan = (
-  acc: VesselTripsWritePlan,
-  result: VesselTickResult
-): VesselTripsWritePlan => {
-  if (!result.ok) {
-    acc.errors.push({ vesselAbbrev: result.vesselAbbrev, error: result.error });
-    return acc;
-  }
+const backfillDepartNextActuals = async (
+  ctx: ActionCtx,
+  vesselAbbrev: string,
+  leftDockMs: number
+): Promise<void> => {
+  const backfillResult = await ctx.runMutation(
+    api.functions.vesselTrips.mutations
+      .setDepartNextActualsForMostRecentCompletedTrip,
+    {
+      vesselAbbrev,
+      actualDepartMs: leftDockMs,
+    }
+  );
 
-  const { plan } = result;
+  if (!backfillResult?.updated || !backfillResult.updatedTrip) return;
 
-  if (plan.activeUpsert) {
-    acc.activeUpserts.push(plan.activeUpsert);
-  }
-  if (plan.completion) {
-    acc.completions.push(plan.completion);
-  }
-  if (plan.departNextBackfill) {
-    acc.departNextBackfills.push(plan.departNextBackfill);
-  }
+  const tripData = backfillResult.updatedTrip;
+  const departNextRecords = [
+    extractPredictionRecord(tripData, "AtDockDepartNext"),
+    extractPredictionRecord(tripData, "AtSeaDepartNext"),
+  ].filter((r): r is ConvexPredictionRecord => r !== null);
 
-  acc.completedPredictionRecords.push(...plan.completedPredictionRecords);
-
-  return acc;
+  if (departNextRecords.length > 0) {
+    await ctx.runMutation(
+      api.functions.predictions.mutations.bulkInsertPredictions,
+      { predictions: departNextRecords }
+    );
+  }
 };
-
-/**
- * Extract depart-next prediction records (nullable) from a completed trip.
- *
- * @param trip - Completed vessel trip
- * @returns Array of potentially-null prediction records
- */
-const extractDepartNextPredictionRecords = (
-  trip: ConvexVesselTrip
-): Array<ConvexPredictionRecord | null> => [
-  extractPredictionRecord(trip, "AtDockDepartNext"),
-  extractPredictionRecord(trip, "AtSeaDepartNext"),
-];

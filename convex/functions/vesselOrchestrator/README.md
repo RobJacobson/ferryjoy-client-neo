@@ -308,13 +308,13 @@ const shouldPredict = (trip: ConvexVesselTrip): boolean => {
 
 All trip updates are batched into atomic operations:
 
-#### `applyVesselTripsWritePlan` Mutation
+#### `applyVesselTripsBatch` Mutation
 
 ```typescript
-type VesselTripsWritePlan = {
+type VesselTripsBatch = {
   activeUpserts: ConvexVesselTrip[];           // Update existing trips
-  completions: TripCompletionPlan[];           // Complete + Start operations
-  departNextBackfills: DepartNextBackfillPlan[]; // Backfill previous trip actuals
+  completions: TripCompletionBatch[];           // Complete + Start operations
+  departNextBackfills: DepartNextBackfillBatch[]; // Backfill previous trip actuals
 }
 ```
 

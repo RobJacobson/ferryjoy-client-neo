@@ -93,6 +93,50 @@ export const getModelParametersForProduction = query({
 });
 
 /**
+ * Get model parameters for multiple model types in one query.
+ * Uses the active production version tag from config.
+ * Reduces Convex function calls when computing multiple predictions for a vessel.
+ *
+ * @param ctx - Convex context
+ * @param args.pairKey - The terminal pair key (e.g., "BBI->P52")
+ * @param args.modelTypes - Array of model types to retrieve
+ * @returns Record mapping model type to model parameters (missing types omitted)
+ */
+export const getModelParametersForProductionBatch = query({
+  args: {
+    pairKey: v.string(),
+    modelTypes: v.array(modelTypeValidator),
+  },
+  returns: v.record(v.string(), v.union(v.null(), v.any())),
+  handler: async (ctx, args) => {
+    const config = await ctx.db
+      .query("modelConfig")
+      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
+      .first();
+
+    const prodVersionTag = config?.productionVersionTag;
+    if (!prodVersionTag) {
+      return {} as Record<(typeof args.modelTypes)[number], unknown>;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const modelType of args.modelTypes) {
+      const doc = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_pair_type_tag", (q) =>
+          q
+            .eq("pairKey", args.pairKey)
+            .eq("modelType", modelType)
+            .eq("versionTag", prodVersionTag)
+        )
+        .first();
+      result[modelType] = doc ?? null;
+    }
+    return result as Record<(typeof args.modelTypes)[number], unknown>;
+  },
+});
+
+/**
  * Get all models for a specific version tag.
  *
  * @param ctx - Convex context

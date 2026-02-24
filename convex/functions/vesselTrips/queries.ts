@@ -1,5 +1,7 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { vesselTripSchema } from "functions/vesselTrips/schemas";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
  * API function for fetching active vessel trips (currently in progress)
@@ -7,14 +9,15 @@ import { ConvexError, v } from "convex/values";
  * Optimized with proper indexing for performance
  *
  * @param ctx - Convex context
- * @returns Array of active vessel trip documents
+ * @returns Array of active vessel trips (schema shape, no _id/_creationTime)
  */
 export const getActiveTrips = query({
   args: {},
+  returns: v.array(vesselTripSchema),
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      return trips; // Return Convex docs (numbers/undefined), no Date conversion here
+      return trips.map(stripConvexMeta);
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch active vessel trips",
@@ -33,13 +36,14 @@ export const getActiveTrips = query({
  * @param ctx - Convex context
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
  * @param args.departingTerminalAbbrevs - Terminal abbreviations to include
- * @returns Array of completed vessel trip documents, deduped by Key
+ * @returns Array of completed vessel trips (schema shape), deduped by Key
  */
 export const getCompletedTripsForSailingDayAndTerminals = query({
   args: {
     sailingDay: v.string(),
     departingTerminalAbbrevs: v.array(v.string()),
   },
+  returns: v.array(vesselTripSchema),
   handler: async (ctx, args) => {
     try {
       const terminals = [...new Set(args.departingTerminalAbbrevs)];
@@ -61,7 +65,7 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
           if (doc.Key) byKey.set(doc.Key, doc);
         }
       }
-      return Array.from(byKey.values());
+      return Array.from(byKey.values()).map(stripConvexMeta);
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for sailing day ${args.sailingDay}`,
