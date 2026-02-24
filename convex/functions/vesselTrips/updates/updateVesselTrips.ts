@@ -4,31 +4,25 @@ import type { ConvexPredictionRecord } from "functions/predictions/schemas";
 import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip, buildTripFromVesselLocation } from "./buildTrip";
-import { buildTripWithPredictions } from "./buildTripWithPredictions";
-import {
-  buildTripWithSchedule,
-  lookupScheduleAtArrival,
-} from "./lookupScheduledTrip";
+import { buildCompletedTrip } from "./buildCompletedTrip";
+import { buildTripWithAllData } from "./buildTripWithAllData";
 import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
 // ============================================================================
 // Group Types
+// Used to categorize vessels during the orchestration phase
 // ============================================================================
 
 interface NewTripGroup {
-  vesselAbbrev: string;
   currLocation: ConvexVesselLocation;
 }
 
 interface CompletedTripGroup {
-  vesselAbbrev: string;
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
 }
 
 interface CurrentTripGroup {
-  vesselAbbrev: string;
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
 }
@@ -71,7 +65,7 @@ export const runUpdateVesselTrips = async (
     const existingTrip = existingTripsDict[vesselAbbrev];
 
     if (!existingTrip) {
-      newTrips.push({ vesselAbbrev, currLocation });
+      newTrips.push({ currLocation });
       continue;
     }
 
@@ -80,9 +74,9 @@ export const runUpdateVesselTrips = async (
       currLocation.DepartingTerminalAbbrev;
 
     if (isTripBoundary) {
-      completedTrips.push({ vesselAbbrev, currLocation, existingTrip });
+      completedTrips.push({ currLocation, existingTrip });
     } else {
-      currentTrips.push({ vesselAbbrev, currLocation, existingTrip });
+      currentTrips.push({ currLocation, existingTrip });
     }
   }
 
@@ -109,22 +103,11 @@ const processNewTrips = async (
   newTrips: NewTripGroup[]
 ): Promise<void> => {
   for (const { currLocation } of newTrips) {
-    const newTrip = buildTripFromVesselLocation(currLocation);
-    const tripWithSchedule = await buildTripWithSchedule(
-      ctx,
-      newTrip,
-      undefined
-    );
-    const tripWithPredictions = await buildTripWithPredictions(
-      ctx,
-      tripWithSchedule,
-      undefined
-    );
+    const trip = await buildTripWithAllData(ctx, currLocation);
 
-    // Persist directly to database
     await ctx.runMutation(
       api.functions.vesselTrips.mutations.upsertActiveTrip,
-      { trip: tripWithPredictions }
+      { trip }
     );
   }
 };
@@ -143,41 +126,27 @@ const processCompletedTrips = async (
 ): Promise<void> => {
   for (const { existingTrip, currLocation } of completedTrips) {
     // Build completed trip
-    const completedTrip = buildCompletedTrip(existingTrip, currLocation);
+    const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
 
     // Build new trip
-    const newTripBase = buildTripFromVesselLocation(
+    const newTrip = await buildTripWithAllData(
+      ctx,
       currLocation,
       undefined,
-      completedTrip
-    );
-    const arrivalTrip = await lookupScheduleAtArrival(
-      ctx,
-      newTripBase,
-      undefined
-    );
-    const tripWithScheduled = await buildTripWithSchedule(
-      ctx,
-      arrivalTrip,
-      undefined
-    );
-    const newTrip = await buildTripWithPredictions(
-      ctx,
-      tripWithScheduled,
-      undefined
+      tripToComplete
     );
 
     // Extract prediction records from completed trip
     const { completedRecords } = updateAndExtractPredictions(
       existingTrip,
-      completedTrip
+      tripToComplete
     );
 
     // Persist atomically (complete + start)
     await ctx.runMutation(
       api.functions.vesselTrips.mutations.completeAndStartNewTrip,
       {
-        completedTrip,
+        completedTrip: tripToComplete,
         newTrip,
       }
     );
@@ -206,21 +175,16 @@ const processCurrentTrips = async (
 ): Promise<void> => {
   const activeUpserts: ConvexVesselTrip[] = [];
   const predictionRecords: ConvexPredictionRecord[] = [];
+  // Track vessels that need backfill after batch upsert completes
   const backfillNeeded: Array<{
     vesselAbbrev: string;
     leftDockMs: number;
   }> = [];
 
   for (const { existingTrip, currLocation } of currentTrips) {
-    const baseTrip = buildTripFromVesselLocation(currLocation, existingTrip);
-    const tripWithSchedule = await buildTripWithSchedule(
+    const tripWithPredictions = await buildTripWithAllData(
       ctx,
-      baseTrip,
-      existingTrip
-    );
-    const tripWithPredictions = await buildTripWithPredictions(
-      ctx,
-      tripWithSchedule,
+      currLocation,
       existingTrip
     );
 
@@ -269,30 +233,46 @@ const processCurrentTrips = async (
 
   // Handle depart-next backfills
   for (const { vesselAbbrev, leftDockMs } of backfillNeeded) {
-    const backfillResult = await ctx.runMutation(
-      api.functions.vesselTrips.mutations
-        .setDepartNextActualsForMostRecentCompletedTrip,
-      {
-        vesselAbbrev,
-        actualDepartMs: leftDockMs,
-      }
-    );
+    await backfillDepartNextActuals(ctx, vesselAbbrev, leftDockMs);
+  }
+};
 
-    if (
-      backfillResult?.updated === true &&
-      backfillResult?.updatedTrip !== undefined
-    ) {
-      const tripData = backfillResult.updatedTrip;
-      const departNextRecords = [
-        extractPredictionRecord(tripData, "AtDockDepartNext"),
-        extractPredictionRecord(tripData, "AtSeaDepartNext"),
-      ].filter((r): r is ConvexPredictionRecord => r !== null);
-      if (departNextRecords.length > 0) {
-        await ctx.runMutation(
-          api.functions.predictions.mutations.bulkInsertPredictions,
-          { predictions: departNextRecords }
-        );
-      }
+/**
+ * Backfill depart-next actuals for previous completed trip.
+ *
+ * When current trip leaves dock, updates previous trip's AtDockDepartNext and
+ * AtSeaDepartNext with actual departure time, and inserts prediction records.
+ *
+ * @param ctx - Convex action context
+ * @param vesselAbbrev - Vessel abbreviation
+ * @param leftDockMs - Actual departure timestamp in milliseconds
+ */
+const backfillDepartNextActuals = async (
+  ctx: ActionCtx,
+  vesselAbbrev: string,
+  leftDockMs: number
+): Promise<void> => {
+  const backfillResult = await ctx.runMutation(
+    api.functions.vesselTrips.mutations
+      .setDepartNextActualsForMostRecentCompletedTrip,
+    {
+      vesselAbbrev,
+      actualDepartMs: leftDockMs,
     }
+  );
+
+  if (!backfillResult?.updated || !backfillResult.updatedTrip) return;
+
+  const tripData = backfillResult.updatedTrip;
+  const departNextRecords = [
+    extractPredictionRecord(tripData, "AtDockDepartNext"),
+    extractPredictionRecord(tripData, "AtSeaDepartNext"),
+  ].filter((r): r is ConvexPredictionRecord => r !== null);
+
+  if (departNextRecords.length > 0) {
+    await ctx.runMutation(
+      api.functions.predictions.mutations.bulkInsertPredictions,
+      { predictions: departNextRecords }
+    );
   }
 };

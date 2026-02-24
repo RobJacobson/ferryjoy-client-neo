@@ -24,10 +24,15 @@ export {
 } from "./predictTrip";
 
 /**
- * Vessel trip prediction orchestration and lifecycle management
+ * Vessel trip prediction core utilities
  */
 export {
-  computeVesselTripPredictionsPatch,
-  predictVesselTripPrediction,
+  createPredictionResult,
+  getMinimumScheduledTime,
+  isPredictionReadyTrip,
+  PREDICTION_SPECS,
+  type PredictionField,
+  type PredictionSpec,
+  predictFromSpec,
   updatePredictionsWithActuals,
 } from "./vesselTripPredictions";

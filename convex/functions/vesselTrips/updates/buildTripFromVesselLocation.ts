@@ -4,7 +4,7 @@
  * Single function that constructs the full ConvexVesselTrip using simple
  * assignment statements per Field Reference 2.6. SailingDay comes from raw
  * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived:
- * Key from raw data; ScheduledTrip from buildTripWithSchedule (RouteID/RouteAbbrev
+ * Key from raw data; ScheduledTrip from buildTripWithFinalSchedule (RouteID/RouteAbbrev
  * live on ScheduledTrip).
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -12,10 +12,9 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import { updateAndExtractPredictions } from "./utils";
 
 // ============================================================================
-// buildTripFromRawData
+// buildTripFromVesselLocation
 // ============================================================================
 
 /**
@@ -103,46 +102,4 @@ export const buildTripFromVesselLocation = (
     AtSeaArriveNext: existingTrip?.AtSeaArriveNext,
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
-};
-
-// ============================================================================
-// buildCompletedTrip
-// ============================================================================
-
-/**
- * Build completed trip with TripEnd, durations, and actualized predictions.
- *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip and
- * actualizes predictions (AtDockDepartCurr, AtSeaArriveNext).
- *
- * @param existingTrip - Trip being completed
- * @param currLocation - Current location with TripEnd timestamp
- * @returns Completed trip with all completion fields set
- */
-export const buildCompletedTrip = (
-  existingTrip: ConvexVesselTrip,
-  currLocation: ConvexVesselLocation
-): ConvexVesselTrip => {
-  const completedTripBase: ConvexVesselTrip = {
-    ...existingTrip,
-    TripEnd: currLocation.TimeStamp,
-  };
-
-  completedTripBase.AtSeaDuration = calculateTimeDelta(
-    completedTripBase.LeftDock,
-    completedTripBase.TripEnd
-  );
-
-  completedTripBase.TotalDuration = calculateTimeDelta(
-    completedTripBase.TripStart,
-    completedTripBase.TripEnd
-  );
-
-  // Actualize predictions
-  const { updatedTrip } = updateAndExtractPredictions(
-    existingTrip,
-    completedTripBase
-  );
-
-  return updatedTrip;
 };

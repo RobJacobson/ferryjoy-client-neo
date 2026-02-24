@@ -54,9 +54,11 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
  *
- * Compares all fields in both directions, excluding only TimeStamp (which changes
- * every tick and is not semantically significant). This ensures that any new
- * fields added to the schema are automatically included in equality checks.
+ * Compares all fields in both directions to detect added/removed fields.
+ * Excludes TimeStamp (which changes every tick and is not semantically
+ * significant). Deep equality handles nested objects and arrays.
+ *
+ * Bidirectional comparison ensures new fields in proposed are detected.
  *
  * @param existing - Existing trip from database
  * @param proposed - Newly constructed trip

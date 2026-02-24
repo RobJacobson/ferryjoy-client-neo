@@ -1,6 +1,6 @@
 // ============================================================================
 // VESSEL TRIP PREDICTIONS
-// Consolidated prediction logic for vessel trip ML models
+// Core ML prediction logic for vessel trip predictions
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
@@ -9,27 +9,26 @@ import type {
   ConvexVesselTrip,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
-import { formatTerminalPairKey } from "../shared/config";
 import type { ModelType } from "../shared/types";
-import { loadModelsForPairBatch, predictTripValue } from "./predictTrip";
+import { predictTripValue } from "./predictTrip";
 
 const MINUTES_TO_MS = 60 * 1000;
 
-type PredictionField =
+export type PredictionField =
   | "AtDockDepartCurr"
   | "AtDockArriveNext"
   | "AtDockDepartNext"
   | "AtSeaArriveNext"
   | "AtSeaDepartNext";
 
-type PredictionSpec = {
+export type PredictionSpec = {
   field: PredictionField;
   modelType: ModelType;
   requiresLeftDock: boolean;
   getAnchorMs: (trip: ConvexVesselTrip) => number | null;
 };
 
-const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
+export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
   AtDockDepartCurr: {
     field: "AtDockDepartCurr",
     modelType: "at-dock-depart-curr",
@@ -63,6 +62,29 @@ const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 };
 
 /**
+ * Type guard for trips that are ready for predictions.
+ *
+ * A trip is prediction-ready when it has all required context fields:
+ * TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
+ * PrevTerminalAbbrev, InService, ScheduledDeparture,
+ * PrevScheduledDeparture, and PrevLeftDock.
+ *
+ * @param trip - Vessel trip data
+ * @returns True if trip has all required fields for predictions
+ */
+export const isPredictionReadyTrip = (
+  trip: ConvexVesselTrip
+): trip is PredictionReadyTrip =>
+  Boolean(trip.TripStart) &&
+  Boolean(trip.DepartingTerminalAbbrev) &&
+  Boolean(trip.ArrivingTerminalAbbrev) &&
+  Boolean(trip.PrevTerminalAbbrev) &&
+  Boolean(trip.InService) &&
+  Boolean(trip.ScheduledDeparture) &&
+  Boolean(trip.PrevScheduledDeparture) &&
+  Boolean(trip.PrevLeftDock);
+
+/**
  * Gets the minimum scheduled time for a prediction type.
  * Returns null if no scheduled time is available.
  *
@@ -70,7 +92,7 @@ const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
  * @param trip - Vessel trip data
  * @returns Minimum scheduled time in milliseconds, or null if not available
  */
-const getMinimumScheduledTime = (
+export const getMinimumScheduledTime = (
   spec: PredictionSpec,
   trip: ConvexVesselTrip
 ): number | null => {
@@ -86,8 +108,13 @@ const getMinimumScheduledTime = (
 
 /**
  * Creates a prediction result from ML prediction data
+ *
+ * @param predictedTime - Predicted time in milliseconds
+ * @param mae - Mean absolute error in minutes
+ * @param stdDev - Standard deviation in minutes
+ * @returns Convex prediction object
  */
-const createPredictionResult = (
+export const createPredictionResult = (
   predictedTime: number,
   mae: number,
   stdDev: number
@@ -107,65 +134,29 @@ const createPredictionResult = (
   };
 };
 
-const isPredictionReadyTrip = (
-  trip: ConvexVesselTrip
-): trip is PredictionReadyTrip =>
-  Boolean(trip.TripStart) &&
-  Boolean(trip.DepartingTerminalAbbrev) &&
-  Boolean(trip.ArrivingTerminalAbbrev) &&
-  Boolean(trip.PrevTerminalAbbrev) &&
-  Boolean(trip.InService) &&
-  Boolean(trip.ScheduledDeparture) &&
-  Boolean(trip.PrevScheduledDeparture) &&
-  Boolean(trip.PrevLeftDock);
-
 /**
- * Determines if a prediction should be attempted based on event-based triggers.
+ * Predict a single vessel trip prediction field from its specification.
  *
- * - Arrive-dock (AtDockArriveNext, AtDockDepartNext): Run once when vessel first
- *   arrives at dock (at-sea -> at-dock). Requires isPredictionReadyTrip.
- * - Depart-dock (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once
- *   when vessel physically departs dock (LeftDock transitions undefined -> defined).
+ * Validates trip readiness, checks for required fields (LeftDock), computes
+ * anchor time, and runs ML model. Returns null if prediction cannot be
+ * computed.
  *
+ * @param ctx - Convex action context for running ML predictions
+ * @param trip - Vessel trip data
  * @param spec - Prediction specification
- * @param trip - Current vessel trip state
- * @param existingTrip - Previous vessel trip state (for detecting events)
- * @returns True if prediction should be attempted
+ * @param preloadedModel - Optional preloaded model document for batch loading
+ * @returns Prediction result or null if not ready / cannot be computed
  */
-const shouldAttemptPrediction = (
-  spec: PredictionSpec,
-  trip: ConvexVesselTrip,
-  existingTrip: ConvexVesselTrip | undefined
-): boolean => {
-  if (trip[spec.field] !== undefined) {
-    return false;
-  }
-
-  if (spec.requiresLeftDock) {
-    const justLeftDock =
-      existingTrip !== undefined &&
-      existingTrip.LeftDock === undefined &&
-      trip.LeftDock !== undefined;
-    return justLeftDock;
-  }
-
-  const justArrivedDock =
-    existingTrip !== undefined && !existingTrip.AtDock && trip.AtDock;
-  return justArrivedDock && isPredictionReadyTrip(trip);
-};
-
-type ModelDoc = {
-  featureKeys: string[];
-  coefficients: number[];
-  intercept: number;
-  testMetrics: { mae: number; stdDev: number };
-};
-
-const predictFromSpec = async (
+export const predictFromSpec = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip,
   spec: PredictionSpec,
-  preloadedModel?: ModelDoc | null
+  preloadedModel?: {
+    featureKeys: string[];
+    coefficients: number[];
+    intercept: number;
+    testMetrics: { mae: number; stdDev: number };
+  } | null
 ): Promise<ConvexPrediction | null> => {
   if (!isPredictionReadyTrip(trip)) {
     return null;
@@ -204,105 +195,6 @@ const predictFromSpec = async (
     );
     return null;
   }
-};
-
-/**
- * Predict a single vessel trip prediction field.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - The trip to predict for
- * @param field - Prediction field to compute (e.g., \"AtDockArriveNext\")
- * @returns Prediction result or null if not ready / cannot be computed
- */
-export const predictVesselTripPrediction = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip,
-  field: PredictionField
-): Promise<ConvexPrediction | null> => {
-  return await predictFromSpec(ctx, trip, PREDICTION_SPECS[field]);
-};
-
-/**
- * Compute prediction updates for a vessel trip with event-based triggers.
- *
- * Arrive-dock predictions run once when vessel first arrives at dock.
- * Depart-dock predictions run once when vessel physically departs dock.
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - Current vessel trip state
- * @param existingTrip - Previous vessel trip state (for detecting events)
- * @returns Partial trip update with new predictions
- */
-export const computeVesselTripPredictionsPatch = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip,
-  existingTrip?: ConvexVesselTrip
-): Promise<Partial<ConvexVesselTrip>> => {
-  const specsToAttempt = Object.values(PREDICTION_SPECS).filter((spec) =>
-    shouldAttemptPrediction(spec, trip, existingTrip)
-  );
-
-  // Batch load all models in one query when we have multiple specs to attempt.
-  let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
-    ModelType,
-    ModelDoc | null
-  >;
-  if (
-    specsToAttempt.length > 1 &&
-    trip.ArrivingTerminalAbbrev &&
-    trip.DepartingTerminalAbbrev
-  ) {
-    const pairKey = formatTerminalPairKey(
-      trip.DepartingTerminalAbbrev,
-      trip.ArrivingTerminalAbbrev
-    );
-    const modelTypes = specsToAttempt.map((s) => s.modelType);
-    modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
-  }
-
-  const results = await Promise.all(
-    specsToAttempt.map(async (spec) => ({
-      spec,
-      prediction: await predictFromSpec(
-        ctx,
-        trip,
-        spec,
-        specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
-      ),
-    }))
-  );
-
-  const updates = results.reduce<
-    Partial<Record<PredictionField, ConvexPrediction>>
-  >((acc, { spec, prediction }) => {
-    if (prediction) {
-      acc[spec.field] = prediction;
-    }
-    return acc;
-  }, {});
-
-  return updates as Partial<ConvexVesselTrip>;
-};
-
-/**
- * Add predictions to a trip when event-triggered (arrive-dock, depart-dock).
- *
- * @param ctx - Convex action context for running ML predictions
- * @param trip - Current vessel trip state
- * @param existingTrip - Previous vessel trip state (for detecting events)
- * @returns Trip with prediction fields applied
- */
-export const buildTripWithPredictions = async (
-  ctx: ActionCtx,
-  trip: ConvexVesselTrip,
-  existingTrip?: ConvexVesselTrip
-): Promise<ConvexVesselTrip> => {
-  const patch = await computeVesselTripPredictionsPatch(
-    ctx,
-    trip,
-    existingTrip
-  );
-  return { ...trip, ...patch };
 };
 
 /**

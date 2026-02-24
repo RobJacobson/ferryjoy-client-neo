@@ -5,10 +5,10 @@ This module synchronizes active vessel trips with live location data. It runs as
 **Core pattern**: Build-then-compare. For regular updates, the pipeline always constructs the full intended `VesselTrip` state, deep-compares to existing, and writes only when different. Trip boundaries and first trips always produce writes.
 
 **Four-function design**:
-1. `buildTripFromRawData` — main object from raw location data (simple assignments); derives Key from raw data for schedule lookup
-2. `lookupScheduleAtArrival` — arrival terminal lookup when vessel arrives at dock (event-driven: AtDock false→true)
-3. `buildTripWithSchedule` — schedule lookup by Key when arrival data available or key changed (event-driven)
-4. `buildTripWithPredictions` — ML predictions when event-triggered (arrive-dock, depart-dock)
+1. `buildTripFromVesselLocation` — main object from raw location data (simple assignments); derives Key from raw data for schedule lookup
+2. `buildTripWithInitialSchedule` — arrival terminal lookup when vessel arrives at dock (event-driven: AtDock false→true)
+3. `buildTripWithFinalSchedule` — schedule lookup by Key when arrival data available or key changed (event-driven)
+4. `buildTripWithArriveDockPredictions`, `buildTripWithLeaveDockPredictions` — ML predictions when event-triggered (arrive-dock, depart-dock)
 
 ---
 
@@ -23,16 +23,17 @@ runUpdateVesselTrips (entry point)
     │       newTrips, completedTrips, currentTrips
     └─> Delegate to processing functions (each handles own persistence):
             ├─> processNewTrips (first appearance)
-            │       buildTripFromRawData → buildTripWithSchedule → buildTripWithPredictions → upsertActiveTrip
+            │       buildTripWithAllData → upsertActiveTrip
+            │       (internal: buildTripFromVesselLocation → buildTripWithFinalSchedule → buildTripWithArriveDockPredictions → buildTripWithLeaveDockPredictions)
             ├─> processCompletedTrips (trip boundary)
-            │       buildCompletedTrip → buildTripFromRawData → lookupScheduleAtArrival
-            │       → buildTripWithSchedule → buildTripWithPredictions → completeAndStartNewTrip
+            │       buildCompletedTrip → buildTripWithAllData → completeAndStartNewTrip
             │       → bulkInsertPredictions (completed records)
+            │       (internal: buildTripFromVesselLocation → buildTripWithInitialSchedule → buildTripWithFinalSchedule → buildTripWithArriveDockPredictions → buildTripWithLeaveDockPredictions)
             └─> processCurrentTrips (ongoing trips)
-                    buildTripFromRawData → lookupScheduleAtArrival → buildTripWithSchedule
-                    → buildTripWithPredictions → tripsAreEqual → upsertVesselTripsBatch (if changed)
+                    buildTripWithAllData → tripsAreEqual → upsertVesselTripsBatch (if changed)
                     → setDepartNextActualsForMostRecentCompletedTrip (when didJustLeaveDock)
                     → bulkInsertPredictions
+                    (internal: buildTripFromVesselLocation → buildTripWithInitialSchedule → buildTripWithFinalSchedule → buildTripWithArriveDockPredictions → buildTripWithLeaveDockPredictions)
 ```
 
 ### File Structure
@@ -40,13 +41,16 @@ runUpdateVesselTrips (entry point)
 | File | Purpose |
 |------|---------|
 | `updateVesselTrips.ts` | Main orchestrator: categorizes vessels into new/completed/current, delegates to processing functions |
-| `buildTrip.ts` | `buildTripFromRawData`, `buildCompletedTrip` — location-derived fields, completion logic |
-| `buildTripWithPredictions.ts` | `buildTripWithPredictions` — ML predictions when event-triggered (arrive-dock, depart-dock) |
-| `lookupScheduledTrip.ts` | `lookupScheduleAtArrival`, `buildTripWithSchedule` — event-driven schedule lookup by Key |
+| `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, and actualized predictions |
+| `buildTripFromVesselLocation.ts` | `buildTripFromVesselLocation` — location-derived fields, handles first trip, trip boundary, and regular update |
+| `buildTripWithAllData.ts` | `buildTripWithAllData` — orchestrates all build functions (location, schedule, predictions) with event detection |
+| `buildTripWithPredictions.ts` | `buildTripWithArriveDockPredictions`, `buildTripWithLeaveDockPredictions` — ML predictions for arrive-dock (AtDockArriveNext, AtDockDepartNext) and depart-dock (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext) events |
+| `buildTripWithSchedule.ts` | `buildTripWithInitialSchedule`, `buildTripWithFinalSchedule` — event-driven schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `updateAndExtractPredictions` |
 
 **External dependencies**:
-- `convex/domain/ml/prediction/vesselTripPredictions.ts` — `computeVesselTripPredictionsPatch`, `updatePredictionsWithActuals`
+- `convex/domain/ml/prediction/vesselTripPredictions.ts` — `PREDICTION_SPECS`, `predictFromSpec`, `updatePredictionsWithActuals`
+- `convex/domain/ml/prediction/predictTrip.ts` — `loadModelsForPairBatch`, `predictTripValue`
 - `convex/functions/vesselTrips/mutations.ts` — `completeAndStartNewTrip`, `upsertVesselTripsBatch`, `setDepartNextActualsForMostRecentCompletedTrip`
 
 ---
@@ -57,31 +61,56 @@ runUpdateVesselTrips (entry point)
 
 **Condition**: No existing active trip for `VesselAbbrev`.
 
-**Behavior**: Create new trip via `buildTripFromRawData(currLocation)`. No schedule lookup, no predictions. Always returns `activeUpsert`.
+**Behavior**: Create new trip via `buildTripWithAllData(ctx, currLocation)`. Internally calls `buildTripFromVesselLocation` → `buildTripWithFinalSchedule` (if Key derivable and LeftDock available) → `buildTripWithArriveDockPredictions` (if at dock and trip ready) → `buildTripWithLeaveDockPredictions` (if LeftDock defined). Always writes via `upsertActiveTrip`.
 
 ### 2. Trip Boundary
 
 **Condition**: `DepartingTerminalAbbrev` changes (vessel arrived at a new terminal).
 
 **Behavior**:
-1. Complete current trip: set `TripEnd`, compute `AtSeaDuration`, `TotalDuration`, actualize predictions.
-2. Start new trip: `buildTripFromRawData` with `Prev*` from completed trip, `TripStart = currLocation.TimeStamp`.
-3. Lookup arrival terminal if missing.
-4. Enrich with scheduled identity and at-dock predictions.
-5. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
-6. Return `activeUpsert: undefined` (completion handled by mutation).
+1. Complete current trip via `buildCompletedTrip`: set `TripEnd`, compute `AtSeaDuration`, `TotalDuration`, actualize predictions.
+2. Start new trip via `buildTripWithAllData` with `completedTrip` for `Prev*` context: internally calls `buildTripFromVesselLocation` → `buildTripWithInitialSchedule` (if at dock with missing ArrivingTerminal) → `buildTripWithFinalSchedule` (if Key derivable) → `buildTripWithArriveDockPredictions` (if just arrived at dock) → `buildTripWithLeaveDockPredictions` (if LeftDock defined).
+3. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
+4. Insert prediction records from completed trip via `bulkInsertPredictions`.
 
 ### 3. Regular Update
 
 **Condition**: Same `DepartingTerminalAbbrev` (vessel still on same leg).
 
 **Behavior**:
-1. Arrival lookup (event-driven: only when AtDock false→true + missing ArrivingTerminal).
-2. `buildTripFromRawData` — full location-derived state.
-3. `buildTripWithSchedule` — ScheduledTrip (RouteID/RouteAbbrev live on ScheduledTrip).
-4. `buildTripWithPredictions` — ML predictions; actualizes and extracts when `didJustLeaveDock`.
-5. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
-6. When `didJustLeaveDock`: call `setDepartNextActualsForMostRecentCompletedTrip` to backfill previous trip's depart-next actuals.
+1. `buildTripWithAllData` — orchestrates all enrichments with event detection:
+   - Calls `buildTripWithInitialSchedule` when at dock with missing ArrivingTerminal
+   - Calls `buildTripWithFinalSchedule` when Key changed or have departure info (LeftDock defined)
+   - Calls `buildTripWithArriveDockPredictions` when first arrive at dock
+   - Calls `buildTripWithLeaveDockPredictions` when physically depart dock
+2. When `didJustLeaveDock`: call `updateAndExtractPredictions` to actualize and extract completed prediction records.
+3. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
+4. When `didJustLeaveDock`: call `setDepartNextActualsForMostRecentCompletedTrip` to backfill previous trip's depart-next actuals, and insert extracted prediction records.
+
+---
+
+## Architecture: buildTripWithAllData
+
+`buildTripWithAllData` is the key orchestrator that coordinates all enrichments with event detection:
+
+```typescript
+buildTripWithAllData(ctx, currLocation, existingTrip?, completedTrip?)
+  ├─> buildTripFromVesselLocation (base trip from raw data)
+  ├─> Detect events:
+  │   ├─> didJustArriveAtDock (!existingTrip.AtDock && trip.AtDock)
+  │   ├─> didJustLeaveDock (existingTrip.LeftDock === undefined && trip.LeftDock !== undefined)
+  │   └─> keyChanged (existingTrip.Key !== trip.Key)
+  ├─> buildTripWithInitialSchedule (if didJustArriveAtDock && missing ArrivingTerminal)
+  ├─> buildTripWithFinalSchedule (if keyChanged || have departure info)
+  ├─> buildTripWithArriveDockPredictions (if didJustArriveAtDock)
+  └─> buildTripWithLeaveDockPredictions (if didJustLeaveDock)
+```
+
+**Benefits**:
+- Single entry point for trip construction used by all three processing functions
+- Event detection happens in one place, not spread across multiple functions
+- Consistent application of all enrichments across new trips, trip boundaries, and regular updates
+- Clear separation of concerns: `buildTripFromVesselLocation` for raw data, schedule functions for database lookups, prediction functions for ML
 
 ---
 
@@ -105,10 +134,10 @@ runUpdateVesselTrips (entry point)
 |-------|--------|-------------|
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
-| **ArrivingTerminalAbbrev** | currLocation, scheduleArrival, or existingTrip | `currLocation` when truthy; else `scheduleArrival?.trip.ArrivingTerminalAbbrev`; else `existingTrip` (regular updates only; never old trip at boundary) |
-| **Key** | Raw data | From `generateTripKey` in buildTripFromRawData; used for schedule lookup |
-| **ScheduledTrip** | Schedule lookup | From `buildTripWithSchedule` (RouteID/RouteAbbrev live on ScheduledTrip); cleared when Key invalid or repositioning |
-| **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture ?? TripStart ?? TimeStamp)` in buildTripFromRawData; prefer ScheduledDeparture |
+| **ArrivingTerminalAbbrev** | currLocation, buildTripWithInitialSchedule, or existingTrip | `currLocation` when truthy; else `buildTripWithInitialSchedule` result; else `existingTrip` (regular updates only; never old trip at boundary) |
+| **Key** | Raw data | From `generateTripKey` in buildTripFromVesselLocation; used for schedule lookup |
+| **ScheduledTrip** | Schedule lookup | From `buildTripWithFinalSchedule` (RouteID/RouteAbbrev live on ScheduledTrip); reused if key matches existing trip |
+| **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture)` in buildTripFromVesselLocation |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip | Set once at trip boundary; not updated mid-trip |
 | **TripStart** | Inferred at boundary | `currLocation.TimeStamp` when vessel arrives at dock; carried forward |
 | **AtDock** | currLocation | Direct copy every tick |
@@ -116,14 +145,14 @@ runUpdateVesselTrips (entry point)
 | **ScheduledDeparture** | currLocation | Only if currLocation has truthy value (null-overwrite protection) |
 | **LeftDock** | currLocation or inferred | When AtDock flips false and missing: `currLocation.LeftDock ?? currLocation.TimeStamp`; else `currLocation.LeftDock ?? existingTrip.LeftDock` |
 | **TripDelay** | Computed | `LeftDock - ScheduledDeparture` (minutes) |
-| **Eta** | currLocation | Only if currLocation has truthy value |
+| **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
 | **TripEnd** | Boundary only | `currLocation.TimeStamp` when completing trip |
 | **AtSeaDuration** | Computed | `TripEnd - LeftDock`; only on completed trip |
 | **TotalDuration** | Computed | `TripEnd - TripStart`; only on completed trip |
 | **InService, TimeStamp** | currLocation | Direct copy every tick |
-| **AtDockDepartCurr** | ML | Run once when physically depart dock |
-| **AtDockArriveNext, AtDockDepartNext** | ML | Run once when first arrive at dock with destination |
-| **AtSeaArriveNext, AtSeaDepartNext** | ML | Run once when physically depart dock |
+| **AtDockDepartCurr** | ML | Run once when physically depart dock (buildTripWithLeaveDockPredictions) |
+| **AtDockArriveNext, AtDockDepartNext** | ML | Run once when first arrive at dock with destination (buildTripWithArriveDockPredictions) |
+| **AtSeaArriveNext, AtSeaDepartNext** | ML | Run once when physically depart dock (buildTripWithLeaveDockPredictions) |
 
 ---
 
@@ -132,7 +161,7 @@ runUpdateVesselTrips (entry point)
 ### ArrivingTerminalAbbrev
 
 - **At trip boundary**: Never use `existingTrip.ArrivingTerminalAbbrev` — the old trip's ArrivingTerminal equals the new trip's DepartingTerminal (wrong terminal).
-- **Regular updates**: Fallback chain in `buildTripFromRawData`: `currLocation` → `arrivalLookup?.arrivalTerminal` → `existingTrip`.
+- **Regular updates**: Fallback chain in `buildTripFromVesselLocation`: `currLocation` → `existingTrip`. Can also be populated by `buildTripWithInitialSchedule` when vessel arrives at dock with missing ArrivingTerminal.
 
 ### Null-Overwrite Protection
 
@@ -153,12 +182,12 @@ These remain conditional; build-then-compare does not eliminate event-driven sid
 
 ### SailingDay from Raw Data
 
-`SailingDay` is core business logic (WSF sailing day, 3 AM Pacific cutoff). It comes from raw data via `getSailingDay` in `buildTripFromRawData`, not from schedule lookup. Prefer `ScheduledDeparture`; fallback to `TripStart` then `TimeStamp`. Needed whether or not we have a schedule match.
+`SailingDay` is core business logic (WSF sailing day, 3 AM Pacific cutoff). It comes from raw data via `getSailingDay` in `buildTripFromVesselLocation`, not from schedule lookup. Uses `ScheduledDeparture` only. Needed whether or not we have a schedule match.
 
 ### Event-Driven Lookups
 
-- `lookupScheduleAtArrival`: Event-driven (AtDock: false→true + missing ArrivingTerminal + has required fields).
-- `buildTripWithSchedule`: Event-driven (arrival data became available OR key changed OR cached from arrival lookup).
+- `buildTripWithInitialSchedule`: Event-driven (AtDock: false→true + missing ArrivingTerminal + has required fields). Called by `buildTripWithAllData`.
+- `buildTripWithFinalSchedule`: Event-driven (key changed OR have departure info/LeftDock defined). Called by `buildTripWithAllData`. Reuses existing ScheduledTrip when key matches.
 
 ---
 
@@ -166,17 +195,17 @@ These remain conditional; build-then-compare does not eliminate event-driven sid
 
 ### Flow
 
-1. Build `proposedTrip` via `buildTripFromRawData` + `buildTripWithSchedule` + `buildTripWithPredictions` + actuals.
+1. Build `proposedTrip` via `buildTripWithAllData` (which internally calls `buildTripFromVesselLocation` + `buildTripWithInitialSchedule` + `buildTripWithFinalSchedule` + `buildTripWithArriveDockPredictions` + `buildTripWithLeaveDockPredictions`) + actuals via `updateAndExtractPredictions`.
 2. Compare `tripsAreEqual(existingTrip, finalProposed)`.
-3. If equal: `activeUpsert = undefined` (no write).
-4. If different: `activeUpsert = finalProposed`.
+3. If equal: no write.
+4. If different: `activeUpsert = finalProposed` (batched via `upsertVesselTripsBatch`).
 
 ### tripsAreEqual
 
-- Compares all semantic fields from `FIELDS_TO_COMPARE` (see `utils.ts`).
-- **Excludes** `TimeStamp` — it changes every tick; we care about semantic equality.
-- **Excludes** `_id`, `_creationTime` — read-only Convex fields.
+- Compares all fields from both `existing` and `proposed` trips.
+- **Excludes** `TimeStamp` only — it changes every tick; we care about semantic equality.
 - Uses `deepEqual` for nested objects (e.g. `ScheduledTrip`, prediction objects).
+- Automatically includes new schema fields (compares all fields in both directions).
 
 ---
 
@@ -184,14 +213,16 @@ These remain conditional; build-then-compare does not eliminate event-driven sid
 
 Predictions are **event-based**, not time-based:
 
-- **Arrive-dock** (AtDockArriveNext, AtDockDepartNext): Run once when vessel first arrives at dock (`!existingTrip.AtDock && trip.AtDock`) and `isPredictionReadyTrip(trip)`.
-- **Depart-dock** (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once when vessel physically departs (`!existingTrip.LeftDock && trip.LeftDock`).
+- **Arrive-dock** (AtDockArriveNext, AtDockDepartNext): Run once when vessel first arrives at dock (`!existingTrip.AtDock && trip.AtDock`) and `isPredictionReadyTrip(trip)`. Handled by `buildTripWithArriveDockPredictions`.
+- **Depart-dock** (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once when vessel physically departs (`existingTrip.LeftDock === undefined && trip.LeftDock !== undefined`). Handled by `buildTripWithLeaveDockPredictions`.
 
 `isPredictionReadyTrip` requires: TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev, PrevTerminalAbbrev, InService, ScheduledDeparture, PrevScheduledDeparture, PrevLeftDock. First trips lack Prev* and do not run at-dock predictions.
 
 **Actualization**:
-- `AtDockDepartCurr`, `AtSeaArriveNext`: Actualized by `updatePredictionsWithActuals` when LeftDock/TripEnd set.
-- `AtDockDepartNext`, `AtSeaDepartNext`: Actualized by `setDepartNextActualsForMostRecentCompletedTrip` when the *next* trip leaves dock.
+- `AtDockDepartCurr`, `AtDockArriveNext`, `AtDockDepartNext`, `AtSeaArriveNext`, `AtSeaDepartNext`: Actualized by `updatePredictionsWithActuals` (called via `updateAndExtractPredictions`) when LeftDock/TripEnd set.
+- `AtDockDepartNext`, `AtSeaDepartNext`: Also actualized by `setDepartNextActualsForMostRecentCompletedTrip` when the *next* trip leaves dock (backfill).
+
+**Batch optimization**: When computing 2+ predictions for a vessel, `computePredictions` uses `loadModelsForPairBatch` for efficient model loading.
 
 ---
 
@@ -214,8 +245,10 @@ Predictions are **event-based**, not time-based:
 
 ### Optimizations
 
-- **Consolidated arrival + scheduled trip lookup**: When `lookupScheduleAtArrival` returns a scheduled trip doc, that doc becomes `ScheduledTrip`. `buildTripWithSchedule` can reuse existing `ScheduledTrip` when key matches.
-- **Batch model loading**: `computeVesselTripPredictionsPatch` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
+- **ScheduledTrip reuse**: `buildTripWithFinalSchedule` reuses existing `ScheduledTrip` when key matches existing trip, avoiding redundant database lookups.
+- **Batch model loading**: `computePredictions` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
+- **Batch upserts**: Active trips are batched and upserted together in `upsertVesselTripsBatch`.
+- **Event-gated predictions**: Expensive ML operations only run at trip boundaries (arrive-dock, depart-dock), not every tick.
 
 ---
 
@@ -223,19 +256,11 @@ Predictions are **event-based**, not time-based:
 
 | Mutation | Purpose |
 |----------|---------|
-| `upsertActiveTrip` | Upsert single active trip (used for new trips) |
-| `completeAndStartNewTrip` | Atomic: insert completed trip into `completedVesselTrips`, replace active trip with new trip |
-| `upsertVesselTripsBatch` | Batch upsert active trips (insert or replace); failures isolated per vessel |
-| `setDepartNextActualsForMostRecentCompletedTrip` | Patch most recent completed trip with depart-next actuals when current trip leaves dock |
-
----
-
-## Testing
-
-- `__tests__/buildTripFromRawData.test.ts` — Location-derived field construction, fallback chain, LeftDock inference, null-overwrite protection.
-- `__tests__/utils.test.ts` — `deepEqual` edge cases, `tripsAreEqual` (TimeStamp ignored, semantic differences, nested ScheduledTrip).
-
-Run: `bun test convex/functions/vesselTrips/updates`
+| `upsertActiveTrip` | Upsert single active trip (used for new trips in `processNewTrips`) |
+| `completeAndStartNewTrip` | Atomic: insert completed trip into `completedVesselTrips`, replace active trip with new trip (used for trip boundaries in `processCompletedTrips`) |
+| `upsertVesselTripsBatch` | Batch upsert active trips (insert or replace); failures isolated per vessel (used for ongoing trips in `processCurrentTrips`) |
+| `setDepartNextActualsForMostRecentCompletedTrip` | Patch most recent completed trip with depart-next actuals when current trip leaves dock (used in `processCurrentTrips` when `didJustLeaveDock`) |
+| `bulkInsertPredictions` | Batch insert prediction records for completed predictions (used in both `processCompletedTrips` and `processCurrentTrips`) |
 
 ---
 
