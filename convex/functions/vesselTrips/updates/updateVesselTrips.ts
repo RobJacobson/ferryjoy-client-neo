@@ -52,7 +52,10 @@ export const runUpdateVesselTrips = async (
 
   // 2) Index active trips by vessel abbreviation.
   const existingTripsDict = Object.fromEntries(
-    existingTripsList.map((trip) => [trip.VesselAbbrev, trip] as const)
+    (existingTripsList ?? []).map((trip) => [
+      trip.VesselAbbrev,
+      trip,
+    ] as const)
   ) as Record<string, ConvexVesselTrip>;
 
   // 3) Categorize vessel/location tuples into three groups.

@@ -64,6 +64,7 @@ export const buildTripFromVesselLocation = (
     VesselAbbrev: currLocation.VesselAbbrev,
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    OpRouteAbbrev: currLocation.OpRouteAbbrev,
     Key:
       generateTripKey(
         currLocation.VesselAbbrev,
