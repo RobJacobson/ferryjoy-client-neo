@@ -45,7 +45,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtDockDepartNext",
     modelType: "at-dock-depart-next",
     requiresLeftDock: false,
-    getAnchorMs: (trip) => trip.ScheduledTrip?.NextDepartingTime ?? null,
+    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
   },
   AtSeaArriveNext: {
     field: "AtSeaArriveNext",
@@ -57,7 +57,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtSeaDepartNext",
     modelType: "at-sea-depart-next",
     requiresLeftDock: true,
-    getAnchorMs: (trip) => trip.ScheduledTrip?.NextDepartingTime ?? null,
+    getAnchorMs: (trip) => trip.LeftDock ?? null,
   },
 };
 
@@ -100,7 +100,7 @@ export const getMinimumScheduledTime = (
     return trip.ScheduledDeparture ?? null;
   }
   if (spec.field === "AtDockDepartNext" || spec.field === "AtSeaDepartNext") {
-    return trip.ScheduledTrip?.NextDepartingTime ?? null;
+    return trip.ScheduledDeparture ?? null;
   }
   // AtDockArriveNext and AtSeaArriveNext don't have scheduled minimums
   return null;

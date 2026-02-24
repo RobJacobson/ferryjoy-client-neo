@@ -29,6 +29,7 @@
     "ml:delete-version": "bunx tsx scripts/ml/ml-version-delete.ts",
     "sync:scheduled-trips": "bunx tsx scripts/sync-scheduled-trips.ts",
     "sync:scheduled-trips:date": "bunx tsx scripts/sync-scheduled-trips-date.ts",
+    "convex:deploy:prod:no-check": "bunx convex deploy --prod --typecheck=disable",
     "convex:deploy": "bunx convex deploy",
     "convex:deploy:prod": "bunx convex deploy --prod",
     "convex:codegen": "bunx convex codegen",
