@@ -1,147 +1,10 @@
-import { query } from "_generated/server";
+import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+import {
+  scheduledTripDocSchema,
+  scheduledTripSchema,
+} from "functions/scheduledTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
-
-/**
- * Fetch a scheduled trip by its composite key
- * Used to match vessel trips with their scheduled counterparts
- *
- * @param ctx - Convex context
- * @param args.key - The composite trip key to search for
- * @returns The scheduled trip (schema shape, no _id/_creationTime) or null if not found
- */
-export const getScheduledTripByKey = query({
-  args: { key: v.string() },
-  returns: v.union(scheduledTripSchema, v.null()),
-  handler: async (ctx, args) => {
-    try {
-      const trip = await ctx.db
-        .query("scheduledTrips")
-        .withIndex("by_key", (q) => q.eq("Key", args.key))
-        .first();
-      return trip ? stripConvexMeta(trip) : null;
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch scheduled trip for key ${args.key}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { key: args.key, error: String(error) },
-      });
-    }
-  },
-});
-
-/**
- * Fetch all scheduled trips for a specific route
- * Used for verification and debugging purposes
- *
- * @param ctx - Convex context
- * @param args.routeId - The route ID to filter trips by
- * @returns Array of scheduled trips (schema shape, no _id/_creationTime) for the specified route
- */
-export const getScheduledTripsForRoute = query({
-  args: { routeId: v.number() },
-  returns: v.array(scheduledTripSchema),
-  handler: async (ctx, args) => {
-    try {
-      const trips = await ctx.db
-        .query("scheduledTrips")
-        .withIndex("by_route", (q) => q.eq("RouteID", args.routeId))
-        .collect();
-      return trips.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch scheduled trips for route ${args.routeId}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { routeId: args.routeId, error: String(error) },
-      });
-    }
-  },
-});
-
-/**
- * Fetch scheduled trips for a specific route and date range
- * Used for verification to ensure exact date filtering
- * @param ctx - Convex context
- * @param args.routeId - The route ID to filter trips by
- * @param args.startDate - Start of date range (epoch milliseconds)
- * @param args.endDate - End of date range (epoch milliseconds)
- * @returns Array of scheduled trips (schema shape) within the specified route and date range
- */
-export const getScheduledTripsForRouteAndDate = query({
-  args: {
-    routeId: v.number(),
-    startDate: v.number(),
-    endDate: v.number(),
-  },
-  returns: v.array(scheduledTripSchema),
-  handler: async (ctx, args) => {
-    try {
-      const trips = await ctx.db
-        .query("scheduledTrips")
-        .withIndex("by_route_and_departing_time", (q) =>
-          q
-            .eq("RouteID", args.routeId)
-            .gte("DepartingTime", args.startDate)
-            .lte("DepartingTime", args.endDate)
-        )
-        .collect();
-      return trips.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch scheduled trips for route ${args.routeId} in date range`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: {
-          routeId: args.routeId,
-          startDate: args.startDate,
-          endDate: args.endDate,
-          error: String(error),
-        },
-      });
-    }
-  },
-});
-
-/**
- * Fetch scheduled trips for a specific route and sailing day
- * Primary query for operational use - uses WSF sailing day concept
- * @param ctx - Convex context
- * @param args.routeId - The route ID to filter trips by
- * @param args.sailingDay - The sailing day in YYYY-MM-DD format
- * @returns Array of scheduled trips (schema shape) for the specified route and sailing day
- */
-export const getScheduledTripsForRouteAndSailingDay = query({
-  args: {
-    routeId: v.number(),
-    sailingDay: v.string(),
-  },
-  returns: v.array(scheduledTripSchema),
-  handler: async (ctx, args) => {
-    try {
-      const trips = await ctx.db
-        .query("scheduledTrips")
-        .withIndex("by_route_and_sailing_day", (q) =>
-          q.eq("RouteID", args.routeId).eq("SailingDay", args.sailingDay)
-        )
-        .collect();
-      return trips.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch scheduled trips for route ${args.routeId} on sailing day ${args.sailingDay}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: {
-          routeId: args.routeId,
-          sailingDay: args.sailingDay,
-          error: String(error),
-        },
-      });
-    }
-  },
-});
 
 /**
  * Fetch all scheduled trips for a specific sailing day
@@ -176,7 +39,7 @@ export const getScheduledTripsForSailingDay = query({
 
 /**
  * Returns raw scheduled trip rows for a terminal and sailing day.
- * No server-side aggregation: the client maps to domain and reconstructs journeys.
+ * No server-side aggregation: client maps to domain and reconstructs journeys.
  *
  * @param ctx - Convex context
  * @param args.terminalAbbrev - Departure terminal abbreviation
@@ -211,10 +74,9 @@ export const getScheduledTripsForTerminal = query({
           vesselAbbrevs.map((vessel) =>
             ctx.db
               .query("scheduledTrips")
-              .withIndex("by_vessel_and_departing_time", (q) =>
-                q.eq("VesselAbbrev", vessel)
+              .withIndex("by_vessel_and_sailing_day", (q) =>
+                q.eq("VesselAbbrev", vessel).eq("SailingDay", args.sailingDay)
               )
-              .filter((q) => q.eq(q.field("SailingDay"), args.sailingDay))
               .collect()
           )
         )
@@ -238,7 +100,50 @@ export const getScheduledTripsForTerminal = query({
 });
 
 /**
- * Find direct scheduled trips matching vessel, departing terminal, and exact scheduled departure.
+ * Find direct scheduled trip ID matching vessel, departing terminal, and exact scheduled departure.
+ * Used by vessel trips to get reference ID when arriving at dock.
+ *
+ * Matches trips based on:
+ * - Vessel abbreviation
+ * - Departing terminal abbreviation
+ * - Exact scheduled departure time (no tolerance)
+ * - Trip type must be "direct"
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - The vessel abbreviation to match
+ * @param args.departingTerminalAbbrev - The departing terminal abbreviation to match
+ * @param args.scheduledDeparture - The scheduled departure time in epoch milliseconds (must match exactly)
+ * @returns The matching direct scheduled trip document ID, or null if none found
+ */
+export const getScheduledTripIdByKey = internalQuery({
+  args: {
+    key: v.string(),
+  },
+  returns: v.union(v.id("scheduledTrips"), v.null()),
+  handler: async (ctx, args) => {
+    try {
+      const matchingTrip = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_key", (q) => q.eq("Key", args.key))
+        .first();
+
+      return matchingTrip?._id ?? null;
+    } catch (error) {
+      throw new ConvexError({
+        message: "Failed to find scheduled trip ID for arrival lookup",
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          key: args.key,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Find direct scheduled trips matching vessel, departing terminal, and exact scheduled departure
  * Used to infer arriving terminal when a vessel arrives at dock without one reported.
  *
  * Matches trips based on:
@@ -251,7 +156,7 @@ export const getScheduledTripsForTerminal = query({
  * @param args.vesselAbbrev - The vessel abbreviation to match
  * @param args.departingTerminalAbbrev - The departing terminal abbreviation to match
  * @param args.scheduledDeparture - The scheduled departure time in epoch milliseconds (must match exactly)
- * @returns The matching direct scheduled trip (schema shape), or null if none found
+ * @returns The matching direct scheduled trip (full Doc with _id, _creationTime), or null if none found
  */
 export const findScheduledTripForArrivalLookup = query({
   args: {
@@ -259,7 +164,7 @@ export const findScheduledTripForArrivalLookup = query({
     departingTerminalAbbrev: v.string(),
     scheduledDeparture: v.number(),
   },
-  returns: v.union(scheduledTripSchema, v.null()),
+  returns: v.union(scheduledTripDocSchema, v.null()),
   handler: async (ctx, args) => {
     try {
       // Query using composite index for exact match on all four parameters
@@ -274,7 +179,7 @@ export const findScheduledTripForArrivalLookup = query({
         )
         .first();
 
-      return matchingTrip ? stripConvexMeta(matchingTrip) : null;
+      return matchingTrip ? matchingTrip : null;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to find scheduled trip for arrival lookup`,
@@ -293,7 +198,7 @@ export const findScheduledTripForArrivalLookup = query({
 
 /**
  * Fetch all direct scheduled trips for a specific vessel and sailing day.
- * Used for the vertical daily timeline view.
+ * Used for vertical daily timeline view.
  *
  * @param ctx - Convex context
  * @param args.vesselAbbrev - The vessel abbreviation to filter by

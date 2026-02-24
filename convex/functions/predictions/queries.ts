@@ -1,55 +1,33 @@
 import { query } from "_generated/server";
-import { v } from "convex/values";
-import { modelTypeValidator, predictionTypeValidator } from "./schemas";
+import { ConvexError, v } from "convex/values";
+import { stripConvexMeta } from "../../shared/stripConvexMeta";
+import {
+  type ConvexModelParameters,
+  modelParametersSchema,
+  modelTypeValidator,
+} from "./schemas";
 
 /**
  * Get all model parameters from the database
  *
  * @param ctx - Convex context
- * @returns Array of all model parameters records
+ * @returns Array of all model parameters records without metadata
  */
 export const getAllModelParameters = query({
   args: {},
-  handler: async (ctx) => ctx.db.query("modelParameters").collect(),
-});
-
-/**
- * Get model parameters for a specific terminal pair and model type.
- * Optionally filters by version tag.
- *
- * @param ctx - Convex context
- * @param args.pairKey - The terminal pair key (e.g., "TerminalA-TerminalB")
- * @param args.modelType - The model type to retrieve
- * @param args.versionTag - Optional version tag filter (e.g., "dev-temp", "dev-1", "prod-1")
- * @returns The model parameters record or null if not found
- */
-export const getModelParametersByPair = query({
-  args: {
-    pairKey: v.string(),
-    modelType: modelTypeValidator,
-    versionTag: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    if (args.versionTag !== undefined) {
-      // Use version-specific index
-      const versionTag = args.versionTag; // TypeScript now knows this is string
-      return ctx.db
-        .query("modelParameters")
-        .withIndex("by_pair_type_tag", (q) =>
-          q
-            .eq("pairKey", args.pairKey)
-            .eq("modelType", args.modelType)
-            .eq("versionTag", versionTag)
-        )
-        .first();
+  returns: v.array(modelParametersSchema),
+  handler: async (ctx) => {
+    try {
+      const results = await ctx.db.query("modelParameters").collect();
+      return results.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: "Failed to fetch all model parameters",
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { error: String(error) },
+      });
     }
-    // Fallback to pair+type index when no tag specified
-    return ctx.db
-      .query("modelParameters")
-      .withIndex("by_pair_and_type", (q) =>
-        q.eq("pairKey", args.pairKey).eq("modelType", args.modelType)
-      )
-      .first();
   },
 });
 
@@ -67,28 +45,44 @@ export const getModelParametersForProduction = query({
     pairKey: v.string(),
     modelType: modelTypeValidator,
   },
+  returns: v.union(modelParametersSchema, v.null()),
   handler: async (ctx, args) => {
-    // Get production version tag from config
-    const config = await ctx.db
-      .query("modelConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-      .first();
+    try {
+      // Get production version tag from config
+      const config = await ctx.db
+        .query("modelConfig")
+        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
+        .first();
 
-    const prodVersionTag = config?.productionVersionTag;
-    if (!prodVersionTag) {
-      return null;
+      const prodVersionTag = config?.productionVersionTag;
+      if (!prodVersionTag) {
+        return null;
+      }
+
+      // Query with production version tag
+      const doc = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_pair_type_tag", (q) =>
+          q
+            .eq("pairKey", args.pairKey)
+            .eq("modelType", args.modelType)
+            .eq("versionTag", prodVersionTag)
+        )
+        .first();
+
+      return doc ? stripConvexMeta(doc) : null;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch production model parameters for pair ${args.pairKey} and model type ${args.modelType}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          pairKey: args.pairKey,
+          modelType: args.modelType,
+          error: String(error),
+        },
+      });
     }
-
-    // Query with production version tag
-    return ctx.db
-      .query("modelParameters")
-      .withIndex("by_pair_type_tag", (q) =>
-        q
-          .eq("pairKey", args.pairKey)
-          .eq("modelType", args.modelType)
-          .eq("versionTag", prodVersionTag)
-      )
-      .first();
   },
 });
 
@@ -100,39 +94,64 @@ export const getModelParametersForProduction = query({
  * @param ctx - Convex context
  * @param args.pairKey - The terminal pair key (e.g., "BBI->P52")
  * @param args.modelTypes - Array of model types to retrieve
- * @returns Record mapping model type to model parameters (missing types omitted)
+ * @returns Record mapping ModelType to model parameters.
+ *          Each value is either a ModelDoc without Convex metadata (_id, _creationTime)
+ *          or null if not found for that model type.
+ *
+ *          The return is an object with optional fields for each model type:
+ *          {
+ *            "at-dock-depart-curr"?: ModelDoc | null,
+ *            "at-dock-arrive-next"?: ModelDoc | null,
+ *            "at-dock-depart-next"?: ModelDoc | null,
+ *            "at-sea-arrive-next"?: ModelDoc | null,
+ *            "at-sea-depart-next"?: ModelDoc | null,
+ *          }
  */
 export const getModelParametersForProductionBatch = query({
   args: {
     pairKey: v.string(),
     modelTypes: v.array(modelTypeValidator),
   },
-  returns: v.record(v.string(), v.union(v.null(), v.any())),
+  returns: v.record(v.string(), v.union(modelParametersSchema, v.null())),
   handler: async (ctx, args) => {
-    const config = await ctx.db
-      .query("modelConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-      .first();
-
-    const prodVersionTag = config?.productionVersionTag;
-    if (!prodVersionTag) {
-      return {} as Record<(typeof args.modelTypes)[number], unknown>;
-    }
-
-    const result: Record<string, unknown> = {};
-    for (const modelType of args.modelTypes) {
-      const doc = await ctx.db
-        .query("modelParameters")
-        .withIndex("by_pair_type_tag", (q) =>
-          q
-            .eq("pairKey", args.pairKey)
-            .eq("modelType", modelType)
-            .eq("versionTag", prodVersionTag)
-        )
+    try {
+      const config = await ctx.db
+        .query("modelConfig")
+        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
         .first();
-      result[modelType] = doc ?? null;
+
+      const prodVersionTag = config?.productionVersionTag;
+      if (!prodVersionTag) {
+        return {};
+      }
+
+      const result: Record<string, ConvexModelParameters | null> = {};
+      for (const modelType of args.modelTypes) {
+        const doc = await ctx.db
+          .query("modelParameters")
+          .withIndex("by_pair_type_tag", (q) =>
+            q
+              .eq("pairKey", args.pairKey)
+              .eq("modelType", modelType)
+              .eq("versionTag", prodVersionTag)
+          )
+          .first();
+        result[modelType] = doc ? stripConvexMeta(doc) : null;
+      }
+      return result;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch batch production model parameters for pair ${args.pairKey}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          pairKey: args.pairKey,
+          modelTypes: args.modelTypes,
+          modelTypeCount: args.modelTypes.length,
+          error: String(error),
+        },
+      });
     }
-    return result as Record<(typeof args.modelTypes)[number], unknown>;
   },
 });
 
@@ -141,17 +160,29 @@ export const getModelParametersForProductionBatch = query({
  *
  * @param ctx - Convex context
  * @param args.versionTag - The version tag (e.g., "dev-temp", "dev-1", "prod-1")
- * @returns Array of model parameters for the specified version tag
+ * @returns Array of model parameters for the specified version tag without metadata
  */
 export const getModelParametersByTag = query({
   args: {
     versionTag: v.string(),
   },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("modelParameters")
-      .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
-      .collect(),
+  returns: v.array(modelParametersSchema),
+  handler: async (ctx, args) => {
+    try {
+      const results = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
+        .collect();
+      return results.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch model parameters for version tag ${args.versionTag}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { versionTag: args.versionTag, error: String(error) },
+      });
+    }
+  },
 });
 
 /**
@@ -162,16 +193,26 @@ export const getModelParametersByTag = query({
  */
 export const getAllVersions = query({
   args: {},
+  returns: v.array(v.string()),
   handler: async (ctx) => {
-    const allModels = await ctx.db.query("modelParameters").collect();
+    try {
+      const allModels = await ctx.db.query("modelParameters").collect();
 
-    const versionTags = new Set<string>();
+      const versionTags = new Set<string>();
 
-    for (const model of allModels) {
-      versionTags.add(model.versionTag);
+      for (const model of allModels) {
+        versionTags.add(model.versionTag);
+      }
+
+      return Array.from(versionTags).sort();
+    } catch (error) {
+      throw new ConvexError({
+        message: "Failed to fetch all unique version tags",
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { error: String(error) },
+      });
     }
-
-    return Array.from(versionTags).sort();
   },
 });
 
@@ -183,117 +224,22 @@ export const getAllVersions = query({
  */
 export const getProductionVersionTag = query({
   args: {},
+  returns: v.union(v.string(), v.null()),
   handler: async (ctx) => {
-    const config = await ctx.db
-      .query("modelConfig")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-      .first();
+    try {
+      const config = await ctx.db
+        .query("modelConfig")
+        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
+        .first();
 
-    return config?.productionVersionTag ?? null;
+      return config?.productionVersionTag ?? null;
+    } catch (error) {
+      throw new ConvexError({
+        message: "Failed to fetch production version tag from config",
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { configKey: "productionVersionTag", error: String(error) },
+      });
+    }
   },
-});
-
-/**
- * Get all completed predictions for a specific vessel trip key.
- * Returns historical prediction performance data for analysis and monitoring.
- *
- * @param ctx - Convex query context
- * @param args.key - The vessel trip key to retrieve predictions for
- * @returns Array of prediction records for the specified trip key
- */
-export const getPredictionsByKey = query({
-  args: {
-    key: v.string(),
-  },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("predictions")
-      .withIndex("by_key", (q) => q.eq("Key", args.key))
-      .collect(),
-});
-
-/**
- * Get all completed predictions for a specific vessel across all its trips.
- * Used for vessel-specific performance analysis and prediction accuracy monitoring.
- * @param ctx - Convex query context
- * @param args.vesselAbbreviation - The vessel abbreviation (e.g., "SPU") to retrieve predictions for
- * @returns Array of prediction records for the specified vessel
- */
-export const getPredictionsByVessel = query({
-  args: {
-    vesselAbbreviation: v.string(),
-  },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("predictions")
-      .withIndex("by_vessel_abbreviation", (q) =>
-        q.eq("VesselAbbreviation", args.vesselAbbreviation)
-      )
-      .collect(),
-});
-
-/**
- * Get all completed predictions for a specific prediction model type across all vessels and routes.
- * Used for model performance analysis and identifying prediction patterns by type.
- * @param ctx - Convex query context
- * @param args.predictionType - The PascalCase prediction type (e.g., "AtDockDepartCurr", "AtSeaArriveNext")
- * @returns Array of prediction records for the specified prediction type
- */
-export const getPredictionsByType = query({
-  args: {
-    predictionType: predictionTypeValidator,
-  },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("predictions")
-      .withIndex("by_prediction_type", (q) =>
-        q.eq("PredictionType", args.predictionType)
-      )
-      .collect(),
-});
-
-/**
- * Get all completed predictions for a specific vessel and prediction type combination.
- * Used for detailed vessel-specific model performance analysis.
- * @param ctx - Convex query context
- * @param args.vesselAbbreviation - The vessel abbreviation (e.g., "SPU") to filter by
- * @param args.predictionType - The PascalCase prediction type (e.g., "AtDockDepartCurr", "AtSeaArriveNext") to filter by
- * @returns Array of prediction records for the specified vessel and prediction type
- */
-export const getPredictionsByVesselAndType = query({
-  args: {
-    vesselAbbreviation: v.string(),
-    predictionType: predictionTypeValidator,
-  },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("predictions")
-      .withIndex("by_vessel_and_type", (q) =>
-        q
-          .eq("VesselAbbreviation", args.vesselAbbreviation)
-          .eq("PredictionType", args.predictionType)
-      )
-      .collect(),
-});
-
-/**
- * Get all completed predictions within a specific time range based on predicted time.
- * Used for temporal analysis of prediction performance and historical trend analysis.
- * @param ctx - Convex query context
- * @param args.startTime - Start of time range in epoch milliseconds (inclusive)
- * @param args.endTime - End of time range in epoch milliseconds (inclusive)
- * @returns Array of prediction records with PredTime within the specified range
- */
-export const getPredictionsByDateRange = query({
-  args: {
-    startTime: v.number(),
-    endTime: v.number(),
-  },
-  handler: async (ctx, args) =>
-    ctx.db
-      .query("predictions")
-      .withIndex("by_pred_time", (q) =>
-        q.gte("PredTime", args.startTime).lte("PredTime", args.endTime)
-      )
-      .collect(),
 });

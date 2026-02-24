@@ -44,6 +44,15 @@ export const scheduledTripSchema = v.object({
 });
 
 /**
+ * Validator for a full scheduled trip document including system fields.
+ * Use for query returns when callers need _id and _creationTime.
+ */
+export const scheduledTripDocSchema = scheduledTripSchema.extend({
+  _id: v.id("scheduledTrips"),
+  _creationTime: v.number(),
+});
+
+/**
  * Type for scheduled trip in Convex storage (with numbers)
  * Inferred from the Convex validator
  */

@@ -1,9 +1,6 @@
+import type { Id } from "_generated/dataModel";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  scheduledTripSchema,
-  toDomainScheduledTrip,
-} from "functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
@@ -95,7 +92,7 @@ export const optionalToDomainPrediction = (
 
 /**
  * Convex validator for vessel trips (numbers)
- * Vessel trip records enriched with optional ScheduledTrip snapshot data.
+ * Vessel trip records with optional reference to ScheduledTrip document.
  */
 export const vesselTripSchema = v.object({
   // Core trip identity fields (from vessel locations)
@@ -104,7 +101,7 @@ export const vesselTripSchema = v.object({
   ArrivingTerminalAbbrev: v.optional(v.string()),
   Key: v.optional(v.string()), // Optional given need for departing terminal
   SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
-  ScheduledTrip: v.optional(scheduledTripSchema),
+  scheduledTripId: v.optional(v.id("scheduledTrips")),
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
   TripStart: v.optional(v.number()),
@@ -168,7 +165,7 @@ export const toConvexVesselTrip = (
     DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
     SailingDay: "", // Not available in vessel location data
-    ScheduledTrip: undefined,
+    scheduledTripId: undefined,
     // VesselTrip-specific fields
     PrevTerminalAbbrev: params.PrevTerminalAbbrev,
     TripStart: params.TripStart,
@@ -202,9 +199,7 @@ export const toConvexVesselTrip = (
 export const toDomainVesselTrip = (trip: ConvexVesselTrip): VesselTrip => {
   const domainTrip = {
     ...trip,
-    ScheduledTrip: trip.ScheduledTrip
-      ? toDomainScheduledTrip(trip.ScheduledTrip)
-      : undefined,
+    scheduledTripId: trip.scheduledTripId,
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
     Eta: optionalEpochMsToDate(trip.Eta),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
@@ -241,7 +236,7 @@ export type VesselTrip = {
   ArrivingTerminalAbbrev?: string;
   Key?: string;
   SailingDay: string;
-  ScheduledTrip?: ReturnType<typeof toDomainScheduledTrip>;
+  scheduledTripId?: Id<"scheduledTrips">;
   PrevTerminalAbbrev?: string;
   TripStart?: Date;
   AtDock: boolean;

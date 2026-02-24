@@ -76,7 +76,7 @@ export const buildTripFromVesselLocation = (
     SailingDay: currLocation.ScheduledDeparture
       ? getSailingDay(new Date(currLocation.ScheduledDeparture))
       : "",
-    ScheduledTrip: undefined,
+    scheduledTripId: undefined,
     PrevTerminalAbbrev:
       completedTrip?.DepartingTerminalAbbrev ??
       existingTrip?.PrevTerminalAbbrev,

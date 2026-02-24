@@ -14,24 +14,13 @@ import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
   // Active vessel trips - currently in progress, one per vessel
-  activeVesselTrips: defineTable(vesselTripSchema)
-    .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_scheduled_departure", ["ScheduledDeparture"])
-    .index("by_vessel_and_scheduled", ["VesselAbbrev", "ScheduledDeparture"])
-    .index("by_timestamp", ["TimeStamp"])
-    .index("by_key", ["Key"]),
+  activeVesselTrips: defineTable(vesselTripSchema).index("by_vessel_abbrev", [
+    "VesselAbbrev",
+  ]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
-    .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_vessel_abbrev_and_scheduled_departure", [
-      "VesselAbbrev",
-      "ScheduledDeparture",
-    ])
     .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
-    .index("by_trip_end", ["TripEnd"])
-    .index("by_timestamp", ["TimeStamp"])
-    .index("by_key", ["Key"])
     .index("by_sailing_day_and_departing_terminal", [
       "SailingDay",
       "DepartingTerminalAbbrev",
@@ -39,22 +28,14 @@ export default defineSchema({
 
   // Scheduled trips - planned ferry trips with departure/arrival times
   scheduledTrips: defineTable(scheduledTripSchema)
-    .index("by_vessel", ["VesselAbbrev"])
     .index("by_departing_time", ["DepartingTime"])
-    .index("by_route", ["RouteID"])
-    .index("by_departing_terminal", ["DepartingTerminalAbbrev"])
-    .index("by_arriving_terminal", ["ArrivingTerminalAbbrev"])
     .index("by_key", ["Key"])
-    .index("by_vessel_and_departing_time", ["VesselAbbrev", "DepartingTime"])
-    .index("by_route_and_departing_time", ["RouteID", "DepartingTime"])
     .index("by_sailing_day", ["SailingDay"])
-    .index("by_route_and_sailing_day", ["RouteID", "SailingDay"])
-    .index("by_trip_type", ["TripType"])
-    .index("by_route_and_trip_type", ["RouteID", "TripType"])
     .index("by_terminal_and_sailing_day", [
       "DepartingTerminalAbbrev",
       "SailingDay",
     ])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
     .index("by_vessel_terminal_time_type", [
       "VesselAbbrev",
       "DepartingTerminalAbbrev",
@@ -74,16 +55,12 @@ export default defineSchema({
   ),
 
   // Individual vessel pings - stores single vessel ping per document
-  vesselPing: defineTable(vesselPingValidationSchema)
-    .index("by_vessel_id", ["VesselID"])
-    .index("by_timestamp", ["TimeStamp"])
-    .index("by_vessel_id_and_timestamp", ["VesselID", "TimeStamp"]),
+  vesselPing: defineTable(vesselPingValidationSchema).index("by_timestamp", [
+    "TimeStamp",
+  ]),
 
   // Vessel locations combining vessel location data
-  vesselLocations: defineTable(vesselLocationValidationSchema).index(
-    "by_vessel_id",
-    ["VesselID"]
-  ),
+  vesselLocations: defineTable(vesselLocationValidationSchema),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)
@@ -94,11 +71,7 @@ export default defineSchema({
   // Completed ML predictions - one row per completed prediction
   predictions: defineTable(predictionRecordSchema)
     .index("by_key", ["Key"])
-    .index("by_key_and_type", ["Key", "PredictionType"])
-    .index("by_vessel_abbreviation", ["VesselAbbreviation"])
-    .index("by_prediction_type", ["PredictionType"])
-    .index("by_pred_time", ["PredTime"])
-    .index("by_vessel_and_type", ["VesselAbbreviation", "PredictionType"]),
+    .index("by_key_and_type", ["Key", "PredictionType"]),
 
   // ML configuration - singleton table for runtime config values
   modelConfig: defineTable(modelConfigSchema).index("by_key", ["key"]),
