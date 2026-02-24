@@ -52,6 +52,7 @@ export const buildTripWithInitialSchedule = async (
 
   const result = {
     ...baseTrip,
+    Key: scheduledTrip?.Key,
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
     scheduledTripId: scheduledTrip?._id,
   };
@@ -100,7 +101,7 @@ export const buildTripWithFinalSchedule = async (
 
   const result = {
     ...baseTrip,
-    scheduledTripId: scheduledTripId ?? undefined,
+    scheduledTripId: scheduledTripId ?? baseTrip.scheduledTripId,
   };
   console.log("Final schedule", tripKey, result);
   return result;

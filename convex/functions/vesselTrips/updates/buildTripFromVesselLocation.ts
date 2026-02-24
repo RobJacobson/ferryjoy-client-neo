@@ -13,6 +13,28 @@ import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 
+/**
+ * Build complete VesselTrip from raw location data using simple assignments.
+ *
+ * Handles first trip, trip boundary (new trip), and regular update. Per Field
+ * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
+ * Key derived from raw data, used for schedule lookup. ScheduledTrip from
+ * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
+ *
+ * @param currLocation - Latest vessel location from REST/API
+ * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
+ * @param isTripStart - True for trip start (vessel just arrived at dock), false for continuing
+ * @returns Complete ConvexVesselTrip with location-derived fields
+ */
+export const buildTripFromVesselLocation = (
+  currLocation: ConvexVesselLocation,
+  existingTrip?: ConvexVesselTrip,
+  isTripStart?: boolean
+): ConvexVesselTrip =>
+  isTripStart
+    ? buildTripForStart(currLocation, existingTrip)
+    : buildTripForContinuing(currLocation, existingTrip);
+
 // ============================================================================
 // buildTripFromVesselLocation
 // ============================================================================
@@ -126,7 +148,7 @@ const buildTripForContinuing = (
     SailingDay: currLocation.ScheduledDeparture
       ? getSailingDay(new Date(currLocation.ScheduledDeparture))
       : "",
-    scheduledTripId: undefined,
+    scheduledTripId: existingTrip?.scheduledTripId,
     // Prev* fields carried from existing trip
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
@@ -156,25 +178,3 @@ const buildTripForContinuing = (
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
 };
-
-/**
- * Build complete VesselTrip from raw location data using simple assignments.
- *
- * Handles first trip, trip boundary (new trip), and regular update. Per Field
- * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
- * Key derived from raw data, used for schedule lookup. ScheduledTrip from
- * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
- *
- * @param currLocation - Latest vessel location from REST/API
- * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
- * @param isTripStart - True for trip start (vessel just arrived at dock), false for continuing
- * @returns Complete ConvexVesselTrip with location-derived fields
- */
-export const buildTripFromVesselLocation = (
-  currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTrip,
-  isTripStart?: boolean
-): ConvexVesselTrip =>
-  isTripStart
-    ? buildTripForStart(currLocation, existingTrip)
-    : buildTripForContinuing(currLocation, existingTrip);
