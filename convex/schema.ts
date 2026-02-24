@@ -55,6 +55,7 @@ export default defineSchema({
       "DepartingTerminalAbbrev",
       "SailingDay",
     ])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
     .index("by_vessel_terminal_time_type", [
       "VesselAbbrev",
       "DepartingTerminalAbbrev",

@@ -1,19 +1,21 @@
 import { query } from "_generated/server";
-import { v } from "convex/values";
-import { ConvexError } from "convex/values";
-import { modelTypeValidator } from "./schemas";
+import { ConvexError, v } from "convex/values";
+import { stripConvexMeta } from "../../shared/stripConvexMeta";
+import { modelParametersSchema, modelTypeValidator } from "./schemas";
 
 /**
  * Get all model parameters from the database
  *
  * @param ctx - Convex context
- * @returns Array of all model parameters records
+ * @returns Array of all model parameters records without metadata
  */
 export const getAllModelParameters = query({
   args: {},
+  returns: v.array(modelParametersSchema),
   handler: async (ctx) => {
     try {
-      return await ctx.db.query("modelParameters").collect();
+      const results = await ctx.db.query("modelParameters").collect();
+      return results.map(stripConvexMeta);
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch all model parameters",
@@ -39,6 +41,7 @@ export const getModelParametersForProduction = query({
     pairKey: v.string(),
     modelType: modelTypeValidator,
   },
+  returns: v.union(modelParametersSchema, v.null()),
   handler: async (ctx, args) => {
     try {
       // Get production version tag from config
@@ -53,7 +56,7 @@ export const getModelParametersForProduction = query({
       }
 
       // Query with production version tag
-      return await ctx.db
+      const doc = await ctx.db
         .query("modelParameters")
         .withIndex("by_pair_type_tag", (q) =>
           q
@@ -62,6 +65,8 @@ export const getModelParametersForProduction = query({
             .eq("versionTag", prodVersionTag)
         )
         .first();
+
+      return doc ? stripConvexMeta(doc) : null;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch production model parameters for pair ${args.pairKey} and model type ${args.modelType}`,
@@ -85,14 +90,31 @@ export const getModelParametersForProduction = query({
  * @param ctx - Convex context
  * @param args.pairKey - The terminal pair key (e.g., "BBI->P52")
  * @param args.modelTypes - Array of model types to retrieve
- * @returns Record mapping model type to model parameters (missing types omitted)
+ * @returns Record mapping ModelType to model parameters.
+ *          Each value is either a ModelDoc without Convex metadata (_id, _creationTime)
+ *          or null if not found for that model type.
+ *
+ *          The return is an object with optional fields for each model type:
+ *          {
+ *            "at-dock-depart-curr"?: ModelDoc | null,
+ *            "at-dock-arrive-next"?: ModelDoc | null,
+ *            "at-dock-depart-next"?: ModelDoc | null,
+ *            "at-sea-arrive-next"?: ModelDoc | null,
+ *            "at-sea-depart-next"?: ModelDoc | null,
+ *          }
  */
 export const getModelParametersForProductionBatch = query({
   args: {
     pairKey: v.string(),
     modelTypes: v.array(modelTypeValidator),
   },
-  returns: v.record(v.string(), v.union(v.null(), v.any())),
+  returns: v.object({
+    "at-dock-depart-curr": v.optional(v.union(modelParametersSchema, v.null())),
+    "at-dock-arrive-next": v.optional(v.union(modelParametersSchema, v.null())),
+    "at-dock-depart-next": v.optional(v.union(modelParametersSchema, v.null())),
+    "at-sea-arrive-next": v.optional(v.union(modelParametersSchema, v.null())),
+    "at-sea-depart-next": v.optional(v.union(modelParametersSchema, v.null())),
+  }),
   handler: async (ctx, args) => {
     try {
       const config = await ctx.db
@@ -102,7 +124,7 @@ export const getModelParametersForProductionBatch = query({
 
       const prodVersionTag = config?.productionVersionTag;
       if (!prodVersionTag) {
-        return {} as Record<(typeof args.modelTypes)[number], unknown>;
+        return {};
       }
 
       const result: Record<string, unknown> = {};
@@ -116,9 +138,9 @@ export const getModelParametersForProductionBatch = query({
               .eq("versionTag", prodVersionTag)
           )
           .first();
-        result[modelType] = doc ?? null;
+        result[modelType] = doc ? stripConvexMeta(doc) : null;
       }
-      return result as Record<(typeof args.modelTypes)[number], unknown>;
+      return result;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch batch production model parameters for pair ${args.pairKey}`,
@@ -140,20 +162,20 @@ export const getModelParametersForProductionBatch = query({
  *
  * @param ctx - Convex context
  * @param args.versionTag - The version tag (e.g., "dev-temp", "dev-1", "prod-1")
- * @returns Array of model parameters for the specified version tag
+ * @returns Array of model parameters for the specified version tag without metadata
  */
 export const getModelParametersByTag = query({
   args: {
     versionTag: v.string(),
   },
+  returns: v.array(modelParametersSchema),
   handler: async (ctx, args) => {
     try {
-      return await ctx.db
+      const results = await ctx.db
         .query("modelParameters")
-        .withIndex("by_version_tag", (q) =>
-          q.eq("versionTag", args.versionTag)
-        )
+        .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
         .collect();
+      return results.map(stripConvexMeta);
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch model parameters for version tag ${args.versionTag}`,
@@ -173,6 +195,7 @@ export const getModelParametersByTag = query({
  */
 export const getAllVersions = query({
   args: {},
+  returns: v.array(v.string()),
   handler: async (ctx) => {
     try {
       const allModels = await ctx.db.query("modelParameters").collect();
@@ -203,6 +226,7 @@ export const getAllVersions = query({
  */
 export const getProductionVersionTag = query({
   args: {},
+  returns: v.union(v.string(), v.null()),
   handler: async (ctx) => {
     try {
       const config = await ctx.db

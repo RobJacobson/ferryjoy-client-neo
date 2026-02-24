@@ -74,10 +74,11 @@ export const getScheduledTripsForTerminal = query({
           vesselAbbrevs.map((vessel) =>
             ctx.db
               .query("scheduledTrips")
-              .withIndex("by_vessel_and_departing_time", (q) =>
-                q.eq("VesselAbbrev", vessel)
+              .withIndex("by_vessel_and_sailing_day", (q) =>
+                q
+                  .eq("VesselAbbrev", vessel)
+                  .eq("SailingDay", args.sailingDay)
               )
-              .filter((q) => q.eq(q.field("SailingDay"), args.sailingDay))
               .collect()
           )
         )
