@@ -30,6 +30,41 @@ export const getActiveTrips = query({
 });
 
 /**
+ * Fetch the most recent completed trip for a vessel.
+ * Used for backfilling depart-next predictions when current trip leaves dock.
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - Vessel abbreviation to find most recent completed trip for
+ * @returns Most recent completed trip (schema shape), or null if none exists
+ */
+export const getMostRecentCompletedTrip = query({
+  args: {
+    vesselAbbrev: v.string(),
+  },
+  returns: v.nullable(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const mostRecent = await ctx.db
+        .query("completedVesselTrips")
+        .withIndex("by_vessel_and_trip_end", (q) =>
+          q.eq("VesselAbbrev", args.vesselAbbrev)
+        )
+        .order("desc")
+        .first();
+
+      return mostRecent ? stripConvexMeta(mostRecent) : null;
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch most recent completed trip for vessel ${args.vesselAbbrev}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { vesselAbbrev: args.vesselAbbrev, error: String(error) },
+      });
+    }
+  },
+});
+
+/**
  * Fetches completed vessel trips for a sailing day and set of departing terminals.
  * Uses indexed lookups only; matches ScheduledTrips usage (sailing day + terminal).
  *

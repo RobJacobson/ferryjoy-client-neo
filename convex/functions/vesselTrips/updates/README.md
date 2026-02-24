@@ -25,15 +25,15 @@ runUpdateVesselTrips (entry point)
     └─> Delegate to processing functions (each handles own persistence):
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true) → completeAndStartNewTrip
-            │       → bulkInsertPredictions (completed records)
+            │       → handlePredictionEvent (trip_complete) → PredictionService
+            │       → handlePredictionEvent (arrive_dock) → PredictionService
             │       (internal: buildTripFromVesselLocation → buildTripWithInitialSchedule
             │                 → buildTripWithFinalSchedule → buildTripWithArriveDockPredictions
             │                 → buildTripWithLeaveDockPredictions)
             └─> processCurrentTrips (ongoing trips, including first appearances)
                     buildTrip (tripStart=false for continuing, tripStart=true for first trip)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
-                    → backfillDepartNextActuals (when didJustLeaveDock)
-                    → bulkInsertPredictions
+                    → handlePredictionEvent (leave_dock) → PredictionService
                     (internal: buildTripFromVesselLocation → buildTripWithInitialSchedule
                               → buildTripWithFinalSchedule → buildTripWithArriveDockPredictions
                               → buildTripWithLeaveDockPredictions)
@@ -52,6 +52,7 @@ runUpdateVesselTrips (entry point)
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `updateAndExtractPredictions` |
 
 **External dependencies**:
+- `convex/domain/ml/prediction/predictionService.ts` — Prediction lifecycle management (event handling, actualization, record insertion)
 - `convex/domain/ml/prediction/vesselTripPredictions.ts` — `PREDICTION_SPECS`, `predictFromSpec`, `updatePredictionsWithActuals`
 - `convex/domain/ml/prediction/predictTrip.ts` — `loadModelsForPairBatch`, `predictTripValue`
 - `convex/functions/vesselTrips/mutations.ts` — `completeAndStartNewTrip`, `upsertVesselTripsBatch`, `setDepartNextActualsForMostRecentCompletedTrip`
@@ -184,11 +185,16 @@ When `AtDock` flips false and `LeftDock` is missing, use `currLocation.LeftDock 
 ### Event-Driven Side Effects
 
 `didJustLeaveDock` drives:
-- Backfill of depart-next actuals onto previous trip (`backfillDepartNextActuals` helper calls `setDepartNextActualsForMostRecentCompletedTrip`)
-- Actualization of `AtDockDepartCurr` and `AtSeaArriveNext`
-- Extraction of `completedPredictionRecords` for bulk insert
+- Prediction actualization and record insertion via `handlePredictionEvent` in PredictionService
+- Backfill of depart-next actuals onto previous trip (handled by PredictionService internally)
 
-These remain conditional; build-then-compare does not eliminate event-driven side effects.
+The PredictionService manages all prediction lifecycle:
+- Actualization of `AtDockDepartCurr` and `AtSeaArriveNext`
+- Extraction and insertion of `completedPredictionRecords` for bulk insert
+- Backfill of previous trip's `AtDockDepartNext` and `AtSeaDepartNext` with actual departure time
+
+Trip orchestration code now delegates all prediction-related operations to the PredictionService,
+maintaining clear separation of concerns.
 
 ### SailingDay from Raw Data
 
