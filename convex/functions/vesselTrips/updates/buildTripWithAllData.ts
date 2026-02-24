@@ -29,14 +29,18 @@ import {
  * @param completedTrip - Completed trip at boundary (provides Prev* for new trip)
  * @returns Fully enriched vessel trip
  */
-export const buildTripWithAllData = async (
+export const buildTrip = async (
   ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTrip,
-  _completedTrip?: ConvexVesselTrip
+  existingTrip: ConvexVesselTrip | undefined,
+  tripStart: boolean
 ): Promise<ConvexVesselTrip> => {
   // Build base trip from raw data
-  const baseTrip = buildTripFromVesselLocation(currLocation, existingTrip);
+  const baseTrip = buildTripFromVesselLocation(
+    currLocation,
+    existingTrip,
+    tripStart
+  );
 
   // Detect events
   const didJustArriveAtDock =

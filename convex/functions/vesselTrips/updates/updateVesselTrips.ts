@@ -5,7 +5,7 @@ import { extractPredictionRecord } from "functions/predictions/utils";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
-import { buildTripWithAllData } from "./buildTripWithAllData";
+import { buildTrip } from "./buildTripWithAllData";
 import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 
 // ============================================================================
@@ -13,10 +13,9 @@ import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 // Used to categorize vessels during the orchestration phase
 // ============================================================================
 
-type CurrentTripGroup = {
+type TripGroup = {
   currLocation: ConvexVesselLocation;
   existingTrip?: ConvexVesselTrip;
-  isTripStart: boolean;
 };
 
 type CompletedTripGroup = {
@@ -54,7 +53,7 @@ export const runUpdateVesselTrips = async (
 
   // 3) Categorize vessel/location tuples into three groups.
   const completedTrips: CompletedTripGroup[] = [];
-  const currentTrips: CurrentTripGroup[] = [];
+  const currentTrips: TripGroup[] = [];
 
   for (const currLocation of locations) {
     const vesselAbbrev = currLocation.VesselAbbrev;
@@ -71,7 +70,6 @@ export const runUpdateVesselTrips = async (
       currentTrips.push({
         currLocation,
         existingTrip,
-        isTripStart: isCompletedTrip,
       });
     }
   }
@@ -107,7 +105,7 @@ const processCompletedTrips = async (
     );
 
     // Build new trip
-    const newTrip = await buildTripWithAllData(ctx, currLocation);
+    const newTrip = await buildTrip(ctx, currLocation, existingTrip, true);
 
     // Persist atomically (complete + start)
     await ctx.runMutation(
@@ -138,7 +136,7 @@ const processCompletedTrips = async (
  */
 const processCurrentTrips = async (
   ctx: ActionCtx,
-  currentTrips: CurrentTripGroup[]
+  currentTrips: TripGroup[]
 ): Promise<void> => {
   const activeUpserts: ConvexVesselTrip[] = [];
   const predictionRecords: ConvexPredictionRecord[] = [];
@@ -149,10 +147,11 @@ const processCurrentTrips = async (
   }> = [];
 
   for (const { existingTrip, currLocation } of currentTrips) {
-    const tripWithPredictions = await buildTripWithAllData(
+    const tripWithPredictions = await buildTrip(
       ctx,
       currLocation,
-      existingTrip
+      existingTrip,
+      false
     );
 
     const didJustLeaveDock =

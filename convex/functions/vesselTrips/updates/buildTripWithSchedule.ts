@@ -34,6 +34,7 @@ export const buildTripWithInitialSchedule = async (
     !baseTrip.DepartingTerminalAbbrev ||
     !baseTrip.ScheduledDeparture
   ) {
+    console.log("Missing required fields for initial schedule", baseTrip);
     return baseTrip;
   }
 
@@ -54,7 +55,7 @@ export const buildTripWithInitialSchedule = async (
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
     scheduledTripId: scheduledTrip?._id,
   };
-  console.log("Initial schedule", result);
+  console.log("Initial schedule", lookupArgs, result);
   return result;
 };
 
@@ -77,11 +78,12 @@ export const buildTripWithInitialSchedule = async (
 export const buildTripWithFinalSchedule = async (
   ctx: ActionCtx,
   baseTrip: ConvexVesselTrip,
-  existingTrip?: ConvexVesselTrip
+  existingTrip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
   const tripKey = baseTrip.Key ?? null;
 
   if (!tripKey) {
+    console.log("Missing trip key for final schedule", baseTrip);
     return baseTrip;
   }
 
@@ -100,6 +102,6 @@ export const buildTripWithFinalSchedule = async (
     ...baseTrip,
     scheduledTripId: scheduledTripId ?? undefined,
   };
-  console.log("Final schedule", result);
+  console.log("Final schedule", tripKey, result);
   return result;
 };
