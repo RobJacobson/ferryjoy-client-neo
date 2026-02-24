@@ -75,9 +75,7 @@ export const getScheduledTripsForTerminal = query({
             ctx.db
               .query("scheduledTrips")
               .withIndex("by_vessel_and_sailing_day", (q) =>
-                q
-                  .eq("VesselAbbrev", vessel)
-                  .eq("SailingDay", args.sailingDay)
+                q.eq("VesselAbbrev", vessel).eq("SailingDay", args.sailingDay)
               )
               .collect()
           )

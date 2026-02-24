@@ -1,7 +1,11 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { modelParametersSchema, modelTypeValidator } from "./schemas";
+import {
+  type ConvexModelParameters,
+  modelParametersSchema,
+  modelTypeValidator,
+} from "./schemas";
 
 /**
  * Get all model parameters from the database
@@ -108,13 +112,7 @@ export const getModelParametersForProductionBatch = query({
     pairKey: v.string(),
     modelTypes: v.array(modelTypeValidator),
   },
-  returns: v.object({
-    "at-dock-depart-curr": v.optional(v.union(modelParametersSchema, v.null())),
-    "at-dock-arrive-next": v.optional(v.union(modelParametersSchema, v.null())),
-    "at-dock-depart-next": v.optional(v.union(modelParametersSchema, v.null())),
-    "at-sea-arrive-next": v.optional(v.union(modelParametersSchema, v.null())),
-    "at-sea-depart-next": v.optional(v.union(modelParametersSchema, v.null())),
-  }),
+  returns: v.record(v.string(), v.union(modelParametersSchema, v.null())),
   handler: async (ctx, args) => {
     try {
       const config = await ctx.db
@@ -127,7 +125,7 @@ export const getModelParametersForProductionBatch = query({
         return {};
       }
 
-      const result: Record<string, unknown> = {};
+      const result: Record<string, ConvexModelParameters | null> = {};
       for (const modelType of args.modelTypes) {
         const doc = await ctx.db
           .query("modelParameters")
