@@ -18,47 +18,24 @@ import { getSailingDay } from "shared/time";
 // ============================================================================
 
 /**
- * Build complete VesselTrip from raw location data using simple assignments.
+ * Build trip for trip start scenario (vessel just arrived at dock after completing
+ * previous trip). At this point, `existingTrip` is the trip being completed.
  *
- * Handles first trip, trip boundary (new trip), and regular update. Per Field
- * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
- * Key derived from raw data, used for schedule lookup. ScheduledTrip from
- * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
+ * Key characteristics:
+ * - TripStart is set to current timestamp
+ * - Prev* fields are carried from the completing trip
+ * - Predictions are cleared (undefined)
+ * - ArrivingTerminalAbbrev comes only from currLocation (not existingTrip)
  *
  * @param currLocation - Latest vessel location from REST/API
- * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
- * @param completedTrip - Completed trip at boundary (provides Prev* for new trip)
- * @returns Complete ConvexVesselTrip with location-derived fields
+ * @param existingTrip - The trip being completed (provides Prev* fields)
+ * @returns Complete ConvexVesselTrip for new trip start
  */
-export const buildTripFromVesselLocation = (
+const buildTripForStart = (
   currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTrip,
-  completedTrip?: ConvexVesselTrip
+  existingTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
-  const isNewTrip = completedTrip !== undefined;
-  const isRegularUpdate = existingTrip !== undefined && !isNewTrip;
-
-  // LeftDock: infer when AtDock flips false and LeftDock missing
-  const justLeftDock =
-    isRegularUpdate &&
-    currLocation.AtDock !== existingTrip?.AtDock &&
-    !currLocation.AtDock &&
-    existingTrip?.AtDock;
-
-  const leftDock =
-    existingTrip?.LeftDock ??
-    currLocation.LeftDock ??
-    (justLeftDock ? currLocation.TimeStamp : undefined);
-
-  // TripStart: boundary = currLocation.TimeStamp; regular = carry from existing
-  const tripStart = isNewTrip
-    ? currLocation.TimeStamp
-    : existingTrip?.TripStart;
-
-  // ArrivingTerminalAbbrev: never use existingTrip at boundary (wrong terminal)
-  const arrivingTerminalAbbrev =
-    currLocation.ArrivingTerminalAbbrev ??
-    (isRegularUpdate ? existingTrip?.ArrivingTerminalAbbrev : undefined);
+  const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -78,25 +55,100 @@ export const buildTripFromVesselLocation = (
       ? getSailingDay(new Date(currLocation.ScheduledDeparture))
       : "",
     scheduledTripId: undefined,
-    PrevTerminalAbbrev:
-      completedTrip?.DepartingTerminalAbbrev ??
-      existingTrip?.PrevTerminalAbbrev,
-    TripStart: tripStart,
+    PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
+    PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
+    PrevLeftDock: existingTrip?.LeftDock,
+    TripStart: currLocation.TimeStamp,
     AtDock: currLocation.AtDock,
-    AtDockDuration: calculateTimeDelta(tripStart, leftDock),
+    AtDockDuration: undefined,
     ScheduledDeparture: currLocation.ScheduledDeparture,
-    LeftDock: leftDock,
-    TripDelay: calculateTimeDelta(currLocation.ScheduledDeparture, leftDock),
+    LeftDock: undefined,
+    TripDelay: undefined,
+    Eta: undefined,
+    TripEnd: undefined,
+    AtSeaDuration: undefined,
+    TotalDuration: undefined,
+    InService: currLocation.InService,
+    TimeStamp: currLocation.TimeStamp,
+    AtDockDepartCurr: undefined,
+    AtDockArriveNext: undefined,
+    AtDockDepartNext: undefined,
+    AtSeaArriveNext: undefined,
+    AtSeaDepartNext: undefined,
+  };
+};
+
+/**
+ * Build trip for continuing scenario (vessel is on the same trip as existingTrip,
+ * or this is the first trip with no existingTrip).
+ *
+ * Key characteristics:
+ * - TripStart is carried from existingTrip
+ * - Prev* fields are carried from existingTrip
+ * - Predictions are carried from existingTrip
+ * - ArrivingTerminalAbbrev: currLocation or fallback to existingTrip
+ * - LeftDock: currLocation or inferred when AtDock flips false
+ *
+ * @param currLocation - Latest vessel location from REST/API
+ * @param existingTrip - Current ongoing trip (undefined for first appearance)
+ * @returns Complete ConvexVesselTrip for continuing trip
+ */
+const buildTripForContinuing = (
+  currLocation: ConvexVesselLocation,
+  existingTrip?: ConvexVesselTrip
+): ConvexVesselTrip => {
+  // LeftDock: infer when AtDock flips false and LeftDock missing
+  const justLeftDock = existingTrip?.AtDock && !currLocation.AtDock;
+
+  const leftDockTime =
+    currLocation.LeftDock ??
+    (!justLeftDock ? undefined : currLocation.TimeStamp);
+
+  const arrivingTerminalAbbrev =
+    currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+
+  const tripStartTime = existingTrip?.TripStart;
+
+  return {
+    VesselAbbrev: currLocation.VesselAbbrev,
+    DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    OpRouteAbbrev: currLocation.OpRouteAbbrev,
+    Key:
+      generateTripKey(
+        currLocation.VesselAbbrev,
+        currLocation.DepartingTerminalAbbrev,
+        arrivingTerminalAbbrev,
+        currLocation.ScheduledDeparture
+          ? new Date(currLocation.ScheduledDeparture)
+          : undefined
+      ) ?? undefined,
+    SailingDay: currLocation.ScheduledDeparture
+      ? getSailingDay(new Date(currLocation.ScheduledDeparture))
+      : "",
+    scheduledTripId: undefined,
+    // Prev* fields carried from existing trip
+    PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
+    PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
+    PrevLeftDock: existingTrip?.PrevLeftDock,
+    // TripStart carried from existing trip
+    TripStart: tripStartTime,
+    AtDock: currLocation.AtDock,
+    AtDockDuration: calculateTimeDelta(tripStartTime, leftDockTime),
+    ScheduledDeparture: currLocation.ScheduledDeparture,
+    LeftDock: leftDockTime,
+    TripDelay: calculateTimeDelta(
+      currLocation.ScheduledDeparture,
+      leftDockTime
+    ),
+    // Eta: null-overwrite protection
     Eta: currLocation.Eta ?? existingTrip?.Eta,
     TripEnd: undefined,
     AtSeaDuration: existingTrip?.AtSeaDuration,
     TotalDuration: existingTrip?.TotalDuration,
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
-    PrevScheduledDeparture:
-      completedTrip?.ScheduledDeparture ?? existingTrip?.PrevScheduledDeparture,
-    PrevLeftDock: completedTrip?.LeftDock ?? existingTrip?.PrevLeftDock,
-    // Carry predictions from existing trip; buildTripWithPredictions merges new ones
+    // Predictions carried from existing trip
     AtDockDepartCurr: existingTrip?.AtDockDepartCurr,
     AtDockArriveNext: existingTrip?.AtDockArriveNext,
     AtDockDepartNext: existingTrip?.AtDockDepartNext,
@@ -104,3 +156,25 @@ export const buildTripFromVesselLocation = (
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
 };
+
+/**
+ * Build complete VesselTrip from raw location data using simple assignments.
+ *
+ * Handles first trip, trip boundary (new trip), and regular update. Per Field
+ * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
+ * Key derived from raw data, used for schedule lookup. ScheduledTrip from
+ * buildTripWithSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
+ *
+ * @param currLocation - Latest vessel location from REST/API
+ * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
+ * @param isTripStart - True for trip start (vessel just arrived at dock), false for continuing
+ * @returns Complete ConvexVesselTrip with location-derived fields
+ */
+export const buildTripFromVesselLocation = (
+  currLocation: ConvexVesselLocation,
+  existingTrip?: ConvexVesselTrip,
+  isTripStart?: boolean
+): ConvexVesselTrip =>
+  isTripStart
+    ? buildTripForStart(currLocation, existingTrip)
+    : buildTripForContinuing(currLocation, existingTrip);

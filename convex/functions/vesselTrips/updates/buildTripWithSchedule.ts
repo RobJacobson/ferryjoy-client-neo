@@ -5,7 +5,7 @@
  * lookup by Key. Sets scheduledTripId reference when found.
  * Clears stale predictions when Key is undefined (repositioning) or key changed.
  */
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -49,11 +49,13 @@ export const buildTripWithInitialSchedule = async (
     lookupArgs
   );
 
-  return {
+  const result = {
     ...baseTrip,
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
     scheduledTripId: scheduledTrip?._id,
   };
+  console.log("Initial schedule", result);
+  return result;
 };
 
 // ============================================================================
@@ -89,15 +91,15 @@ export const buildTripWithFinalSchedule = async (
   }
 
   // Perform lookup
-  // const scheduledTripId = await ctx.runQuery(
-  //   internal.functions.scheduledTrips.queries.getScheduledTripIdByKey,
-  //   { key: tripKey }
-  // );
+  const scheduledTripId = await ctx.runQuery(
+    internal.functions.scheduledTrips.queries.getScheduledTripIdByKey,
+    { key: tripKey }
+  );
 
-  const scheduledTripId = undefined;
-
-  return {
+  const result = {
     ...baseTrip,
     scheduledTripId: scheduledTripId ?? undefined,
   };
+  console.log("Final schedule", result);
+  return result;
 };

@@ -33,14 +33,10 @@ export const buildTripWithAllData = async (
   ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
-  completedTrip?: ConvexVesselTrip
+  _completedTrip?: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
   // Build base trip from raw data
-  const baseTrip = buildTripFromVesselLocation(
-    currLocation,
-    existingTrip,
-    completedTrip
-  );
+  const baseTrip = buildTripFromVesselLocation(currLocation, existingTrip);
 
   // Detect events
   const didJustArriveAtDock =
@@ -55,15 +51,17 @@ export const buildTripWithAllData = async (
   // Event: Arrive at dock (schedule lookup for arriving terminal)
   if (didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
     enrichedTrip = await buildTripWithInitialSchedule(ctx, enrichedTrip);
+    console.log("Arrived at dock", enrichedTrip);
   }
 
   // Event: Key changed or have departure info (schedule lookup by Key)
-  if (keyChanged || enrichedTrip.LeftDock !== undefined) {
+  if (keyChanged) {
     enrichedTrip = await buildTripWithFinalSchedule(
       ctx,
       enrichedTrip,
       existingTrip
     );
+    console.log("Key changed", enrichedTrip);
   }
 
   // Event: Arrive at dock (at-dock predictions)

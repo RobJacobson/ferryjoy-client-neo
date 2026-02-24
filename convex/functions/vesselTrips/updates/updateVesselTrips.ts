@@ -13,19 +13,16 @@ import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
 // Used to categorize vessels during the orchestration phase
 // ============================================================================
 
-interface NewTripGroup {
+type CurrentTripGroup = {
   currLocation: ConvexVesselLocation;
-}
+  existingTrip?: ConvexVesselTrip;
+  isTripStart: boolean;
+};
 
-interface CompletedTripGroup {
+type CompletedTripGroup = {
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
-}
-
-interface CurrentTripGroup {
-  currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTrip;
-}
+};
 
 // ============================================================================
 // Main Orchestrator
@@ -52,14 +49,10 @@ export const runUpdateVesselTrips = async (
 
   // 2) Index active trips by vessel abbreviation.
   const existingTripsDict = Object.fromEntries(
-    (existingTripsList ?? []).map((trip) => [
-      trip.VesselAbbrev,
-      trip,
-    ] as const)
+    (existingTripsList ?? []).map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ConvexVesselTrip>;
 
   // 3) Categorize vessel/location tuples into three groups.
-  const newTrips: NewTripGroup[] = [];
   const completedTrips: CompletedTripGroup[] = [];
   const currentTrips: CurrentTripGroup[] = [];
 
@@ -67,24 +60,22 @@ export const runUpdateVesselTrips = async (
     const vesselAbbrev = currLocation.VesselAbbrev;
     const existingTrip = existingTripsDict[vesselAbbrev];
 
-    if (!existingTrip) {
-      newTrips.push({ currLocation });
-      continue;
-    }
-
-    const isTripBoundary =
+    const isCompletedTrip =
+      existingTrip &&
       existingTrip.DepartingTerminalAbbrev !==
-      currLocation.DepartingTerminalAbbrev;
+        currLocation.DepartingTerminalAbbrev;
 
-    if (isTripBoundary) {
+    if (isCompletedTrip) {
       completedTrips.push({ currLocation, existingTrip });
     } else {
-      currentTrips.push({ currLocation, existingTrip });
+      currentTrips.push({
+        currLocation,
+        existingTrip,
+        isTripStart: isCompletedTrip,
+      });
     }
   }
 
-  // 4) Delegate to processing functions (each handles its own persistence).
-  await processNewTrips(ctx, newTrips);
   await processCompletedTrips(ctx, completedTrips);
   await processCurrentTrips(ctx, currentTrips);
 };
@@ -92,28 +83,6 @@ export const runUpdateVesselTrips = async (
 // ============================================================================
 // Processing Functions
 // ============================================================================
-
-/**
- * Process vessels with no existing trip (first appearance).
- *
- * Takes array of new vessels, builds and persists each directly to database.
- *
- * @param ctx - Convex action context
- * @param newTrips - Array of vessels without existing trips
- */
-const processNewTrips = async (
-  ctx: ActionCtx,
-  newTrips: NewTripGroup[]
-): Promise<void> => {
-  for (const { currLocation } of newTrips) {
-    const trip = await buildTripWithAllData(ctx, currLocation);
-
-    await ctx.runMutation(
-      api.functions.vesselTrips.mutations.upsertActiveTrip,
-      { trip }
-    );
-  }
-};
 
 /**
  * Process trip boundaries: complete current trip and start new one.
@@ -131,19 +100,14 @@ const processCompletedTrips = async (
     // Build completed trip
     const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
 
-    // Build new trip
-    const newTrip = await buildTripWithAllData(
-      ctx,
-      currLocation,
-      undefined,
-      tripToComplete
-    );
-
     // Extract prediction records from completed trip
     const { completedRecords } = updateAndExtractPredictions(
       existingTrip,
       tripToComplete
     );
+
+    // Build new trip
+    const newTrip = await buildTripWithAllData(ctx, currLocation);
 
     // Persist atomically (complete + start)
     await ctx.runMutation(
@@ -165,7 +129,7 @@ const processCompletedTrips = async (
 };
 
 /**
- * Process ongoing trips (not a boundary).
+ * Process current trips (not a completed trip).
  *
  * Takes array of vessels continuing same trip, builds and persists in batch.
  *
@@ -192,6 +156,7 @@ const processCurrentTrips = async (
     );
 
     const didJustLeaveDock =
+      existingTrip &&
       existingTrip.LeftDock === undefined &&
       tripWithPredictions.LeftDock !== undefined;
 
@@ -206,7 +171,7 @@ const processCurrentTrips = async (
       TimeStamp: currLocation.TimeStamp,
     };
 
-    if (!tripsAreEqual(existingTrip, finalProposed)) {
+    if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
       activeUpserts.push(finalProposed);
 
       if (didJustLeaveDock && finalProposed.LeftDock !== undefined) {
