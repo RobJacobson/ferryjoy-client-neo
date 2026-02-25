@@ -6,7 +6,7 @@
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { ScheduledTripCard } from "./ScheduledTripCard";
-import { useScheduledTripsPageData } from "./useScheduledTripsPageData";
+import { useUnifiedTripsPageData } from "./useUnifiedTripsPageData";
 
 type ScheduledTripListProps = {
   /**
@@ -40,7 +40,7 @@ export const ScheduledTripList = ({
     vesselTripMap,
     vesselLocationByAbbrev,
     displayTripByAbbrev,
-  } = useScheduledTripsPageData({ terminalAbbrev, destinationAbbrev });
+  } = useUnifiedTripsPageData({ terminalAbbrev, destinationAbbrev });
 
   if (status === "loading") {
     return (

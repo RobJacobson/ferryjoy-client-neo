@@ -6,20 +6,19 @@ This feature renders **scheduled ferry journeys** (WSF schedule) as multi-leg ti
 
 The architecture follows a **Pull-Based Synthesis** model. Instead of pre-calculating a global display state for the entire page, each component resolves its own state by observing a unified "truth map" of real-time data.
 
-### 1. Data Acquisition (`useScheduledTripsPageData`)
-The entry point for data is the `useScheduledTripsPageData` hook. It coordinates three primary streams:
-- **Schedule (Primary)**: Fetches raw scheduled trip rows from Convex. This is the "skeleton" of the page.
-- **Real-time Overlay**: Fetches active and completed vessel trips.
-- **Vessel State**: Fetches live vessel locations and hold-window data.
+### 1. Data Acquisition (`useUnifiedTripsPageData`)
+The entry point for data is the `useUnifiedTripsPageData` hook. It consumes `UnifiedTripsProvider` (via `useUnifiedTrips()`) and coordinates:
+- **Schedule + Overlay**: UnifiedTripsContext provides scheduled, active, and completed trips joined by Key.
+- **Vessel State**: Live vessel locations and hold-window data via `useConvexVesselLocations` and `useDelayedVesselTrips`.
 
 ### 2. Physical Reconstruction (`reconstructJourneys`)
-Raw schedule rows are flat. The client reconstructs them into `ScheduledTripJourney` objects by:
+Raw schedule rows (from unifiedTrips) are flat. The client reconstructs them into `ScheduledTripJourney` objects by:
 - Grouping segments by physical departure (terminal + time).
 - Building chains by following `NextKey` pointers.
 - Filtering by destination if requested.
 
-### 3. Map Building (`useScheduledTripsMaps`)
-A unified `vesselTripMap` is built with a strict precedence rule:
+### 3. Map Building (in `useUnifiedTripsPageData`)
+A unified `vesselTripMap` is built with strict precedence:
 **Completed Trips** → **Active Trips** → **Held Trips (30s window)**.
 The `Key` (deterministic scheduled trip ID) is the universal join key.
 
@@ -41,7 +40,7 @@ As each `ScheduledTripCard` renders, it calls `synthesizeTripSegments`. This is 
 
 ```mermaid
 graph TD
-    List[ScheduledTripList] --> Hook[useScheduledTripsPageData]
+    List[ScheduledTripList] --> Hook[useUnifiedTripsPageData]
     List --> Card[ScheduledTripCard]
     Card --> Timeline[ScheduledTripTimeline]
     Timeline --> Synthesis[synthesizeTripSegments]
@@ -75,8 +74,7 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 | File | Responsibility |
 | :--- | :--- |
 | `ScheduledTripList.tsx` | Entry component; handles layout and scrolling. |
-| `useScheduledTripsPageData.ts` | Main data coordinator hook. |
-| `useScheduledTripsMaps.ts` | Builds the unified `vesselTripMap` and location maps. |
+| `useUnifiedTripsPageData.ts` | Main data coordinator; consumes UnifiedTripsContext, builds maps, reconstructs journeys. |
 | `utils/reconstructJourneys.ts` | Logic for turning flat rows into multi-leg chains. |
 | `utils/synthesizeTripSegments.ts` | **Core Logic**: Maps raw data to the `TripSegment` view model. |
 | `ScheduledTripTimeline.tsx` | Composes low-level timeline primitives. |

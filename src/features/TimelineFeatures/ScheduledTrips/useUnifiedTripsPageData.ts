@@ -16,7 +16,6 @@ import { useUnifiedTrips } from "@/data/contexts";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useDelayedVesselTrips } from "../shared/useDelayedVesselTrips";
 import type { ScheduledTripJourney } from "./types";
-import { buildAllPageMaps } from "./utils/buildPageDataMaps";
 import { reconstructJourneys } from "./utils/reconstructJourneys";
 
 type UseUnifiedTripsPageDataParams = {
@@ -68,6 +67,52 @@ const buildActiveTripsWithScheduled = (
       ScheduledTrip: u.scheduledTrip,
     }));
 
+/** Display data item shape from useDelayedVesselTrips (trip + synced location). */
+type DisplayDataItem = { trip: VesselTrip; vesselLocation: VesselLocation };
+
+/**
+ * Builds page-level maps: vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev.
+ * Precedence: completed first, then active, then displayData (hold window) wins.
+ *
+ * @param completedTrips - Completed trips from unified data
+ * @param activeVesselTrips - Active trips from unified data
+ * @param vesselLocations - Live vessel locations from Convex
+ * @param displayData - Hold-window display data
+ * @returns vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev
+ */
+const buildPageMaps = (
+  completedTrips: VesselTrip[],
+  activeVesselTrips: VesselTrip[],
+  vesselLocations: VesselLocation[],
+  displayData: DisplayDataItem[]
+) => {
+  const tripsWithKey = [
+    ...completedTrips,
+    ...activeVesselTrips,
+    ...displayData.map((d) => d.trip),
+  ]
+    .filter((t): t is VesselTrip & { Key: string } => !!t.Key)
+    .map((t) => [t.Key, t] as const);
+  const vesselTripMap = new Map<string, VesselTrip>(tripsWithKey);
+
+  const synced = new Map<string, VesselLocation>();
+  for (const d of displayData) {
+    synced.set(d.trip.VesselAbbrev, d.vesselLocation);
+  }
+  const vesselLocationByAbbrev = new Map(
+    vesselLocations.map((loc) => [
+      loc.VesselAbbrev,
+      synced.get(loc.VesselAbbrev) ?? loc,
+    ])
+  );
+
+  const displayTripByAbbrev = new Map(
+    displayData.map((d) => [d.trip.VesselAbbrev, d.trip])
+  );
+
+  return { vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev };
+};
+
 /**
  * Resolves page data from UnifiedTripsContext for ScheduledTrips display.
  *
@@ -99,7 +144,7 @@ export const useUnifiedTripsPageData = ({
     vesselLocations
   );
 
-  const maps = buildAllPageMaps(
+  const maps = buildPageMaps(
     completedVesselTrips,
     activeVesselTrips,
     vesselLocations,
