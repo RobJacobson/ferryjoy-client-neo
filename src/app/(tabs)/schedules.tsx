@@ -1,16 +1,20 @@
-import { useSelectedTerminalPair } from "@/data/contexts";
+import { UnifiedTripsProvider, useSelectedTerminalPair } from "@/data/contexts";
+import { getRouteAbbrevsForSelection } from "@/data/terminalRouteMapping";
 import { ScheduledTripList } from "@/features/TimelineFeatures/ScheduledTrips";
+import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 export default function SchedulesScreen() {
   const { selectedTerminalPair } = useSelectedTerminalPair();
 
-  // Determine which terminal to show based on selection context
+  const routeAbbrevs = getRouteAbbrevsForSelection(selectedTerminalPair);
+  const tripDate = getSailingDay(new Date());
+
   const terminalAbbrev =
     selectedTerminalPair?.kind === "pair"
       ? selectedTerminalPair.from
       : selectedTerminalPair?.kind === "all"
         ? selectedTerminalPair.terminal
-        : "P52"; // Default to Seattle if nothing selected
+        : "P52";
 
   const destinationAbbrev =
     selectedTerminalPair?.kind === "pair"
@@ -18,9 +22,11 @@ export default function SchedulesScreen() {
       : undefined;
 
   return (
-    <ScheduledTripList
-      terminalAbbrev={terminalAbbrev}
-      destinationAbbrev={destinationAbbrev}
-    />
+    <UnifiedTripsProvider routeAbbrevs={routeAbbrevs} tripDate={tripDate}>
+      <ScheduledTripList
+        terminalAbbrev={terminalAbbrev}
+        destinationAbbrev={destinationAbbrev}
+      />
+    </UnifiedTripsProvider>
   );
 }
