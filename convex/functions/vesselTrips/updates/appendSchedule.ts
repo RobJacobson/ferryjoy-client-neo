@@ -1,7 +1,7 @@
 /**
- * Scheduled trip lookup - returns trip with scheduledTripId reference.
+ * Scheduled trip lookup - enriches trip with schedule data.
  *
- * Takes base trip (Key from buildTripFromRawData), performs I/O-conditioned
+ * Takes base trip (Key from baseTripFromLocation), performs I/O-conditioned
  * lookup by Key. Sets scheduledTripId reference when found.
  * Clears stale predictions when Key is undefined (repositioning) or key changed.
  */
@@ -10,7 +10,7 @@ import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 // ============================================================================
-// buildTripWithInitialSchedule
+// appendInitialSchedule
 // ============================================================================
 
 /**
@@ -21,18 +21,20 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  * and scheduledTripId if found.
  *
  * @param ctx - Convex action context for database queries
- * @param baseTrip - Current trip state (from buildTripFromRawData)
- * @returns Trip with arrival terminal and scheduled trip ID if lookup succeeds
+ * @param baseTrip - Current trip state (from baseTripFromLocation)
+ * @returns Trip enriched with arrival terminal and scheduled trip ID if lookup succeeds
  */
-export const buildTripWithInitialSchedule = async (
+export const appendInitialSchedule = async (
   ctx: ActionCtx,
   baseTrip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
+  const scheduledDeparture = baseTrip.ScheduledDeparture;
+
   // Missing required fields - can't lookup
   if (
     !baseTrip.VesselAbbrev ||
     !baseTrip.DepartingTerminalAbbrev ||
-    !baseTrip.ScheduledDeparture
+    !scheduledDeparture
   ) {
     return baseTrip;
   }
@@ -40,8 +42,7 @@ export const buildTripWithInitialSchedule = async (
   const lookupArgs = {
     vesselAbbrev: baseTrip.VesselAbbrev,
     departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
-    // biome-ignore lint/style/noNonNullAssertion: hasRequiredFields ensures ScheduledDeparture is defined
-    scheduledDeparture: baseTrip.ScheduledDeparture!,
+    scheduledDeparture,
   };
 
   const scheduledTrip = await ctx.runQuery(
@@ -49,33 +50,35 @@ export const buildTripWithInitialSchedule = async (
     lookupArgs
   );
 
-  return {
+  const result = {
     ...baseTrip,
+    Key: scheduledTrip?.Key,
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
     scheduledTripId: scheduledTrip?._id,
   };
+  return result;
 };
 
 // ============================================================================
-// buildTripWithFinalSchedule
+// appendFinalSchedule
 // ============================================================================
 
 /**
  * Look up scheduled trip using deterministic key and set scheduledTripId reference.
  *
- * Performs lookup when called by buildTripWithAllData (which handles
- * event detection). Reuses existing scheduledTripId when appropriate.
+ * Performs lookup when called by buildTrip (which handles event detection).
+ * Reuses existing scheduledTripId when appropriate.
  * Clears predictions when key invalid or missing.
  *
  * @param ctx - Convex action context for database queries
- * @param baseTrip - Trip from buildTripFromRawData (has Key when derivable)
- * @param existingTrip - Previous trip (for reuse)
- * @returns Trip with scheduledTripId set if lookup succeeds
+ * @param baseTrip - Trip from baseTripFromLocation (has Key when derivable)
+ * @param existingTrip - Previous trip (for reuse), undefined for first trip
+ * @returns Trip enriched with scheduledTripId if lookup succeeds
  */
-export const buildTripWithFinalSchedule = async (
+export const appendFinalSchedule = async (
   ctx: ActionCtx,
   baseTrip: ConvexVesselTrip,
-  existingTrip?: ConvexVesselTrip
+  existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
   const tripKey = baseTrip.Key ?? null;
 
@@ -94,8 +97,9 @@ export const buildTripWithFinalSchedule = async (
     { key: tripKey }
   );
 
-  return {
+  const result = {
     ...baseTrip,
-    scheduledTripId: scheduledTripId ?? undefined,
+    scheduledTripId: scheduledTripId ?? baseTrip.scheduledTripId,
   };
+  return result;
 };

@@ -1,31 +1,29 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import { extractPredictionRecord } from "functions/predictions/utils";
+import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
-import { buildTripWithAllData } from "./buildTripWithAllData";
-import { tripsAreEqual, updateAndExtractPredictions } from "./utils";
+import { buildTrip } from "./buildTrip";
+import { detectTripEvents } from "./eventDetection";
+import { tripsAreEqual } from "./utils";
+import type { TripEvents } from "./eventDetection";
 
 // ============================================================================
 // Group Types
 // Used to categorize vessels during the orchestration phase
 // ============================================================================
 
-interface NewTripGroup {
+type TripGroup = {
   currLocation: ConvexVesselLocation;
-}
+  existingTrip?: ConvexVesselTrip;
+  events: TripEvents;
+};
 
-interface CompletedTripGroup {
+type CompletedTripGroup = {
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
-}
-
-interface CurrentTripGroup {
-  currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTrip;
-}
+};
 
 // ============================================================================
 // Main Orchestrator
@@ -52,36 +50,28 @@ export const runUpdateVesselTrips = async (
 
   // 2) Index active trips by vessel abbreviation.
   const existingTripsDict = Object.fromEntries(
-    existingTripsList.map((trip) => [trip.VesselAbbrev, trip] as const)
+    (existingTripsList ?? []).map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ConvexVesselTrip>;
 
   // 3) Categorize vessel/location tuples into three groups.
-  const newTrips: NewTripGroup[] = [];
   const completedTrips: CompletedTripGroup[] = [];
-  const currentTrips: CurrentTripGroup[] = [];
+  const currentTrips: TripGroup[] = [];
 
   for (const currLocation of locations) {
-    const vesselAbbrev = currLocation.VesselAbbrev;
-    const existingTrip = existingTripsDict[vesselAbbrev];
+    const existingTrip = existingTripsDict[currLocation.VesselAbbrev];
+    const events = detectTripEvents(existingTrip, currLocation);
 
-    if (!existingTrip) {
-      newTrips.push({ currLocation });
-      continue;
-    }
-
-    const isTripBoundary =
-      existingTrip.DepartingTerminalAbbrev !==
-      currLocation.DepartingTerminalAbbrev;
-
-    if (isTripBoundary) {
+    if (events.isCompletedTrip) {
       completedTrips.push({ currLocation, existingTrip });
     } else {
-      currentTrips.push({ currLocation, existingTrip });
+      currentTrips.push({
+        currLocation,
+        existingTrip,
+        events,
+      });
     }
   }
 
-  // 4) Delegate to processing functions (each handles its own persistence).
-  await processNewTrips(ctx, newTrips);
   await processCompletedTrips(ctx, completedTrips);
   await processCurrentTrips(ctx, currentTrips);
 };
@@ -89,28 +79,6 @@ export const runUpdateVesselTrips = async (
 // ============================================================================
 // Processing Functions
 // ============================================================================
-
-/**
- * Process vessels with no existing trip (first appearance).
- *
- * Takes array of new vessels, builds and persists each directly to database.
- *
- * @param ctx - Convex action context
- * @param newTrips - Array of vessels without existing trips
- */
-const processNewTrips = async (
-  ctx: ActionCtx,
-  newTrips: NewTripGroup[]
-): Promise<void> => {
-  for (const { currLocation } of newTrips) {
-    const trip = await buildTripWithAllData(ctx, currLocation);
-
-    await ctx.runMutation(
-      api.functions.vesselTrips.mutations.upsertActiveTrip,
-      { trip }
-    );
-  }
-};
 
 /**
  * Process trip boundaries: complete current trip and start new one.
@@ -125,21 +93,19 @@ const processCompletedTrips = async (
   completedTrips: CompletedTripGroup[]
 ): Promise<void> => {
   for (const { existingTrip, currLocation } of completedTrips) {
-    // Build completed trip
+    // Build completed trip (pure function)
     const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
 
-    // Build new trip
-    const newTrip = await buildTripWithAllData(
+    // Detect events for new trip
+    const newTripEvents = detectTripEvents(existingTrip, currLocation);
+
+    // Build new trip (pure function)
+    const newTrip = await buildTrip(
       ctx,
       currLocation,
-      undefined,
-      tripToComplete
-    );
-
-    // Extract prediction records from completed trip
-    const { completedRecords } = updateAndExtractPredictions(
       existingTrip,
-      tripToComplete
+      true,
+      newTripEvents
     );
 
     // Persist atomically (complete + start)
@@ -151,18 +117,20 @@ const processCompletedTrips = async (
       }
     );
 
-    // Insert prediction records
-    if (completedRecords.length > 0) {
-      await ctx.runMutation(
-        api.functions.predictions.mutations.bulkInsertPredictions,
-        { predictions: completedRecords }
-      );
-    }
+    // Delegate prediction lifecycle to service
+    await handlePredictionEvent(ctx, {
+      eventType: "trip_complete",
+      trip: tripToComplete,
+    });
+    await handlePredictionEvent(ctx, {
+      eventType: "arrive_dock",
+      trip: newTrip,
+    });
   }
 };
 
 /**
- * Process ongoing trips (not a boundary).
+ * Process current trips (not a completed trip).
  *
  * Takes array of vessels continuing same trip, builds and persists in batch.
  *
@@ -171,45 +139,40 @@ const processCompletedTrips = async (
  */
 const processCurrentTrips = async (
   ctx: ActionCtx,
-  currentTrips: CurrentTripGroup[]
+  currentTrips: TripGroup[]
 ): Promise<void> => {
   const activeUpserts: ConvexVesselTrip[] = [];
-  const predictionRecords: ConvexPredictionRecord[] = [];
-  // Track vessels that need backfill after batch upsert completes
-  const backfillNeeded: Array<{
-    vesselAbbrev: string;
-    leftDockMs: number;
-  }> = [];
 
-  for (const { existingTrip, currLocation } of currentTrips) {
-    const tripWithPredictions = await buildTripWithAllData(
+  for (const { existingTrip, currLocation, events } of currentTrips) {
+    const tripWithPredictions = await buildTrip(
       ctx,
       currLocation,
-      existingTrip
+      existingTrip,
+      false,
+      events
     );
 
-    const didJustLeaveDock =
-      existingTrip.LeftDock === undefined &&
-      tripWithPredictions.LeftDock !== undefined;
-
-    const { updatedTrip, completedRecords } = didJustLeaveDock
-      ? updateAndExtractPredictions(existingTrip, tripWithPredictions)
-      : { updatedTrip: tripWithPredictions, completedRecords: [] };
-
-    predictionRecords.push(...completedRecords);
-
     const finalProposed: ConvexVesselTrip = {
-      ...updatedTrip,
+      ...tripWithPredictions,
       TimeStamp: currLocation.TimeStamp,
     };
 
-    if (!tripsAreEqual(existingTrip, finalProposed)) {
+    if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
       activeUpserts.push(finalProposed);
 
-      if (didJustLeaveDock && finalProposed.LeftDock !== undefined) {
-        backfillNeeded.push({
-          vesselAbbrev: currLocation.VesselAbbrev,
-          leftDockMs: finalProposed.LeftDock,
+      // Handle prediction events
+      if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+        // Get previous completed trip for backfill
+        const previousTripResult = await ctx.runQuery(
+          api.functions.vesselTrips.queries.getMostRecentCompletedTrip,
+          { vesselAbbrev: currLocation.VesselAbbrev }
+        );
+        const previousTrip = previousTripResult ?? undefined;
+
+        await handlePredictionEvent(ctx, {
+          eventType: "leave_dock",
+          trip: tripWithPredictions,
+          previousTrip,
         });
       }
     }
@@ -220,59 +183,6 @@ const processCurrentTrips = async (
     await ctx.runMutation(
       api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
       { activeUpserts }
-    );
-  }
-
-  // Insert prediction records
-  if (predictionRecords.length > 0) {
-    await ctx.runMutation(
-      api.functions.predictions.mutations.bulkInsertPredictions,
-      { predictions: predictionRecords }
-    );
-  }
-
-  // Handle depart-next backfills
-  for (const { vesselAbbrev, leftDockMs } of backfillNeeded) {
-    await backfillDepartNextActuals(ctx, vesselAbbrev, leftDockMs);
-  }
-};
-
-/**
- * Backfill depart-next actuals for previous completed trip.
- *
- * When current trip leaves dock, updates previous trip's AtDockDepartNext and
- * AtSeaDepartNext with actual departure time, and inserts prediction records.
- *
- * @param ctx - Convex action context
- * @param vesselAbbrev - Vessel abbreviation
- * @param leftDockMs - Actual departure timestamp in milliseconds
- */
-const backfillDepartNextActuals = async (
-  ctx: ActionCtx,
-  vesselAbbrev: string,
-  leftDockMs: number
-): Promise<void> => {
-  const backfillResult = await ctx.runMutation(
-    api.functions.vesselTrips.mutations
-      .setDepartNextActualsForMostRecentCompletedTrip,
-    {
-      vesselAbbrev,
-      actualDepartMs: leftDockMs,
-    }
-  );
-
-  if (!backfillResult?.updated || !backfillResult.updatedTrip) return;
-
-  const tripData = backfillResult.updatedTrip;
-  const departNextRecords = [
-    extractPredictionRecord(tripData, "AtDockDepartNext"),
-    extractPredictionRecord(tripData, "AtSeaDepartNext"),
-  ].filter((r): r is ConvexPredictionRecord => r !== null);
-
-  if (departNextRecords.length > 0) {
-    await ctx.runMutation(
-      api.functions.predictions.mutations.bulkInsertPredictions,
-      { predictions: departNextRecords }
     );
   }
 };

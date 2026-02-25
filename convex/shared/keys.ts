@@ -58,12 +58,16 @@ export const generateTripKey = (
   departingTime: Date | undefined
 ): string | undefined => {
   // Require minimum fields for key generation
-  if (!departingTime || !vesselAbbrev || !departingTerminalAbbrev) {
+  if (
+    !departingTime ||
+    !vesselAbbrev ||
+    !departingTerminalAbbrev ||
+    !arrivingTerminalAbbrev
+  ) {
     return undefined;
   }
 
-  const arrivingAbbrev = arrivingTerminalAbbrev || "";
   const dateStr = formatPacificDate(departingTime);
   const timeStr = formatPacificTime(departingTime);
-  return `${vesselAbbrev}--${dateStr}--${timeStr}--${departingTerminalAbbrev}-${arrivingAbbrev}`;
+  return `${vesselAbbrev}--${dateStr}--${timeStr}--${departingTerminalAbbrev}-${arrivingTerminalAbbrev}`;
 };

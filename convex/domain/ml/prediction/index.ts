@@ -12,7 +12,15 @@ export { predictWithModel } from "./applyModel";
  * ML model evaluation metrics and performance calculation
  */
 export { calculateMAE, calculateR2, calculateRMSE } from "./metrics";
-
+/**
+ * Prediction lifecycle service - manages predictions end-to-end
+ */
+export {
+  computeLeaveDockPredictions,
+  handlePredictionEvent,
+  type PredictionEventType,
+  type PredictionLifecycleEvent,
+} from "./predictionService";
 /**
  * Core prediction functions for vessel trip timing
  */
@@ -22,7 +30,6 @@ export {
   predictEtaOnDeparture,
   predictTripValue,
 } from "./predictTrip";
-
 /**
  * Vessel trip prediction core utilities
  */

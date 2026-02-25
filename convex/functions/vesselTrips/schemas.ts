@@ -1,7 +1,5 @@
-import type { Id } from "_generated/dataModel";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
@@ -99,8 +97,9 @@ export const vesselTripSchema = v.object({
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
+  RouteAbbrev: v.optional(v.string()),
   Key: v.optional(v.string()), // Optional given need for departing terminal
-  SailingDay: v.string(), // WSF operational day in YYYY-MM-DD format
+  SailingDay: v.optional(v.string()), // WSF operational day in YYYY-MM-DD format
   scheduledTripId: v.optional(v.id("scheduledTrips")),
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
@@ -127,67 +126,7 @@ export const vesselTripSchema = v.object({
   AtSeaDepartNext: v.optional(predictionSchema), // at-sea-depart-next model
 });
 
-/**
- * Type for active vessel trip in Convex storage (with numbers)
- * Inferred from the Convex validator.
- */
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
-
-/**
- * Converts vessel location to trip format with simplified schema.
- * Note: location is already in Convex format (numbers), returns Convex format.
- * Used to transform vessel location data into vessel trip records for tracking and predictions.
- *
- * @param cvl - Convex vessel location record to convert
- * @param params - Additional trip parameters including predictions and previous trip data
- * @returns Complete vessel trip record in Convex format ready for database storage
- */
-export const toConvexVesselTrip = (
-  cvl: ConvexVesselLocation,
-  params: {
-    TripStart?: number;
-    TripEnd?: number;
-    // Denormalized previous trip data
-    PrevTerminalAbbrev?: string;
-    PrevScheduledDeparture?: number;
-    PrevLeftDock?: number;
-    // ML model predictions
-    AtDockDepartCurr?: ConvexPrediction;
-    AtDockArriveNext?: ConvexPrediction;
-    AtDockDepartNext?: ConvexPrediction;
-    AtSeaArriveNext?: ConvexPrediction;
-    AtSeaDepartNext?: ConvexPrediction;
-  }
-): ConvexVesselTrip => {
-  return {
-    // Core trip identity fields (from vessel locations)
-    VesselAbbrev: cvl.VesselAbbrev,
-    DepartingTerminalAbbrev: cvl.DepartingTerminalAbbrev,
-    ArrivingTerminalAbbrev: cvl.ArrivingTerminalAbbrev,
-    SailingDay: "", // Not available in vessel location data
-    scheduledTripId: undefined,
-    // VesselTrip-specific fields
-    PrevTerminalAbbrev: params.PrevTerminalAbbrev,
-    TripStart: params.TripStart,
-    AtDock: cvl.AtDock,
-    ScheduledDeparture: cvl.ScheduledDeparture,
-    LeftDock: cvl.LeftDock,
-    TripDelay: undefined,
-    Eta: cvl.Eta,
-    TripEnd: params.TripEnd,
-    InService: cvl.InService,
-    TimeStamp: cvl.TimeStamp,
-    // Denormalized previous trip data
-    PrevScheduledDeparture: params.PrevScheduledDeparture,
-    PrevLeftDock: params.PrevLeftDock,
-    // ML model predictions
-    AtDockDepartCurr: params.AtDockDepartCurr,
-    AtDockArriveNext: params.AtDockArriveNext,
-    AtDockDepartNext: params.AtDockDepartNext,
-    AtSeaArriveNext: params.AtSeaArriveNext,
-    AtSeaDepartNext: params.AtSeaDepartNext,
-  };
-};
 
 /**
  * Convert Convex vessel trip (numbers) to domain vessel trip (Dates).
@@ -196,10 +135,9 @@ export const toConvexVesselTrip = (
  * @param trip - Convex vessel trip with numeric timestamps
  * @returns Domain vessel trip with Date objects and resolved predictions
  */
-export const toDomainVesselTrip = (trip: ConvexVesselTrip): VesselTrip => {
+export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
   const domainTrip = {
     ...trip,
-    scheduledTripId: trip.scheduledTripId,
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
     Eta: optionalEpochMsToDate(trip.Eta),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
@@ -228,34 +166,6 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
 
 /**
  * Type for active vessel trip in domain layer (with Date objects)
- * Inferred from the return type of our conversion function
+ * Inferred from return type of our conversion function
  */
-export type VesselTrip = {
-  VesselAbbrev: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev?: string;
-  Key?: string;
-  SailingDay: string;
-  scheduledTripId?: Id<"scheduledTrips">;
-  PrevTerminalAbbrev?: string;
-  TripStart?: Date;
-  AtDock: boolean;
-  AtDockDuration?: number;
-  ScheduledDeparture?: Date;
-  LeftDock?: Date;
-  TripDelay?: number;
-  Eta?: Date;
-  TripEnd?: Date;
-  AtSeaDuration?: number;
-  TotalDuration?: number;
-  InService: boolean;
-  TimeStamp: Date;
-  PrevScheduledDeparture?: number;
-  PrevLeftDock?: number;
-  // ML model predictions (raw, no backend resolution)
-  AtDockDepartCurr?: Prediction;
-  AtDockArriveNext?: Prediction;
-  AtDockDepartNext?: Prediction;
-  AtSeaArriveNext?: Prediction;
-  AtSeaDepartNext?: Prediction;
-};
+export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;

@@ -2,13 +2,57 @@
  * Utility functions for vessel trips - equality checking, type guards, etc.
  */
 
-import { updatePredictionsWithActuals } from "domain/ml/prediction";
-import type { ConvexPredictionRecord } from "functions/predictions/schemas";
-import {
-  extractPredictionRecord,
-  PREDICTION_FIELDS,
-} from "functions/predictions/utils";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+
+/**
+ * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
+ *
+ * Compares all fields in both directions to detect added/removed fields.
+ * Excludes TimeStamp (which changes every tick and is not semantically
+ * significant). Deep equality handles nested objects and arrays.
+ *
+ * Bidirectional comparison ensures new fields in proposed are detected.
+ *
+ * @param existing - Existing trip from database
+ * @param proposed - Newly constructed trip
+ * @returns true if all non-TimeStamp fields are deeply equal
+ */
+export const tripsAreEqual = (
+  existing: ConvexVesselTrip,
+  proposed: ConvexVesselTrip
+): boolean =>
+  compareTripFields(existing, existing, proposed) &&
+  compareTripFields(proposed, existing, proposed);
+
+/**
+ * Compare trip fields between existing and proposed trips, excluding TimeStamp.
+ *
+ * Iterates through all keys in the source trip and compares values between
+ * existing and proposed trips. Skips TimeStamp field which changes every tick.
+ *
+ * @param source - Trip whose keys to iterate over
+ * @param existing - Existing trip from database
+ * @param proposed - Newly constructed trip
+ * @returns true if all non-TimeStamp fields match
+ */
+const compareTripFields = (
+  source: ConvexVesselTrip,
+  existing: ConvexVesselTrip,
+  proposed: ConvexVesselTrip
+): boolean => {
+  for (const key in source) {
+    if (key === "TimeStamp") continue;
+    if (
+      !deepEqual(
+        existing[key as keyof ConvexVesselTrip],
+        proposed[key as keyof ConvexVesselTrip]
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
 
 // ============================================================================
 // Deep Equality Utilities
@@ -49,72 +93,4 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
   }
 
   return false;
-};
-
-/**
- * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
- *
- * Compares all fields in both directions to detect added/removed fields.
- * Excludes TimeStamp (which changes every tick and is not semantically
- * significant). Deep equality handles nested objects and arrays.
- *
- * Bidirectional comparison ensures new fields in proposed are detected.
- *
- * @param existing - Existing trip from database
- * @param proposed - Newly constructed trip
- * @returns true if all non-TimeStamp fields are deeply equal
- */
-export const tripsAreEqual = (
-  existing: ConvexVesselTrip,
-  proposed: ConvexVesselTrip
-): boolean => {
-  const excludeFields = new Set<keyof ConvexVesselTrip>(["TimeStamp"]);
-
-  const compareFields = (source: ConvexVesselTrip): boolean => {
-    for (const key in source) {
-      if (!excludeFields.has(key as keyof ConvexVesselTrip)) {
-        if (
-          !deepEqual(
-            existing[key as keyof ConvexVesselTrip],
-            proposed[key as keyof ConvexVesselTrip]
-          )
-        ) {
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  // Compare all fields from existing and proposed (except excluded)
-  return compareFields(existing) && compareFields(proposed);
-};
-
-// ============================================================================
-// Prediction Utilities
-// ============================================================================
-
-/**
- * Update predictions with actuals and extract completed records.
- *
- * Consolidates the pattern of calling updatePredictionsWithActuals
- * and extracting prediction records that's used in multiple places.
- *
- * @param existingTrip - Trip before updates
- * @param finalTrip - Trip after all updates applied
- * @returns Updated trip with actuals and completed prediction records
- */
-export const updateAndExtractPredictions = (
-  existingTrip: ConvexVesselTrip,
-  finalTrip: ConvexVesselTrip
-): {
-  updatedTrip: ConvexVesselTrip;
-  completedRecords: ConvexPredictionRecord[];
-} => {
-  const updates = updatePredictionsWithActuals(existingTrip, finalTrip);
-  const updated = { ...finalTrip, ...updates };
-  const records = PREDICTION_FIELDS.map((field) =>
-    extractPredictionRecord(updated, field)
-  ).filter((r): r is ConvexPredictionRecord => r !== null);
-  return { updatedTrip: updated, completedRecords: records };
 };
