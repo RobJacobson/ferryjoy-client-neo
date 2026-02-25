@@ -32,7 +32,7 @@ type ScheduledTripTimelineVerticalProps = {
   /**
    * Unified map of segment Key to VesselTrip (actuals/predictions).
    */
-  vesselTripMap: Map<string, VesselTrip>;
+  vesselTripByKeys: Map<string, VesselTrip>;
   /**
    * Real-time vessel location.
    */
@@ -55,7 +55,7 @@ type ScheduledTripTimelineVerticalProps = {
  */
 export const ScheduledTripTimelineVertical = ({
   journey,
-  vesselTripMap,
+  vesselTripByKeys,
   vesselLocation,
   heldTrip,
   height = 250,
@@ -64,11 +64,11 @@ export const ScheduledTripTimelineVertical = ({
     () =>
       synthesizeTripSegments({
         segments: journey.segments,
-        vesselTripMap,
+        vesselTripByKeys,
         vesselLocation,
         heldTrip,
       }),
-    [journey.segments, vesselTripMap, vesselLocation, heldTrip]
+    [journey.segments, vesselTripByKeys, vesselLocation, heldTrip]
   );
 
   if (segments.length === 0) return null;

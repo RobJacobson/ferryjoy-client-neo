@@ -1,47 +1,34 @@
 /**
- * ScheduledTripList component for displaying a list of scheduled trips for a terminal.
- * Fetches data from Convex and handles loading/empty states.
+ * ScheduledTripList - Presentational component for displaying scheduled trips.
+ *
+ * Receives pre-resolved page data (journeys, maps) and renders loading, empty,
+ * or scrollable list of cards. No data fetching.
  */
 
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { ScheduledTripCard } from "./ScheduledTripCard";
-import { useUnifiedTripsPageData } from "./useUnifiedTripsPageData";
+import type { ScheduledTripListPageData } from "./types";
 
-type ScheduledTripListProps = {
-  /**
-   * Departure terminal abbreviation (defaults to Seattle/P52).
-   */
-  terminalAbbrev?: string;
-  /**
-   * Optional destination terminal abbreviation to filter trips.
-   */
-  destinationAbbrev?: string;
-};
+type ScheduledTripListProps = ScheduledTripListPageData;
 
 /**
- * Displays a scrollable list of scheduled trips for a specific terminal and optional destination.
- * Automatically uses the current sailing day for data fetching.
+ * Displays a scrollable list of scheduled trips from pre-resolved page data.
  *
- * Renders loading state, empty state (no trips today), or a scrollable list of cards. When ready,
- * each card receives pre-resolved page data when available so the timeline does not refetch per card.
- *
- * @param terminalAbbrev - The terminal to show trips for
- * @param destinationAbbrev - Optional destination to filter by
- * @returns A scrollable list of ScheduledTripCard components
+ * @param status - "loading" | "empty" | "ready"
+ * @param journeys - Journey data when ready
+ * @param vesselTripByKeys - Map of segment Key to VesselTrip
+ * @param vesselLocationByAbbrev - Map of vessel abbrev to location
+ * @param currentTripByAbbrev - Map of current trip per vessel (active or held during arrival transition)
+ * @returns Loading view, empty view, or scrollable list of ScheduledTripCard
  */
 export const ScheduledTripList = ({
-  terminalAbbrev = "P52",
-  destinationAbbrev,
+  status,
+  journeys,
+  vesselTripByKeys,
+  vesselLocationByAbbrev,
+  currentTripByAbbrev,
 }: ScheduledTripListProps) => {
-  const {
-    status,
-    journeys,
-    vesselTripMap,
-    vesselLocationByAbbrev,
-    displayTripByAbbrev,
-  } = useUnifiedTripsPageData({ terminalAbbrev, destinationAbbrev });
-
   if (status === "loading") {
     return (
       <View className="flex-1 items-center justify-center p-4">
@@ -71,17 +58,17 @@ export const ScheduledTripList = ({
             const vesselLocation = vesselLocationByAbbrev.get(
               trip.vesselAbbrev
             );
-            const heldTrip = displayTripByAbbrev.get(trip.vesselAbbrev);
+            const heldTrip = currentTripByAbbrev.get(trip.vesselAbbrev);
             return trip.segments.length > 0
-              ? [{ trip, vesselLocation, vesselTripMap, heldTrip }]
+              ? [{ trip, vesselLocation, vesselTripByKeys, heldTrip }]
               : [];
           })
-          .map(({ trip, vesselLocation, vesselTripMap, heldTrip }) => (
+          .map(({ trip, vesselLocation, vesselTripByKeys, heldTrip }) => (
             <ScheduledTripCard
               key={trip.id}
               trip={trip}
               vesselLocation={vesselLocation}
-              vesselTripMap={vesselTripMap}
+              vesselTripByKeys={vesselTripByKeys}
               heldTrip={heldTrip}
             />
           ))}

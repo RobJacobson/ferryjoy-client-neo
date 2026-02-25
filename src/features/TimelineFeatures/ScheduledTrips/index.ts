@@ -8,3 +8,4 @@ export * from "./ScheduledTripList";
 export * from "./ScheduledTripTimeline";
 export * from "./ScheduledTripTimelineVertical";
 export * from "./types";
+export * from "./useUnifiedTripsPageData";

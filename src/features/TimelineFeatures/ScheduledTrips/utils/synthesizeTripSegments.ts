@@ -3,7 +3,7 @@
  *
  * This version uses a self-resolving "pull-based" logic: each segment determines
  * its own status (past/ongoing/future) and phase (at-dock/at-sea/completed/pending)
- * by looking at the vesselTripMap (for actuals) and vesselLocation (for current activity).
+ * by looking at the vesselTripByKeys (for actuals) and vesselLocation (for current activity).
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
@@ -22,18 +22,18 @@ const SCHEDULED_DEPARTURE_TOLERANCE_MS = 60_000;
  * Synthesizes a list of raw segments into TripSegment View Models.
  *
  * @param params.segments - Raw scheduled segments
- * @param params.vesselTripMap - Map of segment Key to VesselTrip (actuals/predictions)
+ * @param params.vesselTripByKeys - Map of segment Key to VesselTrip (actuals/predictions)
  * @param params.vesselLocation - Real-time vessel location
  * @param params.heldTrip - The trip currently being held (if any)
  * @returns Array of synthesized TripSegment objects
  */
 export const synthesizeTripSegments = (params: {
   segments: Segment[];
-  vesselTripMap: Map<string, VesselTrip>;
+  vesselTripByKeys: Map<string, VesselTrip>;
   vesselLocation: VesselLocation | undefined;
   heldTrip?: VesselTrip;
 }): TripSegment[] => {
-  const { segments, vesselTripMap, vesselLocation, heldTrip } = params;
+  const { segments, vesselTripByKeys, vesselLocation, heldTrip } = params;
 
   // 1. Identify the active segment key for the vessel.
   // Priority: Held Trip Key -> VesselLocation ScheduledDeparture (tolerant match) -> AtDock terminal fallback.
@@ -54,7 +54,7 @@ export const synthesizeTripSegments = (params: {
           (s) =>
             s.DepartingTerminalAbbrev ===
               vesselLocation.DepartingTerminalAbbrev &&
-            !vesselTripMap.get(s.Key)?.TripEnd
+            !vesselTripByKeys.get(s.Key)?.TripEnd
         )?.Key
       : undefined);
 
@@ -65,9 +65,9 @@ export const synthesizeTripSegments = (params: {
     : "Unknown";
 
   return segments.map((segment) => {
-    const actualTrip = vesselTripMap.get(segment.Key);
+    const actualTrip = vesselTripByKeys.get(segment.Key);
     const prevTrip = segment.PrevKey
-      ? vesselTripMap.get(segment.PrevKey)
+      ? vesselTripByKeys.get(segment.PrevKey)
       : undefined;
     const isActive = !!activeKey && activeKey === segment.Key;
     const isHeld = isActive && !!heldTrip;

@@ -2,7 +2,7 @@
  * Hook that resolves page data for ScheduledTrips from UnifiedTripsContext.
  *
  * Consumes useUnifiedTrips(), integrates hold window via useDelayedVesselTrips,
- * and produces journeys, vesselTripMap, and display maps for presentational components.
+ * and produces journeys, vesselTripByKeys, and display maps for presentational components.
  * Must be used within UnifiedTripsProvider.
  */
 
@@ -16,7 +16,7 @@ import { useUnifiedTrips } from "@/data/contexts";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useDelayedVesselTrips } from "../shared/useDelayedVesselTrips";
 import type { ScheduledTripJourney } from "./types";
-import { reconstructJourneys } from "./utils/reconstructJourneys";
+import { buildJourneyChains } from "./utils/buildJourneyChains";
 
 type UseUnifiedTripsPageDataParams = {
   /** Departure terminal to filter journeys (e.g. "P52") */
@@ -31,7 +31,7 @@ type UseUnifiedTripsPageDataResult = {
   /**
    * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
    */
-  vesselTripMap: Map<string, VesselTrip>;
+  vesselTripByKeys: Map<string, VesselTrip>;
   /**
    * Vessel location map used during render for real-time status/phase and bar animations.
    */
@@ -39,7 +39,7 @@ type UseUnifiedTripsPageDataResult = {
   /**
    * Held trip map used to preserve UX identity during arrival transitions.
    */
-  displayTripByAbbrev: Map<string, VesselTrip>;
+  currentTripByAbbrev: Map<string, VesselTrip>;
 };
 
 type UnifiedTripForActive = {
@@ -71,14 +71,14 @@ const buildActiveTripsWithScheduled = (
 type DisplayDataItem = { trip: VesselTrip; vesselLocation: VesselLocation };
 
 /**
- * Builds page-level maps: vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev.
+ * Builds page-level maps: vesselTripByKeys, vesselLocationByAbbrev, currentTripByAbbrev.
  * Precedence: completed first, then active, then displayData (hold window) wins.
  *
  * @param completedTrips - Completed trips from unified data
  * @param activeVesselTrips - Active trips from unified data
  * @param vesselLocations - Live vessel locations from Convex
  * @param displayData - Hold-window display data
- * @returns vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev
+ * @returns vesselTripByKeys, vesselLocationByAbbrev, currentTripByAbbrev
  */
 const buildPageMaps = (
   completedTrips: VesselTrip[],
@@ -93,7 +93,7 @@ const buildPageMaps = (
   ]
     .filter((t): t is VesselTrip & { Key: string } => !!t.Key)
     .map((t) => [t.Key, t] as const);
-  const vesselTripMap = new Map<string, VesselTrip>(tripsWithKey);
+  const vesselTripByKeys = new Map<string, VesselTrip>(tripsWithKey);
 
   const synced = new Map<string, VesselLocation>();
   for (const d of displayData) {
@@ -106,23 +106,23 @@ const buildPageMaps = (
     ])
   );
 
-  const displayTripByAbbrev = new Map(
+  const currentTripByAbbrev = new Map(
     displayData.map((d) => [d.trip.VesselAbbrev, d.trip])
   );
 
-  return { vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev };
+  return { vesselTripByKeys, vesselLocationByAbbrev, currentTripByAbbrev };
 };
 
 /**
  * Resolves page data from UnifiedTripsContext for ScheduledTrips display.
  *
  * Extracts scheduled, active, and completed trips from unifiedTrips; integrates
- * hold window via useDelayedVesselTrips; builds vesselTripMap and location maps;
- * reconstructs journeys via reconstructJourneys.
+ * hold window via useDelayedVesselTrips; builds vesselTripByKeys and location maps;
+ * builds journey chains via buildJourneyChains.
  *
  * @param terminalAbbrev - Departure terminal to filter journeys
  * @param destinationAbbrev - Optional destination terminal to filter trips
- * @returns Object with status, journeys, vesselTripMap, vesselLocationByAbbrev, displayTripByAbbrev
+ * @returns Object with status, journeys, vesselTripByKeys, vesselLocationByAbbrev, currentTripByAbbrev
  */
 export const useUnifiedTripsPageData = ({
   terminalAbbrev,
@@ -151,7 +151,7 @@ export const useUnifiedTripsPageData = ({
     displayData
   );
 
-  const journeys = reconstructJourneys(
+  const journeys = buildJourneyChains(
     scheduledTrips,
     terminalAbbrev,
     destinationAbbrev
@@ -166,8 +166,8 @@ export const useUnifiedTripsPageData = ({
   return {
     status,
     journeys,
-    vesselTripMap: maps.vesselTripMap,
+    vesselTripByKeys: maps.vesselTripByKeys,
     vesselLocationByAbbrev: maps.vesselLocationByAbbrev,
-    displayTripByAbbrev: maps.displayTripByAbbrev,
+    currentTripByAbbrev: maps.currentTripByAbbrev,
   };
 };
