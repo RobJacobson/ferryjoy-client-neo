@@ -139,6 +139,95 @@ export const getCompletedTripsByRouteAndTripDate = query({
 });
 
 /**
+ * Fetch active vessel trips for multiple routes.
+ * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
+ * @returns Array of active vessel trips (schema shape) for the routes
+ */
+export const getActiveTripsByRoutes = query({
+  args: { routeAbbrevs: v.array(v.string()) },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const uniqueRoutes = [...new Set(args.routeAbbrevs)];
+      const batches = await Promise.all(
+        uniqueRoutes.map((routeAbbrev) =>
+          ctx.db
+            .query("activeVesselTrips")
+            .withIndex("by_route_abbrev", (q) =>
+              q.eq("RouteAbbrev", routeAbbrev)
+            )
+            .collect()
+        )
+      );
+      return batches.flat().map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch active trips for routes`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrevs: args.routeAbbrevs,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch completed vessel trips for multiple routes and trip date.
+ * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of completed vessel trips (schema shape), deduped by Key
+ */
+export const getCompletedTripsByRoutesAndTripDate = query({
+  args: {
+    routeAbbrevs: v.array(v.string()),
+    tripDate: v.string(),
+  },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const uniqueRoutes = [...new Set(args.routeAbbrevs)];
+      const batches = await Promise.all(
+        uniqueRoutes.map((routeAbbrev) =>
+          ctx.db
+            .query("completedVesselTrips")
+            .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+              q.eq("RouteAbbrev", routeAbbrev).eq("SailingDay", args.tripDate)
+            )
+            .collect()
+        )
+      );
+      const byKey = new Map<string, (typeof batches)[0][number]>();
+      for (const batch of batches) {
+        for (const doc of batch) {
+          if (doc.Key) byKey.set(doc.Key, doc);
+        }
+      }
+      return Array.from(byKey.values()).map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch completed trips for routes on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrevs: args.routeAbbrevs,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
  * Fetches completed vessel trips for a sailing day and set of departing terminals.
  * Uses indexed lookups only; matches ScheduledTrips usage (sailing day + terminal).
  *

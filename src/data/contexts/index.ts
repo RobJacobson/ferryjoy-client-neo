@@ -12,6 +12,8 @@ export * from "./convex/ConvexVesselPingsContext";
 
 export * from "./convex/ConvexVesselTripsContext";
 
+export * from "./convex/UnifiedTripsContext";
+
 export * from "./MapCameraControllerContext";
 
 export * from "./MapStateContext";
