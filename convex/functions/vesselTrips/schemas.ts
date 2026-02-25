@@ -1,5 +1,7 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
+import { toDomainScheduledTrip } from "functions/scheduledTrips/schemas";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
@@ -155,6 +157,23 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
   return domainTrip;
 };
 
+/**
+ * Convert Convex vessel trip with optional ScheduledTrip to domain shape.
+ * Use when query returns joined ScheduledTrip (e.g. getActiveTripsWithScheduled).
+ *
+ * @param trip - Convex vessel trip with optional ScheduledTrip
+ * @returns Domain vessel trip with Date objects and optional domain ScheduledTrip
+ */
+export const toDomainVesselTripWithScheduledTrip = (
+  trip: ConvexVesselTrip & { ScheduledTrip?: ConvexScheduledTrip }
+) => {
+  const domainTrip = toDomainVesselTrip(trip);
+  const ScheduledTrip = trip.ScheduledTrip
+    ? toDomainScheduledTrip(trip.ScheduledTrip)
+    : undefined;
+  return { ...domainTrip, ScheduledTrip };
+};
+
 export type PredictionReadyTrip = ConvexVesselTrip & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
@@ -169,3 +188,10 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
  * Inferred from return type of our conversion function
  */
 export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
+
+/**
+ * Vessel trip with optional joined ScheduledTrip (from getActiveTripsWithScheduled).
+ */
+export type VesselTripWithScheduledTrip = ReturnType<
+  typeof toDomainVesselTripWithScheduledTrip
+>;

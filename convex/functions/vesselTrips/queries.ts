@@ -1,7 +1,13 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+
+/** Vessel trip with optional joined ScheduledTrip (for display) */
+const vesselTripWithScheduledSchema = vesselTripSchema.extend({
+  ScheduledTrip: v.optional(scheduledTripSchema),
+});
 
 /**
  * Fetch active vessel trips for a specific route.
@@ -52,6 +58,47 @@ export const getActiveTrips = query({
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch active vessel trips",
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { error: String(error) },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch active vessel trips with joined ScheduledTrip for display.
+ *
+ * Uses ctx.db.get(scheduledTripId) for each trip—no index needed for
+ * direct lookups by document ID.
+ *
+ * @param ctx - Convex context
+ * @returns Array of active vessel trips with optional ScheduledTrip appended
+ */
+export const getActiveTripsWithScheduledTrip = query({
+  args: {},
+  returns: v.array(vesselTripWithScheduledSchema),
+  handler: async (ctx) => {
+    try {
+      const trips = await ctx.db.query("activeVesselTrips").collect();
+      const result = await Promise.all(
+        trips.map(async (doc) => {
+          const trip = stripConvexMeta(doc);
+          const scheduledTripId = trip.scheduledTripId;
+          if (!scheduledTripId) {
+            return trip;
+          }
+          const scheduledDoc = await ctx.db.get(scheduledTripId);
+          const ScheduledTrip = scheduledDoc
+            ? stripConvexMeta(scheduledDoc)
+            : undefined;
+          return { ...trip, ScheduledTrip };
+        })
+      );
+      return result;
+    } catch (error) {
+      throw new ConvexError({
+        message: "Failed to fetch active vessel trips with scheduled data",
         code: "QUERY_FAILED",
         severity: "error",
         details: { error: String(error) },
