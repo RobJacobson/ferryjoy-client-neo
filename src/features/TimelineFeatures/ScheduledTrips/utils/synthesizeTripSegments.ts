@@ -13,7 +13,7 @@ import type {
   TimelineActivePhase,
   TimePoint,
   TripSegment,
-} from "../../Timeline/types";
+} from "../../shared/types";
 
 /** Max ms difference for matching ScheduledDeparture to segment.DepartingTime. */
 const SCHEDULED_DEPARTURE_TOLERANCE_MS = 60_000;

@@ -15,8 +15,8 @@ import {
   TimelineMarkerLabel,
   TimelineMarkerTime,
   TimelineSegment,
-} from "../Timeline";
-import type { TimePoint } from "../Timeline/types";
+} from "../shared";
+import type { TimePoint } from "../shared/types";
 import type { ScheduledTripJourney } from "./types";
 import { synthesizeTripSegments } from "./utils/synthesizeTripSegments";
 

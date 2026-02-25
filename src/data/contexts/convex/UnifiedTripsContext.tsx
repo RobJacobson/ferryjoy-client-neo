@@ -179,10 +179,7 @@ export const UnifiedTripsProvider = ({
 
   return (
     <UnifiedTripsContext.Provider value={state}>
-      <UnifiedTripsErrorBoundary
-        onError={handleError}
-        fallback={children}
-      >
+      <UnifiedTripsErrorBoundary onError={handleError} fallback={children}>
         <UnifiedTripsDataFetcher
           routeAbbrev={routeAbbrev}
           tripDate={tripDate}

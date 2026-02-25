@@ -9,7 +9,7 @@ import { toDomainVesselTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { useDelayedVesselTrips } from "../VesselTrips/useDelayedVesselTrips";
+import { useDelayedVesselTrips } from "../shared/useDelayedVesselTrips";
 import { buildAllPageMaps, type PageMaps } from "./utils/buildPageDataMaps";
 
 type UseScheduledTripsMapsParams = {

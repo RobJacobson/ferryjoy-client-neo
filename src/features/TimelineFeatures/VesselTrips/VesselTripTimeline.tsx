@@ -4,7 +4,7 @@
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
@@ -15,13 +15,13 @@ import {
   TimelineMarkerContent,
   TimelineMarkerLabel,
   TimelineMarkerTime,
-} from "../Timeline";
+} from "../shared";
 import {
   getBestArrivalTime,
   getBestDepartureTime,
   getPredictedArriveNextTime,
   getPredictedDepartCurrTime,
-} from "../Timeline/utils";
+} from "../shared/utils";
 
 // ============================================================================
 // Types
@@ -29,7 +29,7 @@ import {
 
 type VesselTripTimelineProps = {
   vesselLocation: VesselLocation;
-  trip: VesselTrip;
+  trip: VesselTripWithScheduledTrip;
   className?: string;
 };
 
@@ -73,7 +73,7 @@ const VesselTripTimeline = ({
     <View
       className={cn(
         "relative w-full flex-row items-center justify-between overflow-visible",
-        className
+        className,
       )}
       style={{ minHeight: 80 }}
     >
