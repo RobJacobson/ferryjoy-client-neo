@@ -64,18 +64,13 @@ const baseTripForStart = (
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
-    Key:
-      generateTripKey(
-        currLocation.VesselAbbrev,
-        currLocation.DepartingTerminalAbbrev,
-        arrivingTerminalAbbrev,
-        currLocation.ScheduledDeparture
-          ? new Date(currLocation.ScheduledDeparture)
-          : undefined
-      ) ?? undefined,
-    SailingDay: currLocation.ScheduledDeparture
-      ? getSailingDay(new Date(currLocation.ScheduledDeparture))
-      : "",
+    Key: deriveTripKey(
+      currLocation.VesselAbbrev,
+      currLocation.DepartingTerminalAbbrev,
+      arrivingTerminalAbbrev,
+      currLocation.ScheduledDeparture
+    ),
+    SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
     scheduledTripId: undefined,
     PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
@@ -92,6 +87,7 @@ const baseTripForStart = (
     TotalDuration: undefined,
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
+    // Predictions reset for new trip
     AtDockDepartCurr: undefined,
     AtDockArriveNext: undefined,
     AtDockDepartNext: undefined,
@@ -136,18 +132,13 @@ const baseTripForContinuing = (
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
-    Key:
-      generateTripKey(
-        currLocation.VesselAbbrev,
-        currLocation.DepartingTerminalAbbrev,
-        arrivingTerminalAbbrev,
-        currLocation.ScheduledDeparture
-          ? new Date(currLocation.ScheduledDeparture)
-          : undefined
-      ) ?? undefined,
-    SailingDay: currLocation.ScheduledDeparture
-      ? getSailingDay(new Date(currLocation.ScheduledDeparture))
-      : "",
+    Key: deriveTripKey(
+      currLocation.VesselAbbrev,
+      currLocation.DepartingTerminalAbbrev,
+      arrivingTerminalAbbrev,
+      currLocation.ScheduledDeparture
+    ),
+    SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
     scheduledTripId: existingTrip?.scheduledTripId,
     // Prev* fields carried from existing trip
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
@@ -178,3 +169,29 @@ const baseTripForContinuing = (
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
 };
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Derive trip key from vessel, terminals, and scheduled departure.
+ */
+const deriveTripKey = (
+  vessel: string,
+  departing: string,
+  arriving: string | undefined,
+  scheduledDeparture: number | undefined
+): string | undefined =>
+  generateTripKey(
+    vessel,
+    departing,
+    arriving,
+    scheduledDeparture ? new Date(scheduledDeparture) : undefined
+  );
+
+/**
+ * Derive sailing day from scheduled departure.
+ */
+const deriveSailingDay = (scheduledDeparture: number | undefined): string =>
+  scheduledDeparture ? getSailingDay(new Date(scheduledDeparture)) : "";

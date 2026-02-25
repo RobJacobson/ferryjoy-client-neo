@@ -7,6 +7,7 @@ import { buildCompletedTrip } from "./buildCompletedTrip";
 import { buildTrip } from "./buildTrip";
 import { detectTripEvents } from "./eventDetection";
 import { tripsAreEqual } from "./utils";
+import type { TripEvents } from "./eventDetection";
 
 // ============================================================================
 // Group Types
@@ -16,6 +17,7 @@ import { tripsAreEqual } from "./utils";
 type TripGroup = {
   currLocation: ConvexVesselLocation;
   existingTrip?: ConvexVesselTrip;
+  events: TripEvents;
 };
 
 type CompletedTripGroup = {
@@ -65,6 +67,7 @@ export const runUpdateVesselTrips = async (
       currentTrips.push({
         currLocation,
         existingTrip,
+        events,
       });
     }
   }
@@ -93,8 +96,17 @@ const processCompletedTrips = async (
     // Build completed trip (pure function)
     const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
 
+    // Detect events for new trip
+    const newTripEvents = detectTripEvents(existingTrip, currLocation);
+
     // Build new trip (pure function)
-    const newTrip = await buildTrip(ctx, currLocation, existingTrip, true);
+    const newTrip = await buildTrip(
+      ctx,
+      currLocation,
+      existingTrip,
+      true,
+      newTripEvents
+    );
 
     // Persist atomically (complete + start)
     await ctx.runMutation(
@@ -131,15 +143,14 @@ const processCurrentTrips = async (
 ): Promise<void> => {
   const activeUpserts: ConvexVesselTrip[] = [];
 
-  for (const { existingTrip, currLocation } of currentTrips) {
+  for (const { existingTrip, currLocation, events } of currentTrips) {
     const tripWithPredictions = await buildTrip(
       ctx,
       currLocation,
       existingTrip,
-      false
+      false,
+      events
     );
-
-    const events = detectTripEvents(existingTrip, currLocation);
 
     const finalProposed: ConvexVesselTrip = {
       ...tripWithPredictions,
@@ -156,8 +167,7 @@ const processCurrentTrips = async (
           api.functions.vesselTrips.queries.getMostRecentCompletedTrip,
           { vesselAbbrev: currLocation.VesselAbbrev }
         );
-        const previousTrip =
-          previousTripResult !== null ? previousTripResult : undefined;
+        const previousTrip = previousTripResult ?? undefined;
 
         await handlePredictionEvent(ctx, {
           eventType: "leave_dock",

@@ -28,11 +28,13 @@ export const appendInitialSchedule = async (
   ctx: ActionCtx,
   baseTrip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
+  const scheduledDeparture = baseTrip.ScheduledDeparture;
+
   // Missing required fields - can't lookup
   if (
     !baseTrip.VesselAbbrev ||
     !baseTrip.DepartingTerminalAbbrev ||
-    !baseTrip.ScheduledDeparture
+    !scheduledDeparture
   ) {
     return baseTrip;
   }
@@ -40,8 +42,7 @@ export const appendInitialSchedule = async (
   const lookupArgs = {
     vesselAbbrev: baseTrip.VesselAbbrev,
     departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
-    // biome-ignore lint/style/noNonNullAssertion: hasRequiredFields ensures ScheduledDeparture is defined
-    scheduledDeparture: baseTrip.ScheduledDeparture!,
+    scheduledDeparture,
   };
 
   const scheduledTrip = await ctx.runQuery(
