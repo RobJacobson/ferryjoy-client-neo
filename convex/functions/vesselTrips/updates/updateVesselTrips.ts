@@ -5,9 +5,9 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
 import { buildTrip } from "./buildTrip";
+import type { TripEvents } from "./eventDetection";
 import { detectTripEvents } from "./eventDetection";
 import { tripsAreEqual } from "./utils";
-import type { TripEvents } from "./eventDetection";
 
 // ============================================================================
 // Group Types

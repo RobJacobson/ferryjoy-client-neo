@@ -4,6 +4,37 @@ import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
+ * Fetch active vessel trips for a specific route.
+ * Used by UnifiedTripsContext to load route-scoped trip data.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrev - Route abbreviation (e.g. "sea-bi")
+ * @returns Array of active vessel trips (schema shape) on the given route
+ */
+export const getActiveTripsByRoute = query({
+  args: { routeAbbrev: v.string() },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const trips = await ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_route_abbrev", (q) =>
+          q.eq("RouteAbbrev", args.routeAbbrev)
+        )
+        .collect();
+      return trips.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch active trips for route ${args.routeAbbrev}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: { routeAbbrev: args.routeAbbrev, error: String(error) },
+      });
+    }
+  },
+});
+
+/**
  * API function for fetching active vessel trips (currently in progress)
  * Small dataset, frequently updated, perfect for real-time subscriptions
  * Optimized with proper indexing for performance
@@ -59,6 +90,49 @@ export const getMostRecentCompletedTrip = query({
         code: "QUERY_FAILED",
         severity: "error",
         details: { vesselAbbrev: args.vesselAbbrev, error: String(error) },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch completed vessel trips for a route and trip date (sailing day).
+ * Used by UnifiedTripsContext to load route-scoped trip data.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrev - Route abbreviation (e.g. "sea-bi")
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of completed vessel trips (schema shape), deduped by Key
+ */
+export const getCompletedTripsByRouteAndTripDate = query({
+  args: {
+    routeAbbrev: v.string(),
+    tripDate: v.string(),
+  },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const docs = await ctx.db
+        .query("completedVesselTrips")
+        .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+          q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
+        )
+        .collect();
+      const byKey = new Map<string, (typeof docs)[number]>();
+      for (const doc of docs) {
+        if (doc.Key) byKey.set(doc.Key, doc);
+      }
+      return Array.from(byKey.values()).map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch completed trips for route ${args.routeAbbrev} on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrev: args.routeAbbrev,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
       });
     }
   },

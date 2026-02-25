@@ -7,6 +7,45 @@ import {
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
+ * Fetch scheduled trips for a route and trip date (sailing day).
+ * Used by UnifiedTripsContext to load route-scoped trip data.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrev - Route abbreviation (e.g. "sea-bi")
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of scheduled trips (schema shape) for the route and date
+ */
+export const getScheduledTripsByRouteAndTripDate = query({
+  args: {
+    routeAbbrev: v.string(),
+    tripDate: v.string(),
+  },
+  returns: v.array(scheduledTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const trips = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+          q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
+        )
+        .collect();
+      return trips.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch scheduled trips for route ${args.routeAbbrev} on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrev: args.routeAbbrev,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
  * Fetch all scheduled trips for a specific sailing day
  * Used for cross-route analytics and reporting
  * @param ctx - Convex context
