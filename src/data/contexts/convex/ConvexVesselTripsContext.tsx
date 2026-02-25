@@ -57,11 +57,11 @@ const ConvexVesselTripsContext = createContext<
 export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
   // Fetch active vessel trips with joined ScheduledTrip for display.
   const rawActiveTrips = useQuery(
-    api.functions.vesselTrips.queries.getActiveTripsWithScheduledTrip,
+    api.functions.vesselTrips.queries.getActiveTripsWithScheduledTrip
   );
   const activeTrips = useMemo(
     () => rawActiveTrips?.map(toDomainVesselTripWithScheduledTrip) ?? [],
-    [rawActiveTrips],
+    [rawActiveTrips]
   );
 
   const isLoading = rawActiveTrips === undefined;
@@ -91,7 +91,7 @@ export const useConvexVesselTrips = () => {
   const context = useContext(ConvexVesselTripsContext);
   if (context === undefined) {
     throw new Error(
-      "useConvexVesselTrips must be used within ConvexVesselTripsProvider",
+      "useConvexVesselTrips must be used within ConvexVesselTripsProvider"
     );
   }
   return context;

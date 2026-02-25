@@ -73,7 +73,7 @@ const VesselTripTimeline = ({
     <View
       className={cn(
         "relative w-full flex-row items-center justify-between overflow-visible",
-        className,
+        className
       )}
       style={{ minHeight: 80 }}
     >
