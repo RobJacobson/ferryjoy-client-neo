@@ -122,15 +122,15 @@ const ConvexUnifiedTripsDataFetcher = ({
   const rawScheduledTrips = useQuery(
     api.functions.scheduledTrips.queries
       .getDirectScheduledTripsByRoutesAndTripDate,
-    { routeAbbrevs, tripDate },
+    { routeAbbrevs, tripDate }
   );
   const rawActiveVesselTrips = useQuery(
     api.functions.vesselTrips.queries.getActiveTripsByRoutes,
-    { routeAbbrevs },
+    { routeAbbrevs }
   );
   const rawCompletedVesselTrips = useQuery(
     api.functions.vesselTrips.queries.getCompletedTripsByRoutesAndTripDate,
-    { routeAbbrevs, tripDate },
+    { routeAbbrevs, tripDate }
   );
 
   const scheduledTrips = rawScheduledTrips?.map(toDomainScheduledTrip) ?? [];
@@ -150,9 +150,9 @@ const ConvexUnifiedTripsDataFetcher = ({
         : buildUnifiedTripRecord(
             scheduledTrips,
             activeVesselTrips,
-            completedVesselTrips,
+            completedVesselTrips
           ),
-    [isLoading, scheduledTrips, activeVesselTrips, completedVesselTrips],
+    [isLoading, scheduledTrips, activeVesselTrips, completedVesselTrips]
   );
 
   const onStateChangeRef = useRef(onStateChange);
@@ -245,22 +245,22 @@ export const useUnifiedTrips = () => {
 const buildUnifiedTripRecord = (
   scheduledTrips: ScheduledTrip[],
   activeVesselTrips: VesselTrip[],
-  completedVesselTrips: VesselTrip[],
+  completedVesselTrips: VesselTrip[]
 ): UnifiedTripRecord => {
   const keys = new Set(
     [scheduledTrips, activeVesselTrips, completedVesselTrips].flatMap((trips) =>
-      trips.map((t) => t.Key).filter((k): k is string => k != null),
-    ),
+      trips.map((t) => t.Key).filter((k): k is string => k != null)
+    )
   );
 
   const scheduledByKey = new Map(
-    scheduledTrips.map((t) => [t.Key, t] as const),
+    scheduledTrips.map((t) => [t.Key, t] as const)
   );
   const activeByKey = new Map(
-    activeVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : [])),
+    activeVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : []))
   );
   const completedByKey = new Map(
-    completedVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : [])),
+    completedVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : []))
   );
 
   return Object.fromEntries(
@@ -291,7 +291,7 @@ const buildUnifiedTripRecord = (
           scheduledDeparture,
         },
       ];
-    }),
+    })
   ) as UnifiedTripRecord;
 };
 
@@ -334,7 +334,7 @@ export const expandRouteAbbrevs = (routeAbbrevs: string[]): string[] => [
 export const resolveIndirectToSegments = (
   indirectTrip: ScheduledTrip,
   byKey: Map<string, ScheduledTrip>,
-  unifiedTrips: UnifiedTripRecord,
+  unifiedTrips: UnifiedTripRecord
 ): UnifiedTrip[] => {
   if (indirectTrip.TripType !== "indirect" || !indirectTrip.DirectKey) {
     return [];
