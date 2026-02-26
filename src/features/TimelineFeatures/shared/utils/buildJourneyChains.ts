@@ -6,7 +6,7 @@
  */
 
 import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
-import type { ScheduledTripJourney } from "../../types";
+import type { ScheduledTripJourney } from "../../ScheduledTrips/types";
 
 /**
  * Walks the NextKey chain from start until reaching targetTerminal or end.

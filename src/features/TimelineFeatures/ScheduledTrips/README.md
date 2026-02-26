@@ -78,9 +78,10 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 | File | Responsibility |
 | :--- | :--- |
 | `ScheduledTripList.tsx` | Presentational; receives page data; renders loading/empty/list. |
-| `useUnifiedTripsPageData.ts` | Main data coordinator; consumes UnifiedTripsContext, builds maps, reconstructs journeys. |
-| `shared/utils/buildJourneyChains.ts` | Walk-from-A-until-B logic for turning flat rows into multi-leg chains. |
-| `shared/utils/synthesizeTripSegments.ts` | **Core Logic**: Maps raw data to the `TripSegment` view model. |
+| `../shared/hooks/useUnifiedTripsPageData.ts` | Main data coordinator; consumes UnifiedTripsContext, builds maps, reconstructs journeys. |
+| `../shared/hooks/useDelayedVesselTrips.ts` | Hold-window logic; keeps completed trips visible for 30s to prevent UI flicker. |
+| `../shared/utils/buildJourneyChains.ts` | Walk-from-A-until-B logic for turning flat rows into multi-leg chains. |
+| `../shared/utils/synthesizeTripSegments.ts` | **Core Logic**: Maps raw data to the `TripSegment` view model. |
 | `../shared/SegmentBlockMarkers.tsx` | ArriveCurrMarker, ArriveNextMarker, DepartCurrMarker. |
 | `../shared/utils/segmentBlockHelpers.ts` | toAtDockSegment, toAtSeaSegment from TripSegment. |
 | `ScheduledTripTimeline.tsx` | Composes low-level timeline primitives. |

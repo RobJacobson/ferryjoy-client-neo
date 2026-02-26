@@ -2,6 +2,9 @@
  * Timeline utility functions for time selection and trip data processing.
  */
 
+export { buildJourneyChains } from "./buildJourneyChains";
+export { synthesizeTripSegments } from "./synthesizeTripSegments";
+
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import type { TimelineBarStatus } from "../TimelineBar";

@@ -15,7 +15,7 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { timelineIndicatorConfig } from "./config";
+import { timelineIndicatorConfig } from "../config";
 
 // ============================================================================
 // Constants

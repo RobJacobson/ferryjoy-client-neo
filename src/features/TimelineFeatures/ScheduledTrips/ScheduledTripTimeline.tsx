@@ -17,7 +17,7 @@ import {
   toAtDockSegment,
   toAtSeaSegment,
 } from "../shared";
-import { synthesizeTripSegments } from "./shared/utils";
+import { synthesizeTripSegments } from "../shared/utils";
 import type { ScheduledTripJourney } from "./types";
 
 type ScheduledTripTimelineProps = {

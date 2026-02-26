@@ -2,7 +2,7 @@ import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { useDelayedVesselTrips } from "../shared/useDelayedVesselTrips";
+import { useDelayedVesselTrips } from "../shared/hooks/useDelayedVesselTrips";
 import { VesselTripCard } from "./VesselTripCard";
 
 export type TripProgressListProps = {
