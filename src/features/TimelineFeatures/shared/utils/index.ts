@@ -4,7 +4,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import type { TimelineBarStatus } from "./TimelineBar";
+import type { TimelineBarStatus } from "../TimelineBar";
 
 const MS_PER_MINUTE = 60000;
 

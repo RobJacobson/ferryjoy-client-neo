@@ -11,57 +11,45 @@ import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
 import TimelineBar from "./TimelineBar";
+import { TimelineBlock } from "./TimelineBlock";
 import TimelineIndicator from "./TimelineIndicator";
-import { TimelineSegment } from "./TimelineSegment";
-import type { TimelineSegmentStatus } from "./types";
+import type { AtSeaSegment } from "./types";
 import { getTimelineLayout } from "./utils";
-
-// ============================================================================
-// Types
-// ============================================================================
+import {
+  getSeaBarIsArrived,
+  getSeaBarShowIndicator,
+  getSeaBarStatus,
+} from "./utils/segmentBlockHelpers";
 
 type TimelineBarAtSeaProps = {
-  startTimeMs?: number;
-  endTimeMs?: number;
-  status: TimelineSegmentStatus;
-  predictionEndTimeMs?: number;
-  isArrived?: boolean;
-  isHeld?: boolean;
+  segment: AtSeaSegment;
   vesselLocation?: VesselLocation;
-  circleSize?: number;
-  orientation?: "horizontal" | "vertical";
   barStyle?: string;
-  showIndicator?: boolean;
-  animate?: boolean;
   style?: ViewStyle;
 };
 
 /**
  * A component that renders an at-sea progress segment with distance-based progress.
- * Calculates all business logic (progress, duration) and renders
- * using the presentation-only TimelineBar and TimelineIndicator components.
- * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
  *
- * Width allocation: Uses SchematicSegment (flexGrow + minWidth) to create
- * proportional widths across the timeline while ensuring legibility.
- *
- * Hold period: When isArrived is true, the indicator remains visible during
- * the 30-second hold period, showing "0 min" remaining instead of speed/distance.
+ * @param segment - AtSeaSegment with leaveCurr, arriveNext, phase
+ * @param vesselLocation - Real-time vessel location for indicator content
+ * @param barStyle - Optional bar styling
+ * @param style - Optional container style
  */
 const TimelineBarAtSea = ({
-  startTimeMs,
-  endTimeMs,
-  status,
-  predictionEndTimeMs,
-  isArrived = false,
-  isHeld = false,
+  segment,
   vesselLocation,
-  orientation = "horizontal",
   barStyle = "h-3",
-  showIndicator,
-  animate = false,
   style,
 }: TimelineBarAtSeaProps) => {
+  const startTimeMs = segment.leaveCurr.scheduled.getTime();
+  const endTimeMs = segment.arriveNext.scheduled.getTime();
+  const status = getSeaBarStatus(segment);
+  const predictionEndTimeMs = segment.arriveNext.estimated?.getTime();
+  const isArrived = getSeaBarIsArrived(segment);
+  const showIndicator = getSeaBarShowIndicator(segment);
+  const animate = segment.phase === "at-sea";
+  const orientation = "horizontal";
   const nowMs = useNowMs(1000);
 
   const {
@@ -77,11 +65,10 @@ const TimelineBarAtSea = ({
   });
 
   // Position indicator: end of segment when arrived, or when held after completion.
-  // When held at origin (at-dock), status is Pending — do not set progress = 1 (would show bar as green).
   let progress = timeProgress;
   if (isArrived) {
     progress = 1;
-  } else if (isHeld && status === "Completed") {
+  } else if (segment.isHeld && status === "Completed") {
     progress = 1;
   } else if (
     status === "InProgress" &&
@@ -112,10 +99,10 @@ const TimelineBarAtSea = ({
   }, [progress, animatedProgress]);
 
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" || isHeld);
+    showIndicator ?? (status === "InProgress" || segment.isHeld);
 
   return (
-    <TimelineSegment
+    <TimelineBlock
       duration={duration ?? 1}
       orientation={orientation}
       style={style}
@@ -141,7 +128,7 @@ const TimelineBarAtSea = ({
           )}
           {!isArrived && vesselLocation?.ArrivingDistance !== undefined && (
             <Text className="font-playpen-300 text-muted-foreground text-sm leading-[1.15]">
-              {(vesselLocation?.Speed ?? 0).toFixed(0)} kn{" · "}
+              {(vesselLocation?.Speed ?? 0).toFixed(0)} kn{" · "}
               {vesselLocation?.ArrivingDistance?.toFixed(1)} mi
             </Text>
           )}
@@ -152,7 +139,7 @@ const TimelineBarAtSea = ({
           )}
         </TimelineIndicator>
       )}
-    </TimelineSegment>
+    </TimelineBlock>
   );
 };
 

@@ -13,8 +13,8 @@ import {
   TimelineMarkerContent,
   TimelineMarkerLabel,
   TimelineMarkerTime,
+  timelineIndicatorConfig,
 } from "../shared";
-import { timelineIndicatorConfig } from "../shared/config";
 import { useVesselDailyTimeline } from "./hooks";
 
 // ============================================================================

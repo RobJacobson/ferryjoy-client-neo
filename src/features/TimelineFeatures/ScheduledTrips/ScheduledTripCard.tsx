@@ -58,12 +58,6 @@ export const ScheduledTripCard = ({
         />
       }
     >
-      {/* <ScheduledTripTimelineVertical
-        journey={trip}
-        vesselTripByKeys={vesselTripByKeys}
-        vesselLocation={vesselLocation}
-        height={250} // Optional, defaults to 250
-      /> */}
       <ScheduledTripTimeline
         journey={trip}
         vesselTripByKeys={vesselTripByKeys}

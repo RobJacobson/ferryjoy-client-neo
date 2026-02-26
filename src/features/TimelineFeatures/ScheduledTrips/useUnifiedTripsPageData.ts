@@ -15,8 +15,8 @@ import type {
 import { useUnifiedTrips } from "@/data/contexts";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useDelayedVesselTrips } from "../shared/useDelayedVesselTrips";
+import { buildJourneyChains } from "./shared/utils";
 import type { ScheduledTripJourney } from "./types";
-import { buildJourneyChains } from "./utils/buildJourneyChains";
 
 type UseUnifiedTripsPageDataParams = {
   /** Departure terminal to filter journeys (e.g. "P52") */

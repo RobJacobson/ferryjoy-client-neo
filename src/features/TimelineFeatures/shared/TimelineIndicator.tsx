@@ -13,7 +13,7 @@ import Animated, {
 import { Text } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { colors, shadowStyle, timelineIndicatorConfig } from "./config";
-import { useRockingAnimation } from "./useRockingAnimation.timing";
+import { useRockingAnimation } from "./useRockingAnimation";
 
 // ============================================================================
 // Types

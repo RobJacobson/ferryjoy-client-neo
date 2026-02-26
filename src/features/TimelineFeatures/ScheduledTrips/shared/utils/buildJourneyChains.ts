@@ -6,10 +6,15 @@
  */
 
 import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
-import type { ScheduledTripJourney } from "../types";
+import type { ScheduledTripJourney } from "../../types";
 
 /**
  * Walks the NextKey chain from start until reaching targetTerminal or end.
+ *
+ * If we return to the starting terminal before reaching the destination,
+ * returns null so a later departure with a shorter path can be used instead.
+ * E.g. ANA -> LOP -> FRH -> LOP -> ANA -> LOP -> ORI is rejected in favor of
+ * ANA -> LOP -> ORI when destination is ORI.
  *
  * @param start - First segment to include
  * @param targetTerminal - Optional destination; stop when a segment arrives here
@@ -22,12 +27,22 @@ const walkUntil = (
   byKey: Map<string, ScheduledTrip>
 ): ScheduledTrip[] | null => {
   const segments: ScheduledTrip[] = [];
+  const startTerminal = start.DepartingTerminalAbbrev;
   let current: ScheduledTrip | undefined = start;
 
   while (current && !segments.some((s) => s.Key === current?.Key)) {
     segments.push(current);
     if (targetTerminal && current.ArrivingTerminalAbbrev === targetTerminal) {
       return segments;
+    }
+    // Return to start before reaching destination: reject this chain so a later
+    // departure with a shorter path (e.g. ANA -> LOP -> ORI) can be used.
+    if (
+      targetTerminal &&
+      current.ArrivingTerminalAbbrev === startTerminal &&
+      current.Key !== start.Key
+    ) {
+      return null;
     }
     current = current.NextKey ? byKey.get(current.NextKey) : undefined;
   }
