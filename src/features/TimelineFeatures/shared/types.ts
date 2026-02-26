@@ -112,7 +112,18 @@ export type Segment = {
   SailingDay?: string;
 };
 
-export type TimelineSegmentStatus = "Pending" | "InProgress" | "Completed";
+/** Status for timeline bar segments (Pending, InProgress, Completed). */
+export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
+
+/** Journey shape for scheduled trips: list, resolver, and card all use this. */
+export type ScheduledTripJourney = {
+  id: string;
+  vesselAbbrev: string;
+  routeAbbrev: string;
+  /** Departure time in epoch ms (from the scheduledTrips backend). */
+  departureTime: number;
+  segments: Segment[];
+};
 
 /** Real-time phase for the active segment (used by ScheduledTrips display state). */
 export type TimelineActivePhase = "AtDock" | "AtSea" | "Unknown";

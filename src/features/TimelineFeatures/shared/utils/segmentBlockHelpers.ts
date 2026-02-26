@@ -6,7 +6,7 @@
 import type {
   AtDockSegment,
   AtSeaSegment,
-  TimelineSegmentStatus,
+  TimelineBarStatus,
   TripSegment,
 } from "../types";
 
@@ -49,9 +49,7 @@ export const toAtSeaSegment = (trip: TripSegment): AtSeaSegment => ({
  * @param segment - At-dock segment
  * @returns Timeline bar status for the dock segment
  */
-export const getDockBarStatus = (
-  segment: AtDockSegment
-): TimelineSegmentStatus =>
+export const getDockBarStatus = (segment: AtDockSegment): TimelineBarStatus =>
   segment.phase === "at-dock"
     ? "InProgress"
     : segment.status === "past" ||
@@ -66,9 +64,7 @@ export const getDockBarStatus = (
  * @param segment - At-sea segment
  * @returns Timeline bar status for the sea segment
  */
-export const getSeaBarStatus = (
-  segment: AtSeaSegment
-): TimelineSegmentStatus =>
+export const getSeaBarStatus = (segment: AtSeaSegment): TimelineBarStatus =>
   segment.phase === "at-sea"
     ? "InProgress"
     : segment.status === "past" || segment.phase === "completed"

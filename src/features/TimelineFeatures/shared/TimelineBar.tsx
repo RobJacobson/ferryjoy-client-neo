@@ -11,8 +11,6 @@ import { LayoutAnimation, View } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
 import {
@@ -21,12 +19,11 @@ import {
   timelineIndicatorConfig,
   timelineSegmentConfig,
 } from "./config";
+import { useAnimatedProgress } from "./hooks/useAnimatedProgress";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
 
 type TimelineBarProps = {
   /**
@@ -85,25 +82,9 @@ const TimelineBar = ({
   style,
 }: TimelineBarProps) => {
   const isVertical = orientation === "vertical";
-  const animatedProgress = useSharedValue(progress);
-
-  // Update the animated value whenever the progress prop changes
-  useEffect(() => {
-    // If progress is 1 or 0, we jump immediately without spring to avoid initial animation glitch
-    if (progress === 1 || progress === 0) {
-      animatedProgress.value = progress;
-    } else {
-      animatedProgress.value = withSpring(progress, {
-        damping: 100,
-        stiffness: 2,
-        mass: 5,
-        overshootClamping: true,
-      });
-    }
-  }, [progress, animatedProgress]);
+  const animatedProgress = useAnimatedProgress(progress);
 
   // Animate layout changes (like flexGrow/width) when they change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: animate the layout changes when flexGrow changes
   useEffect(() => {
     LayoutAnimation.configureNext({
       duration: 5000,
@@ -111,7 +92,7 @@ const TimelineBar = ({
         type: LayoutAnimation.Types.easeInEaseOut,
       },
     });
-  }, [flexGrow]);
+  }, []);
 
   return (
     <View

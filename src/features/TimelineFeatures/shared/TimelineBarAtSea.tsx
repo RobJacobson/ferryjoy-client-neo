@@ -5,11 +5,10 @@
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
-import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
+import { useAnimatedProgress } from "./hooks/useAnimatedProgress";
 import TimelineBar from "./TimelineBar";
 import { TimelineBlock } from "./TimelineBlock";
 import TimelineIndicator from "./TimelineIndicator";
@@ -82,21 +81,7 @@ const TimelineBarAtSea = ({
     progress = Math.min(1, Math.max(0, progress));
   }
 
-  const animatedProgress = useSharedValue(progress);
-
-  useEffect(() => {
-    // If progress is 1 or 0, we jump immediately without spring to avoid initial animation glitch
-    if (progress === 1 || progress === 0) {
-      animatedProgress.value = progress;
-    } else {
-      animatedProgress.value = withSpring(progress, {
-        damping: 100,
-        stiffness: 2,
-        mass: 5,
-        overshootClamping: true,
-      });
-    }
-  }, [progress, animatedProgress]);
+  const animatedProgress = useAnimatedProgress(progress);
 
   const shouldShowIndicator =
     showIndicator ?? (status === "InProgress" || segment.isHeld);
