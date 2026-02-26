@@ -1,5 +1,6 @@
 /**
  * TimeBox provides a compact time display with label and times.
+ * Supports both vertical and horizontal layouts for different timeline orientations.
  * Reuses common pattern: label + scheduled time + actual/estimated time.
  * Use with StandardMarkerLayout for flexible positioning.
  */
@@ -32,21 +33,27 @@ type TimeBoxProps = {
    */
   timesAbove?: boolean;
   /**
+   * When true, uses horizontal layout (label on left, times on right).
+   * Default is false (vertical layout: label on top, times below).
+   */
+  horizontal?: boolean;
+  /**
    * Optional className for additional styling on the TimeBox container.
-   * Merged with default flex-col layout.
+   * Merged with default flex layout.
    */
   className?: string;
 };
 
 /**
- * A compact time display component showing label and times in a vertical stack.
- * Default layout: label on top, scheduled time in middle, actual/estimated time below.
+ * A compact time display component showing label and times.
+ * Supports vertical (default) and horizontal layouts for different timeline orientations.
  *
  * @param label - Label text to display
  * @param scheduled - Scheduled time
  * @param actual - Optional actual time
  * @param estimated - Optional estimated time (used if actual is not provided)
  * @param timesAbove - When true, puts times above the label (default false)
+ * @param horizontal - When true, uses row layout (label left, times right)
  * @param className - Optional className for additional styling on the container
  * @returns A View component with label and times
  */
@@ -56,6 +63,7 @@ export const TimeBox = ({
   actual,
   estimated,
   timesAbove = false,
+  horizontal = false,
   className,
 }: TimeBoxProps) => {
   const timeContent = (
@@ -72,7 +80,11 @@ export const TimeBox = ({
 
   return (
     <View
-      className={cn("flex-col items-center justify-center pt-2", className)}
+      className={cn(
+        "items-center justify-center",
+        horizontal ? "flex-row gap-2" : "flex-col pt-2",
+        className
+      )}
     >
       {timesAbove ? (
         <>

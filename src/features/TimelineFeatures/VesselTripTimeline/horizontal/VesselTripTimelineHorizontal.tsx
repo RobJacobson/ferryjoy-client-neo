@@ -1,5 +1,6 @@
 /**
- * VesselTripTimeline: single-leg trip progress (arrive at A → at dock → depart A → at sea → arrive B).
+ * VesselTripTimelineHorizontal: single-leg trip progress (arrive at A → at dock → depart A → at sea → arrive B).
+ * Horizontally aligned timeline with times displayed below markers.
  * Selects markers and blocks for the segment.
  */
 
@@ -18,27 +19,28 @@ import {
   TimelineBlock,
   toAtDockSegment,
   toAtSeaSegment,
-} from "../shared";
-import { vesselTripToTripSegment } from "./vesselTripToTripSegment";
+} from "../../shared";
+import { vesselTripToTripSegment } from "../shared";
 
-type VesselTripTimelineProps = {
+type VesselTripTimelineHorizontalProps = {
   vesselLocation: VesselLocation;
   trip: VesselTripWithScheduledTrip;
   className?: string;
 };
 
 /**
- * Displays vessel trip progress: arrive at origin → at-dock bar → depart → at-sea bar → arrive at destination.
+ * Displays vessel trip progress horizontally: arrive at origin → at-dock bar → depart → at-sea bar → arrive at destination.
+ * Time information is displayed below the timeline markers.
  *
  * @param vesselLocation - Real-time WSF data
  * @param trip - Actual/predicted trip data
  * @param className - Optional container className
  */
-const VesselTripTimeline = ({
+const VesselTripTimelineHorizontal = ({
   vesselLocation,
   trip,
   className,
-}: VesselTripTimelineProps) => {
+}: VesselTripTimelineHorizontalProps) => {
   const tripSegment = vesselTripToTripSegment(trip, vesselLocation);
   const atDock = toAtDockSegment(tripSegment);
   const atSea = toAtSeaSegment(tripSegment);
@@ -116,4 +118,4 @@ const VesselTripTimeline = ({
   );
 };
 
-export default VesselTripTimeline;
+export default VesselTripTimelineHorizontal;

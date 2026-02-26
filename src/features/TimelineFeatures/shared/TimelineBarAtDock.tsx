@@ -21,6 +21,11 @@ type TimelineBarAtDockProps = {
   vesselLocation?: VesselLocation;
   barStyle?: string;
   style?: ViewStyle;
+  /**
+   * Orientation of the timeline.
+   * Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
 };
 
 /**
@@ -30,19 +35,20 @@ type TimelineBarAtDockProps = {
  * @param vesselLocation - Real-time vessel location for indicator content
  * @param barStyle - Optional bar styling
  * @param style - Optional container style
+ * @param orientation - Orientation of the timeline (default "horizontal")
  */
 const TimelineBarAtDock = ({
   segment,
   vesselLocation,
   barStyle = "h-3",
   style,
+  orientation = "horizontal",
 }: TimelineBarAtDockProps) => {
   const startTimeMs = segment.arriveCurr.scheduled.getTime();
   const endTimeMs = segment.leaveCurr.scheduled.getTime();
   const status = getDockBarStatus(segment);
   const predictionEndTimeMs = segment.leaveCurr.estimated?.getTime();
   const showIndicator = segment.phase === "at-dock";
-  const orientation = "horizontal";
   const nowMs = useNowMs(1000);
 
   const {

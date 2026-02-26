@@ -1,6 +1,7 @@
 /**
  * StandardMarkerLayout provides a flexible marker layout wrapper.
- * Allows arbitrary content above and below the marker circle.
+ * Allows arbitrary content above, below, left, and right of the marker circle.
+ * Supports both horizontal (above/below) and vertical (left/right) layouts.
  * Use with extractors and TimeBox for composition.
  */
 
@@ -19,6 +20,16 @@ type StandardMarkerLayoutProps = {
    * Receives a container with full width/height for positioning.
    */
   belowContent?: ReactNode;
+  /**
+   * Content to render to the left of the marker circle.
+   * Used for vertical orientation.
+   */
+  leftContent?: ReactNode;
+  /**
+   * Content to render to the right of the marker circle.
+   * Used for vertical orientation.
+   */
+  rightContent?: ReactNode;
   /**
    * Optional z-index to pass to TimelineMarker.
    * Default is 10.
@@ -44,21 +55,26 @@ type StandardMarkerLayoutProps = {
 };
 
 /**
- * A flexible marker layout wrapper that positions content above and/or below the marker circle.
+ * A flexible marker layout wrapper that positions content around the marker circle.
  * The marker circle is always centered; use the content containers to position content.
+ * Supports both horizontal (above/below) and vertical (left/right) layouts.
  *
- * @param aboveContent - Optional content to render above the marker
- * @param belowContent - Optional content to render below the marker
+ * @param aboveContent - Optional content to render above the marker (horizontal orientation)
+ * @param belowContent - Optional content to render below the marker (horizontal orientation)
+ * @param leftContent - Optional content to render left of the marker (vertical orientation)
+ * @param rightContent - Optional content to render right of the marker (vertical orientation)
  * @param zIndex - Optional zIndex to pass to TimelineMarker (default 10)
  * @param size - Optional size to pass to TimelineMarker
  * @param orientation - Optional orientation to pass to TimelineMarker
  * @param circleClassName - Optional circleClassName to pass to TimelineMarker
  * @param style - Optional style to pass to TimelineMarker
- * @returns A TimelineMarker with optional above/below content slots
+ * @returns A TimelineMarker with optional content slots
  */
 export const StandardMarkerLayout = ({
   aboveContent,
   belowContent,
+  leftContent,
+  rightContent,
   zIndex = 10,
   size,
   orientation = "horizontal",
@@ -81,6 +97,16 @@ export const StandardMarkerLayout = ({
       {belowContent && (
         <TimelineMarkerContent className="mt-20">
           {belowContent}
+        </TimelineMarkerContent>
+      )}
+      {leftContent && (
+        <TimelineMarkerContent className="mr-20">
+          {leftContent}
+        </TimelineMarkerContent>
+      )}
+      {rightContent && (
+        <TimelineMarkerContent className="ml-20">
+          {rightContent}
         </TimelineMarkerContent>
       )}
     </TimelineMarker>

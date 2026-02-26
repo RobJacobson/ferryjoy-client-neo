@@ -71,7 +71,7 @@ const TimelineMarkerTime = ({
       <Text
         className={cn(
           `text-sm ${isBold ? "font-playpen-600" : "font-playpen-300"}`,
-          className,
+          className
         )}
       >
         {toDisplayTime(time)}

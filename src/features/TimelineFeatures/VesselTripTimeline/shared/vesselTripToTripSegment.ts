@@ -5,12 +5,12 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
-import type { TimePoint, TripSegment } from "../shared/types";
+import type { TimePoint, TripSegment } from "../../shared/types";
 import {
   getBestArrivalTime,
   getBestDepartureTime,
   getPredictedArriveNextTime,
-} from "../shared/utils";
+} from "../../shared/utils";
 
 /**
  * Converts a single-leg vessel trip to a TripSegment for timeline rendering.
