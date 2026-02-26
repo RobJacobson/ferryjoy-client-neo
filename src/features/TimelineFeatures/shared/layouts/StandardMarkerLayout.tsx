@@ -74,12 +74,12 @@ export const StandardMarkerLayout = ({
       style={style}
     >
       {aboveContent && (
-        <TimelineMarkerContent className="mb-4">
+        <TimelineMarkerContent className="mb-20">
           {aboveContent}
         </TimelineMarkerContent>
       )}
       {belowContent && (
-        <TimelineMarkerContent className="mt-4">
+        <TimelineMarkerContent className="mt-20">
           {belowContent}
         </TimelineMarkerContent>
       )}

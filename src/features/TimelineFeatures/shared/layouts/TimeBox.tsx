@@ -5,6 +5,7 @@
  */
 
 import { View } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import TimelineMarkerLabel from "../TimelineMarkerLabel";
 import TimelineMarkerTime from "../TimelineMarkerTime";
 
@@ -30,6 +31,11 @@ type TimeBoxProps = {
    * Default is false (label on top, times below).
    */
   timesAbove?: boolean;
+  /**
+   * Optional className for additional styling on the TimeBox container.
+   * Merged with default flex-col layout.
+   */
+  className?: string;
 };
 
 /**
@@ -41,6 +47,7 @@ type TimeBoxProps = {
  * @param actual - Optional actual time
  * @param estimated - Optional estimated time (used if actual is not provided)
  * @param timesAbove - When true, puts times above the label (default false)
+ * @param className - Optional className for additional styling on the container
  * @returns A View component with label and times
  */
 export const TimeBox = ({
@@ -49,6 +56,7 @@ export const TimeBox = ({
   actual,
   estimated,
   timesAbove = false,
+  className,
 }: TimeBoxProps) => {
   const timeContent = (
     <>
@@ -63,7 +71,9 @@ export const TimeBox = ({
   const labelContent = <TimelineMarkerLabel text={label} />;
 
   return (
-    <View className="flex-col items-center gap-0">
+    <View
+      className={cn("flex-col items-center justify-center pt-2", className)}
+    >
       {timesAbove ? (
         <>
           {timeContent}
