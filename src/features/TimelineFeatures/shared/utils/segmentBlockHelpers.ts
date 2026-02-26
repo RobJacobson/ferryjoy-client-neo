@@ -14,7 +14,7 @@ import type {
  * Derives AtDockSegment from TripSegment for dock block rendering.
  *
  * @param trip - Full trip segment from synthesis
- * @returns AtDockSegment for ArriveCurrMarker and TimelineBarAtDock
+ * @returns AtDockSegment for TimelineBarAtDock
  */
 export const toAtDockSegment = (trip: TripSegment): AtDockSegment => ({
   currTerminal: trip.currTerminal,
@@ -30,7 +30,7 @@ export const toAtDockSegment = (trip: TripSegment): AtDockSegment => ({
  * Derives AtSeaSegment from TripSegment for sea block rendering.
  *
  * @param trip - Full trip segment from synthesis
- * @returns AtSeaSegment for DepartCurrMarker, TimelineBarAtSea, and ArriveNextMarker
+ * @returns AtSeaSegment for TimelineBarAtSea
  */
 export const toAtSeaSegment = (trip: TripSegment): AtSeaSegment => ({
   currTerminal: trip.currTerminal,
