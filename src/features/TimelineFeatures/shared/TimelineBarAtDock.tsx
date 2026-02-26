@@ -5,58 +5,44 @@
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
-import { useSharedValue, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
+import { useAnimatedProgress } from "./hooks/useAnimatedProgress";
 import TimelineBar from "./TimelineBar";
+import { TimelineBlock } from "./TimelineBlock";
 import TimelineIndicator from "./TimelineIndicator";
-import { TimelineSegment } from "./TimelineSegment";
-import type { TimelineSegmentStatus } from "./types";
+import type { AtDockSegment } from "./types";
 import { getTimelineLayout } from "./utils";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { getDockBarStatus } from "./utils/segmentBlockHelpers";
 
 type TimelineBarAtDockProps = {
-  startTimeMs?: number;
-  endTimeMs?: number;
-  status: TimelineSegmentStatus;
-  predictionEndTimeMs?: number;
-  isArrived?: boolean;
-  isHeld?: boolean;
+  segment: AtDockSegment;
   vesselLocation?: VesselLocation;
-  circleSize?: number;
-  orientation?: "horizontal" | "vertical";
   barStyle?: string;
-  showIndicator?: boolean;
   style?: ViewStyle;
 };
 
 /**
  * A component that renders an at-dock progress segment with time-based progress.
- * Calculates all business logic (progress, duration, what labels to show) and renders
- * using the presentation-only TimelineBar and TimelineIndicator components.
- * The TimelineBar and TimelineIndicator are siblings to allow proper z-index stacking.
  *
- * Width allocation: Uses SchematicSegment (flexGrow + minWidth) to create
- * proportional widths across the timeline while ensuring legibility.
+ * @param segment - AtDockSegment with arriveCurr, leaveCurr, phase
+ * @param vesselLocation - Real-time vessel location for indicator content
+ * @param barStyle - Optional bar styling
+ * @param style - Optional container style
  */
 const TimelineBarAtDock = ({
-  startTimeMs,
-  endTimeMs,
-  status,
-  predictionEndTimeMs,
-  isArrived = false,
-  isHeld = false,
+  segment,
   vesselLocation,
-  orientation = "horizontal",
   barStyle = "h-3",
-  showIndicator,
   style,
 }: TimelineBarAtDockProps) => {
+  const startTimeMs = segment.arriveCurr.scheduled.getTime();
+  const endTimeMs = segment.leaveCurr.scheduled.getTime();
+  const status = getDockBarStatus(segment);
+  const predictionEndTimeMs = segment.leaveCurr.estimated?.getTime();
+  const showIndicator = segment.phase === "at-dock";
+  const orientation = "horizontal";
   const nowMs = useNowMs(1000);
 
   const {
@@ -72,29 +58,14 @@ const TimelineBarAtDock = ({
   });
 
   const progress = timeProgress;
-
-  const animatedProgress = useSharedValue(progress);
-
-  // Update the animated value whenever the progress prop changes
-  useEffect(() => {
-    // If progress is 1 or 0, we jump immediately without spring to avoid initial animation glitch
-    if (progress === 1 || progress === 0) {
-      animatedProgress.value = progress;
-    } else {
-      animatedProgress.value = withSpring(progress, {
-        damping: 100,
-        stiffness: 2,
-        mass: 5,
-        overshootClamping: true,
-      });
-    }
-  }, [progress, animatedProgress]);
+  const animatedProgress = useAnimatedProgress(progress);
 
   const shouldShowIndicator =
-    showIndicator ?? (status === "InProgress" && isArrived && !isHeld);
+    showIndicator ??
+    (status === "InProgress" && segment.isArrived && !segment.isHeld);
 
   return (
-    <TimelineSegment
+    <TimelineBlock
       duration={duration ?? 1}
       orientation={orientation}
       style={style}
@@ -123,7 +94,7 @@ const TimelineBarAtDock = ({
           )}
         </TimelineIndicator>
       )}
-    </TimelineSegment>
+    </TimelineBlock>
   );
 };
 

@@ -55,22 +55,22 @@ export const detectTripEvents = (
   const justLeftDock = existingTrip?.AtDock && !currLocation.AtDock;
   const didJustLeaveDock: boolean = Boolean(
     existingTrip &&
-    existingTrip.LeftDock === undefined &&
-    (currLocation.LeftDock !== undefined || justLeftDock)
+      existingTrip.LeftDock === undefined &&
+      (currLocation.LeftDock !== undefined || justLeftDock)
   );
 
   // Key changed: computed Key differs from existing (requires existing trip with Key)
   const keyChanged: boolean = Boolean(
     existingTrip?.Key &&
-    existingTrip.Key !==
-      generateTripKey(
-        currLocation.VesselAbbrev,
-        currLocation.DepartingTerminalAbbrev,
-        currLocation.ArrivingTerminalAbbrev,
-        currLocation.ScheduledDeparture
-          ? new Date(currLocation.ScheduledDeparture)
-          : undefined
-      )
+      existingTrip.Key !==
+        generateTripKey(
+          currLocation.VesselAbbrev,
+          currLocation.DepartingTerminalAbbrev,
+          currLocation.ArrivingTerminalAbbrev,
+          currLocation.ScheduledDeparture
+            ? new Date(currLocation.ScheduledDeparture)
+            : undefined
+        )
   );
 
   return {

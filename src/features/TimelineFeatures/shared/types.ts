@@ -19,9 +19,16 @@ export type TerminalInfo = {
   name?: string;
 };
 
+/** Status for a segment in the timeline. */
+export type SegmentStatus = "past" | "ongoing" | "future";
+
+/** Phase for bar display (at-dock, at-sea, completed, pending). */
+export type SegmentPhase = "at-dock" | "at-sea" | "completed" | "pending";
+
 /**
  * TripSegment represents a single leg of a journey with all data needed for rendering.
  * Standardized on "curr" and "next" for origin/destination terminals.
+ * Use toAtDockSegment / toAtSeaSegment to derive segment-specific views.
  */
 export type TripSegment = {
   id: string;
@@ -38,8 +45,8 @@ export type TripSegment = {
   arriveNext: TimePoint; // When it arrives at the destination
 
   // Status & Progress
-  status: "past" | "ongoing" | "future";
-  phase: "at-dock" | "at-sea" | "completed" | "pending";
+  status: SegmentStatus;
+  phase: SegmentPhase;
   progress?: number; // 0-1 for ongoing segments
 
   // Real-time metadata
@@ -51,6 +58,35 @@ export type TripSegment = {
   isHeld: boolean;
   isArrived: boolean;
   isLeft: boolean;
+};
+
+/**
+ * AtDockSegment: data for the at-dock block (arrive at origin → at dock → depart).
+ * Separate concern from at-sea.
+ */
+export type AtDockSegment = {
+  currTerminal: TerminalInfo;
+  arriveCurr: TimePoint;
+  leaveCurr: TimePoint;
+  isArrived: boolean;
+  isHeld: boolean;
+  status: SegmentStatus;
+  phase: SegmentPhase;
+};
+
+/**
+ * AtSeaSegment: data for the at-sea block (depart → at sea → arrive at destination).
+ * Separate concern from at-dock.
+ */
+export type AtSeaSegment = {
+  currTerminal: TerminalInfo;
+  nextTerminal: TerminalInfo;
+  leaveCurr: TimePoint;
+  arriveNext: TimePoint;
+  isLeft: boolean;
+  isHeld: boolean;
+  status: SegmentStatus;
+  phase: SegmentPhase;
 };
 
 /**
@@ -76,7 +112,18 @@ export type Segment = {
   SailingDay?: string;
 };
 
-export type TimelineSegmentStatus = "Pending" | "InProgress" | "Completed";
+/** Status for timeline bar segments (Pending, InProgress, Completed). */
+export type TimelineBarStatus = "Pending" | "InProgress" | "Completed";
+
+/** Journey shape for scheduled trips: list, resolver, and card all use this. */
+export type ScheduledTripJourney = {
+  id: string;
+  vesselAbbrev: string;
+  routeAbbrev: string;
+  /** Departure time in epoch ms (from the scheduledTrips backend). */
+  departureTime: number;
+  segments: Segment[];
+};
 
 /** Real-time phase for the active segment (used by ScheduledTrips display state). */
 export type TimelineActivePhase = "AtDock" | "AtSea" | "Unknown";

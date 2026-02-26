@@ -8,14 +8,14 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
-import type { VesselTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
+import type { VesselTripWithScheduledTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import VesselTripTimeline from "./VesselTripTimeline";
 
 type VesselTripCardProps = {
   /**
-   * VesselTrip object containing trip data with actual, predicted, and scheduled times.
+   * VesselTrip with optional ScheduledTrip for display (scheduled times).
    */
-  trip: VesselTrip;
+  trip: VesselTripWithScheduledTrip;
   /**
    * VesselLocation object containing real-time WSF data.
    * Passed from parent to ensure synchronization during hold window.

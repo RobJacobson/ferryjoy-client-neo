@@ -1,48 +1,35 @@
 /**
  * VesselTripTimeline: single-leg trip progress (arrive at A → at dock → depart A → at sea → arrive B).
- * VesselTrips owns composition, time selection, and marker content; Timeline provides only primitives.
+ * Selects markers and blocks for the segment.
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
-import { getSailingDay } from "@/shared/utils/getSailingDay";
 import {
+  ArriveCurrMarker,
+  ArriveNextMarker,
+  DepartCurrMarker,
   TimelineBarAtDock,
   TimelineBarAtSea,
-  TimelineMarker,
-  TimelineMarkerContent,
-  TimelineMarkerLabel,
-  TimelineMarkerTime,
-} from "../Timeline";
-import {
-  getBestArrivalTime,
-  getBestDepartureTime,
-  getPredictedArriveNextTime,
-  getPredictedDepartCurrTime,
-} from "../Timeline/utils";
-
-// ============================================================================
-// Types
-// ============================================================================
+  TimelineBlock,
+  toAtDockSegment,
+  toAtSeaSegment,
+} from "../shared";
+import { vesselTripToTripSegment } from "./vesselTripToTripSegment";
 
 type VesselTripTimelineProps = {
   vesselLocation: VesselLocation;
-  trip: VesselTrip;
+  trip: VesselTripWithScheduledTrip;
   className?: string;
 };
 
-// ============================================================================
-// Main component
-// ============================================================================
-
 /**
  * Displays vessel trip progress: arrive at origin → at-dock bar → depart → at-sea bar → arrive at destination.
- * VesselTrips selects times (actual/predicted/scheduled) and passes them as props; marker children are customizable.
  *
- * @param vesselLocation - Real-time WSF data (PRIMARY)
- * @param trip - Actual/predicted trip data (SECONDARY)
+ * @param vesselLocation - Real-time WSF data
+ * @param trip - Actual/predicted trip data
  * @param className - Optional container className
  */
 const VesselTripTimeline = ({
@@ -50,123 +37,49 @@ const VesselTripTimeline = ({
   trip,
   className,
 }: VesselTripTimelineProps) => {
-  const arriveCurrTime = trip.TripStart;
-  const departCurrTime = getPredictedDepartCurrTime(trip);
-  const predictedArrivalTime = getPredictedArriveNextTime(trip, vesselLocation);
+  const tripSegment = vesselTripToTripSegment(trip, vesselLocation);
+  const atDock = toAtDockSegment(tripSegment);
+  const atSea = toAtSeaSegment(tripSegment);
+  const totalSegmentCount = 2;
+  const equalWidth = true;
 
-  const departurePrediction = getBestDepartureTime(vesselLocation, trip);
-  const arrivalPrediction = getBestArrivalTime(vesselLocation, trip);
-
-  const isHeld = !!trip.TripEnd;
-  const atDockStatus = isHeld
-    ? "Completed"
-    : vesselLocation?.AtDock
-      ? "InProgress"
-      : "Completed";
-  const atSeaStatus = isHeld
-    ? "Completed"
-    : !vesselLocation?.AtDock
-      ? "InProgress"
-      : "Pending";
+  const dockDuration = Math.max(
+    1,
+    (atDock.leaveCurr.scheduled.getTime() -
+      atDock.arriveCurr.scheduled.getTime()) /
+      60000
+  );
+  const seaDuration =
+    (atSea.arriveNext.scheduled.getTime() -
+      atSea.leaveCurr.scheduled.getTime()) /
+    60000;
 
   return (
     <View
       className={cn(
-        "relative w-full flex-row items-center justify-between overflow-visible",
+        "relative w-full flex-row items-center overflow-visible",
         className
       )}
       style={{ minHeight: 80 }}
     >
-      <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-[90px]">
-          <TimelineMarkerLabel
-            text={`Arrived ${trip.DepartingTerminalAbbrev}`}
-          />
-          {(() => {
-            const showActual =
-              !!trip.TripStart &&
-              (!trip.SailingDay ||
-                getSailingDay(trip.TripStart) === trip.SailingDay);
-            return showActual && trip.TripStart ? (
-              <TimelineMarkerTime time={trip.TripStart} type="actual" isBold />
-            ) : null;
-          })()}
-          <TimelineMarkerTime
-            time={trip.ScheduledTrip?.SchedArriveCurr}
-            type="scheduled"
-          />
-        </TimelineMarkerContent>
-      </TimelineMarker>
+      <TimelineBlock
+        duration={dockDuration}
+        equalWidth={equalWidth}
+        segmentCount={totalSegmentCount}
+      >
+        <ArriveCurrMarker segment={atDock} />
+        <TimelineBarAtDock segment={atDock} vesselLocation={vesselLocation} />
+      </TimelineBlock>
 
-      <TimelineBarAtDock
-        startTimeMs={arriveCurrTime?.getTime()}
-        endTimeMs={departCurrTime?.getTime()}
-        status={atDockStatus}
-        isArrived={!!vesselLocation?.AtDock}
-        isHeld={isHeld}
-        vesselLocation={vesselLocation}
-      />
-
-      <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-[90px]">
-          <TimelineMarkerLabel
-            text={`${vesselLocation?.AtDock ? "Leaves" : "Left"} ${trip.DepartingTerminalAbbrev}`}
-          />
-          {(() => {
-            const primaryTime = vesselLocation?.AtDock
-              ? departurePrediction
-              : (trip.LeftDock ?? departurePrediction);
-            const primaryType =
-              vesselLocation?.AtDock || !trip.LeftDock ? "estimated" : "actual";
-            return primaryTime != null ? (
-              <TimelineMarkerTime
-                time={primaryTime}
-                type={primaryType}
-                isBold
-              />
-            ) : null;
-          })()}
-          {trip.ScheduledDeparture != null && (
-            <TimelineMarkerTime
-              time={trip.ScheduledDeparture}
-              type="scheduled"
-            />
-          )}
-        </TimelineMarkerContent>
-      </TimelineMarker>
-
-      <TimelineBarAtSea
-        startTimeMs={departCurrTime?.getTime()}
-        endTimeMs={predictedArrivalTime?.getTime()}
-        status={atSeaStatus}
-        isArrived={isHeld}
-        isHeld={isHeld}
-        vesselLocation={vesselLocation}
-        animate={!vesselLocation?.AtDock && !trip.TripEnd}
-      />
-
-      <TimelineMarker zIndex={10}>
-        <TimelineMarkerContent className="mt-[90px]">
-          <TimelineMarkerLabel
-            text={`${trip.TripEnd ? "Arrived" : "Arrives"} ${trip.ArrivingTerminalAbbrev}`}
-          />
-          {!trip.TripEnd && arrivalPrediction != null ? (
-            <TimelineMarkerTime
-              time={arrivalPrediction}
-              type="estimated"
-              isBold
-            />
-          ) : trip.TripEnd != null ? (
-            <TimelineMarkerTime time={trip.TripEnd} type="actual" isBold />
-          ) : null}
-          {trip.ScheduledTrip?.SchedArriveNext != null && (
-            <TimelineMarkerTime
-              time={trip.ScheduledTrip.SchedArriveNext}
-              type="scheduled"
-            />
-          )}
-        </TimelineMarkerContent>
-      </TimelineMarker>
+      <TimelineBlock
+        duration={seaDuration}
+        equalWidth={equalWidth}
+        segmentCount={totalSegmentCount}
+      >
+        <DepartCurrMarker segment={atSea} />
+        <TimelineBarAtSea segment={atSea} vesselLocation={vesselLocation} />
+        <ArriveNextMarker segment={atSea} />
+      </TimelineBlock>
     </View>
   );
 };

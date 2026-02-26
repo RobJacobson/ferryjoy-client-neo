@@ -8,22 +8,26 @@
  */
 
 import { api } from "convex/_generated/api";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { toDomainVesselTrip } from "convex/functions/vesselTrips/schemas";
+import type {
+  VesselTrip,
+  VesselTripWithScheduledTrip,
+} from "convex/functions/vesselTrips/schemas";
+import { toDomainVesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useMemo } from "react";
 
-export type { VesselTrip };
+export type { VesselTrip, VesselTripWithScheduledTrip };
 
 /**
  * Type definition for Convex Vessel Trips context value
  *
  * Provides access to active vessel trips data with loading and error states.
+ * Trips include joined ScheduledTrip when available for display.
  */
 type ConvexVesselTripsContextType = {
-  /** Array of current active vessel trips converted to domain values */
-  activeVesselTrips: VesselTrip[];
+  /** Array of current active vessel trips with optional ScheduledTrip */
+  activeVesselTrips: VesselTripWithScheduledTrip[];
   /** Loading state for vessel trips data */
   isLoading: boolean;
   /** Error state for vessel trips data */
@@ -51,14 +55,12 @@ const ConvexVesselTripsContext = createContext<
  * @returns A context provider component
  */
 export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
-  // Fetch all active vessel trips from Convex.
-  // `useQuery` returns `undefined` while loading, so keep that distinct from
-  // "loaded but empty".
+  // Fetch active vessel trips with joined ScheduledTrip for display.
   const rawActiveTrips = useQuery(
-    api.functions.vesselTrips.queries.getActiveTrips
+    api.functions.vesselTrips.queries.getActiveTripsWithScheduledTrip
   );
   const activeTrips = useMemo(
-    () => rawActiveTrips?.map(toDomainVesselTrip) ?? [],
+    () => rawActiveTrips?.map(toDomainVesselTripWithScheduledTrip) ?? [],
     [rawActiveTrips]
   );
 

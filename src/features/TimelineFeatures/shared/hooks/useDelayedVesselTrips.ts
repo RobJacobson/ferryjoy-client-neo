@@ -7,11 +7,23 @@
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
-import { useEffect, useState } from "react";
+import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
+import { useEffect, useRef, useState } from "react";
 import { useInterval } from "@/shared/hooks";
 
 const HOLD_DURATION_MS = 30 * 1000; // 30 seconds
+
+/**
+ * Rounds a timestamp down to the start of its minute (seconds and ms zeroed).
+ *
+ * @param ts - Unix timestamp in ms
+ * @returns Date rounded to minute boundary
+ */
+function roundToMinute(ts: number): Date {
+  const d = new Date(ts);
+  d.setSeconds(0, 0);
+  return d;
+}
 
 /**
  * Result type from useDelayedVesselTrips hook.
@@ -19,7 +31,7 @@ const HOLD_DURATION_MS = 30 * 1000; // 30 seconds
 export type DelayedVesselTripsResult = {
   /** Array of trips and their associated locations to display, applying hold window logic */
   displayData: {
-    trip: VesselTrip;
+    trip: VesselTripWithScheduledTrip;
     vesselLocation: VesselLocation;
   }[];
 };
@@ -27,43 +39,46 @@ export type DelayedVesselTripsResult = {
 /**
  * Hook that manages delayed vessel trips with a hold window.
  *
- * This hook tracks current trips for each vessel and ensures that when a trip
- * completes (disappears from activeTrips), it remains in the display list
- * for 30 seconds with an injected TripEnd timestamp.
+ * Tracks current trips for each vessel and ensures that when a trip completes
+ * (disappears from activeTrips), it remains in the display list for 30 seconds
+ * with an injected TripEnd timestamp.
  *
- * It also handles the "preemption" logic: if a new trip starts for a vessel
- * while the previous one is still in its 30-second hold period, the old
- * trip continues to be shown until the hold expires.
+ * Handles preemption: if a new trip starts while the previous is in its hold
+ * period, the old trip continues to be shown until the hold expires.
  *
- * Crucially, it also captures and "freezes" the vesselLocation data when a trip
- * enters the hold state, ensuring the UI doesn't jump to the next trip's
- * location state (like AtDock: true at the destination) prematurely.
+ * Freezes vesselLocation when a trip enters hold so the UI doesn't jump to the
+ * next trip's state (e.g., AtDock at destination) prematurely.
  *
  * @param activeTrips - Current active trips from Convex
  * @param vesselLocations - Current vessel locations from Convex
  * @returns Object with displayData array containing paired trips and locations
  */
 export const useDelayedVesselTrips = (
-  activeTrips: VesselTrip[],
+  activeTrips: VesselTripWithScheduledTrip[],
   vesselLocations: VesselLocation[]
 ): DelayedVesselTripsResult => {
-  // Internal state tracking trips and locations by vessel abbreviation
   const [tripsByAbbrev, setTripsByAbbrev] = useState<
-    Record<string, VesselTrip>
+    Record<string, VesselTripWithScheduledTrip>
   >({});
   const [locationsByAbbrev, setLocationsByAbbrev] = useState<
     Record<string, VesselLocation>
   >({});
 
-  // Helper to reconcile state
-  const reconcile = (nowMs: number) => {
-    const activeByAbbrev: Record<string, VesselTrip> = {};
-    for (const trip of activeTrips) {
+  const paramsRef = useRef({ activeTrips, vesselLocations });
+  paramsRef.current = { activeTrips, vesselLocations };
+
+  const reconcile = (
+    nowMs: number,
+    trips: VesselTripWithScheduledTrip[],
+    locations: VesselLocation[]
+  ) => {
+    const activeByAbbrev: Record<string, VesselTripWithScheduledTrip> = {};
+    for (const trip of trips) {
       activeByAbbrev[trip.VesselAbbrev] = trip;
     }
 
     const locationByAbbrev: Record<string, VesselLocation> = {};
-    for (const loc of vesselLocations) {
+    for (const loc of locations) {
       locationByAbbrev[loc.VesselAbbrev] = loc;
     }
 
@@ -74,21 +89,21 @@ export const useDelayedVesselTrips = (
 
     let tripsChanged = false;
     let locationsChanged = false;
-    const nextTrips: Record<string, VesselTrip> = {};
+    const nextTrips: Record<string, VesselTripWithScheduledTrip> = {};
     const nextLocations: Record<string, VesselLocation> = {};
 
-    // 2. Handle trips that just disappeared (Transition to HOLD)
     allAbbrevs.forEach((abbrev) => {
       const prevTrip = tripsByAbbrev[abbrev];
       const activeTrip = activeByAbbrev[abbrev];
       const currentLocation = locationByAbbrev[abbrev];
 
-      let resolvedTrip: VesselTrip | null = null;
+      let resolvedTrip: VesselTripWithScheduledTrip | null = null;
 
       if (!prevTrip) {
+        // No previous: show active or nothing
         resolvedTrip = activeTrip ?? null;
       } else if (!activeTrip) {
-        // Trip disappeared: end+hold+expire.
+        // Trip disappeared: inject TripEnd, hold for 30s, then clear
         const ended = prevTrip.TripEnd
           ? prevTrip
           : { ...prevTrip, TripEnd: new Date(nowMs) };
@@ -96,10 +111,10 @@ export const useDelayedVesselTrips = (
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? ended : null;
       } else if (prevTrip.Key === activeTrip.Key) {
-        // Same logical trip; allow updates from active data.
+        // Same trip: allow updates from active
         resolvedTrip = activeTrip;
       } else {
-        // Active trip changed: keep showing the previous trip for a short window.
+        // Different trip (new one started): hold previous for 30s, then show new
         const endedPrev = prevTrip.TripEnd
           ? prevTrip
           : { ...prevTrip, TripEnd: new Date(nowMs) };
@@ -111,23 +126,22 @@ export const useDelayedVesselTrips = (
       if (resolvedTrip) {
         nextTrips[abbrev] = resolvedTrip;
 
-        // If we are holding a completed trip, we freeze the location
+        // When holding a completed trip, freeze location; otherwise use current
         if (resolvedTrip.TripEnd && prevTrip && locationsByAbbrev[abbrev]) {
           nextLocations[abbrev] = locationsByAbbrev[abbrev];
         } else if (currentLocation) {
           nextLocations[abbrev] = currentLocation;
         }
 
-        // If the trip just ended (entered hold), capture the actual arrival time from the vessel location.
-        // Truncate to the minute for a cleaner display.
+        // On first entering hold: capture actual arrival from location (rounded to minute)
         if (
           resolvedTrip.TripEnd &&
           !prevTrip?.TripEnd &&
           currentLocation?.TimeStamp
         ) {
-          const arrivalDate = new Date(currentLocation.TimeStamp);
-          arrivalDate.setSeconds(0, 0);
-          resolvedTrip.TripEnd = arrivalDate;
+          resolvedTrip.TripEnd = roundToMinute(
+            currentLocation.TimeStamp.getTime()
+          );
         }
 
         if (!prevTrip || prevTrip.TimeStamp !== resolvedTrip.TimeStamp) {
@@ -150,14 +164,15 @@ export const useDelayedVesselTrips = (
     if (locationsChanged) setLocationsByAbbrev(nextLocations);
   };
 
-  // Reconcile immediately when inputs change
+  // Reconcile when inputs change; reconcile is stable (params passed explicitly)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reconcile recreated each render; activeTrips/vesselLocations are the meaningful deps
   useEffect(() => {
-    reconcile(Date.now());
-  }, [reconcile]);
+    reconcile(Date.now(), activeTrips, vesselLocations);
+  }, [activeTrips, vesselLocations]);
 
-  // Reconcile periodically for expirations
   useInterval(() => {
-    reconcile(Date.now());
+    const { activeTrips: trips, vesselLocations: locs } = paramsRef.current;
+    reconcile(Date.now(), trips, locs);
   }, 1000);
 
   const displayData = Object.keys(tripsByAbbrev)

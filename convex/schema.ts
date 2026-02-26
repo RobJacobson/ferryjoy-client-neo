@@ -14,9 +14,9 @@ import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
   // Active vessel trips - currently in progress, one per vessel
-  activeVesselTrips: defineTable(vesselTripSchema).index("by_vessel_abbrev", [
-    "VesselAbbrev",
-  ]),
+  activeVesselTrips: defineTable(vesselTripSchema)
+    .index("by_vessel_abbrev", ["VesselAbbrev"])
+    .index("by_route_abbrev", ["RouteAbbrev"]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
@@ -24,7 +24,8 @@ export default defineSchema({
     .index("by_sailing_day_and_departing_terminal", [
       "SailingDay",
       "DepartingTerminalAbbrev",
-    ]),
+    ])
+    .index("by_route_abbrev_and_sailing_day", ["RouteAbbrev", "SailingDay"]),
 
   // Scheduled trips - planned ferry trips with departure/arrival times
   scheduledTrips: defineTable(scheduledTripSchema)
@@ -46,7 +47,8 @@ export default defineSchema({
       "VesselAbbrev",
       "SailingDay",
       "TripType",
-    ]),
+    ])
+    .index("by_route_abbrev_and_sailing_day", ["RouteAbbrev", "SailingDay"]),
 
   // Vessel ping collections - stores arrays of vessel pings with timestamps
   vesselPings: defineTable(vesselPingListValidationSchema).index(

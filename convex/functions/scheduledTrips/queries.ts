@@ -7,6 +7,136 @@ import {
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
+ * Fetch scheduled trips for a route and trip date (sailing day).
+ * Used by UnifiedTripsContext to load route-scoped trip data.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrev - Route abbreviation (e.g. "sea-bi")
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of scheduled trips (schema shape) for the route and date
+ */
+export const getScheduledTripsByRouteAndTripDate = query({
+  args: {
+    routeAbbrev: v.string(),
+    tripDate: v.string(),
+  },
+  returns: v.array(scheduledTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const trips = await ctx.db
+        .query("scheduledTrips")
+        .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+          q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
+        )
+        .collect();
+      return trips.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch scheduled trips for route ${args.routeAbbrev} on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrev: args.routeAbbrev,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch direct scheduled trips for multiple routes and trip date.
+ * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
+ * Returns only TripType === "direct" trips.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of direct scheduled trips (schema shape) for the routes and date
+ */
+export const getDirectScheduledTripsByRoutesAndTripDate = query({
+  args: {
+    routeAbbrevs: v.array(v.string()),
+    tripDate: v.string(),
+  },
+  returns: v.array(scheduledTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const uniqueRoutes = [...new Set(args.routeAbbrevs)];
+      const batches = await Promise.all(
+        uniqueRoutes.map((routeAbbrev) =>
+          ctx.db
+            .query("scheduledTrips")
+            .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+              q.eq("RouteAbbrev", routeAbbrev).eq("SailingDay", args.tripDate)
+            )
+            .collect()
+        )
+      );
+      const allTrips = batches.flat();
+      const directOnly = allTrips.filter((t) => t.TripType === "direct");
+      return directOnly.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch direct scheduled trips for routes on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrevs: args.routeAbbrevs,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch all scheduled trips (direct + indirect) for multiple routes and trip date.
+ * Used for building byKey map when resolving indirect trips via resolveIndirectToSegments.
+ *
+ * @param ctx - Convex context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
+ * @param args.tripDate - Sailing day in YYYY-MM-DD format
+ * @returns Array of all scheduled trips (schema shape) for the routes and date
+ */
+export const getScheduledTripsByRoutesAndTripDate = query({
+  args: {
+    routeAbbrevs: v.array(v.string()),
+    tripDate: v.string(),
+  },
+  returns: v.array(scheduledTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const uniqueRoutes = [...new Set(args.routeAbbrevs)];
+      const batches = await Promise.all(
+        uniqueRoutes.map((routeAbbrev) =>
+          ctx.db
+            .query("scheduledTrips")
+            .withIndex("by_route_abbrev_and_sailing_day", (q) =>
+              q.eq("RouteAbbrev", routeAbbrev).eq("SailingDay", args.tripDate)
+            )
+            .collect()
+        )
+      );
+      return batches.flat().map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch scheduled trips for routes on ${args.tripDate}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          routeAbbrevs: args.routeAbbrevs,
+          tripDate: args.tripDate,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
  * Fetch all scheduled trips for a specific sailing day
  * Used for cross-route analytics and reporting
  * @param ctx - Convex context

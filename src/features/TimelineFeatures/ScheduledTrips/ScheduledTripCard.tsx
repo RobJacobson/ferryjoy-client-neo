@@ -25,7 +25,7 @@ type ScheduledTripCardProps = {
   /**
    * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
    */
-  vesselTripMap: Map<string, VesselTrip>;
+  vesselTripByKeys: Map<string, VesselTrip>;
   /**
    * The trip currently being held (if any).
    */
@@ -38,14 +38,14 @@ type ScheduledTripCardProps = {
  *
  * @param trip - Journey data (id, vessel, route, segments) to display
  * @param vesselLocation - Real-time vessel location when available; undefined for schedule-only
- * @param vesselTripMap - Map of segment Key to VesselTrip for overlay lookups
+ * @param vesselTripByKeys - Map of segment Key to VesselTrip for overlay lookups
  * @param heldTrip - The trip currently being held (if any)
  * @returns TripCard containing ScheduledTripRouteHeader and ScheduledTripTimeline
  */
 export const ScheduledTripCard = ({
   trip,
   vesselLocation,
-  vesselTripMap,
+  vesselTripByKeys,
   heldTrip,
 }: ScheduledTripCardProps) => {
   return (
@@ -58,15 +58,9 @@ export const ScheduledTripCard = ({
         />
       }
     >
-      {/* <ScheduledTripTimelineVertical
-        journey={trip}
-        vesselTripMap={vesselTripMap}
-        vesselLocation={vesselLocation}
-        height={250} // Optional, defaults to 250
-      /> */}
       <ScheduledTripTimeline
         journey={trip}
-        vesselTripMap={vesselTripMap}
+        vesselTripByKeys={vesselTripByKeys}
         vesselLocation={vesselLocation}
         heldTrip={heldTrip}
       />
