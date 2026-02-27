@@ -3,6 +3,7 @@
  * Demonstrates a typical card UI with header and author info.
  */
 
+import { StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Text, TouchableOpacity, View } from "react-native";
 import type { Item } from "@/shared/utils/fakerData";
@@ -21,7 +22,7 @@ const AnimatedListDemoCard = ({ item }: AnimatedListDemoCardProps) => {
     <TouchableOpacity activeOpacity={0.9} className="w-full flex-1">
       <Image
         source={{ uri: item.image }}
-        className="absolute inset-0"
+        style={StyleSheet.absoluteFillObject}
         blurRadius={30}
       />
 

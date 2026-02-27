@@ -1,11 +1,10 @@
 /**
- * Demo animation hook for AnimatedList demo.
+ * Demo animation style for AnimatedList demo.
  * Applies fade and scale effects based on distance from the active item.
  */
 
-import type { SharedValue } from "react-native-reanimated";
 import { Extrapolation, interpolate } from "react-native-reanimated";
-import type { AnimatedListLayout, AnimatedStyleResult } from "../types";
+import type { ItemAnimationStyle } from "../types";
 import { calculateDistanceFromActive } from "../utils";
 
 /**
@@ -17,11 +16,7 @@ import { calculateDistanceFromActive } from "../utils";
  * @param layout - Layout configuration for the list
  * @returns Animated style object with opacity and scale transform
  */
-const useAnimatedListDemoStyle: (
-  scrollIndex: SharedValue<number>,
-  index: number,
-  layout: AnimatedListLayout
-) => AnimatedStyleResult = (scrollIndex, index) => {
+const demoAnimationStyle: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distanceFromActive = calculateDistanceFromActive(
     index,
@@ -48,4 +43,4 @@ const useAnimatedListDemoStyle: (
   };
 };
 
-export default useAnimatedListDemoStyle;
+export default demoAnimationStyle;

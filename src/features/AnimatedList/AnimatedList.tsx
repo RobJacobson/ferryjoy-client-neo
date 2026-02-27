@@ -46,12 +46,17 @@ const AnimatedList = <T,>({
   keyExtractor,
   itemClassName,
 }: AnimatedListProps<T>) => {
+  // Extract layout configuration
   const { direction = "vertical", itemSize, spacing = 0 } = layout;
 
+  // Determine if the list is horizontal or vertical
   const isHorizontal = direction === "horizontal";
 
   // Track previous active index for scroll end callback
   const previousActiveIndex = useRef<number | null>(null);
+
+  // Track if we're settled on an index (within 0.1 tolerance)
+  const isSettledIndex = useRef<boolean>(true);
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -85,21 +90,32 @@ const AnimatedList = <T,>({
   );
 
   // Call onScrollEnd when scroll settles on an item (only when index changes)
+  // Uses 0.1 tolerance to determine when scroll has settled on an index
   useAnimatedReaction(
     () => {
       if (!onScrollEnd) return undefined;
       const currentScrollIndex = scrollIndex.value;
       const activeIndex = Math.round(currentScrollIndex);
-      return activeIndex;
+      const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
+      const settled = distanceFromIndex < 0.1;
+      return { activeIndex, settled };
     },
-    (activeIndex) => {
-      if (
-        activeIndex !== undefined &&
-        onScrollEnd &&
-        activeIndex !== previousActiveIndex.current
-      ) {
-        previousActiveIndex.current = activeIndex;
-        scheduleOnRN(onScrollEnd, activeIndex);
+    (data) => {
+      if (data && onScrollEnd) {
+        const { activeIndex, settled } = data;
+        // Only trigger when transitioning from not-settled to settled on a new index
+        if (
+          settled &&
+          !isSettledIndex.current &&
+          activeIndex !== previousActiveIndex.current
+        ) {
+          isSettledIndex.current = true;
+          previousActiveIndex.current = activeIndex;
+          scheduleOnRN(onScrollEnd, activeIndex);
+        } else if (!settled) {
+          // Mark as not settled when scrolling away
+          isSettledIndex.current = false;
+        }
       }
     },
     [onScrollEnd]
@@ -127,6 +143,9 @@ const AnimatedList = <T,>({
       scrollEventThrottle={16}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
+      accessibilityLabel="Animated list"
+      accessibilityRole="scrollbar"
+      testID="animated-list"
     >
       {data.map((item, index) => (
         <AnimatedListItem

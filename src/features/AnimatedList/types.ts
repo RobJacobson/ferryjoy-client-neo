@@ -40,7 +40,7 @@ export type AnimatedStyleResult = ViewStyle & {
  * @param layout - Layout configuration for the list
  * @returns Animated style object for the item
  */
-export type ItemAnimationFunction = (
+export type ItemAnimationStyle = (
   scrollIndex: SharedValue<number>,
   index: number,
   layout: AnimatedListLayout
@@ -74,7 +74,7 @@ export type AnimatedListProps<T> = {
   data: T[];
   renderItem: RenderItem<T>;
   layout: AnimatedListLayout;
-  itemAnimationStyle?: ItemAnimationFunction;
+  itemAnimationStyle?: ItemAnimationStyle;
   scrollOffset?: SharedValue<number>;
   onScrollEnd?: (activeIndex: number) => void;
   ref?: React.Ref<AnimatedListRef>;

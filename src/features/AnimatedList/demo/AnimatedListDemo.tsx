@@ -15,7 +15,7 @@ import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
 import AnimatedList from "../AnimatedList";
 import type { AnimatedListRef } from "../types";
 import AnimatedListDemoCard from "./AnimatedListDemoCard";
-import useAnimatedListDemoStyle from "./useAnimatedListDemoStyle";
+import demoAnimationStyle from "./useAnimatedListDemoStyle";
 
 const SPACING = 4;
 const CARD_HEIGHT_RATIO = 0.3;
@@ -43,11 +43,15 @@ const AnimatedListDemo = () => {
   };
 
   const scrollToPrevious = () => {
-    scrollTo(activeIndex - 1);
+    if (activeIndex > 0) {
+      scrollTo(activeIndex - 1);
+    }
   };
 
   const scrollToNext = () => {
-    scrollTo(activeIndex + 1);
+    if (activeIndex < data.length - 1) {
+      scrollTo(activeIndex + 1);
+    }
   };
 
   const scrollToStart = () => {
@@ -81,10 +85,12 @@ const AnimatedListDemo = () => {
       </View>
       <View className="items-center gap-1">
         <Text className="text-muted-foreground text-sm">
-          Active Index: {activeIndex} / {data.length - 1}
+          Active Index: {activeIndex} / {Math.max(0, data.length - 1)}
         </Text>
         <Text className="text-muted-foreground text-xs">
-          Progress: {Math.round((activeIndex / (data.length - 1)) * 100)}%
+          Progress: {data.length > 1
+            ? Math.round((activeIndex / (data.length - 1)) * 100)
+            : 0}%
         </Text>
       </View>
       <View className="flex-1 p-4">
@@ -97,7 +103,7 @@ const AnimatedListDemo = () => {
             itemSize,
             spacing: SPACING,
           }}
-          itemAnimationStyle={useAnimatedListDemoStyle}
+          itemAnimationStyle={demoAnimationStyle}
           onScrollEnd={handleScrollEnd}
         />
       </View>

@@ -8,7 +8,7 @@ import type { ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { cn } from "@/shared/utils/cn";
-import type { ItemAnimationFunction } from "./types";
+import type { AnimatedListLayout, ItemAnimationStyle } from "./types";
 
 type AnimatedListItemProps<T> = {
   item: T;
@@ -16,8 +16,8 @@ type AnimatedListItemProps<T> = {
   scrollIndex: SharedValue<number>;
   itemSizeStyle: ViewStyle;
   renderItem: (item: T, index: number) => React.ReactNode;
-  itemAnimationStyle?: ItemAnimationFunction;
-  layout: Parameters<ItemAnimationFunction>[2];
+  itemAnimationStyle?: ItemAnimationStyle;
+  layout: AnimatedListLayout;
   itemClassName?: string;
 };
 
@@ -55,6 +55,7 @@ const AnimatedListItem = <T,>({
     <Animated.View
       style={[itemSizeStyle, animatedStyle]}
       className={cn("overflow-hidden", itemClassName)}
+      testID={`animated-list-item-${index}`}
     >
       {renderItem(item, index)}
     </Animated.View>

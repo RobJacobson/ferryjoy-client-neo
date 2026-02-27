@@ -67,7 +67,7 @@ const scrollIndex = useDerivedValue(() => {
 Functions marked with `"worklet";` that run on the UI thread:
 
 ```typescript
-const myAnimation: ItemAnimationFunction = (scrollIndex, index, layout) => {
+const myAnimation: ItemAnimationStyle = (scrollIndex, index, layout) => {
   "worklet"; // ← Required! Runs on UI thread
 
   const distance = Math.abs(scrollIndex.value - index);
@@ -214,14 +214,13 @@ const MyList = () => {
 ### With Animations
 
 ```typescript
-import { interpolate, Extrapolation } from "react-native-reanimated";
 import {
   AnimatedList,
   calculateDistanceFromActive,
 } from "@/features/AnimatedList";
 
 // Define your animation function
-const fadeAndScale: ItemAnimationFunction = (scrollIndex, index, layout) => {
+const demoAnimationStyle: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
@@ -245,7 +244,7 @@ const fadeAndScale: ItemAnimationFunction = (scrollIndex, index, layout) => {
   data={data}
   renderItem={(item) => <MyCard item={item} />}
   layout={{ direction: "vertical", itemSize: 200, spacing: 8 }}
-  itemAnimationStyle={fadeAndScale}
+  itemAnimationStyle={demoAnimationStyle}
 />
 ```
 
@@ -346,7 +345,7 @@ const MyParallaxList = () => {
   data={T[]}                             // Required: Array of items to render
   renderItem={RenderItem<T>}             // Required: Function to render each item
   layout={AnimatedListLayout}            // Required: Layout configuration
-  itemAnimationStyle={ItemAnimationFunction} // Optional: Custom animation worklet
+  itemAnimationStyle={yourAnimationStyle} // Optional: Custom animation worklet
   scrollOffset={SharedValue<number>}     // Optional: External scroll tracking for parallax
   onScrollEnd={(activeIndex) => void}    // Optional: Callback when scroll settles
   ref={React.Ref<AnimatedListRef>}       // Optional: Ref for imperative control
@@ -362,7 +361,7 @@ const MyParallaxList = () => {
 | `data` | `T[]` | ✅ Yes | Array of items to render |
 | `renderItem` | `RenderItem<T>` | ✅ Yes | Function to render each item |
 | `layout` | `AnimatedListLayout` | ✅ Yes | Layout configuration |
-| `itemAnimationStyle` | `ItemAnimationFunction` | ❌ No | Custom animation worklet function |
+| `itemAnimationStyle` | `ItemAnimationStyle` | ❌ No | Custom animation worklet function |
 | `scrollOffset` | `SharedValue<number>` | ❌ No | External scroll offset for parallax effects |
 | `onScrollEnd` | `(activeIndex: number) => void` | ❌ No | Callback when scroll settles on an item |
 | `ref` | `React.Ref<AnimatedListRef>` | ❌ No | Ref for imperative `scrollToIndex` control |
@@ -419,10 +418,10 @@ Optional className for the item wrapper. Uses Tailwind's `cn()` utility to merge
 />
 ```
 
-### ItemAnimationFunction
+### ItemAnimationStyle
 
 ```typescript
-type ItemAnimationFunction = (
+type ItemAnimationStyle = (
   scrollIndex: SharedValue<number>,  // Current scroll position (normalized)
   index: number,                     // Item index
   layout: AnimatedListLayout          // Layout configuration
@@ -432,7 +431,7 @@ type ItemAnimationFunction = (
 **Must be a worklet function:**
 
 ```typescript
-const myAnimation: ItemAnimationFunction = (scrollIndex, index, layout) => {
+const myAnimation: ItemAnimationStyle = (scrollIndex, index, layout) => {
   "worklet"; // ← Required first line!
 
   // Calculate animation based on scroll position
@@ -488,7 +487,7 @@ Returns the absolute distance from the active (centered) item.
 
 **Example:**
 ```typescript
-const animation: ItemAnimationFunction = (scrollIndex, index) => {
+const animation: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
@@ -514,7 +513,7 @@ Returns `true` if the item is currently within the "active" zone (within 0.5 of 
 
 **Example:**
 ```typescript
-const animation: ItemAnimationFunction = (scrollIndex, index) => {
+const animation: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const active = isItemActive(index, scrollIndex.value);
 
@@ -530,7 +529,7 @@ const animation: ItemAnimationFunction = (scrollIndex, index) => {
 #### Fade Effect
 
 ```typescript
-const fadeAnimation: ItemAnimationFunction = (scrollIndex, index) => {
+const fadeAnimation: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
@@ -548,7 +547,7 @@ const fadeAnimation: ItemAnimationFunction = (scrollIndex, index) => {
 #### Scale Effect
 
 ```typescript
-const scaleAnimation: ItemAnimationFunction = (scrollIndex, index) => {
+const scaleAnimation: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
@@ -570,7 +569,7 @@ const scaleAnimation: ItemAnimationFunction = (scrollIndex, index) => {
 #### Combined Effects
 
 ```typescript
-const fadeAndScale: ItemAnimationFunction = (scrollIndex, index) => {
+const fadeAndScale: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
@@ -598,7 +597,7 @@ const fadeAndScale: ItemAnimationFunction = (scrollIndex, index) => {
 #### Parallax (Move with Scroll)
 
 ```typescript
-const parallaxEffect: ItemAnimationFunction = (scrollIndex, index) => {
+const parallaxEffect: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
   // Offset from active position
   const offset = scrollIndex.value - index;
@@ -669,26 +668,36 @@ const scrollIndex = useDerivedValue(() => scrollOffset.value / itemStride);
 
 ### Scroll End Callback Optimization
 
-The `onScrollEnd` callback only fires when the active index actually changes:
+The `onScrollEnd` callback only fires when scroll settles within 0.1 of an index:
 
 ```typescript
 const previousActiveIndex = useRef<number | null>(null);
+const isSettledIndex = useRef<boolean>(true);
 
 useAnimatedReaction(
   () => {
     if (!onScrollEnd) return undefined;
-    const activeIndex = Math.round(scrollIndex.value);
-    return activeIndex;
+    const currentScrollIndex = scrollIndex.value;
+    const activeIndex = Math.round(currentScrollIndex);
+    const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
+    const settled = distanceFromIndex < 0.1;
+    return { activeIndex, settled };
   },
-  (activeIndex) => {
-    // Only fires when index changes, not during scroll
-    if (
-      activeIndex !== undefined &&
-      onScrollEnd &&
-      activeIndex !== previousActiveIndex.current
-    ) {
-      previousActiveIndex.current = activeIndex;
-      scheduleOnRN(onScrollEnd, activeIndex);
+  ({ activeIndex, settled }) => {
+    if (activeIndex !== undefined && onScrollEnd) {
+      // Only trigger when transitioning from not-settled to settled on a new index
+      if (
+        settled &&
+        !isSettledIndex.current &&
+        activeIndex !== previousActiveIndex.current
+      ) {
+        isSettledIndex.current = true;
+        previousActiveIndex.current = activeIndex;
+        scheduleOnRN(onScrollEnd, activeIndex);
+      } else if (!settled) {
+        // Mark as not settled when scrolling away
+        isSettledIndex.current = false;
+      }
     }
   },
   [onScrollEnd]
@@ -719,13 +728,13 @@ Always add `"worklet";` as the first line:
 
 ```typescript
 // ✅ Correct
-const myAnimation: ItemAnimationFunction = (scrollIndex, index, layout) => {
+const myAnimation: ItemAnimationStyle = (scrollIndex, index, layout) => {
   "worklet"; // ← First statement!
   // ... rest of function
 };
 
 // ❌ Wrong
-const myAnimation: ItemAnimationFunction = (scrollIndex, index, layout) => {
+const myAnimation: ItemAnimationStyle = (scrollIndex, index, layout) => {
   const distance = scrollIndex.value - index; // Not a worklet!
   "worklet"; // Too late!
 };
@@ -796,10 +805,29 @@ When calling React Native functions from worklets:
 
 ```typescript
 useAnimatedReaction(
-  () => activeIndex,
-  (index) => {
-    if (index !== undefined && onScrollEnd) {
-      scheduleOnRN(onScrollEnd, index); // ✅ Correct
+  () => {
+    if (!onScrollEnd) return undefined;
+    const currentScrollIndex = scrollIndex.value;
+    const activeIndex = Math.round(currentScrollIndex);
+    const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
+    const settled = distanceFromIndex < 0.1;
+    return { activeIndex, settled };
+  },
+  ({ activeIndex, settled }) => {
+    if (activeIndex !== undefined && onScrollEnd) {
+      // Only trigger when transitioning from not-settled to settled on a new index
+      if (
+        settled &&
+        !isSettledIndex.current &&
+        activeIndex !== previousActiveIndex.current
+      ) {
+        isSettledIndex.current = true;
+        previousActiveIndex.current = activeIndex;
+        scheduleOnRN(onScrollEnd, activeIndex); // ✅ Correct
+      } else if (!settled) {
+        // Mark as not settled when scrolling away
+        isSettledIndex.current = false;
+      }
     }
   },
   [onScrollEnd]
@@ -818,7 +846,7 @@ useAnimatedReaction(
 2. **No Built-in Animations**
    - Animation is opt-in via `itemAnimationStyle` prop
    - By design - keeps component flexible
-   - **Workaround:** Provide your own `ItemAnimationFunction`
+   - **Workaround:** Provide your own `ItemAnimationStyle`
 
 3. **Simple Animation System**
    - No built-in animation composition utilities
