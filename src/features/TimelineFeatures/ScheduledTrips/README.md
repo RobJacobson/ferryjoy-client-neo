@@ -82,7 +82,9 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 | `../shared/hooks/useDelayedVesselTrips.ts` | Hold-window logic; keeps completed trips visible for 30s to prevent UI flicker. |
 | `../shared/utils/buildJourneyChains.ts` | Walk-from-A-until-B logic for turning flat rows into multi-leg chains. |
 | `../shared/utils/synthesizeTripSegments.ts` | **Core Logic**: Maps raw data to the `TripSegment` view model. |
-| `../shared/SegmentBlockMarkers.tsx` | ArriveCurrMarker, ArriveNextMarker, DepartCurrMarker. |
+| `../shared/extractors.ts` | Pure functions for extracting display data from segments. |
+| `../shared/layouts/StandardMarkerLayout.tsx` | Flexible marker layout wrapper with above/below content slots. |
+| `../shared/layouts/TimeBox.tsx` | Reusable time display component. |
 | `../shared/utils/segmentBlockHelpers.ts` | toAtDockSegment, toAtSeaSegment from TripSegment. |
 | `ScheduledTripTimeline.tsx` | Composes low-level timeline primitives. |
 

@@ -98,7 +98,7 @@ export const buildJourneyChains = (
       id: last.Key,
       vesselAbbrev: last.VesselAbbrev,
       routeAbbrev: last.RouteAbbrev,
-      departureTime: chain[0].DepartingTime.getTime(),
+      departureTime: chain[0].DepartingTime,
       segments: formatSegments(chain),
     };
   };
@@ -114,5 +114,5 @@ export const buildJourneyChains = (
       const chain = walkUntil(seg, destinationAbbrev, byKey);
       return chain ? [toJourney(chain)] : [];
     })
-    .sort((a, b) => a.departureTime - b.departureTime);
+    .sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime());
 };

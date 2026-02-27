@@ -25,6 +25,11 @@ type TimelineBarAtSeaProps = {
   vesselLocation?: VesselLocation;
   barStyle?: string;
   style?: ViewStyle;
+  /**
+   * Orientation of the timeline.
+   * Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
 };
 
 /**
@@ -34,12 +39,14 @@ type TimelineBarAtSeaProps = {
  * @param vesselLocation - Real-time vessel location for indicator content
  * @param barStyle - Optional bar styling
  * @param style - Optional container style
+ * @param orientation - Orientation of the timeline (default "horizontal")
  */
 const TimelineBarAtSea = ({
   segment,
   vesselLocation,
   barStyle = "h-3",
   style,
+  orientation = "horizontal",
 }: TimelineBarAtSeaProps) => {
   const startTimeMs = segment.leaveCurr.scheduled.getTime();
   const endTimeMs = segment.arriveNext.scheduled.getTime();
@@ -48,7 +55,6 @@ const TimelineBarAtSea = ({
   const isArrived = getSeaBarIsArrived(segment);
   const showIndicator = getSeaBarShowIndicator(segment);
   const animate = segment.phase === "at-sea";
-  const orientation = "horizontal";
   const nowMs = useNowMs(1000);
 
   const {

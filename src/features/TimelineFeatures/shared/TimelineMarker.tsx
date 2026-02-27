@@ -40,6 +40,8 @@ type TimelineMarkerProps = {
   style?: ViewStyle;
 };
 
+export type { TimelineMarkerProps };
+
 /**
  * Renders a timeline node: anchor container and circle. Children (e.g. TimelineMarkerContent) provide the content slot.
  */

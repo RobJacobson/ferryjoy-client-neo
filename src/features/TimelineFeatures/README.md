@@ -46,7 +46,10 @@ Both paths produce `TripSegment`, which is split into `AtDockSegment` / `AtSeaSe
 | `TimelineMarkerContent.tsx` | Content slot for marker label and times. |
 | `TimelineMarkerLabel.tsx` | Single-line label text. |
 | `TimelineMarkerTime.tsx` | Formatted time with icon (scheduled/actual/estimated). |
-| `SegmentBlockMarkers.tsx` | Composed markers: `ArriveCurrMarker`, `ArriveNextMarker`, `DepartCurrMarker`. |
+| `extractors.ts` | Pure functions for extracting display data from segments (labels, time points). Use with layout components for composition. |
+| `layouts/StandardMarkerLayout.tsx` | Flexible marker layout wrapper with above/below content slots. |
+| `layouts/TimeBox.tsx` | Reusable time display component (label + scheduled + actual/estimated times). |
+| `layouts/index.ts` | Barrel file exporting layout components. |
 | `hooks/useAnimatedProgress.ts` | Shared hook for spring-animated progress (0–1). |
 | `hooks/useDelayedVesselTrips.ts` | Hold-window logic: keeps completed trips visible ~30s to avoid flicker. |
 | `hooks/useUnifiedTripsPageData.ts` | Data coordinator for ScheduledTrips; consumes UnifiedTripsContext, builds maps and journeys. |
@@ -78,6 +81,77 @@ Both paths produce `TripSegment`, which is split into `AtDockSegment` / `AtSeaSe
 | `VesselTripCard.tsx` | Card wrapper: route header + VesselTripTimeline. |
 | `VesselTripTimeline.tsx` | Single-leg timeline; uses `vesselTripToTripSegment` → shared primitives. |
 | `vesselTripToTripSegment.ts` | Converts `VesselTripWithScheduledTrip` + `VesselLocation` → `TripSegment`. |
+
+---
+
+## Marker Composition
+
+Timeline markers use a composition pattern for maximum flexibility:
+
+### Architecture
+
+```
+Master Components (VesselTripTimeline, ScheduledTripTimeline)
+    ↓
+Layout Components (StandardMarkerLayout)
+    ↓
+Content Components (TimeBox, TimelineMarkerLabel, TimelineMarkerTime)
+```
+
+### Key Components
+
+- **Extractors** (`extractors.ts`): Pure functions that extract display data from segments
+  - `extractArriveCurrLabel`, `extractDepartCurrLabel`, `extractArriveNextLabel`
+  - `extractArriveCurrTimePoint`, `extractDepartCurrTimePoint`, `extractArriveNextTimePoint`
+
+- **StandardMarkerLayout**: Flexible marker wrapper with above/below content slots
+  - `aboveContent`: Content rendered above the marker circle
+  - `belowContent`: Content rendered below the marker circle
+  - `markerProps`: Pass through to `TimelineMarker` (zIndex, size, orientation, etc.)
+
+- **TimeBox**: Reusable time display component
+  - Renders label + scheduled time + actual/estimated time
+  - Configurable layout (times above or below label)
+
+### Example Usage
+
+```tsx
+// Standard marker with times below
+<StandardMarkerLayout
+  belowContent={
+    <TimeBox
+      label={extractArriveCurrLabel(atDock)}
+      scheduled={atDock.arriveCurr.scheduled}
+      actual={atDock.arriveCurr.actual}
+      estimated={atDock.arriveCurr.estimated}
+    />
+  }
+  zIndex={10}
+/>
+
+// Minimalist marker with just a label
+<StandardMarkerLayout
+  belowContent={<TimelineMarkerLabel text="SEA" />}
+/>
+
+// Marker with custom badge above
+<StandardMarkerLayout
+  aboveContent={
+    <View className="bg-red-500 px-2 py-1 rounded">
+      <Text className="text-white text-xs">Delayed</Text>
+    </View>
+  }
+  belowContent={<TimeBox label="Arrive" scheduled={...} />}
+/>
+```
+
+### Benefits
+
+- **Master components control layout**: Decide what goes above/below markers
+- **Flexible composition**: Add arbitrary components (text, badges, custom UI)
+- **Easy variations**: Create new layouts without touching data extraction
+- **Maintains DRY**: `TimeBox` reuses common time display pattern
+- **Clear separation**: Data extraction, layout, and rendering are separated
 
 ---
 

@@ -120,8 +120,8 @@ export type ScheduledTripJourney = {
   id: string;
   vesselAbbrev: string;
   routeAbbrev: string;
-  /** Departure time in epoch ms (from the scheduledTrips backend). */
-  departureTime: number;
+  /** Departure time as Date object (converted from Convex epoch ms). */
+  departureTime: Date;
   segments: Segment[];
 };
 

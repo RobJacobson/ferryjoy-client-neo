@@ -50,6 +50,12 @@ type TimelineIndicatorProps = {
    */
   indicatorStyle?: string;
   /**
+   * Position of the labels relative to the indicator badge.
+   * Defaults to "bottom" for horizontal, "left" for vertical orientation.
+   * Can be overridden explicitly.
+   */
+  labelPosition?: "bottom" | "left" | "right";
+  /**
    * Labels to display above (horizontal) or beside (vertical) the indicator.
    * Provided by parent component (business logic).
    */
@@ -68,16 +74,16 @@ type TimelineIndicatorProps = {
 /**
  * Renders a progress indicator positioned based on progress value within the parent bar.
  * The indicator is absolutely positioned and displays the minutes remaining.
- * Labels are passed as children to be displayed above the indicator.
+ * Labels are passed as children to be displayed above/beside the indicator.
  * Uses elevation for stacking as a sibling of TimelineBar and TimelineMarker.
  *
- * @param progress - Progress value (0-1) for horizontal positioning
+ * @param progress - Progress value (0-1) for horizontal/vertical positioning
  * @param animate - Whether to animate with rocking motion (default false)
  * @param speed - Current speed for animation frequency scaling (default 0)
  * @param minutesRemaining - Minutes remaining to display (default "--")
  * @param indicatorStyle - NativeWind className for indicator styling
- * @param textStyle - NativeWind className for text styling
- * @param children - Labels to display above the indicator
+ * @param labelPosition - Position of labels: "bottom" (horizontal), "left" (vertical), or "right"
+ * @param children - Labels to display above/beside the indicator
  * @returns A View component containing the indicator and optional labels
  */
 const TimelineIndicator = ({
@@ -87,9 +93,14 @@ const TimelineIndicator = ({
   speed = 0,
   minutesRemaining = "--",
   indicatorStyle = cn(colors.background, colors.border),
+  labelPosition,
   children,
 }: TimelineIndicatorProps) => {
   const rockingStyle = useRockingAnimation(animate, speed);
+
+  // Derive labelPosition from orientation if not explicitly provided
+  const effectiveLabelPosition =
+    labelPosition ?? (orientation === "vertical" ? "left" : "bottom");
 
   const animatedPositionStyle = useAnimatedStyle(() => {
     // Clamp progress to 0-1 to prevent indicator from jumping outside bounds
@@ -123,18 +134,25 @@ const TimelineIndicator = ({
         animatedPositionStyle,
       ]}
     >
-      {/* Labels above/beside indicator - centered horizontally/vertically via items-center on parent.
-          minHeight prevents clipping: when the label sits outside the parent's
-          indicator size bounds, layout can measure it inconsistently (first paint
-          vs after text measure), so we reserve space to avoid a collapsed wrapper. */}
+      {/* Labels above/beside indicator - positioned based on labelPosition */}
       {children && (
         <View
           pointerEvents="none"
           collapsable={false}
           className="absolute items-center"
           style={{
-            bottom: timelineIndicatorConfig.size + 2,
-            width: 250, // Sufficient width to prevent wrapping
+            ...(effectiveLabelPosition === "bottom" && {
+              bottom: timelineIndicatorConfig.size + 2,
+              width: 250, // Sufficient width to prevent wrapping
+            }),
+            ...(effectiveLabelPosition === "left" && {
+              right: timelineIndicatorConfig.size + 2,
+              alignItems: "flex-end",
+            }),
+            ...(effectiveLabelPosition === "right" && {
+              left: timelineIndicatorConfig.size + 2,
+              alignItems: "flex-start",
+            }),
           }}
         >
           {children}

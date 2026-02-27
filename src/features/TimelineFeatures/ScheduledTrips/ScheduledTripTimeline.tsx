@@ -8,9 +8,11 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import {
-  ArriveCurrMarker,
-  ArriveNextMarker,
-  DepartCurrMarker,
+  extractArriveCurrLabel,
+  extractArriveNextLabel,
+  extractDepartCurrLabel,
+  StandardMarkerLayout,
+  TimeBox,
   TimelineBarAtDock,
   TimelineBarAtSea,
   TimelineBlock,
@@ -79,7 +81,17 @@ export const ScheduledTripTimeline = ({
               equalWidth={equalWidth}
               segmentCount={totalSegmentCount}
             >
-              <ArriveCurrMarker segment={atDock} />
+              <StandardMarkerLayout
+                belowContent={
+                  <TimeBox
+                    label={extractArriveCurrLabel(atDock)}
+                    scheduled={atDock.arriveCurr.scheduled}
+                    actual={atDock.arriveCurr.actual}
+                    estimated={atDock.arriveCurr.estimated}
+                  />
+                }
+                zIndex={10}
+              />
               <TimelineBarAtDock
                 segment={atDock}
                 vesselLocation={vesselLocation}
@@ -91,12 +103,32 @@ export const ScheduledTripTimeline = ({
               equalWidth={equalWidth}
               segmentCount={totalSegmentCount}
             >
-              <DepartCurrMarker segment={atSea} />
+              <StandardMarkerLayout
+                belowContent={
+                  <TimeBox
+                    label={extractDepartCurrLabel(atSea)}
+                    scheduled={atSea.leaveCurr.scheduled}
+                    actual={atSea.leaveCurr.actual}
+                    estimated={atSea.leaveCurr.estimated}
+                  />
+                }
+                zIndex={10}
+              />
               <TimelineBarAtSea
                 segment={atSea}
                 vesselLocation={vesselLocation}
               />
-              <ArriveNextMarker segment={atSea} />
+              <StandardMarkerLayout
+                belowContent={
+                  <TimeBox
+                    label={extractArriveNextLabel(atSea)}
+                    scheduled={atSea.arriveNext.scheduled}
+                    actual={atSea.arriveNext.actual}
+                    estimated={atSea.arriveNext.estimated}
+                  />
+                }
+                zIndex={10}
+              />
             </TimelineBlock>
           </React.Fragment>
         );

@@ -1,6 +1,6 @@
 /**
- * TripProgressCard component for displaying vessel trip information with progress visualization.
- * Uses TripProgressTimeline component for progress display.
+ * VesselTripCardVertical component for displaying vessel trip information with vertical progress visualization.
+ * Uses VesselTripTimelineVertical for progress display.
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
@@ -9,9 +9,9 @@ import { TripCard } from "@/components/TripCard";
 import { Text, View } from "@/components/ui";
 import { CardTitle } from "@/components/ui/card";
 import type { VesselTripWithScheduledTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import VesselTripTimeline from "./VesselTripTimeline";
+import VesselTripTimelineVertical from "./VesselTripTimelineVertical";
 
-type VesselTripCardProps = {
+type VesselTripCardVerticalProps = {
   /**
    * VesselTrip with optional ScheduledTrip for display (scheduled times).
    */
@@ -24,7 +24,7 @@ type VesselTripCardProps = {
 };
 
 /**
- * Displays vessel trip information with route details and progress visualization.
+ * Displays vessel trip information with route details and vertical progress visualization.
  * Shows the departing and arriving terminals, vessel abbreviation, status, and
  * a progress meter that visualizes the trip's progress through two sequential segments.
  * Uses ShadCN Card components for a polished, consistent design.
@@ -37,10 +37,10 @@ type VesselTripCardProps = {
  * @param vesselLocation - VesselLocation object (may be frozen during hold window)
  * @returns A Card component with trip header and progress meter
  */
-export const VesselTripCard = ({
+export const VesselTripCardVertical = ({
   trip,
   vesselLocation,
-}: VesselTripCardProps) => {
+}: VesselTripCardVerticalProps) => {
   // Check if trip has a destination (some trips might be one-way or in transit)
   const hasDestination = !!trip.ArrivingTerminalAbbrev;
 
@@ -70,11 +70,14 @@ export const VesselTripCard = ({
   return (
     <TripCard
       routeContent={routeContent}
-      cardClassName="px-4 pt-4 pb-12"
+      cardClassName="px-4 pt-4 pb-4"
       contentClassName="z-10 pt-2"
     >
       {vesselLocation && (
-        <VesselTripTimeline vesselLocation={vesselLocation} trip={trip} />
+        <VesselTripTimelineVertical
+          vesselLocation={vesselLocation}
+          trip={trip}
+        />
       )}
     </TripCard>
   );

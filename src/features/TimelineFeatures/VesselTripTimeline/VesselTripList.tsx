@@ -3,11 +3,13 @@ import { Text, View } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { useDelayedVesselTrips } from "../shared/hooks/useDelayedVesselTrips";
-import { VesselTripCard } from "./VesselTripCard";
+import { VesselTripCardHorizontal } from "./horizontal";
 
 export type TripProgressListProps = {
   /** Space reserved for translucent header overlay; lets content scroll under it. */
   contentInsetTop?: number;
+  /** Orientation of the timeline display: "horizontal" or "vertical". */
+  orientation?: "horizontal" | "vertical";
 };
 
 /**
@@ -23,6 +25,7 @@ export type TripProgressListProps = {
  */
 export const TripProgressList = ({
   contentInsetTop: _contentInsetTop = 0,
+  orientation = "horizontal",
 }: TripProgressListProps) => {
   const {
     activeVesselTrips,
@@ -39,6 +42,12 @@ export const TripProgressList = ({
     activeVesselTrips,
     vesselLocations
   );
+
+  // Select the appropriate card component based on orientation
+  const TripCard =
+    orientation === "vertical"
+      ? require("./vertical").VesselTripCardVertical
+      : VesselTripCardHorizontal;
 
   if (tripsLoading || locationsLoading) {
     return (
@@ -76,7 +85,7 @@ export const TripProgressList = ({
           Active Vessel Trips
         </Text>
         {inServiceTrips.map(({ trip, vesselLocation }) => (
-          <VesselTripCard
+          <TripCard
             key={`${trip.VesselAbbrev}-${trip.TripStart?.getTime() ?? "no-start"}`}
             trip={trip}
             vesselLocation={vesselLocation}
