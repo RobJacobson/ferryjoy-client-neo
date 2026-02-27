@@ -1,22 +1,23 @@
 /**
- * AnimatedListView types and interfaces.
+ * AnimatedList types and interfaces.
  * Provides generic types for flexible, customizable list components with
  * scroll-driven animations.
  */
 
+import type React from "react";
 import type { ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 
 /**
  * Scroll direction for the animated list.
  */
-export type AnimatedListViewDirection = "horizontal" | "vertical";
+export type AnimatedListDirection = "horizontal" | "vertical";
 
 /**
  * Layout configuration for the animated list.
  * Defines spacing, sizing, and positioning of list items.
  */
-export type AnimatedListViewLayout = {
+export type AnimatedListLayout = {
   direction?: "horizontal" | "vertical";
   itemSize: number;
   spacing?: number;
@@ -53,7 +54,7 @@ export type AnimatedStyleResult = ViewStyle & {
 export type ItemAnimationStyle = (
   scrollIndex: SharedValue<number>,
   index: number,
-  layout: AnimatedListViewLayout
+  layout: AnimatedListLayout
 ) => AnimatedStyleResult;
 
 /**
@@ -75,21 +76,24 @@ export type RenderItem<T> = (
  * Imperative handle for programmatic list control.
  * Allows parent components to control scrolling behavior.
  */
-export type AnimatedListViewRef = {
+export type AnimatedListRef = {
   scrollToIndex: (index: number, animated?: boolean) => void;
 };
 
 /**
- * Props for the generic AnimatedListView component.
+ * Props for the generic AnimatedList component.
  * Supports any data type with configurable rendering and animations.
  *
  * @template T - Type of data items in the list
  */
-export type AnimatedListViewProps<T> = {
+export type AnimatedListProps<T> = {
   data: T[];
   renderItem: RenderItem<T>;
-  layout: AnimatedListViewLayout;
+  layout: AnimatedListLayout;
   itemAnimationStyle?: ItemAnimationStyle;
+  scrollOffset?: SharedValue<number>;
+  onScrollEnd?: (activeIndex: number) => void;
+  ref?: React.Ref<AnimatedListRef>;
 };
 
 // Legacy constants maintained for backward compatibility

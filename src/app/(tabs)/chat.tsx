@@ -1,10 +1,10 @@
 import { View } from "react-native";
-import { AnimatedListViewDemo } from "@/features/AnimatedListView";
+import { AnimatedListDemo } from "@/features/AnimatedList";
 
 const ChatScreen = () => {
   return (
     <View className="flex-1 bg-black">
-      <AnimatedListViewDemo />
+      <AnimatedListDemo />
     </View>
   );
 };

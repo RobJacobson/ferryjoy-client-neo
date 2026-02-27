@@ -8,7 +8,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { Item } from "@/shared/utils/fakerData";
 import { SPACING } from "../types";
 
-type DemoCardProps = {
+type AnimatedListDemoCardProps = {
   item: Item;
 };
 
@@ -18,7 +18,7 @@ type DemoCardProps = {
  *
  * @param item - Card data including image, title, description, and author
  */
-const DemoCard = ({ item }: DemoCardProps) => {
+const AnimatedListDemoCard = ({ item }: AnimatedListDemoCardProps) => {
   return (
     <TouchableOpacity activeOpacity={0.9} className="w-full flex-1">
       <Image
@@ -84,4 +84,4 @@ const DemoCard = ({ item }: DemoCardProps) => {
   );
 };
 
-export default DemoCard;
+export default AnimatedListDemoCard;

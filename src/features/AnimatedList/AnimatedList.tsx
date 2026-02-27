@@ -1,20 +1,24 @@
 /**
- * AnimatedListView – Generic ScrollView-based list with scroll-driven animations.
+ * AnimatedList – Generic ScrollView-based list with scroll-driven animations.
  * Supports any data type through renderItem callback, configurable layout,
  * and pluggable animation hooks. Maintains compatibility with existing
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useState } from "react";
+import { useImperativeHandle, useState } from "react";
 import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import Animated, {
+  type SharedValue,
+  scrollTo,
+  useAnimatedReaction,
   useAnimatedRef,
   useDerivedValue,
   useScrollOffset,
 } from "react-native-reanimated";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import AnimatedListItem from "./AnimatedListItem";
-import type { AnimatedListViewProps } from "./types";
+import type { AnimatedListProps } from "./types";
 
 /**
  * Renders a generic animated list using ScrollView with scroll-driven animations.
@@ -26,13 +30,19 @@ import type { AnimatedListViewProps } from "./types";
  * @param renderItem - Function to render each item with animation state
  * @param layout - Layout configuration for the list
  * @param itemAnimationStyle - Optional custom animation worklet function for item styling
+ * @param ref - Ref for imperative scrollToIndex control
+ * @param scrollOffset - Optional shared scroll offset value for parallax effects
+ * @param onScrollEnd - Optional callback fired when scroll settles on an item
  */
-const AnimatedListView = <T,>({
+const AnimatedList = <T,>({
   data,
   renderItem,
   layout,
   itemAnimationStyle,
-}: AnimatedListViewProps<T>) => {
+  scrollOffset: externalScrollOffset,
+  onScrollEnd,
+  ref,
+}: AnimatedListProps<T>) => {
   const {
     direction = "vertical",
     itemSize,
@@ -49,11 +59,50 @@ const AnimatedListView = <T,>({
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollOffset = useScrollOffset(scrollRef);
+  const internalScrollOffset = useScrollOffset(scrollRef);
+  const scrollOffset: SharedValue<number> =
+    externalScrollOffset ?? internalScrollOffset;
 
   // Convert scroll position to normalized index
   const scrollIndex = useDerivedValue(
     () => scrollOffset.value / (itemSize + spacing)
+  );
+
+  // Imperative handle for programmatic scrolling
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToIndex: (index: number, animated = true) => {
+        const clamped = Math.max(0, Math.min(index, data.length - 1));
+        const targetOffset = clamped * (itemSize + spacing);
+
+        scheduleOnUI(() => {
+          "worklet";
+          if (isHorizontal) {
+            scrollTo(scrollRef, targetOffset, 0, animated);
+          } else {
+            scrollTo(scrollRef, 0, targetOffset, animated);
+          }
+        });
+      },
+    }),
+    [scrollRef, data.length, itemSize, spacing, isHorizontal]
+  );
+
+  // Call onScrollEnd when scroll settles on an item
+  useAnimatedReaction(
+    () => {
+      if (!onScrollEnd) return undefined;
+      const currentScrollIndex = scrollIndex.value;
+      const activeIndex = Math.round(currentScrollIndex);
+      return activeIndex;
+    },
+    (activeIndex) => {
+      if (activeIndex !== undefined && onScrollEnd) {
+        scheduleOnRN(onScrollEnd, activeIndex);
+      }
+    },
+    [onScrollEnd]
   );
 
   // Snap offsets for each item
@@ -116,5 +165,5 @@ const AnimatedListView = <T,>({
   );
 };
 
-export default AnimatedListView;
-export type { AnimatedListViewProps } from "./types";
+export default AnimatedList;
+export type { AnimatedListProps } from "./types";

@@ -1,5 +1,5 @@
 /**
- * AnimatedListView utility functions.
+ * AnimatedList utility functions.
  * Provides helper functions for animation calculations.
  */
 
