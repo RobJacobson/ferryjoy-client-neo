@@ -5,14 +5,15 @@
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import Animated, {
   useAnimatedRef,
   useDerivedValue,
   useScrollOffset,
 } from "react-native-reanimated";
-import AnimatedListItemWrapper from "./AnimatedListItemWrapper";
+import AnimatedListItem from "./AnimatedListItem";
 import type { AnimatedListViewProps } from "./types";
 
 /**
@@ -24,11 +25,13 @@ import type { AnimatedListViewProps } from "./types";
  * @param data - Array of items to render
  * @param renderItem - Function to render each item with animation state
  * @param layout - Layout configuration for the list
+ * @param itemAnimationStyle - Optional custom animation worklet function for item styling
  */
 const AnimatedListView = <T,>({
   data,
   renderItem,
   layout,
+  itemAnimationStyle,
 }: AnimatedListViewProps<T>) => {
   const {
     direction = "vertical",
@@ -53,21 +56,22 @@ const AnimatedListView = <T,>({
     () => scrollOffset.value / (itemSize + spacing)
   );
 
-  // Calculate snap offsets for fixed-size items
-  const snapOffsets = useMemo(() => {
-    return data.map((_, index) => index * (itemSize + spacing));
-  }, [data, itemSize, spacing]);
+  // Snap offsets for each item
+  const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
 
-  // Calculate padding to position active item correctly
-  const mainPadding = useMemo(() => {
-    const containerSize = isHorizontal
-      ? containerDims.width
-      : containerDims.height;
-    if (containerSize === 0) return 0;
-    const activePosition = containerSize * activePositionRatio;
-    const offsetToCenterItem = activePosition - itemSize / 2;
-    return Math.max(0, offsetToCenterItem);
-  }, [containerDims, activePositionRatio, itemSize, isHorizontal]);
+  // Padding to center active item at configured position
+  const containerSize = isHorizontal
+    ? containerDims.width
+    : containerDims.height;
+  const mainPadding = Math.max(
+    0,
+    containerSize * activePositionRatio - itemSize / 2
+  );
+
+  // Item sizing based on direction
+  const itemSizeStyle: ViewStyle = isHorizontal
+    ? { height: "100%", width: itemSize }
+    : { width: "100%", height: itemSize };
 
   return (
     <View
@@ -96,17 +100,16 @@ const AnimatedListView = <T,>({
         showsVerticalScrollIndicator={false}
       >
         {data.map((item, index) => (
-          <AnimatedListItemWrapper
+          <AnimatedListItem
             key={String(index)}
+            item={item}
             index={index}
-            scrollIndex={scrollIndex}
+            animationState={{ index, scrollIndex }}
+            itemSizeStyle={itemSizeStyle}
+            renderItem={renderItem}
+            itemAnimationStyle={itemAnimationStyle}
             layout={layout}
-          >
-            {renderItem(item, index, {
-              index,
-              scrollIndex,
-            })}
-          </AnimatedListItemWrapper>
+          />
         ))}
       </Animated.ScrollView>
     </View>

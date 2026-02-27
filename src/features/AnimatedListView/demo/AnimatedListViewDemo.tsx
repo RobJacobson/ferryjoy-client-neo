@@ -10,9 +10,10 @@ import { Text } from "@/components/ui/text";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import data from "@/shared/utils/fakerData";
 import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
-import AnimatedListView from "./AnimatedListView";
+import AnimatedListView from "../AnimatedListView";
+import { CARD_HEIGHT_RATIO, SPACING } from "../types";
 import DemoCard from "./DemoCard";
-import { CARD_HEIGHT_RATIO, SPACING } from "./types";
+import useDemoAnimationStyle from "./useDemoAnimationStyle";
 
 const AnimatedListViewDemo = () => {
   const { availableHeight: totalHeight } = useAvailableDimensions();
@@ -56,6 +57,7 @@ const AnimatedListViewDemo = () => {
           spacing: SPACING,
           activePositionRatio: 0.5,
         }}
+        itemAnimationStyle={useDemoAnimationStyle}
       />
     </View>
   );

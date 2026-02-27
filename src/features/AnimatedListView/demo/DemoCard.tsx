@@ -6,7 +6,7 @@
 import { Image } from "expo-image";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { Item } from "@/shared/utils/fakerData";
-import { SPACING } from "./types";
+import { SPACING } from "../types";
 
 type DemoCardProps = {
   item: Item;

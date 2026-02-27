@@ -1,6 +1,5 @@
-export { default as AnimatedListItemWrapper } from "./AnimatedListItemWrapper";
 export { default as AnimatedListView } from "./AnimatedListView";
-export { default as AnimatedListViewDemo } from "./AnimatedListViewDemo";
+export { AnimatedListViewDemo } from "./demo";
 export type {
   AnimatedListViewDirection,
   AnimatedListViewLayout,
@@ -8,7 +7,7 @@ export type {
   AnimatedListViewRef,
   AnimatedStyleResult,
   AnimationState,
+  ItemAnimationStyle,
   RenderItem,
-  UseItemAnimationStyle,
 } from "./types";
 export { calculateDistanceFromActive, isItemActive } from "./utils";

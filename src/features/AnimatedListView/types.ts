@@ -41,15 +41,16 @@ export type AnimatedStyleResult = ViewStyle & {
 };
 
 /**
- * Signature for custom animation hooks.
+ * Signature for custom animation worklet functions.
  * Allows users to define their own scroll-driven animations.
+ * Note: This is a worklet function, not a React hook, despite the name.
  *
  * @param scrollIndex - Shared value of current scroll position (normalized to index)
  * @param index - Index of the current item
  * @param layout - Layout configuration for the list
  * @returns Animated style object for the item
  */
-export type UseItemAnimationStyle = (
+export type ItemAnimationStyle = (
   scrollIndex: SharedValue<number>,
   index: number,
   layout: AnimatedListViewLayout
@@ -88,6 +89,7 @@ export type AnimatedListViewProps<T> = {
   data: T[];
   renderItem: RenderItem<T>;
   layout: AnimatedListViewLayout;
+  itemAnimationStyle?: ItemAnimationStyle;
 };
 
 // Legacy constants maintained for backward compatibility
