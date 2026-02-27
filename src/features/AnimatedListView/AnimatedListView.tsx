@@ -1,80 +1,99 @@
-import { useMemo } from "react";
+/**
+ * AnimatedListView – Generic ScrollView-based list with scroll-driven animations.
+ * Supports any data type through renderItem callback, configurable layout,
+ * and pluggable animation hooks. Maintains compatibility with existing
+ * demo while providing maximum flexibility for future use cases.
+ */
+
+import { useMemo, useState } from "react";
+import { View } from "react-native";
 import Animated, {
-  scrollTo,
   useAnimatedRef,
   useDerivedValue,
   useScrollOffset,
 } from "react-native-reanimated";
-import type { Item } from "@/shared/utils/fakerData";
-import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
-import {
-  ACTIVE_CARD_POSITION_RATIO,
-  CARD_HEIGHT_RATIO,
-  SPACING,
-} from "./types";
-import AnimatedListViewItem from "./AnimatedListViewItem";
+import AnimatedListItemWrapper from "./AnimatedListItemWrapper";
+import type { AnimatedListViewProps } from "./types";
 
-type AnimatedListViewProps = {
-  data: (Item & { key: string })[];
-};
+/**
+ * Renders a generic animated list using ScrollView with scroll-driven animations.
+ * Provides maximum flexibility for rendering any card-like element while handling
+ * scroll tracking, snap behavior, and animation state management.
+ *
+ * @template T - Type of data items in list
+ * @param data - Array of items to render
+ * @param renderItem - Function to render each item with animation state
+ * @param layout - Layout configuration for the list
+ */
+const AnimatedListView = <T,>({
+  data,
+  renderItem,
+  layout,
+}: AnimatedListViewProps<T>) => {
+  const { itemSize, spacing, activePositionRatio } = layout;
+  const [listHeight, setListHeight] = useState<number>(0);
 
-const AnimatedListView = ({ data }: AnimatedListViewProps) => {
-  const { availableHeight: totalHeight } = useAvailableDimensions();
-
-  // Fixed card height
-  const cardHeight = Math.floor(totalHeight * CARD_HEIGHT_RATIO);
-
+  // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollOffset(scrollRef);
 
-  // Convert scroll position to normalized index (like the PexelsList example)
+  // Convert scroll position to normalized index
   const scrollIndex = useDerivedValue(
-    () => scrollOffset.value / (cardHeight + SPACING)
+    () => scrollOffset.value / (itemSize + spacing)
   );
 
-  // Calculate vertical position for the active card
-  // ACTIVE_CARD_POSITION_RATIO: 0 = top, 0.5 = center, 1 = bottom
-  const activeCardYPosition = totalHeight * ACTIVE_CARD_POSITION_RATIO;
-  const topPadding = Math.max(0, activeCardYPosition - cardHeight / 2);
-
-  // Calculate snap offsets for fixed-size cards
+  // Calculate snap offsets for fixed-size items
   const snapOffsets = useMemo(() => {
-    return data.map((_, index) => topPadding + index * (cardHeight + SPACING));
-  }, [data, cardHeight, topPadding]);
+    return data.map((_, index) => index * (itemSize + spacing));
+  }, [data, itemSize, spacing]);
 
-  // Calculate total content height
-  const totalContentHeight = useMemo(() => {
-    return data.length * (cardHeight + SPACING);
-  }, [data.length, cardHeight]);
-
-  const sidePadding = 16;
+  // Calculate vertical padding to position active item correctly
+  const verticalPadding = useMemo(() => {
+    if (listHeight === 0) return 0;
+    const activePosition = listHeight * activePositionRatio;
+    const offsetToCenterItem = activePosition - itemSize / 2;
+    return Math.max(0, offsetToCenterItem);
+  }, [listHeight, activePositionRatio, itemSize]);
 
   return (
-    <Animated.ScrollView
-      ref={scrollRef}
-      snapToOffsets={snapOffsets}
-      snapToEnd={false}
-      snapToStart={false}
-      decelerationRate="fast"
-      contentContainerStyle={{
-        paddingVertical: topPadding,
-        paddingHorizontal: sidePadding,
-        height: totalContentHeight + topPadding * 2,
+    <View
+      style={{ flex: 1 }}
+      onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        setListHeight(height);
       }}
-      scrollEventThrottle={16}
-      showsVerticalScrollIndicator={false}
     >
-      {data.map((item, index) => (
-        <AnimatedListViewItem
-          key={item.key}
-          item={item}
-          index={index}
-          scrollIndex={scrollIndex}
-          cardHeight={cardHeight}
-        />
-      ))}
-    </Animated.ScrollView>
+      <Animated.ScrollView
+        ref={scrollRef}
+        snapToOffsets={snapOffsets}
+        snapToEnd={false}
+        snapToStart={false}
+        decelerationRate="fast"
+        contentContainerStyle={{
+          paddingTop: verticalPadding,
+          paddingBottom: verticalPadding,
+          gap: spacing,
+        }}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
+        {data.map((item, index) => (
+          <AnimatedListItemWrapper
+            key={String(index)}
+            index={index}
+            scrollIndex={scrollIndex}
+            layout={layout}
+          >
+            {renderItem(item, index, {
+              index,
+              scrollIndex,
+            })}
+          </AnimatedListItemWrapper>
+        ))}
+      </Animated.ScrollView>
+    </View>
   );
 };
 
 export default AnimatedListView;
+export type { AnimatedListViewProps } from "./types";
