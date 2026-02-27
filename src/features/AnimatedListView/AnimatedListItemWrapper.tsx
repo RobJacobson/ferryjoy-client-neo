@@ -65,8 +65,13 @@ const AnimatedListItemWrapper = ({
 
   return (
     <Animated.View
-      style={[animatedStyle, { height: layout.itemSize }]}
-      className="w-full overflow-hidden rounded-2xl"
+      style={[
+        animatedStyle,
+        layout.direction === "horizontal"
+          ? { height: "100%", width: layout.itemSize }
+          : { width: "100%", height: layout.itemSize },
+      ]}
+      className="overflow-hidden rounded-2xl"
     >
       {children}
     </Animated.View>

@@ -30,8 +30,19 @@ const AnimatedListView = <T,>({
   renderItem,
   layout,
 }: AnimatedListViewProps<T>) => {
-  const { itemSize, spacing, activePositionRatio } = layout;
-  const [listHeight, setListHeight] = useState<number>(0);
+  const {
+    direction = "vertical",
+    itemSize,
+    spacing = 0,
+    activePositionRatio = 0.5,
+  } = layout;
+
+  const [containerDims, setContainerDims] = useState({
+    width: 0,
+    height: 0,
+  });
+
+  const isHorizontal = direction === "horizontal";
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -47,34 +58,41 @@ const AnimatedListView = <T,>({
     return data.map((_, index) => index * (itemSize + spacing));
   }, [data, itemSize, spacing]);
 
-  // Calculate vertical padding to position active item correctly
-  const verticalPadding = useMemo(() => {
-    if (listHeight === 0) return 0;
-    const activePosition = listHeight * activePositionRatio;
+  // Calculate padding to position active item correctly
+  const mainPadding = useMemo(() => {
+    const containerSize = isHorizontal
+      ? containerDims.width
+      : containerDims.height;
+    if (containerSize === 0) return 0;
+    const activePosition = containerSize * activePositionRatio;
     const offsetToCenterItem = activePosition - itemSize / 2;
     return Math.max(0, offsetToCenterItem);
-  }, [listHeight, activePositionRatio, itemSize]);
+  }, [containerDims, activePositionRatio, itemSize, isHorizontal]);
 
   return (
     <View
       style={{ flex: 1 }}
       onLayout={(event) => {
-        const { height } = event.nativeEvent.layout;
-        setListHeight(height);
+        const { width, height } = event.nativeEvent.layout;
+        setContainerDims({ width, height });
       }}
     >
       <Animated.ScrollView
         ref={scrollRef}
+        horizontal={isHorizontal}
         snapToOffsets={snapOffsets}
         snapToEnd={false}
         snapToStart={false}
         decelerationRate="fast"
         contentContainerStyle={{
-          paddingTop: verticalPadding,
-          paddingBottom: verticalPadding,
+          paddingTop: isHorizontal ? undefined : mainPadding,
+          paddingBottom: isHorizontal ? undefined : mainPadding,
+          paddingLeft: isHorizontal ? mainPadding : undefined,
+          paddingRight: isHorizontal ? mainPadding : undefined,
           gap: spacing,
         }}
         scrollEventThrottle={16}
+        showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
       >
         {data.map((item, index) => (

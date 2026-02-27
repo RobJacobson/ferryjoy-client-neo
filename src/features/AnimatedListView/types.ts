@@ -17,9 +17,10 @@ export type AnimatedListViewDirection = "horizontal" | "vertical";
  * Defines spacing, sizing, and positioning of list items.
  */
 export type AnimatedListViewLayout = {
+  direction?: "horizontal" | "vertical";
   itemSize: number;
-  spacing: number;
-  activePositionRatio: number;
+  spacing?: number;
+  activePositionRatio?: number;
 };
 
 /**
