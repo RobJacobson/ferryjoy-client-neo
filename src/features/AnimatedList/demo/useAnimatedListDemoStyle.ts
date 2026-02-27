@@ -9,7 +9,7 @@ import type { AnimatedListLayout, AnimatedStyleResult } from "../types";
 import { calculateDistanceFromActive } from "../utils";
 
 /**
- * Demo animation style hook that applies fade and scale effects.
+ * Demo animation function that applies fade and scale effects.
  * Items closer to the active (centered) position appear more prominent.
  *
  * @param scrollIndex - Shared value of current scroll position (normalized to index)

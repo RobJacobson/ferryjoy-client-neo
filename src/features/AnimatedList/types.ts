@@ -21,16 +21,6 @@ export type AnimatedListLayout = {
   direction?: "horizontal" | "vertical";
   itemSize: number;
   spacing?: number;
-  activePositionRatio?: number;
-};
-
-/**
- * Animation state passed to renderItem and animation hooks.
- * Provides current scroll position and item-specific animation data.
- */
-export type AnimationState = {
-  index: number;
-  scrollIndex: SharedValue<number>;
 };
 
 /**
@@ -44,14 +34,13 @@ export type AnimatedStyleResult = ViewStyle & {
 /**
  * Signature for custom animation worklet functions.
  * Allows users to define their own scroll-driven animations.
- * Note: This is a worklet function, not a React hook, despite the name.
  *
  * @param scrollIndex - Shared value of current scroll position (normalized to index)
  * @param index - Index of the current item
  * @param layout - Layout configuration for the list
  * @returns Animated style object for the item
  */
-export type ItemAnimationStyle = (
+export type ItemAnimationFunction = (
   scrollIndex: SharedValue<number>,
   index: number,
   layout: AnimatedListLayout
@@ -59,18 +48,13 @@ export type ItemAnimationStyle = (
 
 /**
  * Signature for renderItem callback.
- * Provides item data, index, and animation state for custom rendering.
+ * Provides item data and index for custom rendering.
  *
  * @param item - The data item to render
  * @param index - Index of the item in the list
- * @param animationState - Current animation state for the item (contains index and SharedValue scrollIndex)
  * @returns React element to render for this item
  */
-export type RenderItem<T> = (
-  item: T,
-  index: number,
-  animationState: AnimationState
-) => React.ReactNode;
+export type RenderItem<T> = (item: T, index: number) => React.ReactNode;
 
 /**
  * Imperative handle for programmatic list control.
@@ -90,13 +74,10 @@ export type AnimatedListProps<T> = {
   data: T[];
   renderItem: RenderItem<T>;
   layout: AnimatedListLayout;
-  itemAnimationStyle?: ItemAnimationStyle;
+  itemAnimationStyle?: ItemAnimationFunction;
   scrollOffset?: SharedValue<number>;
   onScrollEnd?: (activeIndex: number) => void;
   ref?: React.Ref<AnimatedListRef>;
+  keyExtractor?: (item: T, index: number) => string;
+  itemClassName?: string;
 };
-
-// Legacy constants maintained for backward compatibility
-export const SPACING = 4;
-export const CARD_HEIGHT_RATIO = 0.3;
-export const ACTIVE_CARD_POSITION_RATIO = 0.5;

@@ -14,9 +14,11 @@ import data from "@/shared/utils/fakerData";
 import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
 import AnimatedList from "../AnimatedList";
 import type { AnimatedListRef } from "../types";
-import { CARD_HEIGHT_RATIO, SPACING } from "../types";
 import AnimatedListDemoCard from "./AnimatedListDemoCard";
 import useAnimatedListDemoStyle from "./useAnimatedListDemoStyle";
+
+const SPACING = 4;
+const CARD_HEIGHT_RATIO = 0.3;
 
 const AnimatedListDemo = () => {
   const { availableHeight: totalHeight } = useAvailableDimensions();
@@ -36,24 +38,24 @@ const AnimatedListDemo = () => {
     setActiveIndex(index);
   };
 
+  const scrollTo = (targetIndex: number) => {
+    listViewRef.current?.scrollToIndex(targetIndex, true);
+  };
+
   const scrollToPrevious = () => {
-    if (activeIndex > 0) {
-      listViewRef.current?.scrollToIndex(activeIndex - 1, true);
-    }
+    scrollTo(activeIndex - 1);
   };
 
   const scrollToNext = () => {
-    if (activeIndex < data.length - 1) {
-      listViewRef.current?.scrollToIndex(activeIndex + 1, true);
-    }
+    scrollTo(activeIndex + 1);
   };
 
   const scrollToStart = () => {
-    listViewRef.current?.scrollToIndex(0, true);
+    scrollTo(0);
   };
 
   const scrollToEnd = () => {
-    listViewRef.current?.scrollToIndex(data.length - 1, true);
+    scrollTo(data.length - 1);
   };
 
   return (
@@ -85,19 +87,20 @@ const AnimatedListDemo = () => {
           Progress: {Math.round((activeIndex / (data.length - 1)) * 100)}%
         </Text>
       </View>
-      <AnimatedList
-        ref={listViewRef}
-        data={data}
-        renderItem={(item) => <AnimatedListDemoCard item={item} />}
-        layout={{
-          direction,
-          itemSize,
-          spacing: SPACING,
-          activePositionRatio: 0.5,
-        }}
-        itemAnimationStyle={useAnimatedListDemoStyle}
-        onScrollEnd={handleScrollEnd}
-      />
+      <View className="flex-1 p-4">
+        <AnimatedList
+          ref={listViewRef}
+          data={data}
+          renderItem={(item) => <AnimatedListDemoCard item={item} />}
+          layout={{
+            direction,
+            itemSize,
+            spacing: SPACING,
+          }}
+          itemAnimationStyle={useAnimatedListDemoStyle}
+          onScrollEnd={handleScrollEnd}
+        />
+      </View>
       <View className="flex-row items-center justify-center gap-2">
         <Button variant="outline" size="icon" onPress={scrollToStart}>
           <Text>⏮</Text>

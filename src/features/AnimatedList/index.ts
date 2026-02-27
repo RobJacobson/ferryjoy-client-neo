@@ -6,8 +6,7 @@ export type {
   AnimatedListProps,
   AnimatedListRef,
   AnimatedStyleResult,
-  AnimationState,
-  ItemAnimationStyle,
+  ItemAnimationFunction,
   RenderItem,
 } from "./types";
 export { calculateDistanceFromActive, isItemActive } from "./utils";

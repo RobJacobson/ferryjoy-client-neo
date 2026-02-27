@@ -5,21 +5,20 @@
  */
 
 import type { ViewStyle } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import type { AnimationState, ItemAnimationStyle } from "./types";
+import { cn } from "@/shared/utils/cn";
+import type { ItemAnimationFunction } from "./types";
 
 type AnimatedListItemProps<T> = {
   item: T;
   index: number;
-  animationState: AnimationState;
+  scrollIndex: SharedValue<number>;
   itemSizeStyle: ViewStyle;
-  renderItem: (
-    item: T,
-    index: number,
-    animationState: AnimationState
-  ) => React.ReactNode;
-  itemAnimationStyle?: ItemAnimationStyle;
-  layout: Parameters<ItemAnimationStyle>[2];
+  renderItem: (item: T, index: number) => React.ReactNode;
+  itemAnimationStyle?: ItemAnimationFunction;
+  layout: Parameters<ItemAnimationFunction>[2];
+  itemClassName?: string;
 };
 
 /**
@@ -28,24 +27,26 @@ type AnimatedListItemProps<T> = {
  *
  * @param item - Data item to render
  * @param index - Item index
- * @param animationState - Animation state with scroll index
+ * @param scrollIndex - Shared value of scroll position for animation
  * @param itemSizeStyle - Sizing style for the item
  * @param renderItem - Function to render item content
  * @param itemAnimationStyle - Optional animation worklet function
  * @param layout - Layout configuration
+ * @param itemClassName - Optional custom className for the item wrapper
  */
 const AnimatedListItem = <T,>({
   item,
   index,
-  animationState,
+  scrollIndex,
   itemSizeStyle,
   renderItem,
   itemAnimationStyle,
   layout,
+  itemClassName,
 }: AnimatedListItemProps<T>) => {
   const animatedStyle = useAnimatedStyle(() => {
     if (itemAnimationStyle) {
-      return itemAnimationStyle(animationState.scrollIndex, index, layout);
+      return itemAnimationStyle(scrollIndex, index, layout);
     }
     return {};
   });
@@ -53,9 +54,9 @@ const AnimatedListItem = <T,>({
   return (
     <Animated.View
       style={[itemSizeStyle, animatedStyle]}
-      className="overflow-hidden rounded-2xl"
+      className={cn("overflow-hidden", itemClassName)}
     >
-      {renderItem(item, index, animationState)}
+      {renderItem(item, index)}
     </Animated.View>
   );
 };

@@ -5,9 +5,8 @@
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useImperativeHandle, useState } from "react";
+import { useImperativeHandle, useRef } from "react";
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
 import Animated, {
   type SharedValue,
   scrollTo,
@@ -33,6 +32,8 @@ import type { AnimatedListProps } from "./types";
  * @param ref - Ref for imperative scrollToIndex control
  * @param scrollOffset - Optional shared scroll offset value for parallax effects
  * @param onScrollEnd - Optional callback fired when scroll settles on an item
+ * @param keyExtractor - Optional function to extract unique keys for items
+ * @param itemClassName - Optional custom className for item wrapper (defaults to "overflow-hidden")
  */
 const AnimatedList = <T,>({
   data,
@@ -42,20 +43,15 @@ const AnimatedList = <T,>({
   scrollOffset: externalScrollOffset,
   onScrollEnd,
   ref,
+  keyExtractor,
+  itemClassName,
 }: AnimatedListProps<T>) => {
-  const {
-    direction = "vertical",
-    itemSize,
-    spacing = 0,
-    activePositionRatio = 0.5,
-  } = layout;
-
-  const [containerDims, setContainerDims] = useState({
-    width: 0,
-    height: 0,
-  });
+  const { direction = "vertical", itemSize, spacing = 0 } = layout;
 
   const isHorizontal = direction === "horizontal";
+
+  // Track previous active index for scroll end callback
+  const previousActiveIndex = useRef<number | null>(null);
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -63,10 +59,9 @@ const AnimatedList = <T,>({
   const scrollOffset: SharedValue<number> =
     externalScrollOffset ?? internalScrollOffset;
 
-  // Convert scroll position to normalized index
-  const scrollIndex = useDerivedValue(
-    () => scrollOffset.value / (itemSize + spacing)
-  );
+  // Convert scroll position to normalized index with division by zero protection
+  const itemStride = Math.max(1, itemSize + spacing);
+  const scrollIndex = useDerivedValue(() => scrollOffset.value / itemStride);
 
   // Imperative handle for programmatic scrolling
   useImperativeHandle(
@@ -89,7 +84,7 @@ const AnimatedList = <T,>({
     [scrollRef, data.length, itemSize, spacing, isHorizontal]
   );
 
-  // Call onScrollEnd when scroll settles on an item
+  // Call onScrollEnd when scroll settles on an item (only when index changes)
   useAnimatedReaction(
     () => {
       if (!onScrollEnd) return undefined;
@@ -98,7 +93,12 @@ const AnimatedList = <T,>({
       return activeIndex;
     },
     (activeIndex) => {
-      if (activeIndex !== undefined && onScrollEnd) {
+      if (
+        activeIndex !== undefined &&
+        onScrollEnd &&
+        activeIndex !== previousActiveIndex.current
+      ) {
+        previousActiveIndex.current = activeIndex;
         scheduleOnRN(onScrollEnd, activeIndex);
       }
     },
@@ -108,60 +108,40 @@ const AnimatedList = <T,>({
   // Snap offsets for each item
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
 
-  // Padding to center active item at configured position
-  const containerSize = isHorizontal
-    ? containerDims.width
-    : containerDims.height;
-  const mainPadding = Math.max(
-    0,
-    containerSize * activePositionRatio - itemSize / 2
-  );
-
   // Item sizing based on direction
   const itemSizeStyle: ViewStyle = isHorizontal
     ? { height: "100%", width: itemSize }
     : { width: "100%", height: itemSize };
 
   return (
-    <View
-      style={{ flex: 1 }}
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setContainerDims({ width, height });
+    <Animated.ScrollView
+      ref={scrollRef}
+      horizontal={isHorizontal}
+      snapToOffsets={snapOffsets}
+      snapToEnd={false}
+      snapToStart={false}
+      decelerationRate="fast"
+      contentContainerStyle={{
+        gap: spacing,
       }}
+      scrollEventThrottle={16}
+      showsHorizontalScrollIndicator={false}
+      showsVerticalScrollIndicator={false}
     >
-      <Animated.ScrollView
-        ref={scrollRef}
-        horizontal={isHorizontal}
-        snapToOffsets={snapOffsets}
-        snapToEnd={false}
-        snapToStart={false}
-        decelerationRate="fast"
-        contentContainerStyle={{
-          paddingTop: isHorizontal ? undefined : mainPadding,
-          paddingBottom: isHorizontal ? undefined : mainPadding,
-          paddingLeft: isHorizontal ? mainPadding : undefined,
-          paddingRight: isHorizontal ? mainPadding : undefined,
-          gap: spacing,
-        }}
-        scrollEventThrottle={16}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-      >
-        {data.map((item, index) => (
-          <AnimatedListItem
-            key={String(index)}
-            item={item}
-            index={index}
-            animationState={{ index, scrollIndex }}
-            itemSizeStyle={itemSizeStyle}
-            renderItem={renderItem}
-            itemAnimationStyle={itemAnimationStyle}
-            layout={layout}
-          />
-        ))}
-      </Animated.ScrollView>
-    </View>
+      {data.map((item, index) => (
+        <AnimatedListItem
+          key={keyExtractor ? keyExtractor(item, index) : String(index)}
+          item={item}
+          index={index}
+          scrollIndex={scrollIndex}
+          itemSizeStyle={itemSizeStyle}
+          renderItem={renderItem}
+          itemAnimationStyle={itemAnimationStyle}
+          layout={layout}
+          itemClassName={itemClassName}
+        />
+      ))}
+    </Animated.ScrollView>
   );
 };
 
