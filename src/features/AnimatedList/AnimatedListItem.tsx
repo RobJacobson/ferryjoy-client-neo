@@ -54,6 +54,7 @@ const AnimatedListItem = <T,>({
   return (
     <Animated.View
       style={[itemSizeStyle, animatedStyle]}
+      // Default to overflow-hidden for proper clipping; can be overridden via itemClassName
       className={cn("overflow-hidden", itemClassName)}
       testID={`animated-list-item-${index}`}
     >
