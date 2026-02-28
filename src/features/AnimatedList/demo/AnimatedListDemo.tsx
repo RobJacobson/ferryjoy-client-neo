@@ -63,9 +63,8 @@ const AnimatedListDemo = () => {
   };
 
   return (
-    <View className="flex-1 gap-4">
-      <View className="items-center gap-2">
-        <Text className="font-bold text-lg">Direction</Text>
+    <View className="flex-1">
+      <View className="flex-row items-center justify-between px-4 py-2">
         <ToggleGroup
           type="single"
           value={direction}
@@ -76,24 +75,17 @@ const AnimatedListDemo = () => {
           }}
         >
           <ToggleGroupItem value="vertical" isFirst>
-            <Text>Vertical</Text>
+            <Text className="text-xs">V</Text>
           </ToggleGroupItem>
           <ToggleGroupItem value="horizontal" isLast>
-            <Text>Horizontal</Text>
+            <Text className="text-xs">H</Text>
           </ToggleGroupItem>
         </ToggleGroup>
-      </View>
-      <View className="items-center gap-1">
-        <Text className="text-muted-foreground text-sm">
-          Active Index: {activeIndex} / {Math.max(0, data.length - 1)}
-        </Text>
         <Text className="text-muted-foreground text-xs">
-          Progress: {data.length > 1
-            ? Math.round((activeIndex / (data.length - 1)) * 100)
-            : 0}%
+          {activeIndex} / {Math.max(0, data.length - 1)}
         </Text>
       </View>
-      <View className="flex-1 p-4">
+      <View className="flex-1">
         <AnimatedList
           ref={listViewRef}
           data={data}
@@ -107,18 +99,18 @@ const AnimatedListDemo = () => {
           onScrollEnd={handleScrollEnd}
         />
       </View>
-      <View className="flex-row items-center justify-center gap-2">
-        <Button variant="outline" size="icon" onPress={scrollToStart}>
-          <Text>⏮</Text>
+      <View className="flex-row items-center justify-center gap-1 pb-2">
+        <Button variant="ghost" size="sm" onPress={scrollToStart}>
+          <Text className="text-sm">⏮</Text>
         </Button>
-        <Button variant="outline" size="icon" onPress={scrollToPrevious}>
-          <Text>◀</Text>
+        <Button variant="ghost" size="sm" onPress={scrollToPrevious}>
+          <Text className="text-sm">◀</Text>
         </Button>
-        <Button variant="outline" size="icon" onPress={scrollToNext}>
-          <Text>▶</Text>
+        <Button variant="ghost" size="sm" onPress={scrollToNext}>
+          <Text className="text-sm">▶</Text>
         </Button>
-        <Button variant="outline" size="icon" onPress={scrollToEnd}>
-          <Text>⏭</Text>
+        <Button variant="ghost" size="sm" onPress={scrollToEnd}>
+          <Text className="text-sm">⏭</Text>
         </Button>
       </View>
     </View>

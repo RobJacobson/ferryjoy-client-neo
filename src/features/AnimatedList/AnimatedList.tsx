@@ -6,6 +6,7 @@
  */
 
 import { useImperativeHandle, useRef } from "react";
+import { useWindowDimensions } from "react-native";
 import type { ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
@@ -48,6 +49,9 @@ const AnimatedList = <T,>({
 }: AnimatedListProps<T>) => {
   // Extract layout configuration
   const { direction = "vertical", itemSize, spacing = 0 } = layout;
+
+  // Get window dimensions for centering calculation
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // Determine if the list is horizontal or vertical
   const isHorizontal = direction === "horizontal";
@@ -124,10 +128,22 @@ const AnimatedList = <T,>({
   // Snap offsets for each item
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
 
+  // Calculate padding to center items in viewport
+  const crossAxisSize = isHorizontal ? windowWidth : windowHeight;
+  const crossAxisPadding = Math.max(0, (crossAxisSize - itemSize) / 2);
+
   // Item sizing based on direction
   const itemSizeStyle: ViewStyle = isHorizontal
     ? { height: "100%", width: itemSize }
     : { width: "100%", height: itemSize };
+
+  // Build content container style with padding for centering
+  const contentContainerStyle: ViewStyle = {
+    gap: spacing,
+    ...(isHorizontal
+      ? { paddingHorizontal: crossAxisPadding }
+      : { paddingVertical: crossAxisPadding }),
+  };
 
   return (
     <Animated.ScrollView
@@ -137,9 +153,8 @@ const AnimatedList = <T,>({
       snapToEnd={false}
       snapToStart={false}
       decelerationRate="fast"
-      contentContainerStyle={{
-        gap: spacing,
-      }}
+      contentContainerStyle={contentContainerStyle}
+      style={{ scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory` } as ViewStyle}
       scrollEventThrottle={16}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
