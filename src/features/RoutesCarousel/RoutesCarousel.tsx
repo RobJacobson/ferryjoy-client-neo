@@ -7,9 +7,9 @@
 
 import type { RefObject } from "react";
 import { useRef, useState } from "react";
-import { View } from "react-native";
+import type { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { TerminalMate } from "ws-dottie/wsf-schedule";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
@@ -17,14 +17,11 @@ import {
 } from "@/data/terminalConnections";
 import { AnimatedList } from "@/features/AnimatedList";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
+import { RoutesCarouselLayout } from "@/features/RoutesCarousel/RoutesCarouselLayout";
 import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouselAnimation";
 import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
-import { useSafeAreaDimensions } from "@/shared/hooks";
-
-// Carousel layout constants
-const SPACING = 12;
-const VIEWPORT_FRACTION = 0.9;
+import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
 
 type RoutesCarouselProps = {
   scrollProgress: SharedValue<number>;
@@ -35,7 +32,7 @@ type RoutesCarouselProps = {
  * Main RoutesCarousel component.
  *
  * Orchestrates terminal carousel UI by composing AnimatedList and TerminalCarouselNav.
- * Handles layout calculations, data preparation, and scroll progress tracking.
+ * Handles state management, scroll progress tracking, and component coordination.
  *
  * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
@@ -44,48 +41,17 @@ const RoutesCarousel = ({
   scrollProgress,
   blurTargetRef,
 }: RoutesCarouselProps) => {
-  // Get safe area dimensions for card sizing
-  const { safeAreaWidth, safeAreaHeight } = useSafeAreaDimensions();
-  const safeAreaInsets = useSafeAreaInsets();
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Prepare carousel data with placeholder first item
-  const terminalCards =
-    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
-  const totalCount = terminalCards.length + 1;
+  const { cardWidth, cardHeight, layout } = useCardDimensions();
 
-  // Calculate card size to fit within 90% of safe area while maintaining 1:2 aspect ratio
-  // CARD_ASPECT_RATIO = 1/2 means width:height = 1:2, so height = 2 * width
-  // Calculate width based on both safe area constraints and use the smaller one
-  const widthBasedOnWidth = safeAreaWidth * VIEWPORT_FRACTION;
-  const widthBasedOnHeight = (safeAreaHeight * VIEWPORT_FRACTION) / 2;
-
-  const cardWidth = Math.min(widthBasedOnWidth, widthBasedOnHeight);
-  const cardHeight = cardWidth * 2;
-
-  const layout = {
-    direction: "horizontal" as const,
-    itemSize: cardWidth,
-    spacing: SPACING,
-  };
-
-  const placeholderCard: TerminalCardData & { isPlaceholder: boolean } = {
-    terminalId: 0,
-    terminalName: "placeholder",
-    terminalSlug: "placeholder",
-    destinations: [],
-    isPlaceholder: true,
-  };
-
-  const carouselData: Array<TerminalCardData & { isPlaceholder?: boolean }> = [
-    placeholderCard,
-    ...terminalCards,
-  ];
+  const carouselData = prepareCarouselData(TERMINAL_CONNECTIONS);
+  const totalCount = carouselData.length;
 
   // Render each carousel item as a RouteCard with explicit dimensions
   const renderItem = (
-    item: TerminalCardData & { isPlaceholder?: boolean }
+    item: TerminalCardData & { isPlaceholder?: boolean },
   ): React.ReactNode => {
     return (
       <RouteCard
@@ -99,7 +65,7 @@ const RoutesCarousel = ({
 
   // Extract stable key for React reconciliation
   const keyExtractor = (
-    item: TerminalCardData & { isPlaceholder?: boolean }
+    item: TerminalCardData & { isPlaceholder?: boolean },
   ): string => {
     return item.isPlaceholder ? "placeholder" : item.terminalSlug;
   };
@@ -112,37 +78,48 @@ const RoutesCarousel = ({
   };
 
   return (
-    <View className="flex-1 items-center justify-center">
-      <View
-        style={{
-          paddingLeft: safeAreaInsets.left,
-          paddingRight: safeAreaInsets.right,
-          paddingTop: safeAreaInsets.top,
-          paddingBottom: safeAreaInsets.bottom,
-        }}
-        className="flex-1 items-center justify-center"
-      >
-        <View className="flex-1 items-center justify-center">
-          <View style={{ height: cardHeight }}>
-            <AnimatedList
-              ref={carouselRef}
-              data={carouselData}
-              renderItem={renderItem}
-              layout={layout}
-              itemAnimationStyle={routesCarouselAnimation}
-              onScrollEnd={handleScrollEnd}
-              keyExtractor={keyExtractor}
-            />
-          </View>
-          <TerminalCarouselNav
-            carouselRef={carouselRef}
-            currentIndex={currentIndex}
-            totalCount={totalCount}
-          />
-        </View>
-      </View>
-    </View>
+    <RoutesCarouselLayout cardHeight={cardHeight}>
+      <AnimatedList
+        ref={carouselRef}
+        data={carouselData}
+        renderItem={renderItem}
+        layout={layout}
+        itemAnimationStyle={routesCarouselAnimation}
+        onScrollEnd={handleScrollEnd}
+        keyExtractor={keyExtractor}
+      />
+      <TerminalCarouselNav
+        carouselRef={carouselRef}
+        currentIndex={currentIndex}
+        totalCount={totalCount}
+      />
+    </RoutesCarouselLayout>
   );
+};
+
+/**
+ * Prepares carousel data by transforming terminal connections and adding a placeholder card.
+ *
+ * Creates a placeholder card as the first item to enable smooth scroll animations,
+ * then appends the actual terminal card data.
+ *
+ * @param connections - Record mapping terminal IDs to their mate connections
+ * @returns Array with placeholder card followed by all terminal cards
+ */
+const prepareCarouselData = (
+  connections: Record<number, TerminalMate[]>,
+): Array<TerminalCardData & { isPlaceholder?: boolean }> => {
+  const terminalCards = transformConnectionsToTerminalCards(connections);
+
+  const placeholderCard: TerminalCardData & { isPlaceholder: boolean } = {
+    terminalId: 0,
+    terminalName: "placeholder",
+    terminalSlug: "placeholder",
+    destinations: [],
+    isPlaceholder: true,
+  };
+
+  return [placeholderCard, ...terminalCards];
 };
 
 export default RoutesCarousel;
