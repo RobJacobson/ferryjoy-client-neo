@@ -1,6 +1,7 @@
 /**
- * RouteCard – Glass-style card for a terminal and its destination buttons.
- * Uses BlurView with an external blur target; navigates to map with selected pair.
+ * RouteCard – Glass-style terminal card with destination buttons.
+ *
+ * CRITICAL: BlurView requires explicit width/height props - cannot rely on flex sizing.
  */
 
 import type { RefObject } from "react";
@@ -18,9 +19,7 @@ type RouteCardProps = {
 };
 
 /**
- * Renders a single terminal card with blur background and destination buttons.
- * Card fills container via flex and maintains 9:16 aspect ratio.
- * Tapping a destination sets the terminal pair and navigates to map tab.
+ * Renders a single terminal card with glassmorphism and destination buttons.
  *
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
  * @param data - Terminal card data with optional isPlaceholder flag
@@ -35,8 +34,10 @@ export const RouteCard = ({
 }: RouteCardProps) => {
   const { terminalName, terminalSlug, destinations, isPlaceholder } = data;
 
+  // Navigation hook for destination button presses
   const handleDestinationPress = useDestinationNavigation(terminalSlug);
 
+  // Placeholder card for visual balance
   if (isPlaceholder) {
     return <View style={{ width, height }} className="bg-green-500/25" />;
   }
@@ -49,10 +50,13 @@ export const RouteCard = ({
       style={{ width, height, borderRadius: 24 }}
     >
       <View className="flex-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
+        {/* Photo section with overlapping terminal name button */}
         <View className="relative mb-6 aspect-[3/4] w-full">
           <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-fuscia-200">
             <Text className="text-gray-400">Photo Placeholder</Text>
           </View>
+
+          {/* Terminal name button straddles photo and destination sections */}
           <View className="absolute right-0 bottom-[-20px] left-0">
             <Button
               className="self-center border bg-fuscia-600 py-1 hover:bg-fuscia-500 active:bg-fuscia-400"
@@ -73,6 +77,7 @@ export const RouteCard = ({
           </View>
         </View>
 
+        {/* Destination buttons stack */}
         <View className="flex-1 items-center justify-center gap-2">
           {destinations.map((destination) => (
             <Button

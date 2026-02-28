@@ -1,7 +1,8 @@
 /**
- * RoutesCarousel – Carousel of terminal RouteCards using AnimatedList.
- * Owns carousel state, layout, and scroll progress. Composes AnimatedList
- * and TerminalCarouselNav.
+ * RoutesCarousel – Terminal carousel with scroll animations and glassmorphism.
+ *
+ * Requires BlurTargetView ref for glassmorphism effects.
+ * Exposes scroll progress (0-1) for parallax backgrounds.
  */
 
 import type { RefObject } from "react";
@@ -20,29 +21,21 @@ import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouse
 import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
 
-/** Horizontal spacing between carousel items */
+// Carousel layout constants
 const SPACING = 12;
-/** Overall card aspect ratio (1:2 - twice as tall as wide) */
 const CARD_ASPECT_RATIO = 1 / 2;
-/** Fraction of viewport used for card height */
 const VIEWPORT_FRACTION = 0.9;
 
 type RoutesCarouselProps = {
-  /**
-   * Shared scroll progress (0 = first item, 1 = last).
-   * Updated when carousel scrolls; used by Background for parallax animation.
-   */
   scrollProgress: SharedValue<number>;
-  /**
-   * Ref to BlurTargetView; passed to RouteCards for BlurView.
-   * Required for glassmorphism effects on RouteCards.
-   */
   blurTargetRef: RefObject<View | null>;
 };
 
 /**
- * Composes AnimatedList and TerminalCarouselNav. Owns scrollX, layout,
- * currentIndex. Updates scrollProgress when carousel scrolls.
+ * Main RoutesCarousel component.
+ *
+ * Orchestrates terminal carousel UI by composing AnimatedList and TerminalCarouselNav.
+ * Handles layout calculations, data preparation, and scroll progress tracking.
  *
  * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
@@ -51,18 +44,16 @@ const RoutesCarousel = ({
   scrollProgress,
   blurTargetRef,
 }: RoutesCarouselProps) => {
+  // Responsive card sizing based on viewport
   const { height: windowHeight } = useWindowDimensions();
-
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Prepare carousel data with placeholder first item
   const terminalCards =
     transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
   const totalCount = terminalCards.length + 1;
-
-  // Calculate card height as fraction of viewport
   const cardHeight = windowHeight * VIEWPORT_FRACTION;
-  // Calculate card width maintaining 1:2 aspect ratio
   const cardWidth = cardHeight * CARD_ASPECT_RATIO;
 
   const layout = {
@@ -84,6 +75,7 @@ const RoutesCarousel = ({
     ...terminalCards,
   ];
 
+  // Render each carousel item as a RouteCard with explicit dimensions
   const renderItem = (
     item: TerminalCardData & { isPlaceholder?: boolean }
   ): React.ReactNode => {
@@ -97,12 +89,14 @@ const RoutesCarousel = ({
     );
   };
 
+  // Extract stable key for React reconciliation
   const keyExtractor = (
     item: TerminalCardData & { isPlaceholder?: boolean }
   ): string => {
     return item.isPlaceholder ? "placeholder" : item.terminalSlug;
   };
 
+  // Update scroll progress and navigation state on scroll end
   const handleScrollEnd = (activeIndex: number) => {
     setCurrentIndex(activeIndex);
     const progress = Math.min(1, Math.max(0, activeIndex / (totalCount - 1)));

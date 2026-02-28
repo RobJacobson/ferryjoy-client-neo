@@ -1,36 +1,23 @@
 /**
- * TerminalNavButton – Faint circular prev/next button for terminal carousel navigation.
- * 40px circle with bg-white/20 and icon black/20.
+ * TerminalNavButton – Minimal circular navigation button (40px, bg-white/20).
  */
 
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Pressable, View } from "react-native";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { Button } from "@/components/ui/button";
 
 type TerminalNavButtonProps = {
-  /** Direction of navigation. */
   direction: "prev" | "next";
-  /** Called when the button is pressed. */
   onPress: () => void;
-  /** Accessibility label (e.g. "Previous terminal", "Next terminal"). */
   accessibilityLabel: string;
 };
-
-// ============================================================================
-// TerminalNavButton
-// ============================================================================
 
 const ICON_COLOR = "rgba(0,0,0,0.2)";
 
 /**
- * Renders a minimal circular navigation button for the terminal carousel.
- *
+ * Renders minimal circular navigation button.
  * @param direction - Direction of navigation ("prev" or "next")
- * @param onPress - Called when the button is pressed
- * @param accessibilityLabel - Accessibility label for the button
+ * @param onPress - Called when button is pressed
+ * @param accessibilityLabel - Accessibility label for button
  */
 export const TerminalNavButton = ({
   direction,
@@ -40,15 +27,13 @@ export const TerminalNavButton = ({
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
 
   return (
-    <Pressable
+    <Button
+      variant="glass-light"
+      size="icon"
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      className="h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/20 hover:bg-white/35 active:bg-white/45"
     >
-      <View className="items-center justify-center">
-        <Icon size={20} color={ICON_COLOR} strokeWidth={2.5} />
-      </View>
-    </Pressable>
+      <Icon size={20} color={ICON_COLOR} strokeWidth={2.5} />
+    </Button>
   );
 };
