@@ -16,16 +16,11 @@ type RouteCardProps = {
    * Required for glassmorphism effect behind the card.
    */
   blurTargetRef: RefObject<View | null>;
-  /** Display name of the terminal (e.g., "Bainbridge Island"). */
-  terminalName: string;
-  /** Slug identifier for the terminal (e.g., "bi"). */
-  terminalSlug: string;
-  /** Array of destinations reachable from this terminal. */
-  destinations: TerminalCardData["destinations"];
-  /** Width to fill the carousel slot in pixels. */
-  width: number;
-  /** Height to fill the carousel slot in pixels. */
-  height: number;
+  /**
+   * Terminal card data. Includes terminal info, destinations, and optional
+   * isPlaceholder flag for invisible placeholder items.
+   */
+  data: TerminalCardData & { isPlaceholder?: boolean };
 };
 
 /**
@@ -34,28 +29,29 @@ type RouteCardProps = {
  * Tapping a destination sets the terminal pair and navigates to the map tab.
  *
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
- * @param terminalName - Display name of the terminal
- * @param terminalSlug - Slug identifier for the terminal
- * @param destinations - Array of destinations reachable from this terminal
- * @param width - Width of the carousel slot in pixels
- * @param height - Height of the carousel slot in pixels
+ * @param data - Terminal card data with optional isPlaceholder flag
  */
-export const RouteCard = ({
-  blurTargetRef,
-  terminalName,
-  terminalSlug,
-  destinations,
-  width,
-  height,
-}: RouteCardProps) => {
+export const RouteCard = ({ blurTargetRef, data }: RouteCardProps) => {
+  const { terminalName, terminalSlug, destinations, isPlaceholder } = data;
+
   const handleDestinationPress = useDestinationNavigation(terminalSlug);
+
+  if (isPlaceholder) {
+    return (
+      <View
+        className="flex-1"
+        style={{ opacity: 0, pointerEvents: "none" } as const}
+      />
+    );
+  }
 
   return (
     <BlurView
       blurTarget={blurTargetRef}
       intensity={16}
       blurMethod="dimezisBlurView"
-      style={{ width, height, borderRadius: 24 }}
+      style={{ borderRadius: 24 }}
+      className="flex-1"
     >
       <View className="flex-1 gap-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
         <View className="relative mb-6 aspect-[3/4] w-full">

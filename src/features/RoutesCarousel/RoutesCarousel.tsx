@@ -1,71 +1,142 @@
 /**
  * RoutesCarousel – Carousel of terminal RouteCards using AnimatedList.
- * Delegates to RoutesCarouselAdapter for scroll-driven animations.
- * Parallax background (BlurTargetView + Background) is rendered behind in parent.
+ * Owns carousel state, layout, and scroll progress. Composes AnimatedList
+ * and TerminalCarouselNav.
  */
 
 import type { RefObject } from "react";
+import { useRef, useState } from "react";
 import type { View } from "react-native";
+import { useWindowDimensions } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
+import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import type { TerminalCardData } from "@/data/terminalConnections";
-import RoutesCarouselAdapter from "@/features/RoutesCarousel/RoutesCarouselAdapter";
+import {
+  TERMINAL_CONNECTIONS,
+  transformConnectionsToTerminalCards,
+} from "@/data/terminalConnections";
+import { AnimatedList } from "@/features/AnimatedList";
+import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
+import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouselAnimation";
+import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
-import type { CarouselLayout } from "@/features/RoutesCarousel/useCarouselLayout";
+
+/** Horizontal spacing between carousel items */
+const SPACING = 12;
+/** Portrait aspect ratio for RouteCards (8:16) */
+const PORTRAIT_ASPECT_RATIO = 8 / 16;
+/** Fraction of viewport used for max card dimensions */
+const VIEWPORT_FRACTION = 0.9;
 
 type RoutesCarouselProps = {
   /**
-   * Ref for imperative scrollToIndex control.
-   * Parent components can use this to programmatically scroll the carousel.
+   * Shared scroll progress (0 = first item, 1 = last).
+   * Updated when carousel scrolls; used by Background for parallax animation.
    */
-  ref?: React.Ref<RoutesCarouselRef>;
+  scrollProgress: SharedValue<number>;
   /**
    * Ref to BlurTargetView; passed to RouteCards for BlurView.
    * Required for glassmorphism effects on RouteCards.
    */
   blurTargetRef: RefObject<View | null>;
-  /**
-   * Shared scroll offset (x) in pixels; used for Background parallax.
-   * This value drives the parallax animation of background layers.
-   */
-  scrollX: SharedValue<number>;
-  /**
-   * Layout dimensions from useCarouselLayout (slot size, snap interval, padding).
-   */
-  layout: CarouselLayout;
-  /**
-   * Terminal cards to render in the carousel.
-   */
-  terminalCards: TerminalCardData[];
 };
 
 /**
- * Renders a carousel of terminal RouteCards with scroll-driven animations.
- * Uses AnimatedList internally via RoutesCarouselAdapter for generic
- * scroll behavior and domain-specific animations.
+ * Composes AnimatedList and TerminalCarouselNav. Owns scrollX, layout,
+ * currentIndex. Updates scrollProgress when carousel scrolls.
  *
- * @param ref - Ref for imperative scrollToIndex control
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
- * @param scrollX - Shared scroll offset in pixels for parallax
- * @param layout - Layout dimensions from useCarouselLayout
- * @param terminalCards - Terminal cards to render
  */
 const RoutesCarousel = ({
-  ref,
+  scrollProgress,
   blurTargetRef,
-  scrollX,
-  layout,
-  terminalCards,
 }: RoutesCarouselProps) => {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  const scrollX = useSharedValue(0);
+  const carouselRef = useRef<RoutesCarouselRef>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const terminalCards =
+    transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
+  const totalCount = terminalCards.length + 1;
+
+  const itemSize = Math.min(
+    windowWidth * VIEWPORT_FRACTION,
+    windowHeight * VIEWPORT_FRACTION * PORTRAIT_ASPECT_RATIO,
+  );
+
+  const layout = {
+    direction: "horizontal" as const,
+    itemSize,
+    spacing: SPACING,
+  };
+
+  const placeholderCard: TerminalCardData & { isPlaceholder: boolean } = {
+    terminalId: 0,
+    terminalName: "placeholder",
+    terminalSlug: "placeholder",
+    destinations: [],
+    isPlaceholder: true,
+  };
+
+  const carouselData: Array<TerminalCardData & { isPlaceholder?: boolean }> = [
+    placeholderCard,
+    ...terminalCards,
+  ];
+
+  const renderItem = (
+    item: TerminalCardData & { isPlaceholder?: boolean },
+  ): React.ReactNode => {
+    return <RouteCard blurTargetRef={blurTargetRef} data={item} />;
+  };
+
+  const keyExtractor = (
+    item: TerminalCardData & { isPlaceholder?: boolean },
+  ): string => {
+    return item.isPlaceholder ? "placeholder" : item.terminalSlug;
+  };
+
+  useAnimatedReaction(
+    () => scrollX.value,
+    (offset) => {
+      const maxScroll = Math.max((totalCount - 1) * (itemSize + SPACING), 1);
+      scrollProgress.value = Math.min(1, Math.max(0, offset / maxScroll));
+    },
+    [itemSize, totalCount],
+  );
+
+  useAnimatedReaction(
+    () => scrollX.value,
+    (offset) => {
+      if (itemSize + SPACING <= 0) return;
+      const idx = Math.round(offset / (itemSize + SPACING));
+      const clamped = Math.max(0, Math.min(idx, totalCount - 1));
+      scheduleOnRN(setCurrentIndex, clamped);
+    },
+    [itemSize, totalCount],
+  );
+
   return (
-    <RoutesCarouselAdapter
-      ref={ref}
-      blurTargetRef={blurTargetRef}
-      scrollX={scrollX}
-      layout={layout}
-      terminalCards={terminalCards}
-    />
+    <>
+      <AnimatedList
+        ref={carouselRef}
+        data={carouselData}
+        renderItem={renderItem}
+        layout={layout}
+        itemAnimationStyle={routesCarouselAnimation}
+        scrollOffset={scrollX}
+        keyExtractor={keyExtractor}
+      />
+      <TerminalCarouselNav
+        carouselRef={carouselRef}
+        currentIndex={currentIndex}
+        totalCount={totalCount}
+      />
+    </>
   );
 };
 
 export default RoutesCarousel;
-export type { RoutesCarouselRef } from "./types";

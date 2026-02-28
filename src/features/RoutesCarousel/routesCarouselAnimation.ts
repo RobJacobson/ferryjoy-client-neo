@@ -4,10 +4,12 @@
  * Provides opacity, scale, rotate, and zIndex animations based on scroll position.
  */
 
-import type { AnimatedStyleResult } from "@/features/AnimatedList/types";
-import type { AnimatedListLayout } from "@/features/AnimatedList/types";
 import type { SharedValue } from "react-native-reanimated";
 import { Extrapolation, interpolate } from "react-native-reanimated";
+import type {
+  AnimatedListLayout,
+  AnimatedStyleResult,
+} from "@/features/AnimatedList/types";
 
 /**
  * Scroll-driven animation style for RoutesCarousel items.

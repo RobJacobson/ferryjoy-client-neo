@@ -57,7 +57,7 @@ const AnimatedList = <T,>({
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const internalScrollOffset = useScrollOffset(scrollRef);
-  
+
   // Use external scroll offset if provided for parallax effects, otherwise track internally
   const scrollOffset: SharedValue<number> =
     externalScrollOffset ?? internalScrollOffset;

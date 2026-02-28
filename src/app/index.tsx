@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Background } from "@/features/Background";
-import { RoutesCarouselSection } from "@/features/RoutesCarousel/RoutesCarouselSection";
+import { RoutesCarousel } from "@/features/RoutesCarousel";
 
 export default function Home() {
   const blurTargetRef = useRef<View | null>(null);
@@ -17,7 +17,7 @@ export default function Home() {
         <Background scrollProgress={scrollProgress} />
       </BlurTargetView>
       <View className="relative z-[200] flex-1">
-        <RoutesCarouselSection
+        <RoutesCarousel
           scrollProgress={scrollProgress}
           blurTargetRef={blurTargetRef}
         />
