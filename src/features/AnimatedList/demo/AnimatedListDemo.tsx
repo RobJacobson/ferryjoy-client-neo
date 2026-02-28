@@ -15,7 +15,7 @@ import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
 import AnimatedList from "../AnimatedList";
 import type { AnimatedListRef } from "../types";
 import AnimatedListDemoCard from "./AnimatedListDemoCard";
-import demoAnimationStyle from "./useAnimatedListDemoStyle";
+import animatedStyleDemo from "./animatedStyleDemo";
 
 const SPACING = 4;
 const CARD_HEIGHT_RATIO = 0.3;
@@ -23,7 +23,7 @@ const CARD_HEIGHT_RATIO = 0.3;
 const AnimatedListDemo = () => {
   const { availableHeight: totalHeight } = useAvailableDimensions();
   const [direction, setDirection] = useState<"vertical" | "horizontal">(
-    "vertical"
+    "vertical",
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const listViewRef = useRef<AnimatedListRef>(null);
@@ -95,7 +95,7 @@ const AnimatedListDemo = () => {
             itemSize,
             spacing: SPACING,
           }}
-          itemAnimationStyle={demoAnimationStyle}
+          itemAnimationStyle={animatedStyleDemo}
           onScrollEnd={handleScrollEnd}
         />
       </View>

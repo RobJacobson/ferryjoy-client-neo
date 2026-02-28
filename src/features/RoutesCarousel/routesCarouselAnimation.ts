@@ -10,6 +10,7 @@ import type {
   AnimatedListLayout,
   AnimatedStyleResult,
 } from "@/features/AnimatedList/types";
+import { distanceFromIndex } from "../AnimatedList/utils";
 
 /**
  * Scroll-driven animation style for RoutesCarousel items.
@@ -28,27 +29,16 @@ export const routesCarouselAnimation = (
 ): AnimatedStyleResult => {
   "worklet";
 
+  const distance = distanceFromIndex(index, scrollIndex.value);
+
   const zIndex = Math.round(
-    interpolate(
-      scrollIndex.value,
-      [index - 2, index, index + 2],
-      [0, 10, 0],
-      Extrapolation.CLAMP
-    )
+    interpolate(distance, [0, 10], [10, 0], Extrapolation.CLAMP)
   );
 
   const opacity = interpolate(
     scrollIndex.value,
-    [
-      index - 2,
-      index - 1,
-      index - 0.5,
-      index,
-      index + 0.5,
-      index + 1,
-      index + 2,
-    ],
-    [0, 0.1, 0.8, 1, 0.8, 0.1, 0],
+    [index - 3, index - 2, index - 1, index, index + 1, index + 2, index + 3],
+    [0.1, 0.3, 0.5, 1, 0.5, 0.3, 0.1],
     Extrapolation.CLAMP
   );
 

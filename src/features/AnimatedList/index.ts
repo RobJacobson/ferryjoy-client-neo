@@ -9,4 +9,7 @@ export type {
   ItemAnimationStyle,
   RenderItem,
 } from "./types";
-export { calculateDistanceFromActive, isItemActive } from "./utils";
+export {
+  distanceFromIndex as calculateDistanceFromActive,
+  isItemActive,
+} from "./utils";

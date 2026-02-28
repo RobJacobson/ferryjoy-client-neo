@@ -9,8 +9,6 @@ import { useRef, useState } from "react";
 import type { View } from "react-native";
 import { useWindowDimensions } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
@@ -55,7 +53,6 @@ const RoutesCarousel = ({
 }: RoutesCarouselProps) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  const scrollX = useSharedValue(0);
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -90,7 +87,14 @@ const RoutesCarousel = ({
   const renderItem = (
     item: TerminalCardData & { isPlaceholder?: boolean },
   ): React.ReactNode => {
-    return <RouteCard blurTargetRef={blurTargetRef} data={item} />;
+    return (
+      <RouteCard
+        blurTargetRef={blurTargetRef}
+        data={item}
+        width={itemSize}
+        height={itemSize}
+      />
+    );
   };
 
   const keyExtractor = (
@@ -99,25 +103,14 @@ const RoutesCarousel = ({
     return item.isPlaceholder ? "placeholder" : item.terminalSlug;
   };
 
-  useAnimatedReaction(
-    () => scrollX.value,
-    (offset) => {
-      const maxScroll = Math.max((totalCount - 1) * (itemSize + SPACING), 1);
-      scrollProgress.value = Math.min(1, Math.max(0, offset / maxScroll));
-    },
-    [itemSize, totalCount],
-  );
-
-  useAnimatedReaction(
-    () => scrollX.value,
-    (offset) => {
-      if (itemSize + SPACING <= 0) return;
-      const idx = Math.round(offset / (itemSize + SPACING));
-      const clamped = Math.max(0, Math.min(idx, totalCount - 1));
-      scheduleOnRN(setCurrentIndex, clamped);
-    },
-    [itemSize, totalCount],
-  );
+  const handleScrollEnd = (activeIndex: number) => {
+    setCurrentIndex(activeIndex);
+    const progress = Math.min(
+      1,
+      Math.max(0, activeIndex / (totalCount - 1))
+    );
+    scrollProgress.value = progress;
+  };
 
   return (
     <>
@@ -127,7 +120,7 @@ const RoutesCarousel = ({
         renderItem={renderItem}
         layout={layout}
         itemAnimationStyle={routesCarouselAnimation}
-        scrollOffset={scrollX}
+        onScrollEnd={handleScrollEnd}
         keyExtractor={keyExtractor}
       />
       <TerminalCarouselNav
