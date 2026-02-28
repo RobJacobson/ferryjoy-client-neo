@@ -48,16 +48,32 @@ export const RouteCard = ({
       blurMethod="dimezisBlurView"
       style={{ width, height, borderRadius: 24 }}
     >
-      <View className="flex-1 gap-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
-        <View className="mb-6 h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-fuscia-200">
-          <Text className="text-gray-400">Photo Placeholder</Text>
+      <View className="flex-1 rounded-[24px] border border-white/50 bg-white/15 p-4">
+        <View className="relative mb-6 aspect-[3/4] w-full">
+          <View className="h-full w-full items-center justify-center rounded-3xl border border-white/60 bg-fuscia-200">
+            <Text className="text-gray-400">Photo Placeholder</Text>
+          </View>
+          <View className="absolute right-0 bottom-[-20px] left-0">
+            <Button
+              className="self-center border bg-fuscia-600 py-1 hover:bg-fuscia-500 active:bg-fuscia-400"
+              variant="glass"
+            >
+              <Text
+                className="translate-y-[2px] whitespace-normal px-4 pt-[2px] text-center font-puffberry text-lg text-white xs:text-xl leading-none tracking-wide"
+                style={{
+                  textShadowColor: "rgba(0,0,0,0.2)",
+                  textShadowOffset: { width: 2, height: 2 },
+                  textShadowRadius: 2,
+                  elevation: 4,
+                }}
+              >
+                {terminalName}
+              </Text>
+            </Button>
+          </View>
         </View>
 
-        <View className="mb-1 flex-1 items-center justify-center">
-          <Text className="font-bold text-2xl text-white">{terminalName}</Text>
-        </View>
-
-        <View className="flex-1 items-center justify-center gap-2 xs:gap-2">
+        <View className="flex-1 items-center justify-center gap-2">
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
@@ -65,7 +81,7 @@ export const RouteCard = ({
               onPress={() => handleDestinationPress(destination.terminalSlug)}
               className="w-3/4"
             >
-              <Text className="font-playpen-500 text-sm text-white xs:text-base">
+              <Text className="font-playpen-500 text-sm text-white">
                 → {destination.terminalName}
               </Text>
             </Button>

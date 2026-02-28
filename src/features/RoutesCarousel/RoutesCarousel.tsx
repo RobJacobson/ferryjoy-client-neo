@@ -22,9 +22,9 @@ import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
 
 /** Horizontal spacing between carousel items */
 const SPACING = 12;
-/** Portrait aspect ratio for RouteCards (8:16) */
-const PORTRAIT_ASPECT_RATIO = 8 / 16;
-/** Fraction of viewport used for max card dimensions */
+/** Overall card aspect ratio (1:2 - twice as tall as wide) */
+const CARD_ASPECT_RATIO = 1 / 2;
+/** Fraction of viewport used for card height */
 const VIEWPORT_FRACTION = 0.9;
 
 type RoutesCarouselProps = {
@@ -51,7 +51,7 @@ const RoutesCarousel = ({
   scrollProgress,
   blurTargetRef,
 }: RoutesCarouselProps) => {
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
 
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,14 +60,14 @@ const RoutesCarousel = ({
     transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
   const totalCount = terminalCards.length + 1;
 
-  const itemSize = Math.min(
-    windowWidth * VIEWPORT_FRACTION,
-    windowHeight * VIEWPORT_FRACTION * PORTRAIT_ASPECT_RATIO,
-  );
+  // Calculate card height as fraction of viewport
+  const cardHeight = windowHeight * VIEWPORT_FRACTION;
+  // Calculate card width maintaining 1:2 aspect ratio
+  const cardWidth = cardHeight * CARD_ASPECT_RATIO;
 
   const layout = {
     direction: "horizontal" as const,
-    itemSize,
+    itemSize: cardWidth,
     spacing: SPACING,
   };
 
@@ -85,30 +85,27 @@ const RoutesCarousel = ({
   ];
 
   const renderItem = (
-    item: TerminalCardData & { isPlaceholder?: boolean },
+    item: TerminalCardData & { isPlaceholder?: boolean }
   ): React.ReactNode => {
     return (
       <RouteCard
         blurTargetRef={blurTargetRef}
         data={item}
-        width={itemSize}
-        height={itemSize}
+        width={cardWidth}
+        height={cardHeight}
       />
     );
   };
 
   const keyExtractor = (
-    item: TerminalCardData & { isPlaceholder?: boolean },
+    item: TerminalCardData & { isPlaceholder?: boolean }
   ): string => {
     return item.isPlaceholder ? "placeholder" : item.terminalSlug;
   };
 
   const handleScrollEnd = (activeIndex: number) => {
     setCurrentIndex(activeIndex);
-    const progress = Math.min(
-      1,
-      Math.max(0, activeIndex / (totalCount - 1))
-    );
+    const progress = Math.min(1, Math.max(0, activeIndex / (totalCount - 1)));
     scrollProgress.value = progress;
   };
 
