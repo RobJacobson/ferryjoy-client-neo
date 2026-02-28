@@ -1,23 +1,14 @@
 /**
- * RoutesCarousel – ScrollView-based carousel of terminal RouteCards.
- * Parallax background (BlurTargetView + Background) is rendered behind in index.tsx.
- * First item is a blank invisible placeholder for alignment.
+ * RoutesCarousel – Carousel of terminal RouteCards using AnimatedList.
+ * Delegates to RoutesCarouselAdapter for scroll-driven animations.
+ * Parallax background (BlurTargetView + Background) is rendered behind in parent.
  */
 
 import type { RefObject } from "react";
-import { useImperativeHandle } from "react";
-import { View, type ViewStyle } from "react-native";
-import Animated, {
-  type SharedValue,
-  scrollTo,
-  useAnimatedRef,
-  useDerivedValue,
-  useScrollOffset,
-} from "react-native-reanimated";
-import { scheduleOnUI } from "react-native-worklets";
+import type { View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import type { TerminalCardData } from "@/data/terminalConnections";
-import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
-import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
+import RoutesCarouselAdapter from "@/features/RoutesCarousel/RoutesCarouselAdapter";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
 import type { CarouselLayout } from "@/features/RoutesCarousel/useCarouselLayout";
 
@@ -33,7 +24,7 @@ type RoutesCarouselProps = {
    */
   blurTargetRef: RefObject<View | null>;
   /**
-   * Shared scroll offset (x) in pixels; updated by useScrollOffset for Background parallax.
+   * Shared scroll offset (x) in pixels; used for Background parallax.
    * This value drives the parallax animation of background layers.
    */
   scrollX: SharedValue<number>;
@@ -48,10 +39,9 @@ type RoutesCarouselProps = {
 };
 
 /**
- * Renders a ScrollView-based carousel of terminal RouteCards with scroll-driven
- * animations. The carousel uses imperative handle for programmatic navigation,
- * updates scrollX for background parallax, and includes a blank placeholder
- * item for visual alignment.
+ * Renders a carousel of terminal RouteCards with scroll-driven animations.
+ * Uses AnimatedList internally via RoutesCarouselAdapter for generic
+ * scroll behavior and domain-specific animations.
  *
  * @param ref - Ref for imperative scrollToIndex control
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
@@ -66,87 +56,14 @@ const RoutesCarousel = ({
   layout,
   terminalCards,
 }: RoutesCarouselProps) => {
-  const totalCount = terminalCards.length + 1;
-  const {
-    slotWidth,
-    slotHeight,
-    snapInterval,
-    sidePadding,
-    contentPadding,
-    spacing,
-  } = layout;
-
-  const animatedRef = useAnimatedRef<Animated.ScrollView>();
-  useScrollOffset(animatedRef, scrollX);
-  const scrollXNormalized = useDerivedValue(
-    () => scrollX.value / snapInterval,
-    [snapInterval]
-  );
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      scrollToIndex: (index: number) => {
-        const clamped = Math.max(0, Math.min(index, totalCount - 1));
-        const x = clamped * snapInterval;
-        scheduleOnUI(() => {
-          "worklet";
-          scrollTo(animatedRef, x, 0, true);
-        });
-      },
-    }),
-    [snapInterval, animatedRef, totalCount]
-  );
-
   return (
-    <View className="relative flex-1 items-center justify-center">
-      <Animated.ScrollView
-        ref={animatedRef}
-        horizontal
-        contentContainerStyle={{
-          gap: spacing,
-          paddingHorizontal: sidePadding,
-          paddingTop: contentPadding.paddingTop,
-          paddingBottom: contentPadding.paddingBottom,
-        }}
-        style={[
-          { width: "100%", flexGrow: 0 },
-          { scrollSnapType: "x mandatory" } as ViewStyle,
-        ]}
-        scrollEventThrottle={16}
-        snapToInterval={snapInterval}
-        decelerationRate={0.999}
-        disableIntervalMomentum
-        showsHorizontalScrollIndicator={false}
-      >
-        <View
-          key="__placeholder__"
-          style={[
-            { width: slotWidth, height: slotHeight },
-            { opacity: 0, pointerEvents: "none" } as ViewStyle,
-          ]}
-        />
-        {terminalCards.map((item, index) => (
-          <RoutesCarouselItem
-            key={item.terminalSlug}
-            index={index + 1}
-            scrollX={scrollXNormalized}
-            width={slotWidth}
-            height={slotHeight}
-            accessibilityLabel={item.terminalName}
-          >
-            <RouteCard
-              blurTargetRef={blurTargetRef}
-              terminalName={item.terminalName}
-              terminalSlug={item.terminalSlug}
-              destinations={item.destinations}
-              width={slotWidth}
-              height={slotHeight}
-            />
-          </RoutesCarouselItem>
-        ))}
-      </Animated.ScrollView>
-    </View>
+    <RoutesCarouselAdapter
+      ref={ref}
+      blurTargetRef={blurTargetRef}
+      scrollX={scrollX}
+      layout={layout}
+      terminalCards={terminalCards}
+    />
   );
 };
 
