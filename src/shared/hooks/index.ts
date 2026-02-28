@@ -7,5 +7,6 @@ export { useNowMs } from "./useNowMs";
 export { usePersistentState } from "./usePersistentState";
 export { usePerspectiveScale } from "./usePerspectiveScale";
 export { type PulseValue, usePulseValue } from "./usePulseValue";
+export { useSafeAreaDimensions } from "./useSafeAreaDimensions";
 export { useVesselPulseAnimation } from "./useVesselPulseAnimation";
 export { useZoomScale } from "./useZoomScale";

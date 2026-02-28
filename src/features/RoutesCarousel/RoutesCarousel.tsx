@@ -7,9 +7,9 @@
 
 import type { RefObject } from "react";
 import { useRef, useState } from "react";
-import type { View } from "react-native";
-import { useWindowDimensions } from "react-native";
+import { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
@@ -20,10 +20,10 @@ import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouselAnimation";
 import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
+import { useSafeAreaDimensions } from "@/shared/hooks";
 
 // Carousel layout constants
 const SPACING = 12;
-const CARD_ASPECT_RATIO = 1 / 2;
 const VIEWPORT_FRACTION = 0.9;
 
 type RoutesCarouselProps = {
@@ -44,8 +44,9 @@ const RoutesCarousel = ({
   scrollProgress,
   blurTargetRef,
 }: RoutesCarouselProps) => {
-  // Responsive card sizing based on viewport
-  const { height: windowHeight } = useWindowDimensions();
+  // Get safe area dimensions for card sizing
+  const { safeAreaWidth, safeAreaHeight } = useSafeAreaDimensions();
+  const safeAreaInsets = useSafeAreaInsets();
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -53,8 +54,15 @@ const RoutesCarousel = ({
   const terminalCards =
     transformConnectionsToTerminalCards(TERMINAL_CONNECTIONS);
   const totalCount = terminalCards.length + 1;
-  const cardHeight = windowHeight * VIEWPORT_FRACTION;
-  const cardWidth = cardHeight * CARD_ASPECT_RATIO;
+
+  // Calculate card size to fit within 90% of safe area while maintaining 1:2 aspect ratio
+  // CARD_ASPECT_RATIO = 1/2 means width:height = 1:2, so height = 2 * width
+  // Calculate width based on both safe area constraints and use the smaller one
+  const widthBasedOnWidth = safeAreaWidth * VIEWPORT_FRACTION;
+  const widthBasedOnHeight = (safeAreaHeight * VIEWPORT_FRACTION) / 2;
+
+  const cardWidth = Math.min(widthBasedOnWidth, widthBasedOnHeight);
+  const cardHeight = cardWidth * 2;
 
   const layout = {
     direction: "horizontal" as const,
@@ -104,22 +112,36 @@ const RoutesCarousel = ({
   };
 
   return (
-    <>
-      <AnimatedList
-        ref={carouselRef}
-        data={carouselData}
-        renderItem={renderItem}
-        layout={layout}
-        itemAnimationStyle={routesCarouselAnimation}
-        onScrollEnd={handleScrollEnd}
-        keyExtractor={keyExtractor}
-      />
-      <TerminalCarouselNav
-        carouselRef={carouselRef}
-        currentIndex={currentIndex}
-        totalCount={totalCount}
-      />
-    </>
+    <View className="flex-1 items-center justify-center">
+      <View
+        style={{
+          paddingLeft: safeAreaInsets.left,
+          paddingRight: safeAreaInsets.right,
+          paddingTop: safeAreaInsets.top,
+          paddingBottom: safeAreaInsets.bottom,
+        }}
+        className="flex-1 items-center justify-center"
+      >
+        <View className="flex-1 items-center justify-center">
+          <View style={{ height: cardHeight }}>
+            <AnimatedList
+              ref={carouselRef}
+              data={carouselData}
+              renderItem={renderItem}
+              layout={layout}
+              itemAnimationStyle={routesCarouselAnimation}
+              onScrollEnd={handleScrollEnd}
+              keyExtractor={keyExtractor}
+            />
+          </View>
+          <TerminalCarouselNav
+            carouselRef={carouselRef}
+            currentIndex={currentIndex}
+            totalCount={totalCount}
+          />
+        </View>
+      </View>
+    </View>
   );
 };
 
