@@ -23,7 +23,7 @@ const CARD_HEIGHT_RATIO = 0.3;
 const AnimatedListDemo = () => {
   const { availableHeight: totalHeight } = useAvailableDimensions();
   const [direction, setDirection] = useState<"vertical" | "horizontal">(
-    "vertical",
+    "vertical"
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const listViewRef = useRef<AnimatedListRef>(null);

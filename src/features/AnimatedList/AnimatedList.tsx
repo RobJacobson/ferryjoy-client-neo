@@ -5,9 +5,8 @@
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useImperativeHandle, useRef } from "react";
-import { useWindowDimensions } from "react-native";
-import type { ViewStyle } from "react-native";
+import { useImperativeHandle, useRef, useState } from "react";
+import type { LayoutChangeEvent, ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
   scrollTo,
@@ -50,8 +49,22 @@ const AnimatedList = <T,>({
   // Extract layout configuration
   const { direction = "vertical", itemSize, spacing = 0 } = layout;
 
-  // Get window dimensions for centering calculation
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  // Store ScrollView dimensions for accurate centering calculation
+  const [scrollViewSize, setScrollViewSize] = useState({
+    width: 0,
+    height: 0,
+  });
+
+  /**
+   * Handles layout event to capture ScrollView dimensions.
+   * Used for accurate item centering instead of window dimensions.
+   *
+   * @param e - LayoutChangeEvent containing width and height
+   */
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setScrollViewSize({ width, height });
+  };
 
   // Determine if the list is horizontal or vertical
   const isHorizontal = direction === "horizontal";
@@ -129,7 +142,9 @@ const AnimatedList = <T,>({
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
 
   // Calculate padding to center items in viewport
-  const crossAxisSize = isHorizontal ? windowWidth : windowHeight;
+  const crossAxisSize = isHorizontal
+    ? scrollViewSize.width
+    : scrollViewSize.height;
   const crossAxisPadding = Math.max(0, (crossAxisSize - itemSize) / 2);
 
   // Item sizing based on direction
@@ -154,13 +169,16 @@ const AnimatedList = <T,>({
       snapToStart={false}
       decelerationRate="fast"
       contentContainerStyle={contentContainerStyle}
-      style={{ scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory` } as ViewStyle}
+      style={
+        { scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory` } as ViewStyle
+      }
       scrollEventThrottle={16}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
       accessibilityLabel="Animated list"
       accessibilityRole="scrollbar"
       testID="animated-list"
+      onLayout={handleLayout}
     >
       {data.map((item, index) => (
         <AnimatedListItem
