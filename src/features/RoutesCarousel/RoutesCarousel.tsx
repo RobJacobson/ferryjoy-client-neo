@@ -1,154 +1,125 @@
 /**
- * RoutesCarousel – ScrollView-based carousel of terminal RouteCards.
- * Parallax background (BlurTargetView + Background) is rendered behind in index.tsx.
- * First item is a blank invisible placeholder for alignment.
+ * RoutesCarousel – Terminal carousel with scroll animations and glassmorphism.
+ *
+ * Requires BlurTargetView ref for glassmorphism effects.
+ * Exposes scroll progress (0-1) for parallax backgrounds.
  */
 
 import type { RefObject } from "react";
-import { useImperativeHandle } from "react";
-import { View, type ViewStyle } from "react-native";
-import Animated, {
-  type SharedValue,
-  scrollTo,
-  useAnimatedRef,
-  useDerivedValue,
-  useScrollOffset,
-} from "react-native-reanimated";
-import { scheduleOnUI } from "react-native-worklets";
+import { useRef, useState } from "react";
+import type { View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
+import type { TerminalMate } from "ws-dottie/wsf-schedule";
 import type { TerminalCardData } from "@/data/terminalConnections";
+import {
+  TERMINAL_CONNECTIONS,
+  transformConnectionsToTerminalCards,
+} from "@/data/terminalConnections";
+import { AnimatedList } from "@/features/AnimatedList";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
-import { RoutesCarouselItem } from "@/features/RoutesCarousel/RoutesCarouselItem";
+import { RoutesCarouselLayout } from "@/features/RoutesCarousel/RoutesCarouselLayout";
+import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouselAnimation";
+import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
-import type { CarouselLayout } from "@/features/RoutesCarousel/useCarouselLayout";
+import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
 
 type RoutesCarouselProps = {
-  /**
-   * Ref for imperative scrollToIndex control.
-   * Parent components can use this to programmatically scroll the carousel.
-   */
-  ref?: React.Ref<RoutesCarouselRef>;
-  /**
-   * Ref to BlurTargetView; passed to RouteCards for BlurView.
-   * Required for glassmorphism effects on RouteCards.
-   */
+  scrollProgress: SharedValue<number>;
   blurTargetRef: RefObject<View | null>;
-  /**
-   * Shared scroll offset (x) in pixels; updated by useScrollOffset for Background parallax.
-   * This value drives the parallax animation of background layers.
-   */
-  scrollX: SharedValue<number>;
-  /**
-   * Layout dimensions from useCarouselLayout (slot size, snap interval, padding).
-   */
-  layout: CarouselLayout;
-  /**
-   * Terminal cards to render in the carousel.
-   */
-  terminalCards: TerminalCardData[];
 };
 
 /**
- * Renders a ScrollView-based carousel of terminal RouteCards with scroll-driven
- * animations. The carousel uses imperative handle for programmatic navigation,
- * updates scrollX for background parallax, and includes a blank placeholder
- * item for visual alignment.
+ * Main RoutesCarousel component.
  *
- * @param ref - Ref for imperative scrollToIndex control
+ * Orchestrates terminal carousel UI by composing AnimatedList and TerminalCarouselNav.
+ * Handles state management, scroll progress tracking, and component coordination.
+ *
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
- * @param scrollX - Shared scroll offset in pixels for parallax
- * @param layout - Layout dimensions from useCarouselLayout
- * @param terminalCards - Terminal cards to render
  */
 const RoutesCarousel = ({
-  ref,
+  scrollProgress,
   blurTargetRef,
-  scrollX,
-  layout,
-  terminalCards,
 }: RoutesCarouselProps) => {
-  const totalCount = terminalCards.length + 1;
-  const {
-    slotWidth,
-    slotHeight,
-    snapInterval,
-    sidePadding,
-    contentPadding,
-    spacing,
-  } = layout;
+  const carouselRef = useRef<RoutesCarouselRef>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const animatedRef = useAnimatedRef<Animated.ScrollView>();
-  useScrollOffset(animatedRef, scrollX);
-  const scrollXNormalized = useDerivedValue(
-    () => scrollX.value / snapInterval,
-    [snapInterval]
-  );
+  const { cardWidth, cardHeight, layout } = useCardDimensions();
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      scrollToIndex: (index: number) => {
-        const clamped = Math.max(0, Math.min(index, totalCount - 1));
-        const x = clamped * snapInterval;
-        scheduleOnUI(() => {
-          "worklet";
-          scrollTo(animatedRef, x, 0, true);
-        });
-      },
-    }),
-    [snapInterval, animatedRef, totalCount]
-  );
+  const carouselData = prepareCarouselData(TERMINAL_CONNECTIONS);
+  const totalCount = carouselData.length;
+
+  // Render each carousel item as a RouteCard with explicit dimensions
+  const renderItem = (
+    item: TerminalCardData & { isPlaceholder?: boolean },
+  ): React.ReactNode => {
+    return (
+      <RouteCard
+        blurTargetRef={blurTargetRef}
+        data={item}
+        width={cardWidth}
+        height={cardHeight}
+      />
+    );
+  };
+
+  // Extract stable key for React reconciliation
+  const keyExtractor = (
+    item: TerminalCardData & { isPlaceholder?: boolean },
+  ): string => {
+    return item.isPlaceholder ? "placeholder" : item.terminalSlug;
+  };
+
+  // Update scroll progress and navigation state on scroll end
+  const handleScrollEnd = (activeIndex: number) => {
+    setCurrentIndex(activeIndex);
+    const progress = Math.min(1, Math.max(0, activeIndex / (totalCount - 1)));
+    scrollProgress.value = progress;
+  };
 
   return (
-    <View className="relative flex-1 items-center justify-center">
-      <Animated.ScrollView
-        ref={animatedRef}
-        horizontal
-        contentContainerStyle={{
-          gap: spacing,
-          paddingHorizontal: sidePadding,
-          paddingTop: contentPadding.paddingTop,
-          paddingBottom: contentPadding.paddingBottom,
-        }}
-        style={[
-          { width: "100%", flexGrow: 0 },
-          { scrollSnapType: "x mandatory" } as ViewStyle,
-        ]}
-        scrollEventThrottle={16}
-        snapToInterval={snapInterval}
-        decelerationRate={0.999}
-        disableIntervalMomentum
-        showsHorizontalScrollIndicator={false}
-      >
-        <View
-          key="__placeholder__"
-          style={[
-            { width: slotWidth, height: slotHeight },
-            { opacity: 0, pointerEvents: "none" } as ViewStyle,
-          ]}
-        />
-        {terminalCards.map((item, index) => (
-          <RoutesCarouselItem
-            key={item.terminalSlug}
-            index={index + 1}
-            scrollX={scrollXNormalized}
-            width={slotWidth}
-            height={slotHeight}
-            accessibilityLabel={item.terminalName}
-          >
-            <RouteCard
-              blurTargetRef={blurTargetRef}
-              terminalName={item.terminalName}
-              terminalSlug={item.terminalSlug}
-              destinations={item.destinations}
-              width={slotWidth}
-              height={slotHeight}
-            />
-          </RoutesCarouselItem>
-        ))}
-      </Animated.ScrollView>
-    </View>
+    <RoutesCarouselLayout cardHeight={cardHeight}>
+      <AnimatedList
+        ref={carouselRef}
+        data={carouselData}
+        renderItem={renderItem}
+        layout={layout}
+        itemAnimationStyle={routesCarouselAnimation}
+        onScrollEnd={handleScrollEnd}
+        keyExtractor={keyExtractor}
+      />
+      <TerminalCarouselNav
+        carouselRef={carouselRef}
+        currentIndex={currentIndex}
+        totalCount={totalCount}
+      />
+    </RoutesCarouselLayout>
   );
 };
 
+/**
+ * Prepares carousel data by transforming terminal connections and adding a placeholder card.
+ *
+ * Creates a placeholder card as the first item to enable smooth scroll animations,
+ * then appends the actual terminal card data.
+ *
+ * @param connections - Record mapping terminal IDs to their mate connections
+ * @returns Array with placeholder card followed by all terminal cards
+ */
+const prepareCarouselData = (
+  connections: Record<number, TerminalMate[]>,
+): Array<TerminalCardData & { isPlaceholder?: boolean }> => {
+  const terminalCards = transformConnectionsToTerminalCards(connections);
+
+  const placeholderCard: TerminalCardData & { isPlaceholder: boolean } = {
+    terminalId: 0,
+    terminalName: "placeholder",
+    terminalSlug: "placeholder",
+    destinations: [],
+    isPlaceholder: true,
+  };
+
+  return [placeholderCard, ...terminalCards];
+};
+
 export default RoutesCarousel;
-export type { RoutesCarouselRef } from "./types";

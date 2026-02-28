@@ -668,39 +668,30 @@ const scrollIndex = useDerivedValue(() => scrollOffset.value / itemStride);
 
 ### Scroll End Callback Optimization
 
-The `onScrollEnd` callback only fires when scroll settles within 0.1 of an index:
+The `onScrollEnd` callback only fires when scroll settles within the tolerance range and prevents duplicate triggers:
 
 ```typescript
-const previousActiveIndex = useRef<number | null>(null);
-const isSettledIndex = useRef<boolean>(true);
+const lastTriggeredIndex = useRef<number | null>(null);
 
 useAnimatedReaction(
   () => {
-    if (!onScrollEnd) return undefined;
+    if (!onScrollEnd) return null;
     const currentScrollIndex = scrollIndex.value;
     const activeIndex = Math.round(currentScrollIndex);
     const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
-    const settled = distanceFromIndex < 0.1;
-    return { activeIndex, settled };
+    const settled = distanceFromIndex < tolerance;
+    return settled ? activeIndex : null;
   },
-  ({ activeIndex, settled }) => {
-    if (activeIndex !== undefined && onScrollEnd) {
-      // Only trigger when transitioning from not-settled to settled on a new index
-      if (
-        settled &&
-        !isSettledIndex.current &&
-        activeIndex !== previousActiveIndex.current
-      ) {
-        isSettledIndex.current = true;
-        previousActiveIndex.current = activeIndex;
+  (activeIndex) => {
+    if (activeIndex !== null && onScrollEnd) {
+      // Only trigger when index changes, preventing duplicate callbacks
+      if (activeIndex !== lastTriggeredIndex.current) {
+        lastTriggeredIndex.current = activeIndex;
         scheduleOnRN(onScrollEnd, activeIndex);
-      } else if (!settled) {
-        // Mark as not settled when scrolling away
-        isSettledIndex.current = false;
       }
     }
   },
-  [onScrollEnd]
+  [onScrollEnd, tolerance]
 );
 ```
 
@@ -801,36 +792,25 @@ AnimatedList does NOT handle padding/margin for positioning items. The parent co
 
 ### 6. Use scheduleOnRN for Callbacks
 
-When calling React Native functions from worklets:
+When calling React Native functions from worklets, always use `scheduleOnRN` to bridge from UI thread to React Native:
 
 ```typescript
 useAnimatedReaction(
   () => {
-    if (!onScrollEnd) return undefined;
+    if (!onScrollEnd) return null;
     const currentScrollIndex = scrollIndex.value;
     const activeIndex = Math.round(currentScrollIndex);
     const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
-    const settled = distanceFromIndex < 0.1;
-    return { activeIndex, settled };
+    const settled = distanceFromIndex < tolerance;
+    return settled ? activeIndex : null;
   },
-  ({ activeIndex, settled }) => {
-    if (activeIndex !== undefined && onScrollEnd) {
-      // Only trigger when transitioning from not-settled to settled on a new index
-      if (
-        settled &&
-        !isSettledIndex.current &&
-        activeIndex !== previousActiveIndex.current
-      ) {
-        isSettledIndex.current = true;
-        previousActiveIndex.current = activeIndex;
-        scheduleOnRN(onScrollEnd, activeIndex); // ✅ Correct
-      } else if (!settled) {
-        // Mark as not settled when scrolling away
-        isSettledIndex.current = false;
-      }
+  (activeIndex) => {
+    if (activeIndex !== null && onScrollEnd) {
+      // Use scheduleOnRN to call the callback on React Native thread
+      scheduleOnRN(onScrollEnd, activeIndex); // ✅ Correct
     }
   },
-  [onScrollEnd]
+  [onScrollEnd, tolerance]
 );
 ```
 

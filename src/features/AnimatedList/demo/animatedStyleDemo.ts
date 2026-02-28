@@ -5,7 +5,7 @@
 
 import { Extrapolation, interpolate } from "react-native-reanimated";
 import type { ItemAnimationStyle } from "../types";
-import { calculateDistanceFromActive } from "../utils";
+import { distanceFromIndex } from "../utils";
 
 /**
  * Demo animation function that applies fade and scale effects.
@@ -16,16 +16,13 @@ import { calculateDistanceFromActive } from "../utils";
  * @param layout - Layout configuration for the list
  * @returns Animated style object with opacity and scale transform
  */
-const demoAnimationStyle: ItemAnimationStyle = (scrollIndex, index) => {
+const animatedStyleDemo: ItemAnimationStyle = (scrollIndex, index) => {
   "worklet";
-  const distanceFromActive = calculateDistanceFromActive(
-    index,
-    scrollIndex.value
-  );
+  const distance = distanceFromIndex(index, scrollIndex.value);
 
   return {
     opacity: interpolate(
-      distanceFromActive,
+      distance,
       [0, 1, 2],
       [1, 0.6, 0.3],
       Extrapolation.CLAMP
@@ -33,7 +30,7 @@ const demoAnimationStyle: ItemAnimationStyle = (scrollIndex, index) => {
     transform: [
       {
         scale: interpolate(
-          distanceFromActive,
+          distance,
           [0, 1, 2],
           [1.0, 0.95, 0.9],
           Extrapolation.CLAMP
@@ -43,4 +40,4 @@ const demoAnimationStyle: ItemAnimationStyle = (scrollIndex, index) => {
   };
 };
 
-export default demoAnimationStyle;
+export default animatedStyleDemo;

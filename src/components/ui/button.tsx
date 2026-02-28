@@ -41,6 +41,10 @@ const buttonVariants = cva(
           "border border-white/50 bg-black/10 active:bg-black/20",
           Platform.select({ web: "hover:bg-black/30" })
         ),
+        "glass-light": cn(
+          "border border-white/50 bg-white/20 active:bg-white/45",
+          Platform.select({ web: "hover:bg-white/35" })
+        ),
         link: "",
       },
       size: {
@@ -77,6 +81,7 @@ const buttonTextVariants = cva(
         secondary: "text-secondary-foreground",
         ghost: "group-active:text-accent-foreground",
         glass: "text-white/50",
+        "glass-light": "text-white/50",
         link: cn(
           "text-primary group-active:underline",
           Platform.select({

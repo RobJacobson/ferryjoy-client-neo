@@ -4,14 +4,14 @@
  */
 
 /**
- * Calculates the distance from the active (centered) card.
+ * Calculates the distance from the active (centered) index.
  * Helper function for creating distance-based animations.
  *
  * @param index - Index of the item
  * @param scrollIndex - Current scroll position normalized to index
  * @returns Absolute distance from the active card
  */
-export const calculateDistanceFromActive = (
+export const distanceFromIndex = (
   index: number,
   scrollIndex: number
 ): number => {

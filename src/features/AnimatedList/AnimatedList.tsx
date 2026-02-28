@@ -5,18 +5,19 @@
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useImperativeHandle, useRef } from "react";
+import { useImperativeHandle } from "react";
 import type { ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
   scrollTo,
-  useAnimatedReaction,
   useAnimatedRef,
   useDerivedValue,
   useScrollOffset,
 } from "react-native-reanimated";
-import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
+import { scheduleOnUI } from "react-native-worklets";
 import AnimatedListItem from "./AnimatedListItem";
+import { useAnimatedListLayout } from "./hooks/useAnimatedListLayout";
+import { useScrollEndDetection } from "./hooks/useScrollEndDetection";
 import type { AnimatedListProps } from "./types";
 
 /**
@@ -46,21 +47,18 @@ const AnimatedList = <T,>({
   keyExtractor,
   itemClassName,
 }: AnimatedListProps<T>) => {
-  // Extract layout configuration
-  const { direction = "vertical", itemSize, spacing = 0 } = layout;
+  // Manage layout calculations
+  const { handleLayout, isHorizontal, itemSizeStyle, contentContainerStyle } =
+    useAnimatedListLayout(layout);
 
-  // Determine if the list is horizontal or vertical
-  const isHorizontal = direction === "horizontal";
-
-  // Track previous active index for scroll end callback
-  const previousActiveIndex = useRef<number | null>(null);
-
-  // Track if we're settled on an index (within 0.1 tolerance)
-  const isSettledIndex = useRef<boolean>(true);
+  // Extract layout configuration needed for scroll calculations
+  const { itemSize, spacing = 0 } = layout;
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const internalScrollOffset = useScrollOffset(scrollRef);
+
+  // Use external scroll offset if provided for parallax effects, otherwise track internally
   const scrollOffset: SharedValue<number> =
     externalScrollOffset ?? internalScrollOffset;
 
@@ -89,45 +87,11 @@ const AnimatedList = <T,>({
     [scrollRef, data.length, itemSize, spacing, isHorizontal]
   );
 
-  // Call onScrollEnd when scroll settles on an item (only when index changes)
-  // Uses 0.1 tolerance to determine when scroll has settled on an index
-  useAnimatedReaction(
-    () => {
-      if (!onScrollEnd) return undefined;
-      const currentScrollIndex = scrollIndex.value;
-      const activeIndex = Math.round(currentScrollIndex);
-      const distanceFromIndex = Math.abs(currentScrollIndex - activeIndex);
-      const settled = distanceFromIndex < 0.1;
-      return { activeIndex, settled };
-    },
-    (data) => {
-      if (data && onScrollEnd) {
-        const { activeIndex, settled } = data;
-        // Only trigger when transitioning from not-settled to settled on a new index
-        if (
-          settled &&
-          !isSettledIndex.current &&
-          activeIndex !== previousActiveIndex.current
-        ) {
-          isSettledIndex.current = true;
-          previousActiveIndex.current = activeIndex;
-          scheduleOnRN(onScrollEnd, activeIndex);
-        } else if (!settled) {
-          // Mark as not settled when scrolling away
-          isSettledIndex.current = false;
-        }
-      }
-    },
-    [onScrollEnd]
-  );
+  // Detect when scroll settles on an index and trigger callback
+  useScrollEndDetection(scrollIndex, onScrollEnd);
 
   // Snap offsets for each item
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
-
-  // Item sizing based on direction
-  const itemSizeStyle: ViewStyle = isHorizontal
-    ? { height: "100%", width: itemSize }
-    : { width: "100%", height: itemSize };
 
   return (
     <Animated.ScrollView
@@ -137,15 +101,17 @@ const AnimatedList = <T,>({
       snapToEnd={false}
       snapToStart={false}
       decelerationRate="fast"
-      contentContainerStyle={{
-        gap: spacing,
-      }}
+      contentContainerStyle={contentContainerStyle}
+      style={
+        { scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory` } as ViewStyle
+      }
       scrollEventThrottle={16}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
       accessibilityLabel="Animated list"
       accessibilityRole="scrollbar"
       testID="animated-list"
+      onLayout={handleLayout}
     >
       {data.map((item, index) => (
         <AnimatedListItem

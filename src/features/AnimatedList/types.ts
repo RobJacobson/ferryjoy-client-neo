@@ -9,6 +9,13 @@ import type { ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 
 /**
+ * Tolerance for determining when scroll has settled on an index.
+ * Represents the maximum distance (in index units) from a center position
+ * to be considered "settled".
+ */
+export const SCROLL_SETTLED_TOLERANCE = 0.1;
+
+/**
  * Scroll direction for the animated list.
  */
 export type AnimatedListDirection = "horizontal" | "vertical";
