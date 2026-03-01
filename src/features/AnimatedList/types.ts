@@ -85,6 +85,11 @@ export type AnimatedListProps<T> = {
   layout: AnimatedListLayout;
   itemAnimationStyle?: ItemAnimationStyle;
   scrollOffset?: SharedValue<number>;
+  /**
+   * Sink SharedValue; when provided, scroll progress (0-1) is written here
+   * for parallax consumers. Avoids ref-timing issues with ref.current?.scrollProgress.
+   */
+  scrollProgressSink?: SharedValue<number>;
   onScrollEnd?: (activeIndex: number) => void;
   ref?: React.Ref<AnimatedListRef>;
   keyExtractor?: (item: T, index: number) => string;

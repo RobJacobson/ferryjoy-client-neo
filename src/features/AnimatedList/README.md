@@ -283,39 +283,29 @@ const MyList = () => {
 
 ### With Real-time Scroll Tracking (Parallax)
 
+**Recommended:** Use `scrollProgressSink` to avoid ref-timing issues. Create a SharedValue in the parent and pass it to AnimatedList; AnimatedList writes scroll progress (0–1) into it.
+
 ```typescript
-import { useRef } from "react";
-import type { AnimatedListRef } from "@/features/AnimatedList";
+import { useSharedValue } from "react-native-reanimated";
 
 const MyList = () => {
-  const listRef = useRef<AnimatedListRef>(null);
+  const scrollProgress = useSharedValue(0);
 
   return (
     <>
-      <ParallaxBackground scrollProgress={listRef.current?.scrollProgress} />
+      <ParallaxBackground scrollProgress={scrollProgress} />
       <AnimatedList
-        ref={listRef}
         data={data}
         renderItem={(item) => <MyCard item={item} />}
         layout={{ direction: "horizontal", itemSize: 300, spacing: 16 }}
+        scrollProgressSink={scrollProgress}
       />
     </>
   );
 };
 ```
 
-**Note:** Pass `listRef.current?.scrollProgress` directly to your parallax component.
-If your component requires scrollProgress to always be defined (not undefined),
-make it optional and provide a default inside the component:
-
-```typescript
-const ParallaxBackground = ({ scrollProgress }: { scrollProgress?: SharedValue<number> }) => {
-  const defaultProgress = useSharedValue(0);
-  const progress = scrollProgress ?? defaultProgress;
-
-  // Use progress for parallax calculations
-};
-```
+**Note:** `scrollProgressSink` is written to by AnimatedList on every scroll update. The same SharedValue can be provided to ParallaxProvider or passed to parallax consumers.
 
 ### With Scroll Callbacks
 
@@ -382,7 +372,8 @@ const MyParallaxList = () => {
   renderItem={RenderItem<T>}             // Required: Function to render each item
   layout={AnimatedListLayout}            // Required: Layout configuration
   itemAnimationStyle={yourAnimationStyle} // Optional: Custom animation worklet
-  scrollOffset={SharedValue<number>}     // Optional: External scroll tracking for parallax
+  scrollOffset={SharedValue<number>}     // Optional: External scroll tracking
+  scrollProgressSink={SharedValue<number>} // Optional: Sink for scroll progress 0-1 (parallax)
   onScrollEnd={(activeIndex) => void}    // Optional: Callback when scroll settles
   ref={React.Ref<AnimatedListRef>}       // Optional: Ref for imperative control
   keyExtractor={(item, index) => string} // Optional: Custom key generator
@@ -398,7 +389,8 @@ const MyParallaxList = () => {
 | `renderItem` | `RenderItem<T>` | ✅ Yes | Function to render each item |
 | `layout` | `AnimatedListLayout` | ✅ Yes | Layout configuration |
 | `itemAnimationStyle` | `ItemAnimationStyle` | ❌ No | Custom animation worklet function |
-| `scrollOffset` | `SharedValue<number>` | ❌ No | External scroll offset for parallax effects |
+| `scrollOffset` | `SharedValue<number>` | ❌ No | External scroll offset for custom tracking |
+| `scrollProgressSink` | `SharedValue<number>` | ❌ No | Sink for scroll progress (0-1); preferred for parallax (avoids ref-timing) |
 | `onScrollEnd` | `(activeIndex: number) => void` | ❌ No | Callback when scroll settles on an item |
 | `ref` | `React.Ref<AnimatedListRef>` | ❌ No | Ref for imperative `scrollToIndex` control |
 | `keyExtractor` | `(item: T, index: number) => string` | ❌ No | Custom key generator for items |
@@ -518,14 +510,8 @@ listRef.current?.scrollToIndex(10, false); // Instant jump to index 10
 listRef.current?.scrollToIndex(-5);        // Clamped to 0
 listRef.current?.scrollToIndex(999);       // Clamped to last item
 
-// Real-time scroll tracking
-useAnimatedReaction(
-  () => listRef.current?.scrollProgress.value ?? 0,
-  (progress) => {
-    // progress goes from 0 to 1 as user scrolls
-    // Perfect for parallax backgrounds
-  }
-);
+// Real-time scroll tracking (use scrollProgressSink prop instead of ref for parallax)
+// When scrollProgressSink is passed, AnimatedList writes progress (0-1) into it
 
 // Precise scroll position
 useAnimatedReaction(
@@ -950,7 +936,7 @@ useAnimatedReaction(
 When considering replacing `RoutesCarousel`:
 
 1. **Maintain backward compatibility** during migration
-2. **Preserve existing parallax effects** using `scrollOffset` prop
+2. **Preserve existing parallax effects** using `scrollProgressSink` prop
 3. **Handle placeholder items** (RoutesCarousel has blank first item)
 4. **Gradual rollout** - Test with small feature sets first
 

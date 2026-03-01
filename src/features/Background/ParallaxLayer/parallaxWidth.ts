@@ -6,11 +6,26 @@
 // The texture must extend past the viewport by at least D to avoid empty space.
 // ============================================================================
 
-import { MAX_PARALLAX_PX } from "./config";
+import { MAX_PARALLAX_PX } from "../config";
 
 // ============================================================================
 // Functions
 // ============================================================================
+
+/**
+ * Parallax width: how far a layer translates (in px) when scroll progress
+ * goes from 0 to 1. Higher values = more movement = faster parallax.
+ *
+ * @param numCards - Number of carousel cards (e.g. TOTAL_CAROUSEL_ITEMS)
+ * @param parallaxMultiplier - 0–100 layer strength (closer = higher)
+ * @param maxParallaxPx - Base pixels from getMaxParallaxPxSafe (orientation-aware)
+ * @returns Parallax width in pixels for use in ParallaxLayer
+ */
+export const computeParallaxWidth = (
+  numCards: number,
+  parallaxMultiplier: number,
+  maxParallaxPx: number
+): number => (numCards - 1) * (parallaxMultiplier / 100) * maxParallaxPx;
 
 /**
  * Required width for a parallax layer so it never shows empty space when

@@ -10,12 +10,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
 import { SKY_PARALLAX_MULTIPLIER } from "../config";
 import { ParallaxLayer } from "../ParallaxLayer";
-import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
+import type { PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
 
-type SkyProps = BackgroundParallaxProps & {
+type SkyProps = {
   /**
    * Paper texture source (e.g. require() asset). When null, no texture overlay.
    */
@@ -24,21 +24,18 @@ type SkyProps = BackgroundParallaxProps & {
 
 /**
  * Sky background: linear gradient at 45°, optional tiled paper texture at 25%
- * opacity, and sunburst overlay. Parallax offset from carousel scroll.
+ * opacity, and sunburst overlay. Parallax from ParallaxProvider context.
  *
  * @param paperTextureUrl - Paper texture source (e.g. require() asset), null for no texture
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  */
-const Sky = ({ paperTextureUrl, scrollProgress }: SkyProps) => {
-  const { maxParallaxPx, requiredWidth: skyWidth } = useBackgroundLayout({
+const Sky = ({ paperTextureUrl }: SkyProps) => {
+  const { getParallaxWidth, requiredWidth: skyWidth } = useBackgroundLayout({
     parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
   });
 
   return (
     <ParallaxLayer
-      scrollProgress={scrollProgress}
-      parallaxMultiplier={SKY_PARALLAX_MULTIPLIER}
-      maxParallaxPx={maxParallaxPx}
+      parallaxWidth={getParallaxWidth(SKY_PARALLAX_MULTIPLIER)}
       style={{
         position: "absolute",
         left: 0,

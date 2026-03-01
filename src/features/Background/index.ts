@@ -6,3 +6,4 @@
 // ============================================================================
 
 export { default as Background } from "./Background";
+export { ParallaxProvider, useParallaxContext } from "./ParallaxLayer";

@@ -10,7 +10,10 @@ import { useWindowDimensions } from "react-native";
 import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
 import { getMaxParallaxPxSafe } from "./config";
-import { computeRequiredBackgroundWidth } from "./parallaxWidth";
+import {
+  computeParallaxWidth,
+  computeRequiredBackgroundWidth,
+} from "./ParallaxLayer/parallaxWidth";
 
 // ============================================================================
 // Types
@@ -52,6 +55,15 @@ interface UseBackgroundLayoutResult {
    * @returns Minimum width in pixels for the layer to cover the viewport at max scroll
    */
   getRequiredWidth: (parallaxMultiplier: number) => number;
+
+  /**
+   * Parallax width: how far a layer translates (px) when scroll progress 0→1.
+   * Use this for ParallaxLayer; higher = faster parallax.
+   *
+   * @param parallaxMultiplier - Parallax strength (0-100) for a layer
+   * @returns Parallax width in pixels
+   */
+  getParallaxWidth: (parallaxMultiplier: number) => number;
 }
 
 // ============================================================================
@@ -74,7 +86,7 @@ interface UseBackgroundLayoutResult {
  *   parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
  * });
  *
- * // Use maxParallaxPx in useParallaxScroll
+ * // Use getParallaxWidth for ParallaxLayer
  * // Use requiredWidth for background container width
  * ```
  */
@@ -92,7 +104,14 @@ export const useBackgroundLayout = ({
       maxParallaxPx
     );
 
+  const getParallaxWidth = (layerParallaxMultiplier: number): number =>
+    computeParallaxWidth(
+      TOTAL_CAROUSEL_ITEMS,
+      layerParallaxMultiplier,
+      maxParallaxPx
+    );
+
   const requiredWidth = getRequiredWidth(parallaxMultiplier);
 
-  return { maxParallaxPx, requiredWidth, getRequiredWidth };
+  return { maxParallaxPx, requiredWidth, getRequiredWidth, getParallaxWidth };
 };

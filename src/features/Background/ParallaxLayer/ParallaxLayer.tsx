@@ -1,16 +1,19 @@
 // ============================================================================
 // ParallaxLayer
 // ============================================================================
-// Shared wrapper for scroll-driven parallax translation.
-// Used by background layers (Sky, Waves, etc.) to apply translateX based on
-// carousel scroll position and a 0–100 parallax multiplier.
+// Shared wrapper for scroll-driven parallax translation. Uses scroll progress
+// (0-1) and parallax width (px) for translateX. Gets scrollProgress from
+// ParallaxProvider context when prop omitted.
 // ============================================================================
 
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import Animated, { useSharedValue } from "react-native-reanimated";
-import { useParallaxScroll } from "./useParallaxScroll";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { useParallaxContext } from "./ParallaxContext";
 
 // ============================================================================
 // Types
@@ -18,28 +21,21 @@ import { useParallaxScroll } from "./useParallaxScroll";
 
 type ParallaxLayerProps = {
   /**
-   * Shared scroll progress (0 = first item, 1 = last item). Optional.
+   * Shared scroll progress (0 = first item, 1 = last item). Optional when
+   * inside ParallaxProvider.
    */
   scrollProgress?: SharedValue<number>;
 
   /**
-   * Parallax multiplier (0–100). Higher values create more movement.
+   * Parallax width: how far this layer translates (px) when scroll progress
+   * goes from 0 to 1. Higher = faster parallax.
    */
-  parallaxMultiplier: number;
+  parallaxWidth: number;
 
-  /**
-   * Maximum parallax movement in pixels (orientation-aware).
-   */
-  maxParallaxPx: number;
-
-  /**
-   * Additional style(s) for the layer container.
-   */
+  /** Additional style(s) for the layer container. */
   style?: StyleProp<ViewStyle>;
 
-  /**
-   * Child content to be translated by the parallax transform.
-   */
+  /** Child content to be translated by the parallax transform. */
   children?: ReactNode;
 };
 
@@ -50,28 +46,29 @@ type ParallaxLayerProps = {
 /**
  * Applies scroll-driven translateX to its children.
  *
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
- * @param parallaxMultiplier - Parallax multiplier (0-100), higher values create more movement
- * @param maxParallaxPx - Maximum parallax movement in pixels
+ * @param scrollProgress - Shared scroll progress (0-1). Optional when inside ParallaxProvider.
+ * @param parallaxWidth - How far layer translates when progress = 1 (px)
  * @param style - Additional style(s) for the layer container
- * @param children - Child content to be translated by the parallax transform
+ * @param children - Child content to be translated
  * @returns Parallax-translated Animated.View wrapper
  */
 export const ParallaxLayer = ({
-  scrollProgress,
-  parallaxMultiplier,
-  maxParallaxPx,
+  scrollProgress: scrollProgressProp,
+  parallaxWidth,
   style,
   children,
 }: ParallaxLayerProps) => {
+  const contextScrollProgress = useParallaxContext();
   const defaultScrollProgress = useSharedValue(0);
-  const progress = scrollProgress ?? defaultScrollProgress;
+  const scrollProgress =
+    scrollProgressProp ?? contextScrollProgress ?? defaultScrollProgress;
 
-  const parallaxStyle = useParallaxScroll({
-    scrollProgress: progress,
-    parallaxMultiplier,
-    maxParallaxPx,
-  });
+  const parallaxStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateX: -scrollProgress.value * parallaxWidth }],
+    }),
+    [parallaxWidth]
+  );
 
   return (
     <Animated.View style={[parallaxStyle, style]}>{children}</Animated.View>

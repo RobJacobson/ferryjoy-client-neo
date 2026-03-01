@@ -15,7 +15,7 @@ import {
   PARALLAX_WAVES_MAX,
 } from "../config";
 import { ParallaxLayer } from "../ParallaxLayer";
-import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
+import type { PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
   BACKGROUND_LAYERS,
@@ -26,7 +26,7 @@ import {
 } from "./config";
 import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
 
-type AnimatedWavesProps = BackgroundParallaxProps & {
+type AnimatedWavesProps = {
   /**
    * Paper texture source. When null, wave SVGs do not render the texture overlay.
    */
@@ -81,16 +81,13 @@ type WaveRenderSpec = {
 /**
  * Renders the full wave stack (background grass, ocean waves, foreground grass)
  * as a single list of <Wave /> components with precomputed props and parallax.
+ * Parallax scroll progress from ParallaxProvider context.
  *
  * @param paperTextureUrl - Paper texture source (null for no texture)
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  */
-const AnimatedWaves = ({
-  paperTextureUrl,
-  scrollProgress,
-}: AnimatedWavesProps) => {
+const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => {
   const { height: containerHeightPx } = useWindowDimensions();
-  const { maxParallaxPx, getRequiredWidth } = useBackgroundLayout({
+  const { getParallaxWidth, getRequiredWidth } = useBackgroundLayout({
     parallaxMultiplier: PARALLAX_WAVES_MAX,
   });
 
@@ -103,13 +100,12 @@ const AnimatedWaves = ({
    */
   const renderWaveLayer = (spec: WaveRenderSpec) => {
     const layerWidth = getRequiredWidth(spec.parallaxMultiplier);
+    const parallaxWidth = getParallaxWidth(spec.parallaxMultiplier);
 
     return (
       <ParallaxLayer
         key={spec.key}
-        scrollProgress={scrollProgress}
-        parallaxMultiplier={spec.parallaxMultiplier}
-        maxParallaxPx={maxParallaxPx}
+        parallaxWidth={parallaxWidth}
         style={[
           {
             position: "absolute",
