@@ -166,7 +166,8 @@ Calculates dimensions for a single parallax background layer. Use this hook for 
 maxParallaxPx = 100 (portrait) or 200 (landscape)
 
 // 2. Parallax distance for a layer
-parallaxDistance = (numCards - 1) × (multiplier / 100) × maxParallaxPx
+const numScrollableIntervals = scrollableRange / itemStride;
+parallaxDistance = numScrollableIntervals × (multiplier / 100) × maxParallaxPx
 
 // 3. Required layer container width (must extend past viewport)
 layerContainerWidth = screenWidth + parallaxDistance
@@ -269,10 +270,12 @@ Where:
 ### Calculating Parallax Distance
 
 ```typescript
-parallaxDistance = (numCards - 1) × (multiplier / 100) × maxParallaxPx
+parallaxDistance = (scrollableRange / itemStride) × (multiplier / 100) × maxParallaxPx
 ```
 
-**Example with 5 cards, landscape mode:**
+The carousel exposes `scrollableRange` (total pixels it can scroll) and `itemStride` (one scroll step in pixels). The parallax system uses these values without needing to know how many cards are in the carousel.
+
+**Example with scrollableRange of 800px and itemStride of 200px (4 scroll intervals), landscape mode:**
 
 | Layer | Multiplier | Calculation | Parallax Distance |
 |-------|------------|-------------|-------------------|
@@ -314,5 +317,48 @@ Our parallax implementation is **sophisticated and working well**, with recent i
 - ✅ Simplified `useBackgroundLayout` API for single-layer components
 - ✅ Removed factory functions for multi-layer components; use pure functions directly
 - ✅ Simplified `ParallaxLayer` (removed optional scrollProgress prop, always uses context)
+- ✅ Decoupled parallax system from carousel card count - carousel now exposes `scrollableRange` and `itemStride` via ref
+
+**Architecture Benefits:**
+- Parallax system no longer knows about card count or carousel data structure
+- Clear separation: Carousel describes its scrollable dimensions, parallax adjusts accordingly
+- More testable - parallax functions work with any scrollable range
+- Type-safe contract via AnimatedListRef interface
 
 The architecture is **sound and maintainable**. The complexity exists because we're solving a hard problem (multi-layer parallax with varying depths), not because of poor design.
+
+## Decoupling from Carousel Card Count
+
+The parallax system is now **decoupled from carousel card count**. Previously, the parallax calculations required `TOTAL_CAROUSEL_ITEMS`, creating tight coupling between the parallax system and carousel data structure.
+
+### How It Works Now
+
+**Carousel (AnimatedList) exposes scroll dimensions:**
+- `scrollableRange`: Total pixels the carousel can scroll = `(data.length - 1) × (itemSize + spacing)`
+- `itemStride`: One scroll step in pixels = `itemSize + spacing`
+
+**Parallax system uses these dimensions:**
+- `computeParallaxDistance(scrollableRange, parallaxMultiplier, itemStride, maxParallaxPx)`
+- `computeLayerContainerWidth(screenWidth, scrollableRange, parallaxMultiplier, itemStride, maxParallaxPx)`
+
+### Data Flow
+
+```
+index.tsx
+  │
+  ├─> RoutesCarousel (carouselRef)
+  │     └─> AnimatedList
+  │           └─> Exposes: scrollableRange, itemStride via ref
+  │
+  └─> Background (receives: scrollableRange, itemStride)
+        ├─> Sky
+        └─> AnimatedWaves
+              └─> computeParallaxDistance(scrollableRange, ...)
+```
+
+### Benefits
+
+- **Separation of concerns**: Carousel describes its dimensions, parallax adjusts without knowing about cards
+- **Testability**: Parallax functions work with any scrollable range, not tied to card count
+- **Maintainability**: Adding/removing cards doesn't require parallax system changes
+- **Type safety**: Clear contract via `AnimatedListRef` interface

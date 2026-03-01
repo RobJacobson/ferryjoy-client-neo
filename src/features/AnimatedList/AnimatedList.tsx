@@ -105,6 +105,8 @@ const AnimatedList = <T,>({
       },
       scrollProgress,
       scrollIndex,
+      scrollableRange: (data.length - 1) * itemStride,
+      itemStride,
     }),
     [
       scrollRef,
@@ -114,6 +116,7 @@ const AnimatedList = <T,>({
       isHorizontal,
       scrollIndex,
       scrollProgress,
+      itemStride,
     ]
   );
 

@@ -71,6 +71,8 @@ export type AnimatedListRef = {
   scrollToIndex: (index: number, animated?: boolean) => void;
   scrollProgress: SharedValue<number>;
   scrollIndex: SharedValue<number>;
+  scrollableRange: number; // Total pixels: (data.length - 1) × (itemSize + spacing)
+  itemStride: number; // One scroll step: itemSize + spacing
 };
 
 /**

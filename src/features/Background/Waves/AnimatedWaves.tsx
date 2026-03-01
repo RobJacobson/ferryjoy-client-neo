@@ -6,7 +6,6 @@
 // ============================================================================
 
 import { useWindowDimensions, View } from "react-native";
-import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
 import { getMaxParallaxPx } from "../config";
 import {
@@ -24,6 +23,8 @@ type AnimatedWavesProps = {
    * Currently unused (always null).
    */
   paperTextureUrl?: PaperTextureSource | null;
+  scrollableRange: number;
+  itemStride: number;
 };
 
 /**
@@ -47,8 +48,14 @@ export type { WaveRenderSpec } from "./layers/layerConfig";
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
  * @param paperTextureUrl - Paper texture source (null for no texture, currently unused)
+ * @param scrollableRange - Total pixels the carousel can scroll
+ * @param itemStride - One scroll step in pixels (itemSize + spacing)
  */
-const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
+const AnimatedWaves = ({
+  paperTextureUrl = null,
+  scrollableRange,
+  itemStride,
+}: AnimatedWavesProps) => {
   const { height: containerHeightPx, width: screenWidth } =
     useWindowDimensions();
   const isLandscape = useIsLandscape();
@@ -66,15 +73,17 @@ const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
     layout: {
       containerWidthPx: computeLayerContainerWidth(
         screenWidth,
-        TOTAL_CAROUSEL_ITEMS,
+        scrollableRange,
         spec.parallaxMultiplier,
+        itemStride,
         maxParallaxPx
       ),
       containerHeightPx,
     } satisfies WaveLayerLayout,
     parallaxDistance: computeParallaxDistance(
-      TOTAL_CAROUSEL_ITEMS,
+      scrollableRange,
       spec.parallaxMultiplier,
+      itemStride,
       maxParallaxPx
     ),
   }));
