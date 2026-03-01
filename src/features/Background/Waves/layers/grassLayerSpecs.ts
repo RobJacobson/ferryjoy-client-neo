@@ -5,8 +5,48 @@
 // read from source data arrays. Handles parallax interpolation across layers.
 // ============================================================================
 
+import { PARALLAX_BG_GRASS, PARALLAX_FG_GRASS } from "../../config";
+import { BACKGROUND_LAYERS, FOREGROUND_LAYERS, grassColor } from "../config";
 import { indexToT, lerpRange } from "./helpers";
 import type { GrassLayerConfig, WaveRenderSpec } from "./layerConfig";
+
+// ----------------------------------------------------------------------------
+// Constants
+// ----------------------------------------------------------------------------
+
+/** Reversed foreground layers for proper z-index ordering */
+const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
+
+// ----------------------------------------------------------------------------
+// Layer Configurations
+// ----------------------------------------------------------------------------
+
+/** Background grass layer configuration (farthest layers) */
+export const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
+  type: "grass",
+  prefix: "bg-",
+  sourceData: BACKGROUND_LAYERS,
+  parallaxRange: PARALLAX_BG_GRASS,
+  baseZIndex: 1,
+  colorFn: grassColor,
+};
+
+/** Foreground grass layer configuration (closest layers) */
+export const FOREGROUND_GRASS_CONFIG: GrassLayerConfig = {
+  type: "grass",
+  prefix: "fg-",
+  sourceData: FOREGROUND_LAYERS_REVERSED,
+  parallaxRange: PARALLAX_FG_GRASS,
+  baseZIndex: 100,
+  colorFn: grassColor,
+  zIndexForIndex: (index: number) => (index === 0 ? 101 : 100),
+  wrapperStyleForIndex: (index: number) =>
+    index === 0 ? { marginBottom: -10 } : undefined,
+};
+
+// ----------------------------------------------------------------------------
+// Functions
+// ----------------------------------------------------------------------------
 
 /**
  * Generates wave render specifications for grass layers.
