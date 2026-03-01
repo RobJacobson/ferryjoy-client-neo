@@ -18,22 +18,6 @@ export const MAX_PARALLAX_PX = 100;
 export const getMaxParallaxPx = (isLandscape: boolean): number =>
   isLandscape ? MAX_PARALLAX_PX * 2 : MAX_PARALLAX_PX;
 
-/**
- * Effective max parallax using both orientation API and dimensions. Uses the
- * maximum of both to avoid under-provisioning when either misreports on iPad.
- *
- * @param isLandscape - from useIsLandscape (native orientation API)
- * @param width - from useWindowDimensions
- * @param height - from useWindowDimensions
- * @returns MAX_PARALLAX_PX * 2 if either source indicates landscape
- */
-export const getMaxParallaxPxSafe = (
-  isLandscape: boolean,
-  width: number,
-  height: number
-): number =>
-  Math.max(getMaxParallaxPx(isLandscape), getMaxParallaxPx(width > height));
-
 /** Sky layer parallax multiplier (0–100). Farthest layer, moves least. */
 export const SKY_PARALLAX_MULTIPLIER = 8;
 

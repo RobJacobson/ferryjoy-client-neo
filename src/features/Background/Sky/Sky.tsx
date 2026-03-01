@@ -20,6 +20,8 @@ type SkyProps = {
    * Paper texture source (e.g. require() asset). When null, no texture overlay.
    */
   paperTextureUrl: PaperTextureSource;
+  scrollableRange: number;
+  itemStride: number;
 };
 
 /**
@@ -33,11 +35,15 @@ type SkyProps = {
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
  * @param paperTextureUrl - Paper texture source (e.g. require() asset), null for no texture
+ * @param scrollableRange - Total pixels the carousel can scroll
+ * @param itemStride - One scroll step in pixels (itemSize + spacing)
  */
-const Sky = ({ paperTextureUrl }: SkyProps) => {
+const Sky = ({ paperTextureUrl, scrollableRange, itemStride }: SkyProps) => {
   const { parallaxDistance, layerContainerWidth: skyWidth } =
     useBackgroundLayout({
       parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
+      scrollableRange,
+      itemStride,
     });
 
   return (

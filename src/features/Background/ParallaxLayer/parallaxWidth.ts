@@ -2,7 +2,7 @@
 // Parallax Distance Utility
 // ============================================================================
 // Deterministic width calculation for parallax background layers. At max scroll
-// right, a layer translates left by D = (numCards - 1) * (M/100) * MAX_PARALLAX_PX.
+// right, a layer translates left by D = (scrollableRange/itemStride) * (M/100) * MAX_PARALLAX_PX.
 // The texture must extend past the viewport by at least D to avoid empty space.
 //
 // Coordinate system:
@@ -22,31 +22,45 @@ import { MAX_PARALLAX_PX } from "../config";
  * Parallax distance: how far a layer translates (in px) when scroll progress
  * goes from 0 to 1. Higher values = more movement = faster parallax.
  *
- * @param numCards - Number of carousel cards (e.g. TOTAL_CAROUSEL_ITEMS)
+ * @param scrollableRange - Total pixels the carousel can scroll
  * @param parallaxMultiplier - 0–100 layer strength (closer = higher)
- * @param maxParallaxPx - Base pixels from getMaxParallaxPxSafe (orientation-aware)
+ * @param itemStride - One scroll step in pixels (itemSize + spacing)
+ * @param maxParallaxPx - Base pixels from getMaxParallaxPx (orientation-aware)
  * @returns Parallax distance in pixels for use in ParallaxLayer
  */
 export const computeParallaxDistance = (
-  numCards: number,
+  scrollableRange: number,
   parallaxMultiplier: number,
+  itemStride: number,
   maxParallaxPx: number
-): number => (numCards - 1) * (parallaxMultiplier / 100) * maxParallaxPx;
+): number => {
+  const numScrollableIntervals = scrollableRange / itemStride;
+  return numScrollableIntervals * (parallaxMultiplier / 100) * maxParallaxPx;
+};
 
 /**
  * Required width for a parallax layer so it never shows empty space when
- * scrolled right, given screen width, number of cards, and parallax multiplier.
+ * scrolled right, given screen width, scrollable range, and parallax multiplier.
  *
  * @param screenWidth - Viewport width (visible screen width) for layer coverage
- * @param numCards - Number of carousel cards
+ * @param scrollableRange - Total pixels the carousel can scroll
  * @param parallaxMultiplier - 0–100 (e.g. SKY_PARALLAX_MULTIPLIER or PARALLAX_WAVES_MAX)
- * @param maxParallaxPx - Effective max from getMaxParallaxPx(width, height)
+ * @param itemStride - One scroll step in pixels (itemSize + spacing)
+ * @param maxParallaxPx - Effective max from getMaxParallaxPx (orientation-aware)
  * @returns Minimum width in pixels for the layer to cover the viewport at max scroll
  */
 export const computeLayerContainerWidth = (
   screenWidth: number,
-  numCards: number,
+  scrollableRange: number,
   parallaxMultiplier: number,
+  itemStride: number,
   maxParallaxPx = MAX_PARALLAX_PX
-): number =>
-  screenWidth + (numCards - 1) * (parallaxMultiplier / 100) * maxParallaxPx;
+): number => {
+  const parallaxDistance = computeParallaxDistance(
+    scrollableRange,
+    parallaxMultiplier,
+    itemStride,
+    maxParallaxPx
+  );
+  return screenWidth + parallaxDistance;
+};

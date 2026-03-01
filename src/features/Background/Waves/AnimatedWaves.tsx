@@ -6,9 +6,13 @@
 // ============================================================================
 
 import { useWindowDimensions, View } from "react-native";
-import { PARALLAX_WAVES_MAX } from "../config";
+import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
+import { getMaxParallaxPx } from "../config";
+import {
+  computeLayerContainerWidth,
+  computeParallaxDistance,
+} from "../ParallaxLayer/parallaxWidth";
 import type { PaperTextureSource } from "../types";
-import { useBackgroundLayout } from "../useBackgroundLayout";
 import { LAYER_SPECS } from "./layers";
 import type { WaveLayerLayout } from "./WaveLayer";
 import { WaveLayer } from "./WaveLayer";
@@ -19,6 +23,8 @@ type AnimatedWavesProps = {
    * Currently unused (always null).
    */
   paperTextureUrl?: PaperTextureSource | null;
+  scrollableRange: number;
+  itemStride: number;
 };
 
 /**
@@ -42,13 +48,18 @@ export type { WaveRenderSpec } from "./layers/layerConfig";
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
  * @param paperTextureUrl - Paper texture source (null for no texture, currently unused)
+ * @param scrollableRange - Total pixels the carousel can scroll
+ * @param itemStride - One scroll step in pixels (itemSize + spacing)
  */
-const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
-  const { height: containerHeightPx } = useWindowDimensions();
-  const { computeParallaxDistance, computeLayerContainerWidth } =
-    useBackgroundLayout({
-      parallaxMultiplier: PARALLAX_WAVES_MAX,
-    });
+const AnimatedWaves = ({
+  paperTextureUrl = null,
+  scrollableRange,
+  itemStride,
+}: AnimatedWavesProps) => {
+  const { height: containerHeightPx, width: screenWidth } =
+    useWindowDimensions();
+  const isLandscape = useIsLandscape();
+  const maxParallaxPx = getMaxParallaxPx(isLandscape);
 
   // Precompute layout and parallax values for all layers
   const layerConfigs = LAYER_SPECS.map((spec) => ({
@@ -60,14 +71,25 @@ const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
       },
     },
     layout: {
-      containerWidthPx: computeLayerContainerWidth(spec.parallaxMultiplier),
+      containerWidthPx: computeLayerContainerWidth(
+        screenWidth,
+        scrollableRange,
+        spec.parallaxMultiplier,
+        itemStride,
+        maxParallaxPx
+      ),
       containerHeightPx,
     } satisfies WaveLayerLayout,
-    parallaxDistance: computeParallaxDistance(spec.parallaxMultiplier),
+    parallaxDistance: computeParallaxDistance(
+      scrollableRange,
+      spec.parallaxMultiplier,
+      itemStride,
+      maxParallaxPx
+    ),
   }));
 
   return (
-    <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
+    <View className="absolute inset-0 overflow-visible">
       {layerConfigs.map(({ spec, layout, parallaxDistance }) => (
         <WaveLayer
           key={spec.key}
