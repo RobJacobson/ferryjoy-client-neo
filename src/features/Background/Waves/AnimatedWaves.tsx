@@ -83,29 +83,38 @@ type WaveRenderSpec = {
  * as a single list of <Wave /> components with precomputed props and parallax.
  * Parallax scroll progress from ParallaxProvider context.
  *
+ * Coordinate system:
+ * - Layer starts at x=0 (left-aligned to viewport)
+ * - As scrollProgress goes 0→1, layer translates LEFT
+ * - translateX = -scrollProgress × parallaxDistance
+ * - Layer must extend right to cover: screenWidth + parallaxDistance
+ *
  * @param paperTextureUrl - Paper texture source (null for no texture)
  */
 const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => {
   const { height: containerHeightPx } = useWindowDimensions();
-  const { getParallaxWidth, getRequiredWidth } = useBackgroundLayout({
+  const {
+    computeParallaxDistance,
+    computeLayerContainerWidth,
+  } = useBackgroundLayout({
     parallaxMultiplier: PARALLAX_WAVES_MAX,
   });
 
   /**
    * Renders a single wave layer with parallax.
-   * Wraps the wave content in ParallaxLayer for scroll-driven translation.
+   * Wraps wave content in ParallaxLayer for scroll-driven translation.
    *
    * @param spec - Render specification including key, zIndex, parallax settings, and wave props
    * @returns Animated.View with parallax and wave layer content
    */
   const renderWaveLayer = (spec: WaveRenderSpec) => {
-    const layerWidth = getRequiredWidth(spec.parallaxMultiplier);
-    const parallaxWidth = getParallaxWidth(spec.parallaxMultiplier);
+    const layerWidth = computeLayerContainerWidth(spec.parallaxMultiplier);
+    const parallaxDistance = computeParallaxDistance(spec.parallaxMultiplier);
 
     return (
       <ParallaxLayer
         key={spec.key}
-        parallaxWidth={parallaxWidth}
+        parallaxDistance={parallaxDistance}
         style={[
           {
             position: "absolute",

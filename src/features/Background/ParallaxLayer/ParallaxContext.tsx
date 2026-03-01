@@ -48,9 +48,16 @@ export const ParallaxProvider = ({
 
 /**
  * Returns scroll progress from ParallaxContext.
- * Returns null when used outside ParallaxProvider.
+ * Throws if used outside ParallaxProvider.
  *
- * @returns SharedValue scroll progress or null
+ * @returns SharedValue scroll progress (always provided in this app)
  */
-export const useParallaxContext = (): SharedValue<number> | null =>
-  useContext(ParallaxContext);
+export const useParallaxContext = (): SharedValue<number> => {
+  const context = useContext(ParallaxContext);
+  if (!context) {
+    throw new Error(
+      "useParallaxContext must be used within ParallaxProvider"
+    );
+  }
+  return context;
+};

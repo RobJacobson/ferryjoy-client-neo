@@ -26,16 +26,23 @@ type SkyProps = {
  * Sky background: linear gradient at 45°, optional tiled paper texture at 25%
  * opacity, and sunburst overlay. Parallax from ParallaxProvider context.
  *
+ * Coordinate system:
+ * - Layer starts at x=0 (left-aligned to viewport)
+ * - As scrollProgress goes 0→1, layer translates LEFT
+ * - translateX = -scrollProgress × parallaxDistance
+ * - Layer must extend right to cover: screenWidth + parallaxDistance
+ *
  * @param paperTextureUrl - Paper texture source (e.g. require() asset), null for no texture
  */
 const Sky = ({ paperTextureUrl }: SkyProps) => {
-  const { getParallaxWidth, requiredWidth: skyWidth } = useBackgroundLayout({
-    parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
-  });
+  const { parallaxDistance, layerContainerWidth: skyWidth } =
+    useBackgroundLayout({
+      parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
+    });
 
   return (
     <ParallaxLayer
-      parallaxWidth={getParallaxWidth(SKY_PARALLAX_MULTIPLIER)}
+      parallaxDistance={parallaxDistance}
       style={{
         position: "absolute",
         left: 0,
