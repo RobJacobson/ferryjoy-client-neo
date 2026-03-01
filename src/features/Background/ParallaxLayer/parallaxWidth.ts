@@ -24,7 +24,7 @@ import { MAX_PARALLAX_PX } from "../config";
  *
  * @param numCards - Number of carousel cards (e.g. TOTAL_CAROUSEL_ITEMS)
  * @param parallaxMultiplier - 0–100 layer strength (closer = higher)
- * @param maxParallaxPx - Base pixels from getMaxParallaxPxSafe (orientation-aware)
+ * @param maxParallaxPx - Base pixels from getMaxParallaxPx (orientation-aware)
  * @returns Parallax distance in pixels for use in ParallaxLayer
  */
 export const computeParallaxDistance = (
@@ -40,7 +40,7 @@ export const computeParallaxDistance = (
  * @param screenWidth - Viewport width (visible screen width) for layer coverage
  * @param numCards - Number of carousel cards
  * @param parallaxMultiplier - 0–100 (e.g. SKY_PARALLAX_MULTIPLIER or PARALLAX_WAVES_MAX)
- * @param maxParallaxPx - Effective max from getMaxParallaxPx(width, height)
+ * @param maxParallaxPx - Effective max from getMaxParallaxPx (orientation-aware)
  * @returns Minimum width in pixels for the layer to cover the viewport at max scroll
  */
 export const computeLayerContainerWidth = (

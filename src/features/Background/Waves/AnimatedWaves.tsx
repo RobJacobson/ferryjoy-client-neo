@@ -8,7 +8,7 @@
 import { useWindowDimensions, View } from "react-native";
 import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPxSafe } from "../config";
+import { getMaxParallaxPx } from "../config";
 import {
   computeLayerContainerWidth,
   computeParallaxDistance,
@@ -49,17 +49,10 @@ export type { WaveRenderSpec } from "./layers/layerConfig";
  * @param paperTextureUrl - Paper texture source (null for no texture, currently unused)
  */
 const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
-  const {
-    height: containerHeightPx,
-    width: screenWidth,
-    height: screenHeight,
-  } = useWindowDimensions();
+  const { height: containerHeightPx, width: screenWidth } =
+    useWindowDimensions();
   const isLandscape = useIsLandscape();
-  const maxParallaxPx = getMaxParallaxPxSafe(
-    isLandscape,
-    screenWidth,
-    screenHeight
-  );
+  const maxParallaxPx = getMaxParallaxPx(isLandscape);
 
   // Precompute layout and parallax values for all layers
   const layerConfigs = LAYER_SPECS.map((spec) => ({
@@ -87,7 +80,7 @@ const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
   }));
 
   return (
-    <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
+    <View className="absolute inset-0 overflow-visible">
       {layerConfigs.map(({ spec, layout, parallaxDistance }) => (
         <WaveLayer
           key={spec.key}

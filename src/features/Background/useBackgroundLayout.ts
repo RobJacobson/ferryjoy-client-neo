@@ -15,7 +15,7 @@
 import { useWindowDimensions } from "react-native";
 import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
-import { getMaxParallaxPxSafe } from "./config";
+import { getMaxParallaxPx } from "./config";
 import {
   computeLayerContainerWidth,
   computeParallaxDistance,
@@ -80,8 +80,8 @@ export const useBackgroundLayout = ({
   parallaxMultiplier,
 }: UseBackgroundLayoutProps): LayerLayout => {
   const isLandscape = useIsLandscape();
-  const { width: screenWidth, height } = useWindowDimensions();
-  const maxParallaxPx = getMaxParallaxPxSafe(isLandscape, screenWidth, height);
+  const { width: screenWidth } = useWindowDimensions();
+  const maxParallaxPx = getMaxParallaxPx(isLandscape);
 
   const parallaxDistance = computeParallaxDistance(
     TOTAL_CAROUSEL_ITEMS,
