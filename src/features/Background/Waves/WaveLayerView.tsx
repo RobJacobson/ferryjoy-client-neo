@@ -10,75 +10,24 @@
 import type { ViewStyle } from "react-native";
 import { View } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
-import type { PaperTextureSource } from "../types";
-import { useWaveOscillation } from "./useWaveOscillation";
-import { WaveSvg } from "./WaveSvg";
+import {
+  useWaveOscillation,
+  type WaveOscillationProps,
+} from "./useWaveOscillation";
+import { WaveSvg, type WaveSvgProps } from "./WaveSvg";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 /**
- * Static wave visual properties (shape, color, size, position).
- * Used by both grass and ocean waves.
- */
-export type WaveStaticProps = {
-  /** Wave amplitude in pixels (height from center to peak/trough) */
-  amplitude: number;
-  /** Wave period in pixels (width of one complete cycle) */
-  period: number;
-  /** Color of the wave fill */
-  fillColor: string;
-  /** Vertical position of wave centerline as percentage (0-100) */
-  height?: number;
-  /** Opacity of the wave fill (0-1) */
-  fillOpacity?: number;
-  /** Static horizontal offset for the wave rail in pixels */
-  xOffsetPx?: number;
-  /** Paper texture source (null for no texture) */
-  paperTextureUrl?: PaperTextureSource;
-};
-
-/**
- * Animation properties for oscillating waves (ocean only).
- * Grass waves use static positioning without animation.
- */
-export type WaveAnimationProps = {
-  /** Animation duration in milliseconds (enables oscillation if > 0) */
-  animationDuration?: number;
-  /** Delay before animation starts in milliseconds */
-  animationDelay?: number;
-  /** Maximum expected horizontal shift magnitude in pixels */
-  maxXShiftPx?: number;
-  /** Phase offset for the wave oscillation in radians */
-  phaseOffset?: number;
-};
-
-/**
- * Props for wave content configuration (amplitude, period, fill, etc.).
- * Combines static visual properties with optional animation properties.
- */
-export type WaveLayerContentProps = WaveStaticProps & WaveAnimationProps;
-
-/**
- * Layout configuration for a wave layer container.
- * Groups dimension-related properties needed for rendering.
- */
-export type WaveLayerLayout = {
-  /** Width of the layer container in pixels */
-  containerWidthPx: number;
-  /** Height of the layer container in pixels */
-  containerHeightPx: number;
-};
-
-/**
  * Props for rendering a wave layer.
  */
 export type WaveLayerViewProps = {
-  /** Complete wave content configuration */
-  waveProps: WaveLayerContentProps;
-  /** Layout dimensions for the wave layer container */
-  layout: WaveLayerLayout;
+  /** Complete wave SVG rendering configuration */
+  svgProps: WaveSvgProps;
+  /** Optional oscillation configuration (ocean waves only) */
+  oscillationProps?: WaveOscillationProps;
 };
 
 // ============================================================================
@@ -90,17 +39,20 @@ export type WaveLayerViewProps = {
  * it horizontally. Overscan is done with layout (left + width) to guarantee
  * SVG edges never enter the visible viewport.
  *
- * @param waveProps - Complete wave content configuration
- * @param layout - Layout dimensions for the wave layer container
+ * @param svgProps - Complete wave SVG rendering configuration
+ * @param oscillationProps - Optional oscillation configuration (ocean waves only)
  * @returns Wave layer with optional oscillation
  */
-export const WaveLayerView = ({ waveProps, layout }: WaveLayerViewProps) => {
-  const { containerWidthPx, containerHeightPx } = layout;
-  const offsetPx = waveProps.xOffsetPx ?? 0;
-  const { animatedOscillationStyle, overscanPx } =
-    useWaveOscillation(waveProps);
+export const WaveLayerView = ({
+  svgProps,
+  oscillationProps,
+}: WaveLayerViewProps) => {
+  const offsetPx = svgProps.xOffsetPx ?? 0;
+  const { animatedOscillationStyle, overscanPx } = useWaveOscillation({
+    oscillationProps,
+  });
 
-  const railWidthPx = containerWidthPx + 2 * overscanPx;
+  const railWidthPx = svgProps.renderWidthPx + 2 * overscanPx;
 
   return (
     <View className="absolute inset-0 overflow-visible">
@@ -118,16 +70,7 @@ export const WaveLayerView = ({ waveProps, layout }: WaveLayerViewProps) => {
           ] as (ViewStyle | AnimatedStyle<ViewStyle>)[]
         }
       >
-        <WaveSvg
-          amplitude={waveProps.amplitude}
-          period={waveProps.period}
-          fillColor={waveProps.fillColor}
-          fillOpacity={waveProps.fillOpacity}
-          height={waveProps.height}
-          paperTextureUrl={waveProps.paperTextureUrl}
-          renderWidthPx={railWidthPx}
-          renderHeightPx={containerHeightPx}
-        />
+        <WaveSvg {...svgProps} />
       </Animated.View>
     </View>
   );

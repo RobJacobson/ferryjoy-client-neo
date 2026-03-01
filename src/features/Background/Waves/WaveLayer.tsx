@@ -8,7 +8,7 @@
 
 import { ParallaxLayer } from "../ParallaxLayer/ParallaxLayer";
 import type { WaveRenderSpec } from "./AnimatedWaves";
-import { type WaveLayerLayout, WaveLayerView } from "./WaveLayerView";
+import { WaveLayerView } from "./WaveLayerView";
 
 // ============================================================================
 // Types
@@ -21,6 +21,17 @@ type WaveLayerProps = {
   layout: WaveLayerLayout;
   /** Parallax distance in pixels for this layer */
   parallaxDistance: number;
+};
+
+/**
+ * Layout configuration for a wave layer container.
+ * Groups dimension-related properties needed for rendering.
+ */
+export type WaveLayerLayout = {
+  /** Width of the layer container in pixels */
+  containerWidthPx: number;
+  /** Height of the layer container in pixels */
+  containerHeightPx: number;
 };
 
 // ============================================================================
@@ -38,7 +49,7 @@ type WaveLayerProps = {
  * - translateX = -scrollProgress × parallaxDistance
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
- * @param spec - Wave layer render specification (includes paperTextureUrl in waveProps)
+ * @param spec - Wave layer render specification (includes paperTextureUrl in svgProps)
  * @param layout - Layout dimensions for the wave layer container
  * @param parallaxDistance - Parallax distance in pixels
  * @returns Parallax-translated wave layer
@@ -48,6 +59,8 @@ export const WaveLayer = ({
   layout,
   parallaxDistance,
 }: WaveLayerProps) => {
+  const { containerWidthPx, containerHeightPx } = layout;
+
   return (
     <ParallaxLayer
       parallaxDistance={parallaxDistance}
@@ -57,7 +70,14 @@ export const WaveLayer = ({
         spec.wrapperStyle,
       ]}
     >
-      <WaveLayerView waveProps={spec.waveProps} layout={layout} />
+      <WaveLayerView
+        svgProps={{
+          ...spec.svgProps,
+          renderWidthPx: containerWidthPx,
+          renderHeightPx: containerHeightPx,
+        }}
+        oscillationProps={spec.oscillationProps}
+      />
     </ParallaxLayer>
   );
 };

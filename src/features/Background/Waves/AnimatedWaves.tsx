@@ -23,8 +23,10 @@ import {
   OCEAN_WAVES,
   oceanColor,
 } from "./config";
+import type { WaveOscillationProps } from "./useWaveOscillation";
+import type { WaveLayerLayout } from "./WaveLayer";
 import { WaveLayer } from "./WaveLayer";
-import type { WaveLayerContentProps, WaveLayerLayout } from "./WaveLayerView";
+import type { WaveSvgProps } from "./WaveSvg";
 
 type AnimatedWavesProps = {
   /**
@@ -66,8 +68,10 @@ export type WaveRenderSpec = {
   parallaxMultiplier: number;
   /** Optional additional styles for the layer wrapper view */
   wrapperStyle?: StyleProp<ViewStyle>;
-  /** Props for the WaveLayerView component */
-  waveProps: WaveLayerContentProps;
+  /** SVG rendering configuration (shape, color, size, position) */
+  svgProps: Omit<WaveSvgProps, "renderWidthPx" | "renderHeightPx">;
+  /** Optional oscillation configuration (ocean waves only) */
+  oscillationProps?: WaveOscillationProps;
 };
 
 // ============================================================================
@@ -98,8 +102,8 @@ const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
   const layerConfigs = LAYER_SPECS.map((spec) => ({
     spec: {
       ...spec,
-      waveProps: {
-        ...spec.waveProps,
+      svgProps: {
+        ...spec.svgProps,
         paperTextureUrl,
       },
     },
@@ -142,7 +146,7 @@ const indexToT = (index: number, count: number): number =>
  * Otherwise, changing one layer's xOffset would change the render rail width
  * for every grass layer and make unrelated layers appear to shift.
  */
-const GRASS_MAX_X_SHIFT_PX = 120;
+const _GRASS_MAX_X_SHIFT_PX = 120;
 
 const MAX_OCEAN_X_SHIFT_PX = OCEAN_WAVES.maxXShiftPx;
 
@@ -159,13 +163,12 @@ const BACKGROUND_SPECS: readonly WaveRenderSpec[] = BACKGROUND_LAYERS.map(
       key: `bg-${index}-${layer.height}-${layer.period}-${layer.amplitude}`,
       zIndex: index + 1,
       parallaxMultiplier,
-      waveProps: {
+      svgProps: {
         amplitude: layer.amplitude,
         period: layer.period,
         fillColor: layer.fillColor ?? grassColor(layer.lightness ?? 0),
         height: layer.height,
         xOffsetPx: layer.xOffsetPx,
-        maxXShiftPx: GRASS_MAX_X_SHIFT_PX,
       },
     };
   }
@@ -182,7 +185,7 @@ const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
       key: `ocean-${zIndex}`,
       zIndex,
       parallaxMultiplier,
-      waveProps: {
+      svgProps: {
         amplitude: lerp(
           t,
           OCEAN_WAVES.amplitude.min,
@@ -193,6 +196,8 @@ const OCEAN_SPECS: readonly WaveRenderSpec[] = Array.from(
           lerp(t, OCEAN_WAVES.lightness.min, OCEAN_WAVES.lightness.max)
         ),
         height: lerp(t, OCEAN_WAVES.height.min, OCEAN_WAVES.height.max),
+      },
+      oscillationProps: {
         animationDuration: lerp(
           t,
           OCEAN_WAVES.animationDuration.min,
@@ -221,13 +226,12 @@ const FOREGROUND_SPECS: readonly WaveRenderSpec[] =
       zIndex,
       parallaxMultiplier,
       wrapperStyle,
-      waveProps: {
+      svgProps: {
         amplitude: layer.amplitude,
         period: layer.period,
         fillColor: grassColor(layer.lightness),
         height: layer.height,
         xOffsetPx: layer.xOffsetPx,
-        maxXShiftPx: GRASS_MAX_X_SHIFT_PX,
       },
     };
   });

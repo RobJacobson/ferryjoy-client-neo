@@ -12,9 +12,10 @@ import type { ViewStyle } from "react-native";
 const SEAM_MARGIN_PX = 16;
 
 /**
- * Props for the wave oscillation animation.
+ * Props for wave oscillation animation.
+ * When undefined or all properties falsy, no animation is applied.
  */
-interface UseWaveOscillationProps {
+export type WaveOscillationProps = {
   /** Animation duration in milliseconds. */
   animationDuration?: number;
   /** Delay before animation starts in milliseconds. */
@@ -23,6 +24,14 @@ interface UseWaveOscillationProps {
   maxXShiftPx?: number;
   /** Phase offset for the wave oscillation in radians. */
   phaseOffset?: number;
+};
+
+/**
+ * Props for the useWaveOscillation hook.
+ */
+interface UseWaveOscillationProps {
+  /** Wave oscillation configuration. */
+  oscillationProps?: WaveOscillationProps;
 }
 
 /**
@@ -40,18 +49,29 @@ interface UseWaveOscillationResult {
  * Uses negative animationDelay to achieve phase offsets without waiting.
  * Wave oscillates from -displacement to +displacement and back.
  *
- * @param animationDuration - Animation duration in milliseconds
- * @param animationDelay - Delay before animation starts in milliseconds (default 0)
- * @param maxXShiftPx - Maximum horizontal oscillation distance in pixels (default 0)
- * @param phaseOffset - Phase offset for the wave oscillation in radians (default 0)
+ * When oscillationProps is undefined or all properties falsy, returns empty
+ * style object and minimal overscan (no animation).
+ *
+ * @param oscillationProps - Wave oscillation configuration (optional)
  * @returns Object containing animatedOscillationStyle and overscan pixels
  */
 export const useWaveOscillation = ({
-  animationDuration,
-  animationDelay = 0,
-  maxXShiftPx = 0,
-  phaseOffset = 0,
+  oscillationProps,
 }: UseWaveOscillationProps): UseWaveOscillationResult => {
+  if (!oscillationProps) {
+    return {
+      animatedOscillationStyle: {},
+      overscanPx: SEAM_MARGIN_PX,
+    };
+  }
+
+  const {
+    animationDuration,
+    animationDelay = 0,
+    maxXShiftPx = 0,
+    phaseOffset = 0,
+  } = oscillationProps;
+
   const xShiftPx = Math.max(0, maxXShiftPx);
   const shouldAnimate = (animationDuration ?? 0) > 0 && xShiftPx > 0;
 
