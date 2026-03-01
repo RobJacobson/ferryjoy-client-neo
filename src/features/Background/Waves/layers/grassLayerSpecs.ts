@@ -11,13 +11,6 @@ import { indexToT, lerpRange } from "./helpers";
 import type { GrassLayerConfig, WaveRenderSpec } from "./layerConfig";
 
 // ----------------------------------------------------------------------------
-// Constants
-// ----------------------------------------------------------------------------
-
-/** Reversed foreground layers for proper z-index ordering */
-const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
-
-// ----------------------------------------------------------------------------
 // Layer Configurations
 // ----------------------------------------------------------------------------
 
@@ -27,7 +20,6 @@ const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
   prefix: "bg-",
   sourceData: BACKGROUND_LAYERS,
   parallaxRange: PARALLAX_BG_GRASS,
-  baseZIndex: 1,
   colorFn: grassColor,
 };
 
@@ -35,13 +27,11 @@ const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
 const FOREGROUND_GRASS_CONFIG: GrassLayerConfig = {
   type: "grass",
   prefix: "fg-",
-  sourceData: FOREGROUND_LAYERS_REVERSED,
+  sourceData: FOREGROUND_LAYERS,
   parallaxRange: PARALLAX_FG_GRASS,
-  baseZIndex: 100,
   colorFn: grassColor,
-  zIndexForIndex: (index: number) => (index === 0 ? 101 : 100),
   wrapperStyleForIndex: (index: number) =>
-    index === 0 ? { marginBottom: -10 } : undefined,
+    index === FOREGROUND_LAYERS.length - 1 ? { marginBottom: -10 } : undefined,
 };
 
 // ----------------------------------------------------------------------------
@@ -64,7 +54,6 @@ const createGrassLayerSpecs = (
 
     return {
       key: `${config.prefix}${index}`,
-      zIndex: config.zIndexForIndex?.(index) ?? config.baseZIndex + index,
       parallaxMultiplier,
       wrapperStyle: config.wrapperStyleForIndex?.(index),
       svgProps: {

@@ -44,7 +44,6 @@ const OCEAN_CONFIG: OceanLayerConfig = {
   prefix: "ocean-",
   count: OCEAN_WAVES.count,
   parallaxRange: PARALLAX_OCEAN,
-  baseZIndex: 10,
   interpolateProps: {
     amplitude: OCEAN_WAVES.amplitude,
     period: OCEAN_WAVES.period,
@@ -77,7 +76,6 @@ const createOceanLayerSpecs = (
 
     return {
       key: `${config.prefix}${index}`,
-      zIndex: config.baseZIndex + index,
       parallaxMultiplier,
       svgProps: {
         amplitude: lerpRange(t, config.interpolateProps.amplitude),

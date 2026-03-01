@@ -231,7 +231,6 @@ FOREGROUND_GRASS: 80-100% // Closest to viewer
 ```typescript
 type WaveRenderSpec = {
   key: string;
-  zIndex: number;
   parallaxMultiplier: number;
   waveProps: WaveLayerViewProps;
 };

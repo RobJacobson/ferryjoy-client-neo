@@ -65,10 +65,7 @@ export const WaveLayer = ({
     <ParallaxLayer
       parallaxDistance={parallaxDistance}
       className="absolute top-0 bottom-0 left-0 overflow-visible"
-      style={[
-        { width: layout.containerWidthPx, zIndex: spec.zIndex },
-        spec.wrapperStyle,
-      ]}
+      style={[{ width: layout.containerWidthPx }, spec.wrapperStyle]}
     >
       <WaveLayerView
         svgProps={{
