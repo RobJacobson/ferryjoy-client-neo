@@ -281,6 +281,42 @@ const MyList = () => {
 };
 ```
 
+### With Real-time Scroll Tracking (Parallax)
+
+```typescript
+import { useRef } from "react";
+import type { AnimatedListRef } from "@/features/AnimatedList";
+
+const MyList = () => {
+  const listRef = useRef<AnimatedListRef>(null);
+
+  return (
+    <>
+      <ParallaxBackground scrollProgress={listRef.current?.scrollProgress} />
+      <AnimatedList
+        ref={listRef}
+        data={data}
+        renderItem={(item) => <MyCard item={item} />}
+        layout={{ direction: "horizontal", itemSize: 300, spacing: 16 }}
+      />
+    </>
+  );
+};
+```
+
+**Note:** Pass `listRef.current?.scrollProgress` directly to your parallax component.
+If your component requires scrollProgress to always be defined (not undefined),
+make it optional and provide a default inside the component:
+
+```typescript
+const ParallaxBackground = ({ scrollProgress }: { scrollProgress?: SharedValue<number> }) => {
+  const defaultProgress = useSharedValue(0);
+  const progress = scrollProgress ?? defaultProgress;
+
+  // Use progress for parallax calculations
+};
+```
+
 ### With Scroll Callbacks
 
 ```typescript
@@ -449,6 +485,8 @@ const myAnimation: ItemAnimationStyle = (scrollIndex, index, layout) => {
 ```typescript
 type AnimatedListRef = {
   scrollToIndex: (index: number, animated?: boolean) => void;
+  scrollProgress: SharedValue<number>;
+  scrollIndex: SharedValue<number>;
 };
 ```
 
@@ -459,11 +497,43 @@ type AnimatedListRef = {
   - `animated`: Whether to animate (default: `true`)
   - **Silent clamping:** Out-of-bounds indices are clamped to valid range
 
+**Read-only Properties:**
+
+- `scrollProgress` - SharedValue containing normalized scroll progress (0-1)
+  - 0 = first item, 1 = last item
+  - Updates in real-time at 60fps during scroll
+  - Useful for parallax effects and scroll-driven animations
+  - Read-only: cannot be modified externally
+
+- `scrollIndex` - SharedValue containing current scroll position in index units
+  - Floating-point value representing precise scroll position
+  - Updates in real-time at 60fps during scroll
+  - Useful for smooth animations between items
+  - Read-only: cannot be modified externally
+
 ```typescript
+// Programmatic scrolling
 listRef.current?.scrollToIndex(5, true);   // Animated scroll to index 5
 listRef.current?.scrollToIndex(10, false); // Instant jump to index 10
 listRef.current?.scrollToIndex(-5);        // Clamped to 0
 listRef.current?.scrollToIndex(999);       // Clamped to last item
+
+// Real-time scroll tracking
+useAnimatedReaction(
+  () => listRef.current?.scrollProgress.value ?? 0,
+  (progress) => {
+    // progress goes from 0 to 1 as user scrolls
+    // Perfect for parallax backgrounds
+  }
+);
+
+// Precise scroll position
+useAnimatedReaction(
+  () => listRef.current?.scrollIndex.value ?? 0,
+  (index) => {
+    // index is floating-point (e.g., 2.5 means halfway between items 2 and 3)
+  }
+);
 ```
 
 ## Animation System

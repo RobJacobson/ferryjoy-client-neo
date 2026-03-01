@@ -83,7 +83,7 @@ type WaveRenderSpec = {
  * as a single list of <Wave /> components with precomputed props and parallax.
  *
  * @param paperTextureUrl - Paper texture source (null for no texture)
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  */
 const AnimatedWaves = ({
   paperTextureUrl,

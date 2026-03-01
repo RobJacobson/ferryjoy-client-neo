@@ -6,6 +6,7 @@
 // Accepts scrollProgress (0-1) for scroll-driven parallax.
 // ============================================================================
 
+import { useSharedValue } from "react-native-reanimated";
 import { Sky } from "./Sky/index";
 import type { BackgroundParallaxProps } from "./types";
 import AnimatedWaves from "./Waves/index";
@@ -20,10 +21,13 @@ import AnimatedWaves from "./Waves/index";
  * @returns Fragment containing Sky and AnimatedWaves background layers
  */
 const Background = ({ scrollProgress }: BackgroundParallaxProps) => {
+  const defaultScrollProgress = useSharedValue(0);
+  const progress = scrollProgress ?? defaultScrollProgress;
+
   return (
     <>
-      <Sky paperTextureUrl={null} scrollProgress={scrollProgress} />
-      <AnimatedWaves paperTextureUrl={null} scrollProgress={scrollProgress} />
+      <Sky paperTextureUrl={null} scrollProgress={progress} />
+      <AnimatedWaves paperTextureUrl={null} scrollProgress={progress} />
     </>
   );
 };

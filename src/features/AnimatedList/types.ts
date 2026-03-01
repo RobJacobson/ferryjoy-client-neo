@@ -65,10 +65,12 @@ export type RenderItem<T> = (item: T, index: number) => React.ReactNode;
 
 /**
  * Imperative handle for programmatic list control.
- * Allows parent components to control scrolling behavior.
+ * Allows parent components to control scrolling behavior and access real-time scroll state.
  */
 export type AnimatedListRef = {
   scrollToIndex: (index: number, animated?: boolean) => void;
+  scrollProgress: SharedValue<number>;
+  scrollIndex: SharedValue<number>;
 };
 
 /**

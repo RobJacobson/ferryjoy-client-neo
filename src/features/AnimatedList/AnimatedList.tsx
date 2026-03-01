@@ -66,6 +66,13 @@ const AnimatedList = <T,>({
   const itemStride = Math.max(1, itemSize + spacing);
   const scrollIndex = useDerivedValue(() => scrollOffset.value / itemStride);
 
+  // Calculate normalized scroll progress (0-1) for parallax effects
+  const scrollProgress = useDerivedValue(() => {
+    const maxIndex = data.length - 1;
+    if (maxIndex <= 0) return 0;
+    return Math.min(1, Math.max(0, scrollIndex.value / maxIndex));
+  });
+
   // Imperative handle for programmatic scrolling
   useImperativeHandle(
     ref,
@@ -83,8 +90,18 @@ const AnimatedList = <T,>({
           }
         });
       },
+      scrollProgress,
+      scrollIndex,
     }),
-    [scrollRef, data.length, itemSize, spacing, isHorizontal]
+    [
+      scrollRef,
+      data.length,
+      itemSize,
+      spacing,
+      isHorizontal,
+      scrollIndex,
+      scrollProgress,
+    ]
   );
 
   // Detect when scroll settles on an index and trigger callback
