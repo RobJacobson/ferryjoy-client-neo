@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { Sky } from "./Sky/index";
-import AnimatedWaves from "./Waves/index";
+import { AnimatedWaves } from "./Waves/index";
 
 // const PAPER_TEXTURE = require("assets/textures/paper-texture-4-bw.png");
 

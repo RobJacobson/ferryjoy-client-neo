@@ -24,13 +24,14 @@ import {
   oceanColor,
 } from "./config";
 import { WaveLayer } from "./WaveLayer";
-import type { WaveLayerContentProps } from "./WaveLayerView";
+import type { WaveLayerContentProps, WaveLayerLayout } from "./WaveLayerView";
 
 type AnimatedWavesProps = {
   /**
    * Paper texture source. When null, wave SVGs do not render the texture overlay.
+   * Currently unused (always null).
    */
-  paperTextureUrl: PaperTextureSource;
+  paperTextureUrl?: PaperTextureSource | null;
 };
 
 /**
@@ -84,25 +85,39 @@ export type WaveRenderSpec = {
  * - translateX = -scrollProgress × parallaxDistance
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
- * @param paperTextureUrl - Paper texture source (null for no texture)
+ * @param paperTextureUrl - Paper texture source (null for no texture, currently unused)
  */
-const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => {
+const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
   const { height: containerHeightPx } = useWindowDimensions();
   const { computeParallaxDistance, computeLayerContainerWidth } =
     useBackgroundLayout({
       parallaxMultiplier: PARALLAX_WAVES_MAX,
     });
 
+  // Precompute layout and parallax values for all layers
+  const layerConfigs = LAYER_SPECS.map((spec) => ({
+    spec: {
+      ...spec,
+      waveProps: {
+        ...spec.waveProps,
+        paperTextureUrl,
+      },
+    },
+    layout: {
+      containerWidthPx: computeLayerContainerWidth(spec.parallaxMultiplier),
+      containerHeightPx,
+    } satisfies WaveLayerLayout,
+    parallaxDistance: computeParallaxDistance(spec.parallaxMultiplier),
+  }));
+
   return (
     <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
-      {LAYER_SPECS.map((spec) => (
+      {layerConfigs.map(({ spec, layout, parallaxDistance }) => (
         <WaveLayer
           key={spec.key}
           spec={spec}
-          containerHeightPx={containerHeightPx}
-          paperTextureUrl={paperTextureUrl}
-          computeParallaxDistance={computeParallaxDistance}
-          computeLayerContainerWidth={computeLayerContainerWidth}
+          layout={layout}
+          parallaxDistance={parallaxDistance}
         />
       ))}
     </View>

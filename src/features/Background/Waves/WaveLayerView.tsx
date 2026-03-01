@@ -47,15 +47,24 @@ export type WaveLayerContentProps = {
 };
 
 /**
+ * Layout configuration for a wave layer container.
+ * Groups dimension-related properties needed for rendering.
+ */
+export type WaveLayerLayout = {
+  /** Width of the layer container in pixels */
+  containerWidthPx: number;
+  /** Height of the layer container in pixels */
+  containerHeightPx: number;
+};
+
+/**
  * Props for rendering a wave layer.
  */
 export type WaveLayerViewProps = {
   /** Complete wave content configuration */
   waveProps: WaveLayerContentProps;
-  /** Width of the layer container in pixels */
-  containerWidthPx: number;
-  /** Height of the layer container in pixels */
-  containerHeightPx: number;
+  /** Layout dimensions for the wave layer container */
+  layout: WaveLayerLayout;
 };
 
 // ============================================================================
@@ -75,15 +84,11 @@ const SEAM_MARGIN_PX = 16;
  * SVG edges never enter the visible viewport.
  *
  * @param waveProps - Complete wave content configuration
- * @param containerWidthPx - Width of the layer container in pixels
- * @param containerHeightPx - Height of the layer container in pixels
+ * @param layout - Layout dimensions for the wave layer container
  * @returns Wave layer with optional oscillation
  */
-export const WaveLayerView = ({
-  waveProps,
-  containerWidthPx,
-  containerHeightPx,
-}: WaveLayerViewProps) => {
+export const WaveLayerView = ({ waveProps, layout }: WaveLayerViewProps) => {
+  const { containerWidthPx, containerHeightPx } = layout;
   const offsetPx = waveProps.xOffsetPx ?? 0;
   const xShiftPx = Math.max(0, waveProps.maxXShiftPx ?? 0);
   const shouldOscillate =
