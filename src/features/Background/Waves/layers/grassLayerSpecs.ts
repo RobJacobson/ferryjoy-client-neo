@@ -22,7 +22,7 @@ const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
 // ----------------------------------------------------------------------------
 
 /** Background grass layer configuration (farthest layers) */
-export const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
+const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
   type: "grass",
   prefix: "bg-",
   sourceData: BACKGROUND_LAYERS,
@@ -32,7 +32,7 @@ export const BACKGROUND_GRASS_CONFIG: GrassLayerConfig = {
 };
 
 /** Foreground grass layer configuration (closest layers) */
-export const FOREGROUND_GRASS_CONFIG: GrassLayerConfig = {
+const FOREGROUND_GRASS_CONFIG: GrassLayerConfig = {
   type: "grass",
   prefix: "fg-",
   sourceData: FOREGROUND_LAYERS_REVERSED,
@@ -55,7 +55,7 @@ export const FOREGROUND_GRASS_CONFIG: GrassLayerConfig = {
  * @param config - Grass layer configuration
  * @returns Array of wave render specifications for grass layers
  */
-export const createGrassLayerSpecs = (
+const createGrassLayerSpecs = (
   config: GrassLayerConfig
 ): readonly WaveRenderSpec[] => {
   return config.sourceData.map((layer, index) => {
@@ -77,3 +77,21 @@ export const createGrassLayerSpecs = (
     };
   });
 };
+
+// ----------------------------------------------------------------------------
+// Precomputed Specifications
+// ----------------------------------------------------------------------------
+
+/**
+ * Precomputed render specifications for background grass layers.
+ */
+export const BACKGROUND_GRASS_SPECS = createGrassLayerSpecs(
+  BACKGROUND_GRASS_CONFIG
+);
+
+/**
+ * Precomputed render specifications for foreground grass layers.
+ */
+export const FOREGROUND_GRASS_SPECS = createGrassLayerSpecs(
+  FOREGROUND_GRASS_CONFIG
+);

@@ -39,7 +39,7 @@ const OCEAN_PHASE_OFFSETS = createOceanPhaseOffsets(OCEAN_WAVES.count);
 // ----------------------------------------------------------------------------
 
 /** Ocean waves layer configuration (middle layers) */
-export const OCEAN_CONFIG: OceanLayerConfig = {
+const OCEAN_CONFIG: OceanLayerConfig = {
   type: "ocean",
   prefix: "ocean-",
   count: OCEAN_WAVES.count,
@@ -68,7 +68,7 @@ export const OCEAN_CONFIG: OceanLayerConfig = {
  * @param config - Ocean layer configuration
  * @returns Array of wave render specifications for ocean layers
  */
-export const createOceanLayerSpecs = (
+const createOceanLayerSpecs = (
   config: OceanLayerConfig
 ): readonly WaveRenderSpec[] => {
   return Array.from({ length: config.count }, (_, index) => {
@@ -98,3 +98,12 @@ export const createOceanLayerSpecs = (
     };
   });
 };
+
+// ----------------------------------------------------------------------------
+// Precomputed Specifications
+// ----------------------------------------------------------------------------
+
+/**
+ * Precomputed render specifications for ocean wave layers.
+ */
+export const OCEAN_SPECS = createOceanLayerSpecs(OCEAN_CONFIG);

@@ -9,7 +9,6 @@
  * Type for a single wave layer's render specification.
  */
 export type { WaveRenderSpec } from "./layerConfig";
-
 /**
  * Precomputed render specifications for all wave layers.
  * Combines background grass, ocean waves, and foreground grass into a single
