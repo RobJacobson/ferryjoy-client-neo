@@ -10,6 +10,7 @@ import type { ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
   scrollTo,
+  useAnimatedReaction,
   useAnimatedRef,
   useDerivedValue,
   useScrollOffset,
@@ -42,6 +43,7 @@ const AnimatedList = <T,>({
   layout,
   itemAnimationStyle,
   scrollOffset: externalScrollOffset,
+  scrollProgressSink,
   onScrollEnd,
   ref,
   keyExtractor,
@@ -72,6 +74,17 @@ const AnimatedList = <T,>({
     if (maxIndex <= 0) return 0;
     return Math.min(1, Math.max(0, scrollIndex.value / maxIndex));
   });
+
+  // Copy scroll progress into sink when provided (avoids ref-timing issues)
+  useAnimatedReaction(
+    () => scrollProgress.value,
+    (value) => {
+      if (scrollProgressSink) {
+        scrollProgressSink.value = value;
+      }
+    },
+    [scrollProgressSink]
+  );
 
   // Imperative handle for programmatic scrolling
   useImperativeHandle(

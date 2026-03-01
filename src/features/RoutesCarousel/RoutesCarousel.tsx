@@ -8,6 +8,7 @@
 import type { RefObject } from "react";
 import { useState } from "react";
 import type { View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import type { TerminalMate } from "ws-dottie/wsf-schedule";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
@@ -25,21 +26,25 @@ import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
 type RoutesCarouselProps = {
   ref: React.Ref<RoutesCarouselRef>;
   blurTargetRef: RefObject<View | null>;
+  /** Sink SharedValue for scroll progress (0-1); AnimatedList writes here. */
+  scrollProgressSink?: SharedValue<number>;
 };
 
 /**
  * Main RoutesCarousel component.
  *
  * Orchestrates terminal carousel UI by composing AnimatedList and TerminalCarouselNav.
- * Handles state management and component coordination. Exposes scroll progress
- * through the ref for parallax backgrounds.
+ * Handles state management and component coordination. Pass scrollProgressSink
+ * for parallax backgrounds (AnimatedList writes scroll progress there).
  *
  * @param ref - Ref to AnimatedList for programmatic scrolling (React 19 usage)
  * @param blurTargetRef - Ref to BlurTargetView for glassmorphism effect
+ * @param scrollProgressSink - Sink SharedValue for scroll progress (0-1)
  */
 const RoutesCarousel = ({
   ref: carouselRef,
   blurTargetRef,
+  scrollProgressSink,
 }: RoutesCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -82,6 +87,7 @@ const RoutesCarousel = ({
         renderItem={renderItem}
         layout={layout}
         itemAnimationStyle={routesCarouselAnimation}
+        scrollProgressSink={scrollProgressSink}
         onScrollEnd={handleScrollEnd}
         keyExtractor={keyExtractor}
       />

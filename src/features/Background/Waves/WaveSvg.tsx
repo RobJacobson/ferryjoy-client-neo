@@ -16,7 +16,7 @@ import {
 } from "./config";
 import { generateWavePath } from "./wavePath";
 
-type WaveSvgProps = {
+export type WaveSvgProps = {
   /**
    * Wave amplitude in pixels (height from center to peak/trough).
    */
@@ -39,6 +39,10 @@ type WaveSvgProps = {
    */
   height?: number;
   /**
+   * Static horizontal offset for the wave rail in pixels.
+   */
+  xOffsetPx?: number;
+  /**
    * Paper texture source. When null, SVG does not render the texture overlay.
    */
   paperTextureUrl?: PaperTextureSource;
@@ -56,15 +60,17 @@ type WaveSvgProps = {
  * Renders the wave SVG with optional shadow layers, stroke, and paper texture overlay.
  * The wave is rendered as a fill path with an optional stroke for definition.
  *
- * @param amplitude - Wave amplitude in pixels
- * @param period - Wave period in pixels
+ * @param amplitude - Wave amplitude in pixels (height from center to peak/trough)
+ * @param period - Wave period in pixels (width of one complete cycle)
  * @param fillColor - Color of the wave fill
- * @param fillOpacity - Opacity of the wave fill (default: 1)
- * @param height - Vertical position as percentage (default: 50)
- * @param paperTextureUrl - Optional paper texture overlay
- * @param renderWidthPx - Render area width in pixels
- * @param renderHeightPx - Render area height in pixels
- * @returns SVG element containing the wave
+ * @param fillOpacity - Opacity of the wave fill (0-1), defaults to 1
+ * @param height - Vertical position of the wave centerline as a percentage (0-100),
+ *   0 = bottom, 50 = middle, 100 = top, defaults to 50
+ * @param paperTextureUrl - Optional paper texture source; when null, SVG does not
+ *   render the texture overlay
+ * @param renderWidthPx - Width of the wave SVG render area in pixels
+ * @param renderHeightPx - Height of the wave SVG render area in pixels
+ * @returns SVG element containing the wave with optional effects
  */
 export const WaveSvg = ({
   amplitude,

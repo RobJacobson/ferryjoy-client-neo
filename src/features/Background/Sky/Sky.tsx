@@ -10,12 +10,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image, View } from "react-native";
 import { SKY_PARALLAX_MULTIPLIER } from "../config";
 import { ParallaxLayer } from "../ParallaxLayer";
-import type { BackgroundParallaxProps, PaperTextureSource } from "../types";
+import type { PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import config from "./config";
 import SunburstLayout from "./SunburstLayout";
 
-type SkyProps = BackgroundParallaxProps & {
+type SkyProps = {
   /**
    * Paper texture source (e.g. require() asset). When null, no texture overlay.
    */
@@ -24,21 +24,25 @@ type SkyProps = BackgroundParallaxProps & {
 
 /**
  * Sky background: linear gradient at 45°, optional tiled paper texture at 25%
- * opacity, and sunburst overlay. Parallax offset from carousel scroll.
+ * opacity, and sunburst overlay. Parallax from ParallaxProvider context.
+ *
+ * Coordinate system:
+ * - Layer starts at x=0 (left-aligned to viewport)
+ * - As scrollProgress goes 0→1, layer translates LEFT
+ * - translateX = -scrollProgress × parallaxDistance
+ * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
  * @param paperTextureUrl - Paper texture source (e.g. require() asset), null for no texture
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  */
-const Sky = ({ paperTextureUrl, scrollProgress }: SkyProps) => {
-  const { maxParallaxPx, requiredWidth: skyWidth } = useBackgroundLayout({
-    parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
-  });
+const Sky = ({ paperTextureUrl }: SkyProps) => {
+  const { parallaxDistance, layerContainerWidth: skyWidth } =
+    useBackgroundLayout({
+      parallaxMultiplier: SKY_PARALLAX_MULTIPLIER,
+    });
 
   return (
     <ParallaxLayer
-      scrollProgress={scrollProgress}
-      parallaxMultiplier={SKY_PARALLAX_MULTIPLIER}
-      maxParallaxPx={maxParallaxPx}
+      parallaxDistance={parallaxDistance}
       style={{
         position: "absolute",
         left: 0,
