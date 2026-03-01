@@ -149,7 +149,7 @@ A reusable wrapper that applies parallax translation to any content.
 
 **Location:** `useBackgroundLayout.ts`
 
-Calculates dimensions for parallax layers to prevent empty space at edges.
+Calculates dimensions for a single parallax background layer. Use this hook for components with one layer. For multiple layers, use the pure functions directly.
 
 **Coordinate system:**
 ```
@@ -311,7 +311,8 @@ Our parallax implementation is **sophisticated and working well**, with recent i
 **Improvements Completed:**
 - ✅ Renamed confusing width variables (parallaxWidth → parallaxDistance, requiredWidth → layerContainerWidth)
 - ✅ Documented coordinate system in all key files
-- ✅ Simplified `useBackgroundLayout` API (removed unnecessary return values, added clearer computation functions)
+- ✅ Simplified `useBackgroundLayout` API for single-layer components
+- ✅ Removed factory functions for multi-layer components; use pure functions directly
 - ✅ Simplified `ParallaxLayer` (removed optional scrollProgress prop, always uses context)
 
 The architecture is **sound and maintainable**. The complexity exists because we're solving a hard problem (multi-layer parallax with varying depths), not because of poor design.

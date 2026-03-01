@@ -6,9 +6,14 @@
 // ============================================================================
 
 import { useWindowDimensions, View } from "react-native";
-import { PARALLAX_WAVES_MAX } from "../config";
+import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
+import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
+import { getMaxParallaxPxSafe } from "../config";
+import {
+  computeLayerContainerWidth,
+  computeParallaxDistance,
+} from "../ParallaxLayer/parallaxWidth";
 import type { PaperTextureSource } from "../types";
-import { useBackgroundLayout } from "../useBackgroundLayout";
 import { LAYER_SPECS } from "./layers";
 import type { WaveLayerLayout } from "./WaveLayer";
 import { WaveLayer } from "./WaveLayer";
@@ -44,11 +49,17 @@ export type { WaveRenderSpec } from "./layers/layerConfig";
  * @param paperTextureUrl - Paper texture source (null for no texture, currently unused)
  */
 const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
-  const { height: containerHeightPx } = useWindowDimensions();
-  const { computeParallaxDistance, computeLayerContainerWidth } =
-    useBackgroundLayout({
-      parallaxMultiplier: PARALLAX_WAVES_MAX,
-    });
+  const {
+    height: containerHeightPx,
+    width: screenWidth,
+    height: screenHeight,
+  } = useWindowDimensions();
+  const isLandscape = useIsLandscape();
+  const maxParallaxPx = getMaxParallaxPxSafe(
+    isLandscape,
+    screenWidth,
+    screenHeight
+  );
 
   // Precompute layout and parallax values for all layers
   const layerConfigs = LAYER_SPECS.map((spec) => ({
@@ -60,10 +71,19 @@ const AnimatedWaves = ({ paperTextureUrl = null }: AnimatedWavesProps) => {
       },
     },
     layout: {
-      containerWidthPx: computeLayerContainerWidth(spec.parallaxMultiplier),
+      containerWidthPx: computeLayerContainerWidth(
+        screenWidth,
+        TOTAL_CAROUSEL_ITEMS,
+        spec.parallaxMultiplier,
+        maxParallaxPx
+      ),
       containerHeightPx,
     } satisfies WaveLayerLayout,
-    parallaxDistance: computeParallaxDistance(spec.parallaxMultiplier),
+    parallaxDistance: computeParallaxDistance(
+      TOTAL_CAROUSEL_ITEMS,
+      spec.parallaxMultiplier,
+      maxParallaxPx
+    ),
   }));
 
   return (
