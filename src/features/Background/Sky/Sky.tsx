@@ -27,7 +27,7 @@ type SkyProps = BackgroundParallaxProps & {
  * opacity, and sunburst overlay. Parallax offset from carousel scroll.
  *
  * @param paperTextureUrl - Paper texture source (e.g. require() asset), null for no texture
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  */
 const Sky = ({ paperTextureUrl, scrollProgress }: SkyProps) => {
   const { maxParallaxPx, requiredWidth: skyWidth } = useBackgroundLayout({

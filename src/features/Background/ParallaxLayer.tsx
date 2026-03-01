@@ -9,7 +9,7 @@
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import Animated from "react-native-reanimated";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useParallaxScroll } from "./useParallaxScroll";
 
 // ============================================================================
@@ -18,9 +18,9 @@ import { useParallaxScroll } from "./useParallaxScroll";
 
 type ParallaxLayerProps = {
   /**
-   * Shared scroll progress (0 = first item, 1 = last item).
+   * Shared scroll progress (0 = first item, 1 = last item). Optional.
    */
-  scrollProgress: SharedValue<number>;
+  scrollProgress?: SharedValue<number>;
 
   /**
    * Parallax multiplier (0–100). Higher values create more movement.
@@ -50,7 +50,7 @@ type ParallaxLayerProps = {
 /**
  * Applies scroll-driven translateX to its children.
  *
- * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item)
+ * @param scrollProgress - Shared scroll progress (0 = first item, 1 = last item). Optional.
  * @param parallaxMultiplier - Parallax multiplier (0-100), higher values create more movement
  * @param maxParallaxPx - Maximum parallax movement in pixels
  * @param style - Additional style(s) for the layer container
@@ -64,8 +64,11 @@ export const ParallaxLayer = ({
   style,
   children,
 }: ParallaxLayerProps) => {
+  const defaultScrollProgress = useSharedValue(0);
+  const progress = scrollProgress ?? defaultScrollProgress;
+
   const parallaxStyle = useParallaxScroll({
-    scrollProgress,
+    scrollProgress: progress,
     parallaxMultiplier,
     maxParallaxPx,
   });
