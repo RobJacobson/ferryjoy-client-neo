@@ -6,6 +6,7 @@
 // ============================================================================
 
 export { createGrassLayerSpecs } from "./grassLayerSpecs";
+export { indexToT, lerpRange } from "./helpers";
 export type {
   GrassLayerConfig,
   LayerConfig,

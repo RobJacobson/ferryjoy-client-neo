@@ -5,19 +5,8 @@
 // properties based on layer index. Handles phase offsets and oscillation.
 // ============================================================================
 
-import { lerp } from "@/shared/utils";
+import { indexToT, lerpRange } from "./helpers";
 import type { OceanLayerConfig, WaveRenderSpec } from "./layerConfig";
-
-/**
- * Normalizes an index to a 0-1 range based on count of items.
- * Handles edge case where count is 1 by returning 0.
- *
- * @param index - Current index in the sequence
- * @param count - Total number of items
- * @returns Normalized value between 0 and 1
- */
-const indexToT = (index: number, count: number): number =>
-  count > 1 ? index / (count - 1) : 0;
 
 /**
  * Generates wave render specifications for ocean layers.
@@ -31,45 +20,24 @@ export const createOceanLayerSpecs = (
 ): readonly WaveRenderSpec[] => {
   return Array.from({ length: config.count }, (_, index) => {
     const t = indexToT(index, config.count);
-    const parallaxMultiplier = lerp(
-      t,
-      config.parallaxRange.min,
-      config.parallaxRange.max
-    );
+    const parallaxMultiplier = lerpRange(t, config.parallaxRange);
 
     return {
       key: `${config.prefix}${index}`,
       zIndex: config.baseZIndex + index,
       parallaxMultiplier,
       svgProps: {
-        amplitude: lerp(
-          t,
-          config.interpolateProps.amplitude.min,
-          config.interpolateProps.amplitude.max
-        ),
-        period: lerp(
-          t,
-          config.interpolateProps.period.min,
-          config.interpolateProps.period.max
-        ),
+        amplitude: lerpRange(t, config.interpolateProps.amplitude),
+        period: lerpRange(t, config.interpolateProps.period),
         fillColor: config.colorFn(
-          lerp(
-            t,
-            config.interpolateProps.lightness.min,
-            config.interpolateProps.lightness.max
-          )
+          lerpRange(t, config.interpolateProps.lightness)
         ),
-        height: lerp(
-          t,
-          config.interpolateProps.height.min,
-          config.interpolateProps.height.max
-        ),
+        height: lerpRange(t, config.interpolateProps.height),
       },
       oscillationProps: {
-        animationDuration: lerp(
+        animationDuration: lerpRange(
           t,
-          config.interpolateProps.animationDuration.min,
-          config.interpolateProps.animationDuration.max
+          config.interpolateProps.animationDuration
         ),
         maxXShiftPx: config.maxXShiftPx,
         phaseOffset: config.phaseOffsets[index],
