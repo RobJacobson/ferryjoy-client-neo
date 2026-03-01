@@ -9,7 +9,7 @@ import { useWindowDimensions, View } from "react-native";
 import { PARALLAX_WAVES_MAX } from "../config";
 import type { PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
-import { LAYER_SPECS } from "./layerSpecs";
+import { LAYER_SPECS } from "./layers";
 import type { WaveLayerLayout } from "./WaveLayer";
 import { WaveLayer } from "./WaveLayer";
 
@@ -24,7 +24,7 @@ type AnimatedWavesProps = {
 /**
  * Re-export WaveRenderSpec for consumers of this module.
  */
-export type { WaveRenderSpec } from "./layerSpecs";
+export type { WaveRenderSpec } from "./layers/layerConfig";
 
 // ============================================================================
 // AnimatedWaves
