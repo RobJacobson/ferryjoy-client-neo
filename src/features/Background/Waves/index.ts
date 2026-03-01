@@ -1,3 +1,1 @@
-import AnimatedWaves from "./AnimatedWaves";
-
-export default AnimatedWaves;
+export { default as AnimatedWaves } from "./AnimatedWaves";

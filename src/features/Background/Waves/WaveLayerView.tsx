@@ -19,107 +19,48 @@ import { WaveSvg } from "./WaveSvg";
 // ============================================================================
 
 /**
- * Pixel sizing for a wave layer container.
+ * Props for wave content configuration (amplitude, period, fill, etc.).
  */
-type WaveLayerContainerSize = {
-  /**
-   * Width of the layer container in pixels (the parallax-provisioned width).
-   */
-  containerWidthPx: number;
-
-  /**
-   * Height of the layer container in pixels.
-   */
-  containerHeightPx: number;
+export type WaveLayerContentProps = {
+  /** Wave amplitude in pixels (height from center to peak/trough) */
+  amplitude: number;
+  /** Wave period in pixels (width of one complete cycle) */
+  period: number;
+  /** Animation duration in milliseconds (enables oscillation if > 0) */
+  animationDuration?: number;
+  /** Delay before animation starts in milliseconds */
+  animationDelay?: number;
+  /** Static horizontal offset for the wave rail in pixels */
+  xOffsetPx?: number;
+  /** Maximum expected horizontal shift magnitude in pixels */
+  maxXShiftPx?: number;
+  /** Phase offset for the wave oscillation in radians */
+  phaseOffset?: number;
+  /** Opacity of the wave fill (0-1) */
+  fillOpacity?: number;
+  /** Color of the wave fill */
+  fillColor: string;
+  /** Vertical position of wave centerline as percentage (0-100) */
+  height?: number;
+  /** Paper texture source (null for no texture) */
+  paperTextureUrl?: PaperTextureSource;
 };
 
 /**
  * Props for rendering a wave layer.
  */
-type WaveLayerContentProps = {
-  /**
-   * Wave amplitude in pixels (height from center to peak/trough).
-   */
-  amplitude: number;
-
-  /**
-   * Wave period in pixels (width of one complete cycle).
-   */
-  period: number;
-
-  /**
-   * Animation duration in milliseconds.
-   * When provided (and maxXShiftPx > 0), oscillation is enabled.
-   */
-  animationDuration?: number;
-
-  /**
-   * Delay before animation starts in milliseconds.
-   */
-  animationDelay?: number;
-
-  /**
-   * Static horizontal offset for the wave rail in pixels.
-   * Used to de-sync static layers (e.g., grass) so they don't align perfectly.
-   */
-  xOffsetPx?: number;
-
-  /**
-   * Maximum expected horizontal shift magnitude in pixels.
-   * This is used only for rail overscan sizing (to keep SVG edges offscreen).
-   * It should be a stable per-group maximum (e.g., ocean oscillation distance,
-   * or max |xOffsetPx| across all grass layers), not computed per-layer.
-   *
-   * When animationDuration is provided, this also becomes the oscillation
-   * distance (translateX runs between -maxXShiftPx and +maxXShiftPx).
-   */
-  maxXShiftPx?: number;
-
-  /**
-   * Phase offset for the wave oscillation in radians.
-   */
-  phaseOffset?: number;
-
-  /**
-   * Opacity of the wave fill (0-1).
-   */
-  fillOpacity?: number;
-
-  /**
-   * Color of the wave fill.
-   */
-  fillColor: string;
-
-  /**
-   * Vertical position of the wave centerline as a percentage (0-100).
-   * 0 = bottom, 50 = middle, 100 = top.
-   */
-  height?: number;
-
-  /**
-   * Paper texture source. When null, SVG does not render the texture overlay.
-   */
-  paperTextureUrl?: PaperTextureSource;
+export type WaveLayerViewProps = {
+  /** Complete wave content configuration */
+  waveProps: WaveLayerContentProps;
+  /** Width of the layer container in pixels */
+  containerWidthPx: number;
+  /** Height of the layer container in pixels */
+  containerHeightPx: number;
 };
-
-/**
- * Full props for WaveLayerView, including container sizing.
- */
-export type WaveLayerViewProps = WaveLayerContentProps & WaveLayerContainerSize;
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-/** Style to fill parent container absolutely with visible overflow */
-const ABSOLUTE_FILL: ViewStyle = {
-  position: "absolute",
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  overflow: "visible",
-};
 
 /** Additional margin beyond max shift to ensure SVG seams never appear */
 const SEAM_MARGIN_PX = 16;
@@ -133,51 +74,35 @@ const SEAM_MARGIN_PX = 16;
  * it horizontally. Overscan is done with layout (left + width) to guarantee
  * SVG edges never enter the visible viewport.
  *
+ * @param waveProps - Complete wave content configuration
  * @param containerWidthPx - Width of the layer container in pixels
  * @param containerHeightPx - Height of the layer container in pixels
- * @param amplitude - Wave amplitude in pixels (height from center to peak/trough)
- * @param period - Wave period in pixels (width of one complete cycle)
- * @param animationDuration - Animation duration in milliseconds (optional)
- * @param animationDelay - Delay before animation starts in milliseconds (optional)
- * @param xOffsetPx - Static horizontal offset for the wave rail in pixels (optional)
- * @param maxXShiftPx - Maximum expected horizontal shift magnitude in pixels (optional)
- * @param phaseOffset - Phase offset for the wave oscillation in radians (optional)
- * @param fillOpacity - Opacity of the wave fill (optional)
- * @param fillColor - Color of the wave fill
- * @param height - Vertical position of the wave centerline as percentage 0-100 (optional)
- * @param paperTextureUrl - Paper texture source (optional)
+ * @returns Wave layer with optional oscillation
  */
 export const WaveLayerView = ({
+  waveProps,
   containerWidthPx,
   containerHeightPx,
-  amplitude,
-  period,
-  animationDuration,
-  animationDelay,
-  xOffsetPx,
-  maxXShiftPx,
-  phaseOffset,
-  fillOpacity,
-  fillColor,
-  height,
-  paperTextureUrl,
 }: WaveLayerViewProps) => {
-  const offsetPx = xOffsetPx ?? 0;
-  const xShiftPx = Math.max(0, maxXShiftPx ?? 0);
-  const shouldOscillate = (animationDuration ?? 0) > 0 && xShiftPx > 0;
+  const offsetPx = waveProps.xOffsetPx ?? 0;
+  const xShiftPx = Math.max(0, waveProps.maxXShiftPx ?? 0);
+  const shouldOscillate =
+    (waveProps.animationDuration ?? 0) > 0 && xShiftPx > 0;
   const overscanPx = xShiftPx + SEAM_MARGIN_PX;
   const railWidthPx = containerWidthPx + 2 * overscanPx;
 
   const { animatedOscillationStyle } = useWaveOscillation({
-    animationDuration: shouldOscillate ? animationDuration : undefined,
-    animationDelay: animationDelay ?? 0,
+    animationDuration: shouldOscillate
+      ? waveProps.animationDuration
+      : undefined,
+    animationDelay: waveProps.animationDelay ?? 0,
     maxXShiftPx: xShiftPx,
-    phaseOffset: phaseOffset ?? 0,
+    phaseOffset: waveProps.phaseOffset ?? 0,
   });
 
   return (
-    <View style={ABSOLUTE_FILL}>
-      <View style={ABSOLUTE_FILL}>
+    <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
+      <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
         <Animated.View
           style={
             [
@@ -193,12 +118,12 @@ export const WaveLayerView = ({
           }
         >
           <WaveSvg
-            amplitude={amplitude}
-            period={period}
-            fillColor={fillColor}
-            fillOpacity={fillOpacity}
-            height={height}
-            paperTextureUrl={paperTextureUrl}
+            amplitude={waveProps.amplitude}
+            period={waveProps.period}
+            fillColor={waveProps.fillColor}
+            fillOpacity={waveProps.fillOpacity}
+            height={waveProps.height}
+            paperTextureUrl={waveProps.paperTextureUrl}
             renderWidthPx={railWidthPx}
             renderHeightPx={containerHeightPx}
           />

@@ -55,9 +55,7 @@ export const ParallaxProvider = ({
 export const useParallaxContext = (): SharedValue<number> => {
   const context = useContext(ParallaxContext);
   if (!context) {
-    throw new Error(
-      "useParallaxContext must be used within ParallaxProvider"
-    );
+    throw new Error("useParallaxContext must be used within ParallaxProvider");
   }
   return context;
 };

@@ -7,9 +7,7 @@
 
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useParallaxContext } from "./ParallaxContext";
 
 // ============================================================================
@@ -22,6 +20,9 @@ type ParallaxLayerProps = {
    * goes from 0 to 1. Higher = faster parallax.
    */
   parallaxDistance: number;
+
+  /** NativeWind className for styling */
+  className?: string;
 
   /** Additional style(s) for the layer container. */
   style?: StyleProp<ViewStyle>;
@@ -44,12 +45,14 @@ type ParallaxLayerProps = {
  * - Layer must extend right to cover: screenWidth + parallaxDistance
  *
  * @param parallaxDistance - How far layer translates when progress = 1 (px)
+ * @param className - NativeWind className for styling
  * @param style - Additional style(s) for the layer container
  * @param children - Child content to be translated
  * @returns Parallax-translated Animated.View wrapper
  */
 export const ParallaxLayer = ({
   parallaxDistance,
+  className,
   style,
   children,
 }: ParallaxLayerProps) => {
@@ -63,6 +66,8 @@ export const ParallaxLayer = ({
   );
 
   return (
-    <Animated.View style={[parallaxStyle, style]}>{children}</Animated.View>
+    <Animated.View className={className} style={[parallaxStyle, style]}>
+      {children}
+    </Animated.View>
   );
 };

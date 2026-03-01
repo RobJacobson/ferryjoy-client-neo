@@ -122,9 +122,7 @@ export const useBackgroundLayout = ({
     maxParallaxPx
   );
 
-  const computeParallaxDistanceForMultiplier = (
-    multiplier: number
-  ): number =>
+  const computeParallaxDistanceForMultiplier = (multiplier: number): number =>
     computeParallaxDistance(TOTAL_CAROUSEL_ITEMS, multiplier, maxParallaxPx);
 
   const computeLayerContainerWidthForMultiplier = (

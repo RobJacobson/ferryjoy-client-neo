@@ -14,7 +14,6 @@ import {
   PARALLAX_OCEAN,
   PARALLAX_WAVES_MAX,
 } from "../config";
-import { ParallaxLayer } from "../ParallaxLayer";
 import type { PaperTextureSource } from "../types";
 import { useBackgroundLayout } from "../useBackgroundLayout";
 import {
@@ -24,7 +23,8 @@ import {
   OCEAN_WAVES,
   oceanColor,
 } from "./config";
-import { WaveLayerView, type WaveLayerViewProps } from "./WaveLayerView";
+import { WaveLayer } from "./WaveLayer";
+import type { WaveLayerContentProps } from "./WaveLayerView";
 
 type AnimatedWavesProps = {
   /**
@@ -52,16 +52,11 @@ const OCEAN_PHASE_OFFSETS = Array.from(
  */
 const FOREGROUND_LAYERS_REVERSED = [...FOREGROUND_LAYERS].reverse();
 
-type WaveLayerBaseProps = Omit<
-  WaveLayerViewProps,
-  "containerWidthPx" | "containerHeightPx" | "paperTextureUrl"
->;
-
 /**
  * Precomputed render specification for a single wave layer.
  * Contains all data needed to render a wave with parallax and oscillation.
  */
-type WaveRenderSpec = {
+export type WaveRenderSpec = {
   /** Unique React key for this wave layer */
   key: string;
   /** Z-index for layer ordering (lower = farther, higher = closer) */
@@ -71,7 +66,7 @@ type WaveRenderSpec = {
   /** Optional additional styles for the layer wrapper view */
   wrapperStyle?: StyleProp<ViewStyle>;
   /** Props for the WaveLayerView component */
-  waveProps: WaveLayerBaseProps;
+  waveProps: WaveLayerContentProps;
 };
 
 // ============================================================================
@@ -93,63 +88,23 @@ type WaveRenderSpec = {
  */
 const AnimatedWaves = ({ paperTextureUrl }: AnimatedWavesProps) => {
   const { height: containerHeightPx } = useWindowDimensions();
-  const {
-    computeParallaxDistance,
-    computeLayerContainerWidth,
-  } = useBackgroundLayout({
-    parallaxMultiplier: PARALLAX_WAVES_MAX,
-  });
-
-  /**
-   * Renders a single wave layer with parallax.
-   * Wraps wave content in ParallaxLayer for scroll-driven translation.
-   *
-   * @param spec - Render specification including key, zIndex, parallax settings, and wave props
-   * @returns Animated.View with parallax and wave layer content
-   */
-  const renderWaveLayer = (spec: WaveRenderSpec) => {
-    const layerWidth = computeLayerContainerWidth(spec.parallaxMultiplier);
-    const parallaxDistance = computeParallaxDistance(spec.parallaxMultiplier);
-
-    return (
-      <ParallaxLayer
-        key={spec.key}
-        parallaxDistance={parallaxDistance}
-        style={[
-          {
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: layerWidth,
-            zIndex: spec.zIndex,
-            overflow: "visible",
-          },
-          spec.wrapperStyle,
-        ]}
-      >
-        <WaveLayerView
-          {...spec.waveProps}
-          paperTextureUrl={paperTextureUrl}
-          containerWidthPx={layerWidth}
-          containerHeightPx={containerHeightPx}
-        />
-      </ParallaxLayer>
-    );
-  };
+  const { computeParallaxDistance, computeLayerContainerWidth } =
+    useBackgroundLayout({
+      parallaxMultiplier: PARALLAX_WAVES_MAX,
+    });
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0,
-        overflow: "visible",
-      }}
-    >
-      {LAYER_SPECS.map(renderWaveLayer)}
+    <View className="absolute top-0 right-0 bottom-0 left-0 overflow-visible">
+      {LAYER_SPECS.map((spec) => (
+        <WaveLayer
+          key={spec.key}
+          spec={spec}
+          containerHeightPx={containerHeightPx}
+          paperTextureUrl={paperTextureUrl}
+          computeParallaxDistance={computeParallaxDistance}
+          computeLayerContainerWidth={computeLayerContainerWidth}
+        />
+      ))}
     </View>
   );
 };
