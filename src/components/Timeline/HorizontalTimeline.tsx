@@ -3,11 +3,14 @@
  * It reuses the same row model and pivots layout to columns.
  */
 
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
-import type { TimelineRow, TimelineTheme } from "./TimelineTypes";
 import { TimelineTrack } from "./TimelineTrack";
-import { getDurationMinutes, getValidatedPercentComplete } from "./timelineMath";
+import type { TimelineRow, TimelineTheme } from "./TimelineTypes";
+import {
+  getDurationMinutes,
+  getValidatedPercentComplete,
+} from "./timelineMath";
 
 type HorizontalTimelineProps = TimelineTheme & {
   rows: TimelineRow[];
@@ -49,6 +52,7 @@ export const HorizontalTimeline = ({
 }: HorizontalTimelineProps) => (
   <View className={cn("w-full flex-row items-stretch", className)}>
     {rows.map((row) => {
+      const isLastColumn = rows[rows.length - 1]?.id === row.id;
       const durationMinutes = getDurationMinutes(row);
       const percentComplete = getValidatedPercentComplete(row);
 
@@ -56,23 +60,15 @@ export const HorizontalTimeline = ({
         <View
           key={row.id}
           className={cn("flex-col items-stretch", columnClassName)}
-          style={{
-            flexGrow: durationMinutes,
-            flexBasis: 0,
-            minWidth: minSegmentPx,
-          }}
+          style={getHorizontalColumnStyle(durationMinutes, minSegmentPx)}
         >
           <View className="flex-1 justify-end">{row.leftContent}</View>
 
-          <View
-            className="relative"
-            style={{
-              height: centerAxisSizePx,
-            }}
-          >
+          <View className="relative" style={getAxisStyle(centerAxisSizePx)}>
             <TimelineTrack
               orientation="horizontal"
               percentComplete={percentComplete}
+              showTrack={!isLastColumn}
               trackThicknessPx={trackThicknessPx}
               markerSizePx={markerSizePx}
               indicatorSizePx={indicatorSizePx}
@@ -91,3 +87,29 @@ export const HorizontalTimeline = ({
     })}
   </View>
 );
+
+/**
+ * Builds style for a horizontal timeline column segment.
+ *
+ * @param durationMinutes - Segment flex-grow value derived from row duration
+ * @param minSegmentPx - Minimum column width in pixels
+ * @returns View style for a horizontal timeline column
+ */
+const getHorizontalColumnStyle = (
+  durationMinutes: number,
+  minSegmentPx: number
+): ViewStyle => ({
+  flexGrow: durationMinutes,
+  flexBasis: 0,
+  minWidth: minSegmentPx,
+});
+
+/**
+ * Builds style for the center axis container.
+ *
+ * @param centerAxisSizePx - Height of the axis row in pixels
+ * @returns View style for axis container
+ */
+const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
+  height: centerAxisSizePx,
+});

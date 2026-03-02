@@ -52,6 +52,5 @@ export const getDurationMinutes = (row: TimelineRow): number => {
  * @param percentComplete - Completion value in range [0, 1]
  * @returns True when row is in progress
  */
-export const shouldShowMovingIndicator = (
-  percentComplete: number
-): boolean => percentComplete > 0 && percentComplete < 1;
+export const shouldShowMovingIndicator = (percentComplete: number): boolean =>
+  percentComplete > 0 && percentComplete < 1;

@@ -1,9 +1,9 @@
 /**
- * Chat tab currently hosts the timeline prototype for iteration.
+ * Chat tab hosts the new vessel trip timeline experience.
  */
 
-import { TimelinePrototypeScreen } from "@/features/TimelinePrototype";
+import { VesselTripTimelineScreen } from "@/features/VesselTripTimeline";
 
-const ChatScreen = () => <TimelinePrototypeScreen />;
+const ChatScreen = () => <VesselTripTimelineScreen />;
 
 export default ChatScreen;

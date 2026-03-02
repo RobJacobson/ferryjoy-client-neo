@@ -3,11 +3,14 @@
  * Parent components control row data, progress, and card content.
  */
 
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
-import type { TimelineRow, TimelineTheme } from "./TimelineTypes";
 import { TimelineTrack } from "./TimelineTrack";
-import { getDurationMinutes, getValidatedPercentComplete } from "./timelineMath";
+import type { TimelineRow, TimelineTheme } from "./TimelineTypes";
+import {
+  getDurationMinutes,
+  getValidatedPercentComplete,
+} from "./timelineMath";
 
 type VerticalTimelineProps = TimelineTheme & {
   rows: TimelineRow[];
@@ -48,6 +51,7 @@ export const VerticalTimeline = ({
 }: VerticalTimelineProps) => (
   <View className={cn("w-full flex-col", className)}>
     {rows.map((row) => {
+      const isLastRow = rows[rows.length - 1]?.id === row.id;
       const durationMinutes = getDurationMinutes(row);
       const percentComplete = getValidatedPercentComplete(row);
 
@@ -55,23 +59,15 @@ export const VerticalTimeline = ({
         <View
           key={row.id}
           className={cn("w-full flex-row items-stretch", rowClassName)}
-          style={{
-            flexGrow: durationMinutes,
-            flexBasis: 0,
-            minHeight: minSegmentPx,
-          }}
+          style={getVerticalRowStyle(durationMinutes, minSegmentPx)}
         >
           <View className="flex-1 justify-start">{row.leftContent}</View>
 
-          <View
-            className="relative self-stretch"
-            style={{
-              width: centerAxisSizePx,
-            }}
-          >
+          <View className="relative self-stretch" style={getAxisStyle(centerAxisSizePx)}>
             <TimelineTrack
               orientation="vertical"
               percentComplete={percentComplete}
+              showTrack={!isLastRow}
               trackThicknessPx={trackThicknessPx}
               markerSizePx={markerSizePx}
               indicatorSizePx={indicatorSizePx}
@@ -90,3 +86,29 @@ export const VerticalTimeline = ({
     })}
   </View>
 );
+
+/**
+ * Builds style for a vertical timeline row segment.
+ *
+ * @param durationMinutes - Segment flex-grow value derived from row duration
+ * @param minSegmentPx - Minimum row height in pixels
+ * @returns View style for a vertical timeline row
+ */
+const getVerticalRowStyle = (
+  durationMinutes: number,
+  minSegmentPx: number
+): ViewStyle => ({
+  flexGrow: durationMinutes,
+  flexBasis: 0,
+  minHeight: minSegmentPx,
+});
+
+/**
+ * Builds style for the center axis container.
+ *
+ * @param centerAxisSizePx - Width of the axis column in pixels
+ * @returns View style for axis container
+ */
+const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
+  width: centerAxisSizePx,
+});
