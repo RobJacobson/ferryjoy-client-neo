@@ -1,12 +1,9 @@
-import { View } from "react-native";
-import { AnimatedListDemo } from "@/features/AnimatedList";
+/**
+ * Chat tab currently hosts the timeline prototype for iteration.
+ */
 
-const ChatScreen = () => {
-  return (
-    <View className="flex-1 bg-black">
-      <AnimatedListDemo />
-    </View>
-  );
-};
+import { TimelinePrototypeScreen } from "@/features/TimelinePrototype";
+
+const ChatScreen = () => <TimelinePrototypeScreen />;
 
 export default ChatScreen;
