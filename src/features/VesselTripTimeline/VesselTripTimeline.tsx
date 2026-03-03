@@ -2,7 +2,6 @@
  * Card-level vessel trip timeline presentation using timeline primitives.
  */
 
-import { VerticalTimeline } from "@/components/Timeline";
 import { Text, View } from "@/components/ui";
 import {
   Card,
@@ -10,7 +9,8 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { buildTimelineRowsFromTrip } from "./adapters/buildTimelineRowsFromTrip";
+import { buildTimelineModelFromTrip } from "./adapters/buildTimelineModelFromTrip";
+import { VesselTripTimelineOverlay } from "./components/VesselTripTimelineOverlay";
 import type { VesselTripTimelineItem } from "./types";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
@@ -26,7 +26,10 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
-  const rows = buildTimelineRowsFromTrip({ trip, vesselLocation });
+  const rows = buildTimelineModelFromTrip({
+    trip,
+    vesselLocation,
+  });
 
   return (
     <Card className="gap-4 py-4">
@@ -48,8 +51,9 @@ export const VesselTripTimeline = ({
         </View>
       </CardHeader>
       <CardContent className="px-4">
-        <VerticalTimeline
-          rows={rows}
+        <VesselTripTimelineOverlay
+          presentationRows={rows}
+          item={{ trip, vesselLocation }}
           minSegmentPx={80}
           centerAxisSizePx={52}
           trackThicknessPx={8}

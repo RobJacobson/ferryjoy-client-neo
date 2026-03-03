@@ -1,13 +1,13 @@
 /**
- * Adapter that maps vessel trip domain data into Timeline primitive rows.
+ * Builds a pure timeline data model from vessel trip domain data.
+ * This module intentionally contains no JSX so timeline business logic can be
+ * read/tested independently from rendering concerns.
  */
 
-import type { TimelineRow } from "@/components/Timeline";
-import { Text } from "@/components/ui";
-import { ArriveEventCard } from "../components/events/ArriveEventCard";
-import { DepartEventCard } from "../components/events/DepartEventCard";
-import { InTransitEventCard } from "../components/events/InTransitEventCard";
-import type { VesselTripTimelineItem } from "../types";
+import type {
+  VesselTripTimelineItem,
+  VesselTripTimelineRowModel,
+} from "../types";
 
 const MIN_SEGMENT_MINUTES = 1;
 const DEFAULT_DOCK_MINUTES = 12;
@@ -15,17 +15,17 @@ const DEFAULT_AT_SEA_MINUTES = 45;
 const DEFAULT_ARRIVAL_MINUTES = 10;
 
 /**
- * Builds timeline rows for a single vessel trip card.
+ * Builds a timeline data model for a single vessel trip card.
  *
  * @param item - Vessel trip and location pair
  * @param now - Current time used for progress calculations
- * @returns Timeline rows for departure, in-transit, and arrival
+ * @returns Pure timeline model rows for timeline rendering
  */
-export const buildTimelineRowsFromTrip = (
+export const buildTimelineModelFromTrip = (
   item: VesselTripTimelineItem,
   now: Date = new Date()
-): TimelineRow[] => {
-  const { trip, vesselLocation } = item;
+): VesselTripTimelineRowModel[] => {
+  const { trip } = item;
   const times = buildSegmentTimes(item, now);
   const atSeaPercent = getAtSeaPercent(
     times.departedAt,
@@ -33,60 +33,44 @@ export const buildTimelineRowsFromTrip = (
     trip,
     now
   );
-  const inTransitSubtitle = buildInTransitSubtitle(item);
-  const indicatorText = getRemainingMinutesLabel(times.arriveEta, trip, now);
+  const departureLabel = getMinutesUntilLabel(times.departedAt, now);
+  const inTransitLabel = getMinutesUntilLabel(times.arriveEta, now);
+  const arrivalLabel = "--";
 
-  // Build three timeline segments: departure prep, at-sea transit, and arrival docking
+  // Build three segment models:
+  // 1) pre-departure at dock
+  // 2) in-transit at sea
+  // 3) arrival/docking
+  // UI component selection/layout is attached later in render-layer mapping.
 
-  return [
+  const rows: VesselTripTimelineRowModel[] = [
     {
       id: `${trip.VesselAbbrev}-depart`,
       startTime: times.departWindowStart,
       endTime: times.departedAt,
       percentComplete: trip.LeftDock ? 1 : 0,
-      rightContent: (
-        <DepartEventCard
-          title={`Depart ${vesselLocation.DepartingTerminalAbbrev}`}
-          subtitle={trip.LeftDock ? "Departed" : "Preparing to depart"}
-        />
-      ),
+      phase: "departure",
+      indicatorLabel: departureLabel,
     },
     {
       id: `${trip.VesselAbbrev}-at-sea`,
       startTime: times.departedAt,
       endTime: times.arriveEta,
       percentComplete: atSeaPercent,
-      leftContent: (
-        <InTransitEventCard
-          vesselName={vesselLocation.VesselName}
-          subtitle={inTransitSubtitle}
-        />
-      ),
-      rightContent: (
-        <ArriveEventCard
-          title={`Arrive ${vesselLocation.ArrivingTerminalAbbrev ?? "Terminal"}`}
-          subtitle={`ETA ${formatTime(times.arriveEta)}`}
-        />
-      ),
-      indicatorContent: indicatorText ? (
-        <Text className="font-bold text-green-700 text-xs">
-          {indicatorText}
-        </Text>
-      ) : undefined,
+      phase: "transit",
+      indicatorLabel: inTransitLabel,
     },
     {
       id: `${trip.VesselAbbrev}-arrive`,
       startTime: times.arriveEta,
       endTime: times.tripEnd,
       percentComplete: trip.TripEnd ? 1 : 0,
-      rightContent: (
-        <ArriveEventCard
-          title={`Dock ${vesselLocation.ArrivingTerminalAbbrev ?? "Terminal"}`}
-          subtitle={trip.TripEnd ? "Arrived" : "Awaiting arrival"}
-        />
-      ),
+      phase: "arrival",
+      indicatorLabel: arrivalLabel,
     },
   ];
+
+  return rows;
 };
 
 type SegmentTimes = {
@@ -145,24 +129,6 @@ const buildSegmentTimes = (
 };
 
 /**
- * Builds compact subtitle text for in-transit details.
- *
- * @param item - Vessel trip and location pair
- * @returns Compact in-transit subtitle
- */
-const buildInTransitSubtitle = (item: VesselTripTimelineItem): string => {
-  const { vesselLocation } = item;
-  const speedText = `${Math.round(vesselLocation.Speed)} kn`;
-
-  if (typeof vesselLocation.ArrivingDistance === "number") {
-    const miles = vesselLocation.ArrivingDistance.toFixed(1);
-    return `${speedText} · ${miles} mi to destination`;
-  }
-
-  return `${speedText} · In transit`;
-};
-
-/**
  * Calculates the completion ratio for the at-sea segment.
  *
  * @param departedAt - Segment start timestamp
@@ -188,22 +154,15 @@ const getAtSeaPercent = (
 };
 
 /**
- * Produces a short remaining-minutes label for the moving indicator.
+ * Produces a short minutes-until label for indicator content.
  *
- * @param arriveEta - ETA used as countdown target
- * @param trip - Vessel trip data
+ * @param targetTime - Target timestamp
  * @param now - Current time
- * @returns Remaining minutes label, or undefined when inapplicable
+ * @returns Remaining minutes label
  */
-const getRemainingMinutesLabel = (
-  arriveEta: Date,
-  trip: VesselTripTimelineItem["trip"],
-  now: Date
-): string | undefined => {
-  if (trip.TripEnd || !trip.LeftDock) return undefined;
-
+const getMinutesUntilLabel = (targetTime: Date, now: Date): string => {
   // Calculate remaining minutes with ceiling for display
-  const remainingMs = arriveEta.getTime() - now.getTime();
+  const remainingMs = targetTime.getTime() - now.getTime();
   const remainingMinutes = Math.max(0, Math.ceil(remainingMs / 60000));
   return `${remainingMinutes}m`;
 };
@@ -243,14 +202,3 @@ const addMinutes = (value: Date, minutes: number): Date =>
  */
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
-/**
- * Formats a timestamp as a local short time string.
- *
- * @param value - Date to format
- * @returns Short local time string
- */
-const formatTime = (value: Date): string =>
-  value.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });

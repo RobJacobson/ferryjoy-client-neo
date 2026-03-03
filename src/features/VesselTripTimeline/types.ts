@@ -12,3 +12,14 @@ export type VesselTripTimelineItem = {
   trip: VesselTripWithScheduledTrip;
   vesselLocation: VesselLocation;
 };
+
+export type VesselTripTimelinePhase = "departure" | "transit" | "arrival";
+
+export type VesselTripTimelineRowModel = {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  percentComplete: number;
+  phase: VesselTripTimelinePhase;
+  indicatorLabel: string;
+};

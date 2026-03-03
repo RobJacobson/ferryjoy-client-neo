@@ -3,7 +3,7 @@
  * Parent components control row data, progress, and card content.
  */
 
-import { View, type ViewStyle } from "react-native";
+import { type LayoutChangeEvent, View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
 import { TimelineTrack } from "./TimelineTrack";
 import type { TimelineRow, TimelineTheme } from "./TimelineTypes";
@@ -12,10 +12,19 @@ import {
   getValidatedPercentComplete,
 } from "./timelineMath";
 
+type TimelineRowBounds = {
+  y: number;
+  height: number;
+};
+
 type VerticalTimelineProps = TimelineTheme & {
   rows: TimelineRow[];
   className?: string;
   rowClassName?: string;
+  // Used by feature wrappers that render one global overlay indicator.
+  hideRowIndicators?: boolean;
+  // Parent receives absolute row bounds to position external overlays.
+  onRowLayout?: (rowId: string, bounds: TimelineRowBounds) => void;
 };
 
 /**
@@ -33,6 +42,8 @@ type VerticalTimelineProps = TimelineTheme & {
  * @param upcomingTrackClassName - Upcoming portion classes
  * @param markerClassName - Marker classes
  * @param indicatorClassName - Moving indicator classes
+ * @param hideRowIndicators - Hides per-row moving indicators when true
+ * @param onRowLayout - Optional callback for row container measurements
  * @returns Vertical timeline view
  */
 export const VerticalTimeline = ({
@@ -48,6 +59,8 @@ export const VerticalTimeline = ({
   upcomingTrackClassName = "bg-green-100",
   markerClassName = "border-2 border-green-500 bg-white",
   indicatorClassName = "border-2 border-green-500 bg-green-100",
+  hideRowIndicators = false,
+  onRowLayout,
 }: VerticalTimelineProps) => (
   <View className={cn("w-full flex-col", className)}>
     {rows.map((row) => {
@@ -61,6 +74,7 @@ export const VerticalTimeline = ({
           key={row.id}
           className={cn("w-full flex-row items-stretch", rowClassName)}
           style={getVerticalRowStyle(durationMinutes, minSegmentPx)}
+          onLayout={getRowLayoutHandler(row.id, onRowLayout)}
         >
           <View className="flex-1 justify-start">{row.leftContent}</View>
 
@@ -72,6 +86,7 @@ export const VerticalTimeline = ({
               orientation="vertical"
               percentComplete={percentComplete}
               showTrack={!isLastRow}
+              showIndicator={!hideRowIndicators}
               trackThicknessPx={trackThicknessPx}
               markerSizePx={markerSizePx}
               indicatorSizePx={indicatorSizePx}
@@ -116,3 +131,23 @@ const getVerticalRowStyle = (
 const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
   width: centerAxisSizePx,
 });
+
+/**
+ * Builds optional row layout handler for parent measurement.
+ *
+ * @param rowId - Timeline row identifier
+ * @param onRowLayout - Optional row layout callback
+ * @returns React Native layout handler or undefined
+ */
+const getRowLayoutHandler = (
+  rowId: string,
+  onRowLayout: VerticalTimelineProps["onRowLayout"]
+) =>
+  onRowLayout
+    ? (event: LayoutChangeEvent) => {
+        // y is relative to VerticalTimeline container, which is exactly what
+        // overlay wrappers need for absolute positioning.
+        const { y, height } = event.nativeEvent.layout;
+        onRowLayout(rowId, { y, height });
+      }
+    : undefined;

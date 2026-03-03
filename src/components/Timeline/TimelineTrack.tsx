@@ -16,6 +16,7 @@ type TimelineTrackProps = {
   trackThicknessPx: number;
   markerSizePx: number;
   indicatorSizePx: number;
+  showIndicator?: boolean;
   completeTrackClassName: string;
   upcomingTrackClassName: string;
   markerClassName: string;
@@ -44,11 +45,12 @@ export const TimelineTrack = ({
   markerContent,
   indicatorContent,
   showTrack = true,
+  showIndicator = true,
 }: TimelineTrackProps) => {
   const isVertical = orientation === "vertical";
   // Show moving indicator only for active in-progress segments
   const movingIndicatorVisible =
-    showTrack && shouldShowMovingIndicator(percentComplete);
+    showTrack && showIndicator && shouldShowMovingIndicator(percentComplete);
   const completedPercent: PercentString = `${percentComplete * 100}%`;
   const remainingPercent: PercentString = `${(1 - percentComplete) * 100}%`;
 
