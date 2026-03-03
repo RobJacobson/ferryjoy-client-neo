@@ -46,6 +46,7 @@ export const TimelineTrack = ({
   showTrack = true,
 }: TimelineTrackProps) => {
   const isVertical = orientation === "vertical";
+  // Show moving indicator only for active in-progress segments
   const movingIndicatorVisible =
     showTrack && shouldShowMovingIndicator(percentComplete);
   const completedPercent: PercentString = `${percentComplete * 100}%`;
@@ -55,6 +56,7 @@ export const TimelineTrack = ({
     <View className="relative flex-1 items-center justify-center self-stretch">
       {showTrack && (
         <>
+          {/* Completed portion of the track */}
           <View
             className={cn("absolute rounded-full", completeTrackClassName, "")}
             style={getCompletedTrackStyle(
@@ -63,6 +65,7 @@ export const TimelineTrack = ({
               completedPercent
             )}
           />
+          {/* Upcoming/remaining portion of the track */}
           <View
             className={cn("absolute rounded-full", upcomingTrackClassName, "")}
             style={getUpcomingTrackStyle(
@@ -75,6 +78,7 @@ export const TimelineTrack = ({
         </>
       )}
 
+      {/* Static marker at segment start */}
       <View
         className={cn("absolute")}
         style={getMarkerStyle(isVertical, markerSizePx)}
@@ -84,6 +88,7 @@ export const TimelineTrack = ({
         </TimelineDot>
       </View>
 
+      {/* Moving indicator for in-progress segments */}
       {movingIndicatorVisible && (
         <View
           className={cn("absolute")}
@@ -117,10 +122,12 @@ const getCompletedTrackStyle = (
   trackThicknessPx: number,
   completedPercent: PercentString
 ): ViewStyle => ({
+  // Dimension varies by completion in primary axis direction
   width: isVertical ? trackThicknessPx : undefined,
   height: isVertical ? completedPercent : trackThicknessPx,
   left: isVertical ? "50%" : 0,
   top: isVertical ? 0 : "50%",
+  // Center track on axis with offset
   marginTop: isVertical ? undefined : -trackThicknessPx / 2,
   marginLeft: isVertical ? -trackThicknessPx / 2 : undefined,
 });
@@ -140,10 +147,13 @@ const getUpcomingTrackStyle = (
   completedPercent: PercentString,
   remainingPercent: PercentString
 ): ViewStyle => ({
+  // Dimension varies by remaining in primary axis direction
   width: isVertical ? trackThicknessPx : remainingPercent,
   height: isVertical ? remainingPercent : trackThicknessPx,
+  // Position starts where completed segment ends
   left: isVertical ? "50%" : completedPercent,
   top: isVertical ? completedPercent : "50%",
+  // Center track on axis with offset
   marginTop: isVertical ? undefined : -trackThicknessPx / 2,
   marginLeft: isVertical ? -trackThicknessPx / 2 : undefined,
 });

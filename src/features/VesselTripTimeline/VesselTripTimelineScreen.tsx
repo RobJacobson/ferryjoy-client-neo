@@ -29,6 +29,7 @@ export const VesselTripTimelineScreen = () => {
     vesselLocations
   );
 
+  // Filter to in-service trips only and aggregate loading/error states
   const inServiceItems = displayData.filter(({ trip }) => trip.InService);
   const isLoading = tripsLoading || locationsLoading;
   const error = tripsError || locationsError;

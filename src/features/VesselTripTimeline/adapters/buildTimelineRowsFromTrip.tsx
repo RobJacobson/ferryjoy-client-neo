@@ -36,6 +36,8 @@ export const buildTimelineRowsFromTrip = (
   const inTransitSubtitle = buildInTransitSubtitle(item);
   const indicatorText = getRemainingMinutesLabel(times.arriveEta, trip, now);
 
+  // Build three timeline segments: departure prep, at-sea transit, and arrival docking
+
   return [
     {
       id: `${trip.VesselAbbrev}-depart`,
@@ -106,6 +108,7 @@ const buildSegmentTimes = (
   now: Date
 ): SegmentTimes => {
   const { trip, vesselLocation } = item;
+  // Build raw segment times using cascading fallbacks for missing data
   const rawDepartWindowStart =
     trip.TripStart ??
     trip.ScheduledDeparture ??
@@ -122,6 +125,8 @@ const buildSegmentTimes = (
   const rawTripEnd =
     trip.TripEnd ??
     (trip.AtDock ? now : addMinutes(rawArriveEta, DEFAULT_ARRIVAL_MINUTES));
+
+  // Ensure monotonic ordering with minimum segment durations
 
   const departWindowStart = new Date(rawDepartWindowStart);
   const departedAt = ensureAfter(
@@ -175,6 +180,7 @@ const getAtSeaPercent = (
   if (!trip.LeftDock) return 0;
   if (trip.TripEnd) return 1;
 
+  // Calculate elapsed time ratio for in-transit progress
   const duration = arriveEta.getTime() - departedAt.getTime();
   if (duration <= 0) return 0;
   const elapsed = now.getTime() - departedAt.getTime();
@@ -196,6 +202,7 @@ const getRemainingMinutesLabel = (
 ): string | undefined => {
   if (trip.TripEnd || !trip.LeftDock) return undefined;
 
+  // Calculate remaining minutes with ceiling for display
   const remainingMs = arriveEta.getTime() - now.getTime();
   const remainingMinutes = Math.max(0, Math.ceil(remainingMs / 60000));
   return `${remainingMinutes}m`;

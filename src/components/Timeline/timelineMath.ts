@@ -13,11 +13,13 @@ const MS_PER_MINUTE = 60_000;
  * @returns Percent complete in range [0, 1]
  */
 export const getValidatedPercentComplete = (row: TimelineRow): number => {
+  // Validate percentComplete is a finite number
   if (!Number.isFinite(row.percentComplete)) {
     throw new Error(
       `Timeline row "${row.id}" has invalid percentComplete: ${row.percentComplete}.`
     );
   }
+  // Validate percentComplete is within valid range
   if (row.percentComplete < 0 || row.percentComplete > 1) {
     throw new Error(
       `Timeline row "${row.id}" percentComplete must be between 0 and 1.`
@@ -35,14 +37,17 @@ export const getValidatedPercentComplete = (row: TimelineRow): number => {
 export const getDurationMinutes = (row: TimelineRow): number => {
   const startTimeMs = row.startTime.getTime();
   const endTimeMs = row.endTime.getTime();
+  // Validate Date values are finite
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)) {
     throw new Error(`Timeline row "${row.id}" has invalid Date values.`);
   }
+  // Validate endTime is after startTime for positive duration
   if (endTimeMs <= startTimeMs) {
     throw new Error(
       `Timeline row "${row.id}" has invalid time range: endTime must be greater than startTime.`
     );
   }
+  // Convert milliseconds to minutes
   return (endTimeMs - startTimeMs) / MS_PER_MINUTE;
 };
 

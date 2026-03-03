@@ -9,10 +9,10 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { buildTimelineRowsFromTrip } from "./adapters/buildTimelineRowsFromTrip";
 import type { VesselTripTimelineItem } from "./types";
+import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
 type VesselTripTimelineProps = VesselTripTimelineItem;
 
@@ -27,22 +27,21 @@ export const VesselTripTimeline = ({
   vesselLocation,
 }: VesselTripTimelineProps) => {
   const rows = buildTimelineRowsFromTrip({ trip, vesselLocation });
-  const routeLabel = vesselLocation.ArrivingTerminalAbbrev
-    ? `${vesselLocation.DepartingTerminalAbbrev} → ${vesselLocation.ArrivingTerminalAbbrev}`
-    : vesselLocation.DepartingTerminalAbbrev;
 
   return (
     <Card className="gap-4 py-4">
       <CardHeader className="gap-1">
         <View className="items-start gap-1">
-          <CardTitle className="text-lg">{routeLabel}</CardTitle>
-          <CardDescription>{vesselLocation.VesselName}</CardDescription>
+          <VesselTripCardTitle trip={trip} />
+          <CardDescription className="leading-4">
+            {vesselLocation.VesselName}
+          </CardDescription>
           {trip.TripEnd ? (
-            <Text className="font-medium text-emerald-700 text-xs uppercase">
+            <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
               Completed
             </Text>
           ) : (
-            <Text className="font-medium text-muted-foreground text-xs uppercase">
+            <Text className="font-medium text-muted-foreground text-xs uppercase leading-4">
               Active Trip
             </Text>
           )}

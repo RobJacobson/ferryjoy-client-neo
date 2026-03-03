@@ -51,6 +51,7 @@ export const VerticalTimeline = ({
 }: VerticalTimelineProps) => (
   <View className={cn("w-full flex-col", className)}>
     {rows.map((row) => {
+      // Track position in sequence to hide track on last row
       const isLastRow = rows[rows.length - 1]?.id === row.id;
       const durationMinutes = getDurationMinutes(row);
       const percentComplete = getValidatedPercentComplete(row);
@@ -63,7 +64,10 @@ export const VerticalTimeline = ({
         >
           <View className="flex-1 justify-start">{row.leftContent}</View>
 
-          <View className="relative self-stretch" style={getAxisStyle(centerAxisSizePx)}>
+          <View
+            className="relative self-stretch"
+            style={getAxisStyle(centerAxisSizePx)}
+          >
             <TimelineTrack
               orientation="vertical"
               percentComplete={percentComplete}

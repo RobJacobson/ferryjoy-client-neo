@@ -52,6 +52,7 @@ export const HorizontalTimeline = ({
 }: HorizontalTimelineProps) => (
   <View className={cn("w-full flex-row items-stretch", className)}>
     {rows.map((row) => {
+      // Track position in sequence to hide track on last column
       const isLastColumn = rows[rows.length - 1]?.id === row.id;
       const durationMinutes = getDurationMinutes(row);
       const percentComplete = getValidatedPercentComplete(row);

@@ -420,30 +420,23 @@ export const terminalLocations: TerminalLocationsMap = {
 };
 
 /**
- * Helper function to get terminal location data by abbreviation
- *
- * @param terminalAbbrev - The abbreviation of terminal
- * @returns The terminal location data object or null if not found
- */
-export const getTerminalLocation = (
-  terminalAbbrev: string
-): TerminalLocation | null => {
-  return terminalLocations[terminalAbbrev] || null;
-};
-
-/**
  * Helper function to get terminal location data by abbreviation (case-insensitive).
- * Normalizes the input to uppercase for lookup.
  *
  * @param abbrev - The abbreviation of terminal (case-insensitive)
  * @returns The terminal location data object or null if not found
  */
 export const getTerminalLocationByAbbrev = (
   abbrev: string
-): TerminalLocation | null => {
-  const normalizedAbbrev = abbrev.toUpperCase();
-  return terminalLocations[normalizedAbbrev] || null;
-};
+): TerminalLocation | null => terminalLocations[abbrev.toUpperCase()] || null;
+
+/**
+ * Helper function to get full terminal name by abbreviation (case-insensitive).
+ *
+ * @param abbrev - The abbreviation of terminal (case-insensitive)
+ * @returns The terminal name or null if not found
+ */
+export const getTerminalNameByAbbrev = (abbrev: string): string | null =>
+  terminalLocations[abbrev.toUpperCase()]?.TerminalName || null;
 
 /**
  * Helper function to get terminal location data by ID
