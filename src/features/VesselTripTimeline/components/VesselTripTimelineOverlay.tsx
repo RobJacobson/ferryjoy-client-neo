@@ -4,7 +4,7 @@
  * generic VerticalTimeline primitive can stay simple and domain-agnostic.
  */
 
-import { useState } from "react";
+import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
 import { type TimelineRow, VerticalTimeline } from "@/components/Timeline";
 import { Text, View } from "@/components/ui";
@@ -13,6 +13,7 @@ import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
+import { useTimelineOverlayPlacement } from "./hooks/useTimelineOverlayPlacement";
 import { ArriveEventCard } from "./events/ArriveEventCard";
 import { DepartEventCard } from "./events/DepartEventCard";
 import { InTransitEventCard } from "./events/InTransitEventCard";
@@ -34,10 +35,40 @@ type VesselTripTimelineOverlayProps = {
   indicatorClassName?: string;
 };
 
-type RowLayout = {
-  // Absolute Y/height of the full row inside the timeline container.
-  rowY: number;
-  rowHeight: number;
+type Slot = "left" | "right";
+
+type SlotRendererContext = {
+  row: VesselTripTimelineRowModel;
+  item: VesselTripTimelineItem;
+};
+
+type SlotRenderKey = `${VesselTripTimelineRowModel["phase"]}:${Slot}`;
+
+type SlotRenderer = (context: SlotRendererContext) => ReactNode | undefined;
+
+const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
+  "departure:right": ({ item }) => (
+    <DepartEventCard trip={item.trip} vesselLocation={item.vesselLocation} />
+  ),
+  "transit:left": ({ item }) => (
+    <InTransitEventCard vesselLocation={item.vesselLocation} />
+  ),
+  "transit:right": ({ row, item }) => (
+    <ArriveEventCard
+      phase="transit"
+      trip={item.trip}
+      vesselLocation={item.vesselLocation}
+      rowEndTime={row.endTime}
+    />
+  ),
+  "arrival:right": ({ row, item }) => (
+    <ArriveEventCard
+      phase="arrival"
+      trip={item.trip}
+      vesselLocation={item.vesselLocation}
+      rowEndTime={row.endTime}
+    />
+  ),
 };
 
 /**
@@ -62,26 +93,13 @@ export const VesselTripTimelineOverlay = ({
   markerClassName = "border-2 border-green-500 bg-white",
   indicatorClassName = "border-2 border-green-500 bg-green-100",
 }: VesselTripTimelineOverlayProps) => {
-  // Cache row measurements keyed by row id for vertical indicator placement.
-  const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayout>>({});
-  // Timeline container width anchors horizontal indicator placement.
-  const [timelineWidth, setTimelineWidth] = useState(0);
+  const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item.trip);
+  const { overlayPlacement, timelineContainerProps, timelineProps } =
+    useTimelineOverlayPlacement(overlayIndicator, axisXRatio);
   const rows = presentationRows.map((row) => toTimelineRow(row, item));
-  const overlayIndicator = getOverlayIndicator(presentationRows, item.trip);
-  const overlayPlacement = getOverlayPlacement(
-    overlayIndicator,
-    rowLayouts,
-    timelineWidth,
-    axisXRatio,
-  );
 
   return (
-    <View
-      className="relative"
-      onLayout={(event) => {
-        setTimelineWidth(event.nativeEvent.layout.width);
-      }}
-    >
+    <View className="relative" {...timelineContainerProps}>
       <VerticalTimeline
         rows={rows}
         className={className}
@@ -96,16 +114,7 @@ export const VesselTripTimelineOverlay = ({
         markerClassName={markerClassName}
         indicatorClassName={indicatorClassName}
         hideRowIndicators
-        // Row bounds provide absolute vertical placement for indicator progress.
-        onRowLayout={(rowId, bounds) =>
-          setRowLayouts((previous) => ({
-            ...previous,
-            [rowId]: {
-              rowY: bounds.y,
-              rowHeight: bounds.height,
-            },
-          }))
-        }
+        {...timelineProps}
       />
 
       {overlayPlacement ? (
@@ -170,35 +179,15 @@ const toTimelineRow = (
  * @returns Feature card component or undefined
  */
 const renderSlotContent = (
-  slot: "left" | "right",
+  slot: Slot,
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
 ) => {
-  const { trip, vesselLocation } = item;
-
-  if (row.phase === "transit" && slot === "left") {
-    return <InTransitEventCard vesselLocation={vesselLocation} />;
-  }
-
-  if (row.phase === "departure" && slot === "right") {
-    return <DepartEventCard trip={trip} vesselLocation={vesselLocation} />;
-  }
-
-  if (
-    (row.phase === "transit" || row.phase === "arrival") &&
-    slot === "right"
-  ) {
-    return (
-      <ArriveEventCard
-        phase={row.phase}
-        trip={trip}
-        vesselLocation={vesselLocation}
-        rowEndTime={row.endTime}
-      />
-    );
-  }
-
-  return undefined;
+  const key = `${row.phase}:${slot}` as SlotRenderKey;
+  return SLOT_RENDERERS[key]?.({
+    row,
+    item,
+  });
 };
 
 type OverlayIndicator = {
@@ -214,7 +203,7 @@ type OverlayIndicator = {
  * @param trip - Trip state used to select active phase
  * @returns Active overlay indicator model
  */
-const getOverlayIndicator = (
+const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
   trip: VesselTripTimelineItem["trip"],
 ): OverlayIndicator => {
@@ -279,36 +268,6 @@ const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
 };
 
 /**
- * Computes absolute overlay placement from model and measured layouts.
- *
- * @param overlayIndicator - Indicator model with row and progress
- * @param rowLayouts - Measured row layout map
- * @param timelineWidth - Measured timeline container width
- * @param axisXRatio - Horizontal anchor ratio in [0, 1]
- * @returns Absolute placement for overlay center
- */
-const getOverlayPlacement = (
-  overlayIndicator: OverlayIndicator,
-  rowLayouts: Record<string, RowLayout>,
-  timelineWidth: number,
-  axisXRatio: number,
-): { top: number; left: number } | undefined => {
-  const rowLayout = rowLayouts[overlayIndicator.rowId];
-  if (!rowLayout || rowLayout.rowHeight <= 0 || timelineWidth <= 0) {
-    // Defer rendering until active row + timeline width are measured.
-    return undefined;
-  }
-  const clampedPercent = clamp01(overlayIndicator.positionPercent);
-  const clampedAxisXRatio = clamp01(axisXRatio);
-
-  return {
-    // Convert row-local progress to absolute timeline coordinates.
-    top: rowLayout.rowY + rowLayout.rowHeight * clampedPercent,
-    left: timelineWidth * clampedAxisXRatio,
-  };
-};
-
-/**
  * Builds style for absolute overlay container.
  *
  * @param placement - Absolute placement for indicator center
@@ -332,3 +291,4 @@ const getOverlayStyle = (
  * @returns Clamped ratio
  */
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+

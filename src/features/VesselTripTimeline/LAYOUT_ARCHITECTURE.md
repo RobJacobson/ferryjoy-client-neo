@@ -17,7 +17,7 @@ entire timeline in `VesselTripTimelineOverlay`.
 
 ## Separation of Concerns
 
-The feature is split into 2 layers:
+The feature is split into 3 layers:
 
 1. **Pure model builder**
    - `adapters/buildTimelineModelFromTrip.ts`
@@ -32,7 +32,14 @@ The feature is split into 2 layers:
    - Derives the active overlay indicator from row timing + trip state at render
      time.
 
-This keeps business logic testable and rendering logic explicit.
+3. **Overlay measurement hook**
+   - `components/hooks/useTimelineOverlayPlacement.ts`
+   - Owns row measurement state plus timeline-width measurement.
+   - Returns grouped props (`timelineContainerProps`, `timelineProps`) and
+     computed overlay placement.
+
+This keeps business logic testable and rendering logic explicit while keeping
+layout measurement concerns isolated.
 
 ## Coordinate System and Measurement
 
@@ -40,7 +47,7 @@ This keeps business logic testable and rendering logic explicit.
 
 - `onRowLayout(rowId, { y, height })`
 
-`VesselTripTimelineOverlay` stores row values by `rowId`, measures timeline
+`useTimelineOverlayPlacement` stores row values by `rowId`, measures timeline
 container width once, and computes overlay position:
 
 - `top = rowY + rowHeight * positionPercent`
@@ -67,13 +74,13 @@ does not visually sit on top of the static marker at row start.
 
 ## Important Constraints
 
-- `BlurView` must have explicit width/height.
+- Indicator wrapper uses explicit width/height for stable centering.
 - Overlay container uses `pointerEvents="none"` so card/timeline interactions
   are not blocked.
-- Overlay renders only after required row+axis measurements are available.
+- Overlay renders only after required row+width measurements are available.
 
 ## Future Notes
 
-If additional timeline features need the same overlay behavior, extract shared
-measurement/placement helpers from `VesselTripTimelineOverlay` into a reusable
-timeline utility or hook while keeping `VerticalTimeline` primitive-focused.
+If additional timeline features need the same overlay behavior, consider
+promoting `useTimelineOverlayPlacement` into a shared timeline utility while
+keeping `VerticalTimeline` primitive-focused.
