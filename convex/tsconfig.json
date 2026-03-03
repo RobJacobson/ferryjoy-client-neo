@@ -12,6 +12,8 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
+    "typeRoots": ["../node_modules/@types"],
+    "types": [],
     "paths": {
       "src/*": ["../src/*"]
     },
@@ -24,6 +26,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["./**/*"],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["./_generated", "./**/__tests__/**"]
 }
