@@ -1,12 +1,9 @@
-import { View } from "react-native";
-import { AnimatedListDemo } from "@/features/AnimatedList";
+/**
+ * Chat tab hosts the new vessel trip timeline experience.
+ */
 
-const ChatScreen = () => {
-  return (
-    <View className="flex-1 bg-black">
-      <AnimatedListDemo />
-    </View>
-  );
-};
+import { VesselTripTimelineScreen } from "@/features/VesselTripTimeline";
+
+const ChatScreen = () => <VesselTripTimelineScreen />;
 
 export default ChatScreen;
