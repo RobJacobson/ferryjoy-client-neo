@@ -4,7 +4,7 @@
  */
 
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
-import { TimelineEvent, TimelineEventView } from "./TimelineEvent";
+import { TimelineEvents } from "./TimelineEvents";
 
 type LeaveDockEventsProps = {
   trip: VesselTripWithScheduledTrip;
@@ -17,17 +17,10 @@ type LeaveDockEventsProps = {
  * @param trip - Trip state used for departure data
  * @returns Departure events component
  */
-export const LeaveDockEvents = ({ trip }: LeaveDockEventsProps) => {
-  const actualTime = trip.LeftDock;
-  const scheduledTime = trip.ScheduledDeparture;
-  const predictedTime = trip.AtDockDepartCurr?.PredTime;
-  return (
-    <TimelineEventView>
-      {actualTime && <TimelineEvent time={actualTime} type="actual" />}
-      {!actualTime && predictedTime && (
-        <TimelineEvent time={predictedTime} type="estimated" />
-      )}
-      {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
-    </TimelineEventView>
-  );
-};
+export const LeaveDockEvents = ({ trip }: LeaveDockEventsProps) => (
+  <TimelineEvents
+    actualTime={trip.LeftDock}
+    scheduledTime={trip.ScheduledDeparture}
+    predictedTime={trip.AtDockDepartCurr?.PredTime}
+  />
+);

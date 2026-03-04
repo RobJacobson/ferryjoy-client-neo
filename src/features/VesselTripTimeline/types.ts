@@ -13,7 +13,11 @@ export type VesselTripTimelineItem = {
   vesselLocation: VesselLocation;
 };
 
-export type VesselTripTimelinePhase = "at-start" | "at-sea" | "at-dest";
+export type VesselTripTimelinePhase =
+  | "at-start"
+  | "at-sea"
+  | "at-dest"
+  | "depart-dest";
 
 export type VesselTripTimelineRowModel = {
   id: string;

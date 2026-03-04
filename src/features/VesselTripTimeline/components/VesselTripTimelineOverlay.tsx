@@ -16,10 +16,12 @@ import type {
 } from "../types";
 import { ArriveDestEvents } from "./events/ArriveDestEvents";
 import { ArriveDockEvents } from "./events/ArriveDockEvents";
+import { DepartDestEvents } from "./events/DepartDestEvents";
 import { LeaveDockEvents } from "./events/LeaveDockEvents";
 import { InTransitEventCard } from "./InTransitEventCard";
 import { ArriveDestLabel } from "./labels/ArriveDestLabel";
 import { ArriveDockLabel } from "./labels/ArriveDockLabel";
+import { DepartDestLabel } from "./labels/DepartDestLabel";
 
 type VesselTripTimelineOverlayProps = {
   presentationRows: VesselTripTimelineRowModel[];
@@ -63,6 +65,12 @@ const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
   ),
   "at-dest:right": ({ item }) => (
     <ArriveDestEvents trip={item.trip} vesselLocation={item.vesselLocation} />
+  ),
+  "depart-dest:left": ({ item }) => (
+    <DepartDestLabel trip={item.trip} vesselLocation={item.vesselLocation} />
+  ),
+  "depart-dest:right": ({ item }) => (
+    <DepartDestEvents trip={item.trip} />
   ),
 };
 
@@ -253,17 +261,33 @@ const deriveActiveOverlayIndicator = (
 ): OverlayIndicator => {
   const atStartRow = rows.find((row) => row.phase === "at-start");
   const atSeaRow = rows.find((row) => row.phase === "at-sea");
-  const atDestRow = rows.find((row) => row.phase === "at-dest");
+  const _atDestRow = rows.find((row) => row.phase === "at-dest");
+  const departDestRow = rows.find((row) => row.phase === "depart-dest");
   const now = new Date();
 
-  if (trip.TripEnd && atDestRow) {
+  // If vessel has departed from destination (card would change, but handle just in case)
+  if (trip.AtDockDepartNext?.Actual && departDestRow) {
     return {
-      rowId: atDestRow.id,
+      rowId: departDestRow.id,
       positionPercent: 1,
-      label: atDestRow.indicatorLabel,
+      label: departDestRow.indicatorLabel,
     };
   }
 
+  // If vessel has arrived at destination, show progress toward departure
+  if (trip.TripEnd && departDestRow) {
+    return {
+      rowId: departDestRow.id,
+      positionPercent: getTimeProgress(
+        departDestRow.startTime,
+        departDestRow.endTime,
+        now
+      ),
+      label: departDestRow.indicatorLabel,
+    };
+  }
+
+  // If vessel hasn't departed yet, show progress at dock
   if (!trip.LeftDock && atStartRow) {
     return {
       rowId: atStartRow.id,
@@ -276,6 +300,7 @@ const deriveActiveOverlayIndicator = (
     };
   }
 
+  // If vessel is at sea, show in-transit progress
   if (atSeaRow) {
     return {
       rowId: atSeaRow.id,

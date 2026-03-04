@@ -6,7 +6,7 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { getPredictedArriveNextTime } from "@/features/TimelineFeatures/shared/utils";
-import { TimelineEvent, TimelineEventView } from "./TimelineEvent";
+import { TimelineEvents } from "./TimelineEvents";
 
 type ArriveDestEventsProps = {
   trip: VesselTripWithScheduledTrip;
@@ -24,17 +24,10 @@ type ArriveDestEventsProps = {
 export const ArriveDestEvents = ({
   trip,
   vesselLocation,
-}: ArriveDestEventsProps) => {
-  const scheduledTime = trip.ScheduledTrip?.SchedArriveNext;
-  const predictedTime = getPredictedArriveNextTime(trip, vesselLocation);
-  const actualTime = trip.TripEnd;
-  return (
-    <TimelineEventView>
-      {actualTime && <TimelineEvent time={actualTime} type="actual" />}
-      {!actualTime && predictedTime && (
-        <TimelineEvent time={predictedTime} type="estimated" />
-      )}
-      {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
-    </TimelineEventView>
-  );
-};
+}: ArriveDestEventsProps) => (
+  <TimelineEvents
+    actualTime={trip.TripEnd}
+    scheduledTime={trip.ScheduledTrip?.SchedArriveNext}
+    predictedTime={getPredictedArriveNextTime(trip, vesselLocation)}
+  />
+);

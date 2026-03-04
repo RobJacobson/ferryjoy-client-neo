@@ -14,6 +14,25 @@ const MIN_SEGMENT_MINUTES = 1;
 const DEFAULT_ARRIVAL_MINUTES = 10;
 
 /**
+ * Parses a trip key to extract the departing terminal abbreviation.
+ * Key format: [VesselAbbrev]--[PacificDate]--[PacificTime]--[Departing]-[Arriving]
+ * Example: "KITT--2026-03-04--14:30--CLI-MUK"
+ *
+ * @param key - Trip key to parse
+ * @returns Departing terminal abbreviation, or undefined if parsing fails
+ */
+const parseDepartingTerminalFromKey = (
+  key: string | undefined
+): string | undefined => {
+  if (!key) return undefined;
+  const parts = key.split("--");
+  if (parts.length < 4) return undefined;
+  const terminalPair = parts[3]; // Last part: "CLI-MUK"
+  const terminals = terminalPair.split("-");
+  return terminals[0]; // Departing terminal: "CLI"
+};
+
+/**
  * Builds a timeline data model for a single vessel trip card.
  *
  * @param item - Vessel trip and location pair
@@ -35,11 +54,13 @@ export const buildTimelineModelFromTrip = (
   const departureLabel = getMinutesUntilLabel(times.departedAtActual, now);
   const inTransitLabel = getMinutesUntilLabel(times.arriveEtaActual, now);
   const arrivalLabel = "--";
+  const departDestLabel = getMinutesUntilLabel(times.predictedDepartDest, now);
 
-  // Build three segment models:
+  // Build four segment models:
   // 1) pre-departure at start terminal
   // 2) in-transit at sea
   // 3) arrival at destination terminal
+  // 4) departure from destination terminal
   // UI component selection/layout is attached later in render-layer mapping.
 
   const rows: VesselTripTimelineRowModel[] = [
@@ -67,6 +88,14 @@ export const buildTimelineModelFromTrip = (
       phase: "at-dest",
       indicatorLabel: arrivalLabel,
     },
+    {
+      id: `${trip.VesselAbbrev}-depart-dest`,
+      startTime: times.tripEnd,
+      endTime: times.departDestTime,
+      percentComplete: 0,
+      phase: "depart-dest",
+      indicatorLabel: departDestLabel,
+    },
   ];
 
   return rows;
@@ -79,6 +108,8 @@ type SegmentTimes = {
   arriveEta: Date;
   arriveEtaActual: Date | undefined;
   tripEnd: Date;
+  departDestTime: Date;
+  predictedDepartDest: Date | undefined;
 };
 
 /**
@@ -116,10 +147,26 @@ const buildSegmentTimes = (
     (rawDepartedAt !== undefined
       ? addMinutes(rawDepartedAt, defaultAtSeaMinutes)
       : undefined);
-  const tripEndActual =
-    trip.TripEnd ??
-    trip.AtSeaArriveNext?.PredTime ??
-    trip.AtDockArriveNext?.PredTime;
+  const tripEndActual = trip.TripEnd;
+
+  // Parse NextKey to get next leg's departing terminal
+  const nextDepartingTerminal = parseDepartingTerminalFromKey(
+    trip.ScheduledTrip?.NextKey
+  );
+
+  // Determine terminal pair for ML config fallback (B->C)
+  // Use next leg's departing terminal if available, otherwise fallback to current leg's pair
+  const nextTerminalPairKey =
+    arrivingTerminal && nextDepartingTerminal
+      ? formatTerminalPairKey(arrivingTerminal, nextDepartingTerminal)
+      : terminalPairKey; // Fallback to current leg's pair
+
+  // Build departure time from B using predicted > scheduled > fallback priority
+  const rawDepartDest =
+    trip.AtDockDepartNext?.PredTime ?? trip.ScheduledTrip?.NextDepartingTime;
+
+  // Store predicted time for indicator label
+  const predictedDepartDest = trip.AtDockDepartNext?.PredTime;
 
   // Ensure monotonic ordering with minimum segment durations
   // Geometry uses historical averages when actual/predicted data is missing
@@ -137,6 +184,13 @@ const buildSegmentTimes = (
     DEFAULT_ARRIVAL_MINUTES
   );
 
+  // Build depart-dest time after tripEnd is computed
+  const departDestTime = ensureAfter(
+    rawDepartDest ?? undefined,
+    tripEnd,
+    config.getMeanAtDockDuration(nextTerminalPairKey)
+  );
+
   return {
     departWindowStart,
     departedAt,
@@ -144,6 +198,8 @@ const buildSegmentTimes = (
     arriveEta,
     arriveEtaActual,
     tripEnd,
+    departDestTime,
+    predictedDepartDest,
   };
 };
 

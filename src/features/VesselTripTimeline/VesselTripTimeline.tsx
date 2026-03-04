@@ -31,15 +31,9 @@ export const VesselTripTimeline = ({
       <CardHeader className="gap-1">
         <View className="items-start">
           <VesselTripCardTitle trip={trip} />
-          {trip.TripEnd ? (
-            <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
-              Completed
-            </Text>
-          ) : (
-            <Text className="font-medium text-muted-foreground text-xs uppercase leading-4">
-              Active Trip
-            </Text>
-          )}
+          <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
+            {vesselLocation.VesselName}
+          </Text>
         </View>
       </CardHeader>
       <CardContent className="px-4">
