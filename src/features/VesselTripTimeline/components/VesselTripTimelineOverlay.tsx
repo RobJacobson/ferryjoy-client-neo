@@ -90,11 +90,13 @@ export const VesselTripTimelineOverlay = ({
 }: VesselTripTimelineOverlayProps) => {
   const overlayIndicator = deriveActiveOverlayIndicator(
     presentationRows,
-    item.trip,
+    item.trip
   );
   const { overlayPlacement, timelineContainerProps, timelineProps } =
     useTimelineOverlayPlacement(overlayIndicator, axisXRatio);
-  const rows = presentationRows.map((row) => toTimelineRow(row, item));
+  const rows = presentationRows.map((row) =>
+    toTimelineRow(row, item, presentationRows, overlayIndicator)
+  );
 
   return (
     <View className="relative h-[350px]" {...timelineContainerProps}>
@@ -130,7 +132,7 @@ export const VesselTripTimelineOverlay = ({
               className={cn(
                 "absolute inset-0 items-center justify-center rounded-full",
                 "border-2 bg-green-100/70",
-                indicatorClassName,
+                indicatorClassName
               )}
             >
               {/* Label is rendered over blur to preserve contrast/readability. */}
@@ -149,16 +151,25 @@ export const VesselTripTimelineOverlay = ({
  * Converts one pure presentation row into a render-ready timeline row.
  *
  * @param row - Pure presentation row data
+ * @param item - Domain item containing trip and vessel data
+ * @param presentationRows - All timeline rows for global position calculation
+ * @param overlayIndicator - Active overlay indicator with global position
  * @returns Timeline row with feature card components
  */
 const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
+  presentationRows: VesselTripTimelineRowModel[],
+  overlayIndicator: OverlayIndicator
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
   endTime: row.endTime,
-  percentComplete: row.percentComplete,
+  percentComplete: getGlobalPercentComplete(
+    row,
+    presentationRows,
+    overlayIndicator
+  ),
   leftContent: renderSlotContent("left", row, item),
   rightContent: renderSlotContent("right", row, item),
   indicatorContent: (
@@ -179,13 +190,48 @@ const toTimelineRow = (
 const renderSlotContent = (
   slot: Slot,
   row: VesselTripTimelineRowModel,
-  item: VesselTripTimelineItem,
+  item: VesselTripTimelineItem
 ) => {
   const key = `${row.phase}:${slot}` as SlotRenderKey;
   return SLOT_RENDERERS[key]?.({
     row,
     item,
   });
+};
+
+/**
+ * Calculates global percent complete for a row based on overlay indicator position.
+ * Rows before the indicator row are 100% complete. Rows after are 0% complete.
+ * The indicator's row shows progress based on the overlay's position percent.
+ *
+ * @param row - Timeline row to calculate percent for
+ * @param presentationRows - All timeline rows
+ * @param overlayIndicator - Active overlay indicator with global position
+ * @returns Percent complete from 0 to 1 based on overlay position
+ */
+const getGlobalPercentComplete = (
+  row: VesselTripTimelineRowModel,
+  presentationRows: VesselTripTimelineRowModel[],
+  overlayIndicator: OverlayIndicator
+): number => {
+  const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
+  const indicatorRowIndex = presentationRows.findIndex(
+    (r) => r.id === overlayIndicator.rowId
+  );
+
+  if (indicatorRowIndex === -1) {
+    return row.percentComplete;
+  }
+
+  if (rowIndex < indicatorRowIndex) {
+    return 1;
+  }
+
+  if (rowIndex > indicatorRowIndex) {
+    return 0;
+  }
+
+  return overlayIndicator.positionPercent;
 };
 
 type OverlayIndicator = {
@@ -203,7 +249,7 @@ type OverlayIndicator = {
  */
 const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
-  trip: VesselTripTimelineItem["trip"],
+  trip: VesselTripTimelineItem["trip"]
 ): OverlayIndicator => {
   const atStartRow = rows.find((row) => row.phase === "at-start");
   const atSeaRow = rows.find((row) => row.phase === "at-sea");
@@ -224,7 +270,7 @@ const deriveActiveOverlayIndicator = (
       // Keep indicator slightly below row-start marker for readability.
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now),
+        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now)
       ),
       label: atStartRow.indicatorLabel,
     };
@@ -236,7 +282,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent: getTimeProgress(
         atSeaRow.startTime,
         atSeaRow.endTime,
-        now,
+        now
       ),
       label: atSeaRow.indicatorLabel,
     };
@@ -274,7 +320,7 @@ const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
  */
 const getOverlayStyle = (
   placement: { top: number; left: number },
-  indicatorSizePx: number,
+  indicatorSizePx: number
 ): ViewStyle => ({
   top: placement.top,
   left: placement.left,

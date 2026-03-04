@@ -23,9 +23,9 @@ type TimelineEventProps = {
 const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   const Icon = eventTypeIcon[type];
   return (
-    <View className="flex-row items-center gap-1">
-      <Icon size={16} strokeWidth={1.5} color="#333" />
-      <Text className="font-bold text-sm">{toDisplayTime(time)}</Text>
+    <View className="flex-row gap-1">
+      <Icon size={20} strokeWidth={1.5} color="#333" />
+      <Text className="font-light">{toDisplayTime(time)}</Text>
     </View>
   );
 };

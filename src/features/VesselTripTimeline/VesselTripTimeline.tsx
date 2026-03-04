@@ -3,12 +3,7 @@
  */
 
 import { Text, View } from "@/components/ui";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { buildTimelineModelFromTrip } from "./adapters/buildTimelineModelFromTrip";
 import { VesselTripTimelineOverlay } from "./components/VesselTripTimelineOverlay";
 import type { VesselTripTimelineItem } from "./types";
