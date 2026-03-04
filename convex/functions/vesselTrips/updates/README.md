@@ -9,7 +9,7 @@ This module synchronizes active vessel trips with live location data. It runs as
 2. `baseTripFromLocation` — base trip from raw location data (simple assignments); derives Key from raw data for schedule lookup
 3. `appendInitialSchedule` — arrival terminal lookup when vessel arrives at dock (event-driven: AtDock false→true)
 4. `appendFinalSchedule` — schedule lookup by Key when key changed (event-driven)
-5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions when event-triggered (arrive-dock, depart-dock)
+5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions with event-driven and time-based fallback (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
 **Centralized event detection**: `detectTripEvents` in `eventDetection.ts` provides a single source of truth for all trip event detection logic.
 
@@ -57,7 +57,7 @@ runUpdateVesselTrips (entry point)
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived fields, handles first trip, trip boundary, and regular update |
-| `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for arrive-dock (AtDockArriveNext, AtDockDepartNext) and depart-dock (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext) events |
+| `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendInitialSchedule`, `appendFinalSchedule` — event-driven schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
 
@@ -114,19 +114,20 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 ## Architecture: buildTrip
 
-`buildTrip` is the key orchestrator that coordinates all enrichments with provided events:
+`buildTrip` is the key orchestrator that coordinates all enrichments with provided events and trip state:
 
 ```typescript
 buildTrip(ctx, currLocation, existingTrip?, tripStart, events)
   ├─> baseTripFromLocation (base trip from raw data, using tripStart flag)
-  ├─> Use provided events to drive enrichments:
+  ├─> Use provided events and trip state to drive enrichments:
   │   ├─> didJustArriveAtDock (from events.didJustArriveAtDock)
   │   ├─> didJustLeaveDock (from events.didJustLeaveDock)
   │   └─> keyChanged (from events.keyChanged)
+  │   ├─> Time-based fallback (seconds < 5 check)
   ├─> appendInitialSchedule (if didJustArriveAtDock && missing ArrivingTerminal)
   ├─> appendFinalSchedule (if keyChanged)
-  ├─> appendArriveDockPredictions (if didJustArriveAtDock)
-  └─> appendLeaveDockPredictions (if didJustLeaveDock)
+  ├─> appendArriveDockPredictions (if at dock && (didJustArriveAtDock || time-based fallback))
+  └─> appendLeaveDockPredictions (if at sea && (didJustLeaveDock || time-based fallback))
 ```
 
 **Benefits**:
@@ -134,6 +135,7 @@ buildTrip(ctx, currLocation, existingTrip?, tripStart, events)
 - Events computed once in `runUpdateVesselTrips` and passed through call chain, avoiding redundant computation
 - Consistent application of all enrichments across trip boundaries and regular updates
 - Clear separation of concerns: `baseTripFromLocation` for raw data, schedule functions for database lookups, prediction functions for ML
+- Time-based fallback provides resilience against missed events or prediction generation failures
 
 ---
 
@@ -192,9 +194,9 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **AtSeaDuration** | Computed | `TripEnd - LeftDock`; only on completed trip |
 | **TotalDuration** | Computed | `TripEnd - TripStart`; only on completed trip |
 | **InService, TimeStamp** | currLocation | Direct copy every tick |
-| **AtDockDepartCurr** | ML | Run once when physically depart dock (appendLeaveDockPredictions) |
-| **AtDockArriveNext, AtDockDepartNext** | ML | Run once when first arrive at dock with destination (appendArriveDockPredictions) |
-| **AtSeaArriveNext, AtSeaDepartNext** | ML | Run once when physically depart dock (appendLeaveDockPredictions) |
+| **AtDockDepartCurr** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
+| **AtDockArriveNext, AtDockDepartNext** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
+| **AtSeaArriveNext, AtSeaDepartNext** | ML | Run once when at sea (depart dock or time-based fallback if missing) (appendLeaveDockPredictions) |
 
 ---
 
@@ -258,18 +260,29 @@ maintaining clear separation of concerns.
 
 ## ML Predictions
 
-Predictions are **event-based**, not time-based:
+Predictions use a **hybrid event and time-based approach**:
 
-- **Arrive-dock** (AtDockArriveNext, AtDockDepartNext): Run once when vessel first arrives at dock (`!existingTrip.AtDock && trip.AtDock`) and `isPredictionReadyTrip(trip)`. Handled by `appendArriveDockPredictions`.
-- **Depart-dock** (AtDockDepartCurr, AtSeaArriveNext, AtSeaDepartNext): Run once when vessel physically departs (`existingTrip.LeftDock === undefined && trip.LeftDock !== undefined`). Handled by `appendLeaveDockPredictions`.
+**At-Dock Predictions** (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext):
+- **Event-driven**: Run once when vessel first arrives at dock (`!existingTrip.AtDock && trip.AtDock`)
+- **Time-based fallback**: Check once per minute (first 5 seconds of each minute) if predictions are still undefined
+- Handled by `appendArriveDockPredictions`
+- Only run when `trip.AtDock && !trip.LeftDock` (vessel at dock)
 
-`isPredictionReadyTrip` requires: TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev, PrevTerminalAbbrev, InService, ScheduledDeparture, PrevScheduledDeparture, PrevLeftDock. First trips lack Prev* and do not run at-dock predictions.
+**At-Sea Predictions** (AtSeaArriveNext, AtSeaDepartNext):
+- **Event-driven**: Run once when vessel physically departs (`existingTrip.LeftDock === undefined && trip.LeftDock !== undefined`)
+- **Time-based fallback**: Check once per minute (first 5 seconds of each minute) if predictions are still undefined
+- Handled by `appendLeaveDockPredictions`
+- Only run when `!trip.AtDock && trip.LeftDock` (vessel at sea)
+
+`isPredictionReadyTrip` requires: TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev, PrevTerminalAbbrev, InService, ScheduledDeparture, PrevScheduledDeparture, PrevLeftDock. First trips lack Prev* and do not run predictions.
 
 **Actualization**:
 - `AtDockDepartCurr`, `AtDockArriveNext`, `AtDockDepartNext`, `AtSeaArriveNext`, `AtSeaDepartNext`: Actualized by `updatePredictionsWithActuals` (called via PredictionService) when LeftDock/TripEnd set.
 - `AtDockDepartNext`, `AtSeaDepartNext`: Also actualized by `setDepartNextActualsForMostRecentCompletedTrip` when the *next* trip leaves dock (backfill via PredictionService).
 
 **Batch optimization**: When computing 2+ predictions for a vessel, `computePredictions` uses `loadModelsForPairBatch` for efficient model loading.
+
+**Time-based fallback**: Once per minute (throttled by `seconds < 5`), the system checks for and generates any missing predictions that were not created during event-driven triggers. This provides resilience against missed events or prediction generation failures. Predictions that already exist are skipped (no redundant computation).
 
 ---
 
@@ -321,6 +334,7 @@ The `PredictionService` manages the entire prediction lifecycle through an event
 - **Batch model loading**: `computePredictions` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
 - **Batch upserts**: Active trips are batched and upserted together in `upsertVesselTripsBatch`.
 - **Event-gated predictions**: Expensive ML operations only run at trip boundaries (arrive-dock, depart-dock), not every tick.
+- **Time-based fallback**: Once per minute (throttled by `seconds < 5`), system checks for and generates any missing predictions that were not created during event-driven triggers. Predictions that already exist are skipped (no redundant computation).
 - **Centralized event detection**: `detectTripEvents` consolidates all event detection logic in one place, avoiding scattered logic.
 
 ---

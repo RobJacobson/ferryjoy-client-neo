@@ -18,7 +18,7 @@ import type { TripEvents } from "./eventDetection";
  * Handles building, schedule lookups, and ML predictions in one place:
  * - Calls baseTripFromLocation for base trip
  * - Uses provided events for enrichment decisions
- * - Runs appropriate schedule lookups and predictions
+ * - Runs appropriate schedule lookups and predictions (event-driven + time-based fallback)
  * - Returns fully enriched trip ready for persistence
  *
  * @param ctx - Convex action context
@@ -50,13 +50,34 @@ export const buildTrip = async (
     enrichedTrip = await appendFinalSchedule(ctx, enrichedTrip, existingTrip);
   }
 
-  // Event: Arrive at dock (at-dock predictions)
-  if (events.didJustArriveAtDock) {
+  // Time-based throttle: check predictions once per minute (first 5 seconds of each minute)
+  const currentSeconds = new Date(Date.now()).getSeconds();
+  const shouldAttemptAtDockPredictions =
+    events.didJustArriveAtDock || currentSeconds < 5;
+  const shouldAttemptAtSeaPredictions =
+    events.didJustLeaveDock || currentSeconds < 5;
+
+  // At dock predictions (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext)
+  // Run when at dock AND (just arrived OR throttled time check) AND at least one prediction is missing
+  if (
+    baseTrip.AtDock &&
+    !baseTrip.LeftDock &&
+    shouldAttemptAtDockPredictions &&
+    (!baseTrip.AtDockDepartCurr ||
+      !baseTrip.AtDockArriveNext ||
+      !baseTrip.AtDockDepartNext)
+  ) {
     enrichedTrip = await appendArriveDockPredictions(ctx, enrichedTrip);
   }
 
-  // Event: Leave dock (leave-dock predictions)
-  if (events.didJustLeaveDock) {
+  // At sea predictions (AtSeaArriveNext, AtSeaDepartNext)
+  // Run when at sea AND (just left OR throttled time check) AND at least one prediction is missing
+  if (
+    !baseTrip.AtDock &&
+    baseTrip.LeftDock &&
+    shouldAttemptAtSeaPredictions &&
+    (!baseTrip.AtSeaArriveNext || !baseTrip.AtSeaDepartNext)
+  ) {
     enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
   }
 
