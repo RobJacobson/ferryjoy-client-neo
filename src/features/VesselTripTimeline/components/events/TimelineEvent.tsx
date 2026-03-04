@@ -1,4 +1,9 @@
+/**
+ * Base timeline event component with time and icon.
+ */
+
 import { CalendarClock, EqualApproximately, Watch } from "lucide-react-native";
+import type { PropsWithChildren } from "react";
 import { Text, View } from "@/components/ui";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 
@@ -25,4 +30,8 @@ const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   );
 };
 
-export default TimelineEvent;
+const TimelineEventView = ({ children }: PropsWithChildren) => (
+  <View className="mt-[-10px] bg-blue-200">{children}</View>
+);
+
+export { TimelineEvent, TimelineEventView };

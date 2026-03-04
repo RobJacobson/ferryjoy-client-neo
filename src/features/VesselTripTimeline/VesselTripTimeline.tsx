@@ -34,11 +34,8 @@ export const VesselTripTimeline = ({
   return (
     <Card className="gap-4 py-4">
       <CardHeader className="gap-1">
-        <View className="items-start gap-1">
+        <View className="items-start">
           <VesselTripCardTitle trip={trip} />
-          <CardDescription className="leading-4">
-            {vesselLocation.VesselName}
-          </CardDescription>
           {trip.TripEnd ? (
             <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
               Completed

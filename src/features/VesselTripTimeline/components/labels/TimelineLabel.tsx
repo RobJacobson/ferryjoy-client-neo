@@ -1,3 +1,7 @@
+/**
+ * Base timeline label component with title display.
+ */
+
 import type { PropsWithChildren } from "react";
 import { Text, View } from "@/components/ui";
 

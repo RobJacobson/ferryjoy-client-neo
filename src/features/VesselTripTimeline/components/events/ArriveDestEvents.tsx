@@ -1,45 +1,40 @@
 /**
- * Card for arrival event at the destination terminal.
+ * Events for arrival at the destination terminal.
  * Shows arrival time with actual (if past) or predicted (if future) times.
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { getPredictedArriveNextTime } from "@/features/TimelineFeatures/shared/utils";
-import TimelineEvent from "./TimelineEvent";
-import { TimelineLabel } from "./TimelineLabel";
+import { TimelineEvent, TimelineEventView } from "./TimelineEvent";
 
-type ArrivalDestCardProps = {
+type ArriveDestEventsProps = {
   trip: VesselTripWithScheduledTrip;
   vesselLocation: VesselLocation;
 };
 
 /**
- * Renders arrival event at the destination terminal.
- * This card shows when the vessel arrives at the destination (arriveNext).
+ * Renders arrival events at the destination terminal.
+ * These events show when the vessel arrives at the destination (arriveNext).
  *
  * @param trip - Trip state used for arrival data
- * @param vesselLocation - Vessel location used for terminal labeling
- * @returns Arrival destination card component
+ * @param vesselLocation - Vessel location used for predictions
+ * @returns Arrival destination events component
  */
-export const ArriveDestLabel = ({
+export const ArriveDestEvents = ({
   trip,
   vesselLocation,
-}: ArrivalDestCardProps) => {
-  const terminal = vesselLocation.ArrivingTerminalAbbrev;
-  const hasArrived = trip.TripEnd !== undefined;
-  const verb = hasArrived ? "Arrived" : "Arrive";
+}: ArriveDestEventsProps) => {
   const scheduledTime = trip.ScheduledTrip?.SchedArriveNext;
   const predictedTime = getPredictedArriveNextTime(trip, vesselLocation);
   const actualTime = trip.TripEnd;
   return (
-    <>
-      <TimelineLabel title={`${verb} ${terminal}`} />
+    <TimelineEventView>
       {actualTime && <TimelineEvent time={actualTime} type="actual" />}
       {!actualTime && predictedTime && (
         <TimelineEvent time={predictedTime} type="estimated" />
       )}
       {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
-    </>
+    </TimelineEventView>
   );
 };

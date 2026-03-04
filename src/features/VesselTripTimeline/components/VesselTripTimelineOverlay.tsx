@@ -14,10 +14,12 @@ import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
-import { ArriveDestLabel } from "./ArriveDestLabel";
-import { ArriveDockLabel } from "./ArriveDockLabel";
+import { ArriveDestEvents } from "./events/ArriveDestEvents";
+import { ArriveDockEvents } from "./events/ArriveDockEvents";
+import { LeaveDockEvents } from "./events/LeaveDockEvents";
 import { InTransitEventCard } from "./InTransitEventCard";
-import { LeaveDockLabel } from "./LeaveDockLabel";
+import { ArriveDestLabel } from "./labels/ArriveDestLabel";
+import { ArriveDockLabel } from "./labels/ArriveDockLabel";
 
 type VesselTripTimelineOverlayProps = {
   presentationRows: VesselTripTimelineRowModel[];
@@ -48,17 +50,19 @@ type SlotRenderKey = `${VesselTripTimelineRowModel["phase"]}:${Slot}`;
 type SlotRenderer = (context: SlotRendererContext) => ReactNode | undefined;
 
 const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
-  "at-start:right": ({ item }) => (
-    <ArriveDockLabel trip={item.trip} vesselLocation={item.vesselLocation} />
+  "at-start:left": ({ item }) => (
+    <ArriveDockLabel vesselLocation={item.vesselLocation} />
   ),
+  "at-start:right": ({ item }) => <ArriveDockEvents trip={item.trip} />,
   "at-sea:left": ({ item }) => (
     <InTransitEventCard vesselLocation={item.vesselLocation} />
   ),
-  "at-sea:right": ({ item }) => (
-    <LeaveDockLabel trip={item.trip} vesselLocation={item.vesselLocation} />
+  "at-sea:right": ({ item }) => <LeaveDockEvents trip={item.trip} />,
+  "at-dest:left": ({ item }) => (
+    <ArriveDestLabel trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
   "at-dest:right": ({ item }) => (
-    <ArriveDestLabel trip={item.trip} vesselLocation={item.vesselLocation} />
+    <ArriveDestEvents trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
 };
 
@@ -93,7 +97,7 @@ export const VesselTripTimelineOverlay = ({
   const rows = presentationRows.map((row) => toTimelineRow(row, item));
 
   return (
-    <View className="relative h-[400px]" {...timelineContainerProps}>
+    <View className="relative h-[350px]" {...timelineContainerProps}>
       <VerticalTimeline
         rows={rows}
         className={cn(className, "flex-1")}

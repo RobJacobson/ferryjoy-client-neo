@@ -228,9 +228,9 @@ export const ML_CONFIG = {
      * - samplingStrategy: "recent_first" prioritizes recent data for relevance
      */
     dataLoading: {
-      daysBack: 365,
-      maxRecordsPerVessel: 7500,
-      maxSamplesPerRoute: 7500,
+      daysBack: 180,
+      maxRecordsPerVessel: 2500,
+      maxSamplesPerRoute: 2500,
       samplingStrategy: "recent_first",
     },
     /**
