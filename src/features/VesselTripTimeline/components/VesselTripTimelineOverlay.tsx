@@ -69,9 +69,7 @@ const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
   "depart-dest:left": ({ item }) => (
     <DepartDestLabel trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
-  "depart-dest:right": ({ item }) => (
-    <DepartDestEvents trip={item.trip} />
-  ),
+  "depart-dest:right": ({ item }) => <DepartDestEvents trip={item.trip} />,
 };
 
 /**
@@ -185,6 +183,7 @@ const toTimelineRow = (
       {row.indicatorLabel}
     </Text>
   ),
+  minHeight: row.phase === "depart-dest" ? 0 : undefined,
 });
 
 /**

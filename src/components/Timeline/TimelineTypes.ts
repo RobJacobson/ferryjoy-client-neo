@@ -21,6 +21,7 @@ export type TimelineRow = {
   rightContent?: ReactNode;
   markerContent?: ReactNode;
   indicatorContent?: ReactNode;
+  minHeight?: number;
 };
 
 /** Styling and layout options shared by timeline primitives. */

@@ -73,7 +73,11 @@ export const VerticalTimeline = ({
         <View
           key={row.id}
           className={cn("w-full flex-row items-stretch", rowClassName)}
-          style={getVerticalRowStyle(durationMinutes, minSegmentPx)}
+          style={getVerticalRowStyle(
+            durationMinutes,
+            minSegmentPx,
+            row.minHeight
+          )}
           onLayout={getRowLayoutHandler(row.id, onRowLayout)}
         >
           <View className="flex-1 justify-start">{row.leftContent}</View>
@@ -110,16 +114,18 @@ export const VerticalTimeline = ({
  * Builds style for a vertical timeline row segment.
  *
  * @param durationMinutes - Segment flex-grow value derived from row duration
- * @param minSegmentPx - Minimum row height in pixels
+ * @param minSegmentPx - Default minimum row height in pixels
+ * @param minHeight - Optional per-row minimum height override
  * @returns View style for a vertical timeline row
  */
 const getVerticalRowStyle = (
   durationMinutes: number,
-  minSegmentPx: number
+  minSegmentPx: number,
+  minHeight?: number
 ): ViewStyle => ({
   flexGrow: durationMinutes,
   flexBasis: "auto",
-  minHeight: minSegmentPx,
+  minHeight: minHeight ?? minSegmentPx,
 });
 
 /**
