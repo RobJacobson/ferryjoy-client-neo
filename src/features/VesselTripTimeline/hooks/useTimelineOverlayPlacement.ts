@@ -10,22 +10,9 @@ type RowLayout = {
   rowHeight: number;
 };
 
-export type TimelineRowBounds = {
-  y: number;
-  height: number;
-};
-
-export type OverlayIndicatorPlacement = {
+type OverlayIndicatorPlacement = {
   rowId: string;
   positionPercent: number;
-};
-
-export type TimelineContainerProps = {
-  onLayout: (event: LayoutChangeEvent) => void;
-};
-
-export type TimelineMeasurementProps = {
-  onRowLayout: (rowId: string, bounds: TimelineRowBounds) => void;
 };
 
 /**
@@ -40,8 +27,12 @@ export const useTimelineOverlayPlacement = (
   axisXRatio: number
 ): {
   overlayPlacement: { top: number; left: number } | undefined;
-  timelineContainerProps: TimelineContainerProps;
-  timelineProps: TimelineMeasurementProps;
+  timelineContainerProps: {
+    onLayout: (event: LayoutChangeEvent) => void;
+  };
+  timelineProps: {
+    onRowLayout: (rowId: string, bounds: { y: number; height: number }) => void;
+  };
 } => {
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayout>>({});
   const [timelineWidth, setTimelineWidth] = useState(0);
@@ -60,7 +51,7 @@ export const useTimelineOverlayPlacement = (
       },
     },
     timelineProps: {
-      onRowLayout: (rowId: string, bounds: TimelineRowBounds) => {
+      onRowLayout: (rowId: string, bounds: { y: number; height: number }) => {
         setRowLayouts((previous) => ({
           ...previous,
           [rowId]: {
