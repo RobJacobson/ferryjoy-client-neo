@@ -12,6 +12,8 @@ import { appendFinalSchedule, appendInitialSchedule } from "./appendSchedule";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./eventDetection";
 
+const THROTTLE_TIME_SECONDS = 5;
+
 /**
  * Build complete vessel trip from raw location data with all enrichments.
  *
@@ -53,9 +55,9 @@ export const buildTrip = async (
   // Time-based throttle: check predictions once per minute (first 5 seconds of each minute)
   const currentSeconds = new Date(Date.now()).getSeconds();
   const shouldAttemptAtDockPredictions =
-    events.didJustArriveAtDock || currentSeconds < 5;
+    events.didJustArriveAtDock || currentSeconds < THROTTLE_TIME_SECONDS;
   const shouldAttemptAtSeaPredictions =
-    events.didJustLeaveDock || currentSeconds < 5;
+    events.didJustLeaveDock || currentSeconds < THROTTLE_TIME_SECONDS;
 
   // At dock predictions (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext)
   // Run when at dock AND (just arrived OR throttled time check) AND at least one prediction is missing
