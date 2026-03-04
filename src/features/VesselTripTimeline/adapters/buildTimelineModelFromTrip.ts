@@ -38,9 +38,9 @@ export const buildTimelineModelFromTrip = (
   const arrivalLabel = "--";
 
   // Build three segment models:
-  // 1) pre-departure at dock
+  // 1) pre-departure at start terminal
   // 2) in-transit at sea
-  // 3) arrival/docking
+  // 3) arrival at destination terminal
   // UI component selection/layout is attached later in render-layer mapping.
 
   const rows: VesselTripTimelineRowModel[] = [
@@ -49,7 +49,7 @@ export const buildTimelineModelFromTrip = (
       startTime: times.departWindowStart,
       endTime: times.departedAt,
       percentComplete: trip.LeftDock ? 1 : 0,
-      phase: "departure",
+      phase: "at-start",
       indicatorLabel: departureLabel,
     },
     {
@@ -57,7 +57,7 @@ export const buildTimelineModelFromTrip = (
       startTime: times.departedAt,
       endTime: times.arriveEta,
       percentComplete: atSeaPercent,
-      phase: "transit",
+      phase: "at-sea",
       indicatorLabel: inTransitLabel,
     },
     {
@@ -65,7 +65,7 @@ export const buildTimelineModelFromTrip = (
       startTime: times.arriveEta,
       endTime: times.tripEnd,
       percentComplete: trip.TripEnd ? 1 : 0,
-      phase: "arrival",
+      phase: "at-dest",
       indicatorLabel: arrivalLabel,
     },
   ];
@@ -201,4 +201,3 @@ const addMinutes = (value: Date, minutes: number): Date =>
  * @returns Clamped ratio
  */
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-

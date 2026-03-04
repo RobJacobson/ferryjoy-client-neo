@@ -37,7 +37,7 @@ export type TimelineMeasurementProps = {
  */
 export const useTimelineOverlayPlacement = (
   overlayIndicator: OverlayIndicatorPlacement,
-  axisXRatio: number,
+  axisXRatio: number
 ): {
   overlayPlacement: { top: number; left: number } | undefined;
   timelineContainerProps: TimelineContainerProps;
@@ -49,7 +49,7 @@ export const useTimelineOverlayPlacement = (
     overlayIndicator,
     rowLayouts,
     timelineWidth,
-    axisXRatio,
+    axisXRatio
   );
 
   return {
@@ -86,7 +86,7 @@ const getOverlayPlacement = (
   overlayIndicator: OverlayIndicatorPlacement,
   rowLayouts: Record<string, RowLayout>,
   timelineWidth: number,
-  axisXRatio: number,
+  axisXRatio: number
 ): { top: number; left: number } | undefined => {
   const rowLayout = rowLayouts[overlayIndicator.rowId];
   if (!rowLayout || rowLayout.rowHeight <= 0 || timelineWidth <= 0) {

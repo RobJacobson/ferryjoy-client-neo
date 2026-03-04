@@ -118,7 +118,7 @@ const getVerticalRowStyle = (
   minSegmentPx: number
 ): ViewStyle => ({
   flexGrow: durationMinutes,
-  flexBasis: 0,
+  flexBasis: "auto",
   minHeight: minSegmentPx,
 });
 

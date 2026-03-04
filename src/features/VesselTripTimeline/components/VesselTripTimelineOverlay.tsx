@@ -9,14 +9,15 @@ import type { ViewStyle } from "react-native";
 import { type TimelineRow, VerticalTimeline } from "@/components/Timeline";
 import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useTimelineOverlayPlacement } from "../hooks/useTimelineOverlayPlacement";
 import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
-import { useTimelineOverlayPlacement } from "./hooks/useTimelineOverlayPlacement";
-import { ArriveEventCard } from "./events/ArriveEventCard";
-import { DepartEventCard } from "./events/DepartEventCard";
-import { InTransitEventCard } from "./events/InTransitEventCard";
+import { ArriveDestLabel } from "./ArriveDestLabel";
+import { ArriveDockLabel } from "./ArriveDockLabel";
+import { InTransitEventCard } from "./InTransitEventCard";
+import { LeaveDockLabel } from "./LeaveDockLabel";
 
 type VesselTripTimelineOverlayProps = {
   presentationRows: VesselTripTimelineRowModel[];
@@ -47,27 +48,17 @@ type SlotRenderKey = `${VesselTripTimelineRowModel["phase"]}:${Slot}`;
 type SlotRenderer = (context: SlotRendererContext) => ReactNode | undefined;
 
 const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
-  "departure:right": ({ item }) => (
-    <DepartEventCard trip={item.trip} vesselLocation={item.vesselLocation} />
+  "at-start:right": ({ item }) => (
+    <ArriveDockLabel trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
-  "transit:left": ({ item }) => (
+  "at-sea:left": ({ item }) => (
     <InTransitEventCard vesselLocation={item.vesselLocation} />
   ),
-  "transit:right": ({ row, item }) => (
-    <ArriveEventCard
-      phase="transit"
-      trip={item.trip}
-      vesselLocation={item.vesselLocation}
-      rowEndTime={row.endTime}
-    />
+  "at-sea:right": ({ item }) => (
+    <LeaveDockLabel trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
-  "arrival:right": ({ row, item }) => (
-    <ArriveEventCard
-      phase="arrival"
-      trip={item.trip}
-      vesselLocation={item.vesselLocation}
-      rowEndTime={row.endTime}
-    />
+  "at-dest:right": ({ item }) => (
+    <ArriveDestLabel trip={item.trip} vesselLocation={item.vesselLocation} />
   ),
 };
 
@@ -93,16 +84,19 @@ export const VesselTripTimelineOverlay = ({
   markerClassName = "border-2 border-green-500 bg-white",
   indicatorClassName = "border-2 border-green-500 bg-green-100",
 }: VesselTripTimelineOverlayProps) => {
-  const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item.trip);
+  const overlayIndicator = deriveActiveOverlayIndicator(
+    presentationRows,
+    item.trip,
+  );
   const { overlayPlacement, timelineContainerProps, timelineProps } =
     useTimelineOverlayPlacement(overlayIndicator, axisXRatio);
   const rows = presentationRows.map((row) => toTimelineRow(row, item));
 
   return (
-    <View className="relative" {...timelineContainerProps}>
+    <View className="relative h-[400px]" {...timelineContainerProps}>
       <VerticalTimeline
         rows={rows}
-        className={className}
+        className={cn(className, "flex-1")}
         rowClassName={rowClassName}
         minSegmentPx={minSegmentPx}
         centerAxisSizePx={centerAxisSizePx}
@@ -207,40 +201,40 @@ const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
   trip: VesselTripTimelineItem["trip"],
 ): OverlayIndicator => {
-  const departureRow = rows.find((row) => row.phase === "departure");
-  const transitRow = rows.find((row) => row.phase === "transit");
-  const arrivalRow = rows.find((row) => row.phase === "arrival");
+  const atStartRow = rows.find((row) => row.phase === "at-start");
+  const atSeaRow = rows.find((row) => row.phase === "at-sea");
+  const atDestRow = rows.find((row) => row.phase === "at-dest");
   const now = new Date();
 
-  if (trip.TripEnd && arrivalRow) {
+  if (trip.TripEnd && atDestRow) {
     return {
-      rowId: arrivalRow.id,
+      rowId: atDestRow.id,
       positionPercent: 1,
-      label: arrivalRow.indicatorLabel,
+      label: atDestRow.indicatorLabel,
     };
   }
 
-  if (!trip.LeftDock && departureRow) {
+  if (!trip.LeftDock && atStartRow) {
     return {
-      rowId: departureRow.id,
+      rowId: atStartRow.id,
       // Keep indicator slightly below row-start marker for readability.
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(departureRow.startTime, departureRow.endTime, now),
+        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now),
       ),
-      label: departureRow.indicatorLabel,
+      label: atStartRow.indicatorLabel,
     };
   }
 
-  if (transitRow) {
+  if (atSeaRow) {
     return {
-      rowId: transitRow.id,
+      rowId: atSeaRow.id,
       positionPercent: getTimeProgress(
-        transitRow.startTime,
-        transitRow.endTime,
+        atSeaRow.startTime,
+        atSeaRow.endTime,
         now,
       ),
-      label: transitRow.indicatorLabel,
+      label: atSeaRow.indicatorLabel,
     };
   }
 
@@ -291,4 +285,3 @@ const getOverlayStyle = (
  * @returns Clamped ratio
  */
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-

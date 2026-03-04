@@ -15,7 +15,9 @@ type InTransitEventCardProps = {
  * @param vesselLocation - Vessel location used for status details
  * @returns In-transit event card
  */
-export const InTransitEventCard = ({ vesselLocation }: InTransitEventCardProps) => {
+export const InTransitEventCard = ({
+  vesselLocation,
+}: InTransitEventCardProps) => {
   const speedText = `${Math.round(vesselLocation.Speed)} kn`;
   const subtitle =
     typeof vesselLocation.ArrivingDistance === "number"
@@ -23,8 +25,10 @@ export const InTransitEventCard = ({ vesselLocation }: InTransitEventCardProps) 
       : `${speedText} · In transit`;
 
   return (
-    <View className="rounded-lg border border-border bg-card p-3">
-      <Text className="font-semibold text-base">{vesselLocation.VesselName}</Text>
+    <View className="bg-green-200">
+      <Text className="font-semibold text-base">
+        {vesselLocation.VesselName}
+      </Text>
       <Text className="text-muted-foreground text-sm">{subtitle}</Text>
     </View>
   );
