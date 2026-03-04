@@ -54,6 +54,7 @@ export const appendInitialSchedule = async (
     ...baseTrip,
     Key: scheduledTrip?.Key,
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
+    NextScheduledDeparture: scheduledTrip?.NextDepartingTime,
     scheduledTripId: scheduledTrip?._id,
   };
   return result;

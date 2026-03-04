@@ -120,6 +120,8 @@ export const vesselTripSchema = v.object({
   // Denormalized previous trip data for efficient predictions
   PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
   PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
+  // Denormalized next trip schedule for depart-next predictions
+  NextScheduledDeparture: v.optional(v.number()), // Next trip's scheduled departure time in milliseconds (from current arriving terminal)
   // ML model predictions with uncertainty bounds and actual outcomes
   AtDockDepartCurr: v.optional(predictionSchema), // at-dock-depart-curr model
   AtDockArriveNext: v.optional(predictionSchema), // at-dock-arrive-next model
@@ -141,6 +143,9 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
   const domainTrip = {
     ...trip,
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
+    NextScheduledDeparture: optionalEpochMsToDate(
+      trip.NextScheduledDeparture
+    ),
     Eta: optionalEpochMsToDate(trip.Eta),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
     TimeStamp: epochMsToDate(trip.TimeStamp),
