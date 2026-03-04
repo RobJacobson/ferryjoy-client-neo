@@ -143,9 +143,7 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
   const domainTrip = {
     ...trip,
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
-    NextScheduledDeparture: optionalEpochMsToDate(
-      trip.NextScheduledDeparture
-    ),
+    NextScheduledDeparture: optionalEpochMsToDate(trip.NextScheduledDeparture),
     Eta: optionalEpochMsToDate(trip.Eta),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
     TimeStamp: epochMsToDate(trip.TimeStamp),
