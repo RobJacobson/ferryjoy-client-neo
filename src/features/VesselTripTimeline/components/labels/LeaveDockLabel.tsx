@@ -23,12 +23,9 @@ type LeaveDockLabelProps = {
 export const LeaveDockLabel = ({
   trip,
   vesselLocation,
-}: LeaveDockLabelProps) => {
-  const actualTime = trip.LeftDock;
-  const verb = actualTime ? "Departed" : "Depart";
-  return (
-    <TimelineLabel
-      title={`${verb} ${vesselLocation.DepartingTerminalAbbrev}`}
-    />
-  );
-};
+}: LeaveDockLabelProps) => (
+  <TimelineLabel
+    verb={trip.LeftDock ? "Departed" : "Depart"}
+    terminal={vesselLocation.DepartingTerminalName}
+  />
+);

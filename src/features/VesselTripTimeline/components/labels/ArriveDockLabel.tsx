@@ -17,10 +17,9 @@ type ArriveDockLabelProps = {
  * @param vesselLocation - Vessel location used for terminal labeling
  * @returns Arrival label component
  */
-export const ArriveDockLabel = ({ vesselLocation }: ArriveDockLabelProps) => {
-  return (
-    <TimelineLabel
-      title={`Arrived ${vesselLocation.DepartingTerminalAbbrev}`}
-    />
-  );
-};
+export const ArriveDockLabel = ({ vesselLocation }: ArriveDockLabelProps) => (
+  <TimelineLabel
+    verb="Arrived"
+    terminal={vesselLocation.DepartingTerminalName}
+  />
+);

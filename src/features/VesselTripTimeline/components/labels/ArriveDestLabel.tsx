@@ -23,9 +23,9 @@ type ArriveDestLabelProps = {
 export const ArriveDestLabel = ({
   trip,
   vesselLocation,
-}: ArriveDestLabelProps) => {
-  const terminal = vesselLocation.ArrivingTerminalAbbrev;
-  const hasArrived = trip.TripEnd !== undefined;
-  const verb = hasArrived ? "Arrived" : "Arrive";
-  return <TimelineLabel title={`${verb} ${terminal}`} />;
-};
+}: ArriveDestLabelProps) => (
+  <TimelineLabel
+    verb={trip.TripEnd ? "Arrived" : "Arrive"}
+    terminal={vesselLocation.ArrivingTerminalName}
+  />
+);
