@@ -15,6 +15,9 @@ track itself. A row-local indicator caused two problems:
 To solve this, the indicator is rendered once as an absolute overlay above the
 entire timeline in `VesselTripTimelineOverlay`.
 
+The overlay UI is now provided by the timeline primitive peer
+`VerticalTimelineIndicatorOverlay`, composed alongside `VerticalTimeline`.
+
 ## Separation of Concerns
 
 The feature is split into 3 layers:
@@ -29,14 +32,15 @@ The feature is split into 3 layers:
 
 2. **Layout + overlay renderer**
    - `components/VesselTripTimelineOverlay.tsx`
-   - Renders `VerticalTimeline` plus one absolute blur-backed indicator.
+   - Renders `VerticalTimeline` in `renderMode="background"` plus peer
+     `VerticalTimelineIndicatorOverlay`.
    - Performs final slot placement and card component selection from row phase
      plus trip/location domain data.
    - Derives the active overlay indicator from row timing + trip state at render
      time.
 
 3. **Overlay measurement hook**
-   - `components/hooks/useTimelineOverlayPlacement.ts`
+   - `src/components/Timeline/useVerticalTimelineOverlayPlacement.ts`
    - Owns row measurement state plus timeline-width measurement.
    - Returns grouped props (`timelineContainerProps`, `timelineProps`) and
      computed overlay placement.
@@ -50,8 +54,8 @@ layout measurement concerns isolated.
 
 - `onRowLayout(rowId, { y, height })`
 
-`useTimelineOverlayPlacement` stores row values by `rowId`, measures timeline
-container width once, and computes overlay position:
+`useVerticalTimelineOverlayPlacement` stores row values by `rowId`, measures
+timeline container width once, and computes overlay position:
 
 - `top = rowY + rowHeight * positionPercent`
 - `left = timelineWidth * axisXRatio`
@@ -62,6 +66,17 @@ negative margins.
 `axisXRatio` defaults to `0.5` for the current symmetric layout. If future
 layouts use uneven left/right widths, pass a different ratio (for example
 `0.4` or `0.6`) without reintroducing per-row axis measurement callbacks.
+
+## Background vs Foreground Contract
+
+`VerticalTimeline` now has an explicit render mode:
+
+- `renderMode="full"` (default): renders track + marker + per-row moving indicator
+- `renderMode="background"`: renders track + marker only
+
+`VesselTripTimelineOverlay` uses `renderMode="background"` and renders the moving
+indicator once via `VerticalTimelineIndicatorOverlay`. This makes background and
+foreground ownership explicit, instead of relying on a boolean hide flag.
 
 ## Geometry vs Labels
 
@@ -112,6 +127,6 @@ does not visually sit on top of the static marker at row start.
 
 ## Future Notes
 
-If additional timeline features need the same overlay behavior, consider
-promoting `useTimelineOverlayPlacement` into a shared timeline utility while
-keeping `VerticalTimeline` primitive-focused.
+Other features can reuse `VerticalTimeline` +
+`VerticalTimelineIndicatorOverlay` + `useVerticalTimelineOverlayPlacement`
+without introducing feature-local measurement hooks.

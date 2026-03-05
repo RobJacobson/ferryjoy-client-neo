@@ -3,7 +3,8 @@
  * and scheduled times in priority order.
  */
 
-import { TimelineEvent, TimelineEventView } from "./TimelineEvent";
+import { View } from "@/components/ui";
+import { TimelineEvent } from "./TimelineEvent";
 
 type TimelineEventsProps = {
   actualTime?: Date;
@@ -25,11 +26,11 @@ export const TimelineEvents = ({
   predictedTime,
   scheduledTime,
 }: TimelineEventsProps) => (
-  <TimelineEventView>
+  <View className="mt-[-10px]">
     {actualTime && <TimelineEvent time={actualTime} type="actual" />}
     {!actualTime && predictedTime && (
       <TimelineEvent time={predictedTime} type="estimated" />
     )}
     {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
-  </TimelineEventView>
+  </View>
 );

@@ -16,6 +16,14 @@ import { createStaticTimelineRows } from "./data/staticTimelineRows";
 export const TimelinePrototypeScreen = () => {
   const rows = createStaticTimelineRows();
 
+  const theme = {
+    minSegmentPx: 80,
+    centerAxisSizePx: 56,
+    trackThicknessPx: 8,
+    markerSizePx: 18,
+    indicatorSizePx: 34,
+  };
+
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="gap-4 p-4">
@@ -23,14 +31,7 @@ export const TimelinePrototypeScreen = () => {
         <Text className="text-muted-foreground">
           Domain-agnostic timeline with parent-owned cards and progress.
         </Text>
-        <VerticalTimeline
-          rows={rows}
-          minSegmentPx={80}
-          centerAxisSizePx={56}
-          trackThicknessPx={8}
-          markerSizePx={18}
-          indicatorSizePx={34}
-        />
+        <VerticalTimeline rows={rows} theme={theme} />
       </View>
     </ScrollView>
   );

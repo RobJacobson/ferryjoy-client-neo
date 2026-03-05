@@ -40,11 +40,6 @@ export const VesselTripTimeline = ({
         <VesselTripTimelineOverlay
           presentationRows={rows}
           item={{ trip, vesselLocation }}
-          minSegmentPx={80}
-          centerAxisSizePx={52}
-          trackThicknessPx={8}
-          markerSizePx={18}
-          indicatorSizePx={34}
         />
       </CardContent>
     </Card>

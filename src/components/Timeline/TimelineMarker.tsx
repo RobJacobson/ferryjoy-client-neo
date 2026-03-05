@@ -1,12 +1,14 @@
 /**
- * Generic dot for timeline marker and moving indicator.
+ * Reusable circular dot component for timeline markers and moving indicators.
+ * Provides a centered container with optional inner content and configurable
+ * sizing via NativeWind classes or inline styles.
  */
 
 import type { PropsWithChildren } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
 
-type TimelineDotProps = PropsWithChildren<{
+type TimelineIndicatorProps = PropsWithChildren<{
   sizePx: number;
   className?: string;
 }>;
@@ -19,11 +21,11 @@ type TimelineDotProps = PropsWithChildren<{
  * @param children - Optional inner content
  * @returns Dot view
  */
-export const TimelineDot = ({
+export const TimelineMarker = ({
   sizePx,
   className,
   children,
-}: TimelineDotProps) => (
+}: TimelineIndicatorProps) => (
   <View
     className={cn("size-2 items-center justify-center rounded-full", className)}
     style={{
