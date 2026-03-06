@@ -108,10 +108,11 @@ export type ConvexPredictionRecord = Infer<typeof predictionRecordSchema>;
 
 /**
  * Convex validator for ML configuration stored in the modelConfig table.
- * Stores runtime configuration values like the active production version tag.
+ * Note: This schema is deprecated and only used for migration to keyValueStore.
+ * After migration, remove this schema and table.
  */
 export const modelConfigSchema = v.object({
-  key: v.literal("productionVersionTag"), // Singleton key for this config
+  key: v.literal("productionVersionTag"),
   productionVersionTag: v.union(v.string(), v.null()),
   updatedAt: v.number(),
 });

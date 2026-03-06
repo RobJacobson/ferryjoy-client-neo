@@ -325,7 +325,7 @@ export const setProductionVersionTag = mutation({
 });
 
 /**
- * Internal helper to set production version tag in config.
+ * Internal helper to set production version tag in keyValueStore.
  *
  * @param ctx - Convex mutation context
  * @param versionTag - The production version tag
@@ -335,20 +335,20 @@ async function setProductionVersionTagInternal(
   versionTag: string
 ): Promise<void> {
   const existing = await ctx.db
-    .query("modelConfig")
+    .query("keyValueStore")
     .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
     .first();
 
   const config = {
-    key: "productionVersionTag" as const,
-    productionVersionTag: versionTag,
+    key: "productionVersionTag",
+    value: versionTag,
     updatedAt: Date.now(),
   };
 
   if (existing) {
     await ctx.db.replace(existing._id, config);
   } else {
-    await ctx.db.insert("modelConfig", config);
+    await ctx.db.insert("keyValueStore", config);
   }
 }
 
@@ -362,11 +362,11 @@ async function getModelConfig(ctx: MutationCtx): Promise<{
   productionVersionTag: string | null;
 } | null> {
   const config = await ctx.db
-    .query("modelConfig")
+    .query("keyValueStore")
     .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
     .first();
 
   return config
-    ? { productionVersionTag: config.productionVersionTag }
+    ? { productionVersionTag: config.value as string | null }
     : { productionVersionTag: null };
 }

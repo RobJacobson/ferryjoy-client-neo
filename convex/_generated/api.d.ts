@@ -60,6 +60,7 @@ import type * as functions_scheduledTrips_sync_index from "../functions/schedule
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
 import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
+import type * as functions_scheduledTrips_syncDate from "../functions/scheduledTrips/syncDate.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
 import type * as functions_vesselLocation_queries from "../functions/vesselLocation/queries.js";
@@ -157,6 +158,7 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
   "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
+  "functions/scheduledTrips/syncDate": typeof functions_scheduledTrips_syncDate;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
   "functions/vesselLocation/queries": typeof functions_vesselLocation_queries;

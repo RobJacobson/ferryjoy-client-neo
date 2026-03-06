@@ -1,3 +1,4 @@
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { runTransformationPipeline } from "../../../domain/scheduledTrips/transform/index";
 import { getSailingDay } from "../../../shared/time";
@@ -61,6 +62,12 @@ export const syncScheduledTripsForDateRange = async (
 
   console.log(
     `${logPrefix}Range sync completed: ${results.length} days processed`
+  );
+
+  // Persist the last sync date timestamp
+  await ctx.runMutation(
+    internal.functions.scheduledTrips.syncDate.setLastSyncDate,
+    {}
   );
 
   return {
@@ -146,6 +153,12 @@ export const syncScheduledTripsForDate = async (
     console.log(
       `${logPrefix}Safe sync completed: deleted ${deleted}, inserted ${inserted}, ` +
         `${totalIndirect} indirect trips across ${routeData.length} routes`
+    );
+
+    // Persist the last sync date timestamp
+    await ctx.runMutation(
+      internal.functions.scheduledTrips.syncDate.setLastSyncDate,
+      {}
     );
 
     return {

@@ -31,7 +31,7 @@ crons.cron(
   "daily scheduled trips sync",
   "1 11 * * *", // 11:01 AM UTC daily (covers ~4:01 AM Pacific in both DST and standard time)
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-  { daysToSync: 14 } // Maintain a 14-day rolling window
+  { daysToSync: 7 } // Maintain a 14-day rolling window
 );
 
 // Daily purge of out-of-date scheduled trips at 11:00 AM UTC.
@@ -49,6 +49,14 @@ crons.interval(
   "cleanup old vessel pings",
   { hours: 1 }, // every hour
   internal.functions.vesselPings.actions.cleanupOldPings
+);
+
+// Check WSF API cache flush date every 5 minutes
+// Triggers sync if API data has been updated since last sync
+crons.interval(
+  "check schedule cache flush",
+  { minutes: 5 }, // every 5 minutes
+  internal.functions.scheduledTrips.actions.checkCacheFlushAndSyncIfNeeded
 );
 
 export default crons;

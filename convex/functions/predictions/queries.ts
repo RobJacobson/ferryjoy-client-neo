@@ -50,11 +50,11 @@ export const getModelParametersForProduction = query({
     try {
       // Get production version tag from config
       const config = await ctx.db
-        .query("modelConfig")
+        .query("keyValueStore")
         .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
         .first();
 
-      const prodVersionTag = config?.productionVersionTag;
+      const prodVersionTag = config?.value as string | null;
       if (!prodVersionTag) {
         return null;
       }
@@ -116,11 +116,11 @@ export const getModelParametersForProductionBatch = query({
   handler: async (ctx, args) => {
     try {
       const config = await ctx.db
-        .query("modelConfig")
+        .query("keyValueStore")
         .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
         .first();
 
-      const prodVersionTag = config?.productionVersionTag;
+      const prodVersionTag = config?.value as string | null;
       if (!prodVersionTag) {
         return {};
       }
@@ -228,11 +228,11 @@ export const getProductionVersionTag = query({
   handler: async (ctx) => {
     try {
       const config = await ctx.db
-        .query("modelConfig")
+        .query("keyValueStore")
         .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
         .first();
 
-      return config?.productionVersionTag ?? null;
+      return (config?.value as string | null) ?? null;
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch production version tag from config",
