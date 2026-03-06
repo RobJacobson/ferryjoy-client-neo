@@ -42,23 +42,23 @@ const computePredictions = async (
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTrip> => {
   try {
-    // Skip if prediction already set for any spec
+    // Skip predictions that already exist (avoid redundant work)
     const specsToAttempt = specs.filter(
       (spec) => trip[spec.field] === undefined
     );
     if (specsToAttempt.length === 0) return trip;
 
-    // Validate trip readiness
+    // Trip lacks required context (Prev* fields) for predictions
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    // Validate LeftDock requirements
+    // Validate LeftDock requirements for each spec
     for (const spec of specsToAttempt) {
       if (spec.requiresLeftDock && !trip.LeftDock) {
         return trip;
       }
     }
 
-    // Batch load models when multiple predictions needed
+    // Batch load models when computing 2+ predictions (efficiency optimization)
     let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
       ModelType,
       ModelDoc | null
@@ -76,7 +76,7 @@ const computePredictions = async (
       modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
     }
 
-    // Run predictions
+    // Run predictions in parallel
     const results = await Promise.all(
       specsToAttempt.map(async (spec) => ({
         spec,
@@ -89,7 +89,7 @@ const computePredictions = async (
       }))
     );
 
-    // Aggregate results
+    // Aggregate prediction results into update object
     const updates = results.reduce<Record<string, unknown>>(
       (acc, { spec, prediction }) => {
         if (prediction) {
@@ -102,7 +102,7 @@ const computePredictions = async (
 
     return { ...trip, ...updates } as ConvexVesselTrip;
   } catch (error) {
-    // Log as Convex error for debugging time-based prediction failures
+    // Log prediction failures (especially for time-based fallback retries)
     console.error(
       `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
       error

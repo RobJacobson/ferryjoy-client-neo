@@ -1,69 +1,12 @@
 import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { applyActualToPrediction } from "domain/ml/prediction";
 import {
-  type ConvexPrediction,
   type ConvexVesselTrip,
   vesselTripSchema,
 } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
-
-const MS_PER_MINUTE = 60 * 1000;
-
-/**
- * Calculate the range deviation delta for a prediction
- * Returns the difference between actual and the nearest prediction bound (min or max)
- *
- * @param actual - Actual timestamp in milliseconds
- * @param min - Minimum prediction bound in milliseconds
- * @param max - Maximum prediction bound in milliseconds
- * @returns Delta in minutes (positive if actual > max, negative if actual < min, 0 if within bounds)
- */
-const calculateDeltaRange = (
-  actual: number,
-  min: number,
-  max: number
-): number => {
-  if (actual < min)
-    return Math.round(((actual - min) / MS_PER_MINUTE) * 10) / 10;
-  if (actual > max)
-    return Math.round(((actual - max) / MS_PER_MINUTE) * 10) / 10;
-  return 0;
-};
-
-/**
- * Calculate the total prediction error delta
- *
- * @param actual - Actual timestamp in milliseconds
- * @param predicted - Predicted timestamp in milliseconds
- * @returns Delta in minutes (actual - predicted)
- */
-const calculateDeltaTotal = (actual: number, predicted: number): number => {
-  return Math.round(((actual - predicted) / MS_PER_MINUTE) * 10) / 10;
-};
-
-/**
- * Apply actual observed timestamp to a prediction, calculating deltas
- * @param prediction - The prediction to update with actual data
- * @param actualMs - The actual observed timestamp in milliseconds
- * @returns Updated prediction with actual timestamp and calculated deltas
- */
-const applyActualToPrediction = (
-  prediction: ConvexPrediction,
-  actualMs: number
-): ConvexPrediction => {
-  const actual = Math.floor(actualMs / 1000) * 1000;
-  return {
-    ...prediction,
-    Actual: actual,
-    DeltaTotal: calculateDeltaTotal(actual, prediction.PredTime),
-    DeltaRange: calculateDeltaRange(
-      actual,
-      prediction.MinTime,
-      prediction.MaxTime
-    ),
-  };
-};
 
 /**
  * Upsert an active trip (update if exists, insert if not)
@@ -77,6 +20,7 @@ export const upsertActiveTrip = mutation({
   args: { trip: vesselTripSchema },
   handler: async (ctx, args: { trip: ConvexVesselTrip }) => {
     try {
+      // Find existing active trip for this vessel
       const existing = await ctx.db
         .query("activeVesselTrips")
         .withIndex("by_vessel_abbrev", (q) =>
@@ -85,11 +29,11 @@ export const upsertActiveTrip = mutation({
         .first();
 
       if (existing) {
-        // Update existing trip
+        // Vessel already has an active trip - replace it
         await ctx.db.replace(existing._id, args.trip);
         return existing._id;
       } else {
-        // Insert new trip
+        // First active trip for this vessel - insert new
         const id = await ctx.db.insert("activeVesselTrips", args.trip);
         return id;
       }
@@ -130,7 +74,7 @@ export const completeAndStartNewTrip = mutation({
     args: { completedTrip: ConvexVesselTrip; newTrip: ConvexVesselTrip }
   ) => {
     try {
-      // Verify completed trip has TripEnd set
+      // Validate that completed trip has TripEnd set
       if (!args.completedTrip.TripEnd) {
         throw new ConvexError({
           message: "Completed trip must have TripEnd set",
@@ -156,13 +100,13 @@ export const completeAndStartNewTrip = mutation({
         });
       }
 
-      // 1. Insert completed trip
+      // Step 1: Insert completed trip into archive
       const completedId = await ctx.db.insert(
         "completedVesselTrips",
         args.completedTrip
       );
 
-      // 2. Overwrite the active trip with new trip data
+      // Step 2: Overwrite active trip with new trip data
       // Note: ML predictions are calculated in the action layer when the arriving
       // terminal first becomes available
       await ctx.db.replace(existingActive._id, args.newTrip);
@@ -209,7 +153,10 @@ export const upsertVesselTripsBatch = mutation({
     activeUpserts: v.array(vesselTripSchema),
   },
   handler: async (ctx, args) => {
+    // Load all active trips into memory for batch processing
     const activeTrips = await ctx.db.query("activeVesselTrips").collect();
+    
+    // Build index by vessel for O(1) lookups during batch
     const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
       activeTrips.map((t) => [t.VesselAbbrev, { _id: t._id }])
     );
@@ -220,19 +167,23 @@ export const upsertVesselTripsBatch = mutation({
       reason?: string;
     }> = [];
 
+    // Process each vessel's trip independently for error isolation
     for (const trip of args.activeUpserts) {
       const vesselAbbrev = trip.VesselAbbrev;
       try {
         const existing = activeByVessel.get(vesselAbbrev);
         if (existing) {
+          // Vessel has existing active trip - replace it
           await ctx.db.replace(existing._id, trip);
         } else {
+          // First active trip for this vessel - insert new
           const id = await ctx.db.insert("activeVesselTrips", trip);
-          // Store a minimal entry so subsequent operations can see it.
+          // Store ID in map so subsequent operations in this batch can see it
           activeByVessel.set(vesselAbbrev, { _id: id });
         }
         perVessel.push({ vesselAbbrev, ok: true });
       } catch (error) {
+        // Isolate failure - log but continue processing other vessels
         perVessel.push({
           vesselAbbrev,
           ok: false,
@@ -267,6 +218,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     updatedTrip: v.optional(vesselTripSchema),
   }),
   handler: async (ctx, args) => {
+    // Find most recent completed trip for this vessel
     const mostRecent = await ctx.db
       .query("completedVesselTrips")
       .withIndex("by_vessel_and_trip_end", (q) =>
@@ -282,11 +234,13 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
+    // Compute which prediction fields need actuals applied
     const updates = computeDepartNextActualsPatch(
       mostRecent as unknown as ConvexVesselTrip,
       args.actualDepartMs
     );
 
+    // No predictions to backfill
     if (Object.keys(updates).length === 0) {
       return {
         updated: false as const,
@@ -295,9 +249,10 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
+    // Apply patch with actual departure times
     await ctx.db.patch(mostRecent._id, updates);
 
-    // Return the updated trip (schema shape) so the action layer can insert predictions.
+    // Return updated trip for action layer to insert completed prediction records
     const updatedTrip = await ctx.db.get(mostRecent._id);
     if (!updatedTrip) {
       return { updated: true as const, updatedTrip: undefined };

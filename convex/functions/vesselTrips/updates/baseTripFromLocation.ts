@@ -11,6 +11,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
+import { getDockDepartureState } from "./eventDetection";
 
 /**
  * Base complete VesselTrip from raw location data using simple assignments.
@@ -62,29 +63,33 @@ const baseTripForStart = (
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
+    // Key for schedule lookup - derived from vessel, terminals, and departure time
     Key: deriveTripKey(
       currLocation.VesselAbbrev,
       currLocation.DepartingTerminalAbbrev,
       arrivingTerminalAbbrev,
       currLocation.ScheduledDeparture
     ),
+    // WSF sailing day (3 AM Pacific cutoff)
     SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
+    // Carry forward context from the trip being completed
     PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
     PrevLeftDock: existingTrip?.LeftDock,
+    // Vessel just arrived at dock - start timing the new trip
     TripStart: currLocation.TimeStamp,
     AtDock: currLocation.AtDock,
-    AtDockDuration: undefined,
+    AtDockDuration: undefined, // Will be computed when vessel leaves dock
     ScheduledDeparture: currLocation.ScheduledDeparture,
-    LeftDock: undefined,
-    TripDelay: undefined,
+    LeftDock: undefined, // Not departed yet
+    TripDelay: undefined, // Will be computed when vessel leaves dock
     Eta: undefined,
-    TripEnd: undefined,
-    AtSeaDuration: undefined,
-    TotalDuration: undefined,
+    TripEnd: undefined, // Only set on completed trips
+    AtSeaDuration: undefined, // Only set on completed trips
+    TotalDuration: undefined, // Only set on completed trips
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
-    // Predictions reset for new trip
+    // Predictions reset for new trip (will be regenerated)
     AtDockDepartCurr: undefined,
     AtDockArriveNext: undefined,
     AtDockDepartNext: undefined,
@@ -112,19 +117,17 @@ const baseTripForContinuing = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
-  // LeftDock: infer when AtDock flips false and LeftDock missing
-  const justLeftDock = existingTrip?.AtDock && !currLocation.AtDock;
+  // Carry forward ScheduledDeparture when curr omits it (feed glitch protection)
   const scheduledDeparture =
     currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  // Shared dock-departure inference (same logic as event detection)
+  const { leftDockTime } = getDockDepartureState(existingTrip, currLocation);
 
-  const leftDockTime =
-    currLocation.LeftDock ??
-    existingTrip?.LeftDock ??
-    (justLeftDock ? currLocation.TimeStamp : undefined);
-
+  // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
   const arrivingTerminalAbbrev =
     currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
 
+  // TripStart is carried from existing trip
   const tripStartTime = existingTrip?.TripStart;
 
   return {
@@ -132,32 +135,36 @@ const baseTripForContinuing = (
     DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
+    // Key for schedule lookup
     Key: deriveTripKey(
       currLocation.VesselAbbrev,
       currLocation.DepartingTerminalAbbrev,
       arrivingTerminalAbbrev,
       scheduledDeparture
     ),
+    // WSF sailing day (3 AM Pacific cutoff)
     SailingDay: deriveSailingDay(scheduledDeparture),
-    // Prev* fields carried from existing trip
+    // Prev* fields carried from existing trip (unchanged mid-trip)
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: existingTrip?.PrevLeftDock,
-    // TripStart carried from existing trip
+    // TripStart carried from existing trip (unchanged)
     TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
+    // Time from arrival to departure (only when vessel has left dock)
     AtDockDuration: calculateTimeDelta(tripStartTime, leftDockTime),
     ScheduledDeparture: scheduledDeparture,
     LeftDock: leftDockTime,
+    // Delay from scheduled departure to actual departure
     TripDelay: calculateTimeDelta(scheduledDeparture, leftDockTime),
-    // Eta: null-overwrite protection
+    // Eta: null-overwrite protection (preserve existing when curr omits it)
     Eta: currLocation.Eta ?? existingTrip?.Eta,
-    TripEnd: undefined,
-    AtSeaDuration: existingTrip?.AtSeaDuration,
-    TotalDuration: existingTrip?.TotalDuration,
+    TripEnd: undefined, // Only set on completed trips
+    AtSeaDuration: existingTrip?.AtSeaDuration, // Carried from existing
+    TotalDuration: existingTrip?.TotalDuration, // Carried from existing
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
-    // Predictions carried from existing trip
+    // Predictions carried from existing trip (preserved mid-trip)
     AtDockDepartCurr: existingTrip?.AtDockDepartCurr,
     AtDockArriveNext: existingTrip?.AtDockArriveNext,
     AtDockDepartNext: existingTrip?.AtDockDepartNext,

@@ -2,7 +2,7 @@
 
 This module synchronizes active vessel trips with live location data. It runs as part of the vessel orchestrator (every 5 seconds) and processes vessel location updates to determine whether database writes are needed.
 
-**Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes.
+**Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, and `leave_dock` side effects run only after the active trip upsert succeeds.
 
 **Five-function design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
@@ -11,7 +11,7 @@ This module synchronizes active vessel trips with live location data. It runs as
 4. `appendFinalSchedule` — schedule lookup by Key when the computed key becomes newly available or changes (event-driven)
 5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions with event-driven and time-based fallback (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
-**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` provides a single source of truth for all trip event detection logic.
+**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update, and `getDockDepartureState` provides the shared `LeftDock` inference used by both event detection and trip field derivation.
 
 **Naming convention**:
 - `buildTrip` - Main orchestrator that creates complete trip from scratch
@@ -28,22 +28,25 @@ This module synchronizes active vessel trips with live location data. It runs as
 ```
 runUpdateVesselTrips (entry point)
     ├─> Load active trips (once)
-    ├─> Categorize vessel/location tuples into two groups:
-    │       completedTrips, currentTrips (using detectTripEvents)
+    ├─> Build TripTransition objects:
+    │       { currLocation, existingTrip, events }
     │       Events are computed once and passed through call chain
+    ├─> Categorize transitions into two groups:
+    │       completedTrips, currentTrips
+    ├─> Compute shouldRunPredictionFallback once for the current tick
     └─> Delegate to processing functions (each handles own persistence
             with per-vessel error isolation):
             ├─> processCompletedTrips (trip boundary)
-            │       buildCompletedTrip → buildTrip (tripStart=true, events) → completeAndStartNewTrip
+            │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
             │       → handlePredictionEvent (trip_complete) → PredictionService
             │       (internal: baseTripFromLocation → appendInitialSchedule
             │                 → appendFinalSchedule → appendArriveDockPredictions
             │                 → appendLeaveDockPredictions
             │                 → actualizePredictionsOnTripComplete / OnLeaveDock)
             └─> processCurrentTrips (ongoing trips, including first appearances)
-                    buildTrip (tripStart=false for continuing and first appearances, events)
+                    buildTrip (tripStart=false for continuing and first appearances, events, shouldRunPredictionFallback)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
-                    → handlePredictionEvent (leave_dock) → PredictionService
+                    → handlePredictionEvent (leave_dock, post-persist only) → PredictionService
                     (internal: baseTripFromLocation → appendInitialSchedule
                               → appendFinalSchedule → appendArriveDockPredictions
                               → appendLeaveDockPredictions
@@ -54,8 +57,8 @@ runUpdateVesselTrips (entry point)
 
 | File | Purpose |
 |------|---------|
-| `updateVesselTrips.ts` | Main orchestrator: categorizes vessels into completed/current, delegates to processing functions |
-| `eventDetection.ts` | `detectTripEvents` — centralized event detection for all trip events |
+| `updateVesselTrips.ts` | Main orchestrator: builds `TripTransition` objects, categorizes them into completed/current, delegates to processing functions |
+| `eventDetection.ts` | `detectTripEvents`, `getDockDepartureState` — centralized event detection and shared dock-departure inference |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, and same-trip actualization before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived fields, handles first trip, trip boundary, regular updates, and carry-forward protection for durable fields |
@@ -79,7 +82,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 **Condition**: `isFirstTrip = !existingTrip` (first appearance of a vessel).
 
-**Behavior**: Handled by `processCurrentTrips`. Calls `buildTrip(ctx, currLocation, undefined, false, events)` which:
+**Behavior**: Handled by `processCurrentTrips`. Calls `buildTrip(ctx, currLocation, undefined, false, events, shouldRunPredictionFallback)` which:
 - Uses the continuing path in `baseTripFromLocation` with no `existingTrip`, producing a first-seen trip with no carried-forward context
 - Internally calls `appendFinalSchedule` when a key is derivable, `appendArriveDockPredictions` when at dock and prediction-ready, and `appendLeaveDockPredictions` when at sea and prediction-ready
 - Compares via `tripsAreEqual` (always different for new trips) and writes via `upsertVesselTripsBatch`
@@ -90,7 +93,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 **Behavior**:
 1. Complete current trip via `buildCompletedTrip`: set `TripEnd`, compute `AtSeaDuration`, `TotalDuration`, and actualize same-trip at-sea predictions before persistence.
-2. Start new trip via `buildTrip(ctx, currLocation, existingTrip, true, events)` with `tripStart=true` for `Prev*` context: internally calls `baseTripFromLocation` → `appendInitialSchedule` (if at dock with missing ArrivingTerminal) → `appendFinalSchedule` (if key is newly available or changed) → `appendArriveDockPredictions` (if at dock) → `appendLeaveDockPredictions` (if at sea).
+2. Start new trip via `buildTrip(ctx, currLocation, existingTrip, true, events, shouldRunPredictionFallback)` with `tripStart=true` for `Prev*` context: internally calls `baseTripFromLocation` → `appendInitialSchedule` (if at dock with missing ArrivingTerminal) → `appendFinalSchedule` (if key is newly available or changed) → `appendArriveDockPredictions` (if at dock) → `appendLeaveDockPredictions` (if at sea).
 3. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
 4. Insert completed prediction records from the already-finalized completed trip via PredictionService.
 
@@ -99,13 +102,13 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 **Condition**: `!isCompletedTrip` (same `DepartingTerminalAbbrev`, vessel still on same leg).
 
 **Behavior**:
-1. `buildTrip(ctx, currLocation, existingTrip, false, events)` with `tripStart=false` — orchestrates all enrichments with provided events:
+1. `buildTrip(ctx, currLocation, existingTrip, false, events, shouldRunPredictionFallback)` with `tripStart=false` — orchestrates all enrichments with provided events:
    - Calls `appendInitialSchedule` when at dock with missing ArrivingTerminal
    - Calls `appendFinalSchedule` when a key becomes newly available or changes
    - Calls `appendArriveDockPredictions` when first arrive at dock
    - Calls `appendLeaveDockPredictions` when physically depart dock
    - Applies `actualizePredictionsOnLeaveDock` before persistence when `didJustLeaveDock`
-2. When `didJustLeaveDock`: PredictionService inserts completed prediction records from the finalized trip and backfills previous trip depart-next actuals.
+2. When `didJustLeaveDock`: `processCurrentTrips()` queues a post-persist side effect. After `upsertVesselTripsBatch` succeeds for that vessel, PredictionService inserts completed prediction records from the finalized trip and backfills previous trip depart-next actuals.
 3. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
 4. Per-vessel failures are logged and do not abort processing for other vessels.
 
@@ -113,16 +116,23 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 ## Architecture: buildTrip
 
-`buildTrip` is the key orchestrator that coordinates all enrichments with provided events and trip state:
+`buildTrip` is the key orchestrator that coordinates all enrichments with provided events, trip state, and an explicit fallback flag:
 
 ```typescript
-buildTrip(ctx, currLocation, existingTrip?, tripStart, events)
+buildTrip(
+  ctx,
+  currLocation,
+  existingTrip?,
+  tripStart,
+  events,
+  shouldRunPredictionFallback
+)
   ├─> baseTripFromLocation (base trip from raw data, using tripStart flag)
   ├─> Use provided events and trip state to drive enrichments:
   │   ├─> didJustArriveAtDock (from events.didJustArriveAtDock)
   │   ├─> didJustLeaveDock (from events.didJustLeaveDock)
   │   └─> keyChanged (from events.keyChanged)
-  │   ├─> Time-based fallback (seconds < 5 check)
+  │   └─> shouldRunPredictionFallback (computed once by runUpdateVesselTrips)
   ├─> appendInitialSchedule (if didJustArriveAtDock && missing ArrivingTerminal)
   ├─> appendFinalSchedule (if keyChanged)
   ├─> appendArriveDockPredictions (if at dock && (didJustArriveAtDock || time-based fallback))
@@ -153,7 +163,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 **Benefits**:
 - Single source of truth for all event detection
-- Event detection logic not scattered across multiple files
+- Shared dock-departure inference via `getDockDepartureState`
 - Easy to test and understand what events exist
 
 ---
@@ -186,7 +196,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **AtDock** | currLocation | Direct copy every tick |
 | **AtDockDuration** | Computed | `LeftDock - TripStart` (minutes); only when LeftDock set |
 | **ScheduledDeparture** | currLocation or existingTrip | `currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture` (null-overwrite protection) |
-| **LeftDock** | currLocation, existingTrip, or inferred | `currLocation.LeftDock ?? existingTrip.LeftDock ?? (justLeftDock ? currLocation.TimeStamp : undefined)` |
+| **LeftDock** | currLocation, existingTrip, or inferred | Derived by `getDockDepartureState`: `currLocation.LeftDock ?? existingTrip.LeftDock ?? inferredFromTick` |
 | **TripDelay** | Computed | `LeftDock - ScheduledDeparture` (minutes) |
 | **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
 | **TripEnd** | Boundary only | `currLocation.TimeStamp` when completing trip |
@@ -218,7 +228,7 @@ When `AtDock` flips false and `LeftDock` is missing, use `currLocation.LeftDock 
 
 `didJustLeaveDock` drives:
 - Same-trip actualization in `buildTrip()` before persistence
-- Prediction record insertion via `handlePredictionEvent` in PredictionService
+- Prediction record insertion via `handlePredictionEvent` in PredictionService after a successful active-trip write
 - Backfill of depart-next actuals onto previous trip (handled by PredictionService internally)
 
 The PredictionService now manages only post-persist prediction side effects:
@@ -242,7 +252,7 @@ Trip orchestration code builds the fully-correct trip object first, then delegat
 
 ### Flow
 
-1. Build `proposedTrip` via `buildTrip` (which internally calls `baseTripFromLocation` + `appendInitialSchedule` + `appendFinalSchedule` + `appendArriveDockPredictions` + `appendLeaveDockPredictions`, using provided events to drive enrichments).
+1. Build `proposedTrip` via `buildTrip` (which internally calls `baseTripFromLocation` + `appendInitialSchedule` + `appendFinalSchedule` + `appendArriveDockPredictions` + `appendLeaveDockPredictions`, using provided events and `shouldRunPredictionFallback` to drive enrichments).
 2. Finalize same-trip actuals in the builder when applicable.
 3. Compare `tripsAreEqual(existingTrip, finalProposed)`.
 4. If equal: no write.
@@ -296,7 +306,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 
 **Trip Orchestrator Delegation**:
 - `processCompletedTrips()` calls `handlePredictionEvent()` with `trip_complete` for the finalized completed trip
-- `processCurrentTrips()` calls `handlePredictionEvent()` with `leave_dock` event when vessel departs dock
+- `processCurrentTrips()` calls `handlePredictionEvent()` with `leave_dock` only after `upsertVesselTripsBatch` succeeds for that vessel
 
 **Automatic Handling**:
 - Predictions are computed in the trip-building pipeline before persistence
@@ -354,19 +364,22 @@ The `PredictionService` manages post-persist prediction side effects through an 
 ## Recent Improvements
 
 1. **Renamed file**: `buildTripWithAllData.ts` → `buildTrip.ts` for consistency between file name and export
-2. **Centralized event detection**: Created `eventDetection.ts` with `detectTripEvents()` function to consolidate all event detection logic
-3. **Cleaned up console logs**: Removed debug `console.log` statements from `buildTrip.ts`
-4. **Fixed documentation**: Removed outdated comment in `buildCompletedTrip.ts` about prediction actualization (handled separately by PredictionService)
-5. **Simplified naming**: Implemented clearer naming convention:
+2. **Transition-based orchestration**: `runUpdateVesselTrips()` now builds `TripTransition` objects so events are computed once and carried through the pipeline
+3. **Shared dock-departure inference**: `getDockDepartureState()` now centralizes `LeftDock` inference for both event detection and trip field derivation
+4. **Post-persist leave-dock side effects**: `PredictionService` leave-dock handlers now run only after `upsertVesselTripsBatch` succeeds for that vessel
+5. **Explicit fallback flag**: `runUpdateVesselTrips()` computes `shouldRunPredictionFallback` once per tick and passes it into `buildTrip()`
+6. **Cleaned up console logs**: Removed debug `console.log` statements from `buildTrip.ts`
+7. **Fixed documentation**: Removed outdated comment in `buildCompletedTrip.ts` about prediction actualization (handled separately by PredictionService)
+8. **Simplified naming**: Implemented clearer naming convention:
    - `buildTrip` - Main orchestrator (creates complete trip)
    - `baseTrip*` - Base construction from raw data
    - `append*` - Enrich existing trip with data
    - Comments use "enrich" for clarity
-6. **Finalize before persist**: `buildTrip()` and `buildCompletedTrip()` now apply same-trip prediction actuals before persistence.
-7. **PredictionService simplification**: PredictionService now handles post-persist side effects only (`trip_complete`, `leave_dock`).
-8. **Per-vessel isolation**: Errors for one vessel no longer abort the full batch.
-9. **Carry-forward protection**: Continuing trips preserve durable fields such as `ScheduledDeparture` and `LeftDock` across feed glitches.
-10. **Key availability detection**: Schedule enrichment now runs when a key becomes newly available, not only when an existing key changes.
+9. **Finalize before persist**: `buildTrip()` and `buildCompletedTrip()` now apply same-trip prediction actuals before persistence.
+10. **PredictionService simplification**: PredictionService now handles post-persist side effects only (`trip_complete`, `leave_dock`).
+11. **Per-vessel isolation**: Errors for one vessel no longer abort the full batch.
+12. **Carry-forward protection**: Continuing trips preserve durable fields such as `ScheduledDeparture` and `LeftDock` across feed glitches.
+13. **Key availability detection**: Schedule enrichment now runs when a key becomes newly available, not only when an existing key changes.
 
 ---
 

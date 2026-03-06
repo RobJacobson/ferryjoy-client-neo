@@ -15,15 +15,14 @@ import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
  * updateVesselLocations and updateVesselTrips subroutines with robust error isolation.
  *
  * This action eliminates duplicate API calls by fetching vessel locations once,
- * then passing the same deduplicated data to both processing functions. Failures
+ * then passing the same converted data to both processing functions. Failures
  * in one function do not prevent the other from executing.
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
  * 2. Convert: toConvexVesselLocation() → convertConvexVesselLocation()
- * 3. Deduplicate using shared utility
- * 4. Call updateVesselLocations() with error isolation
- * 5. Call runUpdateVesselTrips() with error isolation
+ * 3. Call updateVesselLocations() with error isolation
+ * 4. Call runUpdateVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -33,19 +32,21 @@ export const updateVesselOrchestrator = internalAction({
   handler: async (ctx) => {
     let locationsSuccess = false;
     let tripsSuccess = false;
+    // Track errors from each processing branch
     const errors: {
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
     } = {};
 
-    // Fetch and convert vessel locations
+    // Step 1: Fetch and convert vessel locations
     let convexLocations: ConvexVesselLocation[] = [];
 
     try {
       const rawLocations =
         (await fetchVesselLocations()) as unknown as DottieVesselLocation[];
 
+      // Transform chain: WSF API → Convex schema → enrich with distances → final format
       convexLocations = rawLocations
         .map(toConvexVesselLocation)
         .map((loc) => {
@@ -57,12 +58,14 @@ export const updateVesselOrchestrator = internalAction({
 
           return {
             ...loc,
+            // Distance from current position to departing terminal
             DepartingDistance: calculateDistanceInMiles(
               loc.Latitude,
               loc.Longitude,
               departingTerminal?.Latitude,
               departingTerminal?.Longitude
             ),
+            // Distance from current position to arriving terminal (if known)
             ArrivingDistance: calculateDistanceInMiles(
               loc.Latitude,
               loc.Longitude,
@@ -72,8 +75,6 @@ export const updateVesselOrchestrator = internalAction({
           };
         })
         .map(convertConvexVesselLocation);
-
-      // deduplicatedLocations = dedupeVesselLocationsByTimestamp(convexLocations);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       errors.fetch = { message: err.message, stack: err.stack };
@@ -86,7 +87,7 @@ export const updateVesselOrchestrator = internalAction({
       };
     }
 
-    // Call updateVesselLocations subroutine with error isolation
+    // Step 2: Update vessel location database (error isolated)
     try {
       await updateVesselLocations(ctx, convexLocations);
       locationsSuccess = true;
@@ -96,7 +97,7 @@ export const updateVesselOrchestrator = internalAction({
       console.error("updateVesselLocations failed:", err);
     }
 
-    // Call runUpdateVesselTrips subroutine with error isolation
+    // Step 3: Update vessel trips (error isolated from location updates)
     try {
       await runUpdateVesselTrips(ctx, convexLocations);
       tripsSuccess = true;

@@ -275,51 +275,6 @@ export const predictFromSpec = async (
 };
 
 /**
- * Updates existing predictions with actual times and calculates deltas
- *
- * Note: "depart-next" prediction actualization is handled when the *next* trip
- * leaves dock (it becomes known as `LeftDock` on the next trip), via the
- * `setDepartNextActualsForMostRecentCompletedTrip` mutation. As a result, this
- * function only fills actuals that can be observed on the *same* trip record.
- *
- * @param existingTrip - The previous trip state
- * @param updatedTrip - The updated trip state
- * @returns Partial trip updates with calculated deltas
- */
-export const updatePredictionsWithActuals = (
-  existingTrip: ConvexVesselTrip,
-  updatedTrip: ConvexVesselTrip
-): Partial<ConvexVesselTrip> => {
-  const updates: Partial<ConvexVesselTrip> = {};
-
-  // Update AtDockDepartCurr prediction when vessel leaves dock
-  if (
-    !existingTrip.LeftDock &&
-    updatedTrip.LeftDock &&
-    updatedTrip.AtDockDepartCurr
-  ) {
-    updates.AtDockDepartCurr = applyActualToPrediction(
-      updatedTrip.AtDockDepartCurr,
-      updatedTrip.LeftDock
-    );
-  }
-
-  // Update AtSeaArriveNext prediction when vessel arrives at next terminal
-  if (
-    !existingTrip.TripEnd &&
-    updatedTrip.TripEnd &&
-    updatedTrip.AtSeaArriveNext
-  ) {
-    updates.AtSeaArriveNext = applyActualToPrediction(
-      updatedTrip.AtSeaArriveNext,
-      updatedTrip.TripEnd
-    );
-  }
-
-  return updates;
-};
-
-/**
  * Calculate delta in minutes from prediction bounds
  *
  * @param actual - Actual time in milliseconds

@@ -13,8 +13,6 @@ import { appendFinalSchedule, appendInitialSchedule } from "./appendSchedule";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./eventDetection";
 
-const THROTTLE_TIME_SECONDS = 5;
-
 /**
  * Build complete vessel trip from raw location data with all enrichments.
  *
@@ -30,6 +28,8 @@ const THROTTLE_TIME_SECONDS = 5;
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
+ * @param shouldRunPredictionFallback - True when this tick should attempt
+ * any missing fallback predictions
  * @returns Fully enriched vessel trip
  */
 export const buildTrip = async (
@@ -37,32 +37,32 @@ export const buildTrip = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
-  events: TripEvents
+  events: TripEvents,
+  shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
-  // Build base trip from raw data
+  // Build base trip from raw location data
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
 
+  // Start with base trip
   let enrichedTrip = baseTrip;
 
-  // Event: Arrive at dock (schedule lookup for arriving terminal)
+  // Event: Arrive at dock with missing ArrivingTerminal - lookup destination terminal
   if (events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
     enrichedTrip = await appendInitialSchedule(ctx, enrichedTrip);
   }
 
-  // Event: Key changed or have departure info (schedule lookup by Key)
+  // Event: Key changed - lookup full schedule by trip key
   if (events.keyChanged) {
     enrichedTrip = await appendFinalSchedule(ctx, enrichedTrip, existingTrip);
   }
 
-  // Time-based throttle: check predictions once per minute (first 5 seconds of each minute)
-  const currentSeconds = new Date(Date.now()).getSeconds();
+  // Check if we should attempt predictions (event-driven or time-based fallback)
   const shouldAttemptAtDockPredictions =
-    events.didJustArriveAtDock || currentSeconds < THROTTLE_TIME_SECONDS;
+    events.didJustArriveAtDock || shouldRunPredictionFallback;
   const shouldAttemptAtSeaPredictions =
-    events.didJustLeaveDock || currentSeconds < THROTTLE_TIME_SECONDS;
+    events.didJustLeaveDock || shouldRunPredictionFallback;
 
-  // At dock predictions (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext)
-  // Run when at dock AND (just arrived OR throttled time check) AND at least one prediction is missing
+  // At dock predictions: run when at dock (not departed) and missing predictions
   if (
     baseTrip.AtDock &&
     !baseTrip.LeftDock &&
@@ -74,8 +74,7 @@ export const buildTrip = async (
     enrichedTrip = await appendArriveDockPredictions(ctx, enrichedTrip);
   }
 
-  // At sea predictions (AtSeaArriveNext, AtSeaDepartNext)
-  // Run when at sea AND (just left OR throttled time check) AND at least one prediction is missing
+  // At sea predictions: run when at sea (has LeftDock) and missing predictions
   if (
     !baseTrip.AtDock &&
     baseTrip.LeftDock &&
@@ -85,6 +84,7 @@ export const buildTrip = async (
     enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
   }
 
+  // Actualize same-trip predictions when vessel just left dock
   return events.didJustLeaveDock
     ? actualizePredictionsOnLeaveDock(enrichedTrip)
     : enrichedTrip;

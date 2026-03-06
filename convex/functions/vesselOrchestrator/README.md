@@ -11,7 +11,7 @@ The orchestrator runs periodically (every 5 seconds) to process real-time vessel
 3. Stores location snapshots in the database
 4. Delegates complex trip lifecycle management to the vesselTrips/updates module
 
-The orchestrator eliminates duplicate API calls by fetching vessel locations once and passing the same data to both the location storage and trip update subsystems. Failures in one subsystem do not prevent the other from executing.
+The orchestrator eliminates duplicate API calls by fetching vessel locations once and passing the same converted data to both the location storage and trip update subsystems. Failures in one subsystem do not prevent the other from executing.
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐

@@ -30,7 +30,7 @@ export const appendInitialSchedule = async (
 ): Promise<ConvexVesselTrip> => {
   const scheduledDeparture = baseTrip.ScheduledDeparture;
 
-  // Missing required fields - can't lookup
+  // Missing required fields - cannot perform lookup
   if (
     !baseTrip.VesselAbbrev ||
     !baseTrip.DepartingTerminalAbbrev ||
@@ -39,6 +39,7 @@ export const appendInitialSchedule = async (
     return baseTrip;
   }
 
+  // Build lookup arguments for heuristic search
   const lookupArgs = {
     vesselAbbrev: baseTrip.VesselAbbrev,
     departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
@@ -50,6 +51,7 @@ export const appendInitialSchedule = async (
     lookupArgs
   );
 
+  // Enrich trip with arrival terminal and next departure from schedule match
   const result = {
     ...baseTrip,
     Key: scheduledTrip?.Key,

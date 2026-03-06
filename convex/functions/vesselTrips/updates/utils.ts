@@ -21,6 +21,7 @@ export const tripsAreEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip
 ): boolean =>
+  // Compare in both directions to detect added/removed fields
   compareTripFields(existing, existing, proposed) &&
   compareTripFields(proposed, existing, proposed);
 

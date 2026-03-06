@@ -43,5 +43,4 @@ export {
   type PredictionField,
   type PredictionSpec,
   predictFromSpec,
-  updatePredictionsWithActuals,
 } from "./vesselTripPredictions";
