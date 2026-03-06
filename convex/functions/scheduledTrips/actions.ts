@@ -1,7 +1,6 @@
 import { internal } from "_generated/api";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { fetchCacheFlushDateSchedule } from "ws-dottie/wsf-schedule";
 import { getSailingDay } from "../../shared/time";
 import {
   syncScheduledTripsForDate,
@@ -103,80 +102,5 @@ export const purgeScheduledTripsOutOfDate = internalAction({
       cutoffMs,
       deleted: totalDeleted,
     };
-  },
-});
-
-/**
- * Internal action that checks the WSF API cache flush date and triggers sync if needed.
- * Runs every 5 minutes to detect mid-day schedule changes.
- *
- * Process:
- * 1. Fetches the CacheFlushDate from the WSF API
- * 2. Compares it to our last successful sync timestamp
- * 3. If the cache is newer, triggers a windowed sync
- *
- * This ensures we stay in sync when WSF updates schedules during the day.
- *
- * @param ctx - Convex internal action context
- * @returns Result indicating whether sync was triggered and why
- */
-export const checkCacheFlushAndSyncIfNeeded = internalAction({
-  args: {},
-  handler: async (
-    ctx
-  ): Promise<{
-    triggered: boolean;
-    reason: string;
-    ageMinutes?: number;
-  }> => {
-    // Fetch the cache flush date from WSF API
-    const cacheFlushDate = await fetchCacheFlushDateSchedule({});
-
-    if (!cacheFlushDate) {
-      console.log("[CACHE FLUSH CHECK] No cache flush date available");
-      return { triggered: false, reason: "no_cache_flush_date" };
-    }
-
-    const cacheFlushTime: number = cacheFlushDate.getTime();
-    console.log(
-      `[CACHE FLUSH CHECK] Cache flush date: ${cacheFlushDate.toISOString()}`
-    );
-
-    // Get our last sync date
-    const lastSyncMs: number | null | undefined = await ctx.runQuery(
-      internal.functions.scheduledTrips.syncDate.getLastSyncDate
-    );
-
-    if (!lastSyncMs) {
-      console.log("[CACHE FLUSH CHECK] No previous sync, triggering sync");
-      await ctx.runAction(
-        internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-        { daysToSync: 7 }
-      );
-      return { triggered: true, reason: "no_previous_sync" };
-    }
-
-    const lastSyncDate = new Date(lastSyncMs);
-    console.log(
-      `[CACHE FLUSH CHECK] Last sync date: ${lastSyncDate.toISOString()}`
-    );
-
-    // Compare dates
-    if (cacheFlushTime > lastSyncMs) {
-      const diffMs: number = cacheFlushTime - lastSyncMs;
-      const diffMins: number = diffMs / (1000 * 60);
-      console.log(
-        `[CACHE FLUSH CHECK] Cache is ${diffMins.toFixed(0)} minutes newer, triggering sync`
-      );
-
-      await ctx.runAction(
-        internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-        { daysToSync: 7 }
-      );
-      return { triggered: true, reason: "cache_newer", ageMinutes: diffMins };
-    }
-
-    console.log("[CACHE FLUSH CHECK] Cache is not newer, no sync needed");
-    return { triggered: false, reason: "cache_not_newer" };
   },
 });

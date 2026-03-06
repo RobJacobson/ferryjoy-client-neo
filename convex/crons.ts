@@ -51,12 +51,4 @@ crons.interval(
   internal.functions.vesselPings.actions.cleanupOldPings
 );
 
-// Check WSF API cache flush date every 5 minutes
-// Triggers sync if API data has been updated since last sync
-crons.interval(
-  "check schedule cache flush",
-  { minutes: 5 }, // every 5 minutes
-  internal.functions.scheduledTrips.actions.checkCacheFlushAndSyncIfNeeded
-);
-
 export default crons;
