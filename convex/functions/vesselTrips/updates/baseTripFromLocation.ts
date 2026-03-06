@@ -114,10 +114,13 @@ const baseTripForContinuing = (
 ): ConvexVesselTrip => {
   // LeftDock: infer when AtDock flips false and LeftDock missing
   const justLeftDock = existingTrip?.AtDock && !currLocation.AtDock;
+  const scheduledDeparture =
+    currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
 
   const leftDockTime =
     currLocation.LeftDock ??
-    (!justLeftDock ? undefined : currLocation.TimeStamp);
+    existingTrip?.LeftDock ??
+    (justLeftDock ? currLocation.TimeStamp : undefined);
 
   const arrivingTerminalAbbrev =
     currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
@@ -133,9 +136,9 @@ const baseTripForContinuing = (
       currLocation.VesselAbbrev,
       currLocation.DepartingTerminalAbbrev,
       arrivingTerminalAbbrev,
-      currLocation.ScheduledDeparture
+      scheduledDeparture
     ),
-    SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
+    SailingDay: deriveSailingDay(scheduledDeparture),
     // Prev* fields carried from existing trip
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
@@ -144,12 +147,9 @@ const baseTripForContinuing = (
     TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
     AtDockDuration: calculateTimeDelta(tripStartTime, leftDockTime),
-    ScheduledDeparture: currLocation.ScheduledDeparture,
+    ScheduledDeparture: scheduledDeparture,
     LeftDock: leftDockTime,
-    TripDelay: calculateTimeDelta(
-      currLocation.ScheduledDeparture,
-      leftDockTime
-    ),
+    TripDelay: calculateTimeDelta(scheduledDeparture, leftDockTime),
     // Eta: null-overwrite protection
     Eta: currLocation.Eta ?? existingTrip?.Eta,
     TripEnd: undefined,

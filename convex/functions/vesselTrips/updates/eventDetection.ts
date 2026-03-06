@@ -39,6 +39,10 @@ export const detectTripEvents = (
   currLocation: ConvexVesselLocation
 ): TripEvents => {
   const isFirstTrip = !existingTrip;
+  const arrivingTerminalAbbrev =
+    currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+  const scheduledDeparture =
+    currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
 
   // Trip boundary: DepartingTerminalAbbrev changed
   const isCompletedTrip: boolean =
@@ -59,18 +63,16 @@ export const detectTripEvents = (
       (currLocation.LeftDock !== undefined || justLeftDock)
   );
 
-  // Key changed: computed Key differs from existing (requires existing trip with Key)
+  const computedKey = generateTripKey(
+    currLocation.VesselAbbrev,
+    currLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev,
+    scheduledDeparture ? new Date(scheduledDeparture) : undefined
+  );
+
+  // Key changed: computed Key is newly available or differs from existing.
   const keyChanged: boolean = Boolean(
-    existingTrip?.Key &&
-      existingTrip.Key !==
-        generateTripKey(
-          currLocation.VesselAbbrev,
-          currLocation.DepartingTerminalAbbrev,
-          currLocation.ArrivingTerminalAbbrev,
-          currLocation.ScheduledDeparture
-            ? new Date(currLocation.ScheduledDeparture)
-            : undefined
-        )
+    computedKey && existingTrip?.Key !== computedKey
   );
 
   return {

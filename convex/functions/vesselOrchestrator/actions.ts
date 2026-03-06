@@ -34,6 +34,7 @@ export const updateVesselOrchestrator = internalAction({
     let locationsSuccess = false;
     let tripsSuccess = false;
     const errors: {
+      fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
     } = {};
@@ -74,9 +75,15 @@ export const updateVesselOrchestrator = internalAction({
 
       // deduplicatedLocations = dedupeVesselLocationsByTimestamp(convexLocations);
     } catch (error) {
-      console.error("Failed to fetch or process vessel locations:", error);
-      // If fetch fails, both subroutines will fail, but we still want to attempt them
-      // with empty array to maintain error isolation structure
+      const err = error instanceof Error ? error : new Error(String(error));
+      errors.fetch = { message: err.message, stack: err.stack };
+      console.error("Failed to fetch or process vessel locations:", err);
+
+      return {
+        locationsSuccess,
+        tripsSuccess,
+        errors,
+      };
     }
 
     // Call updateVesselLocations subroutine with error isolation

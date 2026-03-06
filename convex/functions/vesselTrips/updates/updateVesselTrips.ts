@@ -93,39 +93,43 @@ const processCompletedTrips = async (
   completedTrips: CompletedTripGroup[]
 ): Promise<void> => {
   for (const { existingTrip, currLocation } of completedTrips) {
-    // Build completed trip (pure function)
-    const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
+    try {
+      // Build completed trip (pure function)
+      const tripToComplete = buildCompletedTrip(existingTrip, currLocation);
 
-    // Detect events for new trip
-    const newTripEvents = detectTripEvents(existingTrip, currLocation);
+      // Detect events for new trip
+      const newTripEvents = detectTripEvents(existingTrip, currLocation);
 
-    // Build new trip (pure function)
-    const newTrip = await buildTrip(
-      ctx,
-      currLocation,
-      existingTrip,
-      true,
-      newTripEvents
-    );
+      // Build new trip (pure function)
+      const newTrip = await buildTrip(
+        ctx,
+        currLocation,
+        existingTrip,
+        true,
+        newTripEvents
+      );
 
-    // Persist atomically (complete + start)
-    await ctx.runMutation(
-      api.functions.vesselTrips.mutations.completeAndStartNewTrip,
-      {
-        completedTrip: tripToComplete,
-        newTrip,
-      }
-    );
+      // Persist atomically (complete + start)
+      await ctx.runMutation(
+        api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+        {
+          completedTrip: tripToComplete,
+          newTrip,
+        }
+      );
 
-    // Delegate prediction lifecycle to service
-    await handlePredictionEvent(ctx, {
-      eventType: "trip_complete",
-      trip: tripToComplete,
-    });
-    await handlePredictionEvent(ctx, {
-      eventType: "arrive_dock",
-      trip: newTrip,
-    });
+      // Delegate prediction lifecycle to service
+      await handlePredictionEvent(ctx, {
+        eventType: "trip_complete",
+        trip: tripToComplete,
+      });
+    } catch (error) {
+      logVesselProcessingError(
+        currLocation.VesselAbbrev,
+        "completed-trip processing",
+        error
+      );
+    }
   }
 };
 
@@ -144,37 +148,45 @@ const processCurrentTrips = async (
   const activeUpserts: ConvexVesselTrip[] = [];
 
   for (const { existingTrip, currLocation, events } of currentTrips) {
-    const tripWithPredictions = await buildTrip(
-      ctx,
-      currLocation,
-      existingTrip,
-      false,
-      events
-    );
+    try {
+      const tripWithPredictions = await buildTrip(
+        ctx,
+        currLocation,
+        existingTrip,
+        false,
+        events
+      );
 
-    const finalProposed: ConvexVesselTrip = {
-      ...tripWithPredictions,
-      TimeStamp: currLocation.TimeStamp,
-    };
+      const finalProposed: ConvexVesselTrip = {
+        ...tripWithPredictions,
+        TimeStamp: currLocation.TimeStamp,
+      };
 
-    if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
-      activeUpserts.push(finalProposed);
+      if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
+        activeUpserts.push(finalProposed);
 
-      // Handle prediction events
-      if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
-        // Get previous completed trip for backfill
-        const previousTripResult = await ctx.runQuery(
-          api.functions.vesselTrips.queries.getMostRecentCompletedTrip,
-          { vesselAbbrev: currLocation.VesselAbbrev }
-        );
-        const previousTrip = previousTripResult ?? undefined;
+        // Handle prediction events
+        if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+          // Get previous completed trip for backfill
+          const previousTripResult = await ctx.runQuery(
+            api.functions.vesselTrips.queries.getMostRecentCompletedTrip,
+            { vesselAbbrev: currLocation.VesselAbbrev }
+          );
+          const previousTrip = previousTripResult ?? undefined;
 
-        await handlePredictionEvent(ctx, {
-          eventType: "leave_dock",
-          trip: tripWithPredictions,
-          previousTrip,
-        });
+          await handlePredictionEvent(ctx, {
+            eventType: "leave_dock",
+            trip: finalProposed,
+            previousTrip,
+          });
+        }
       }
+    } catch (error) {
+      logVesselProcessingError(
+        currLocation.VesselAbbrev,
+        "current-trip processing",
+        error
+      );
     }
   }
 
@@ -185,4 +197,23 @@ const processCurrentTrips = async (
       { activeUpserts }
     );
   }
+};
+
+/**
+ * Log a vessel-specific processing failure without aborting the batch.
+ *
+ * @param vesselAbbrev - Vessel identifier being processed
+ * @param phase - Human-readable processing phase name
+ * @param error - Error thrown while processing this vessel
+ */
+const logVesselProcessingError = (
+  vesselAbbrev: string,
+  phase: string,
+  error: unknown
+): void => {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error(
+    `[VesselTrips] Failed ${phase} for ${vesselAbbrev}: ${err.message}`,
+    err
+  );
 };

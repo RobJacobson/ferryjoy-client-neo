@@ -1,10 +1,11 @@
 /**
  * Build completed trip with TripEnd, durations, and actualized predictions.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip.
- * Prediction actualization is handled separately by the prediction service.
+ * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
+ * to the persisted completed trip object.
  */
 
+import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
@@ -16,8 +17,8 @@ import { calculateTimeDelta } from "shared/durationUtils";
 /**
  * Build completed trip with TripEnd, AtSeaDuration, and TotalDuration.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip.
- * Prediction actualization is handled separately by the prediction service.
+ * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
+ * to the final completed trip.
  *
  * @param existingTrip - Trip being completed
  * @param currLocation - Current location with TripEnd timestamp
@@ -42,5 +43,5 @@ export const buildCompletedTrip = (
     completedTripBase.TripEnd
   );
 
-  return completedTripBase;
+  return actualizePredictionsOnTripComplete(completedTripBase);
 };

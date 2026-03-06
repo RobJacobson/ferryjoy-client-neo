@@ -136,7 +136,7 @@ export const appendArriveDockPredictions = async (
 /**
  * Enrich trip with at-sea predictions when vessel is at sea.
  *
- * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is at sea
+ * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
  * (has LeftDock set) and trip has required context (isPredictionReadyTrip).
  * Runs on event-driven (leave dock) and time-based fallback (once per minute).
  *

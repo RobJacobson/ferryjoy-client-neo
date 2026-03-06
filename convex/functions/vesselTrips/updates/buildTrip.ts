@@ -2,6 +2,7 @@
  * Build complete vessel trip from raw location data with all enrichments.
  */
 import type { ActionCtx } from "_generated/server";
+import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -21,6 +22,7 @@ const THROTTLE_TIME_SECONDS = 5;
  * - Calls baseTripFromLocation for base trip
  * - Uses provided events for enrichment decisions
  * - Runs appropriate schedule lookups and predictions (event-driven + time-based fallback)
+ * - Applies same-trip prediction actuals before persistence on leave-dock events
  * - Returns fully enriched trip ready for persistence
  *
  * @param ctx - Convex action context
@@ -83,5 +85,7 @@ export const buildTrip = async (
     enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
   }
 
-  return enrichedTrip;
+  return events.didJustLeaveDock
+    ? actualizePredictionsOnLeaveDock(enrichedTrip)
+    : enrichedTrip;
 };
