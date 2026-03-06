@@ -7,7 +7,7 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/keys";
+import { computeTripKey } from "./utils";
 
 // ============================================================================
 // Trip Events
@@ -87,12 +87,12 @@ export const detectTripEvents = (
   const scheduledDeparture =
     currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
 
-  // Compute trip key for schedule lookup
-  const computedKey = generateTripKey(
+  // Compute trip key for schedule lookup (shared with baseTripFromLocation)
+  const computedKey = computeTripKey(
     currLocation.VesselAbbrev,
     currLocation.DepartingTerminalAbbrev,
     arrivingTerminalAbbrev,
-    scheduledDeparture ? new Date(scheduledDeparture) : undefined
+    scheduledDeparture
   );
 
   // Dock departure state: shared with trip field derivation

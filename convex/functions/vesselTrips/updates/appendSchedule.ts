@@ -52,10 +52,11 @@ export const appendInitialSchedule = async (
     lookupArgs
   );
 
-  // Enrich trip with arrival terminal and next departure from schedule match
+  // Enrich trip with arrival terminal and next departure from schedule match.
+  // Preserve baseTrip.Key when lookup fails to avoid overwriting with undefined.
   const result = {
     ...baseTrip,
-    Key: scheduledTrip?.Key,
+    Key: scheduledTrip?.Key ?? baseTrip.Key,
     ArrivingTerminalAbbrev: scheduledTrip?.ArrivingTerminalAbbrev,
     NextScheduledDeparture: scheduledTrip?.NextDepartingTime,
   };
@@ -90,6 +91,8 @@ export const appendFinalSchedule = async (
   }
 
   // Reuse already-enriched schedule fields if the trip key is unchanged.
+  // baseTrip does not set NextScheduledDeparture (comes from schedule lookups),
+  // so carry forward from existingTrip to avoid redundant lookup.
   if (existingTrip?.Key === tripKey) {
     return {
       ...baseTrip,

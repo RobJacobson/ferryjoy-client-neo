@@ -9,9 +9,9 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
-import { generateTripKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 import { getDockDepartureState } from "./eventDetection";
+import { computeTripKey } from "./utils";
 
 /**
  * Base complete VesselTrip from raw location data using simple assignments.
@@ -22,7 +22,7 @@ import { getDockDepartureState } from "./eventDetection";
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
- * @param isTripStart - True for trip start (vessel just arrived at dock), false for continuing
+ * @param isTripStart - True for new trip (boundary or first appearance), false for continuing
  * @returns Complete ConvexVesselTrip with location-derived fields
  */
 export const baseTripFromLocation = (
@@ -64,14 +64,16 @@ const baseTripForStart = (
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
     // Key for schedule lookup - derived from vessel, terminals, and departure time
-    Key: deriveTripKey(
+    Key: computeTripKey(
       currLocation.VesselAbbrev,
       currLocation.DepartingTerminalAbbrev,
       arrivingTerminalAbbrev,
       currLocation.ScheduledDeparture
     ),
     // WSF sailing day (3 AM Pacific cutoff)
-    SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
+    SailingDay: currLocation.ScheduledDeparture
+      ? getSailingDay(new Date(currLocation.ScheduledDeparture))
+      : "",
     // Carry forward context from the trip being completed
     PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
@@ -136,14 +138,16 @@ const baseTripForContinuing = (
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     RouteAbbrev: currLocation.RouteAbbrev,
     // Key for schedule lookup
-    Key: deriveTripKey(
+    Key: computeTripKey(
       currLocation.VesselAbbrev,
       currLocation.DepartingTerminalAbbrev,
       arrivingTerminalAbbrev,
       scheduledDeparture
     ),
     // WSF sailing day (3 AM Pacific cutoff)
-    SailingDay: deriveSailingDay(scheduledDeparture),
+    SailingDay: scheduledDeparture
+      ? getSailingDay(new Date(scheduledDeparture))
+      : "",
     // Prev* fields carried from existing trip (unchanged mid-trip)
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
@@ -172,29 +176,3 @@ const baseTripForContinuing = (
     AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
 };
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Derive trip key from vessel, terminals, and scheduled departure.
- */
-const deriveTripKey = (
-  vessel: string,
-  departing: string,
-  arriving: string | undefined,
-  scheduledDeparture: number | undefined
-): string | undefined =>
-  generateTripKey(
-    vessel,
-    departing,
-    arriving,
-    scheduledDeparture ? new Date(scheduledDeparture) : undefined
-  );
-
-/**
- * Derive sailing day from scheduled departure.
- */
-const deriveSailingDay = (scheduledDeparture: number | undefined): string =>
-  scheduledDeparture ? getSailingDay(new Date(scheduledDeparture)) : "";

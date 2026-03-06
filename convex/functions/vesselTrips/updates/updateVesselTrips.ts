@@ -156,7 +156,7 @@ const processCurrentTrips = async (
   for (const { existingTrip, currLocation, events } of currentTrips) {
     try {
       // Build trip with all enrichments (schedule, predictions, actuals)
-      const tripWithPredictions = await buildTrip(
+      const finalProposed = await buildTrip(
         ctx,
         currLocation,
         existingTrip,
@@ -164,12 +164,6 @@ const processCurrentTrips = async (
         events,
         shouldRunPredictionFallback
       );
-
-      // Override TimeStamp from current location (it changes every tick)
-      const finalProposed: ConvexVesselTrip = {
-        ...tripWithPredictions,
-        TimeStamp: currLocation.TimeStamp,
-      };
 
       // Only write if trip changed (or is new)
       if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {

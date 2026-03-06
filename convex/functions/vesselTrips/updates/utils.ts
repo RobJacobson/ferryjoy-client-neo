@@ -3,6 +3,36 @@
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/keys";
+
+// ============================================================================
+// Key Derivation (shared by eventDetection and baseTripFromLocation)
+// ============================================================================
+
+/**
+ * Compute trip key from vessel, terminals, and scheduled departure (epoch ms).
+ *
+ * Centralizes epoch-to-Date conversion so event detection and trip derivation
+ * stay in sync.
+ *
+ * @param vessel - Vessel abbreviation
+ * @param departing - Departing terminal abbreviation
+ * @param arriving - Arriving terminal abbreviation (can be undefined)
+ * @param scheduledMs - Scheduled departure in epoch milliseconds
+ * @returns Trip key string or undefined if required fields missing
+ */
+export const computeTripKey = (
+  vessel: string,
+  departing: string,
+  arriving: string | undefined,
+  scheduledMs: number | undefined
+): string | undefined =>
+  generateTripKey(
+    vessel,
+    departing,
+    arriving,
+    scheduledMs ? new Date(scheduledMs) : undefined
+  );
 
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
