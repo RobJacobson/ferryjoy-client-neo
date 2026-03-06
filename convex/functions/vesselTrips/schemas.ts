@@ -92,7 +92,7 @@ export const optionalToDomainPrediction = (
 
 /**
  * Convex validator for vessel trips (numbers)
- * Vessel trip records with optional reference to ScheduledTrip document.
+ * Vessel trip records with an optional composite `Key` for schedule joins.
  */
 export const vesselTripSchema = v.object({
   // Core trip identity fields (from vessel locations)
@@ -102,7 +102,6 @@ export const vesselTripSchema = v.object({
   RouteAbbrev: v.optional(v.string()),
   Key: v.optional(v.string()), // Optional given need for departing terminal
   SailingDay: v.optional(v.string()), // WSF operational day in YYYY-MM-DD format
-  scheduledTripId: v.optional(v.id("scheduledTrips")),
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
   TripStart: v.optional(v.number()),

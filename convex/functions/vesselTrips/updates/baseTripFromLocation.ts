@@ -4,8 +4,7 @@
  * Single function that constructs the full ConvexVesselTrip using simple
  * assignment statements per Field Reference 2.6. SailingDay comes from raw
  * data via getSailingDay (prefer ScheduledDeparture). Schedule-derived:
- * Key from raw data; ScheduledTrip from appendFinalSchedule (RouteID/RouteAbbrev
- * live on ScheduledTrip).
+ * Key from raw data; schedule joins happen later by Key.
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -18,8 +17,7 @@ import { getSailingDay } from "shared/time";
  *
  * Handles first trip, trip boundary (new trip), and regular update. Per Field
  * Reference 2.6. SailingDay from getSailingDay (prefer ScheduledDeparture).
- * Key derived from raw data, used for schedule lookup. ScheduledTrip from
- * appendFinalSchedule (RouteID/RouteAbbrev live on ScheduledTrip).
+ * Key derived from raw data, used for schedule lookup and joins.
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Current trip (regular update only; undefined for first/boundary)
@@ -71,7 +69,6 @@ const baseTripForStart = (
       currLocation.ScheduledDeparture
     ),
     SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
-    scheduledTripId: undefined,
     PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
     PrevLeftDock: existingTrip?.LeftDock,
@@ -139,7 +136,6 @@ const baseTripForContinuing = (
       currLocation.ScheduledDeparture
     ),
     SailingDay: deriveSailingDay(currLocation.ScheduledDeparture),
-    scheduledTripId: existingTrip?.scheduledTripId,
     // Prev* fields carried from existing trip
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
