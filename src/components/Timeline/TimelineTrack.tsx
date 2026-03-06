@@ -65,25 +65,25 @@ export const TimelineTrack = ({
             className={cn(
               "absolute rounded-full",
               theme.completeTrackClassName,
-              "",
+              ""
             )}
             style={getCompletedTrackStyle(
               isVertical,
               theme.trackThicknessPx,
-              completedPercent,
+              completedPercent
             )}
           />
           {/* Upcoming/remaining portion of the track */}
           <View
             className={cn(
               "absolute rounded-full",
-              theme.upcomingTrackClassName,
+              theme.upcomingTrackClassName
             )}
             style={getUpcomingTrackStyle(
               isVertical,
               theme.trackThicknessPx,
               completedPercent,
-              remainingPercent,
+              remainingPercent
             )}
           />
         </>
@@ -109,7 +109,7 @@ export const TimelineTrack = ({
           style={getIndicatorStyle(
             isVertical,
             theme.indicatorSizePx,
-            completedPercent,
+            completedPercent
           )}
         >
           <TimelineMarker
@@ -141,7 +141,7 @@ type PercentString = `${number}%`;
 const getCompletedTrackStyle = (
   isVertical: boolean,
   trackThicknessPx: number,
-  completedPercent: PercentString,
+  completedPercent: PercentString
 ): ViewStyle => ({
   // Dimension varies by completion in primary axis direction
   width: isVertical ? trackThicknessPx : undefined,
@@ -170,7 +170,7 @@ const getUpcomingTrackStyle = (
   isVertical: boolean,
   trackThicknessPx: number,
   completedPercent: PercentString,
-  remainingPercent: PercentString,
+  remainingPercent: PercentString
 ): ViewStyle => ({
   // Dimension varies by remaining in primary axis direction
   width: isVertical ? trackThicknessPx : remainingPercent,
@@ -195,7 +195,7 @@ const getUpcomingTrackStyle = (
  */
 const getMarkerStyle = (
   isVertical: boolean,
-  markerSizePx: number,
+  markerSizePx: number
 ): ViewStyle => ({
   top: isVertical ? 0 : "50%",
   left: isVertical ? "50%" : 0,
@@ -218,7 +218,7 @@ const getMarkerStyle = (
 const getIndicatorStyle = (
   isVertical: boolean,
   indicatorSizePx: number,
-  completedPercent: PercentString,
+  completedPercent: PercentString
 ): ViewStyle => ({
   top: isVertical ? completedPercent : "50%",
   left: isVertical ? "50%" : completedPercent,

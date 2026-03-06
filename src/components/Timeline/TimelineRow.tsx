@@ -90,6 +90,9 @@ export const TimelineRowComponent = ({
  * precedence over minSegmentPx. This is useful for exceptional rows
  * that need different minimum heights from the global theme default.
  *
+ * When minHeight is 0, the row should not expand beyond its content,
+ * so flexGrow is set to 0.
+ *
  * @param durationMinutes - Segment flex-grow value derived from row duration
  * @param minSegmentPx - Global theme default for minimum row height in pixels
  * @param minHeight - Optional per-row minimum height override
@@ -100,7 +103,7 @@ const getVerticalRowStyle = (
   minSegmentPx: number,
   minHeight?: number
 ): ViewStyle => ({
-  flexGrow: durationMinutes,
+  flexGrow: minHeight === 0 ? 0 : durationMinutes,
   flexBasis: "auto",
   minHeight: minHeight ?? minSegmentPx,
 });
