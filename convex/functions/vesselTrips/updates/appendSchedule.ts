@@ -46,6 +46,7 @@ export const appendInitialSchedule = async (
     scheduledDeparture,
   };
 
+  // Perform the lookup
   const scheduledTrip = await ctx.runQuery(
     api.functions.scheduledTrips.queries.findScheduledTripForArrivalLookup,
     lookupArgs
@@ -82,13 +83,13 @@ export const appendFinalSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
+  // If the trip key is not present, we cannot perform the lookup
   const tripKey = baseTrip.Key ?? null;
-
   if (!tripKey) {
     return baseTrip;
   }
 
-  // Reuse already-enriched schedule fields if the business key is unchanged.
+  // Reuse already-enriched schedule fields if the trip key is unchanged.
   if (existingTrip?.Key === tripKey) {
     return {
       ...baseTrip,
@@ -97,6 +98,7 @@ export const appendFinalSchedule = async (
     };
   }
 
+  // Perform the lookup
   const scheduledTrip = await ctx.runQuery(
     internal.functions.scheduledTrips.queries.getScheduledTripByKey,
     { key: tripKey }

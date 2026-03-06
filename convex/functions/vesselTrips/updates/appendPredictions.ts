@@ -46,16 +46,18 @@ const computePredictions = async (
     const specsToAttempt = specs.filter(
       (spec) => trip[spec.field] === undefined
     );
+
+    // Skip if no predictions to attempt
     if (specsToAttempt.length === 0) return trip;
 
     // Trip lacks required context (Prev* fields) for predictions
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    // Validate LeftDock requirements for each spec
-    for (const spec of specsToAttempt) {
-      if (spec.requiresLeftDock && !trip.LeftDock) {
-        return trip;
-      }
+    // Validate LeftDock requirements - skip if any spec requires LeftDock but trip lacks it
+    if (
+      specsToAttempt.some((spec) => spec.requiresLeftDock && !trip.LeftDock)
+    ) {
+      return trip;
     }
 
     // Batch load models when computing 2+ predictions (efficiency optimization)

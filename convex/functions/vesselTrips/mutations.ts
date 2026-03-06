@@ -155,7 +155,7 @@ export const upsertVesselTripsBatch = mutation({
   handler: async (ctx, args) => {
     // Load all active trips into memory for batch processing
     const activeTrips = await ctx.db.query("activeVesselTrips").collect();
-    
+
     // Build index by vessel for O(1) lookups during batch
     const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
       activeTrips.map((t) => [t.VesselAbbrev, { _id: t._id }])

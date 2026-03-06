@@ -28,31 +28,18 @@ export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  // Start with existing trip and set TripEnd from current location
-  const completedTripBase: ConvexVesselTrip = {
-    ...existingTrip,
-    TripEnd: currLocation.TimeStamp,
+  const withTripEnd = { ...existingTrip, TripEnd: currLocation.TimeStamp };
+  const withDurations = {
+    ...withTripEnd,
+    AtSeaDuration: calculateTimeDelta(
+      withTripEnd.LeftDock,
+      withTripEnd.TripEnd
+    ),
+    TotalDuration: calculateTimeDelta(
+      withTripEnd.TripStart,
+      withTripEnd.TripEnd
+    ),
   };
 
-  // Compute at-sea duration: time from departure to arrival
-  const atSeaDuration = calculateTimeDelta(
-    completedTripBase.LeftDock,
-    completedTripBase.TripEnd
-  );
-
-  // Compute total duration: from dock arrival to next dock arrival
-  const totalDuration = calculateTimeDelta(
-    completedTripBase.TripStart,
-    completedTripBase.TripEnd
-  );
-
-  // Build completed trip with at-sea duration and total duration
-  const completedTrip = {
-    ...completedTripBase,
-    AtSeaDuration: atSeaDuration,
-    TotalDuration: totalDuration,
-  };
-
-  // Actualize at-sea predictions (AtSeaArriveNext) before persistence
-  return actualizePredictionsOnTripComplete(completedTrip);
+  return actualizePredictionsOnTripComplete(withDurations);
 };

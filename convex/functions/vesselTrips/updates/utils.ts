@@ -28,7 +28,7 @@ export const tripsAreEqual = (
 /**
  * Compare trip fields between existing and proposed trips, excluding TimeStamp.
  *
- * Iterates through all keys in the source trip and compares values between
+ * Checks all keys in the source trip and compares values between
  * existing and proposed trips. Skips TimeStamp field which changes every tick.
  *
  * @param source - Trip whose keys to iterate over
@@ -40,20 +40,15 @@ const compareTripFields = (
   source: ConvexVesselTrip,
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip
-): boolean => {
-  for (const key in source) {
-    if (key === "TimeStamp") continue;
-    if (
-      !deepEqual(
-        existing[key as keyof ConvexVesselTrip],
-        proposed[key as keyof ConvexVesselTrip]
-      )
-    ) {
-      return false;
-    }
-  }
-  return true;
-};
+): boolean =>
+  Object.keys(source).every((key) =>
+    key === "TimeStamp"
+      ? true
+      : deepEqual(
+          existing[key as keyof ConvexVesselTrip],
+          proposed[key as keyof ConvexVesselTrip]
+        )
+  );
 
 // ============================================================================
 // Deep Equality Utilities

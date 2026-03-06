@@ -66,7 +66,7 @@ export const runUpdateVesselTrips = async (
   // Check if we're in the fallback window for time-based predictions
   const shouldRunPredictionFallback =
     new Date().getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS;
-  
+
   // Categorize transitions: trip boundaries vs ongoing trips
   const completedTrips = transitions.filter(isCompletedTripTransition);
   const currentTrips = transitions.filter(

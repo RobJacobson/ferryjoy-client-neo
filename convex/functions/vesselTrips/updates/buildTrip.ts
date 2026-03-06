@@ -40,52 +40,40 @@ export const buildTrip = async (
   events: TripEvents,
   shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
-  // Build base trip from raw location data
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
 
-  // Start with base trip
-  let enrichedTrip = baseTrip;
-
-  // Event: Arrive at dock with missing ArrivingTerminal - lookup destination terminal
-  if (events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
-    enrichedTrip = await appendInitialSchedule(ctx, enrichedTrip);
-  }
-
-  // Event: Key changed - lookup full schedule by trip key
-  if (events.keyChanged) {
-    enrichedTrip = await appendFinalSchedule(ctx, enrichedTrip, existingTrip);
-  }
-
-  // Check if we should attempt predictions (event-driven or time-based fallback)
+  // Compute enrichment conditions
+  const shouldAppendInitialSchedule =
+    events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev;
+  const shouldAppendFinalSchedule = events.keyChanged;
   const shouldAttemptAtDockPredictions =
-    events.didJustArriveAtDock || shouldRunPredictionFallback;
-  const shouldAttemptAtSeaPredictions =
-    events.didJustLeaveDock || shouldRunPredictionFallback;
-
-  // At dock predictions: run when at dock (not departed) and missing predictions
-  if (
     baseTrip.AtDock &&
     !baseTrip.LeftDock &&
-    shouldAttemptAtDockPredictions &&
+    (events.didJustArriveAtDock || shouldRunPredictionFallback) &&
     (!baseTrip.AtDockDepartCurr ||
       !baseTrip.AtDockArriveNext ||
-      !baseTrip.AtDockDepartNext)
-  ) {
-    enrichedTrip = await appendArriveDockPredictions(ctx, enrichedTrip);
-  }
-
-  // At sea predictions: run when at sea (has LeftDock) and missing predictions
-  if (
+      !baseTrip.AtDockDepartNext);
+  const shouldAttemptAtSeaPredictions =
     !baseTrip.AtDock &&
     baseTrip.LeftDock &&
-    shouldAttemptAtSeaPredictions &&
-    (!baseTrip.AtSeaArriveNext || !baseTrip.AtSeaDepartNext)
-  ) {
-    enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
-  }
+    (events.didJustLeaveDock || shouldRunPredictionFallback) &&
+    (!baseTrip.AtSeaArriveNext || !baseTrip.AtSeaDepartNext);
 
-  // Actualize same-trip predictions when vessel just left dock
+  // Sequential enrichment pipeline
+  const withInitialSchedule = shouldAppendInitialSchedule
+    ? await appendInitialSchedule(ctx, baseTrip)
+    : baseTrip;
+  const withFinalSchedule = shouldAppendFinalSchedule
+    ? await appendFinalSchedule(ctx, withInitialSchedule, existingTrip)
+    : withInitialSchedule;
+  const withAtDockPredictions = shouldAttemptAtDockPredictions
+    ? await appendArriveDockPredictions(ctx, withFinalSchedule)
+    : withFinalSchedule;
+  const withAtSeaPredictions = shouldAttemptAtSeaPredictions
+    ? await appendLeaveDockPredictions(ctx, withAtDockPredictions)
+    : withAtDockPredictions;
+
   return events.didJustLeaveDock
-    ? actualizePredictionsOnLeaveDock(enrichedTrip)
-    : enrichedTrip;
+    ? actualizePredictionsOnLeaveDock(withAtSeaPredictions)
+    : withAtSeaPredictions;
 };
