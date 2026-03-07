@@ -4,11 +4,11 @@
 
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
-import type { VesselTripTimelineItem } from "./types";
+import type { TimelineItem } from "./types";
 import { VesselTripTimeline } from "./VesselTripTimeline";
 
 type VesselTripTimelineListProps = {
-  items: VesselTripTimelineItem[];
+  items: TimelineItem[];
 };
 
 /**

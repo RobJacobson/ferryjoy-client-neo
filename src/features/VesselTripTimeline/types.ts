@@ -8,7 +8,7 @@ import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/s
 /**
  * Input item for the VesselTripTimeline list.
  */
-export type VesselTripTimelineItem = {
+export type TimelineItem = {
   trip: VesselTripWithScheduledTrip;
   vesselLocation: VesselLocation;
 };
@@ -35,7 +35,7 @@ export type RightContentKind = "time-events" | "none";
 /** Layout bounds (y, height) for a timeline row; used to align overlay rows with measured rows. */
 export type RowLayoutBounds = { y: number; height: number };
 
-export type VesselTripTimelineRowModel = {
+export type TimelineRowModel = {
   id: string;
   startTime: Date;
   endTime: Date;

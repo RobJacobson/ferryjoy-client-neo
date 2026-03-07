@@ -3,10 +3,7 @@
  */
 
 import { clamp } from "@/shared/utils";
-import type {
-  VesselTripTimelineItem,
-  VesselTripTimelineRowModel,
-} from "../types";
+import type { TimelineItem, TimelineRowModel } from "../types";
 
 export type OverlayIndicator = {
   rowId: string;
@@ -39,8 +36,8 @@ const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
  * @returns Active overlay indicator model
  */
 export const deriveActiveOverlayIndicator = (
-  rows: VesselTripTimelineRowModel[],
-  item: VesselTripTimelineItem
+  rows: TimelineRowModel[],
+  item: TimelineItem
 ): OverlayIndicator => {
   const { trip, vesselLocation } = item;
   // 3 rows: at-dock (origin), at-sea, at-dock (destination)

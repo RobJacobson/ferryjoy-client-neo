@@ -6,10 +6,7 @@
 
 import { config, formatTerminalPairKey } from "convex/domain/ml/shared/config";
 import { clamp } from "@/shared/utils";
-import type {
-  VesselTripTimelineItem,
-  VesselTripTimelineRowModel,
-} from "../types";
+import type { TimelineItem, TimelineRowModel } from "../types";
 import {
   buildTimePoint,
   getLeftContentKind,
@@ -50,9 +47,9 @@ const parseDepartingTerminalFromKey = (
  * @returns Pure timeline model rows for timeline rendering
  */
 export const buildTimelineModelFromTrip = (
-  item: VesselTripTimelineItem,
+  item: TimelineItem,
   now: Date = new Date()
-): VesselTripTimelineRowModel[] => {
+): TimelineRowModel[] => {
   const { trip, vesselLocation } = item;
   const times = buildSegmentTimes(item, now);
   const atSeaPercent = getAtSeaPercent(
@@ -82,7 +79,7 @@ export const buildTimelineModelFromTrip = (
     trip.ScheduledTrip?.ArrivingTime ??
     times.arriveEta;
 
-  const rows: VesselTripTimelineRowModel[] = [
+  const rows: TimelineRowModel[] = [
     {
       id: `${trip.VesselAbbrev}-at-dock-origin`,
       kind: "at-dock",
@@ -166,10 +163,7 @@ type SegmentTimes = {
  * @param now - Current time for active trip fallback values
  * @returns Coherent segment times with monotonic ordering
  */
-const buildSegmentTimes = (
-  item: VesselTripTimelineItem,
-  now: Date
-): SegmentTimes => {
+const buildSegmentTimes = (item: TimelineItem, now: Date): SegmentTimes => {
   const { trip, vesselLocation } = item;
   const arrivingTerminal = trip.ArrivingTerminalAbbrev;
   const terminalPairKey = arrivingTerminal
@@ -256,8 +250,8 @@ const buildSegmentTimes = (
 const getAtSeaPercent = (
   departedAt: Date,
   arriveEta: Date,
-  trip: VesselTripTimelineItem["trip"],
-  vesselLocation: VesselTripTimelineItem["vesselLocation"],
+  trip: TimelineItem["trip"],
+  vesselLocation: TimelineItem["vesselLocation"],
   now: Date
 ): number => {
   if (!trip.LeftDock) return 0;

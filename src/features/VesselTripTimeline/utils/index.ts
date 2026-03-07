@@ -8,6 +8,10 @@ export {
   type OverlayIndicator,
 } from "./deriveOverlayIndicator";
 export { getMinutesUntilLabel } from "./indicatorLabels";
+export {
+  getGlobalPercentComplete,
+  getRightTimePoint,
+} from "./mapPresentationRowToTimelineRow";
 export { getMarkerSourceForKind } from "./markerSource";
 export {
   getTerminalNameAtDestination,

@@ -30,12 +30,12 @@ export const RowContentLabel = ({
         ? "Arrived"
         : "Arrive"
       : past
-        ? "Departed"
-        : "Depart";
+        ? "Departed to"
+        : "Depart to";
   return (
     terminal && (
       <View className="mt-[-14px] align-right">
-        <Text className="">{label}</Text>
+        <Text className="text-xs uppercase">{label}</Text>
         <Text className="">{terminal}</Text>
       </View>
     )
