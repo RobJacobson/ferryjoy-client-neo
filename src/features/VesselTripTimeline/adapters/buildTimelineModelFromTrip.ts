@@ -5,6 +5,7 @@
  */
 
 import { config, formatTerminalPairKey } from "convex/domain/ml/shared/config";
+import { clamp } from "@/shared/utils";
 import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
@@ -271,14 +272,14 @@ const getAtSeaPercent = (
     departing + arriving > 0
   ) {
     const ratio = departing / (departing + arriving);
-    return clamp01(ratio);
+    return clamp(ratio, 0, 1);
   }
 
   // Fallback to time-based progress
   const duration = arriveEta.getTime() - departedAt.getTime();
   if (duration <= 0) return 0;
   const elapsed = now.getTime() - departedAt.getTime();
-  return clamp01(elapsed / duration);
+  return clamp(elapsed / duration, 0, 1);
 };
 
 /**
@@ -310,11 +311,3 @@ const ensureAfter = (
  */
 const addMinutes = (value: Date, minutes: number): Date =>
   new Date(value.getTime() + minutes * 60000);
-
-/**
- * Clamps a number to the inclusive range [0, 1].
- *
- * @param value - Raw ratio
- * @returns Clamped ratio
- */
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
