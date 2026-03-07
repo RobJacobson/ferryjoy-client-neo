@@ -34,6 +34,7 @@ const parseDepartingTerminalFromKey = (
 
 /**
  * Builds a timeline data model for a single vessel trip card.
+ * Produces 3 rows: at-dock (origin) | at-sea | at-dock (destination).
  *
  * @param item - Vessel trip and location pair
  * @param now - Current time used for progress calculations
@@ -43,58 +44,84 @@ export const buildTimelineModelFromTrip = (
   item: VesselTripTimelineItem,
   now: Date = new Date()
 ): VesselTripTimelineRowModel[] => {
-  const { trip } = item;
+  const { trip, vesselLocation } = item;
   const times = buildSegmentTimes(item, now);
   const atSeaPercent = getAtSeaPercent(
     times.departedAt,
     times.arriveEta,
     trip,
+    vesselLocation,
     now
   );
   const departureLabel = getMinutesUntilLabel(times.departedAtActual, now);
   const inTransitLabel = getMinutesUntilLabel(times.arriveEtaActual, now);
-  const arrivalLabel = "--";
   const departDestLabel = getMinutesUntilLabel(times.predictedDepartDest, now);
 
-  // Build four segment models:
-  // 1) pre-departure at start terminal
-  // 2) in-transit at sea
-  // 3) arrival at destination terminal
-  // 4) departure from destination terminal
-  // UI component selection/layout is attached later in render-layer mapping.
+  const useDistanceProgress =
+    vesselLocation.DepartingDistance !== undefined &&
+    vesselLocation.ArrivingDistance !== undefined &&
+    vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0;
+
+  const schedArriveCurr =
+    trip.ScheduledTrip?.SchedArriveCurr ?? times.departWindowStart;
+  const schedDeparture = trip.ScheduledDeparture ?? times.departWindowStart;
+  const _schedArriveNext =
+    trip.ScheduledTrip?.SchedArriveNext ??
+    trip.ScheduledTrip?.ArrivingTime ??
+    times.arriveEta;
+  const schedDepartNext =
+    trip.ScheduledTrip?.NextDepartingTime ?? times.departDestTime;
 
   const rows: VesselTripTimelineRowModel[] = [
     {
-      id: `${trip.VesselAbbrev}-depart`,
+      id: `${trip.VesselAbbrev}-at-dock-origin`,
+      kind: "at-dock",
       startTime: times.departWindowStart,
       endTime: times.departedAt,
       percentComplete: trip.LeftDock ? 1 : 0,
-      phase: "at-start",
       indicatorLabel: departureLabel,
+      eventTimes: {
+        scheduled: schedArriveCurr,
+        actual: trip.TripStart,
+        estimated: undefined,
+      },
+      terminalName: vesselLocation.DepartingTerminalName,
+      leftContentKind: "terminal-label",
+      rightContentKind: "time-events",
     },
     {
       id: `${trip.VesselAbbrev}-at-sea`,
+      kind: "at-sea",
       startTime: times.departedAt,
       endTime: times.arriveEta,
       percentComplete: atSeaPercent,
-      phase: "at-sea",
       indicatorLabel: inTransitLabel,
+      eventTimes: {
+        scheduled: schedDeparture,
+        actual: trip.LeftDock,
+        estimated: trip.AtDockDepartCurr?.PredTime,
+      },
+      leftContentKind: "in-transit-card",
+      rightContentKind: "time-events",
+      useDistanceProgress,
     },
     {
-      id: `${trip.VesselAbbrev}-arrive`,
-      startTime: times.arriveEta,
-      endTime: times.tripEnd,
-      percentComplete: trip.TripEnd ? 1 : 0,
-      phase: "at-dest",
-      indicatorLabel: arrivalLabel,
-    },
-    {
-      id: `${trip.VesselAbbrev}-depart-dest`,
+      id: `${trip.VesselAbbrev}-at-dock-dest`,
+      kind: "at-dock",
       startTime: times.tripEnd,
       endTime: times.departDestTime,
       percentComplete: 0,
-      phase: "depart-dest",
       indicatorLabel: departDestLabel,
+      eventTimes: {
+        scheduled: schedDepartNext,
+        actual: trip.AtDockDepartNext?.Actual,
+        estimated:
+          trip.AtDockDepartNext?.PredTime ?? trip.AtSeaDepartNext?.PredTime,
+      },
+      terminalName: vesselLocation.ArrivingTerminalName,
+      leftContentKind: "terminal-label",
+      rightContentKind: "time-events",
+      minHeight: 0,
     },
   ];
 
@@ -155,21 +182,14 @@ const buildSegmentTimes = (
   );
 
   // Determine terminal pair for ML config fallback (B->C)
-  // Use next leg's departing terminal if available, otherwise fallback to current leg's pair
   const nextTerminalPairKey =
     arrivingTerminal && nextDepartingTerminal
       ? formatTerminalPairKey(arrivingTerminal, nextDepartingTerminal)
-      : terminalPairKey; // Fallback to current leg's pair
+      : terminalPairKey;
 
-  // Build departure time from B using predicted > scheduled > fallback priority
   const rawDepartDest =
     trip.AtDockDepartNext?.PredTime ?? trip.ScheduledTrip?.NextDepartingTime;
-
-  // Store predicted time for indicator label
   const predictedDepartDest = trip.AtDockDepartNext?.PredTime;
-
-  // Ensure monotonic ordering with minimum segment durations
-  // Geometry uses historical averages when actual/predicted data is missing
 
   const departWindowStart = new Date(rawDepartWindowStart);
   const departedAt = ensureAfter(
@@ -184,7 +204,6 @@ const buildSegmentTimes = (
     DEFAULT_ARRIVAL_MINUTES
   );
 
-  // Build depart-dest time after tripEnd is computed
   const departDestTime = ensureAfter(
     rawDepartDest ?? undefined,
     tripEnd,
@@ -205,23 +224,38 @@ const buildSegmentTimes = (
 
 /**
  * Calculates the completion ratio for the at-sea segment.
+ * Uses distance-based progress when vesselLocation has distance data.
  *
  * @param departedAt - Segment start timestamp
  * @param arriveEta - Segment end timestamp
  * @param trip - Vessel trip with completion markers
- * @param now - Current time used for active progress
+ * @param vesselLocation - Real-time vessel location for distance-based progress
+ * @param now - Current time used for time-based progress
  * @returns Normalized completion value from 0 to 1
  */
 const getAtSeaPercent = (
   departedAt: Date,
   arriveEta: Date,
   trip: VesselTripTimelineItem["trip"],
+  vesselLocation: VesselTripTimelineItem["vesselLocation"],
   now: Date
 ): number => {
   if (!trip.LeftDock) return 0;
   if (trip.TripEnd) return 1;
 
-  // Calculate elapsed time ratio for in-transit progress
+  // Prefer distance-based progress when telemetry is available
+  const departing = vesselLocation.DepartingDistance;
+  const arriving = vesselLocation.ArrivingDistance;
+  if (
+    departing !== undefined &&
+    arriving !== undefined &&
+    departing + arriving > 0
+  ) {
+    const ratio = departing / (departing + arriving);
+    return clamp01(ratio);
+  }
+
+  // Fallback to time-based progress
   const duration = arriveEta.getTime() - departedAt.getTime();
   if (duration <= 0) return 0;
   const elapsed = now.getTime() - departedAt.getTime();
@@ -243,7 +277,6 @@ const getMinutesUntilLabel = (
   if (targetTime === undefined) {
     return "--";
   }
-  // Calculate remaining minutes with ceiling for display
   const remainingMs = targetTime.getTime() - now.getTime();
   const remainingMinutes = Math.max(0, Math.ceil(remainingMs / 60000));
   return `${remainingMinutes}m`;

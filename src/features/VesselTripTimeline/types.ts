@@ -13,17 +13,40 @@ export type VesselTripTimelineItem = {
   vesselLocation: VesselLocation;
 };
 
-export type VesselTripTimelinePhase =
-  | "at-start"
-  | "at-sea"
-  | "at-dest"
-  | "depart-dest";
+/** Segment kinds—panels between timestamps (at-dock = arrive-to-depart, at-sea = depart-to-arrive). */
+export type RowKind = "at-dock" | "at-sea";
+
+/**
+ * Single point in time with scheduled, actual, and estimated values.
+ * Reused from TimelineFeatures; define locally if that module is not accessible.
+ */
+export type TimePoint = {
+  scheduled: Date;
+  actual?: Date;
+  estimated?: Date;
+};
+
+/** Left slot content kind. */
+export type LeftContentKind = "terminal-label" | "in-transit-card" | "none";
+
+/** Right slot content kind. */
+export type RightContentKind = "time-events" | "none";
 
 export type VesselTripTimelineRowModel = {
   id: string;
   startTime: Date;
   endTime: Date;
   percentComplete: number;
-  phase: VesselTripTimelinePhase;
+  kind: RowKind;
   indicatorLabel: string;
+  /** Primary event for the right slot; adapter picks the most relevant boundary. */
+  eventTimes?: TimePoint;
+  /** For at-dock rows: which terminal. */
+  terminalName?: string;
+  leftContentKind: LeftContentKind;
+  rightContentKind: RightContentKind;
+  /** For at-sea rows when vesselLocation has distance data. */
+  useDistanceProgress?: boolean;
+  /** Per-row override for minimum height; 0 for last row when collapsible. */
+  minHeight?: number;
 };

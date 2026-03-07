@@ -15,7 +15,6 @@ import {
   VerticalTimelineIndicatorOverlay,
 } from "@/components/Timeline";
 import { Text, View } from "@/components/ui";
-import { getPredictedArriveNextTime } from "@/features/TimelineFeatures/shared/utils";
 import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
@@ -26,14 +25,10 @@ import { TimelineLabel } from "./TimelineLabel";
 
 const MARKER_ICON_SIZE_PX = 18;
 
-/** Phase → marker icon source; phases not listed (e.g. depart-dest) have no icon. */
-const PHASE_MARKER_SOURCE: Partial<
-  Record<VesselTripTimelineRowModel["phase"], number>
-> = {
-  "at-start": ANCHOR_ICON,
-  "at-dest": ANCHOR_ICON,
+/** Kind → marker icon source (at-dock = anchor, at-sea = vessel). */
+const KIND_MARKER_SOURCE: Record<VesselTripTimelineRowModel["kind"], number> = {
+  "at-dock": ANCHOR_ICON,
   "at-sea": VESSEL_ICON,
-  "depart-dest": VESSEL_ICON,
 };
 
 // Layout knobs for timeline and overlay; extract to config if shared later.
@@ -49,59 +44,40 @@ type VesselTripTimelineOverlayProps = {
   item: VesselTripTimelineItem;
 };
 
-type Slot = "left" | "right";
-
-type SlotRendererContext = {
-  row: VesselTripTimelineRowModel;
-  item: VesselTripTimelineItem;
+/**
+ * Renders left slot content from row leftContentKind and row data.
+ *
+ * @param row - Timeline row model
+ * @param item - Domain item
+ * @returns Left content or undefined
+ */
+const renderLeftContent = (
+  row: VesselTripTimelineRowModel,
+  item: VesselTripTimelineItem,
+): ReactNode => {
+  switch (row.leftContentKind) {
+    case "terminal-label":
+      return row.terminalName ? (
+        <TimelineLabel terminal={row.terminalName} />
+      ) : undefined;
+    case "in-transit-card":
+      return <InTransitEventCard vesselLocation={item.vesselLocation} />;
+    case "none":
+      return undefined;
+  }
 };
 
-type SlotRenderKey = `${VesselTripTimelineRowModel["phase"]}:${Slot}`;
-
-type SlotRenderer = (context: SlotRendererContext) => ReactNode | undefined;
-
-const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
-  "at-start:left": ({ item }) => (
-    <TimelineLabel terminal={item.vesselLocation.DepartingTerminalName} />
-  ),
-  "at-start:right": ({ item }) => (
-    <TimelineEvents
-      actualTime={item.trip.TripStart}
-      scheduledTime={item.trip.ScheduledTrip?.SchedArriveCurr}
-    />
-  ),
-  "at-sea:left": ({ item }) => (
-    <InTransitEventCard vesselLocation={item.vesselLocation} />
-  ),
-  "at-sea:right": ({ item }) => (
-    <TimelineEvents
-      actualTime={item.trip.LeftDock}
-      scheduledTime={item.trip.ScheduledDeparture}
-      predictedTime={item.trip.AtDockDepartCurr?.PredTime}
-    />
-  ),
-  "at-dest:left": ({ item }) => (
-    <TimelineLabel terminal={item.vesselLocation.ArrivingTerminalName} />
-  ),
-  "at-dest:right": ({ item }) => (
-    <TimelineEvents
-      actualTime={item.trip.TripEnd}
-      scheduledTime={item.trip.ScheduledTrip?.SchedArriveNext}
-      predictedTime={getPredictedArriveNextTime(item.trip, item.vesselLocation)}
-    />
-  ),
-  "depart-dest:left": ({ item }) => (
-    <TimelineLabel terminal={item.vesselLocation.ArrivingTerminalName} />
-  ),
-  "depart-dest:right": ({ item }) => (
-    <TimelineEvents
-      predictedTime={
-        item.trip.AtSeaDepartNext?.PredTime ??
-        item.trip.AtDockDepartNext?.PredTime
-      }
-      scheduledTime={item.trip.ScheduledTrip?.NextDepartingTime}
-    />
-  ),
+/**
+ * Renders right slot content from row rightContentKind and row data.
+ *
+ * @param row - Timeline row model
+ * @returns Right content or undefined
+ */
+const renderRightContent = (row: VesselTripTimelineRowModel): ReactNode => {
+  if (row.rightContentKind !== "time-events" || !row.eventTimes) {
+    return undefined;
+  }
+  return <TimelineEvents {...row.eventTimes} />;
 };
 
 /**
@@ -114,10 +90,7 @@ export const VesselTripTimelineOverlay = ({
   presentationRows,
   item,
 }: VesselTripTimelineOverlayProps) => {
-  const overlayIndicator = deriveActiveOverlayIndicator(
-    presentationRows,
-    item.trip,
-  );
+  const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
   const { overlayPlacement, timelineContainerProps, timelineProps } =
     useVerticalTimelineOverlayPlacement(overlayIndicator, AXIS_X_RATIO);
   const rows = presentationRows.map((row) =>
@@ -182,28 +155,27 @@ const toTimelineRow = (
     presentationRows,
     overlayIndicator,
   ),
-  leftContent: renderSlotContent("left", row, item),
-  rightContent: renderSlotContent("right", row, item),
-  markerContent: getMarkerContent(row.phase),
-  minHeight: row.phase === "depart-dest" ? 0 : undefined,
+  leftContent: renderLeftContent(row, item),
+  rightContent: renderRightContent(row),
+  markerContent: getMarkerContent(row.kind),
+  minHeight: row.minHeight,
 });
 
-/**
- * Returns marker content for a timeline phase (icon or nothing).
- * Uses inline style for dimensions because NativeWind does not apply
- * className to expo-image, so the icon would otherwise render at 0x0.
- *
- * @param phase - Timeline phase determining which icon to show
- * @returns Image component or undefined for phases without a marker icon
- */
 /** Tint applied to marker PNGs (anchor/vessel). Use tintColor on Image; className does not apply to expo-image. */
 const MARKER_TINT_COLOR = "#777"; // green-800
 
+/**
+ * Returns marker content for a timeline kind (icon).
+ * Uses inline style for dimensions because NativeWind does not apply
+ * className to expo-image, so the icon would otherwise render at 0x0.
+ *
+ * @param kind - Timeline kind determining which icon to show
+ * @returns Image component
+ */
 const getMarkerContent = (
-  phase: VesselTripTimelineRowModel["phase"],
+  kind: VesselTripTimelineRowModel["kind"],
 ): ReactNode => {
-  const source = PHASE_MARKER_SOURCE[phase];
-  if (!source) return undefined;
+  const source = KIND_MARKER_SOURCE[kind];
   return (
     <Image
       source={source}
@@ -211,26 +183,6 @@ const getMarkerContent = (
       tintColor={MARKER_TINT_COLOR}
     />
   );
-};
-
-/**
- * Renders a slot's content from row phase and domain item data.
- *
- * @param slot - Timeline slot side
- * @param row - Timeline row model
- * @param item - Domain item containing trip and vessel data
- * @returns Feature card component or undefined
- */
-const renderSlotContent = (
-  slot: Slot,
-  row: VesselTripTimelineRowModel,
-  item: VesselTripTimelineItem,
-) => {
-  const key = `${row.phase}:${slot}` as SlotRenderKey;
-  return SLOT_RENDERERS[key]?.({
-    row,
-    item,
-  });
 };
 
 /**
@@ -276,65 +228,80 @@ type OverlayIndicator = {
 
 /**
  * Derives active overlay indicator from timeline rows and trip state.
+ * Uses kind + position: first row = at-dock origin, second = at-sea, third = at-dock dest.
  *
- * @param rows - Timeline rows with phase boundaries and labels
- * @param trip - Trip state used to select active phase
+ * @param rows - Timeline rows with kind boundaries and labels
+ * @param item - Domain item (trip + vesselLocation) for distance-based progress
  * @returns Active overlay indicator model
  */
 const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
-  trip: VesselTripTimelineItem["trip"],
+  item: VesselTripTimelineItem,
 ): OverlayIndicator => {
-  const atStartRow = rows.find((row) => row.phase === "at-start");
-  const atSeaRow = rows.find((row) => row.phase === "at-sea");
-  const _atDestRow = rows.find((row) => row.phase === "at-dest");
-  const departDestRow = rows.find((row) => row.phase === "depart-dest");
+  const { trip, vesselLocation } = item;
+  // 3 rows: at-dock (origin), at-sea, at-dock (destination)
+  const atDockOrigin = rows.find((r) => r.kind === "at-dock");
+  const atSeaRow = rows.find((r) => r.kind === "at-sea");
+  const atDockDest = rows.filter((r) => r.kind === "at-dock").pop();
   const now = new Date();
 
-  // If vessel has departed from destination (card would change, but handle just in case)
-  if (trip.AtDockDepartNext?.Actual && departDestRow) {
+  // If vessel has departed from destination
+  if (trip.AtDockDepartNext?.Actual && atDockDest) {
     return {
-      rowId: departDestRow.id,
+      rowId: atDockDest.id,
       positionPercent: 1,
-      label: departDestRow.indicatorLabel,
+      label: atDockDest.indicatorLabel,
     };
   }
 
   // If vessel has arrived at destination, show progress toward departure
-  if (trip.TripEnd && departDestRow) {
+  if (trip.TripEnd && atDockDest) {
     return {
-      rowId: departDestRow.id,
+      rowId: atDockDest.id,
       positionPercent: getTimeProgress(
-        departDestRow.startTime,
-        departDestRow.endTime,
+        atDockDest.startTime,
+        atDockDest.endTime,
         now,
       ),
-      label: departDestRow.indicatorLabel,
+      label: atDockDest.indicatorLabel,
     };
   }
 
-  // If vessel hasn't departed yet, show progress at dock
-  if (!trip.LeftDock && atStartRow) {
+  // If vessel hasn't departed yet, show progress at dock (origin)
+  if (!trip.LeftDock && atDockOrigin) {
     return {
-      rowId: atStartRow.id,
-      // Keep indicator slightly below row-start marker for readability.
+      rowId: atDockOrigin.id,
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now),
+        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now),
       ),
-      label: atStartRow.indicatorLabel,
+      label: atDockOrigin.indicatorLabel,
     };
   }
 
-  // If vessel is at sea, show in-transit progress
+  // If vessel is at sea, show in-transit progress (distance-based when available)
   if (atSeaRow) {
-    return {
-      rowId: atSeaRow.id,
-      positionPercent: getTimeProgress(
+    let positionPercent: number;
+    if (
+      atSeaRow.useDistanceProgress &&
+      vesselLocation.DepartingDistance !== undefined &&
+      vesselLocation.ArrivingDistance !== undefined &&
+      vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0
+    ) {
+      positionPercent =
+        vesselLocation.DepartingDistance /
+        (vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance);
+      positionPercent = clamp01(positionPercent);
+    } else {
+      positionPercent = getTimeProgress(
         atSeaRow.startTime,
         atSeaRow.endTime,
         now,
-      ),
+      );
+    }
+    return {
+      rowId: atSeaRow.id,
+      positionPercent,
       label: atSeaRow.indicatorLabel,
     };
   }

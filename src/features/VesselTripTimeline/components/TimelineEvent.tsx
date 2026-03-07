@@ -2,13 +2,13 @@
  * Base timeline event component with time and icon.
  */
 
-import { CalendarClock, EqualApproximately, Watch } from "lucide-react-native";
+import { CalendarClock, EqualApproximately, Timer } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 
 const eventTypeIcon = {
-  actual: Watch,
+  actual: Timer,
   scheduled: CalendarClock,
   estimated: EqualApproximately,
 } as const;
@@ -31,9 +31,7 @@ export const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   const Icon = eventTypeIcon[type];
   return (
     <View className={cn("flex-row", type === "scheduled" ? "gap-1" : "gap-0")}>
-      <View>
-        <Icon size={20} strokeWidth={1.5} color="#555" />
-      </View>
+      <Icon size={18} strokeWidth={1.5} color="#555" />
       <Text className="font-playpen-400 text-sm">{toDisplayTime(time)}</Text>
     </View>
   );
