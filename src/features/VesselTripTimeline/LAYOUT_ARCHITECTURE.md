@@ -11,14 +11,22 @@ blur when crossing row boundaries. The indicator overlay approach solves this:
 
 - Timeline rows render normally in document order
 - A separate **absolute overlay tree** is rendered above the entire timeline
-- The overlay tree mirrors each row's height using the same `flexGrow` and `minHeight`
+- Timeline rows report layout via `onRowLayout` (y, height per row)
+- When **row layouts are available for all rows**, overlay rows use absolute
+  positioning (`top`, `height`) from that measurement so they align exactly
+  with the timeline rows; otherwise overlay rows fall back to the same
+  `flexGrow` and `minHeight` as timeline rows
 - Only the **active indicator row** renders the indicator
-- The indicator is positioned via `top: ${positionPercent * 100}%` inside the indicator row
+- The indicator is positioned via `top: ${positionPercent * 100}%` and
+  `left: "50%"` (with negative margins) inside the indicator row center column
 - Each indicator is wrapped in `BlurView`; one `BlurTargetView` wraps the timeline
-- **No layout measurement** is required
 
-This eliminates `useVerticalTimelineOverlayPlacement` and `VerticalTimelineIndicatorOverlay`
-for this feature.
+This alignment ensures the indicator sits on the track tip: timeline row
+heights are content-driven, so measured bounds avoid vertical drift when overlay
+rows would otherwise be sized only by flex.
+
+This eliminates `useVerticalTimelineOverlayPlacement` and
+`VerticalTimelineIndicatorOverlay` for this feature.
 
 ## Separation of Concerns
 
@@ -35,11 +43,13 @@ The feature is split into 2 layers:
 2. **Layout + indicator overlay renderer**
    - `components/VesselTripTimelineOverlay.tsx` – Main orchestrator. Wraps timeline in
      `BlurTargetView`, derives active indicator via `utils/deriveOverlayIndicator`,
-     maps presentation rows to timeline rows, renders `TimelineRowComponent` and
-     `TimelineIndicatorOverlay`.
+     maps presentation rows to timeline rows, renders `TimelineRowComponent` with
+     `onRowLayout` to collect row bounds, and `TimelineIndicatorOverlay` with
+     `rowLayouts` for alignment.
    - `components/TimelineIndicatorOverlay.tsx` – Indicator row overlay layer.
-     Renders rows that mirror timeline geometry; only the active row renders the
-     indicator.
+     Accepts optional `rowLayouts`; when present for all rows, overlay rows use
+     measured `y`/`height` for exact alignment. Renders rows that mirror timeline
+     geometry; only the active row renders the indicator.
    - `components/TimelineIndicator.tsx` – BlurView + label for the active row.
    - `components/RowContentLabel.tsx` – Label content for row slots (terminal names).
    - `components/RowContentTimes.tsx` – Time events content for row slots.
@@ -61,15 +71,18 @@ View (timeline container)
             └── [spacer] | [center column with optional TimelineIndicator] | [spacer]
 ```
 
-The indicator rows are not visual duplicates of the cards or track. They only
-recreate the vertical geometry needed to position the active indicator in the
-correct row without measuring layout.
+The indicator rows are not visual duplicates of the cards or track. They
+recreate the vertical geometry needed to position the active indicator. When
+`rowLayouts` is complete, overlay rows are absolutely positioned with the
+measured `y` and `height` of each timeline row so the indicator aligns with
+the track tip; otherwise overlay rows use the same sizing inputs as the
+timeline (`getDurationMinutes`, `row.minHeight`, `MIN_SEGMENT_PX`).
 
-Indicator position is `top: ${positionPercent * 100}%` within the indicator row
-center column. `TimelineIndicator` handles the BlurView and label. No global
-coordinate math is needed because the overlay tree uses the same row
-sizing inputs (`getDurationMinutes`, `row.minHeight`, `MIN_SEGMENT_PX`) as the
-rendered timeline rows.
+Indicator position is `top: ${positionPercent * 100}%` and `left: "50%"` (with
+`marginTop`/`marginLeft` for centering) within the indicator row center column.
+`TimelineIndicator` handles the BlurView and label. No global coordinate math
+is needed: either measured row bounds or the same flex/minHeight inputs align
+the overlay with the timeline.
 
 ## Why This Shape
 
@@ -79,7 +92,8 @@ regression from a row-local overlay:
 - The timeline track and row content keep their normal sibling stacking
 - The indicator lives in a single top-level overlay layer, so it can paint above
   markers and content in adjacent rows
-- The feature still avoids `onLayout` measurement and cross-tree coordinate math
+- Minimal row layout measurement (y, height per row) aligns overlay rows with
+  content-driven timeline row heights; no cross-tree coordinate math
 - Indicator label centering is handled entirely inside the overlay circle
 
 ## Geometry vs Labels
@@ -128,6 +142,11 @@ does not visually sit on top of the static marker at row start.
 - `BlurView` around each indicator receives `blurTarget` ref.
 - `TimelineIndicatorOverlay` uses `pointerEvents="none"` so card/timeline
   interactions are not blocked.
-- Indicator rows must use the same sizing inputs as timeline rows:
-  `getDurationMinutes(row)`, `row.minHeight`, and `MIN_SEGMENT_PX`.
-- Indicator wrapper uses explicit width/height for stable centering.
+- When `rowLayouts` is provided for all rows, overlay rows use explicit
+  `top` and `height` from measurement; otherwise they use the same sizing
+  inputs as timeline rows: `getDurationMinutes(row)`, `row.minHeight`, and
+  `MIN_SEGMENT_PX`.
+- Indicator is centered horizontally in the center column via `left: "50%"`
+  and `marginLeft: -sizePx/2`; vertically via `top: ${positionPercent * 100}%`
+  and `marginTop: -sizePx/2`. Indicator wrapper uses explicit width/height for
+  stable centering.

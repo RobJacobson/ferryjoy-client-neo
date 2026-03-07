@@ -32,6 +32,9 @@ export type LeftContentKind = "terminal-label" | "in-transit-card" | "none";
 /** Right slot content kind. */
 export type RightContentKind = "time-events" | "none";
 
+/** Layout bounds (y, height) for a timeline row; used to align overlay rows with measured rows. */
+export type RowLayoutBounds = { y: number; height: number };
+
 export type VesselTripTimelineRowModel = {
   id: string;
   startTime: Date;

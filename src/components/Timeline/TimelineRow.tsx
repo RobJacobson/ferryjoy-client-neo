@@ -64,7 +64,7 @@ export const TimelineRowComponent = ({
   const rowStyle = getVerticalRowStyle(
     durationMinutes,
     theme.minSegmentPx,
-    row.minHeight,
+    row.minHeight
   );
   const containerStyle = getContainerStyle(rowStyle, overlay);
 
@@ -120,7 +120,7 @@ export const TimelineRowComponent = ({
 const getVerticalRowStyle = (
   durationMinutes: number,
   minSegmentPx: number,
-  minHeight?: number,
+  minHeight?: number
 ): ViewStyle => ({
   flexGrow: minHeight === 0 ? 0 : durationMinutes,
   flexBasis: "auto",
@@ -140,7 +140,7 @@ const getVerticalRowStyle = (
  */
 const getContainerStyle = (
   rowStyle: ViewStyle,
-  overlay?: ReactNode,
+  overlay?: ReactNode
 ): ViewStyle =>
   overlay
     ? {
@@ -174,7 +174,7 @@ const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
  */
 const getRowLayoutHandler = (
   rowId: string,
-  onRowLayout: ((rowId: string, bounds: TimelineRowBounds) => void) | undefined,
+  onRowLayout: ((rowId: string, bounds: TimelineRowBounds) => void) | undefined
 ) =>
   onRowLayout
     ? (event: LayoutChangeEvent) => {

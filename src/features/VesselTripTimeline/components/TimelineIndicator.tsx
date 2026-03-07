@@ -5,10 +5,9 @@
 
 import type { RefObject } from "react";
 import type { View as RNView } from "react-native";
-import { BlurView } from "@/components/BlurView";
 import { Text, View } from "@/components/ui";
 
-const BORDER_WIDTH = 2;
+const _BORDER_WIDTH = 2;
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<RNView | null>;
@@ -28,8 +27,6 @@ type TimelineIndicatorProps = {
  * @param label - Label text displayed inside the indicator
  * @param sizePx - Diameter of the indicator in pixels
  * @param intensity - Blur intensity
- * @param tint - Blur tint
- * @param borderColor - Border color for the indicator
  * @returns Timeline indicator view
  */
 export const TimelineIndicator = ({
@@ -37,21 +34,21 @@ export const TimelineIndicator = ({
   positionPercent,
   label,
   sizePx = 36,
-  intensity = 5,
-  tint = "light",
-  borderColor = "#22c55e",
 }: TimelineIndicatorProps) => (
   <View
-    className="absolute left-1/2"
+    className="absolute items-center justify-center rounded-full border border-green-500 bg-white/50"
     style={{
       top: `${positionPercent * 100}%`,
+      left: "50%",
       marginLeft: -sizePx / 2,
       marginTop: -sizePx / 2,
+      width: sizePx,
+      height: sizePx,
     }}
   >
-    <BlurView
+    {/* <BlurView
       blurTarget={blurTargetRef}
-      intensity={intensity}
+      intensity={5}
       tint={tint}
       blurMethod="dimezisBlurView"
       className="items-center justify-center overflow-hidden"
@@ -62,15 +59,13 @@ export const TimelineIndicator = ({
         borderWidth: BORDER_WIDTH,
         borderColor,
       }}
+    > */}
+    <Text
+      className="text-center font-bold text-green-700 text-xs"
+      style={{ includeFontPadding: false }}
     >
-      <View className="inset-0 items-center justify-center">
-        <Text
-          className="text-center font-bold text-green-700 text-xs"
-          style={{ includeFontPadding: false }}
-        >
-          {label}
-        </Text>
-      </View>
-    </BlurView>
+      {label}
+    </Text>
+    {/* </BlurView> */}
   </View>
 );

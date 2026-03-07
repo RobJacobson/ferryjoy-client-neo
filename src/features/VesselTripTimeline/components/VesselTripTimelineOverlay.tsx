@@ -8,13 +8,14 @@
 import { BlurTargetView } from "expo-blur";
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { StyleSheet } from "react-native";
 import { type TimelineRow, TimelineRowComponent } from "@/components/Timeline";
 import type { RequiredTimelineTheme } from "@/components/Timeline/TimelineTypes";
 import { View } from "@/components/ui";
 import type {
+  RowLayoutBounds,
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
@@ -107,10 +108,21 @@ export const VesselTripTimelineOverlay = ({
   item,
 }: VesselTripTimelineOverlayProps) => {
   const blurTargetRef = useRef<RNView | null>(null);
+  const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
+    {}
+  );
   const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
   const rows = presentationRows.map((row, rowIndex) =>
     toTimelineRow(row, rowIndex, presentationRows, overlayIndicator)
   );
+
+  const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
+    setRowLayouts((prev) =>
+      prev[rowId]?.y === bounds.y && prev[rowId]?.height === bounds.height
+        ? prev
+        : { ...prev, [rowId]: bounds }
+    );
+  }, []);
 
   const theme: RequiredTimelineTheme = {
     minSegmentPx: MIN_SEGMENT_PX,
@@ -138,12 +150,14 @@ export const VesselTripTimelineOverlay = ({
             theme={theme}
             renderMode="background"
             isLastRow={index === rows.length - 1}
+            onRowLayout={onRowLayout}
           />
         ))}
         <TimelineIndicatorOverlay
           rows={rows}
           overlayIndicator={overlayIndicator}
           blurTargetRef={blurTargetRef}
+          rowLayouts={rowLayouts}
         />
       </BlurTargetView>
     </View>
