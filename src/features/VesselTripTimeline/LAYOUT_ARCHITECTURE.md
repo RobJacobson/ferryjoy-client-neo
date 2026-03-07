@@ -50,7 +50,8 @@ The feature is split into 2 layers:
      Accepts optional `rowLayouts`; when present for all rows, overlay rows use
      measured `y`/`height` for exact alignment. Renders rows that mirror timeline
      geometry; only the active row renders the indicator.
-   - `components/TimelineIndicator.tsx` – BlurView + label for the active row.
+   - `components/TimelineIndicator.tsx` – BlurView + label for the active row;
+     position animated via `hooks/useAnimatedProgress` and Reanimated spring.
    - `components/RowContentLabel.tsx` – Label content for row slots (terminal names).
    - `components/RowContentTimes.tsx` – Time events content for row slots.
    - `utils/deriveOverlayIndicator.ts` – Pure function that derives active overlay
@@ -135,6 +136,27 @@ Historical averages are used for geometry fallbacks only, never displayed to use
 
 For pre-departure, we apply a small minimum offset (`0.06`) so the indicator
 does not visually sit on top of the static marker at row start.
+
+## Indicator position animation
+
+`positionPercent` is derived from trip and vessel location data that updates
+infrequently (e.g. every 5 seconds from Convex). If the indicator position
+were applied directly, it would jump every time new data arrives.
+
+To smooth motion, the indicator uses **Reanimated 4** spring animation:
+
+- **`hooks/useAnimatedProgress.ts`** – Exposes a `SharedValue` that animates
+  toward the latest `positionPercent`. At 0 and 1 it jumps immediately (no
+  overshoot at segment boundaries); for values in between it uses
+  `withSpring` so the indicator glides between updates.
+- **`TimelineIndicator.tsx`** – Wraps the indicator in Reanimated’s
+  `Animated.View`, uses `useAnimatedProgress(positionPercent)` and
+  `useAnimatedStyle` to drive `top` from the shared value. Layout uses
+  inline `style` (not only `className`) so positioning remains correct on
+  web (see `docs/animated-view-classname-web-bug.md`).
+
+Animation runs on the UI thread, so smooth movement does not depend on
+high-frequency JS updates; a few data updates per minute are enough.
 
 ## Important Constraints
 
