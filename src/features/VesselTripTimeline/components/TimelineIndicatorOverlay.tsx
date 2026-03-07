@@ -49,7 +49,11 @@ export const TimelineIndicatorOverlay = ({
   overlayIndicator,
   blurTargetRef,
 }: TimelineIndicatorOverlayProps) => (
-  <View pointerEvents="none" className="inset-0 z-10" style={{ elevation: 10 }}>
+  <View
+    pointerEvents="none"
+    className="absolute inset-0 z-10"
+    style={{ elevation: 10 }}
+  >
     {rows.map((row) => (
       <View key={`${row.id}-overlay`} style={getIndicatorRowStyle(row)}>
         <View style={indicatorRowSpacerStyle} />

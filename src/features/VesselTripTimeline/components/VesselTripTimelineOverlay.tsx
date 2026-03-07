@@ -70,8 +70,22 @@ const renderRightContent = (row: VesselTripTimelineRowModel): ReactNode => {
   if (row.rightContentKind !== "time-events") {
     return undefined;
   }
-  return <RowContentTimes {...row.eventTimeEnd} />;
+  return <RowContentTimes {...getRightTimePoint(row)} />;
 };
+
+/**
+ * Resolves the time point that should align with this row's visible marker.
+ *
+ * The timeline marker is rendered at the start of each row segment. For the
+ * at-sea row, that start boundary is the vessel leaving dock, so the departure
+ * event must come from `eventTimeStart`. The at-dock rows still render their
+ * end-boundary event in the right slot.
+ *
+ * @param row - Timeline row model
+ * @returns Time point to render beside the row marker
+ */
+const getRightTimePoint = (row: VesselTripTimelineRowModel) =>
+  row.kind === "at-sea" ? row.eventTimeStart : row.eventTimeEnd;
 
 /**
  * Renders vessel timeline plus a mirrored shadow-row overlay layer.
@@ -88,7 +102,7 @@ export const VesselTripTimelineOverlay = ({
   const blurTargetRef = useRef<RNView | null>(null);
   const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
   const rows = presentationRows.map((row) =>
-    toTimelineRow(row, presentationRows, overlayIndicator),
+    toTimelineRow(row, presentationRows, overlayIndicator)
   );
 
   const theme: RequiredTimelineTheme = {
@@ -140,7 +154,7 @@ export const VesselTripTimelineOverlay = ({
 const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
@@ -148,7 +162,7 @@ const toTimelineRow = (
   percentComplete: getGlobalPercentComplete(
     row,
     presentationRows,
-    overlayIndicator,
+    overlayIndicator
   ),
   leftContent: renderLeftContent(row),
   rightContent: renderRightContent(row),
@@ -168,7 +182,7 @@ const MARKER_TINT_COLOR = "#777"; // green-800
  * @returns Image component
  */
 const getMarkerContent = (
-  kind: VesselTripTimelineRowModel["kind"],
+  kind: VesselTripTimelineRowModel["kind"]
 ): ReactNode => {
   const source = getMarkerSourceForKind(kind);
   return (
@@ -193,11 +207,11 @@ const getMarkerContent = (
 const getGlobalPercentComplete = (
   row: VesselTripTimelineRowModel,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): number => {
   const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
   const indicatorRowIndex = presentationRows.findIndex(
-    (r) => r.id === overlayIndicator.rowId,
+    (r) => r.id === overlayIndicator.rowId
   );
 
   if (indicatorRowIndex === -1) {
