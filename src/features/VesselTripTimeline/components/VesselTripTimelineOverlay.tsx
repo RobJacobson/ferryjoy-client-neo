@@ -4,8 +4,6 @@
  * generic VerticalTimeline primitive can stay simple and domain-agnostic.
  */
 
-import ANCHOR_ICON from "assets/icons/anchor.png";
-import VESSEL_ICON from "assets/icons/vessel.png";
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import {
@@ -19,17 +17,12 @@ import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
+import { getMarkerSourceForKind } from "../utils";
 import { InTransitEventCard } from "./InTransitEventCard";
 import { TimelineEvents } from "./TimelineEvents";
 import { TimelineLabel } from "./TimelineLabel";
 
 const MARKER_ICON_SIZE_PX = 18;
-
-/** Kind → marker icon source (at-dock = anchor, at-sea = vessel). */
-const KIND_MARKER_SOURCE: Record<VesselTripTimelineRowModel["kind"], number> = {
-  "at-dock": ANCHOR_ICON,
-  "at-sea": VESSEL_ICON,
-};
 
 // Layout knobs for timeline and overlay; extract to config if shared later.
 const AXIS_X_RATIO = 0.5;
@@ -53,7 +46,7 @@ type VesselTripTimelineOverlayProps = {
  */
 const renderLeftContent = (
   row: VesselTripTimelineRowModel,
-  item: VesselTripTimelineItem,
+  item: VesselTripTimelineItem
 ): ReactNode => {
   switch (row.leftContentKind) {
     case "terminal-label":
@@ -94,7 +87,7 @@ export const VesselTripTimelineOverlay = ({
   const { overlayPlacement, timelineContainerProps, timelineProps } =
     useVerticalTimelineOverlayPlacement(overlayIndicator, AXIS_X_RATIO);
   const rows = presentationRows.map((row) =>
-    toTimelineRow(row, item, presentationRows, overlayIndicator),
+    toTimelineRow(row, item, presentationRows, overlayIndicator)
   );
 
   const theme = {
@@ -145,7 +138,7 @@ const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
@@ -153,7 +146,7 @@ const toTimelineRow = (
   percentComplete: getGlobalPercentComplete(
     row,
     presentationRows,
-    overlayIndicator,
+    overlayIndicator
   ),
   leftContent: renderLeftContent(row, item),
   rightContent: renderRightContent(row),
@@ -173,9 +166,9 @@ const MARKER_TINT_COLOR = "#777"; // green-800
  * @returns Image component
  */
 const getMarkerContent = (
-  kind: VesselTripTimelineRowModel["kind"],
+  kind: VesselTripTimelineRowModel["kind"]
 ): ReactNode => {
-  const source = KIND_MARKER_SOURCE[kind];
+  const source = getMarkerSourceForKind(kind);
   return (
     <Image
       source={source}
@@ -198,11 +191,11 @@ const getMarkerContent = (
 const getGlobalPercentComplete = (
   row: VesselTripTimelineRowModel,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): number => {
   const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
   const indicatorRowIndex = presentationRows.findIndex(
-    (r) => r.id === overlayIndicator.rowId,
+    (r) => r.id === overlayIndicator.rowId
   );
 
   if (indicatorRowIndex === -1) {
@@ -236,7 +229,7 @@ type OverlayIndicator = {
  */
 const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
-  item: VesselTripTimelineItem,
+  item: VesselTripTimelineItem
 ): OverlayIndicator => {
   const { trip, vesselLocation } = item;
   // 3 rows: at-dock (origin), at-sea, at-dock (destination)
@@ -261,7 +254,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent: getTimeProgress(
         atDockDest.startTime,
         atDockDest.endTime,
-        now,
+        now
       ),
       label: atDockDest.indicatorLabel,
     };
@@ -273,7 +266,7 @@ const deriveActiveOverlayIndicator = (
       rowId: atDockOrigin.id,
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now),
+        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now)
       ),
       label: atDockOrigin.indicatorLabel,
     };
@@ -296,7 +289,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent = getTimeProgress(
         atSeaRow.startTime,
         atSeaRow.endTime,
-        now,
+        now
       );
     }
     return {

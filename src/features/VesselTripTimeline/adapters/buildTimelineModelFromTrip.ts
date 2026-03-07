@@ -9,6 +9,14 @@ import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
+import {
+  buildTimePoint,
+  getLeftContentKind,
+  getMinutesUntilLabel,
+  getRightContentKind,
+  getTerminalNameAtDestination,
+  getTerminalNameAtOrigin,
+} from "../utils";
 
 const MIN_SEGMENT_MINUTES = 1;
 const DEFAULT_ARRIVAL_MINUTES = 10;
@@ -81,19 +89,19 @@ export const buildTimelineModelFromTrip = (
       endTime: times.departedAt,
       percentComplete: trip.LeftDock ? 1 : 0,
       indicatorLabel: departureLabel,
-      eventTimeStart: {
-        scheduled: schedArriveCurr,
-        actual: trip.TripStart,
-        estimated: undefined,
-      },
-      eventTimeEnd: {
-        scheduled: schedDeparture,
-        actual: trip.LeftDock,
-        estimated: trip.AtDockDepartCurr?.PredTime,
-      },
-      terminalName: vesselLocation.DepartingTerminalName,
-      leftContentKind: "terminal-label",
-      rightContentKind: "time-events",
+      eventTimeStart: buildTimePoint(
+        schedArriveCurr,
+        trip.TripStart,
+        undefined
+      ),
+      eventTimeEnd: buildTimePoint(
+        schedDeparture,
+        trip.LeftDock,
+        trip.AtDockDepartCurr?.PredTime
+      ),
+      terminalName: getTerminalNameAtOrigin(vesselLocation),
+      leftContentKind: getLeftContentKind("at-dock"),
+      rightContentKind: getRightContentKind("at-dock"),
     },
     {
       id: `${trip.VesselAbbrev}-at-sea`,
@@ -102,18 +110,18 @@ export const buildTimelineModelFromTrip = (
       endTime: times.arriveEta,
       percentComplete: atSeaPercent,
       indicatorLabel: inTransitLabel,
-      eventTimeStart: {
-        scheduled: schedDeparture,
-        actual: trip.LeftDock,
-        estimated: trip.AtDockDepartCurr?.PredTime,
-      },
-      eventTimeEnd: {
-        scheduled: schedArriveNext,
-        actual: trip.TripEnd,
-        estimated: trip.Eta ?? vesselLocation.Eta,
-      },
-      leftContentKind: "in-transit-card",
-      rightContentKind: "time-events",
+      eventTimeStart: buildTimePoint(
+        schedDeparture,
+        trip.LeftDock,
+        trip.AtDockDepartCurr?.PredTime
+      ),
+      eventTimeEnd: buildTimePoint(
+        schedArriveNext,
+        trip.TripEnd,
+        trip.Eta ?? vesselLocation.Eta
+      ),
+      leftContentKind: getLeftContentKind("at-sea"),
+      rightContentKind: getRightContentKind("at-sea"),
       useDistanceProgress,
     },
     {
@@ -123,20 +131,15 @@ export const buildTimelineModelFromTrip = (
       endTime: times.departDestTime,
       percentComplete: 0,
       indicatorLabel: departDestLabel,
-      eventTimeStart: {
-        scheduled: schedArriveNext,
-        actual: trip.TripEnd,
-        estimated: undefined,
-      },
-      eventTimeEnd: {
-        scheduled: schedDepartNext,
-        actual: trip.AtDockDepartNext?.Actual,
-        estimated:
-          trip.AtDockDepartNext?.PredTime ?? trip.AtSeaDepartNext?.PredTime,
-      },
-      terminalName: vesselLocation.ArrivingTerminalName,
-      leftContentKind: "terminal-label",
-      rightContentKind: "time-events",
+      eventTimeStart: buildTimePoint(schedArriveNext, trip.TripEnd, undefined),
+      eventTimeEnd: buildTimePoint(
+        schedDepartNext,
+        trip.AtDockDepartNext?.Actual,
+        trip.AtDockDepartNext?.PredTime ?? trip.AtSeaDepartNext?.PredTime
+      ),
+      terminalName: getTerminalNameAtDestination(vesselLocation),
+      leftContentKind: getLeftContentKind("at-dock"),
+      rightContentKind: getRightContentKind("at-dock"),
       minHeight: 0,
     },
   ];
@@ -276,26 +279,6 @@ const getAtSeaPercent = (
   if (duration <= 0) return 0;
   const elapsed = now.getTime() - departedAt.getTime();
   return clamp01(elapsed / duration);
-};
-
-/**
- * Produces a short minutes-until label for indicator content.
- * Uses actual/predicted times only; returns "--" for missing data.
- *
- * @param targetTime - Target timestamp (undefined means no data available)
- * @param now - Current time
- * @returns Remaining minutes label or "--" if no data
- */
-const getMinutesUntilLabel = (
-  targetTime: Date | undefined,
-  now: Date
-): string => {
-  if (targetTime === undefined) {
-    return "--";
-  }
-  const remainingMs = targetTime.getTime() - now.getTime();
-  const remainingMinutes = Math.max(0, Math.ceil(remainingMs / 60000));
-  return `${remainingMinutes}m`;
 };
 
 /**
