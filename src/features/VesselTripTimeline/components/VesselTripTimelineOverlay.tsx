@@ -64,28 +64,35 @@ const renderLeftContent = (row: VesselTripTimelineRowModel): ReactNode => {
  * Renders right slot content from row rightContentKind and row data.
  *
  * @param row - Timeline row model
+ * @param rowIndex - Row position in the rendered timeline
  * @returns Right content or undefined
  */
-const renderRightContent = (row: VesselTripTimelineRowModel): ReactNode => {
+const renderRightContent = (
+  row: VesselTripTimelineRowModel,
+  rowIndex: number
+): ReactNode => {
   if (row.rightContentKind !== "time-events") {
     return undefined;
   }
-  return <RowContentTimes {...getRightTimePoint(row)} />;
+  return <RowContentTimes {...getRightTimePoint(row, rowIndex)} />;
 };
 
 /**
  * Resolves the time point that should align with this row's visible marker.
  *
- * The timeline marker is rendered at the start of each row segment. For the
- * at-sea row, that start boundary is the vessel leaving dock, so the departure
- * event must come from `eventTimeStart`. The at-dock rows still render their
- * end-boundary event in the right slot.
+ * Before the refactor, the adapter exposed a single preselected `eventTimes`
+ * per row: arrive-current for the origin dock row, depart-current for the
+ * at-sea row, and depart-next for the destination dock row. Preserve that
+ * behavior here while the model stores both row boundaries separately.
  *
  * @param row - Timeline row model
+ * @param rowIndex - Row position in the rendered timeline
  * @returns Time point to render beside the row marker
  */
-const getRightTimePoint = (row: VesselTripTimelineRowModel) =>
-  row.kind === "at-sea" ? row.eventTimeStart : row.eventTimeEnd;
+const getRightTimePoint = (
+  row: VesselTripTimelineRowModel,
+  rowIndex: number
+) => (rowIndex < 2 ? row.eventTimeStart : row.eventTimeEnd);
 
 /**
  * Renders vessel timeline plus a mirrored shadow-row overlay layer.
@@ -101,8 +108,8 @@ export const VesselTripTimelineOverlay = ({
 }: VesselTripTimelineOverlayProps) => {
   const blurTargetRef = useRef<RNView | null>(null);
   const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
-  const rows = presentationRows.map((row) =>
-    toTimelineRow(row, presentationRows, overlayIndicator)
+  const rows = presentationRows.map((row, rowIndex) =>
+    toTimelineRow(row, rowIndex, presentationRows, overlayIndicator)
   );
 
   const theme: RequiredTimelineTheme = {
@@ -153,6 +160,7 @@ export const VesselTripTimelineOverlay = ({
  */
 const toTimelineRow = (
   row: VesselTripTimelineRowModel,
+  rowIndex: number,
   presentationRows: VesselTripTimelineRowModel[],
   overlayIndicator: OverlayIndicator
 ): TimelineRow => ({
@@ -165,7 +173,7 @@ const toTimelineRow = (
     overlayIndicator
   ),
   leftContent: renderLeftContent(row),
-  rightContent: renderRightContent(row),
+  rightContent: renderRightContent(row, rowIndex),
   markerContent: getMarkerContent(row.kind),
   minHeight: row.minHeight,
 });
