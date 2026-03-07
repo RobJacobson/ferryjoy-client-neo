@@ -199,6 +199,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **LeftDock** | currLocation, existingTrip, or inferred | Derived by `getDockDepartureState`: `currLocation.LeftDock ?? existingTrip.LeftDock ?? inferredFromTick` |
 | **TripDelay** | Computed | `LeftDock - ScheduledDeparture` (minutes) |
 | **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
+| **NextScheduledDeparture** | Schedule lookup or existingTrip | Set by appendInitialSchedule/appendFinalSchedule; carried forward in baseTripForContinuing when appends don't run (no overwrite with undefined) |
 | **TripEnd** | Boundary only | `currLocation.TimeStamp` when completing trip |
 | **AtSeaDuration** | Computed | `TripEnd - LeftDock`; only on completed trip |
 | **TotalDuration** | Computed | `TripEnd - TripStart`; only on completed trip |
@@ -219,6 +220,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 ### Null-Overwrite Protection
 
 `ScheduledDeparture`, `Eta`, `LeftDock`: Preserve the existing trip value when the current feed omits it. This prevents overwriting good data with null/undefined from REST glitches.
+
+`NextScheduledDeparture`: Set by schedule lookups (appendInitialSchedule, appendFinalSchedule). Carried forward from `existingTrip` in `baseTripForContinuing` when neither append runs (no key change, no just-arrive-at-dock). Prevents overwriting with undefined on regular updates.
 
 ### LeftDock Special Case
 

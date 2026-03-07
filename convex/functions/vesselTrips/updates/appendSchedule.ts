@@ -91,8 +91,7 @@ export const appendFinalSchedule = async (
   }
 
   // Reuse already-enriched schedule fields if the trip key is unchanged.
-  // baseTrip does not set NextScheduledDeparture (comes from schedule lookups),
-  // so carry forward from existingTrip to avoid redundant lookup.
+  // baseTrip may carry NextScheduledDeparture; preserve it to avoid redundant lookup.
   if (existingTrip?.Key === tripKey) {
     return {
       ...baseTrip,
@@ -107,9 +106,10 @@ export const appendFinalSchedule = async (
     { key: tripKey }
   );
 
+  // Prefer fresh lookup (new schedule); fall back to carried when lookup fails
   return {
     ...baseTrip,
     NextScheduledDeparture:
-      baseTrip.NextScheduledDeparture ?? scheduledTrip?.NextDepartingTime,
+      scheduledTrip?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };
 };

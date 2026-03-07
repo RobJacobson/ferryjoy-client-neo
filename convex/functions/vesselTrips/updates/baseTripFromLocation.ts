@@ -163,6 +163,8 @@ const baseTripForContinuing = (
     TripDelay: calculateTimeDelta(scheduledDeparture, leftDockTime),
     // Eta: null-overwrite protection (preserve existing when curr omits it)
     Eta: currLocation.Eta ?? existingTrip?.Eta,
+    // NextScheduledDeparture: from schedule lookups; carry forward when appends don't run
+    NextScheduledDeparture: existingTrip?.NextScheduledDeparture,
     TripEnd: undefined, // Only set on completed trips
     AtSeaDuration: existingTrip?.AtSeaDuration, // Carried from existing
     TotalDuration: existingTrip?.TotalDuration, // Carried from existing
