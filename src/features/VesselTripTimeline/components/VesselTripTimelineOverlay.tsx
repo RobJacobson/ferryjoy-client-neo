@@ -48,7 +48,7 @@ type VesselTripTimelineOverlayProps = {
  */
 const renderLeftContent = (
   row: VesselTripTimelineRowModel,
-  item: VesselTripTimelineItem,
+  item: VesselTripTimelineItem
 ): ReactNode => {
   switch (row.leftContentKind) {
     case "terminal-label":
@@ -90,7 +90,7 @@ export const VesselTripTimelineOverlay = ({
   const blurTargetRef = useRef<RNView | null>(null);
   const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
   const rows = presentationRows.map((row) =>
-    toTimelineRow(row, item, presentationRows, overlayIndicator),
+    toTimelineRow(row, item, presentationRows, overlayIndicator)
   );
 
   const theme: RequiredTimelineTheme = {
@@ -227,7 +227,7 @@ const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
@@ -235,7 +235,7 @@ const toTimelineRow = (
   percentComplete: getGlobalPercentComplete(
     row,
     presentationRows,
-    overlayIndicator,
+    overlayIndicator
   ),
   leftContent: renderLeftContent(row, item),
   rightContent: renderRightContent(row),
@@ -255,7 +255,7 @@ const MARKER_TINT_COLOR = "#777"; // green-800
  * @returns Image component
  */
 const getMarkerContent = (
-  kind: VesselTripTimelineRowModel["kind"],
+  kind: VesselTripTimelineRowModel["kind"]
 ): ReactNode => {
   const source = getMarkerSourceForKind(kind);
   return (
@@ -280,11 +280,11 @@ const getMarkerContent = (
 const getGlobalPercentComplete = (
   row: VesselTripTimelineRowModel,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
+  overlayIndicator: OverlayIndicator
 ): number => {
   const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
   const indicatorRowIndex = presentationRows.findIndex(
-    (r) => r.id === overlayIndicator.rowId,
+    (r) => r.id === overlayIndicator.rowId
   );
 
   if (indicatorRowIndex === -1) {
@@ -318,7 +318,7 @@ type OverlayIndicator = {
  */
 const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
-  item: VesselTripTimelineItem,
+  item: VesselTripTimelineItem
 ): OverlayIndicator => {
   const { trip, vesselLocation } = item;
   // 3 rows: at-dock (origin), at-sea, at-dock (destination)
@@ -343,7 +343,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent: getTimeProgress(
         atDockDest.startTime,
         atDockDest.endTime,
-        now,
+        now
       ),
       label: atDockDest.indicatorLabel,
     };
@@ -355,7 +355,7 @@ const deriveActiveOverlayIndicator = (
       rowId: atDockOrigin.id,
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now),
+        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now)
       ),
       label: atDockOrigin.indicatorLabel,
     };
@@ -378,7 +378,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent = getTimeProgress(
         atSeaRow.startTime,
         atSeaRow.endTime,
-        now,
+        now
       );
     }
     return {
