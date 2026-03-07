@@ -4,6 +4,7 @@
 
 import { CalendarClock, EqualApproximately, Watch } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 
 const eventTypeIcon = {
@@ -29,8 +30,10 @@ type TimelineEventProps = {
 export const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   const Icon = eventTypeIcon[type];
   return (
-    <View className="flex-row gap-1">
-      <Icon size={20} strokeWidth={1.5} color="#555" />
+    <View className={cn("flex-row", type === "scheduled" ? "gap-1" : "gap-0")}>
+      <View>
+        <Icon size={20} strokeWidth={1.5} color="#555" />
+      </View>
       <Text className="font-playpen-400 text-sm">{toDisplayTime(time)}</Text>
     </View>
   );

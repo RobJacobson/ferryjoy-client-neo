@@ -26,11 +26,11 @@ export const TimelineEvents = ({
   predictedTime,
   scheduledTime,
 }: TimelineEventsProps) => (
-  <View className="mt-[-10px]">
+  <View className="mt-[-10px] flex-row gap-1">
+    {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
     {actualTime && <TimelineEvent time={actualTime} type="actual" />}
     {!actualTime && predictedTime && (
       <TimelineEvent time={predictedTime} type="estimated" />
     )}
-    {scheduledTime && <TimelineEvent time={scheduledTime} type="scheduled" />}
   </View>
 );

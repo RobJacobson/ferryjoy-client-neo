@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import type { LayoutChangeEvent, ViewProps } from "react-native";
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, G, Mask, Rect } from "react-native-svg";
-import { cn } from "@/shared/utils/cn";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // Shadow config (layered offset, masked to exterior – no darkening of glass)

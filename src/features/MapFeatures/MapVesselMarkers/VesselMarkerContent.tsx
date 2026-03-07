@@ -9,7 +9,7 @@
 import { Text, View } from "@/components/ui";
 import { useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
-import { cn } from "@/shared/utils/cn";
+import { cn } from "@/lib/utils";
 
 /**
  * VesselMarkerContent component

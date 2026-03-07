@@ -7,7 +7,7 @@
 import type { ViewStyle } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { cn } from "@/shared/utils/cn";
+import { cn } from "@/lib/utils";
 import type { AnimatedListLayout, ItemAnimationStyle } from "./types";
 
 type AnimatedListItemProps<T> = {

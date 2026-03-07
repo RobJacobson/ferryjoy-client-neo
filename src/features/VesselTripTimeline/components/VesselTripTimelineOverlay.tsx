@@ -24,7 +24,7 @@ import { InTransitEventCard } from "./InTransitEventCard";
 import { TimelineEvents } from "./TimelineEvents";
 import { TimelineLabel } from "./TimelineLabel";
 
-const MARKER_ICON_SIZE_PX = 24;
+const MARKER_ICON_SIZE_PX = 18;
 
 /** Phase → marker icon source; phases not listed (e.g. depart-dest) have no icon. */
 const PHASE_MARKER_SOURCE: Partial<
@@ -39,9 +39,9 @@ const PHASE_MARKER_SOURCE: Partial<
 // Layout knobs for timeline and overlay; extract to config if shared later.
 const AXIS_X_RATIO = 0.5;
 const MIN_SEGMENT_PX = 32;
-const CENTER_AXIS_SIZE_PX = 56;
+const CENTER_AXIS_SIZE_PX = 42;
 const TRACK_THICKNESS_PX = 8;
-const MARKER_SIZE_PX = 40;
+const MARKER_SIZE_PX = 24;
 const INDICATOR_SIZE_PX = 36;
 
 type VesselTripTimelineOverlayProps = {
@@ -116,12 +116,12 @@ export const VesselTripTimelineOverlay = ({
 }: VesselTripTimelineOverlayProps) => {
   const overlayIndicator = deriveActiveOverlayIndicator(
     presentationRows,
-    item.trip
+    item.trip,
   );
   const { overlayPlacement, timelineContainerProps, timelineProps } =
     useVerticalTimelineOverlayPlacement(overlayIndicator, AXIS_X_RATIO);
   const rows = presentationRows.map((row) =>
-    toTimelineRow(row, item, presentationRows, overlayIndicator)
+    toTimelineRow(row, item, presentationRows, overlayIndicator),
   );
 
   const theme = {
@@ -172,7 +172,7 @@ const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator
+  overlayIndicator: OverlayIndicator,
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
@@ -180,7 +180,7 @@ const toTimelineRow = (
   percentComplete: getGlobalPercentComplete(
     row,
     presentationRows,
-    overlayIndicator
+    overlayIndicator,
   ),
   leftContent: renderSlotContent("left", row, item),
   rightContent: renderSlotContent("right", row, item),
@@ -196,8 +196,11 @@ const toTimelineRow = (
  * @param phase - Timeline phase determining which icon to show
  * @returns Image component or undefined for phases without a marker icon
  */
+/** Tint applied to marker PNGs (anchor/vessel). Use tintColor on Image; className does not apply to expo-image. */
+const MARKER_TINT_COLOR = "#777"; // green-800
+
 const getMarkerContent = (
-  phase: VesselTripTimelineRowModel["phase"]
+  phase: VesselTripTimelineRowModel["phase"],
 ): ReactNode => {
   const source = PHASE_MARKER_SOURCE[phase];
   if (!source) return undefined;
@@ -205,6 +208,7 @@ const getMarkerContent = (
     <Image
       source={source}
       style={{ width: MARKER_ICON_SIZE_PX, height: MARKER_ICON_SIZE_PX }}
+      tintColor={MARKER_TINT_COLOR}
     />
   );
 };
@@ -220,7 +224,7 @@ const getMarkerContent = (
 const renderSlotContent = (
   slot: Slot,
   row: VesselTripTimelineRowModel,
-  item: VesselTripTimelineItem
+  item: VesselTripTimelineItem,
 ) => {
   const key = `${row.phase}:${slot}` as SlotRenderKey;
   return SLOT_RENDERERS[key]?.({
@@ -242,11 +246,11 @@ const renderSlotContent = (
 const getGlobalPercentComplete = (
   row: VesselTripTimelineRowModel,
   presentationRows: VesselTripTimelineRowModel[],
-  overlayIndicator: OverlayIndicator
+  overlayIndicator: OverlayIndicator,
 ): number => {
   const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
   const indicatorRowIndex = presentationRows.findIndex(
-    (r) => r.id === overlayIndicator.rowId
+    (r) => r.id === overlayIndicator.rowId,
   );
 
   if (indicatorRowIndex === -1) {
@@ -279,7 +283,7 @@ type OverlayIndicator = {
  */
 const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
-  trip: VesselTripTimelineItem["trip"]
+  trip: VesselTripTimelineItem["trip"],
 ): OverlayIndicator => {
   const atStartRow = rows.find((row) => row.phase === "at-start");
   const atSeaRow = rows.find((row) => row.phase === "at-sea");
@@ -303,7 +307,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent: getTimeProgress(
         departDestRow.startTime,
         departDestRow.endTime,
-        now
+        now,
       ),
       label: departDestRow.indicatorLabel,
     };
@@ -316,7 +320,7 @@ const deriveActiveOverlayIndicator = (
       // Keep indicator slightly below row-start marker for readability.
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now)
+        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now),
       ),
       label: atStartRow.indicatorLabel,
     };
@@ -329,7 +333,7 @@ const deriveActiveOverlayIndicator = (
       positionPercent: getTimeProgress(
         atSeaRow.startTime,
         atSeaRow.endTime,
-        now
+        now,
       ),
       label: atSeaRow.indicatorLabel,
     };
