@@ -1,7 +1,7 @@
 /**
- * Feature-owned overlay wrapper for VesselTrip vertical timelines.
- * Renders the timeline rows normally, then paints a single absolute overlay
- * indicator above them using measured row bounds for vertical alignment.
+ * Timeline content area: base rows (labels, track, markers) plus the
+ * indicator overlay. Renders rows normally, then paints a single absolute
+ * overlay indicator above them using measured row bounds for alignment.
  */
 
 import { BlurTargetView } from "expo-blur";
@@ -36,7 +36,7 @@ const TRACK_THICKNESS_PX = 8;
 const MARKER_SIZE_PX = 24;
 const INDICATOR_SIZE_PX = 36;
 
-type VesselTripTimelineOverlayProps = {
+type VesselTripTimelineContentProps = {
   presentationRows: VesselTripTimelineRowModel[];
   item: VesselTripTimelineItem;
 };
@@ -51,7 +51,11 @@ const renderLeftContent = (row: VesselTripTimelineRowModel): ReactNode => {
   switch (row.leftContentKind) {
     case "terminal-label":
       return row.terminalName ? (
-        <RowContentLabel label={row.terminalName} />
+        <RowContentLabel
+          terminal={row.terminalName}
+          status={row.id.includes("origin") ? "depart" : "arrive"}
+          past={row.percentComplete === 1}
+        />
       ) : undefined;
     case "in-transit-card":
       return undefined;
@@ -102,10 +106,10 @@ const getRightTimePoint = (
  * @param props - Timeline data and domain item
  * @returns Timeline with measured-layout BlurView indicator
  */
-export const VesselTripTimelineOverlay = ({
+export const VesselTripTimelineContent = ({
   presentationRows,
   item,
-}: VesselTripTimelineOverlayProps) => {
+}: VesselTripTimelineContentProps) => {
   const blurTargetRef = useRef<RNView | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}

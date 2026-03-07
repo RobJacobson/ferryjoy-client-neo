@@ -40,7 +40,7 @@ The feature is split into 2 layers:
      actual/predicted times, showing "--" for missing data).
 
 2. **Layout + indicator overlay renderer**
-   - `components/VesselTripTimelineOverlay.tsx` – Main orchestrator. Wraps timeline in
+   - `components/VesselTripTimelineContent.tsx` – Main orchestrator. Wraps timeline in
      `BlurTargetView`, derives active indicator via `utils/deriveOverlayIndicator`,
      maps presentation rows to timeline rows, renders `TimelineRowComponent` with
      `onRowLayout` to collect row bounds, and `TimelineIndicatorOverlay` with

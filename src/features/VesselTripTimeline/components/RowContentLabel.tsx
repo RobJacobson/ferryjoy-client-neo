@@ -6,18 +6,38 @@
 import { Text, View } from "@/components/ui";
 
 type RowContentLabelProps = {
-  label?: string;
+  terminal?: string;
+  status?: "arrive" | "depart";
+  past?: boolean;
 };
 
 /**
  * Renders a timeline row label.
  *
- * @param label - Label text to display
+ * @param terminal - Terminal name to display
+ * @param status - Status of the row ("arrive" or "depart")
+ * @param past - Whether the row is in the past
  * @returns Label view
  */
-export const RowContentLabel = ({ label }: RowContentLabelProps) =>
-  label ? (
-    <View className="mt-[-14px]">
-      <Text className="font-playpen-400 text-xl">{label}</Text>
-    </View>
-  ) : null;
+export const RowContentLabel = ({
+  terminal,
+  status,
+  past,
+}: RowContentLabelProps) => {
+  const label =
+    status === "arrive"
+      ? past
+        ? "Arrived"
+        : "Arrive"
+      : past
+        ? "Departed"
+        : "Depart";
+  return (
+    terminal && (
+      <View className="mt-[-14px] align-right">
+        <Text className="">{label}</Text>
+        <Text className="">{terminal}</Text>
+      </View>
+    )
+  );
+};
