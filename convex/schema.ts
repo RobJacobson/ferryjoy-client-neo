@@ -4,7 +4,10 @@ import {
   modelParametersSchema,
   predictionRecordSchema,
 } from "functions/predictions/schemas";
-import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+import {
+  keyValueStoreSchema,
+  scheduledTripSchema,
+} from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import {
   vesselPingListValidationSchema,
@@ -75,6 +78,10 @@ export default defineSchema({
     .index("by_key", ["Key"])
     .index("by_key_and_type", ["Key", "PredictionType"]),
 
-  // ML configuration - singleton table for runtime config values
+  // ML configuration - DEPRECATED, use keyValueStore instead
+  // Kept temporarily for migration - remove after running migration
   modelConfig: defineTable(modelConfigSchema).index("by_key", ["key"]),
+
+  // Key-value store for arbitrary configuration and metadata
+  keyValueStore: defineTable(keyValueStoreSchema).index("by_key", ["key"]),
 });

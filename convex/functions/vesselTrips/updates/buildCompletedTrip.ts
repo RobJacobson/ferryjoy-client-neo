@@ -1,10 +1,11 @@
 /**
  * Build completed trip with TripEnd, durations, and actualized predictions.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip.
- * Prediction actualization is handled separately by the prediction service.
+ * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
+ * to the persisted completed trip object.
  */
 
+import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
@@ -16,8 +17,8 @@ import { calculateTimeDelta } from "shared/durationUtils";
 /**
  * Build completed trip with TripEnd, AtSeaDuration, and TotalDuration.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration to existing trip.
- * Prediction actualization is handled separately by the prediction service.
+ * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
+ * to the final completed trip.
  *
  * @param existingTrip - Trip being completed
  * @param currLocation - Current location with TripEnd timestamp
@@ -27,20 +28,18 @@ export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  const completedTripBase: ConvexVesselTrip = {
-    ...existingTrip,
-    TripEnd: currLocation.TimeStamp,
+  const withTripEnd = { ...existingTrip, TripEnd: currLocation.TimeStamp };
+  const withDurations = {
+    ...withTripEnd,
+    AtSeaDuration: calculateTimeDelta(
+      withTripEnd.LeftDock,
+      withTripEnd.TripEnd
+    ),
+    TotalDuration: calculateTimeDelta(
+      withTripEnd.TripStart,
+      withTripEnd.TripEnd
+    ),
   };
 
-  completedTripBase.AtSeaDuration = calculateTimeDelta(
-    completedTripBase.LeftDock,
-    completedTripBase.TripEnd
-  );
-
-  completedTripBase.TotalDuration = calculateTimeDelta(
-    completedTripBase.TripStart,
-    completedTripBase.TripEnd
-  );
-
-  return completedTripBase;
+  return actualizePredictionsOnTripComplete(withDurations);
 };

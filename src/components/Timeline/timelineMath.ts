@@ -1,5 +1,12 @@
 /**
  * Math and validation utilities for Timeline primitives.
+ *
+ * Provides validation for TimelineRow models to ensure data integrity:
+ * - Percent values must be finite numbers in range [0, 1]
+ * - Date values must be finite and valid
+ * - End times must be greater than start times
+ *
+ * Validation errors are thrown early with descriptive messages to aid debugging.
  */
 
 import type { TimelineRow } from "./TimelineTypes";

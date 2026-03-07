@@ -1,6 +1,6 @@
 import React from "react";
 import { View as RNView, type ViewProps as RNViewProps } from "react-native";
-import { cn } from "@/shared/utils/cn";
+import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "@/shared/utils/cva";
 
 const viewVariants = cva("", {

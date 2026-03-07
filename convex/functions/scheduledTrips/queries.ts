@@ -1,9 +1,6 @@
 import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import {
-  scheduledTripDocSchema,
-  scheduledTripSchema,
-} from "functions/scheduledTrips/schemas";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
@@ -230,26 +227,18 @@ export const getScheduledTripsForTerminal = query({
 });
 
 /**
- * Find direct scheduled trip ID matching vessel, departing terminal, and exact scheduled departure.
- * Used by vessel trips to get reference ID when arriving at dock.
- *
- * Matches trips based on:
- * - Vessel abbreviation
- * - Departing terminal abbreviation
- * - Exact scheduled departure time (no tolerance)
- * - Trip type must be "direct"
+ * Find a scheduled trip by its stable composite Key.
+ * Used internally for VesselTrip schedule enrichment and joins.
  *
  * @param ctx - Convex context
- * @param args.vesselAbbrev - The vessel abbreviation to match
- * @param args.departingTerminalAbbrev - The departing terminal abbreviation to match
- * @param args.scheduledDeparture - The scheduled departure time in epoch milliseconds (must match exactly)
- * @returns The matching direct scheduled trip document ID, or null if none found
+ * @param args.key - Stable trip key shared with VesselTrips
+ * @returns The matching scheduled trip, or null if none found
  */
-export const getScheduledTripIdByKey = internalQuery({
+export const getScheduledTripByKey = internalQuery({
   args: {
     key: v.string(),
   },
-  returns: v.union(v.id("scheduledTrips"), v.null()),
+  returns: v.union(scheduledTripSchema, v.null()),
   handler: async (ctx, args) => {
     try {
       const matchingTrip = await ctx.db
@@ -257,10 +246,10 @@ export const getScheduledTripIdByKey = internalQuery({
         .withIndex("by_key", (q) => q.eq("Key", args.key))
         .first();
 
-      return matchingTrip?._id ?? null;
+      return matchingTrip ? stripConvexMeta(matchingTrip) : null;
     } catch (error) {
       throw new ConvexError({
-        message: "Failed to find scheduled trip ID for arrival lookup",
+        message: "Failed to find scheduled trip by key",
         code: "QUERY_FAILED",
         severity: "error",
         details: {
@@ -286,7 +275,7 @@ export const getScheduledTripIdByKey = internalQuery({
  * @param args.vesselAbbrev - The vessel abbreviation to match
  * @param args.departingTerminalAbbrev - The departing terminal abbreviation to match
  * @param args.scheduledDeparture - The scheduled departure time in epoch milliseconds (must match exactly)
- * @returns The matching direct scheduled trip (full Doc with _id, _creationTime), or null if none found
+ * @returns The matching direct scheduled trip, or null if none found
  */
 export const findScheduledTripForArrivalLookup = query({
   args: {
@@ -294,7 +283,7 @@ export const findScheduledTripForArrivalLookup = query({
     departingTerminalAbbrev: v.string(),
     scheduledDeparture: v.number(),
   },
-  returns: v.union(scheduledTripDocSchema, v.null()),
+  returns: v.union(scheduledTripSchema, v.null()),
   handler: async (ctx, args) => {
     try {
       // Query using composite index for exact match on all four parameters
@@ -309,7 +298,7 @@ export const findScheduledTripForArrivalLookup = query({
         )
         .first();
 
-      return matchingTrip ? matchingTrip : null;
+      return matchingTrip ? stripConvexMeta(matchingTrip) : null;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to find scheduled trip for arrival lookup`,

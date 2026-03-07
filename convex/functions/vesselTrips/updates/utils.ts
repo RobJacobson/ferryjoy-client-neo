@@ -3,6 +3,36 @@
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/keys";
+
+// ============================================================================
+// Key Derivation (shared by eventDetection and baseTripFromLocation)
+// ============================================================================
+
+/**
+ * Compute trip key from vessel, terminals, and scheduled departure (epoch ms).
+ *
+ * Centralizes epoch-to-Date conversion so event detection and trip derivation
+ * stay in sync.
+ *
+ * @param vessel - Vessel abbreviation
+ * @param departing - Departing terminal abbreviation
+ * @param arriving - Arriving terminal abbreviation (can be undefined)
+ * @param scheduledMs - Scheduled departure in epoch milliseconds
+ * @returns Trip key string or undefined if required fields missing
+ */
+export const computeTripKey = (
+  vessel: string,
+  departing: string,
+  arriving: string | undefined,
+  scheduledMs: number | undefined
+): string | undefined =>
+  generateTripKey(
+    vessel,
+    departing,
+    arriving,
+    scheduledMs ? new Date(scheduledMs) : undefined
+  );
 
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
@@ -21,13 +51,14 @@ export const tripsAreEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip
 ): boolean =>
+  // Compare in both directions to detect added/removed fields
   compareTripFields(existing, existing, proposed) &&
   compareTripFields(proposed, existing, proposed);
 
 /**
  * Compare trip fields between existing and proposed trips, excluding TimeStamp.
  *
- * Iterates through all keys in the source trip and compares values between
+ * Checks all keys in the source trip and compares values between
  * existing and proposed trips. Skips TimeStamp field which changes every tick.
  *
  * @param source - Trip whose keys to iterate over
@@ -39,20 +70,15 @@ const compareTripFields = (
   source: ConvexVesselTrip,
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip
-): boolean => {
-  for (const key in source) {
-    if (key === "TimeStamp") continue;
-    if (
-      !deepEqual(
-        existing[key as keyof ConvexVesselTrip],
-        proposed[key as keyof ConvexVesselTrip]
-      )
-    ) {
-      return false;
-    }
-  }
-  return true;
-};
+): boolean =>
+  Object.keys(source).every((key) =>
+    key === "TimeStamp"
+      ? true
+      : deepEqual(
+          existing[key as keyof ConvexVesselTrip],
+          proposed[key as keyof ConvexVesselTrip]
+        )
+  );
 
 // ============================================================================
 // Deep Equality Utilities

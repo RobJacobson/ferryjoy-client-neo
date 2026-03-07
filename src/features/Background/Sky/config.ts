@@ -30,7 +30,7 @@ const gradient = {
 const sunburst = {
   viewBoxSize: 1000,
   defaultSize: 2000,
-  rayCount: 12,
+  rayCount: 24,
   centerX: 25,
   centerY: 20,
   spiralStrength: -0.5,

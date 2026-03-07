@@ -1,51 +1,53 @@
 /**
  * TimelineTrack renders a single timeline segment backbone.
- * It includes: upcoming track, completed track, top marker, and moving indicator.
+ *
+ * Visual elements:
+ * - Completed track: styled track from start to current progress
+ * - Upcoming track: styled track from current progress to end
+ * - Static marker: positioned at segment start (top or left)
+ * - Moving indicator: positioned at current progress point (only when in progress)
  */
 
 import type { ReactNode } from "react";
 import { View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
-import { TimelineDot } from "./TimelineDot";
-import type { TimelineOrientation } from "./TimelineTypes";
+import { TimelineMarker } from "./TimelineMarker";
+import type {
+  RequiredTimelineTheme,
+  TimelineOrientation,
+} from "./TimelineTypes";
 import { shouldShowMovingIndicator } from "./timelineMath";
 
 type TimelineTrackProps = {
   orientation: TimelineOrientation;
   percentComplete: number;
-  trackThicknessPx: number;
-  markerSizePx: number;
-  indicatorSizePx: number;
+  theme: RequiredTimelineTheme;
   showIndicator?: boolean;
-  completeTrackClassName: string;
-  upcomingTrackClassName: string;
-  markerClassName: string;
-  indicatorClassName: string;
+  showTrack?: boolean;
   markerContent?: ReactNode;
   indicatorContent?: ReactNode;
-  showTrack?: boolean;
 };
 
 /**
  * Renders one timeline track segment with marker and optional moving indicator.
  *
- * @param props - Track rendering props
+ * @param orientation - Timeline orientation (vertical or horizontal)
+ * @param percentComplete - Progress ratio from 0 to 1
+ * @param theme - Theme configuration with all styling values
+ * @param showIndicator - Show moving indicator when true
+ * @param showTrack - Show track line when true
+ * @param markerContent - Optional content for static marker dot
+ * @param indicatorContent - Optional content for moving indicator dot
  * @returns Track segment
  */
 export const TimelineTrack = ({
   orientation,
   percentComplete,
-  trackThicknessPx,
-  markerSizePx,
-  indicatorSizePx,
-  completeTrackClassName,
-  upcomingTrackClassName,
-  markerClassName,
-  indicatorClassName,
+  theme,
+  showIndicator = true,
+  showTrack = true,
   markerContent,
   indicatorContent,
-  showTrack = true,
-  showIndicator = true,
 }: TimelineTrackProps) => {
   const isVertical = orientation === "vertical";
   // Show moving indicator only for active in-progress segments
@@ -60,19 +62,26 @@ export const TimelineTrack = ({
         <>
           {/* Completed portion of the track */}
           <View
-            className={cn("absolute rounded-full", completeTrackClassName, "")}
+            className={cn(
+              "absolute rounded-full",
+              theme.completeTrackClassName,
+              ""
+            )}
             style={getCompletedTrackStyle(
               isVertical,
-              trackThicknessPx,
+              theme.trackThicknessPx,
               completedPercent
             )}
           />
           {/* Upcoming/remaining portion of the track */}
           <View
-            className={cn("absolute rounded-full", upcomingTrackClassName, "")}
+            className={cn(
+              "absolute rounded-full",
+              theme.upcomingTrackClassName
+            )}
             style={getUpcomingTrackStyle(
               isVertical,
-              trackThicknessPx,
+              theme.trackThicknessPx,
               completedPercent,
               remainingPercent
             )}
@@ -83,11 +92,14 @@ export const TimelineTrack = ({
       {/* Static marker at segment start */}
       <View
         className={cn("absolute")}
-        style={getMarkerStyle(isVertical, markerSizePx)}
+        style={getMarkerStyle(isVertical, theme.markerSizePx)}
       >
-        <TimelineDot sizePx={markerSizePx} className={markerClassName}>
+        <TimelineMarker
+          sizePx={theme.markerSizePx}
+          className={theme.markerClassName}
+        >
           {markerContent}
-        </TimelineDot>
+        </TimelineMarker>
       </View>
 
       {/* Moving indicator for in-progress segments */}
@@ -96,13 +108,16 @@ export const TimelineTrack = ({
           className={cn("absolute")}
           style={getIndicatorStyle(
             isVertical,
-            indicatorSizePx,
+            theme.indicatorSizePx,
             completedPercent
           )}
         >
-          <TimelineDot sizePx={indicatorSizePx} className={indicatorClassName}>
+          <TimelineMarker
+            sizePx={theme.indicatorSizePx}
+            className={theme.indicatorClassName}
+          >
             {indicatorContent}
-          </TimelineDot>
+          </TimelineMarker>
         </View>
       )}
     </View>
@@ -114,9 +129,13 @@ type PercentString = `${number}%`;
 /**
  * Returns style props for the completed track segment.
  *
- * @param isVertical - Orientation flag
- * @param trackThicknessPx - Track thickness in pixels
- * @param completedPercent - Completed portion percentage
+ * The completed segment extends from the track start to the progress point.
+ * Width/height depends on orientation, with the dimension along the track
+ * proportional to completion percentage.
+ *
+ * @param isVertical - Orientation flag determining primary axis direction
+ * @param trackThicknessPx - Track thickness in pixels for cross-axis dimension
+ * @param completedPercent - Completed portion percentage (e.g., "60%")
  * @returns View style for completed segment
  */
 const getCompletedTrackStyle = (
@@ -137,10 +156,14 @@ const getCompletedTrackStyle = (
 /**
  * Returns style props for the upcoming track segment.
  *
- * @param isVertical - Orientation flag
- * @param trackThicknessPx - Track thickness in pixels
- * @param completedPercent - Completed portion percentage
- * @param remainingPercent - Remaining portion percentage
+ * The upcoming segment extends from the progress point to the track end.
+ * Its position starts where the completed segment ends, creating a
+ * continuous visual track.
+ *
+ * @param isVertical - Orientation flag determining primary axis direction
+ * @param trackThicknessPx - Track thickness in pixels for cross-axis dimension
+ * @param completedPercent - Completed portion percentage (e.g., "60%")
+ * @param remainingPercent - Remaining portion percentage (e.g., "40%")
  * @returns View style for upcoming segment
  */
 const getUpcomingTrackStyle = (
@@ -163,8 +186,11 @@ const getUpcomingTrackStyle = (
 /**
  * Returns style props for the static marker dot.
  *
- * @param isVertical - Orientation flag
- * @param markerSizePx - Marker diameter in pixels
+ * The marker is always positioned at the segment start point (top for vertical,
+ * left for horizontal) and centered on the track axis via negative margins.
+ *
+ * @param isVertical - Orientation flag determining anchor position
+ * @param markerSizePx - Marker diameter in pixels for centering
  * @returns View style for marker dot container
  */
 const getMarkerStyle = (
@@ -180,9 +206,13 @@ const getMarkerStyle = (
 /**
  * Returns style props for the moving progress indicator dot.
  *
- * @param isVertical - Orientation flag
- * @param indicatorSizePx - Indicator diameter in pixels
- * @param completedPercent - Completed portion percentage
+ * The indicator is positioned along the track at the progress point and
+ * centered on the track axis via negative margins. Only visible when
+ * progress is between 0 and 1 (exclusive).
+ *
+ * @param isVertical - Orientation flag determining axis direction
+ * @param indicatorSizePx - Indicator diameter in pixels for centering
+ * @param completedPercent - Completed portion percentage (e.g., "60%")
  * @returns View style for indicator dot container
  */
 const getIndicatorStyle = (

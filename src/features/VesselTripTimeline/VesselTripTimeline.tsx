@@ -3,12 +3,7 @@
  */
 
 import { Text, View } from "@/components/ui";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { buildTimelineModelFromTrip } from "./adapters/buildTimelineModelFromTrip";
 import { VesselTripTimelineOverlay } from "./components/VesselTripTimelineOverlay";
 import type { VesselTripTimelineItem } from "./types";
@@ -34,31 +29,17 @@ export const VesselTripTimeline = ({
   return (
     <Card className="gap-4 py-4">
       <CardHeader className="gap-1">
-        <View className="items-start gap-1">
+        <View className="items-start">
           <VesselTripCardTitle trip={trip} />
-          <CardDescription className="leading-4">
+          <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
             {vesselLocation.VesselName}
-          </CardDescription>
-          {trip.TripEnd ? (
-            <Text className="font-medium text-emerald-700 text-xs uppercase leading-4">
-              Completed
-            </Text>
-          ) : (
-            <Text className="font-medium text-muted-foreground text-xs uppercase leading-4">
-              Active Trip
-            </Text>
-          )}
+          </Text>
         </View>
       </CardHeader>
       <CardContent className="px-4">
         <VesselTripTimelineOverlay
           presentationRows={rows}
           item={{ trip, vesselLocation }}
-          minSegmentPx={80}
-          centerAxisSizePx={52}
-          trackThicknessPx={8}
-          markerSizePx={18}
-          indicatorSizePx={34}
         />
       </CardContent>
     </Card>

@@ -45,7 +45,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtDockDepartNext",
     modelType: "at-dock-depart-next",
     requiresLeftDock: false,
-    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
   },
   AtSeaArriveNext: {
     field: "AtSeaArriveNext",
@@ -57,7 +57,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtSeaDepartNext",
     modelType: "at-sea-depart-next",
     requiresLeftDock: true,
-    getAnchorMs: (trip) => trip.LeftDock ?? null,
+    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
   },
 };
 
@@ -100,7 +100,7 @@ export const getMinimumScheduledTime = (
     return trip.ScheduledDeparture ?? null;
   }
   if (spec.field === "AtDockDepartNext" || spec.field === "AtSeaDepartNext") {
-    return trip.ScheduledDeparture ?? null;
+    return trip.NextScheduledDeparture ?? null;
   }
   // AtDockArriveNext and AtSeaArriveNext don't have scheduled minimums
   return null;
@@ -131,6 +131,75 @@ export const createPredictionResult = (
     Actual: undefined,
     DeltaTotal: undefined,
     DeltaRange: undefined,
+  };
+};
+
+/**
+ * Apply an observed timestamp to a prediction and compute error deltas.
+ *
+ * @param prediction - Existing prediction to actualize
+ * @param actualMs - Observed timestamp in milliseconds
+ * @returns Prediction with Actual, DeltaTotal, and DeltaRange filled in
+ */
+export const applyActualToPrediction = (
+  prediction: ConvexPrediction,
+  actualMs: number
+): ConvexPrediction => {
+  const actual = Math.floor(actualMs / 1000) * 1000;
+
+  return {
+    ...prediction,
+    Actual: actual,
+    DeltaTotal: calculateDeltaTotal(actual, prediction.PredTime),
+    DeltaRange: calculateDeltaRange(
+      actual,
+      prediction.MinTime,
+      prediction.MaxTime
+    ),
+  };
+};
+
+/**
+ * Actualize same-trip predictions when a vessel leaves dock.
+ *
+ * @param trip - Active trip with LeftDock populated
+ * @returns Trip with leave-dock actuals applied
+ */
+export const actualizePredictionsOnLeaveDock = (
+  trip: ConvexVesselTrip
+): ConvexVesselTrip => {
+  if (!trip.LeftDock || !trip.AtDockDepartCurr) {
+    return trip;
+  }
+
+  return {
+    ...trip,
+    AtDockDepartCurr: applyActualToPrediction(
+      trip.AtDockDepartCurr,
+      trip.LeftDock
+    ),
+  };
+};
+
+/**
+ * Actualize same-trip predictions when a trip completes.
+ *
+ * @param trip - Completed trip with TripEnd populated
+ * @returns Trip with trip-complete actuals applied
+ */
+export const actualizePredictionsOnTripComplete = (
+  trip: ConvexVesselTrip
+): ConvexVesselTrip => {
+  if (!trip.TripEnd || !trip.AtSeaArriveNext) {
+    return trip;
+  }
+
+  return {
+    ...trip,
+    AtSeaArriveNext: applyActualToPrediction(
+      trip.AtSeaArriveNext,
+      trip.TripEnd
+    ),
   };
 };
 
@@ -166,6 +235,14 @@ export const predictFromSpec = async (
     return null;
   }
 
+  // AtDockDepartNext and AtSeaDepartNext require NextScheduledDeparture to compute anchor time
+  if (
+    (spec.field === "AtDockDepartNext" || spec.field === "AtSeaDepartNext") &&
+    !trip.NextScheduledDeparture
+  ) {
+    return null;
+  }
+
   const anchorMs = spec.getAnchorMs(trip);
   if (!anchorMs) {
     return null;
@@ -195,77 +272,6 @@ export const predictFromSpec = async (
     );
     return null;
   }
-};
-
-/**
- * Updates existing predictions with actual times and calculates deltas
- *
- * Note: "depart-next" prediction actualization is handled when the *next* trip
- * leaves dock (it becomes known as `LeftDock` on the next trip), via the
- * `setDepartNextActualsForMostRecentCompletedTrip` mutation. As a result, this
- * function only fills actuals that can be observed on the *same* trip record.
- *
- * @param existingTrip - The previous trip state
- * @param updatedTrip - The updated trip state
- * @returns Partial trip updates with calculated deltas
- */
-export const updatePredictionsWithActuals = (
-  existingTrip: ConvexVesselTrip,
-  updatedTrip: ConvexVesselTrip
-): Partial<ConvexVesselTrip> => {
-  const updates: Partial<ConvexVesselTrip> = {};
-
-  // Update AtDockDepartCurr prediction when vessel leaves dock
-  if (
-    !existingTrip.LeftDock &&
-    updatedTrip.LeftDock &&
-    updatedTrip.AtDockDepartCurr
-  ) {
-    const actual = Math.floor(updatedTrip.LeftDock / 1000) * 1000; // Round down to seconds
-    const deltaRange = calculateDeltaRange(
-      actual,
-      updatedTrip.AtDockDepartCurr.MinTime,
-      updatedTrip.AtDockDepartCurr.MaxTime
-    );
-    const deltaTotal = calculateDeltaTotal(
-      actual,
-      updatedTrip.AtDockDepartCurr.PredTime
-    );
-
-    updates.AtDockDepartCurr = {
-      ...updatedTrip.AtDockDepartCurr,
-      Actual: actual,
-      DeltaTotal: deltaTotal,
-      DeltaRange: deltaRange,
-    };
-  }
-
-  // Update AtSeaArriveNext prediction when vessel arrives at next terminal
-  if (
-    !existingTrip.TripEnd &&
-    updatedTrip.TripEnd &&
-    updatedTrip.AtSeaArriveNext
-  ) {
-    const actual = Math.floor(updatedTrip.TripEnd / 1000) * 1000; // Round down to seconds
-    const deltaRange = calculateDeltaRange(
-      actual,
-      updatedTrip.AtSeaArriveNext.MinTime,
-      updatedTrip.AtSeaArriveNext.MaxTime
-    );
-    const deltaTotal = calculateDeltaTotal(
-      actual,
-      updatedTrip.AtSeaArriveNext.PredTime
-    );
-
-    updates.AtSeaArriveNext = {
-      ...updatedTrip.AtSeaArriveNext,
-      Actual: actual,
-      DeltaTotal: deltaTotal,
-      DeltaRange: deltaRange,
-    };
-  }
-
-  return updates;
 };
 
 /**

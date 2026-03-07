@@ -41,17 +41,17 @@ export const VesselTripCardTitle = ({ trip }: { trip: VesselTrip }) => {
       aria-label={a11yText}
     >
       <View className="flex-1 flex-row gap-1">
-        <Text className="font-semibold text-base text-black">
+        <Text className="font-semibold text-green-700 text-lg">
           {departingName}
         </Text>
         {arrivingName && (
           <View className="flex-row items-center gap-1">
-            <View className="h-[20px] w-[20px] translate-y-[1px] items-center justify-center rounded-full bg-green-500">
-              <Text className="translate-x-[-1px] p-1 font-bold text-sm text-white leading-none">
+            <View className="h-[24px] w-[24px] items-center justify-center rounded-full bg-green-700 pt-[1px]">
+              <Text className="p-1 font-bold text-base text-white leading-none">
                 →
               </Text>
             </View>
-            <Text className="font-semibold text-base text-black">
+            <Text className="font-semibold text-green-700 text-lg">
               {arrivingName}
             </Text>
           </View>

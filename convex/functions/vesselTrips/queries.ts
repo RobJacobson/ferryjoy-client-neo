@@ -69,8 +69,7 @@ export const getActiveTrips = query({
 /**
  * Fetch active vessel trips with joined ScheduledTrip for display.
  *
- * Uses ctx.db.get(scheduledTripId) for each trip—no index needed for
- * direct lookups by document ID.
+ * Resolves ScheduledTrip lazily by the trip's stable composite Key.
  *
  * @param ctx - Convex context
  * @returns Array of active vessel trips with optional ScheduledTrip appended
@@ -84,11 +83,14 @@ export const getActiveTripsWithScheduledTrip = query({
       const result = await Promise.all(
         trips.map(async (doc) => {
           const trip = stripConvexMeta(doc);
-          const scheduledTripId = trip.scheduledTripId;
-          if (!scheduledTripId) {
+          const tripKey = trip.Key;
+          if (!tripKey) {
             return trip;
           }
-          const scheduledDoc = await ctx.db.get(scheduledTripId);
+          const scheduledDoc = await ctx.db
+            .query("scheduledTrips")
+            .withIndex("by_key", (q) => q.eq("Key", tripKey))
+            .first();
           const ScheduledTrip = scheduledDoc
             ? stripConvexMeta(scheduledDoc)
             : undefined;

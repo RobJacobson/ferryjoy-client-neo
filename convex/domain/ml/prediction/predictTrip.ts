@@ -93,11 +93,11 @@ const loadModelForPair = async (
     // Mutations have direct database access
     // Get production version tag from config
     const config = await ctx.db
-      .query("modelConfig")
+      .query("keyValueStore")
       .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
       .first();
 
-    const prodVersionTag = config?.productionVersionTag;
+    const prodVersionTag = config?.value as string | null;
     if (!prodVersionTag) {
       // Fallback: try to find any model (for backward compatibility)
       const doc = await ctx.db

@@ -15,25 +15,32 @@ track itself. A row-local indicator caused two problems:
 To solve this, the indicator is rendered once as an absolute overlay above the
 entire timeline in `VesselTripTimelineOverlay`.
 
+The overlay UI is now provided by the timeline primitive peer
+`VerticalTimelineIndicatorOverlay`, composed alongside `VerticalTimeline`.
+
 ## Separation of Concerns
 
 The feature is split into 3 layers:
 
 1. **Pure model builder**
    - `adapters/buildTimelineModelFromTrip.ts`
-   - Converts trip/location domain data into timeline row models only.
+   - Converts trip/location domain data into timeline row models.
    - No JSX is created here.
+   - **Geometry vs labels**: Separates timeline layout times (using route-specific
+     historical averages as fallbacks) from user-facing labels (using only
+     actual/predicted times, showing "--" for missing data).
 
 2. **Layout + overlay renderer**
    - `components/VesselTripTimelineOverlay.tsx`
-   - Renders `VerticalTimeline` plus one absolute blur-backed indicator.
+   - Renders `VerticalTimeline` in `renderMode="background"` plus peer
+     `VerticalTimelineIndicatorOverlay`.
    - Performs final slot placement and card component selection from row phase
      plus trip/location domain data.
    - Derives the active overlay indicator from row timing + trip state at render
      time.
 
 3. **Overlay measurement hook**
-   - `components/hooks/useTimelineOverlayPlacement.ts`
+   - `src/components/Timeline/useVerticalTimelineOverlayPlacement.ts`
    - Owns row measurement state plus timeline-width measurement.
    - Returns grouped props (`timelineContainerProps`, `timelineProps`) and
      computed overlay placement.
@@ -47,8 +54,8 @@ layout measurement concerns isolated.
 
 - `onRowLayout(rowId, { y, height })`
 
-`useTimelineOverlayPlacement` stores row values by `rowId`, measures timeline
-container width once, and computes overlay position:
+`useVerticalTimelineOverlayPlacement` stores row values by `rowId`, measures
+timeline container width once, and computes overlay position:
 
 - `top = rowY + rowHeight * positionPercent`
 - `left = timelineWidth * axisXRatio`
@@ -60,14 +67,53 @@ negative margins.
 layouts use uneven left/right widths, pass a different ratio (for example
 `0.4` or `0.6`) without reintroducing per-row axis measurement callbacks.
 
+## Background vs Foreground Contract
+
+`VerticalTimeline` now has an explicit render mode:
+
+- `renderMode="full"` (default): renders track + marker + per-row moving indicator
+- `renderMode="background"`: renders track + marker only
+
+`VesselTripTimelineOverlay` uses `renderMode="background"` and renders the moving
+indicator once via `VerticalTimelineIndicatorOverlay`. This makes background and
+foreground ownership explicit, instead of relying on a boolean hide flag.
+
+## Geometry vs Labels
+
+Timeline calculations separate **layout geometry** from **user-facing labels**:
+
+### Geometry (for rendering)
+- Timeline segment start/end times used for visual layout and positioning
+- Uses route-specific historical averages from ML config as fallbacks when
+  actual/predicted data is unavailable
+- Ensures the UI can always render a complete timeline structure
+- Examples:
+  - CLI→MUK: 16.38 min at-dock, 14.6 min at-sea
+  - MUK→CLI: 15.4 min at-dock, 14.6 min at-sea
+
+### Labels (for user display)
+- Time remaining indicator labels (e.g., "13m", "--")
+- Only use actual departure times, actual ETA, or ML predictions
+- Never display estimates from historical averages
+- Show "--" when actual/predicted data is unavailable
+- This ensures users only ever see accurate timing information
+
+This separation prevents misleading displays while maintaining visual continuity in
+the UI.
+
 ## Indicator State Rules
 
 The overlay indicator model (`rowId`, `positionPercent`, `label`) is computed
 from trip state:
 
-- Pre-departure: first row, minutes until departure
-- In transit: second row, minutes until arrival
-- Completed: third row, label `"--"`
+- **Pre-departure**: first row, minutes until departure from actual/predicted
+  data, or "--" if data is unavailable
+- **In transit**: second row, minutes until arrival from actual/predicted data,
+  or "--" if data is unavailable
+- **Completed**: third row, label "--"
+
+Labels only use actual departure times, actual ETA, or ML predictions.
+Historical averages are used for geometry fallbacks only, never displayed to users.
 
 For pre-departure, we apply a small minimum offset (`0.06`) so the indicator
 does not visually sit on top of the static marker at row start.
@@ -81,6 +127,6 @@ does not visually sit on top of the static marker at row start.
 
 ## Future Notes
 
-If additional timeline features need the same overlay behavior, consider
-promoting `useTimelineOverlayPlacement` into a shared timeline utility while
-keeping `VerticalTimeline` primitive-focused.
+Other features can reuse `VerticalTimeline` +
+`VerticalTimelineIndicatorOverlay` + `useVerticalTimelineOverlayPlacement`
+without introducing feature-local measurement hooks.

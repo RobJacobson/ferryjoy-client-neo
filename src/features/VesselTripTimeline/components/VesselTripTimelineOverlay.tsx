@@ -4,35 +4,49 @@
  * generic VerticalTimeline primitive can stay simple and domain-agnostic.
  */
 
+import ANCHOR_ICON from "assets/icons/anchor.png";
+import VESSEL_ICON from "assets/icons/vessel.png";
+import { Image } from "expo-image";
 import type { ReactNode } from "react";
-import type { ViewStyle } from "react-native";
-import { type TimelineRow, VerticalTimeline } from "@/components/Timeline";
+import {
+  type TimelineRow,
+  useVerticalTimelineOverlayPlacement,
+  VerticalTimeline,
+  VerticalTimelineIndicatorOverlay,
+} from "@/components/Timeline";
 import { Text, View } from "@/components/ui";
-import { cn } from "@/lib/utils";
+import { getPredictedArriveNextTime } from "@/features/TimelineFeatures/shared/utils";
 import type {
   VesselTripTimelineItem,
   VesselTripTimelineRowModel,
 } from "../types";
-import { useTimelineOverlayPlacement } from "./hooks/useTimelineOverlayPlacement";
-import { ArriveEventCard } from "./events/ArriveEventCard";
-import { DepartEventCard } from "./events/DepartEventCard";
-import { InTransitEventCard } from "./events/InTransitEventCard";
+import { InTransitEventCard } from "./InTransitEventCard";
+import { TimelineEvents } from "./TimelineEvents";
+import { TimelineLabel } from "./TimelineLabel";
+
+const MARKER_ICON_SIZE_PX = 18;
+
+/** Phase → marker icon source; phases not listed (e.g. depart-dest) have no icon. */
+const PHASE_MARKER_SOURCE: Partial<
+  Record<VesselTripTimelineRowModel["phase"], number>
+> = {
+  "at-start": ANCHOR_ICON,
+  "at-dest": ANCHOR_ICON,
+  "at-sea": VESSEL_ICON,
+  "depart-dest": VESSEL_ICON,
+};
+
+// Layout knobs for timeline and overlay; extract to config if shared later.
+const AXIS_X_RATIO = 0.5;
+const MIN_SEGMENT_PX = 32;
+const CENTER_AXIS_SIZE_PX = 42;
+const TRACK_THICKNESS_PX = 8;
+const MARKER_SIZE_PX = 24;
+const INDICATOR_SIZE_PX = 36;
 
 type VesselTripTimelineOverlayProps = {
   presentationRows: VesselTripTimelineRowModel[];
   item: VesselTripTimelineItem;
-  className?: string;
-  rowClassName?: string;
-  axisXRatio?: number;
-  minSegmentPx?: number;
-  centerAxisSizePx?: number;
-  trackThicknessPx?: number;
-  markerSizePx?: number;
-  indicatorSizePx?: number;
-  completeTrackClassName?: string;
-  upcomingTrackClassName?: string;
-  markerClassName?: string;
-  indicatorClassName?: string;
 };
 
 type Slot = "left" | "right";
@@ -47,26 +61,45 @@ type SlotRenderKey = `${VesselTripTimelineRowModel["phase"]}:${Slot}`;
 type SlotRenderer = (context: SlotRendererContext) => ReactNode | undefined;
 
 const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
-  "departure:right": ({ item }) => (
-    <DepartEventCard trip={item.trip} vesselLocation={item.vesselLocation} />
+  "at-start:left": ({ item }) => (
+    <TimelineLabel terminal={item.vesselLocation.DepartingTerminalName} />
   ),
-  "transit:left": ({ item }) => (
-    <InTransitEventCard vesselLocation={item.vesselLocation} />
-  ),
-  "transit:right": ({ row, item }) => (
-    <ArriveEventCard
-      phase="transit"
-      trip={item.trip}
-      vesselLocation={item.vesselLocation}
-      rowEndTime={row.endTime}
+  "at-start:right": ({ item }) => (
+    <TimelineEvents
+      actualTime={item.trip.TripStart}
+      scheduledTime={item.trip.ScheduledTrip?.SchedArriveCurr}
     />
   ),
-  "arrival:right": ({ row, item }) => (
-    <ArriveEventCard
-      phase="arrival"
-      trip={item.trip}
-      vesselLocation={item.vesselLocation}
-      rowEndTime={row.endTime}
+  "at-sea:left": ({ item }) => (
+    <InTransitEventCard vesselLocation={item.vesselLocation} />
+  ),
+  "at-sea:right": ({ item }) => (
+    <TimelineEvents
+      actualTime={item.trip.LeftDock}
+      scheduledTime={item.trip.ScheduledDeparture}
+      predictedTime={item.trip.AtDockDepartCurr?.PredTime}
+    />
+  ),
+  "at-dest:left": ({ item }) => (
+    <TimelineLabel terminal={item.vesselLocation.ArrivingTerminalName} />
+  ),
+  "at-dest:right": ({ item }) => (
+    <TimelineEvents
+      actualTime={item.trip.TripEnd}
+      scheduledTime={item.trip.ScheduledTrip?.SchedArriveNext}
+      predictedTime={getPredictedArriveNextTime(item.trip, item.vesselLocation)}
+    />
+  ),
+  "depart-dest:left": ({ item }) => (
+    <TimelineLabel terminal={item.vesselLocation.ArrivingTerminalName} />
+  ),
+  "depart-dest:right": ({ item }) => (
+    <TimelineEvents
+      predictedTime={
+        item.trip.AtSeaDepartNext?.PredTime ??
+        item.trip.AtDockDepartNext?.PredTime
+      }
+      scheduledTime={item.trip.ScheduledTrip?.NextDepartingTime}
     />
   ),
 };
@@ -74,75 +107,54 @@ const SLOT_RENDERERS: Partial<Record<SlotRenderKey, SlotRenderer>> = {
 /**
  * Renders a vessel-specific overlay indicator above a VerticalTimeline.
  *
- * @param props - Timeline data, domain item, and theme settings
+ * @param props - Timeline data and domain item
  * @returns VerticalTimeline with single absolute blur-backed overlay indicator
  */
 export const VesselTripTimelineOverlay = ({
   presentationRows,
   item,
-  className,
-  rowClassName,
-  axisXRatio = 0.5,
-  minSegmentPx = 64,
-  centerAxisSizePx = 56,
-  trackThicknessPx = 8,
-  markerSizePx = 18,
-  indicatorSizePx = 28,
-  completeTrackClassName = "bg-green-400",
-  upcomingTrackClassName = "bg-green-100",
-  markerClassName = "border-2 border-green-500 bg-white",
-  indicatorClassName = "border-2 border-green-500 bg-green-100",
 }: VesselTripTimelineOverlayProps) => {
-  const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item.trip);
+  const overlayIndicator = deriveActiveOverlayIndicator(
+    presentationRows,
+    item.trip,
+  );
   const { overlayPlacement, timelineContainerProps, timelineProps } =
-    useTimelineOverlayPlacement(overlayIndicator, axisXRatio);
-  const rows = presentationRows.map((row) => toTimelineRow(row, item));
+    useVerticalTimelineOverlayPlacement(overlayIndicator, AXIS_X_RATIO);
+  const rows = presentationRows.map((row) =>
+    toTimelineRow(row, item, presentationRows, overlayIndicator),
+  );
+
+  const theme = {
+    minSegmentPx: MIN_SEGMENT_PX,
+    centerAxisSizePx: CENTER_AXIS_SIZE_PX,
+    trackThicknessPx: TRACK_THICKNESS_PX,
+    markerSizePx: MARKER_SIZE_PX,
+    indicatorSizePx: INDICATOR_SIZE_PX,
+    completeTrackClassName: "bg-green-400",
+    upcomingTrackClassName: "bg-green-100",
+    markerClassName: "border border-green-500 bg-white",
+    indicatorClassName: "border border-green-500 bg-green-100",
+  };
 
   return (
-    <View className="relative" {...timelineContainerProps}>
+    <View className="relative h-[350px]" {...timelineContainerProps}>
       <VerticalTimeline
         rows={rows}
-        className={className}
-        rowClassName={rowClassName}
-        minSegmentPx={minSegmentPx}
-        centerAxisSizePx={centerAxisSizePx}
-        trackThicknessPx={trackThicknessPx}
-        markerSizePx={markerSizePx}
-        indicatorSizePx={indicatorSizePx}
-        completeTrackClassName={completeTrackClassName}
-        upcomingTrackClassName={upcomingTrackClassName}
-        markerClassName={markerClassName}
-        indicatorClassName={indicatorClassName}
-        hideRowIndicators
+        theme={theme}
+        className="flex-1"
+        renderMode="background"
         {...timelineProps}
       />
 
-      {overlayPlacement ? (
-        <View
-          className="absolute"
-          // Overlay should never capture touches from the timeline/cards beneath.
-          pointerEvents="none"
-          style={getOverlayStyle(overlayPlacement, indicatorSizePx)}
-        >
-          <View
-            style={{ width: indicatorSizePx, height: indicatorSizePx }}
-            className="relative items-center justify-center"
-          >
-            <View
-              className={cn(
-                "absolute inset-0 items-center justify-center rounded-full",
-                "border-2 bg-green-100/70",
-                indicatorClassName,
-              )}
-            >
-              {/* Label is rendered over blur to preserve contrast/readability. */}
-              <Text className="font-bold text-green-700 text-xs">
-                {overlayIndicator.label}
-              </Text>
-            </View>
-          </View>
-        </View>
-      ) : null}
+      <VerticalTimelineIndicatorOverlay
+        placement={overlayPlacement}
+        indicatorSizePx={INDICATOR_SIZE_PX}
+        indicatorClassName="border-2 border-green-500 bg-green-50/80"
+      >
+        <Text className="font-bold text-green-700 text-xs">
+          {overlayIndicator.label}
+        </Text>
+      </VerticalTimelineIndicatorOverlay>
     </View>
   );
 };
@@ -151,24 +163,55 @@ export const VesselTripTimelineOverlay = ({
  * Converts one pure presentation row into a render-ready timeline row.
  *
  * @param row - Pure presentation row data
+ * @param item - Domain item containing trip and vessel data
+ * @param presentationRows - All timeline rows for global position calculation
+ * @param overlayIndicator - Active overlay indicator with global position
  * @returns Timeline row with feature card components
  */
 const toTimelineRow = (
   row: VesselTripTimelineRowModel,
   item: VesselTripTimelineItem,
+  presentationRows: VesselTripTimelineRowModel[],
+  overlayIndicator: OverlayIndicator,
 ): TimelineRow => ({
   id: row.id,
   startTime: row.startTime,
   endTime: row.endTime,
-  percentComplete: row.percentComplete,
+  percentComplete: getGlobalPercentComplete(
+    row,
+    presentationRows,
+    overlayIndicator,
+  ),
   leftContent: renderSlotContent("left", row, item),
   rightContent: renderSlotContent("right", row, item),
-  indicatorContent: (
-    <Text className="font-bold text-green-700 text-xs">
-      {row.indicatorLabel}
-    </Text>
-  ),
+  markerContent: getMarkerContent(row.phase),
+  minHeight: row.phase === "depart-dest" ? 0 : undefined,
 });
+
+/**
+ * Returns marker content for a timeline phase (icon or nothing).
+ * Uses inline style for dimensions because NativeWind does not apply
+ * className to expo-image, so the icon would otherwise render at 0x0.
+ *
+ * @param phase - Timeline phase determining which icon to show
+ * @returns Image component or undefined for phases without a marker icon
+ */
+/** Tint applied to marker PNGs (anchor/vessel). Use tintColor on Image; className does not apply to expo-image. */
+const MARKER_TINT_COLOR = "#777"; // green-800
+
+const getMarkerContent = (
+  phase: VesselTripTimelineRowModel["phase"],
+): ReactNode => {
+  const source = PHASE_MARKER_SOURCE[phase];
+  if (!source) return undefined;
+  return (
+    <Image
+      source={source}
+      style={{ width: MARKER_ICON_SIZE_PX, height: MARKER_ICON_SIZE_PX }}
+      tintColor={MARKER_TINT_COLOR}
+    />
+  );
+};
 
 /**
  * Renders a slot's content from row phase and domain item data.
@@ -190,6 +233,41 @@ const renderSlotContent = (
   });
 };
 
+/**
+ * Calculates global percent complete for a row based on overlay indicator position.
+ * Rows before the indicator row are 100% complete. Rows after are 0% complete.
+ * The indicator's row shows progress based on the overlay's position percent.
+ *
+ * @param row - Timeline row to calculate percent for
+ * @param presentationRows - All timeline rows
+ * @param overlayIndicator - Active overlay indicator with global position
+ * @returns Percent complete from 0 to 1 based on overlay position
+ */
+const getGlobalPercentComplete = (
+  row: VesselTripTimelineRowModel,
+  presentationRows: VesselTripTimelineRowModel[],
+  overlayIndicator: OverlayIndicator,
+): number => {
+  const rowIndex = presentationRows.findIndex((r) => r.id === row.id);
+  const indicatorRowIndex = presentationRows.findIndex(
+    (r) => r.id === overlayIndicator.rowId,
+  );
+
+  if (indicatorRowIndex === -1) {
+    return row.percentComplete;
+  }
+
+  if (rowIndex < indicatorRowIndex) {
+    return 1;
+  }
+
+  if (rowIndex > indicatorRowIndex) {
+    return 0;
+  }
+
+  return overlayIndicator.positionPercent;
+};
+
 type OverlayIndicator = {
   rowId: string;
   positionPercent: number;
@@ -207,40 +285,57 @@ const deriveActiveOverlayIndicator = (
   rows: VesselTripTimelineRowModel[],
   trip: VesselTripTimelineItem["trip"],
 ): OverlayIndicator => {
-  const departureRow = rows.find((row) => row.phase === "departure");
-  const transitRow = rows.find((row) => row.phase === "transit");
-  const arrivalRow = rows.find((row) => row.phase === "arrival");
+  const atStartRow = rows.find((row) => row.phase === "at-start");
+  const atSeaRow = rows.find((row) => row.phase === "at-sea");
+  const _atDestRow = rows.find((row) => row.phase === "at-dest");
+  const departDestRow = rows.find((row) => row.phase === "depart-dest");
   const now = new Date();
 
-  if (trip.TripEnd && arrivalRow) {
+  // If vessel has departed from destination (card would change, but handle just in case)
+  if (trip.AtDockDepartNext?.Actual && departDestRow) {
     return {
-      rowId: arrivalRow.id,
+      rowId: departDestRow.id,
       positionPercent: 1,
-      label: arrivalRow.indicatorLabel,
+      label: departDestRow.indicatorLabel,
     };
   }
 
-  if (!trip.LeftDock && departureRow) {
+  // If vessel has arrived at destination, show progress toward departure
+  if (trip.TripEnd && departDestRow) {
     return {
-      rowId: departureRow.id,
+      rowId: departDestRow.id,
+      positionPercent: getTimeProgress(
+        departDestRow.startTime,
+        departDestRow.endTime,
+        now,
+      ),
+      label: departDestRow.indicatorLabel,
+    };
+  }
+
+  // If vessel hasn't departed yet, show progress at dock
+  if (!trip.LeftDock && atStartRow) {
+    return {
+      rowId: atStartRow.id,
       // Keep indicator slightly below row-start marker for readability.
       positionPercent: Math.max(
         0.06,
-        getTimeProgress(departureRow.startTime, departureRow.endTime, now),
+        getTimeProgress(atStartRow.startTime, atStartRow.endTime, now),
       ),
-      label: departureRow.indicatorLabel,
+      label: atStartRow.indicatorLabel,
     };
   }
 
-  if (transitRow) {
+  // If vessel is at sea, show in-transit progress
+  if (atSeaRow) {
     return {
-      rowId: transitRow.id,
+      rowId: atSeaRow.id,
       positionPercent: getTimeProgress(
-        transitRow.startTime,
-        transitRow.endTime,
+        atSeaRow.startTime,
+        atSeaRow.endTime,
         now,
       ),
-      label: transitRow.indicatorLabel,
+      label: atSeaRow.indicatorLabel,
     };
   }
 
@@ -268,27 +363,9 @@ const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
 };
 
 /**
- * Builds style for absolute overlay container.
- *
- * @param placement - Absolute placement for indicator center
- * @param indicatorSizePx - Indicator diameter in pixels
- * @returns View style for overlay position
- */
-const getOverlayStyle = (
-  placement: { top: number; left: number },
-  indicatorSizePx: number,
-): ViewStyle => ({
-  top: placement.top,
-  left: placement.left,
-  marginTop: -indicatorSizePx / 2,
-  marginLeft: -indicatorSizePx / 2,
-});
-
-/**
  * Clamps a number to the inclusive range [0, 1].
  *
  * @param value - Raw ratio
  * @returns Clamped ratio
  */
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-

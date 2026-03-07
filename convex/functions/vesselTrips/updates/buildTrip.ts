@@ -2,6 +2,7 @@
  * Build complete vessel trip from raw location data with all enrichments.
  */
 import type { ActionCtx } from "_generated/server";
+import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -18,7 +19,8 @@ import type { TripEvents } from "./eventDetection";
  * Handles building, schedule lookups, and ML predictions in one place:
  * - Calls baseTripFromLocation for base trip
  * - Uses provided events for enrichment decisions
- * - Runs appropriate schedule lookups and predictions
+ * - Runs appropriate schedule lookups and predictions (event-driven + time-based fallback)
+ * - Applies same-trip prediction actuals before persistence on leave-dock events
  * - Returns fully enriched trip ready for persistence
  *
  * @param ctx - Convex action context
@@ -26,6 +28,8 @@ import type { TripEvents } from "./eventDetection";
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
+ * @param shouldRunPredictionFallback - True when this tick should attempt
+ * any missing fallback predictions
  * @returns Fully enriched vessel trip
  */
 export const buildTrip = async (
@@ -33,32 +37,43 @@ export const buildTrip = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
-  events: TripEvents
+  events: TripEvents,
+  shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
-  // Build base trip from raw data
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
 
-  let enrichedTrip = baseTrip;
+  // Compute enrichment conditions
+  const shouldAppendInitialSchedule =
+    events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev;
+  const shouldAppendFinalSchedule = events.keyChanged;
+  const shouldAttemptAtDockPredictions =
+    baseTrip.AtDock &&
+    !baseTrip.LeftDock &&
+    (events.didJustArriveAtDock || shouldRunPredictionFallback) &&
+    (!baseTrip.AtDockDepartCurr ||
+      !baseTrip.AtDockArriveNext ||
+      !baseTrip.AtDockDepartNext);
+  const shouldAttemptAtSeaPredictions =
+    !baseTrip.AtDock &&
+    baseTrip.LeftDock &&
+    (events.didJustLeaveDock || shouldRunPredictionFallback) &&
+    (!baseTrip.AtSeaArriveNext || !baseTrip.AtSeaDepartNext);
 
-  // Event: Arrive at dock (schedule lookup for arriving terminal)
-  if (events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev) {
-    enrichedTrip = await appendInitialSchedule(ctx, enrichedTrip);
-  }
+  // Sequential enrichment pipeline
+  const withInitialSchedule = shouldAppendInitialSchedule
+    ? await appendInitialSchedule(ctx, baseTrip)
+    : baseTrip;
+  const withFinalSchedule = shouldAppendFinalSchedule
+    ? await appendFinalSchedule(ctx, withInitialSchedule, existingTrip)
+    : withInitialSchedule;
+  const withAtDockPredictions = shouldAttemptAtDockPredictions
+    ? await appendArriveDockPredictions(ctx, withFinalSchedule)
+    : withFinalSchedule;
+  const withAtSeaPredictions = shouldAttemptAtSeaPredictions
+    ? await appendLeaveDockPredictions(ctx, withAtDockPredictions)
+    : withAtDockPredictions;
 
-  // Event: Key changed or have departure info (schedule lookup by Key)
-  if (events.keyChanged) {
-    enrichedTrip = await appendFinalSchedule(ctx, enrichedTrip, existingTrip);
-  }
-
-  // Event: Arrive at dock (at-dock predictions)
-  if (events.didJustArriveAtDock) {
-    enrichedTrip = await appendArriveDockPredictions(ctx, enrichedTrip);
-  }
-
-  // Event: Leave dock (leave-dock predictions)
-  if (events.didJustLeaveDock) {
-    enrichedTrip = await appendLeaveDockPredictions(ctx, enrichedTrip);
-  }
-
-  return enrichedTrip;
+  return events.didJustLeaveDock
+    ? actualizePredictionsOnLeaveDock(withAtSeaPredictions)
+    : withAtSeaPredictions;
 };

@@ -481,7 +481,7 @@ We fill “Actual” values (and deltas) when the relevant real-world event is
 observed:
 
 - `AtSeaArriveNext.Actual`: set when the trip completes (`TripEnd` becomes known)
-  - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`updatePredictionsWithActuals`)
+  - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`actualizePredictionsOnTripComplete`)
 - `AtDockDepartNext.Actual` / `AtSeaDepartNext.Actual`: set when the _next_ trip
   leaves dock (the next trip's `LeftDock` is the previous trip's "depart next"
   actual), using `setDepartNextActualsForMostRecentCompletedTrip`.

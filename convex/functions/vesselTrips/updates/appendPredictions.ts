@@ -1,6 +1,6 @@
 // ============================================================================
 // Append ML Predictions
-// Enriches vessel trips with ML predictions when event-triggered (arrive-dock, depart-dock)
+// Enriches vessel trips with ML predictions using hybrid event and time-based approach
 // ============================================================================
 
 import type { ActionCtx } from "_generated/server";
@@ -41,70 +41,84 @@ const computePredictions = async (
   trip: ConvexVesselTrip,
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTrip> => {
-  // Skip if prediction already set for any spec
-  const specsToAttempt = specs.filter((spec) => trip[spec.field] === undefined);
-  if (specsToAttempt.length === 0) return trip;
+  try {
+    // Skip predictions that already exist (avoid redundant work)
+    const specsToAttempt = specs.filter(
+      (spec) => trip[spec.field] === undefined
+    );
 
-  // Validate trip readiness
-  if (!isPredictionReadyTrip(trip)) return trip;
+    // Skip if no predictions to attempt
+    if (specsToAttempt.length === 0) return trip;
 
-  // Validate LeftDock requirements
-  for (const spec of specsToAttempt) {
-    if (spec.requiresLeftDock && !trip.LeftDock) {
+    // Trip lacks required context (Prev* fields) for predictions
+    if (!isPredictionReadyTrip(trip)) return trip;
+
+    // Validate LeftDock requirements - skip if any spec requires LeftDock but trip lacks it
+    if (
+      specsToAttempt.some((spec) => spec.requiresLeftDock && !trip.LeftDock)
+    ) {
       return trip;
     }
-  }
 
-  // Batch load models when multiple predictions needed
-  let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
-    ModelType,
-    ModelDoc | null
-  >;
-  if (
-    specsToAttempt.length > 1 &&
-    trip.ArrivingTerminalAbbrev &&
-    trip.DepartingTerminalAbbrev
-  ) {
-    const pairKey = formatTerminalPairKey(
-      trip.DepartingTerminalAbbrev,
-      trip.ArrivingTerminalAbbrev
-    );
-    const modelTypes = specsToAttempt.map((s) => s.modelType);
-    modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
-  }
+    // Batch load models when computing 2+ predictions (efficiency optimization)
+    let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
+      ModelType,
+      ModelDoc | null
+    >;
+    if (
+      specsToAttempt.length > 1 &&
+      trip.ArrivingTerminalAbbrev &&
+      trip.DepartingTerminalAbbrev
+    ) {
+      const pairKey = formatTerminalPairKey(
+        trip.DepartingTerminalAbbrev,
+        trip.ArrivingTerminalAbbrev
+      );
+      const modelTypes = specsToAttempt.map((s) => s.modelType);
+      modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
+    }
 
-  // Run predictions
-  const results = await Promise.all(
-    specsToAttempt.map(async (spec) => ({
-      spec,
-      prediction: await predictFromSpec(
-        ctx,
-        trip,
+    // Run predictions in parallel
+    const results = await Promise.all(
+      specsToAttempt.map(async (spec) => ({
         spec,
-        specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
-      ),
-    }))
-  );
+        prediction: await predictFromSpec(
+          ctx,
+          trip,
+          spec,
+          specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
+        ),
+      }))
+    );
 
-  // Aggregate results
-  const updates = results.reduce<Record<string, unknown>>(
-    (acc, { spec, prediction }) => {
-      if (prediction) {
-        acc[spec.field] = prediction;
-      }
-      return acc;
-    },
-    {}
-  );
+    // Aggregate prediction results into update object
+    const updates = results.reduce<Record<string, unknown>>(
+      (acc, { spec, prediction }) => {
+        if (prediction) {
+          acc[spec.field] = prediction;
+        }
+        return acc;
+      },
+      {}
+    );
 
-  return { ...trip, ...updates } as ConvexVesselTrip;
+    return { ...trip, ...updates } as ConvexVesselTrip;
+  } catch (error) {
+    // Log prediction failures (especially for time-based fallback retries)
+    console.error(
+      `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
+      error
+    );
+    return { ...trip };
+  }
 };
 
 /**
- * Enrich trip with at-dock predictions when vessel first arrives at dock.
+ * Enrich trip with at-dock predictions when vessel is at dock.
  *
- * Predicts AtDockArriveNext and AtDockDepartNext when vessel transitions
- * from at-sea to at-dock and trip has required context (isPredictionReadyTrip).
+ * Predicts AtDockDepartCurr, AtDockArriveNext, and AtDockDepartNext when
+ * vessel is at dock and trip has required context (isPredictionReadyTrip).
+ * Runs on event-driven (arrive at dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
@@ -115,27 +129,28 @@ export const appendArriveDockPredictions = async (
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
   return computePredictions(ctx, trip, [
+    PREDICTION_SPECS.AtDockDepartCurr,
     PREDICTION_SPECS.AtDockArriveNext,
     PREDICTION_SPECS.AtDockDepartNext,
   ]);
 };
 
 /**
- * Enrich trip with leave-dock predictions when vessel physically departs.
+ * Enrich trip with at-sea predictions when vessel is at sea.
  *
- * Predicts AtDockDepartCurr, AtSeaArriveNext, and AtSeaDepartNext when
- * LeftDock transitions from undefined to defined (vessel leaves dock).
+ * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
+ * (has LeftDock set) and trip has required context (isPredictionReadyTrip).
+ * Runs on event-driven (leave dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Current vessel trip state
- * @returns Trip enriched with leave-dock prediction fields
+ * @returns Trip enriched with at-sea prediction fields
  */
 export const appendLeaveDockPredictions = async (
   ctx: ActionCtx,
   trip: ConvexVesselTrip
 ): Promise<ConvexVesselTrip> => {
   return computePredictions(ctx, trip, [
-    PREDICTION_SPECS.AtDockDepartCurr,
     PREDICTION_SPECS.AtSeaArriveNext,
     PREDICTION_SPECS.AtSeaDepartNext,
   ]);

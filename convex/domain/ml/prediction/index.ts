@@ -16,7 +16,6 @@ export { calculateMAE, calculateR2, calculateRMSE } from "./metrics";
  * Prediction lifecycle service - manages predictions end-to-end
  */
 export {
-  computeLeaveDockPredictions,
   handlePredictionEvent,
   type PredictionEventType,
   type PredictionLifecycleEvent,
@@ -34,6 +33,9 @@ export {
  * Vessel trip prediction core utilities
  */
 export {
+  actualizePredictionsOnLeaveDock,
+  actualizePredictionsOnTripComplete,
+  applyActualToPrediction,
   createPredictionResult,
   getMinimumScheduledTime,
   isPredictionReadyTrip,
@@ -41,5 +43,4 @@ export {
   type PredictionField,
   type PredictionSpec,
   predictFromSpec,
-  updatePredictionsWithActuals,
 } from "./vesselTripPredictions";

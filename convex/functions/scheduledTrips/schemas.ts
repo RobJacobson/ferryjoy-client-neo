@@ -44,15 +44,6 @@ export const scheduledTripSchema = v.object({
 });
 
 /**
- * Validator for a full scheduled trip document including system fields.
- * Use for query returns when callers need _id and _creationTime.
- */
-export const scheduledTripDocSchema = scheduledTripSchema.extend({
-  _id: v.id("scheduledTrips"),
-  _creationTime: v.number(),
-});
-
-/**
  * Type for scheduled trip in Convex storage (with numbers)
  * Inferred from the Convex validator
  */
@@ -96,3 +87,18 @@ export const toDomainScheduledTrip = (
  * Inferred from the return type of our conversion function
  */
 export type ScheduledTrip = ReturnType<typeof toDomainScheduledTrip>;
+
+/**
+ * Convex validator for key-value store.
+ * Generic storage for arbitrary configuration and metadata values.
+ */
+export const keyValueStoreSchema = v.object({
+  key: v.string(),
+  value: v.union(v.string(), v.number(), v.boolean(), v.null()),
+  updatedAt: v.number(),
+});
+
+/**
+ * Type for key-value store entry in Convex storage
+ */
+export type KeyValueStore = Infer<typeof keyValueStoreSchema>;
