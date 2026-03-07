@@ -1,26 +1,28 @@
 # Vessel Trip Timeline Layout Architecture
 
-This document explains the current layout strategy for the vessel timeline,
-with emphasis on why the moving indicator is implemented as a feature-level
-overlay instead of a per-row timeline element.
+This document explains the layout strategy for the vessel timeline,
+with emphasis on the mirrored overlay layer used for the moving indicator.
 
-## Why We Use an Overlay
+## Mirrored Overlay Approach
 
 The moving indicator must blur whatever is behind it, including the timeline
-track itself. A row-local indicator caused two problems:
+track. A row-local indicator previously caused z-order conflicts and unreliable
+blur when crossing row boundaries. The mirrored overlay approach solves this:
 
-- z-order conflicts when the indicator crosses row boundaries
-- unreliable blur composition because the indicator lived inside one row subtree
+- Timeline rows render normally in document order
+- A separate **absolute overlay tree** is rendered above the entire timeline
+- The overlay tree mirrors each row's height using the same `flexGrow` and `minHeight`
+- Only the **active mirrored row** renders the indicator
+- The indicator is positioned via `top: ${positionPercent * 100}%` inside the mirrored row
+- Each indicator is wrapped in `BlurView`; one `BlurTargetView` wraps the timeline
+- **No layout measurement** is required
 
-To solve this, the indicator is rendered once as an absolute overlay above the
-entire timeline in `VesselTripTimelineOverlay`.
-
-The overlay UI is now provided by the timeline primitive peer
-`VerticalTimelineIndicatorOverlay`, composed alongside `VerticalTimeline`.
+This eliminates `useVerticalTimelineOverlayPlacement` and `VerticalTimelineIndicatorOverlay`
+for this feature.
 
 ## Separation of Concerns
 
-The feature is split into 3 layers:
+The feature is split into 2 layers:
 
 1. **Pure model builder**
    - `adapters/buildTimelineModelFromTrip.ts`
@@ -30,53 +32,46 @@ The feature is split into 3 layers:
      historical averages as fallbacks) from user-facing labels (using only
      actual/predicted times, showing "--" for missing data).
 
-2. **Layout + overlay renderer**
+2. **Layout + mirrored overlay renderer**
    - `components/VesselTripTimelineOverlay.tsx`
-   - Renders `VerticalTimeline` in `renderMode="background"` plus peer
-     `VerticalTimelineIndicatorOverlay`.
-   - Performs final slot placement and card component selection from row phase
-     plus trip/location domain data.
-   - Derives the active overlay indicator from row timing + trip state at render
-     time.
+   - Wraps timeline in `BlurTargetView`.
+   - Renders rows via `TimelineRowComponent` with `renderMode="background"` in normal stacking order.
+   - Renders a second absolute overlay tree that mirrors row sizing above the timeline.
+   - Places the `BlurView`-wrapped indicator inside the active mirrored row only.
+   - Derives active indicator from row timing + trip state at render time.
 
-3. **Overlay measurement hook**
-   - `src/components/Timeline/useVerticalTimelineOverlayPlacement.ts`
-   - Owns row measurement state plus timeline-width measurement.
-   - Returns grouped props (`timelineContainerProps`, `timelineProps`) and
-     computed overlay placement.
+## Overlay Structure
 
-This keeps business logic testable and rendering logic explicit while keeping
-layout measurement concerns isolated.
+At a high level:
 
-## Coordinate System and Measurement
+```
+View (timeline container)
+└── BlurTargetView
+    ├── TimelineRowComponent[]
+    │   └── leftContent | axis (track + marker) | rightContent
+    └── View (overlay layer: absoluteFillObject, pointerEvents="none")
+        └── Mirrored row[]
+            └── [spacer] | [center column with optional BlurView indicator] | [spacer]
+```
 
-`VerticalTimeline` exposes an optional callback:
+The mirrored rows are not visual duplicates of the cards or track. They only
+recreate the vertical geometry needed to position the active indicator in the
+correct row without measuring layout.
 
-- `onRowLayout(rowId, { y, height })`
+Indicator position is still `top: ${positionPercent * 100}%` within the mirrored
+center column. No global coordinate math is needed because the mirrored overlay
+tree uses the same row sizing inputs as the rendered timeline rows.
 
-`useVerticalTimelineOverlayPlacement` stores row values by `rowId`, measures
-timeline container width once, and computes overlay position:
+## Why This Shape
 
-- `top = rowY + rowHeight * positionPercent`
-- `left = timelineWidth * axisXRatio`
+This structure keeps the benefits of the refactor while avoiding the z-order
+regression from a row-local overlay:
 
-The overlay dot is centered at that point by subtracting half its size via
-negative margins.
-
-`axisXRatio` defaults to `0.5` for the current symmetric layout. If future
-layouts use uneven left/right widths, pass a different ratio (for example
-`0.4` or `0.6`) without reintroducing per-row axis measurement callbacks.
-
-## Background vs Foreground Contract
-
-`VerticalTimeline` now has an explicit render mode:
-
-- `renderMode="full"` (default): renders track + marker + per-row moving indicator
-- `renderMode="background"`: renders track + marker only
-
-`VesselTripTimelineOverlay` uses `renderMode="background"` and renders the moving
-indicator once via `VerticalTimelineIndicatorOverlay`. This makes background and
-foreground ownership explicit, instead of relying on a boolean hide flag.
+- The timeline track and row content keep their normal sibling stacking
+- The indicator lives in a single top-level overlay layer, so it can paint above
+  markers and content in adjacent rows
+- The feature still avoids `onLayout` measurement and cross-tree coordinate math
+- Indicator label centering is handled entirely inside the overlay circle
 
 ## Geometry vs Labels
 
@@ -120,13 +115,10 @@ does not visually sit on top of the static marker at row start.
 
 ## Important Constraints
 
-- Indicator wrapper uses explicit width/height for stable centering.
-- Overlay container uses `pointerEvents="none"` so card/timeline interactions
+- `BlurTargetView` wraps the entire timeline for Android blur support.
+- `BlurView` around each indicator receives `blurTarget` ref.
+- The overlay layer uses `pointerEvents="none"` so card/timeline interactions
   are not blocked.
-- Overlay renders only after required row+width measurements are available.
-
-## Future Notes
-
-Other features can reuse `VerticalTimeline` +
-`VerticalTimelineIndicatorOverlay` + `useVerticalTimelineOverlayPlacement`
-without introducing feature-local measurement hooks.
+- Mirrored rows must use the same sizing inputs as timeline rows:
+  `getDurationMinutes(row)`, `row.minHeight`, and `MIN_SEGMENT_PX`.
+- Indicator wrapper uses explicit width/height for stable centering.

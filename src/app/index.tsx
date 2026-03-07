@@ -28,7 +28,7 @@ export default function Home() {
             itemStride={itemStride}
           />
         </BlurTargetView>
-        <View className="relative z-[200] flex-1">
+        <View className="relative z-[200] mt-8 flex-1">
           <RoutesCarousel
             ref={carouselRef}
             blurTargetRef={blurTargetRef}

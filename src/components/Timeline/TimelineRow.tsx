@@ -4,7 +4,13 @@
  * which takes precedence over the theme's `minSegmentPx` default.
  */
 
-import { type LayoutChangeEvent, View, type ViewStyle } from "react-native";
+import type { ReactNode } from "react";
+import {
+  type LayoutChangeEvent,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { cn } from "@/lib/utils";
 import { TimelineTrack } from "./TimelineTrack";
 import type { RequiredTimelineTheme, TimelineRow } from "./TimelineTypes";
@@ -20,6 +26,8 @@ export type TimelineRowBounds = {
   height: number;
 };
 
+const ACTIVE_OVERLAY_Z_INDEX = 10;
+
 type TimelineRowComponentProps = {
   row: TimelineRow;
   theme: RequiredTimelineTheme;
@@ -27,6 +35,8 @@ type TimelineRowComponentProps = {
   renderMode: VerticalTimelineRenderMode;
   onRowLayout?: (rowId: string, bounds: TimelineRowBounds) => void;
   isLastRow: boolean;
+  /** Optional overlay (e.g., BlurView indicator) positioned absoluteFill; row adds position: relative when provided. */
+  overlay?: ReactNode;
 };
 
 /**
@@ -47,18 +57,21 @@ export const TimelineRowComponent = ({
   renderMode,
   onRowLayout,
   isLastRow,
+  overlay,
 }: TimelineRowComponentProps) => {
   const durationMinutes = getDurationMinutes(row);
   const percentComplete = getValidatedPercentComplete(row);
+  const rowStyle = getVerticalRowStyle(
+    durationMinutes,
+    theme.minSegmentPx,
+    row.minHeight
+  );
+  const containerStyle = getContainerStyle(rowStyle, overlay);
 
   return (
     <View
       className={cn("w-full flex-row items-stretch", rowClassName)}
-      style={getVerticalRowStyle(
-        durationMinutes,
-        theme.minSegmentPx,
-        row.minHeight
-      )}
+      style={containerStyle}
       onLayout={getRowLayoutHandler(row.id, onRowLayout)}
     >
       <View className="flex-1 justify-start">{row.leftContent}</View>
@@ -79,6 +92,12 @@ export const TimelineRowComponent = ({
       </View>
 
       <View className="flex-1 justify-start">{row.rightContent}</View>
+
+      {overlay && (
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          {overlay}
+        </View>
+      )}
     </View>
   );
 };
@@ -107,6 +126,31 @@ const getVerticalRowStyle = (
   flexBasis: "auto",
   minHeight: minHeight ?? minSegmentPx,
 });
+
+/**
+ * Builds the outer row container style, including overlay stacking behavior.
+ *
+ * When an overlay is present, the row itself must be promoted above sibling
+ * rows so the overlay can paint across row boundaries. Raising only the
+ * overlay child would still leave it trapped inside the row's stacking order.
+ *
+ * @param rowStyle - Base vertical row sizing style
+ * @param overlay - Optional row-local overlay content
+ * @returns View style for the outer row container
+ */
+const getContainerStyle = (
+  rowStyle: ViewStyle,
+  overlay?: ReactNode
+): ViewStyle =>
+  overlay
+    ? {
+        ...rowStyle,
+        position: "relative",
+        overflow: "visible",
+        zIndex: ACTIVE_OVERLAY_Z_INDEX,
+        elevation: ACTIVE_OVERLAY_Z_INDEX,
+      }
+    : rowStyle;
 
 /**
  * Builds style for the center axis container.

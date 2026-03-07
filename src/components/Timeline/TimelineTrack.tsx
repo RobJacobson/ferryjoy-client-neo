@@ -18,6 +18,10 @@ import type {
 } from "./TimelineTypes";
 import { shouldShowMovingIndicator } from "./timelineMath";
 
+const TRACK_Z_INDEX = 0;
+const MARKER_Z_INDEX = 1;
+const INDICATOR_Z_INDEX = 2;
+
 type TimelineTrackProps = {
   orientation: TimelineOrientation;
   percentComplete: number;
@@ -148,6 +152,7 @@ const getCompletedTrackStyle = (
   height: isVertical ? completedPercent : trackThicknessPx,
   left: isVertical ? "50%" : 0,
   top: isVertical ? 0 : "50%",
+  zIndex: TRACK_Z_INDEX,
   // Center track on axis with offset
   marginTop: isVertical ? undefined : -trackThicknessPx / 2,
   marginLeft: isVertical ? -trackThicknessPx / 2 : undefined,
@@ -178,6 +183,7 @@ const getUpcomingTrackStyle = (
   // Position starts where completed segment ends
   left: isVertical ? "50%" : completedPercent,
   top: isVertical ? completedPercent : "50%",
+  zIndex: TRACK_Z_INDEX,
   // Center track on axis with offset
   marginTop: isVertical ? undefined : -trackThicknessPx / 2,
   marginLeft: isVertical ? -trackThicknessPx / 2 : undefined,
@@ -199,6 +205,7 @@ const getMarkerStyle = (
 ): ViewStyle => ({
   top: isVertical ? 0 : "50%",
   left: isVertical ? "50%" : 0,
+  zIndex: MARKER_Z_INDEX,
   marginTop: -markerSizePx / 2,
   marginLeft: -markerSizePx / 2,
 });
@@ -222,6 +229,7 @@ const getIndicatorStyle = (
 ): ViewStyle => ({
   top: isVertical ? completedPercent : "50%",
   left: isVertical ? "50%" : completedPercent,
+  zIndex: INDICATOR_Z_INDEX,
   marginTop: -indicatorSizePx / 2,
   marginLeft: -indicatorSizePx / 2,
 });
