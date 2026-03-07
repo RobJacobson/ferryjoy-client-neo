@@ -65,12 +65,13 @@ export const buildTimelineModelFromTrip = (
   const schedArriveCurr =
     trip.ScheduledTrip?.SchedArriveCurr ?? times.departWindowStart;
   const schedDeparture = trip.ScheduledDeparture ?? times.departWindowStart;
-  const _schedArriveNext =
+  const schedDepartNext =
+    trip.ScheduledTrip?.NextDepartingTime ?? times.departDestTime;
+
+  const schedArriveNext =
     trip.ScheduledTrip?.SchedArriveNext ??
     trip.ScheduledTrip?.ArrivingTime ??
     times.arriveEta;
-  const schedDepartNext =
-    trip.ScheduledTrip?.NextDepartingTime ?? times.departDestTime;
 
   const rows: VesselTripTimelineRowModel[] = [
     {
@@ -80,10 +81,15 @@ export const buildTimelineModelFromTrip = (
       endTime: times.departedAt,
       percentComplete: trip.LeftDock ? 1 : 0,
       indicatorLabel: departureLabel,
-      eventTimes: {
+      eventTimeStart: {
         scheduled: schedArriveCurr,
         actual: trip.TripStart,
         estimated: undefined,
+      },
+      eventTimeEnd: {
+        scheduled: schedDeparture,
+        actual: trip.LeftDock,
+        estimated: trip.AtDockDepartCurr?.PredTime,
       },
       terminalName: vesselLocation.DepartingTerminalName,
       leftContentKind: "terminal-label",
@@ -96,10 +102,15 @@ export const buildTimelineModelFromTrip = (
       endTime: times.arriveEta,
       percentComplete: atSeaPercent,
       indicatorLabel: inTransitLabel,
-      eventTimes: {
+      eventTimeStart: {
         scheduled: schedDeparture,
         actual: trip.LeftDock,
         estimated: trip.AtDockDepartCurr?.PredTime,
+      },
+      eventTimeEnd: {
+        scheduled: schedArriveNext,
+        actual: trip.TripEnd,
+        estimated: trip.Eta ?? vesselLocation.Eta,
       },
       leftContentKind: "in-transit-card",
       rightContentKind: "time-events",
@@ -112,7 +123,12 @@ export const buildTimelineModelFromTrip = (
       endTime: times.departDestTime,
       percentComplete: 0,
       indicatorLabel: departDestLabel,
-      eventTimes: {
+      eventTimeStart: {
+        scheduled: schedArriveNext,
+        actual: trip.TripEnd,
+        estimated: undefined,
+      },
+      eventTimeEnd: {
         scheduled: schedDepartNext,
         actual: trip.AtDockDepartNext?.Actual,
         estimated:

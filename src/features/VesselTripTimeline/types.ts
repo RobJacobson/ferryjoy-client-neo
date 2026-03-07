@@ -39,8 +39,10 @@ export type VesselTripTimelineRowModel = {
   percentComplete: number;
   kind: RowKind;
   indicatorLabel: string;
-  /** Primary event for the right slot; adapter picks the most relevant boundary. */
-  eventTimes?: TimePoint;
+  /** Event at segment start boundary (e.g., arrive for at-dock, depart for at-sea). */
+  eventTimeStart: TimePoint;
+  /** Event at segment end boundary (e.g., depart for at-dock, arrive for at-sea). */
+  eventTimeEnd: TimePoint;
   /** For at-dock rows: which terminal. */
   terminalName?: string;
   leftContentKind: LeftContentKind;

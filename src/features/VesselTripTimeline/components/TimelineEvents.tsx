@@ -14,11 +14,7 @@ import { TimelineEvent } from "./TimelineEvent";
  * @param props - TimePoint with scheduled, actual, estimated
  * @returns Timeline events view with time components
  */
-export const TimelineEvents = ({
-  scheduled,
-  actual,
-  estimated,
-}: TimePoint) => (
+export const TimelineEvents = ({ scheduled, actual, estimated }: TimePoint) => (
   <View className="mt-[-10px] flex-row gap-1">
     {scheduled && <TimelineEvent time={scheduled} type="scheduled" />}
     {actual && <TimelineEvent time={actual} type="actual" />}

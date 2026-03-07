@@ -74,10 +74,10 @@ const renderLeftContent = (
  * @returns Right content or undefined
  */
 const renderRightContent = (row: VesselTripTimelineRowModel): ReactNode => {
-  if (row.rightContentKind !== "time-events" || !row.eventTimes) {
+  if (row.rightContentKind !== "time-events") {
     return undefined;
   }
-  return <TimelineEvents {...row.eventTimes} />;
+  return <TimelineEvents {...row.eventTimeEnd} />;
 };
 
 /**
