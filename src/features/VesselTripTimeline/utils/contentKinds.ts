@@ -10,8 +10,8 @@ import type { LeftContentKind, RightContentKind, RowKind } from "../types";
  * @param kind - Segment kind (at-dock or at-sea)
  * @returns Left slot content kind
  */
-export const getLeftContentKind = (kind: RowKind): LeftContentKind =>
-  kind === "at-dock" ? "terminal-label" : "in-transit-card";
+export const getLeftContentKind = (_kind: RowKind): LeftContentKind =>
+  "terminal-label";
 
 /**
  * Returns the right content kind for a row kind.

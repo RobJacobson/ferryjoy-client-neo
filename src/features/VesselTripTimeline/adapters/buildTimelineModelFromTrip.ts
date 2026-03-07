@@ -118,6 +118,7 @@ export const buildTimelineModelFromTrip = (
         trip.TripEnd,
         trip.Eta ?? vesselLocation.Eta
       ),
+      terminalName: getTerminalNameAtDestination(vesselLocation),
       leftContentKind: getLeftContentKind("at-sea"),
       rightContentKind: getRightContentKind("at-sea"),
       useDistanceProgress,

@@ -42,18 +42,18 @@ export const TimelineContent = ({
 }: TimelineContentProps) => {
   const blurTargetRef = useRef<RNView | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
-    {},
+    {}
   );
   const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
   const rows = presentationRows.map((row, rowIndex) =>
-    toTimelineRow(row, rowIndex, presentationRows, overlayIndicator),
+    toTimelineRow(row, rowIndex, presentationRows, overlayIndicator)
   );
 
   const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
     setRowLayouts((prev) =>
       prev[rowId]?.y === bounds.y && prev[rowId]?.height === bounds.height
         ? prev
-        : { ...prev, [rowId]: bounds },
+        : { ...prev, [rowId]: bounds }
     );
   }, []);
 
@@ -108,31 +108,43 @@ const toTimelineRow = (
   row: TimelineRowModel,
   rowIndex: number,
   presentationRows: TimelineRowModel[],
-  overlayIndicator: OverlayIndicator,
-): TimelineRow => ({
-  id: row.id,
-  startTime: row.startTime,
-  endTime: row.endTime,
-  percentComplete: getGlobalPercentComplete(
+  overlayIndicator: OverlayIndicator
+): TimelineRow => {
+  const globalPercentComplete = getGlobalPercentComplete(
     row,
     presentationRows,
-    overlayIndicator,
-  ),
-  leftContent:
-    row.leftContentKind === "terminal-label" ? (
-      <RowContentLabel
-        terminal={row.terminalName}
-        status={row.id.includes("origin") ? "depart" : "arrive"}
-        past={row.percentComplete === 1}
-      />
-    ) : undefined,
-  rightContent:
-    row.rightContentKind === "time-events" ? (
-      <RowContentTimes {...getRightTimePoint(row, rowIndex)} />
-    ) : undefined,
-  markerContent: <TimelineMarkerIcon kind={row.kind} />,
-  minHeight: row.minHeight,
-});
+    overlayIndicator
+  );
+  const indicatorRowIndex = presentationRows.findIndex(
+    (r) => r.id === overlayIndicator.rowId
+  );
+  const isIndicatorOnOrPastRow =
+    indicatorRowIndex >= 0 && rowIndex <= indicatorRowIndex;
+  return {
+    id: row.id,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    percentComplete: globalPercentComplete,
+    leftContent:
+      row.leftContentKind === "terminal-label" ? (
+        <RowContentLabel
+          terminal={row.terminalName}
+          status={row.kind === "at-dock" ? "arrive" : "depart"}
+          past={
+            row.kind === "at-dock"
+              ? isIndicatorOnOrPastRow
+              : globalPercentComplete > 0
+          }
+        />
+      ) : undefined,
+    rightContent:
+      row.rightContentKind === "time-events" ? (
+        <RowContentTimes {...getRightTimePoint(row, rowIndex)} />
+      ) : undefined,
+    markerContent: <TimelineMarkerIcon kind={row.kind} />,
+    minHeight: row.minHeight,
+  };
+};
 
 const styles = StyleSheet.create({
   blurTarget: {
