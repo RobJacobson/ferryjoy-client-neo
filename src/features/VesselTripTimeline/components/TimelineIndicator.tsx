@@ -13,7 +13,8 @@ import { useAnimatedProgress } from "../hooks/useAnimatedProgress";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<RNView | null>;
-  positionPercent: number;
+  topPx: number;
+  shouldJump?: boolean;
   label: string;
   sizePx?: number;
   intensity?: number;
@@ -27,7 +28,8 @@ type TimelineIndicatorProps = {
  * from deriveOverlayIndicator animate smoothly (spring) instead of jumping.
  *
  * @param blurTargetRef - Ref to the BlurTargetView for blur effect
- * @param positionPercent - Vertical position as fraction 0-1 (target; animated)
+ * @param topPx - Container-relative top position in pixels (target; animated)
+ * @param shouldJump - Whether to snap immediately instead of springing
  * @param label - Label text displayed inside the indicator
  * @param sizePx - Diameter of the indicator in pixels
  * @param intensity - Blur intensity
@@ -35,24 +37,25 @@ type TimelineIndicatorProps = {
  */
 export const TimelineIndicator = ({
   blurTargetRef,
-  positionPercent,
+  topPx,
+  shouldJump = false,
   label,
   sizePx = 36,
 }: TimelineIndicatorProps) => {
-  const progress = useAnimatedProgress(positionPercent);
+  const progress = useAnimatedProgress(topPx, shouldJump);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const clamped = Math.min(1, Math.max(0, progress.value));
     return {
-      top: `${clamped * 100}%`,
+      top: progress.value,
     };
   }, [progress]);
 
   return (
     <Animated.View
-      className="absolute items-center justify-center rounded-full border border-green-500 bg-white/75"
+      className="items-center justify-center rounded-full border border-green-500 bg-white/75"
       style={[
         {
+          position: "absolute",
           left: "50%",
           marginLeft: -sizePx / 2,
           marginTop: -sizePx / 2,

@@ -1,8 +1,7 @@
 /**
  * Feature-owned overlay wrapper for VesselTrip vertical timelines.
- * Renders the timeline rows normally, then paints a mirrored shadow-row layer
- * above them for the active BlurView indicator. This preserves cross-row
- * stacking without reintroducing layout measurement.
+ * Renders the timeline rows normally, then paints a single absolute overlay
+ * indicator above them using measured row bounds for vertical alignment.
  */
 
 import { BlurTargetView } from "expo-blur";
@@ -96,12 +95,12 @@ const getRightTimePoint = (
 ) => (rowIndex < 2 ? row.eventTimeStart : row.eventTimeEnd);
 
 /**
- * Renders vessel timeline plus a mirrored shadow-row overlay layer.
+ * Renders vessel timeline plus a single absolute indicator overlay.
  * Rows render in normal document order, while the active BlurView indicator
  * paints in a dedicated absolute overlay tree above the full timeline.
  *
  * @param props - Timeline data and domain item
- * @returns Timeline with shadow-row BlurView indicators
+ * @returns Timeline with measured-layout BlurView indicator
  */
 export const VesselTripTimelineOverlay = ({
   presentationRows,
@@ -154,7 +153,6 @@ export const VesselTripTimelineOverlay = ({
           />
         ))}
         <TimelineIndicatorOverlay
-          rows={rows}
           overlayIndicator={overlayIndicator}
           blurTargetRef={blurTargetRef}
           rowLayouts={rowLayouts}

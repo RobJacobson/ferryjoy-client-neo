@@ -1,6 +1,7 @@
 /**
- * Animated progress hook for the overlay indicator.
- * Smooths position updates (e.g. from 5s Convex polls) with a Reanimated spring.
+ * Animated position hook for the overlay indicator.
+ * Smooths vertical position updates (e.g. from 5s Convex polls)
+ * with a Reanimated spring.
  */
 
 import { useEffect } from "react";
@@ -14,24 +15,24 @@ const SPRING_CONFIG = {
 } as const;
 
 /**
- * Returns a SharedValue that animates to the given progress value.
- * Jumps immediately at 0 or 1 to avoid overshoot at segment boundaries;
- * uses spring for intermediate values so the indicator moves smoothly
- * between infrequent data updates.
+ * Returns a SharedValue that animates to the given numeric position.
+ * Callers can opt into immediate jumps at row boundaries; otherwise the
+ * value springs smoothly between infrequent data updates.
  *
- * @param progress - Progress value between 0 and 1 (from deriveOverlayIndicator)
+ * @param value - Target position value, typically an absolute top in pixels
+ * @param shouldJump - Whether the value should snap immediately
  * @returns SharedValue<number> for use with useAnimatedStyle in TimelineIndicator
  */
-export const useAnimatedProgress = (progress: number) => {
-  const animatedProgress = useSharedValue(progress);
+export const useAnimatedProgress = (value: number, shouldJump = false) => {
+  const animatedProgress = useSharedValue(value);
 
   useEffect(() => {
-    if (progress === 1 || progress === 0) {
-      animatedProgress.value = progress;
+    if (shouldJump) {
+      animatedProgress.value = value;
     } else {
-      animatedProgress.value = withSpring(progress, SPRING_CONFIG);
+      animatedProgress.value = withSpring(value, SPRING_CONFIG);
     }
-  }, [progress, animatedProgress]);
+  }, [animatedProgress, shouldJump, value]);
 
   return animatedProgress;
 };
