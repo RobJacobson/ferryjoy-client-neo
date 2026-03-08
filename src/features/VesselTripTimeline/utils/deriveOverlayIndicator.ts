@@ -3,35 +3,19 @@
  */
 
 import { clamp } from "@/shared/utils";
-import type { TimelineItem, TimelineRowModel, TimePoint } from "../types";
+import type { TimelineItem, TimelineRowModel } from "../types";
 import { getMinutesUntil } from "./getMinutesUntil";
+import { getDisplayTime, getSegmentTimeProgress } from "./timePoints";
 
 export type OverlayIndicator = {
   rowId: string;
+  segmentIndex: number;
   positionPercent: number;
   label: string;
 };
 
-/**
- * Computes normalized elapsed progress between start and end timestamps.
- *
- * @param startTime - Start timestamp
- * @param endTime - End timestamp
- * @param now - Current time reference
- * @returns Clamped progress ratio between 0 and 1
- */
-const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
-  const duration = endTime.getTime() - startTime.getTime();
-  if (duration <= 0) return 0;
-  const elapsed = now.getTime() - startTime.getTime();
-  return clamp(elapsed / duration, 0, 1);
-};
-
-const getDisplayTime = (timePoint: TimePoint): Date | undefined =>
-  timePoint.actual ?? timePoint.estimated;
-
 const getIndicatorLabel = (row: TimelineRowModel, now: Date): string =>
-  getMinutesUntil(getDisplayTime(row.eventTimeEnd), now);
+  getMinutesUntil(getDisplayTime(row.endPoint), now);
 
 /**
  * Derives active overlay indicator from timeline rows and trip state.
@@ -44,80 +28,115 @@ const getIndicatorLabel = (row: TimelineRowModel, now: Date): string =>
  */
 export const deriveActiveOverlayIndicator = (
   rows: TimelineRowModel[],
+  activeSegmentIndex: number,
   item: TimelineItem
 ): OverlayIndicator => {
-  const { trip, vesselLocation } = item;
-  // 3 rows: at-dock (origin), at-sea, at-dock (destination)
-  const atDockOrigin = rows.find((r) => r.kind === "at-dock");
-  const atSeaRow = rows.find((r) => r.kind === "at-sea");
-  const atDockDest = rows.filter((r) => r.kind === "at-dock").pop();
+  const { vesselLocation } = item;
   const now = new Date();
+  const activeRow = getIndicatorRow(rows, activeSegmentIndex);
 
-  // If vessel has departed from destination
-  if (trip.AtDockDepartNext?.Actual && atDockDest) {
+  if (!activeRow) {
     return {
-      rowId: atDockDest.id,
+      rowId: "unknown-row",
+      segmentIndex: -1,
+      positionPercent: 0,
+      label: "--",
+    };
+  }
+
+  if (activeSegmentIndex >= rows.length) {
+    return {
+      rowId: activeRow.id,
+      segmentIndex: activeRow.segmentIndex,
       positionPercent: 1,
-      label: getIndicatorLabel(atDockDest, now),
+      label: getIndicatorLabel(activeRow, now),
     };
   }
 
-  // If vessel has arrived at destination, show progress toward departure
-  if (trip.TripEnd && atDockDest) {
+  if (activeSegmentIndex < 0) {
     return {
-      rowId: atDockDest.id,
-      positionPercent: getTimeProgress(
-        atDockDest.startTime,
-        atDockDest.endTime,
-        now
-      ),
-      label: getIndicatorLabel(atDockDest, now),
+      rowId: activeRow.id,
+      segmentIndex: activeRow.segmentIndex,
+      positionPercent: 0,
+      label: getIndicatorLabel(activeRow, now),
     };
   }
 
-  // If vessel hasn't departed yet, show progress at dock (origin)
-  if (!trip.LeftDock && atDockOrigin) {
-    return {
-      rowId: atDockOrigin.id,
-      positionPercent: Math.max(
-        0.06,
-        getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now)
-      ),
-      label: getIndicatorLabel(atDockOrigin, now),
-    };
-  }
+  if (activeRow.kind === "at-sea" && activeRow.useDistanceProgress) {
+    const positionPercent = getDistanceProgress(
+      vesselLocation.DepartingDistance,
+      vesselLocation.ArrivingDistance
+    );
 
-  // If vessel is at sea, show in-transit progress (distance-based when available)
-  if (atSeaRow) {
-    let positionPercent: number;
-    if (
-      atSeaRow.useDistanceProgress &&
-      vesselLocation.DepartingDistance !== undefined &&
-      vesselLocation.ArrivingDistance !== undefined &&
-      vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0
-    ) {
-      positionPercent =
-        vesselLocation.DepartingDistance /
-        (vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance);
-      positionPercent = clamp(positionPercent, 0, 1);
-    } else {
-      positionPercent = getTimeProgress(
-        atSeaRow.startTime,
-        atSeaRow.endTime,
-        now
-      );
-    }
     return {
-      rowId: atSeaRow.id,
+      rowId: activeRow.id,
+      segmentIndex: activeRow.segmentIndex,
       positionPercent,
-      label: getIndicatorLabel(atSeaRow, now),
+      label: getIndicatorLabel(activeRow, now),
     };
   }
 
-  const fallbackRow = rows[0];
+  const positionPercent =
+    activeRow.kind === "at-dock" && activeRow.segmentIndex === 0
+      ? Math.max(0.06, getSegmentTimeProgress(activeRow, now))
+      : getSegmentTimeProgress(activeRow, now);
+
   return {
-    rowId: fallbackRow?.id ?? "unknown-row",
-    positionPercent: 0,
-    label: fallbackRow ? getIndicatorLabel(fallbackRow, now) : "--",
+    rowId: activeRow.id,
+    segmentIndex: activeRow.segmentIndex,
+    positionPercent,
+    label: getIndicatorLabel(activeRow, now),
   };
+};
+
+/**
+ * Resolves which segment should host the overlay indicator.
+ *
+ * @param rows - Ordered presentation rows
+ * @param activeSegmentIndex - Active segment cursor for the ordered list
+ * @returns Row that should own the overlay indicator
+ */
+const getIndicatorRow = (
+  rows: TimelineRowModel[],
+  activeSegmentIndex: number
+): TimelineRowModel | undefined => {
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  if (activeSegmentIndex < 0) {
+    return rows.at(0);
+  }
+
+  if (activeSegmentIndex >= rows.length) {
+    return rows.at(-1);
+  }
+
+  return rows.at(activeSegmentIndex);
+};
+
+/**
+ * Calculates distance-based in-transit progress when telemetry is available.
+ *
+ * @param departingDistance - Remaining distance from the departure terminal
+ * @param arrivingDistance - Remaining distance to the arrival terminal
+ * @returns Clamped distance ratio between 0 and 1
+ */
+const getDistanceProgress = (
+  departingDistance: number | undefined,
+  arrivingDistance: number | undefined
+): number => {
+  if (
+    departingDistance === undefined ||
+    arrivingDistance === undefined ||
+    departingDistance + arrivingDistance <= 0
+  ) {
+    return 0;
+  }
+
+  return clamp(
+    departingDistance / (departingDistance + arrivingDistance),
+    0,
+    1
+  );
 };

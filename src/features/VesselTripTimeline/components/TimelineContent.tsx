@@ -17,13 +17,15 @@ import {
   getGlobalPercentComplete,
   type OverlayIndicator,
 } from "../utils";
-import { RowContentLabel } from "./RowContentLabel";
+import { getSegmentPhase } from "../utils/getSegmentPhase";
+import { type BoundaryLabel, RowContentLabel } from "./RowContentLabel";
 import { RowContentTimes } from "./RowContentTimes";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
 import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
 
 type TimelineContentProps = {
   presentationRows: TimelineRowModel[];
+  activeSegmentIndex: number;
   item: TimelineItem;
 };
 
@@ -37,15 +39,20 @@ type TimelineContentProps = {
  */
 export const TimelineContent = ({
   presentationRows,
+  activeSegmentIndex,
   item,
 }: TimelineContentProps) => {
   const blurTargetRef = useRef<RNView | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
   );
-  const overlayIndicator = deriveActiveOverlayIndicator(presentationRows, item);
-  const rows = presentationRows.map((row, rowIndex) =>
-    toTimelineRow(row, rowIndex, presentationRows, overlayIndicator)
+  const overlayIndicator = deriveActiveOverlayIndicator(
+    presentationRows,
+    activeSegmentIndex,
+    item
+  );
+  const rows = presentationRows.map((row) =>
+    toTimelineRow(row, activeSegmentIndex, overlayIndicator)
   );
 
   const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
@@ -99,51 +106,75 @@ export const TimelineContent = ({
  * Converts one pure presentation row into a render-ready timeline row.
  *
  * @param row - Pure presentation row data
- * @param presentationRows - All timeline rows for global position calculation
+ * @param segmentCount - Total number of segments in the ordered list
+ * @param activeSegmentIndex - Active segment cursor for the ordered list
  * @param overlayIndicator - Active overlay indicator with row and position
  * @returns Timeline row with feature card components
  */
 const toTimelineRow = (
   row: TimelineRowModel,
-  rowIndex: number,
-  presentationRows: TimelineRowModel[],
+  activeSegmentIndex: number,
   overlayIndicator: OverlayIndicator
 ): TimelineRow => {
-  const globalPercentComplete = getGlobalPercentComplete(
-    row,
-    presentationRows,
-    overlayIndicator
-  );
-  const indicatorRowIndex = presentationRows.findIndex(
-    (r) => r.id === overlayIndicator.rowId
-  );
-  const isIndicatorOnOrPastRow =
-    indicatorRowIndex >= 0 && rowIndex <= indicatorRowIndex;
+  const globalPercentComplete = getGlobalPercentComplete(row, overlayIndicator);
+
   return {
     id: row.id,
-    startTime: row.startTime,
-    endTime: row.endTime,
+    durationMinutes: row.durationMinutes,
     percentComplete: globalPercentComplete,
-    leftContent:
-      row.leftContentKind === "terminal-label" ? (
-        <RowContentLabel
-          terminal={row.terminalName}
-          status={row.kind === "at-dock" ? "arrive" : "depart"}
-          past={
-            row.kind === "at-dock"
-              ? isIndicatorOnOrPastRow
-              : globalPercentComplete > 0
-          }
-        />
-      ) : undefined,
-    rightContent:
-      row.rightContentKind === "time-events" ? (
-        <RowContentTimes {...row.eventTimeStart} />
-      ) : undefined,
+    leftContent: (
+      <RowContentLabel
+        startLabel={getStartBoundaryLabel(row, activeSegmentIndex)}
+        endLabel={row.rendersEndLabel ? getEndBoundaryLabel(row) : undefined}
+      />
+    ),
+    rightContent: (
+      <RowContentTimes
+        startPoint={row.startPoint}
+        endPoint={row.rendersEndLabel ? row.endPoint : undefined}
+      />
+    ),
     markerContent: <TimelineMarkerIcon kind={row.kind} />,
     minHeight: row.minHeight,
   };
 };
+
+/**
+ * Builds the top boundary label for a presentation row.
+ *
+ * @param row - Presentation row derived from a segment
+ * @param activeSegmentIndex - Active segment cursor for the ordered list
+ * @returns Boundary label copy plus terminal abbreviation
+ */
+const getStartBoundaryLabel = (
+  row: TimelineRowModel,
+  activeSegmentIndex: number
+): BoundaryLabel => {
+  const phase = getSegmentPhase(row.segmentIndex, activeSegmentIndex);
+
+  if (row.kind === "at-dock") {
+    return {
+      label: phase === "upcoming" ? "Arriving" : "Arrived",
+      terminalAbbrev: row.startTerminalAbbrev,
+    };
+  }
+
+  return {
+    label: phase === "upcoming" ? "Departing to" : "Departed to",
+    terminalAbbrev: row.endTerminalAbbrev,
+  };
+};
+
+/**
+ * Builds the optional bottom boundary label for the final row.
+ *
+ * @param row - Presentation row derived from a segment
+ * @returns Future-facing end boundary label
+ */
+const getEndBoundaryLabel = (row: TimelineRowModel): BoundaryLabel => ({
+  label: row.kind === "at-dock" ? "Departing to" : "Arriving",
+  terminalAbbrev: row.endTerminalAbbrev,
+});
 
 const styles = StyleSheet.create({
   blurTarget: {

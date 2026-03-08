@@ -13,8 +13,11 @@ export type TimelineItem = {
   vesselLocation: VesselLocation;
 };
 
-/** Segment kinds—panels between timestamps (at-dock = arrive-to-depart, at-sea = depart-to-arrive). */
-export type RowKind = "at-dock" | "at-sea";
+/** Segment kinds—panels between timeline boundary points. */
+export type SegmentKind = "at-dock" | "at-sea";
+
+/** Segment lifecycle relative to the vessel's current position. */
+export type SegmentPhase = "upcoming" | "active" | "completed";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
@@ -26,31 +29,50 @@ export type TimePoint = {
   estimated?: Date;
 };
 
-/** Left slot content kind. */
-export type LeftContentKind = "terminal-label" | "in-transit-card" | "none";
+/**
+ * Canonical segment model for the feature timeline.
+ * Segments are ordered and share adjacent boundary TimePoints.
+ */
+export type TimelineSegment = {
+  id: string;
+  segmentIndex: number;
+  kind: SegmentKind;
+  startPoint: TimePoint;
+  endPoint: TimePoint;
+  startTerminalAbbrev: string;
+  endTerminalAbbrev: string;
+  rendersEndLabel?: boolean;
+  fallbackDurationMinutes: number;
+};
 
-/** Right slot content kind. */
-export type RightContentKind = "time-events" | "none";
+/**
+ * Ordered canonical segment list plus the active segment cursor.
+ * `activeSegmentIndex` may be:
+ * - `-1` when no segment has started yet
+ * - `0..segments.length - 1` when a segment is active
+ * - `segments.length` when all segments are completed
+ */
+export type TimelineSegmentsModel = {
+  segments: TimelineSegment[];
+  activeSegmentIndex: number;
+};
 
 /** Layout bounds (y, height) for a timeline row; used to align overlay rows with measured rows. */
 export type RowLayoutBounds = { y: number; height: number };
 
-export type TimelineRowModel = {
-  id: string;
-  startTime: Date;
-  endTime: Date;
-  percentComplete: number;
-  kind: RowKind;
-  /** Event at segment start boundary (e.g., arrive for at-dock, depart for at-sea). */
-  eventTimeStart: TimePoint;
-  /** Event at segment end boundary (e.g., depart for at-dock, arrive for at-sea). */
-  eventTimeEnd: TimePoint;
-  /** For at-dock rows: which terminal. */
-  terminalName?: string;
-  leftContentKind: LeftContentKind;
-  rightContentKind: RightContentKind;
-  /** For at-sea rows when vesselLocation has distance data. */
+/**
+ * Feature-level presentation row derived from a canonical segment.
+ */
+export type TimelineRowModel = TimelineSegment & {
+  durationMinutes: number;
   useDistanceProgress?: boolean;
-  /** Per-row override for minimum height; 0 for last row when collapsible. */
   minHeight?: number;
+};
+
+/**
+ * Feature-level presentation model passed to the timeline renderer.
+ */
+export type TimelinePresentationModel = {
+  rows: TimelineRowModel[];
+  activeSegmentIndex: number;
 };

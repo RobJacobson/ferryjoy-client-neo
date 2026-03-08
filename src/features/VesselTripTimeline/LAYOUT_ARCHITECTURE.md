@@ -1,169 +1,174 @@
 # Vessel Trip Timeline Layout Architecture
 
-This document explains the layout strategy for the vessel timeline,
-with emphasis on the indicator overlay layer used for the moving indicator.
+This document explains the current architecture for the vessel trip timeline.
+The feature is now built around ordered segments with shared `TimePoint`
+boundaries, while the shared timeline primitive remains domain-agnostic.
 
-## Indicator Overlay Approach
+## Canonical Model
 
-The moving indicator must blur whatever is behind it, including the timeline
-track. A row-local indicator previously caused z-order conflicts and unreliable
-blur when crossing row boundaries. The indicator overlay approach solves this:
+The feature's source of truth is an ordered array of `TimelineSegment` objects.
+The ordered model also carries one `activeSegmentIndex` cursor. Each segment
+contains:
 
-- Timeline rows render normally in document order
-- A separate **absolute overlay tree** is rendered above the entire timeline
-- Timeline rows report layout via `onRowLayout` (y, height per row)
-- When the **active row layout is available**, the overlay converts the
-  active row's local progress into a single container-relative Y position:
-  `rowLayout.y + rowLayout.height * positionPercent`
-- The overlay renders exactly **one active indicator**
-- The indicator is positioned via absolute `top` in pixels and `left: "50%"`
-  (with negative margins) inside the full overlay container
-- Each indicator is wrapped in `BlurView`; one `BlurTargetView` wraps the timeline
+- `kind`: `"at-dock"` or `"at-sea"`
+- `segmentIndex`: zero-based order within the timeline
+- `startPoint` / `endPoint`: shared `TimePoint` boundaries
+- `startTerminalAbbrev` / `endTerminalAbbrev`: canonical terminal abbreviations
+- `fallbackDurationMinutes`: route-specific fallback geometry
+- `rendersEndLabel`: optional fencepost flag for the last segment
 
-This alignment ensures the indicator sits on the track tip: timeline row
-heights are content-driven, so measured bounds are the only vertical source of
-truth and avoid drift from duplicated overlay sizing rules.
-
-This eliminates `useVerticalTimelineOverlayPlacement` and
-`VerticalTimelineIndicatorOverlay` for this feature.
+Adjacent segments share boundary `TimePoint`s. This makes the timing model
+semantic and composable, even though today's vessel card still produces three
+segments.
 
 ## Separation of Concerns
 
-The feature is split into 2 layers:
+The feature is split into three layers:
 
-1. **Pure model builder**
+1. **Canonical segment builder**
+   - `utils/buildTimelineSegments.ts`
+   - Builds ordered `TimelineSegment[]` plus `activeSegmentIndex` from trip and
+     vessel-location data.
+   - Keeps terminal abbreviations canonical in the model.
+
+2. **Presentation adapter**
    - `adapters/buildTimelineModelFromTrip.ts`
-   - Converts trip/location domain data into timeline row models.
-   - No JSX is created here.
-   - **Geometry vs labels**: Separates timeline layout times (using route-specific
-     historical averages as fallbacks) from user-facing labels (using only
-     actual/predicted times, showing "--" for missing data).
+   - Maps canonical segments into feature presentation rows.
+   - Computes `durationMinutes` from boundary `TimePoint`s when possible.
+   - Falls back to route-specific duration defaults when timing data is sparse.
+   - Contains no JSX.
 
-2. **Layout + indicator overlay renderer**
-   - `components/VesselTripTimelineContent.tsx` – Main orchestrator. Wraps timeline in
-     `BlurTargetView`, derives active indicator via `utils/deriveOverlayIndicator`,
-     maps presentation rows to timeline rows, renders `TimelineRowComponent` with
-     `onRowLayout` to collect row bounds, and `TimelineIndicatorOverlay` with
-     `rowLayouts` for alignment.
-  - `components/TimelineIndicatorOverlay.tsx` – Single-indicator overlay layer.
-    Reads the active row layout from `rowLayouts`, converts row-local progress
-    into container-relative `top` pixels, and renders exactly one indicator.
-  - `components/TimelineIndicator.tsx` – BlurView + label for the active row;
-    absolute `top` is animated via `hooks/useAnimatedProgress` and Reanimated
-    spring.
-   - `components/RowContentLabel.tsx` – Label content for row slots (terminal names).
-   - `components/RowContentTimes.tsx` – Time events content for row slots.
-   - `utils/deriveOverlayIndicator.ts` – Pure function that derives active overlay
-     indicator from rows and trip state.
+3. **Renderer + overlay**
+   - `components/TimelineContent.tsx`
+   - Wraps the shared timeline in `BlurTargetView`.
+   - Maps presentation rows to shared `TimelineRow` objects.
+   - Renders the shared timeline in `renderMode="background"` so the inline
+     progress indicator is disabled for this feature.
+   - Renders `RowContentLabel`, `RowContentTimes`, and the indicator overlay.
+   - `utils/deriveOverlayIndicator.ts`
+     derives the active segment, indicator position, and countdown label.
+
+## Geometry vs Labels
+
+The refactor explicitly separates **layout geometry** from **user-facing copy**.
+
+### Geometry
+
+- The shared timeline primitive uses `durationMinutes`, not absolute wall-clock
+  dates.
+- Feature code derives duration from `startPoint` / `endPoint` when possible.
+- When boundary times are missing or invalid, geometry falls back to
+  route-specific historical averages from ML config.
+- No synthetic absolute `Date` timeline is constructed for rendering.
+
+### Labels
+
+- Terminal abbreviations stay canonical in the segment model.
+- `RowContentLabel` translates abbreviations to names at render time.
+- Countdown labels only use `actual ?? estimated` from the segment `endPoint`.
+- Historical averages are never shown to the user.
+- Label tense is derived from `segmentIndex` relative to `activeSegmentIndex`,
+  not from visual completion.
+
+This is important for delayed departures: a dock segment can remain `active`
+even after its predicted geometry is fully consumed, so the indicator may sit at
+`100%` while the label still reflects the real-world state.
+
+## Shared Timeline Primitive
+
+`src/components/Timeline` remains feature-agnostic. Its `TimelineRow` model
+contains:
+
+- `id`
+- `durationMinutes`
+- `percentComplete`
+- render slots (`leftContent`, `rightContent`, `markerContent`,
+  `indicatorContent`)
+- optional `minHeight`
+
+The primitive is now split so:
+
+- `TimelineTrack` renders the track backbone plus the static marker
+- `TimelineProgressIndicator` owns inline moving-indicator visibility/rendering
+- feature code can still bypass the inline indicator entirely and use a custom
+  overlay, as `VesselTripTimeline` does
+
+It does not know about `TimePoint`, terminal semantics, or the active-segment
+cursor.
 
 ## Overlay Structure
 
 At a high level:
 
-```
+```text
 View (timeline container)
 └── BlurTargetView
     ├── TimelineRowComponent[]
     │   └── leftContent (RowContentLabel) | axis (track + marker) | rightContent
     │       (RowContentTimes)
-    └── TimelineIndicatorOverlay (inset-0, z-10, pointerEvents="none")
+    └── TimelineIndicatorOverlay (absolute inset-0)
         └── TimelineIndicator (single absolute child)
 ```
 
-The overlay does not duplicate the timeline rows. Instead, it reads the active
-row's measured `y` and `height`, converts row-local progress into one absolute
-Y position, and places a single indicator at that coordinate. Horizontal
-centering remains `left: "50%"` with negative margins so the indicator stays on
-the shared axis center.
+The overlay does not duplicate rows. Instead:
 
-Indicator position is `top: rowLayout.y + rowLayout.height * positionPercent`
-and `left: "50%"` (with `marginTop`/`marginLeft` for centering) inside the full
-overlay container. `TimelineIndicator` handles the BlurView and label. The only
-coordinate math needed is the row-local-to-container Y conversion.
+- rows report measured `y` and `height` through `onRowLayout`
+- the active row is chosen from `activeSegmentIndex`
+- row-local `positionPercent` is converted into container-relative `top`
+- the overlay renders exactly one indicator above the full timeline
 
-## Why This Shape
+Indicator position is:
 
-This structure keeps the benefits of the refactor while avoiding the z-order
-regression from a row-local overlay:
+`rowLayout.y + rowLayout.height * positionPercent`
 
-- The timeline track and row content keep their normal sibling stacking
-- The indicator lives in a single top-level overlay layer, so it can paint above
-  markers and content in adjacent rows
-- Minimal row layout measurement (y, height for the active row) aligns the
-  indicator with content-driven timeline row heights
-- Indicator label centering is handled entirely inside the overlay circle
-
-## Geometry vs Labels
-
-Timeline calculations separate **layout geometry** from **user-facing labels**:
-
-### Geometry (for rendering)
-- Timeline segment start/end times used for visual layout and positioning
-- Uses route-specific historical averages from ML config as fallbacks when
-  actual/predicted data is unavailable
-- Ensures the UI can always render a complete timeline structure
-- Examples:
-  - CLI→MUK: 16.38 min at-dock, 14.6 min at-sea
-  - MUK→CLI: 15.4 min at-dock, 14.6 min at-sea
-
-### Labels (for user display)
-- Time remaining indicator labels (e.g., "13m", "--")
-- Only use actual departure times, actual ETA, or ML predictions
-- Never display estimates from historical averages
-- Show "--" when actual/predicted data is unavailable
-- This ensures users only ever see accurate timing information
-
-This separation prevents misleading displays while maintaining visual continuity in
-the UI.
+Horizontal centering remains `left: "50%"` with negative margins so the
+indicator stays aligned to the shared axis.
 
 ## Indicator State Rules
 
-The overlay indicator model (`rowId`, `positionPercent`, `label`) is computed
-from trip state:
+The overlay indicator model is:
 
-- **Pre-departure**: first row, minutes until departure from actual/predicted
-  data, or "--" if data is unavailable
-- **In transit**: second row, minutes until arrival from actual/predicted data,
-  or "--" if data is unavailable
-- **Completed**: third row, label "--"
+- `rowId`
+- `segmentIndex`
+- `positionPercent`
+- `label`
 
-Labels only use actual departure times, actual ETA, or ML predictions.
-Historical averages are used for geometry fallbacks only, never displayed to users.
+Rules:
 
-For pre-departure, we apply a small minimum offset (`0.06`) so the indicator
-does not visually sit on top of the static marker at row start.
+- `activeSegmentIndex` points at the active row
+- `-1` means no segment has started yet
+- `rows.length` means all segments are completed
+- at-sea segments prefer distance-based progress when telemetry is available
+- otherwise progress is time-based from the segment boundary `TimePoint`s
+- the first active dock segment applies a small minimum offset (`0.06`) so the
+  indicator does not sit directly on top of the static marker
 
-## Indicator position animation
+## Boundary Ownership
 
-`positionPercent` is derived from trip and vessel location data that updates
-infrequently (e.g. every 5 seconds from Convex). If the indicator position
-were applied directly, it would jump every time new data arrives.
+Each segment owns its **starting** boundary label and time chips.
 
-To smooth motion, the indicator uses **Reanimated 4** spring animation:
+The final segment may also own its **ending** boundary via `rendersEndLabel`.
+This avoids a dummy placeholder row while still solving the fencepost problem
+for the terminal UI.
 
-- **`hooks/useAnimatedProgress.ts`** – Exposes a `SharedValue` that animates
-  toward the latest absolute `top` position. Callers can opt into an immediate
-  jump at segment boundaries; otherwise it uses `withSpring` so the indicator
-  glides between updates.
-- **`TimelineIndicator.tsx`** – Wraps the indicator in Reanimated’s
-  `Animated.View`, uses `useAnimatedProgress(topPx, shouldJump)` and
-  `useAnimatedStyle` to drive pixel `top` from the shared value. Layout uses
-  inline `style` (not only `className`) so positioning remains correct on
-  web (see `docs/animated-view-classname-web-bug.md`).
+## Indicator Position Animation
 
-Animation runs on the UI thread, so smooth movement does not depend on
-high-frequency JS updates; a few data updates per minute are enough.
+`positionPercent` updates relatively infrequently from Convex data. To avoid
+visible jumps:
+
+- `hooks/useAnimatedProgress.ts` animates the indicator's absolute `top` value
+  with a Reanimated spring
+- `TimelineIndicator.tsx` applies the animated `top` via `useAnimatedStyle`
+
+Animation runs on the UI thread, so the indicator remains smooth even when the
+backing data updates only every few seconds.
 
 ## Important Constraints
 
-- `BlurTargetView` wraps the entire timeline for Android blur support.
-- `BlurView` around each indicator receives `blurTarget` ref.
-- `TimelineIndicatorOverlay` uses `pointerEvents="none"` so card/timeline
-  interactions are not blocked.
-- The overlay must stay in the same positioned ancestor as the measured rows so
-  `onRowLayout`'s `y` values remain valid.
-- The indicator renders once the active row has measured bounds available.
-- Indicator is centered horizontally in the center column via `left: "50%"`
-  and `marginLeft: -sizePx/2`; vertically via absolute `top` pixels
-  and `marginTop: -sizePx/2`. Indicator wrapper uses explicit width/height for
-  stable centering.
+- `BlurTargetView` wraps the full timeline for Android blur support.
+- `TimelineIndicatorOverlay` uses `pointerEvents="none"` so interactions are not
+  blocked.
+- The overlay must share the same positioned ancestor as the measured rows.
+- The indicator renders only after the active row has measured bounds.
+- Terminal abbreviations remain canonical in the feature model and are only
+  translated to display names in the UI layer.

@@ -21,7 +21,7 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
-  const rows = buildTimelineModelFromTrip({
+  const timelineModel = buildTimelineModelFromTrip({
     trip,
     vesselLocation,
   });
@@ -38,7 +38,8 @@ export const VesselTripTimeline = ({
       </CardHeader>
       <CardContent className="px-4">
         <TimelineContent
-          presentationRows={rows}
+          presentationRows={timelineModel.rows}
+          activeSegmentIndex={timelineModel.activeSegmentIndex}
           item={{ trip, vesselLocation }}
         />
       </CardContent>

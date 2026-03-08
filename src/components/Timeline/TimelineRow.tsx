@@ -14,10 +14,6 @@ import {
 import { cn } from "@/lib/utils";
 import { TimelineTrack } from "./TimelineTrack";
 import type { RequiredTimelineTheme, TimelineRow } from "./TimelineTypes";
-import {
-  getDurationMinutes,
-  getValidatedPercentComplete,
-} from "./timelineMath";
 
 export type VerticalTimelineRenderMode = "full" | "background";
 
@@ -59,10 +55,8 @@ export const TimelineRowComponent = ({
   isLastRow,
   overlay,
 }: TimelineRowComponentProps) => {
-  const durationMinutes = getDurationMinutes(row);
-  const percentComplete = getValidatedPercentComplete(row);
   const rowStyle = getVerticalRowStyle(
-    durationMinutes,
+    row.durationMinutes,
     theme.minSegmentPx,
     row.minHeight
   );
@@ -82,7 +76,7 @@ export const TimelineRowComponent = ({
       >
         <TimelineTrack
           orientation="vertical"
-          percentComplete={percentComplete}
+          percentComplete={row.percentComplete}
           showTrack={!isLastRow}
           showIndicator={renderMode === "full"}
           theme={theme}

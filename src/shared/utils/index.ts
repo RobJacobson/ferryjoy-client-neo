@@ -10,6 +10,7 @@ export {
   optionalDateToEpochMs,
   optionalEpochMsToDate,
 } from "./dateConversions";
+export { getAbsoluteCenteredBoxStyle } from "./getAbsoluteCenteredBoxStyle";
 export { getSailingDay } from "./getSailingDay";
 export {
   EasingFunctions,

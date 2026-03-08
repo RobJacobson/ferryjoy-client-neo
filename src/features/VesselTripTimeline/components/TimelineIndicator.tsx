@@ -9,6 +9,7 @@ import type { RefObject } from "react";
 import type { View as RNView } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { Text } from "@/components/ui";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { useAnimatedProgress } from "../hooks/useAnimatedProgress";
 
 type TimelineIndicatorProps = {
@@ -54,14 +55,11 @@ export const TimelineIndicator = ({
     <Animated.View
       className="items-center justify-center rounded-full border border-green-500 bg-white/75"
       style={[
-        {
-          position: "absolute",
-          left: "50%",
-          marginLeft: -sizePx / 2,
-          marginTop: -sizePx / 2,
+        { left: "50%" },
+        getAbsoluteCenteredBoxStyle({
           width: sizePx,
           height: sizePx,
-        },
+        }),
         animatedStyle,
       ]}
     >

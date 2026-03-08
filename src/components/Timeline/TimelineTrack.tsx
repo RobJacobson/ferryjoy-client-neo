@@ -9,18 +9,18 @@
  */
 
 import type { ReactNode } from "react";
-import { View, type ViewStyle } from "react-native";
+import { type DimensionValue, View, type ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TimelineMarker } from "./TimelineMarker";
+import { TimelineProgressIndicator } from "./TimelineProgressIndicator";
 import type {
   RequiredTimelineTheme,
   TimelineOrientation,
 } from "./TimelineTypes";
-import { shouldShowMovingIndicator } from "./timelineMath";
 
 const TRACK_Z_INDEX = 0;
 const MARKER_Z_INDEX = 1;
-const INDICATOR_Z_INDEX = 2;
 
 type TimelineTrackProps = {
   orientation: TimelineOrientation;
@@ -54,11 +54,8 @@ export const TimelineTrack = ({
   indicatorContent,
 }: TimelineTrackProps) => {
   const isVertical = orientation === "vertical";
-  // Show moving indicator only for active in-progress segments
-  const movingIndicatorVisible =
-    showTrack && showIndicator && shouldShowMovingIndicator(percentComplete);
-  const completedPercent: PercentString = `${percentComplete * 100}%`;
-  const remainingPercent: PercentString = `${(1 - percentComplete) * 100}%`;
+  const completedPercent: DimensionValue = `${percentComplete * 100}%`;
+  const remainingPercent: DimensionValue = `${(1 - percentComplete) * 100}%`;
 
   return (
     <View className="relative flex-1 items-center justify-center self-stretch">
@@ -106,29 +103,18 @@ export const TimelineTrack = ({
         </TimelineMarker>
       </View>
 
-      {/* Moving indicator for in-progress segments */}
-      {movingIndicatorVisible && (
-        <View
-          className={cn("absolute")}
-          style={getIndicatorStyle(
-            isVertical,
-            theme.indicatorSizePx,
-            completedPercent
-          )}
-        >
-          <TimelineMarker
-            sizePx={theme.indicatorSizePx}
-            className={theme.indicatorClassName}
-          >
-            {indicatorContent}
-          </TimelineMarker>
-        </View>
-      )}
+      <TimelineProgressIndicator
+        isVertical={isVertical}
+        percentComplete={percentComplete}
+        showIndicator={showIndicator}
+        showTrack={showTrack}
+        indicatorSizePx={theme.indicatorSizePx}
+        indicatorClassName={theme.indicatorClassName}
+        indicatorContent={indicatorContent}
+      />
     </View>
   );
 };
-
-type PercentString = `${number}%`;
 
 /**
  * Returns style props for the completed track segment.
@@ -145,7 +131,7 @@ type PercentString = `${number}%`;
 const getCompletedTrackStyle = (
   isVertical: boolean,
   trackThicknessPx: number,
-  completedPercent: PercentString
+  completedPercent: DimensionValue
 ): ViewStyle => ({
   // Dimension varies by completion in primary axis direction
   width: isVertical ? trackThicknessPx : undefined,
@@ -174,8 +160,8 @@ const getCompletedTrackStyle = (
 const getUpcomingTrackStyle = (
   isVertical: boolean,
   trackThicknessPx: number,
-  completedPercent: PercentString,
-  remainingPercent: PercentString
+  completedPercent: DimensionValue,
+  remainingPercent: DimensionValue
 ): ViewStyle => ({
   // Dimension varies by remaining in primary axis direction
   width: isVertical ? trackThicknessPx : remainingPercent,
@@ -203,33 +189,10 @@ const getMarkerStyle = (
   isVertical: boolean,
   markerSizePx: number
 ): ViewStyle => ({
-  top: isVertical ? 0 : "50%",
-  left: isVertical ? "50%" : 0,
   zIndex: MARKER_Z_INDEX,
-  marginTop: -markerSizePx / 2,
-  marginLeft: -markerSizePx / 2,
-});
-
-/**
- * Returns style props for the moving progress indicator dot.
- *
- * The indicator is positioned along the track at the progress point and
- * centered on the track axis via negative margins. Only visible when
- * progress is between 0 and 1 (exclusive).
- *
- * @param isVertical - Orientation flag determining axis direction
- * @param indicatorSizePx - Indicator diameter in pixels for centering
- * @param completedPercent - Completed portion percentage (e.g., "60%")
- * @returns View style for indicator dot container
- */
-const getIndicatorStyle = (
-  isVertical: boolean,
-  indicatorSizePx: number,
-  completedPercent: PercentString
-): ViewStyle => ({
-  top: isVertical ? completedPercent : "50%",
-  left: isVertical ? "50%" : completedPercent,
-  zIndex: INDICATOR_Z_INDEX,
-  marginTop: -indicatorSizePx / 2,
-  marginLeft: -indicatorSizePx / 2,
+  ...getAbsoluteCenteredBoxStyle({
+    width: markerSizePx,
+    height: markerSizePx,
+    isVertical,
+  }),
 });

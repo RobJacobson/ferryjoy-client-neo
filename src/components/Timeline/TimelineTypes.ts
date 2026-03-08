@@ -13,7 +13,7 @@ export type TimelineOrientation = "vertical" | "horizontal";
 /**
  * One timeline row/segment.
  *
- * Time range is Date-only by design for flexible domain mapping.
+ * Duration is layout-only geometry and intentionally domain-agnostic.
  * Content slots allow feature-level components to render cards or labels.
  *
  * The minHeight property is an optional per-row override that takes precedence
@@ -23,8 +23,7 @@ export type TimelineOrientation = "vertical" | "horizontal";
  */
 export type TimelineRow = {
   id: string;
-  startTime: Date;
-  endTime: Date;
+  durationMinutes: number;
   percentComplete: number;
   leftContent?: ReactNode;
   rightContent?: ReactNode;

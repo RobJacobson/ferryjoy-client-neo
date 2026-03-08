@@ -7,19 +7,19 @@
 import ANCHOR_ICON from "assets/icons/anchor.png";
 import VESSEL_ICON from "assets/icons/vessel.png";
 import { Image } from "expo-image";
-import type { RowKind } from "../types";
+import type { SegmentKind } from "../types";
 
 const MARKER_ICON_SIZE_PX = 18;
 /** Kind → marker icon source (at-dock = anchor, at-sea = vessel). */
-const KIND_MARKER_SOURCE: Record<RowKind, number> = {
+const KIND_MARKER_SOURCE: Record<SegmentKind, number> = {
   "at-dock": ANCHOR_ICON,
   "at-sea": VESSEL_ICON,
 };
 /** Tint applied to marker PNGs (anchor/vessel). Use tintColor on Image; className does not apply to expo-image. */
-const MARKER_TINT_COLOR = "#777"; // green-800
+const MARKER_TINT_COLOR = "#999";
 
 type TimelineMarkerIconProps = {
-  kind: RowKind;
+  kind: SegmentKind;
 };
 
 /**
