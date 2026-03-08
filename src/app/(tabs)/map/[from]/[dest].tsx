@@ -20,10 +20,10 @@ import {
   getTerminalLocationByAbbrev,
   type TerminalLocation,
 } from "@/data/terminalLocations";
-import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
-import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation/useMapSlugCameraAnimation";
+import type { CameraState } from "@/features/MapFeatures/MapComponent";
+import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation";
 import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
-import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomSheet/TerminalOrRouteBottomSheet";
+import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomSheet";
 
 /**
  * Create camera state for a terminal at zoom level 9.

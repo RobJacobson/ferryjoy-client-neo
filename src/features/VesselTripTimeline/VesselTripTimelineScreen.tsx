@@ -5,7 +5,7 @@
 import { Text, View } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
-import { useDelayedVesselTrips } from "@/features/TimelineFeatures/shared/hooks/useDelayedVesselTrips";
+import { useDelayedVesselTrips } from "@/features/TimelineFeatures/shared";
 import { VesselTripTimelineList } from "./VesselTripTimelineList";
 
 /**

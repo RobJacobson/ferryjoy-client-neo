@@ -1,4 +1,4 @@
-import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent";
 
 export type FlyToConfig = {
   /** Delay between snap and fly, in milliseconds. */

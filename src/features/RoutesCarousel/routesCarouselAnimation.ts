@@ -7,11 +7,11 @@
 
 import type { SharedValue } from "react-native-reanimated";
 import { Extrapolation, interpolate } from "react-native-reanimated";
-import type {
-  AnimatedListLayout,
-  AnimatedStyleResult,
-} from "@/features/AnimatedList/types";
-import { distanceFromIndex } from "../AnimatedList/utils";
+import {
+  type AnimatedListLayout,
+  type AnimatedStyleResult,
+  calculateDistanceFromActive,
+} from "@/features/AnimatedList";
 
 /**
  * Scroll-driven animation style for RoutesCarousel items.
@@ -33,7 +33,7 @@ export const routesCarouselAnimation = (
 ): AnimatedStyleResult => {
   "worklet";
 
-  const distance = distanceFromIndex(index, scrollIndex.value);
+  const distance = calculateDistanceFromActive(index, scrollIndex.value);
 
   // Z-index based on distance (centered item on top)
   const zIndex = Math.round(
