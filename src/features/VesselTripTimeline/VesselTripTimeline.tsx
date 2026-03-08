@@ -5,11 +5,11 @@
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { buildTimelineModelFromTrip } from "./adapters/buildTimelineModelFromTrip";
-import { VesselTripTimelineOverlay } from "./components/VesselTripTimelineOverlay";
-import type { VesselTripTimelineItem } from "./types";
+import { TimelineContent } from "./components";
+import type { TimelineItem } from "./types";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
-type VesselTripTimelineProps = VesselTripTimelineItem;
+type VesselTripTimelineProps = TimelineItem;
 
 /**
  * Renders a single vessel trip as a styled timeline card.
@@ -21,7 +21,7 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
-  const rows = buildTimelineModelFromTrip({
+  const timelineModel = buildTimelineModelFromTrip({
     trip,
     vesselLocation,
   });
@@ -37,8 +37,9 @@ export const VesselTripTimeline = ({
         </View>
       </CardHeader>
       <CardContent className="px-4">
-        <VesselTripTimelineOverlay
-          presentationRows={rows}
+        <TimelineContent
+          presentationRows={timelineModel.rows}
+          activeSegmentIndex={timelineModel.activeSegmentIndex}
           item={{ trip, vesselLocation }}
         />
       </CardContent>

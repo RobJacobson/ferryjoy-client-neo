@@ -7,22 +7,6 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 
 /**
- * Gets arrival time for the next segment of the trip using predicted arrival time.
- * Returns undefined when trip or vesselLocation is missing.
- *
- * @param trip - The vessel trip object (optional)
- * @param vesselLocation - VesselLocation with Eta (optional)
- * @returns Arrival time Date, or undefined if none available or inputs missing
- */
-export const getPredictedArriveNextTime = (
-  trip: VesselTrip | undefined,
-  vesselLocation: VesselLocation | undefined
-): Date | undefined =>
-  vesselLocation?.Eta ??
-  trip?.AtSeaArriveNext?.PredTime ??
-  trip?.AtDockArriveNext?.PredTime;
-
-/**
  * Gets the best available departure time for a trip.
  *
  * Priority:

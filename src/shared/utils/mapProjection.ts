@@ -9,7 +9,7 @@
 
 import { WebMercatorViewport } from "viewport-mercator-project";
 
-import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent";
 import { lerp } from "./lerp";
 
 /**

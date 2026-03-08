@@ -6,8 +6,7 @@ import { useSharedValue } from "react-native-reanimated";
 import { TOTAL_CAROUSEL_ITEMS } from "@/data/terminalConnections";
 import { Background, ParallaxProvider } from "@/features/Background";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel";
-import { RoutesCarousel } from "@/features/RoutesCarousel";
-import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
+import { RoutesCarousel, useCardDimensions } from "@/features/RoutesCarousel";
 
 export default function Home() {
   const blurTargetRef = useRef<View | null>(null);
@@ -28,7 +27,7 @@ export default function Home() {
             itemStride={itemStride}
           />
         </BlurTargetView>
-        <View className="relative z-[200] flex-1">
+        <View className="relative z-[200] mt-8 flex-1">
           <RoutesCarousel
             ref={carouselRef}
             blurTargetRef={blurTargetRef}

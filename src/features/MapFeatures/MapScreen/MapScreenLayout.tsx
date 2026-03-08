@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { SmoothedVesselLocationsProvider, useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapFeatures/MapComponent";
-import { MapDebugOverlay } from "@/features/MapFeatures/MapDebugOverlay/MapDebugOverlay";
+import { MapDebugOverlay } from "@/features/MapFeatures/MapDebugOverlay";
 import { VesselCircleMarkers } from "@/features/MapFeatures/VesselCircleMarkers";
 import { VesselLines } from "@/features/MapFeatures/VesselLines";
 

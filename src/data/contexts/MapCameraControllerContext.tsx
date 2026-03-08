@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useRef, useState } from "react";
 
-import type { CameraState } from "@/features/MapFeatures/MapComponent/shared";
+import type { CameraState } from "@/features/MapFeatures/MapComponent";
 
 export type FlyToOptions = {
   durationMs?: number;

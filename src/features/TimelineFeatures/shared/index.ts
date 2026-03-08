@@ -6,12 +6,10 @@
 export { timelineIndicatorConfig } from "./config";
 export {
   extractArriveCurrLabel,
-  extractArriveCurrTimePoint,
   extractArriveNextLabel,
-  extractArriveNextTimePoint,
   extractDepartCurrLabel,
-  extractDepartCurrTimePoint,
 } from "./extractors";
+export { useDelayedVesselTrips } from "./hooks/useDelayedVesselTrips";
 export { StandardMarkerLayout, TimeBox } from "./layouts";
 export { default as TimelineBar } from "./TimelineBar";
 export { default as TimelineBarAtDock } from "./TimelineBarAtDock";

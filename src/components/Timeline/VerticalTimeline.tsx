@@ -37,7 +37,7 @@ type VerticalTimelineProps = {
 /**
  * Renders a vertical timeline with left/center/right row slots.
  *
- * @param rows - Timeline rows with Date range and completion
+ * @param rows - Timeline rows with duration-based sizing and completion
  * @param theme - Optional theme configuration with defaults applied
  * @param className - Optional container classes
  * @param rowClassName - Optional per-row classes

@@ -6,11 +6,7 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import type { TimePoint, TripSegment } from "../../shared/types";
-import {
-  getBestArrivalTime,
-  getBestDepartureTime,
-  getPredictedArriveNextTime,
-} from "../../shared/utils";
+import { getBestArrivalTime, getBestDepartureTime } from "../../shared/utils";
 
 /**
  * Converts a single-leg vessel trip to a TripSegment for timeline rendering.
@@ -43,7 +39,6 @@ export const vesselTripToTripSegment = (
     trip.ScheduledTrip?.ArrivingTime ??
     schedDeparture;
 
-  const predictedArriveNext = getPredictedArriveNextTime(trip, vesselLocation);
   const departurePrediction = getBestDepartureTime(vesselLocation, trip);
   const arrivalPrediction = getBestArrivalTime(vesselLocation, trip);
 
@@ -63,7 +58,10 @@ export const vesselTripToTripSegment = (
     scheduled: schedArriveNext,
     actual: trip.TripEnd,
     estimated: !trip.TripEnd
-      ? (vesselLocation.Eta ?? predictedArriveNext ?? arrivalPrediction)
+      ? (vesselLocation.Eta ??
+        trip.AtSeaArriveNext?.PredTime ??
+        trip.AtDockArriveNext?.PredTime ??
+        arrivalPrediction)
       : undefined,
   };
 
