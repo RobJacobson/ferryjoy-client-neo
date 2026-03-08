@@ -11,6 +11,10 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import Animated, {
+  Easing,
+  LinearTransition,
+} from "react-native-reanimated";
 import { cn } from "@/lib/utils";
 import { TimelineTrack } from "./TimelineTrack";
 import type { RequiredTimelineTheme, TimelineRow } from "./TimelineTypes";
@@ -23,6 +27,7 @@ export type TimelineRowBounds = {
 };
 
 const ACTIVE_OVERLAY_Z_INDEX = 10;
+const ROW_LAYOUT_TRANSITION_DURATION_MS = 2000;
 
 type TimelineRowComponentProps = {
   row: TimelineRow;
@@ -63,9 +68,12 @@ export const TimelineRowComponent = ({
   const containerStyle = getContainerStyle(rowStyle, overlay);
 
   return (
-    <View
+    <Animated.View
       className={cn("w-full flex-row items-stretch", rowClassName)}
       style={containerStyle}
+      layout={LinearTransition.duration(
+        ROW_LAYOUT_TRANSITION_DURATION_MS
+      ).easing(Easing.inOut(Easing.quad))}
       onLayout={getRowLayoutHandler(row.id, onRowLayout)}
     >
       <View className="flex-1 justify-start">{row.leftContent}</View>
@@ -92,7 +100,7 @@ export const TimelineRowComponent = ({
           {overlay}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
