@@ -2,8 +2,9 @@
 
 This document explains the current architecture for the vessel trip timeline.
 The feature keeps the working full-surface blur overlay, but now uses a slimmer
-two-step pipeline that is easier to extend into a future multi-stop day
-timeline.
+two-step pipeline built on top of shared generic timeline document/selector
+primitives. That makes it easier to extend into a future multi-stop day
+timeline without duplicating ordered-row mechanics per feature.
 
 ## High-Level Flow
 
@@ -22,6 +23,11 @@ flowchart TD
 
 The feature's source of truth is now a `TimelineDocument` built by
 `utils/buildTimelineDocument.ts`.
+
+The base document and render-state shapes live in
+`src/components/Timeline/TimelineDocument.ts`, while `VesselTripTimeline`
+supplies feature-specific boundary payloads, progress modes, labels, and
+telemetry rules.
 
 The document contains:
 
@@ -58,7 +64,9 @@ The feature now splits into two pure data stages plus one renderer:
      - row `percentComplete`
      - start/end boundary labels
      - active overlay indicator `{ rowId, rowIndex, positionPercent, label }`
-   - Owns the "what is active right now?" logic.
+   - Owns the feature-specific "what is active right now?" logic.
+   - Reuses shared selector helpers for active-row lookup, row phase, and
+     row completion.
 
 3. **Renderer + overlay**
    - `components/TimelineContent.tsx`
@@ -133,6 +141,21 @@ row-level semantics.
 ## Shared Timeline Primitive Boundary
 
 `src/components/Timeline` remains domain-agnostic.
+
+The shared module now owns:
+
+- generic document/render-state types
+- active-row lookup
+- lifecycle phase derivation
+- row percent-complete derivation
+
+`VesselTripTimeline` still owns:
+
+- trip/vessel document building
+- boundary label copy
+- time-vs-distance progress choice
+- overlay label content
+- blur-specific overlay rendering
 
 For now, `VesselTripTimeline` intentionally renders `TimelineRowComponent`
 directly instead of going through the higher-level `VerticalTimeline` API.

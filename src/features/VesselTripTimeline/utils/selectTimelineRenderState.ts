@@ -2,6 +2,11 @@
  * Derives render-ready row and indicator state from the canonical timeline document.
  */
 
+import {
+  getActiveTimelineRow,
+  getTimelineRowPercentComplete,
+  getTimelineRowPhase,
+} from "@/components/Timeline";
 import { clamp } from "@/shared/utils";
 import type {
   TimelineActiveIndicator,
@@ -35,13 +40,19 @@ export const selectTimelineRenderState = (
 
   return {
     rows: document.rows.map((row) => {
-      const phase = getRowPhase(row.segmentIndex, document.activeSegmentIndex);
+      const phase = getTimelineRowPhase(
+        row.segmentIndex,
+        document.activeSegmentIndex
+      );
 
       return {
         id: row.id,
         kind: row.kind,
         segmentIndex: row.segmentIndex,
-        percentComplete: getRowPercentComplete(row, activeIndicator),
+        percentComplete: getTimelineRowPercentComplete(
+          row.segmentIndex,
+          activeIndicator
+        ),
         geometryMinutes: row.geometryMinutes,
         layoutMode: row.layoutMode,
         startBoundary: getStartBoundary(row, phase),
@@ -67,7 +78,7 @@ const getActiveIndicator = (
   item: TimelineItem,
   now: Date
 ): TimelineActiveIndicator | null => {
-  const activeRow = getActiveRow(document);
+  const activeRow = getActiveTimelineRow(document);
 
   if (!activeRow) {
     return null;
@@ -89,32 +100,6 @@ const getActiveIndicator = (
       now
     ),
   };
-};
-
-/**
- * Resolves the row that currently owns the active overlay indicator.
- *
- * @param document - Canonical timeline document
- * @returns Active row, or undefined when the document has no rows
- */
-const getActiveRow = (
-  document: TimelineDocument
-): TimelineDocumentRow | undefined => {
-  const { rows, activeSegmentIndex } = document;
-
-  if (rows.length === 0) {
-    return undefined;
-  }
-
-  if (activeSegmentIndex < 0) {
-    return rows.at(0);
-  }
-
-  if (activeSegmentIndex >= rows.length) {
-    return rows.at(-1);
-  }
-
-  return rows.at(activeSegmentIndex);
 };
 
 /**
@@ -154,52 +139,6 @@ const getIndicatorPositionPercent = (
   }
 
   return timeProgress;
-};
-
-/**
- * Calculates full-row completion from the active indicator location.
- *
- * @param row - Rendered row
- * @param activeIndicator - Active overlay indicator state
- * @returns Percent complete for the shared timeline primitive
- */
-const getRowPercentComplete = (
-  row: TimelineDocumentRow,
-  activeIndicator: TimelineActiveIndicator | null
-): number => {
-  if (!activeIndicator) {
-    return 0;
-  }
-
-  const delta = activeIndicator.rowIndex - row.segmentIndex;
-
-  return delta === 0 ? activeIndicator.positionPercent : clamp(delta, 0, 1);
-};
-
-/**
- * Derives the lifecycle phase of a row relative to the active cursor.
- *
- * @param rowIndex - Zero-based row index
- * @param activeSegmentIndex - Active row cursor
- * @returns Lifecycle phase for boundary label selection
- */
-const getRowPhase = (
-  rowIndex: number,
-  activeSegmentIndex: number
-): "upcoming" | "active" | "completed" => {
-  if (activeSegmentIndex < 0) {
-    return "upcoming";
-  }
-
-  if (rowIndex < activeSegmentIndex) {
-    return "completed";
-  }
-
-  if (rowIndex === activeSegmentIndex) {
-    return "active";
-  }
-
-  return "upcoming";
 };
 
 /**
