@@ -11,10 +11,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import Animated, {
-  Easing,
-  LinearTransition,
-} from "react-native-reanimated";
+import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
 import { TimelineTrack } from "./TimelineTrack";
 import type { RequiredTimelineTheme, TimelineRow } from "./TimelineTypes";

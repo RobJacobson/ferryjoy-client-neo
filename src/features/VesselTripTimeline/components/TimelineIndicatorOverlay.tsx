@@ -8,7 +8,7 @@ import type { RefObject } from "react";
 import { type View as RNView, View } from "react-native";
 import { clamp } from "@/shared/utils";
 import type { RowLayoutBounds } from "../types";
-import type { OverlayIndicator } from "../utils/deriveOverlayIndicator";
+import type { OverlayIndicator } from "../utils";
 import { TimelineIndicator } from "./TimelineIndicator";
 
 const INDICATOR_SIZE_PX = 36;
