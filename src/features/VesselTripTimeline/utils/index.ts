@@ -2,8 +2,5 @@
  * VesselTripTimeline utility exports.
  */
 
-export {
-  deriveActiveOverlayIndicator,
-  type OverlayIndicator,
-} from "./deriveOverlayIndicator";
-export { getGlobalPercentComplete } from "./mapPresentationRowToTimelineRow";
+export { buildTimelineDocument } from "./buildTimelineDocument";
+export { selectTimelineRenderState } from "./selectTimelineRenderState";

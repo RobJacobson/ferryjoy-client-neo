@@ -1,14 +1,15 @@
 /**
- * Builds canonical ordered timeline segments from vessel trip domain data.
+ * Builds the canonical timeline document for a vessel trip card.
  */
 
 import { config, formatTerminalPairKey } from "convex/domain/ml/shared/config";
 import type {
+  TimelineDocument,
+  TimelineDocumentRow,
   TimelineItem,
-  TimelineSegment,
-  TimelineSegmentsModel,
   TimePoint,
 } from "../types";
+import { getSegmentDurationMinutes } from "./timePoints";
 
 type TimelineContext = {
   defaultOriginDockMinutes: number;
@@ -22,65 +23,103 @@ type TerminalPair = {
 };
 
 /**
- * Builds the ordered segments for a vessel trip timeline card.
+ * Builds the canonical timeline document consumed by the render-state selector.
  *
  * @param item - Vessel trip and location pair
- * @returns Ordered canonical segment list
+ * @returns Ordered document rows plus the active row cursor
  */
-export const buildTimelineSegments = (
-  item: TimelineItem
-): TimelineSegmentsModel => {
-  const { trip } = item;
+export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
+  const { trip, vesselLocation } = item;
   const context = buildTimelineContext(item);
   const points = buildBoundaryPoints(item);
   const arrivingTerminalAbbrev = trip.ArrivingTerminalAbbrev ?? "";
   const departingTerminalAbbrev = trip.DepartingTerminalAbbrev;
+  const useDistanceProgress =
+    vesselLocation.DepartingDistance !== undefined &&
+    vesselLocation.ArrivingDistance !== undefined &&
+    vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0;
 
-  const segments: TimelineSegment[] = [
+  const baseRows: TimelineDocumentRow[] = [
     {
       id: `${trip.VesselAbbrev}-at-dock-origin`,
       segmentIndex: 0,
       kind: "at-dock",
-      startPoint: points.arriveOrigin,
-      endPoint: points.departOrigin,
-      startTerminalAbbrev: departingTerminalAbbrev,
-      endTerminalAbbrev: departingTerminalAbbrev,
+      startBoundary: {
+        terminalAbbrev: departingTerminalAbbrev,
+        timePoint: points.arriveOrigin,
+      },
+      endBoundary: {
+        terminalAbbrev: departingTerminalAbbrev,
+        timePoint: points.departOrigin,
+      },
+      boundaryOwnership: {
+        start: true,
+        end: false,
+      },
+      geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultOriginDockMinutes,
+      progressMode: "time",
+      layoutMode: "duration",
     },
     {
       id: `${trip.VesselAbbrev}-at-sea`,
       segmentIndex: 1,
       kind: "at-sea",
-      startPoint: points.departOrigin,
-      endPoint: points.arriveNext,
-      startTerminalAbbrev: departingTerminalAbbrev,
-      endTerminalAbbrev: arrivingTerminalAbbrev,
+      startBoundary: {
+        terminalAbbrev: departingTerminalAbbrev,
+        timePoint: points.departOrigin,
+      },
+      endBoundary: {
+        terminalAbbrev: arrivingTerminalAbbrev,
+        timePoint: points.arriveNext,
+      },
+      boundaryOwnership: {
+        start: true,
+        end: false,
+      },
+      geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultAtSeaMinutes,
+      progressMode: useDistanceProgress ? "distance" : "time",
+      layoutMode: "duration",
     },
     {
       id: `${trip.VesselAbbrev}-at-dock-dest`,
       segmentIndex: 2,
       kind: "at-dock",
-      startPoint: points.arriveNext,
-      endPoint: points.departNext,
-      startTerminalAbbrev: arrivingTerminalAbbrev,
-      endTerminalAbbrev: arrivingTerminalAbbrev,
-      rendersEndLabel: true,
+      startBoundary: {
+        terminalAbbrev: arrivingTerminalAbbrev,
+        timePoint: points.arriveNext,
+      },
+      endBoundary: {
+        terminalAbbrev: arrivingTerminalAbbrev,
+        timePoint: points.departNext,
+      },
+      boundaryOwnership: {
+        start: true,
+        end: true,
+      },
+      geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultDestinationDockMinutes,
+      progressMode: "time",
+      layoutMode: "content",
     },
   ];
+  const rows = baseRows.map((row) => ({
+    ...row,
+    geometryMinutes: getSegmentDurationMinutes(row),
+  }));
 
   return {
-    segments,
-    activeSegmentIndex: getActiveSegmentIndex(item, segments.length),
+    rows,
+    activeSegmentIndex: getActiveSegmentIndex(item, rows.length),
   };
 };
 
 /**
- * Resolves the four boundary TimePoints used by today's three-segment card.
+ * Resolves the four boundary TimePoints used by today's three-row card.
  *
  * @param item - Vessel trip and location pair
- * @returns Shared boundary points for ordered segments
+ * @returns Shared boundary points for ordered document rows
  */
 const buildBoundaryPoints = (item: TimelineItem) => {
   const { trip, vesselLocation } = item;
@@ -117,24 +156,24 @@ const buildBoundaryPoints = (item: TimelineItem) => {
 };
 
 /**
- * Resolves the active segment cursor from current trip state.
+ * Resolves the active row cursor from current trip state.
  *
  * @param item - Vessel trip and location pair
- * @param segmentCount - Number of ordered segments
- * @returns Active segment index, `-1` before start, or `segmentCount` when complete
+ * @param rowCount - Number of ordered rows
+ * @returns Active row index, or `rowCount` when the timeline is complete
  */
 const getActiveSegmentIndex = (
   item: TimelineItem,
-  segmentCount: number
+  rowCount: number
 ): number => {
   const { trip } = item;
 
   if (trip.AtDockDepartNext?.Actual) {
-    return segmentCount;
+    return rowCount;
   }
 
   if (trip.TripEnd) {
-    return Math.max(0, segmentCount - 1);
+    return Math.max(0, rowCount - 1);
   }
 
   if (trip.LeftDock) {
@@ -148,7 +187,7 @@ const getActiveSegmentIndex = (
  * Resolves route-specific fallback durations for the current and next legs.
  *
  * @param item - Vessel trip and location pair
- * @returns Mean fallback durations for each rendered segment
+ * @returns Mean fallback durations for each rendered row
  */
 const buildTimelineContext = (item: TimelineItem): TimelineContext => {
   const { trip } = item;

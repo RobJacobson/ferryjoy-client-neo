@@ -7,14 +7,13 @@
 import type { RefObject } from "react";
 import { type View as RNView, View } from "react-native";
 import { clamp } from "@/shared/utils";
-import type { RowLayoutBounds } from "../types";
-import type { OverlayIndicator } from "../utils";
+import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { TimelineIndicator } from "./TimelineIndicator";
 
 const INDICATOR_SIZE_PX = 36;
 
 type TimelineIndicatorOverlayProps = {
-  overlayIndicator: OverlayIndicator;
+  overlayIndicator: TimelineActiveIndicator | null;
   blurTargetRef: RefObject<RNView | null>;
   /** Measured timeline row bounds used to position the active indicator. */
   rowLayouts?: Record<string, RowLayoutBounds>;
@@ -46,6 +45,10 @@ export const TimelineIndicatorOverlay = ({
   blurTargetRef,
   rowLayouts = {},
 }: TimelineIndicatorOverlayProps) => {
+  if (!overlayIndicator) {
+    return null;
+  }
+
   const activeRowLayout = rowLayouts[overlayIndicator.rowId];
 
   if (!activeRowLayout) {
