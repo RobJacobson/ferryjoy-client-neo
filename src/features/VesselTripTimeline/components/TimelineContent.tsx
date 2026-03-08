@@ -15,7 +15,6 @@ import type { RowLayoutBounds, TimelineItem, TimelineRowModel } from "../types";
 import {
   deriveActiveOverlayIndicator,
   getGlobalPercentComplete,
-  getRightTimePoint,
   type OverlayIndicator,
 } from "../utils";
 import { RowContentLabel } from "./RowContentLabel";
@@ -139,7 +138,7 @@ const toTimelineRow = (
       ) : undefined,
     rightContent:
       row.rightContentKind === "time-events" ? (
-        <RowContentTimes {...getRightTimePoint(row, rowIndex)} />
+        <RowContentTimes {...row.eventTimeStart} />
       ) : undefined,
     markerContent: <TimelineMarkerIcon kind={row.kind} />,
     minHeight: row.minHeight,

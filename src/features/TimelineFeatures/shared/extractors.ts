@@ -4,7 +4,7 @@
  * Use with layout components (e.g., StandardMarkerLayout, TimeBox) for composition.
  */
 
-import type { AtDockSegment, AtSeaSegment, TimePoint } from "./types";
+import type { AtDockSegment, AtSeaSegment } from "./types";
 
 /**
  * Extracts the label text for an arrival at the current terminal.
@@ -35,30 +35,3 @@ export const extractDepartCurrLabel = (segment: AtSeaSegment): string =>
  */
 export const extractArriveNextLabel = (segment: AtSeaSegment): string =>
   `${segment.arriveNext.actual ? "Arrived" : "Arrive"} ${segment.nextTerminal.abbrev}`;
-
-/**
- * Extracts the arrival time point from an at-dock segment.
- *
- * @param segment - AtDockSegment with arriveCurr
- * @returns TimePoint containing scheduled, actual, and estimated times
- */
-export const extractArriveCurrTimePoint = (segment: AtDockSegment): TimePoint =>
-  segment.arriveCurr;
-
-/**
- * Extracts the departure time point from an at-sea segment.
- *
- * @param segment - AtSeaSegment with leaveCurr
- * @returns TimePoint containing scheduled, actual, and estimated times
- */
-export const extractDepartCurrTimePoint = (segment: AtSeaSegment): TimePoint =>
-  segment.leaveCurr;
-
-/**
- * Extracts the arrival time point from an at-sea segment.
- *
- * @param segment - AtSeaSegment with arriveNext
- * @returns TimePoint containing scheduled, actual, and estimated times
- */
-export const extractArriveNextTimePoint = (segment: AtSeaSegment): TimePoint =>
-  segment.arriveNext;

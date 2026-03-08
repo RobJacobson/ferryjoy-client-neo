@@ -10,7 +10,7 @@
  * @param now - Current time
  * @returns Remaining minutes label or "--" if no data
  */
-export const getMinutesUntilLabel = (
+export const getMinutesUntil = (
   targetTime: Date | undefined,
   now: Date
 ): string => {

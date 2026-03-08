@@ -3,7 +3,8 @@
  */
 
 import { clamp } from "@/shared/utils";
-import type { TimelineItem, TimelineRowModel } from "../types";
+import type { TimelineItem, TimelineRowModel, TimePoint } from "../types";
+import { getMinutesUntil } from "./getMinutesUntil";
 
 export type OverlayIndicator = {
   rowId: string;
@@ -25,6 +26,12 @@ const getTimeProgress = (startTime: Date, endTime: Date, now: Date): number => {
   const elapsed = now.getTime() - startTime.getTime();
   return clamp(elapsed / duration, 0, 1);
 };
+
+const getDisplayTime = (timePoint: TimePoint): Date | undefined =>
+  timePoint.actual ?? timePoint.estimated;
+
+const getIndicatorLabel = (row: TimelineRowModel, now: Date): string =>
+  getMinutesUntil(getDisplayTime(row.eventTimeEnd), now);
 
 /**
  * Derives active overlay indicator from timeline rows and trip state.
@@ -51,7 +58,7 @@ export const deriveActiveOverlayIndicator = (
     return {
       rowId: atDockDest.id,
       positionPercent: 1,
-      label: atDockDest.indicatorLabel,
+      label: getIndicatorLabel(atDockDest, now),
     };
   }
 
@@ -64,7 +71,7 @@ export const deriveActiveOverlayIndicator = (
         atDockDest.endTime,
         now
       ),
-      label: atDockDest.indicatorLabel,
+      label: getIndicatorLabel(atDockDest, now),
     };
   }
 
@@ -76,7 +83,7 @@ export const deriveActiveOverlayIndicator = (
         0.06,
         getTimeProgress(atDockOrigin.startTime, atDockOrigin.endTime, now)
       ),
-      label: atDockOrigin.indicatorLabel,
+      label: getIndicatorLabel(atDockOrigin, now),
     };
   }
 
@@ -103,7 +110,7 @@ export const deriveActiveOverlayIndicator = (
     return {
       rowId: atSeaRow.id,
       positionPercent,
-      label: atSeaRow.indicatorLabel,
+      label: getIndicatorLabel(atSeaRow, now),
     };
   }
 
@@ -111,6 +118,6 @@ export const deriveActiveOverlayIndicator = (
   return {
     rowId: fallbackRow?.id ?? "unknown-row",
     positionPercent: 0,
-    label: fallbackRow?.indicatorLabel ?? "--",
+    label: fallbackRow ? getIndicatorLabel(fallbackRow, now) : "--",
   };
 };

@@ -6,11 +6,8 @@
 export { timelineIndicatorConfig } from "./config";
 export {
   extractArriveCurrLabel,
-  extractArriveCurrTimePoint,
   extractArriveNextLabel,
-  extractArriveNextTimePoint,
   extractDepartCurrLabel,
-  extractDepartCurrTimePoint,
 } from "./extractors";
 export { StandardMarkerLayout, TimeBox } from "./layouts";
 export { default as TimelineBar } from "./TimelineBar";

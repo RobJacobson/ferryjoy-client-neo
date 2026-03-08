@@ -41,7 +41,6 @@ export type TimelineRowModel = {
   endTime: Date;
   percentComplete: number;
   kind: RowKind;
-  indicatorLabel: string;
   /** Event at segment start boundary (e.g., arrive for at-dock, depart for at-sea). */
   eventTimeStart: TimePoint;
   /** Event at segment end boundary (e.g., depart for at-dock, arrive for at-sea). */
