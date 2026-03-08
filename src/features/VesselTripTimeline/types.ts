@@ -18,10 +18,10 @@ export type RowKind = "at-dock" | "at-sea";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
- * Reused from TimelineFeatures; define locally if that module is not accessible.
+ * All fields are optional; when data is absent, consumers should handle undefined.
  */
 export type TimePoint = {
-  scheduled: Date;
+  scheduled?: Date;
   actual?: Date;
   estimated?: Date;
 };

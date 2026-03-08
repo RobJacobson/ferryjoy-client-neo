@@ -5,9 +5,12 @@
  */
 
 import { config, formatTerminalPairKey } from "convex/domain/ml/shared/config";
-import { getPredictedArriveNextTime } from "@/features/TimelineFeatures/shared/utils/tripTimeHelpers";
 import { clamp } from "@/shared/utils";
 import type { TimelineItem, TimelineRowModel, TimePoint } from "../types";
+import {
+  buildTimelineEvents,
+  type TimelineEvents,
+} from "../utils/buildTimelineEvents";
 
 const MIN_SEGMENT_MINUTES = 1;
 const DEFAULT_ARRIVAL_MINUTES = 10;
@@ -36,23 +39,20 @@ const parseDepartingTerminalFromKey = (
  * Produces 3 rows: at-dock (origin) | at-sea | at-dock (destination).
  *
  * @param item - Vessel trip and location pair
- * @param now - Current time used for progress calculations
  * @returns Pure timeline model rows for timeline rendering
  */
 export const buildTimelineModelFromTrip = (
-  item: TimelineItem,
-  now: Date = new Date()
+  item: TimelineItem
 ): TimelineRowModel[] => {
   const { trip, vesselLocation } = item;
   const context = buildTimelineContext(item);
-  const events = buildTimelineEvents(item, context, now);
+  const events = buildTimelineEvents(item);
   const layout = buildTimelineLayout(events, context);
   const atSeaPercent = getAtSeaPercent(
     layout.originDockEnd,
     layout.atSeaEnd,
     trip,
-    vesselLocation,
-    now
+    vesselLocation
   );
 
   const useDistanceProgress =
@@ -111,19 +111,6 @@ type TimelineContext = {
 };
 
 /**
- * Timeline events shown on the card.
- *
- * These are the meaningful business events on the timeline, independent of the
- * row geometry used to draw proportional blocks.
- */
-type TimelineEvents = {
-  arriveOrigin: TimePoint;
-  departOrigin: TimePoint;
-  arriveNext: TimePoint;
-  departNext: TimePoint;
-};
-
-/**
  * Timeline geometry used to draw the three rows.
  */
 type TimelineLayout = {
@@ -162,78 +149,12 @@ const buildTimelineContext = (item: TimelineItem): TimelineContext => {
   };
 };
 
-/**
- * Resolves the four significant timeline events shown by the card.
- *
- * @param item - Vessel trip and location pair
- * @param context - Duration defaults for schedule fallbacks
- * @param now - Current time used as a final fallback when schedule data is absent
- * @returns Event-first timeline model
- */
-const buildTimelineEvents = (
-  item: TimelineItem,
-  context: TimelineContext,
-  now: Date
-): TimelineEvents => {
-  const { trip, vesselLocation } = item;
-  const actualDepartOrigin = vesselLocation.LeftDock ?? trip.LeftDock;
-  const estimatedDepartOrigin = trip.AtDockDepartCurr?.PredTime;
-  const scheduledDepartOrigin =
-    trip.ScheduledTrip?.DepartingTime ??
-    trip.ScheduledDeparture ??
-    vesselLocation.ScheduledDeparture ??
-    actualDepartOrigin ??
-    estimatedDepartOrigin ??
-    now;
-  const scheduledArriveOrigin = resolveScheduledCurrentArrival(
-    trip.ScheduledTrip?.SchedArriveCurr,
-    scheduledDepartOrigin,
-    trip.TripStart ?? scheduledDepartOrigin
-  );
-  const estimatedArriveNext = getPredictedArriveNextTime(trip, vesselLocation);
-  const actualArriveNext = trip.TripEnd;
-  const scheduledArriveNext = resolveScheduledFutureTime(
-    trip.ScheduledTrip?.SchedArriveNext ?? trip.ScheduledTrip?.ArrivingTime,
-    scheduledDepartOrigin,
-    actualArriveNext ??
-      estimatedArriveNext ??
-      addMinutes(scheduledDepartOrigin, context.defaultAtSeaMinutes)
-  );
-  const estimatedDepartNext = getPredictedNextDepartureTime(trip);
-  const actualDepartNext = trip.AtDockDepartNext?.Actual;
-  const scheduledDepartNext = resolveScheduledFutureTime(
-    trip.ScheduledTrip?.NextDepartingTime,
-    scheduledArriveNext,
-    actualDepartNext ??
-      estimatedDepartNext ??
-      addMinutes(scheduledArriveNext, context.defaultDestinationDockMinutes)
-  );
-
-  return {
-    arriveOrigin: {
-      scheduled: scheduledArriveOrigin,
-      actual: trip.TripStart,
-    },
-    departOrigin: {
-      scheduled: scheduledDepartOrigin,
-      actual: actualDepartOrigin,
-      estimated: estimatedDepartOrigin,
-    },
-    arriveNext: {
-      scheduled: scheduledArriveNext,
-      actual: actualArriveNext,
-      estimated: estimatedArriveNext,
-    },
-    departNext: {
-      scheduled: scheduledDepartNext,
-      actual: actualDepartNext,
-      estimated: estimatedDepartNext,
-    },
-  };
-};
+/** Sentinel used for layout when no event-derived times exist (never shown). */
+const LAYOUT_ANCHOR = new Date(0);
 
 /**
  * Builds monotonic row geometry from semantic timeline events.
+ * Uses a sentinel when no event-derived times exist (geometry only, never shown).
  *
  * @param events - Event-first timeline model
  * @param context - Duration defaults for each timeline phase
@@ -244,7 +165,9 @@ const buildTimelineLayout = (
   context: TimelineContext
 ): TimelineLayout => {
   const originDockStart =
-    getBoundaryTime(events.arriveOrigin) ?? events.departOrigin.scheduled;
+    getBoundaryTime(events.arriveOrigin) ??
+    events.departOrigin.scheduled ??
+    LAYOUT_ANCHOR;
   const originDockEnd = ensureAfter(
     getDisplayTime(events.departOrigin),
     originDockStart,
@@ -277,26 +200,25 @@ const buildTimelineLayout = (
 
 /**
  * Calculates the completion ratio for the at-sea segment.
- * Uses distance-based progress when vesselLocation has distance data.
+ * Uses distance-based progress when vesselLocation has distance data;
+ * returns 0 when only time-based progress is possible (no time reference).
  *
  * @param departedAt - Segment start timestamp
  * @param arriveEta - Segment end timestamp
  * @param trip - Vessel trip with completion markers
  * @param vesselLocation - Real-time vessel location for distance-based progress
- * @param now - Current time used for time-based progress
  * @returns Normalized completion value from 0 to 1
  */
 const getAtSeaPercent = (
-  departedAt: Date,
-  arriveEta: Date,
+  _departedAt: Date,
+  _arriveEta: Date,
   trip: TimelineItem["trip"],
-  vesselLocation: TimelineItem["vesselLocation"],
-  now: Date
+  vesselLocation: TimelineItem["vesselLocation"]
 ): number => {
   if (!(vesselLocation.LeftDock ?? trip.LeftDock)) return 0;
   if (trip.TripEnd) return 1;
 
-  // Prefer distance-based progress when telemetry is available
+  // Use distance-based progress when telemetry is available
   const departing = vesselLocation.DepartingDistance;
   const arriving = vesselLocation.ArrivingDistance;
   if (
@@ -308,11 +230,8 @@ const getAtSeaPercent = (
     return clamp(ratio, 0, 1);
   }
 
-  // Fallback to time-based progress
-  const duration = arriveEta.getTime() - departedAt.getTime();
-  if (duration <= 0) return 0;
-  const elapsed = now.getTime() - departedAt.getTime();
-  return clamp(elapsed / duration, 0, 1);
+  // No time reference for time-based progress; return 0
+  return 0;
 };
 
 /**
@@ -362,58 +281,3 @@ const getDisplayTime = (timePoint: TimePoint): Date | undefined =>
  */
 const getBoundaryTime = (timePoint: TimePoint): Date | undefined =>
   timePoint.actual ?? timePoint.estimated ?? timePoint.scheduled;
-
-/**
- * Resolves the best available predicted next-departure time.
- *
- * @param trip - Vessel trip with next-leg departure predictions
- * @returns Predicted departure from the destination terminal, if available
- */
-const getPredictedNextDepartureTime = (
-  trip: TimelineItem["trip"]
-): Date | undefined =>
-  trip.AtDockDepartNext?.PredTime ?? trip.AtSeaDepartNext?.PredTime;
-
-/**
- * Prevents stale schedule joins from showing an arrival after the current
- * segment's departure. When the scheduled arrival is invalid, prefer the
- * observed arrival time and otherwise collapse to the departure boundary.
- *
- * @param scheduledArrival - Scheduled arrival at the current terminal
- * @param scheduledDeparture - Scheduled departure from the current terminal
- * @param fallback - Best available replacement when the schedule pair is invalid
- * @returns A scheduled arrival that does not exceed the departure time
- */
-const resolveScheduledCurrentArrival = (
-  scheduledArrival: Date | undefined,
-  scheduledDeparture: Date,
-  fallback: Date
-): Date => {
-  if (!scheduledArrival) return fallback;
-  if (scheduledArrival.getTime() <= scheduledDeparture.getTime()) {
-    return scheduledArrival;
-  }
-  if (fallback.getTime() <= scheduledDeparture.getTime()) {
-    return fallback;
-  }
-  return scheduledDeparture;
-};
-
-/**
- * Resolves a future scheduled time that must occur after its anchor.
- *
- * @param scheduledTime - Candidate scheduled timestamp
- * @param anchor - Reference timestamp that must come first
- * @param fallback - Coherent fallback when schedule data is missing or stale
- * @returns A time that is strictly after the anchor
- */
-const resolveScheduledFutureTime = (
-  scheduledTime: Date | undefined,
-  anchor: Date,
-  fallback: Date
-): Date => {
-  if (scheduledTime && scheduledTime.getTime() > anchor.getTime()) {
-    return scheduledTime;
-  }
-  return fallback.getTime() > anchor.getTime() ? fallback : anchor;
-};
