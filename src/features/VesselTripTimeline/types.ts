@@ -4,6 +4,15 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
+import type {
+  TimelineActiveIndicator as SharedTimelineActiveIndicator,
+  TimelineBoundaryOwnership as SharedTimelineBoundaryOwnership,
+  TimelineDocument as SharedTimelineDocument,
+  TimelineDocumentRow as SharedTimelineDocumentRow,
+  TimelineLayoutMode as SharedTimelineLayoutMode,
+  TimelineRenderRow as SharedTimelineRenderRow,
+  TimelineRenderState as SharedTimelineRenderState,
+} from "@/components/Timeline";
 
 /**
  * Input item for the VesselTripTimeline list.
@@ -13,15 +22,19 @@ export type TimelineItem = {
   vesselLocation: VesselLocation;
 };
 
-/** Segment kinds—panels between timeline boundary points. */
+/** Segment kinds rendered by the vessel timeline. */
 export type SegmentKind = "at-dock" | "at-sea";
 
-/** Segment lifecycle relative to the vessel's current position. */
-export type SegmentPhase = "upcoming" | "active" | "completed";
+/** Row sizing mode for the shared timeline primitive. */
+export type TimelineLayoutMode = SharedTimelineLayoutMode;
+
+/** Progress source for the active indicator within a row. */
+export type TimelineProgressMode = "time" | "distance";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
- * All fields are optional; when data is absent, consumers should handle undefined.
+ * All fields are optional; when data is absent, consumers should handle
+ * undefined.
  */
 export type TimePoint = {
   scheduled?: Date;
@@ -30,49 +43,66 @@ export type TimePoint = {
 };
 
 /**
- * Canonical segment model for the feature timeline.
- * Segments are ordered and share adjacent boundary TimePoints.
+ * Boundary data owned by a timeline row.
  */
-export type TimelineSegment = {
-  id: string;
-  segmentIndex: number;
-  kind: SegmentKind;
-  startPoint: TimePoint;
-  endPoint: TimePoint;
-  startTerminalAbbrev: string;
-  endTerminalAbbrev: string;
-  rendersEndLabel?: boolean;
-  fallbackDurationMinutes: number;
+export type TimelineBoundary = {
+  terminalAbbrev?: string;
+  timePoint: TimePoint;
 };
 
 /**
- * Ordered canonical segment list plus the active segment cursor.
- * `activeSegmentIndex` may be:
- * - `-1` when no segment has started yet
- * - `0..segments.length - 1` when a segment is active
- * - `segments.length` when all segments are completed
+ * Explicit boundary ownership for a row's rendered labels and times.
  */
-export type TimelineSegmentsModel = {
-  segments: TimelineSegment[];
-  activeSegmentIndex: number;
-};
+export type TimelineBoundaryOwnership = SharedTimelineBoundaryOwnership;
 
-/** Layout bounds (y, height) for a timeline row; used to align overlay rows with measured rows. */
+/**
+ * Canonical document row for the feature timeline.
+ * Rows are ordered, share adjacent boundary points, and carry only the data
+ * needed to derive the current render state.
+ */
+export type TimelineDocumentRow = SharedTimelineDocumentRow<
+  SegmentKind,
+  TimelineBoundary,
+  TimelineProgressMode
+>;
+
+/**
+ * Canonical feature-owned timeline document plus the active row cursor.
+ * `activeSegmentIndex` may be:
+ * - `0..rows.length - 1` when a row is active
+ * - `rows.length` when all rows are completed
+ */
+export type TimelineDocument = SharedTimelineDocument<TimelineDocumentRow>;
+
+/** Layout bounds (y, height) for a timeline row; used to align the overlay. */
 export type RowLayoutBounds = { y: number; height: number };
 
 /**
- * Feature-level presentation row derived from a canonical segment.
+ * Render-ready boundary label and timepoint for one side of a row.
  */
-export type TimelineRowModel = TimelineSegment & {
-  durationMinutes: number;
-  useDistanceProgress?: boolean;
-  minHeight?: number;
+export type TimelineRenderBoundary = {
+  label: string;
+  terminalAbbrev?: string;
+  timePoint: TimePoint;
 };
 
 /**
- * Feature-level presentation model passed to the timeline renderer.
+ * Render-ready row state consumed by the renderer.
  */
-export type TimelinePresentationModel = {
-  rows: TimelineRowModel[];
-  activeSegmentIndex: number;
-};
+export type TimelineRenderRow = SharedTimelineRenderRow<
+  SegmentKind,
+  TimelineRenderBoundary
+>;
+
+/**
+ * Active indicator state for the full-timeline overlay.
+ */
+export type TimelineActiveIndicator = SharedTimelineActiveIndicator<string>;
+
+/**
+ * Render-ready timeline state derived from the canonical document.
+ */
+export type TimelineRenderState = SharedTimelineRenderState<
+  TimelineRenderRow,
+  TimelineActiveIndicator
+>;

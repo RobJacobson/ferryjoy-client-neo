@@ -10,8 +10,25 @@
  * Types and utilities:
  * - TimelineRow: model for timeline segments with duration and progress
  * - TimelineTheme: styling configuration with optional overrides
+ * - TimelineDocument: generic ordered-document shape for timeline features
+ * - Timeline selectors: active-row, row-phase, and percent-complete helpers
  */
 
+export type {
+  TimelineActiveIndicator,
+  TimelineBoundaryOwnership,
+  TimelineDocument,
+  TimelineDocumentRow,
+  TimelineLayoutMode,
+  TimelineLifecyclePhase,
+  TimelineRenderRow,
+  TimelineRenderState,
+} from "./TimelineDocument";
+export {
+  getActiveTimelineRow,
+  getTimelineRowPercentComplete,
+  getTimelineRowPhase,
+} from "./TimelineDocument";
 export { TimelineMarker as TimelineDot } from "./TimelineMarker";
 export { TimelineProgressIndicator } from "./TimelineProgressIndicator";
 export { TimelineRowComponent } from "./TimelineRow";

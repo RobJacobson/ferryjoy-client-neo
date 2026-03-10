@@ -2,7 +2,7 @@
  * Shared TimePoint helpers for timeline geometry and labels.
  */
 
-import type { TimelineSegment, TimePoint } from "../types";
+import type { TimelineDocumentRow, TimePoint } from "../types";
 
 const MIN_SEGMENT_MINUTES = 1;
 const MS_PER_MINUTE = 60_000;
@@ -28,22 +28,22 @@ export const getBoundaryTime = (timePoint: TimePoint): Date | undefined =>
 /**
  * Calculates a segment duration from its boundary points when possible.
  *
- * @param segment - Timeline segment bounded by two TimePoints
+ * @param row - Timeline row bounded by two TimePoints
  * @returns Duration in minutes from boundary times, or the segment fallback
  */
-export const getSegmentDurationMinutes = (segment: TimelineSegment): number => {
-  const startTime = getBoundaryTime(segment.startPoint);
-  const endTime = getBoundaryTime(segment.endPoint);
+export const getSegmentDurationMinutes = (row: TimelineDocumentRow): number => {
+  const startTime = getBoundaryTime(row.startBoundary.timePoint);
+  const endTime = getBoundaryTime(row.endBoundary.timePoint);
 
   if (!startTime || !endTime) {
-    return Math.max(MIN_SEGMENT_MINUTES, segment.fallbackDurationMinutes);
+    return Math.max(MIN_SEGMENT_MINUTES, row.fallbackDurationMinutes);
   }
 
   const durationMinutes =
     (endTime.getTime() - startTime.getTime()) / MS_PER_MINUTE;
 
   if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-    return Math.max(MIN_SEGMENT_MINUTES, segment.fallbackDurationMinutes);
+    return Math.max(MIN_SEGMENT_MINUTES, row.fallbackDurationMinutes);
   }
 
   return Math.max(MIN_SEGMENT_MINUTES, durationMinutes);
@@ -52,16 +52,16 @@ export const getSegmentDurationMinutes = (segment: TimelineSegment): number => {
 /**
  * Calculates time-based progress for an active segment.
  *
- * @param segment - Timeline segment with start/end TimePoints
+ * @param row - Timeline row with start/end TimePoints
  * @param now - Current wall-clock time
  * @returns Normalized progress ratio between 0 and 1
  */
 export const getSegmentTimeProgress = (
-  segment: TimelineSegment,
+  row: TimelineDocumentRow,
   now: Date
 ): number => {
-  const startTime = getBoundaryTime(segment.startPoint);
-  const endTime = getBoundaryTime(segment.endPoint);
+  const startTime = getBoundaryTime(row.startBoundary.timePoint);
+  const endTime = getBoundaryTime(row.endBoundary.timePoint);
 
   if (!startTime || !endTime) {
     return 0;

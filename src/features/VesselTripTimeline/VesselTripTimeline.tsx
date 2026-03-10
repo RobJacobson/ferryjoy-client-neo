@@ -4,9 +4,9 @@
 
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { buildTimelineModelFromTrip } from "./adapters/buildTimelineModelFromTrip";
 import { TimelineContent } from "./components";
 import type { TimelineItem } from "./types";
+import { buildTimelineDocument, selectTimelineRenderState } from "./utils";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
 type VesselTripTimelineProps = TimelineItem;
@@ -21,10 +21,9 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
-  const timelineModel = buildTimelineModelFromTrip({
-    trip,
-    vesselLocation,
-  });
+  const item = { trip, vesselLocation };
+  const timelineDocument = buildTimelineDocument(item);
+  const renderState = selectTimelineRenderState(timelineDocument, item);
 
   return (
     <Card className="gap-4 py-4">
@@ -37,11 +36,7 @@ export const VesselTripTimeline = ({
         </View>
       </CardHeader>
       <CardContent className="px-4">
-        <TimelineContent
-          presentationRows={timelineModel.rows}
-          activeSegmentIndex={timelineModel.activeSegmentIndex}
-          item={{ trip, vesselLocation }}
-        />
+        <TimelineContent {...renderState} />
       </CardContent>
     </Card>
   );

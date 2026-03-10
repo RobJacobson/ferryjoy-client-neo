@@ -1,119 +1,101 @@
 # Vessel Trip Timeline Layout Architecture
 
 This document explains the current architecture for the vessel trip timeline.
-The feature is now built around ordered segments with shared `TimePoint`
-boundaries, while the shared timeline primitive remains domain-agnostic.
+The feature keeps the working full-surface blur overlay, but now uses a slimmer
+two-step pipeline built on top of shared generic timeline document/selector
+primitives. That makes it easier to extend into a future multi-stop day
+timeline without duplicating ordered-row mechanics per feature.
 
-## Canonical Model
+## High-Level Flow
 
-The feature's source of truth is an ordered array of `TimelineSegment` objects.
-The ordered model also carries one `activeSegmentIndex` cursor. Each segment
-contains:
+```mermaid
+flowchart TD
+  featureInput[FeatureInput trip + vesselLocation] --> documentBuilder[buildTimelineDocument]
+  documentBuilder --> timelineDocument[TimelineDocument]
+  timelineDocument --> renderSelector[selectTimelineRenderState]
+  renderSelector --> renderState[TimelineRenderState]
+  renderState --> timelineContent[TimelineContent]
+  timelineContent --> rowShells[TimelineRowComponent rows]
+  timelineContent --> overlayLayer[TimelineIndicatorOverlay]
+```
 
+## Canonical Document Model
+
+The feature's source of truth is now a `TimelineDocument` built by
+`utils/buildTimelineDocument.ts`.
+
+The base document and render-state shapes live in
+`src/components/Timeline/TimelineDocument.ts`, while `VesselTripTimeline`
+supplies feature-specific boundary payloads, progress modes, labels, and
+telemetry rules.
+
+The document contains:
+
+- ordered `rows`
+- one `activeSegmentIndex` cursor
+
+Each `TimelineDocumentRow` contains:
+
+- `id`
+- `segmentIndex`
 - `kind`: `"at-dock"` or `"at-sea"`
-- `segmentIndex`: zero-based order within the timeline
-- `startPoint` / `endPoint`: shared `TimePoint` boundaries
-- `startTerminalAbbrev` / `endTerminalAbbrev`: canonical terminal abbreviations
-- `fallbackDurationMinutes`: route-specific fallback geometry
-- `rendersEndLabel`: optional fencepost flag for the last segment
+- `startBoundary` / `endBoundary`
+- `boundaryOwnership`
+- `geometryMinutes`
+- `fallbackDurationMinutes`
+- `progressMode`: `"time"` or `"distance"`
+- `layoutMode`: `"duration"` or `"content"`
 
-Adjacent segments share boundary `TimePoint`s. This makes the timing model
-semantic and composable, even though today's vessel card still produces three
-segments.
+Adjacent rows still share boundary `TimePoint`s, but the feature no longer
+creates a second presentation-row model on top of the canonical document.
 
-## Separation of Concerns
+## Two-Step Pipeline
 
-The feature is split into three layers:
+The feature now splits into two pure data stages plus one renderer:
 
-1. **Canonical segment builder**
-   - `utils/buildTimelineSegments.ts`
-   - Builds ordered `TimelineSegment[]` plus `activeSegmentIndex` from trip and
-     vessel-location data.
-   - Keeps terminal abbreviations canonical in the model.
+1. **Canonical document builder**
+   - `utils/buildTimelineDocument.ts`
+   - Builds the ordered day/timeline rows from trip and vessel-location data.
+   - Computes geometry minutes and explicit boundary ownership up front.
 
-2. **Presentation adapter**
-   - `adapters/buildTimelineModelFromTrip.ts`
-   - Maps canonical segments into feature presentation rows.
-   - Computes `durationMinutes` from boundary `TimePoint`s when possible.
-   - Falls back to route-specific duration defaults when timing data is sparse.
-   - Contains no JSX.
+2. **Render-state selector**
+   - `utils/selectTimelineRenderState.ts`
+   - Derives:
+     - row `percentComplete`
+     - start/end boundary labels
+     - active overlay indicator `{ rowId, rowIndex, positionPercent, label }`
+   - Owns the feature-specific "what is active right now?" logic.
+   - Reuses shared selector helpers for active-row lookup, row phase, and
+     row completion.
 
 3. **Renderer + overlay**
    - `components/TimelineContent.tsx`
-   - Wraps the shared timeline in `BlurTargetView`.
-   - Maps presentation rows to shared `TimelineRow` objects.
-   - Renders the shared timeline in `renderMode="background"` so the inline
-     progress indicator is disabled for this feature.
-   - Renders `RowContentLabel`, `RowContentTimes`, and the indicator overlay.
-   - `utils/deriveOverlayIndicator.ts`
-     derives the active segment, indicator position, and countdown label.
+   - Receives render-ready rows and the active indicator.
+   - Measures row bounds.
+   - Renders the shared timeline rows in background mode.
+   - Paints one absolute indicator overlay above the whole timeline.
 
-## Geometry vs Labels
+## Why the Overlay Stays
 
-The refactor explicitly separates **layout geometry** from **user-facing copy**.
+The blur requirement is the main architectural constraint.
 
-### Geometry
-
-- The shared timeline primitive uses `durationMinutes`, not absolute wall-clock
-  dates.
-- Feature code derives duration from `startPoint` / `endPoint` when possible.
-- When boundary times are missing or invalid, geometry falls back to
-  route-specific historical averages from ML config.
-- No synthetic absolute `Date` timeline is constructed for rendering.
-
-### Labels
-
-- Terminal abbreviations stay canonical in the segment model.
-- `RowContentLabel` translates abbreviations to names at render time.
-- Countdown labels only use `actual ?? estimated` from the segment `endPoint`.
-- Historical averages are never shown to the user.
-- Label tense is derived from `segmentIndex` relative to `activeSegmentIndex`,
-  not from visual completion.
-
-This is important for delayed departures: a dock segment can remain `active`
-even after its predicted geometry is fully consumed, so the indicator may sit at
-`100%` while the label still reflects the real-world state.
-
-## Shared Timeline Primitive
-
-`src/components/Timeline` remains feature-agnostic. Its `TimelineRow` model
-contains:
-
-- `id`
-- `durationMinutes`
-- `percentComplete`
-- render slots (`leftContent`, `rightContent`, `markerContent`,
-  `indicatorContent`)
-- optional `minHeight`
-
-The primitive is now split so:
-
-- `TimelineTrack` renders the track backbone plus the static marker
-- `TimelineProgressIndicator` owns inline moving-indicator visibility/rendering
-- feature code can still bypass the inline indicator entirely and use a custom
-  overlay, as `VesselTripTimeline` does
-
-It does not know about `TimePoint`, terminal semantics, or the active-segment
-cursor.
-
-## Overlay Structure
-
-At a high level:
+The active indicator can overlap adjacent rows, so rendering it inside just the
+active row is not sufficient. Instead, the feature keeps one normal timeline
+layer and one absolute overlay layer:
 
 ```text
 View (timeline container)
 └── BlurTargetView
     ├── TimelineRowComponent[]
-    │   └── leftContent (RowContentLabel) | axis (track + marker) | rightContent
-    │       (RowContentTimes)
+    │   └── leftContent | axis | rightContent
     └── TimelineIndicatorOverlay (absolute inset-0)
-        └── TimelineIndicator (single absolute child)
+        └── TimelineIndicator
 ```
 
 The overlay does not duplicate rows. Instead:
 
 - rows report measured `y` and `height` through `onRowLayout`
-- the active row is chosen from `activeSegmentIndex`
+- the selector decides which row owns the active indicator
 - row-local `positionPercent` is converted into container-relative `top`
 - the overlay renders exactly one indicator above the full timeline
 
@@ -121,40 +103,86 @@ Indicator position is:
 
 `rowLayout.y + rowLayout.height * positionPercent`
 
-Horizontal centering remains `left: "50%"` with negative margins so the
-indicator stays aligned to the shared axis.
+## Geometry vs Current State
 
-## Indicator State Rules
+The architecture now cleanly separates:
 
-The overlay indicator model is:
+### Canonical geometry
 
-- `rowId`
-- `segmentIndex`
-- `positionPercent`
-- `label`
+- row ordering
+- shared boundaries
+- fallback durations
+- progress mode
+- layout mode
 
-Rules:
+### Current render state
 
-- `activeSegmentIndex` points at the active row
-- `-1` means no segment has started yet
-- `rows.length` means all segments are completed
-- at-sea segments prefer distance-based progress when telemetry is available
-- otherwise progress is time-based from the segment boundary `TimePoint`s
-- the first active dock segment applies a small minimum offset (`0.06`) so the
-  indicator does not sit directly on top of the static marker
+- active row
+- per-row completion
+- boundary label tense
+- countdown label
+- active indicator position
+
+This keeps `TimelineContent` focused on layout and rendering instead of feature
+business logic.
 
 ## Boundary Ownership
 
-Each segment owns its **starting** boundary label and time chips.
+Boundary ownership is now explicit on each document row.
 
-The final segment may also own its **ending** boundary via `rendersEndLabel`.
-This avoids a dummy placeholder row while still solving the fencepost problem
-for the terminal UI.
+- Every row owns its starting boundary.
+- Rows may also own their ending boundary through `boundaryOwnership.end`.
+- The destination dock row uses `layoutMode: "content"` so it can own the final
+  boundary without forcing duration-based growth.
+
+This replaces the older `rendersEndLabel` and `minHeight: 0` special cases with
+row-level semantics.
+
+## Shared Timeline Primitive Boundary
+
+`src/components/Timeline` remains domain-agnostic.
+
+The shared module now owns:
+
+- generic document/render-state types
+- active-row lookup
+- lifecycle phase derivation
+- row percent-complete derivation
+
+`VesselTripTimeline` still owns:
+
+- trip/vessel document building
+- boundary label copy
+- time-vs-distance progress choice
+- overlay label content
+- blur-specific overlay rendering
+
+For now, `VesselTripTimeline` intentionally renders `TimelineRowComponent`
+directly instead of going through the higher-level `VerticalTimeline` API.
+That is a deliberate choice:
+
+- the feature needs row measurement
+- the feature owns a full-surface overlay indicator
+- the current public primitive API does not expose that overlay workflow cleanly
+
+This keeps the shared primitive generic while letting `VesselTripTimeline`
+manage its feature-specific blur overlay locally.
+
+## Indicator State Rules
+
+`selectTimelineRenderState.ts` owns the current-state rules:
+
+- `activeSegmentIndex` points at the active row
+- `rows.length` means all rows are completed
+- at-sea rows prefer distance-based progress when telemetry is available
+- otherwise progress is time-based from the row boundary `TimePoint`s
+- the first active dock row applies a small minimum offset (`0.06`) so the
+  indicator does not sit directly on top of the static marker
 
 ## Indicator Position Animation
 
-`positionPercent` updates relatively infrequently from Convex data. To avoid
-visible jumps:
+`positionPercent` still updates infrequently from Convex data. To avoid visible
+jumps:
 
 - `hooks/useAnimatedProgress.ts` animates the indicator's absolute `top` value
   with a Reanimated spring
@@ -170,5 +198,5 @@ backing data updates only every few seconds.
   blocked.
 - The overlay must share the same positioned ancestor as the measured rows.
 - The indicator renders only after the active row has measured bounds.
-- Terminal abbreviations remain canonical in the feature model and are only
+- Terminal abbreviations remain canonical in the document model and are only
   translated to display names in the UI layer.
