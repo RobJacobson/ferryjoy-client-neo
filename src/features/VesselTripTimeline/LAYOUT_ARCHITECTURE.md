@@ -15,6 +15,7 @@ flowchart TD
   timelineDocument --> renderSelector[selectTimelineRenderState]
   renderSelector --> renderState[TimelineRenderState]
   renderState --> timelineContent[TimelineContent]
+  timelineContent --> fullTrack[FullTimelineTrack]
   timelineContent --> rowShells[TimelineRowComponent rows]
   timelineContent --> overlayLayer[TimelineIndicatorOverlay]
 ```
@@ -61,7 +62,6 @@ The feature now splits into two pure data stages plus one renderer:
 2. **Render-state selector**
    - `utils/selectTimelineRenderState.ts`
    - Derives:
-     - row `percentComplete`
      - start/end boundary labels
      - active overlay indicator `{ rowId, rowIndex, positionPercent, label }`
    - Owns the feature-specific "what is active right now?" logic.
@@ -86,22 +86,23 @@ layer and one absolute overlay layer:
 ```text
 View (timeline container)
 └── BlurTargetView
+    ├── FullTimelineTrack (absolute, full height)
+    │   └── two bars: completed (0→topPx) + remaining (topPx→bottom)
     ├── TimelineRowComponent[]
-    │   └── leftContent | axis | rightContent
+    │   └── leftContent | center-marker | rightContent
     └── TimelineIndicatorOverlay (absolute inset-0)
         └── TimelineIndicator
 ```
 
-The overlay does not duplicate rows. Instead:
+The track and overlay share the same boundary notion. Both use `topPx`:
+
+`topPx = rowLayout.y + rowLayout.height * clamp(positionPercent, 0, 1)`
 
 - rows report measured `y` and `height` through `onRowLayout`
-- the selector decides which row owns the active indicator
-- row-local `positionPercent` is converted into container-relative `top`
-- the overlay renders exactly one indicator above the full timeline
-
-Indicator position is:
-
-`rowLayout.y + rowLayout.height * positionPercent`
+- the selector decides which row owns the active indicator (`positionPercent`)
+- `topPx` is computed once from active row layout + `positionPercent`
+- `FullTimelineTrack` draws two bars: completed (0→topPx), remaining (topPx→bottom)
+- `TimelineIndicatorOverlay` renders exactly one indicator at `topPx`
 
 ## Geometry vs Current State
 
@@ -118,7 +119,6 @@ The architecture now cleanly separates:
 ### Current render state
 
 - active row
-- per-row completion
 - boundary label tense
 - countdown label
 - active indicator position

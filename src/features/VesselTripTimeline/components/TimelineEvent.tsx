@@ -13,7 +13,7 @@ const eventTypeIcon = {
   estimated: EqualApproximately,
 } as const;
 
-type EventType = keyof typeof eventTypeIcon;
+export type EventType = keyof typeof eventTypeIcon;
 
 type TimelineEventProps = {
   time: Date;
@@ -32,7 +32,7 @@ export const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   return (
     <View className={cn("flex-row", type === "scheduled" ? "gap-1" : "gap-0")}>
       <Icon size={18} strokeWidth={1.5} color="#555" />
-      <Text className="font-playpen-400 text-sm">{toDisplayTime(time)}</Text>
+      <Text className="font-bitcount-400">{toDisplayTime(time)}</Text>
     </View>
   );
 };

@@ -2,11 +2,7 @@
  * Derives render-ready row and indicator state from the canonical timeline document.
  */
 
-import {
-  getActiveTimelineRow,
-  getTimelineRowPercentComplete,
-  getTimelineRowPhase,
-} from "@/components/Timeline";
+import { getActiveTimelineRow, getTimelineRowPhase } from "@/components/Timeline";
 import { clamp } from "@/shared/utils";
 import type {
   TimelineActiveIndicator,
@@ -49,10 +45,6 @@ export const selectTimelineRenderState = (
         id: row.id,
         kind: row.kind,
         segmentIndex: row.segmentIndex,
-        percentComplete: getTimelineRowPercentComplete(
-          row.segmentIndex,
-          activeIndicator
-        ),
         geometryMinutes: row.geometryMinutes,
         layoutMode: row.layoutMode,
         startBoundary: getStartBoundary(row, phase),

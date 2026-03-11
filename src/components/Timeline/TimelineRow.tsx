@@ -2,16 +2,18 @@
  * Single timeline row component with left/center/right layout slots.
  * Supports optional per-row minimum height overrides via `row.minHeight`,
  * which takes precedence over the theme's `minSegmentPx` default.
+ *
+ * Center slot renders only the segment-start marker; track bars are drawn
+ * by a separate base-layer component (e.g. FullTimelineTrack in features).
  */
 
 import type { ReactNode } from "react";
 import { type LayoutChangeEvent, View, type ViewStyle } from "react-native";
 import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
-import { TimelineTrack } from "./TimelineTrack";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TimelineMarker } from "./TimelineMarker";
 import type { RequiredTimelineTheme } from "./TimelineTypes";
-
-export type VerticalTimelineRenderMode = "full" | "background";
 
 export type TimelineRowBounds = {
   y: number;
@@ -23,37 +25,31 @@ const ROW_LAYOUT_TRANSITION_DURATION_MS = 2000;
 export type TimelineRowComponentProps = {
   id: string;
   durationMinutes: number;
-  percentComplete: number;
   leftContent?: ReactNode;
   rightContent?: ReactNode;
   markerContent?: ReactNode;
-  indicatorContent?: ReactNode;
   minHeight?: number;
   theme: RequiredTimelineTheme;
   rowClassName?: string;
-  renderMode: VerticalTimelineRenderMode;
   onRowLayout?: (rowId: string, bounds: TimelineRowBounds) => void;
-  isLastRow: boolean;
+  isLastRow?: boolean;
 };
 
 /**
- * Renders a single timeline row with left content, axis, and right content.
+ * Renders a single timeline row with left content, center marker, and right content.
  *
  * @param props - Flattened row layout and content props
  * @returns Timeline row view
  */
-export const TimelineRowComponent = ({
+export const TimelineRow = ({
   id,
   durationMinutes,
-  percentComplete,
   leftContent,
   rightContent,
   markerContent,
-  indicatorContent,
   minHeight,
   theme,
   rowClassName,
-  renderMode,
   onRowLayout,
   isLastRow,
 }: TimelineRowComponentProps) => {
@@ -78,15 +74,14 @@ export const TimelineRowComponent = ({
         className="relative self-stretch"
         style={getAxisStyle(theme.centerAxisSizePx)}
       >
-        <TimelineTrack
-          orientation="vertical"
-          percentComplete={percentComplete}
-          showTrack={!isLastRow}
-          showIndicator={renderMode === "full"}
-          theme={theme}
-          markerContent={markerContent}
-          indicatorContent={indicatorContent}
-        />
+        <View className="absolute" style={getMarkerStyle(theme.markerSizePx)}>
+          <TimelineMarker
+            sizePx={theme.markerSizePx}
+            className={theme.markerClassName}
+          >
+            {markerContent}
+          </TimelineMarker>
+        </View>
       </View>
 
       <View className="flex-1 justify-start">{rightContent}</View>
@@ -123,13 +118,28 @@ const getVerticalRowStyle = (
  * Builds style for the center axis container.
  *
  * The axis column provides spacing between left and right content slots
- * and renders the timeline track through its center.
+ * and renders the segment-start marker through its center.
  *
  * @param centerAxisSizePx - Width of the axis column in pixels
  * @returns View style for axis container
  */
 const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
   width: centerAxisSizePx,
+});
+
+/**
+ * Builds style for the segment-start marker at top center of the axis.
+ *
+ * @param markerSizePx - Marker diameter in pixels for centering
+ * @returns View style for marker dot container
+ */
+const getMarkerStyle = (markerSizePx: number): ViewStyle => ({
+  zIndex: 1,
+  ...getAbsoluteCenteredBoxStyle({
+    width: markerSizePx,
+    height: markerSizePx,
+    isVertical: true,
+  }),
 });
 
 /**

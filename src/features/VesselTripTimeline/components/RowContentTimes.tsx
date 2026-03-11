@@ -12,6 +12,27 @@ type RowContentTimesProps = {
   endPoint?: TimePoint;
 };
 
+type TimepointTimesProps = {
+  point: TimePoint;
+};
+
+const TimepointTimes = ({ point }: TimepointTimesProps) => {
+  const { scheduled, actual, estimated } = point;
+  const secondary = actual ?? estimated;
+
+  return (
+    <View className="flex-row gap-1">
+      {scheduled && <TimelineEvent time={scheduled} type="scheduled" />}
+      {secondary && (
+        <TimelineEvent
+          time={secondary}
+          type={actual ? "actual" : "estimated"}
+        />
+      )}
+    </View>
+  );
+};
+
 /**
  * Renders top and optional bottom boundary times for a segment.
  *
@@ -24,23 +45,7 @@ export const RowContentTimes = ({
   endPoint,
 }: RowContentTimesProps) => (
   <View className="mt-[-10px] flex-1 justify-between">
-    <TimePointEvents {...startPoint} />
-    {endPoint ? <TimePointEvents {...endPoint} /> : null}
-  </View>
-);
-
-/**
- * Renders timeline events in priority order for a single boundary point.
- *
- * @param props - TimePoint with scheduled, actual, and estimated values
- * @returns Timeline event chips for one boundary point
- */
-const TimePointEvents = ({ scheduled, actual, estimated }: TimePoint) => (
-  <View className="flex-row gap-1">
-    {scheduled && <TimelineEvent time={scheduled} type="scheduled" />}
-    {actual && <TimelineEvent time={actual} type="actual" />}
-    {!actual && estimated && (
-      <TimelineEvent time={estimated} type="estimated" />
-    )}
+    <TimepointTimes point={startPoint} />
+    {endPoint ? <TimepointTimes point={endPoint} /> : null}
   </View>
 );

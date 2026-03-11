@@ -1,33 +1,26 @@
 /**
  * Domain-agnostic vertical timeline primitive with flexible row composition.
  *
- * Render modes:
- * - "full": renders track + marker + per-row moving indicator (default)
- * - "background": renders track + marker only, for use with external overlay
- *
- * External overlays (e.g., VerticalTimelineIndicatorOverlay) can use
- * onRowLayout to measure rows and position absolute indicators above
- * the timeline surface.
+ * Renders rows with left/center/right slots (content + segment-start marker).
+ * Track bars and moving indicators are rendered by feature-level overlays
+ * (e.g. FullTimelineTrack + TimelineIndicatorOverlay in VesselTripTimeline).
  */
 
 import { View } from "react-native";
 import { cn } from "@/lib/utils";
-import { TimelineRowComponent } from "./TimelineRow";
+import { TimelineRow } from "./TimelineRow";
 import {
   DEFAULT_TIMELINE_THEME,
   type RequiredTimelineTheme,
-  type TimelineRow,
+  type TimelineRow as TimelineRowModel,
   type TimelineTheme,
 } from "./TimelineTypes";
 
 type VerticalTimelineProps = {
-  rows: TimelineRow[];
+  rows: TimelineRowModel[];
   theme?: TimelineTheme;
   className?: string;
   rowClassName?: string;
-  // Controls whether per-row moving indicators are rendered.
-  renderMode?: "full" | "background";
-  // Parent receives absolute row bounds to position external overlays.
   onRowLayout?: (
     rowId: string,
     { y, height }: { y: number; height: number }
@@ -37,11 +30,10 @@ type VerticalTimelineProps = {
 /**
  * Renders a vertical timeline with left/center/right row slots.
  *
- * @param rows - Timeline rows with duration-based sizing and completion
+ * @param rows - Timeline rows with duration-based sizing
  * @param theme - Optional theme configuration with defaults applied
  * @param className - Optional container classes
  * @param rowClassName - Optional per-row classes
- * @param renderMode - Full timeline or background-only row rendering
  * @param onRowLayout - Optional callback for row container measurements
  * @returns Vertical timeline view
  */
@@ -50,7 +42,6 @@ export const VerticalTimeline = ({
   theme = {},
   className,
   rowClassName,
-  renderMode = "full",
   onRowLayout,
 }: VerticalTimelineProps) => {
   const mergedTheme: RequiredTimelineTheme = {
@@ -61,19 +52,16 @@ export const VerticalTimeline = ({
   return (
     <View className={cn("w-full flex-col", className)}>
       {rows.map((row) => (
-        <TimelineRowComponent
+        <TimelineRow
           key={row.id}
           id={row.id}
           durationMinutes={row.durationMinutes}
-          percentComplete={row.percentComplete}
           leftContent={row.leftContent}
           rightContent={row.rightContent}
           markerContent={row.markerContent}
-          indicatorContent={row.indicatorContent}
           minHeight={row.minHeight}
           theme={mergedTheme}
           rowClassName={rowClassName}
-          renderMode={renderMode}
           onRowLayout={onRowLayout}
           isLastRow={rows[rows.length - 1]?.id === row.id}
         />

@@ -31,7 +31,7 @@ export {
 } from "./TimelineDocument";
 export { TimelineMarker as TimelineDot } from "./TimelineMarker";
 export { TimelineProgressIndicator } from "./TimelineProgressIndicator";
-export { TimelineRowComponent } from "./TimelineRow";
+export { TimelineRow as TimelineRowComponent } from "./TimelineRow";
 export { TimelineTrack } from "./TimelineTrack";
 export type {
   TimelineOrientation,

@@ -81,7 +81,6 @@ export type TimelineRenderRow<
   id: string;
   kind: TKind;
   segmentIndex: number;
-  percentComplete: number;
   geometryMinutes: number;
   layoutMode: TimelineLayoutMode;
   startBoundary: TBoundary;
