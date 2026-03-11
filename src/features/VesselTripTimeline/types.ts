@@ -6,7 +6,6 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import type {
   TimelineActiveIndicator as SharedTimelineActiveIndicator,
-  TimelineBoundaryOwnership as SharedTimelineBoundaryOwnership,
   TimelineDocument as SharedTimelineDocument,
   TimelineDocumentRow as SharedTimelineDocumentRow,
   TimelineLayoutMode as SharedTimelineLayoutMode,
@@ -51,11 +50,6 @@ export type TimelineBoundary = {
 };
 
 /**
- * Explicit boundary ownership for a row's rendered labels and times.
- */
-export type TimelineBoundaryOwnership = SharedTimelineBoundaryOwnership;
-
-/**
  * Canonical document row for the feature timeline.
  * Rows are ordered, share adjacent boundary points, and carry only the data
  * needed to derive the current render state.
@@ -88,11 +82,13 @@ export type TimelineRenderBoundary = {
 
 /**
  * Render-ready row state consumed by the renderer.
+ * Each row shows only its start boundary; the next row's start is the end of the previous segment.
+ * isFinalRow: true for the last row; it has no duration-based height (circle + labels only).
  */
 export type TimelineRenderRow = SharedTimelineRenderRow<
   SegmentKind,
   TimelineRenderBoundary
->;
+> & { isFinalRow: boolean };
 
 /**
  * Active indicator state for the full-timeline overlay.

@@ -32,7 +32,7 @@ telemetry rules.
 
 The document contains:
 
-- ordered `rows`
+- ordered `rows` (this feature uses three: origin dock, at-sea, destination dock)
 - one `activeSegmentIndex` cursor
 
 Each `TimelineDocumentRow` contains:
@@ -41,11 +41,10 @@ Each `TimelineDocumentRow` contains:
 - `segmentIndex`
 - `kind`: `"at-dock"` or `"at-sea"`
 - `startBoundary` / `endBoundary`
-- `boundaryOwnership`
 - `geometryMinutes`
 - `fallbackDurationMinutes`
 - `progressMode`: `"time"` or `"distance"`
-- `layoutMode`: `"duration"` or `"content"`
+- `layoutMode`: `"duration"` or `"content"` (final row uses content so it has no duration-based height)
 
 Adjacent rows still share boundary `TimePoint`s, but the feature no longer
 creates a second presentation-row model on top of the canonical document.
@@ -62,7 +61,8 @@ The feature now splits into two pure data stages plus one renderer:
 2. **Render-state selector**
    - `utils/selectTimelineRenderState.ts`
    - Derives:
-     - start/end boundary labels
+     - start boundary only per row (each row shows one marker/label set; next row's start is end of previous segment)
+     - `isFinalRow` for the last row (no duration-based height)
      - active overlay indicator `{ rowId, rowIndex, positionPercent, label }`
    - Owns the feature-specific "what is active right now?" logic.
    - Reuses shared selector helpers for active-row lookup, row phase, and
@@ -126,17 +126,17 @@ The architecture now cleanly separates:
 This keeps `TimelineContent` focused on layout and rendering instead of feature
 business logic.
 
-## Boundary Ownership
+## One label set per row (no end-boundary display)
 
-Boundary ownership is now explicit on each document row.
+Each row shows exactly one set of labels and one marker: its **start** boundary.
+The end of a segment is not shown on that row; the **next** row's start is the
+end of the previous segment. So there is no "ownership" of an end boundary for
+display—each row owns only its start. The document still has `startBoundary` and
+`endBoundary` for geometry (e.g. duration); the renderer only receives
+`startBoundary` per row.
 
-- Every row owns its starting boundary.
-- Rows may also own their ending boundary through `boundaryOwnership.end`.
-- The destination dock row uses `layoutMode: "content"` so it can own the final
-  boundary without forcing duration-based growth.
-
-This replaces the older `rendersEndLabel` and `minHeight: 0` special cases with
-row-level semantics.
+- **Three rows**: origin dock (arrive at origin), at-sea (depart origin → arrive destination), destination dock (arrive at destination). Each has a timeline dot at its start.
+- **Final row**: The last row (destination dock) has `isFinalRow: true`. It has no duration-based height—only the space needed for the circle and its start labels (`minHeight: 0`, no flex growth).
 
 ## Shared Timeline Primitive Boundary
 

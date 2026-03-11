@@ -16,7 +16,6 @@
 
 export type {
   TimelineActiveIndicator,
-  TimelineBoundaryOwnership,
   TimelineDocument,
   TimelineDocumentRow,
   TimelineLayoutMode,

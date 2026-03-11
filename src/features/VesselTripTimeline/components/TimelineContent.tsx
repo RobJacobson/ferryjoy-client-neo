@@ -7,8 +7,7 @@
 
 import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
-import type { LayoutChangeEvent, View as RNView } from "react-native";
-import { TimelineRowComponent } from "@/components/Timeline";
+import type { View as RNView } from "react-native";
 import type { RequiredTimelineTheme } from "@/components/Timeline/TimelineTypes";
 import { View } from "@/components/ui";
 import { clamp } from "@/shared/utils";
@@ -18,9 +17,10 @@ import type {
   TimelineRenderState,
 } from "../types";
 import { FullTimelineTrack } from "./FullTimelineTrack";
-import { RowContentLabel } from "./RowContentLabel";
-import { RowContentTimes } from "./RowContentTimes";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
+import { VesselTripTimelineRow } from "./VesselTripTimelineRow";
+
+const CONTAINER_HEIGHT_PX = 350;
 
 const TIMELINE_THEME: RequiredTimelineTheme = {
   minSegmentPx: 32,
@@ -61,15 +61,9 @@ export const TimelineContent = ({
   activeIndicator,
 }: TimelineRenderState) => {
   const blurTargetRef = useRef<RNView | null>(null);
-  const [containerHeight, setContainerHeight] = useState(0);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
   );
-
-  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
-    const { height } = e.nativeEvent.layout;
-    setContainerHeight(height);
-  }, []);
 
   const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
     setRowLayouts((prev) =>
@@ -87,31 +81,19 @@ export const TimelineContent = ({
         ref={blurTargetRef}
         className="relative flex-1 flex-col"
         collapsable={false}
-        onLayout={onContainerLayout}
       >
         <FullTimelineTrack
-          containerHeightPx={containerHeight}
+          containerHeightPx={CONTAINER_HEIGHT_PX}
           boundaryTopPx={boundaryTopPx}
           theme={TIMELINE_THEME}
         />
         {renderRows.map((row, index) => (
-          <TimelineRowComponent
+          <VesselTripTimelineRow
             key={row.id}
             id={row.id}
             durationMinutes={row.geometryMinutes}
-            minHeight={row.layoutMode === "content" ? 0 : undefined}
-            leftContent={
-              <RowContentLabel
-                startLabel={row.startBoundary}
-                endLabel={row.endBoundary}
-              />
-            }
-            rightContent={
-              <RowContentTimes
-                startPoint={row.startBoundary.timePoint}
-                endPoint={row.endBoundary?.timePoint}
-              />
-            }
+            startBoundary={row.startBoundary}
+            minHeight={row.isFinalRow ? 0 : undefined}
             theme={TIMELINE_THEME}
             isLastRow={index === renderRows.length - 1}
             onRowLayout={onRowLayout}

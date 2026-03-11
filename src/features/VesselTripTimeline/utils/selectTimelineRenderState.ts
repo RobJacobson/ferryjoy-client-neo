@@ -2,7 +2,10 @@
  * Derives render-ready row and indicator state from the canonical timeline document.
  */
 
-import { getActiveTimelineRow, getTimelineRowPhase } from "@/components/Timeline";
+import {
+  getActiveTimelineRow,
+  getTimelineRowPhase,
+} from "@/components/Timeline";
 import { clamp } from "@/shared/utils";
 import type {
   TimelineActiveIndicator,
@@ -35,7 +38,7 @@ export const selectTimelineRenderState = (
   const activeIndicator = getActiveIndicator(document, item, now);
 
   return {
-    rows: document.rows.map((row) => {
+    rows: document.rows.map((row, index) => {
       const phase = getTimelineRowPhase(
         row.segmentIndex,
         document.activeSegmentIndex
@@ -48,9 +51,7 @@ export const selectTimelineRenderState = (
         geometryMinutes: row.geometryMinutes,
         layoutMode: row.layoutMode,
         startBoundary: getStartBoundary(row, phase),
-        endBoundary: row.boundaryOwnership.end
-          ? getEndBoundary(row)
-          : undefined,
+        isFinalRow: index === document.rows.length - 1,
       } satisfies TimelineRenderRow;
     }),
     activeIndicator,
@@ -157,18 +158,6 @@ const getStartBoundary = (
       ? row.startBoundary.terminalAbbrev
       : row.endBoundary.terminalAbbrev,
   timePoint: row.startBoundary.timePoint,
-});
-
-/**
- * Builds the optional end boundary owned by the final row.
- *
- * @param row - Canonical document row
- * @returns End boundary label and timepoint
- */
-const getEndBoundary = (row: TimelineDocumentRow): TimelineRenderBoundary => ({
-  label: row.kind === "at-dock" ? "Departing to" : "Arriving",
-  terminalAbbrev: row.endBoundary.terminalAbbrev,
-  timePoint: row.endBoundary.timePoint,
 });
 
 /**

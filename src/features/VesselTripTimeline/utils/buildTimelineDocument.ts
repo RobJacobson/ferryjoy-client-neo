@@ -52,10 +52,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
         terminalAbbrev: departingTerminalAbbrev,
         timePoint: points.departOrigin,
       },
-      boundaryOwnership: {
-        start: true,
-        end: false,
-      },
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultOriginDockMinutes,
       progressMode: "time",
@@ -73,10 +69,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
         terminalAbbrev: arrivingTerminalAbbrev,
         timePoint: points.arriveNext,
       },
-      boundaryOwnership: {
-        start: true,
-        end: false,
-      },
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultAtSeaMinutes,
       progressMode: useDistanceProgress ? "distance" : "time",
@@ -93,10 +85,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
       endBoundary: {
         terminalAbbrev: arrivingTerminalAbbrev,
         timePoint: points.departNext,
-      },
-      boundaryOwnership: {
-        start: true,
-        end: true,
       },
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultDestinationDockMinutes,
@@ -116,7 +104,7 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
 };
 
 /**
- * Resolves the four boundary TimePoints used by today's three-row card.
+ * Resolves the boundary TimePoints used by the three-row timeline.
  *
  * @param item - Vessel trip and location pair
  * @returns Shared boundary points for ordered document rows
@@ -184,7 +172,7 @@ const getActiveSegmentIndex = (
 };
 
 /**
- * Resolves route-specific fallback durations for the current and next legs.
+ * Resolves route-specific fallback durations for each segment.
  *
  * @param item - Vessel trip and location pair
  * @returns Mean fallback durations for each rendered row

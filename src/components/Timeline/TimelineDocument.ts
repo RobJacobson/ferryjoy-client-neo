@@ -11,12 +11,6 @@ import { clamp } from "@/shared/utils";
 /** Row sizing mode for the shared timeline primitive. */
 export type TimelineLayoutMode = "duration" | "content";
 
-/** Explicit boundary ownership for a row's rendered labels and times. */
-export type TimelineBoundaryOwnership = {
-  start: true;
-  end: boolean;
-};
-
 /** Lifecycle phase of a row relative to the current active cursor. */
 export type TimelineLifecyclePhase = "upcoming" | "active" | "completed";
 
@@ -37,7 +31,6 @@ export type TimelineDocumentRow<
   kind: TKind;
   startBoundary: TBoundary;
   endBoundary: TBoundary;
-  boundaryOwnership: TimelineBoundaryOwnership;
   geometryMinutes: number;
   fallbackDurationMinutes: number;
   progressMode: TProgressMode;
