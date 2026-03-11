@@ -9,18 +9,15 @@ import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { StyleSheet } from "react-native";
-import { type TimelineRow, TimelineRowComponent } from "@/components/Timeline";
+import { TimelineRowComponent } from "@/components/Timeline";
 import type { RequiredTimelineTheme } from "@/components/Timeline/TimelineTypes";
 import { View } from "@/components/ui";
-import type {
-  RowLayoutBounds,
-  TimelineRenderRow,
-  TimelineRenderState,
-} from "../types";
+import type { RowLayoutBounds, TimelineRenderState } from "../types";
 import { RowContentLabel } from "./RowContentLabel";
 import { RowContentTimes } from "./RowContentTimes";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
-import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
+
+// import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
 
 const TIMELINE_THEME: RequiredTimelineTheme = {
   minSegmentPx: 32,
@@ -48,7 +45,6 @@ export const TimelineContent = ({
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
   );
-  const rows = renderRows.map(toTimelineRow);
 
   const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
     setRowLayouts((prev) =>
@@ -65,13 +61,28 @@ export const TimelineContent = ({
         style={styles.blurTarget}
         collapsable={false}
       >
-        {rows.map((row, index) => (
+        {renderRows.map((row, index) => (
           <TimelineRowComponent
             key={row.id}
-            row={row}
+            id={row.id}
+            durationMinutes={row.geometryMinutes}
+            percentComplete={row.percentComplete}
+            minHeight={row.layoutMode === "content" ? 0 : undefined}
+            leftContent={
+              <RowContentLabel
+                startLabel={row.startBoundary}
+                endLabel={row.endBoundary}
+              />
+            }
+            rightContent={
+              <RowContentTimes
+                startPoint={row.startBoundary.timePoint}
+                endPoint={row.endBoundary?.timePoint}
+              />
+            }
             theme={TIMELINE_THEME}
             renderMode="background"
-            isLastRow={index === rows.length - 1}
+            isLastRow={index === renderRows.length - 1}
             onRowLayout={onRowLayout}
           />
         ))}
@@ -84,32 +95,6 @@ export const TimelineContent = ({
     </View>
   );
 };
-
-/**
- * Converts one render-ready row into the shared timeline primitive shape.
- *
- * @param row - Render-ready row state
- * @returns Shared timeline row with feature-specific slots
- */
-const toTimelineRow = (row: TimelineRenderRow): TimelineRow => ({
-  id: row.id,
-  durationMinutes: row.geometryMinutes,
-  percentComplete: row.percentComplete,
-  leftContent: (
-    <RowContentLabel
-      startLabel={row.startBoundary}
-      endLabel={row.endBoundary}
-    />
-  ),
-  rightContent: (
-    <RowContentTimes
-      startPoint={row.startBoundary.timePoint}
-      endPoint={row.endBoundary?.timePoint}
-    />
-  ),
-  markerContent: <TimelineMarkerIcon kind={row.kind} />,
-  minHeight: row.layoutMode === "content" ? 0 : undefined,
-});
 
 const styles = StyleSheet.create({
   blurTarget: {

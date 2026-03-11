@@ -63,7 +63,14 @@ export const VerticalTimeline = ({
       {rows.map((row) => (
         <TimelineRowComponent
           key={row.id}
-          row={row}
+          id={row.id}
+          durationMinutes={row.durationMinutes}
+          percentComplete={row.percentComplete}
+          leftContent={row.leftContent}
+          rightContent={row.rightContent}
+          markerContent={row.markerContent}
+          indicatorContent={row.indicatorContent}
+          minHeight={row.minHeight}
           theme={mergedTheme}
           rowClassName={rowClassName}
           renderMode={renderMode}
