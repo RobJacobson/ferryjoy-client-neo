@@ -45,7 +45,9 @@ export const buildTrip = async (
     ...baseTrip,
     ArriveDest:
       baseTrip.ArriveDest ??
-      (events.didJustArriveAtDock ? currLocation.TimeStamp : undefined),
+      (!tripStart && events.didJustArriveAtDock
+        ? currLocation.TimeStamp
+        : undefined),
   };
 
   // Compute enrichment conditions

@@ -47,7 +47,7 @@ export const baseTripFromLocation = (
  * previous trip). At this point, `existingTrip` is the trip being completed.
  *
  * Key characteristics:
- * - TripStart is set to current timestamp
+ * - TripStart is only set when the start event was actually observed
  * - Prev* fields are carried from the completing trip
  * - Predictions are cleared (undefined)
  * - ArrivingTerminalAbbrev comes only from currLocation (not existingTrip)
@@ -64,6 +64,15 @@ const baseTripForStart = (
   const previousStartedTrip = existingTrip?.TripStart
     ? existingTrip
     : undefined;
+  const didJustBecomeStartReady =
+    existingTrip &&
+    !existingTrip.TripStart &&
+    !existingTrip.ArrivingTerminalAbbrev &&
+    Boolean(currLocation.ArrivingTerminalAbbrev) &&
+    currLocation.AtDock;
+  const tripStartTime =
+    previousStartedTrip?.ArriveDest ??
+    (didJustBecomeStartReady ? currLocation.TimeStamp : undefined);
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -85,10 +94,10 @@ const baseTripForStart = (
     PrevTerminalAbbrev: previousStartedTrip?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: previousStartedTrip?.ScheduledDeparture,
     PrevLeftDock: previousStartedTrip?.LeftDock,
-    // Carry forward the dock arrival when we delayed the trip start.
-    ArriveDest: previousStartedTrip?.ArriveDest,
-    // Trip start is when the feed finally exposes the new trip.
-    TripStart: currLocation.TimeStamp,
+    // New trip has not arrived at its destination yet.
+    ArriveDest: undefined,
+    // Trip start is known only when we observed the arrival/start transition.
+    TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
     AtDockDuration: undefined, // Will be computed when vessel leaves dock
     ScheduledDeparture: currLocation.ScheduledDeparture,

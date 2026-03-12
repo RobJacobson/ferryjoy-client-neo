@@ -83,7 +83,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 **Behavior**: Handled by `processCurrentTrips`. First appearances now split into two cases:
 - If the feed is not yet start-ready, `buildTrip(..., tripStart=false, ...)` creates a minimal pre-trip/ghost record with no `TripStart`
-- If the feed already has `ScheduledDeparture` and `ArrivingTerminalAbbrev`, `buildTrip(..., tripStart=true, ...)` starts a real trip immediately
+- If the feed already has `ScheduledDeparture` and `ArrivingTerminalAbbrev`, `buildTrip(..., tripStart=true, ...)` creates a start-ready trip record, but `TripStart` remains undefined unless the system actually observed the start transition
 - Compares via `tripsAreEqual` (always different for new trips) and writes via `upsertVesselTripsBatch`
 
 ### 2. Trip Boundary
@@ -198,7 +198,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture)` in baseTripFromLocation; uses carried-forward `ScheduledDeparture` when current feed omits it |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
 | **ArriveDest** | Arrival event | `currLocation.TimeStamp` when the vessel reaches the destination terminal; carried until completion |
-| **TripStart** | Start event | `currLocation.TimeStamp` when the feed first exposes the new trip; carried forward |
+| **TripStart** | Observed start event | Set only when the system observed the start transition. At delayed boundaries this is the previous trip's `ArriveDest`; for pre-trips it can be the tick where `ArrivingTerminalAbbrev` first becomes defined while the vessel is at dock. |
 | **AtDock** | currLocation | Direct copy every tick |
 | **AtDockDuration** | Computed | `LeftDock - ArriveDest` when available, else `LeftDock - TripStart` (minutes); only when LeftDock set |
 | **ScheduledDeparture** | currLocation or existingTrip | `currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture` (null-overwrite protection) |
