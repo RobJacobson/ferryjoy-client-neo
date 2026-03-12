@@ -1,18 +1,13 @@
 /**
- * Single timeline row component with left/center/right layout slots.
- * Supports optional per-row minimum height overrides via `row.minHeight`,
- * which takes precedence over the row style default min height.
- *
- * Center slot renders only the segment-start marker; track bars are drawn
- * by a separate base-layer component (e.g. FullTimelineTrack in features).
+ * Single timeline row container with measurement and vertical sizing.
+ * This component is responsible only for flex/height and reporting its
+ * measured bounds; callers own all inner content/layout via children.
  */
 
 import type { ReactNode } from "react";
-import { View, type ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
 import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
-import { ROW_STYLE } from "../theme";
-import { TimelineMarker } from "./TimelineMarker";
 
 export type TimelineRowBounds = {
   y: number;
@@ -24,59 +19,47 @@ const ROW_LAYOUT_TRANSITION_DURATION_MS = 5000;
 export type TimelineRowProps = {
   id: string;
   durationMinutes: number;
-  leftContent?: ReactNode;
-  rightContent?: ReactNode;
-  markerContent?: ReactNode;
   minHeight?: number;
   rowClassName?: string;
+  children: ReactNode;
   onRowLayout: (rowId: string, bounds: TimelineRowBounds) => void;
 };
 
 /**
- * Renders a single timeline row with left content, center marker, and right content.
+ * Renders a measurable, vertically sized timeline row.
  *
- * @param props - Flattened row layout and content props
- * @returns Timeline row view
+ * @param props - Row identity, sizing props, and layout callback
+ * @returns Row container that reports its y/height for overlay alignment
  */
 export const TimelineRow = ({
   id,
   durationMinutes,
-  leftContent,
-  rightContent,
-  markerContent,
   minHeight,
   rowClassName,
+  children,
   onRowLayout,
 }: TimelineRowProps) => {
   const rowStyle = getVerticalRowStyle(
     durationMinutes,
-    ROW_STYLE.minSegmentPx,
     minHeight
   );
 
+  /** Maps the native layout event into row-bounds so overlays can align by id. */
+  const handleLayout = (event: { nativeEvent: { layout: TimelineRowBounds } }) => {
+    const { y, height } = event.nativeEvent.layout;
+    onRowLayout(id, { y, height });
+  };
+
   return (
     <Animated.View
-      className={cn("w-full flex-row items-stretch", rowClassName)}
+      className={cn("w-full", rowClassName)}
       style={rowStyle}
       layout={LinearTransition.duration(
         ROW_LAYOUT_TRANSITION_DURATION_MS
       ).easing(Easing.inOut(Easing.quad))}
-      onLayout={(event) => {
-        const { y, height } = event.nativeEvent.layout;
-        onRowLayout(id, { y, height });
-      }}
+      onLayout={handleLayout}
     >
-      <View className="flex-1 justify-start">{leftContent}</View>
-
-      <TimelineMarker
-        centerAxisSizePx={ROW_STYLE.centerAxisSizePx}
-        sizePx={ROW_STYLE.markerSizePx}
-        className={ROW_STYLE.markerClassName}
-      >
-        {markerContent}
-      </TimelineMarker>
-
-      <View className="flex-1 justify-start">{rightContent}</View>
+      {children}
     </Animated.View>
   );
 };
@@ -98,10 +81,9 @@ export const TimelineRow = ({
  */
 const getVerticalRowStyle = (
   durationMinutes: number,
-  minSegmentPx: number,
   minHeight?: number
 ): ViewStyle => ({
   flexGrow: minHeight === 0 ? 0 : durationMinutes,
   flexBasis: "auto",
-  minHeight: minHeight ?? minSegmentPx,
+  minHeight,
 });

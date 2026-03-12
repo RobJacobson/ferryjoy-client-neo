@@ -17,8 +17,7 @@ import type {
 import { getBoundaryTopPx, getTrackFractions } from "../utils/viewState";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
 import { TimelineRow } from "./TimelineRow";
-import { TimelineRowContentLabel } from "./TimelineRowContentLabel";
-import { RowContentTimes } from "./TimelineRowContentTimes";
+import { TimelineRowContent } from "./TimelineRowContent";
 import { TimelineTrack } from "./TimelineTrack";
 
 const CONTAINER_HEIGHT_PX = 350;
@@ -71,13 +70,9 @@ export const TimelineContent = ({
             durationMinutes={row.geometryMinutes}
             minHeight={row.isFinalRow ? 0 : undefined}
             onRowLayout={onRowLayout}
-            leftContent={
-              <TimelineRowContentLabel startLabel={row.startBoundary} />
-            }
-            rightContent={
-              <RowContentTimes startPoint={row.startBoundary.timePoint} />
-            }
-          />
+          >
+            <TimelineRowContent row={row} />
+          </TimelineRow>
         ))}
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}
