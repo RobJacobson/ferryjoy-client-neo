@@ -1,16 +1,12 @@
 /**
  * Shared types for the VesselTripTimeline feature.
+ * Owns the canonical document, render-state, and layout types used by the
+ * pipeline and renderer. These types are feature-local and do not re-export
+ * shared primitives.
  */
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
-import type {
-  TimelineActiveIndicator as SharedTimelineActiveIndicator,
-  TimelineDocument as SharedTimelineDocument,
-  TimelineDocumentRow as SharedTimelineDocumentRow,
-  TimelineRenderRow as SharedTimelineRenderRow,
-  TimelineRenderState as SharedTimelineRenderState,
-} from "@/components/Timeline";
 
 /**
  * Input item for the VesselTripTimeline list.
@@ -25,6 +21,9 @@ export type SegmentKind = "at-dock" | "at-sea";
 
 /** Progress source for the active indicator within a row. */
 type TimelineProgressMode = "time" | "distance";
+
+/** Lifecycle phase of a row relative to the current active cursor. */
+export type TimelineLifecyclePhase = "upcoming" | "active" | "completed";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
@@ -50,11 +49,16 @@ type TimelineBoundary = {
  * Rows are ordered, share adjacent boundary points, and carry only the data
  * needed to derive the current render state.
  */
-export type TimelineDocumentRow = SharedTimelineDocumentRow<
-  SegmentKind,
-  TimelineBoundary,
-  TimelineProgressMode
->;
+export type TimelineDocumentRow = {
+  id: string;
+  segmentIndex: number;
+  kind: SegmentKind;
+  startBoundary: TimelineBoundary;
+  endBoundary: TimelineBoundary;
+  geometryMinutes: number;
+  fallbackDurationMinutes: number;
+  progressMode: TimelineProgressMode;
+};
 
 /**
  * Canonical feature-owned timeline document plus the active row cursor.
@@ -62,7 +66,10 @@ export type TimelineDocumentRow = SharedTimelineDocumentRow<
  * - `0..rows.length - 1` when a row is active
  * - `rows.length` when all rows are completed
  */
-export type TimelineDocument = SharedTimelineDocument<TimelineDocumentRow>;
+export type TimelineDocument = {
+  rows: TimelineDocumentRow[];
+  activeSegmentIndex: number;
+};
 
 /** Layout bounds (y, height) for a timeline row; used to align the overlay. */
 export type RowLayoutBounds = { y: number; height: number };
@@ -78,23 +85,34 @@ export type TimelineRenderBoundary = {
 
 /**
  * Render-ready row state consumed by the renderer.
- * Each row shows only its start boundary; the next row's start is the end of the previous segment.
- * isFinalRow: true for the last row; it has no duration-based height (circle + labels only).
+ * Each row shows only its start boundary; the next row's start is the end of
+ * the previous segment. `isFinalRow: true` for the last row; it has no
+ * duration-based height (circle + labels only).
  */
-export type TimelineRenderRow = SharedTimelineRenderRow<
-  SegmentKind,
-  TimelineRenderBoundary
-> & { isFinalRow: boolean };
+export type TimelineRenderRow = {
+  id: string;
+  kind: SegmentKind;
+  segmentIndex: number;
+  geometryMinutes: number;
+  startBoundary: TimelineRenderBoundary;
+  endBoundary?: TimelineRenderBoundary;
+  isFinalRow: boolean;
+};
 
 /**
  * Active indicator state for the full-timeline overlay.
  */
-export type TimelineActiveIndicator = SharedTimelineActiveIndicator<string>;
+export type TimelineActiveIndicator = {
+  rowId: string;
+  rowIndex: number;
+  positionPercent: number;
+  label: string;
+};
 
 /**
  * Render-ready timeline state derived from the canonical document.
  */
-export type TimelineRenderState = SharedTimelineRenderState<
-  TimelineRenderRow,
-  TimelineActiveIndicator
->;
+export type TimelineRenderState = {
+  rows: TimelineRenderRow[];
+  activeIndicator: TimelineActiveIndicator | null;
+};

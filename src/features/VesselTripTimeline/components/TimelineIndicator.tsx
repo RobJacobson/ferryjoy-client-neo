@@ -11,6 +11,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { Text } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { useAnimatedProgress } from "../hooks/useAnimatedProgress";
+import { INDICATOR_STYLE } from "../theme";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<RNView | null>;
@@ -18,9 +19,6 @@ type TimelineIndicatorProps = {
   shouldJump?: boolean;
   label: string;
   sizePx?: number;
-  intensity?: number;
-  tint?: "light" | "dark" | "default";
-  borderColor?: string;
 };
 
 /**
@@ -41,7 +39,7 @@ export const TimelineIndicator = ({
   topPx,
   shouldJump = false,
   label,
-  sizePx = 36,
+  sizePx = INDICATOR_STYLE.sizePx,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx, shouldJump);
 
@@ -53,7 +51,7 @@ export const TimelineIndicator = ({
 
   return (
     <Animated.View
-      className="items-center justify-center rounded-full border border-green-500 bg-white/75"
+      className={INDICATOR_STYLE.containerClassName}
       style={[
         { left: "50%" },
         getAbsoluteCenteredBoxStyle({
@@ -66,16 +64,16 @@ export const TimelineIndicator = ({
       <BlurView
         blurTarget={blurTargetRef}
         intensity={5}
-        tint={"light"}
+        tint="light"
         blurMethod="dimezisBlurView"
-        className="items-center justify-center overflow-hidden rounded-full border border-green-500 bg-white/50"
+        className={INDICATOR_STYLE.blurClassName}
         style={{
           width: sizePx,
           height: sizePx,
         }}
       >
         <Text
-          className="text-center font-bold text-green-700 text-xs"
+          className={INDICATOR_STYLE.labelClassName}
           style={{ includeFontPadding: false }}
         >
           {label}

@@ -30,6 +30,6 @@ export const getTimelineRenderState = (
   const boundaryData = getBoundaries(item);
   const rowsWithGeometry = getRows(boundaryData, item);
   const doc = documentStage(rowsWithGeometry, item);
-  const renderRowsOut = renderRows(doc, now);
+  const renderRowsOut = renderRows(doc);
   return renderState(doc, renderRowsOut, item, now);
 };
