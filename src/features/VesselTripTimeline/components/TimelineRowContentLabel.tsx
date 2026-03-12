@@ -24,36 +24,34 @@ type TimelineRowContentLabelProps = {
 export const TimelineRowContentLabel = ({
   startLabel,
 }: TimelineRowContentLabelProps) => {
-  if (!startLabel) {
+  if (!startLabel?.terminalAbbrev) {
     return null;
   }
 
+  const terminalName = getTerminalDisplayName(startLabel.terminalAbbrev);
+
   return (
     <View className="mt-[-14px] flex-1 justify-start">
-      {renderBoundaryLabel(startLabel)}
+      <View className="items-start">
+        <Text className="text-xs uppercase">{startLabel.label}</Text>
+        <Text>{terminalName}</Text>
+      </View>
     </View>
   );
 };
 
 /**
- * Renders a single boundary label when terminal data is available.
+ * Resolves a canonical terminal abbreviation into a display name.
  *
- * @param boundaryLabel - Display copy plus canonical terminal abbreviation
- * @returns Boundary label block or null
+ * @param terminalAbbrev - Canonical terminal abbreviation
+ * @returns Human-readable terminal name or the abbreviation when unknown
  */
-const renderBoundaryLabel = (boundaryLabel: BoundaryLabel | undefined) => {
-  if (!boundaryLabel?.terminalAbbrev) {
-    return null;
+const getTerminalDisplayName = (
+  terminalAbbrev: string | undefined
+): string | undefined => {
+  if (!terminalAbbrev) {
+    return undefined;
   }
 
-  const terminalName =
-    getTerminalNameByAbbrev(boundaryLabel.terminalAbbrev) ??
-    boundaryLabel.terminalAbbrev;
-
-  return (
-    <View className="items-start">
-      <Text className="text-xs uppercase">{boundaryLabel.label}</Text>
-      <Text>{terminalName}</Text>
-    </View>
-  );
+  return getTerminalNameByAbbrev(terminalAbbrev) ?? terminalAbbrev;
 };

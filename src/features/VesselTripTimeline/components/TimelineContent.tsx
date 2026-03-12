@@ -9,13 +9,12 @@ import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { View } from "@/components/ui";
-import { clamp } from "@/shared/utils";
 import type {
   RowLayoutBounds,
-  TimelineActiveIndicator,
   TimelineRenderRow,
   TimelineRenderState,
 } from "../types";
+import { getBoundaryTopPx, getTrackFractions } from "../utils/viewState";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
 import { TimelineRow } from "./TimelineRow";
 import { TimelineRowContentLabel } from "./TimelineRowContentLabel";
@@ -23,22 +22,6 @@ import { RowContentTimes } from "./TimelineRowContentTimes";
 import { TimelineTrack } from "./TimelineTrack";
 
 const CONTAINER_HEIGHT_PX = 350;
-
-const getBoundaryTopPx = (
-  activeIndicator: TimelineActiveIndicator | null,
-  rowLayouts: Record<string, RowLayoutBounds>
-): number => {
-  if (!activeIndicator) {
-    return 0;
-  }
-  const layout = rowLayouts[activeIndicator.rowId];
-  if (!layout) {
-    return 0;
-  }
-  return (
-    layout.y + layout.height * clamp(activeIndicator.positionPercent, 0, 1)
-  );
-};
 
 /**
  * Renders vessel timeline: full-height track, rows, and indicator overlay.
@@ -64,6 +47,10 @@ export const TimelineContent = ({
   }, []);
 
   const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
+  const { completedPercent, remainingPercent } = getTrackFractions(
+    boundaryTopPx,
+    CONTAINER_HEIGHT_PX
+  );
 
   return (
     <View className="relative h-[350px]">
@@ -74,7 +61,8 @@ export const TimelineContent = ({
       >
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
-          boundaryTopPx={boundaryTopPx}
+          completedPercent={completedPercent}
+          remainingPercent={remainingPercent}
         />
         {renderRows.map((row: TimelineRenderRow) => (
           <TimelineRow

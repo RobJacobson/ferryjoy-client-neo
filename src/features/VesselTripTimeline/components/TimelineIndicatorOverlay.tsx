@@ -6,9 +6,9 @@
 
 import type { RefObject } from "react";
 import { type View as RNView, View } from "react-native";
-import { clamp } from "@/shared/utils";
 import { INDICATOR_STYLE } from "../theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
+import { getOverlayViewState } from "../utils/viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
 
 type TimelineIndicatorOverlayProps = {
@@ -17,18 +17,6 @@ type TimelineIndicatorOverlayProps = {
   /** Measured timeline row bounds used to position the active indicator. */
   rowLayouts?: Record<string, RowLayoutBounds>;
 };
-
-/**
- * Converts row-local progress into an absolute container-relative Y position.
- *
- * @param layout - Measured y and height for the active timeline row
- * @param positionPercent - Row-local progress between 0 and 1
- * @returns Container-relative top position in pixels
- */
-const getIndicatorTopPx = (
-  layout: RowLayoutBounds,
-  positionPercent: number
-): number => layout.y + layout.height * clamp(positionPercent, 0, 1);
 
 /**
  * Renders a single absolute overlay indicator when the active row has
@@ -44,13 +32,9 @@ export const TimelineIndicatorOverlay = ({
   blurTargetRef,
   rowLayouts = {},
 }: TimelineIndicatorOverlayProps) => {
-  if (!overlayIndicator) {
-    return null;
-  }
+  const overlayViewState = getOverlayViewState(overlayIndicator, rowLayouts);
 
-  const activeRowLayout = rowLayouts[overlayIndicator.rowId];
-
-  if (!activeRowLayout) {
+  if (!overlayViewState) {
     return null;
   }
 
@@ -62,15 +46,9 @@ export const TimelineIndicatorOverlay = ({
     >
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
-        topPx={getIndicatorTopPx(
-          activeRowLayout,
-          overlayIndicator.positionPercent
-        )}
-        shouldJump={
-          overlayIndicator.positionPercent === 0 ||
-          overlayIndicator.positionPercent === 1
-        }
-        label={overlayIndicator.label}
+        topPx={overlayViewState.topPx}
+        shouldJump={overlayViewState.shouldJump}
+        label={overlayViewState.label}
         sizePx={INDICATOR_STYLE.sizePx}
       />
     </View>

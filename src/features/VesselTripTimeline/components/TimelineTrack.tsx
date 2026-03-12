@@ -9,7 +9,8 @@ import { TRACK_STYLE } from "../theme";
 
 type TimelineTrackProps = {
   containerHeightPx: number;
-  boundaryTopPx: number;
+  completedPercent: number;
+  remainingPercent: number;
 };
 
 /**
@@ -21,17 +22,12 @@ type TimelineTrackProps = {
  */
 export const TimelineTrack = ({
   containerHeightPx,
-  boundaryTopPx,
+  completedPercent,
+  remainingPercent,
 }: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
     return null;
   }
-
-  const completedPercent = Math.max(
-    0,
-    Math.min(1, boundaryTopPx / containerHeightPx)
-  );
-  const remainingPercent = 1 - completedPercent;
 
   return (
     <View
