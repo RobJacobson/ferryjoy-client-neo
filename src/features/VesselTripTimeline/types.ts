@@ -21,7 +21,7 @@ export type TimelineItem = {
 };
 
 /** Segment kinds rendered by the vessel timeline. */
-type SegmentKind = "at-dock" | "at-sea";
+export type SegmentKind = "at-dock" | "at-sea";
 
 /** Progress source for the active indicator within a row. */
 type TimelineProgressMode = "time" | "distance";
