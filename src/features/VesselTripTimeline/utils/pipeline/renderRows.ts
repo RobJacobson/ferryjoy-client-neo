@@ -6,23 +6,19 @@
 import type {
   TimelineDocument,
   TimelineDocumentRow,
+  TimelineLifecyclePhase,
   TimelineRenderBoundary,
   TimelineRenderRow,
 } from "../../types";
-import type { TimelineLifecyclePhase } from "../types";
 
 /**
  * Maps the document to render-ready rows (labels, phase, isFinalRow).
  *
  * @param document - Output from the document stage
- * @param _now - Current wall-clock time (reserved for future phase/label rules)
  * @returns Render-ready rows for the UI
  */
-export const renderRows = (
-  document: TimelineDocument,
-  _now: Date = new Date()
-): TimelineRenderRow[] =>
-  document.rows.map((row, index) => {
+export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
+  document.rows.map((row: TimelineDocumentRow, index: number) => {
     const phase = getRowPhase(row.segmentIndex, document.activeSegmentIndex);
 
     return {
@@ -75,11 +71,11 @@ const getStartBoundary = (
   label:
     row.kind === "at-dock"
       ? phase === "upcoming"
-        ? "Arriving"
-        : "Arrived"
+        ? "Arv"
+        : "Arv"
       : phase === "upcoming"
-        ? "Departing to"
-        : "Departed to",
+        ? "To"
+        : "To",
   terminalAbbrev:
     row.kind === "at-dock"
       ? row.startBoundary.terminalAbbrev
