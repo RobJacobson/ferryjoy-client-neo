@@ -11,11 +11,11 @@ type RowContentTimesProps = {
   startPoint: TimePoint;
 };
 
-type TimepointTimesProps = {
+type TimepointRowContentTimes = {
   point: TimePoint;
 };
 
-const TimepointTimes = ({ point }: TimepointTimesProps) => {
+const TimelineRowContentTimes = ({ point }: TimepointRowContentTimes) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;
 
@@ -40,6 +40,6 @@ const TimepointTimes = ({ point }: TimepointTimesProps) => {
  */
 export const RowContentTimes = ({ startPoint }: RowContentTimesProps) => (
   <View className="mt-[-10px] flex-1 justify-start">
-    <TimepointTimes point={startPoint} />
+    <TimelineRowContentTimes point={startPoint} />
   </View>
 );

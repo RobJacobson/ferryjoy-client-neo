@@ -5,10 +5,9 @@
  */
 
 import { View, type ViewStyle } from "react-native";
-import type { RequiredTimelineTheme } from "@/components/Timeline/TimelineTypes";
-import { cn } from "@/lib/utils";
+import type { RequiredTimelineTheme } from "./TimelineTypes";
 
-type FullTimelineTrackProps = {
+type TimelineTrackProps = {
   containerHeightPx: number;
   boundaryTopPx: number;
   theme: Pick<
@@ -28,43 +27,47 @@ type FullTimelineTrackProps = {
  * @param theme - Theme subset for track styling
  * @returns Full-height track view or null when not yet measured
  */
-export const FullTimelineTrack = ({
+export const TimelineTrack = ({
   containerHeightPx,
   boundaryTopPx,
   theme,
-}: FullTimelineTrackProps) => {
+}: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
     return null;
   }
 
-  const remainingHeight = Math.max(0, containerHeightPx - boundaryTopPx);
+  const completedPercent = Math.max(
+    0,
+    Math.min(1, boundaryTopPx / containerHeightPx)
+  );
+  const remainingPercent = 1 - completedPercent;
 
   return (
     <View
-      className="absolute left-1/2 -z-10"
+      className="absolute left-1/2 flex-col"
       pointerEvents="none"
       style={getContainerStyle(theme.centerAxisSizePx, containerHeightPx)}
     >
-      {/* Completed portion: 0 → boundaryTopPx */}
+      {/* Completed portion: flex share = percent completed */}
       <View
-        className={cn(
-          "absolute left-1/2 rounded-full",
-          theme.completeTrackClassName
-        )}
-        style={getCompletedBarStyle(theme.trackThicknessPx, boundaryTopPx)}
-      />
-      {/* Remaining portion: boundaryTopPx → bottom */}
+        className="flex-row justify-center"
+        style={{ flex: completedPercent }}
+      >
+        <View
+          className={theme.completeTrackClassName}
+          style={getBarStyle(theme.trackThicknessPx)}
+        />
+      </View>
+      {/* Remaining portion: flex share = percent remaining */}
       <View
-        className={cn(
-          "absolute left-1/2 rounded-full",
-          theme.upcomingTrackClassName
-        )}
-        style={getRemainingBarStyle(
-          theme.trackThicknessPx,
-          boundaryTopPx,
-          remainingHeight
-        )}
-      />
+        className="flex-row justify-center"
+        style={{ flex: remainingPercent }}
+      >
+        <View
+          className={theme.upcomingTrackClassName}
+          style={getBarStyle(theme.trackThicknessPx)}
+        />
+      </View>
     </View>
   );
 };
@@ -78,25 +81,8 @@ const getContainerStyle = (
   marginLeft: -centerAxisSizePx / 2,
 });
 
-const getCompletedBarStyle = (
-  trackThicknessPx: number,
-  heightPx: number
-): ViewStyle => ({
-  top: 0,
-  left: "50%",
+const getBarStyle = (trackThicknessPx: number): ViewStyle => ({
   width: trackThicknessPx,
-  height: heightPx,
-  marginLeft: -trackThicknessPx / 2,
-});
-
-const getRemainingBarStyle = (
-  trackThicknessPx: number,
-  topPx: number,
-  heightPx: number
-): ViewStyle => ({
-  top: topPx,
-  left: "50%",
-  width: trackThicknessPx,
-  height: heightPx,
-  marginLeft: -trackThicknessPx / 2,
+  height: "100%",
+  borderRadius: "100%",
 });

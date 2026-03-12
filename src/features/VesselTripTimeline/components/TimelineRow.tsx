@@ -21,7 +21,7 @@ export type TimelineRowBounds = {
 
 const ROW_LAYOUT_TRANSITION_DURATION_MS = 2000;
 
-export type TimelineRowComponentProps = {
+export type TimelineRowProps = {
   id: string;
   durationMinutes: number;
   leftContent?: ReactNode;
@@ -51,7 +51,7 @@ export const TimelineRow = ({
   rowClassName,
   onRowLayout,
   isLastRow,
-}: TimelineRowComponentProps) => {
+}: TimelineRowProps) => {
   const rowStyle = getVerticalRowStyle(
     durationMinutes,
     theme.minSegmentPx,

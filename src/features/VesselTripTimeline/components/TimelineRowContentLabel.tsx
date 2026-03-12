@@ -11,7 +11,7 @@ type BoundaryLabel = {
   terminalAbbrev?: string;
 };
 
-type RowContentLabelProps = {
+type TimelineRowContentLabelProps = {
   startLabel?: BoundaryLabel;
 };
 
@@ -21,7 +21,9 @@ type RowContentLabelProps = {
  * @param startLabel - Start boundary label when present
  * @returns Label view
  */
-export const RowContentLabel = ({ startLabel }: RowContentLabelProps) => {
+export const TimelineRowContentLabel = ({
+  startLabel,
+}: TimelineRowContentLabelProps) => {
   if (!startLabel) {
     return null;
   }
