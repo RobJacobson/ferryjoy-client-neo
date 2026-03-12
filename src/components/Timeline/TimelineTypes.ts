@@ -24,11 +24,9 @@ export type TimelineOrientation = "vertical" | "horizontal";
 export type TimelineRow = {
   id: string;
   durationMinutes: number;
-  percentComplete: number;
   leftContent?: ReactNode;
   rightContent?: ReactNode;
   markerContent?: ReactNode;
-  indicatorContent?: ReactNode;
   minHeight?: number;
 };
 

@@ -1,26 +1,26 @@
 /**
- * Timeline content area: base rows plus a single absolute overlay indicator.
- * This feature intentionally renders `TimelineRowComponent` directly instead of
- * the higher-level `VerticalTimeline` because the full-surface blur overlay
+ * Timeline content area: base track plus rows plus a single absolute overlay.
+ * This feature intentionally renders TimelineRowComponent directly instead of
+ * the higher-level VerticalTimeline because the full-surface blur overlay
  * needs feature-local measurement and overlay control.
  */
 
 import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
-import { StyleSheet } from "react-native";
-import { type TimelineRow, TimelineRowComponent } from "@/components/Timeline";
 import type { RequiredTimelineTheme } from "@/components/Timeline/TimelineTypes";
 import { View } from "@/components/ui";
+import { clamp } from "@/shared/utils";
 import type {
   RowLayoutBounds,
-  TimelineRenderRow,
+  TimelineActiveIndicator,
   TimelineRenderState,
 } from "../types";
-import { RowContentLabel } from "./RowContentLabel";
-import { RowContentTimes } from "./RowContentTimes";
+import { FullTimelineTrack } from "./FullTimelineTrack";
 import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
-import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
+import { VesselTripTimelineRow } from "./VesselTripTimelineRow";
+
+const CONTAINER_HEIGHT_PX = 350;
 
 const TIMELINE_THEME: RequiredTimelineTheme = {
   minSegmentPx: 32,
@@ -34,8 +34,24 @@ const TIMELINE_THEME: RequiredTimelineTheme = {
   indicatorClassName: "border border-green-500 bg-green-100",
 };
 
+const getBoundaryTopPx = (
+  activeIndicator: TimelineActiveIndicator | null,
+  rowLayouts: Record<string, RowLayoutBounds>
+): number => {
+  if (!activeIndicator) {
+    return 0;
+  }
+  const layout = rowLayouts[activeIndicator.rowId];
+  if (!layout) {
+    return 0;
+  }
+  return (
+    layout.y + layout.height * clamp(activeIndicator.positionPercent, 0, 1)
+  );
+};
+
 /**
- * Renders vessel timeline rows plus a single absolute indicator overlay.
+ * Renders vessel timeline: full-height track, rows, and indicator overlay.
  *
  * @param props - Render-ready rows and active indicator
  * @returns Timeline with measured-layout BlurView indicator
@@ -48,7 +64,6 @@ export const TimelineContent = ({
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
   );
-  const rows = renderRows.map(toTimelineRow);
 
   const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
     setRowLayouts((prev) =>
@@ -58,20 +73,29 @@ export const TimelineContent = ({
     );
   }, []);
 
+  const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
+
   return (
     <View className="relative h-[350px]">
       <BlurTargetView
         ref={blurTargetRef}
-        style={styles.blurTarget}
+        className="relative flex-1 flex-col"
         collapsable={false}
       >
-        {rows.map((row, index) => (
-          <TimelineRowComponent
+        <FullTimelineTrack
+          containerHeightPx={CONTAINER_HEIGHT_PX}
+          boundaryTopPx={boundaryTopPx}
+          theme={TIMELINE_THEME}
+        />
+        {renderRows.map((row, index) => (
+          <VesselTripTimelineRow
             key={row.id}
-            row={row}
+            id={row.id}
+            durationMinutes={row.geometryMinutes}
+            startBoundary={row.startBoundary}
+            minHeight={row.isFinalRow ? 0 : undefined}
             theme={TIMELINE_THEME}
-            renderMode="background"
-            isLastRow={index === rows.length - 1}
+            isLastRow={index === renderRows.length - 1}
             onRowLayout={onRowLayout}
           />
         ))}
@@ -84,37 +108,3 @@ export const TimelineContent = ({
     </View>
   );
 };
-
-/**
- * Converts one render-ready row into the shared timeline primitive shape.
- *
- * @param row - Render-ready row state
- * @returns Shared timeline row with feature-specific slots
- */
-const toTimelineRow = (row: TimelineRenderRow): TimelineRow => ({
-  id: row.id,
-  durationMinutes: row.geometryMinutes,
-  percentComplete: row.percentComplete,
-  leftContent: (
-    <RowContentLabel
-      startLabel={row.startBoundary}
-      endLabel={row.endBoundary}
-    />
-  ),
-  rightContent: (
-    <RowContentTimes
-      startPoint={row.startBoundary.timePoint}
-      endPoint={row.endBoundary?.timePoint}
-    />
-  ),
-  markerContent: <TimelineMarkerIcon kind={row.kind} />,
-  minHeight: row.layoutMode === "content" ? 0 : undefined,
-});
-
-const styles = StyleSheet.create({
-  blurTarget: {
-    flex: 1,
-    flexDirection: "column",
-    position: "relative",
-  },
-});

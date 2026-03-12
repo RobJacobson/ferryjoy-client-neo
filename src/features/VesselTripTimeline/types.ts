@@ -6,10 +6,8 @@ import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import type {
   TimelineActiveIndicator as SharedTimelineActiveIndicator,
-  TimelineBoundaryOwnership as SharedTimelineBoundaryOwnership,
   TimelineDocument as SharedTimelineDocument,
   TimelineDocumentRow as SharedTimelineDocumentRow,
-  TimelineLayoutMode as SharedTimelineLayoutMode,
   TimelineRenderRow as SharedTimelineRenderRow,
   TimelineRenderState as SharedTimelineRenderState,
 } from "@/components/Timeline";
@@ -25,11 +23,8 @@ export type TimelineItem = {
 /** Segment kinds rendered by the vessel timeline. */
 export type SegmentKind = "at-dock" | "at-sea";
 
-/** Row sizing mode for the shared timeline primitive. */
-export type TimelineLayoutMode = SharedTimelineLayoutMode;
-
 /** Progress source for the active indicator within a row. */
-export type TimelineProgressMode = "time" | "distance";
+type TimelineProgressMode = "time" | "distance";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
@@ -45,15 +40,10 @@ export type TimePoint = {
 /**
  * Boundary data owned by a timeline row.
  */
-export type TimelineBoundary = {
+type TimelineBoundary = {
   terminalAbbrev?: string;
   timePoint: TimePoint;
 };
-
-/**
- * Explicit boundary ownership for a row's rendered labels and times.
- */
-export type TimelineBoundaryOwnership = SharedTimelineBoundaryOwnership;
 
 /**
  * Canonical document row for the feature timeline.
@@ -88,11 +78,13 @@ export type TimelineRenderBoundary = {
 
 /**
  * Render-ready row state consumed by the renderer.
+ * Each row shows only its start boundary; the next row's start is the end of the previous segment.
+ * isFinalRow: true for the last row; it has no duration-based height (circle + labels only).
  */
 export type TimelineRenderRow = SharedTimelineRenderRow<
   SegmentKind,
   TimelineRenderBoundary
->;
+> & { isFinalRow: boolean };
 
 /**
  * Active indicator state for the full-timeline overlay.

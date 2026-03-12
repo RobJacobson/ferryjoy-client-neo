@@ -1,37 +1,68 @@
 # Vessel Trip Timeline Layout Architecture
 
 This document explains the current architecture for the vessel trip timeline.
-The feature keeps the working full-surface blur overlay, but now uses a slimmer
-two-step pipeline built on top of shared generic timeline document/selector
-primitives. That makes it easier to extend into a future multi-stop day
-timeline without duplicating ordered-row mechanics per feature.
+The feature keeps the working full-surface blur overlay and uses a **literal
+five-stage pipeline** in `utils/pipeline/`: each stage is a single module
+whose output is the input for the next. That makes the data flow explicit and
+easier to extend (e.g. for a future multi-stop day timeline) without
+duplicating ordered-row mechanics per feature.
 
 ## High-Level Flow
 
+Callers use a single entry point: `getTimelineRenderState(item, now?)`. It
+runs the pipeline internally; only `TimelineRenderState` is exposed.
+
 ```mermaid
 flowchart TD
-  featureInput[FeatureInput trip + vesselLocation] --> documentBuilder[buildTimelineDocument]
-  documentBuilder --> timelineDocument[TimelineDocument]
-  timelineDocument --> renderSelector[selectTimelineRenderState]
-  renderSelector --> renderState[TimelineRenderState]
-  renderState --> timelineContent[TimelineContent]
+  featureInput[FeatureInput trip + vesselLocation] --> getRenderState[getTimelineRenderState]
+  getRenderState --> boundaries[1. boundaries]
+  boundaries --> boundaryData[BoundaryData]
+  boundaryData --> rows[2. rows]
+  rows --> rowsWithGeometry[TimelineDocumentRow[]]
+  rowsWithGeometry --> document[3. document]
+  document --> timelineDocument[TimelineDocument]
+  timelineDocument --> renderRows[4. renderRows]
+  renderRows --> renderRowsOut[TimelineRenderRow[]]
+  timelineDocument --> renderState[5. renderState]
+  renderRowsOut --> renderState
+  renderState --> renderStateOut[TimelineRenderState]
+  getRenderState --> renderStateOut
+  renderStateOut --> timelineContent[TimelineContent]
+  timelineContent --> fullTrack[FullTimelineTrack]
   timelineContent --> rowShells[TimelineRowComponent rows]
   timelineContent --> overlayLayer[TimelineIndicatorOverlay]
 ```
 
+## Pipeline (utils/pipeline/)
+
+The pipeline is a **literal chain**: the output of one stage is the input for
+the next. Each stage is a single file; any helpers used by that stage are
+co-located in the same module.
+
+| Stage | Module | Input | Output |
+|-------|--------|--------|--------|
+| 1 | `boundaries.ts` | `TimelineItem` | `BoundaryData` (points + fallback context) |
+| 2 | `rows.ts` | `BoundaryData` + `TimelineItem` | `TimelineDocumentRow[]` |
+| 3 | `document.ts` | rows + `TimelineItem` | `TimelineDocument` |
+| 4 | `renderRows.ts` | `TimelineDocument` + `now` | `TimelineRenderRow[]` |
+| 5 | `renderState.ts` | document + render rows + `TimelineItem` + `now` | `TimelineRenderState` |
+
+The entry point `pipeline/index.ts` runs the stages in order and exports
+`getTimelineRenderState`. The document and intermediate types are internal;
+callers only see `TimelineRenderState`.
+
 ## Canonical Document Model
 
-The feature's source of truth is now a `TimelineDocument` built by
-`utils/buildTimelineDocument.ts`.
+The feature's internal source of truth is a `TimelineDocument` produced by
+pipeline stage 3 (`document.ts`). It is not part of the public API.
 
-The base document and render-state shapes live in
-`src/components/Timeline/TimelineDocument.ts`, while `VesselTripTimeline`
-supplies feature-specific boundary payloads, progress modes, labels, and
-telemetry rules.
+The base document and render-state **types** live in `utils/types.ts` (re-exported
+by `@/components/Timeline`). `VesselTripTimeline` supplies feature-specific
+boundary payloads, progress modes, labels, and telemetry rules.
 
 The document contains:
 
-- ordered `rows`
+- ordered `rows` (this feature uses three: origin dock, at-sea, destination dock)
 - one `activeSegmentIndex` cursor
 
 Each `TimelineDocumentRow` contains:
@@ -40,40 +71,24 @@ Each `TimelineDocumentRow` contains:
 - `segmentIndex`
 - `kind`: `"at-dock"` or `"at-sea"`
 - `startBoundary` / `endBoundary`
-- `boundaryOwnership`
 - `geometryMinutes`
 - `fallbackDurationMinutes`
 - `progressMode`: `"time"` or `"distance"`
-- `layoutMode`: `"duration"` or `"content"`
 
-Adjacent rows still share boundary `TimePoint`s, but the feature no longer
-creates a second presentation-row model on top of the canonical document.
+Adjacent rows share boundary `TimePoint`s; the pipeline does not create a
+separate presentation-row model—stage 4 derives render rows from the
+document.
 
-## Two-Step Pipeline
+## Renderer + Overlay
 
-The feature now splits into two pure data stages plus one renderer:
+After the pipeline, the UI layer is:
 
-1. **Canonical document builder**
-   - `utils/buildTimelineDocument.ts`
-   - Builds the ordered day/timeline rows from trip and vessel-location data.
-   - Computes geometry minutes and explicit boundary ownership up front.
-
-2. **Render-state selector**
-   - `utils/selectTimelineRenderState.ts`
-   - Derives:
-     - row `percentComplete`
-     - start/end boundary labels
-     - active overlay indicator `{ rowId, rowIndex, positionPercent, label }`
-   - Owns the feature-specific "what is active right now?" logic.
-   - Reuses shared selector helpers for active-row lookup, row phase, and
-     row completion.
-
-3. **Renderer + overlay**
-   - `components/TimelineContent.tsx`
-   - Receives render-ready rows and the active indicator.
-   - Measures row bounds.
-   - Renders the shared timeline rows in background mode.
-   - Paints one absolute indicator overlay above the whole timeline.
+- **`components/TimelineContent.tsx`**
+  - Receives render-ready rows and the active indicator from
+    `getTimelineRenderState`.
+  - Measures row bounds.
+  - Renders the shared timeline rows in background mode.
+  - Paints one absolute indicator overlay above the whole timeline.
 
 ## Why the Overlay Stays
 
@@ -86,22 +101,23 @@ layer and one absolute overlay layer:
 ```text
 View (timeline container)
 └── BlurTargetView
+    ├── FullTimelineTrack (absolute, full height)
+    │   └── two bars: completed (0→topPx) + remaining (topPx→bottom)
     ├── TimelineRowComponent[]
-    │   └── leftContent | axis | rightContent
+    │   └── leftContent | center-marker | rightContent
     └── TimelineIndicatorOverlay (absolute inset-0)
         └── TimelineIndicator
 ```
 
-The overlay does not duplicate rows. Instead:
+The track and overlay share the same boundary notion. Both use `topPx`:
+
+`topPx = rowLayout.y + rowLayout.height * clamp(positionPercent, 0, 1)`
 
 - rows report measured `y` and `height` through `onRowLayout`
-- the selector decides which row owns the active indicator
-- row-local `positionPercent` is converted into container-relative `top`
-- the overlay renders exactly one indicator above the full timeline
-
-Indicator position is:
-
-`rowLayout.y + rowLayout.height * positionPercent`
+- the pipeline (renderState stage) decides which row owns the active indicator (`positionPercent`)
+- `topPx` is computed once from active row layout + `positionPercent`
+- `FullTimelineTrack` draws two bars: completed (0→topPx), remaining (topPx→bottom)
+- `TimelineIndicatorOverlay` renders exactly one indicator at `topPx`
 
 ## Geometry vs Current State
 
@@ -113,12 +129,10 @@ The architecture now cleanly separates:
 - shared boundaries
 - fallback durations
 - progress mode
-- layout mode
 
 ### Current render state
 
 - active row
-- per-row completion
 - boundary label tense
 - countdown label
 - active indicator position
@@ -126,17 +140,17 @@ The architecture now cleanly separates:
 This keeps `TimelineContent` focused on layout and rendering instead of feature
 business logic.
 
-## Boundary Ownership
+## One label set per row (no end-boundary display)
 
-Boundary ownership is now explicit on each document row.
+Each row shows exactly one set of labels and one marker: its **start** boundary.
+The end of a segment is not shown on that row; the **next** row's start is the
+end of the previous segment. So there is no "ownership" of an end boundary for
+display—each row owns only its start. The document still has `startBoundary` and
+`endBoundary` for geometry (e.g. duration); the renderer only receives
+`startBoundary` per row.
 
-- Every row owns its starting boundary.
-- Rows may also own their ending boundary through `boundaryOwnership.end`.
-- The destination dock row uses `layoutMode: "content"` so it can own the final
-  boundary without forcing duration-based growth.
-
-This replaces the older `rendersEndLabel` and `minHeight: 0` special cases with
-row-level semantics.
+- **Three rows**: origin dock (arrive at origin), at-sea (depart origin → arrive destination), destination dock (arrive at destination). Each has a timeline dot at its start.
+- **Final row**: The last row (destination dock) has `isFinalRow: true`. It has no duration-based height—only the space needed for the circle and its start labels (`minHeight: 0`, no flex growth).
 
 ## Shared Timeline Primitive Boundary
 
@@ -144,17 +158,14 @@ row-level semantics.
 
 The shared module now owns:
 
-- generic document/render-state types
-- active-row lookup
-- lifecycle phase derivation
-- row percent-complete derivation
+- generic document/render-state types (from `VesselTripTimeline/utils/types.ts`, re-exported by `@/components/Timeline`)
 
 `VesselTripTimeline` still owns:
 
-- trip/vessel document building
-- boundary label copy
-- time-vs-distance progress choice
-- overlay label content
+- the pipeline (`utils/pipeline/`: boundaries → rows → document → render rows → render state)
+- boundary label copy and tense (in `renderRows.ts` / `renderState.ts`)
+- time-vs-distance progress choice (in `renderState.ts`)
+- overlay label content (e.g. `getMinutesUntil` in `renderState.ts`)
 - blur-specific overlay rendering
 
 For now, `VesselTripTimeline` intentionally renders `TimelineRowComponent`
@@ -170,7 +181,7 @@ manage its feature-specific blur overlay locally.
 
 ## Indicator State Rules
 
-`selectTimelineRenderState.ts` owns the current-state rules:
+`utils/pipeline/renderState.ts` owns the current-state rules:
 
 - `activeSegmentIndex` points at the active row
 - `rows.length` means all rows are completed

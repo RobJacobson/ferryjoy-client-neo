@@ -1,6 +1,8 @@
 /**
  * VesselTripTimeline utility exports.
+ *
+ * Single entry point: getTimelineRenderState runs the pipeline (boundaries →
+ * rows → document → renderRows → renderState) and returns render-ready state.
  */
 
-export { buildTimelineDocument } from "./buildTimelineDocument";
-export { selectTimelineRenderState } from "./selectTimelineRenderState";
+export { getTimelineRenderState } from "./pipeline";
