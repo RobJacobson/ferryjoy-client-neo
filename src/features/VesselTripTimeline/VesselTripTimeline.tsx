@@ -6,7 +6,7 @@ import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TimelineContent } from "./components";
 import type { TimelineItem } from "./types";
-import { buildTimelineDocument, selectTimelineRenderState } from "./utils";
+import { getTimelineRenderState } from "./utils";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
 type VesselTripTimelineProps = TimelineItem;
@@ -22,8 +22,7 @@ export const VesselTripTimeline = ({
   vesselLocation,
 }: VesselTripTimelineProps) => {
   const item = { trip, vesselLocation };
-  const timelineDocument = buildTimelineDocument(item);
-  const renderState = selectTimelineRenderState(timelineDocument, item);
+  const renderState = getTimelineRenderState(item);
 
   return (
     <Card className="gap-4 py-4">

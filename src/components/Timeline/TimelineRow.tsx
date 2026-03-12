@@ -8,10 +8,9 @@
  */
 
 import type { ReactNode } from "react";
-import { type LayoutChangeEvent, View, type ViewStyle } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
-import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TimelineMarker } from "./TimelineMarker";
 import type { RequiredTimelineTheme } from "./TimelineTypes";
 
@@ -31,7 +30,7 @@ export type TimelineRowComponentProps = {
   minHeight?: number;
   theme: RequiredTimelineTheme;
   rowClassName?: string;
-  onRowLayout?: (rowId: string, bounds: TimelineRowBounds) => void;
+  onRowLayout: (rowId: string, bounds: TimelineRowBounds) => void;
   isLastRow?: boolean;
 };
 
@@ -66,23 +65,20 @@ export const TimelineRow = ({
       layout={LinearTransition.duration(
         ROW_LAYOUT_TRANSITION_DURATION_MS
       ).easing(Easing.inOut(Easing.quad))}
-      onLayout={getRowLayoutHandler(id, onRowLayout)}
+      onLayout={(event) => {
+        const { y, height } = event.nativeEvent.layout;
+        onRowLayout(id, { y, height });
+      }}
     >
       <View className="flex-1 justify-start">{leftContent}</View>
 
-      <View
-        className="relative self-stretch"
-        style={getAxisStyle(theme.centerAxisSizePx)}
+      <TimelineMarker
+        centerAxisSizePx={theme.centerAxisSizePx}
+        sizePx={theme.markerSizePx}
+        className={theme.markerClassName}
       >
-        <View className="absolute" style={getMarkerStyle(theme.markerSizePx)}>
-          <TimelineMarker
-            sizePx={theme.markerSizePx}
-            className={theme.markerClassName}
-          >
-            {markerContent}
-          </TimelineMarker>
-        </View>
-      </View>
+        {markerContent}
+      </TimelineMarker>
 
       <View className="flex-1 justify-start">{rightContent}</View>
     </Animated.View>
@@ -113,49 +109,3 @@ const getVerticalRowStyle = (
   flexBasis: "auto",
   minHeight: minHeight ?? minSegmentPx,
 });
-
-/**
- * Builds style for the center axis container.
- *
- * The axis column provides spacing between left and right content slots
- * and renders the segment-start marker through its center.
- *
- * @param centerAxisSizePx - Width of the axis column in pixels
- * @returns View style for axis container
- */
-const getAxisStyle = (centerAxisSizePx: number): ViewStyle => ({
-  width: centerAxisSizePx,
-});
-
-/**
- * Builds style for the segment-start marker at top center of the axis.
- *
- * @param markerSizePx - Marker diameter in pixels for centering
- * @returns View style for marker dot container
- */
-const getMarkerStyle = (markerSizePx: number): ViewStyle => ({
-  zIndex: 1,
-  ...getAbsoluteCenteredBoxStyle({
-    width: markerSizePx,
-    height: markerSizePx,
-    isVertical: true,
-  }),
-});
-
-/**
- * Builds optional row layout handler for parent measurement.
- *
- * @param rowId - Timeline row identifier
- * @param onRowLayout - Optional row layout callback
- * @returns React Native layout handler or undefined
- */
-const getRowLayoutHandler = (
-  rowId: string,
-  onRowLayout: ((rowId: string, bounds: TimelineRowBounds) => void) | undefined
-) =>
-  onRowLayout
-    ? (event: LayoutChangeEvent) => {
-        const { y, height } = event.nativeEvent.layout;
-        onRowLayout(rowId, { y, height });
-      }
-    : undefined;

@@ -55,7 +55,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultOriginDockMinutes,
       progressMode: "time",
-      layoutMode: "duration",
     },
     {
       id: `${trip.VesselAbbrev}-at-sea`,
@@ -72,7 +71,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultAtSeaMinutes,
       progressMode: useDistanceProgress ? "distance" : "time",
-      layoutMode: "duration",
     },
     {
       id: `${trip.VesselAbbrev}-at-dock-dest`,
@@ -89,7 +87,6 @@ export const buildTimelineDocument = (item: TimelineItem): TimelineDocument => {
       geometryMinutes: 0,
       fallbackDurationMinutes: context.defaultDestinationDockMinutes,
       progressMode: "time",
-      layoutMode: "content",
     },
   ];
   const rows = baseRows.map((row) => ({

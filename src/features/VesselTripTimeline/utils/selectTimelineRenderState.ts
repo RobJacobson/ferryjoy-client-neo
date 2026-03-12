@@ -2,10 +2,6 @@
  * Derives render-ready row and indicator state from the canonical timeline document.
  */
 
-import {
-  getActiveTimelineRow,
-  getTimelineRowPhase,
-} from "@/components/Timeline";
 import { clamp } from "@/shared/utils";
 import type {
   TimelineActiveIndicator,
@@ -17,6 +13,7 @@ import type {
   TimelineRenderState,
 } from "../types";
 import { getMinutesUntil } from "./getMinutesUntil";
+import { getActiveTimelineRow, getTimelineRowPhase } from "./timelineDocument";
 import { getDisplayTime, getSegmentTimeProgress } from "./timePoints";
 
 const ACTIVE_DOCK_MIN_OFFSET = 0.06;
@@ -49,7 +46,6 @@ export const selectTimelineRenderState = (
         kind: row.kind,
         segmentIndex: row.segmentIndex,
         geometryMinutes: row.geometryMinutes,
-        layoutMode: row.layoutMode,
         startBoundary: getStartBoundary(row, phase),
         isFinalRow: index === document.rows.length - 1,
       } satisfies TimelineRenderRow;

@@ -17,7 +17,7 @@ type VesselTripTimelineRowProps = {
   minHeight?: number;
   theme: RequiredTimelineTheme;
   isLastRow?: boolean;
-  onRowLayout?: (rowId: string, bounds: { y: number; height: number }) => void;
+  onRowLayout: (rowId: string, bounds: { y: number; height: number }) => void;
 };
 
 /**

@@ -8,7 +8,6 @@ import type {
   TimelineActiveIndicator as SharedTimelineActiveIndicator,
   TimelineDocument as SharedTimelineDocument,
   TimelineDocumentRow as SharedTimelineDocumentRow,
-  TimelineLayoutMode as SharedTimelineLayoutMode,
   TimelineRenderRow as SharedTimelineRenderRow,
   TimelineRenderState as SharedTimelineRenderState,
 } from "@/components/Timeline";
@@ -23,9 +22,6 @@ export type TimelineItem = {
 
 /** Segment kinds rendered by the vessel timeline. */
 export type SegmentKind = "at-dock" | "at-sea";
-
-/** Row sizing mode for the shared timeline primitive. */
-export type TimelineLayoutMode = SharedTimelineLayoutMode;
 
 /** Progress source for the active indicator within a row. */
 export type TimelineProgressMode = "time" | "distance";

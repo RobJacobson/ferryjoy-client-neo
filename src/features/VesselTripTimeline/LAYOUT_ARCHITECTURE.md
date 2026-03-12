@@ -8,12 +8,18 @@ timeline without duplicating ordered-row mechanics per feature.
 
 ## High-Level Flow
 
+Callers use a single entry point: `getTimelineRenderState(item, now?)`. The
+canonical document is built and render state is derived internally; only
+`TimelineRenderState` is exposed.
+
 ```mermaid
 flowchart TD
-  featureInput[FeatureInput trip + vesselLocation] --> documentBuilder[buildTimelineDocument]
+  featureInput[FeatureInput trip + vesselLocation] --> getRenderState[getTimelineRenderState]
+  getRenderState --> documentBuilder[buildTimelineDocument]
   documentBuilder --> timelineDocument[TimelineDocument]
   timelineDocument --> renderSelector[selectTimelineRenderState]
   renderSelector --> renderState[TimelineRenderState]
+  getRenderState --> renderState
   renderState --> timelineContent[TimelineContent]
   timelineContent --> fullTrack[FullTimelineTrack]
   timelineContent --> rowShells[TimelineRowComponent rows]
@@ -22,8 +28,9 @@ flowchart TD
 
 ## Canonical Document Model
 
-The feature's source of truth is now a `TimelineDocument` built by
-`utils/buildTimelineDocument.ts`.
+The feature's internal source of truth is a `TimelineDocument` built by
+`utils/buildTimelineDocument.ts`. It is not part of the public API; callers
+receive only the result of `getTimelineRenderState(item, now?)`.
 
 The base document and render-state shapes live in
 `src/components/Timeline/TimelineDocument.ts`, while `VesselTripTimeline`
@@ -44,14 +51,13 @@ Each `TimelineDocumentRow` contains:
 - `geometryMinutes`
 - `fallbackDurationMinutes`
 - `progressMode`: `"time"` or `"distance"`
-- `layoutMode`: `"duration"` or `"content"` (final row uses content so it has no duration-based height)
 
 Adjacent rows still share boundary `TimePoint`s, but the feature no longer
 creates a second presentation-row model on top of the canonical document.
 
-## Two-Step Pipeline
+## Two-Step Pipeline (internal)
 
-The feature now splits into two pure data stages plus one renderer:
+`getTimelineRenderState` runs two pure data stages internally, then the renderer:
 
 1. **Canonical document builder**
    - `utils/buildTimelineDocument.ts`
@@ -114,7 +120,6 @@ The architecture now cleanly separates:
 - shared boundaries
 - fallback durations
 - progress mode
-- layout mode
 
 ### Current render state
 
