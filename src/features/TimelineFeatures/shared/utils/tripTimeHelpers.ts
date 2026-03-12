@@ -30,10 +30,11 @@ export const getBestDepartureTime = (
  * Gets the best available arrival time for a trip.
  *
  * Priority:
- * 1. VesselTrip.TripEnd (WSF actual arrival)
- * 2. VesselLocation.Eta (WSF at-sea prediction)
- * 3. VesselTrip.AtSeaArriveNext (ML at-sea prediction)
- * 4. VesselTrip.AtDockArriveNext (ML at-dock prediction)
+ * 1. VesselTrip.ArriveDest (actual arrival at destination)
+ * 2. VesselTrip.TripEnd (delayed trip completion tick)
+ * 3. VesselLocation.Eta (WSF at-sea prediction)
+ * 4. VesselTrip.AtSeaArriveNext (ML at-sea prediction)
+ * 5. VesselTrip.AtDockArriveNext (ML at-dock prediction)
  *
  * @param vesselLocation - VesselLocation with WSF data
  * @param trip - VesselTrip with ML predictions
@@ -43,6 +44,7 @@ export const getBestArrivalTime = (
   vesselLocation: VesselLocation | undefined,
   trip: VesselTrip | undefined
 ): Date | undefined =>
+  trip?.ArriveDest ??
   trip?.TripEnd ??
   vesselLocation?.Eta ??
   trip?.AtSeaArriveNext?.PredTime ??

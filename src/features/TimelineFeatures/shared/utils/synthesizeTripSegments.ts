@@ -115,7 +115,7 @@ export const synthesizeTripSegments = (params: {
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
       scheduled: segment.SchedArriveCurr ?? segment.DepartingTime,
-      actual: actualTrip?.ArriveDock ?? actualTrip?.TripStart ?? undefined,
+      actual: actualTrip?.TripStart ?? undefined,
       estimated: arriveCurrEstimated,
     };
 
@@ -137,9 +137,10 @@ export const synthesizeTripSegments = (params: {
         segment.SchedArriveNext ??
         segment.ArrivingTime ??
         segment.DepartingTime,
-      actual: actualTrip?.TripEnd ?? undefined,
+      actual: actualTrip?.ArriveDest ?? actualTrip?.TripEnd ?? undefined,
       estimated:
-        (isActive && activePhase === "AtSea") || isHeld
+        ((isActive && activePhase === "AtSea") || isHeld) &&
+        !actualTrip?.ArriveDest
           ? (vesselLocation?.Eta ??
             actualTrip?.AtSeaArriveNext?.PredTime ??
             actualTrip?.AtDockArriveNext?.PredTime)
@@ -151,7 +152,7 @@ export const synthesizeTripSegments = (params: {
     // should be in the at-dock segment.
     // If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
     // The current phase logic handles this via `activePhase`.
-    const isArrivedAtDock = !!(actualTrip?.ArriveDock ?? actualTrip?.TripStart);
+    const isArrivedAtDock = !!actualTrip?.TripStart;
     const isLeftDock = !!actualTrip?.LeftDock;
 
     return {

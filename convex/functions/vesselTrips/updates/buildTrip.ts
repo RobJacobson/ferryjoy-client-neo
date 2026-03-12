@@ -41,33 +41,33 @@ export const buildTrip = async (
   shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
-  const withArriveDock = {
+  const withArriveDest = {
     ...baseTrip,
-    ArriveDock:
-      baseTrip.ArriveDock ??
+    ArriveDest:
+      baseTrip.ArriveDest ??
       (events.didJustArriveAtDock ? currLocation.TimeStamp : undefined),
   };
 
   // Compute enrichment conditions
   const shouldAppendFinalSchedule = tripStart || events.keyChanged;
   const shouldAttemptAtDockPredictions =
-    withArriveDock.AtDock &&
-    !withArriveDock.LeftDock &&
-    Boolean(withArriveDock.TripStart) &&
+    withArriveDest.AtDock &&
+    !withArriveDest.LeftDock &&
+    Boolean(withArriveDest.TripStart) &&
     (tripStart || shouldRunPredictionFallback) &&
-    (!withArriveDock.AtDockDepartCurr ||
-      !withArriveDock.AtDockArriveNext ||
-      !withArriveDock.AtDockDepartNext);
+    (!withArriveDest.AtDockDepartCurr ||
+      !withArriveDest.AtDockArriveNext ||
+      !withArriveDest.AtDockDepartNext);
   const shouldAttemptAtSeaPredictions =
-    !withArriveDock.AtDock &&
-    Boolean(withArriveDock.LeftDock) &&
+    !withArriveDest.AtDock &&
+    Boolean(withArriveDest.LeftDock) &&
     (events.didJustLeaveDock || shouldRunPredictionFallback) &&
-    (!withArriveDock.AtSeaArriveNext || !withArriveDock.AtSeaDepartNext);
+    (!withArriveDest.AtSeaArriveNext || !withArriveDest.AtSeaDepartNext);
 
   // Sequential enrichment pipeline
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(ctx, withArriveDock, existingTrip)
-    : withArriveDock;
+    ? await appendFinalSchedule(ctx, withArriveDest, existingTrip)
+    : withArriveDest;
   const withAtDockPredictions = shouldAttemptAtDockPredictions
     ? await appendArriveDockPredictions(ctx, withFinalSchedule)
     : withFinalSchedule;

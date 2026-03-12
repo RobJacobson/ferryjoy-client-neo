@@ -28,8 +28,8 @@ export const VesselTripTimelineList = ({
       {items.map(({ trip, vesselLocation }) => (
         <VesselTripTimeline
           key={`${trip.VesselAbbrev}-${
-            trip.ArriveDock?.getTime() ??
             trip.TripStart?.getTime() ??
+            trip.ArriveDest?.getTime() ??
             "no-start"
           }`}
           trip={trip}

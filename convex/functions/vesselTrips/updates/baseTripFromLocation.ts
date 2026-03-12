@@ -86,7 +86,7 @@ const baseTripForStart = (
     PrevScheduledDeparture: previousStartedTrip?.ScheduledDeparture,
     PrevLeftDock: previousStartedTrip?.LeftDock,
     // Carry forward the dock arrival when we delayed the trip start.
-    ArriveDock: previousStartedTrip?.ArriveDock,
+    ArriveDest: previousStartedTrip?.ArriveDest,
     // Trip start is when the feed finally exposes the new trip.
     TripStart: currLocation.TimeStamp,
     AtDock: currLocation.AtDock,
@@ -155,7 +155,7 @@ const baseTripForContinuing = (
   // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
   const arrivingTerminalAbbrev =
     currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
-  const arriveDockTime = existingTrip?.ArriveDock;
+  const arriveDestTime = existingTrip?.ArriveDest;
 
   // TripStart is carried from existing trip
   const tripStartTime = existingTrip?.TripStart;
@@ -180,13 +180,13 @@ const baseTripForContinuing = (
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: existingTrip?.PrevLeftDock,
-    ArriveDock: arriveDockTime,
+    ArriveDest: arriveDestTime,
     // TripStart carried from existing trip (unchanged)
     TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
     // Time from arrival to departure (only when vessel has left dock)
     AtDockDuration: calculateTimeDelta(
-      arriveDockTime ?? tripStartTime,
+      arriveDestTime ?? tripStartTime,
       leftDockTime
     ),
     ScheduledDeparture: scheduledDeparture,

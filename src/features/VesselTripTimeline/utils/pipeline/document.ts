@@ -41,6 +41,10 @@ const getActiveSegmentIndex = (
     return rowCount;
   }
 
+  if (trip.ArriveDest) {
+    return Math.max(0, rowCount - 1);
+  }
+
   if (trip.TripEnd) {
     return Math.max(0, rowCount - 1);
   }

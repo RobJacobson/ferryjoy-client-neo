@@ -87,8 +87,8 @@ export const TripProgressList = ({
         {inServiceTrips.map(({ trip, vesselLocation }) => (
           <TripCard
             key={`${trip.VesselAbbrev}-${
-              trip.ArriveDock?.getTime() ??
               trip.TripStart?.getTime() ??
+              trip.ArriveDest?.getTime() ??
               "no-start"
             }`}
             trip={trip}

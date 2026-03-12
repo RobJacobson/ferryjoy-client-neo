@@ -44,7 +44,7 @@ export const vesselTripToTripSegment = (
 
   const arriveCurr: TimePoint = {
     scheduled: schedArriveCurr,
-    actual: trip.ArriveDock ?? trip.TripStart,
+    actual: trip.TripStart,
     estimated: undefined,
   };
 
@@ -56,13 +56,14 @@ export const vesselTripToTripSegment = (
 
   const arriveNext: TimePoint = {
     scheduled: schedArriveNext,
-    actual: trip.TripEnd,
-    estimated: !trip.TripEnd
-      ? (vesselLocation.Eta ??
-        trip.AtSeaArriveNext?.PredTime ??
-        trip.AtDockArriveNext?.PredTime ??
-        arrivalPrediction)
-      : undefined,
+    actual: trip.ArriveDest ?? trip.TripEnd,
+    estimated:
+      !trip.ArriveDest && !trip.TripEnd
+        ? (vesselLocation.Eta ??
+          trip.AtSeaArriveNext?.PredTime ??
+          trip.AtDockArriveNext?.PredTime ??
+          arrivalPrediction)
+        : undefined,
   };
 
   return {
@@ -79,7 +80,7 @@ export const vesselTripToTripSegment = (
     status,
     phase,
     isHeld,
-    isArrived: !!(trip.ArriveDock ?? trip.TripStart),
+    isArrived: !!trip.TripStart,
     isLeft: !!trip.LeftDock,
   };
 };

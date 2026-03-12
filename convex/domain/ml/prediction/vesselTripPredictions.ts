@@ -190,7 +190,7 @@ export const actualizePredictionsOnLeaveDock = (
 export const actualizePredictionsOnTripComplete = (
   trip: ConvexVesselTrip
 ): ConvexVesselTrip => {
-  const arrivalActual = trip.ArriveDock ?? trip.TripEnd;
+  const arrivalActual = trip.ArriveDest ?? trip.TripEnd;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
   }

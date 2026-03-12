@@ -29,7 +29,7 @@ export const buildCompletedTrip = (
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
   const effectiveArrivalTime =
-    existingTrip.ArriveDock ?? currLocation.TimeStamp;
+    existingTrip.ArriveDest ?? currLocation.TimeStamp;
   const withTripEnd = { ...existingTrip, TripEnd: currLocation.TimeStamp };
   const withDurations = {
     ...withTripEnd,

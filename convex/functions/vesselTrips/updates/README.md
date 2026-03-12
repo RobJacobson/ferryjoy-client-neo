@@ -91,8 +91,8 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 **Condition**: `isCompletedTrip = existingTrip.TripStart && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev && currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev`.
 
 **Behavior**:
-1. Keep the old trip active through the dock gap, recording `ArriveDock` when the feed indicates the vessel reached the terminal.
-2. Complete the current trip only when the next trip is start-ready via `buildCompletedTrip`: set `TripEnd`, compute durations from the real arrival time (`ArriveDock` when available), and actualize same-trip at-sea predictions before persistence.
+1. Keep the old trip active through the dock gap, recording `ArriveDest` when the feed indicates the vessel reached the terminal.
+2. Complete the current trip only when the next trip is start-ready via `buildCompletedTrip`: set `TripEnd`, compute durations from the real arrival time (`ArriveDest` when available), and actualize same-trip at-sea predictions before persistence.
 3. Start the replacement trip via `buildTrip(ctx, currLocation, existingTrip, true, events, shouldRunPredictionFallback)` with `tripStart=true` for `Prev*` context and deterministic schedule lookup by Key.
 4. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
 4. Insert completed prediction records from the already-finalized completed trip via PredictionService.
@@ -135,7 +135,7 @@ buildTrip(
   │   ├─> didJustLeaveDock (from events.didJustLeaveDock)
   │   └─> keyChanged (from events.keyChanged)
   │   └─> shouldRunPredictionFallback (computed once by runUpdateVesselTrips)
-  ├─> stamp ArriveDock (when destination terminal changes)
+  ├─> stamp ArriveDest (when destination terminal changes)
   ├─> appendFinalSchedule (if tripStart or keyChanged)
   ├─> appendArriveDockPredictions (if at dock && TripStart exists && (tripStart || time-based fallback))
   ├─> appendLeaveDockPredictions (if at sea && (didJustLeaveDock || time-based fallback))
@@ -177,7 +177,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 **VesselLocation** is a point-in-time snapshot from REST/API feed: position, terminals, AtDock, Eta, TimeStamp, etc.
 
 **VesselTrip** maintains history across many updates. It adds:
-- `ArriveDock` — actual dock-arrival time when the vessel reaches the terminal
+- `ArriveDest` — actual destination-arrival time when the vessel reaches the terminal
 - `TripStart` — delayed trip-start time when the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
 - `PrevTerminalAbbrev`, `PrevScheduledDeparture`, `PrevLeftDock` — carried from completed trip at boundary
 - Derived durations: `AtDockDuration`, `TripDelay`, `AtSeaDuration`, `TotalDuration`
@@ -193,21 +193,22 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 |-------|--------|-------------|
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
-| **ArrivingTerminalAbbrev** | currLocation, appendInitialSchedule, or existingTrip | `currLocation` when truthy; else `appendInitialSchedule` result; else `existingTrip` (regular updates only; never old trip at boundary) |
+| **ArrivingTerminalAbbrev** | currLocation or existingTrip | `currLocation` when truthy; else `existingTrip` (regular updates only; never old trip at boundary) |
 | **Key** | Raw data | From `generateTripKey` in baseTripFromLocation; used for schedule lookup |
 | **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture)` in baseTripFromLocation; uses carried-forward `ScheduledDeparture` when current feed omits it |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
-| **TripStart** | Inferred at boundary | `currLocation.TimeStamp` when vessel arrives at dock; carried forward |
+| **ArriveDest** | Arrival event | `currLocation.TimeStamp` when the vessel reaches the destination terminal; carried until completion |
+| **TripStart** | Start event | `currLocation.TimeStamp` when the feed first exposes the new trip; carried forward |
 | **AtDock** | currLocation | Direct copy every tick |
-| **AtDockDuration** | Computed | `LeftDock - TripStart` (minutes); only when LeftDock set |
+| **AtDockDuration** | Computed | `LeftDock - ArriveDest` when available, else `LeftDock - TripStart` (minutes); only when LeftDock set |
 | **ScheduledDeparture** | currLocation or existingTrip | `currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture` (null-overwrite protection) |
 | **LeftDock** | currLocation, existingTrip, or inferred | Derived by `getDockDepartureState`: `currLocation.LeftDock ?? existingTrip.LeftDock ?? inferredFromTick` |
 | **TripDelay** | Computed | `LeftDock - ScheduledDeparture` (minutes) |
 | **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
-| **NextScheduledDeparture** | Schedule lookup or existingTrip | Set by appendInitialSchedule/appendFinalSchedule; carried forward in baseTripForContinuing when appends don't run (no overwrite with undefined) |
+| **NextScheduledDeparture** | Schedule lookup or existingTrip | Set by appendFinalSchedule; carried forward in baseTripForContinuing when the lookup doesn't run (no overwrite with undefined) |
 | **TripEnd** | Boundary only | `currLocation.TimeStamp` when completing trip |
-| **AtSeaDuration** | Computed | `TripEnd - LeftDock`; only on completed trip |
-| **TotalDuration** | Computed | `TripEnd - TripStart`; only on completed trip |
+| **AtSeaDuration** | Computed | `ArriveDest - LeftDock` when available, else `TripEnd - LeftDock`; only on completed trip |
+| **TotalDuration** | Computed | `ArriveDest - TripStart` when available, else `TripEnd - TripStart`; only on completed trip |
 | **InService, TimeStamp** | currLocation | Direct copy every tick |
 | **AtDockDepartCurr** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
 | **AtDockArriveNext, AtDockDepartNext** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
@@ -220,13 +221,13 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 ### ArrivingTerminalAbbrev
 
 - **At trip boundary**: Never use `existingTrip.ArrivingTerminalAbbrev` — the old trip's ArrivingTerminal equals the new trip's DepartingTerminal (wrong terminal).
-- **Regular updates**: Fallback chain in `baseTripFromLocation`: `currLocation` → `existingTrip`. Can also be populated by `appendInitialSchedule` when vessel arrives at dock with missing ArrivingTerminal.
+- **Regular updates**: Fallback chain in `baseTripFromLocation`: `currLocation` → `existingTrip`.
 
 ### Null-Overwrite Protection
 
 `ScheduledDeparture`, `Eta`, `LeftDock`: Preserve the existing trip value when the current feed omits it. This prevents overwriting good data with null/undefined from REST glitches.
 
-`NextScheduledDeparture`: Set by schedule lookups (appendInitialSchedule, appendFinalSchedule). Carried forward from `existingTrip` in `baseTripForContinuing` when neither append runs (no key change, no just-arrive-at-dock). Prevents overwriting with undefined on regular updates.
+`NextScheduledDeparture`: Set by `appendFinalSchedule`. Carried forward from `existingTrip` in `baseTripForContinuing` when the lookup does not run. Prevents overwriting with undefined on regular updates.
 
 ### LeftDock Special Case
 
@@ -251,8 +252,7 @@ Trip orchestration code builds the fully-correct trip object first, then delegat
 
 ### Event-Driven Lookups
 
-- `appendInitialSchedule`: Event-driven (AtDock: false→true + missing ArrivingTerminal + has required fields). Called by `buildTrip`.
-- `appendFinalSchedule`: Event-driven (key changed). Called by `buildTrip`. Reuses existing ScheduledTrip when key matches.
+- `appendFinalSchedule`: Event-driven when a trip starts or its key changes. Called by `buildTrip`. Reuses existing schedule fields when the key matches.
 
 ---
 
@@ -260,7 +260,7 @@ Trip orchestration code builds the fully-correct trip object first, then delegat
 
 ### Flow
 
-1. Build `proposedTrip` via `buildTrip` (which internally calls `baseTripFromLocation` + `appendInitialSchedule` + `appendFinalSchedule` + `appendArriveDockPredictions` + `appendLeaveDockPredictions`, using provided events and `shouldRunPredictionFallback` to drive enrichments).
+1. Build `proposedTrip` via `buildTrip` (which internally calls `baseTripFromLocation` + `appendFinalSchedule` + `appendArriveDockPredictions` + `appendLeaveDockPredictions`, using provided events and `shouldRunPredictionFallback` to drive enrichments).
 2. Finalize same-trip actuals in the builder when applicable.
 3. Compare `tripsAreEqual(existingTrip, finalProposed)`.
 4. If equal: no write.
