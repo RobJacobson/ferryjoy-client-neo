@@ -21,21 +21,8 @@ import { TimelineRow } from "./TimelineRow";
 import { TimelineRowContentLabel } from "./TimelineRowContentLabel";
 import { RowContentTimes } from "./TimelineRowContentTimes";
 import { TimelineTrack } from "./TimelineTrack";
-import type { RequiredTimelineTheme } from "./TimelineTypes";
 
 const CONTAINER_HEIGHT_PX = 350;
-
-const TIMELINE_THEME: RequiredTimelineTheme = {
-  minSegmentPx: 32,
-  centerAxisSizePx: 42,
-  trackThicknessPx: 8,
-  markerSizePx: 24,
-  indicatorSizePx: 36,
-  completeTrackClassName: "bg-green-400",
-  upcomingTrackClassName: "bg-green-100",
-  markerClassName: "border border-green-500 bg-white",
-  indicatorClassName: "border border-green-500 bg-green-100",
-};
 
 const getBoundaryTopPx = (
   activeIndicator: TimelineActiveIndicator | null,
@@ -88,16 +75,13 @@ export const TimelineContent = ({
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
           boundaryTopPx={boundaryTopPx}
-          theme={TIMELINE_THEME}
         />
-        {renderRows.map((row: TimelineRenderRow, index: number) => (
+        {renderRows.map((row: TimelineRenderRow) => (
           <TimelineRow
             key={row.id}
             id={row.id}
             durationMinutes={row.geometryMinutes}
             minHeight={row.isFinalRow ? 0 : undefined}
-            theme={TIMELINE_THEME}
-            isLastRow={index === renderRows.length - 1}
             onRowLayout={onRowLayout}
             leftContent={
               <TimelineRowContentLabel startLabel={row.startBoundary} />

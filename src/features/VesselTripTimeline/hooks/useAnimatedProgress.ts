@@ -1,23 +1,23 @@
 /**
  * Animated position hook for the overlay indicator.
  * Smooths vertical position updates (e.g. from 5s Convex polls)
- * with a Reanimated spring.
+ * with an ease-in-out timing animation.
  */
 
 import { useEffect } from "react";
-import { useSharedValue, withSpring } from "react-native-reanimated";
+import { Easing, useSharedValue, withTiming } from "react-native-reanimated";
 
-const SPRING_CONFIG = {
-  damping: 100,
-  stiffness: 2,
-  mass: 5,
-  overshootClamping: true,
+const PROGRESS_ANIMATION_DURATION_MS = 5000;
+
+const EASE_IN_OUT_CONFIG = {
+  duration: PROGRESS_ANIMATION_DURATION_MS,
+  easing: Easing.inOut(Easing.quad),
 } as const;
 
 /**
  * Returns a SharedValue that animates to the given numeric position.
  * Callers can opt into immediate jumps at row boundaries; otherwise the
- * value springs smoothly between infrequent data updates.
+ * value eases smoothly between infrequent data updates.
  *
  * @param value - Target position value, typically an absolute top in pixels
  * @param shouldJump - Whether the value should snap immediately
@@ -30,7 +30,7 @@ export const useAnimatedProgress = (value: number, shouldJump = false) => {
     if (shouldJump) {
       animatedProgress.value = value;
     } else {
-      animatedProgress.value = withSpring(value, SPRING_CONFIG);
+      animatedProgress.value = withTiming(value, EASE_IN_OUT_CONFIG);
     }
   }, [animatedProgress, shouldJump, value]);
 

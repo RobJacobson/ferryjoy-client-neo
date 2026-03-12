@@ -5,18 +5,11 @@
  */
 
 import { View, type ViewStyle } from "react-native";
-import type { RequiredTimelineTheme } from "./TimelineTypes";
+import { TRACK_STYLE } from "../theme";
 
 type TimelineTrackProps = {
   containerHeightPx: number;
   boundaryTopPx: number;
-  theme: Pick<
-    RequiredTimelineTheme,
-    | "trackThicknessPx"
-    | "centerAxisSizePx"
-    | "completeTrackClassName"
-    | "upcomingTrackClassName"
-  >;
 };
 
 /**
@@ -24,13 +17,11 @@ type TimelineTrackProps = {
  *
  * @param containerHeightPx - Total height of the timeline container in pixels
  * @param boundaryTopPx - Y position of the completed/remaining split (container-relative)
- * @param theme - Theme subset for track styling
  * @returns Full-height track view or null when not yet measured
  */
 export const TimelineTrack = ({
   containerHeightPx,
   boundaryTopPx,
-  theme,
 }: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
     return null;
@@ -46,7 +37,7 @@ export const TimelineTrack = ({
     <View
       className="absolute left-1/2 flex-col"
       pointerEvents="none"
-      style={getContainerStyle(theme.centerAxisSizePx, containerHeightPx)}
+      style={getContainerStyle(TRACK_STYLE.centerAxisSizePx, containerHeightPx)}
     >
       {/* Completed portion: flex share = percent completed */}
       <View
@@ -54,8 +45,8 @@ export const TimelineTrack = ({
         style={{ flex: completedPercent }}
       >
         <View
-          className={theme.completeTrackClassName}
-          style={getBarStyle(theme.trackThicknessPx)}
+          className={TRACK_STYLE.completeTrackClassName}
+          style={getBarStyle(TRACK_STYLE.trackThicknessPx)}
         />
       </View>
       {/* Remaining portion: flex share = percent remaining */}
@@ -64,8 +55,8 @@ export const TimelineTrack = ({
         style={{ flex: remainingPercent }}
       >
         <View
-          className={theme.upcomingTrackClassName}
-          style={getBarStyle(theme.trackThicknessPx)}
+          className={TRACK_STYLE.upcomingTrackClassName}
+          style={getBarStyle(TRACK_STYLE.trackThicknessPx)}
         />
       </View>
     </View>

@@ -31,13 +31,14 @@ export const TimelineMarker = ({
   className,
   children,
 }: TimelineIndicatorProps) => (
-  <View className={`relative self-stretch w-[${centerAxisSizePx}px] mx-4`}>
+  <View
+    className="relative mx-4 self-stretch"
+    style={{ width: centerAxisSizePx }}
+  >
     <View className="absolute" style={getMarkerStyle(sizePx)}>
       <View
-        className={cn(
-          `items-center justify-center rounded-full w-[${sizePx}px] h-[${sizePx}px]`,
-          className
-        )}
+        className={cn("items-center justify-center rounded-full", className)}
+        style={{ width: sizePx, height: sizePx }}
       >
         {children}
       </View>

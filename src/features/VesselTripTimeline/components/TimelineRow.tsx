@@ -1,7 +1,7 @@
 /**
  * Single timeline row component with left/center/right layout slots.
  * Supports optional per-row minimum height overrides via `row.minHeight`,
- * which takes precedence over the theme's `minSegmentPx` default.
+ * which takes precedence over the row style default min height.
  *
  * Center slot renders only the segment-start marker; track bars are drawn
  * by a separate base-layer component (e.g. FullTimelineTrack in features).
@@ -11,15 +11,15 @@ import type { ReactNode } from "react";
 import { View, type ViewStyle } from "react-native";
 import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
+import { ROW_STYLE } from "../theme";
 import { TimelineMarker } from "./TimelineMarker";
-import type { RequiredTimelineTheme } from "./TimelineTypes";
 
 export type TimelineRowBounds = {
   y: number;
   height: number;
 };
 
-const ROW_LAYOUT_TRANSITION_DURATION_MS = 2000;
+const ROW_LAYOUT_TRANSITION_DURATION_MS = 5000;
 
 export type TimelineRowProps = {
   id: string;
@@ -28,10 +28,8 @@ export type TimelineRowProps = {
   rightContent?: ReactNode;
   markerContent?: ReactNode;
   minHeight?: number;
-  theme: RequiredTimelineTheme;
   rowClassName?: string;
   onRowLayout: (rowId: string, bounds: TimelineRowBounds) => void;
-  isLastRow?: boolean;
 };
 
 /**
@@ -47,14 +45,12 @@ export const TimelineRow = ({
   rightContent,
   markerContent,
   minHeight,
-  theme,
   rowClassName,
   onRowLayout,
-  isLastRow,
 }: TimelineRowProps) => {
   const rowStyle = getVerticalRowStyle(
     durationMinutes,
-    theme.minSegmentPx,
+    ROW_STYLE.minSegmentPx,
     minHeight
   );
 
@@ -73,9 +69,9 @@ export const TimelineRow = ({
       <View className="flex-1 justify-start">{leftContent}</View>
 
       <TimelineMarker
-        centerAxisSizePx={theme.centerAxisSizePx}
-        sizePx={theme.markerSizePx}
-        className={theme.markerClassName}
+        centerAxisSizePx={ROW_STYLE.centerAxisSizePx}
+        sizePx={ROW_STYLE.markerSizePx}
+        className={ROW_STYLE.markerClassName}
       >
         {markerContent}
       </TimelineMarker>
@@ -90,13 +86,13 @@ export const TimelineRow = ({
  *
  * The minHeight parameter is an optional per-row override that takes
  * precedence over minSegmentPx. This is useful for exceptional rows
- * that need different minimum heights from the global theme default.
+ * that need different minimum heights from the row style default.
  *
  * When minHeight is 0, the row should not expand beyond its content,
  * so flexGrow is set to 0.
  *
  * @param durationMinutes - Segment flex-grow value derived from row duration
- * @param minSegmentPx - Global theme default for minimum row height in pixels
+ * @param minSegmentPx - Row style default for minimum row height in pixels
  * @param minHeight - Optional per-row minimum height override
  * @returns View style for a vertical timeline row
  */

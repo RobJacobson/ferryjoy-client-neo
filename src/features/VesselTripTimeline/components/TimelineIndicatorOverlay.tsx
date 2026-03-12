@@ -7,10 +7,9 @@
 import type { RefObject } from "react";
 import { type View as RNView, View } from "react-native";
 import { clamp } from "@/shared/utils";
+import { INDICATOR_STYLE } from "../theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { TimelineIndicator } from "./TimelineIndicator";
-
-const INDICATOR_SIZE_PX = 36;
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
@@ -72,7 +71,7 @@ export const TimelineIndicatorOverlay = ({
           overlayIndicator.positionPercent === 1
         }
         label={overlayIndicator.label}
-        sizePx={INDICATOR_SIZE_PX}
+        sizePx={INDICATOR_STYLE.sizePx}
       />
     </View>
   );
