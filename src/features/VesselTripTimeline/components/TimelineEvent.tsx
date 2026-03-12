@@ -13,7 +13,7 @@ const eventTypeIcon = {
   estimated: EqualApproximately,
 } as const;
 
-export type EventType = keyof typeof eventTypeIcon;
+type EventType = keyof typeof eventTypeIcon;
 
 type TimelineEventProps = {
   time: Date;

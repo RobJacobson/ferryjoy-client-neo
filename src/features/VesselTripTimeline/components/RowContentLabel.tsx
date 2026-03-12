@@ -1,40 +1,34 @@
 /**
  * Reusable label content for timeline row slots.
- * Renders one or two boundary labels for a timeline segment.
+ * Renders the start boundary label for a timeline segment.
  */
 
 import { Text, View } from "@/components/ui";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 
-export type BoundaryLabel = {
+type BoundaryLabel = {
   label: string;
   terminalAbbrev?: string;
 };
 
 type RowContentLabelProps = {
   startLabel?: BoundaryLabel;
-  endLabel?: BoundaryLabel;
 };
 
 /**
- * Renders one or two boundary labels for a segment.
+ * Renders the start boundary label for a segment.
  *
- * @param startLabel - Required top boundary label when present
- * @param endLabel - Optional bottom boundary label for the last segment
+ * @param startLabel - Start boundary label when present
  * @returns Label view
  */
-export const RowContentLabel = ({
-  startLabel,
-  endLabel,
-}: RowContentLabelProps) => {
-  if (!startLabel && !endLabel) {
+export const RowContentLabel = ({ startLabel }: RowContentLabelProps) => {
+  if (!startLabel) {
     return null;
   }
 
   return (
-    <View className="mt-[-14px] flex-1 justify-between">
+    <View className="mt-[-14px] flex-1 justify-start">
       {renderBoundaryLabel(startLabel)}
-      {renderBoundaryLabel(endLabel)}
     </View>
   );
 };

@@ -21,10 +21,10 @@ export type TimelineItem = {
 };
 
 /** Segment kinds rendered by the vessel timeline. */
-export type SegmentKind = "at-dock" | "at-sea";
+type SegmentKind = "at-dock" | "at-sea";
 
 /** Progress source for the active indicator within a row. */
-export type TimelineProgressMode = "time" | "distance";
+type TimelineProgressMode = "time" | "distance";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
@@ -40,7 +40,7 @@ export type TimePoint = {
 /**
  * Boundary data owned by a timeline row.
  */
-export type TimelineBoundary = {
+type TimelineBoundary = {
   terminalAbbrev?: string;
   timePoint: TimePoint;
 };
