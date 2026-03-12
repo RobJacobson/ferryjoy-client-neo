@@ -20,7 +20,7 @@ export type TripProgressListProps = {
  * This prevents UI flicker and provides a smooth transition for users.
  *
  * The hold window logic is implemented in useDelayedVesselTrips hook,
- * which uses the trip's own TripStart timestamp to determine if it's
+ * which uses the trip's own arrival/start timestamps to determine if it's
  * within the hold window.
  */
 export const TripProgressList = ({
@@ -86,7 +86,11 @@ export const TripProgressList = ({
         </Text>
         {inServiceTrips.map(({ trip, vesselLocation }) => (
           <TripCard
-            key={`${trip.VesselAbbrev}-${trip.TripStart?.getTime() ?? "no-start"}`}
+            key={`${trip.VesselAbbrev}-${
+              trip.ArriveDock?.getTime() ??
+              trip.TripStart?.getTime() ??
+              "no-start"
+            }`}
             trip={trip}
             vesselLocation={vesselLocation}
           />

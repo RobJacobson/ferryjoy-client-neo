@@ -160,7 +160,7 @@ const processCurrentTrips = async (
         ctx,
         currLocation,
         existingTrip,
-        false,
+        events.shouldStartTrip,
         events,
         shouldRunPredictionFallback
       );

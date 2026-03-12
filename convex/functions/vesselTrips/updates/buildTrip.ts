@@ -9,7 +9,7 @@ import {
   appendArriveDockPredictions,
   appendLeaveDockPredictions,
 } from "./appendPredictions";
-import { appendFinalSchedule, appendInitialSchedule } from "./appendSchedule";
+import { appendFinalSchedule } from "./appendSchedule";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./eventDetection";
 
@@ -41,31 +41,33 @@ export const buildTrip = async (
   shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
+  const withArriveDock = {
+    ...baseTrip,
+    ArriveDock:
+      baseTrip.ArriveDock ??
+      (events.didJustArriveAtDock ? currLocation.TimeStamp : undefined),
+  };
 
   // Compute enrichment conditions
-  const shouldAppendInitialSchedule =
-    events.didJustArriveAtDock && !baseTrip.ArrivingTerminalAbbrev;
-  const shouldAppendFinalSchedule = events.keyChanged;
+  const shouldAppendFinalSchedule = tripStart || events.keyChanged;
   const shouldAttemptAtDockPredictions =
-    baseTrip.AtDock &&
-    !baseTrip.LeftDock &&
-    (events.didJustArriveAtDock || shouldRunPredictionFallback) &&
-    (!baseTrip.AtDockDepartCurr ||
-      !baseTrip.AtDockArriveNext ||
-      !baseTrip.AtDockDepartNext);
+    withArriveDock.AtDock &&
+    !withArriveDock.LeftDock &&
+    Boolean(withArriveDock.TripStart) &&
+    (tripStart || shouldRunPredictionFallback) &&
+    (!withArriveDock.AtDockDepartCurr ||
+      !withArriveDock.AtDockArriveNext ||
+      !withArriveDock.AtDockDepartNext);
   const shouldAttemptAtSeaPredictions =
-    !baseTrip.AtDock &&
-    baseTrip.LeftDock &&
+    !withArriveDock.AtDock &&
+    Boolean(withArriveDock.LeftDock) &&
     (events.didJustLeaveDock || shouldRunPredictionFallback) &&
-    (!baseTrip.AtSeaArriveNext || !baseTrip.AtSeaDepartNext);
+    (!withArriveDock.AtSeaArriveNext || !withArriveDock.AtSeaDepartNext);
 
   // Sequential enrichment pipeline
-  const withInitialSchedule = shouldAppendInitialSchedule
-    ? await appendInitialSchedule(ctx, baseTrip)
-    : baseTrip;
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(ctx, withInitialSchedule, existingTrip)
-    : withInitialSchedule;
+    ? await appendFinalSchedule(ctx, withArriveDock, existingTrip)
+    : withArriveDock;
   const withAtDockPredictions = shouldAttemptAtDockPredictions
     ? await appendArriveDockPredictions(ctx, withFinalSchedule)
     : withFinalSchedule;

@@ -4,12 +4,11 @@ This module synchronizes active vessel trips with live location data. It runs as
 
 **Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, and `leave_dock` side effects run only after the active trip upsert succeeds.
 
-**Five-function design**:
+**Current design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
-2. `baseTripFromLocation` — base trip from raw location data (simple assignments); preserves durable fields across feed gaps and derives Key for schedule lookup
-3. `appendInitialSchedule` — arrival terminal lookup when vessel arrives at dock (event-driven: AtDock false→true)
-4. `appendFinalSchedule` — schedule lookup by Key when the computed key becomes newly available or changes (event-driven)
-5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions with event-driven and time-based fallback (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
+2. `baseTripFromLocation` — base trip from raw location data; preserves active-trip identity through the dock gap and supports pre-trip records with no `TripStart`
+3. `appendFinalSchedule` — deterministic schedule lookup by Key once the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
+4. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
 **Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update, and `getDockDepartureState` provides the shared `LeftDock` inference used by both event detection and trip field derivation.
 
@@ -39,16 +38,16 @@ runUpdateVesselTrips (entry point)
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
             │       → handlePredictionEvent (trip_complete) → PredictionService
-            │       (internal: baseTripFromLocation → appendInitialSchedule
-            │                 → appendFinalSchedule → appendArriveDockPredictions
+            │       (internal: baseTripFromLocation → appendFinalSchedule
+            │                 → appendArriveDockPredictions
             │                 → appendLeaveDockPredictions
             │                 → actualizePredictionsOnTripComplete / OnLeaveDock)
             └─> processCurrentTrips (ongoing trips, including first appearances)
-                    buildTrip (tripStart=false for continuing and first appearances, events, shouldRunPredictionFallback)
+                    buildTrip (tripStart=events.shouldStartTrip for pre-trips/first appearances, events, shouldRunPredictionFallback)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
                     → handlePredictionEvent (leave_dock, post-persist only) → PredictionService
-                    (internal: baseTripFromLocation → appendInitialSchedule
-                              → appendFinalSchedule → appendArriveDockPredictions
+                    (internal: baseTripFromLocation → appendFinalSchedule
+                              → appendArriveDockPredictions
                               → appendLeaveDockPredictions
                               → actualizePredictionsOnLeaveDock)
 ```
@@ -63,7 +62,7 @@ runUpdateVesselTrips (entry point)
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived fields, handles first trip, trip boundary, regular updates, and carry-forward protection for durable fields |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
-| `appendSchedule.ts` | `appendInitialSchedule`, `appendFinalSchedule` — event-driven schedule lookup by Key |
+| `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
 
 **External dependencies**:
@@ -82,30 +81,33 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 
 **Condition**: `isFirstTrip = !existingTrip` (first appearance of a vessel).
 
-**Behavior**: Handled by `processCurrentTrips`. Calls `buildTrip(ctx, currLocation, undefined, false, events, shouldRunPredictionFallback)` which:
-- Uses the continuing path in `baseTripFromLocation` with no `existingTrip`, producing a first-seen trip with no carried-forward context
-- Internally calls `appendFinalSchedule` when a key is derivable, `appendArriveDockPredictions` when at dock and prediction-ready, and `appendLeaveDockPredictions` when at sea and prediction-ready
+**Behavior**: Handled by `processCurrentTrips`. First appearances now split into two cases:
+- If the feed is not yet start-ready, `buildTrip(..., tripStart=false, ...)` creates a minimal pre-trip/ghost record with no `TripStart`
+- If the feed already has `ScheduledDeparture` and `ArrivingTerminalAbbrev`, `buildTrip(..., tripStart=true, ...)` starts a real trip immediately
 - Compares via `tripsAreEqual` (always different for new trips) and writes via `upsertVesselTripsBatch`
 
 ### 2. Trip Boundary
 
-**Condition**: `isCompletedTrip = existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` (vessel arrived at a new terminal).
+**Condition**: `isCompletedTrip = existingTrip.TripStart && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev && currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev`.
 
 **Behavior**:
-1. Complete current trip via `buildCompletedTrip`: set `TripEnd`, compute `AtSeaDuration`, `TotalDuration`, and actualize same-trip at-sea predictions before persistence.
-2. Start new trip via `buildTrip(ctx, currLocation, existingTrip, true, events, shouldRunPredictionFallback)` with `tripStart=true` for `Prev*` context: internally calls `baseTripFromLocation` → `appendInitialSchedule` (if at dock with missing ArrivingTerminal) → `appendFinalSchedule` (if key is newly available or changed) → `appendArriveDockPredictions` (if at dock) → `appendLeaveDockPredictions` (if at sea).
-3. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
+1. Keep the old trip active through the dock gap, recording `ArriveDock` when the feed indicates the vessel reached the terminal.
+2. Complete the current trip only when the next trip is start-ready via `buildCompletedTrip`: set `TripEnd`, compute durations from the real arrival time (`ArriveDock` when available), and actualize same-trip at-sea predictions before persistence.
+3. Start the replacement trip via `buildTrip(ctx, currLocation, existingTrip, true, events, shouldRunPredictionFallback)` with `tripStart=true` for `Prev*` context and deterministic schedule lookup by Key.
+4. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
 4. Insert completed prediction records from the already-finalized completed trip via PredictionService.
 
 ### 3. Regular Update (Ongoing Trips)
 
-**Condition**: `!isCompletedTrip` (same `DepartingTerminalAbbrev`, vessel still on same leg).
+**Condition**: `!isCompletedTrip`.
 
 **Behavior**:
-1. `buildTrip(ctx, currLocation, existingTrip, false, events, shouldRunPredictionFallback)` with `tripStart=false` — orchestrates all enrichments with provided events:
-   - Calls `appendInitialSchedule` when at dock with missing ArrivingTerminal
-   - Calls `appendFinalSchedule` when a key becomes newly available or changes
-   - Calls `appendArriveDockPredictions` when first arrive at dock
+1. `buildTrip(ctx, currLocation, existingTrip, events.shouldStartTrip, events, shouldRunPredictionFallback)` now handles:
+   - continuing started trips
+   - dock-hold updates for the previous trip while waiting on next-trip fields
+   - pre-trip/ghost updates when a vessel has no real start yet
+   - deterministic schedule lookup when a key becomes newly available or a trip starts
+   - at-dock predictions only after a real trip start
    - Calls `appendLeaveDockPredictions` when physically depart dock
    - Applies `actualizePredictionsOnLeaveDock` before persistence when `didJustLeaveDock`
 2. When `didJustLeaveDock`: `processCurrentTrips()` queues a post-persist side effect. After `upsertVesselTripsBatch` succeeds for that vessel, PredictionService inserts completed prediction records from the finalized trip and backfills previous trip depart-next actuals.
@@ -133,15 +135,15 @@ buildTrip(
   │   ├─> didJustLeaveDock (from events.didJustLeaveDock)
   │   └─> keyChanged (from events.keyChanged)
   │   └─> shouldRunPredictionFallback (computed once by runUpdateVesselTrips)
-  ├─> appendInitialSchedule (if didJustArriveAtDock && missing ArrivingTerminal)
-  ├─> appendFinalSchedule (if keyChanged)
-  ├─> appendArriveDockPredictions (if at dock && (didJustArriveAtDock || time-based fallback))
+  ├─> stamp ArriveDock (when destination terminal changes)
+  ├─> appendFinalSchedule (if tripStart or keyChanged)
+  ├─> appendArriveDockPredictions (if at dock && TripStart exists && (tripStart || time-based fallback))
   ├─> appendLeaveDockPredictions (if at sea && (didJustLeaveDock || time-based fallback))
   └─> actualizePredictionsOnLeaveDock (if didJustLeaveDock)
 ```
 
 **Benefits**:
-- Single entry point for trip construction used by both `processCompletedTrips` (with `tripStart=true`) and `processCurrentTrips` (with `tripStart=false` for continuing, `tripStart=true` for first trips)
+- Single entry point for trip construction used by both `processCompletedTrips` and `processCurrentTrips`, with `tripStart` explicitly marking when a real trip begins
 - Events computed once in `runUpdateVesselTrips` and passed through call chain, avoiding redundant computation
 - Consistent application of all enrichments across trip boundaries and regular updates
 - Clear separation of concerns: `baseTripFromLocation` for raw data, schedule functions for database lookups, prediction functions for ML
@@ -156,8 +158,10 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | Event | Detection Logic | Triggers |
 |-------|----------------|----------|
 | `isFirstTrip` | `!existingTrip` | Vessel's first appearance |
-| `isCompletedTrip` | `existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` | Trip boundary (arrived at new terminal) |
-| `didJustArriveAtDock` | `existingTrip && !existingTrip.AtDock && currLocation.AtDock` | Vessel just arrived at dock |
+| `isTripStartReady` | `currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev` | Feed now exposes real next-trip data |
+| `shouldStartTrip` | `isTripStartReady && (!existingTrip || !existingTrip.TripStart)` | Promote first/pre-trip into a real trip |
+| `isCompletedTrip` | `existingTrip?.TripStart && isTripStartReady && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` | Delayed trip boundary |
+| `didJustArriveAtDock` | `existingTrip && currLocation.ArrivingTerminalAbbrev && existingTrip.ArrivingTerminalAbbrev !== currLocation.ArrivingTerminalAbbrev` | Vessel reached a new terminal |
 | `didJustLeaveDock` | `existingTrip?.LeftDock === undefined && (currLocation.LeftDock !== undefined \|\| (existingTrip.AtDock && !currLocation.AtDock))` | Vessel just departed dock |
 | `keyChanged` | `computedKey !== undefined && existingTrip?.Key !== computedKey` | Trip schedule identifier became available or changed |
 
@@ -173,7 +177,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 **VesselLocation** is a point-in-time snapshot from REST/API feed: position, terminals, AtDock, Eta, TimeStamp, etc.
 
 **VesselTrip** maintains history across many updates. It adds:
-- `TripStart` — inferred when vessel arrives at dock (at-sea → at-dock)
+- `ArriveDock` — actual dock-arrival time when the vessel reaches the terminal
+- `TripStart` — delayed trip-start time when the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
 - `PrevTerminalAbbrev`, `PrevScheduledDeparture`, `PrevLeftDock` — carried from completed trip at boundary
 - Derived durations: `AtDockDuration`, `TripDelay`, `AtSeaDuration`, `TotalDuration`
 - ML predictions: `AtDockDepartCurr`, `AtDockArriveNext`, `AtDockDepartNext`, `AtSeaArriveNext`, `AtSeaDepartNext`

@@ -104,6 +104,7 @@ export const vesselTripSchema = v.object({
   SailingDay: v.optional(v.string()), // WSF operational day in YYYY-MM-DD format
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
+  ArriveDock: v.optional(v.number()),
   TripStart: v.optional(v.number()),
   AtDock: v.boolean(),
   AtDockDuration: v.optional(v.number()),
@@ -146,6 +147,7 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
     Eta: optionalEpochMsToDate(trip.Eta),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
     TimeStamp: epochMsToDate(trip.TimeStamp),
+    ArriveDock: optionalEpochMsToDate(trip.ArriveDock),
     TripStart: optionalEpochMsToDate(trip.TripStart),
     TripEnd: optionalEpochMsToDate(trip.TripEnd),
     // ML model predictions

@@ -28,16 +28,18 @@ export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
+  const effectiveArrivalTime =
+    existingTrip.ArriveDock ?? currLocation.TimeStamp;
   const withTripEnd = { ...existingTrip, TripEnd: currLocation.TimeStamp };
   const withDurations = {
     ...withTripEnd,
     AtSeaDuration: calculateTimeDelta(
       withTripEnd.LeftDock,
-      withTripEnd.TripEnd
+      effectiveArrivalTime
     ),
     TotalDuration: calculateTimeDelta(
       withTripEnd.TripStart,
-      withTripEnd.TripEnd
+      effectiveArrivalTime
     ),
   };
 
