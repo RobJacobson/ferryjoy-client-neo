@@ -91,6 +91,27 @@ describe("VesselTimeline row geometry", () => {
       at(20, 30).toISOString()
     );
   });
+
+  it("adds a terminal arrival row for the final trip endpoint", () => {
+    const trips = [makeTrip("trip-1")];
+    const boundaryData: TripBoundaryData[] = [
+      makeBoundaries("trip-1", {
+        arriveCurr: at(20, 0),
+        departCurr: at(20, 50),
+        arriveNext: at(21, 47),
+      }),
+    ];
+
+    const rows = getRows(trips, boundaryData, layout);
+    const terminalRow = rows[rows.length - 1];
+
+    expect(terminalRow?.id).toBe("trip-1-terminal");
+    expect(terminalRow?.isTerminal).toBe(true);
+    expect(terminalRow?.startBoundary.terminalAbbrev).toBe("SWV");
+    expect(
+      terminalRow?.startBoundary.timePoint.scheduled?.toISOString()
+    ).toBe(at(21, 47).toISOString());
+  });
 });
 
 const makeTrip = (

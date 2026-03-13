@@ -83,6 +83,22 @@ export const getRows = (
     });
   });
 
+  const lastTrip = trips[trips.length - 1];
+  const lastBoundaries = boundaryData[boundaryData.length - 1];
+  if (lastTrip && lastBoundaries) {
+    rows.push({
+      id: `${lastTrip.key}-terminal`,
+      segmentIndex: rows.length,
+      kind: "dock",
+      isTerminal: true,
+      startBoundary: lastBoundaries.arriveNext,
+      endBoundary: lastBoundaries.arriveNext,
+      actualDurationMinutes: 0,
+      displayDurationMinutes: 0,
+      displayMode: "proportional",
+    });
+  }
+
   return rows;
 };
 

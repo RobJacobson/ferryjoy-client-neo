@@ -167,5 +167,5 @@ const toSharedTimelineRenderRow = (
   geometryMinutes: row.displayHeightPx,
   startBoundary: row.startBoundary,
   endBoundary: row.endBoundary,
-  isFinalRow: false,
+  isFinalRow: row.isTerminal === true,
 });

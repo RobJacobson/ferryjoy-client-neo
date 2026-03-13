@@ -59,6 +59,7 @@ export type VesselTimelineRow = {
   id: string;
   segmentIndex: number;
   kind: VesselTimelineRowKind;
+  isTerminal?: boolean;
   startBoundary: VesselTimelineBoundary;
   endBoundary: VesselTimelineBoundary;
   actualDurationMinutes: number;
@@ -109,6 +110,7 @@ export type VesselTimelineRenderBoundary = {
 export type VesselTimelineRenderRow = {
   id: string;
   kind: VesselTimelineRowKind;
+  isTerminal?: boolean;
   startBoundary: VesselTimelineRenderBoundary;
   endBoundary: VesselTimelineRenderBoundary;
   displayHeightPx: number;
