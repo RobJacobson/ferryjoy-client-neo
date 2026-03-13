@@ -4,7 +4,7 @@
 
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { TimelineContent } from "./components";
+import { TimelineContent } from "./components/TimelineContent";
 import type { TimelineItem } from "./types";
 import { getTimelineRenderState } from "./utils";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";

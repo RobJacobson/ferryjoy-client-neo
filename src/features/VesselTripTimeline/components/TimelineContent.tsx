@@ -9,16 +9,19 @@ import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { View } from "@/components/ui";
+import {
+  getBoundaryTopPx,
+  getTrackFractions,
+  TimelineIndicatorOverlay,
+  TimelineRow,
+  TimelineRowContent,
+  TimelineTrack,
+} from "@/components/timeline";
 import type {
   RowLayoutBounds,
   TimelineRenderRow,
   TimelineRenderState,
 } from "../types";
-import { getBoundaryTopPx, getTrackFractions } from "../utils/viewState";
-import { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
-import { TimelineRow } from "./TimelineRow";
-import { TimelineRowContent } from "./TimelineRowContent";
-import { TimelineTrack } from "./TimelineTrack";
 
 const CONTAINER_HEIGHT_PX = 350;
 
@@ -67,7 +70,8 @@ export const TimelineContent = ({
           <TimelineRow
             key={row.id}
             id={row.id}
-            durationMinutes={row.geometryMinutes}
+            layoutMode="flex"
+            size={row.geometryMinutes}
             minHeight={row.isFinalRow ? 0 : undefined}
             onRowLayout={onRowLayout}
           >

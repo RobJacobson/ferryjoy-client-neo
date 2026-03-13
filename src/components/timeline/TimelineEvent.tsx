@@ -20,13 +20,6 @@ type TimelineEventProps = {
   type: EventType;
 };
 
-/**
- * Renders a timeline event with time and icon.
- *
- * @param time - Event time to display
- * @param type - Event type determining icon (actual, scheduled, estimated)
- * @returns Timeline event component
- */
 export const TimelineEvent = ({ time, type }: TimelineEventProps) => {
   const Icon = eventTypeIcon[type];
   return (

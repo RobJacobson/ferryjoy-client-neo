@@ -1,9 +1,7 @@
 /**
- * Per-component style constants for the Vessel Trip Timeline.
- * Each component imports only the style object it needs.
+ * Shared style constants for the vertical timeline renderer.
  */
 
-/** Style constants for timeline rows (TimelineRow, TimelineMarker). */
 export const ROW_STYLE = {
   minSegmentPx: 32,
   centerAxisSizePx: 42,
@@ -11,7 +9,6 @@ export const ROW_STYLE = {
   markerClassName: "border border-green-500 bg-white",
 } as const;
 
-/** Style constants for the full-height track (TimelineTrack). */
 export const TRACK_STYLE = {
   trackThicknessPx: 8,
   centerAxisSizePx: 42,
@@ -19,7 +16,6 @@ export const TRACK_STYLE = {
   upcomingTrackClassName: "bg-green-100",
 } as const;
 
-/** Style constants for the active indicator overlay (TimelineIndicator). */
 export const INDICATOR_STYLE = {
   sizePx: 36,
   containerClassName:

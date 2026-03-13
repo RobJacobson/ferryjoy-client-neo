@@ -4,3 +4,5 @@
 
 export * from "./hooks/useVesselTimelineData";
 export * from "./types";
+export * from "./VesselTimeline";
+export * from "./VesselTimelineScreen";

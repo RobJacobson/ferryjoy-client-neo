@@ -79,3 +79,61 @@ export type VesselTimelineDocument = {
   activeSegmentIndex: number;
   indicatorState: VesselTimelineIndicatorState;
 };
+
+/**
+ * Layout config for deterministic vessel timeline sizing.
+ */
+export type VesselTimelineLayoutConfig = {
+  pixelsPerMinute: number;
+  minRowHeightPx: number;
+  compressedBreakThresholdMinutes: number;
+  compressedBreakMarkerHeightPx: number;
+  compressedBreakStubMinutes: number;
+  compressedBreakDepartureWindowMinutes: number;
+  initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";
+  initialScrollAnchorPercent: number;
+};
+
+/**
+ * Render-ready boundary data.
+ */
+export type VesselTimelineRenderBoundary = {
+  label: string;
+  terminalAbbrev?: string;
+  timePoint: VesselTimelineTimePoint;
+};
+
+/**
+ * Render-ready row model.
+ */
+export type VesselTimelineRenderRow = {
+  id: string;
+  kind: VesselTimelineRowKind;
+  startBoundary: VesselTimelineRenderBoundary;
+  endBoundary: VesselTimelineRenderBoundary;
+  displayHeightPx: number;
+  topPx: number;
+  displayMode: VesselTimelineRowDisplayMode;
+  segmentIndex: number;
+};
+
+/**
+ * Render-ready active indicator state.
+ */
+export type VesselTimelineActiveIndicator = {
+  rowId: string;
+  rowIndex: number;
+  topPx: number;
+  label: string;
+  state: VesselTimelineIndicatorState;
+};
+
+/**
+ * Final render state consumed by the timeline UI.
+ */
+export type VesselTimelineRenderState = {
+  rows: VesselTimelineRenderRow[];
+  activeIndicator: VesselTimelineActiveIndicator | null;
+  contentHeightPx: number;
+  layout: VesselTimelineLayoutConfig;
+};

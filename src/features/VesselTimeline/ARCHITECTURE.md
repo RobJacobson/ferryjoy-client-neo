@@ -156,8 +156,38 @@ model:
 - frozen warning-state indicator behavior
 - vessel-centric rather than route-centric data loading
 
-Those requirements justify a separate feature implementation first. Shared code
-can be extracted later if the renderer and document model converge.
+Those requirements justify a separate feature implementation. The business
+logic, document model, and render-state derivation remain feature-local even
+though the visual timeline renderer now shares a common UX layer with
+`VesselTripTimeline`.
+
+## Shared UX Boundary
+
+`VesselTimeline` and `VesselTripTimeline` are now intentionally split this way:
+
+- separate feature pipelines and render-state logic under `src/features/...`
+- shared styling-sensitive timeline UX primitives under
+  `src/components/timeline`
+
+The shared UX layer owns only generic renderer concerns:
+
+- row shell measurement
+- row label / marker layout
+- track rendering
+- indicator overlay rendering
+- shared timeline theme constants
+- generic overlay/view-state helpers
+
+`VesselTimeline` still owns:
+
+- vessel-day data loading
+- day-scoped row construction
+- compressed dock-break rules
+- indicator state (`active`, `pinned-break`, `inactive-warning`)
+- explicit pixel geometry and scroll behavior
+
+This boundary is deliberate. The two features should look the same by default,
+but they should not share domain logic just because they share the same UX.
 
 ## Data Architecture
 
@@ -399,8 +429,9 @@ This is still the correct approach because:
 - the track and indicator must share the same measured coordinate system
 - blur and overlay concerns remain easier to manage with one absolute overlay
 
-However, the renderer should remain local to `VesselTimeline` at first because
-the row semantics differ from the current trip-specific feature.
+The renderer composition stays feature-local in `VesselTimeline`, but it should
+compose the shared primitives from `src/components/timeline` rather than
+forking row/track/indicator implementations.
 
 ## Layout Model
 
@@ -526,7 +557,7 @@ This allows future tuning, such as placing the active segment slightly above
 center to reveal more upcoming timeline below it, without changing the core
 layout architecture.
 
-## Proposed File Layout
+## File Layout
 
 Suggested feature structure:
 
@@ -535,12 +566,8 @@ src/features/VesselTimeline/
   ARCHITECTURE.md
   index.ts
   VesselTimeline.tsx
-  VesselTimelineScreen.tsx
   types.ts
-  hooks/
-    useVesselTimelineData.ts
   utils/
-    buildVesselTimelineDocument.ts
     pipeline/
       boundaries.ts
       rows.ts
@@ -550,12 +577,27 @@ src/features/VesselTimeline/
       index.ts
   components/
     TimelineContent.tsx
-    TimelineRow.tsx
-    TimelineIndicator.tsx
-    TimelineBreakMarker.tsx
 ```
 
-Suggested data-provider addition:
+Shared UX primitives live separately:
+
+```text
+src/components/timeline/
+  index.ts
+  types.ts
+  theme.ts
+  viewState.ts
+  useAnimatedProgress.ts
+  TimelineRow.tsx
+  TimelineRowContent.tsx
+  TimelineTrack.tsx
+  TimelineIndicator.tsx
+  TimelineIndicatorOverlay.tsx
+  TimelineEvent.tsx
+  TimelineMarkerIcon.tsx
+```
+
+Data-provider addition:
 
 ```text
 src/data/contexts/convex/
@@ -583,20 +625,15 @@ It should explicitly avoid:
 - exposing raw backend arrays from the new context
 - over-engineering field-level provenance tracking
 
-## Future Consolidation
+## Documentation Boundary
 
-If the new feature succeeds, the likely shared extraction points are:
+These docs should stay separate rather than being merged into one file.
 
-- generic timeline row/document/render-state types
-- row measurement helpers
-- overlay indicator primitives
-- full-track rendering primitives
+- `VesselTimeline/ARCHITECTURE.md` should explain vessel-day data flow,
+  document shape, explicit geometry, and compressed-break behavior.
+- `VesselTripTimeline/LAYOUT_ARCHITECTURE.md` should explain the trip-specific
+  renderer composition and single-trip overlay behavior.
 
-The likely non-shared parts are:
-
-- schedule normalization
-- vessel-day business rules
-- compressed-break behavior
-- off-schedule progression logic
-
-For now, implementation should favor clarity over premature abstraction.
+A short shared note in each file is enough to point readers at
+`src/components/timeline` for the common UX layer. Merging the full documents
+would blur the line between shared UX and feature-specific logic.
