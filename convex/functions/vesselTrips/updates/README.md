@@ -58,7 +58,7 @@ runUpdateVesselTrips (entry point)
 |------|---------|
 | `updateVesselTrips.ts` | Main orchestrator: builds `TripTransition` objects, categorizes them into completed/current, delegates to processing functions |
 | `eventDetection.ts` | `detectTripEvents`, `getDockDepartureState` — centralized event detection and shared dock-departure inference |
-| `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, and same-trip actualization before persistence |
+| `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived fields, handles first trip, trip boundary, regular updates, and carry-forward protection for durable fields |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
@@ -161,7 +161,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | `isTripStartReady` | `currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev` | Feed now exposes real next-trip data |
 | `shouldStartTrip` | `existingTrip && !existingTrip.TripStart && !existingTrip.ArrivingTerminalAbbrev && currLocation.ArrivingTerminalAbbrev && currLocation.AtDock` | Promote an observed pre-trip into a real trip |
 | `isCompletedTrip` | `hasTripEvidence && isTripStartReady && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` | Delayed trip boundary once the previous trip has real evidence (`LeftDock` or `ArriveDest`) |
-| `didJustArriveAtDock` | `existingTrip && currLocation.ArrivingTerminalAbbrev && existingTrip.ArrivingTerminalAbbrev !== currLocation.ArrivingTerminalAbbrev` | Vessel reached a new terminal |
+| `didJustArriveAtDock` | `existingTrip.LeftDock && !existingTrip.ArriveDest && currLocation.AtDock && currLocation.DepartingTerminalAbbrev !== existingTrip.DepartingTerminalAbbrev` (and when known, matches `existingTrip.ArrivingTerminalAbbrev`) | Vessel physically reached the destination dock after a real sailing leg |
 | `didJustLeaveDock` | `existingTrip?.LeftDock === undefined && (currLocation.LeftDock !== undefined \|\| (existingTrip.AtDock && !currLocation.AtDock))` | Vessel just departed dock |
 | `keyChanged` | `computedKey !== undefined && existingTrip?.Key !== computedKey` | Trip schedule identifier became available or changed |
 
@@ -197,7 +197,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **Key** | Raw data | From `generateTripKey` in baseTripFromLocation; used for schedule lookup |
 | **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture)` in baseTripFromLocation; uses carried-forward `ScheduledDeparture` when current feed omits it |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
-| **ArriveDest** | Arrival event | `currLocation.TimeStamp` when the vessel reaches the destination terminal; carried until completion |
+| **ArriveDest** | Arrival event | `currLocation.TimeStamp` only when the vessel has already left dock and is now docked at the destination terminal; carried until completion |
 | **TripStart** | Observed start event | Set only when the system observed the start transition. At delayed boundaries this is the previous trip's `ArriveDest`; for pre-trips it can be the tick where `ArrivingTerminalAbbrev` first becomes defined while the vessel is at dock. |
 | **AtDock** | currLocation | Direct copy every tick |
 | **AtDockDuration** | Computed | `LeftDock - ArriveDest` when available, else `LeftDock - TripStart` (minutes); only when LeftDock set |
@@ -207,8 +207,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
 | **NextScheduledDeparture** | Schedule lookup or existingTrip | Set by appendFinalSchedule; carried forward in baseTripForContinuing when the lookup doesn't run (no overwrite with undefined) |
 | **TripEnd** | Boundary only | `currLocation.TimeStamp` when completing trip |
-| **AtSeaDuration** | Computed | `ArriveDest - LeftDock` when available, else `TripEnd - LeftDock`; only on completed trip |
-| **TotalDuration** | Computed | `ArriveDest - TripStart` when available, else `TripEnd - TripStart`; only on completed trip |
+| **AtSeaDuration** | Computed | `ArriveDest - LeftDock` when available and chronologically valid, else `TripEnd - LeftDock`; only on completed trip |
+| **TotalDuration** | Computed | `ArriveDest - TripStart` when available and chronologically valid, else `TripEnd - TripStart`; only on completed trip |
 | **InService, TimeStamp** | currLocation | Direct copy every tick |
 | **AtDockDepartCurr** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
 | **AtDockArriveNext, AtDockDepartNext** | ML | Run once when at dock (arrive at dock or time-based fallback if missing) (appendArriveDockPredictions) |
@@ -232,6 +232,11 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 ### LeftDock Special Case
 
 When `AtDock` flips false and `LeftDock` is missing, use `currLocation.LeftDock ?? currLocation.TimeStamp` (infer from tick).
+
+### ArriveDest Guardrails
+
+- Do not stamp `ArriveDest` from destination-field churn alone. A real arrival requires evidence that the trip already departed and the vessel is now docked at a new terminal.
+- On completion, if a stored `ArriveDest` is earlier than `LeftDock` or `TripStart`, treat it as invalid feed state and fall back to `TripEnd` for persisted arrival/duration fields.
 
 ### Event-Driven Side Effects
 

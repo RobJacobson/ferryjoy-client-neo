@@ -86,6 +86,8 @@ The orchestrator delegates all trip update logic to the `runUpdateVesselTrips()`
 
 For detailed information about the trip updates module, see: `convex/functions/vesselTrips/updates/README.md`
 
+One important consequence of that module's event model: destination arrival is only recorded after the vessel has physically completed a sailing leg and docked at a new terminal. Feed-only destination changes while a vessel is still sitting at dock are intentionally ignored.
+
 ## Data Flow
 
 The orchestrator follows a clear data flow from external API to database storage:

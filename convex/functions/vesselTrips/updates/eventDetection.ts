@@ -113,6 +113,17 @@ export const detectTripEvents = (
     existingTrip,
     currLocation
   );
+  const didJustArriveAtDock = Boolean(
+    existingTrip &&
+      existingTrip.LeftDock !== undefined &&
+      existingTrip.ArriveDest === undefined &&
+      currLocation.AtDock &&
+      currLocation.DepartingTerminalAbbrev !==
+        existingTrip.DepartingTerminalAbbrev &&
+      (!existingTrip.ArrivingTerminalAbbrev ||
+        currLocation.DepartingTerminalAbbrev ===
+          existingTrip.ArrivingTerminalAbbrev)
+  );
   const hasTripEvidence = Boolean(
     existingTrip &&
       (existingTrip.LeftDock !== undefined ||
@@ -133,13 +144,8 @@ export const detectTripEvents = (
         existingTrip?.DepartingTerminalAbbrev !==
           currLocation.DepartingTerminalAbbrev
     ),
-    // Arrive at dock: destination terminal changes to the newly reached terminal.
-    didJustArriveAtDock: Boolean(
-      existingTrip &&
-        currLocation.ArrivingTerminalAbbrev &&
-        existingTrip.ArrivingTerminalAbbrev !==
-          currLocation.ArrivingTerminalAbbrev
-    ),
+    // Arrive at dock only after a real sailing leg ends at a new terminal.
+    didJustArriveAtDock,
     // Dock departure state computed by getDockDepartureState
     didJustLeaveDock,
     // Key changed: newly available or differs from existing (triggers schedule lookup)
