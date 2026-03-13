@@ -84,6 +84,13 @@ export const detectTripEvents = (
   const isTripStartReady = Boolean(
     currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev
   );
+  const didJustBecomeStartReady = Boolean(
+    existingTrip &&
+      !existingTrip.TripStart &&
+      !existingTrip.ArrivingTerminalAbbrev &&
+      currLocation.ArrivingTerminalAbbrev &&
+      currLocation.AtDock
+  );
 
   // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
   const arrivingTerminalAbbrev =
@@ -106,21 +113,24 @@ export const detectTripEvents = (
     existingTrip,
     currLocation
   );
+  const hasTripEvidence = Boolean(
+    existingTrip &&
+      (existingTrip.LeftDock !== undefined ||
+        existingTrip.ArriveDest !== undefined)
+  );
 
   // Return all computed events in a single object
   return {
     // Vessel's first appearance
     isFirstTrip: !existingTrip,
-    // Start a trip only when the feed exposes scheduled departure + destination.
-    shouldStartTrip: Boolean(
-      isTripStartReady && (!existingTrip || !existingTrip.TripStart)
-    ),
+    // Start a trip only when we actually observed the start transition.
+    shouldStartTrip: didJustBecomeStartReady,
     isTripStartReady,
     // Trip boundary: next trip info is available and departing terminal changed.
     isCompletedTrip: Boolean(
-      existingTrip?.TripStart &&
+      hasTripEvidence &&
         isTripStartReady &&
-        existingTrip.DepartingTerminalAbbrev !==
+        existingTrip?.DepartingTerminalAbbrev !==
           currLocation.DepartingTerminalAbbrev
     ),
     // Arrive at dock: destination terminal changes to the newly reached terminal.
