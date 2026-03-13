@@ -8,10 +8,7 @@
  */
 
 import { clamp } from "@/shared/utils";
-import type {
-  RowLayoutBounds,
-  TimelineActiveIndicator,
-} from "../types";
+import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 
 export type OverlayViewState = {
   topPx: number;
@@ -108,4 +105,3 @@ export const getOverlayViewState = (
     label: activeIndicator.label,
   };
 };
-

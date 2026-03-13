@@ -39,13 +39,12 @@ export const TimelineRow = ({
   children,
   onRowLayout,
 }: TimelineRowProps) => {
-  const rowStyle = getVerticalRowStyle(
-    durationMinutes,
-    minHeight
-  );
+  const rowStyle = getVerticalRowStyle(durationMinutes, minHeight);
 
   /** Maps the native layout event into row-bounds so overlays can align by id. */
-  const handleLayout = (event: { nativeEvent: { layout: TimelineRowBounds } }) => {
+  const handleLayout = (event: {
+    nativeEvent: { layout: TimelineRowBounds };
+  }) => {
     const { y, height } = event.nativeEvent.layout;
     onRowLayout(id, { y, height });
   };
