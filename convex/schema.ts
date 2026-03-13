@@ -24,6 +24,7 @@ export default defineSchema({
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
+    .index("by_vessel_abbrev_and_sailing_day", ["VesselAbbrev", "SailingDay"])
     .index("by_sailing_day_and_departing_terminal", [
       "SailingDay",
       "DepartingTerminalAbbrev",
@@ -65,7 +66,10 @@ export default defineSchema({
   ]),
 
   // Vessel locations combining vessel location data
-  vesselLocations: defineTable(vesselLocationValidationSchema),
+  vesselLocations: defineTable(vesselLocationValidationSchema).index(
+    "by_vessel_abbrev",
+    ["VesselAbbrev"]
+  ),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)
