@@ -230,7 +230,7 @@ See `convex/functions/vesselTrips/updates/README.md` for detailed performance op
 ## Related Documentation
 
 - **`convex/functions/vesselTrips/updates/README.md`** - Comprehensive documentation of the vessel trip updates module, including:
-  - Detailed architecture of the 5-function design (buildTrip, baseTripFromLocation, appendInitialSchedule, appendFinalSchedule, appendPredictions)
+  - Detailed architecture of the current trip-update design (buildTrip, baseTripFromLocation, appendFinalSchedule, appendPredictions, delayed trip boundaries)
   - Centralized event detection via `detectTripEvents()`
   - Event-driven processing for first trip, trip boundaries, and regular updates
   - ML prediction generation and actualization lifecycle

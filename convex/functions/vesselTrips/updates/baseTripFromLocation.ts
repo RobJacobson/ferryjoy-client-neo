@@ -32,7 +32,13 @@ export const baseTripFromLocation = (
 ): ConvexVesselTrip =>
   isTripStart
     ? baseTripForStart(currLocation, existingTrip)
-    : baseTripForContinuing(currLocation, existingTrip);
+    : existingTrip &&
+        (existingTrip.LeftDock !== undefined ||
+          existingTrip.ArriveDest !== undefined) &&
+        existingTrip.DepartingTerminalAbbrev !==
+          currLocation.DepartingTerminalAbbrev
+      ? baseTripForDockHold(currLocation, existingTrip)
+      : baseTripForContinuing(currLocation, existingTrip);
 
 // ============================================================================
 // baseTripFromLocation
@@ -43,7 +49,7 @@ export const baseTripFromLocation = (
  * previous trip). At this point, `existingTrip` is the trip being completed.
  *
  * Key characteristics:
- * - TripStart is set to current timestamp
+ * - TripStart is only set when the start event was actually observed
  * - Prev* fields are carried from the completing trip
  * - Predictions are cleared (undefined)
  * - ArrivingTerminalAbbrev comes only from currLocation (not existingTrip)
@@ -57,6 +63,20 @@ const baseTripForStart = (
   existingTrip?: ConvexVesselTrip
 ): ConvexVesselTrip => {
   const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
+  const previousCompletedTrip =
+    existingTrip &&
+    (existingTrip.LeftDock !== undefined || existingTrip.ArriveDest !== undefined)
+    ? existingTrip
+    : undefined;
+  const didJustBecomeStartReady =
+    existingTrip &&
+    !existingTrip.TripStart &&
+    !existingTrip.ArrivingTerminalAbbrev &&
+    Boolean(currLocation.ArrivingTerminalAbbrev) &&
+    currLocation.AtDock;
+  const tripStartTime =
+    existingTrip?.ArriveDest ??
+    (didJustBecomeStartReady ? currLocation.TimeStamp : undefined);
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -75,11 +95,13 @@ const baseTripForStart = (
       ? getSailingDay(new Date(currLocation.ScheduledDeparture))
       : "",
     // Carry forward context from the trip being completed
-    PrevTerminalAbbrev: existingTrip?.DepartingTerminalAbbrev,
-    PrevScheduledDeparture: existingTrip?.ScheduledDeparture,
-    PrevLeftDock: existingTrip?.LeftDock,
-    // Vessel just arrived at dock - start timing the new trip
-    TripStart: currLocation.TimeStamp,
+    PrevTerminalAbbrev: previousCompletedTrip?.DepartingTerminalAbbrev,
+    PrevScheduledDeparture: previousCompletedTrip?.ScheduledDeparture,
+    PrevLeftDock: previousCompletedTrip?.LeftDock,
+    // New trip has not arrived at its destination yet.
+    ArriveDest: undefined,
+    // Trip start is known only when we observed the arrival/start transition.
+    TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
     AtDockDuration: undefined, // Will be computed when vessel leaves dock
     ScheduledDeparture: currLocation.ScheduledDeparture,
@@ -99,6 +121,24 @@ const baseTripForStart = (
     AtSeaDepartNext: undefined,
   };
 };
+
+/**
+ * Preserve the active trip after the vessel reaches dock but before the feed
+ * exposes enough data to start the next trip.
+ */
+const baseTripForDockHold = (
+  currLocation: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip
+): ConvexVesselTrip => ({
+  ...existingTrip,
+  ArrivingTerminalAbbrev:
+    currLocation.ArrivingTerminalAbbrev ?? existingTrip.ArrivingTerminalAbbrev,
+  AtDock: currLocation.AtDock,
+  Eta: currLocation.Eta ?? existingTrip.Eta,
+  InService: currLocation.InService,
+  RouteAbbrev: currLocation.RouteAbbrev ?? existingTrip.RouteAbbrev,
+  TimeStamp: currLocation.TimeStamp,
+});
 
 /**
  * Base trip for continuing scenario (vessel is on the same trip as existingTrip,
@@ -128,6 +168,7 @@ const baseTripForContinuing = (
   // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
   const arrivingTerminalAbbrev =
     currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+  const arriveDestTime = existingTrip?.ArriveDest;
 
   // TripStart is carried from existing trip
   const tripStartTime = existingTrip?.TripStart;
@@ -152,11 +193,15 @@ const baseTripForContinuing = (
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: existingTrip?.PrevLeftDock,
+    ArriveDest: arriveDestTime,
     // TripStart carried from existing trip (unchanged)
     TripStart: tripStartTime,
     AtDock: currLocation.AtDock,
     // Time from arrival to departure (only when vessel has left dock)
-    AtDockDuration: calculateTimeDelta(tripStartTime, leftDockTime),
+    AtDockDuration: calculateTimeDelta(
+      arriveDestTime ?? tripStartTime,
+      leftDockTime
+    ),
     ScheduledDeparture: scheduledDeparture,
     LeftDock: leftDockTime,
     // Delay from scheduled departure to actual departure

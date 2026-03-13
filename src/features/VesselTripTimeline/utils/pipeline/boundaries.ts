@@ -63,7 +63,7 @@ const buildBoundaryPoints = (item: TimelineItem): BoundaryPoints => {
         vesselLocation.ScheduledDeparture,
     } satisfies TimePoint,
     arriveNext: {
-      actual: trip.TripEnd,
+      actual: trip.ArriveDest ?? trip.TripEnd,
       estimated:
         vesselLocation.Eta ??
         trip.AtSeaArriveNext?.PredTime ??

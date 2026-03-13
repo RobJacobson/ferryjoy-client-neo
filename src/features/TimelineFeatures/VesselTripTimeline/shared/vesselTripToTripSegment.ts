@@ -56,13 +56,14 @@ export const vesselTripToTripSegment = (
 
   const arriveNext: TimePoint = {
     scheduled: schedArriveNext,
-    actual: trip.TripEnd,
-    estimated: !trip.TripEnd
-      ? (vesselLocation.Eta ??
-        trip.AtSeaArriveNext?.PredTime ??
-        trip.AtDockArriveNext?.PredTime ??
-        arrivalPrediction)
-      : undefined,
+    actual: trip.ArriveDest ?? trip.TripEnd,
+    estimated:
+      !trip.ArriveDest && !trip.TripEnd
+        ? (vesselLocation.Eta ??
+          trip.AtSeaArriveNext?.PredTime ??
+          trip.AtDockArriveNext?.PredTime ??
+          arrivalPrediction)
+        : undefined,
   };
 
   return {

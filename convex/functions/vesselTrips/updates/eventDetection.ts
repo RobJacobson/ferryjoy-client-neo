@@ -18,6 +18,8 @@ import { computeTripKey } from "./utils";
  */
 export type TripEvents = {
   isFirstTrip: boolean;
+  isTripStartReady: boolean;
+  shouldStartTrip: boolean;
   isCompletedTrip: boolean;
   didJustArriveAtDock: boolean;
   didJustLeaveDock: boolean;
@@ -79,6 +81,17 @@ export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): TripEvents => {
+  const isTripStartReady = Boolean(
+    currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev
+  );
+  const didJustBecomeStartReady = Boolean(
+    existingTrip &&
+      !existingTrip.TripStart &&
+      !existingTrip.ArrivingTerminalAbbrev &&
+      currLocation.ArrivingTerminalAbbrev &&
+      currLocation.AtDock
+  );
+
   // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
   const arrivingTerminalAbbrev =
     currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
@@ -100,20 +113,32 @@ export const detectTripEvents = (
     existingTrip,
     currLocation
   );
+  const hasTripEvidence = Boolean(
+    existingTrip &&
+      (existingTrip.LeftDock !== undefined ||
+        existingTrip.ArriveDest !== undefined)
+  );
 
   // Return all computed events in a single object
   return {
     // Vessel's first appearance
     isFirstTrip: !existingTrip,
-    // Trip boundary: DepartingTerminalAbbrev changed (vessel arrived at new terminal)
+    // Start a trip only when we actually observed the start transition.
+    shouldStartTrip: didJustBecomeStartReady,
+    isTripStartReady,
+    // Trip boundary: next trip info is available and departing terminal changed.
     isCompletedTrip: Boolean(
-      existingTrip &&
-        existingTrip.DepartingTerminalAbbrev !==
+      hasTripEvidence &&
+        isTripStartReady &&
+        existingTrip?.DepartingTerminalAbbrev !==
           currLocation.DepartingTerminalAbbrev
     ),
-    // Arrive at dock: AtDock flipped from false to true
+    // Arrive at dock: destination terminal changes to the newly reached terminal.
     didJustArriveAtDock: Boolean(
-      existingTrip && !existingTrip.AtDock && currLocation.AtDock
+      existingTrip &&
+        currLocation.ArrivingTerminalAbbrev &&
+        existingTrip.ArrivingTerminalAbbrev !==
+          currLocation.ArrivingTerminalAbbrev
     ),
     // Dock departure state computed by getDockDepartureState
     didJustLeaveDock,

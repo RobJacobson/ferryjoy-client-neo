@@ -104,7 +104,7 @@ const processCompletedTrips = async (
       const newTrip = await buildTrip(
         ctx,
         currLocation,
-        existingTrip,
+        tripToComplete,
         true,
         events,
         shouldRunPredictionFallback
@@ -160,7 +160,7 @@ const processCurrentTrips = async (
         ctx,
         currLocation,
         existingTrip,
-        false,
+        events.shouldStartTrip,
         events,
         shouldRunPredictionFallback
       );

@@ -137,9 +137,10 @@ export const synthesizeTripSegments = (params: {
         segment.SchedArriveNext ??
         segment.ArrivingTime ??
         segment.DepartingTime,
-      actual: actualTrip?.TripEnd ?? undefined,
+      actual: actualTrip?.ArriveDest ?? actualTrip?.TripEnd ?? undefined,
       estimated:
-        (isActive && activePhase === "AtSea") || isHeld
+        ((isActive && activePhase === "AtSea") || isHeld) &&
+        !actualTrip?.ArriveDest
           ? (vesselLocation?.Eta ??
             actualTrip?.AtSeaArriveNext?.PredTime ??
             actualTrip?.AtDockArriveNext?.PredTime)
