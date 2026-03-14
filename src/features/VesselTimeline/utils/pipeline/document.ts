@@ -70,12 +70,15 @@ const getIndicatorState = (
 const getActiveSegmentIndex = (
   trips: VesselTimelineTrip[],
   rows: VesselTimelineRow[],
-  _vesselLocation: VesselLocation | undefined,
+  vesselLocation: VesselLocation | undefined,
   now: Date
 ) => {
   const activeTrip = trips.find((trip) => trip.hasActiveData);
   if (activeTrip) {
-    const rowId = activeTrip.leftDock
+    const rowId =
+      activeTrip.leftDock ||
+      vesselLocation?.LeftDock ||
+      vesselLocation?.AtDock === false
       ? `${activeTrip.key}-sea`
       : `${activeTrip.key}-dock`;
     const rowIndex = rows.findIndex((row) => row.id === rowId);

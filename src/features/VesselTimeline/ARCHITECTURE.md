@@ -1,6 +1,6 @@
 # VesselTimeline Architecture
 
-This document describes the planned architecture for the `VesselTimeline`
+This document describes the current architecture for the `VesselTimeline`
 feature.
 
 `VesselTimeline` is a new feature. It should be built alongside the existing
@@ -178,12 +178,20 @@ The shared UX layer owns only generic renderer concerns:
 - shared timeline theme constants
 - generic overlay/view-state helpers
 
+The shared UX layer now also owns:
+
+- row-kind marker icons inside the static dock/sea circles
+- separate blur surfaces for the active indicator badge and banner pill
+- the banner renderer above the active indicator
+- rocking animation for the active at-sea indicator
+
 `VesselTimeline` still owns:
 
 - vessel-day data loading
 - day-scoped row construction
 - compressed dock-break rules
 - indicator state (`active`, `pinned-break`, `inactive-warning`)
+- banner content derived from vessel state (`at dock` vs speed/distance)
 - explicit pixel geometry and scroll behavior
 
 This boundary is deliberate. The two features should look the same by default,
@@ -333,6 +341,8 @@ Responsibilities:
 - assemble ordered rows
 - determine `activeSegmentIndex`
 - determine whether the indicator is fully active or in warning/frozen mode
+- prefer live departure evidence from `vesselLocation.LeftDock` /
+  `vesselLocation.AtDock === false` when choosing dock vs sea ownership
 
 ### Stage 4: renderRows
 
@@ -354,6 +364,7 @@ Responsibilities:
 - indicator row ownership
 - indicator label
 - indicator appearance variant
+- indicator banner content
 - indicator y-position mapping across proportional and compressed rows
 
 ## Canonical Document Model
@@ -433,6 +444,10 @@ The renderer composition stays feature-local in `VesselTimeline`, but it should
 compose the shared primitives from `src/components/timeline` rather than
 forking row/track/indicator implementations.
 
+`VesselTimeline.tsx` also owns a local `useNowMs(1000)` clock so time-based
+progress continues to update between Convex refreshes. The optional `now` prop
+still overrides that clock for deterministic rendering and tests.
+
 ## Layout Model
 
 `VesselTimeline` should not depend on flexbox to infer proportional row heights.
@@ -508,6 +523,15 @@ For compressed dock-break rows:
 
 The indicator label should always reflect real countdown information, even when
 the indicator itself is pinned and not moving.
+
+The active indicator also renders a banner above the badge:
+
+- title: vessel name
+- dock subtitle: `at dock`
+- sea subtitle: speed in knots and remaining distance when available
+
+When the active row is a live sea segment and the vessel is moving, the shared
+indicator applies a speed-scaled rocking animation. Dock rows remain upright.
 
 Because layout is deterministic, absolute y-position should be derived from
 cumulative row heights rather than inferred indirectly from flex measurements.

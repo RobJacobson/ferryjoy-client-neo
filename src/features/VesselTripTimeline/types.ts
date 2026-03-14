@@ -108,6 +108,10 @@ export type TimelineActiveIndicator = {
   rowIndex: number;
   positionPercent: number;
   label: string;
+  title?: string;
+  subtitle?: string;
+  animate?: boolean;
+  speedKnots?: number;
 };
 
 /**

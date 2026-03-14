@@ -3,12 +3,12 @@
  */
 
 import ANCHOR_ICON from "assets/icons/anchor.png";
-import VESSEL_ICON from "assets/icons/vessel.png";
+import VESSEL_ICON from "assets/icons/vessel2.png";
 import { Image } from "expo-image";
 import type { TimelineSegmentKind } from "./types";
 import { ROW_STYLE } from "./theme";
 
-const MARKER_ICON_SIZE_PX = 18;
+const MARKER_ICON_SIZE_PX = 22;
 const KIND_MARKER_SOURCE: Record<TimelineSegmentKind, number> = {
   "at-dock": ANCHOR_ICON,
   "at-sea": VESSEL_ICON,

@@ -4,6 +4,7 @@
 
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
 import type { TimelineItem } from "./types";
 import { getTimelineRenderState } from "./utils";
@@ -21,8 +22,9 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
+  const nowMs = useNowMs(1000);
   const item = { trip, vesselLocation };
-  const renderState = getTimelineRenderState(item);
+  const renderState = getTimelineRenderState(item, new Date(nowMs));
 
   return (
     <Card className="gap-4 py-4">

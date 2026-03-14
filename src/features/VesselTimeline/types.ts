@@ -129,6 +129,10 @@ export type VesselTimelineActiveIndicator = {
   topPx: number;
   label: string;
   state: VesselTimelineIndicatorState;
+  title?: string;
+  subtitle?: string;
+  animate?: boolean;
+  speedKnots?: number;
 };
 
 /**

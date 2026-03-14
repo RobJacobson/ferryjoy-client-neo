@@ -1,4 +1,6 @@
 export { TimelineEvent } from "./TimelineEvent";
+export { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
+export { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 export { TimelineIndicator } from "./TimelineIndicator";
 export { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
 export { TimelineMarkerIcon } from "./TimelineMarkerIcon";

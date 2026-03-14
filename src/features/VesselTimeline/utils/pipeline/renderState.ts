@@ -2,6 +2,7 @@
  * Pipeline stage 5: compute the active indicator and final render state.
  */
 
+import type { VesselLocation } from "@/data/contexts";
 import type {
   VesselTimelineActiveIndicator,
   VesselTimelineDocument,
@@ -12,6 +13,7 @@ import type {
 } from "../../types";
 
 const MS_PER_MINUTE = 60_000;
+const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
 
 /**
  * Builds the final vessel timeline render state.
@@ -26,10 +28,17 @@ export const renderState = (
   document: VesselTimelineDocument,
   rows: VesselTimelineRenderRow[],
   layout: VesselTimelineLayoutConfig,
+  vesselLocation: VesselLocation | undefined,
   now: Date
 ): VesselTimelineRenderState => ({
   rows,
-  activeIndicator: getActiveIndicator(document, rows, layout, now),
+  activeIndicator: getActiveIndicator(
+    document,
+    rows,
+    layout,
+    vesselLocation,
+    now
+  ),
   contentHeightPx:
     rows.length === 0
       ? 0
@@ -50,6 +59,7 @@ const getActiveIndicator = (
   document: VesselTimelineDocument,
   rows: VesselTimelineRenderRow[],
   layout: VesselTimelineLayoutConfig,
+  vesselLocation: VesselLocation | undefined,
   now: Date
 ): VesselTimelineActiveIndicator | null => {
   const activeRow = rows[document.activeSegmentIndex];
@@ -66,6 +76,8 @@ const getActiveIndicator = (
       activeRow.topPx +
       getRowOffsetPx(sourceRow, activeRow.displayHeightPx, layout, now),
     label: getMinutesUntil(sourceRow.endBoundary.timePoint, now),
+    title: vesselLocation?.VesselName,
+    subtitle: getIndicatorSubtitle(sourceRow.kind, vesselLocation),
     state:
       document.indicatorState === "inactive-warning"
         ? "inactive-warning"
@@ -73,7 +85,32 @@ const getActiveIndicator = (
             isInCompressedMiddle(sourceRow, layout, now)
           ? "pinned-break"
           : document.indicatorState,
+    animate:
+      sourceRow.kind === "sea" &&
+      document.indicatorState !== "inactive-warning" &&
+      (vesselLocation?.Speed ?? 0) > MOVING_SPEED_THRESHOLD_KNOTS,
+    speedKnots: vesselLocation?.Speed ?? 0,
   };
+};
+
+const getIndicatorSubtitle = (
+  rowKind: VesselTimelineDocument["rows"][number]["kind"],
+  vesselLocation: VesselLocation | undefined
+) => {
+  if (!vesselLocation) {
+    return undefined;
+  }
+
+  if (rowKind === "dock") {
+    return "at dock";
+  }
+
+  const speed = vesselLocation.Speed ?? 0;
+  if (vesselLocation.ArrivingDistance === undefined) {
+    return `${speed.toFixed(0)} kn`;
+  }
+
+  return `${speed.toFixed(0)} kn · ${vesselLocation.ArrivingDistance.toFixed(1)} mi`;
 };
 
 /**

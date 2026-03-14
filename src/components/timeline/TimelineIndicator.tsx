@@ -1,21 +1,26 @@
 /**
- * Shared animated timeline indicator.
+ * Shared animated timeline indicator orchestrator.
  */
 
-import { BlurView } from "expo-blur";
 import type { RefObject } from "react";
 import type { View as RNView } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { Text } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
+import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { INDICATOR_STYLE } from "./theme";
 import { useAnimatedProgress } from "./useAnimatedProgress";
+import { useRockingAnimation } from "./useRockingAnimation";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<RNView | null>;
   topPx: number;
   shouldJump?: boolean;
   label: string;
+  title?: string;
+  subtitle?: string;
+  animate?: boolean;
+  speedKnots?: number;
   sizePx?: number;
 };
 
@@ -24,9 +29,14 @@ export const TimelineIndicator = ({
   topPx,
   shouldJump = false,
   label,
+  title,
+  subtitle,
+  animate = false,
+  speedKnots = 0,
   sizePx = INDICATOR_STYLE.sizePx,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx, shouldJump);
+  const rockingStyle = useRockingAnimation(animate, speedKnots);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -44,26 +54,20 @@ export const TimelineIndicator = ({
           height: sizePx,
         }),
         animatedStyle,
+        rockingStyle,
       ]}
     >
-      <BlurView
-        blurTarget={blurTargetRef}
-        intensity={5}
-        tint="light"
-        blurMethod="dimezisBlurView"
-        className={INDICATOR_STYLE.blurClassName}
-        style={{
-          width: sizePx,
-          height: sizePx,
-        }}
-      >
-        <Text
-          className={INDICATOR_STYLE.labelClassName}
-          style={{ includeFontPadding: false }}
-        >
-          {label}
-        </Text>
-      </BlurView>
+      <TimelineIndicatorBanner
+        blurTargetRef={blurTargetRef}
+        title={title}
+        subtitle={subtitle}
+        sizePx={sizePx}
+      />
+      <TimelineIndicatorBadge
+        blurTargetRef={blurTargetRef}
+        label={label}
+        sizePx={sizePx}
+      />
     </Animated.View>
   );
 };

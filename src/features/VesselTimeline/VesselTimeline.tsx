@@ -10,6 +10,7 @@ import {
   ConvexVesselDayTimelineProvider,
   useConvexVesselDayTimeline,
 } from "@/data/contexts";
+import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
 import { getVesselTimelineRenderState } from "./utils";
 
@@ -56,6 +57,7 @@ type VesselTimelineContentProps = {
  * @returns Loading, empty, error, or ready vessel timeline content
  */
 const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
+  const nowMs = useNowMs(1000);
   const { vesselAbbrev, sailingDay, trips, vesselLocation, isLoading, error } =
     useConvexVesselDayTimeline();
 
@@ -97,7 +99,7 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
   const renderState = getVesselTimelineRenderState(
     trips,
     vesselLocation,
-    now ?? new Date()
+    now ?? new Date(nowMs)
   );
 
   return <TimelineContent {...renderState} />;

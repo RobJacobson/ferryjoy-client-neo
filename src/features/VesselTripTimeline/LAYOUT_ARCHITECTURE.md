@@ -1,9 +1,9 @@
 # Vessel Trip Timeline Layout Architecture
 
 This document explains the current architecture for the vessel trip timeline.
-The feature keeps the working full-surface blur overlay and uses a **literal
-five-stage pipeline** in `utils/pipeline/`: each stage is a single module
-whose output is the input for the next. That keeps the trip-specific data flow
+The feature keeps the working full-surface blur overlay and uses a literal
+five-stage pipeline in `utils/pipeline/`: each stage is a single module whose
+output is the input for the next. That keeps the trip-specific data flow
 explicit while the styling-sensitive renderer primitives live in the shared
 `src/components/timeline` UX layer.
 
@@ -27,7 +27,10 @@ flowchart TD
   renderRowsOut --> renderState
   renderState --> renderStateOut[TimelineRenderState]
   getRenderState --> renderStateOut
-  renderStateOut --> timelineContent[TimelineContent]
+  renderStateOut --> timelineComponent[VesselTripTimeline]
+  timelineComponent --> localClock[useNowMs 1000ms]
+  localClock --> timelineComponent
+  timelineComponent --> timelineContent[TimelineContent]
   timelineContent --> fullTrack[FullTimelineTrack]
   timelineContent --> rowShells[TimelineRowComponent rows]
   timelineContent --> overlayLayer[TimelineIndicatorOverlay]
@@ -44,7 +47,7 @@ co-located in the same module.
 | 1 | `boundaries.ts` | `TimelineItem` | `BoundaryData` (points + fallback context) |
 | 2 | `rows.ts` | `BoundaryData` + `TimelineItem` | `TimelineDocumentRow[]` |
 | 3 | `document.ts` | rows + `TimelineItem` | `TimelineDocument` |
-| 4 | `renderRows.ts` | `TimelineDocument` + `now` | `TimelineRenderRow[]` |
+| 4 | `renderRows.ts` | `TimelineDocument` | `TimelineRenderRow[]` |
 | 5 | `renderState.ts` | document + render rows + `TimelineItem` + `now` | `TimelineRenderState` |
 
 The entry point `pipeline/index.ts` runs the stages in order and exports
@@ -90,6 +93,11 @@ After the pipeline, the UI layer is:
   - Measures row bounds.
   - Renders shared timeline primitives in background mode.
   - Paints one absolute indicator overlay above the whole timeline.
+
+- **`VesselTripTimeline.tsx`**
+  - Owns a local `useNowMs(1000)` clock so the indicator keeps moving even
+    when Convex data is quiet.
+  - Passes `new Date(nowMs)` into `getTimelineRenderState`.
 
 ## Why the Overlay Stays
 
@@ -166,12 +174,20 @@ That shared module now owns:
 - shared theme constants
 - generic UI-facing timeline types used only by the shared renderer
 
+The shared indicator renderer now also owns:
+
+- row-kind marker icons inside the static circles
+- independent blur surfaces for the circular badge and the banner pill
+- banner rendering above the active indicator
+- rocking animation for the active at-sea indicator
+
 `VesselTripTimeline` still owns:
 
 - the pipeline (`utils/pipeline/`: boundaries → rows → document → render rows → render state)
 - boundary label copy and tense (in `renderRows.ts` / `renderState.ts`)
 - time-vs-distance progress choice (in `renderState.ts`)
 - overlay label content (e.g. `getMinutesUntil` in `renderState.ts`)
+- overlay banner content (vessel name plus `at dock` or speed/distance copy)
 - fixed-height trip-card layout
 - the decision to compose the shared primitives inside
   `components/TimelineContent.tsx`
@@ -190,6 +206,13 @@ manage its own trip-specific overlay semantics locally.
 - the first active dock row applies a small minimum offset (`0.06`) so the
   indicator does not sit directly on top of the static marker
 
+`utils/pipeline/document.ts` owns the active-row cursor rules:
+
+- completion at `trip.AtDockDepartNext?.Actual`
+- destination-dock completion when the trip has arrived
+- transition to the at-sea row when any live departure evidence exists:
+  `trip.LeftDock`, `vesselLocation.LeftDock`, or `vesselLocation.AtDock === false`
+
 ## Indicator Position Animation
 
 `positionPercent` still updates infrequently from Convex data. To avoid visible
@@ -202,6 +225,14 @@ jumps:
 
 Animation runs on the UI thread, so the indicator remains smooth even when the
 backing data updates only every few seconds.
+
+Rocking animation is separate from vertical movement:
+
+- the shared `TimelineIndicator` applies a Reanimated rocking transform only
+  when the active row is at sea and the vessel is moving
+- rocking frequency scales with vessel speed in knots
+- when the vessel is at dock, the badge remains upright and the banner subtitle
+  shows `at dock`
 
 ## Important Constraints
 

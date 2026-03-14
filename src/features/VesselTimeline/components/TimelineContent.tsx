@@ -155,6 +155,10 @@ const toTripTimelineActiveIndicator = (
       1
     ),
     label: activeIndicator.label,
+    title: activeIndicator.title,
+    subtitle: activeIndicator.subtitle,
+    animate: activeIndicator.animate,
+    speedKnots: activeIndicator.speedKnots,
   };
 };
 

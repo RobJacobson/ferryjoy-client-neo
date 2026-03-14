@@ -55,7 +55,13 @@ export const getVesselTimelineRenderState = (
   const rows = getRows(trips, boundaryData, adjustedLayout);
   const document = getDocument(trips, rows, vesselLocation, now);
   const renderRowsOut = renderRows(document, adjustedLayout);
-  return renderState(document, renderRowsOut, adjustedLayout, now);
+  return renderState(
+    document,
+    renderRowsOut,
+    adjustedLayout,
+    vesselLocation,
+    now
+  );
 };
 
 /**

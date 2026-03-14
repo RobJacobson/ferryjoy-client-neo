@@ -115,7 +115,7 @@ const CenterMarker = ({ row, children }: CenterMarkerProps) => (
     <View className="absolute" style={getMarkerStyle(ROW_STYLE.markerSizePx)}>
       <View
         className={cn(
-          "items-center justify-center rounded-full",
+          "items-center justify-center overflow-hidden rounded-full",
           ROW_STYLE.markerAppearance[row.markerAppearance].containerClassName
         )}
         style={{

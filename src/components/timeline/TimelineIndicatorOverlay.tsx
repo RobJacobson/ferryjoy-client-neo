@@ -37,6 +37,10 @@ export const TimelineIndicatorOverlay = ({
         topPx={overlayViewState.topPx}
         shouldJump={overlayViewState.shouldJump}
         label={overlayViewState.label}
+        title={overlayIndicator?.title}
+        subtitle={overlayIndicator?.subtitle}
+        animate={overlayIndicator?.animate}
+        speedKnots={overlayIndicator?.speedKnots}
         sizePx={INDICATOR_STYLE.sizePx}
       />
     </View>
