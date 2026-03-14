@@ -5,7 +5,6 @@
 import ANCHOR_ICON from "assets/icons/anchor.png";
 import VESSEL_ICON from "assets/icons/vessel2.png";
 import { Image } from "expo-image";
-import { ROW_STYLE } from "./theme";
 import type { TimelineSegmentKind } from "./types";
 
 const MARKER_ICON_SIZE_PX = 22;
@@ -27,7 +26,7 @@ export const TimelineMarkerIcon = ({
     <Image
       source={source}
       style={{ width: MARKER_ICON_SIZE_PX, height: MARKER_ICON_SIZE_PX }}
-      tintColor={ROW_STYLE.markerAppearance[appearance].iconTintColor}
+      tintColor={appearance === "future" ? "rgba(34, 197, 94, 1)" : "rgba(255, 255, 255, 1)"}
     />
   );
 };

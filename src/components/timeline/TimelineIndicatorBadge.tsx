@@ -3,7 +3,6 @@ import type { ComponentRef, RefObject } from "react";
 import { View } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
-import { INDICATOR_STYLE } from "./theme";
 
 type TimelineIndicatorBadgeProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -17,7 +16,7 @@ export const TimelineIndicatorBadge = ({
   sizePx,
 }: TimelineIndicatorBadgeProps) => (
   <View
-    className={INDICATOR_STYLE.surfaceClassName}
+    className="overflow-hidden rounded-full border border-green-500"
     style={{
       width: sizePx,
       height: sizePx,
@@ -25,21 +24,21 @@ export const TimelineIndicatorBadge = ({
   >
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={INDICATOR_STYLE.blurIntensity}
+      intensity={8}
       tint="light"
       blurMethod="dimezisBlurView"
-      className={INDICATOR_STYLE.blurClassName}
+      className="absolute inset-0"
     />
-    <View className={INDICATOR_STYLE.overlayClassName} />
+    <View className="absolute inset-0 bg-white/60" />
     <View
-      className={INDICATOR_STYLE.contentClassName}
+      className="items-center justify-center"
       style={{
         width: sizePx,
         height: sizePx,
       }}
     >
       <Text
-        className={INDICATOR_STYLE.labelClassName}
+        className="text-center font-bold text-purple-800 text-sm"
         style={{ includeFontPadding: false }}
       >
         {label}

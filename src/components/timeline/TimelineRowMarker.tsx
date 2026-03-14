@@ -8,7 +8,6 @@ import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
-import { ROW_STYLE } from "./theme";
 import type { TimelineRenderRow } from "./types";
 
 type TimelineRowMarkerProps = {
@@ -29,17 +28,19 @@ export const TimelineRowMarker = ({
 }: TimelineRowMarkerProps) => (
   <View
     className="relative justify-start"
-    style={{ width: ROW_STYLE.centerAxisSizePx }}
+    style={{ width: 36 }}
   >
-    <View className="absolute" style={getMarkerStyle(ROW_STYLE.markerSizePx)}>
+    <View className="absolute" style={getMarkerStyle(28)}>
       <View
         className={cn(
           "items-center justify-center overflow-hidden rounded-full",
-          ROW_STYLE.markerAppearance[row.markerAppearance].containerClassName
+          row.markerAppearance === "future"
+            ? "border border-green-500 bg-white"
+            : "border border-green-200 bg-green-500"
         )}
         style={{
-          width: ROW_STYLE.markerSizePx,
-          height: ROW_STYLE.markerSizePx,
+          width: 28,
+          height: 28,
         }}
       >
         {children ?? (

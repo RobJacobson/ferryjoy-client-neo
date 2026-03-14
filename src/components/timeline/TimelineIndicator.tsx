@@ -8,7 +8,6 @@ import type { View as UIView } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
-import { INDICATOR_STYLE } from "./theme";
 import { useAnimatedProgress } from "./useAnimatedProgress";
 import { useRockingAnimation } from "./useRockingAnimation";
 
@@ -33,7 +32,7 @@ export const TimelineIndicator = ({
   subtitle,
   animate = false,
   speedKnots = 0,
-  sizePx = INDICATOR_STYLE.sizePx,
+  sizePx = 42,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx, shouldJump);
   const rockingStyle = useRockingAnimation(animate, speedKnots);
@@ -46,7 +45,6 @@ export const TimelineIndicator = ({
 
   return (
     <Animated.View
-      className={INDICATOR_STYLE.containerClassName}
       style={[
         { left: "50%" },
         getAbsoluteCenteredBoxStyle({

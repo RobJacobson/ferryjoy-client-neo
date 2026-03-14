@@ -7,11 +7,6 @@ export type { TimelineRowProps } from "./TimelineRow";
 export { TimelineRow } from "./TimelineRow";
 export { TimelineRowContent } from "./TimelineRowContent";
 export { TimelineTrack } from "./TimelineTrack";
-export {
-  INDICATOR_STYLE,
-  ROW_STYLE,
-  TRACK_STYLE,
-} from "./theme";
 export type {
   RowLayoutBounds,
   TimelineActiveIndicator,
