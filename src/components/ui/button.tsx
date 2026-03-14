@@ -80,7 +80,7 @@ const buttonTextVariants = cva(
         ),
         secondary: "text-secondary-foreground",
         ghost: "group-active:text-accent-foreground",
-        glass: "text-white/50",
+        "glass-dark": "text-white/50",
         "glass-light": "text-white/50",
         link: cn(
           "text-primary group-active:underline",
