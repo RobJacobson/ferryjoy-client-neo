@@ -163,6 +163,7 @@ const toSharedTimelineRenderRow = (
 ): TimelineRenderRow => ({
   id: row.id,
   kind: row.kind === "dock" ? "at-dock" : "at-sea",
+  markerAppearance: row.markerAppearance,
   segmentIndex: row.segmentIndex,
   geometryMinutes: row.displayHeightPx,
   startBoundary: row.startBoundary,

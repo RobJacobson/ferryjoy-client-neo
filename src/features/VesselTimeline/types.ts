@@ -110,6 +110,7 @@ export type VesselTimelineRenderBoundary = {
 export type VesselTimelineRenderRow = {
   id: string;
   kind: VesselTimelineRowKind;
+  markerAppearance: "past" | "future";
   isTerminal?: boolean;
   startBoundary: VesselTimelineRenderBoundary;
   endBoundary: VesselTimelineRenderBoundary;

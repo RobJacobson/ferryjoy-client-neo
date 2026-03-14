@@ -30,6 +30,8 @@ export const renderRows = (
     const renderRow: VesselTimelineRenderRow = {
       id: row.id,
       kind: row.kind,
+      markerAppearance:
+        row.segmentIndex <= document.activeSegmentIndex ? "past" : "future",
       isTerminal: row.isTerminal,
       startBoundary: {
         label: row.kind === "dock" ? "Arv" : "Dep",

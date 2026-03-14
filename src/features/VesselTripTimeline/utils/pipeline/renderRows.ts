@@ -24,6 +24,7 @@ export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
     return {
       id: row.id,
       kind: row.kind,
+      markerAppearance: phase === "upcoming" ? "future" : "past",
       segmentIndex: row.segmentIndex,
       geometryMinutes: row.geometryMinutes,
       startBoundary: getStartBoundary(row, phase),

@@ -6,6 +6,7 @@
  */
 
 export type TimelineSegmentKind = "at-dock" | "at-sea";
+export type TimelineMarkerAppearance = "past" | "future";
 
 export type TimelineTimePoint = {
   scheduled?: Date;
@@ -22,6 +23,7 @@ export type TimelineRenderBoundary = {
 export type TimelineRenderRow = {
   id: string;
   kind: TimelineSegmentKind;
+  markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
   geometryMinutes: number;
   startBoundary: TimelineRenderBoundary;

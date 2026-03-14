@@ -21,6 +21,7 @@ export type { TimelineRowProps } from "./TimelineRow";
 export type {
   RowLayoutBounds,
   TimelineActiveIndicator,
+  TimelineMarkerAppearance,
   TimelineRenderBoundary,
   TimelineRenderRow,
   TimelineSegmentKind,

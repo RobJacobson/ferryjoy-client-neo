@@ -92,6 +92,7 @@ export type TimelineRenderBoundary = {
 export type TimelineRenderRow = {
   id: string;
   kind: SegmentKind;
+  markerAppearance: "past" | "future";
   segmentIndex: number;
   geometryMinutes: number;
   startBoundary: TimelineRenderBoundary;

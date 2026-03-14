@@ -31,7 +31,14 @@ export const TimelineRowContent = ({
       <StartBoundaryLabel label={row.startBoundary} />
     </View>
 
-    <CenterMarker>{markerContent ?? <TimelineMarkerIcon kind={row.kind} />}</CenterMarker>
+    <CenterMarker row={row}>
+      {markerContent ?? (
+        <TimelineMarkerIcon
+          kind={row.kind}
+          appearance={row.markerAppearance}
+        />
+      )}
+    </CenterMarker>
 
     <View className="flex-1 justify-start">
       <StartBoundaryTimes startPoint={row.startBoundary.timePoint} />
@@ -96,10 +103,11 @@ const StartBoundaryTimes = ({ startPoint }: StartBoundaryTimesProps) => (
 );
 
 type CenterMarkerProps = {
+  row: TimelineRenderRow;
   children?: ReactNode;
 };
 
-const CenterMarker = ({ children }: CenterMarkerProps) => (
+const CenterMarker = ({ row, children }: CenterMarkerProps) => (
   <View
     className="relative justify-start"
     style={{ width: ROW_STYLE.centerAxisSizePx }}
@@ -108,7 +116,7 @@ const CenterMarker = ({ children }: CenterMarkerProps) => (
       <View
         className={cn(
           "items-center justify-center rounded-full",
-          ROW_STYLE.markerClassName
+          ROW_STYLE.markerAppearance[row.markerAppearance].containerClassName
         )}
         style={{
           width: ROW_STYLE.markerSizePx,
