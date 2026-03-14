@@ -14,7 +14,7 @@ import { renderRows } from "./renderRows";
 import { renderState } from "./renderState";
 import { getRows } from "./rows";
 
-const PIXELS_PER_MINUTE_MIN = 3;
+const PIXELS_PER_MINUTE_MIN = 4;
 const PIXELS_PER_MINUTE_MAX = 8;
 const PIXELS_PER_MINUTE_PER_ROW = 0.1;
 
