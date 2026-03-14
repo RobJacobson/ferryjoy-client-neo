@@ -53,6 +53,32 @@ describe("detectTripEvents", () => {
 
     expect(events.didJustArriveAtDock).toBe(true);
   });
+
+  it("detects arrival even when the stored expected destination is stale", () => {
+    const existingTrip = makeTrip({
+      DepartingTerminalAbbrev: "FAU",
+      ArrivingTerminalAbbrev: "PPD",
+      ScheduledDeparture: ms("2026-03-13T19:35:00-07:00"),
+      TripStart: ms("2026-03-13T19:23:56-07:00"),
+      LeftDock: ms("2026-03-13T19:36:10-07:00"),
+      ArriveDest: undefined,
+      AtDock: false,
+      TimeStamp: ms("2026-03-13T19:48:45-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      VesselAbbrev: "CAT",
+      DepartingTerminalAbbrev: "VAI",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      AtDock: true,
+      TimeStamp: ms("2026-03-13T19:49:06-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustArriveAtDock).toBe(true);
+  });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();

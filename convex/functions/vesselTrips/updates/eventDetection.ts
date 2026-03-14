@@ -119,10 +119,7 @@ export const detectTripEvents = (
       existingTrip.ArriveDest === undefined &&
       currLocation.AtDock &&
       currLocation.DepartingTerminalAbbrev !==
-        existingTrip.DepartingTerminalAbbrev &&
-      (!existingTrip.ArrivingTerminalAbbrev ||
-        currLocation.DepartingTerminalAbbrev ===
-          existingTrip.ArrivingTerminalAbbrev)
+        existingTrip.DepartingTerminalAbbrev
   );
   const hasTripEvidence = Boolean(
     existingTrip &&
