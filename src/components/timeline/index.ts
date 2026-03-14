@@ -1,4 +1,3 @@
-export { TimelineEvent } from "./TimelineEvent";
 export { TimelineIndicator } from "./TimelineIndicator";
 export { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 export { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";

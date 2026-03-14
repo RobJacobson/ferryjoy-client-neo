@@ -4,8 +4,8 @@
 
 export const ROW_STYLE = {
   minSegmentPx: 32,
-  centerAxisSizePx: 42,
-  markerSizePx: 32,
+  centerAxisSizePx: 36,
+  markerSizePx: 28,
   markerAppearance: {
     future: {
       containerClassName: "border border-green-500 bg-white",
@@ -35,15 +35,17 @@ export const INDICATOR_STYLE = {
   blurClassName: "absolute inset-0",
   overlayClassName: "absolute inset-0 bg-white/60",
   contentClassName: "items-center justify-center",
-  labelClassName: "text-center font-bold text-green-700 text-sm",
+  labelClassName: "text-center font-bold text-purple-800 text-sm",
   bannerContainerClassName: "absolute items-center",
   bannerSurfaceClassName:
-    "overflow-hidden rounded-full border border-green-500",
+    "overflow-hidden rounded-full border border-purple-800",
   bannerBlurClassName: "absolute inset-0",
   bannerOverlayClassName: "absolute inset-0 bg-white/50",
   bannerContentClassName: "items-center px-4 py-1",
-  bannerTitleClassName: "text-center font-playpen-600 leading-tight",
-  bannerSubtitleClassName: "text-center font-playpen-300 leading-tight text-sm",
+  bannerTitleClassName:
+    "text-center font-playpen-600 leading-tight text-purple-800",
+  bannerSubtitleClassName:
+    "text-center font-playpen-300 leading-tight text-sm text-purple-800",
   rocking: {
     maxRotationDeg: 4,
     minSpeedKnots: 0,

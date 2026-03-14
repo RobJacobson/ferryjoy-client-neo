@@ -4,8 +4,8 @@
 
 import type { ComponentRef, RefObject } from "react";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import type { View as UIView } from "@/components/ui";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { INDICATOR_STYLE } from "./theme";
