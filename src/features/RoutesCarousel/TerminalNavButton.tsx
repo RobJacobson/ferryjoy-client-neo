@@ -3,7 +3,7 @@
  */
 
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui";
 
 type TerminalNavButtonProps = {
   direction: "prev" | "next";

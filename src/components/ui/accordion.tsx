@@ -9,9 +9,9 @@ import Animated, {
   useDerivedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Icon } from "@/components/ui/icon";
-import { TextClassContext } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
+import { Icon } from "./icon";
+import { TextClassContext } from "./text";
 
 function Accordion({
   children,
