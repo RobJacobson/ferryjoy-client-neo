@@ -8,8 +8,13 @@ import { Text } from "@/components/ui";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
 import { ROW_STYLE } from "./theme";
-import type { TimelineRenderBoundary, TimelineRenderRow, TimelineTimePoint } from "./types";
+import type {
+  TimelineRenderBoundary,
+  TimelineRenderRow,
+  TimelineTimePoint,
+} from "./types";
 import { TimelineEvent } from "./TimelineEvent";
 
 type TimelineRowContentProps = {
@@ -26,7 +31,7 @@ export const TimelineRowContent = ({
       <StartBoundaryLabel label={row.startBoundary} />
     </View>
 
-    <CenterMarker>{markerContent}</CenterMarker>
+    <CenterMarker>{markerContent ?? <TimelineMarkerIcon kind={row.kind} />}</CenterMarker>
 
     <View className="flex-1 justify-start">
       <StartBoundaryTimes startPoint={row.startBoundary.timePoint} />
