@@ -5,9 +5,10 @@
  */
 
 import type { RefObject } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { BlurView } from "@/components/BlurView";
 import { Button } from "@/components/ui";
+import { Text } from "@/components/ui/text";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import { useDestinationNavigation } from "@/shared/hooks";
 
@@ -60,7 +61,7 @@ export const RouteCard = ({
           <View className="absolute right-0 bottom-[-20px] left-0">
             <Button
               className="self-center border bg-fuscia-600 py-1 hover:bg-fuscia-500 active:bg-fuscia-400"
-              variant="glass"
+              variant="glass-dark"
             >
               <Text
                 className="translate-y-[2px] whitespace-normal px-4 pt-[2px] text-center font-puffberry text-lg text-white xs:text-xl leading-none tracking-wide"
@@ -82,7 +83,7 @@ export const RouteCard = ({
           {destinations.map((destination) => (
             <Button
               key={destination.terminalSlug}
-              variant="glass"
+              variant="glass-dark"
               onPress={() => handleDestinationPress(destination.terminalSlug)}
               className="w-3/4"
             >

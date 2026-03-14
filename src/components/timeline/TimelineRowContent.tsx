@@ -8,6 +8,7 @@ import { Text } from "@/components/ui";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TimelineEvent } from "./TimelineEvent";
 import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
 import { ROW_STYLE } from "./theme";
 import type {
@@ -15,7 +16,6 @@ import type {
   TimelineRenderRow,
   TimelineTimePoint,
 } from "./types";
-import { TimelineEvent } from "./TimelineEvent";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
@@ -33,10 +33,7 @@ export const TimelineRowContent = ({
 
     <CenterMarker row={row}>
       {markerContent ?? (
-        <TimelineMarkerIcon
-          kind={row.kind}
-          appearance={row.markerAppearance}
-        />
+        <TimelineMarkerIcon kind={row.kind} appearance={row.markerAppearance} />
       )}
     </CenterMarker>
 

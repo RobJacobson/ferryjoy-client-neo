@@ -108,9 +108,9 @@ describe("VesselTimeline row geometry", () => {
     expect(terminalRow?.id).toBe("trip-1-terminal");
     expect(terminalRow?.isTerminal).toBe(true);
     expect(terminalRow?.startBoundary.terminalAbbrev).toBe("SWV");
-    expect(
-      terminalRow?.startBoundary.timePoint.scheduled?.toISOString()
-    ).toBe(at(21, 47).toISOString());
+    expect(terminalRow?.startBoundary.timePoint.scheduled?.toISOString()).toBe(
+      at(21, 47).toISOString()
+    );
   });
 });
 

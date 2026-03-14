@@ -26,13 +26,19 @@ export const TimelineTrack = ({
       pointerEvents="none"
       style={getContainerStyle(TRACK_STYLE.centerAxisSizePx, containerHeightPx)}
     >
-      <View className="flex-row justify-center" style={{ flex: completedPercent }}>
+      <View
+        className="flex-row justify-center"
+        style={{ flex: completedPercent }}
+      >
         <View
           className={TRACK_STYLE.completeTrackClassName}
           style={getBarStyle(TRACK_STYLE.trackThicknessPx)}
         />
       </View>
-      <View className="flex-row justify-center" style={{ flex: remainingPercent }}>
+      <View
+        className="flex-row justify-center"
+        style={{ flex: remainingPercent }}
+      >
         <View
           className={TRACK_STYLE.upcomingTrackClassName}
           style={getBarStyle(TRACK_STYLE.trackThicknessPx)}

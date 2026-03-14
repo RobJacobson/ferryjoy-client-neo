@@ -10,12 +10,8 @@ import { scheduleOnRN } from "react-native-worklets";
 import { INDICATOR_STYLE } from "./theme";
 
 const speedToDurationMs = (speedKnots: number): number => {
-  const {
-    minSpeedKnots,
-    maxSpeedKnots,
-    periodSlowMs,
-    periodFastMs,
-  } = INDICATOR_STYLE.rocking;
+  const { minSpeedKnots, maxSpeedKnots, periodSlowMs, periodFastMs } =
+    INDICATOR_STYLE.rocking;
   const range = maxSpeedKnots - minSpeedKnots;
 
   if (range <= 0) {
@@ -90,6 +86,8 @@ export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
   }, [amplitude, animate, cycle, phase, startNextCycle]);
 
   return useAnimatedStyle(() => ({
-    transform: [{ rotate: `${phaseToRotation(phase.value, amplitude.value)}deg` }],
+    transform: [
+      { rotate: `${phaseToRotation(phase.value, amplitude.value)}deg` },
+    ],
   }));
 };

@@ -4,10 +4,10 @@
 
 import type { RefObject } from "react";
 import { type View as RNView, View } from "react-native";
+import { TimelineIndicator } from "./TimelineIndicator";
 import { INDICATOR_STYLE } from "./theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 import { getOverlayViewState } from "./viewState";
-import { TimelineIndicator } from "./TimelineIndicator";
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;

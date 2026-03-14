@@ -11,14 +11,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
+  getTrackFractions,
+  type RowLayoutBounds,
+  type TimelineActiveIndicator,
   TimelineIndicatorOverlay,
+  type TimelineRenderRow,
   TimelineRow,
   TimelineRowContent,
   TimelineTrack,
-  type RowLayoutBounds,
-  type TimelineActiveIndicator,
-  type TimelineRenderRow,
-  getTrackFractions,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
 import { clamp } from "@/shared/utils";

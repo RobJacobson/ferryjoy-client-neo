@@ -8,7 +8,6 @@
 import { BlurTargetView } from "expo-blur";
 import { useCallback, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
-import { View } from "@/components/ui";
 import {
   getBoundaryTopPx,
   getTrackFractions,
@@ -17,6 +16,7 @@ import {
   TimelineRowContent,
   TimelineTrack,
 } from "@/components/timeline";
+import { View } from "@/components/ui";
 import type {
   RowLayoutBounds,
   TimelineRenderRow,

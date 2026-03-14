@@ -5,8 +5,8 @@
 import ANCHOR_ICON from "assets/icons/anchor.png";
 import VESSEL_ICON from "assets/icons/vessel2.png";
 import { Image } from "expo-image";
-import type { TimelineSegmentKind } from "./types";
 import { ROW_STYLE } from "./theme";
+import type { TimelineSegmentKind } from "./types";
 
 const MARKER_ICON_SIZE_PX = 22;
 const KIND_MARKER_SOURCE: Record<TimelineSegmentKind, number> = {

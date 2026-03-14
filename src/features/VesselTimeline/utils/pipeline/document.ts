@@ -79,8 +79,8 @@ const getActiveSegmentIndex = (
       activeTrip.leftDock ||
       vesselLocation?.LeftDock ||
       vesselLocation?.AtDock === false
-      ? `${activeTrip.key}-sea`
-      : `${activeTrip.key}-dock`;
+        ? `${activeTrip.key}-sea`
+        : `${activeTrip.key}-dock`;
     const rowIndex = rows.findIndex((row) => row.id === rowId);
     if (rowIndex >= 0) {
       return rowIndex;
