@@ -1,11 +1,11 @@
 # Vessel Trip Timeline Layout Architecture
 
 This document explains the current architecture for the vessel trip timeline.
-The feature keeps the working full-surface blur overlay and uses a **literal
-five-stage pipeline** in `utils/pipeline/`: each stage is a single module
-whose output is the input for the next. That makes the data flow explicit and
-easier to extend (e.g. for a future multi-stop day timeline) without
-duplicating ordered-row mechanics per feature.
+The feature keeps the working full-surface blur overlay and uses a literal
+five-stage pipeline in `utils/pipeline/`: each stage is a single module whose
+output is the input for the next. That keeps the trip-specific data flow
+explicit while the styling-sensitive renderer primitives live in the shared
+`src/components/timeline` UX layer.
 
 ## High-Level Flow
 
@@ -27,7 +27,10 @@ flowchart TD
   renderRowsOut --> renderState
   renderState --> renderStateOut[TimelineRenderState]
   getRenderState --> renderStateOut
-  renderStateOut --> timelineContent[TimelineContent]
+  renderStateOut --> timelineComponent[VesselTripTimeline]
+  timelineComponent --> localClock[useNowMs 1000ms]
+  localClock --> timelineComponent
+  timelineComponent --> timelineContent[TimelineContent]
   timelineContent --> fullTrack[FullTimelineTrack]
   timelineContent --> rowShells[TimelineRowComponent rows]
   timelineContent --> overlayLayer[TimelineIndicatorOverlay]
@@ -44,7 +47,7 @@ co-located in the same module.
 | 1 | `boundaries.ts` | `TimelineItem` | `BoundaryData` (points + fallback context) |
 | 2 | `rows.ts` | `BoundaryData` + `TimelineItem` | `TimelineDocumentRow[]` |
 | 3 | `document.ts` | rows + `TimelineItem` | `TimelineDocument` |
-| 4 | `renderRows.ts` | `TimelineDocument` + `now` | `TimelineRenderRow[]` |
+| 4 | `renderRows.ts` | `TimelineDocument` | `TimelineRenderRow[]` |
 | 5 | `renderState.ts` | document + render rows + `TimelineItem` + `now` | `TimelineRenderState` |
 
 The entry point `pipeline/index.ts` runs the stages in order and exports
@@ -56,9 +59,10 @@ callers only see `TimelineRenderState`.
 The feature's internal source of truth is a `TimelineDocument` produced by
 pipeline stage 3 (`document.ts`). It is not part of the public API.
 
-The base document and render-state **types** live in `utils/types.ts` (re-exported
-by `@/components/Timeline`). `VesselTripTimeline` supplies feature-specific
-boundary payloads, progress modes, labels, and telemetry rules.
+The base document and render-state **types** live in this feature's local
+`types.ts`. `VesselTripTimeline` supplies feature-specific boundary payloads,
+progress modes, labels, and telemetry rules. The shared timeline UX layer does
+not own this feature's document model.
 
 The document contains:
 
@@ -87,8 +91,13 @@ After the pipeline, the UI layer is:
   - Receives render-ready rows and the active indicator from
     `getTimelineRenderState`.
   - Measures row bounds.
-  - Renders the shared timeline rows in background mode.
+  - Renders shared timeline primitives in background mode.
   - Paints one absolute indicator overlay above the whole timeline.
+
+- **`VesselTripTimeline.tsx`**
+  - Owns a local `useNowMs(1000)` clock so the indicator keeps moving even
+    when Convex data is quiet.
+  - Passes `new Date(nowMs)` into `getTimelineRenderState`.
 
 ## Why the Overlay Stays
 
@@ -101,9 +110,9 @@ layer and one absolute overlay layer:
 ```text
 View (timeline container)
 └── BlurTargetView
-    ├── FullTimelineTrack (absolute, full height)
+    ├── TimelineTrack (absolute, full height)
     │   └── two bars: completed (0→topPx) + remaining (topPx→bottom)
-    ├── TimelineRowComponent[]
+    ├── shared TimelineRow[]
     │   └── leftContent | center-marker | rightContent
     └── TimelineIndicatorOverlay (absolute inset-0)
         └── TimelineIndicator
@@ -116,7 +125,7 @@ The track and overlay share the same boundary notion. Both use `topPx`:
 - rows report measured `y` and `height` through `onRowLayout`
 - the pipeline (renderState stage) decides which row owns the active indicator (`positionPercent`)
 - `topPx` is computed once from active row layout + `positionPercent`
-- `FullTimelineTrack` draws two bars: completed (0→topPx), remaining (topPx→bottom)
+- `TimelineTrack` draws two bars: completed (0→topPx), remaining (topPx→bottom)
 - `TimelineIndicatorOverlay` renders exactly one indicator at `topPx`
 
 ## Geometry vs Current State
@@ -152,13 +161,25 @@ display—each row owns only its start. The document still has `startBoundary` a
 - **Three rows**: origin dock (arrive at origin), at-sea (depart origin → arrive destination), destination dock (arrive at destination). Each has a timeline dot at its start.
 - **Final row**: The last row (destination dock) has `isFinalRow: true`. It has no duration-based height—only the space needed for the circle and its start labels (`minHeight: 0`, no flex growth).
 
-## Shared Timeline Primitive Boundary
+## Shared Timeline UX Boundary
 
-`src/components/Timeline` remains domain-agnostic.
+`src/components/timeline` is the canonical shared renderer layer.
 
-The shared module now owns:
+That shared module now owns:
 
-- generic document/render-state types (from `VesselTripTimeline/utils/types.ts`, re-exported by `@/components/Timeline`)
+- measurable row shell
+- row content layout and marker geometry
+- track rendering
+- indicator rendering and overlay positioning helpers
+- shared theme constants
+- generic UI-facing timeline types used only by the shared renderer
+
+The shared indicator renderer now also owns:
+
+- row-kind marker icons inside the static circles
+- independent blur surfaces for the circular badge and the banner pill
+- banner rendering above the active indicator
+- rocking animation for the active at-sea indicator
 
 `VesselTripTimeline` still owns:
 
@@ -166,18 +187,13 @@ The shared module now owns:
 - boundary label copy and tense (in `renderRows.ts` / `renderState.ts`)
 - time-vs-distance progress choice (in `renderState.ts`)
 - overlay label content (e.g. `getMinutesUntil` in `renderState.ts`)
-- blur-specific overlay rendering
+- overlay banner content (vessel name plus `at dock` or speed/distance copy)
+- fixed-height trip-card layout
+- the decision to compose the shared primitives inside
+  `components/TimelineContent.tsx`
 
-For now, `VesselTripTimeline` intentionally renders `TimelineRowComponent`
-directly instead of going through the higher-level `VerticalTimeline` API.
-That is a deliberate choice:
-
-- the feature needs row measurement
-- the feature owns a full-surface overlay indicator
-- the current public primitive API does not expose that overlay workflow cleanly
-
-This keeps the shared primitive generic while letting `VesselTripTimeline`
-manage its feature-specific blur overlay locally.
+This keeps the shared UX layer generic while letting `VesselTripTimeline`
+manage its own trip-specific overlay semantics locally.
 
 ## Indicator State Rules
 
@@ -190,17 +206,33 @@ manage its feature-specific blur overlay locally.
 - the first active dock row applies a small minimum offset (`0.06`) so the
   indicator does not sit directly on top of the static marker
 
+`utils/pipeline/document.ts` owns the active-row cursor rules:
+
+- completion at `trip.AtDockDepartNext?.Actual`
+- destination-dock completion when the trip has arrived
+- transition to the at-sea row when any live departure evidence exists:
+  `trip.LeftDock`, `vesselLocation.LeftDock`, or `vesselLocation.AtDock === false`
+
 ## Indicator Position Animation
 
 `positionPercent` still updates infrequently from Convex data. To avoid visible
 jumps:
 
-- `hooks/useAnimatedProgress.ts` animates the indicator's absolute `top` value
-  with a Reanimated spring
-- `TimelineIndicator.tsx` applies the animated `top` via `useAnimatedStyle`
+- `src/components/timeline/useAnimatedProgress.ts` animates the indicator's
+  absolute `top` value with a Reanimated timing animation
+- `src/components/timeline/TimelineIndicator.tsx` applies the animated `top`
+  via `useAnimatedStyle`
 
 Animation runs on the UI thread, so the indicator remains smooth even when the
 backing data updates only every few seconds.
+
+Rocking animation is separate from vertical movement:
+
+- the shared `TimelineIndicator` applies a Reanimated rocking transform only
+  when the active row is at sea and the vessel is moving
+- rocking frequency scales with vessel speed in knots
+- when the vessel is at dock, the badge remains upright and the banner subtitle
+  shows `at dock`
 
 ## Important Constraints
 
@@ -211,3 +243,17 @@ backing data updates only every few seconds.
 - The indicator renders only after the active row has measured bounds.
 - Terminal abbreviations remain canonical in the document model and are only
   translated to display names in the UI layer.
+
+## Documentation Boundary
+
+This document should not be merged wholesale with
+`src/features/VesselTimeline/ARCHITECTURE.md`.
+
+The right split is:
+
+- keep separate feature-architecture docs for separate business logic and
+  pipelines
+- mention `src/components/timeline` in both docs as the shared UX layer
+
+That preserves the important distinction: two different timeline features,
+same renderer vocabulary and styling surface.

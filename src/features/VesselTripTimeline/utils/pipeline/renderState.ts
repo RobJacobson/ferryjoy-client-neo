@@ -15,6 +15,7 @@ import type {
 } from "../../types";
 
 const ACTIVE_DOCK_MIN_OFFSET = 0.06;
+const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
 
 /**
  * Assembles final render state from document, render rows, and active indicator.
@@ -221,5 +222,28 @@ const getActiveIndicator = (
       getDisplayTime(activeRow.endBoundary.timePoint),
       now
     ),
+    title: item.vesselLocation.VesselName,
+    subtitle: getIndicatorSubtitle(activeRow, item),
+    animate:
+      activeRow.kind === "at-sea" &&
+      (item.vesselLocation.Speed ?? 0) > MOVING_SPEED_THRESHOLD_KNOTS,
+    speedKnots: item.vesselLocation.Speed ?? 0,
   };
+};
+
+const getIndicatorSubtitle = (
+  row: TimelineDocumentRow,
+  item: TimelineItem
+): string => {
+  if (row.kind === "at-dock") {
+    return "at dock";
+  }
+
+  const speed = item.vesselLocation.Speed ?? 0;
+  const arrivingDistance = item.vesselLocation.ArrivingDistance;
+  if (arrivingDistance === undefined) {
+    return `${speed.toFixed(0)} kn`;
+  }
+
+  return `${speed.toFixed(0)} kn · ${arrivingDistance.toFixed(1)} mi`;
 };

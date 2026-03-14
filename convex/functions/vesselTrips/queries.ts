@@ -227,6 +227,41 @@ export const getActiveTripsByRoutes = query({
 });
 
 /**
+ * Fetch active vessel trips for a specific vessel.
+ * Used by vessel-centric timeline views.
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - Vessel abbreviation to fetch
+ * @returns Array containing the vessel's current active trip, if any
+ */
+export const getActiveTripsByVessel = query({
+  args: { vesselAbbrev: v.string() },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const trips = await ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.vesselAbbrev)
+        )
+        .collect();
+
+      return trips.map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch active trips for vessel ${args.vesselAbbrev}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          vesselAbbrev: args.vesselAbbrev,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
  * Fetch completed vessel trips for multiple routes and trip date.
  * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
  *
@@ -319,6 +354,55 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
         code: "QUERY_FAILED",
         severity: "error",
         details: {
+          sailingDay: args.sailingDay,
+          error: String(error),
+        },
+      });
+    }
+  },
+});
+
+/**
+ * Fetch completed vessel trips for a specific vessel and sailing day.
+ * Used by vessel-centric timeline views.
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - Vessel abbreviation to fetch
+ * @param args.sailingDay - Sailing day in YYYY-MM-DD format
+ * @returns Array of completed vessel trips for the vessel/day, deduped by Key
+ */
+export const getCompletedTripsByVesselAndSailingDay = query({
+  args: {
+    vesselAbbrev: v.string(),
+    sailingDay: v.string(),
+  },
+  returns: v.array(vesselTripSchema),
+  handler: async (ctx, args) => {
+    try {
+      const docs = await ctx.db
+        .query("completedVesselTrips")
+        .withIndex("by_vessel_abbrev_and_sailing_day", (q) =>
+          q
+            .eq("VesselAbbrev", args.vesselAbbrev)
+            .eq("SailingDay", args.sailingDay)
+        )
+        .collect();
+
+      const byKey = new Map<string, (typeof docs)[number]>();
+      for (const doc of docs) {
+        if (doc.Key) {
+          byKey.set(doc.Key, doc);
+        }
+      }
+
+      return Array.from(byKey.values()).map(stripConvexMeta);
+    } catch (error) {
+      throw new ConvexError({
+        message: `Failed to fetch completed trips for vessel ${args.vesselAbbrev} on ${args.sailingDay}`,
+        code: "QUERY_FAILED",
+        severity: "error",
+        details: {
+          vesselAbbrev: args.vesselAbbrev,
           sailingDay: args.sailingDay,
           error: String(error),
         },

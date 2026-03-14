@@ -65,9 +65,10 @@ const baseTripForStart = (
   const arrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const previousCompletedTrip =
     existingTrip &&
-    (existingTrip.LeftDock !== undefined || existingTrip.ArriveDest !== undefined)
-    ? existingTrip
-    : undefined;
+    (existingTrip.LeftDock !== undefined ||
+      existingTrip.ArriveDest !== undefined)
+      ? existingTrip
+      : undefined;
   const didJustBecomeStartReady =
     existingTrip &&
     !existingTrip.TripStart &&

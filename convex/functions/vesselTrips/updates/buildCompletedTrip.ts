@@ -28,8 +28,10 @@ export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  const effectiveArrivalTime =
-    existingTrip.ArriveDest ?? currLocation.TimeStamp;
+  const effectiveArrivalTime = getEffectiveArrivalTime(
+    existingTrip,
+    currLocation.TimeStamp
+  );
   const withTripEnd = {
     ...existingTrip,
     ArriveDest: effectiveArrivalTime,
@@ -48,4 +50,26 @@ export const buildCompletedTrip = (
   };
 
   return actualizePredictionsOnTripComplete(withDurations);
+};
+
+const getEffectiveArrivalTime = (
+  existingTrip: ConvexVesselTrip,
+  fallbackArrivalTime: number
+): number => {
+  const candidateArrivalTime = existingTrip.ArriveDest;
+
+  if (candidateArrivalTime === undefined) {
+    return fallbackArrivalTime;
+  }
+
+  if (
+    (existingTrip.LeftDock !== undefined &&
+      candidateArrivalTime < existingTrip.LeftDock) ||
+    (existingTrip.TripStart !== undefined &&
+      candidateArrivalTime < existingTrip.TripStart)
+  ) {
+    return fallbackArrivalTime;
+  }
+
+  return candidateArrivalTime;
 };

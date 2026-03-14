@@ -1,17 +1,9 @@
 /**
- * Layout/view-model helpers for the VesselTripTimeline renderer.
- *
- * This module intentionally stays separate from the core pipeline stages:
- * it combines render-state model data with measured layout bounds to produce
- * render-ready values for the UI layer (e.g. absolute indicator positions,
- * track completion fractions).
+ * Layout/view-model helpers for the shared vertical timeline renderer.
  */
 
 import { clamp } from "@/shared/utils";
-import type {
-  RowLayoutBounds,
-  TimelineActiveIndicator,
-} from "../types";
+import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 
 export type OverlayViewState = {
   topPx: number;
@@ -19,26 +11,11 @@ export type OverlayViewState = {
   label: string;
 };
 
-/**
- * Converts row-local progress into an absolute container-relative Y position.
- *
- * @param layout - Measured y and height for the active timeline row
- * @param positionPercent - Row-local progress between 0 and 1
- * @returns Container-relative top position in pixels
- */
 export const getIndicatorTopPx = (
   layout: RowLayoutBounds,
   positionPercent: number
 ): number => layout.y + layout.height * clamp(positionPercent, 0, 1);
 
-/**
- * Returns the absolute boundary top position for the active indicator.
- *
- * @param activeIndicator - Active indicator model (row id + position)
- * @param rowLayouts - Measured bounds keyed by row id
- * @returns Container-relative boundary top position in pixels, or null when
- *          the active indicator or its layout is not yet available
- */
 export const getBoundaryTopPx = (
   activeIndicator: TimelineActiveIndicator | null,
   rowLayouts: Record<string, RowLayoutBounds>
@@ -55,13 +32,6 @@ export const getBoundaryTopPx = (
   return getIndicatorTopPx(layout, activeIndicator.positionPercent);
 };
 
-/**
- * Derives completed/remaining flex fractions for the full-height track bars.
- *
- * @param boundaryTopPx - Container-relative boundary top position in pixels
- * @param containerHeightPx - Total height of the timeline container in pixels
- * @returns Completed and remaining fractions between 0 and 1
- */
 export const getTrackFractions = (
   boundaryTopPx: number | null,
   containerHeightPx: number
@@ -78,13 +48,6 @@ export const getTrackFractions = (
   };
 };
 
-/**
- * Builds overlay view-state for the active indicator when layout is ready.
- *
- * @param activeIndicator - Active indicator model
- * @param rowLayouts - Measured bounds keyed by row id
- * @returns Overlay view-state or null when the indicator cannot be positioned
- */
 export const getOverlayViewState = (
   activeIndicator: TimelineActiveIndicator | null,
   rowLayouts: Record<string, RowLayoutBounds>
@@ -108,4 +71,3 @@ export const getOverlayViewState = (
     label: activeIndicator.label,
   };
 };
-

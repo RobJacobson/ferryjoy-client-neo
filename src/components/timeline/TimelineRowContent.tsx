@@ -1,6 +1,5 @@
 /**
- * Feature-level row content for the vessel trip timeline.
- * Renders left label, center marker, and right times for a single row.
+ * Shared row content for the vertical timeline renderer.
  */
 
 import type { ReactNode } from "react";
@@ -9,25 +8,20 @@ import { Text } from "@/components/ui";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import { ROW_STYLE } from "../theme";
+import { TimelineEvent } from "./TimelineEvent";
+import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
+import { ROW_STYLE } from "./theme";
 import type {
   TimelineRenderBoundary,
   TimelineRenderRow,
-  TimePoint,
-} from "../types";
-import { TimelineEvent } from "./TimelineEvent";
+  TimelineTimePoint,
+} from "./types";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
   markerContent?: ReactNode;
 };
 
-/**
- * Renders the full left/center/right content for a single timeline row.
- *
- * @param props - Render row plus optional inner marker content
- * @returns Row content view
- */
 export const TimelineRowContent = ({
   row,
   markerContent,
@@ -37,7 +31,11 @@ export const TimelineRowContent = ({
       <StartBoundaryLabel label={row.startBoundary} />
     </View>
 
-    <CenterMarker>{markerContent}</CenterMarker>
+    <CenterMarker row={row}>
+      {markerContent ?? (
+        <TimelineMarkerIcon kind={row.kind} appearance={row.markerAppearance} />
+      )}
+    </CenterMarker>
 
     <View className="flex-1 justify-start">
       <StartBoundaryTimes startPoint={row.startBoundary.timePoint} />
@@ -49,12 +47,6 @@ type BoundaryLabelProps = {
   label?: TimelineRenderBoundary;
 };
 
-/**
- * Renders the start boundary label for a segment.
- *
- * @param label - Start boundary render label when present
- * @returns Label view
- */
 const StartBoundaryLabel = ({ label }: BoundaryLabelProps) => {
   if (!label?.terminalAbbrev) {
     return null;
@@ -77,11 +69,11 @@ const StartBoundaryLabel = ({ label }: BoundaryLabelProps) => {
 };
 
 type StartBoundaryTimesProps = {
-  startPoint: TimePoint;
+  startPoint: TimelineTimePoint;
 };
 
 type TimepointRowContentTimesProps = {
-  point: TimePoint;
+  point: TimelineTimePoint;
 };
 
 const StartBoundaryTimesRow = ({ point }: TimepointRowContentTimesProps) => {
@@ -101,12 +93,6 @@ const StartBoundaryTimesRow = ({ point }: TimepointRowContentTimesProps) => {
   );
 };
 
-/**
- * Renders start boundary times for a segment.
- *
- * @param startPoint - TimePoint for the segment's starting boundary
- * @returns Timeline events view with time components
- */
 const StartBoundaryTimes = ({ startPoint }: StartBoundaryTimesProps) => (
   <View className="mt-[-10px] flex-1 justify-start">
     <StartBoundaryTimesRow point={startPoint} />
@@ -114,16 +100,11 @@ const StartBoundaryTimes = ({ startPoint }: StartBoundaryTimesProps) => (
 );
 
 type CenterMarkerProps = {
+  row: TimelineRenderRow;
   children?: ReactNode;
 };
 
-/**
- * Renders the static center marker using the row style axis and marker size.
- *
- * @param children - Optional inner marker content
- * @returns Marker column view
- */
-const CenterMarker = ({ children }: CenterMarkerProps) => (
+const CenterMarker = ({ row, children }: CenterMarkerProps) => (
   <View
     className="relative justify-start"
     style={{ width: ROW_STYLE.centerAxisSizePx }}
@@ -131,8 +112,8 @@ const CenterMarker = ({ children }: CenterMarkerProps) => (
     <View className="absolute" style={getMarkerStyle(ROW_STYLE.markerSizePx)}>
       <View
         className={cn(
-          "items-center justify-center rounded-full",
-          ROW_STYLE.markerClassName
+          "items-center justify-center overflow-hidden rounded-full",
+          ROW_STYLE.markerAppearance[row.markerAppearance].containerClassName
         )}
         style={{
           width: ROW_STYLE.markerSizePx,

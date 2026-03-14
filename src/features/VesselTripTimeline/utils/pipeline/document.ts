@@ -35,7 +35,7 @@ const getActiveSegmentIndex = (
   item: TimelineItem,
   rowCount: number
 ): number => {
-  const { trip } = item;
+  const { trip, vesselLocation } = item;
 
   if (trip.AtDockDepartNext?.Actual) {
     return rowCount;
@@ -49,7 +49,11 @@ const getActiveSegmentIndex = (
     return Math.max(0, rowCount - 1);
   }
 
-  if (trip.LeftDock) {
+  if (
+    trip.LeftDock ||
+    vesselLocation.LeftDock ||
+    vesselLocation.AtDock === false
+  ) {
     return 1;
   }
 
