@@ -8,8 +8,8 @@
 // ============================================================================
 
 import type { ViewStyle } from "react-native";
-import { View } from "react-native";
 import Animated, { type AnimatedStyle } from "react-native-reanimated";
+import { View } from "@/components/ui";
 import {
   useWaveOscillation,
   type WaveOscillationProps,

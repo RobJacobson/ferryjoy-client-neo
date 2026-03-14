@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { Text, View } from "@/components/ui";
 import { useMapState } from "@/data/contexts";
 
 export const MapDebugOverlay = () => {

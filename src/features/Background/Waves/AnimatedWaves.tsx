@@ -5,7 +5,8 @@
 // foreground grass. All layers are precomputed; parallax per layer from scroll.
 // ============================================================================
 
-import { useWindowDimensions, View } from "react-native";
+import { useWindowDimensions } from "react-native";
+import { View } from "@/components/ui";
 import { useIsLandscape } from "@/shared/hooks/useIsLandscape";
 import { getMaxParallaxPx } from "../config";
 import {

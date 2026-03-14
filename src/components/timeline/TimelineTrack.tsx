@@ -2,7 +2,8 @@
  * Shared full-height timeline track component.
  */
 
-import { View, type ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
+import { View } from "@/components/ui";
 import { TRACK_STYLE } from "./theme";
 
 type TimelineTrackProps = {

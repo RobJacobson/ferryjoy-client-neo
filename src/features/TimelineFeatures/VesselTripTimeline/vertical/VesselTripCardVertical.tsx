@@ -6,8 +6,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { TripCard } from "@/components/TripCard";
-import { Text, View } from "@/components/ui";
-import { CardTitle } from "@/components/ui/card";
+import { CardTitle, Text, View } from "@/components/ui";
 import type { VesselTripWithScheduledTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import VesselTripTimelineVertical from "./VesselTripTimelineVertical";
 

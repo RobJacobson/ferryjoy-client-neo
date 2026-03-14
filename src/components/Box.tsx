@@ -1,5 +1,5 @@
-import { View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
+import { View } from "@/components/ui";
 
 export const Box = ({
   width,

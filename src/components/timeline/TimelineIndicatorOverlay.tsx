@@ -2,8 +2,8 @@
  * Shared absolute overlay for a single active timeline indicator.
  */
 
-import type { RefObject } from "react";
-import { type View as RNView, View } from "react-native";
+import type { ComponentRef, RefObject } from "react";
+import { View } from "@/components/ui";
 import { TimelineIndicator } from "./TimelineIndicator";
 import { INDICATOR_STYLE } from "./theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
@@ -11,7 +11,8 @@ import { getOverlayViewState } from "./viewState";
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
-  blurTargetRef: RefObject<RNView | null>;
+  blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
+  /** Measured timeline row bounds used to position the active indicator. */
   rowLayouts?: Record<string, RowLayoutBounds>;
 };
 

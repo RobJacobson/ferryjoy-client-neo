@@ -4,7 +4,8 @@
  */
 
 import { Image } from "expo-image";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
+import { Text, View } from "@/components/ui";
 import type { Item } from "@/shared/utils/fakerData";
 
 type AnimatedListDemoCardProps = {

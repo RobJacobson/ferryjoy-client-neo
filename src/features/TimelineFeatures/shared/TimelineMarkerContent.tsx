@@ -5,7 +5,7 @@
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 type TimelineMarkerContentProps = {

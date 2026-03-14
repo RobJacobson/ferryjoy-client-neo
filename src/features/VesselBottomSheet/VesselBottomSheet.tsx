@@ -1,6 +1,7 @@
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { forwardRef } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet } from "react-native";
+import { Text, View } from "@/components/ui";
 import { useConvexVesselPings } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 

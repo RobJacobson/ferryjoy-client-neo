@@ -1,11 +1,12 @@
 import { BlurView } from "expo-blur";
-import type { RefObject } from "react";
-import { type View as RNView, View } from "react-native";
+import type { ComponentRef, RefObject } from "react";
+import { View } from "react-native";
 import { Text } from "@/components/ui";
+import type { View as UIView } from "@/components/ui";
 import { INDICATOR_STYLE } from "./theme";
 
 type TimelineIndicatorBadgeProps = {
-  blurTargetRef: RefObject<RNView | null>;
+  blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   label: string;
   sizePx: number;
 };

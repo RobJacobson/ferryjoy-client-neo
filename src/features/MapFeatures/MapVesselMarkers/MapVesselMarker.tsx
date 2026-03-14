@@ -6,7 +6,7 @@
  * visual rendering to VesselMarkerContent.
  */
 
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import type { VesselLocation } from "@/domain";
 import { useMapPitch, useMarkerScale } from "@/shared/hooks";
 import { Marker } from "../MapMarkers";

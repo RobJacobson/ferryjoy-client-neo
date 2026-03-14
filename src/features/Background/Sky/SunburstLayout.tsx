@@ -8,8 +8,8 @@
 
 import { useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
-import { View } from "react-native";
 import Animated from "react-native-reanimated";
+import { View } from "@/components/ui";
 import type { PaperTextureSource } from "../types";
 import config from "./config";
 import { Sun } from "./Sun";

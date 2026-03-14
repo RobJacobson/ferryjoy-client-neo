@@ -3,7 +3,8 @@
  * Avoids expo-blur's hardcoded saturate(180%) which causes unnatural color distortion.
  */
 
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { View } from "@/components/ui";
 import type { BlurTint, BlurViewProps } from "./BlurView.types";
 
 /**

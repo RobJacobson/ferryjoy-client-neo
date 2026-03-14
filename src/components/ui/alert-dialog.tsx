@@ -3,10 +3,10 @@ import * as React from "react";
 import { Platform, View, type ViewProps } from "react-native";
 import { FadeIn, FadeOut } from "react-native-reanimated";
 import { FullWindowOverlay as RNFullWindowOverlay } from "react-native-screens";
-import { buttonTextVariants, buttonVariants } from "@/components/ui/button";
-import { NativeOnlyAnimatedView } from "@/components/ui/native-only-animated-view";
-import { TextClassContext } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
+import { buttonTextVariants, buttonVariants } from "./button";
+import { NativeOnlyAnimatedView } from "./native-only-animated-view";
+import { TextClassContext } from "./text";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 

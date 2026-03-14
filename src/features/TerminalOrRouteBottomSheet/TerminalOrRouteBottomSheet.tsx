@@ -1,5 +1,6 @@
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { Text, View } from "@/components/ui";
 
 export type TerminalOrRouteBottomSheetProps = {
   title: string;

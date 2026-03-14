@@ -2,10 +2,10 @@
  * Shared animated timeline indicator orchestrator.
  */
 
-import type { RefObject } from "react";
-import type { View as RNView } from "react-native";
+import type { ComponentRef, RefObject } from "react";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import type { View as UIView } from "@/components/ui";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { INDICATOR_STYLE } from "./theme";
@@ -13,7 +13,7 @@ import { useAnimatedProgress } from "./useAnimatedProgress";
 import { useRockingAnimation } from "./useRockingAnimation";
 
 type TimelineIndicatorProps = {
-  blurTargetRef: RefObject<RNView | null>;
+  blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   topPx: number;
   shouldJump?: boolean;
   label: string;

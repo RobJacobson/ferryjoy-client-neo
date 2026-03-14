@@ -6,8 +6,9 @@
 
 import { useCallback, useState } from "react";
 import type { LayoutChangeEvent, ViewProps } from "react-native";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import Svg, { Defs, G, Mask, Rect } from "react-native-svg";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 // ============================================================================

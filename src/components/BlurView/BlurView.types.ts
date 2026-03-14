@@ -3,7 +3,7 @@
  * Native uses expo-blur; web uses custom backdrop-filter (no saturate).
  */
 
-import type { RefObject } from "react";
+import type { ComponentRef, RefObject } from "react";
 import type { View, ViewProps } from "react-native";
 
 export type BlurMethod =
@@ -36,7 +36,7 @@ export type BlurTint =
 
 export type BlurViewProps = {
   /** Ref to BlurTargetView; used on Android. Ignored on web. */
-  blurTarget?: RefObject<View | null>;
+  blurTarget?: RefObject<ComponentRef<typeof View> | null>;
   /** Blur intensity 1–100. */
   intensity?: number;
   /** Tint mode for overlay color. */

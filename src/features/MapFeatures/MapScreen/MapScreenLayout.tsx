@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { SmoothedVesselLocationsProvider, useMapState } from "@/data/contexts";
 import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapFeatures/MapComponent";

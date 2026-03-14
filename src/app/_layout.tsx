@@ -12,8 +12,9 @@ import Mapbox from "@rnmapbox/maps";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { LogBox, View } from "react-native";
+import { LogBox } from "react-native";
 import Svg, { Image as SvgImage } from "react-native-svg";
+import { View } from "@/components/ui";
 import { Providers } from "@/data/Providers";
 
 /** Same asset as wave components; load here via SVG so splash stays until ready. */

@@ -6,8 +6,7 @@
  */
 
 import { BlurTargetView } from "expo-blur";
-import { useCallback, useRef, useState } from "react";
-import type { View as RNView } from "react-native";
+import { type ComponentRef, useCallback, useRef, useState } from "react";
 import {
   getBoundaryTopPx,
   getTrackFractions,
@@ -35,7 +34,7 @@ export const TimelineContent = ({
   rows: renderRows,
   activeIndicator,
 }: TimelineRenderState) => {
-  const blurTargetRef = useRef<RNView | null>(null);
+  const blurTargetRef = useRef<ComponentRef<typeof View> | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
   );
