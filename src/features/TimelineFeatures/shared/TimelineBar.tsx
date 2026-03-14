@@ -7,11 +7,12 @@
 
 import { useEffect } from "react";
 import type { ViewStyle } from "react-native";
-import { LayoutAnimation, View } from "react-native";
+import { LayoutAnimation } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   colors,

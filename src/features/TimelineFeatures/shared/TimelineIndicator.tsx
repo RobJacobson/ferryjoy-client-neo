@@ -5,12 +5,11 @@
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import { Text } from "@/components/ui";
+import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { colors, shadowStyle, timelineIndicatorConfig } from "./config";
 import { useRockingAnimation } from "./utils/useRockingAnimation";

@@ -5,11 +5,11 @@
  * Exposes scroll progress (0-1) for parallax backgrounds through the ref.
  */
 
-import type { RefObject } from "react";
+import type { ComponentRef, RefObject } from "react";
 import { useState } from "react";
-import type { View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import type { TerminalMate } from "ws-dottie/wsf-schedule";
+import type { View } from "@/components/ui";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
   TERMINAL_CONNECTIONS,
@@ -25,7 +25,7 @@ import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
 
 type RoutesCarouselProps = {
   ref: React.Ref<RoutesCarouselRef>;
-  blurTargetRef: RefObject<View | null>;
+  blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   /** Sink SharedValue for scroll progress (0-1); AnimatedList writes here. */
   scrollProgressSink?: SharedValue<number>;
 };

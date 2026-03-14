@@ -4,7 +4,7 @@
  */
 
 import { CalendarClock, EqualApproximately, Watch } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 

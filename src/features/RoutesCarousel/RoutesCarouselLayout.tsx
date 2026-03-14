@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "@/components/ui";
 
 type RoutesCarouselLayoutProps = {
   cardHeight: number;

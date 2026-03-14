@@ -5,7 +5,7 @@
 
 import type { ReactNode } from "react";
 import type { DimensionValue, ViewStyle } from "react-native";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { timelineIndicatorConfig, timelineSegmentConfig } from "./config";
 
 type TimelineBlockProps = {

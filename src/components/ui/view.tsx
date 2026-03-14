@@ -71,7 +71,7 @@ const viewVariants = cva("", {
 
 interface ViewProps extends RNViewProps, VariantProps<typeof viewVariants> {}
 
-const View = React.forwardRef<React.ElementRef<typeof RNView>, ViewProps>(
+const View = React.forwardRef<React.ComponentRef<typeof RNView>, ViewProps>(
   (
     { className, variant, bg, padding, margin, flex, items, justify, ...props },
     ref

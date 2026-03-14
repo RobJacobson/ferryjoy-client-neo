@@ -5,7 +5,7 @@
  */
 
 import type { RefObject } from "react";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { TerminalNavButton } from "@/features/RoutesCarousel/TerminalNavButton";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
 

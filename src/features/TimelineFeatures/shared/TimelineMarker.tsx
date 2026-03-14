@@ -3,7 +3,8 @@
  */
 
 import type { ReactNode } from "react";
-import { View, type ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { shadowStyle, timelineMarkerConfig } from "./config";
 

@@ -6,7 +6,7 @@
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React, { useMemo } from "react";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import {
   extractArriveCurrLabel,
   extractArriveNextLabel,

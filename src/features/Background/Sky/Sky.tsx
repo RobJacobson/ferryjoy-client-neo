@@ -7,7 +7,8 @@
 // ============================================================================
 
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, View } from "react-native";
+import { Image } from "react-native";
+import { View } from "@/components/ui";
 import { SKY_PARALLAX_MULTIPLIER } from "../config";
 import { ParallaxLayer } from "../ParallaxLayer";
 import type { PaperTextureSource } from "../types";

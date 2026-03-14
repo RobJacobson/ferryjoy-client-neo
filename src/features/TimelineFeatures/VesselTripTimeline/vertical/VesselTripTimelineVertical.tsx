@@ -6,7 +6,7 @@
 
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   extractArriveCurrLabel,

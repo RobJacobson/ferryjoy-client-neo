@@ -3,8 +3,8 @@
  */
 
 import type { ReactNode } from "react";
-import { View, type ViewStyle } from "react-native";
-import { Text } from "@/components/ui";
+import type { ViewStyle } from "react-native";
+import { Text, View } from "@/components/ui";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";

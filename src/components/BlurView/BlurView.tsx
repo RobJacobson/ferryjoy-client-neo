@@ -4,7 +4,8 @@
  */
 
 import { BlurView as ExpoBlurView } from "expo-blur";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { View } from "@/components/ui";
 import type { BlurViewProps } from "./BlurView.types";
 
 /**
@@ -12,13 +13,11 @@ import type { BlurViewProps } from "./BlurView.types";
  * Wraps expo-blur in a View with overflow: hidden so the blur is clipped to border-radius.
  */
 export const BlurView = (props: BlurViewProps) => {
-  const { style, children, ...rest } = props;
-  const flattened = StyleSheet.flatten(style) ?? {};
-  const borderRadius = flattened.borderRadius ?? 24;
+  const { style, className, children, ...rest } = props;
 
   return (
-    <View style={[style, { overflow: "hidden", borderRadius }]}>
-      <ExpoBlurView {...rest} style={StyleSheet.absoluteFillObject}>
+    <View style={[style, { overflow: "hidden" }]} className={className}>
+      <ExpoBlurView {...rest} style={StyleSheet.absoluteFill}>
         {children}
       </ExpoBlurView>
     </View>

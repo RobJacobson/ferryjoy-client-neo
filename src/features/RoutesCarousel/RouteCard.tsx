@@ -4,16 +4,14 @@
  * CRITICAL: BlurView requires explicit width/height props - cannot rely on flex sizing.
  */
 
-import type { RefObject } from "react";
-import { View } from "react-native";
+import type { ComponentRef, RefObject } from "react";
 import { BlurView } from "@/components/BlurView";
-import { Button } from "@/components/ui";
-import { Text } from "@/components/ui/text";
+import { Button, Text, View } from "@/components/ui";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import { useDestinationNavigation } from "@/shared/hooks";
 
 type RouteCardProps = {
-  blurTargetRef: RefObject<View | null>;
+  blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   data: TerminalCardData & { isPlaceholder?: boolean };
   width: number;
   height: number;

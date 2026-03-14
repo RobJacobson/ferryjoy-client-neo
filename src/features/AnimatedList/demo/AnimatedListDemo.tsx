@@ -6,8 +6,13 @@
  */
 
 import { useRef, useState } from "react";
-import { View } from "react-native";
-import { Button, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import {
+  Button,
+  Text,
+  ToggleGroup,
+  ToggleGroupItem,
+  View,
+} from "@/components/ui";
 import data from "@/shared/utils/fakerData";
 import { useAvailableDimensions } from "@/shared/utils/useAvailableDimensions";
 import AnimatedList from "../AnimatedList";
