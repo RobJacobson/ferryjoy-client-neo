@@ -11,6 +11,8 @@ import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
+import { TimelineIndicatorRadarPing } from "./TimelineIndicatorRadarPing";
+import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicatorRadarPingConfig";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -22,6 +24,8 @@ type TimelineIndicatorProps = {
   animate?: boolean;
   speedKnots?: number;
   sizePx?: number;
+  showRadarPing?: boolean;
+  radarPingVariant?: TimelineIndicatorRadarPingVariant;
 };
 
 export const TimelineIndicator = ({
@@ -34,6 +38,8 @@ export const TimelineIndicator = ({
   animate = false,
   speedKnots = 0,
   sizePx = 42,
+  showRadarPing = true,
+  radarPingVariant = "glass-orchid",
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx, shouldJump);
   const rockingStyle = useRockingAnimation(animate, speedKnots);
@@ -56,6 +62,12 @@ export const TimelineIndicator = ({
         rockingStyle,
       ]}
     >
+      {showRadarPing ? (
+        <TimelineIndicatorRadarPing
+          sizePx={sizePx}
+          variant={radarPingVariant}
+        />
+      ) : null}
       <TimelineIndicatorBanner
         blurTargetRef={blurTargetRef}
         title={title}
