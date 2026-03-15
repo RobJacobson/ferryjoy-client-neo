@@ -2,7 +2,6 @@
  * Shared row content for the vertical timeline renderer.
  */
 
-import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
 import { View } from "@/components/ui";
 import {
@@ -17,13 +16,9 @@ import { TimelineRowMarker } from "./TimelineRowMarker";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
-  markerContent?: ReactNode;
 };
 
-export const TimelineRowContent = ({
-  row,
-  markerContent,
-}: TimelineRowContentProps) => (
+export const TimelineRowContent = ({ row }: TimelineRowContentProps) => (
   <View className="relative h-full w-full">
     <View className="h-full w-full flex-row items-stretch">
       <View style={getLeadingContentStyle()}>
@@ -33,7 +28,7 @@ export const TimelineRowContent = ({
         <TimelineRowEventTimes point={row.startBoundary.timePoint} />
       </View>
     </View>
-    <TimelineRowMarker row={row}>{markerContent}</TimelineRowMarker>
+    <TimelineRowMarker row={row} />
   </View>
 );
 
