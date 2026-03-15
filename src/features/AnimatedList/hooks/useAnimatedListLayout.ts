@@ -59,6 +59,7 @@ export function useAnimatedListLayout(layout: AnimatedListLayout) {
 
   return {
     handleLayout,
+    hasMeasured: scrollViewSize.width > 0 || scrollViewSize.height > 0,
     isHorizontal,
     itemSizeStyle,
     contentContainerStyle,

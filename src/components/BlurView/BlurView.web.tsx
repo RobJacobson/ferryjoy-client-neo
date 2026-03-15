@@ -66,6 +66,7 @@ export const BlurView = ({
   intensity = 50,
   tint = "default",
   style,
+  children,
   ...props
 }: BlurViewProps) => {
   const cappedIntensity = Math.min(intensity ?? 50, 100);
@@ -92,8 +93,15 @@ export const BlurView = ({
 
   // Wrapper clips blur to rounded corners (same pattern as native; clip-path handles browsers where overflow doesn't)
   return (
-    <View style={[style, { overflow: "hidden", borderRadius }]}>
-      <View {...props} style={[StyleSheet.absoluteFillObject, blurStyle]} />
+    <View
+      {...props}
+      style={[style, { position: "relative", overflow: "hidden", borderRadius }]}
+    >
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, blurStyle]}
+      />
+      <View style={StyleSheet.absoluteFillObject}>{children}</View>
     </View>
   );
 };

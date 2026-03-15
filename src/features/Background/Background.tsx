@@ -7,6 +7,7 @@
 
 import { Sky } from "./Sky/index";
 import { AnimatedWaves } from "./Waves/index";
+import { View } from "@/components/ui";
 
 /**
  * Props for Background component.
@@ -27,7 +28,16 @@ type BackgroundProps = {
  * @returns Fragment containing Sky and AnimatedWaves background layers
  */
 const Background = ({ scrollableRange, itemStride }: BackgroundProps) => (
-  <>
+  <View
+    style={{
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      overflow: "hidden",
+    }}
+  >
     <Sky
       paperTextureUrl={null}
       scrollableRange={scrollableRange}
@@ -38,7 +48,7 @@ const Background = ({ scrollableRange, itemStride }: BackgroundProps) => (
       scrollableRange={scrollableRange}
       itemStride={itemStride}
     />
-  </>
+  </View>
 );
 
 export default Background;

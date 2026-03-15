@@ -90,7 +90,16 @@ const AnimatedWaves = ({
   }));
 
   return (
-    <View className="absolute inset-0 overflow-visible">
+    <View
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        overflow: "visible",
+      }}
+    >
       {layerConfigs.map(({ spec, layout, parallaxDistance }) => (
         <WaveLayer
           key={spec.key}

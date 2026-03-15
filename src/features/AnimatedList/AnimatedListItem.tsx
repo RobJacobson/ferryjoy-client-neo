@@ -53,7 +53,18 @@ const AnimatedListItem = <T,>({
 
   return (
     <Animated.View
-      style={[itemSizeStyle, animatedStyle]}
+      style={[
+        itemSizeStyle,
+        {
+          scrollSnapAlign:
+            layout.direction === "horizontal" ? "center" : "start",
+          scrollSnapStop: "always",
+        } as ViewStyle & {
+          scrollSnapAlign?: "center" | "start";
+          scrollSnapStop?: "always";
+        },
+        animatedStyle,
+      ]}
       // Default to overflow-hidden for proper clipping; can be overridden via itemClassName
       className={cn("overflow-hidden", itemClassName)}
       testID={`animated-list-item-${index}`}

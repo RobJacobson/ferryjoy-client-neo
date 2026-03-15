@@ -147,15 +147,5 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
   },
-  "expo": {
-    "install": {
-      "exclude": [
-        "@shopify/react-native-skia"
-      ]
-    }
-  },
-  "private": true,
-  "trustedDependencies": [
-    "@shopify/react-native-skia"
-  ]
+  "private": true
 }
