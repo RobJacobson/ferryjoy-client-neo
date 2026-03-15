@@ -4,13 +4,15 @@
 
 import type { ComponentRef, RefObject } from "react";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import type { View as UIView } from "@/components/ui";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TIMELINE_TRACK_X_POSITION_PERCENT } from "../config";
+import { useAnimatedProgress } from "../useAnimatedProgress";
+import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
-import { INDICATOR_STYLE } from "./theme";
-import { useAnimatedProgress } from "./useAnimatedProgress";
-import { useRockingAnimation } from "./useRockingAnimation";
+import { TimelineIndicatorRadarPing } from "./TimelineIndicatorRadarPing";
+import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicatorRadarPingConfig";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -22,6 +24,8 @@ type TimelineIndicatorProps = {
   animate?: boolean;
   speedKnots?: number;
   sizePx?: number;
+  showRadarPing?: boolean;
+  radarPingVariant?: TimelineIndicatorRadarPingVariant;
 };
 
 export const TimelineIndicator = ({
@@ -33,7 +37,9 @@ export const TimelineIndicator = ({
   subtitle,
   animate = false,
   speedKnots = 0,
-  sizePx = INDICATOR_STYLE.sizePx,
+  sizePx = 42,
+  showRadarPing = true,
+  radarPingVariant = "glass-orchid",
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx, shouldJump);
   const rockingStyle = useRockingAnimation(animate, speedKnots);
@@ -46,9 +52,8 @@ export const TimelineIndicator = ({
 
   return (
     <Animated.View
-      className={INDICATOR_STYLE.containerClassName}
       style={[
-        { left: "50%" },
+        { left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
         getAbsoluteCenteredBoxStyle({
           width: sizePx,
           height: sizePx,
@@ -57,6 +62,12 @@ export const TimelineIndicator = ({
         rockingStyle,
       ]}
     >
+      {showRadarPing ? (
+        <TimelineIndicatorRadarPing
+          sizePx={sizePx}
+          variant={radarPingVariant}
+        />
+      ) : null}
       <TimelineIndicatorBanner
         blurTargetRef={blurTargetRef}
         title={title}

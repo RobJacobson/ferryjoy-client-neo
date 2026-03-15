@@ -1,9 +1,8 @@
 import { BlurView } from "expo-blur";
 import type { ComponentRef, RefObject } from "react";
 import { View, type ViewStyle } from "react-native";
-import { Text } from "@/components/ui";
 import type { View as UIView } from "@/components/ui";
-import { INDICATOR_STYLE } from "./theme";
+import { Text } from "@/components/ui";
 
 type TimelineIndicatorBannerProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -25,26 +24,26 @@ export const TimelineIndicatorBanner = ({
   return (
     <View
       pointerEvents="none"
-      className={INDICATOR_STYLE.bannerContainerClassName}
+      className="absolute items-center"
       style={getBannerStyle(sizePx)}
     >
-      <View className={INDICATOR_STYLE.bannerSurfaceClassName}>
+      <View className="overflow-hidden rounded-full border border-purple-400">
         <BlurView
           blurTarget={blurTargetRef}
-          intensity={INDICATOR_STYLE.blurIntensity}
+          intensity={8}
           tint="light"
           blurMethod="dimezisBlurView"
-          className={INDICATOR_STYLE.bannerBlurClassName}
+          className="absolute inset-0"
         />
-        <View className={INDICATOR_STYLE.bannerOverlayClassName} />
-        <View className={INDICATOR_STYLE.bannerContentClassName}>
+        <View className="absolute inset-0 bg-white/50" />
+        <View className="items-center px-4 py-1">
           {title ? (
-            <Text className={INDICATOR_STYLE.bannerTitleClassName}>
+            <Text className="text-center font-playpen-600 text-purple-800 leading-tight">
               {title}
             </Text>
           ) : null}
           {subtitle ? (
-            <Text className={INDICATOR_STYLE.bannerSubtitleClassName}>
+            <Text className="text-center font-playpen-300 text-purple-800 text-sm leading-tight">
               {subtitle}
             </Text>
           ) : null}
@@ -55,8 +54,8 @@ export const TimelineIndicatorBanner = ({
 };
 
 const getBannerStyle = (sizePx: number): ViewStyle => ({
-  bottom: sizePx + INDICATOR_STYLE.bannerOffsetPx,
+  bottom: sizePx - 6,
   left: "50%",
-  width: INDICATOR_STYLE.bannerWidthPx,
-  marginLeft: -INDICATOR_STYLE.bannerWidthPx / 2,
+  width: 200,
+  marginLeft: -100,
 });

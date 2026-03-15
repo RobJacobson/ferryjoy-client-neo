@@ -77,7 +77,7 @@ const getActiveIndicator = (
       getRowOffsetPx(sourceRow, activeRow.displayHeightPx, layout, now),
     label: getMinutesUntil(sourceRow.endBoundary.timePoint, now),
     title: vesselLocation?.VesselName,
-    subtitle: getIndicatorSubtitle(sourceRow.kind, vesselLocation),
+    subtitle: getIndicatorSubtitle(sourceRow, vesselLocation),
     state:
       document.indicatorState === "inactive-warning"
         ? "inactive-warning"
@@ -94,23 +94,31 @@ const getActiveIndicator = (
 };
 
 const getIndicatorSubtitle = (
-  rowKind: VesselTimelineDocument["rows"][number]["kind"],
+  sourceRow: VesselTimelineDocument["rows"][number],
   vesselLocation: VesselLocation | undefined
 ) => {
   if (!vesselLocation) {
     return undefined;
   }
 
-  if (rowKind === "dock") {
-    return "at dock";
+  if (sourceRow.kind === "dock") {
+    const terminalAbbrev =
+      vesselLocation.DepartingTerminalAbbrev ??
+      sourceRow.endBoundary.terminalAbbrev;
+    return terminalAbbrev ? `At dock ${terminalAbbrev}` : "At dock";
   }
 
   const speed = vesselLocation.Speed ?? 0;
+  const arrivalAbbrev =
+    vesselLocation.ArrivingTerminalAbbrev ??
+    sourceRow.endBoundary.terminalAbbrev;
   if (vesselLocation.ArrivingDistance === undefined) {
     return `${speed.toFixed(0)} kn`;
   }
-
-  return `${speed.toFixed(0)} kn · ${vesselLocation.ArrivingDistance.toFixed(1)} mi`;
+  const distancePart = arrivalAbbrev
+    ? `${vesselLocation.ArrivingDistance.toFixed(1)} mi to ${arrivalAbbrev}`
+    : `${vesselLocation.ArrivingDistance.toFixed(1)} mi`;
+  return `${speed.toFixed(0)} kn · ${distancePart}`;
 };
 
 /**

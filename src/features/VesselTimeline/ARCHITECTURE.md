@@ -617,7 +617,7 @@ src/components/timeline/
   TimelineTrack.tsx
   TimelineIndicator.tsx
   TimelineIndicatorOverlay.tsx
-  TimelineEvent.tsx
+  TimelineRowEventTimes.tsx
   TimelineMarkerIcon.tsx
 ```
 

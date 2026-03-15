@@ -16,7 +16,7 @@ export type TimelineTimePoint = {
 
 export type TimelineRenderBoundary = {
   label: string;
-  terminalAbbrev?: string;
+  title?: string;
   timePoint: TimelineTimePoint;
 };
 

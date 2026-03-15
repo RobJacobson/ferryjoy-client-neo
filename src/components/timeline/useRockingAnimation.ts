@@ -7,19 +7,30 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { INDICATOR_STYLE } from "./theme";
+
+const ROCKING_MIN_SPEED_KNOTS = 0;
+const ROCKING_MAX_SPEED_KNOTS = 20;
+const ROCKING_PERIOD_SLOW_MS = 25000;
+const ROCKING_PERIOD_FAST_MS = 7500;
+const ROCKING_MAX_ROTATION_DEG = 4;
+const ROCKING_RAMP_IN_MS = 900;
+const ROCKING_RAMP_OUT_MS = 700;
 
 const speedToDurationMs = (speedKnots: number): number => {
-  const { minSpeedKnots, maxSpeedKnots, periodSlowMs, periodFastMs } =
-    INDICATOR_STYLE.rocking;
-  const range = maxSpeedKnots - minSpeedKnots;
+  const range = ROCKING_MAX_SPEED_KNOTS - ROCKING_MIN_SPEED_KNOTS;
 
   if (range <= 0) {
-    return periodSlowMs;
+    return ROCKING_PERIOD_SLOW_MS;
   }
 
-  const t = Math.min(1, Math.max(0, (speedKnots - minSpeedKnots) / range));
-  return Math.round(periodSlowMs - (periodSlowMs - periodFastMs) * t);
+  const t = Math.min(
+    1,
+    Math.max(0, (speedKnots - ROCKING_MIN_SPEED_KNOTS) / range)
+  );
+  return Math.round(
+    ROCKING_PERIOD_SLOW_MS -
+      (ROCKING_PERIOD_SLOW_MS - ROCKING_PERIOD_FAST_MS) * t
+  );
 };
 
 const phaseToRotation = (phase: number, maxDeg: number): number => {
@@ -38,9 +49,7 @@ const phaseToRotation = (phase: number, maxDeg: number): number => {
 
 export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
   const phase = useSharedValue(0);
-  const amplitude = useSharedValue(
-    animate ? INDICATOR_STYLE.rocking.maxRotationDeg : 0
-  );
+  const amplitude = useSharedValue(animate ? ROCKING_MAX_ROTATION_DEG : 0);
   const speedRef = useRef(speedKnots);
   speedRef.current = speedKnots;
 
@@ -52,7 +61,7 @@ export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
 
     if (!animate) {
       amplitude.value = withTiming(0, {
-        duration: INDICATOR_STYLE.rocking.rampOutMs,
+        duration: ROCKING_RAMP_OUT_MS,
         easing: Easing.out(Easing.cubic),
       });
       cancelAnimation(phase);
@@ -60,8 +69,8 @@ export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
       return;
     }
 
-    amplitude.value = withTiming(INDICATOR_STYLE.rocking.maxRotationDeg, {
-      duration: INDICATOR_STYLE.rocking.rampInMs,
+    amplitude.value = withTiming(ROCKING_MAX_ROTATION_DEG, {
+      duration: ROCKING_RAMP_IN_MS,
       easing: Easing.out(Easing.cubic),
     });
 

@@ -21,8 +21,10 @@ import {
   TimelineTrack,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
+import { toSharedTimelineBoundary } from "@/features/shared/timelineDisplay";
 import { clamp } from "@/shared/utils";
 import type { VesselTimelineRenderState } from "../types";
+import { TimelineTerminalCards } from "./TimelineTerminalCards";
 
 /**
  * Renders the full scrollable vessel-day timeline with initial auto-scroll.
@@ -105,12 +107,13 @@ export const TimelineContent = ({
             className="relative flex-1 flex-col"
             collapsable={false}
           >
+            <TimelineTerminalCards rows={rows} />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
               completedPercent={completedPercent}
               remainingPercent={remainingPercent}
             />
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <TimelineRow
                 key={row.id}
                 id={row.id}
@@ -170,7 +173,7 @@ const toSharedTimelineRenderRow = (
   markerAppearance: row.markerAppearance,
   segmentIndex: row.segmentIndex,
   geometryMinutes: row.displayHeightPx,
-  startBoundary: row.startBoundary,
-  endBoundary: row.endBoundary,
+  startBoundary: toSharedTimelineBoundary(row.startBoundary),
+  endBoundary: toSharedTimelineBoundary(row.endBoundary),
   isFinalRow: row.isTerminal === true,
 });

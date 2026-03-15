@@ -16,14 +16,14 @@ import { getRows } from "./rows";
 
 const PIXELS_PER_MINUTE_MIN = 4;
 const PIXELS_PER_MINUTE_MAX = 8;
-const PIXELS_PER_MINUTE_PER_ROW = 0.1;
+const PIXELS_PER_MINUTE_PER_ROW = 0.15;
 
 /**
  * Default display/layout config for the vessel-day timeline.
  */
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   pixelsPerMinute: 4,
-  minRowHeightPx: 64,
+  minRowHeightPx: 48,
   compressedBreakThresholdMinutes: 60,
   compressedBreakMarkerHeightPx: 20,
   compressedBreakStubMinutes: 10,
