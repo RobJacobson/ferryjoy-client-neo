@@ -116,7 +116,6 @@ const SunburstLayout = ({
             top,
             width: layoutSize,
             height: layoutSize,
-            transform: [{ scale: 10.0 }],
           },
           sunburstRotationStyle,
         ]}
