@@ -27,7 +27,7 @@ export const TimelineIndicatorBanner = ({
       className="absolute items-center"
       style={getBannerStyle(sizePx)}
     >
-      <View className="overflow-hidden rounded-full border border-purple-800">
+      <View className="overflow-hidden rounded-full border border-purple-400">
         <BlurView
           blurTarget={blurTargetRef}
           intensity={8}
@@ -54,8 +54,8 @@ export const TimelineIndicatorBanner = ({
 };
 
 const getBannerStyle = (sizePx: number): ViewStyle => ({
-  bottom: sizePx + 6,
+  bottom: sizePx - 6,
   left: "50%",
-  width: 140,
-  marginLeft: -70,
+  width: 200,
+  marginLeft: -100,
 });

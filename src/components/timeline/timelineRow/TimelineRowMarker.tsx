@@ -7,8 +7,13 @@ import type { ViewStyle } from "react-native";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import {
+  TIMELINE_MARKER_COLUMN_WIDTH_PX,
+  TIMELINE_MARKER_SIZE_PX,
+  TIMELINE_TRACK_X_POSITION_PERCENT,
+} from "../config";
+import type { TimelineRenderRow } from "../types";
 import { TimelineMarkerIcon } from "./TimelineMarkerIcon";
-import type { TimelineRenderRow } from "./types";
 
 type TimelineRowMarkerProps = {
   row: TimelineRenderRow;
@@ -26,10 +31,7 @@ export const TimelineRowMarker = ({
   row,
   children,
 }: TimelineRowMarkerProps) => (
-  <View
-    className="relative justify-start"
-    style={{ width: 36 }}
-  >
+  <View className="absolute top-0 bottom-0" style={getMarkerColumnStyle()}>
     <View className="absolute" style={getMarkerStyle(28)}>
       <View
         className={cn(
@@ -39,8 +41,8 @@ export const TimelineRowMarker = ({
             : "border border-green-200 bg-green-500"
         )}
         style={{
-          width: 28,
-          height: 28,
+          width: TIMELINE_MARKER_SIZE_PX,
+          height: TIMELINE_MARKER_SIZE_PX,
         }}
       >
         {children ?? (
@@ -53,6 +55,12 @@ export const TimelineRowMarker = ({
     </View>
   </View>
 );
+
+const getMarkerColumnStyle = (): ViewStyle => ({
+  left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+  width: TIMELINE_MARKER_COLUMN_WIDTH_PX,
+  marginLeft: -TIMELINE_MARKER_COLUMN_WIDTH_PX / 2,
+});
 
 const getMarkerStyle = (markerSizePx: number): ViewStyle => ({
   zIndex: 1,

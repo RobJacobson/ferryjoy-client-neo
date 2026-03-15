@@ -4,9 +4,9 @@
 
 import type { ComponentRef, RefObject } from "react";
 import { View } from "@/components/ui";
+import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
+import { getOverlayViewState } from "../viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
-import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
-import { getOverlayViewState } from "./viewState";
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;

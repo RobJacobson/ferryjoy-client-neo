@@ -1,12 +1,13 @@
-export { TimelineIndicator } from "./TimelineIndicator";
-export { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
-export { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
-export { TimelineIndicatorOverlay } from "./TimelineIndicatorOverlay";
-export { TimelineMarkerIcon } from "./TimelineMarkerIcon";
-export type { TimelineRowProps } from "./TimelineRow";
-export { TimelineRow } from "./TimelineRow";
-export { TimelineRowContent } from "./TimelineRowContent";
+export {
+  TIMELINE_CONTENT_GUTTER_PX,
+  TIMELINE_MARKER_COLUMN_WIDTH_PX,
+  TIMELINE_MARKER_SIZE_PX,
+  TIMELINE_TRACK_X_POSITION_PERCENT,
+} from "./config";
 export { TimelineTrack } from "./TimelineTrack";
+export { TimelineIndicatorOverlay } from "./timelineIndicator";
+export type { TimelineRowProps } from "./timelineRow";
+export { TimelineRow, TimelineRowContent } from "./timelineRow";
 export type {
   RowLayoutBounds,
   TimelineActiveIndicator,

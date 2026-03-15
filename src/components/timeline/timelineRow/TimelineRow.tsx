@@ -6,9 +6,9 @@ import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
 import Animated, { Easing, LinearTransition } from "react-native-reanimated";
 import { cn } from "@/lib/utils";
-import type { RowLayoutBounds } from "./types";
+import type { RowLayoutBounds } from "../types";
 
-const ROW_LAYOUT_TRANSITION_DURATION_MS = 5000;
+const ROW_LAYOUT_TRANSITION_DURATION_MS = 10000;
 
 export type TimelineRowProps = {
   id: string;

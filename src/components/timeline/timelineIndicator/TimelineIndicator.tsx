@@ -6,10 +6,11 @@ import type { ComponentRef, RefObject } from "react";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
+import { TIMELINE_TRACK_X_POSITION_PERCENT } from "../config";
+import { useAnimatedProgress } from "../useAnimatedProgress";
+import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
-import { useAnimatedProgress } from "./useAnimatedProgress";
-import { useRockingAnimation } from "./useRockingAnimation";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -46,7 +47,7 @@ export const TimelineIndicator = ({
   return (
     <Animated.View
       style={[
-        { left: "50%" },
+        { left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
         getAbsoluteCenteredBoxStyle({
           width: sizePx,
           height: sizePx,

@@ -49,9 +49,7 @@ const phaseToRotation = (phase: number, maxDeg: number): number => {
 
 export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
   const phase = useSharedValue(0);
-  const amplitude = useSharedValue(
-    animate ? ROCKING_MAX_ROTATION_DEG : 0
-  );
+  const amplitude = useSharedValue(animate ? ROCKING_MAX_ROTATION_DEG : 0);
   const speedRef = useRef(speedKnots);
   speedRef.current = speedKnots;
 

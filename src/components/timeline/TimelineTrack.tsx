@@ -4,6 +4,7 @@
 
 import type { ViewStyle } from "react-native";
 import { View } from "@/components/ui";
+import { TIMELINE_TRACK_X_POSITION_PERCENT } from "./config";
 
 type TimelineTrackProps = {
   containerHeightPx: number;
@@ -22,7 +23,7 @@ export const TimelineTrack = ({
 
   return (
     <View
-      className="absolute left-1/2 flex-col"
+      className="absolute flex-col"
       pointerEvents="none"
       style={getContainerStyle(42, containerHeightPx)}
     >
@@ -30,19 +31,13 @@ export const TimelineTrack = ({
         className="flex-row justify-center"
         style={{ flex: completedPercent }}
       >
-        <View
-          className="bg-green-400"
-          style={getBarStyle(4)}
-        />
+        <View className="bg-green-400" style={getBarStyle(4)} />
       </View>
       <View
         className="flex-row justify-center"
         style={{ flex: remainingPercent }}
       >
-        <View
-          className="bg-green-100"
-          style={getBarStyle(4)}
-        />
+        <View className="bg-green-100" style={getBarStyle(4)} />
       </View>
     </View>
   );
@@ -52,6 +47,7 @@ const getContainerStyle = (
   centerAxisSizePx: number,
   heightPx: number
 ): ViewStyle => ({
+  left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
   width: centerAxisSizePx,
   height: heightPx,
   marginLeft: -centerAxisSizePx / 2,

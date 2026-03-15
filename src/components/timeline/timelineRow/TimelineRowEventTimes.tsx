@@ -6,7 +6,7 @@ import { CalendarClock, EqualApproximately, Timer } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
-import type { TimelineTimePoint } from "./types";
+import type { TimelineTimePoint } from "../types";
 
 const eventTypeIcon = {
   actual: Timer,
@@ -33,7 +33,7 @@ export const TimelineRowEventTimes = ({
   const secondary = actual ?? estimated;
 
   return (
-    <View className="mt-[-10px] flex-1 justify-start">
+    <View className="mx-1 mt-[-10px] flex-1 justify-start">
       <View className="flex-row gap-1">
         {scheduled && <EventTime time={scheduled} type="scheduled" />}
         {secondary && (
@@ -52,7 +52,12 @@ type EventTimeProps = {
 const EventTime = ({ time, type }: EventTimeProps) => {
   const Icon = eventTypeIcon[type];
   return (
-    <View className={cn("flex-row", type === "scheduled" ? "gap-1" : "gap-0")}>
+    <View
+      className={cn(
+        "flex-1 flex-row",
+        type === "scheduled" ? "gap-1" : "gap-0"
+      )}
+    >
       <View className="my-[-1px]">
         <Icon size={22} strokeWidth={1.5} color="#a855f7" />
       </View>
