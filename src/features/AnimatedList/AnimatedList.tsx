@@ -5,7 +5,7 @@
  * demo while providing maximum flexibility for future use cases.
  */
 
-import { useImperativeHandle } from "react";
+import { useEffect, useImperativeHandle, useRef } from "react";
 import type { ViewStyle } from "react-native";
 import Animated, {
   type SharedValue,
@@ -13,7 +13,8 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedRef,
   useDerivedValue,
-  useScrollOffset,
+  useAnimatedScrollHandler,
+  useSharedValue,
 } from "react-native-reanimated";
 import { scheduleOnUI } from "react-native-worklets";
 import AnimatedListItem from "./AnimatedListItem";
@@ -50,19 +51,33 @@ const AnimatedList = <T,>({
   itemClassName,
 }: AnimatedListProps<T>) => {
   // Manage layout calculations
-  const { handleLayout, isHorizontal, itemSizeStyle, contentContainerStyle } =
-    useAnimatedListLayout(layout);
+  const {
+    handleLayout,
+    hasMeasured,
+    isHorizontal,
+    itemSizeStyle,
+    contentContainerStyle,
+  } = useAnimatedListLayout(layout);
+  const hasInitializedScrollPosition = useRef(false);
 
   // Extract layout configuration needed for scroll calculations
   const { itemSize, spacing = 0 } = layout;
 
   // Manage scroll internally
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const internalScrollOffset = useScrollOffset(scrollRef);
+  const internalScrollOffset = useSharedValue(0);
 
   // Use external scroll offset if provided for parallax effects, otherwise track internally
   const scrollOffset: SharedValue<number> =
     externalScrollOffset ?? internalScrollOffset;
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      internalScrollOffset.value = isHorizontal
+        ? event.contentOffset.x
+        : event.contentOffset.y;
+    },
+  });
 
   // Convert scroll position to normalized index with division by zero protection
   const itemStride = Math.max(1, itemSize + spacing);
@@ -123,6 +138,21 @@ const AnimatedList = <T,>({
   // Detect when scroll settles on an index and trigger callback
   useScrollEndDetection(scrollIndex, onScrollEnd);
 
+  // Web can restore or choose a non-zero snap position on first paint.
+  // Reset to the placeholder card once the scroll view has a real layout.
+  useEffect(() => {
+    if (hasInitializedScrollPosition.current || !hasMeasured || data.length === 0) {
+      return;
+    }
+
+    hasInitializedScrollPosition.current = true;
+
+    scheduleOnUI(() => {
+      "worklet";
+      scrollTo(scrollRef, 0, 0, false);
+    });
+  }, [data.length, hasMeasured, isHorizontal, scrollRef]);
+
   // Snap offsets for each item
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));
 
@@ -136,8 +166,13 @@ const AnimatedList = <T,>({
       decelerationRate="fast"
       contentContainerStyle={contentContainerStyle}
       style={
-        { scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory` } as ViewStyle
+        {
+          width: "100%",
+          height: "100%",
+          scrollSnapType: `${isHorizontal ? "x" : "y"} mandatory`,
+        } as ViewStyle
       }
+      onScroll={scrollHandler}
       scrollEventThrottle={16}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}

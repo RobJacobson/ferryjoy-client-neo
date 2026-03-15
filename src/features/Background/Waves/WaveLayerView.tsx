@@ -55,7 +55,16 @@ export const WaveLayerView = ({
   const railWidthPx = svgProps.renderWidthPx + 2 * overscanPx;
 
   return (
-    <View className="absolute inset-0 overflow-visible">
+    <View
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        overflow: "visible",
+      }}
+    >
       <Animated.View
         style={
           [
