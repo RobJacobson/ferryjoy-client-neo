@@ -7,6 +7,7 @@
 
 export type TimelineSegmentKind = "at-dock" | "at-sea";
 export type TimelineMarkerAppearance = "past" | "future";
+export type TimelineEventType = "arrive" | "depart";
 
 export type TimelineTimePoint = {
   scheduled?: Date;
@@ -15,8 +16,10 @@ export type TimelineTimePoint = {
 };
 
 export type TimelineRenderBoundary = {
-  label: string;
-  title?: string;
+  eventType: TimelineEventType;
+  currTerminalAbbrev?: string;
+  currTerminalDisplayName?: string;
+  nextTerminalAbbrev?: string;
   timePoint: TimelineTimePoint;
 };
 

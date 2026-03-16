@@ -72,19 +72,19 @@ const getCardPosition = (
 
   const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
   const nextRow = rows[rowIndex + 1];
-  const rowTerminal = row.startBoundary.terminalAbbrev;
+  const rowTerminal = row.startBoundary.currTerminalAbbrev;
 
   const matchesNext =
     row.kind === "dock" &&
     nextRow?.kind === "sea" &&
     rowTerminal !== undefined &&
-    rowTerminal === nextRow.startBoundary.terminalAbbrev;
+    rowTerminal === nextRow.startBoundary.currTerminalAbbrev;
 
   const matchesPrevious =
     previousRow?.kind === "dock" &&
     row.kind === "sea" &&
-    previousRow.startBoundary.terminalAbbrev !== undefined &&
-    previousRow.startBoundary.terminalAbbrev === rowTerminal;
+    previousRow.startBoundary.currTerminalAbbrev !== undefined &&
+    previousRow.startBoundary.currTerminalAbbrev === rowTerminal;
 
   if (matchesNext) {
     return "top";

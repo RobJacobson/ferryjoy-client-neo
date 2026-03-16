@@ -78,8 +78,10 @@ export type RowLayoutBounds = { y: number; height: number };
  * Render-ready boundary label and timepoint for one side of a row.
  */
 export type TimelineRenderBoundary = {
-  label: string;
-  terminalAbbrev?: string;
+  eventType: "arrive" | "depart";
+  currTerminalAbbrev?: string;
+  currTerminalDisplayName?: string;
+  nextTerminalAbbrev?: string;
   timePoint: TimePoint;
 };
 

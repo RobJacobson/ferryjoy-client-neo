@@ -10,6 +10,7 @@ export { TimelineIndicatorOverlay } from "./timelineIndicator";
 export type { TimelineRowProps } from "./timelineRow";
 export { TimelineRow, TimelineRowContent } from "./timelineRow";
 export type {
+  TimelineEventType,
   RowLayoutBounds,
   TerminalCardGeometry,
   TimelineActiveIndicator,

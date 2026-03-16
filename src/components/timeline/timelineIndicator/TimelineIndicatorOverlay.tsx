@@ -27,11 +27,7 @@ export const TimelineIndicatorOverlay = ({
   }
 
   return (
-    <View
-      pointerEvents="none"
-      className="absolute inset-0 z-10"
-      style={{ elevation: 10 }}
-    >
+    <View pointerEvents="none" className="absolute inset-0">
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
         topPx={overlayViewState.topPx}

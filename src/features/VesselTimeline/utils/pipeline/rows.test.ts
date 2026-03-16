@@ -84,11 +84,11 @@ describe("VesselTimeline row geometry", () => {
       layout
     );
 
-    expect(rows[0]?.startBoundary.label).toBe("Arv");
+    expect(rows[0]?.startBoundary.eventType).toBe("arrive");
     expect(rows[0]?.startBoundary.timePoint.scheduled?.toISOString()).toBe(
       at(20, 25).toISOString()
     );
-    expect(rows[1]?.startBoundary.label).toBe("Dep");
+    expect(rows[1]?.startBoundary.eventType).toBe("depart");
     expect(rows[1]?.startBoundary.timePoint.scheduled?.toISOString()).toBe(
       at(20, 30).toISOString()
     );

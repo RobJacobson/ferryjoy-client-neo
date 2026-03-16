@@ -111,8 +111,10 @@ export type TimelineTerminalCard = {
  * Render-ready boundary data.
  */
 export type VesselTimelineRenderBoundary = {
-  label: string;
-  terminalAbbrev?: string;
+  eventType: "arrive" | "depart";
+  currTerminalAbbrev?: string;
+  currTerminalDisplayName?: string;
+  nextTerminalAbbrev?: string;
   timePoint: VesselTimelineTimePoint;
 };
 

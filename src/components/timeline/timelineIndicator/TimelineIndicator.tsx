@@ -53,11 +53,12 @@ export const TimelineIndicator = ({
   return (
     <Animated.View
       style={[
-        { left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
         getAbsoluteCenteredBoxStyle({
           width: sizePx,
           height: sizePx,
+          isVertical: true,
         }),
+        { left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
         animatedStyle,
         rockingStyle,
       ]}

@@ -2,6 +2,7 @@
  * Pipeline stage 4: derive render-ready rows with deterministic pixel geometry.
  */
 
+import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import type {
   VesselTimelineDocument,
   VesselTimelineLayoutConfig,
@@ -34,13 +35,21 @@ export const renderRows = (
         row.segmentIndex <= document.activeSegmentIndex ? "past" : "future",
       isTerminal: row.isTerminal,
       startBoundary: {
-        label: row.kind === "dock" ? "Arv" : "Dep",
-        terminalAbbrev: row.startBoundary.terminalAbbrev,
+        eventType: row.kind === "dock" ? "arrive" : "depart",
+        currTerminalAbbrev: row.startBoundary.terminalAbbrev,
+        currTerminalDisplayName: getDisplayTerminalName(
+          row.startBoundary.terminalAbbrev
+        ),
+        nextTerminalAbbrev:
+          row.kind === "sea" ? row.endBoundary.terminalAbbrev : undefined,
         timePoint: row.startBoundary.timePoint,
       },
       endBoundary: {
-        label: row.kind === "dock" ? "Dep" : "Arv",
-        terminalAbbrev: row.endBoundary.terminalAbbrev,
+        eventType: row.kind === "dock" ? "depart" : "arrive",
+        currTerminalAbbrev: row.endBoundary.terminalAbbrev,
+        currTerminalDisplayName: getDisplayTerminalName(
+          row.endBoundary.terminalAbbrev
+        ),
         timePoint: row.endBoundary.timePoint,
       },
       displayHeightPx,
@@ -52,4 +61,16 @@ export const renderRows = (
     topPx += displayHeightPx;
     return renderRow;
   });
+};
+
+const getDisplayTerminalName = (terminalAbbrev?: string) => {
+  if (!terminalAbbrev) {
+    return undefined;
+  }
+
+  const terminalName = getTerminalNameByAbbrev(terminalAbbrev);
+  return terminalName
+    ?.replace("Island", "Is.")
+    .replace("Port", "Pt.")
+    .replace("Point", "Pt.");
 };

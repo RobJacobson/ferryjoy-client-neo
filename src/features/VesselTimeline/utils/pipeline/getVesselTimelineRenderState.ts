@@ -23,7 +23,7 @@ const PIXELS_PER_MINUTE_PER_ROW = 0.15;
  */
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   pixelsPerMinute: 4,
-  minRowHeightPx: 48,
+  minRowHeightPx: 36,
   compressedBreakThresholdMinutes: 60,
   compressedBreakMarkerHeightPx: 20,
   compressedBreakStubMinutes: 10,

@@ -29,7 +29,7 @@ export const TimelineIndicatorBadge = ({
         className="items-center justify-center"
         style={getBadgeBodyStyle(sizePx)}
       >
-        <Text className="font-playpen-600 text-purple-800">{label}</Text>
+        <Text className="font-playpen-600 text-purple-700">{label}</Text>
       </View>
     </View>
   </View>

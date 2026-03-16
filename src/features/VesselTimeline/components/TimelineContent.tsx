@@ -23,7 +23,6 @@ import {
   TimelineTrack,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
-import { toSharedTimelineBoundary } from "@/features/shared/timelineDisplay";
 import { clamp } from "@/shared/utils";
 import type { VesselTimelineRenderState } from "../types";
 
@@ -187,7 +186,7 @@ const toSharedTimelineRenderRow = (
   markerAppearance: row.markerAppearance,
   segmentIndex: row.segmentIndex,
   geometryMinutes: row.displayHeightPx,
-  startBoundary: toSharedTimelineBoundary(row.startBoundary),
-  endBoundary: toSharedTimelineBoundary(row.endBoundary),
+  startBoundary: row.startBoundary,
+  endBoundary: row.endBoundary,
   isFinalRow: row.isTerminal === true,
 });

@@ -33,8 +33,8 @@ export const TimelineRowEventTimes = ({
   const secondary = actual ?? estimated;
 
   return (
-    <View className="mx-1 mt-[-10px] flex-1 justify-start">
-      <View className="flex-row gap-1">
+    <View className="mx-2 mt-[-10px] flex-1 justify-start">
+      <View className="flex flex-1 flex-row gap-1">
         {scheduled && <EventTime time={scheduled} type="scheduled" />}
         {secondary && (
           <EventTime time={secondary} type={actual ? "actual" : "estimated"} />
@@ -52,16 +52,17 @@ type EventTimeProps = {
 const EventTime = ({ time, type }: EventTimeProps) => {
   const Icon = eventTypeIcon[type];
   return (
-    <View
-      className={cn(
-        "flex-1 flex-row",
-        type === "scheduled" ? "gap-1" : "gap-0"
-      )}
-    >
-      <View className="my-[-1px]">
-        <Icon size={22} strokeWidth={1.5} color="#a855f7" />
+    <View className="relative flex-1 flex-row gap-1">
+      <View className="absolute top-[1px] left-[-1px] flex flex-row gap-1">
+        <View className="my-[-1px]">
+          <Icon size={22} strokeWidth={1.5} color="white" />
+        </View>
+        <Text className="font-led-board text-white">{toDisplayTime(time)}</Text>
       </View>
-      <Text className="font-bitcount-400 text-purple-800">
+      <View className="my-[-1px]">
+        <Icon size={22} strokeWidth={1.5} color="hsl(273 81% 47%)" />
+      </View>
+      <Text className="font-led-board text-purple-700">
         {toDisplayTime(time)}
       </Text>
     </View>
