@@ -63,7 +63,7 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-lg">
           Loading vessel timeline...
         </Text>
@@ -73,7 +73,7 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
 
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-destructive text-lg">
           Unable to load vessel timeline
         </Text>
@@ -86,7 +86,7 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
 
   if (trips.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-lg">No scheduled trips found</Text>
         <Text className="mt-2 text-center text-muted-foreground text-sm">
           No direct scheduled trips were found for {vesselAbbrev} on{" "}

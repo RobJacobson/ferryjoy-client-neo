@@ -2,6 +2,8 @@
  * Convenience screen wrapper for the VesselTimeline feature.
  */
 
+import { View } from "@/components/ui";
+import { GradientBackground } from "@/features/GradientBackground";
 import { VesselTimeline } from "./VesselTimeline";
 
 type VesselTimelineScreenProps = {
@@ -24,9 +26,14 @@ export const VesselTimelineScreen = ({
   sailingDay,
   routeAbbrevs,
 }: VesselTimelineScreenProps) => (
-  <VesselTimeline
-    vesselAbbrev={vesselAbbrev}
-    sailingDay={sailingDay}
-    routeAbbrevs={routeAbbrevs}
-  />
+  <View className="flex-1">
+    <GradientBackground backgroundColor="#F5EFE3" />
+    <View className="flex-1">
+      <VesselTimeline
+        vesselAbbrev={vesselAbbrev}
+        sailingDay={sailingDay}
+        routeAbbrevs={routeAbbrevs}
+      />
+    </View>
+  </View>
 );
