@@ -91,8 +91,20 @@ export type VesselTimelineLayoutConfig = {
   compressedBreakMarkerHeightPx: number;
   compressedBreakStubMinutes: number;
   compressedBreakDepartureWindowMinutes: number;
+  terminalCardTopOffsetPx: number;
+  terminalCardDepartureCapHeightPx: number;
   initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";
   initialScrollAnchorPercent: number;
+};
+
+/**
+ * Pre-computed geometry for a terminal card background.
+ */
+export type TimelineTerminalCard = {
+  rowId: string;
+  position: "top" | "bottom" | "single";
+  topPx: number;
+  heightPx: number;
 };
 
 /**
@@ -140,6 +152,7 @@ export type VesselTimelineActiveIndicator = {
  */
 export type VesselTimelineRenderState = {
   rows: VesselTimelineRenderRow[];
+  terminalCards: TimelineTerminalCard[];
   activeIndicator: VesselTimelineActiveIndicator | null;
   contentHeightPx: number;
   layout: VesselTimelineLayoutConfig;

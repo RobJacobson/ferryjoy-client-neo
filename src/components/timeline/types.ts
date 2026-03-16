@@ -46,3 +46,14 @@ export type RowLayoutBounds = {
   y: number;
   height: number;
 };
+
+/**
+ * Pre-computed geometry for a terminal card background.
+ * Used by TimelineTerminalCardBackgrounds for "at terminal" highlight regions.
+ */
+export type TerminalCardGeometry = {
+  id: string;
+  position: "top" | "bottom" | "single";
+  topPx: number;
+  heightPx: number;
+};

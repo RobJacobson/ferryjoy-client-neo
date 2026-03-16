@@ -13,18 +13,19 @@ import { ScrollView } from "react-native";
 import {
   getTrackFractions,
   type RowLayoutBounds,
+  type TerminalCardGeometry,
   type TimelineActiveIndicator,
   TimelineIndicatorOverlay,
   type TimelineRenderRow,
   TimelineRow,
   TimelineRowContent,
+  TimelineTerminalCardBackgrounds,
   TimelineTrack,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
 import { toSharedTimelineBoundary } from "@/features/shared/timelineDisplay";
 import { clamp } from "@/shared/utils";
 import type { VesselTimelineRenderState } from "../types";
-import { TimelineTerminalCards } from "./TimelineTerminalCards";
 
 /**
  * Renders the full scrollable vessel-day timeline with initial auto-scroll.
@@ -34,6 +35,7 @@ import { TimelineTerminalCards } from "./TimelineTerminalCards";
  */
 export const TimelineContent = ({
   rows,
+  terminalCards,
   activeIndicator,
   contentHeightPx,
   layout,
@@ -107,7 +109,9 @@ export const TimelineContent = ({
             className="relative flex-1 flex-col"
             collapsable={false}
           >
-            <TimelineTerminalCards rows={rows} />
+            <TimelineTerminalCardBackgrounds
+              cards={toTerminalCardGeometries(terminalCards)}
+            />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
               completedPercent={completedPercent}
@@ -135,6 +139,16 @@ export const TimelineContent = ({
     </ScrollView>
   );
 };
+
+const toTerminalCardGeometries = (
+  cards: VesselTimelineRenderState["terminalCards"]
+): TerminalCardGeometry[] =>
+  cards.map((card) => ({
+    id: card.rowId,
+    position: card.position,
+    topPx: card.topPx,
+    heightPx: card.heightPx,
+  }));
 
 const toTripTimelineActiveIndicator = (
   activeIndicator: VesselTimelineRenderState["activeIndicator"],

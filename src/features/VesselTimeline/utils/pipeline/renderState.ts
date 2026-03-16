@@ -4,6 +4,7 @@
 
 import type { VesselLocation } from "@/data/contexts";
 import type {
+  TimelineTerminalCard,
   VesselTimelineActiveIndicator,
   VesselTimelineDocument,
   VesselTimelineLayoutConfig,
@@ -14,6 +15,87 @@ import type {
 
 const MS_PER_MINUTE = 60_000;
 const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
+
+type CardPosition = "none" | "top" | "bottom" | "single";
+
+/**
+ * Computes terminal card geometries for "at terminal" portions of the timeline.
+ *
+ * @param rows - Render-ready rows with explicit geometry
+ * @param layout - Layout config for terminal card sizing
+ * @returns Array of terminal card geometries for the view layer
+ */
+const computeTerminalCards = (
+  rows: VesselTimelineRenderRow[],
+  layout: VesselTimelineLayoutConfig
+): TimelineTerminalCard[] => {
+  const cards: TimelineTerminalCard[] = [];
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
+    const position = getCardPosition(rows, rowIndex);
+
+    if (position === "none") {
+      continue;
+    }
+
+    const topPx =
+      position === "bottom"
+        ? row.topPx
+        : row.topPx + layout.terminalCardTopOffsetPx;
+    const heightPx =
+      position === "bottom"
+        ? layout.terminalCardDepartureCapHeightPx
+        : position === "single"
+          ? row.displayHeightPx
+          : row.displayHeightPx - layout.terminalCardTopOffsetPx;
+
+    cards.push({
+      rowId: row.id,
+      position,
+      topPx,
+      heightPx,
+    });
+  }
+
+  return cards;
+};
+
+const getCardPosition = (
+  rows: VesselTimelineRenderRow[],
+  rowIndex: number
+): CardPosition => {
+  const row = rows[rowIndex];
+  if (!row) {
+    return "none";
+  }
+
+  const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
+  const nextRow = rows[rowIndex + 1];
+  const rowTerminal = row.startBoundary.terminalAbbrev;
+
+  const matchesNext =
+    row.kind === "dock" &&
+    nextRow?.kind === "sea" &&
+    rowTerminal !== undefined &&
+    rowTerminal === nextRow.startBoundary.terminalAbbrev;
+
+  const matchesPrevious =
+    previousRow?.kind === "dock" &&
+    row.kind === "sea" &&
+    previousRow.startBoundary.terminalAbbrev !== undefined &&
+    previousRow.startBoundary.terminalAbbrev === rowTerminal;
+
+  if (matchesNext) {
+    return "top";
+  }
+
+  if (matchesPrevious) {
+    return "bottom";
+  }
+
+  return row.kind === "dock" && rowTerminal ? "single" : "none";
+};
 
 /**
  * Builds the final vessel timeline render state.
@@ -32,6 +114,7 @@ export const renderState = (
   now: Date
 ): VesselTimelineRenderState => ({
   rows,
+  terminalCards: computeTerminalCards(rows, layout),
   activeIndicator: getActiveIndicator(
     document,
     rows,

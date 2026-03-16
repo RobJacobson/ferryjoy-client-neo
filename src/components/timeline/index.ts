@@ -4,12 +4,14 @@ export {
   TIMELINE_MARKER_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "./config";
+export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
 export { TimelineIndicatorOverlay } from "./timelineIndicator";
 export type { TimelineRowProps } from "./timelineRow";
 export { TimelineRow, TimelineRowContent } from "./timelineRow";
 export type {
   RowLayoutBounds,
+  TerminalCardGeometry,
   TimelineActiveIndicator,
   TimelineMarkerAppearance,
   TimelineRenderBoundary,

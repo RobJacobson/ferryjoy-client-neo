@@ -13,6 +13,8 @@ const layout: VesselTimelineLayoutConfig = {
   compressedBreakMarkerHeightPx: 20,
   compressedBreakStubMinutes: 10,
   compressedBreakDepartureWindowMinutes: 50,
+  terminalCardTopOffsetPx: -20,
+  terminalCardDepartureCapHeightPx: 20,
   initialAutoScroll: "none",
   initialScrollAnchorPercent: 0.5,
 };

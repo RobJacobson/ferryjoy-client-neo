@@ -28,6 +28,8 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   compressedBreakMarkerHeightPx: 20,
   compressedBreakStubMinutes: 10,
   compressedBreakDepartureWindowMinutes: 50,
+  terminalCardTopOffsetPx: -20,
+  terminalCardDepartureCapHeightPx: 20,
   initialAutoScroll: "center-active-indicator",
   initialScrollAnchorPercent: 0.5,
 };

@@ -184,6 +184,8 @@ The shared UX layer now also owns:
 - separate blur surfaces for the active indicator badge and banner pill
 - the banner renderer above the active indicator
 - rocking animation for the active at-sea indicator
+- terminal card backgrounds for "at terminal" portions (pre-computed geometry,
+  rendered below the track)
 
 `VesselTimeline` still owns:
 
@@ -366,6 +368,9 @@ Responsibilities:
 - indicator appearance variant
 - indicator banner content
 - indicator y-position mapping across proportional and compressed rows
+- terminal card geometry (top/bottom/single positions for dock blocks, computed
+  from row adjacency and terminal matching; single cards omit the lower
+  extension used for top/bottom pairs)
 
 ## Canonical Document Model
 
@@ -431,6 +436,7 @@ The feature should reuse the broad rendering strategy that already works in
 `VesselTripTimeline`:
 
 - measured row layouts
+- terminal card backgrounds (rendered first, below the track)
 - one full-height track
 - one absolute overlay indicator
 
@@ -447,6 +453,15 @@ forking row/track/indicator implementations.
 `VesselTimeline.tsx` also owns a local `useNowMs(1000)` clock so time-based
 progress continues to update between Convex refreshes. The optional `now` prop
 still overrides that clock for deterministic rendering and tests.
+
+### Terminal card backgrounds
+
+"At terminal" dock portions are highlighted with semi-transparent card
+backgrounds. The pipeline (`renderState`) computes card geometry (top/bottom/
+single positions, pixel bounds) from row adjacency and terminal matching. The
+shared `TimelineTerminalCardBackgrounds` component renders from that
+pre-computed geometry. Cards must be rendered before the track so they appear
+below it in the stacking order.
 
 ## Layout Model
 
@@ -497,6 +512,8 @@ type VesselTimelineLayoutConfig = {
   compressedBreakMarkerHeightPx: number;
   compressedBreakStubMinutes: number;
   compressedBreakDepartureWindowMinutes: number;
+  terminalCardTopOffsetPx: number;
+  terminalCardDepartureCapHeightPx: number;
 };
 ```
 
@@ -614,6 +631,7 @@ src/components/timeline/
   useAnimatedProgress.ts
   TimelineRow.tsx
   TimelineRowContent.tsx
+  TimelineTerminalCardBackgrounds.tsx
   TimelineTrack.tsx
   TimelineIndicator.tsx
   TimelineIndicatorOverlay.tsx
