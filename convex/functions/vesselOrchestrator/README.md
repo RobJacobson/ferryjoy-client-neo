@@ -88,6 +88,8 @@ For detailed information about the trip updates module, see: `convex/functions/v
 
 One important consequence of that module's event model: destination arrival is only recorded after the vessel has physically completed a sailing leg and docked at a new terminal. Feed-only destination changes while a vessel is still sitting at dock are intentionally ignored.
 
+Another important consequence: trip departure is now driven by the feed's `LeftDock` timestamp as the single source of truth. A transient `AtDock: false` tick does not start an at-sea leg by itself. This keeps trip state monotonic and avoids rollback logic when the feed briefly disagrees with itself.
+
 ## Data Flow
 
 The orchestrator follows a clear data flow from external API to database storage:
@@ -192,6 +194,10 @@ The vesselTrips/updates module provides its own detailed logging for:
 - Prediction statistics
 - Database write counts (upserts, completions, prediction records)
 - Per-vessel error details
+- Dock-signal disagreement warnings, including:
+  - `AtDock: false` while `LeftDock` is still missing
+  - `AtDock: true` while a `LeftDock` signal is present
+  - `AtDock` resetting to `true` before any `LeftDock` ever appeared
 
 See `convex/functions/vesselTrips/updates/README.md` for details on trip update logging.
 
@@ -226,6 +232,7 @@ The vesselTrips/updates module implements several optimizations:
 - **Batch Operations**: Active trips are batched and upserted together
 - **ScheduledTrip Reuse**: Reuses existing schedule data when trip key hasn't changed
 - **Batch Model Loading**: Loads ML models in batch when computing multiple predictions for a vessel
+- **Stable Departure Semantics**: Uses feed-provided `LeftDock` only, avoiding inferred departures from noisy `AtDock` transitions
 
 See `convex/functions/vesselTrips/updates/README.md` for detailed performance optimizations in the trip updates module.
 
@@ -235,6 +242,7 @@ See `convex/functions/vesselTrips/updates/README.md` for detailed performance op
   - Detailed architecture of the current trip-update design (buildTrip, baseTripFromLocation, appendFinalSchedule, appendPredictions, delayed trip boundaries)
   - Centralized event detection via `detectTripEvents()`
   - Event-driven processing for first trip, trip boundaries, and regular updates
+  - `LeftDock` as the source of truth for departure detection
   - ML prediction generation and actualization lifecycle
   - Build-then-compare pattern for database write optimization
   - Field reference table with update rules

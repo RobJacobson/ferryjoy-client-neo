@@ -10,7 +10,7 @@ This module synchronizes active vessel trips with live location data. It runs as
 3. `appendFinalSchedule` — deterministic schedule lookup by Key once the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
 4. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
-**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update, and `getDockDepartureState` provides the shared `LeftDock` inference used by both event detection and trip field derivation.
+**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update, and `getDockDepartureState` provides the shared `LeftDock` handling used by both event detection and trip field derivation.
 
 **Naming convention**:
 - `buildTrip` - Main orchestrator that creates complete trip from scratch
@@ -162,7 +162,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | `shouldStartTrip` | `existingTrip && !existingTrip.TripStart && !existingTrip.ArrivingTerminalAbbrev && currLocation.ArrivingTerminalAbbrev && currLocation.AtDock` | Promote an observed pre-trip into a real trip |
 | `isCompletedTrip` | `hasTripEvidence && isTripStartReady && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` | Delayed trip boundary once the previous trip has real evidence (`LeftDock` or `ArriveDest`) |
 | `didJustArriveAtDock` | `existingTrip.LeftDock && !existingTrip.ArriveDest && currLocation.AtDock && currLocation.DepartingTerminalAbbrev !== existingTrip.DepartingTerminalAbbrev` | Vessel physically reached a new dock after a real sailing leg, even if the feed's expected-destination field is stale |
-| `didJustLeaveDock` | `existingTrip?.LeftDock === undefined && (currLocation.LeftDock !== undefined \|\| (existingTrip.AtDock && !currLocation.AtDock))` | Vessel just departed dock |
+| `didJustLeaveDock` | `existingTrip?.LeftDock === undefined && currLocation.LeftDock !== undefined` | Vessel just departed dock |
 | `keyChanged` | `computedKey !== undefined && existingTrip?.Key !== computedKey` | Trip schedule identifier became available or changed |
 
 **Benefits**:
@@ -202,7 +202,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **AtDock** | currLocation | Direct copy every tick |
 | **AtDockDuration** | Computed | `LeftDock - ArriveDest` when available, else `LeftDock - TripStart` (minutes); only when LeftDock set |
 | **ScheduledDeparture** | currLocation or existingTrip | `currLocation.ScheduledDeparture ?? existingTrip.ScheduledDeparture` (null-overwrite protection) |
-| **LeftDock** | currLocation, existingTrip, or inferred | Derived by `getDockDepartureState`: `currLocation.LeftDock ?? existingTrip.LeftDock ?? inferredFromTick` |
+| **LeftDock** | currLocation or existingTrip | Derived by `getDockDepartureState`: `currLocation.LeftDock ?? existingTrip.LeftDock` |
 | **TripDelay** | Computed | `LeftDock - ScheduledDeparture` (minutes) |
 | **Eta** | currLocation or existingTrip | `currLocation.Eta ?? existingTrip.Eta` (null-overwrite protection) |
 | **NextScheduledDeparture** | Schedule lookup or existingTrip | Set by appendFinalSchedule; carried forward in baseTripForContinuing when the lookup doesn't run (no overwrite with undefined) |
@@ -229,9 +229,9 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 `NextScheduledDeparture`: Set by `appendFinalSchedule`. Carried forward from `existingTrip` in `baseTripForContinuing` when the lookup does not run. Prevents overwriting with undefined on regular updates.
 
-### LeftDock Special Case
+### LeftDock Source of Truth
 
-When `AtDock` flips false and `LeftDock` is missing, use `currLocation.LeftDock ?? currLocation.TimeStamp` (infer from tick).
+Departure is recorded only when the feed provides `LeftDock`. `AtDock` may disagree transiently, but it does not create or clear `LeftDock`.
 
 ### ArriveDest Guardrails
 
