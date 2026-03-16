@@ -95,7 +95,10 @@ export const BlurView = ({
   return (
     <View
       {...props}
-      style={[style, { position: "relative", overflow: "hidden", borderRadius }]}
+      style={[
+        style,
+        { position: "relative", overflow: "hidden", borderRadius },
+      ]}
     >
       <View
         pointerEvents="none"

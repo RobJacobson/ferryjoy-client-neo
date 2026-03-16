@@ -88,9 +88,7 @@ export const TimelineContent = ({
   );
 };
 
-const toSharedTimelineRenderRow = (
-  row: TimelineRenderRow
-) => ({
+const toSharedTimelineRenderRow = (row: TimelineRenderRow) => ({
   ...row,
   startBoundary: toSharedTimelineBoundary(row.startBoundary),
   endBoundary: row.endBoundary

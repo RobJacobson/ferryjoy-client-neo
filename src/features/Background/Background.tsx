@@ -5,9 +5,9 @@
 // ParallaxProvider context. Paper texture passed down as paperTextureUrl.
 // ============================================================================
 
+import { View } from "@/components/ui";
 import { Sky } from "./Sky/index";
 import { AnimatedWaves } from "./Waves/index";
-import { View } from "@/components/ui";
 
 /**
  * Props for Background component.

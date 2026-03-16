@@ -21,7 +21,7 @@ export const TimelineTerminalCards = ({ rows }: TimelineTerminalCardsProps) => (
         <View
           key={`${row.id}-card`}
           className={cn(
-            "absolute right-0 left-0 bg-pink-100",
+            "absolute right-0 left-0 bg-pink-300/25",
             cardPosition === "top" && "rounded-t-[28px]",
             cardPosition === "bottom" && "rounded-b-[28px]",
             cardPosition === "single" && "rounded-[28px]"

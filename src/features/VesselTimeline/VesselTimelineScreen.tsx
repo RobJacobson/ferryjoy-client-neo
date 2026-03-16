@@ -26,8 +26,7 @@ export const VesselTimelineScreen = ({
   sailingDay,
   routeAbbrevs,
 }: VesselTimelineScreenProps) => (
-  <View className="flex-1">
-    <GradientBackground backgroundColor="#F5EFE3" />
+  <GradientBackground backgroundColor="#F5EFE3">
     <View className="flex-1">
       <VesselTimeline
         vesselAbbrev={vesselAbbrev}
@@ -35,5 +34,5 @@ export const VesselTimelineScreen = ({
         routeAbbrevs={routeAbbrevs}
       />
     </View>
-  </View>
+  </GradientBackground>
 );

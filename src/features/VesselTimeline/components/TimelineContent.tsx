@@ -84,7 +84,7 @@ export const TimelineContent = ({
   return (
     <ScrollView
       ref={scrollViewRef}
-      className="flex-1 bg-background"
+      className="flex-1 bg-transparent"
       contentContainerStyle={{ paddingBottom: 32 }}
       onLayout={(event) => {
         setViewportHeightPx(event.nativeEvent.layout.height);
@@ -113,7 +113,7 @@ export const TimelineContent = ({
               completedPercent={completedPercent}
               remainingPercent={remainingPercent}
             />
-            {rows.map((row, rowIndex) => (
+            {rows.map((row, _rowIndex) => (
               <TimelineRow
                 key={row.id}
                 id={row.id}

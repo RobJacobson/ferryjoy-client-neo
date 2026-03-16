@@ -32,7 +32,7 @@ const RoutesCarouselLayout = ({
       }}
       className="flex-1 items-center justify-center"
     >
-      <View className="flex-1 w-full items-center justify-center">
+      <View className="w-full flex-1 items-center justify-center">
         <View className="w-full" style={{ height: cardHeight }}>
           {children}
         </View>

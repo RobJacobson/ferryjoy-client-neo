@@ -40,6 +40,5 @@ const getLeadingContentStyle = (): ViewStyle => ({
 
 const getTrailingContentStyle = (): ViewStyle => ({
   flex: 1,
-  paddingLeft:
-    TIMELINE_MARKER_COLUMN_WIDTH_PX / 2 + TIMELINE_CONTENT_GUTTER_PX,
+  paddingLeft: TIMELINE_MARKER_COLUMN_WIDTH_PX / 2 + TIMELINE_CONTENT_GUTTER_PX,
 });
