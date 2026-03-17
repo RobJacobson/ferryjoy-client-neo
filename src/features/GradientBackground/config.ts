@@ -10,6 +10,14 @@ export type GradientStop = {
   alpha: number;
 };
 
+export type GradientBackgroundNoiseConfig = {
+  enabled: boolean;
+  opacity: number;
+  scale: number;
+  offsetXPx: number;
+  offsetYPx: number;
+};
+
 export type GradientOrbConfig = {
   id: string;
   color: string;
@@ -33,6 +41,14 @@ export const GRADIENT_BACKGROUND_STOPS: readonly GradientStop[] = [
 ];
 
 export const GRADIENT_BACKGROUND_OVERLAY_COLOR = "rgba(255,255,255,0.08)";
+
+export const GRADIENT_BACKGROUND_NOISE_CONFIG: GradientBackgroundNoiseConfig = {
+  enabled: true,
+  opacity: 0.22,
+  scale: 1,
+  offsetXPx: 0,
+  offsetYPx: 0,
+};
 
 export const GRADIENT_BACKGROUND_COLORS = [
   "#6FA8FF",

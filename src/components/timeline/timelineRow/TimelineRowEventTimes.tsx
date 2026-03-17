@@ -4,6 +4,7 @@
 
 import { CalendarClock, EqualApproximately, Timer } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineTimePoint } from "../types";
@@ -36,7 +37,7 @@ export const TimelineRowEventTimes = ({
 
   return (
     <View
-      className="mt-[-14px] flex-1 flex-row gap-0.5"
+      className="mt-[-14px] flex-1 flex-row gap-1"
       style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       {scheduled && <EventTime time={scheduled} type="scheduled" />}
@@ -56,17 +57,21 @@ const EventTime = ({ time, type }: EventTimeProps) => {
   const Icon = eventTypeIcons[type];
   const displayTime = toDisplayTime(time);
 
+  const iconGapPx = type === "scheduled" ? "gap-1" : "";
+
   return (
-    <View className="relative flex-row gap-1">
+    <View className="relative flex-row">
       {/* Shadow text */}
-      <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
+      <View
+        className={cn("absolute top-[1px] left-[-1px] flex-row", iconGapPx)}
+      >
         <View className="mt-[1px]">
           <Icon size={22} strokeWidth={1.5} color="white" />
         </View>
         <Text className="font-led-phatt text-lg text-white">{displayTime}</Text>
       </View>
       {/* Regular text */}
-      <View className="flex-row gap-1">
+      <View className={cn("flex-row", iconGapPx)}>
         <View className="mt-[1px]">
           <Icon size={24} strokeWidth={1.5} color={EVENT_TIME_ICON_COLOR} />
         </View>
