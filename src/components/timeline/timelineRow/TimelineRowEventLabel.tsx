@@ -6,7 +6,7 @@ import { Text, View } from "@/components/ui";
 import type { TimelineRenderBoundary } from "../types";
 
 type TimelineRowEventLabelProps = {
-  boundary?: TimelineRenderBoundary;
+  boundary: TimelineRenderBoundary;
 };
 
 /**
@@ -18,18 +18,14 @@ type TimelineRowEventLabelProps = {
 export const TimelineRowEventLabel = ({
   boundary,
 }: TimelineRowEventLabelProps) => {
-  const terminalDisplayName = boundary?.currTerminalDisplayName;
-
-  if (!boundary && !terminalDisplayName) {
-    return <View className="flex-1 justify-start" />;
-  }
+  const terminalDisplayName = boundary.currTerminalDisplayName;
 
   const labelText =
-    boundary?.eventType === "arrive"
+    boundary.eventType === "arrive"
       ? boundary.currTerminalAbbrev
         ? `Arrive ${boundary.currTerminalAbbrev}`
         : "Arrive"
-      : boundary?.eventType === "depart"
+      : boundary.eventType === "depart"
         ? boundary.nextTerminalAbbrev
           ? `To ${boundary.nextTerminalAbbrev}`
           : "Depart"
@@ -37,7 +33,7 @@ export const TimelineRowEventLabel = ({
 
   return (
     <View className="relative mx-2 mt-[-8px] flex flex-1 flex-row">
-      {terminalDisplayName && boundary?.eventType === "arrive" && (
+      {terminalDisplayName && boundary.eventType === "arrive" && (
         <View className="absolute -top-8 -left-3 -rotate-[9deg]">
           <View className="absolute top-[2px] left-[-2px]">
             <Text className="font-puffberry text-3xl text-white">
