@@ -13,6 +13,15 @@ type TimelineTerminalCardBackgroundsProps = {
   cards: TerminalCardGeometry[];
 };
 
+const terminalCardPositionClasses: Record<
+  TerminalCardGeometry["position"],
+  string
+> = {
+  top: "rounded-t-[28px] border-x border-t",
+  bottom: "rounded-b-[28px] border-x border-b",
+  single: "rounded-[28px] border",
+};
+
 /**
  * Renders terminal card backgrounds from pre-computed geometry.
  *
@@ -28,9 +37,7 @@ export const TimelineTerminalCardBackgrounds = ({
         key={card.id}
         className={cn(
           "absolute right-0 left-0 border-white bg-white/50",
-          card.position === "top" && "rounded-t-[28px] border-x border-t",
-          card.position === "bottom" && "rounded-b-[28px] border-x border-b",
-          card.position === "single" && "rounded-[28px] border"
+          terminalCardPositionClasses[card.position]
         )}
         style={{
           top: card.topPx,
