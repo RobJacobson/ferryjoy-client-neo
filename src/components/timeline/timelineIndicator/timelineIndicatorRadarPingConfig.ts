@@ -177,7 +177,3 @@ export const getTimelineIndicatorRadarPingLayerStyles = (
       };
     }
   );
-
-export const timelineIndicatorRadarPingVariantKeys = Object.keys(
-  RADAR_PING_VARIANTS
-) as TimelineIndicatorRadarPingVariant[];
