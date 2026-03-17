@@ -25,11 +25,11 @@ export const TimelineRowEventLabel = ({
   const labelText =
     boundary.eventType === "arrive"
       ? boundary.currTerminalAbbrev
-        ? `Arrive ${boundary.currTerminalAbbrev}`
-        : "Arrive"
+        ? `Arv: ${boundary.currTerminalAbbrev}`
+        : "Arv"
       : boundary.nextTerminalAbbrev
-        ? `To ${boundary.nextTerminalAbbrev}`
-        : "Depart";
+        ? `To: ${boundary.nextTerminalAbbrev}`
+        : "Dep";
 
   return (
     <View
@@ -47,7 +47,9 @@ export const TimelineRowEventLabel = ({
       )}
       <View className="flex-1 flex-row justify-end">
         <TimelineShadowText>
-          <Text className="font-led-board text-purple-700">{labelText}</Text>
+          <Text className="mt-[-6px] font-led-phatt text-lg text-purple-700">
+            {labelText}
+          </Text>
         </TimelineShadowText>
       </View>
     </View>

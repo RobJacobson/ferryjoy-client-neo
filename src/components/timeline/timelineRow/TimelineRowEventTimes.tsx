@@ -36,7 +36,7 @@ export const TimelineRowEventTimes = ({
 
   return (
     <View
-      className="mx-2 mt-[-10px] flex-1 flex-row gap-1"
+      className="mt-[-14px] flex-1 flex-row gap-0.5"
       style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       {scheduled && <EventTime time={scheduled} type="scheduled" />}
@@ -58,17 +58,21 @@ const EventTime = ({ time, type }: EventTimeProps) => {
 
   return (
     <View className="relative flex-row gap-1">
+      {/* Shadow text */}
       <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
-        <View className="my-[-1px]">
+        <View className="mt-[1px]">
           <Icon size={22} strokeWidth={1.5} color="white" />
         </View>
-        <Text className="font-led-board text-white">{displayTime}</Text>
+        <Text className="font-led-phatt text-lg text-white">{displayTime}</Text>
       </View>
+      {/* Regular text */}
       <View className="flex-row gap-1">
-        <View className="my-[-1px]">
-          <Icon size={22} strokeWidth={1.5} color={EVENT_TIME_ICON_COLOR} />
+        <View className="mt-[1px]">
+          <Icon size={24} strokeWidth={1.5} color={EVENT_TIME_ICON_COLOR} />
         </View>
-        <Text className="font-led-board text-purple-700">{displayTime}</Text>
+        <Text className="font-led-phatt text-lg text-purple-700">
+          {displayTime}
+        </Text>
       </View>
     </View>
   );
