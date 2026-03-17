@@ -530,7 +530,15 @@ position.
 
 For proportional rows:
 
-- map progress normally through the row height
+- dock rows map time-based progress normally through the row height
+- sea rows prefer distance-based progress from live telemetry:
+  `DepartingDistance / (DepartingDistance + ArrivingDistance)`
+- this is equivalent to
+  `1 - ArrivingDistance / (DepartingDistance + ArrivingDistance)`, so the
+  indicator approaches the row end as distance to the arriving terminal
+  approaches zero
+- if sea-distance telemetry is unavailable or unusable, the renderer falls back
+  to time-based progress for resilience
 
 For compressed dock-break rows:
 

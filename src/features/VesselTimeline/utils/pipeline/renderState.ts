@@ -2,6 +2,7 @@
  * Pipeline stage 5: compute the active indicator and final render state.
  */
 
+import { clamp } from "@/shared/utils";
 import type { VesselLocation } from "@/data/contexts";
 import type {
   TimelineTerminalCard,
@@ -157,7 +158,13 @@ const getActiveIndicator = (
     rowIndex: activeRow.segmentIndex,
     topPx:
       activeRow.topPx +
-      getRowOffsetPx(sourceRow, activeRow.displayHeightPx, layout, now),
+      getRowOffsetPx(
+        sourceRow,
+        activeRow.displayHeightPx,
+        layout,
+        vesselLocation,
+        now
+      ),
     label: getMinutesUntil(sourceRow.endBoundary.timePoint, now),
     title: vesselLocation?.VesselName,
     subtitle: getIndicatorSubtitle(sourceRow, vesselLocation),
@@ -205,11 +212,61 @@ const getIndicatorSubtitle = (
 };
 
 /**
+ * Calculates distance-based in-transit progress when telemetry is available.
+ *
+ * @param departingDistance - Distance from the vessel to the departing terminal
+ * @param arrivingDistance - Distance from the vessel to the arriving terminal
+ * @returns Clamped distance ratio between 0 and 1, or null when unavailable
+ */
+const getDistanceProgress = (
+  departingDistance: number | undefined,
+  arrivingDistance: number | undefined
+): number | null => {
+  if (
+    departingDistance === undefined ||
+    arrivingDistance === undefined ||
+    departingDistance + arrivingDistance <= 0
+  ) {
+    return null;
+  }
+
+  return clamp(
+    departingDistance / (departingDistance + arrivingDistance),
+    0,
+    1
+  );
+};
+
+/**
+ * Returns preferred progress for a sea row: distance when telemetry is usable,
+ * otherwise time-based fallback from the row boundaries.
+ */
+const getSeaProgress = (
+  row: VesselTimelineDocument["rows"][number],
+  vesselLocation: VesselLocation | undefined,
+  now: Date
+): number => {
+  const distanceProgress =
+    row.kind === "sea"
+      ? getDistanceProgress(
+          vesselLocation?.DepartingDistance,
+          vesselLocation?.ArrivingDistance
+        )
+      : null;
+
+  return (
+    distanceProgress ??
+    getTimeProgress(row.startBoundary.timePoint, row.endBoundary.timePoint, now)
+  );
+};
+
+/**
  * Maps a row's current progress into its displayed pixel offset.
  *
  * @param row - Canonical row model
  * @param displayHeightPx - Row display height in pixels
  * @param layout - Layout config for compressed rows
+ * @param vesselLocation - Live vessel telemetry used for at-sea distance progress
  * @param now - Current wall-clock time
  * @returns Pixel offset within the row
  */
@@ -217,8 +274,13 @@ const getRowOffsetPx = (
   row: VesselTimelineDocument["rows"][number],
   displayHeightPx: number,
   layout: VesselTimelineLayoutConfig,
+  vesselLocation: VesselLocation | undefined,
   now: Date
 ) => {
+  if (row.kind === "sea") {
+    return displayHeightPx * getSeaProgress(row, vesselLocation, now);
+  }
+
   if (row.displayMode !== "compressed-dock-break") {
     return (
       displayHeightPx *

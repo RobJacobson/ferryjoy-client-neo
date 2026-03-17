@@ -28,7 +28,7 @@ export const getRows = (
   const { boundaryPoints, fallbackContext } = boundaryData;
   const arrivingTerminalAbbrev = trip.ArrivingTerminalAbbrev ?? "";
   const departingTerminalAbbrev = trip.DepartingTerminalAbbrev;
-  const useDistanceProgress =
+  const hasUsableDistanceProgress =
     vesselLocation.DepartingDistance !== undefined &&
     vesselLocation.ArrivingDistance !== undefined &&
     vesselLocation.DepartingDistance + vesselLocation.ArrivingDistance > 0;
@@ -46,7 +46,7 @@ export const getRows = (
       arrivingTerminalAbbrev,
       boundaryPoints,
       fallbackContext,
-      useDistanceProgress
+      hasUsableDistanceProgress
     ),
     buildDestinationDockRow(
       trip.VesselAbbrev,
@@ -130,7 +130,7 @@ const buildAtSeaRow = (
   arrivingTerminalAbbrev: string,
   points: BoundaryPoints,
   context: FallbackContext,
-  useDistanceProgress: boolean
+  hasUsableDistanceProgress: boolean
 ): TimelineDocumentRow => ({
   id: `${vesselAbbrev}-at-sea`,
   segmentIndex: 1,
@@ -145,7 +145,7 @@ const buildAtSeaRow = (
   },
   geometryMinutes: 0,
   fallbackDurationMinutes: context.defaultAtSeaMinutes,
-  progressMode: useDistanceProgress ? "distance" : "time",
+  progressMode: hasUsableDistanceProgress ? "distance" : "time",
 });
 
 const buildDestinationDockRow = (
