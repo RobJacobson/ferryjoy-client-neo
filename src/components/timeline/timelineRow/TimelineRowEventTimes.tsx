@@ -8,13 +8,13 @@ import { toDisplayTime } from "@/shared/utils/dateConversions";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineTimePoint } from "../types";
 
-const eventTypeIcon = {
+const eventTypeIcons = {
   actual: Timer,
   scheduled: CalendarClock,
   estimated: EqualApproximately,
 } as const;
 
-type EventType = keyof typeof eventTypeIcon;
+type EventType = keyof typeof eventTypeIcons;
 
 type TimelineRowEventTimesProps = {
   point: TimelineTimePoint;
@@ -34,15 +34,13 @@ export const TimelineRowEventTimes = ({
 
   return (
     <View
-      className="mx-2 mt-[-10px] flex-1 justify-start"
+      className="mx-2 mt-[-10px] flex-1 flex-row gap-1"
       style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
-      <View className="flex flex-1 flex-row gap-1">
-        {scheduled && <EventTime time={scheduled} type="scheduled" />}
-        {secondary && (
-          <EventTime time={secondary} type={actual ? "actual" : "estimated"} />
-        )}
-      </View>
+      {scheduled && <EventTime time={scheduled} type="scheduled" />}
+      {secondary && (
+        <EventTime time={secondary} type={actual ? "actual" : "estimated"} />
+      )}
     </View>
   );
 };
@@ -53,12 +51,12 @@ type EventTimeProps = {
 };
 
 const EventTime = ({ time, type }: EventTimeProps) => {
-  const Icon = eventTypeIcon[type];
+  const Icon = eventTypeIcons[type];
   const displayTime = toDisplayTime(time);
 
   return (
-    <View className="relative flex-1 flex-row gap-1">
-      <View className="absolute top-[1px] left-[-1px] flex flex-row gap-1">
+    <View className="relative flex-row gap-1">
+      <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
         <View className="my-[-1px]">
           <Icon size={22} strokeWidth={1.5} color="white" />
         </View>
