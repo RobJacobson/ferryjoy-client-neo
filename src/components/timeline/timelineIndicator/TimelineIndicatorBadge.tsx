@@ -1,5 +1,5 @@
 import type { ComponentRef, RefObject } from "react";
-import { View, type ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
 import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
@@ -15,14 +15,14 @@ export const TimelineIndicatorBadge = ({
   label,
   sizePx,
 }: TimelineIndicatorBadgeProps) => (
-  <View pointerEvents="none" className="absolute" style={getBadgeStyle(sizePx)}>
-    <TimelineIndicatorGlass
-      blurTargetRef={blurTargetRef}
-      contentClassName="h-full w-full items-center justify-center"
-    >
-      <Text className="font-playpen-600 text-purple-700">{label}</Text>
-    </TimelineIndicatorGlass>
-  </View>
+  <TimelineIndicatorGlass
+    blurTargetRef={blurTargetRef}
+    className="absolute"
+    style={getBadgeStyle(sizePx)}
+    contentClassName="h-full w-full items-center justify-center"
+  >
+    <Text className="font-playpen-600 text-purple-700">{label}</Text>
+  </TimelineIndicatorGlass>
 );
 
 const getBadgeStyle = (sizePx: number): ViewStyle => ({

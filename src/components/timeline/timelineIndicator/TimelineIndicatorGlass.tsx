@@ -1,5 +1,6 @@
 import { BlurView } from "expo-blur";
 import type { ComponentRef, ReactNode, RefObject } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 type TimelineIndicatorGlassProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   className?: string;
+  style?: StyleProp<ViewStyle>;
   contentClassName?: string;
   children: ReactNode;
 };
@@ -14,10 +16,12 @@ type TimelineIndicatorGlassProps = {
 export const TimelineIndicatorGlass = ({
   blurTargetRef,
   className,
+  style,
   contentClassName,
   children,
 }: TimelineIndicatorGlassProps) => (
   <View
+    style={style}
     className={cn(
       "overflow-hidden rounded-full border border-purple-400",
       className
