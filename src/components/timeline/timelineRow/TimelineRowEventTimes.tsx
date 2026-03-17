@@ -5,8 +5,8 @@
 import { CalendarClock, EqualApproximately, Timer } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
+import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineTimePoint } from "../types";
-import { TimelineShadowText } from "./TimelineShadowText";
 
 const eventTypeIcon = {
   actual: Timer,
@@ -33,7 +33,10 @@ export const TimelineRowEventTimes = ({
   const secondary = actual ?? estimated;
 
   return (
-    <View className="mx-2 mt-[-10px] flex-1 justify-start">
+    <View
+      className="mx-2 mt-[-10px] flex-1 justify-start"
+      style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
+    >
       <View className="flex flex-1 flex-row gap-1">
         {scheduled && <EventTime time={scheduled} type="scheduled" />}
         {secondary && (

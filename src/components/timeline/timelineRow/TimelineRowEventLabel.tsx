@@ -3,6 +3,7 @@
  */
 
 import { Text, View } from "@/components/ui";
+import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineRenderBoundary } from "../types";
 import { TimelineShadowText } from "./TimelineShadowText";
 
@@ -33,7 +34,10 @@ export const TimelineRowEventLabel = ({
         : undefined;
 
   return (
-    <View className="relative mx-2 mt-[-8px] flex flex-1 flex-row">
+    <View
+      className="relative mx-2 mt-[-8px] flex flex-1 flex-row"
+      style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
+    >
       {terminalDisplayName && boundary.eventType === "arrive" && (
         <View className="absolute -top-8 -left-3 -rotate-[9deg]">
           <TimelineShadowText>
