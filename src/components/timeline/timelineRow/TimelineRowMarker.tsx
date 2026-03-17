@@ -4,6 +4,7 @@
 
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import {
   TIMELINE_MARKER_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
@@ -30,12 +31,12 @@ export const TimelineRowMarker = ({ row }: TimelineRowMarkerProps) => (
         : "border border-green-200 bg-green-500"
     )}
     style={{
-      top: 0,
       left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
-      width: TIMELINE_MARKER_SIZE_PX,
-      height: TIMELINE_MARKER_SIZE_PX,
-      marginTop: -TIMELINE_MARKER_SIZE_PX / 2,
-      marginLeft: -TIMELINE_MARKER_SIZE_PX / 2,
+      top: 0,
+      ...getAbsoluteCenteredBoxStyle({
+        width: TIMELINE_MARKER_SIZE_PX,
+        height: TIMELINE_MARKER_SIZE_PX,
+      }),
     }}
   >
     <TimelineRowMarkerIcon
