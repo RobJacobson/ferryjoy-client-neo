@@ -12,16 +12,12 @@ const EASE_IN_OUT_CONFIG = {
   easing: Easing.inOut(Easing.quad),
 } as const;
 
-export const useAnimatedProgress = (value: number, shouldJump = false) => {
+export const useAnimatedProgress = (value: number) => {
   const animatedProgress = useSharedValue(value);
 
   useEffect(() => {
-    if (shouldJump) {
-      animatedProgress.value = value;
-    } else {
-      animatedProgress.value = withTiming(value, EASE_IN_OUT_CONFIG);
-    }
-  }, [animatedProgress, shouldJump, value]);
+    animatedProgress.value = withTiming(value, EASE_IN_OUT_CONFIG);
+  }, [animatedProgress, value]);
 
   return animatedProgress;
 };

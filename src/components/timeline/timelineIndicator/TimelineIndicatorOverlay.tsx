@@ -32,7 +32,6 @@ export const TimelineIndicatorOverlay = ({
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
         topPx={overlayViewState.topPx}
-        shouldJump={overlayViewState.shouldJump}
         label={overlayViewState.label}
         title={overlayIndicator?.title}
         subtitle={overlayIndicator?.subtitle}

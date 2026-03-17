@@ -20,7 +20,6 @@ import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicatorRadar
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   topPx: number;
-  shouldJump?: boolean;
   label: string;
   title?: string;
   subtitle?: string;
@@ -34,7 +33,6 @@ type TimelineIndicatorProps = {
 export const TimelineIndicator = ({
   blurTargetRef,
   topPx,
-  shouldJump = false,
   label,
   title,
   subtitle,
@@ -44,7 +42,7 @@ export const TimelineIndicator = ({
   showRadarPing = true,
   radarPingVariant = "glass-orchid",
 }: TimelineIndicatorProps) => {
-  const progress = useAnimatedProgress(topPx, shouldJump);
+  const progress = useAnimatedProgress(topPx);
   const rockingStyle = useRockingAnimation(animate, speedKnots);
 
   const animatedStyle = useAnimatedStyle(() => {
