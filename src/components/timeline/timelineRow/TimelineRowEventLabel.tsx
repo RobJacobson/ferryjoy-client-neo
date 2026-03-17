@@ -27,15 +27,13 @@ export const TimelineRowEventLabel = ({
       ? boundary.currTerminalAbbrev
         ? `Arrive ${boundary.currTerminalAbbrev}`
         : "Arrive"
-      : boundary.eventType === "depart"
-        ? boundary.nextTerminalAbbrev
-          ? `To ${boundary.nextTerminalAbbrev}`
-          : "Depart"
-        : undefined;
+      : boundary.nextTerminalAbbrev
+        ? `To ${boundary.nextTerminalAbbrev}`
+        : "Depart";
 
   return (
     <View
-      className="relative mx-2 mt-[-8px] flex flex-1 flex-row"
+      className="relative mx-2 mt-[-8px] flex-1 flex-row"
       style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       {terminalDisplayName && boundary.eventType === "arrive" && (
@@ -47,7 +45,7 @@ export const TimelineRowEventLabel = ({
           </TimelineShadowText>
         </View>
       )}
-      <View className="flex flex-1 flex-row justify-end">
+      <View className="flex-1 flex-row justify-end">
         <TimelineShadowText>
           <Text className="font-led-board text-purple-700">{labelText}</Text>
         </TimelineShadowText>

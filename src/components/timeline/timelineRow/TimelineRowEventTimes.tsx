@@ -14,6 +14,8 @@ const eventTypeIcons = {
   estimated: EqualApproximately,
 } as const;
 
+const EVENT_TIME_ICON_COLOR = "hsl(273 81% 47%)";
+
 type EventType = keyof typeof eventTypeIcons;
 
 type TimelineRowEventTimesProps = {
@@ -64,7 +66,7 @@ const EventTime = ({ time, type }: EventTimeProps) => {
       </View>
       <View className="flex-row gap-1">
         <View className="my-[-1px]">
-          <Icon size={22} strokeWidth={1.5} color="hsl(273 81% 47%)" />
+          <Icon size={22} strokeWidth={1.5} color={EVENT_TIME_ICON_COLOR} />
         </View>
         <Text className="font-led-board text-purple-700">{displayTime}</Text>
       </View>
