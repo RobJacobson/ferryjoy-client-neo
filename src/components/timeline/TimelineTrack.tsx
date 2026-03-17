@@ -3,7 +3,10 @@
  */
 
 import { View } from "@/components/ui";
-import { TIMELINE_TRACK_X_POSITION_PERCENT } from "./config";
+import {
+  TIMELINE_INDICATOR_SIZE_PX,
+  TIMELINE_TRACK_X_POSITION_PERCENT,
+} from "./config";
 
 type TimelineTrackProps = {
   containerHeightPx: number;
@@ -26,9 +29,9 @@ export const TimelineTrack = ({
       pointerEvents="none"
       style={{
         left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
-        width: 42,
+        width: TIMELINE_INDICATOR_SIZE_PX,
         height: containerHeightPx,
-        marginLeft: -21,
+        marginLeft: -TIMELINE_INDICATOR_SIZE_PX / 2,
       }}
     >
       <View
