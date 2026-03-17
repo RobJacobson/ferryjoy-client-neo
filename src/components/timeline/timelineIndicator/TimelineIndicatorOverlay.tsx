@@ -4,6 +4,7 @@
 
 import type { ComponentRef, RefObject } from "react";
 import { View } from "@/components/ui";
+import { TIMELINE_INDICATOR_SIZE_PX } from "../config";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { getOverlayViewState } from "../viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
@@ -37,7 +38,7 @@ export const TimelineIndicatorOverlay = ({
         subtitle={overlayIndicator?.subtitle}
         animate={overlayIndicator?.animate}
         speedKnots={overlayIndicator?.speedKnots}
-        sizePx={42}
+        sizePx={TIMELINE_INDICATOR_SIZE_PX}
       />
     </View>
   );

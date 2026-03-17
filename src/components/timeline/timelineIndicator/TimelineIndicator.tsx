@@ -6,7 +6,10 @@ import type { ComponentRef, RefObject } from "react";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import { TIMELINE_TRACK_X_POSITION_PERCENT } from "../config";
+import {
+  TIMELINE_INDICATOR_SIZE_PX,
+  TIMELINE_TRACK_X_POSITION_PERCENT,
+} from "../config";
 import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
@@ -37,7 +40,7 @@ export const TimelineIndicator = ({
   subtitle,
   animate = false,
   speedKnots = 0,
-  sizePx = 42,
+  sizePx = TIMELINE_INDICATOR_SIZE_PX,
   showRadarPing = true,
   radarPingVariant = "glass-orchid",
 }: TimelineIndicatorProps) => {
