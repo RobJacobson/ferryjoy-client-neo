@@ -13,13 +13,13 @@ type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   /** Measured timeline row bounds used to position the active indicator. */
-  rowLayouts?: Record<string, RowLayoutBounds>;
+  rowLayouts: Record<string, RowLayoutBounds>;
 };
 
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
   blurTargetRef,
-  rowLayouts = {},
+  rowLayouts,
 }: TimelineIndicatorOverlayProps) => {
   const overlayViewState = getOverlayViewState(overlayIndicator, rowLayouts);
 
