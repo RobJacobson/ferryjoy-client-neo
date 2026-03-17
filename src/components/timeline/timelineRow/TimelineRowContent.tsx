@@ -22,7 +22,7 @@ const TIMELINE_SIDE_COLUMN_OFFSET_PX =
 
 export const TimelineRowContent = ({ row }: TimelineRowContentProps) => (
   <View className="relative h-full w-full">
-    <View className="h-full w-full flex-row items-stretch">
+    <View className="h-full flex-row">
       <View
         style={{
           width: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,

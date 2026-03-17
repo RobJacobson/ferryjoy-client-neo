@@ -4,9 +4,9 @@
 
 import { CalendarClock, EqualApproximately, Timer } from "lucide-react-native";
 import { Text, View } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import type { TimelineTimePoint } from "../types";
+import { TimelineShadowText } from "./TimelineShadowText";
 
 const eventTypeIcon = {
   actual: Timer,
@@ -51,20 +51,22 @@ type EventTimeProps = {
 
 const EventTime = ({ time, type }: EventTimeProps) => {
   const Icon = eventTypeIcon[type];
+  const displayTime = toDisplayTime(time);
+
   return (
     <View className="relative flex-1 flex-row gap-1">
       <View className="absolute top-[1px] left-[-1px] flex flex-row gap-1">
         <View className="my-[-1px]">
           <Icon size={22} strokeWidth={1.5} color="white" />
         </View>
-        <Text className="font-led-board text-white">{toDisplayTime(time)}</Text>
+        <Text className="font-led-board text-white">{displayTime}</Text>
       </View>
-      <View className="my-[-1px]">
-        <Icon size={22} strokeWidth={1.5} color="hsl(273 81% 47%)" />
+      <View className="flex-row gap-1">
+        <View className="my-[-1px]">
+          <Icon size={22} strokeWidth={1.5} color="hsl(273 81% 47%)" />
+        </View>
+        <Text className="font-led-board text-purple-700">{displayTime}</Text>
       </View>
-      <Text className="font-led-board text-purple-700">
-        {toDisplayTime(time)}
-      </Text>
     </View>
   );
 };

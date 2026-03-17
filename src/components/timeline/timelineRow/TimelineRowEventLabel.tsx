@@ -4,6 +4,7 @@
 
 import { Text, View } from "@/components/ui";
 import type { TimelineRenderBoundary } from "../types";
+import { TimelineShadowText } from "./TimelineShadowText";
 
 type TimelineRowEventLabelProps = {
   boundary: TimelineRenderBoundary;
@@ -35,25 +36,17 @@ export const TimelineRowEventLabel = ({
     <View className="relative mx-2 mt-[-8px] flex flex-1 flex-row">
       {terminalDisplayName && boundary.eventType === "arrive" && (
         <View className="absolute -top-8 -left-3 -rotate-[9deg]">
-          <View className="absolute top-[2px] left-[-2px]">
-            <Text className="font-puffberry text-3xl text-white">
-              {terminalDisplayName}
-            </Text>
-          </View>
-          <View className="relative">
+          <TimelineShadowText>
             <Text className="font-puffberry text-3xl text-purple-400">
               {terminalDisplayName}
             </Text>
-          </View>
+          </TimelineShadowText>
         </View>
       )}
       <View className="flex flex-1 flex-row justify-end">
-        <View className="relative">
-          <View className="absolute top-[2px] left-[-2px]">
-            <Text className="font-led-board text-white">{labelText}</Text>
-          </View>
+        <TimelineShadowText>
           <Text className="font-led-board text-purple-700">{labelText}</Text>
-        </View>
+        </TimelineShadowText>
       </View>
     </View>
   );
