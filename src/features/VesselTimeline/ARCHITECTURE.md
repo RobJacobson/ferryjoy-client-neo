@@ -163,13 +163,14 @@ This table exists specifically to support `VesselTimeline`. It is intentionally
 smaller than the trip lifecycle tables and is not an audit log. It is a mutable
 read model that stores the best current boundary data for one vessel/day.
 
-### Schedule seeding
+### Schedule seeding and historical backfill
 
 The event skeleton is seeded during scheduled-trip sync.
 
 Source of truth for seeding:
 
 - raw WSF schedule data, transformed into direct physical scheduled segments
+- WSF vessel history for completed trips on the same sailing day
 
 The schedule pipeline classifies direct vs indirect marketing trips and then
 creates seed events only from direct segments. For each direct segment:
@@ -192,7 +193,20 @@ Field creation rules:
 - `PredictedTime`
   - omitted at seed time
 - `ActualTime`
-  - omitted at seed time
+  - omitted at raw schedule seed time
+
+After the direct schedule skeleton is built, the backend may backfill completed
+rows from WSF vessel history:
+
+- departure actual source
+  - WSF `ActualDepart`
+- arrival actual source
+  - WSF `EstArrival` proxy
+
+When a stored `ActualTime` already exists for the same logical event:
+
+- keep it when the delta from WSF history is `< 3 minutes`
+- replace it when the delta is `>= 3 minutes`
 
 This creates a stable vessel/day event skeleton before any live data arrives.
 
@@ -208,7 +222,9 @@ shape, and passes the same location batch to three parallel backend branches:
 3. update `vesselTripEvents`
 
 For `VesselTimeline`, live updates use lightweight boundary rules rather than
-the full trip lifecycle model.
+the full trip lifecycle model. Their main job is to refine in-progress and
+future rows after the daily rebuild has already populated completed rows from
+schedule/history sources.
 
 Departure / arrival evidence:
 

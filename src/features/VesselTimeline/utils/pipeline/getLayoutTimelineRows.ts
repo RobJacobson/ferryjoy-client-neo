@@ -97,6 +97,7 @@ const toRenderBoundary = (
       side === "start" && kind === "sea"
         ? row.endEvent.TerminalAbbrev
         : undefined,
+    isArrivalPlaceholder: event.IsArrivalPlaceholder,
     timePoint: {
       scheduled: event.ScheduledTime,
       actual: event.ActualTime,

@@ -38,6 +38,7 @@ export type VesselTimelinePolicy = {
  */
 export type TimelineRowEvent = VesselTimelineEvent & {
   TerminalDisplayName?: string;
+  IsArrivalPlaceholder?: boolean;
 };
 
 /**

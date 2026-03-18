@@ -24,7 +24,10 @@ export const TimelineRowContent = ({ row }: TimelineRowContentProps) => (
         <TimelineRowEventLabel boundary={row.startBoundary} />
       </View>
       <View className="flex-1">
-        <TimelineRowEventTimes point={row.startBoundary.timePoint} />
+        <TimelineRowEventTimes
+          point={row.startBoundary.timePoint}
+          showPlaceholder={row.startBoundary.isArrivalPlaceholder === true}
+        />
       </View>
     </View>
     <TimelineRowMarker row={row} />
