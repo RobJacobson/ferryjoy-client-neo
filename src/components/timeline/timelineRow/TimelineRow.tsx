@@ -4,11 +4,9 @@
 
 import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
-import Animated, { Easing, LinearTransition } from "react-native-reanimated";
+import { View } from "react-native";
 import { cn } from "@/lib/utils";
 import type { RowLayoutBounds } from "../types";
-
-const ROW_LAYOUT_TRANSITION_DURATION_MS = 10000;
 
 export type TimelineRowProps = {
   id: string;
@@ -39,16 +37,13 @@ export const TimelineRow = ({
   };
 
   return (
-    <Animated.View
+    <View
       className={cn("w-full", rowClassName)}
       style={rowStyle}
-      layout={LinearTransition.duration(
-        ROW_LAYOUT_TRANSITION_DURATION_MS
-      ).easing(Easing.inOut(Easing.quad))}
       onLayout={handleLayout}
     >
       {children}
-    </Animated.View>
+    </View>
   );
 };
 

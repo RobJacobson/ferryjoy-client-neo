@@ -163,11 +163,21 @@ This protects the timeline from transient feed noise.
 
 ## Time Precedence
 
-For display and state quality, the precedence is:
+For display and state quality, the backend precedence is:
 
 - `ActualTime` is best truth when present
 - `PredictedTime` is mutable live guidance
 - `ScheduledTime` is the fallback baseline
+
+For `VesselTimeline` frontend layout geometry, the consumer now intentionally
+uses a separate schedule-first precedence:
+
+- `ScheduledTime`
+- `ActualTime`
+- `PredictedTime`
+
+That keeps the rendered timeline stable while still exposing live truth for
+labels and indicator behavior.
 
 ## Reseed Behavior
 

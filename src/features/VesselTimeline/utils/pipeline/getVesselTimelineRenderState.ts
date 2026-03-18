@@ -1,22 +1,27 @@
 /**
- * Day-level vessel timeline pipeline entry point.
+ * Day-level vessel timeline view-model entry point.
  */
 
 import type { VesselLocation, VesselTimelineEvent } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
+  VesselTimelinePolicy,
   VesselTimelineRenderState,
 } from "../../types";
-import { getBoundaryData } from "./boundaries";
-import { getDocument } from "./document";
-import { renderRows } from "./renderRows";
-import { renderState } from "./renderState";
-import { getRows } from "./rows";
+import { buildTimelineRows } from "./buildTimelineRows";
+import { buildActiveIndicator, getActiveRowIndex } from "./getActiveRowIndex";
+import { getLayoutTimelineRows } from "./getLayoutTimelineRows";
 
 const PIXELS_PER_MINUTE_MIN = 4;
 const PIXELS_PER_MINUTE_MAX = 8;
 const PIXELS_PER_MINUTE_PER_ROW = 0.15;
+
+export const DEFAULT_VESSEL_TIMELINE_POLICY: VesselTimelinePolicy = {
+  compressedDockThresholdMinutes: 60,
+  compressedDockArrivalStubMinutes: 10,
+  compressedDockDepartureWindowMinutes: 50,
+};
 
 /**
  * Default display/layout config for the vessel-day timeline.
@@ -24,10 +29,7 @@ const PIXELS_PER_MINUTE_PER_ROW = 0.15;
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   pixelsPerMinute: 4,
   minRowHeightPx: 36,
-  compressedBreakThresholdMinutes: 60,
   compressedBreakMarkerHeightPx: 20,
-  compressedBreakStubMinutes: 10,
-  compressedBreakDepartureWindowMinutes: 50,
   terminalCardTopOffsetPx: -20,
   terminalCardDepartureCapHeightPx: 20,
   initialAutoScroll: "center-active-indicator",
@@ -53,17 +55,32 @@ export const getVesselTimelineRenderState = (
     ...layout,
     pixelsPerMinute: getAdaptivePixelsPerMinute(Events),
   };
-  const boundaryData = getBoundaryData(Events);
-  const rows = getRows(boundaryData, adjustedLayout);
-  const document = getDocument(rows, vesselLocation, now);
-  const renderRowsOut = renderRows(document, adjustedLayout);
-  return renderState(
-    document,
-    renderRowsOut,
-    adjustedLayout,
-    vesselLocation,
-    now
+
+  const semanticRows = buildTimelineRows(
+    Events,
+    DEFAULT_VESSEL_TIMELINE_POLICY
   );
+  const activeRowIndex = getActiveRowIndex(semanticRows, vesselLocation, now);
+  const { rows, terminalCards, contentHeightPx } = getLayoutTimelineRows(
+    semanticRows,
+    activeRowIndex,
+    adjustedLayout
+  );
+
+  return {
+    rows,
+    terminalCards,
+    activeIndicator: buildActiveIndicator({
+      rows: semanticRows,
+      activeRowIndex,
+      vesselLocation,
+      now,
+      policy: DEFAULT_VESSEL_TIMELINE_POLICY,
+      layout: adjustedLayout,
+    }),
+    contentHeightPx,
+    layout: adjustedLayout,
+  };
 };
 
 /**

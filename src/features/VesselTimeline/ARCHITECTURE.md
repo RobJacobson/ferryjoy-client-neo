@@ -5,8 +5,8 @@ feature.
 
 `VesselTimeline` renders one continuous day timeline for one vessel on one
 requested sailing day. The feature is event-based: the backend assembles a
-minimal ordered list of dock-boundary events, and the frontend converts those
-events into dock and sea rows for display.
+minimal ordered list of dock events, and the frontend converts adjacent event
+pairs into dock and sea rows for display.
 
 ## Scope
 
@@ -238,9 +238,15 @@ Update rules:
 
 Field precedence:
 
-- `ActualTime` is the best truth when present
-- `PredictedTime` is mutable and may be overwritten by better live data
-- `ScheduledTime` remains the fallback baseline
+- display/state quality:
+  - `ActualTime` is the best truth when present
+  - `PredictedTime` is mutable and may be overwritten by better live data
+  - `ScheduledTime` remains the fallback baseline
+- layout geometry:
+  - `ScheduledTime` is the stable baseline for row sizing and positioning
+  - `ActualTime` is the fallback when schedule time is missing
+  - `PredictedTime` is the last-resort fallback when neither scheduled nor
+    actual time exists
 
 ### Frontend context
 
@@ -272,23 +278,12 @@ client-side.
 
 ## Frontend Pipeline
 
-The frontend pipeline is now event-based.
+The frontend pipeline is event-based and intentionally small.
 
-### Stage 1: Boundary derivation
+### Stage 1: Row construction
 
-`boundaries.ts` converts ordered `VesselTimelineEvent[]` into boundary-oriented
-data:
-
-- one boundary per event
-- each boundary carries:
-  - terminal
-  - event type
-  - scheduled departure anchor
-  - a time point containing scheduled / predicted / actual values
-
-### Stage 2: Row construction
-
-`rows.ts` builds canonical rows by examining adjacent event boundaries.
+`buildTimelineRows.ts` builds semantic rows directly from adjacent
+`VesselTimelineEvent` pairs.
 
 Rules:
 
@@ -302,17 +297,33 @@ Rules:
 - terminal tail row:
   - if the final event is an arrival, append a zero-duration terminal row
 
-Duration calculations use the best available time for each boundary in this
-order:
+Each row is represented by:
 
+- `startEvent`
+- `endEvent`
+- row kind
+- display mode
+- duration metadata
+
+Duration calculations intentionally use schedule-first layout precedence:
+
+- `scheduled`
 - `actual`
 - `estimated`
-- `scheduled`
 
-### Stage 3: Document and render state
+This keeps row heights and positions stable as live predictions and actuals
+arrive throughout the day. Live times are still preserved for labels and
+indicator behavior.
 
-Later pipeline stages convert rows into a renderable document and live indicator
-state.
+### Stage 2: Active row and layout
+
+The later pipeline steps derive:
+
+- the active row
+- active indicator state
+- pixel heights
+- terminal card geometry
+- final render rows for the shared timeline renderer
 
 The frontend still owns:
 
@@ -325,8 +336,8 @@ The frontend still owns:
 `VesselLocation` remains important even though the timeline rows come from
 events:
 
-- it drives the active indicator's current state
-- it supports at-dock vs at-sea behavior
+- it helps place the active indicator within the current row
+- it contributes at-dock vs at-sea presentation details
 - it surfaces out-of-service warning state
 
 ## Source Of Truth Boundaries

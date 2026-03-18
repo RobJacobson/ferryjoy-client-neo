@@ -28,7 +28,7 @@ export type TimelineRenderRow = {
   kind: TimelineSegmentKind;
   markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
-  geometryMinutes: number;
+  displayHeightPx: number;
   startBoundary: TimelineRenderBoundary;
   endBoundary?: TimelineRenderBoundary;
   isFinalRow: boolean;
