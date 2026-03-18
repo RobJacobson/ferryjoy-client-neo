@@ -4,6 +4,7 @@
 
 import type { ComponentRef, RefObject } from "react";
 import { View } from "@/components/ui";
+import { TIMELINE_INDICATOR_SIZE_PX } from "../config";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { getOverlayViewState } from "../viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
@@ -12,13 +13,13 @@ type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   /** Measured timeline row bounds used to position the active indicator. */
-  rowLayouts?: Record<string, RowLayoutBounds>;
+  rowLayouts: Record<string, RowLayoutBounds>;
 };
 
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
   blurTargetRef,
-  rowLayouts = {},
+  rowLayouts,
 }: TimelineIndicatorOverlayProps) => {
   const overlayViewState = getOverlayViewState(overlayIndicator, rowLayouts);
 
@@ -27,21 +28,16 @@ export const TimelineIndicatorOverlay = ({
   }
 
   return (
-    <View
-      pointerEvents="none"
-      className="absolute inset-0 z-10"
-      style={{ elevation: 10 }}
-    >
+    <View pointerEvents="none" className="absolute inset-0">
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
         topPx={overlayViewState.topPx}
-        shouldJump={overlayViewState.shouldJump}
         label={overlayViewState.label}
         title={overlayIndicator?.title}
         subtitle={overlayIndicator?.subtitle}
         animate={overlayIndicator?.animate}
         speedKnots={overlayIndicator?.speedKnots}
-        sizePx={42}
+        sizePx={TIMELINE_INDICATOR_SIZE_PX}
       />
     </View>
   );

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConvexVesselLocations } from "@/data/contexts";
+import { GradientBackground } from "@/features/GradientBackground";
 import { VesselTimeline } from "@/features/VesselTimeline";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 
@@ -63,66 +64,68 @@ export default function VesselTimelinePlaceholderScreen() {
   }, [selectedOption, vesselLocations, vesselOptions]);
 
   return (
-    <View className="flex-1 bg-background">
-      <Stack.Screen
-        options={{
-          title: "Vessel Timeline",
-          headerTitleAlign: "center",
-        }}
-      />
-      <View className="gap-4 px-4 py-4">
-        <Text className="font-semibold text-lg">
-          Placeholder Vessel Timeline
-        </Text>
-        <Text className="text-muted-foreground text-sm">
-          Select a vessel to preview the day-level timeline implementation.
-        </Text>
-        {isLoading ? (
-          <Text className="text-muted-foreground text-sm">
-            Loading vessel list...
+    <GradientBackground backgroundColor="#F5EFE3">
+      <View className="flex-1">
+        <Stack.Screen
+          options={{
+            title: "Vessel Timeline",
+            headerTitleAlign: "center",
+          }}
+        />
+        <View className="gap-4 px-4 py-4">
+          <Text className="font-semibold text-lg">
+            Placeholder Vessel Timeline
           </Text>
-        ) : error ? (
-          <Text className="text-destructive text-sm">{error}</Text>
-        ) : vesselOptions.length === 0 ? (
           <Text className="text-muted-foreground text-sm">
-            No vessels are currently available.
+            Select a vessel to preview the day-level timeline implementation.
           </Text>
+          {isLoading ? (
+            <Text className="text-muted-foreground text-sm">
+              Loading vessel list...
+            </Text>
+          ) : error ? (
+            <Text className="text-destructive text-sm">{error}</Text>
+          ) : vesselOptions.length === 0 ? (
+            <Text className="text-muted-foreground text-sm">
+              No vessels are currently available.
+            </Text>
+          ) : (
+            <Select value={selectedOption} onValueChange={setSelectedOption}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a vessel" />
+              </SelectTrigger>
+              <SelectContent>
+                <NativeSelectScrollView>
+                  {vesselOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      label={option.label}
+                    >
+                      <Text>{option.label}</Text>
+                    </SelectItem>
+                  ))}
+                </NativeSelectScrollView>
+              </SelectContent>
+            </Select>
+          )}
+        </View>
+        {selectedOption ? (
+          <VesselTimeline
+            vesselAbbrev={selectedOption.value}
+            sailingDay={sailingDay}
+            routeAbbrevs={
+              selectedOption.routeAbbrev ? [selectedOption.routeAbbrev] : []
+            }
+          />
         ) : (
-          <Select value={selectedOption} onValueChange={setSelectedOption}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a vessel" />
-            </SelectTrigger>
-            <SelectContent>
-              <NativeSelectScrollView>
-                {vesselOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    label={option.label}
-                  >
-                    <Text>{option.label}</Text>
-                  </SelectItem>
-                ))}
-              </NativeSelectScrollView>
-            </SelectContent>
-          </Select>
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-center text-muted-foreground text-sm">
+              Select a vessel to view its timeline.
+            </Text>
+          </View>
         )}
       </View>
-      {selectedOption ? (
-        <VesselTimeline
-          vesselAbbrev={selectedOption.value}
-          sailingDay={sailingDay}
-          routeAbbrevs={
-            selectedOption.routeAbbrev ? [selectedOption.routeAbbrev] : []
-          }
-        />
-      ) : (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-center text-muted-foreground text-sm">
-            Select a vessel to view its timeline.
-          </Text>
-        </View>
-      )}
-    </View>
+    </GradientBackground>
   );
 }

@@ -3,53 +3,54 @@
  */
 
 import { Text, View } from "@/components/ui";
+import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineRenderBoundary } from "../types";
+import { TimelineShadowText } from "./TimelineShadowText";
 
 type TimelineRowEventLabelProps = {
-  label?: TimelineRenderBoundary;
+  boundary: TimelineRenderBoundary;
 };
 
 /**
- * Renders preformatted title and label text for a timeline row boundary.
+ * Renders event label text and terminal name for a timeline row boundary.
  *
- * @param label - The boundary containing display-ready title and label text
+ * @param label - The boundary containing event and terminal data
  * @returns The label view or a spacer when no display text is available
  */
 export const TimelineRowEventLabel = ({
-  label,
+  boundary,
 }: TimelineRowEventLabelProps) => {
-  const titleShadowOffsets = [1, 2, 3, 4];
+  const terminalDisplayName = boundary.currTerminalDisplayName;
 
-  if (!label?.label && !label?.title) {
-    return <View className="flex-1 justify-start" />;
-  }
+  const labelText =
+    boundary.eventType === "arrive"
+      ? boundary.currTerminalAbbrev
+        ? `Arv: ${boundary.currTerminalAbbrev}`
+        : "Arv"
+      : boundary.nextTerminalAbbrev
+        ? `To: ${boundary.nextTerminalAbbrev}`
+        : "Dep";
 
   return (
-    <View className="relative mt-[-6px] flex flex-1 flex-row">
-      {label.title && (
-        <View className="absolute -top-6 -left-3 -rotate-[9deg]">
-          {titleShadowOffsets.map((pos) => (
-            <View
-              key={pos}
-              className="absolute"
-              style={{ top: pos, left: -pos, zIndex: 0 }}
-            >
-              <Text className="font-puffberry text-3xl text-purple-400/10">
-                {label.title}
-              </Text>
-            </View>
-          ))}
-          <View className="relative" style={{ zIndex: 1 }}>
+    <View
+      className="relative mx-2 mt-[-8px] flex-1 flex-row"
+      style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
+    >
+      {terminalDisplayName && boundary.eventType === "arrive" && (
+        <View className="absolute -top-8 -left-3 -rotate-[9deg]">
+          <TimelineShadowText>
             <Text className="font-puffberry text-3xl text-purple-400">
-              {label.title}
+              {terminalDisplayName}
             </Text>
-          </View>
+          </TimelineShadowText>
         </View>
       )}
-      <View className="mx-1 flex flex-1 flex-row justify-end">
-        <Text className="font-bitcount-400 text-lg text-purple-800 leading-none">
-          {label.label}
-        </Text>
+      <View className="flex-1 flex-row justify-end">
+        <TimelineShadowText>
+          <Text className="mt-[-6px] font-led-phatt text-lg text-purple-700">
+            {labelText}
+          </Text>
+        </TimelineShadowText>
       </View>
     </View>
   );

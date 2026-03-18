@@ -31,6 +31,7 @@
     "sync:scheduled-trips:date": "bunx tsx scripts/sync-scheduled-trips-date.ts",
     "check:vessel-availability:days": "bunx tsx scripts/check-vessel-availability-params.ts",
     "check:vessel-availability:csv": "bunx tsx scripts/check-vessel-availability-csv.ts",
+    "generate:gradient-background-noise": "bun scripts/generate-gradient-background-noise.ts",
     "convex:deploy:prod:no-check": "bunx convex deploy --prod --typecheck=disable",
     "convex:deploy": "bunx convex deploy",
     "convex:deploy:prod": "bunx convex deploy --prod",

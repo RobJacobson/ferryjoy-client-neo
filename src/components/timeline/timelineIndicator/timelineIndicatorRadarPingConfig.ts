@@ -25,10 +25,7 @@ type TimelineIndicatorRadarPingLayer = {
   shadowRadius?: number;
 };
 
-const createRadarPingAnimationStyle = (
-  peakOpacity: number,
-  delayMs = 0
-): ViewStyle => ({
+const createRadarPingAnimationStyle = (peakOpacity: number): ViewStyle => ({
   animationName: {
     "0%": {
       opacity: 0,
@@ -48,7 +45,7 @@ const createRadarPingAnimationStyle = (
     },
   },
   animationDuration: TIMELINE_INDICATOR_RADAR_PING_DURATION_MS,
-  animationDelay: delayMs,
+  animationDelay: 0,
   animationIterationCount: "infinite",
   animationTimingFunction: "ease-out",
 });
@@ -180,7 +177,3 @@ export const getTimelineIndicatorRadarPingLayerStyles = (
       };
     }
   );
-
-export const timelineIndicatorRadarPingVariantKeys = Object.keys(
-  RADAR_PING_VARIANTS
-) as TimelineIndicatorRadarPingVariant[];

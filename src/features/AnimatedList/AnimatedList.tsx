@@ -12,8 +12,8 @@ import Animated, {
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
-  useDerivedValue,
   useAnimatedScrollHandler,
+  useDerivedValue,
   useSharedValue,
 } from "react-native-reanimated";
 import { scheduleOnUI } from "react-native-worklets";
@@ -141,7 +141,11 @@ const AnimatedList = <T,>({
   // Web can restore or choose a non-zero snap position on first paint.
   // Reset to the placeholder card once the scroll view has a real layout.
   useEffect(() => {
-    if (hasInitializedScrollPosition.current || !hasMeasured || data.length === 0) {
+    if (
+      hasInitializedScrollPosition.current ||
+      !hasMeasured ||
+      data.length === 0
+    ) {
       return;
     }
 
@@ -151,7 +155,7 @@ const AnimatedList = <T,>({
       "worklet";
       scrollTo(scrollRef, 0, 0, false);
     });
-  }, [data.length, hasMeasured, isHorizontal, scrollRef]);
+  }, [data.length, hasMeasured, scrollRef]);
 
   // Snap offsets for each item
   const snapOffsets = data.map((_, index) => index * (itemSize + spacing));

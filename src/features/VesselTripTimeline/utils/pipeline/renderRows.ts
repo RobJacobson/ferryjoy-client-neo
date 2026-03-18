@@ -3,6 +3,7 @@
  * Output is combined with the active indicator in the renderState stage.
  */
 
+import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import type {
   TimelineDocument,
   TimelineDocumentRow,
@@ -19,15 +20,18 @@ import type {
  */
 export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
   document.rows.map((row: TimelineDocumentRow, index: number) => {
-    const phase = getRowPhase(row.segmentIndex, document.activeSegmentIndex);
+    const markerAppearance =
+      getRowPhase(row.segmentIndex, document.activeSegmentIndex) === "upcoming"
+        ? "future"
+        : "past";
 
     return {
       id: row.id,
       kind: row.kind,
-      markerAppearance: phase === "upcoming" ? "future" : "past",
+      markerAppearance,
       segmentIndex: row.segmentIndex,
       geometryMinutes: row.geometryMinutes,
-      startBoundary: getStartBoundary(row, phase),
+      startBoundary: getStartBoundary(row),
       isFinalRow: index === document.rows.length - 1,
     } satisfies TimelineRenderRow;
   });
@@ -62,24 +66,29 @@ const getRowPhase = (
  * Builds the render-ready start boundary for a row.
  *
  * @param row - Canonical document row
- * @param phase - Lifecycle phase used to choose tense
  * @returns Start boundary label and timepoint
  */
 const getStartBoundary = (
-  row: TimelineDocumentRow,
-  phase: TimelineLifecyclePhase
+  row: TimelineDocumentRow
 ): TimelineRenderBoundary => ({
-  label:
-    row.kind === "at-dock"
-      ? phase === "upcoming"
-        ? "Arv"
-        : "Arv"
-      : phase === "upcoming"
-        ? "To"
-        : "To",
-  terminalAbbrev:
-    row.kind === "at-dock"
-      ? row.startBoundary.terminalAbbrev
-      : row.endBoundary.terminalAbbrev,
+  eventType: row.kind === "at-dock" ? "arrive" : "depart",
+  currTerminalAbbrev: row.startBoundary.terminalAbbrev,
+  currTerminalDisplayName: getDisplayTerminalName(
+    row.startBoundary.terminalAbbrev
+  ),
+  nextTerminalAbbrev:
+    row.kind === "at-sea" ? row.endBoundary.terminalAbbrev : undefined,
   timePoint: row.startBoundary.timePoint,
 });
+
+const getDisplayTerminalName = (terminalAbbrev?: string) => {
+  if (!terminalAbbrev) {
+    return undefined;
+  }
+
+  const terminalName = getTerminalNameByAbbrev(terminalAbbrev);
+  return terminalName
+    ?.replace("Island", "Is.")
+    .replace("Port", "Pt.")
+    .replace("Point", "Pt.");
+};

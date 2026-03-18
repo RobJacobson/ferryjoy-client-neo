@@ -5,7 +5,7 @@
 
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { useSelectedTerminalPair } from "@/data/contexts";
+import { useSelectedTerminalPair } from "@/data/contexts/SelectedTerminalPairContext";
 
 /**
  * Returns a handler that sets the terminal pair and navigates to the map tab.

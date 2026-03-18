@@ -33,6 +33,44 @@ type PendingLeaveDockEffect = {
   trip: ConvexVesselTrip;
 };
 
+const logDockSignalDisagreement = (
+  existingTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): void => {
+  const hasLeftDockSignal =
+    currLocation.LeftDock !== undefined || existingTrip?.LeftDock !== undefined;
+
+  if (!currLocation.AtDock && currLocation.LeftDock === undefined) {
+    console.warn(
+      `[VesselTrips] AtDock false without LeftDock for ${currLocation.VesselAbbrev} at ${new Date(
+        currLocation.TimeStamp
+      ).toISOString()}`
+    );
+  }
+
+  if (currLocation.AtDock && hasLeftDockSignal) {
+    console.warn(
+      `[VesselTrips] AtDock true while LeftDock is present for ${currLocation.VesselAbbrev} at ${new Date(
+        currLocation.TimeStamp
+      ).toISOString()}`
+    );
+  }
+
+  if (
+    existingTrip &&
+    existingTrip.AtDock === false &&
+    existingTrip.LeftDock === undefined &&
+    currLocation.AtDock &&
+    currLocation.LeftDock === undefined
+  ) {
+    console.warn(
+      `[VesselTrips] AtDock reset before LeftDock appeared for ${currLocation.VesselAbbrev} between ${new Date(
+        existingTrip.TimeStamp
+      ).toISOString()} and ${new Date(currLocation.TimeStamp).toISOString()}`
+    );
+  }
+};
+
 // ============================================================================
 // Main Orchestrator
 // ============================================================================
@@ -155,6 +193,8 @@ const processCurrentTrips = async (
   // Process each current trip
   for (const { existingTrip, currLocation, events } of currentTrips) {
     try {
+      logDockSignalDisagreement(existingTrip, currLocation);
+
       // Build trip with all enrichments (schedule, predictions, actuals)
       const finalProposed = await buildTrip(
         ctx,

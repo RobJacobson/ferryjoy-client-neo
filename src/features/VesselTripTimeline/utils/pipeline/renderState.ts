@@ -82,6 +82,26 @@ const getSegmentTimeProgress = (
 };
 
 /**
+ * Returns preferred progress for an at-sea row: distance when telemetry is
+ * usable, otherwise time-based fallback from the row boundaries.
+ */
+const getAtSeaProgress = (
+  row: TimelineDocumentRow,
+  item: TimelineItem,
+  now: Date
+): number => {
+  const distanceProgress =
+    row.progressMode === "distance"
+      ? getDistanceProgress(
+          item.vesselLocation.DepartingDistance,
+          item.vesselLocation.ArrivingDistance
+        )
+      : null;
+
+  return distanceProgress ?? getSegmentTimeProgress(row, now);
+};
+
+/**
  * Produces a short minutes-until label for indicator content.
  *
  * @param targetTime - Target timestamp (undefined means no data available)
@@ -146,11 +166,8 @@ const getIndicatorPositionPercent = (
     return 0;
   }
 
-  if (row.progressMode === "distance" && row.kind === "at-sea") {
-    return getDistanceProgress(
-      item.vesselLocation.DepartingDistance,
-      item.vesselLocation.ArrivingDistance
-    );
+  if (row.kind === "at-sea") {
+    return getAtSeaProgress(row, item, now);
   }
 
   const timeProgress = getSegmentTimeProgress(row, now);
@@ -165,20 +182,20 @@ const getIndicatorPositionPercent = (
 /**
  * Calculates distance-based in-transit progress when telemetry is available.
  *
- * @param departingDistance - Remaining distance from the departure terminal
- * @param arrivingDistance - Remaining distance to the arrival terminal
- * @returns Clamped distance ratio between 0 and 1
+ * @param departingDistance - Distance from the vessel to the departing terminal
+ * @param arrivingDistance - Distance from the vessel to the arriving terminal
+ * @returns Clamped distance ratio between 0 and 1, or null when unavailable
  */
 const getDistanceProgress = (
   departingDistance: number | undefined,
   arrivingDistance: number | undefined
-): number => {
+): number | null => {
   if (
     departingDistance === undefined ||
     arrivingDistance === undefined ||
     departingDistance + arrivingDistance <= 0
   ) {
-    return 0;
+    return null;
   }
 
   return clamp(

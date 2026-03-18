@@ -2,19 +2,27 @@
  * Layout/view-model helpers for the shared vertical timeline renderer.
  */
 
-import { clamp } from "@/shared/utils";
+import { clamp, lerp } from "@/shared/utils";
+import { TIMELINE_INDICATOR_POSITION_INSET_PERCENT } from "./config";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 
 export type OverlayViewState = {
   topPx: number;
-  shouldJump: boolean;
   label: string;
 };
+
+const getDisplayPositionPercent = (positionPercent: number): number =>
+  lerp(
+    clamp(positionPercent, 0, 1),
+    TIMELINE_INDICATOR_POSITION_INSET_PERCENT,
+    1 - TIMELINE_INDICATOR_POSITION_INSET_PERCENT
+  );
 
 export const getIndicatorTopPx = (
   layout: RowLayoutBounds,
   positionPercent: number
-): number => layout.y + layout.height * clamp(positionPercent, 0, 1);
+): number =>
+  layout.y + layout.height * getDisplayPositionPercent(positionPercent);
 
 export const getBoundaryTopPx = (
   activeIndicator: TimelineActiveIndicator | null,
@@ -56,18 +64,13 @@ export const getOverlayViewState = (
     return null;
   }
 
-  const layout = rowLayouts[activeIndicator.rowId];
-  if (!layout) {
+  const topPx = getBoundaryTopPx(activeIndicator, rowLayouts);
+  if (topPx === null) {
     return null;
   }
 
-  const topPx = getIndicatorTopPx(layout, activeIndicator.positionPercent);
-
   return {
     topPx,
-    shouldJump:
-      activeIndicator.positionPercent === 0 ||
-      activeIndicator.positionPercent === 1,
     label: activeIndicator.label,
   };
 };

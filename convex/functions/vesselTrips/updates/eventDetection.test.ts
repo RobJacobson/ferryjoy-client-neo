@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { detectTripEvents } from "./eventDetection";
+import { detectTripEvents, getDockDepartureState } from "./eventDetection";
 
 describe("detectTripEvents", () => {
   it("does not treat an overnight destination-field change as arrival at dock", () => {
@@ -78,6 +78,46 @@ describe("detectTripEvents", () => {
     const events = detectTripEvents(existingTrip, currLocation);
 
     expect(events.didJustArriveAtDock).toBe(true);
+  });
+
+  it("does not infer departure from AtDock false without LeftDock", () => {
+    const existingTrip = makeTrip({
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T05:29:30-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      AtDock: false,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T05:29:35-07:00"),
+    });
+
+    const departureState = getDockDepartureState(existingTrip, currLocation);
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(departureState.leftDockTime).toBeUndefined();
+    expect(events.didJustLeaveDock).toBe(false);
+  });
+
+  it("detects departure only when LeftDock is provided by the feed", () => {
+    const existingTrip = makeTrip({
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T05:29:30-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      TimeStamp: ms("2026-03-13T05:29:40-07:00"),
+    });
+
+    const departureState = getDockDepartureState(existingTrip, currLocation);
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(departureState.leftDockTime).toBe(ms("2026-03-13T05:29:38-07:00"));
+    expect(events.didJustLeaveDock).toBe(true);
   });
 });
 

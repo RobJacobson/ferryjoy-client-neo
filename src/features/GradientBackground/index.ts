@@ -1,0 +1,7 @@
+export {
+  GRADIENT_BACKGROUND_COLORS,
+  GRADIENT_BACKGROUND_NOISE_CONFIG,
+  GRADIENT_BACKGROUND_OVERLAY_COLOR,
+  GRADIENT_BACKGROUND_STOPS,
+} from "./config";
+export { GradientBackground } from "./GradientBackground";

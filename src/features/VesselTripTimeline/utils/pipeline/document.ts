@@ -49,11 +49,7 @@ const getActiveSegmentIndex = (
     return Math.max(0, rowCount - 1);
   }
 
-  if (
-    trip.LeftDock ||
-    vesselLocation.LeftDock ||
-    vesselLocation.AtDock === false
-  ) {
+  if (trip.LeftDock || vesselLocation.LeftDock) {
     return 1;
   }
 

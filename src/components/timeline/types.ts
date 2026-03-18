@@ -7,6 +7,7 @@
 
 export type TimelineSegmentKind = "at-dock" | "at-sea";
 export type TimelineMarkerAppearance = "past" | "future";
+export type TimelineEventType = "arrive" | "depart";
 
 export type TimelineTimePoint = {
   scheduled?: Date;
@@ -15,8 +16,10 @@ export type TimelineTimePoint = {
 };
 
 export type TimelineRenderBoundary = {
-  label: string;
-  title?: string;
+  eventType: TimelineEventType;
+  currTerminalAbbrev?: string;
+  currTerminalDisplayName?: string;
+  nextTerminalAbbrev?: string;
   timePoint: TimelineTimePoint;
 };
 
@@ -25,7 +28,7 @@ export type TimelineRenderRow = {
   kind: TimelineSegmentKind;
   markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
-  geometryMinutes: number;
+  displayHeightPx: number;
   startBoundary: TimelineRenderBoundary;
   endBoundary?: TimelineRenderBoundary;
   isFinalRow: boolean;
@@ -45,4 +48,15 @@ export type TimelineActiveIndicator = {
 export type RowLayoutBounds = {
   y: number;
   height: number;
+};
+
+/**
+ * Pre-computed geometry for a terminal card background.
+ * Used by TimelineTerminalCardBackgrounds for "at terminal" highlight regions.
+ */
+export type TerminalCardGeometry = {
+  id: string;
+  position: "top" | "bottom" | "single";
+  topPx: number;
+  heightPx: number;
 };

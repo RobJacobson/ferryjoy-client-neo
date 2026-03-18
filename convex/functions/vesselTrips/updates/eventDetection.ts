@@ -46,15 +46,8 @@ export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DockDepartureState => {
-  // Infer departure time when AtDock flips false (vessel just left)
-  const inferredLeftDock =
-    existingTrip?.AtDock && !currLocation.AtDock
-      ? currLocation.TimeStamp
-      : undefined;
-
-  // Prefer feed value, carry forward existing, otherwise use inference
-  const leftDockTime =
-    currLocation.LeftDock ?? existingTrip?.LeftDock ?? inferredLeftDock;
+  // Prefer feed-provided LeftDock and preserve any already-recorded departure.
+  const leftDockTime = currLocation.LeftDock ?? existingTrip?.LeftDock;
 
   // Vessel just left dock if it had no LeftDock before and has one now
   return {
@@ -62,7 +55,7 @@ export const getDockDepartureState = (
     didJustLeaveDock: Boolean(
       existingTrip &&
         existingTrip.LeftDock === undefined &&
-        leftDockTime !== undefined
+        currLocation.LeftDock !== undefined
     ),
   };
 };

@@ -1,256 +1,232 @@
-# VesselOrchestrator - Real-Time Ferry Trip Tracking Coordination
+# VesselOrchestrator - Real-Time Ferry Coordination
 
-The VesselOrchestrator is the top-level coordination layer that orchestrates the entire pipeline for processing vessel location data. It fetches vessel locations from external APIs once and delegates to specialized processing functions with robust error isolation.
+The `VesselOrchestrator` is the top-level coordination layer for real-time
+vessel processing. It fetches vessel locations from WSF once, converts that
+payload into the Convex location shape, and then fans the same location batch
+out to multiple backend consumers.
 
 ## System Overview
 
-The orchestrator runs periodically (every 5 seconds) to process real-time vessel location updates from the Washington State Ferries API. It serves as the coordination hub that:
+The orchestrator runs periodically, roughly every 5 seconds, and coordinates
+three separate downstream branches:
 
-1. Fetches vessel locations from the WSF API (ws-dottie)
-2. Converts and enriches location data with terminal distance calculations
-3. Stores location snapshots in the database
-4. Delegates complex trip lifecycle management to the vesselTrips/updates module
+1. store the latest vessel locations
+2. update trip lifecycle state in `vesselTrips/updates`
+3. update `vesselTripEvents`, the minimal timeline event feed used by
+   `VesselTimeline`
 
-The orchestrator eliminates duplicate API calls by fetching vessel locations once and passing the same converted data to both the location storage and trip update subsystems. Failures in one subsystem do not prevent the other from executing.
+This keeps the expensive external vessel-location fetch centralized while
+allowing each downstream subsystem to evolve independently.
 
+```text
+WSF VesselLocations API
+  -> VesselOrchestrator fetch + conversion
+  -> vesselLocations table
+  -> vesselTrips/updates
+  -> vesselTripEvents
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  WSF API        │───▶│ VesselOrchestrator│───▶│ Vessel Location │
-│  (ws-dottie)    │    │                  │    │ Database        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │ Vessel Trip     │───▶│ Trip & ML       │
-                       │ Updates Module  │    │ Databases       │
-                       └─────────────────┘    └─────────────────┘
-```
+
+## Why `vesselTripEvents` Exists
+
+`VesselTimeline` used to depend on a more convoluted frontend data pipeline that
+merged scheduled trips, active trips, completed trips, and current vessel
+location state in the browser.
+
+The new `vesselTripEvents` table exists to simplify that contract.
+
+Its purpose is:
+
+- provide one backend-owned vessel/day event feed for timeline rendering
+- separate timeline rendering needs from the heavier trip lifecycle tables
+- keep reconciliation and source-priority logic on the backend
+- let the frontend render from a small ordered boundary list instead of merging
+  multiple raw sources
+
+`vesselTripEvents` is not intended to replace `activeVesselTrips` or
+`completedVesselTrips`. Those tables still support trip lifecycle logic and
+other features. `vesselTripEvents` is a purpose-built read model for
+`VesselTimeline`.
 
 ## Architecture Components
 
 ### 1. Orchestrator Action (`actions.ts`)
 
-**Purpose**: Main coordination hub that fetches, transforms, and delegates vessel location updates.
+Main entrypoint:
 
-**Key Function**: `updateVesselOrchestrator()`
+- `updateVesselOrchestrator`
 
-**Responsibilities**:
-- Fetches vessel locations from WSF API via `fetchVesselLocations()`
-- Converts `DottieVesselLocation` to `ConvexVesselLocation` format
-- Enriches locations with distance calculations to departing/arriving terminals
-- Calls location storage and trip update subroutines with error isolation
-- Returns success/failure status for each processing branch
+Responsibilities:
 
-**Data Transformation Pipeline**:
-```
-DottieVesselLocation (WSF API)
-    ↓
-toConvexVesselLocation() - Schema conversion
-    ↓
-Add terminal distance calculations (DepartingDistance, ArrivingDistance)
-    ↓
-convertConvexVesselLocation() - Additional transformations
-    ↓
-ConvexVesselLocation[] - Ready for downstream processing
+- fetch vessel locations from WSF
+- convert raw WSF payloads into `ConvexVesselLocation`
+- enrich locations with distance-to-terminal fields
+- execute three downstream branches with error isolation
+
+Transformation pipeline:
+
+```text
+WSF VesselLocation
+  -> toConvexVesselLocation()
+  -> add DepartingDistance / ArrivingDistance
+  -> convertConvexVesselLocation()
+  -> ConvexVesselLocation[]
 ```
 
-**Error Isolation**: Failures in location storage or trip updates are caught independently. One failure does not prevent the other from executing.
+The orchestrator returns branch-level success flags:
 
-### 2. Vessel Location Storage (`vesselLocation/`)
-
-**Purpose**: Stores vessel location snapshots in the database.
-
-**Key Functions**:
-- **`bulkUpsert` mutation**: Efficiently upserts all vessel locations in a single atomic transaction
-  - Fetches all existing locations by VesselID index
-  - Replaces existing records or inserts new ones
-  - Returns statistics (total, updated, inserted counts)
-
-**Database Table**: `vesselLocations`
-- One record per vessel
-- Completely replaced on each update (not incremental patches)
-- Provides historical point-in-time snapshots for analysis
-
-### 3. Vessel Trip Updates (`vesselTrips/updates/`)
-
-**Purpose**: Handles complex ferry trip lifecycle management and ML prediction generation.
-
-The orchestrator delegates all trip update logic to the `runUpdateVesselTrips()` function, which is implemented as a separate module with its own comprehensive documentation.
-
-**Key Aspects**:
-- Trip state management (first trip, trip boundary, regular updates)
-- Event-driven detection and handling
-- Schedule enrichment and terminal lookup
-- ML prediction generation and actualization
-- Build-then-compare pattern to minimize database writes
-
-For detailed information about the trip updates module, see: `convex/functions/vesselTrips/updates/README.md`
-
-One important consequence of that module's event model: destination arrival is only recorded after the vessel has physically completed a sailing leg and docked at a new terminal. Feed-only destination changes while a vessel is still sitting at dock are intentionally ignored.
-
-## Data Flow
-
-The orchestrator follows a clear data flow from external API to database storage:
-
-```
-WSF API (ws-dottie)
-    ↓ fetchVesselLocations()
-DottieVesselLocation[]
-    ↓ toConvexVesselLocation()
-ConvexVesselLocation[] (schema conversion)
-    ↓ Enrich with terminal distances
-ConvexVesselLocation[] (with DepartingDistance, ArrivingDistance)
-    ↓ convertConvexVesselLocation()
-ConvexVesselLocation[] (final format)
-    ↓
-┌─────────────────┬─────────────────┐
-│                 │                 │
-│   Branch 1      │    Branch 2     │
-│ (error isolated)│ (error isolated)│
-│                 │                 │
-│ vesselLocation  │ vesselTrips/    │
-│ bulkUpsert()    │ updates module  │
-│                 │                 │
-└────────┬────────┴────────┬────────┘
-         │                 │
-         ▼                 ▼
-   vesselLocations    vesselTrips
-   table           (active/completed)
-                     + predictions
-```
-
-## Execution Model
-
-### Periodic Execution
-
-The orchestrator runs on a 5-second schedule (configured via cron or scheduled action), providing near real-time tracking while managing system load.
-
-### Error Handling
-
-The orchestrator implements two levels of error isolation:
-
-**1. Subsystem-Level Isolation**:
-- Location storage failures do not prevent trip updates from running
-- Trip update failures do not prevent location storage from running
-- Each subsystem is wrapped in its own try-catch block
-
-**2. Per-Vessel Isolation** (within vesselTrips/updates module):
-- Individual vessel processing failures do not stop the entire batch
-- Errors are logged and collected, but processing continues for other vessels
-
-**Error Reporting**:
-```typescript
+```ts
 {
-  locationsSuccess: boolean,
-  tripsSuccess: boolean,
+  locationsSuccess: boolean;
+  tripsSuccess: boolean;
+  tripEventsSuccess: boolean;
   errors?: {
-    locations?: { message: string; stack?: string },
-    trips?: { message: string; stack?: string }
-  }
+    fetch?: { message: string; stack?: string };
+    locations?: { message: string; stack?: string };
+    trips?: { message: string; stack?: string };
+    tripEvents?: { message: string; stack?: string };
+  };
 }
 ```
 
-### Performance Considerations
+### 2. Vessel Location Storage (`vesselLocation/`)
 
-**Database Efficiency**:
-- Vessel location storage uses batch upsert in a single atomic transaction
-- Trip updates use optimized queries and batch operations
+Purpose:
 
-**API Efficiency**:
-- Single API call to fetch all vessel locations (no duplicate calls)
-- Data is reused across both storage and trip update branches
+- store one current vessel-location record per vessel
 
-**Memory Efficiency**:
-- Processing streams locations through the pipeline
-- No unnecessary duplication of data structures
+The orchestrator passes the full converted location batch to the
+`bulkUpsert` mutation, which atomically inserts or replaces the current
+`vesselLocations` rows.
 
-## Key Differences: Orchestrator vs. Trip Updates
+### 3. Trip Lifecycle Updates (`vesselTrips/updates/`)
 
-| Aspect | VesselOrchestrator | vesselTrips/updates |
-|--------|-------------------|---------------------|
-| **Scope** | High-level coordination | Detailed trip lifecycle logic |
-| **Primary Responsibility** | Fetch, transform, and delegate | Trip state management and ML predictions |
-| **External Dependencies** | WSF API (ws-dottie) | Internal database queries and ML models |
-| **Complexity** | Simple data flow and delegation | Sophisticated event detection and state machine |
-| **Documentation Focus** | System architecture and integration | Implementation details and algorithms |
+Purpose:
 
-## Monitoring & Logging
+- maintain `activeVesselTrips`, `completedVesselTrips`, and their prediction
+  lifecycle
 
-The orchestrator provides logging for:
+This remains the richer state machine responsible for trip lifecycle tracking,
+ML predictions, and event-driven trip transitions.
 
-**Success/Failure Tracking**:
-- Location update success/failure
-- Trip update success/failure
-- Error messages and stack traces for failures
+### 4. Timeline Event Updates (`vesselTripEvents/`)
 
-**Console Output**:
-- Errors are logged to console with context
-- Successful execution returns status object (can be logged by calling code)
+Purpose:
 
-The vesselTrips/updates module provides its own detailed logging for:
-- Event counts (first trip, trip boundary, regular updates)
-- Prediction statistics
-- Database write counts (upserts, completions, prediction records)
-- Per-vessel error details
+- maintain the minimal vessel/day boundary feed consumed by `VesselTimeline`
 
-See `convex/functions/vesselTrips/updates/README.md` for details on trip update logging.
+This is intentionally smaller than the trip lifecycle pipeline. It stores only
+the fields needed to render a day timeline:
 
-## Error Handling & Resilience
+- `Key`
+- `VesselAbbrev`
+- `SailingDay`
+- `ScheduledDeparture`
+- `TerminalAbbrev`
+- `EventType`
+- `ScheduledTime?`
+- `PredictedTime?`
+- `ActualTime?`
 
-### Error Isolation Strategy
-The orchestrator ensures failures in one component don't affect others:
+Detailed `vesselTripEvents` architecture now lives in:
 
-```typescript
-// Each operation runs independently with error capture
-const locationsSuccess = await updateVesselLocations(ctx, locations).catch(error => false);
-const tripsSuccess = await runUpdateVesselTrips(ctx, locations).catch(error => false);
+- `convex/domain/vesselTripEvents/README.md`
+
+That document covers:
+
+- schedule seeding
+- live enrichment
+- future-vs-history ownership rules
+- reseed merge behavior
+- event identity and invariants
+- test coverage and file map
+
+## Data Flow
+
+### Orchestrator runtime flow
+
+```text
+WSF API
+  -> fetch vessel locations once
+  -> convert and enrich locations
+  -> branch 1: vesselLocations bulkUpsert
+  -> branch 2: runUpdateVesselTrips
+  -> branch 3: vesselTripEvents.applyLiveUpdates
 ```
 
-**Per-Vessel Failure Handling**: The vesselTrips/updates module implements individual vessel error isolation. Failures in processing one vessel do not prevent other vessels from being processed. Errors are logged and collected without stopping the batch.
+### Timeline feed flow
 
-## Performance Optimizations
+```text
+WSF schedule sync
+  -> classify direct physical segments
+  -> seed vesselTripEvents skeleton
 
-### Orchestrator-Level Optimizations
-- **Single API Call**: Fetches all vessel locations once, eliminating duplicate WSF API calls
-- **Batch Processing**: Processes all vessels in a single execution
-- **Error Isolation**: Fast-fail errors without stopping other subsystems
+WSF vessel location ticks
+  -> VesselOrchestrator
+  -> apply predicted/actual event updates
 
-### Database Efficiency (vesselLocation module)
-- **Batch Upsert**: All location updates performed in a single atomic transaction
-- **Index Utilization**: Uses VesselID index for efficient lookups
+Frontend VesselTimeline
+  -> query vesselTripEvents for vessel/day
+  -> build dock/sea rows from ordered events
+```
 
-### Trip Updates Module Optimizations
-The vesselTrips/updates module implements several optimizations:
-- **Event-Gated Operations**: Expensive lookups and predictions only run at specific events, not every tick
-- **Build-Then-Compare**: Only writes to database when trip data actually changes
-- **Batch Operations**: Active trips are batched and upserted together
-- **ScheduledTrip Reuse**: Reuses existing schedule data when trip key hasn't changed
-- **Batch Model Loading**: Loads ML models in batch when computing multiple predictions for a vessel
+## Error Isolation
 
-See `convex/functions/vesselTrips/updates/README.md` for detailed performance optimizations in the trip updates module.
+The orchestrator isolates failures at the branch level.
+
+- fetch/conversion failure stops the tick because nothing downstream can run
+- location storage failure does not block trip updates
+- trip update failure does not block location storage
+- trip event update failure does not block the other two branches
+
+This matters because `vesselTripEvents` is intentionally parallel to the
+existing trip pipeline, not embedded inside it.
+
+## Performance Characteristics
+
+The orchestrator keeps external API usage efficient:
+
+- one WSF vessel-location fetch per tick
+- one converted location batch reused by all downstream consumers
+
+The new `vesselTripEvents` branch is designed to stay lightweight:
+
+- no extra external fetches
+- no frontend-side source merging
+- updates are keyed to stable event identities
+- unchanged event rows are not rewritten
+
+## Relationship To Other Tables
+
+`vesselLocations`
+
+- current snapshot of live vessel state
+- used directly by the UI for current indicator state and warnings
+
+`activeVesselTrips` / `completedVesselTrips`
+
+- richer trip lifecycle models
+- support trip state tracking, predictions, and other operational features
+
+`vesselTripEvents`
+
+- minimal read model for `VesselTimeline`
+- stores ordered boundary events for one vessel/day
+- fed by schedule seeding plus live vessel-location enrichment
 
 ## Related Documentation
 
-- **`convex/functions/vesselTrips/updates/README.md`** - Comprehensive documentation of the vessel trip updates module, including:
-  - Detailed architecture of the current trip-update design (buildTrip, baseTripFromLocation, appendFinalSchedule, appendPredictions, delayed trip boundaries)
-  - Centralized event detection via `detectTripEvents()`
-  - Event-driven processing for first trip, trip boundaries, and regular updates
-  - ML prediction generation and actualization lifecycle
-  - Build-then-compare pattern for database write optimization
-  - Field reference table with update rules
-  - Complete API documentation and Convex function calls
-
-- **`convex/domain/ml/readme-ml.md`** - ML pipeline overview and model documentation
-
-- **`convex/functions/vesselLocation/`** - Vessel location storage module documentation
+- `convex/functions/vesselTrips/updates/README.md`
+- `convex/domain/scheduledTrips/README.md`
+- `src/features/VesselTimeline/ARCHITECTURE.md`
 
 ## Summary
 
-The VesselOrchestrator provides a clean, high-level coordination layer that:
+The current orchestrator coordinates one shared vessel-location fetch across
+three backend consumers:
 
-1. **Fetches and transforms** vessel location data from external APIs
-2. **Delegates** to specialized subsystems (location storage and trip updates)
-3. **Isolates errors** between subsystems to maintain system resilience
-4. **Provides clear separation of concerns** with focused, well-documented modules
+1. `vesselLocations` for current live state
+2. `vesselTrips/updates` for full trip lifecycle management
+3. `vesselTripEvents` for the minimal vessel/day timeline feed
 
-The orchestrator keeps its implementation simple while delegating complex trip lifecycle management and ML prediction logic to the vesselTrips/updates module, which is documented separately for developers who need deep understanding of those systems.
+That split keeps the timeline contract simple without removing the richer trip
+pipeline that other parts of the system still depend on.

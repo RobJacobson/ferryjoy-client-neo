@@ -1,0 +1,13 @@
+- Moved terminal-card ownership out of the feature-local overlay and toward shared timeline row UX.
+- Added and then extracted `TimelineRowBackground` into its own file under `src/components/timeline/timelineRow`.
+- Simplified `TimelineRowContent` from percent-based left/right sizing to a three-column layout: left content, marker column, right content.
+- Updated the shared track and active indicator to use that same three-column axis instead of the old `40%` horizontal anchor.
+- Adjusted row label/time vertical alignment by removing old negative-offset positioning in `TimelineRowEventLabel.tsx` and `TimelineRowEventTimes.tsx`.
+- Deleted the original feature-local `src/features/VesselTimeline/components/TimelineTerminalCards.tsx`.
+- Tried two different standalone-background approaches:
+  - first, a per-row background variant model (`card-top`, `card-bottom`, `card-single`)
+  - then, a dedicated `TimelineRowBackgroundLayer` rendered behind the track
+- Later replaced row-level background variants with explicit standalone background-card spans computed in the vessel pipeline and rendered by `TimelineRowBackgroundLayer`.
+- Updated vessel timeline render-state/types to carry extra background-rendering data during that refactor.
+- Added/updated pipeline tests in `src/features/VesselTimeline/utils/pipeline/rows.test.ts` to cover the terminal background behavior.
+- Updated `src/features/VesselTimeline/ARCHITECTURE.md` to reflect the attempted ownership shift between model logic and shared timeline UX.

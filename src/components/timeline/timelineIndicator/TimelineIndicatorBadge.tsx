@@ -1,8 +1,8 @@
-import { BlurView } from "expo-blur";
 import type { ComponentRef, RefObject } from "react";
-import { View, type ViewStyle } from "react-native";
+import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
+import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
 
 type TimelineIndicatorBadgeProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -15,24 +15,14 @@ export const TimelineIndicatorBadge = ({
   label,
   sizePx,
 }: TimelineIndicatorBadgeProps) => (
-  <View pointerEvents="none" className="absolute" style={getBadgeStyle(sizePx)}>
-    <View className="overflow-hidden rounded-full border border-purple-400">
-      <BlurView
-        blurTarget={blurTargetRef}
-        intensity={8}
-        tint="light"
-        blurMethod="dimezisBlurView"
-        className="absolute inset-0"
-      />
-      <View className="absolute inset-0 bg-white/60" />
-      <View
-        className="items-center justify-center"
-        style={getBadgeBodyStyle(sizePx)}
-      >
-        <Text className="font-playpen-600 text-purple-800">{label}</Text>
-      </View>
-    </View>
-  </View>
+  <TimelineIndicatorGlass
+    blurTargetRef={blurTargetRef}
+    className="absolute"
+    style={getBadgeStyle(sizePx)}
+    contentClassName="h-full w-full items-center justify-center"
+  >
+    <Text className="font-playpen-600 text-purple-700">{label}</Text>
+  </TimelineIndicatorGlass>
 );
 
 const getBadgeStyle = (sizePx: number): ViewStyle => ({
@@ -40,9 +30,4 @@ const getBadgeStyle = (sizePx: number): ViewStyle => ({
   width: sizePx,
   height: sizePx,
   marginLeft: -sizePx / 2,
-});
-
-const getBadgeBodyStyle = (sizePx: number): ViewStyle => ({
-  width: sizePx,
-  height: sizePx,
 });

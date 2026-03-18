@@ -1,19 +1,16 @@
 /**
  * Shared types for the VesselTimeline feature.
  *
- * These types describe the canonical day-level timeline document and render
- * state. The feature starts from normalized vessel-day timeline trips supplied
- * by the Convex vessel-day context.
+ * These types describe the simplified day-level view-model pipeline used to
+ * turn backend-owned vessel events into renderer-ready timeline state.
  */
 
-import type { VesselTimelineTrip } from "@/data/contexts";
-
-/**
- * Input item for day-level vessel timeline builders.
- */
-export type VesselTimelineItem = {
-  trips: VesselTimelineTrip[];
-};
+import type {
+  TerminalCardGeometry,
+  TimelineActiveIndicator,
+  TimelineRenderRow,
+} from "@/components/timeline";
+import type { VesselTimelineEvent } from "@/data/contexts";
 
 /**
  * Supported row kinds for the day-level timeline.
@@ -28,57 +25,36 @@ export type VesselTimelineRowDisplayMode =
   | "compressed-dock-break";
 
 /**
- * Overlay indicator state for the day-level timeline.
+ * Product policy for timeline semantics independent from pixel layout.
  */
-export type VesselTimelineIndicatorState =
-  | "active"
-  | "pinned-break"
-  | "inactive-warning";
-
-/**
- * Generic time point used by timeline boundaries.
- */
-export type VesselTimelineTimePoint = {
-  scheduled?: Date;
-  actual?: Date;
-  estimated?: Date;
+export type VesselTimelinePolicy = {
+  compressedDockThresholdMinutes: number;
+  compressedDockArrivalStubMinutes: number;
+  compressedDockDepartureWindowMinutes: number;
 };
 
 /**
- * Row boundary information used by the canonical document.
+ * Feature-local event shape carried by a semantic row.
  */
-export type VesselTimelineBoundary = {
-  terminalAbbrev?: string;
-  timePoint: VesselTimelineTimePoint;
+export type TimelineRowEvent = VesselTimelineEvent & {
+  TerminalDisplayName?: string;
 };
 
 /**
- * Canonical row model for the vessel-day timeline.
+ * Semantic row model for the day-level timeline.
+ *
+ * Each row is defined by the adjacent event pair that brackets it.
  */
-export type VesselTimelineRow = {
+export type TimelineSemanticRow = {
   id: string;
   segmentIndex: number;
   kind: VesselTimelineRowKind;
   isTerminal?: boolean;
-  startBoundary: VesselTimelineBoundary;
-  endBoundary: VesselTimelineBoundary;
+  startEvent: TimelineRowEvent;
+  endEvent: TimelineRowEvent;
   actualDurationMinutes: number;
   displayDurationMinutes: number;
   displayMode: VesselTimelineRowDisplayMode;
-  compression?: {
-    thresholdMinutes: number;
-    visibleArrivalMinutes: number;
-    visibleDepartureMinutes: number;
-  };
-};
-
-/**
- * Canonical day-level timeline document.
- */
-export type VesselTimelineDocument = {
-  rows: VesselTimelineRow[];
-  activeSegmentIndex: number;
-  indicatorState: VesselTimelineIndicatorState;
 };
 
 /**
@@ -87,60 +63,20 @@ export type VesselTimelineDocument = {
 export type VesselTimelineLayoutConfig = {
   pixelsPerMinute: number;
   minRowHeightPx: number;
-  compressedBreakThresholdMinutes: number;
   compressedBreakMarkerHeightPx: number;
-  compressedBreakStubMinutes: number;
-  compressedBreakDepartureWindowMinutes: number;
+  terminalCardTopOffsetPx: number;
+  terminalCardDepartureCapHeightPx: number;
   initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";
   initialScrollAnchorPercent: number;
-};
-
-/**
- * Render-ready boundary data.
- */
-export type VesselTimelineRenderBoundary = {
-  label: string;
-  terminalAbbrev?: string;
-  timePoint: VesselTimelineTimePoint;
-};
-
-/**
- * Render-ready row model.
- */
-export type VesselTimelineRenderRow = {
-  id: string;
-  kind: VesselTimelineRowKind;
-  markerAppearance: "past" | "future";
-  isTerminal?: boolean;
-  startBoundary: VesselTimelineRenderBoundary;
-  endBoundary: VesselTimelineRenderBoundary;
-  displayHeightPx: number;
-  topPx: number;
-  displayMode: VesselTimelineRowDisplayMode;
-  segmentIndex: number;
-};
-
-/**
- * Render-ready active indicator state.
- */
-export type VesselTimelineActiveIndicator = {
-  rowId: string;
-  rowIndex: number;
-  topPx: number;
-  label: string;
-  state: VesselTimelineIndicatorState;
-  title?: string;
-  subtitle?: string;
-  animate?: boolean;
-  speedKnots?: number;
 };
 
 /**
  * Final render state consumed by the timeline UI.
  */
 export type VesselTimelineRenderState = {
-  rows: VesselTimelineRenderRow[];
-  activeIndicator: VesselTimelineActiveIndicator | null;
+  rows: TimelineRenderRow[];
+  terminalCards: TerminalCardGeometry[];
+  activeIndicator: TimelineActiveIndicator | null;
   contentHeightPx: number;
   layout: VesselTimelineLayoutConfig;
 };

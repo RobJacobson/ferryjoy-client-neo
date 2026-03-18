@@ -11,20 +11,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
+  getBoundaryTopPx,
   getTrackFractions,
   type RowLayoutBounds,
-  type TimelineActiveIndicator,
   TimelineIndicatorOverlay,
-  type TimelineRenderRow,
   TimelineRow,
   TimelineRowContent,
+  TimelineTerminalCardBackgrounds,
   TimelineTrack,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
-import { toSharedTimelineBoundary } from "@/features/shared/timelineDisplay";
-import { clamp } from "@/shared/utils";
 import type { VesselTimelineRenderState } from "../types";
-import { TimelineTerminalCards } from "./TimelineTerminalCards";
 
 /**
  * Renders the full scrollable vessel-day timeline with initial auto-scroll.
@@ -34,6 +31,7 @@ import { TimelineTerminalCards } from "./TimelineTerminalCards";
  */
 export const TimelineContent = ({
   rows,
+  terminalCards,
   activeIndicator,
   contentHeightPx,
   layout,
@@ -54,9 +52,9 @@ export const TimelineContent = ({
     );
   }, []);
 
-  const overlayIndicator = toTripTimelineActiveIndicator(activeIndicator, rows);
+  const indicatorTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
   const { completedPercent, remainingPercent } = getTrackFractions(
-    activeIndicator?.topPx ?? null,
+    indicatorTopPx,
     contentHeightPx
   );
 
@@ -65,13 +63,14 @@ export const TimelineContent = ({
       hasAutoScrolled ||
       !activeIndicator ||
       layout.initialAutoScroll === "none" ||
-      viewportHeightPx <= 0
+      viewportHeightPx <= 0 ||
+      indicatorTopPx === null
     ) {
       return;
     }
 
     const anchorPx = viewportHeightPx * layout.initialScrollAnchorPercent;
-    const targetY = Math.max(0, activeIndicator.topPx - anchorPx);
+    const targetY = Math.max(0, indicatorTopPx - anchorPx);
 
     scrollViewRef.current?.scrollTo({
       x: 0,
@@ -79,12 +78,18 @@ export const TimelineContent = ({
       animated: false,
     });
     setHasAutoScrolled(true);
-  }, [activeIndicator, hasAutoScrolled, layout, viewportHeightPx]);
+  }, [
+    activeIndicator,
+    hasAutoScrolled,
+    indicatorTopPx,
+    layout,
+    viewportHeightPx,
+  ]);
 
   return (
     <ScrollView
       ref={scrollViewRef}
-      className="flex-1 bg-background"
+      className="flex-1 bg-transparent"
       contentContainerStyle={{ paddingBottom: 32 }}
       onLayout={(event) => {
         setViewportHeightPx(event.nativeEvent.layout.height);
@@ -107,13 +112,16 @@ export const TimelineContent = ({
             className="relative flex-1 flex-col"
             collapsable={false}
           >
-            <TimelineTerminalCards rows={rows} />
+            <TimelineTerminalCardBackgrounds
+              cards={terminalCards}
+              blurTargetRef={blurTargetRef}
+            />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
               completedPercent={completedPercent}
               remainingPercent={remainingPercent}
             />
-            {rows.map((row, rowIndex) => (
+            {rows.map((row, _rowIndex) => (
               <TimelineRow
                 key={row.id}
                 id={row.id}
@@ -121,11 +129,11 @@ export const TimelineContent = ({
                 size={row.displayHeightPx}
                 onRowLayout={onRowLayout}
               >
-                <TimelineRowContent row={toSharedTimelineRenderRow(row)} />
+                <TimelineRowContent row={row} />
               </TimelineRow>
             ))}
             <TimelineIndicatorOverlay
-              overlayIndicator={overlayIndicator}
+              overlayIndicator={activeIndicator}
               blurTargetRef={blurTargetRef}
               rowLayouts={rowLayouts}
             />
@@ -135,45 +143,3 @@ export const TimelineContent = ({
     </ScrollView>
   );
 };
-
-const toTripTimelineActiveIndicator = (
-  activeIndicator: VesselTimelineRenderState["activeIndicator"],
-  rows: VesselTimelineRenderState["rows"]
-): TimelineActiveIndicator | null => {
-  if (!activeIndicator) {
-    return null;
-  }
-
-  const activeRow = rows[activeIndicator.rowIndex];
-  if (!activeRow || activeRow.displayHeightPx <= 0) {
-    return null;
-  }
-
-  return {
-    rowId: activeIndicator.rowId,
-    rowIndex: activeIndicator.rowIndex,
-    positionPercent: clamp(
-      (activeIndicator.topPx - activeRow.topPx) / activeRow.displayHeightPx,
-      0,
-      1
-    ),
-    label: activeIndicator.label,
-    title: activeIndicator.title,
-    subtitle: activeIndicator.subtitle,
-    animate: activeIndicator.animate,
-    speedKnots: activeIndicator.speedKnots,
-  };
-};
-
-const toSharedTimelineRenderRow = (
-  row: VesselTimelineRenderState["rows"][number]
-): TimelineRenderRow => ({
-  id: row.id,
-  kind: row.kind === "dock" ? "at-dock" : "at-sea",
-  markerAppearance: row.markerAppearance,
-  segmentIndex: row.segmentIndex,
-  geometryMinutes: row.displayHeightPx,
-  startBoundary: toSharedTimelineBoundary(row.startBoundary),
-  endBoundary: toSharedTimelineBoundary(row.endBoundary),
-  isFinalRow: row.isTerminal === true,
-});

@@ -16,7 +16,6 @@ import {
   TimelineTrack,
 } from "@/components/timeline";
 import { View } from "@/components/ui";
-import { toSharedTimelineBoundary } from "@/features/shared/timelineDisplay";
 import type {
   RowLayoutBounds,
   TimelineRenderRow,
@@ -88,12 +87,9 @@ export const TimelineContent = ({
   );
 };
 
-const toSharedTimelineRenderRow = (
-  row: TimelineRenderRow
-) => ({
+const toSharedTimelineRenderRow = (row: TimelineRenderRow) => ({
   ...row,
-  startBoundary: toSharedTimelineBoundary(row.startBoundary),
-  endBoundary: row.endBoundary
-    ? toSharedTimelineBoundary(row.endBoundary)
-    : undefined,
+  displayHeightPx: row.geometryMinutes,
+  startBoundary: row.startBoundary,
+  endBoundary: row.endBoundary,
 });

@@ -40,6 +40,7 @@
 import { api } from "_generated/api";
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import { roundToPrecision } from "shared";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import { config, formatTerminalPairKey } from "../shared/config";
 import { createFeatureRecord } from "../shared/featureRecord";
@@ -250,7 +251,7 @@ const toTrainingWindow = (trip: ConvexVesselTrip): TrainingWindow => {
     currScheduledDepartMs: scheduledDepartMs,
     // Inference doesn't have VesselHistory records (only training does)
     prevHistory: null,
-    currHistory: null as any, // Required field but not available during inference
+    currHistory: null as unknown as VesselHistory, // Required field but not available during inference
     nextHistory: null,
   };
 };

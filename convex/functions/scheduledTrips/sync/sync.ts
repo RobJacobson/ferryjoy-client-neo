@@ -1,5 +1,7 @@
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { runTransformationPipeline } from "../../../domain/scheduledTrips/transform/index";
+import { buildSeedVesselTripEvents } from "../../../domain/vesselTripEvents";
 import { getSailingDay } from "../../../shared/time";
 import { downloadAllRouteData, fetchActiveRoutes } from "./fetching";
 import { saveFinalTrips } from "./persistence";
@@ -142,10 +144,19 @@ export const syncScheduledTripsForDate = async (
       targetDate,
       finalTrips
     );
+    const directEvents = buildSeedVesselTripEvents(finalTrips);
+    await ctx.runMutation(
+      internal.functions.vesselTripEvents.mutations.reseedForSailingDay,
+      {
+        SailingDay: targetDate,
+        Events: directEvents,
+      }
+    );
 
     console.log(
       `${logPrefix}Safe sync completed: deleted ${deleted}, inserted ${inserted}, ` +
-        `${totalIndirect} indirect trips across ${routeData.length} routes`
+        `${totalIndirect} indirect trips across ${routeData.length} routes, ` +
+        `${directEvents.length} vessel timeline events`
     );
 
     return {

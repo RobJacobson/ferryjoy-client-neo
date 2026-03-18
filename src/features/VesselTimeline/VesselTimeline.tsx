@@ -7,8 +7,8 @@
 
 import { Text, View } from "@/components/ui";
 import {
-  ConvexVesselDayTimelineProvider,
-  useConvexVesselDayTimeline,
+  ConvexVesselTripEventsProvider,
+  useConvexVesselTripEvents,
 } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
@@ -37,12 +37,12 @@ export const VesselTimeline = ({
   routeAbbrevs: _routeAbbrevs,
   now,
 }: VesselTimelineProps) => (
-  <ConvexVesselDayTimelineProvider
+  <ConvexVesselTripEventsProvider
     vesselAbbrev={vesselAbbrev}
     sailingDay={sailingDay}
   >
     <VesselTimelineContent now={now} />
-  </ConvexVesselDayTimelineProvider>
+  </ConvexVesselTripEventsProvider>
 );
 
 type VesselTimelineContentProps = {
@@ -58,12 +58,18 @@ type VesselTimelineContentProps = {
  */
 const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
   const nowMs = useNowMs(1000);
-  const { vesselAbbrev, sailingDay, trips, vesselLocation, isLoading, error } =
-    useConvexVesselDayTimeline();
+  const {
+    VesselAbbrev,
+    SailingDay,
+    Events,
+    VesselLocation,
+    IsLoading,
+    Error: errorMessage,
+  } = useConvexVesselTripEvents();
 
-  if (isLoading) {
+  if (IsLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-lg">
           Loading vessel timeline...
         </Text>
@@ -71,34 +77,33 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
     );
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-destructive text-lg">
           Unable to load vessel timeline
         </Text>
         <Text className="mt-2 text-center text-muted-foreground text-sm">
-          {error}
+          {errorMessage}
         </Text>
       </View>
     );
   }
 
-  if (trips.length === 0) {
+  if (Events.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="font-semibold text-lg">No scheduled trips found</Text>
+      <View className="flex-1 items-center justify-center px-6">
+        <Text className="font-semibold text-lg">No vessel timeline found</Text>
         <Text className="mt-2 text-center text-muted-foreground text-sm">
-          No direct scheduled trips were found for {vesselAbbrev} on{" "}
-          {sailingDay}.
+          No vessel trip events were found for {VesselAbbrev} on {SailingDay}.
         </Text>
       </View>
     );
   }
 
   const renderState = getVesselTimelineRenderState(
-    trips,
-    vesselLocation,
+    Events,
+    VesselLocation,
     now ?? new Date(nowMs)
   );
 
