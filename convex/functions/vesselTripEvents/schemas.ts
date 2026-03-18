@@ -1,3 +1,7 @@
+/**
+ * Defines the Convex schema and conversion helpers for the `vesselTripEvents`
+ * read model shared between functions and domain code.
+ */
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import {
@@ -11,7 +15,7 @@ export const vesselTripEventTypeSchema = v.union(
 );
 
 export const vesselTripEventSchema = v.object({
-  EventId: v.string(),
+  Key: v.string(),
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
@@ -25,6 +29,13 @@ export const vesselTripEventSchema = v.object({
 export type VesselTripEventType = Infer<typeof vesselTripEventTypeSchema>;
 export type ConvexVesselTripEvent = Infer<typeof vesselTripEventSchema>;
 
+/**
+ * Converts a persisted Convex event record into the domain shape with `Date`
+ * instances.
+ *
+ * @param event - Persisted Convex event record using epoch millisecond fields
+ * @returns Domain event record with temporal values converted to `Date`
+ */
 export const toDomainVesselTripEvent = (event: ConvexVesselTripEvent) => ({
   ...event,
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),

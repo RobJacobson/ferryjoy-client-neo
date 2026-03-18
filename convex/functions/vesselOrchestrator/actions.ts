@@ -1,4 +1,4 @@
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -113,7 +113,7 @@ export const updateVesselOrchestrator = internalAction({
     // Step 4: Update vessel trip events (error isolated from other branches)
     try {
       await ctx.runMutation(
-        (api as any).functions.vesselTripEvents.mutations.applyLiveUpdates,
+        internal.functions.vesselTripEvents.mutations.applyLiveUpdates,
         {
           Locations: convexLocations,
         }

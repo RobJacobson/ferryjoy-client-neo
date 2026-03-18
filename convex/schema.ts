@@ -73,7 +73,7 @@ export default defineSchema({
   ),
 
   vesselTripEvents: defineTable(vesselTripEventSchema)
-    .index("by_event_id", ["EventId"])
+    .index("by_key", ["Key"])
     .index("by_sailing_day", ["SailingDay"])
     .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 

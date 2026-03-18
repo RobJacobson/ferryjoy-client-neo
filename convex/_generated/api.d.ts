@@ -44,6 +44,7 @@ import type * as domain_scheduledTrips_transform_officialCrossingTimes from "../
 import type * as domain_scheduledTrips_transform_pipeline from "../domain/scheduledTrips/transform/pipeline.js";
 import type * as domain_vesselTripEvents_index from "../domain/vesselTripEvents/index.js";
 import type * as domain_vesselTripEvents_liveUpdates from "../domain/vesselTripEvents/liveUpdates.js";
+import type * as domain_vesselTripEvents_reseed from "../domain/vesselTripEvents/reseed.js";
 import type * as domain_vesselTripEvents_seed from "../domain/vesselTripEvents/seed.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
@@ -150,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/transform/pipeline": typeof domain_scheduledTrips_transform_pipeline;
   "domain/vesselTripEvents/index": typeof domain_vesselTripEvents_index;
   "domain/vesselTripEvents/liveUpdates": typeof domain_vesselTripEvents_liveUpdates;
+  "domain/vesselTripEvents/reseed": typeof domain_vesselTripEvents_reseed;
   "domain/vesselTripEvents/seed": typeof domain_vesselTripEvents_seed;
   "functions/index": typeof functions_index;
   "functions/predictions/index": typeof functions_predictions_index;

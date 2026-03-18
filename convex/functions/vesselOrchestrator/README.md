@@ -117,7 +117,7 @@ Purpose:
 This is intentionally smaller than the trip lifecycle pipeline. It stores only
 the fields needed to render a day timeline:
 
-- `EventId`
+- `Key`
 - `VesselAbbrev`
 - `SailingDay`
 - `ScheduledDeparture`
@@ -127,79 +127,18 @@ the fields needed to render a day timeline:
 - `PredictedTime?`
 - `ActualTime?`
 
-## How `vesselTripEvents` Is Built
+Detailed `vesselTripEvents` architecture now lives in:
 
-### Schedule seeding
+- `convex/domain/vesselTripEvents/README.md`
 
-The persistent event skeleton is seeded during scheduled-trip sync, not by the
-orchestrator itself.
+That document covers:
 
-Upstream flow:
-
-1. fetch raw WSF schedule data
-2. classify direct vs indirect marketing trips
-3. keep only direct physical segments for timeline seeding
-4. generate two boundary events per direct segment
-
-Per direct segment:
-
-- departure event
-  - `EventType = "dep-dock"`
-  - `TerminalAbbrev = DepartingTerminalAbbrev`
-  - `ScheduledTime = DepartingTime`
-- arrival event
-  - `EventType = "arv-dock"`
-  - `TerminalAbbrev = ArrivingTerminalAbbrev`
-  - `ScheduledTime = ArrivingTime ?? SchedArriveNext`
-
-Stable identity:
-
-- `EventId = VesselAbbrev + ScheduledDeparture + EventType`
-
-That identity lets later live updates overwrite the same boundary row instead
-of creating new timeline records.
-
-### Live enrichment from the orchestrator
-
-After the orchestrator fetches the current vessel-location batch, it now passes
-that same batch into:
-
-- `functions.vesselTripEvents.mutations.applyLiveUpdates`
-
-This mutation resolves each location to one vessel/day scope and updates the
-already-seeded event rows in place.
-
-The event updater uses lightweight dock-boundary rules:
-
-- strong departure:
-  - `AtDock === false && Speed >= 0.2`
-- strong arrival:
-  - `AtDock === true && Speed < 0.2`
-
-Update behavior:
-
-- departure prediction
-  - while at dock, the matching departure event may carry a
-    `PredictedTime = ScheduledDeparture`
-- arrival prediction
-  - if `Eta` is present, the matching arrival event gets
-    `PredictedTime = Eta`
-  - later predictions overwrite older predictions on the same row
-- departure actual
-  - when strong departure evidence appears, set
-    `ActualTime = LeftDock ?? TimeStamp`
-- arrival actual
-  - when strong arrival evidence appears, update the most recent unresolved
-    arrival event for the current terminal
-- false departure unwind
-  - if the vessel quickly appears docked again at the same terminal before the
-    paired arrival actualizes, clear the mistaken departure `ActualTime`
-
-Precedence:
-
-- `ActualTime` is best when present
-- `PredictedTime` is mutable and may be overwritten
-- `ScheduledTime` is the fallback baseline
+- schedule seeding
+- live enrichment
+- future-vs-history ownership rules
+- reseed merge behavior
+- event identity and invariants
+- test coverage and file map
 
 ## Data Flow
 
