@@ -80,20 +80,22 @@ The merge policy lives in `convex/domain/vesselTripEvents/reseed.ts`.
 
 ## Data Sources
 
-### 1. Schedule seeding
+### 1. Schedule seeding and history enrichment
 
-The seed comes from the scheduled-trips sync pipeline, not from the
-orchestrator.
+The day rebuild is backend-owned and independent from `scheduledTrips`
+persistence.
 
 Upstream flow:
 
 ```text
-WSF schedule sync
-  -> raw schedule rows
-  -> classify direct vs indirect scheduled trips
+shared schedule fetch/transform
+  -> raw WSF schedule rows
+  -> classify direct vs indirect physical segments
   -> keep only direct physical segments
   -> build dep/arv boundary events
-  -> merge into vesselTripEvents for that sailing day
+  -> fetch WSF vessel history for the same vessel/day set
+  -> merge schedule seed + stored actuals + WSF history actuals
+  -> write vesselTripEvents for that sailing day
 ```
 
 For each direct physical segment:
@@ -101,18 +103,63 @@ For each direct physical segment:
 - create one `dep-dock` event
 - create one `arv-dock` event
 
-Field mapping:
+Base schedule field mapping:
 
 - departure event
   - `TerminalAbbrev = DepartingTerminalAbbrev`
   - `ScheduledTime = DepartingTime`
 - arrival event
   - `TerminalAbbrev = ArrivingTerminalAbbrev`
-  - `ScheduledTime = ArrivingTime ?? SchedArriveNext`
+  - `ScheduledTime = ArrivingTime ?? official crossing-time fallback`
   - if the scheduled arrival exactly equals the scheduled departure, subtract
     five minutes from the reported arrival time before seeding the feed
 
 Seed generation lives in `convex/domain/vesselTripEvents/seed.ts`.
+
+History-backed actual enrichment lives in:
+
+- `convex/domain/vesselTripEvents/history.ts`
+
+History source rules:
+
+- departure actual source
+  - WSF `ActualDepart`
+- arrival actual source
+  - WSF `EstArrival` proxy
+
+Current matching policy is intentionally conservative:
+
+- exact trip identity only
+- vessel
+- departing terminal
+- arriving terminal
+- scheduled departure timestamp
+
+When a history-backed actual matches a seeded row:
+
+- if the stored row has no `ActualTime`, backfill from WSF history
+- if the stored row has `ActualTime` and the delta is `< 3 minutes`, keep the
+  stored value
+- if the delta is `>= 3 minutes`, replace with WSF history
+
+This keeps visible actual times stable across small WSF ETA drift while still
+repairing polluted historical rows from prior bugs or feed noise.
+
+The current seeding action lives in:
+
+- `functions.vesselTripEvents.actions.syncVesselTripEventsManual`
+- `functions.vesselTripEvents.actions.syncVesselTripEventsForDateManual`
+- `functions.vesselTripEvents.actions.syncVesselTripEventsWindowed`
+- `functions.vesselTripEvents.actions.syncVesselTripEventsAtSailingDayBoundary`
+
+Those actions share the common schedule fetch path through:
+
+- `convex/domain/scheduledTrips/fetchAndTransform.ts`
+
+The sailing-day-boundary action is used by cron and is guarded by Pacific local
+time because Convex cron expressions are UTC-only. Two UTC cron entries fire
+daily, but only the invocation that lands in the Pacific `3 AM` hour performs
+the rebuild.
 
 ### 2. Live enrichment
 
@@ -121,7 +168,9 @@ out to multiple branches, including:
 
 - `functions.vesselTripEvents.mutations.applyLiveUpdates`
 
-This branch updates already-seeded events in place.
+This branch updates already-seeded events in place, mainly for in-progress and
+future events after the daily rebuild has already backfilled completed rows
+from WSF vessel history.
 
 Live rules are intentionally lightweight:
 
@@ -146,12 +195,22 @@ Live update logic lives in `convex/domain/vesselTripEvents/liveUpdates.ts`.
 
 ### Actuals
 
+- historical rebuild actual
+  - during the day seed, completed departures may be backfilled from WSF
+    `ActualDepart`
+  - completed arrivals may be backfilled from WSF `EstArrival` proxy
+  - when both stored and WSF-history actuals exist, the `< 3 min keep / >= 3
+    min replace` rule applies
 - departure actual
   - when strong departure evidence appears, set
     `ActualTime = LeftDock ?? TimeStamp`
 - arrival actual
-  - when strong arrival evidence appears, resolve the most recent eligible
-    unresolved arrival event for the current terminal
+  - when strong arrival evidence appears, first anchor by
+    `ScheduledDeparture`
+  - if the live location includes `ScheduledDeparture`, only the arrival row
+    associated with that scheduled departure context is eligible
+  - if no `ScheduledDeparture` is available, the fallback is the most recent
+    eligible unresolved arrival event for the current terminal
   - if `PredictedTime` is earlier than `ScheduledTime`, that earlier prediction
     can make the event eligible before the scheduled arrival time
 
@@ -183,11 +242,42 @@ labels and indicator behavior.
 
 ## Reseed Behavior
 
-Scheduled-trip sync calls:
+Two write modes exist:
+
+### 1. Full replacement for backfills and reset-style seeds
+
+Manual/day seeding currently calls:
+
+- `functions.vesselTripEvents.mutations.replaceForSailingDay`
+
+This is a destructive replace for one `SailingDay`. It is intended for:
+
+- full backfills
+- purge-and-seed workflows
+- resetting the complete scheduled skeleton for a day, including past rows
+
+It now:
+
+1. loads the existing sailing-day rows
+2. validates that all new events belong to that sailing day
+3. deletes existing rows for the day
+4. dedupes incoming rows by `Key`
+5. inserts the fresh sorted event set
+
+Important implication:
+
+- past rows are rebuilt from the latest schedule + history inputs during a full
+  day seed
+- existing stored `ActualTime` may still survive the rebuild when it stays
+  within the history-drift threshold
+
+### 2. Merge reseed for live-safe schedule refreshes
+
+The merge mutation remains available at:
 
 - `functions.vesselTripEvents.mutations.reseedForSailingDay`
 
-This is a merge-based reseed, not a destructive delete-and-reinsert. It now:
+This is a merge-based reseed, not a destructive delete-and-reinsert. It:
 
 1. loads the existing sailing-day rows
 2. builds a fresh schedule seed
@@ -202,6 +292,7 @@ Important implications:
 - historical actuals survive mid-day schedule refreshes
 - future schedule changes can still update the timeline
 - obsolete future rows can be removed without destroying history
+- newly seeded past rows are intentionally ignored in merge mode
 - dirty duplicate rows should not leak back out to timeline consumers
 
 ## Query Contract
@@ -234,7 +325,7 @@ It owns:
 `vesselTripEvents` owns:
 
 - the minimal vessel/day event feed for `VesselTimeline`
-- schedule/live reconciliation for dock-boundary rows
+- schedule/history/live reconciliation for dock-boundary rows
 
 The two systems run in parallel from the same vessel-location batch, but serve
 different product needs.
@@ -245,7 +336,7 @@ The backend owns:
 
 - event identity
 - source reconciliation
-- schedule/live merge rules
+- schedule/history/live merge rules
 - prediction/actual precedence
 
 The frontend owns:
@@ -263,18 +354,24 @@ See:
 
 ### `convex/functions/vesselTripEvents/`
 
+- `actions.ts`
+  - manual/windowed seed and purge entrypoints for the read model
 - `schemas.ts`
   - Convex validator and domain conversion helpers
 - `queries.ts`
   - public vessel/day event query with defensive `Key` dedupe
 - `mutations.ts`
-  - schedule reseed merge + live event persistence
-  - includes sailing-day validation for reseeds
+  - full replace, merge reseed, purge batching, and live event persistence
+  - includes sailing-day validation for schedule writes
 
 ### `convex/domain/vesselTripEvents/`
 
 - `seed.ts`
-  - build schedule-derived dep/arv boundary rows
+  - build schedule-derived dep/arv boundary rows from either scheduled-trip
+    rows or raw WSF schedule segments
+- `history.ts`
+  - match WSF vessel history to seeded rows and merge actual times with the
+    3-minute replacement rule
 - `liveUpdates.ts`
   - apply live vessel-location evidence to seeded rows
 - `reseed.ts`
@@ -287,9 +384,14 @@ See:
 - `Key` must remain stable for the same logical schedule boundary
 - `Key` is the canonical identity for a vessel trip event row
 - only direct physical scheduled segments should seed rows
+- only exact schedule/history matches should backfill actuals in the current
+  implementation
+- full replacement is allowed for explicit backfill/reset workflows
 - historical rows must not be destroyed by mid-day schedule churn
-- arrival resolution is terminal-based and chooses the most recent eligible
-  unresolved arrival
+- when `ScheduledDeparture` is present in live data, arrival resolution must be
+  anchored to that scheduled departure context
+- terminal-only arrival fallback is allowed only when `ScheduledDeparture` is
+  absent
 - reseed inputs must all belong to the requested `SailingDay`
 - unchanged rows should not be rewritten
 

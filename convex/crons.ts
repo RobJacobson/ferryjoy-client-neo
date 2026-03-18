@@ -23,15 +23,35 @@ crons.cron(
   internal.domain.ml.training.actions.trainPredictionModelsAction
 );
 
-// Daily scheduled trips sync at 4:00 AM Pacific (between trip dates)
-// Pacific timezone: UTC-8 (standard) or UTC-7 (DST)
-// 4:00 AM Pacific = 12:00 PM UTC (standard time) or 11:00 AM UTC (DST)
-// Use 11:00 AM UTC to ensure it runs between 3:00-4:00 AM Pacific in both cases
+// Daily scheduled trips sync near the sailing-day boundary.
+// Convex cron expressions are UTC-only, so this fixed UTC time lands around
+// 3:01 AM Pacific in standard time and 4:01 AM Pacific in daylight time.
+// The vesselTripEvents cron below uses a stricter DST-safe local-hour guard
+// because it specifically targets 3:00 AM Pacific.
 crons.cron(
   "daily scheduled trips sync",
   "1 11 * * *", // 11:01 AM UTC daily (covers ~4:01 AM Pacific in both DST and standard time)
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
   { daysToSync: 7 } // Maintain a 14-day rolling window
+);
+
+// Daily vesselTripEvents seed at the sailing-day boundary (~3:00 AM Pacific).
+// Convex crons are UTC-only, so schedule both DST candidates and let the
+// action itself run only during the Pacific 3 AM hour.
+crons.cron(
+  "daily vesselTripEvents boundary sync (dst)",
+  "5 10 * * *", // 3:05 AM PDT
+  internal.functions.vesselTripEvents.actions
+    .syncVesselTripEventsAtSailingDayBoundary,
+  { daysToSync: 2 }
+);
+
+crons.cron(
+  "daily vesselTripEvents boundary sync (standard)",
+  "5 11 * * *", // 3:05 AM PST
+  internal.functions.vesselTripEvents.actions
+    .syncVesselTripEventsAtSailingDayBoundary,
+  { daysToSync: 2 }
 );
 
 // Daily purge of out-of-date scheduled trips at 11:00 AM UTC.

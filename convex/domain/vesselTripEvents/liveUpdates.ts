@@ -121,10 +121,10 @@ export const applyLiveLocationToEvents = (
   }
 
   if (isStrongArrival(location)) {
-    const resolvedArrivalEvent = findArrivalEventForTerminal(
+    const resolvedArrivalEvent = findArrivalEventForLocation(
       nextEvents,
-      location.DepartingTerminalAbbrev,
-      location.TimeStamp
+      location,
+      departureEvent
     );
 
     if (resolvedArrivalEvent && resolvedArrivalEvent.ActualTime === undefined) {
@@ -220,29 +220,90 @@ const isFalseDeparture = (
 };
 
 /**
- * Finds the most recent eligible unresolved arrival for the observed terminal.
+ * Finds the arrival event that should be actualized for the current live
+ * location.
  *
  * @param events - Candidate vessel/day boundary events
- * @param TerminalAbbrev - Terminal that the vessel is currently docked at
- * @param timestamp - Observation timestamp used to test arrival eligibility
+ * @param location - Live vessel location currently being applied
+ * @param departureEvent - Departure row anchored to the location's current
+ * scheduled departure, when present
  * @returns The arrival event that should receive an actual time, if any
  */
-const findArrivalEventForTerminal = (
+const findArrivalEventForLocation = (
   events: ConvexVesselTripEvent[],
-  TerminalAbbrev: string,
-  timestamp: number
-) =>
-  [...events]
+  location: ConvexVesselLocation,
+  departureEvent: ConvexVesselTripEvent | undefined
+) => {
+  const anchoredArrivalEvent = findAnchoredArrivalEvent(
+    events,
+    location,
+    departureEvent
+  );
+
+  if (location.ScheduledDeparture !== undefined) {
+    return anchoredArrivalEvent &&
+      anchoredArrivalEvent.ActualTime === undefined &&
+      getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
+      ? anchoredArrivalEvent
+      : undefined;
+  }
+
+  if (anchoredArrivalEvent) {
+    return anchoredArrivalEvent.ActualTime === undefined &&
+      getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
+      ? anchoredArrivalEvent
+      : undefined;
+  }
+
+  return [...events]
     .filter(
       (event) =>
         event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === TerminalAbbrev &&
+        event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
         event.ActualTime === undefined &&
-        getArrivalEligibilityTime(event) <= timestamp
+        getArrivalEligibilityTime(event) <= location.TimeStamp
     )
     .sort(
       (left, right) => right.ScheduledDeparture - left.ScheduledDeparture
     )[0];
+};
+
+/**
+ * Finds the single arrival row that is immediately before the location's
+ * current scheduled departure anchor.
+ *
+ * Once that anchored row actualizes, older unresolved arrivals must not be
+ * backfilled by later docked ticks at the same terminal.
+ *
+ * @param events - Candidate vessel/day boundary events
+ * @param location - Live vessel location currently being applied
+ * @param departureEvent - Departure row anchored to the location's current
+ * scheduled departure, when present
+ * @returns The anchored arrival event, if one can be determined
+ */
+const findAnchoredArrivalEvent = (
+  events: ConvexVesselTripEvent[],
+  location: ConvexVesselLocation,
+  departureEvent: ConvexVesselTripEvent | undefined
+) => {
+  const scheduledDepartureUpperBound =
+    departureEvent?.ScheduledDeparture ?? location.ScheduledDeparture;
+
+  if (scheduledDepartureUpperBound === undefined) {
+    return undefined;
+  }
+
+  return [...events]
+    .filter(
+      (event) =>
+        event.EventType === "arv-dock" &&
+        event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+        event.ScheduledDeparture < scheduledDepartureUpperBound
+    )
+    .sort(
+      (left, right) => right.ScheduledDeparture - left.ScheduledDeparture
+    )[0];
+};
 
 /**
  * Determines when an arrival event becomes eligible to receive an actual.

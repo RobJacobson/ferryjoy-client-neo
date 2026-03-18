@@ -302,6 +302,97 @@ describe("applyLiveLocationToEvents", () => {
     expect(arrived[3]?.ActualTime).toBe(at(10, 0));
   });
 
+  it("does not keep backfilling older arrivals on repeated docked ticks", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        DepartingTime: at(9, 20),
+        SchedArriveNext: at(9, 55),
+      }),
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(10, 10),
+        SchedArriveNext: at(10, 45),
+      }),
+    ]);
+
+    const firstDockedTick = applyLiveLocationToEvents(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(10, 10),
+        TimeStamp: at(10, 0),
+        AtDock: true,
+        Speed: 0,
+      })
+    );
+
+    const secondDockedTick = applyLiveLocationToEvents(
+      firstDockedTick,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(10, 10),
+        TimeStamp: at(10, 1),
+        AtDock: true,
+        Speed: 0,
+      })
+    );
+
+    expect(firstDockedTick[3]?.ActualTime).toBe(at(10, 0));
+    expect(secondDockedTick[3]?.ActualTime).toBe(at(10, 0));
+    expect(secondDockedTick[1]?.ActualTime).toBeUndefined();
+  });
+
+  it("treats ScheduledDeparture as authoritative for arrival anchoring", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        DepartingTime: at(9, 20),
+        SchedArriveNext: at(9, 55),
+      }),
+    ]);
+
+    const arrived = applyLiveLocationToEvents(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 0),
+        TimeStamp: at(10, 0),
+        AtDock: true,
+        Speed: 0,
+      })
+    );
+
+    expect(arrived[1]?.ActualTime).toBeUndefined();
+    expect(arrived[3]?.ActualTime).toBeUndefined();
+  });
+
   it("does not unwind a departure after the paired arrival has actualized", () => {
     const seededEvents = buildSeedVesselTripEvents([
       makeTrip({

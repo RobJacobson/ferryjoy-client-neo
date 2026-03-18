@@ -3,5 +3,6 @@
  * live update reconciliation.
  */
 export * from "./liveUpdates";
+export * from "./history";
 export * from "./reseed";
 export * from "./seed";

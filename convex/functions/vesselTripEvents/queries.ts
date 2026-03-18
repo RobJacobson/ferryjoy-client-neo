@@ -2,7 +2,7 @@
  * Exposes query helpers for reading the `vesselTripEvents` read model from
  * Convex.
  */
-import { query } from "_generated/server";
+import { internalQuery, query } from "_generated/server";
 import { v } from "convex/values";
 import { sortVesselTripEvents } from "domain/vesselTripEvents";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -46,5 +46,27 @@ export const getVesselDayTimelineEvents = query({
       // timeline consumers.
       Events: Array.from(eventsById.values()).sort(sortVesselTripEvents),
     };
+  },
+});
+
+export const getEventsForSailingDay = internalQuery({
+  args: {
+    SailingDay: v.string(),
+  },
+  returns: v.array(vesselTripEventSchema),
+  handler: async (ctx, args) => {
+    const docs = await ctx.db
+      .query("vesselTripEvents")
+      .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
+      .collect();
+
+    const eventsById = new Map(
+      docs.map((doc) => {
+        const event = stripConvexMeta(doc);
+        return [event.Key, event];
+      })
+    );
+
+    return Array.from(eventsById.values()).sort(sortVesselTripEvents);
   },
 });

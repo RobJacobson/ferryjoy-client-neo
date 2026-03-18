@@ -43,6 +43,7 @@ import type * as domain_scheduledTrips_transform_estimates from "../domain/sched
 import type * as domain_scheduledTrips_transform_index from "../domain/scheduledTrips/transform/index.js";
 import type * as domain_scheduledTrips_transform_officialCrossingTimes from "../domain/scheduledTrips/transform/officialCrossingTimes.js";
 import type * as domain_scheduledTrips_transform_pipeline from "../domain/scheduledTrips/transform/pipeline.js";
+import type * as domain_vesselTripEvents_history from "../domain/vesselTripEvents/history.js";
 import type * as domain_vesselTripEvents_index from "../domain/vesselTripEvents/index.js";
 import type * as domain_vesselTripEvents_liveUpdates from "../domain/vesselTripEvents/liveUpdates.js";
 import type * as domain_vesselTripEvents_reseed from "../domain/vesselTripEvents/reseed.js";
@@ -153,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/transform/index": typeof domain_scheduledTrips_transform_index;
   "domain/scheduledTrips/transform/officialCrossingTimes": typeof domain_scheduledTrips_transform_officialCrossingTimes;
   "domain/scheduledTrips/transform/pipeline": typeof domain_scheduledTrips_transform_pipeline;
+  "domain/vesselTripEvents/history": typeof domain_vesselTripEvents_history;
   "domain/vesselTripEvents/index": typeof domain_vesselTripEvents_index;
   "domain/vesselTripEvents/liveUpdates": typeof domain_vesselTripEvents_liveUpdates;
   "domain/vesselTripEvents/reseed": typeof domain_vesselTripEvents_reseed;

@@ -2,11 +2,17 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
+import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import {
   fetchAndTransformScheduledTrips,
 } from "../../domain/scheduledTrips/fetchAndTransform";
-import { buildSeedVesselTripEventsFromRawSegments } from "../../domain/vesselTripEvents";
-import { getSailingDay } from "../../shared/time";
+import {
+  buildSeedVesselTripEventsFromRawSegments,
+  mergeSeededEventsWithHistory,
+} from "../../domain/vesselTripEvents";
+import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
+import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
 
 const logPrefix = "[SYNC VESSEL TRIP EVENTS]";
 type VesselTripEventSeedResult = {
@@ -90,6 +96,64 @@ export const syncVesselTripEventsWindowed = internalAction({
 });
 
 /**
+ * Internal boundary-safe daily seed for vesselTripEvents.
+ *
+ * Convex crons run in UTC, so DST makes a single cron expression unreliable
+ * for "3:00 AM Pacific". Call this from multiple UTC cron slots and run only
+ * when the current Pacific local hour is actually 3.
+ */
+export const syncVesselTripEventsAtSailingDayBoundary = internalAction({
+  args: { daysToSync: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const pacificNow = getPacificTimeComponents(new Date());
+
+    if (pacificNow.hour !== 3) {
+      return {
+        skipped: true,
+        reason: "outside_pacific_3am_window",
+        totalInserted: 0,
+        totalDeleted: 0,
+        daysProcessed: [] as {
+          sailingDay: string;
+          inserted: number;
+          deleted: number;
+        }[],
+      };
+    }
+
+    const startDate = getSailingDay(new Date());
+    const daysToSync = args.daysToSync || 2;
+    const daysProcessed: {
+      sailingDay: string;
+      inserted: number;
+      deleted: number;
+    }[] = [];
+
+    let totalInserted = 0;
+    let totalDeleted = 0;
+
+    for (let i = 0; i < daysToSync; i++) {
+      const currentDate = addDays(startDate, i);
+      const result = await syncVesselTripEventsForDate(ctx, currentDate);
+      totalInserted += result.Inserted;
+      totalDeleted += result.Deleted;
+      daysProcessed.push({
+        sailingDay: currentDate,
+        inserted: result.Inserted,
+        deleted: result.Deleted,
+      });
+    }
+
+    return {
+      skipped: false,
+      totalInserted,
+      totalDeleted,
+      daysProcessed,
+    };
+  },
+});
+
+/**
  * Deletes every row in the vesselTripEvents table.
  */
 export const purgeVesselTripEventsManual = action({
@@ -113,17 +177,35 @@ const syncVesselTripEventsForDate = async (
   const directEvents = buildSeedVesselTripEventsFromRawSegments(
     routeData.flatMap((data) => data.segments)
   );
+  const scheduleSegments = routeData.flatMap((data) => data.segments);
+  const existingEvents = await ctx.runQuery(
+    internal.functions.vesselTripEvents.queries.getEventsForSailingDay,
+    {
+      SailingDay: targetDate,
+    }
+  );
+  const historyRecords = await fetchHistoryRecordsForDate(
+    scheduleSegments,
+    targetDate
+  );
+  const mergedEvents = mergeSeededEventsWithHistory({
+    sailingDay: targetDate,
+    seededEvents: directEvents,
+    existingEvents,
+    scheduleSegments,
+    historyRecords,
+  });
 
   const result = await ctx.runMutation(
     internal.functions.vesselTripEvents.mutations.replaceForSailingDay,
     {
       SailingDay: targetDate,
-      Events: directEvents,
+      Events: mergedEvents,
     }
   );
 
   console.log(
-    `${logPrefix} Seed completed for ${targetDate}: ${directEvents.length} events`
+    `${logPrefix} Seed completed for ${targetDate}: ${mergedEvents.length} events`
   );
 
   return result;
@@ -155,6 +237,33 @@ const purgeVesselTripEvents = async (
   return {
     deleted: totalDeleted,
   };
+};
+
+const fetchHistoryRecordsForDate = async (
+  scheduleSegments: RawWsfScheduleSegment[],
+  targetDate: string
+): Promise<VesselHistory[]> => {
+  const vesselNames = Array.from(
+    new Set(
+      scheduleSegments
+        .map((segment) => segment.VesselName?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+  );
+
+  const historyBatches = await Promise.all(
+    vesselNames.map((vesselName) =>
+      fetchVesselHistoriesByVesselAndDates({
+        params: {
+          VesselName: vesselName,
+          DateStart: targetDate,
+          DateEnd: targetDate,
+        },
+      })
+    )
+  );
+
+  return historyBatches.flat();
 };
 
 const addDays = (dateString: string, days: number): string => {
