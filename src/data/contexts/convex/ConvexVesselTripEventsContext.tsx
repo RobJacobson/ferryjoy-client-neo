@@ -1,5 +1,5 @@
 /**
- * Convex-backed vessel-day timeline context.
+ * Convex-backed vessel trip events context.
  *
  * This provider fetches the backend-owned vessel-day event feed plus current
  * vessel location data for one vessel/day scope.
@@ -23,7 +23,7 @@ import {
 
 export type VesselTimelineEvent = VesselTripEvent;
 
-type ConvexVesselDayTimelineContextType = {
+type ConvexVesselTripEventsContextType = {
   VesselAbbrev: string;
   SailingDay: string;
   Events: VesselTimelineEvent[];
@@ -32,16 +32,16 @@ type ConvexVesselDayTimelineContextType = {
   Error: string | null;
 };
 
-type ConvexVesselDayTimelineProviderProps = PropsWithChildren<{
+type ConvexVesselTripEventsProviderProps = PropsWithChildren<{
   vesselAbbrev: string;
   sailingDay: string;
 }>;
 
-const ConvexVesselDayTimelineContext = createContext<
-  ConvexVesselDayTimelineContextType | undefined
+const ConvexVesselTripEventsContext = createContext<
+  ConvexVesselTripEventsContextType | undefined
 >(undefined);
 
-class ConvexVesselDayTimelineErrorBoundary extends ReactComponent<{
+class ConvexVesselTripEventsErrorBoundary extends ReactComponent<{
   onError: (error: string) => void;
   fallback: ReactNode;
   children: ReactNode;
@@ -66,7 +66,7 @@ class ConvexVesselDayTimelineErrorBoundary extends ReactComponent<{
   }
 }
 
-const ConvexVesselDayTimelineDataFetcher = ({
+const ConvexVesselTripEventsDataFetcher = ({
   vesselAbbrev,
   sailingDay,
   onStateChange,
@@ -74,7 +74,7 @@ const ConvexVesselDayTimelineDataFetcher = ({
 }: PropsWithChildren<{
   vesselAbbrev: string;
   sailingDay: string;
-  onStateChange: (state: Partial<ConvexVesselDayTimelineContextType>) => void;
+  onStateChange: (state: Partial<ConvexVesselTripEventsContextType>) => void;
 }>) => {
   const rawTimeline = useQuery(
     api.functions.vesselTripEvents.queries.getVesselDayTimelineEvents,
@@ -114,12 +114,12 @@ const ConvexVesselDayTimelineDataFetcher = ({
   return <>{children}</>;
 };
 
-export const ConvexVesselDayTimelineProvider = ({
+export const ConvexVesselTripEventsProvider = ({
   vesselAbbrev,
   sailingDay,
   children,
-}: ConvexVesselDayTimelineProviderProps) => {
-  const [state, setState] = useState<ConvexVesselDayTimelineContextType>({
+}: ConvexVesselTripEventsProviderProps) => {
+  const [state, setState] = useState<ConvexVesselTripEventsContextType>({
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
     Events: [],
@@ -139,12 +139,12 @@ export const ConvexVesselDayTimelineProvider = ({
   };
 
   return (
-    <ConvexVesselDayTimelineContext.Provider value={state}>
-      <ConvexVesselDayTimelineErrorBoundary
+    <ConvexVesselTripEventsContext.Provider value={state}>
+      <ConvexVesselTripEventsErrorBoundary
         onError={handleError}
         fallback={children}
       >
-        <ConvexVesselDayTimelineDataFetcher
+        <ConvexVesselTripEventsDataFetcher
           vesselAbbrev={vesselAbbrev}
           sailingDay={sailingDay}
           onStateChange={(partial) =>
@@ -152,17 +152,17 @@ export const ConvexVesselDayTimelineProvider = ({
           }
         >
           {children}
-        </ConvexVesselDayTimelineDataFetcher>
-      </ConvexVesselDayTimelineErrorBoundary>
-    </ConvexVesselDayTimelineContext.Provider>
+        </ConvexVesselTripEventsDataFetcher>
+      </ConvexVesselTripEventsErrorBoundary>
+    </ConvexVesselTripEventsContext.Provider>
   );
 };
 
-export const useConvexVesselDayTimeline = () => {
-  const context = useContext(ConvexVesselDayTimelineContext);
+export const useConvexVesselTripEvents = () => {
+  const context = useContext(ConvexVesselTripEventsContext);
   if (context === undefined) {
     throw new Error(
-      "useConvexVesselDayTimeline must be used within ConvexVesselDayTimelineProvider"
+      "useConvexVesselTripEvents must be used within ConvexVesselTripEventsProvider"
     );
   }
 

@@ -7,8 +7,8 @@
 
 import { Text, View } from "@/components/ui";
 import {
-  ConvexVesselDayTimelineProvider,
-  useConvexVesselDayTimeline,
+  ConvexVesselTripEventsProvider,
+  useConvexVesselTripEvents,
 } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
@@ -37,12 +37,12 @@ export const VesselTimeline = ({
   routeAbbrevs: _routeAbbrevs,
   now,
 }: VesselTimelineProps) => (
-  <ConvexVesselDayTimelineProvider
+  <ConvexVesselTripEventsProvider
     vesselAbbrev={vesselAbbrev}
     sailingDay={sailingDay}
   >
     <VesselTimelineContent now={now} />
-  </ConvexVesselDayTimelineProvider>
+  </ConvexVesselTripEventsProvider>
 );
 
 type VesselTimelineContentProps = {
@@ -65,7 +65,7 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
     VesselLocation,
     IsLoading,
     Error: errorMessage,
-  } = useConvexVesselDayTimeline();
+  } = useConvexVesselTripEvents();
 
   if (IsLoading) {
     return (

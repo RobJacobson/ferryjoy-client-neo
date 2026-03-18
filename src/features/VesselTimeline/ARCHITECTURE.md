@@ -246,12 +246,12 @@ Field precedence:
 
 `VesselTimeline` consumes a dedicated vessel/day context:
 
-- `src/data/contexts/convex/ConvexVesselDayTimelineContext.tsx`
+- `src/data/contexts/convex/ConvexVesselTripEventsContext.tsx`
 
 Current context value:
 
 ```ts
-type ConvexVesselDayTimelineContextType = {
+type ConvexVesselTripEventsContextType = {
   VesselAbbrev: string;
   SailingDay: string;
   Events: VesselTimelineEvent[];
