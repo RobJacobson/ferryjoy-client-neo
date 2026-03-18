@@ -1,7 +1,7 @@
 import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { toConvexVesselPing } from "functions/vesselPing/schemas";
-import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API
@@ -14,7 +14,7 @@ export const fetchAndStoreVesselPing = internalAction({
   args: {},
   handler: async (ctx) => {
     // Fetch current vessel locations from WSF API using the new fetchVesselLocations function
-    const rawLocations = await fetchVesselLocations();
+    const rawLocations = await fetchWsfVesselLocations();
 
     // Transform raw locations to vessel pings and filter in-service vessels
     const vesselPings = rawLocations

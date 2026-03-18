@@ -9,6 +9,7 @@ import {
   scheduledTripSchema,
 } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import { vesselTripEventSchema } from "functions/vesselTripEvents/schemas";
 import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
@@ -70,6 +71,11 @@ export default defineSchema({
     "by_vessel_abbrev",
     ["VesselAbbrev"]
   ),
+
+  vesselTripEvents: defineTable(vesselTripEventSchema)
+    .index("by_event_id", ["EventId"])
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)

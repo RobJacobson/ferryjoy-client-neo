@@ -6,9 +6,9 @@ import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
+import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { terminalLocations } from "src/data/terminalLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -32,11 +32,13 @@ export const updateVesselOrchestrator = internalAction({
   handler: async (ctx) => {
     let locationsSuccess = false;
     let tripsSuccess = false;
+    let tripEventsSuccess = false;
     // Track errors from each processing branch
     const errors: {
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
+      tripEvents?: { message: string; stack?: string };
     } = {};
 
     // Step 1: Fetch and convert vessel locations
@@ -44,7 +46,7 @@ export const updateVesselOrchestrator = internalAction({
 
     try {
       const rawLocations =
-        (await fetchVesselLocations()) as unknown as DottieVesselLocation[];
+        (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
       // Transform chain: WSF API → Convex schema → enrich with distances → final format
       convexLocations = rawLocations
@@ -76,13 +78,14 @@ export const updateVesselOrchestrator = internalAction({
         })
         .map(convertConvexVesselLocation);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
       console.error("Failed to fetch or process vessel locations:", err);
 
       return {
         locationsSuccess,
         tripsSuccess,
+        tripEventsSuccess,
         errors,
       };
     }
@@ -92,7 +95,7 @@ export const updateVesselOrchestrator = internalAction({
       await updateVesselLocations(ctx, convexLocations);
       locationsSuccess = true;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      const err = normalizeError(error);
       errors.locations = { message: err.message, stack: err.stack };
       console.error("updateVesselLocations failed:", err);
     }
@@ -102,14 +105,30 @@ export const updateVesselOrchestrator = internalAction({
       await runUpdateVesselTrips(ctx, convexLocations);
       tripsSuccess = true;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      const err = normalizeError(error);
       errors.trips = { message: err.message, stack: err.stack };
       console.error("runUpdateVesselTrips failed:", err);
+    }
+
+    // Step 4: Update vessel trip events (error isolated from other branches)
+    try {
+      await ctx.runMutation(
+        (api as any).functions.vesselTripEvents.mutations.applyLiveUpdates,
+        {
+          Locations: convexLocations,
+        }
+      );
+      tripEventsSuccess = true;
+    } catch (error) {
+      const err = normalizeError(error);
+      errors.tripEvents = { message: err.message, stack: err.stack };
+      console.error("applyLiveUpdates failed:", err);
     }
 
     return {
       locationsSuccess,
       tripsSuccess,
+      tripEventsSuccess,
       ...(Object.keys(errors).length > 0 ? { errors } : {}),
     };
   },
@@ -132,3 +151,23 @@ async function updateVesselLocations(
     locations,
   });
 }
+
+const normalizeError = (error: unknown) => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(safeSerialize(error));
+};
+
+const safeSerialize = (value: unknown) => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};

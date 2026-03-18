@@ -2,7 +2,7 @@ import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import type { ConvexVesselPingCollection } from "functions/vesselPings/schemas";
 import { toConvexVesselPing } from "functions/vesselPings/schemas";
-import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
+import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API
@@ -13,32 +13,42 @@ import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
 export const fetchAndStoreVesselPings = internalAction({
   args: {},
   handler: async (ctx) => {
-    // Fetch current vessel locations from WSF API using the new fetchVesselLocations function
-    const rawLocations = await fetchVesselLocations();
+    try {
+      // Fetch current vessel locations from WSF API using the direct long-standing call shape
+      const rawLocations = await fetchWsfVesselLocations();
 
-    // Transform raw locations to vessel pings
-    const vesselPings = rawLocations
-      .filter((vl) => vl.InService)
-      .map(toConvexVesselPing);
+      // Transform raw locations to vessel pings
+      const vesselPings = rawLocations
+        .filter((vl) => vl.InService)
+        .map(toConvexVesselPing);
 
-    // Validate we got reasonable data
-    if (vesselPings.length === 0) {
-      throw new Error("No vessel locations received from WSF API");
-    }
-
-    // Create a collection document with all pings and current timestamp
-    const pingCollection: ConvexVesselPingCollection = {
-      timestamp: Date.now(),
-      pings: vesselPings,
-    };
-
-    // Store the collection to database
-    await ctx.runMutation(
-      api.functions.vesselPings.mutations.storeVesselPingCollection,
-      {
-        collection: pingCollection,
+      // Validate we got reasonable data
+      if (vesselPings.length === 0) {
+        throw new Error("No vessel locations received from WSF API");
       }
-    );
+
+      // Create a collection document with all pings and current timestamp
+      const pingCollection: ConvexVesselPingCollection = {
+        timestamp: Date.now(),
+        pings: vesselPings,
+      };
+
+      // Store the collection to database
+      await ctx.runMutation(
+        api.functions.vesselPings.mutations.storeVesselPingCollection,
+        {
+          collection: pingCollection,
+        }
+      );
+    } catch (error) {
+      const normalized =
+        error instanceof Error ? error : new Error(safeSerialize(error));
+      console.error("fetchAndStoreVesselPings failed:", normalized);
+      return {
+        success: false,
+        error: normalized.message,
+      };
+    }
   },
 });
 
@@ -57,3 +67,15 @@ export const cleanupOldPings = internalAction({
     );
   },
 });
+
+const safeSerialize = (value: unknown) => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};

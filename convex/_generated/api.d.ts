@@ -34,6 +34,7 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
+import type * as domain_scheduledTrips_directSegments from "../domain/scheduledTrips/directSegments.js";
 import type * as domain_scheduledTrips_grouping from "../domain/scheduledTrips/grouping.js";
 import type * as domain_scheduledTrips_index from "../domain/scheduledTrips/index.js";
 import type * as domain_scheduledTrips_transform_classification from "../domain/scheduledTrips/transform/classification.js";
@@ -41,6 +42,9 @@ import type * as domain_scheduledTrips_transform_estimates from "../domain/sched
 import type * as domain_scheduledTrips_transform_index from "../domain/scheduledTrips/transform/index.js";
 import type * as domain_scheduledTrips_transform_officialCrossingTimes from "../domain/scheduledTrips/transform/officialCrossingTimes.js";
 import type * as domain_scheduledTrips_transform_pipeline from "../domain/scheduledTrips/transform/pipeline.js";
+import type * as domain_vesselTripEvents_index from "../domain/vesselTripEvents/index.js";
+import type * as domain_vesselTripEvents_liveUpdates from "../domain/vesselTripEvents/liveUpdates.js";
+import type * as domain_vesselTripEvents_seed from "../domain/vesselTripEvents/seed.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
@@ -76,6 +80,10 @@ import type * as functions_vesselPings_index from "../functions/vesselPings/inde
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
+import type * as functions_vesselTripEvents_index from "../functions/vesselTripEvents/index.js";
+import type * as functions_vesselTripEvents_mutations from "../functions/vesselTripEvents/mutations.js";
+import type * as functions_vesselTripEvents_queries from "../functions/vesselTripEvents/queries.js";
+import type * as functions_vesselTripEvents_schemas from "../functions/vesselTripEvents/schemas.js";
 import type * as functions_vesselTrips_index from "../functions/vesselTrips/index.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
@@ -93,6 +101,7 @@ import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
+import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLocations.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
@@ -131,6 +140,7 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
+  "domain/scheduledTrips/directSegments": typeof domain_scheduledTrips_directSegments;
   "domain/scheduledTrips/grouping": typeof domain_scheduledTrips_grouping;
   "domain/scheduledTrips/index": typeof domain_scheduledTrips_index;
   "domain/scheduledTrips/transform/classification": typeof domain_scheduledTrips_transform_classification;
@@ -138,6 +148,9 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/transform/index": typeof domain_scheduledTrips_transform_index;
   "domain/scheduledTrips/transform/officialCrossingTimes": typeof domain_scheduledTrips_transform_officialCrossingTimes;
   "domain/scheduledTrips/transform/pipeline": typeof domain_scheduledTrips_transform_pipeline;
+  "domain/vesselTripEvents/index": typeof domain_vesselTripEvents_index;
+  "domain/vesselTripEvents/liveUpdates": typeof domain_vesselTripEvents_liveUpdates;
+  "domain/vesselTripEvents/seed": typeof domain_vesselTripEvents_seed;
   "functions/index": typeof functions_index;
   "functions/predictions/index": typeof functions_predictions_index;
   "functions/predictions/mutations": typeof functions_predictions_mutations;
@@ -173,6 +186,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
+  "functions/vesselTripEvents/index": typeof functions_vesselTripEvents_index;
+  "functions/vesselTripEvents/mutations": typeof functions_vesselTripEvents_mutations;
+  "functions/vesselTripEvents/queries": typeof functions_vesselTripEvents_queries;
+  "functions/vesselTripEvents/schemas": typeof functions_vesselTripEvents_schemas;
   "functions/vesselTrips/index": typeof functions_vesselTrips_index;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
@@ -190,6 +207,7 @@ declare const fullApi: ApiFromModules<{
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
+  "shared/fetchWsfVesselLocations": typeof shared_fetchWsfVesselLocations;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
