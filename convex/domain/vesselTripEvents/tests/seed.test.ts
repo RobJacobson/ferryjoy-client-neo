@@ -5,13 +5,17 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
+import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import {
   applyLiveLocationToEvents,
   buildEventKey,
   getLocationSailingDay,
   sortVesselTripEvents,
 } from "../liveUpdates";
-import { buildSeedVesselTripEvents } from "../seed";
+import {
+  buildSeedVesselTripEvents,
+  buildSeedVesselTripEventsFromRawSegments,
+} from "../seed";
 
 /**
  * Creates a UTC timestamp for the fixture sailing day using local service
@@ -82,6 +86,61 @@ describe("buildSeedVesselTripEvents", () => {
     expect(
       buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "arv-dock")
     ).toBe("2026-03-13--TOK--2026-03-13--15:35:00.000Z--P52--arv");
+  });
+
+  it("builds dep/arv events directly from raw WSF schedule segments", () => {
+    const events = buildSeedVesselTripEventsFromRawSegments([
+      makeRawSegment({
+        VesselName: "Tokitae",
+        DepartingTerminalName: "Seattle",
+        ArrivingTerminalName: "Bainbridge Island",
+        DepartingTime: new Date(at(8, 35)),
+        RouteID: 7,
+        RouteAbbrev: "sea-bi",
+      }),
+    ]);
+
+    expect(events.map((event) => event.EventType)).toEqual([
+      "dep-dock",
+      "arv-dock",
+    ]);
+    expect(events[0]?.TerminalAbbrev).toBe("P52");
+    expect(events[1]?.TerminalAbbrev).toBe("BBI");
+    expect(events[1]?.ScheduledTime).toBe(at(9, 10));
+  });
+
+  it("filters indirect raw schedule segments before seeding events", () => {
+    const events = buildSeedVesselTripEventsFromRawSegments([
+      makeRawSegment({
+        VesselName: "Tokitae",
+        DepartingTerminalName: "Seattle",
+        ArrivingTerminalName: "Bainbridge Island",
+        DepartingTime: new Date(at(8, 35)),
+        RouteID: 7,
+        RouteAbbrev: "sea-bi",
+      }),
+      makeRawSegment({
+        VesselName: "Tokitae",
+        DepartingTerminalName: "Seattle",
+        ArrivingTerminalName: "Bremerton",
+        DepartingTime: new Date(at(8, 35)),
+        RouteID: 8,
+        RouteAbbrev: "sea-br",
+      }),
+      makeRawSegment({
+        VesselName: "Tokitae",
+        DepartingTerminalName: "Bainbridge Island",
+        ArrivingTerminalName: "Seattle",
+        DepartingTime: new Date(at(9, 20)),
+        RouteID: 7,
+        RouteAbbrev: "sea-bi",
+      }),
+    ]);
+
+    expect(events).toHaveLength(4);
+    expect(events[0]?.TerminalAbbrev).toBe("P52");
+    expect(events[1]?.TerminalAbbrev).toBe("BBI");
+    expect(events.some((event) => event.TerminalAbbrev === "BRE")).toBe(false);
   });
 });
 
@@ -413,6 +472,22 @@ const makeTrip = (
   Key: "TOK-P52-BBI-0835",
   SailingDay: "2026-03-13",
   TripType: "direct",
+  ...overrides,
+});
+
+const makeRawSegment = (
+  overrides: Partial<RawWsfScheduleSegment>
+): RawWsfScheduleSegment => ({
+  VesselName: "Tokitae",
+  DepartingTerminalName: "Seattle",
+  ArrivingTerminalName: "Bainbridge Island",
+  DepartingTime: new Date(at(8, 35)),
+  ArrivingTime: null,
+  SailingNotes: "",
+  Annotations: [],
+  RouteID: 7,
+  RouteAbbrev: "sea-bi",
+  SailingDay: "2026-03-13",
   ...overrides,
 });
 

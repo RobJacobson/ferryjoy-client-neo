@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
-import { classifyDirectSegments } from "./directSegments";
+import {
+  classifyDirectSegments,
+  classifyDirectSegmentsGeneric,
+} from "./directSegments";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours, minutes);
@@ -31,6 +34,42 @@ describe("classifyDirectSegments", () => {
     expect(trips.find((trip) => trip.Key === "A-B")?.TripType).toBe("direct");
     expect(trips.find((trip) => trip.Key === "A-C")?.TripType).toBe("indirect");
     expect(trips.find((trip) => trip.Key === "B-C")?.TripType).toBe("direct");
+  });
+
+  it("supports the same direct classification on lighter raw segment shapes", () => {
+    const segments = classifyDirectSegmentsGeneric([
+      {
+        Key: "A-B",
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "A",
+        ArrivingTerminalAbbrev: "B",
+        DepartingTime: at(8, 0),
+      },
+      {
+        Key: "A-C",
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "A",
+        ArrivingTerminalAbbrev: "C",
+        DepartingTime: at(8, 0),
+      },
+      {
+        Key: "B-C",
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "B",
+        ArrivingTerminalAbbrev: "C",
+        DepartingTime: at(9, 0),
+      },
+    ]);
+
+    expect(segments.find((segment) => segment.Key === "A-B")?.TripType).toBe(
+      "direct"
+    );
+    expect(segments.find((segment) => segment.Key === "A-C")?.TripType).toBe(
+      "indirect"
+    );
+    expect(segments.find((segment) => segment.Key === "B-C")?.TripType).toBe(
+      "direct"
+    );
   });
 });
 

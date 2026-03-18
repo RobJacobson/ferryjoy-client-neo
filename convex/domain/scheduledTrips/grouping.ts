@@ -1,5 +1,5 @@
 /**
- * Shared grouping utilities for scheduled trips.
+ * Shared grouping utilities for schedule-derived segment sets.
  * Standardizes how we identify physical vessel movements.
  *
  * @module
@@ -7,15 +7,23 @@
 
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 
+export type PhysicalDepartureInput = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  DepartingTime: number;
+};
+
 /**
  * Represents a physical vessel departure from a terminal.
  * A single physical departure can represent multiple logical trips (destinations).
  */
-export type PhysicalDeparture = {
+export type PhysicalDeparture<
+  TTrip extends PhysicalDepartureInput = ConvexScheduledTrip,
+> = {
   departingTerminal: string;
   departingTime: number;
   vesselAbbrev: string;
-  trips: ConvexScheduledTrip[];
+  trips: TTrip[];
 };
 
 /**
@@ -27,13 +35,20 @@ export type PhysicalDeparture = {
 export const groupTripsByVessel = (
   trips: ConvexScheduledTrip[]
 ): Record<string, ConvexScheduledTrip[]> =>
+  groupTripsByVesselGeneric(trips);
+
+export const groupTripsByVesselGeneric = <
+  TTrip extends PhysicalDepartureInput,
+>(
+  trips: TTrip[]
+): Record<string, TTrip[]> =>
   trips.reduce(
     (acc, trip) => {
       acc[trip.VesselAbbrev] ??= [];
       acc[trip.VesselAbbrev].push(trip);
       return acc;
     },
-    {} as Record<string, ConvexScheduledTrip[]>
+    {} as Record<string, TTrip[]>
   );
 
 /**
@@ -45,7 +60,13 @@ export const groupTripsByVessel = (
  */
 export const groupTripsByPhysicalDeparture = (
   vesselTrips: ConvexScheduledTrip[]
-): PhysicalDeparture[] => {
+): PhysicalDeparture[] => groupTripsByPhysicalDepartureGeneric(vesselTrips);
+
+export const groupTripsByPhysicalDepartureGeneric = <
+  TTrip extends PhysicalDepartureInput,
+>(
+  vesselTrips: TTrip[]
+): PhysicalDeparture<TTrip>[] => {
   if (vesselTrips.length === 0) return [];
 
   return vesselTrips.reduce((groups, trip) => {
@@ -66,5 +87,5 @@ export const groupTripsByPhysicalDeparture = (
       });
     }
     return groups;
-  }, [] as PhysicalDeparture[]);
+  }, [] as PhysicalDeparture<TTrip>[]);
 };

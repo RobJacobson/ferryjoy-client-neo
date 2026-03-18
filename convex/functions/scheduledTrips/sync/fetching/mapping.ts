@@ -1,52 +1,32 @@
-import type { Route, TerminalCombo } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../../schemas";
 import { getTerminalAbbreviation, getVesselAbbreviation } from "../../schemas";
-import type { VesselSailing } from "../types";
+import type { RawWsfScheduleSegment } from "shared/fetchWsfScheduleData";
+import { generateTripKey } from "shared/keys";
 
 /**
- * Extracts annotations from terminal combo using the sailing's annotation indexes.
- *
- * @param sailing - Vessel sailing data containing annotation indexes
- * @param terminalCombo - Terminal combination data containing annotations
- * @returns Array of annotation strings
- */
-export const extractAnnotations = (
-  sailing: VesselSailing,
-  terminalCombo: TerminalCombo
-): string[] => {
-  if (!sailing.AnnotationIndexes) return [];
-
-  return sailing.AnnotationIndexes.filter(
-    (index) => index < terminalCombo.Annotations.length
-  ).map((index) => terminalCombo.Annotations[index]);
-};
-
-/**
- * Resolves all required abbreviations for a trip, rejecting if any are missing.
- *
- * @param vesselName - Full vessel name
- * @param departingTerminal - Full departing terminal name
- * @param arrivingTerminal - Full arriving terminal name
- * @returns Object with resolved abbreviations or null if any abbreviation is missing
+ * Resolves all required abbreviations for a raw schedule segment, rejecting if
+ * any are missing.
  */
 export const resolveTripAbbreviations = (
-  vesselName: string,
-  departingTerminal: string,
-  arrivingTerminal: string
+  segment: RawWsfScheduleSegment
 ): {
   vesselAbbrev: string;
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
 } | null => {
-  const vesselAbbrev = getVesselAbbreviation(vesselName);
-  const departingTerminalAbbrev = getTerminalAbbreviation(departingTerminal);
-  const arrivingTerminalAbbrev = getTerminalAbbreviation(arrivingTerminal);
+  const vesselAbbrev = getVesselAbbreviation(segment.VesselName);
+  const departingTerminalAbbrev = getTerminalAbbreviation(
+    segment.DepartingTerminalName
+  );
+  const arrivingTerminalAbbrev = getTerminalAbbreviation(
+    segment.ArrivingTerminalName
+  );
 
   if (!vesselAbbrev || !departingTerminalAbbrev || !arrivingTerminalAbbrev) {
     console.warn(`Skipping trip due to missing abbreviations:`, {
-      vessel: vesselName,
-      departing: departingTerminal,
-      arriving: arrivingTerminal,
+      vessel: segment.VesselName,
+      departing: segment.DepartingTerminalName,
+      arriving: segment.ArrivingTerminalName,
     });
     return null;
   }
@@ -55,28 +35,15 @@ export const resolveTripAbbreviations = (
 };
 
 /**
- * Creates a complete scheduled trip record directly from WSF API data.
- * Generates the composite key and resolves all abbreviations in one step.
+ * Creates a complete scheduled trip record from a neutral raw schedule segment.
  *
- * @param sailing - Raw vessel sailing data from WSF API
- * @param terminalCombo - Terminal combination with route details
- * @param route - Route information from WSF API
- * @param tripDate - Trip date in YYYY-MM-DD format
+ * @param segment - Raw schedule segment derived from WSF API data
  * @returns Complete scheduled trip record ready for Convex storage, or null if invalid
  */
-export const createScheduledTrip = (
-  sailing: VesselSailing,
-  terminalCombo: TerminalCombo,
-  route: Route,
-  tripDate: string
+export const createScheduledTripFromRawSegment = (
+  segment: RawWsfScheduleSegment
 ): ConvexScheduledTrip | null => {
-  const annotations = extractAnnotations(sailing, terminalCombo);
-
-  const abbreviations = resolveTripAbbreviations(
-    sailing.VesselName,
-    terminalCombo.DepartingTerminalName,
-    terminalCombo.ArrivingTerminalName
-  );
+  const abbreviations = resolveTripAbbreviations(segment);
 
   if (!abbreviations) return null;
 
@@ -88,7 +55,7 @@ export const createScheduledTrip = (
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,
-    sailing.DepartingTime
+    segment.DepartingTime
   );
 
   if (!key) {
@@ -101,16 +68,16 @@ export const createScheduledTrip = (
     VesselAbbrev: vesselAbbrev,
     DepartingTerminalAbbrev: departingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    DepartingTime: sailing.DepartingTime.getTime(),
-    ArrivingTime: sailing.ArrivingTime
-      ? sailing.ArrivingTime.getTime()
+    DepartingTime: segment.DepartingTime.getTime(),
+    ArrivingTime: segment.ArrivingTime
+      ? segment.ArrivingTime.getTime()
       : undefined,
-    SailingNotes: terminalCombo.SailingNotes,
-    Annotations: annotations,
-    RouteID: route.RouteID,
-    RouteAbbrev: route.RouteAbbrev || "",
+    SailingNotes: segment.SailingNotes,
+    Annotations: segment.Annotations,
+    RouteID: segment.RouteID,
+    RouteAbbrev: segment.RouteAbbrev,
     Key: key,
-    SailingDay: tripDate,
+    SailingDay: segment.SailingDay,
     // TripType will be set correctly by classifyTripsByType() during sync
     // Default to "direct" as most trips are direct; classification will correct this
     TripType: "direct",
@@ -124,6 +91,3 @@ export const createScheduledTrip = (
 
   return trip;
 };
-
-// Import shared key generation function
-import { generateTripKey } from "shared";
