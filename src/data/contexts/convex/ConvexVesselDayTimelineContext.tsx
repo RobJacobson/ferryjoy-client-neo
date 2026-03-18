@@ -77,7 +77,7 @@ const ConvexVesselDayTimelineDataFetcher = ({
   onStateChange: (state: Partial<ConvexVesselDayTimelineContextType>) => void;
 }>) => {
   const rawTimeline = useQuery(
-    (api as any).functions.vesselTripEvents.queries.getVesselDayTimelineEvents,
+    api.functions.vesselTripEvents.queries.getVesselDayTimelineEvents,
     {
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,

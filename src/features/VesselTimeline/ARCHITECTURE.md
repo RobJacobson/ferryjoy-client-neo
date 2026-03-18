@@ -119,7 +119,7 @@ The query returns:
 
 ```ts
 type VesselTimelineEvent = {
-  EventId: string;
+  Key: string;
   VesselAbbrev: string;
   SailingDay: string;
   ScheduledDeparture: Date;
@@ -139,7 +139,7 @@ Important characteristics:
   - departure from a terminal
   - arrival at a terminal
 - the identity anchor is:
-  - `EventId = VesselAbbrev + ScheduledDeparture + EventType`
+  - `Key = SailingDay--VesselAbbrev--ScheduledDepartureIsoUtc--DepartingTerminalAbbrev--EventKind`
 
 ### `vesselTripEvents` table
 
@@ -149,7 +149,7 @@ The persistent backend read model is the Convex table:
 
 Stored fields:
 
-- `EventId`
+- `Key`
 - `VesselAbbrev`
 - `SailingDay`
 - `ScheduledDeparture`
@@ -179,7 +179,7 @@ creates seed events only from direct segments. For each direct segment:
 
 Field creation rules:
 
-- `EventId`
+- `Key`
   - `VesselAbbrev + ScheduledDeparture + EventType`
 - `ScheduledDeparture`
   - segment departure time

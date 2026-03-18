@@ -15,7 +15,7 @@ import type {
  * Boundary-oriented timeline input for one event.
  */
 export type EventBoundaryData = {
-  EventId: string;
+  Key: string;
   EventType: VesselTimelineEvent["EventType"];
   TerminalAbbrev: string;
   ScheduledDeparture: Date;
@@ -32,7 +32,7 @@ export const getBoundaryData = (
   Events: VesselTimelineEvent[]
 ): EventBoundaryData[] =>
   Events.map((event) => ({
-    EventId: event.EventId,
+    Key: event.Key,
     EventType: event.EventType,
     TerminalAbbrev: event.TerminalAbbrev,
     ScheduledDeparture: event.ScheduledDeparture,

@@ -41,7 +41,7 @@ export const getRows = (
       );
 
       rows.push({
-        id: `${current.EventId}--${next.EventId}--dock`,
+        id: `${current.Key}--${next.Key}--dock`,
         segmentIndex: rows.length,
         kind: "dock",
         startBoundary: current.boundary,
@@ -72,7 +72,7 @@ export const getRows = (
       );
 
       rows.push({
-        id: `${current.EventId}--${next.EventId}--sea`,
+        id: `${current.Key}--${next.Key}--sea`,
         segmentIndex: rows.length,
         kind: "sea",
         startBoundary: current.boundary,
@@ -87,7 +87,7 @@ export const getRows = (
   const lastBoundary = boundaryData[boundaryData.length - 1];
   if (lastBoundary?.EventType === "arv-dock") {
     rows.push({
-      id: `${lastBoundary.EventId}--terminal`,
+      id: `${lastBoundary.Key}--terminal`,
       segmentIndex: rows.length,
       kind: "dock",
       isTerminal: true,
