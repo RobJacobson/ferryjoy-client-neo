@@ -109,6 +109,8 @@ Field mapping:
 - arrival event
   - `TerminalAbbrev = ArrivingTerminalAbbrev`
   - `ScheduledTime = ArrivingTime ?? SchedArriveNext`
+  - if the scheduled arrival exactly equals the scheduled departure, subtract
+    five minutes from the reported arrival time before seeding the feed
 
 Seed generation lives in `convex/domain/vesselTripEvents/seed.ts`.
 

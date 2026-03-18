@@ -43,6 +43,20 @@ describe("buildSeedVesselTripEvents", () => {
     expect(events[1]?.ScheduledTime).toBe(at(9, 10));
   });
 
+  it("subtracts five minutes from arrival time when schedule arrival equals departure", () => {
+    const events = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        ArrivingTime: at(8, 35),
+      }),
+    ]);
+
+    expect(events[1]?.ScheduledTime).toBe(at(8, 30));
+  });
+
   it("uses sailing day, vessel, departure, terminal, and event type in Key", () => {
     const events = buildSeedVesselTripEvents([
       makeTrip({
