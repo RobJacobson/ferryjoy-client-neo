@@ -8,7 +8,7 @@
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useMemo } from "react";
 import { z } from "zod";
-import { usePersistentState } from "@/shared/hooks";
+import { usePersistentState } from "@/shared/hooks/usePersistentState";
 import { storageKv } from "@/shared/storage";
 
 // ============================================================================
