@@ -1,73 +1,47 @@
 /**
- * Pipeline stage 1: derive boundary points for each normalized vessel-day trip.
+ * Pipeline stage 1: derive boundary points for each vessel-day event.
  *
- * This stage converts normalized trip records into boundary-oriented data so the
- * later stages can build dock and sea rows without repeatedly reimplementing
- * the same fallback logic.
+ * This stage converts ordered event records into boundary-oriented data so the
+ * later stages can build dock and sea rows from adjacent boundaries.
  */
 
-import type { VesselTimelineTrip } from "@/data/contexts";
+import type { VesselTimelineEvent } from "@/data/contexts";
 import type {
   VesselTimelineBoundary,
   VesselTimelineTimePoint,
 } from "../../types";
 
 /**
- * Boundary-oriented timeline input for one scheduled trip.
+ * Boundary-oriented timeline input for one event.
  */
-export type TripBoundaryData = {
-  key: string;
-  departingTerminalAbbrev: string;
-  arrivingTerminalAbbrev?: string;
-  arriveCurr: VesselTimelineBoundary;
-  departCurr: VesselTimelineBoundary;
-  arriveNext: VesselTimelineBoundary;
-  departNext: VesselTimelineBoundary;
+export type EventBoundaryData = {
+  EventId: string;
+  EventType: VesselTimelineEvent["EventType"];
+  TerminalAbbrev: string;
+  ScheduledDeparture: Date;
+  boundary: VesselTimelineBoundary;
 };
 
 /**
- * Converts normalized vessel timeline trips into boundary-oriented data.
+ * Converts ordered vessel timeline events into boundary-oriented data.
  *
- * @param trips - Ordered normalized vessel timeline trips
- * @returns Boundary-oriented representation of each trip
+ * @param Events - Ordered normalized vessel timeline events
+ * @returns Boundary-oriented representation of each event
  */
 export const getBoundaryData = (
-  trips: VesselTimelineTrip[]
-): TripBoundaryData[] =>
-  trips.map((trip) => ({
-    key: trip.key,
-    departingTerminalAbbrev: trip.departingTerminalAbbrev,
-    arrivingTerminalAbbrev: trip.arrivingTerminalAbbrev,
-    arriveCurr: {
-      terminalAbbrev: trip.departingTerminalAbbrev,
+  Events: VesselTimelineEvent[]
+): EventBoundaryData[] =>
+  Events.map((event) => ({
+    EventId: event.EventId,
+    EventType: event.EventType,
+    TerminalAbbrev: event.TerminalAbbrev,
+    ScheduledDeparture: event.ScheduledDeparture,
+    boundary: {
+      terminalAbbrev: event.TerminalAbbrev,
       timePoint: {
-        scheduled: trip.scheduledArriveCurr,
-        actual: trip.tripStart,
-      } satisfies VesselTimelineTimePoint,
-    },
-    departCurr: {
-      terminalAbbrev: trip.departingTerminalAbbrev,
-      timePoint: {
-        scheduled: trip.scheduledDeparture,
-        actual: trip.leftDock,
-        estimated: trip.predictedDepartCurr,
-      } satisfies VesselTimelineTimePoint,
-    },
-    arriveNext: {
-      terminalAbbrev:
-        trip.arrivingTerminalAbbrev ?? trip.departingTerminalAbbrev,
-      timePoint: {
-        scheduled: trip.scheduledArrival,
-        actual: trip.arriveDest ?? trip.tripEnd,
-        estimated: trip.predictedArriveNext,
-      } satisfies VesselTimelineTimePoint,
-    },
-    departNext: {
-      terminalAbbrev:
-        trip.arrivingTerminalAbbrev ?? trip.departingTerminalAbbrev,
-      timePoint: {
-        scheduled: trip.nextScheduledDeparture,
-        estimated: trip.predictedDepartNext,
+        scheduled: event.ScheduledTime,
+        actual: event.ActualTime,
+        estimated: event.PredictedTime,
       } satisfies VesselTimelineTimePoint,
     },
   }));

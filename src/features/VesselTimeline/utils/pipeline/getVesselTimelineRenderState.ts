@@ -2,7 +2,7 @@
  * Day-level vessel timeline pipeline entry point.
  */
 
-import type { VesselLocation, VesselTimelineTrip } from "@/data/contexts";
+import type { VesselLocation, VesselTimelineEvent } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
@@ -35,27 +35,27 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
 };
 
 /**
- * Runs the vessel-day timeline pipeline from normalized trips to render state.
+ * Runs the vessel-day timeline pipeline from ordered events to render state.
  *
- * @param trips - Ordered normalized trips for one vessel/day
+ * @param Events - Ordered normalized events for one vessel/day
  * @param vesselLocation - Current vessel location for the selected vessel
  * @param now - Current wall-clock time
  * @param layout - Optional layout override
  * @returns Final render state for the VesselTimeline UI
  */
 export const getVesselTimelineRenderState = (
-  trips: VesselTimelineTrip[],
+  Events: VesselTimelineEvent[],
   vesselLocation: VesselLocation | undefined,
   now: Date = new Date(),
   layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT
 ): VesselTimelineRenderState => {
   const adjustedLayout = {
     ...layout,
-    pixelsPerMinute: getAdaptivePixelsPerMinute(trips),
+    pixelsPerMinute: getAdaptivePixelsPerMinute(Events),
   };
-  const boundaryData = getBoundaryData(trips);
-  const rows = getRows(trips, boundaryData, adjustedLayout);
-  const document = getDocument(trips, rows, vesselLocation, now);
+  const boundaryData = getBoundaryData(Events);
+  const rows = getRows(boundaryData, adjustedLayout);
+  const document = getDocument(rows, vesselLocation, now);
   const renderRowsOut = renderRows(document, adjustedLayout);
   return renderState(
     document,
@@ -72,13 +72,12 @@ export const getVesselTimelineRenderState = (
  * This uses a single tunable multiplier and clamps the result to keep sparse
  * routes compact while preserving enough vertical space for dense schedules.
  *
- * @param trips - Ordered normalized trips for one vessel/day
+ * @param Events - Ordered normalized events for one vessel/day
  * @returns Adaptive pixels-per-minute ratio for the timeline
  */
-export const getAdaptivePixelsPerMinute = (trips: VesselTimelineTrip[]) =>
+export const getAdaptivePixelsPerMinute = (Events: VesselTimelineEvent[]) =>
   clamp(
-    (trips.length + Math.max(0, trips.length - 1) + 1) *
-      PIXELS_PER_MINUTE_PER_ROW,
+    Math.max(1, Events.length) * PIXELS_PER_MINUTE_PER_ROW,
     PIXELS_PER_MINUTE_MIN,
     PIXELS_PER_MINUTE_MAX
   );

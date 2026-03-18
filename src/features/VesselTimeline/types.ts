@@ -2,17 +2,17 @@
  * Shared types for the VesselTimeline feature.
  *
  * These types describe the canonical day-level timeline document and render
- * state. The feature starts from normalized vessel-day timeline trips supplied
- * by the Convex vessel-day context.
+ * state. The feature starts from ordered vessel-day timeline events supplied by
+ * the Convex vessel-day context.
  */
 
-import type { VesselTimelineTrip } from "@/data/contexts";
+import type { VesselTimelineEvent } from "@/data/contexts";
 
 /**
  * Input item for day-level vessel timeline builders.
  */
 export type VesselTimelineItem = {
-  trips: VesselTimelineTrip[];
+  Events: VesselTimelineEvent[];
 };
 
 /**

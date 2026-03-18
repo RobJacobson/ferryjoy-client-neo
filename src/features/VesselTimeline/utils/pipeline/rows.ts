@@ -1,19 +1,14 @@
 /**
- * Pipeline stage 2: convert boundary data into ordered dock/sea timeline rows.
- *
- * The day-level timeline alternates dock and sea segments. Dock rows represent
- * time from arrival at the current terminal until the scheduled departure for
- * that trip. Sea rows represent the trip crossing itself.
+ * Pipeline stage 2: convert adjacent event boundaries into dock/sea rows.
  */
 
-import type { VesselTimelineTrip } from "@/data/contexts";
 import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRow,
   VesselTimelineRowDisplayMode,
   VesselTimelineTimePoint,
 } from "../../types";
-import type { TripBoundaryData } from "./boundaries";
+import type { EventBoundaryData } from "./boundaries";
 
 const MS_PER_MINUTE = 60_000;
 const MIN_DURATION_MINUTES = 1;
@@ -21,37 +16,36 @@ const MIN_DURATION_MINUTES = 1;
 /**
  * Builds ordered dock and sea rows for the vessel-day timeline.
  *
- * @param trips - Ordered normalized vessel timeline trips
- * @param boundaryData - Boundary data derived from the trips
+ * @param boundaryData - Boundary data derived from ordered events
  * @param layout - Layout config used to mark compressed rows
  * @returns Ordered canonical rows for the day-level document
  */
 export const getRows = (
-  trips: VesselTimelineTrip[],
-  boundaryData: TripBoundaryData[],
+  boundaryData: EventBoundaryData[],
   layout: VesselTimelineLayoutConfig
 ): VesselTimelineRow[] => {
   const rows: VesselTimelineRow[] = [];
 
-  boundaryData.forEach((tripBoundaries, index) => {
-    const trip = trips[index];
-    const dockStartBoundary = getDockStartBoundary(boundaryData, index);
-    const dockDurationMinutes = getDurationMinutes(
-      dockStartBoundary.timePoint,
-      tripBoundaries.departCurr.timePoint
-    );
-    const seaDurationMinutes = getDurationMinutes(
-      tripBoundaries.departCurr.timePoint,
-      tripBoundaries.arriveNext.timePoint
-    );
+  for (let index = 0; index < boundaryData.length - 1; index++) {
+    const current = boundaryData[index];
+    const next = boundaryData[index + 1];
 
-    if (shouldRenderDockRow(index, trip, dockDurationMinutes)) {
+    if (!current || !next) {
+      continue;
+    }
+
+    if (isDockPair(current, next)) {
+      const dockDurationMinutes = getDurationMinutes(
+        current.boundary.timePoint,
+        next.boundary.timePoint
+      );
+
       rows.push({
-        id: `${trip.key}-dock`,
+        id: `${current.EventId}--${next.EventId}--dock`,
         segmentIndex: rows.length,
         kind: "dock",
-        startBoundary: dockStartBoundary,
-        endBoundary: tripBoundaries.departCurr,
+        startBoundary: current.boundary,
+        endBoundary: next.boundary,
         actualDurationMinutes: dockDurationMinutes,
         displayDurationMinutes: getDisplayDurationMinutes(
           dockDurationMinutes,
@@ -71,28 +65,34 @@ export const getRows = (
       });
     }
 
-    rows.push({
-      id: `${trip.key}-sea`,
-      segmentIndex: rows.length,
-      kind: "sea",
-      startBoundary: tripBoundaries.departCurr,
-      endBoundary: tripBoundaries.arriveNext,
-      actualDurationMinutes: seaDurationMinutes,
-      displayDurationMinutes: seaDurationMinutes,
-      displayMode: "proportional",
-    });
-  });
+    if (isSeaPair(current, next)) {
+      const seaDurationMinutes = getDurationMinutes(
+        current.boundary.timePoint,
+        next.boundary.timePoint
+      );
 
-  const lastTrip = trips[trips.length - 1];
-  const lastBoundaries = boundaryData[boundaryData.length - 1];
-  if (lastTrip && lastBoundaries) {
+      rows.push({
+        id: `${current.EventId}--${next.EventId}--sea`,
+        segmentIndex: rows.length,
+        kind: "sea",
+        startBoundary: current.boundary,
+        endBoundary: next.boundary,
+        actualDurationMinutes: seaDurationMinutes,
+        displayDurationMinutes: seaDurationMinutes,
+        displayMode: "proportional",
+      });
+    }
+  }
+
+  const lastBoundary = boundaryData[boundaryData.length - 1];
+  if (lastBoundary?.EventType === "arv-dock") {
     rows.push({
-      id: `${lastTrip.key}-terminal`,
+      id: `${lastBoundary.EventId}--terminal`,
       segmentIndex: rows.length,
       kind: "dock",
       isTerminal: true,
-      startBoundary: lastBoundaries.arriveNext,
-      endBoundary: lastBoundaries.arriveNext,
+      startBoundary: lastBoundary.boundary,
+      endBoundary: lastBoundary.boundary,
       actualDurationMinutes: 0,
       displayDurationMinutes: 0,
       displayMode: "proportional",
@@ -102,39 +102,13 @@ export const getRows = (
   return rows;
 };
 
-/**
- * Resolves the dock-row start boundary so adjacent rows share a boundary when
- * the prior trip's arrival is available.
- *
- * @param boundaryData - Ordered boundary data for the day
- * @param index - Current trip index
- * @returns Boundary used as the dock-row start
- */
-const getDockStartBoundary = (
-  boundaryData: TripBoundaryData[],
-  index: number
-) => boundaryData[index - 1]?.arriveNext ?? boundaryData[index].arriveCurr;
+const isDockPair = (current: EventBoundaryData, next: EventBoundaryData) =>
+  current.EventType === "arv-dock" &&
+  next.EventType === "dep-dock" &&
+  current.TerminalAbbrev === next.TerminalAbbrev;
 
-/**
- * Determines whether a dock row is meaningful enough to render.
- *
- * The first trip of the day may not have a useful "arrive current" time. In
- * that case, we skip the row rather than manufacturing a zero-length segment.
- *
- * @param trip - Normalized vessel timeline trip
- * @param dockDurationMinutes - Derived dock duration for the trip
- * @returns True when a dock row should be rendered
- */
-const shouldRenderDockRow = (
-  index: number,
-  trip: VesselTimelineTrip,
-  dockDurationMinutes: number
-) =>
-  index > 0 ||
-  trip.scheduledArriveCurr !== undefined ||
-  trip.tripStart !== undefined ||
-  trip.leftDock !== undefined ||
-  dockDurationMinutes > MIN_DURATION_MINUTES;
+const isSeaPair = (current: EventBoundaryData, next: EventBoundaryData) =>
+  current.EventType === "dep-dock" && next.EventType === "arv-dock";
 
 /**
  * Resolves the display mode for a dock row.

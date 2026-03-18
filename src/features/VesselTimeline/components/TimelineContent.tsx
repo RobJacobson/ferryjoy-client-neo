@@ -110,6 +110,7 @@ export const TimelineContent = ({
           >
             <TimelineTerminalCardBackgrounds
               cards={toTerminalCardGeometries(terminalCards)}
+              blurTargetRef={blurTargetRef}
             />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
