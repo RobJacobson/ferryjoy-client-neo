@@ -9,11 +9,11 @@ import {
   scheduledTripSchema,
 } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
-import { vesselTripEventSchema } from "functions/vesselTripEvents/schemas";
 import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
 } from "functions/vesselPings/schemas";
+import { vesselTripEventSchema } from "functions/vesselTripEvents/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({

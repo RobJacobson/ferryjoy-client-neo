@@ -30,13 +30,13 @@ export const getAbsoluteCenteredBoxStyle = ({
   isVertical,
 }: AbsoluteCenteredBoxStyleOptions): ViewStyle => {
   const axisAnchorStyle:
-    | {}
+    | Record<string, never>
     | {
         top: DimensionValue;
         left: DimensionValue;
       } =
     isVertical === undefined
-      ? {}
+      ? ({} as Record<string, never>)
       : {
           top: isVertical ? 0 : "50%",
           left: isVertical ? "50%" : 0,

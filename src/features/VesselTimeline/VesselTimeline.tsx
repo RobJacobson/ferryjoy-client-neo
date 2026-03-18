@@ -58,8 +58,14 @@ type VesselTimelineContentProps = {
  */
 const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
   const nowMs = useNowMs(1000);
-  const { VesselAbbrev, SailingDay, Events, VesselLocation, IsLoading, Error } =
-    useConvexVesselDayTimeline();
+  const {
+    VesselAbbrev,
+    SailingDay,
+    Events,
+    VesselLocation,
+    IsLoading,
+    Error: errorMessage,
+  } = useConvexVesselDayTimeline();
 
   if (IsLoading) {
     return (
@@ -71,14 +77,14 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
     );
   }
 
-  if (Error) {
+  if (errorMessage) {
     return (
       <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-destructive text-lg">
           Unable to load vessel timeline
         </Text>
         <Text className="mt-2 text-center text-muted-foreground text-sm">
-          {Error}
+          {errorMessage}
         </Text>
       </View>
     );

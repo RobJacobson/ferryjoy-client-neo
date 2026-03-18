@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { classifyDirectSegments } from "./directSegments";
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import { classifyDirectSegments } from "./directSegments";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours, minutes);

@@ -21,7 +21,8 @@ const getDisplayPositionPercent = (positionPercent: number): number =>
 export const getIndicatorTopPx = (
   layout: RowLayoutBounds,
   positionPercent: number
-): number => layout.y + layout.height * getDisplayPositionPercent(positionPercent);
+): number =>
+  layout.y + layout.height * getDisplayPositionPercent(positionPercent);
 
 export const getBoundaryTopPx = (
   activeIndicator: TimelineActiveIndicator | null,

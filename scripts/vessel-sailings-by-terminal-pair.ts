@@ -581,8 +581,10 @@ const main = async (): Promise<void> => {
   const rejectCounts: Partial<Record<SkipReason, number>> = {};
   const rejectsStream =
     args.rejectsPath != null
-      ? (ensureDirectoryExists(path.dirname(args.rejectsPath)),
-        fs.createWriteStream(args.rejectsPath, { flags: "w" }))
+      ? (() => {
+          ensureDirectoryExists(path.dirname(args.rejectsPath));
+          return fs.createWriteStream(args.rejectsPath, { flags: "w" });
+        })()
       : null;
 
   const discoveredVesselAbbrevs = new Set<string>();

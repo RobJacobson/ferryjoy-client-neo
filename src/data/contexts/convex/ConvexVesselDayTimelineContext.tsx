@@ -128,12 +128,12 @@ export const ConvexVesselDayTimelineProvider = ({
     Error: null,
   });
 
-  const handleError = (Error: string) => {
+  const handleError = (errorMessage: string) => {
     setState((previous) => ({
       ...previous,
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,
-      Error,
+      Error: errorMessage,
       IsLoading: false,
     }));
   };

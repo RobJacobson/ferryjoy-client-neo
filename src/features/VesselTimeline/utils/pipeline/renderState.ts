@@ -2,8 +2,8 @@
  * Pipeline stage 5: compute the active indicator and final render state.
  */
 
-import { clamp } from "@/shared/utils";
 import type { VesselLocation } from "@/data/contexts";
+import { clamp } from "@/shared/utils";
 import type {
   TimelineTerminalCard,
   VesselTimelineActiveIndicator,

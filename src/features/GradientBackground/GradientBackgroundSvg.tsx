@@ -6,7 +6,7 @@
  */
 
 import { StyleSheet } from "react-native";
-import Svg, { Defs, Image as SvgImage, Pattern, Rect } from "react-native-svg";
+import Svg, { Defs, Pattern, Rect, Image as SvgImage } from "react-native-svg";
 import {
   GRADIENT_BACKGROUND_NOISE_CONFIG,
   GRADIENT_BACKGROUND_STOPS,

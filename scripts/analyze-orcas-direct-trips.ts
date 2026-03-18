@@ -218,17 +218,17 @@ const generateSummary = (
     const tripKey = `${trip.VesselID}|${trip.DepartingTime}|${trip.arrivingTerminalID}`;
     const isDirect = directTripKeys.has(tripKey);
 
-    if (!summary.has(trip.arrivingTerminalID)) {
-      summary.set(trip.arrivingTerminalID, {
+    let terminalSummary = summary.get(trip.arrivingTerminalID);
+    if (terminalSummary === undefined) {
+      terminalSummary = {
         arrivingTerminalID: trip.arrivingTerminalID,
         arrivingTerminalName: trip.arrivingTerminalName,
         directTripCount: 0,
         indirectTripCount: 0,
         directDepartureTimes: [],
-      });
+      };
+      summary.set(trip.arrivingTerminalID, terminalSummary);
     }
-
-    const terminalSummary = summary.get(trip.arrivingTerminalID)!;
 
     if (isDirect) {
       terminalSummary.directTripCount++;

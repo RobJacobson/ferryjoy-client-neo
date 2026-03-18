@@ -68,7 +68,9 @@ const getRowPhase = (
  * @param row - Canonical document row
  * @returns Start boundary label and timepoint
  */
-const getStartBoundary = (row: TimelineDocumentRow): TimelineRenderBoundary => ({
+const getStartBoundary = (
+  row: TimelineDocumentRow
+): TimelineRenderBoundary => ({
   eventType: row.kind === "at-dock" ? "arrive" : "depart",
   currTerminalAbbrev: row.startBoundary.terminalAbbrev,
   currTerminalDisplayName: getDisplayTerminalName(
