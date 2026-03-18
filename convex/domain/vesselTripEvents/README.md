@@ -90,7 +90,7 @@ Upstream flow:
 ```text
 WSF schedule sync
   -> raw schedule rows
-  -> classify direct vs indirect marketing trips
+  -> classify direct vs indirect scheduled trips
   -> keep only direct physical segments
   -> build dep/arv boundary events
   -> merge into vesselTripEvents for that sailing day
