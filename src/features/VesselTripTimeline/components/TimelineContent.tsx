@@ -48,7 +48,7 @@ export const TimelineContent = ({
   }, []);
 
   const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const { completedPercent, remainingPercent } = getTrackFractions(
+  const { completedPercent } = getTrackFractions(
     boundaryTopPx,
     CONTAINER_HEIGHT_PX
   );
@@ -63,7 +63,6 @@ export const TimelineContent = ({
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
           completedPercent={completedPercent}
-          remainingPercent={remainingPercent}
         />
         {renderRows.map((row: TimelineRenderRow) => (
           <TimelineRow

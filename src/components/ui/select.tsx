@@ -264,12 +264,30 @@ function SelectScrollDownButton({
  */
 function NativeSelectScrollView({
   className,
+  contentContainerStyle,
+  nestedScrollEnabled = true,
+  showsVerticalScrollIndicator = true,
+  style,
   ...props
 }: React.ComponentProps<typeof ScrollView>) {
   if (Platform.OS === "web") {
     return <>{props.children}</>;
   }
-  return <ScrollView className={cn("max-h-52", className)} {...props} />;
+  return (
+    <ScrollView
+      className={className}
+      nestedScrollEnabled={nestedScrollEnabled}
+      showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+      style={[{ maxHeight: 320 }, style]}
+      contentContainerStyle={[
+        {
+          paddingVertical: 4,
+        },
+        contentContainerStyle,
+      ]}
+      {...props}
+    />
+  );
 }
 
 export {

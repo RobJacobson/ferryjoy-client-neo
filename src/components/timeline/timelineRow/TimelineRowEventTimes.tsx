@@ -7,6 +7,10 @@ import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
+import {
+  DEFAULT_TIMELINE_VISUAL_THEME,
+  type TimelineVisualTheme,
+} from "../theme";
 import type { TimelineTimePoint } from "../types";
 
 const eventTypeIcons = {
@@ -15,13 +19,12 @@ const eventTypeIcons = {
   estimated: EqualApproximately,
 } as const;
 
-const EVENT_TIME_ICON_COLOR = "hsl(273 81% 47%)";
-
 type EventType = keyof typeof eventTypeIcons;
 
 type TimelineRowEventTimesProps = {
   point: TimelineTimePoint;
   showPlaceholder?: boolean;
+  theme?: TimelineVisualTheme;
 };
 
 /**
@@ -33,6 +36,7 @@ type TimelineRowEventTimesProps = {
 export const TimelineRowEventTimes = ({
   point,
   showPlaceholder = false,
+  theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowEventTimesProps) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;
@@ -44,10 +48,18 @@ export const TimelineRowEventTimes = ({
       className="mt-[-14px] flex-1 flex-row gap-1"
       style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
-      {!hasVisibleTimes && showPlaceholder && <MissingEventTime />}
-      {scheduled && <EventTime time={scheduled} type="scheduled" />}
+      {!hasVisibleTimes && showPlaceholder && (
+        <MissingEventTime theme={theme} />
+      )}
+      {scheduled && (
+        <EventTime time={scheduled} type="scheduled" theme={theme} />
+      )}
       {secondary && (
-        <EventTime time={secondary} type={actual ? "actual" : "estimated"} />
+        <EventTime
+          time={secondary}
+          type={actual ? "actual" : "estimated"}
+          theme={theme}
+        />
       )}
     </View>
   );
@@ -56,9 +68,10 @@ export const TimelineRowEventTimes = ({
 type EventTimeProps = {
   time: Date;
   type: EventType;
+  theme: TimelineVisualTheme;
 };
 
-const EventTime = ({ time, type }: EventTimeProps) => {
+const EventTime = ({ time, type, theme }: EventTimeProps) => {
   const Icon = eventTypeIcons[type];
   const displayTime = toDisplayTime(time);
 
@@ -71,16 +84,28 @@ const EventTime = ({ time, type }: EventTimeProps) => {
         className={cn("absolute top-[1px] left-[-1px] flex-row", iconGapPx)}
       >
         <View className="mt-[1px]">
-          <Icon size={22} strokeWidth={1.5} color="white" />
+          <Icon
+            size={22}
+            strokeWidth={1.5}
+            color={theme.times.shadowIconColor}
+          />
         </View>
-        <Text className="font-led-phatt text-lg text-white">{displayTime}</Text>
+        <Text
+          className={theme.times.fontClassName}
+          style={[{ color: theme.times.shadowColor }, theme.times.textStyle]}
+        >
+          {displayTime}
+        </Text>
       </View>
       {/* Regular text */}
       <View className={cn("flex-row", iconGapPx)}>
         <View className="mt-[1px]">
-          <Icon size={24} strokeWidth={1.5} color={EVENT_TIME_ICON_COLOR} />
+          <Icon size={24} strokeWidth={1.5} color={theme.times.iconColor} />
         </View>
-        <Text className="font-led-phatt text-lg text-purple-700">
+        <Text
+          className={theme.times.fontClassName}
+          style={[{ color: theme.times.textColor }, theme.times.textStyle]}
+        >
           {displayTime}
         </Text>
       </View>
@@ -88,23 +113,37 @@ const EventTime = ({ time, type }: EventTimeProps) => {
   );
 };
 
-const MissingEventTime = () => (
+const MissingEventTime = ({ theme }: { theme: TimelineVisualTheme }) => (
   <View className="relative flex-row">
     <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
       <View className="mt-[1px]">
-        <CalendarClock size={22} strokeWidth={1.5} color="white" />
+        <CalendarClock
+          size={22}
+          strokeWidth={1.5}
+          color={theme.times.shadowIconColor}
+        />
       </View>
-      <Text className="font-led-phatt text-lg text-white">--</Text>
+      <Text
+        className={theme.times.fontClassName}
+        style={[{ color: theme.times.shadowColor }, theme.times.textStyle]}
+      >
+        --
+      </Text>
     </View>
     <View className="flex-row gap-1">
       <View className="mt-[1px]">
         <CalendarClock
           size={24}
           strokeWidth={1.5}
-          color={EVENT_TIME_ICON_COLOR}
+          color={theme.times.iconColor}
         />
       </View>
-      <Text className="font-led-phatt text-lg text-purple-700">--</Text>
+      <Text
+        className={theme.times.fontClassName}
+        style={[{ color: theme.times.textColor }, theme.times.textStyle]}
+      >
+        --
+      </Text>
     </View>
   </View>
 );

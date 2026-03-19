@@ -1,4 +1,5 @@
 import { type ComponentProps, cloneElement, type ReactElement } from "react";
+import type { TextStyle } from "react-native";
 import { type Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ type TimelineShadowTextProps = {
   children: ReactElement<ComponentProps<typeof Text>>;
   containerClassName?: string;
   shadowClassName?: string;
+  shadowStyle?: TextStyle;
   shadowOffset?: ShadowOffset;
 };
 
@@ -23,6 +25,7 @@ export const TimelineShadowText = ({
   children,
   containerClassName,
   shadowClassName = "text-white",
+  shadowStyle,
   shadowOffset = DEFAULT_SHADOW_OFFSET,
 }: TimelineShadowTextProps) => (
   <View className={cn("relative", containerClassName)}>
@@ -32,6 +35,7 @@ export const TimelineShadowText = ({
     >
       {cloneElement(children, {
         className: cn(children.props.className, shadowClassName),
+        style: [children.props.style, shadowStyle],
       })}
     </View>
     {children}

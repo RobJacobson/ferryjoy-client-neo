@@ -4,6 +4,7 @@
 
 import { View } from "@/components/ui";
 import { GradientBackground } from "@/features/GradientBackground";
+import { getVesselTimelineDesignVariant } from "./theme";
 import { VesselTimeline } from "./VesselTimeline";
 
 type VesselTimelineScreenProps = {
@@ -25,14 +26,23 @@ export const VesselTimelineScreen = ({
   vesselAbbrev,
   sailingDay,
   routeAbbrevs,
-}: VesselTimelineScreenProps) => (
-  <GradientBackground backgroundColor="#F5EFE3">
-    <View className="flex-1">
-      <VesselTimeline
-        vesselAbbrev={vesselAbbrev}
-        sailingDay={sailingDay}
-        routeAbbrevs={routeAbbrevs}
-      />
-    </View>
-  </GradientBackground>
-);
+}: VesselTimelineScreenProps) => {
+  const variant = getVesselTimelineDesignVariant();
+
+  return (
+    <GradientBackground
+      backgroundColor={variant.backgroundColor}
+      colors={variant.backgroundColors}
+      overlayColor={variant.backgroundOverlayColor}
+    >
+      <View className="flex-1">
+        <VesselTimeline
+          vesselAbbrev={vesselAbbrev}
+          sailingDay={sailingDay}
+          routeAbbrevs={routeAbbrevs}
+          theme={variant.timelineTheme}
+        />
+      </View>
+    </GradientBackground>
+  );
+};

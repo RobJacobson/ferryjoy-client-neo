@@ -4,6 +4,10 @@ import type { StyleProp, ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_TIMELINE_VISUAL_THEME,
+  type TimelineVisualTheme,
+} from "../theme";
 
 type TimelineIndicatorGlassProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -11,6 +15,7 @@ type TimelineIndicatorGlassProps = {
   style?: StyleProp<ViewStyle>;
   contentClassName?: string;
   children: ReactNode;
+  theme?: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorGlass = ({
@@ -19,22 +24,32 @@ export const TimelineIndicatorGlass = ({
   style,
   contentClassName,
   children,
+  theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorGlassProps) => (
   <View
-    style={style}
-    className={cn(
-      "overflow-hidden rounded-full border border-purple-400",
-      className
-    )}
+    style={[
+      style,
+      {
+        borderWidth: 1,
+        borderColor: theme.indicator.glassBorderColor,
+      },
+    ]}
+    className={cn("overflow-hidden rounded-full", className)}
+    pointerEvents="none"
   >
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={8}
+      intensity={theme.indicator.glassBlurIntensity}
       tint="light"
       blurMethod="dimezisBlurView"
       className="absolute inset-0"
     />
-    <View className="absolute inset-0 bg-white/50" />
+    <View
+      className="absolute inset-0"
+      style={{
+        backgroundColor: theme.indicator.glassFillColor,
+      }}
+    />
     <View className={contentClassName}>{children}</View>
   </View>
 );

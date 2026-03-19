@@ -1,17 +1,17 @@
 import anchorIcon from "assets/icons/anchor.png";
 import vesselIcon from "assets/icons/vessel.png";
 import { Image } from "expo-image";
+import {
+  DEFAULT_TIMELINE_VISUAL_THEME,
+  type TimelineVisualTheme,
+} from "../theme";
 import type { TimelineMarkerAppearance, TimelineSegmentKind } from "../types";
 
 type TimelineRowMarkerIconProps = {
   kind: TimelineSegmentKind;
   markerAppearance: TimelineMarkerAppearance;
+  theme?: TimelineVisualTheme;
 };
-
-const markerIconColor = {
-  future: "#22c55eCC",
-  past: "#ffffffCC",
-} as const;
 
 const markerIconSource = {
   "at-dock": anchorIcon,
@@ -21,6 +21,7 @@ const markerIconSource = {
 export const TimelineRowMarkerIcon = ({
   kind,
   markerAppearance,
+  theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowMarkerIconProps) => (
   <Image
     source={markerIconSource[kind]}
@@ -28,7 +29,10 @@ export const TimelineRowMarkerIcon = ({
     style={{
       width: 20,
       height: 20,
-      tintColor: markerIconColor[markerAppearance],
+      tintColor:
+        markerAppearance === "future"
+          ? theme.marker.futureIconTintColor
+          : theme.marker.pastIconTintColor,
     }}
   />
 );

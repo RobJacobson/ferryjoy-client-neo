@@ -9,6 +9,7 @@ import type {
   TerminalCardGeometry,
   TimelineActiveIndicator,
   TimelineRenderRow,
+  TimelineVisualTheme,
 } from "@/components/timeline";
 import type { VesselTimelineEvent } from "@/data/contexts";
 
@@ -80,4 +81,5 @@ export type VesselTimelineRenderState = {
   activeIndicator: TimelineActiveIndicator | null;
   contentHeightPx: number;
   layout: VesselTimelineLayoutConfig;
+  theme?: TimelineVisualTheme;
 };

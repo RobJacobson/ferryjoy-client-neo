@@ -4,11 +4,16 @@
 
 import { Text, View } from "@/components/ui";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
+import {
+  DEFAULT_TIMELINE_VISUAL_THEME,
+  type TimelineVisualTheme,
+} from "../theme";
 import type { TimelineRenderBoundary } from "../types";
 import { TimelineShadowText } from "./TimelineShadowText";
 
 type TimelineRowEventLabelProps = {
   boundary: TimelineRenderBoundary;
+  theme?: TimelineVisualTheme;
 };
 
 /**
@@ -19,6 +24,7 @@ type TimelineRowEventLabelProps = {
  */
 export const TimelineRowEventLabel = ({
   boundary,
+  theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowEventLabelProps) => {
   const terminalDisplayName = boundary.currTerminalDisplayName;
 
@@ -37,17 +43,42 @@ export const TimelineRowEventLabel = ({
       style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       {terminalDisplayName && boundary.eventType === "arrive" && (
-        <View className="absolute -top-8 -left-3 -rotate-[9deg]">
-          <TimelineShadowText>
-            <Text className="font-puffberry text-3xl text-purple-400">
+        <View
+          className="absolute -top-8 -left-3"
+          style={{
+            transform: [
+              { rotate: `${theme.labels.terminalNameRotationDeg}deg` },
+            ],
+          }}
+        >
+          <TimelineShadowText
+            shadowClassName=""
+            shadowStyle={{ color: theme.labels.terminalNameShadowColor }}
+          >
+            <Text
+              className={theme.labels.terminalNameFontClassName}
+              style={[
+                { color: theme.labels.terminalNameColor },
+                theme.labels.terminalNameStyle,
+              ]}
+            >
               {terminalDisplayName}
             </Text>
           </TimelineShadowText>
         </View>
       )}
       <View className="flex-1 flex-row justify-end">
-        <TimelineShadowText>
-          <Text className="mt-[-6px] font-led-phatt text-lg text-purple-700">
+        <TimelineShadowText
+          shadowClassName=""
+          shadowStyle={{ color: theme.labels.eventLabelShadowColor }}
+        >
+          <Text
+            className={`mt-[-6px] ${theme.labels.eventLabelFontClassName}`}
+            style={[
+              { color: theme.labels.eventLabelColor },
+              theme.labels.eventLabelStyle,
+            ]}
+          >
             {labelText}
           </Text>
         </TimelineShadowText>

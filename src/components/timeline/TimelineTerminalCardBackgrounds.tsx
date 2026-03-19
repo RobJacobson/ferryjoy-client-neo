@@ -10,19 +10,24 @@ import type { View as RNView } from "react-native";
 import { BlurView } from "@/components/BlurView";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_TIMELINE_VISUAL_THEME,
+  type TimelineVisualTheme,
+} from "./theme";
 import type { TerminalCardGeometry } from "./types";
 
 type TimelineTerminalCardBackgroundsProps = {
   cards: TerminalCardGeometry[];
   blurTargetRef: RefObject<ComponentRef<typeof RNView> | null>;
+  theme?: TimelineVisualTheme;
 };
 
 const terminalCardPositionClasses: Record<
   TerminalCardGeometry["position"],
   string
 > = {
-  top: "rounded-t-[28px] border-x border-t",
-  bottom: "rounded-b-[28px] border-x border-b",
+  top: "rounded-t-[28px] border-x border-t border-b-0",
+  bottom: "rounded-b-[28px] border-x border-b border-t-0",
   single: "rounded-[28px] border",
 };
 
@@ -35,14 +40,15 @@ const terminalCardPositionClasses: Record<
 export const TimelineTerminalCardBackgrounds = ({
   cards,
   blurTargetRef,
+  theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineTerminalCardBackgroundsProps) => (
   <View className="absolute inset-0" pointerEvents="none">
     {cards.map((card) => (
       <BlurView
         key={card.id}
         blurTarget={blurTargetRef}
-        intensity={30}
-        tint="light"
+        intensity={theme.cards.blurIntensity}
+        tint={theme.cards.blurTint}
         blurMethod="dimezisBlurView"
         className="absolute"
         style={{
@@ -55,13 +61,22 @@ export const TimelineTerminalCardBackgrounds = ({
           borderTopRightRadius: card.position !== "bottom" ? 28 : undefined,
           borderBottomLeftRadius: card.position !== "top" ? 28 : undefined,
           borderBottomRightRadius: card.position !== "top" ? 28 : undefined,
+          shadowColor: theme.cards.shadowColor,
+          shadowOpacity: theme.cards.shadowOpacity,
+          shadowRadius: theme.cards.shadowRadius,
+          ...theme.cards.shadowStyle,
         }}
       >
         <View
           className={cn(
-            "absolute inset-0 border-white bg-white/30",
+            "absolute inset-0",
             terminalCardPositionClasses[card.position]
           )}
+          style={{
+            backgroundColor: theme.cards.fillColor,
+            borderColor: theme.cards.borderColor,
+            borderWidth: theme.cards.borderWidth,
+          }}
         />
       </BlurView>
     ))}
