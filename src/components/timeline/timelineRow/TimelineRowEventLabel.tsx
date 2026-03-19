@@ -8,31 +8,31 @@ import {
   DEFAULT_TIMELINE_VISUAL_THEME,
   type TimelineVisualTheme,
 } from "../theme";
-import type { TimelineRenderBoundary } from "../types";
+import type { TimelineRenderEvent } from "../types";
 import { TimelineShadowText } from "./TimelineShadowText";
 
 type TimelineRowEventLabelProps = {
-  boundary: TimelineRenderBoundary;
+  event: TimelineRenderEvent;
   theme?: TimelineVisualTheme;
 };
 
 /**
- * Renders the short boundary label text for a timeline row boundary.
+ * Renders the short event label text for a timeline row event.
  *
- * @param label - The boundary containing event and terminal data
- * @returns The label view for the boundary
+ * @param event - The event containing event and terminal data
+ * @returns The label view for the event
  */
 export const TimelineRowEventLabel = ({
-  boundary,
+  event,
   theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowEventLabelProps) => {
   const labelText =
-    boundary.eventType === "arrive"
-      ? boundary.currTerminalAbbrev
-        ? `Arv: ${boundary.currTerminalAbbrev}`
+    event.eventType === "arrive"
+      ? event.currTerminalAbbrev
+        ? `Arv: ${event.currTerminalAbbrev}`
         : "Arv"
-      : boundary.nextTerminalAbbrev
-        ? `To: ${boundary.nextTerminalAbbrev}`
+      : event.nextTerminalAbbrev
+        ? `To: ${event.nextTerminalAbbrev}`
         : "Dep";
 
   return (

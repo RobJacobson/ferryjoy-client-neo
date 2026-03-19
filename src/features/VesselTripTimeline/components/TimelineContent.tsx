@@ -89,6 +89,6 @@ export const TimelineContent = ({
 const toSharedTimelineRenderRow = (row: TimelineRenderRow) => ({
   ...row,
   displayHeightPx: row.geometryMinutes,
-  startBoundary: row.startBoundary,
-  endBoundary: row.endBoundary,
+  startEvent: row.startBoundary,
+  endEvent: row.endBoundary,
 });

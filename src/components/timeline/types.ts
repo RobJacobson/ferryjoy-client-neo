@@ -15,7 +15,7 @@ export type TimelineTimePoint = {
   estimated?: Date;
 };
 
-export type TimelineRenderBoundary = {
+export type TimelineRenderEvent = {
   eventType: TimelineEventType;
   currTerminalAbbrev?: string;
   currTerminalDisplayName?: string;
@@ -30,8 +30,8 @@ export type TimelineRenderRow = {
   markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
   displayHeightPx: number;
-  startBoundary: TimelineRenderBoundary;
-  endBoundary?: TimelineRenderBoundary;
+  startEvent: TimelineRenderEvent;
+  endEvent?: TimelineRenderEvent;
   isFinalRow: boolean;
 };
 

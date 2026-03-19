@@ -1,5 +1,4 @@
 export {
-  TIMELINE_CONTENT_GUTTER_PX,
   TIMELINE_INDICATOR_POSITION_INSET_PERCENT,
   TIMELINE_MARKER_COLUMN_WIDTH_PX,
   TIMELINE_MARKER_SIZE_PX,
@@ -20,7 +19,7 @@ export type {
   TimelineActiveIndicator,
   TimelineEventType,
   TimelineMarkerAppearance,
-  TimelineRenderBoundary,
+  TimelineRenderEvent,
   TimelineRenderRow,
   TimelineSegmentKind,
   TimelineTimePoint,

@@ -24,19 +24,19 @@ export const TimelineRowContent = ({
   theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowContentProps) => (
   <View className="relative h-full w-full">
-    <TimelineRowTerminalHeadline boundary={row.startBoundary} theme={theme} />
+    <TimelineRowTerminalHeadline event={row.startEvent} theme={theme} />
     <View className="h-full flex-row">
       <View
         style={{
           width: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
         }}
       >
-        <TimelineRowEventLabel boundary={row.startBoundary} theme={theme} />
+        <TimelineRowEventLabel event={row.startEvent} theme={theme} />
       </View>
       <View className="flex-1">
         <TimelineRowEventTimes
-          point={row.startBoundary.timePoint}
-          showPlaceholder={row.startBoundary.isArrivalPlaceholder === true}
+          point={row.startEvent.timePoint}
+          showPlaceholder={row.startEvent.isArrivalPlaceholder === true}
           theme={theme}
         />
       </View>

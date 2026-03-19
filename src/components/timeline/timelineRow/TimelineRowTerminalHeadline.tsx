@@ -3,11 +3,11 @@ import {
   DEFAULT_TIMELINE_VISUAL_THEME,
   type TimelineVisualTheme,
 } from "../theme";
-import type { TimelineRenderBoundary } from "../types";
+import type { TimelineRenderEvent } from "../types";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowTerminalHeadlineProps = {
-  boundary: TimelineRenderBoundary;
+  event: TimelineRenderEvent;
   theme?: TimelineVisualTheme;
 };
 
@@ -15,12 +15,12 @@ type TimelineRowTerminalHeadlineProps = {
  * Renders the terminal headline that visually sits above an at-terminal card.
  */
 export const TimelineRowTerminalHeadline = ({
-  boundary,
+  event,
   theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowTerminalHeadlineProps) => {
-  const terminalDisplayName = boundary.currTerminalDisplayName;
+  const terminalDisplayName = event.currTerminalDisplayName;
 
-  if (!terminalDisplayName || boundary.eventType !== "arrive") {
+  if (!terminalDisplayName || event.eventType !== "arrive") {
     return null;
   }
 

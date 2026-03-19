@@ -28,7 +28,7 @@ type TimelineRowEventTimesProps = {
 };
 
 /**
- * Renders scheduled, actual, and estimated times for a timeline boundary.
+ * Renders scheduled, actual, and estimated times for a timeline event.
  *
  * @param point - The time point containing scheduled, actual, and estimated dates
  * @returns The event times view

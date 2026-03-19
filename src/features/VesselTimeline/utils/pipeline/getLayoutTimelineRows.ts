@@ -4,7 +4,7 @@
 
 import type {
   TerminalCardGeometry,
-  TimelineRenderBoundary,
+  TimelineRenderEvent,
   TimelineRenderRow,
 } from "@/components/timeline";
 import type {
@@ -39,8 +39,8 @@ export const getLayoutTimelineRows = (
           row.segmentIndex <= activeRowIndex ? "past" : "future",
         segmentIndex: row.segmentIndex,
         displayHeightPx,
-        startBoundary: toRenderBoundary(row.kind, "start", row),
-        endBoundary: toRenderBoundary(row.kind, "end", row),
+        startEvent: toRenderEvent(row.kind, "start", row),
+        endEvent: toRenderEvent(row.kind, "end", row),
         isFinalRow: row.isTerminal === true,
       },
       topPx,
@@ -75,11 +75,11 @@ const getDisplayHeightPx = (
   );
 };
 
-const toRenderBoundary = (
+const toRenderEvent = (
   kind: TimelineSemanticRow["kind"],
   side: "start" | "end",
   row: TimelineSemanticRow
-): TimelineRenderBoundary => {
+): TimelineRenderEvent => {
   const event = side === "start" ? row.startEvent : row.endEvent;
 
   return {
