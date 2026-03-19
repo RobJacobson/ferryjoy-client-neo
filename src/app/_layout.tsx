@@ -61,6 +61,10 @@ export default function Layout() {
     "BitcountPropSingle-900": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-Black.ttf"),
     LedPhattt: require("../../assets/fonts/led/14-led-phattt-font/14LedPhatttHeavy-Bav3.ttf"),
     AdvancedLedBoard7: require("../../assets/fonts/led/advanced-led-board-7-font/AdvancedLedBoard7-8qm2.ttf"),
+    "TeenageAgent-Regular": require("../../assets/fonts/teenage-agent/Teenage Agent.otf"),
+    "TeenageAgent-Italic": require("../../assets/fonts/teenage-agent/Teenage Agent Italic.otf"),
+    "TeenageAgent-Bold": require("../../assets/fonts/teenage-agent/Teenage Agent Bold.otf"),
+    "TeenageAgent-BoldItalic": require("../../assets/fonts/teenage-agent/Teenage Agent Bold Italic.otf"),
   });
 
   useEffect(() => {
