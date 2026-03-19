@@ -55,7 +55,10 @@ export const TimelineContent = ({
   }, []);
 
   const indicatorTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const { completedPercent } = getTrackFractions(indicatorTopPx, contentHeightPx);
+  const { completedPercent } = getTrackFractions(
+    indicatorTopPx,
+    contentHeightPx
+  );
 
   useEffect(() => {
     if (
