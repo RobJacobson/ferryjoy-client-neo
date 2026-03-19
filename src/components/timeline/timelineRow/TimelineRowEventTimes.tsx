@@ -12,6 +12,8 @@ import {
   type TimelineVisualTheme,
 } from "../theme";
 import type { TimelineTimePoint } from "../types";
+import { TimelineOutlinedIcon } from "./TimelineOutlinedIcon";
+import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 const eventTypeIcons = {
   actual: Timer,
@@ -78,72 +80,54 @@ const EventTime = ({ time, type, theme }: EventTimeProps) => {
   const iconGapPx = type === "scheduled" ? "gap-1" : "";
 
   return (
-    <View className="relative flex-row">
-      {/* Shadow text */}
-      <View
-        className={cn("absolute top-[1px] left-[-1px] flex-row", iconGapPx)}
+    <View className={cn("flex-row", iconGapPx)}>
+      <TimelineOutlinedIcon
+        containerClassName="mt-[1px]"
+        outlineColor={theme.times.shadowIconColor}
+        outlineWidth={1}
       >
-        <View className="mt-[1px]">
-          <Icon
-            size={22}
-            strokeWidth={1.5}
-            color={theme.times.shadowIconColor}
-          />
-        </View>
-        <Text
-          className={theme.times.fontClassName}
-          style={[{ color: theme.times.shadowColor }, theme.times.textStyle]}
-        >
-          {displayTime}
-        </Text>
-      </View>
-      {/* Regular text */}
-      <View className={cn("flex-row", iconGapPx)}>
-        <View className="mt-[1px]">
-          <Icon size={24} strokeWidth={1.5} color={theme.times.iconColor} />
-        </View>
+        <Icon size={24} strokeWidth={1.5} color={theme.times.iconColor} />
+      </TimelineOutlinedIcon>
+      <TimelineOutlinedText
+        outlineClassName=""
+        outlineStyle={{ color: theme.times.shadowColor }}
+        outlineWidth={1}
+      >
         <Text
           className={theme.times.fontClassName}
           style={[{ color: theme.times.textColor }, theme.times.textStyle]}
         >
           {displayTime}
         </Text>
-      </View>
+      </TimelineOutlinedText>
     </View>
   );
 };
 
 const MissingEventTime = ({ theme }: { theme: TimelineVisualTheme }) => (
-  <View className="relative flex-row">
-    <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
-      <View className="mt-[1px]">
-        <CalendarClock
-          size={22}
-          strokeWidth={1.5}
-          color={theme.times.shadowIconColor}
-        />
-      </View>
-      <Text
-        className={theme.times.fontClassName}
-        style={[{ color: theme.times.shadowColor }, theme.times.textStyle]}
-      >
-        --
-      </Text>
-    </View>
-    <View className="flex-row gap-1">
-      <View className="mt-[1px]">
-        <CalendarClock
-          size={24}
-          strokeWidth={1.5}
-          color={theme.times.iconColor}
-        />
-      </View>
+  <View className="flex-row gap-1">
+    <TimelineOutlinedIcon
+      containerClassName="mt-[1px]"
+      outlineColor={theme.times.shadowIconColor}
+      outlineWidth={1}
+    >
+      <CalendarClock
+        size={24}
+        strokeWidth={1.5}
+        color={theme.times.iconColor}
+      />
+    </TimelineOutlinedIcon>
+    <TimelineOutlinedText
+      outlineClassName=""
+      outlineStyle={{ color: theme.times.shadowColor }}
+      outlineWidth={1}
+    >
       <Text
         className={theme.times.fontClassName}
         style={[{ color: theme.times.textColor }, theme.times.textStyle]}
       >
         --
       </Text>
-    </View>
+    </TimelineOutlinedText>
   </View>
 );

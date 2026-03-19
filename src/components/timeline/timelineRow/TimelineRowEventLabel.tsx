@@ -9,7 +9,7 @@ import {
   type TimelineVisualTheme,
 } from "../theme";
 import type { TimelineRenderEvent } from "../types";
-import { TimelineShadowText } from "./TimelineShadowText";
+import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowEventLabelProps = {
   event: TimelineRenderEvent;
@@ -41,9 +41,10 @@ export const TimelineRowEventLabel = ({
       style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       <View className="flex-1 flex-row justify-end">
-        <TimelineShadowText
-          shadowClassName=""
-          shadowStyle={{ color: theme.labels.eventLabelShadowColor }}
+        <TimelineOutlinedText
+          outlineClassName=""
+          outlineStyle={{ color: theme.labels.eventLabelShadowColor }}
+          outlineWidth={1}
         >
           <Text
             className={`mt-[-6px] ${theme.labels.eventLabelFontClassName}`}
@@ -54,7 +55,7 @@ export const TimelineRowEventLabel = ({
           >
             {labelText}
           </Text>
-        </TimelineShadowText>
+        </TimelineOutlinedText>
       </View>
     </View>
   );

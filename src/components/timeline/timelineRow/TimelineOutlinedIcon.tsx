@@ -1,13 +1,11 @@
-import { type ComponentProps, cloneElement, type ReactElement } from "react";
-import type { TextStyle } from "react-native";
-import { type Text, View } from "@/components/ui";
+import { cloneElement, type ReactElement } from "react";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-type TimelineOutlinedTextProps = {
-  children: ReactElement<ComponentProps<typeof Text>>;
+type TimelineOutlinedIconProps = {
+  children: ReactElement;
   containerClassName?: string;
-  outlineClassName?: string;
-  outlineStyle?: TextStyle;
+  outlineColor?: string;
   outlineWidth?: number;
 };
 
@@ -27,14 +25,14 @@ const getOutlineOffsets = (outlineWidth: number) => {
   return offsets;
 };
 
-export const TimelineOutlinedText = ({
+export const TimelineOutlinedIcon = ({
   children,
   containerClassName,
-  outlineClassName = "text-white",
-  outlineStyle,
+  outlineColor = "#FFFFFF",
   outlineWidth = 1,
-}: TimelineOutlinedTextProps) => {
+}: TimelineOutlinedIconProps) => {
   const outlineOffsets = getOutlineOffsets(outlineWidth);
+  const childProps = children.props as { color?: string; strokeWidth?: number };
 
   return (
     <View className={cn("relative", containerClassName)}>
@@ -45,8 +43,11 @@ export const TimelineOutlinedText = ({
           style={{ left: x, top: y }}
         >
           {cloneElement(children, {
-            className: cn(children.props.className, outlineClassName),
-            style: [children.props.style, outlineStyle],
+            color: outlineColor,
+            strokeWidth:
+              childProps.strokeWidth !== undefined
+                ? childProps.strokeWidth + outlineWidth
+                : undefined,
           })}
         </View>
       ))}
