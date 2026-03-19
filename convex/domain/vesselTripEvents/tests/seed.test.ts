@@ -10,6 +10,7 @@ import {
   applyLiveLocationToEvents,
   buildEventKey,
   getLocationSailingDay,
+  normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "../liveUpdates";
 import {
@@ -570,6 +571,70 @@ describe("sortVesselTripEvents", () => {
     expect(events.sort(sortVesselTripEvents).map((event) => event.Key)).toEqual(
       ["a", "b", "d", "c"]
     );
+  });
+});
+
+describe("normalizeScheduledDockSeams", () => {
+  it("subtracts five minutes from an arrival when the next same-terminal departure has the identical scheduled time", () => {
+    const normalizedEvents = normalizeScheduledDockSeams(
+      [
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 15),
+          ScheduledTime: at(16, 50),
+        }),
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 50),
+          ScheduledTime: at(16, 50),
+        }),
+      ].sort(sortVesselTripEvents)
+    );
+
+    expect(normalizedEvents[0]?.ScheduledTime).toBe(at(16, 45));
+    expect(normalizedEvents[1]?.ScheduledTime).toBe(at(16, 50));
+  });
+
+  it("does not adjust dock seams for different terminals or different scheduled times", () => {
+    const normalizedEvents = normalizeScheduledDockSeams(
+      [
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(16, 15),
+          ScheduledTime: at(16, 50),
+        }),
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 50),
+          ScheduledTime: at(16, 50),
+        }),
+        makeEvent({
+          Key: "arv-2",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ANA",
+          ScheduledDeparture: at(17, 15),
+          ScheduledTime: at(17, 44),
+        }),
+        makeEvent({
+          Key: "dep-2",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ANA",
+          ScheduledDeparture: at(17, 50),
+          ScheduledTime: at(17, 50),
+        }),
+      ].sort(sortVesselTripEvents)
+    );
+
+    expect(normalizedEvents[0]?.ScheduledTime).toBe(at(16, 50));
+    expect(normalizedEvents[2]?.ScheduledTime).toBe(at(17, 44));
   });
 });
 

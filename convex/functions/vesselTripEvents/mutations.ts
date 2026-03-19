@@ -10,6 +10,7 @@ import {
   applyLiveLocationToEvents,
   getLocationSailingDay,
   mergeSeededVesselTripEvents,
+  normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTripEvents";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
@@ -36,11 +37,13 @@ export const reseedForSailingDay = internalMutation({
       .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
       .collect();
     const existingEvents = toEventRecords(existing);
-    const mergedEvents = mergeSeededVesselTripEvents({
-      existingEvents,
-      seededEvents: args.Events,
-      nowTimestamp: Date.now(),
-    });
+    const mergedEvents = normalizeScheduledDockSeams(
+      mergeSeededVesselTripEvents({
+        existingEvents,
+        seededEvents: args.Events,
+        nowTimestamp: Date.now(),
+      })
+    );
     const mergedById = indexEventsById(mergedEvents);
     const existingById = indexEventDocs(existing);
     let deletedCount = 0;
@@ -98,8 +101,8 @@ export const replaceForSailingDay = internalMutation({
       await ctx.db.delete(doc._id);
     }
 
-    const dedupedEvents = dedupeEventsById(args.Events).sort(
-      sortVesselTripEvents
+    const dedupedEvents = normalizeScheduledDockSeams(
+      dedupeEventsById(args.Events).sort(sortVesselTripEvents)
     );
 
     for (const event of dedupedEvents) {
@@ -138,11 +141,13 @@ export const applyLiveUpdates = internalMutation({
         continue;
       }
 
-      const updatedEvents = applyLiveLocationToEvents(
-        // Duplicate keys can exist during transitions, so normalize before
-        // applying live predictions to the ordered event sequence.
-        dedupeEventsById(toEventRecords(docs)).sort(sortVesselTripEvents),
-        location
+      const updatedEvents = normalizeScheduledDockSeams(
+        applyLiveLocationToEvents(
+          // Duplicate keys can exist during transitions, so normalize before
+          // applying live predictions to the ordered event sequence.
+          dedupeEventsById(toEventRecords(docs)).sort(sortVesselTripEvents),
+          location
+        )
       );
 
       for (const duplicateId of getDuplicateEventDocIds(docs)) {

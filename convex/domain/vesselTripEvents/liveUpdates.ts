@@ -12,6 +12,7 @@ import { getSailingDay } from "../../shared/time";
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
 const MOVING_SPEED_THRESHOLD = 0.2;
 const DOCKED_SPEED_THRESHOLD = 0.2;
+const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 
 /**
  * Builds the stable key used to reconcile schedule reseeds and live updates
@@ -154,6 +155,39 @@ export const sortVesselTripEvents = (
   left.ScheduledDeparture - right.ScheduledDeparture ||
   getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
   left.TerminalAbbrev.localeCompare(right.TerminalAbbrev);
+
+/**
+ * Normalizes a sorted vessel/day event list so identical scheduled arrival and
+ * departure boundaries at the same terminal become a real five-minute dock
+ * span instead of a zero-length seam.
+ *
+ * @param events - Sorted vessel/day boundary events
+ * @returns Cloned event list with identical dock seams corrected
+ */
+export const normalizeScheduledDockSeams = (
+  events: ConvexVesselTripEvent[]
+): ConvexVesselTripEvent[] =>
+  events.map((event, index) =>
+    event.ScheduledTime &&
+    isIdenticalScheduledDockSeam(event, events[index + 1])
+      ? {
+          ...event,
+          ScheduledTime:
+            event.ScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
+        }
+      : event
+  );
+
+const isIdenticalScheduledDockSeam = (
+  current: ConvexVesselTripEvent,
+  next: ConvexVesselTripEvent | undefined
+) =>
+  next !== undefined &&
+  current.EventType === "arv-dock" &&
+  next.EventType === "dep-dock" &&
+  current.TerminalAbbrev === next.TerminalAbbrev &&
+  next.ScheduledTime !== undefined &&
+  current.ScheduledTime === next.ScheduledTime;
 
 /**
  * Maps event types to a deterministic sort order.

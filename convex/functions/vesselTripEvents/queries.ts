@@ -4,7 +4,10 @@
  */
 import { internalQuery, query } from "_generated/server";
 import { v } from "convex/values";
-import { sortVesselTripEvents } from "domain/vesselTripEvents";
+import {
+  normalizeScheduledDockSeams,
+  sortVesselTripEvents,
+} from "domain/vesselTripEvents";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { vesselTripEventSchema } from "./schemas";
 
@@ -44,7 +47,9 @@ export const getVesselDayTimelineEvents = query({
       SailingDay: args.SailingDay,
       // Defensive dedupe keeps dirty duplicate rows from leaking out to
       // timeline consumers.
-      Events: Array.from(eventsById.values()).sort(sortVesselTripEvents),
+      Events: normalizeScheduledDockSeams(
+        Array.from(eventsById.values()).sort(sortVesselTripEvents)
+      ),
     };
   },
 });
@@ -67,6 +72,8 @@ export const getEventsForSailingDay = internalQuery({
       })
     );
 
-    return Array.from(eventsById.values()).sort(sortVesselTripEvents);
+    return normalizeScheduledDockSeams(
+      Array.from(eventsById.values()).sort(sortVesselTripEvents)
+    );
   },
 });
