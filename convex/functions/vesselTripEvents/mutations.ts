@@ -143,6 +143,10 @@ export const applyLiveUpdates = internalMutation({
         location
       );
 
+      for (const duplicateId of getDuplicateEventDocIds(docs)) {
+        await ctx.db.delete(duplicateId);
+      }
+
       await persistEventUpserts(ctx, indexEventDocs(docs), updatedEvents);
     }
 
@@ -274,6 +278,29 @@ const dedupeEventDocs = (docs: Doc<"vesselTripEvents">[]) =>
       { _id: Doc<"vesselTripEvents">["_id"]; event: ConvexVesselTripEvent }
     >())
   ).map(([, doc]) => doc);
+
+/**
+ * Collects duplicate persisted row ids so callers can clean up dirty state
+ * while preserving the last row seen for each event key.
+ *
+ * @param docs - Stored vessel trip event documents that may contain duplicates
+ * @returns Duplicate document ids that are safe to delete
+ */
+const getDuplicateEventDocIds = (docs: Doc<"vesselTripEvents">[]) => {
+  const duplicateIds: Doc<"vesselTripEvents">["_id"][] = [];
+  const latestDocIdByKey = new Map<string, Doc<"vesselTripEvents">["_id"]>();
+
+  for (const doc of docs) {
+    const previousId = latestDocIdByKey.get(doc.Key);
+    if (previousId) {
+      duplicateIds.push(previousId);
+    }
+
+    latestDocIdByKey.set(doc.Key, doc._id);
+  }
+
+  return duplicateIds;
+};
 
 /**
  * Compares two event payloads for storage-relevant equality.

@@ -11,7 +11,8 @@ import { getSailingDay } from "../../shared/time";
 import { buildEventKey } from "./liveUpdates";
 import { getDirectRawSeedSegments } from "./seed";
 
-const ACTUAL_TIME_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
+const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
+const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 
 type MergeSeededEventsWithHistoryArgs = {
   sailingDay: string;
@@ -26,6 +27,8 @@ type NormalizedHistoryRecord = {
   actualDeparture: number;
   arrivalProxy: number;
 };
+
+type HistoryActualSource = "departure-actual" | "arrival-proxy";
 
 export const mergeSeededEventsWithHistory = ({
   sailingDay,
@@ -46,7 +49,8 @@ export const mergeSeededEventsWithHistory = ({
     const historyActualTime = historyActualsByEventKey.get(event.Key);
     const mergedActualTime = mergeActualTime(
       existingEvent?.ActualTime,
-      historyActualTime
+      historyActualTime,
+      event.EventType === "dep-dock" ? "departure-actual" : "arrival-proxy"
     );
 
     return {
@@ -160,7 +164,8 @@ const normalizeTerminalAbbrev = (terminalName: string) =>
 
 const mergeActualTime = (
   existingActualTime?: number,
-  historyActualTime?: number
+  historyActualTime?: number,
+  source?: HistoryActualSource
 ) => {
   if (existingActualTime === undefined) {
     return historyActualTime;
@@ -170,8 +175,13 @@ const mergeActualTime = (
     return existingActualTime;
   }
 
+  const replacementThreshold =
+    source === "arrival-proxy"
+      ? ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS
+      : DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS;
+
   return Math.abs(existingActualTime - historyActualTime) >=
-    ACTUAL_TIME_REPLACEMENT_THRESHOLD_MS
+    replacementThreshold
     ? historyActualTime
     : existingActualTime;
 };

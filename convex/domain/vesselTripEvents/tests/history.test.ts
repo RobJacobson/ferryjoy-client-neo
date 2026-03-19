@@ -44,7 +44,7 @@ describe("mergeSeededEventsWithHistory", () => {
     expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
   });
 
-  it("keeps existing actuals when history differs by less than three minutes", () => {
+  it("keeps departure actuals when history differs by less than three minutes", () => {
     const scheduleSegments = [makeRoute14Segment()];
     const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
@@ -73,10 +73,40 @@ describe("mergeSeededEventsWithHistory", () => {
     });
 
     expect(mergedEvents[0]?.ActualTime).toBe(at(14, 9).getTime());
+  });
+
+  it("keeps arrival actuals when ETA proxy differs by only one minute", () => {
+    const scheduleSegments = [makeRoute14Segment()];
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const existingEvents = seededEvents.map((event, index) =>
+      makeEvent({
+        ...event,
+        ActualTime:
+          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+      })
+    );
+
+    const mergedEvents = mergeSeededEventsWithHistory({
+      sailingDay: "2026-03-18",
+      seededEvents,
+      existingEvents,
+      scheduleSegments,
+      historyRecords: [
+        makeHistory({
+          Vessel: "Cathlamet",
+          Departing: "Vashon",
+          Arriving: "Fauntleroy",
+          ScheduledDepart: at(14, 5),
+          ActualDepart: at(14, 10),
+          EstArrival: at(14, 24),
+        }),
+      ],
+    });
+
     expect(mergedEvents[1]?.ActualTime).toBe(at(14, 23).getTime());
   });
 
-  it("replaces existing actuals when history differs by three minutes or more", () => {
+  it("replaces departure actuals when history differs by three minutes or more", () => {
     const scheduleSegments = [makeRoute14Segment()];
     const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
@@ -105,6 +135,37 @@ describe("mergeSeededEventsWithHistory", () => {
     });
 
     expect(mergedEvents[0]?.ActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
+  });
+
+  it("replaces arrival actuals when ETA proxy differs by two minutes or more", () => {
+    const scheduleSegments = [makeRoute14Segment()];
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const existingEvents = seededEvents.map((event, index) =>
+      makeEvent({
+        ...event,
+        ActualTime:
+          index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
+      })
+    );
+
+    const mergedEvents = mergeSeededEventsWithHistory({
+      sailingDay: "2026-03-18",
+      seededEvents,
+      existingEvents,
+      scheduleSegments,
+      historyRecords: [
+        makeHistory({
+          Vessel: "Cathlamet",
+          Departing: "Vashon",
+          Arriving: "Fauntleroy",
+          ScheduledDepart: at(14, 5),
+          ActualDepart: at(14, 10),
+          EstArrival: at(14, 24),
+        }),
+      ],
+    });
+
     expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
   });
 });

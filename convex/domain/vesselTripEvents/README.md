@@ -138,9 +138,10 @@ Current matching policy is intentionally conservative:
 When a history-backed actual matches a seeded row:
 
 - if the stored row has no `ActualTime`, backfill from WSF history
-- if the stored row has `ActualTime` and the delta is `< 3 minutes`, keep the
-  stored value
-- if the delta is `>= 3 minutes`, replace with WSF history
+- departure rows keep the stored value when the delta from WSF `ActualDepart`
+  is `< 3 minutes`, and replace it when the delta is `>= 3 minutes`
+- arrival rows keep the stored value when the delta from WSF `EstArrival`
+  is `< 2 minutes`, and replace it when the delta is `>= 2 minutes`
 
 This keeps visible actual times stable across small WSF ETA drift while still
 repairing polluted historical rows from prior bugs or feed noise.
@@ -151,6 +152,9 @@ The current seeding action lives in:
 - `functions.vesselTripEvents.actions.syncVesselTripEventsForDateManual`
 - `functions.vesselTripEvents.actions.syncVesselTripEventsWindowed`
 - `functions.vesselTripEvents.actions.syncVesselTripEventsAtSailingDayBoundary`
+- explicit hard resets are available separately through:
+  - `functions.vesselTripEvents.actions.resetVesselTripEventsManual`
+  - `functions.vesselTripEvents.actions.resetVesselTripEventsForDateManual`
 
 Those actions share the common schedule fetch path through:
 
@@ -199,8 +203,9 @@ Live update logic lives in `convex/domain/vesselTripEvents/liveUpdates.ts`.
   - during the day seed, completed departures may be backfilled from WSF
     `ActualDepart`
   - completed arrivals may be backfilled from WSF `EstArrival` proxy
-  - when both stored and WSF-history actuals exist, the `< 3 min keep / >= 3
-    min replace` rule applies
+  - when both stored and WSF-history actuals exist:
+    - departures use the `< 3 min keep / >= 3 min replace` rule
+    - arrivals use the `< 2 min keep / >= 2 min replace` rule
 - departure actual
   - when strong departure evidence appears, set
     `ActualTime = LeftDock ?? TimeStamp`
@@ -246,7 +251,7 @@ Two write modes exist:
 
 ### 1. Full replacement for backfills and reset-style seeds
 
-Manual/day seeding currently calls:
+Explicit hard resets currently call:
 
 - `functions.vesselTripEvents.mutations.replaceForSailingDay`
 
@@ -273,7 +278,7 @@ Important implication:
 
 ### 2. Merge reseed for live-safe schedule refreshes
 
-The merge mutation remains available at:
+Normal syncs call:
 
 - `functions.vesselTripEvents.mutations.reseedForSailingDay`
 
@@ -371,7 +376,7 @@ See:
     rows or raw WSF schedule segments
 - `history.ts`
   - match WSF vessel history to seeded rows and merge actual times with the
-    3-minute replacement rule
+    source-specific replacement rules for departures and arrivals
 - `liveUpdates.ts`
   - apply live vessel-location evidence to seeded rows
 - `reseed.ts`

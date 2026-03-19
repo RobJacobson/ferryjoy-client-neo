@@ -105,7 +105,7 @@ export const applyLiveLocationToEvents = (
     arrivalEvent.PredictedTime = location.Eta;
   }
 
-  if (isStrongDeparture(location) && departureEvent) {
+  if (canWriteLiveActuals(location) && isStrongDeparture(location) && departureEvent) {
     departureEvent.ActualTime = location.LeftDock ?? location.TimeStamp;
   }
 
@@ -120,7 +120,7 @@ export const applyLiveLocationToEvents = (
     return nextEvents;
   }
 
-  if (isStrongArrival(location)) {
+  if (canWriteLiveActuals(location) && isStrongArrival(location)) {
     const resolvedArrivalEvent = findArrivalEventForLocation(
       nextEvents,
       location,
@@ -187,6 +187,14 @@ const isStrongDeparture = (location: ConvexVesselLocation) =>
  */
 const isStrongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
+
+/**
+ * Live actuals should only be written when the feed still claims the vessel is
+ * operating in service. Out-of-service ticks can still inform presence in
+ * other systems, but they should not rewrite timeline truth.
+ */
+const canWriteLiveActuals = (location: ConvexVesselLocation) =>
+  location.InService === true;
 
 /**
  * Detects a transient false departure that should be unwound.

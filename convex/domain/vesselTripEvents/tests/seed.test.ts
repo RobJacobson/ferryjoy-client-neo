@@ -485,6 +485,37 @@ describe("applyLiveLocationToEvents", () => {
 
     expect(updated).toEqual(seededEvents);
   });
+
+  it("does not write live actuals while the vessel is out of service", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+    ]);
+
+    const updated = applyLiveLocationToEvents(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 35),
+        TimeStamp: at(8, 36),
+        AtDock: false,
+        Speed: 12,
+        InService: false,
+        Eta: at(9, 5),
+      })
+    );
+
+    expect(updated[0]?.ActualTime).toBeUndefined();
+    expect(updated[1]?.ActualTime).toBeUndefined();
+    expect(updated[1]?.PredictedTime).toBe(at(9, 5));
+  });
 });
 
 describe("getLocationSailingDay", () => {
