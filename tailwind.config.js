@@ -42,11 +42,6 @@ module.exports = {
         "playpen-800": ["PlaypenSans-ExtraBold"],
         "led-phatt": ["LedPhattt"],
         "led-board": ["AdvancedLedBoard7"],
-        "teenage-agent": ["TeenageAgent-Regular"],
-        "teenage-agent-400": ["TeenageAgent-Regular"],
-        "teenage-agent-400-italic": ["TeenageAgent-Italic"],
-        "teenage-agent-700": ["TeenageAgent-Bold"],
-        "teenage-agent-700-italic": ["TeenageAgent-BoldItalic"],
       },
       boxShadow: {
         glass: "2px 2px 5px rgba(0, 0, 0, 0.05)",
