@@ -226,10 +226,7 @@ const getTimeProgress = (
   );
 };
 
-const getMinutesUntil = (
-  event: TimelineSemanticRow["endEvent"],
-  now: Date
-) => {
+const getMinutesUntil = (event: TimelineSemanticRow["endEvent"], now: Date) => {
   const targetTime = getDisplayTime(event);
   if (!targetTime) {
     return "--";

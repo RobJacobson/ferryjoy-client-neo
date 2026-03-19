@@ -1,8 +1,7 @@
+import { downloadRawWsfScheduleData } from "shared/fetchWsfScheduleData";
 import type { Route } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../../schemas";
-import type { VesselSailing } from "../types";
-import { createScheduledTrip } from "./mapping";
-import { fetchRouteSchedule } from "./wsfApi";
+import { createScheduledTripFromRawSegment } from "./mapping";
 
 /**
  * High-level logic for downloading and initial mapping of all scheduled trips for a set of routes.
@@ -21,23 +20,13 @@ export const downloadAllRouteData = async (
     rawTripCount: number;
   }[]
 > => {
-  const routePromises = routes.map(async (route) => {
-    const schedule = await fetchRouteSchedule(route.RouteID, tripDate);
+  const routeData = await downloadRawWsfScheduleData(routes, tripDate);
 
-    const rawTripCount = schedule.TerminalCombos.flatMap(
-      (terminalCombo) => (terminalCombo.Times as VesselSailing[]).length
-    ).reduce((sum, count) => sum + count, 0);
-
-    const routeTrips = schedule.TerminalCombos.flatMap((terminalCombo) =>
-      (terminalCombo.Times as VesselSailing[])
-        .map((vesselSailing) =>
-          createScheduledTrip(vesselSailing, terminalCombo, route, tripDate)
-        )
-        .filter((trip): trip is ConvexScheduledTrip => trip !== null)
-    );
-
-    return { route, trips: routeTrips, rawTripCount };
-  });
-
-  return await Promise.all(routePromises);
+  return routeData.map(({ route, segments, rawTripCount }) => ({
+    route,
+    trips: segments
+      .map((segment) => createScheduledTripFromRawSegment(segment))
+      .filter((trip): trip is ConvexScheduledTrip => trip !== null),
+    rawTripCount,
+  }));
 };

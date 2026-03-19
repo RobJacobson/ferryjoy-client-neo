@@ -12,6 +12,7 @@ import { getSailingDay } from "../../shared/time";
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
 const MOVING_SPEED_THRESHOLD = 0.2;
 const DOCKED_SPEED_THRESHOLD = 0.2;
+const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 
 /**
  * Builds the stable key used to reconcile schedule reseeds and live updates
@@ -105,7 +106,11 @@ export const applyLiveLocationToEvents = (
     arrivalEvent.PredictedTime = location.Eta;
   }
 
-  if (isStrongDeparture(location) && departureEvent) {
+  if (
+    canWriteLiveActuals(location) &&
+    isStrongDeparture(location) &&
+    departureEvent
+  ) {
     departureEvent.ActualTime = location.LeftDock ?? location.TimeStamp;
   }
 
@@ -120,11 +125,11 @@ export const applyLiveLocationToEvents = (
     return nextEvents;
   }
 
-  if (isStrongArrival(location)) {
-    const resolvedArrivalEvent = findArrivalEventForTerminal(
+  if (canWriteLiveActuals(location) && isStrongArrival(location)) {
+    const resolvedArrivalEvent = findArrivalEventForLocation(
       nextEvents,
-      location.DepartingTerminalAbbrev,
-      location.TimeStamp
+      location,
+      departureEvent
     );
 
     if (resolvedArrivalEvent && resolvedArrivalEvent.ActualTime === undefined) {
@@ -150,6 +155,39 @@ export const sortVesselTripEvents = (
   left.ScheduledDeparture - right.ScheduledDeparture ||
   getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
   left.TerminalAbbrev.localeCompare(right.TerminalAbbrev);
+
+/**
+ * Normalizes a sorted vessel/day event list so identical scheduled arrival and
+ * departure boundaries at the same terminal become a real five-minute dock
+ * span instead of a zero-length seam.
+ *
+ * @param events - Sorted vessel/day boundary events
+ * @returns Cloned event list with identical dock seams corrected
+ */
+export const normalizeScheduledDockSeams = (
+  events: ConvexVesselTripEvent[]
+): ConvexVesselTripEvent[] =>
+  events.map((event, index) =>
+    event.ScheduledTime &&
+    isIdenticalScheduledDockSeam(event, events[index + 1])
+      ? {
+          ...event,
+          ScheduledTime:
+            event.ScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
+        }
+      : event
+  );
+
+const isIdenticalScheduledDockSeam = (
+  current: ConvexVesselTripEvent,
+  next: ConvexVesselTripEvent | undefined
+) =>
+  next !== undefined &&
+  current.EventType === "arv-dock" &&
+  next.EventType === "dep-dock" &&
+  current.TerminalAbbrev === next.TerminalAbbrev &&
+  next.ScheduledTime !== undefined &&
+  current.ScheduledTime === next.ScheduledTime;
 
 /**
  * Maps event types to a deterministic sort order.
@@ -189,6 +227,14 @@ const isStrongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
 
 /**
+ * Live actuals should only be written when the feed still claims the vessel is
+ * operating in service. Out-of-service ticks can still inform presence in
+ * other systems, but they should not rewrite timeline truth.
+ */
+const canWriteLiveActuals = (location: ConvexVesselLocation) =>
+  location.InService === true;
+
+/**
  * Detects a transient false departure that should be unwound.
  *
  * @param location - Current live vessel location payload
@@ -220,29 +266,90 @@ const isFalseDeparture = (
 };
 
 /**
- * Finds the most recent eligible unresolved arrival for the observed terminal.
+ * Finds the arrival event that should be actualized for the current live
+ * location.
  *
  * @param events - Candidate vessel/day boundary events
- * @param TerminalAbbrev - Terminal that the vessel is currently docked at
- * @param timestamp - Observation timestamp used to test arrival eligibility
+ * @param location - Live vessel location currently being applied
+ * @param departureEvent - Departure row anchored to the location's current
+ * scheduled departure, when present
  * @returns The arrival event that should receive an actual time, if any
  */
-const findArrivalEventForTerminal = (
+const findArrivalEventForLocation = (
   events: ConvexVesselTripEvent[],
-  TerminalAbbrev: string,
-  timestamp: number
-) =>
-  [...events]
+  location: ConvexVesselLocation,
+  departureEvent: ConvexVesselTripEvent | undefined
+) => {
+  const anchoredArrivalEvent = findAnchoredArrivalEvent(
+    events,
+    location,
+    departureEvent
+  );
+
+  if (location.ScheduledDeparture !== undefined) {
+    return anchoredArrivalEvent &&
+      anchoredArrivalEvent.ActualTime === undefined &&
+      getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
+      ? anchoredArrivalEvent
+      : undefined;
+  }
+
+  if (anchoredArrivalEvent) {
+    return anchoredArrivalEvent.ActualTime === undefined &&
+      getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
+      ? anchoredArrivalEvent
+      : undefined;
+  }
+
+  return [...events]
     .filter(
       (event) =>
         event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === TerminalAbbrev &&
+        event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
         event.ActualTime === undefined &&
-        getArrivalEligibilityTime(event) <= timestamp
+        getArrivalEligibilityTime(event) <= location.TimeStamp
     )
     .sort(
       (left, right) => right.ScheduledDeparture - left.ScheduledDeparture
     )[0];
+};
+
+/**
+ * Finds the single arrival row that is immediately before the location's
+ * current scheduled departure anchor.
+ *
+ * Once that anchored row actualizes, older unresolved arrivals must not be
+ * backfilled by later docked ticks at the same terminal.
+ *
+ * @param events - Candidate vessel/day boundary events
+ * @param location - Live vessel location currently being applied
+ * @param departureEvent - Departure row anchored to the location's current
+ * scheduled departure, when present
+ * @returns The anchored arrival event, if one can be determined
+ */
+const findAnchoredArrivalEvent = (
+  events: ConvexVesselTripEvent[],
+  location: ConvexVesselLocation,
+  departureEvent: ConvexVesselTripEvent | undefined
+) => {
+  const scheduledDepartureUpperBound =
+    departureEvent?.ScheduledDeparture ?? location.ScheduledDeparture;
+
+  if (scheduledDepartureUpperBound === undefined) {
+    return undefined;
+  }
+
+  return [...events]
+    .filter(
+      (event) =>
+        event.EventType === "arv-dock" &&
+        event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+        event.ScheduledDeparture < scheduledDepartureUpperBound
+    )
+    .sort(
+      (left, right) => right.ScheduledDeparture - left.ScheduledDeparture
+    )[0];
+};
 
 /**
  * Determines when an arrival event becomes eligible to receive an actual.

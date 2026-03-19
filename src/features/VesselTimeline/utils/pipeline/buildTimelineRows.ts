@@ -24,6 +24,7 @@ export const buildTimelineRows = (
   const rows: TimelineSemanticRow[] = [];
 
   for (let index = 0; index < events.length - 1; index++) {
+    const previous = index > 0 ? events[index - 1] : undefined;
     const current = events[index];
     const next = events[index + 1];
 
@@ -54,6 +55,10 @@ export const buildTimelineRows = (
     }
 
     if (isSeaPair(current, next)) {
+      if (needsArrivalPlaceholder(previous, current)) {
+        rows.push(buildArrivalPlaceholderRow(current, rows.length));
+      }
+
       const startEvent = toRowEvent(current);
       const endEvent = toRowEvent(next);
       const seaDurationMinutes = getDurationMinutes(startEvent, endEvent);
@@ -96,6 +101,33 @@ const toRowEvent = (event: VesselTimelineEvent): TimelineRowEvent => ({
   TerminalDisplayName: getDisplayTerminalName(event.TerminalAbbrev),
 });
 
+const buildArrivalPlaceholderRow = (
+  departureEvent: VesselTimelineEvent,
+  segmentIndex: number
+): TimelineSemanticRow => {
+  const placeholderArrivalEvent: TimelineRowEvent = {
+    ...departureEvent,
+    Key: `${departureEvent.Key}--arrival-placeholder`,
+    EventType: "arv-dock",
+    ScheduledTime: undefined,
+    PredictedTime: undefined,
+    ActualTime: undefined,
+    TerminalDisplayName: getDisplayTerminalName(departureEvent.TerminalAbbrev),
+    IsArrivalPlaceholder: true,
+  };
+
+  return {
+    id: `${departureEvent.Key}--arrival-placeholder--dock`,
+    segmentIndex,
+    kind: "dock",
+    startEvent: placeholderArrivalEvent,
+    endEvent: toRowEvent(departureEvent),
+    actualDurationMinutes: 0,
+    displayDurationMinutes: 0,
+    displayMode: "proportional",
+  };
+};
+
 const isDockPair = (current: VesselTimelineEvent, next: VesselTimelineEvent) =>
   current.EventType === "arv-dock" &&
   next.EventType === "dep-dock" &&
@@ -103,6 +135,16 @@ const isDockPair = (current: VesselTimelineEvent, next: VesselTimelineEvent) =>
 
 const isSeaPair = (current: VesselTimelineEvent, next: VesselTimelineEvent) =>
   current.EventType === "dep-dock" && next.EventType === "arv-dock";
+
+const needsArrivalPlaceholder = (
+  previous: VesselTimelineEvent | undefined,
+  current: VesselTimelineEvent
+) =>
+  current.EventType === "dep-dock" &&
+  !(
+    previous?.EventType === "arv-dock" &&
+    previous.TerminalAbbrev === current.TerminalAbbrev
+  );
 
 const getDockDisplayMode = (
   durationMinutes: number,

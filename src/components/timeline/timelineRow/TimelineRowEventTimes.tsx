@@ -21,6 +21,7 @@ type EventType = keyof typeof eventTypeIcons;
 
 type TimelineRowEventTimesProps = {
   point: TimelineTimePoint;
+  showPlaceholder?: boolean;
 };
 
 /**
@@ -31,15 +32,19 @@ type TimelineRowEventTimesProps = {
  */
 export const TimelineRowEventTimes = ({
   point,
+  showPlaceholder = false,
 }: TimelineRowEventTimesProps) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;
+  const hasVisibleTimes =
+    scheduled !== undefined || actual !== undefined || estimated !== undefined;
 
   return (
     <View
       className="mt-[-14px] flex-1 flex-row gap-1"
       style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
+      {!hasVisibleTimes && showPlaceholder && <MissingEventTime />}
       {scheduled && <EventTime time={scheduled} type="scheduled" />}
       {secondary && (
         <EventTime time={secondary} type={actual ? "actual" : "estimated"} />
@@ -82,3 +87,24 @@ const EventTime = ({ time, type }: EventTimeProps) => {
     </View>
   );
 };
+
+const MissingEventTime = () => (
+  <View className="relative flex-row">
+    <View className="absolute top-[1px] left-[-1px] flex-row gap-1">
+      <View className="mt-[1px]">
+        <CalendarClock size={22} strokeWidth={1.5} color="white" />
+      </View>
+      <Text className="font-led-phatt text-lg text-white">--</Text>
+    </View>
+    <View className="flex-row gap-1">
+      <View className="mt-[1px]">
+        <CalendarClock
+          size={24}
+          strokeWidth={1.5}
+          color={EVENT_TIME_ICON_COLOR}
+        />
+      </View>
+      <Text className="font-led-phatt text-lg text-purple-700">--</Text>
+    </View>
+  </View>
+);

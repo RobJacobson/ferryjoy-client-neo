@@ -1,9 +1,46 @@
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import {
   groupTripsByPhysicalDeparture,
+  groupTripsByPhysicalDepartureGeneric,
   groupTripsByVessel,
+  groupTripsByVesselGeneric,
   type PhysicalDeparture,
 } from "./grouping";
+
+type DirectSegmentInput = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  DepartingTime: number;
+  Key: string;
+};
+
+type DirectSegmentResult<TTrip extends DirectSegmentInput> = TTrip & {
+  TripType: "direct" | "indirect";
+  DirectKey?: string;
+};
+
+/**
+ * Generic direct/indirect classifier that can be reused by raw schedule
+ * consumers without depending on the full ScheduledTrip shape.
+ */
+export const classifyDirectSegmentsGeneric = <TTrip extends DirectSegmentInput>(
+  trips: TTrip[]
+): DirectSegmentResult<TTrip>[] => {
+  const tripsByVessel = groupTripsByVesselGeneric(trips);
+
+  return Object.values(tripsByVessel).flatMap((vesselTrips) => {
+    const sortedTrips = [...vesselTrips].sort(
+      (a, b) => a.DepartingTime - b.DepartingTime
+    );
+    const groups = groupTripsByPhysicalDepartureGeneric(sortedTrips);
+
+    return groups.flatMap((group, index) => {
+      const nextTerminal = groups[index + 1]?.departingTerminal;
+      return classifyDepartureGroupGeneric(group.trips, nextTerminal);
+    });
+  });
+};
 
 /**
  * Classifies raw schedule rows into direct/indirect rows using only
@@ -36,7 +73,12 @@ export const getDirectSegments = (trips: ConvexScheduledTrip[]) =>
 const classifyDepartureGroup = (
   { trips }: PhysicalDeparture,
   nextTerminal: string | undefined
-): ConvexScheduledTrip[] => {
+): ConvexScheduledTrip[] => classifyDepartureGroupGeneric(trips, nextTerminal);
+
+const classifyDepartureGroupGeneric = <TTrip extends DirectSegmentInput>(
+  trips: TTrip[],
+  nextTerminal: string | undefined
+): DirectSegmentResult<TTrip>[] => {
   if (!nextTerminal) {
     return trips.map((trip) => ({ ...trip, TripType: "direct" as const }));
   }

@@ -12,6 +12,67 @@ const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
 describe("buildTimelineRows", () => {
+  it("inserts an arrival placeholder dock row before an orphan departure", () => {
+    const renderState = getVesselTimelineRenderState(
+      [
+        makeEvent({
+          Key: "arv-0",
+          EventType: "arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 5),
+        }),
+        makeEvent({
+          Key: "dep-0",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 5),
+        }),
+        makeEvent({
+          Key: "arv-0b",
+          EventType: "arv-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 25),
+        }),
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 55),
+          ScheduledTime: at(7, 55),
+        }),
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(7, 55),
+          ScheduledTime: at(8, 15),
+        }),
+      ],
+      undefined,
+      at(8, 0)
+    );
+
+    expect(renderState.rows).toHaveLength(5);
+    expect(renderState.rows[2]?.kind).toBe("at-dock");
+    expect(renderState.rows[2]?.startBoundary.currTerminalAbbrev).toBe("VAI");
+    expect(renderState.rows[2]?.startBoundary.currTerminalDisplayName).toBe(
+      "Vashon Is."
+    );
+    expect(renderState.rows[2]?.startBoundary.isArrivalPlaceholder).toBeTrue();
+    expect(renderState.rows[3]?.kind).toBe("at-sea");
+    expect(renderState.rows[3]?.startBoundary.nextTerminalAbbrev).toBe("FAU");
+    expect(renderState.terminalCards.map((card) => card.position)).toEqual([
+      "top",
+      "bottom",
+      "top",
+      "bottom",
+      "single",
+    ]);
+  });
+
   it("builds sea, dock, sea, and terminal rows from ordered events", () => {
     const rows = buildTimelineRows(
       [
@@ -47,17 +108,26 @@ describe("buildTimelineRows", () => {
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    expect(rows.map((row) => row.kind)).toEqual(["sea", "dock", "sea", "dock"]);
+    expect(rows.map((row) => row.kind)).toEqual([
+      "dock",
+      "sea",
+      "dock",
+      "sea",
+      "dock",
+    ]);
     expect(rows.map((row) => row.isTerminal === true)).toEqual([
+      false,
       false,
       false,
       false,
       true,
     ]);
-    expect(rows[0]?.startEvent.EventType).toBe("dep-dock");
-    expect(rows[0]?.endEvent.EventType).toBe("arv-dock");
-    expect(rows[0]?.actualDurationMinutes).toBe(35);
-    expect(rows[1]?.actualDurationMinutes).toBe(75);
+    expect(rows[0]?.startEvent.EventType).toBe("arv-dock");
+    expect(rows[0]?.startEvent.IsArrivalPlaceholder).toBeTrue();
+    expect(rows[1]?.startEvent.EventType).toBe("dep-dock");
+    expect(rows[1]?.endEvent.EventType).toBe("arv-dock");
+    expect(rows[1]?.actualDurationMinutes).toBe(35);
+    expect(rows[2]?.actualDurationMinutes).toBe(75);
   });
 
   it("marks long dock rows as compressed using visible dock windows", () => {
@@ -111,9 +181,9 @@ describe("buildTimelineRows", () => {
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.actualDurationMinutes).toBe(35);
-    expect(rows[0]?.displayDurationMinutes).toBe(35);
+    expect(rows).toHaveLength(3);
+    expect(rows[1]?.actualDurationMinutes).toBe(35);
+    expect(rows[1]?.displayDurationMinutes).toBe(35);
   });
 
   it("falls back from scheduled to actual to predicted for layout timing", () => {
@@ -139,9 +209,9 @@ describe("buildTimelineRows", () => {
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.actualDurationMinutes).toBe(39);
-    expect(rows[0]?.displayDurationMinutes).toBe(39);
+    expect(rows).toHaveLength(3);
+    expect(rows[1]?.actualDurationMinutes).toBe(39);
+    expect(rows[1]?.displayDurationMinutes).toBe(39);
   });
 
   it("falls back to a one-minute minimum duration when timestamps are missing", () => {
@@ -167,11 +237,11 @@ describe("buildTimelineRows", () => {
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.kind).toBe("sea");
-    expect(rows[0]?.actualDurationMinutes).toBe(1);
-    expect(rows[0]?.displayDurationMinutes).toBe(1);
-    expect(rows[1]?.isTerminal).toBeTrue();
+    expect(rows).toHaveLength(3);
+    expect(rows[1]?.kind).toBe("sea");
+    expect(rows[1]?.actualDurationMinutes).toBe(1);
+    expect(rows[1]?.displayDurationMinutes).toBe(1);
+    expect(rows[2]?.isTerminal).toBeTrue();
   });
 });
 
@@ -181,11 +251,12 @@ describe("getActiveRowIndex", () => {
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
+    const firstRow = getRowOrThrow(rows, 0);
 
     rows[0] = {
-      ...rows[0]!,
-      startEvent: { ...rows[0]!.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]!.endEvent, ActualTime: undefined },
+      ...firstRow,
+      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, ActualTime: undefined },
     };
 
     const activeRowIndex = getActiveRowIndex(
@@ -207,7 +278,7 @@ describe("getActiveRowIndex", () => {
 
     const activeRowIndex = getActiveRowIndex(rows, undefined, at(8, 50));
 
-    expect(activeRowIndex).toBe(1);
+    expect(activeRowIndex).toBe(2);
   });
 
   it("uses the last actual-started and not-yet-actual-ended row", () => {
@@ -215,19 +286,27 @@ describe("getActiveRowIndex", () => {
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
+    const firstRow = getRowOrThrow(rows, 0);
+    const secondRow = getRowOrThrow(rows, 1);
+    const thirdRow = getRowOrThrow(rows, 2);
 
     rows[0] = {
-      ...rows[0]!,
-      startEvent: { ...rows[0]!.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]!.endEvent, ActualTime: at(8, 36) },
+      ...firstRow,
+      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, ActualTime: at(8, 36) },
     };
     rows[1] = {
-      ...rows[1]!,
-      startEvent: { ...rows[1]!.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...rows[1]!.endEvent, ActualTime: undefined },
+      ...secondRow,
+      startEvent: { ...secondRow.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...secondRow.endEvent, ActualTime: at(8, 36) },
+    };
+    rows[2] = {
+      ...thirdRow,
+      startEvent: { ...thirdRow.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...thirdRow.endEvent, ActualTime: undefined },
     };
 
-    expect(getActiveRowIndex(rows, undefined, at(8, 50))).toBe(1);
+    expect(getActiveRowIndex(rows, undefined, at(8, 50))).toBe(2);
   });
 });
 
@@ -243,9 +322,9 @@ describe("getVesselTimelineRenderState", () => {
       at(8, 10)
     );
 
-    expect(renderState.rows).toHaveLength(4);
-    expect(renderState.rows[1]?.kind).toBe("at-dock");
-    expect(renderState.rows[1]?.displayHeightPx).toBe(260);
+    expect(renderState.rows).toHaveLength(5);
+    expect(renderState.rows[2]?.kind).toBe("at-dock");
+    expect(renderState.rows[2]?.displayHeightPx).toBe(260);
     expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
     expect(renderState.contentHeightPx).toBeGreaterThan(0);
   });
@@ -312,9 +391,7 @@ const makeEvent = (overrides: Partial<VesselTripEvent>): VesselTripEvent => ({
   ...overrides,
 });
 
-const makeLocation = (
-  overrides: Partial<VesselLocation>
-): VesselLocation => ({
+const makeLocation = (overrides: Partial<VesselLocation>): VesselLocation => ({
   VesselID: 1,
   VesselName: "Tokitae",
   VesselAbbrev: "TOK",
@@ -340,3 +417,24 @@ const makeLocation = (
   ArrivingDistance: undefined,
   ...overrides,
 });
+
+/**
+ * Returns a timeline row fixture by index and throws when it is unexpectedly
+ * missing.
+ *
+ * @param rows - Timeline rows under test
+ * @param index - Row index expected to exist
+ * @returns Timeline row at the requested index
+ */
+const getRowOrThrow = (
+  rows: ReturnType<typeof buildTimelineRows>,
+  index: number
+) => {
+  const row = rows[index];
+
+  if (!row) {
+    throw new Error(`Expected timeline row at index ${index}`);
+  }
+
+  return row;
+};

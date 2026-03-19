@@ -2,8 +2,16 @@
  * Builds schedule-derived vessel trip event rows for the `vesselTripEvents`
  * read model.
  */
+import { classifyDirectSegmentsGeneric } from "../../domain/scheduledTrips/directSegments";
+import { getOfficialCrossingTimeMinutes } from "../../domain/scheduledTrips/transform/officialCrossingTimes";
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import {
+  getTerminalAbbreviation,
+  getVesselAbbreviation,
+} from "../../functions/scheduledTrips/schemas";
 import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
+import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
+import { generateTripKey } from "../../shared/keys";
 import { buildEventKey, sortVesselTripEvents } from "./liveUpdates";
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
@@ -20,60 +28,205 @@ export const buildSeedVesselTripEvents = (
 ): ConvexVesselTripEvent[] =>
   trips
     .filter((trip) => trip.TripType === "direct")
-    .flatMap((trip) => {
-      const ScheduledDeparture = trip.DepartingTime;
-      const ScheduledArrival = getScheduledArrivalTime(trip);
-
-      return [
-        {
-          Key: buildEventKey(
-            trip.SailingDay,
-            trip.VesselAbbrev,
-            ScheduledDeparture,
-            trip.DepartingTerminalAbbrev,
-            "dep-dock"
-          ),
-          VesselAbbrev: trip.VesselAbbrev,
-          SailingDay: trip.SailingDay,
-          ScheduledDeparture,
-          TerminalAbbrev: trip.DepartingTerminalAbbrev,
-          EventType: "dep-dock" as const,
-          // Departure rows always use the scheduled departure timestamp.
-          ScheduledTime: trip.DepartingTime,
-          PredictedTime: undefined,
-          ActualTime: undefined,
-        },
-        {
-          Key: buildEventKey(
-            trip.SailingDay,
-            trip.VesselAbbrev,
-            ScheduledDeparture,
-            trip.DepartingTerminalAbbrev,
-            "arv-dock"
-          ),
-          VesselAbbrev: trip.VesselAbbrev,
-          SailingDay: trip.SailingDay,
-          ScheduledDeparture,
-          TerminalAbbrev: trip.ArrivingTerminalAbbrev,
-          EventType: "arv-dock" as const,
-          // Arrival rows fall back to the next-day schedule field when needed.
-          ScheduledTime: ScheduledArrival,
-          PredictedTime: undefined,
-          ActualTime: undefined,
-        },
-      ];
-    })
+    .flatMap((trip) =>
+      buildSeedEventsForSegment({
+        SailingDay: trip.SailingDay,
+        VesselAbbrev: trip.VesselAbbrev,
+        ScheduledDeparture: trip.DepartingTime,
+        DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+        ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+        ScheduledArrival: normalizeScheduledArrivalTime(
+          trip.ArrivingTime ?? trip.SchedArriveNext,
+          trip.DepartingTime
+        ),
+      })
+    )
     .sort(sortVesselTripEvents);
 
-const getScheduledArrivalTime = (trip: ConvexScheduledTrip) => {
-  const scheduledArrival = trip.ArrivingTime ?? trip.SchedArriveNext;
+/**
+ * Builds vessel trip event rows directly from raw WSF schedule segments,
+ * applying only the minimal direct-segment classification needed by the
+ * timeline read model.
+ */
+export const buildSeedVesselTripEventsFromRawSegments = (
+  segments: RawWsfScheduleSegment[]
+): ConvexVesselTripEvent[] =>
+  getDirectRawSeedSegments(segments)
+    .flatMap((segment) =>
+      buildSeedEventsForSegment({
+        SailingDay: segment.SailingDay,
+        VesselAbbrev: segment.VesselAbbrev,
+        ScheduledDeparture: segment.DepartingTime,
+        DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+        ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+        ScheduledArrival: normalizeScheduledArrivalTime(
+          segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
+          segment.DepartingTime
+        ),
+      })
+    )
+    .sort(sortVesselTripEvents);
 
-  if (
-    scheduledArrival !== undefined &&
-    scheduledArrival === trip.DepartingTime
-  ) {
-    return scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS;
+type SeedSegment = {
+  SailingDay: string;
+  VesselAbbrev: string;
+  ScheduledDeparture: number;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  ScheduledArrival?: number;
+};
+
+/**
+ * Expands one physical segment into departure and arrival boundary events.
+ *
+ * @param segment - Direct vessel segment to convert into timeline events
+ * @returns Departure and arrival event rows for the read model
+ */
+const buildSeedEventsForSegment = (
+  segment: SeedSegment
+): ConvexVesselTripEvent[] => [
+  {
+    Key: buildEventKey(
+      segment.SailingDay,
+      segment.VesselAbbrev,
+      segment.ScheduledDeparture,
+      segment.DepartingTerminalAbbrev,
+      "dep-dock"
+    ),
+    VesselAbbrev: segment.VesselAbbrev,
+    SailingDay: segment.SailingDay,
+    ScheduledDeparture: segment.ScheduledDeparture,
+    TerminalAbbrev: segment.DepartingTerminalAbbrev,
+    EventType: "dep-dock",
+    ScheduledTime: segment.ScheduledDeparture,
+    PredictedTime: undefined,
+    ActualTime: undefined,
+  },
+  {
+    Key: buildEventKey(
+      segment.SailingDay,
+      segment.VesselAbbrev,
+      segment.ScheduledDeparture,
+      segment.DepartingTerminalAbbrev,
+      "arv-dock"
+    ),
+    VesselAbbrev: segment.VesselAbbrev,
+    SailingDay: segment.SailingDay,
+    ScheduledDeparture: segment.ScheduledDeparture,
+    TerminalAbbrev: segment.ArrivingTerminalAbbrev,
+    EventType: "arv-dock",
+    ScheduledTime: segment.ScheduledArrival,
+    PredictedTime: undefined,
+    ActualTime: undefined,
+  },
+];
+
+/**
+ * Filters raw WSF schedule segments down to direct physical sailings that can
+ * seed the timeline read model.
+ *
+ * @param segments - Raw WSF schedule segments for one or more routes
+ * @returns Direct segments normalized into the seed classification shape
+ */
+export const getDirectRawSeedSegments = (segments: RawWsfScheduleSegment[]) =>
+  classifyDirectSegmentsGeneric(
+    segments
+      .map(toRawSeedSegment)
+      .filter((segment): segment is RawSeedSegment => segment !== null)
+  ).filter((segment) => segment.TripType === "direct");
+
+export type RawSeedSegment = {
+  Key: string;
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  DepartingTime: number;
+  ArrivingTime?: number;
+  SailingDay: string;
+  RouteID: number;
+  RouteAbbrev: string;
+};
+
+/**
+ * Converts a raw WSF schedule segment into the normalized seed shape.
+ *
+ * @param segment - Raw schedule segment from the fetch pipeline
+ * @returns Normalized segment or `null` when required identity fields are
+ * missing
+ */
+const toRawSeedSegment = (
+  segment: RawWsfScheduleSegment
+): RawSeedSegment | null => {
+  const vesselAbbrev = getVesselAbbreviation(segment.VesselName);
+  const departingTerminalAbbrev = getTerminalAbbreviation(
+    segment.DepartingTerminalName
+  );
+  const arrivingTerminalAbbrev = getTerminalAbbreviation(
+    segment.ArrivingTerminalName
+  );
+
+  if (!vesselAbbrev || !departingTerminalAbbrev || !arrivingTerminalAbbrev) {
+    return null;
   }
 
-  return scheduledArrival;
+  const key = generateTripKey(
+    vesselAbbrev,
+    departingTerminalAbbrev,
+    arrivingTerminalAbbrev,
+    segment.DepartingTime
+  );
+
+  if (!key) {
+    return null;
+  }
+
+  return {
+    Key: key,
+    VesselAbbrev: vesselAbbrev,
+    DepartingTerminalAbbrev: departingTerminalAbbrev,
+    ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    DepartingTime: segment.DepartingTime.getTime(),
+    ArrivingTime: segment.ArrivingTime?.getTime(),
+    SailingDay: segment.SailingDay,
+    RouteID: segment.RouteID,
+    RouteAbbrev: segment.RouteAbbrev,
+  };
+};
+
+/**
+ * Normalizes scheduled arrival times for timeline seeding.
+ *
+ * @param scheduledArrival - Raw scheduled arrival candidate
+ * @param scheduledDeparture - Scheduled departure for the same segment
+ * @returns Normalized arrival timestamp for the event row
+ */
+const normalizeScheduledArrivalTime = (
+  scheduledArrival: number | undefined,
+  scheduledDeparture: number
+) =>
+  scheduledArrival !== undefined && scheduledArrival === scheduledDeparture
+    ? scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+    : scheduledArrival;
+
+/**
+ * Computes an arrival timestamp from official crossing-time data when the raw
+ * schedule omits one.
+ *
+ * @param segment - Direct raw segment being seeded
+ * @returns Scheduled arrival timestamp when one can be inferred
+ */
+const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
+  if (segment.RouteID === 9 && segment.ArrivingTime) {
+    return segment.ArrivingTime;
+  }
+
+  const duration = getOfficialCrossingTimeMinutes({
+    routeAbbrev: segment.RouteAbbrev,
+    departingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+  });
+
+  return duration !== undefined
+    ? segment.DepartingTime + duration * 60 * 1000
+    : undefined;
 };

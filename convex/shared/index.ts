@@ -5,6 +5,7 @@
 export * from "./convertDates";
 export * from "./convertVesselLocations";
 export * from "./durationUtils";
+export * from "./fetchWsfScheduleData";
 export * from "./keys";
 export * from "./stripConvexMeta";
 // Note: time.ts functions are exported individually to avoid conflicts

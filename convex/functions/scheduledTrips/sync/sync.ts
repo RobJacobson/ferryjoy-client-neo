@@ -1,9 +1,6 @@
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { runTransformationPipeline } from "../../../domain/scheduledTrips/transform/index";
-import { buildSeedVesselTripEvents } from "../../../domain/vesselTripEvents";
+import { fetchAndTransformScheduledTrips } from "../../../domain/scheduledTrips";
 import { getSailingDay } from "../../../shared/time";
-import { downloadAllRouteData, fetchActiveRoutes } from "./fetching";
 import { saveFinalTrips } from "./persistence";
 import type { DaySyncResult } from "./types";
 
@@ -100,7 +97,8 @@ export const syncScheduledTripsForDate = async (
 
     // Phase 1: Fetch all active routes
     console.log(`${logPrefix}Fetching routes for ${targetDate}`);
-    const routes = await fetchActiveRoutes(targetDate);
+    const { routes, routeData, rawTrips, finalTrips, totalIndirect } =
+      await fetchAndTransformScheduledTrips(targetDate);
     console.log(
       `${logPrefix}Found ${routes.length} routes:`,
       routes
@@ -114,23 +112,12 @@ export const syncScheduledTripsForDate = async (
     }
 
     // Phase 2: Download ALL fresh data before making any changes
-    const routeData = await downloadAllRouteData(routes, targetDate);
-
-    // Phase 3: Combine and classify trips
-    const allRawTrips = routeData.flatMap((data) => data.trips);
     console.log(
-      `${logPrefix} Applying vessel-level classification to ${allRawTrips.length} total trips across all routes`
+      `${logPrefix} Applying vessel-level classification to ${rawTrips.length} total trips across all routes`
     );
 
-    // Run the core transformation pipeline (classification and estimates)
-    const finalTrips = runTransformationPipeline(allRawTrips);
-
-    const totalIndirect = finalTrips.filter(
-      (trip) => trip.TripType === "indirect"
-    ).length;
-
     console.log(
-      `${logPrefix} Vessel classification: ${allRawTrips.length} total trips, ` +
+      `${logPrefix} Vessel classification: ${rawTrips.length} total trips, ` +
         `${finalTrips.length - totalIndirect} direct, ${totalIndirect} indirect`
     );
 
@@ -144,19 +131,10 @@ export const syncScheduledTripsForDate = async (
       targetDate,
       finalTrips
     );
-    const directEvents = buildSeedVesselTripEvents(finalTrips);
-    await ctx.runMutation(
-      internal.functions.vesselTripEvents.mutations.reseedForSailingDay,
-      {
-        SailingDay: targetDate,
-        Events: directEvents,
-      }
-    );
 
     console.log(
       `${logPrefix}Safe sync completed: deleted ${deleted}, inserted ${inserted}, ` +
-        `${totalIndirect} indirect trips across ${routeData.length} routes, ` +
-        `${directEvents.length} vessel timeline events`
+        `${totalIndirect} indirect trips across ${routeData.length} routes`
     );
 
     return {

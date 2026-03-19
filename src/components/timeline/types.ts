@@ -20,6 +20,7 @@ export type TimelineRenderBoundary = {
   currTerminalAbbrev?: string;
   currTerminalDisplayName?: string;
   nextTerminalAbbrev?: string;
+  isArrivalPlaceholder?: boolean;
   timePoint: TimelineTimePoint;
 };
 

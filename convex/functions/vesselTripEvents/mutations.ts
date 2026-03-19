@@ -10,6 +10,7 @@ import {
   applyLiveLocationToEvents,
   getLocationSailingDay,
   mergeSeededVesselTripEvents,
+  normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTripEvents";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
@@ -36,11 +37,13 @@ export const reseedForSailingDay = internalMutation({
       .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
       .collect();
     const existingEvents = toEventRecords(existing);
-    const mergedEvents = mergeSeededVesselTripEvents({
-      existingEvents,
-      seededEvents: args.Events,
-      nowTimestamp: Date.now(),
-    });
+    const mergedEvents = normalizeScheduledDockSeams(
+      mergeSeededVesselTripEvents({
+        existingEvents,
+        seededEvents: args.Events,
+        nowTimestamp: Date.now(),
+      })
+    );
     const mergedById = indexEventsById(mergedEvents);
     const existingById = indexEventDocs(existing);
     let deletedCount = 0;
@@ -73,6 +76,47 @@ export const reseedForSailingDay = internalMutation({
 });
 
 /**
+ * Replaces all vesselTripEvents rows for one sailing day.
+ * This is intended for full backfills and reset-style seeds where we want the
+ * complete scheduled event skeleton, including past events.
+ */
+export const replaceForSailingDay = internalMutation({
+  args: {
+    SailingDay: v.string(),
+    Events: v.array(vesselTripEventSchema),
+  },
+  returns: v.object({
+    Deleted: v.number(),
+    Inserted: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    validateSailingDayEvents(args.SailingDay, args.Events);
+
+    const existing = await ctx.db
+      .query("vesselTripEvents")
+      .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
+      .collect();
+
+    for (const doc of existing) {
+      await ctx.db.delete(doc._id);
+    }
+
+    const dedupedEvents = normalizeScheduledDockSeams(
+      dedupeEventsById(args.Events).sort(sortVesselTripEvents)
+    );
+
+    for (const event of dedupedEvents) {
+      await ctx.db.insert("vesselTripEvents", event);
+    }
+
+    return {
+      Deleted: existing.length,
+      Inserted: dedupedEvents.length,
+    };
+  },
+});
+
+/**
  * Applies a batch of live vessel locations to already-seeded vessel/day
  * timeline rows.
  */
@@ -97,17 +141,49 @@ export const applyLiveUpdates = internalMutation({
         continue;
       }
 
-      const updatedEvents = applyLiveLocationToEvents(
-        // Duplicate keys can exist during transitions, so normalize before
-        // applying live predictions to the ordered event sequence.
-        dedupeEventsById(toEventRecords(docs)).sort(sortVesselTripEvents),
-        location
+      const updatedEvents = normalizeScheduledDockSeams(
+        applyLiveLocationToEvents(
+          // Duplicate keys can exist during transitions, so normalize before
+          // applying live predictions to the ordered event sequence.
+          dedupeEventsById(toEventRecords(docs)).sort(sortVesselTripEvents),
+          location
+        )
       );
+
+      for (const duplicateId of getDuplicateEventDocIds(docs)) {
+        await ctx.db.delete(duplicateId);
+      }
 
       await persistEventUpserts(ctx, indexEventDocs(docs), updatedEvents);
     }
 
     return null;
+  },
+});
+
+/**
+ * Deletes vesselTripEvents rows in batches so callers can purge the table
+ * without loading everything into one mutation.
+ */
+export const deleteVesselTripEventsBatch = internalMutation({
+  args: {
+    limit: v.number(),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    hasMore: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const docs = await ctx.db.query("vesselTripEvents").take(args.limit);
+
+    for (const doc of docs) {
+      await ctx.db.delete(doc._id);
+    }
+
+    return {
+      deleted: docs.length,
+      hasMore: docs.length === args.limit,
+    };
   },
 });
 
@@ -209,6 +285,29 @@ const dedupeEventDocs = (docs: Doc<"vesselTripEvents">[]) =>
       { _id: Doc<"vesselTripEvents">["_id"]; event: ConvexVesselTripEvent }
     >())
   ).map(([, doc]) => doc);
+
+/**
+ * Collects duplicate persisted row ids so callers can clean up dirty state
+ * while preserving the last row seen for each event key.
+ *
+ * @param docs - Stored vessel trip event documents that may contain duplicates
+ * @returns Duplicate document ids that are safe to delete
+ */
+const getDuplicateEventDocIds = (docs: Doc<"vesselTripEvents">[]) => {
+  const duplicateIds: Doc<"vesselTripEvents">["_id"][] = [];
+  const latestDocIdByKey = new Map<string, Doc<"vesselTripEvents">["_id"]>();
+
+  for (const doc of docs) {
+    const previousId = latestDocIdByKey.get(doc.Key);
+    if (previousId) {
+      duplicateIds.push(previousId);
+    }
+
+    latestDocIdByKey.set(doc.Key, doc._id);
+  }
+
+  return duplicateIds;
+};
 
 /**
  * Compares two event payloads for storage-relevant equality.
