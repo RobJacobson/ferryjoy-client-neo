@@ -1,12 +1,14 @@
+/**
+ * Defines manual and scheduled Convex actions for building and resetting the
+ * `vesselTripEvents` read model.
+ */
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import {
-  fetchAndTransformScheduledTrips,
-} from "../../domain/scheduledTrips/fetchAndTransform";
+import { fetchAndTransformScheduledTrips } from "../../domain/scheduledTrips/fetchAndTransform";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,
@@ -25,6 +27,11 @@ type VesselTripEventPurgeResult = {
 };
 
 type VesselTripEventSyncMode = "merge" | "replace";
+type WindowSyncDayResult = {
+  sailingDay: string;
+  inserted: number;
+  deleted: number;
+};
 
 /**
  * Manual seed for the current sailing day.
@@ -83,44 +90,9 @@ export const syncVesselTripEventsWindowed = internalAction({
   ): Promise<{
     totalInserted: number;
     totalDeleted: number;
-    daysProcessed: {
-      sailingDay: string;
-      inserted: number;
-      deleted: number;
-    }[];
+    daysProcessed: WindowSyncDayResult[];
   }> => {
-    const startDate = getSailingDay(new Date());
-    const daysToSync = args.daysToSync || 2;
-    const daysProcessed: {
-      sailingDay: string;
-      inserted: number;
-      deleted: number;
-    }[] = [];
-
-    let totalInserted = 0;
-    let totalDeleted = 0;
-
-    for (let i = 0; i < daysToSync; i++) {
-      const currentDate = addDays(startDate, i);
-      const result = await syncVesselTripEventsForDate(
-        ctx,
-        currentDate,
-        "merge"
-      );
-      totalInserted += result.Inserted;
-      totalDeleted += result.Deleted;
-      daysProcessed.push({
-        sailingDay: currentDate,
-        inserted: result.Inserted,
-        deleted: result.Deleted,
-      });
-    }
-
-    return {
-      totalInserted,
-      totalDeleted,
-      daysProcessed,
-    };
+    return await syncWindowedVesselTripEvents(ctx, args.daysToSync);
   },
 });
 
@@ -142,46 +114,13 @@ export const syncVesselTripEventsAtSailingDayBoundary = internalAction({
         reason: "outside_pacific_3am_window",
         totalInserted: 0,
         totalDeleted: 0,
-        daysProcessed: [] as {
-          sailingDay: string;
-          inserted: number;
-          deleted: number;
-        }[],
+        daysProcessed: [] as WindowSyncDayResult[],
       };
-    }
-
-    const startDate = getSailingDay(new Date());
-    const daysToSync = args.daysToSync || 2;
-    const daysProcessed: {
-      sailingDay: string;
-      inserted: number;
-      deleted: number;
-    }[] = [];
-
-    let totalInserted = 0;
-    let totalDeleted = 0;
-
-    for (let i = 0; i < daysToSync; i++) {
-      const currentDate = addDays(startDate, i);
-      const result = await syncVesselTripEventsForDate(
-        ctx,
-        currentDate,
-        "merge"
-      );
-      totalInserted += result.Inserted;
-      totalDeleted += result.Deleted;
-      daysProcessed.push({
-        sailingDay: currentDate,
-        inserted: result.Inserted,
-        deleted: result.Deleted,
-      });
     }
 
     return {
       skipped: false,
-      totalInserted,
-      totalDeleted,
-      daysProcessed,
+      ...(await syncWindowedVesselTripEvents(ctx, args.daysToSync)),
     };
   },
 });
@@ -196,6 +135,14 @@ export const purgeVesselTripEventsManual = action({
   },
 });
 
+/**
+ * Runs the vessel-trip-event sync for one sailing day in the requested mode.
+ *
+ * @param ctx - Convex action context
+ * @param targetDate - Sailing day to sync
+ * @param mode - Whether to merge into or replace the stored read model
+ * @returns Insert/delete counts from the underlying mutation
+ */
 const syncVesselTripEventsForDate = async (
   ctx: ActionCtx,
   targetDate: string,
@@ -203,15 +150,14 @@ const syncVesselTripEventsForDate = async (
 ): Promise<VesselTripEventSeedResult> => {
   console.log(`${logPrefix} Starting ${mode} sync for ${targetDate}`);
 
-  const { routes, routeData } = await fetchAndTransformScheduledTrips(targetDate);
+  const { routeData } = await fetchAndTransformScheduledTrips(targetDate);
+  const scheduleSegments = routeData.flatMap((data) => data.segments);
   console.log(
-    `${logPrefix}Found ${routes.length} routes for ${targetDate}`
+    `${logPrefix} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
   );
 
-  const directEvents = buildSeedVesselTripEventsFromRawSegments(
-    routeData.flatMap((data) => data.segments)
-  );
-  const scheduleSegments = routeData.flatMap((data) => data.segments);
+  const directEvents =
+    buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
   const existingEvents = await ctx.runQuery(
     internal.functions.vesselTripEvents.queries.getEventsForSailingDay,
     {
@@ -254,6 +200,12 @@ const syncVesselTripEventsForDate = async (
   return result;
 };
 
+/**
+ * Deletes the entire `vesselTripEvents` table in batches.
+ *
+ * @param ctx - Convex action context
+ * @returns Total deleted row count
+ */
 const purgeVesselTripEvents = async (
   ctx: ActionCtx
 ): Promise<VesselTripEventPurgeResult> => {
@@ -282,6 +234,55 @@ const purgeVesselTripEvents = async (
   };
 };
 
+/**
+ * Runs the merge sync for the current sailing day window.
+ *
+ * @param ctx - Convex action context
+ * @param daysToSyncOverride - Optional number of sailing days to process
+ * @returns Aggregate sync counts and the per-day results
+ */
+const syncWindowedVesselTripEvents = async (
+  ctx: ActionCtx,
+  daysToSyncOverride?: number
+): Promise<{
+  totalInserted: number;
+  totalDeleted: number;
+  daysProcessed: WindowSyncDayResult[];
+}> => {
+  const startDate = getSailingDay(new Date());
+  const daysToSync = daysToSyncOverride ?? 2;
+  const daysProcessed: WindowSyncDayResult[] = [];
+
+  let totalInserted = 0;
+  let totalDeleted = 0;
+
+  for (let i = 0; i < daysToSync; i++) {
+    const sailingDay = addDays(startDate, i);
+    const result = await syncVesselTripEventsForDate(ctx, sailingDay, "merge");
+
+    totalInserted += result.Inserted;
+    totalDeleted += result.Deleted;
+    daysProcessed.push({
+      sailingDay,
+      inserted: result.Inserted,
+      deleted: result.Deleted,
+    });
+  }
+
+  return {
+    totalInserted,
+    totalDeleted,
+    daysProcessed,
+  };
+};
+
+/**
+ * Fetches vessel history records for the scheduled vessels on one sailing day.
+ *
+ * @param scheduleSegments - Schedule segments used to derive vessel names
+ * @param targetDate - Sailing day to request from WSF history
+ * @returns Flattened vessel history rows for the requested vessel/day set
+ */
 const fetchHistoryRecordsForDate = async (
   scheduleSegments: RawWsfScheduleSegment[],
   targetDate: string
@@ -309,6 +310,13 @@ const fetchHistoryRecordsForDate = async (
   return historyBatches.flat();
 };
 
+/**
+ * Adds whole sailing days to a `YYYY-MM-DD` service-day string.
+ *
+ * @param dateString - Base sailing day string in Pacific service-day format
+ * @param days - Number of days to add
+ * @returns Shifted sailing day string
+ */
 const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));

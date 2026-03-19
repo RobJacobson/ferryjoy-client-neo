@@ -98,7 +98,9 @@ export const replaceForSailingDay = internalMutation({
       await ctx.db.delete(doc._id);
     }
 
-    const dedupedEvents = dedupeEventsById(args.Events).sort(sortVesselTripEvents);
+    const dedupedEvents = dedupeEventsById(args.Events).sort(
+      sortVesselTripEvents
+    );
 
     for (const event of dedupedEvents) {
       await ctx.db.insert("vesselTripEvents", event);

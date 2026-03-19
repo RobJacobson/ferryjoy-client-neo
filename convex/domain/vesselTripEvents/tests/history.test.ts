@@ -1,12 +1,22 @@
+/**
+ * Covers history-backed enrichment for the vessel trip event read model.
+ */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,
 } from "../index";
 
+/**
+ * Creates a UTC fixture timestamp for history-merge tests.
+ *
+ * @param hours - UTC hour for the fixture timestamp
+ * @param minutes - UTC minute for the fixture timestamp
+ * @returns Date instance for the requested fixture time
+ */
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
@@ -46,12 +56,12 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("keeps departure actuals when history differs by less than three minutes", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents =
+      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -77,12 +87,12 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("keeps arrival actuals when ETA proxy differs by only one minute", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents =
+      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -108,12 +118,12 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("replaces departure actuals when history differs by three minutes or more", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents =
+      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime:
-          index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
+        ActualTime: index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
       })
     );
 
@@ -140,12 +150,12 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("replaces arrival actuals when ETA proxy differs by two minutes or more", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents =
+      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
+        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
       })
     );
 
@@ -168,8 +178,37 @@ describe("mergeSeededEventsWithHistory", () => {
 
     expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
   });
+
+  it("backfills departure actuals even when the arrival proxy is missing", () => {
+    const scheduleSegments = [makeRoute14Segment()];
+
+    const mergedEvents = mergeSeededEventsWithHistory({
+      sailingDay: "2026-03-18",
+      seededEvents: buildSeedVesselTripEventsFromRawSegments(scheduleSegments),
+      existingEvents: [],
+      scheduleSegments,
+      historyRecords: [
+        makeHistory({
+          Vessel: "Cathlamet",
+          Departing: "Vashon",
+          Arriving: "Fauntleroy",
+          ScheduledDepart: at(14, 5),
+          ActualDepart: at(14, 10),
+          EstArrival: undefined,
+        }),
+      ],
+    });
+
+    expect(mergedEvents[0]?.ActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.ActualTime).toBeUndefined();
+  });
 });
 
+/**
+ * Creates a route-14 schedule segment fixture.
+ *
+ * @returns Raw WSF schedule segment for a Vashon to Fauntleroy sailing
+ */
 const makeRoute14Segment = (): RawWsfScheduleSegment =>
   makeRawSegment({
     VesselName: "Cathlamet",
@@ -180,6 +219,12 @@ const makeRoute14Segment = (): RawWsfScheduleSegment =>
     RouteAbbrev: "f-v-s",
   });
 
+/**
+ * Creates a raw WSF schedule segment fixture with overrides.
+ *
+ * @param overrides - Partial raw segment fields to override
+ * @returns Raw schedule segment fixture
+ */
 const makeRawSegment = (
   overrides: Partial<RawWsfScheduleSegment>
 ): RawWsfScheduleSegment => ({
@@ -196,6 +241,12 @@ const makeRawSegment = (
   ...overrides,
 });
 
+/**
+ * Creates a vessel history fixture with overrides.
+ *
+ * @param overrides - Partial history fields to override
+ * @returns Vessel history fixture
+ */
 const makeHistory = (overrides: Partial<VesselHistory>): VesselHistory =>
   ({
     VesselId: 1,

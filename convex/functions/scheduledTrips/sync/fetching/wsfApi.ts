@@ -1,1 +1,5 @@
-export { CONFIG, fetchActiveRoutes, fetchRouteSchedule } from "shared/fetchWsfScheduleData";
+export {
+  CONFIG,
+  fetchActiveRoutes,
+  fetchRouteSchedule,
+} from "shared/fetchWsfScheduleData";

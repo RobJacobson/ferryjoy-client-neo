@@ -1,7 +1,7 @@
-import type { ConvexScheduledTrip } from "../../schemas";
-import { getTerminalAbbreviation, getVesselAbbreviation } from "../../schemas";
 import type { RawWsfScheduleSegment } from "shared/fetchWsfScheduleData";
 import { generateTripKey } from "shared/keys";
+import type { ConvexScheduledTrip } from "../../schemas";
+import { getTerminalAbbreviation, getVesselAbbreviation } from "../../schemas";
 
 /**
  * Resolves all required abbreviations for a raw schedule segment, rejecting if

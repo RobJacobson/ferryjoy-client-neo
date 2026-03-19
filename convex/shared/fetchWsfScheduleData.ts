@@ -85,9 +85,7 @@ export const downloadRawWsfScheduleData = async (
             tripDate
           )
         )
-        .filter(
-          (segment): segment is RawWsfScheduleSegment => segment !== null
-        )
+        .filter((segment): segment is RawWsfScheduleSegment => segment !== null)
     );
 
     return { route, segments, rawTripCount };

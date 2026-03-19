@@ -1,8 +1,8 @@
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import {
   groupTripsByPhysicalDeparture,
-  groupTripsByVessel,
   groupTripsByPhysicalDepartureGeneric,
+  groupTripsByVessel,
   groupTripsByVesselGeneric,
   type PhysicalDeparture,
 } from "./grouping";
@@ -24,9 +24,7 @@ type DirectSegmentResult<TTrip extends DirectSegmentInput> = TTrip & {
  * Generic direct/indirect classifier that can be reused by raw schedule
  * consumers without depending on the full ScheduledTrip shape.
  */
-export const classifyDirectSegmentsGeneric = <
-  TTrip extends DirectSegmentInput,
->(
+export const classifyDirectSegmentsGeneric = <TTrip extends DirectSegmentInput>(
   trips: TTrip[]
 ): DirectSegmentResult<TTrip>[] => {
   const tripsByVessel = groupTripsByVesselGeneric(trips);
@@ -75,8 +73,7 @@ export const getDirectSegments = (trips: ConvexScheduledTrip[]) =>
 const classifyDepartureGroup = (
   { trips }: PhysicalDeparture,
   nextTerminal: string | undefined
-): ConvexScheduledTrip[] =>
-  classifyDepartureGroupGeneric(trips, nextTerminal);
+): ConvexScheduledTrip[] => classifyDepartureGroupGeneric(trips, nextTerminal);
 
 const classifyDepartureGroupGeneric = <TTrip extends DirectSegmentInput>(
   trips: TTrip[],

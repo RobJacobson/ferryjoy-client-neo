@@ -35,7 +35,10 @@ export const buildSeedVesselTripEvents = (
         ScheduledDeparture: trip.DepartingTime,
         DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
         ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-        ScheduledArrival: getScheduledArrivalTime(trip),
+        ScheduledArrival: normalizeScheduledArrivalTime(
+          trip.ArrivingTime ?? trip.SchedArriveNext,
+          trip.DepartingTime
+        ),
       })
     )
     .sort(sortVesselTripEvents);
@@ -56,7 +59,10 @@ export const buildSeedVesselTripEventsFromRawSegments = (
         ScheduledDeparture: segment.DepartingTime,
         DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
         ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
-        ScheduledArrival: getRawSegmentScheduledArrivalTime(segment),
+        ScheduledArrival: normalizeScheduledArrivalTime(
+          segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
+          segment.DepartingTime
+        ),
       })
     )
     .sort(sortVesselTripEvents);
@@ -70,6 +76,12 @@ type SeedSegment = {
   ScheduledArrival?: number;
 };
 
+/**
+ * Expands one physical segment into departure and arrival boundary events.
+ *
+ * @param segment - Direct vessel segment to convert into timeline events
+ * @returns Departure and arrival event rows for the read model
+ */
 const buildSeedEventsForSegment = (
   segment: SeedSegment
 ): ConvexVesselTripEvent[] => [
@@ -109,25 +121,19 @@ const buildSeedEventsForSegment = (
   },
 ];
 
+/**
+ * Filters raw WSF schedule segments down to direct physical sailings that can
+ * seed the timeline read model.
+ *
+ * @param segments - Raw WSF schedule segments for one or more routes
+ * @returns Direct segments normalized into the seed classification shape
+ */
 export const getDirectRawSeedSegments = (segments: RawWsfScheduleSegment[]) =>
   classifyDirectSegmentsGeneric(
     segments
       .map(toRawSeedSegment)
       .filter((segment): segment is RawSeedSegment => segment !== null)
   ).filter((segment) => segment.TripType === "direct");
-
-const getScheduledArrivalTime = (trip: ConvexScheduledTrip) => {
-  const scheduledArrival = trip.ArrivingTime ?? trip.SchedArriveNext;
-
-  if (
-    scheduledArrival !== undefined &&
-    scheduledArrival === trip.DepartingTime
-  ) {
-    return scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS;
-  }
-
-  return scheduledArrival;
-};
 
 export type RawSeedSegment = {
   Key: string;
@@ -141,6 +147,13 @@ export type RawSeedSegment = {
   RouteAbbrev: string;
 };
 
+/**
+ * Converts a raw WSF schedule segment into the normalized seed shape.
+ *
+ * @param segment - Raw schedule segment from the fetch pipeline
+ * @returns Normalized segment or `null` when required identity fields are
+ * missing
+ */
 const toRawSeedSegment = (
   segment: RawWsfScheduleSegment
 ): RawSeedSegment | null => {
@@ -180,22 +193,28 @@ const toRawSeedSegment = (
   };
 };
 
-const getRawSegmentScheduledArrivalTime = (segment: RawSeedSegment) => {
-  const scheduledArrival =
-    segment.ArrivingTime ??
-    getOfficialScheduledArrivalTime(segment) ??
-    undefined;
+/**
+ * Normalizes scheduled arrival times for timeline seeding.
+ *
+ * @param scheduledArrival - Raw scheduled arrival candidate
+ * @param scheduledDeparture - Scheduled departure for the same segment
+ * @returns Normalized arrival timestamp for the event row
+ */
+const normalizeScheduledArrivalTime = (
+  scheduledArrival: number | undefined,
+  scheduledDeparture: number
+) =>
+  scheduledArrival !== undefined && scheduledArrival === scheduledDeparture
+    ? scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+    : scheduledArrival;
 
-  if (
-    scheduledArrival !== undefined &&
-    scheduledArrival === segment.DepartingTime
-  ) {
-    return scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS;
-  }
-
-  return scheduledArrival;
-};
-
+/**
+ * Computes an arrival timestamp from official crossing-time data when the raw
+ * schedule omits one.
+ *
+ * @param segment - Direct raw segment being seeded
+ * @returns Scheduled arrival timestamp when one can be inferred
+ */
 const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
   if (segment.RouteID === 9 && segment.ArrivingTime) {
     return segment.ArrivingTime;

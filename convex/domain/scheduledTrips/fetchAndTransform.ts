@@ -1,8 +1,11 @@
 import type { Route } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import { createScheduledTripFromRawSegment } from "../../functions/scheduledTrips/sync/fetching/mapping";
-import { downloadRawWsfScheduleData, fetchActiveRoutes } from "../../shared/fetchWsfScheduleData";
 import type { RawWsfRouteScheduleData } from "../../shared/fetchWsfScheduleData";
+import {
+  downloadRawWsfScheduleData,
+  fetchActiveRoutes,
+} from "../../shared/fetchWsfScheduleData";
 import { runTransformationPipeline } from "./transform";
 
 export type FetchAndTransformScheduledTripsResult = {

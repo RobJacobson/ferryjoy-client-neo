@@ -97,13 +97,8 @@ export const syncScheduledTripsForDate = async (
 
     // Phase 1: Fetch all active routes
     console.log(`${logPrefix}Fetching routes for ${targetDate}`);
-    const {
-      routes,
-      routeData,
-      rawTrips,
-      finalTrips,
-      totalIndirect,
-    } = await fetchAndTransformScheduledTrips(targetDate);
+    const { routes, routeData, rawTrips, finalTrips, totalIndirect } =
+      await fetchAndTransformScheduledTrips(targetDate);
     console.log(
       `${logPrefix}Found ${routes.length} routes:`,
       routes

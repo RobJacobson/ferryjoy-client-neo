@@ -95,10 +95,9 @@ export const runUpdateVesselTrips = async (
 
   // Index active trips by vessel abbreviation for fast lookup
   const existingTripsDict = Object.fromEntries(
-    (existingTripsList ?? []).map((trip: ConvexVesselTrip) => [
-      trip.VesselAbbrev,
-      trip,
-    ] as const)
+    (existingTripsList ?? []).map(
+      (trip: ConvexVesselTrip) => [trip.VesselAbbrev, trip] as const
+    )
   ) as Record<string, ConvexVesselTrip>;
 
   // Build transition objects with precomputed events for each vessel

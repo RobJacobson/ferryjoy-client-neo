@@ -105,7 +105,11 @@ export const applyLiveLocationToEvents = (
     arrivalEvent.PredictedTime = location.Eta;
   }
 
-  if (canWriteLiveActuals(location) && isStrongDeparture(location) && departureEvent) {
+  if (
+    canWriteLiveActuals(location) &&
+    isStrongDeparture(location) &&
+    departureEvent
+  ) {
     departureEvent.ActualTime = location.LeftDock ?? location.TimeStamp;
   }
 

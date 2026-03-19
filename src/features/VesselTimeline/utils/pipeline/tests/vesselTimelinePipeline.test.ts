@@ -254,8 +254,8 @@ describe("getActiveRowIndex", () => {
 
     rows[0] = {
       ...rows[0]!,
-      startEvent: { ...rows[0]!.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]!.endEvent, ActualTime: undefined },
+      startEvent: { ...rows[0]?.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...rows[0]?.endEvent, ActualTime: undefined },
     };
 
     const activeRowIndex = getActiveRowIndex(
@@ -288,18 +288,18 @@ describe("getActiveRowIndex", () => {
 
     rows[0] = {
       ...rows[0]!,
-      startEvent: { ...rows[0]!.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]!.endEvent, ActualTime: at(8, 36) },
+      startEvent: { ...rows[0]?.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...rows[0]?.endEvent, ActualTime: at(8, 36) },
     };
     rows[1] = {
       ...rows[1]!,
-      startEvent: { ...rows[1]!.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...rows[1]!.endEvent, ActualTime: at(8, 36) },
+      startEvent: { ...rows[1]?.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...rows[1]?.endEvent, ActualTime: at(8, 36) },
     };
     rows[2] = {
       ...rows[2]!,
-      startEvent: { ...rows[2]!.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...rows[2]!.endEvent, ActualTime: undefined },
+      startEvent: { ...rows[2]?.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...rows[2]?.endEvent, ActualTime: undefined },
     };
 
     expect(getActiveRowIndex(rows, undefined, at(8, 50))).toBe(2);
@@ -387,9 +387,7 @@ const makeEvent = (overrides: Partial<VesselTripEvent>): VesselTripEvent => ({
   ...overrides,
 });
 
-const makeLocation = (
-  overrides: Partial<VesselLocation>
-): VesselLocation => ({
+const makeLocation = (overrides: Partial<VesselLocation>): VesselLocation => ({
   VesselID: 1,
   VesselName: "Tokitae",
   VesselAbbrev: "TOK",

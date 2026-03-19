@@ -1,6 +1,6 @@
+import { downloadRawWsfScheduleData } from "shared/fetchWsfScheduleData";
 import type { Route } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../../schemas";
-import { downloadRawWsfScheduleData } from "shared/fetchWsfScheduleData";
 import { createScheduledTripFromRawSegment } from "./mapping";
 
 /**

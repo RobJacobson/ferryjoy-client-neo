@@ -34,12 +34,9 @@ export type PhysicalDeparture<
  */
 export const groupTripsByVessel = (
   trips: ConvexScheduledTrip[]
-): Record<string, ConvexScheduledTrip[]> =>
-  groupTripsByVesselGeneric(trips);
+): Record<string, ConvexScheduledTrip[]> => groupTripsByVesselGeneric(trips);
 
-export const groupTripsByVesselGeneric = <
-  TTrip extends PhysicalDepartureInput,
->(
+export const groupTripsByVesselGeneric = <TTrip extends PhysicalDepartureInput>(
   trips: TTrip[]
 ): Record<string, TTrip[]> =>
   trips.reduce(
