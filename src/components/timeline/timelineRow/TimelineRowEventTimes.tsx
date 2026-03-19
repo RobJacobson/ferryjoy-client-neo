@@ -46,7 +46,7 @@ export const TimelineRowEventTimes = ({
   return (
     <View
       className="mt-[-14px] flex-1 flex-row gap-1"
-      style={{ paddingLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
+      style={{ marginLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       {!hasVisibleTimes && showPlaceholder && (
         <MissingEventTime theme={theme} />

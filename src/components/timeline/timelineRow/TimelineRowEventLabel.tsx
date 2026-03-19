@@ -17,17 +17,15 @@ type TimelineRowEventLabelProps = {
 };
 
 /**
- * Renders event label text and terminal name for a timeline row boundary.
+ * Renders the short boundary label text for a timeline row boundary.
  *
  * @param label - The boundary containing event and terminal data
- * @returns The label view or a spacer when no display text is available
+ * @returns The label view for the boundary
  */
 export const TimelineRowEventLabel = ({
   boundary,
   theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowEventLabelProps) => {
-  const terminalDisplayName = boundary.currTerminalDisplayName;
-
   const labelText =
     boundary.eventType === "arrive"
       ? boundary.currTerminalAbbrev
@@ -40,33 +38,8 @@ export const TimelineRowEventLabel = ({
   return (
     <View
       className="relative mx-2 mt-[-8px] flex-1 flex-row"
-      style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
+      style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
-      {terminalDisplayName && boundary.eventType === "arrive" && (
-        <View
-          className="absolute -top-8 -left-3"
-          style={{
-            transform: [
-              { rotate: `${theme.labels.terminalNameRotationDeg}deg` },
-            ],
-          }}
-        >
-          <TimelineShadowText
-            shadowClassName=""
-            shadowStyle={{ color: theme.labels.terminalNameShadowColor }}
-          >
-            <Text
-              className={theme.labels.terminalNameFontClassName}
-              style={[
-                { color: theme.labels.terminalNameColor },
-                theme.labels.terminalNameStyle,
-              ]}
-            >
-              {terminalDisplayName}
-            </Text>
-          </TimelineShadowText>
-        </View>
-      )}
       <View className="flex-1 flex-row justify-end">
         <TimelineShadowText
           shadowClassName=""

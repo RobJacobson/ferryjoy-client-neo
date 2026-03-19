@@ -12,6 +12,7 @@ import type { TimelineRenderRow } from "../types";
 import { TimelineRowEventLabel } from "./TimelineRowEventLabel";
 import { TimelineRowEventTimes } from "./TimelineRowEventTimes";
 import { TimelineRowMarker } from "./TimelineRowMarker";
+import { TimelineRowTerminalHeadline } from "./TimelineRowTerminalHeadline";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
@@ -23,6 +24,7 @@ export const TimelineRowContent = ({
   theme = DEFAULT_TIMELINE_VISUAL_THEME,
 }: TimelineRowContentProps) => (
   <View className="relative h-full w-full">
+    <TimelineRowTerminalHeadline boundary={row.startBoundary} theme={theme} />
     <View className="h-full flex-row">
       <View
         style={{
