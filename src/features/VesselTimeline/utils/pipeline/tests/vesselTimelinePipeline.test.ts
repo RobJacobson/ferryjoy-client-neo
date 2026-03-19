@@ -251,11 +251,12 @@ describe("getActiveRowIndex", () => {
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
+    const firstRow = getRowOrThrow(rows, 0);
 
     rows[0] = {
-      ...rows[0]!,
-      startEvent: { ...rows[0]?.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]?.endEvent, ActualTime: undefined },
+      ...firstRow,
+      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, ActualTime: undefined },
     };
 
     const activeRowIndex = getActiveRowIndex(
@@ -285,21 +286,24 @@ describe("getActiveRowIndex", () => {
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
+    const firstRow = getRowOrThrow(rows, 0);
+    const secondRow = getRowOrThrow(rows, 1);
+    const thirdRow = getRowOrThrow(rows, 2);
 
     rows[0] = {
-      ...rows[0]!,
-      startEvent: { ...rows[0]?.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...rows[0]?.endEvent, ActualTime: at(8, 36) },
+      ...firstRow,
+      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, ActualTime: at(8, 36) },
     };
     rows[1] = {
-      ...rows[1]!,
-      startEvent: { ...rows[1]?.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...rows[1]?.endEvent, ActualTime: at(8, 36) },
+      ...secondRow,
+      startEvent: { ...secondRow.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...secondRow.endEvent, ActualTime: at(8, 36) },
     };
     rows[2] = {
-      ...rows[2]!,
-      startEvent: { ...rows[2]?.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...rows[2]?.endEvent, ActualTime: undefined },
+      ...thirdRow,
+      startEvent: { ...thirdRow.startEvent, ActualTime: at(8, 36) },
+      endEvent: { ...thirdRow.endEvent, ActualTime: undefined },
     };
 
     expect(getActiveRowIndex(rows, undefined, at(8, 50))).toBe(2);
@@ -413,3 +417,24 @@ const makeLocation = (overrides: Partial<VesselLocation>): VesselLocation => ({
   ArrivingDistance: undefined,
   ...overrides,
 });
+
+/**
+ * Returns a timeline row fixture by index and throws when it is unexpectedly
+ * missing.
+ *
+ * @param rows - Timeline rows under test
+ * @param index - Row index expected to exist
+ * @returns Timeline row at the requested index
+ */
+const getRowOrThrow = (
+  rows: ReturnType<typeof buildTimelineRows>,
+  index: number
+) => {
+  const row = rows[index];
+
+  if (!row) {
+    throw new Error(`Expected timeline row at index ${index}`);
+  }
+
+  return row;
+};
