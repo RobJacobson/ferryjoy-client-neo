@@ -214,7 +214,7 @@ const getEventByKey = (events: ConvexVesselTripEvent[], Key: string) =>
  * @param location - Live vessel location payload
  * @returns True when the vessel appears to have left dock
  */
-const isStrongDeparture = (location: ConvexVesselLocation) =>
+export const isStrongDeparture = (location: ConvexVesselLocation) =>
   location.AtDock === false && location.Speed >= MOVING_SPEED_THRESHOLD;
 
 /**
@@ -223,7 +223,7 @@ const isStrongDeparture = (location: ConvexVesselLocation) =>
  * @param location - Live vessel location payload
  * @returns True when the vessel appears docked at low speed
  */
-const isStrongArrival = (location: ConvexVesselLocation) =>
+export const isStrongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
 
 /**
@@ -231,7 +231,7 @@ const isStrongArrival = (location: ConvexVesselLocation) =>
  * operating in service. Out-of-service ticks can still inform presence in
  * other systems, but they should not rewrite timeline truth.
  */
-const canWriteLiveActuals = (location: ConvexVesselLocation) =>
+export const canWriteLiveActuals = (location: ConvexVesselLocation) =>
   location.InService === true;
 
 /**
@@ -357,7 +357,7 @@ const findAnchoredArrivalEvent = (
  * @param event - Arrival event under consideration
  * @returns Earliest timestamp at which the arrival can be resolved
  */
-const getArrivalEligibilityTime = (event: ConvexVesselTripEvent) => {
+export const getArrivalEligibilityTime = (event: ConvexVesselTripEvent) => {
   const fallbackTimestamp = event.ScheduledDeparture;
 
   if (event.PredictedTime !== undefined && event.ScheduledTime !== undefined) {
