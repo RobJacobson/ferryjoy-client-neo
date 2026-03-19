@@ -205,8 +205,10 @@ rows from WSF vessel history:
 
 When a stored `ActualTime` already exists for the same logical event:
 
-- keep it when the delta from WSF history is `< 3 minutes`
-- replace it when the delta is `>= 3 minutes`
+- departure rows keep it when the delta from WSF `ActualDepart` is `< 3 minutes`
+- departure rows replace it when the delta is `>= 3 minutes`
+- arrival rows keep it when the delta from WSF `EstArrival` proxy is `< 2 minutes`
+- arrival rows replace it when the delta is `>= 2 minutes`
 
 This creates a stable vessel/day event skeleton before any live data arrives.
 
