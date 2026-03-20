@@ -1,4 +1,4 @@
-import type { TextStyle, ViewStyle } from "react-native";
+import type { TextStyle } from "react-native";
 import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicator/timelineIndicatorRadarPingConfig";
 
 /**
@@ -18,32 +18,26 @@ export type TimelineVisualTheme = {
   };
   cards: {
     blurIntensity: number;
-    blurTint: "light" | "dark" | "default";
+    /** Backdrop blur material; not the same as `fillColor` (inner view only). */
+    blurTint: "clear" | "light" | "dark" | "default";
+    /** Inner overlay on top of blur; use transparent for tint from `blurTint` only. */
     fillColor: string;
     borderColor: string;
     borderWidth: number;
-    shadowColor: string;
-    shadowOpacity: number;
-    shadowRadius: number;
-    shadowStyle?: ViewStyle;
   };
   labels: {
     terminalNameFontClassName: string;
     terminalNameColor: string;
-    terminalNameShadowColor: string;
     terminalNameRotationDeg: number;
     eventLabelFontClassName: string;
     eventLabelColor: string;
-    eventLabelShadowColor: string;
     terminalNameStyle?: TextStyle;
     eventLabelStyle?: TextStyle;
   };
   times: {
     fontClassName: string;
     textColor: string;
-    shadowColor: string;
     iconColor: string;
-    shadowIconColor: string;
     textStyle?: TextStyle;
   };
   marker: {
@@ -53,16 +47,12 @@ export type TimelineVisualTheme = {
     futureBorderColor: string;
     pastIconTintColor: string;
     futureIconTintColor: string;
-    shadowColor: string;
-    shadowOpacity: number;
-    shadowRadius: number;
   };
   indicator: {
     badgeTextColor: string;
     titleColor: string;
     subtitleColor: string;
     glassBorderColor: string;
-    glassFillColor: string;
     glassBlurIntensity: number;
     glowColor: string;
     glowOpacity: number;
@@ -74,140 +64,88 @@ export type TimelineVisualTheme = {
   };
 };
 
+export type TimelineVisualThemeOverrides = {
+  [Section in keyof TimelineVisualTheme]?: Partial<
+    TimelineVisualTheme[Section]
+  >;
+};
+
 export const DEFAULT_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   track: {
-    coreWidthPx: 4,
-    glowWidthPx: 14,
-    completedColor: "#4ADE80",
-    completedGlowColor: "rgba(74, 222, 128, 0.36)",
+    coreWidthPx: 3,
+    glowWidthPx: 8,
+    completedColor: "hsla(142, 69%, 58%, 1)",
+    completedGlowColor: "hsla(142, 69%, 58%, 1)",
     completedGlowOpacity: 1,
-    remainingColor: "rgba(255, 255, 255, 0.78)",
+    remainingColor: "hsla(0, 0%, 100%, 0.78)",
   },
   cards: {
-    blurIntensity: 30,
-    blurTint: "light",
-    fillColor: "rgba(255,255,255,0.30)",
-    borderColor: "rgba(255,255,255,0.92)",
+    blurIntensity: 20,
+    blurTint: "clear",
+    fillColor: "hsla(0, 0%, 100%, 0.25)",
+    borderColor: "hsla(0, 0%, 100%, 0.75)",
     borderWidth: 1,
-    shadowColor: "#FFFFFF",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
   },
   labels: {
     terminalNameFontClassName: "font-puffberry text-3xl",
-    terminalNameColor: "#C084FC",
-    terminalNameShadowColor: "#FFFFFF",
+    terminalNameColor: "hsla(270, 95%, 75%, 1)",
     terminalNameRotationDeg: -9,
     eventLabelFontClassName: "font-led-board text-lg py-[2px]",
-    eventLabelColor: "#6D28D9",
-    eventLabelShadowColor: "#FFFFFF",
+    eventLabelColor: "hsla(263, 70%, 50%, 1)",
   },
   times: {
     fontClassName: "font-led-board text-lg",
-    textColor: "#6D28D9",
-    shadowColor: "#FFFFFF",
-    iconColor: "#7C3AED",
-    shadowIconColor: "#FFFFFF",
+    textColor: "hsla(263, 70%, 50%, 1)",
+    iconColor: "hsla(262, 83%, 58%, 1)",
   },
   marker: {
-    pastFillColor: "#22C55E",
-    pastBorderColor: "rgba(220,252,231,0.95)",
-    futureFillColor: "rgba(255,255,255,0.92)",
-    futureBorderColor: "#22C55E",
-    pastIconTintColor: "rgba(255,255,255,0.9)",
-    futureIconTintColor: "rgba(34,197,94,0.8)",
-    shadowColor: "#86EFAC",
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
+    pastFillColor: "hsla(142, 71%, 45%, 1)",
+    pastBorderColor: "hsla(141, 84%, 93%, 0.95)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.92)",
+    futureBorderColor: "hsla(142, 71%, 45%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.9)",
+    futureIconTintColor: "hsla(142, 71%, 45%, 0.8)",
   },
   indicator: {
-    badgeTextColor: "#6D28D9",
-    titleColor: "#5B21B6",
-    subtitleColor: "#5B21B6",
-    glassBorderColor: "rgba(192, 132, 252, 0.95)",
-    glassFillColor: "rgba(255,255,255,0.50)",
+    badgeTextColor: "hsla(263, 70%, 50%, 1)",
+    titleColor: "hsla(263, 69%, 42%, 1)",
+    subtitleColor: "hsla(263, 69%, 42%, 1)",
+    glassBorderColor: "hsla(270, 95%, 75%, 0.95)",
     glassBlurIntensity: 8,
-    glowColor: "rgba(192, 132, 252, 0.55)",
+    glowColor: "hsla(270, 95%, 75%, 0.55)",
     glowOpacity: 0.34,
     glowRadius: 14,
     radarPingVariant: "glass-orchid",
   },
 };
 
-export const TIMELINE_THEME_CONSTANTS = {
+export const createTimelineVisualTheme = (
+  overrides: TimelineVisualThemeOverrides = {}
+): TimelineVisualTheme => ({
+  ...DEFAULT_TIMELINE_VISUAL_THEME,
+  ...overrides,
   track: {
-    coreWidthPx: DEFAULT_TIMELINE_VISUAL_THEME.track.coreWidthPx,
-    glowWidthPx: DEFAULT_TIMELINE_VISUAL_THEME.track.glowWidthPx,
-    completedGlowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.track.completedGlowOpacity,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.track,
+    ...overrides.track,
   },
   cards: {
-    blurIntensity: DEFAULT_TIMELINE_VISUAL_THEME.cards.blurIntensity,
-    blurTint: DEFAULT_TIMELINE_VISUAL_THEME.cards.blurTint,
-    borderWidth: DEFAULT_TIMELINE_VISUAL_THEME.cards.borderWidth,
-    shadowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowOpacity,
-    shadowRadius: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowRadius,
-    shadowStyle: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowStyle,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.cards,
+    ...overrides.cards,
   },
   labels: {
-    terminalNameFontClassName:
-      DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameFontClassName,
-    terminalNameRotationDeg:
-      DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameRotationDeg,
-    eventLabelFontClassName:
-      DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelFontClassName,
-    terminalNameStyle: DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameStyle,
-    eventLabelStyle: DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelStyle,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.labels,
+    ...overrides.labels,
   },
   times: {
-    fontClassName: DEFAULT_TIMELINE_VISUAL_THEME.times.fontClassName,
-    textStyle: DEFAULT_TIMELINE_VISUAL_THEME.times.textStyle,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.times,
+    ...overrides.times,
   },
   marker: {
-    shadowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowOpacity,
-    shadowRadius: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowRadius,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.marker,
+    ...overrides.marker,
   },
   indicator: {
-    glassBlurIntensity: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassBlurIntensity,
-    glowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowOpacity,
-    glowRadius: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowRadius,
-    badgeTextStyle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.badgeTextStyle,
-    titleTextStyle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.titleTextStyle,
-    subtitleTextStyle:
-      DEFAULT_TIMELINE_VISUAL_THEME.indicator.subtitleTextStyle,
+    ...DEFAULT_TIMELINE_VISUAL_THEME.indicator,
+    ...overrides.indicator,
   },
-} as const;
-
-export const TIMELINE_THEME_BASELINE = {
-  cards: {
-    fill: DEFAULT_TIMELINE_VISUAL_THEME.cards.fillColor,
-    border: DEFAULT_TIMELINE_VISUAL_THEME.cards.borderColor,
-    shadow: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowColor,
-  },
-  labels: {
-    terminalNameShadow: DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameShadowColor,
-    eventLabelShadow: DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelShadowColor,
-  },
-  times: {
-    text: DEFAULT_TIMELINE_VISUAL_THEME.times.textColor,
-    shadow: DEFAULT_TIMELINE_VISUAL_THEME.times.shadowColor,
-    icon: DEFAULT_TIMELINE_VISUAL_THEME.times.iconColor,
-    shadowIcon: DEFAULT_TIMELINE_VISUAL_THEME.times.shadowIconColor,
-  },
-  marker: {
-    fill: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastFillColor,
-    pastBorder: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastBorderColor,
-    futureFill: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureFillColor,
-    futureBorder: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureBorderColor,
-    pastIconTint: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastIconTintColor,
-    futureIconTint: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureIconTintColor,
-    shadow: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowColor,
-  },
-  indicator: {
-    badge: DEFAULT_TIMELINE_VISUAL_THEME.indicator.badgeTextColor,
-    title: DEFAULT_TIMELINE_VISUAL_THEME.indicator.titleColor,
-    subtitle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.subtitleColor,
-    border: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassBorderColor,
-    fill: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassFillColor,
-    glow: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowColor,
-  },
-} as const;
+});

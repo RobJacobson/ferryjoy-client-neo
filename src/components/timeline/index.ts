@@ -7,10 +7,10 @@ export {
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
 export {
+  createTimelineVisualTheme,
   DEFAULT_TIMELINE_VISUAL_THEME,
-  TIMELINE_THEME_CONSTANTS,
-  TIMELINE_THEME_BASELINE,
   type TimelineVisualTheme,
+  type TimelineVisualThemeOverrides,
 } from "./theme";
 export { TimelineIndicatorOverlay } from "./timelineIndicator";
 export type { TimelineRowProps } from "./timelineRow";

@@ -12,6 +12,7 @@ export type BlurMethod =
   | "dimezisBlurViewSdk31Plus";
 
 export type BlurTint =
+  | "clear"
   | "light"
   | "dark"
   | "default"
@@ -39,7 +40,10 @@ export type BlurViewProps = {
   blurTarget?: RefObject<ComponentRef<typeof View> | null>;
   /** Blur intensity 1–100. */
   intensity?: number;
-  /** Tint mode for overlay color. */
+  /**
+   * Material-style overlay on top of the blur. Use `"clear"` for backdrop blur
+   * only (transparent overlay on web; thinnest material on native).
+   */
   tint?: BlurTint;
   /** Blur method (Android only). Ignored on web. */
   blurMethod?: BlurMethod;

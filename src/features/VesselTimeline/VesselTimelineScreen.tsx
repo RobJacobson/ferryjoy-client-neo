@@ -4,7 +4,7 @@
 
 import { View } from "@/components/ui";
 import { GradientBackground } from "@/features/GradientBackground";
-import { getVesselTimelineDesignVariant } from "./theme";
+import { getVesselTimelineDesignVariant } from "./designSystem";
 import { VesselTimeline } from "./VesselTimeline";
 
 type VesselTimelineScreenProps = {

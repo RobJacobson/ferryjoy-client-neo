@@ -41,11 +41,7 @@ export const TimelineRowEventLabel = ({
       style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       <View className="flex-1 flex-row justify-end">
-        <TimelineOutlinedText
-          outlineClassName=""
-          outlineStyle={{ color: theme.labels.eventLabelShadowColor }}
-          outlineWidth={1}
-        >
+        <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
           <Text
             className={`mt-[-6px] ${theme.labels.eventLabelFontClassName}`}
             style={[

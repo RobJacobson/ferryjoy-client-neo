@@ -98,16 +98,10 @@ export default function VesselTimelinePlaceholderScreen() {
           }}
         />
         <View className="gap-4 px-4 py-4">
-          <Text
-            className="font-semibold text-lg"
-            style={{ color: selectedVariant.titleColor }}
-          >
+          <Text className="font-semibold text-lg text-slate-900">
             Placeholder Vessel Timeline
           </Text>
-          <Text
-            className="text-sm"
-            style={{ color: selectedVariant.bodyColor }}
-          >
+          <Text className="text-slate-700 text-sm">
             Select a vessel to preview the day-level timeline implementation.
           </Text>
           <Select
@@ -118,16 +112,10 @@ export default function VesselTimelinePlaceholderScreen() {
               }
             }}
           >
-            <SelectTrigger
-              style={{
-                backgroundColor: selectedVariant.selectorBackgroundColor,
-                borderColor: selectedVariant.selectorBorderColor,
-              }}
-            >
+            <SelectTrigger className="border-white bg-white">
               <SelectValue
                 placeholder="Select a design variant"
-                className="font-medium"
-                style={{ color: selectedVariant.selectorTextColor }}
+                className="font-medium text-slate-900"
               />
             </SelectTrigger>
             <SelectContent>
@@ -144,10 +132,7 @@ export default function VesselTimelinePlaceholderScreen() {
               </NativeSelectScrollView>
             </SelectContent>
           </Select>
-          <Text
-            className="text-xs"
-            style={{ color: selectedVariant.bodyColor }}
-          >
+          <Text className="text-slate-700 text-xs">
             {selectedVariant.description}
           </Text>
           {isLoading ? (
@@ -162,16 +147,10 @@ export default function VesselTimelinePlaceholderScreen() {
             </Text>
           ) : (
             <Select value={selectedOption} onValueChange={setSelectedOption}>
-              <SelectTrigger
-                style={{
-                  backgroundColor: selectedVariant.selectorBackgroundColor,
-                  borderColor: selectedVariant.selectorBorderColor,
-                }}
-              >
+              <SelectTrigger className="border-white bg-white">
                 <SelectValue
                   placeholder="Select a vessel"
-                  className="font-medium"
-                  style={{ color: selectedVariant.selectorTextColor }}
+                  className="font-medium text-slate-900"
                 />
               </SelectTrigger>
               <SelectContent>

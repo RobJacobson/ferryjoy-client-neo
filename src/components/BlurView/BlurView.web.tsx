@@ -18,6 +18,8 @@ import type { BlurTint, BlurViewProps } from "./BlurView.types";
 function getBackgroundColor(intensity: number, tint: BlurTint): string {
   const opacity = intensity / 100;
   switch (tint) {
+    case "clear":
+      return "rgba(0, 0, 0, 0)";
     case "dark":
     case "systemMaterialDark":
       return `rgba(25,25,25,${opacity * 0.78})`;
@@ -100,11 +102,8 @@ export const BlurView = ({
         { position: "relative", overflow: "hidden", borderRadius },
       ]}
     >
-      <View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFillObject, blurStyle]}
-      />
-      <View style={StyleSheet.absoluteFillObject}>{children}</View>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, blurStyle]} />
+      <View style={StyleSheet.absoluteFill}>{children}</View>
     </View>
   );
 };

@@ -44,12 +44,7 @@ export const TimelineIndicatorGlass = ({
       blurMethod="dimezisBlurView"
       className="absolute inset-0"
     />
-    <View
-      className="absolute inset-0"
-      style={{
-        backgroundColor: theme.indicator.glassFillColor,
-      }}
-    />
+    <View className="absolute inset-0 bg-white/50" />
     <View className={contentClassName}>{children}</View>
   </View>
 );

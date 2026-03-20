@@ -28,7 +28,7 @@ const getOutlineOffsets = (outlineWidth: number) => {
 export const TimelineOutlinedIcon = ({
   children,
   containerClassName,
-  outlineColor = "#FFFFFF",
+  outlineColor = "rgba(255, 255, 255, 0.8)",
   outlineWidth = 1,
 }: TimelineOutlinedIconProps) => {
   const outlineOffsets = getOutlineOffsets(outlineWidth);

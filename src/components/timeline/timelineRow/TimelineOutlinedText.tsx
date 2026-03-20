@@ -30,11 +30,15 @@ const getOutlineOffsets = (outlineWidth: number) => {
 export const TimelineOutlinedText = ({
   children,
   containerClassName,
-  outlineClassName = "text-white",
+  outlineClassName,
   outlineStyle,
   outlineWidth = 1,
 }: TimelineOutlinedTextProps) => {
   const outlineOffsets = getOutlineOffsets(outlineWidth);
+  const resolvedOutlineClassName = outlineClassName || "text-white/80";
+  const resolvedOutlineStyle = outlineStyle || {
+    color: "rgba(255, 255, 255, 0.8)",
+  };
 
   return (
     <View className={cn("relative", containerClassName)}>
@@ -45,8 +49,8 @@ export const TimelineOutlinedText = ({
           style={{ left: x, top: y }}
         >
           {cloneElement(children, {
-            className: cn(children.props.className, outlineClassName),
-            style: [children.props.style, outlineStyle],
+            className: cn(children.props.className, resolvedOutlineClassName),
+            style: [children.props.style, resolvedOutlineStyle],
           })}
         </View>
       ))}

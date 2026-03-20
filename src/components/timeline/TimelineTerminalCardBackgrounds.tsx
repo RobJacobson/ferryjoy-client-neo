@@ -61,20 +61,15 @@ export const TimelineTerminalCardBackgrounds = ({
           borderTopRightRadius: card.position !== "bottom" ? 28 : undefined,
           borderBottomLeftRadius: card.position !== "top" ? 28 : undefined,
           borderBottomRightRadius: card.position !== "top" ? 28 : undefined,
-          shadowColor: theme.cards.shadowColor,
-          shadowOpacity: theme.cards.shadowOpacity,
-          shadowRadius: theme.cards.shadowRadius,
-          ...theme.cards.shadowStyle,
         }}
       >
         <View
           className={cn(
-            "absolute inset-0",
+            "absolute inset-0 border-white/80",
             terminalCardPositionClasses[card.position]
           )}
           style={{
             backgroundColor: theme.cards.fillColor,
-            borderColor: theme.cards.borderColor,
             borderWidth: theme.cards.borderWidth,
           }}
         />

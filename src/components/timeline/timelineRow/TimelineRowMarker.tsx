@@ -51,9 +51,6 @@ export const TimelineRowMarker = ({
         row.markerAppearance === "future"
           ? theme.marker.futureFillColor
           : theme.marker.pastFillColor,
-      shadowColor: theme.marker.shadowColor,
-      shadowOpacity: theme.marker.shadowOpacity,
-      shadowRadius: theme.marker.shadowRadius,
     }}
   >
     <TimelineRowMarkerIcon

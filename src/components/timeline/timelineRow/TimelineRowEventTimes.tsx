@@ -81,18 +81,10 @@ const EventTime = ({ time, type, theme }: EventTimeProps) => {
 
   return (
     <View className={cn("flex-row", iconGapPx)}>
-      <TimelineOutlinedIcon
-        containerClassName="mt-[1px]"
-        outlineColor={theme.times.shadowIconColor}
-        outlineWidth={1}
-      >
+      <TimelineOutlinedIcon containerClassName="mt-[1px]" outlineWidth={1}>
         <Icon size={24} strokeWidth={1.5} color={theme.times.iconColor} />
       </TimelineOutlinedIcon>
-      <TimelineOutlinedText
-        outlineClassName=""
-        outlineStyle={{ color: theme.times.shadowColor }}
-        outlineWidth={1}
-      >
+      <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
         <Text
           className={theme.times.fontClassName}
           style={[{ color: theme.times.textColor }, theme.times.textStyle]}
@@ -106,22 +98,14 @@ const EventTime = ({ time, type, theme }: EventTimeProps) => {
 
 const MissingEventTime = ({ theme }: { theme: TimelineVisualTheme }) => (
   <View className="flex-row gap-1">
-    <TimelineOutlinedIcon
-      containerClassName="mt-[1px]"
-      outlineColor={theme.times.shadowIconColor}
-      outlineWidth={1}
-    >
+    <TimelineOutlinedIcon containerClassName="mt-[1px]" outlineWidth={1}>
       <CalendarClock
         size={24}
         strokeWidth={1.5}
         color={theme.times.iconColor}
       />
     </TimelineOutlinedIcon>
-    <TimelineOutlinedText
-      outlineClassName=""
-      outlineStyle={{ color: theme.times.shadowColor }}
-      outlineWidth={1}
-    >
+    <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
       <Text
         className={theme.times.fontClassName}
         style={[{ color: theme.times.textColor }, theme.times.textStyle]}
