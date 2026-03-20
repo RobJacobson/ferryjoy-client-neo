@@ -6,4 +6,4 @@ export {
   type VesselTimelineDesignVariant,
   type VesselTimelineVariantPalette,
   type VesselTimelineVariantThemeDefinition,
-} from "./designSystem";
+} from "./designVariantSchema";

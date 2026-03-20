@@ -1,6 +1,12 @@
 import type { TextStyle, ViewStyle } from "react-native";
 import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicator/timelineIndicatorRadarPingConfig";
 
+/**
+ * Low-level resolved render contract consumed by timeline components.
+ *
+ * This is intentionally more detailed than the human-authored theme schema used
+ * by feature-level variant definitions.
+ */
 export type TimelineVisualTheme = {
   track: {
     coreWidthPx: number;
@@ -127,3 +133,81 @@ export const DEFAULT_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     radarPingVariant: "glass-orchid",
   },
 };
+
+export const TIMELINE_THEME_CONSTANTS = {
+  track: {
+    coreWidthPx: DEFAULT_TIMELINE_VISUAL_THEME.track.coreWidthPx,
+    glowWidthPx: DEFAULT_TIMELINE_VISUAL_THEME.track.glowWidthPx,
+    completedGlowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.track.completedGlowOpacity,
+  },
+  cards: {
+    blurIntensity: DEFAULT_TIMELINE_VISUAL_THEME.cards.blurIntensity,
+    blurTint: DEFAULT_TIMELINE_VISUAL_THEME.cards.blurTint,
+    borderWidth: DEFAULT_TIMELINE_VISUAL_THEME.cards.borderWidth,
+    shadowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowOpacity,
+    shadowRadius: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowRadius,
+    shadowStyle: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowStyle,
+  },
+  labels: {
+    terminalNameFontClassName:
+      DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameFontClassName,
+    terminalNameRotationDeg:
+      DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameRotationDeg,
+    eventLabelFontClassName:
+      DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelFontClassName,
+    terminalNameStyle: DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameStyle,
+    eventLabelStyle: DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelStyle,
+  },
+  times: {
+    fontClassName: DEFAULT_TIMELINE_VISUAL_THEME.times.fontClassName,
+    textStyle: DEFAULT_TIMELINE_VISUAL_THEME.times.textStyle,
+  },
+  marker: {
+    shadowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowOpacity,
+    shadowRadius: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowRadius,
+  },
+  indicator: {
+    glassBlurIntensity: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassBlurIntensity,
+    glowOpacity: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowOpacity,
+    glowRadius: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowRadius,
+    badgeTextStyle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.badgeTextStyle,
+    titleTextStyle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.titleTextStyle,
+    subtitleTextStyle:
+      DEFAULT_TIMELINE_VISUAL_THEME.indicator.subtitleTextStyle,
+  },
+} as const;
+
+export const TIMELINE_THEME_BASELINE = {
+  cards: {
+    fill: DEFAULT_TIMELINE_VISUAL_THEME.cards.fillColor,
+    border: DEFAULT_TIMELINE_VISUAL_THEME.cards.borderColor,
+    shadow: DEFAULT_TIMELINE_VISUAL_THEME.cards.shadowColor,
+  },
+  labels: {
+    terminalNameShadow: DEFAULT_TIMELINE_VISUAL_THEME.labels.terminalNameShadowColor,
+    eventLabelShadow: DEFAULT_TIMELINE_VISUAL_THEME.labels.eventLabelShadowColor,
+  },
+  times: {
+    text: DEFAULT_TIMELINE_VISUAL_THEME.times.textColor,
+    shadow: DEFAULT_TIMELINE_VISUAL_THEME.times.shadowColor,
+    icon: DEFAULT_TIMELINE_VISUAL_THEME.times.iconColor,
+    shadowIcon: DEFAULT_TIMELINE_VISUAL_THEME.times.shadowIconColor,
+  },
+  marker: {
+    fill: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastFillColor,
+    pastBorder: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastBorderColor,
+    futureFill: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureFillColor,
+    futureBorder: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureBorderColor,
+    pastIconTint: DEFAULT_TIMELINE_VISUAL_THEME.marker.pastIconTintColor,
+    futureIconTint: DEFAULT_TIMELINE_VISUAL_THEME.marker.futureIconTintColor,
+    shadow: DEFAULT_TIMELINE_VISUAL_THEME.marker.shadowColor,
+  },
+  indicator: {
+    badge: DEFAULT_TIMELINE_VISUAL_THEME.indicator.badgeTextColor,
+    title: DEFAULT_TIMELINE_VISUAL_THEME.indicator.titleColor,
+    subtitle: DEFAULT_TIMELINE_VISUAL_THEME.indicator.subtitleColor,
+    border: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassBorderColor,
+    fill: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glassFillColor,
+    glow: DEFAULT_TIMELINE_VISUAL_THEME.indicator.glowColor,
+  },
+} as const;

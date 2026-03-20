@@ -8,6 +8,8 @@ export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgroun
 export { TimelineTrack } from "./TimelineTrack";
 export {
   DEFAULT_TIMELINE_VISUAL_THEME,
+  TIMELINE_THEME_CONSTANTS,
+  TIMELINE_THEME_BASELINE,
   type TimelineVisualTheme,
 } from "./theme";
 export { TimelineIndicatorOverlay } from "./timelineIndicator";
