@@ -1,82 +1,86 @@
+import { createTimelineVisualTheme } from "@/components/timeline";
 import type {
+  VesselTimelineDesignVariant,
   VesselTimelineVariantDefinition,
   VesselTimelineVariantDefinitionInput,
-  VesselTimelineVariantPalette,
 } from "./types";
 
 /**
  * Baseline authoring template for future themes.
  *
- * New variants should usually override this palette rather than rebuilding the
- * entire design contract from scratch.
+ * New variants should usually override this direct variant definition rather
+ * than rebuilding the entire timeline theme from scratch.
  */
-export const DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE: VesselTimelineVariantPalette =
+export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
   {
-    canvas: "hsla(34, 50%, 94%, 1)",
-    atmosphere: [
+    id: "baseline-harbor",
+    label: "Baseline Harbor",
+    description:
+      "Default vessel timeline theme and authoring template for future variants.",
+    backgroundColor: "hsla(34, 50%, 94%, 1)",
+    backgroundColors: [
       "hsla(173, 42%, 73%, 1)",
       "hsla(27, 100%, 89%, 1)",
       "hsla(207, 100%, 88%, 1)",
       "hsla(317, 64%, 89%, 1)",
     ],
-    text: {
-      terminalName: "hsla(229, 57%, 63%, 1)",
-      row: "hsla(210, 47%, 23%, 1)",
-      indicatorLabel: "hsla(210, 47%, 23%, 1)",
-      indicatorBadge: "hsla(158, 64%, 52%, 1)",
-    },
-    accent: {
-      primary: "hsla(158, 64%, 52%, 1)",
-      trackGlow: "hsla(158, 64%, 52%, 0.2)",
-      trackRemaining: "hsla(158, 64%, 52%, 0.3)",
-      indicatorBorder: "hsla(158, 64%, 52%, 0.82)",
-      indicatorGlow: "hsla(158, 64%, 52%, 0.24)",
-    },
-    marker: {
-      past: {
-        stroke: "hsla(0, 0%, 100%, 0.9)",
-        fill: "hsla(158, 64%, 52%, 1)",
-        icon: "hsla(0, 0%, 100%, 0.9)",
+    backgroundOverlayColor: "hsla(0, 0%, 100%, 0.2)",
+    timelineTheme: createTimelineVisualTheme({
+      track: {
+        completedColor: "hsla(158, 64%, 52%, 1)",
+        completedGlowColor: "hsla(158, 64%, 52%, 0.2)",
+        remainingColor: "hsla(158, 64%, 52%, 0.3)",
       },
-      future: {
-        stroke: "hsla(158, 64%, 52%, 1)",
-        fill: "hsla(0, 0%, 100%, 0.9)",
-        icon: "hsla(158, 64%, 52%, 1)",
+      labels: {
+        terminalNameColor: "hsla(229, 57%, 63%, 1)",
+        eventLabelColor: "hsla(210, 47%, 23%, 1)",
       },
-    },
+      times: {
+        textColor: "hsla(210, 47%, 23%, 1)",
+        iconColor: "hsla(158, 64%, 52%, 1)",
+      },
+      marker: {
+        pastFillColor: "hsla(158, 64%, 52%, 1)",
+        pastBorderColor: "hsla(0, 0%, 100%, 0.9)",
+        futureFillColor: "hsla(0, 0%, 100%, 0.9)",
+        futureBorderColor: "hsla(158, 64%, 52%, 1)",
+        pastIconTintColor: "hsla(0, 0%, 100%, 0.9)",
+        futureIconTintColor: "hsla(158, 64%, 52%, 1)",
+      },
+      indicator: {
+        badgeTextColor: "hsla(158, 64%, 52%, 1)",
+        titleColor: "hsla(210, 47%, 23%, 1)",
+        subtitleColor: "hsla(210, 47%, 23%, 1)",
+        glassBorderColor: "hsla(158, 64%, 52%, 0.82)",
+        glowColor: "hsla(158, 64%, 52%, 0.24)",
+        radarPingVariant: "harbor-emerald",
+      },
+    }),
   };
 
 export const defineVesselTimelineVariant = ({
   id,
   label,
   description,
-  palette,
+  backgroundColor,
+  backgroundColors,
+  backgroundOverlayColor,
+  timelineTheme,
 }: VesselTimelineVariantDefinitionInput): VesselTimelineVariantDefinition => ({
   id,
   label,
   description,
-  palette: {
-    ...DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE,
-    ...palette,
-    text: {
-      ...DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE.text,
-      ...palette?.text,
-    },
-    accent: {
-      ...DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE.accent,
-      ...palette?.accent,
-    },
-    marker: {
-      past: {
-        ...DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE.marker.past,
-        ...palette?.marker?.past,
-      },
-      future: {
-        ...DEFAULT_VESSEL_TIMELINE_VARIANT_PALETTE.marker.future,
-        ...palette?.marker?.future,
-      },
-    },
-  },
+  backgroundColor:
+    backgroundColor ?? DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundColor,
+  backgroundColors:
+    backgroundColors ?? DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundColors,
+  backgroundOverlayColor:
+    backgroundOverlayColor ??
+    DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundOverlayColor,
+  timelineTheme: createTimelineVisualTheme({
+    ...DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.timelineTheme,
+    ...timelineTheme,
+  }),
 });
 
 export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariantDefinition[] =
@@ -84,8 +88,7 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariant
     defineVesselTimelineVariant({
       id: "baseline-harbor",
       label: "Baseline Harbor",
-      description:
-        "Default vessel timeline theme and authoring template for future variants.",
+      description: DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.description,
     }),
   ];
 
