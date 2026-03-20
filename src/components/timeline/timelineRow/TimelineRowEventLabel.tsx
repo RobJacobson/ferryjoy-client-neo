@@ -4,10 +4,7 @@
 
 import { Text, View } from "@/components/ui";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderEvent } from "../types";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
@@ -24,7 +21,7 @@ type TimelineRowEventLabelProps = {
  */
 export const TimelineRowEventLabel = ({
   event,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineRowEventLabelProps) => {
   const labelText =
     event.eventType === "arrive"
@@ -34,6 +31,8 @@ export const TimelineRowEventLabel = ({
       : event.nextTerminalAbbrev
         ? `To: ${event.nextTerminalAbbrev}`
         : "Dep";
+  const eventLabelColor =
+    theme?.labels.eventLabelColor ?? "hsla(263, 70%, 50%, 1)";
 
   return (
     <View
@@ -43,11 +42,8 @@ export const TimelineRowEventLabel = ({
       <View className="flex-1 flex-row justify-end">
         <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
           <Text
-            className={`mt-[-6px] ${theme.labels.eventLabelFontClassName}`}
-            style={[
-              { color: theme.labels.eventLabelColor },
-              theme.labels.eventLabelStyle,
-            ]}
+            className="mt-[-6px] py-[2px] font-led-board text-lg"
+            style={{ color: eventLabelColor }}
           >
             {labelText}
           </Text>

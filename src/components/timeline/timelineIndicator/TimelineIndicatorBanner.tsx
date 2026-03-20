@@ -2,10 +2,7 @@ import type { ComponentRef, RefObject } from "react";
 import { View, type ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
 
 type TimelineIndicatorBannerProps = {
@@ -21,7 +18,7 @@ export const TimelineIndicatorBanner = ({
   title,
   subtitle,
   sizePx,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorBannerProps) => {
   if (!title && !subtitle) {
     return null;
@@ -41,10 +38,7 @@ export const TimelineIndicatorBanner = ({
         {title ? (
           <Text
             className="text-center font-playpen-600 leading-tight"
-            style={[
-              { color: theme.indicator.titleColor },
-              theme.indicator.titleTextStyle,
-            ]}
+            style={{ color: theme.indicator.bannerTitleColor }}
           >
             {title}
           </Text>
@@ -52,10 +46,7 @@ export const TimelineIndicatorBanner = ({
         {subtitle ? (
           <Text
             className="text-center font-playpen-300 text-sm leading-tight"
-            style={[
-              { color: theme.indicator.subtitleColor },
-              theme.indicator.subtitleTextStyle,
-            ]}
+            style={{ color: theme.indicator.bannerSubtitleColor }}
           >
             {subtitle}
           </Text>

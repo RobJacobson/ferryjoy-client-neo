@@ -11,7 +11,8 @@ import { BlurView } from "@/components/BlurView";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
+  BASE_TIMELINE_VISUAL_THEME,
+  TIMELINE_RENDER_CONSTANTS,
   type TimelineVisualTheme,
 } from "./theme";
 import type { TerminalCardGeometry } from "./types";
@@ -40,14 +41,14 @@ const terminalCardPositionClasses: Record<
 export const TimelineTerminalCardBackgrounds = ({
   cards,
   blurTargetRef,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineTerminalCardBackgroundsProps) => (
   <View className="absolute inset-0" pointerEvents="none">
     {cards.map((card) => (
       <BlurView
         key={card.id}
         blurTarget={blurTargetRef}
-        intensity={theme.cards.blurIntensity}
+        intensity={TIMELINE_RENDER_CONSTANTS.cards.blurIntensity}
         tint={theme.cards.blurTint}
         blurMethod="dimezisBlurView"
         className="absolute"

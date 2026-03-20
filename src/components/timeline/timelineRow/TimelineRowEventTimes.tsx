@@ -7,10 +7,7 @@ import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
 import { TimelineOutlinedIcon } from "./TimelineOutlinedIcon";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
@@ -38,7 +35,7 @@ type TimelineRowEventTimesProps = {
 export const TimelineRowEventTimes = ({
   point,
   showPlaceholder = false,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineRowEventTimesProps) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;
@@ -86,8 +83,8 @@ const EventTime = ({ time, type, theme }: EventTimeProps) => {
       </TimelineOutlinedIcon>
       <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
         <Text
-          className={theme.times.fontClassName}
-          style={[{ color: theme.times.textColor }, theme.times.textStyle]}
+          className="font-led-board text-lg"
+          style={{ color: theme.times.textColor }}
         >
           {displayTime}
         </Text>
@@ -107,8 +104,8 @@ const MissingEventTime = ({ theme }: { theme: TimelineVisualTheme }) => (
     </TimelineOutlinedIcon>
     <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
       <Text
-        className={theme.times.fontClassName}
-        style={[{ color: theme.times.textColor }, theme.times.textStyle]}
+        className="font-led-board text-lg"
+        style={{ color: theme.times.textColor }}
       >
         --
       </Text>

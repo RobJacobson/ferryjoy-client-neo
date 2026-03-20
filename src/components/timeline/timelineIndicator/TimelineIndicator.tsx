@@ -3,7 +3,6 @@
  */
 
 import type { ComponentRef, RefObject } from "react";
-import { View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
@@ -11,16 +10,12 @@ import {
   TIMELINE_INDICATOR_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "../config";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { TimelineIndicatorRadarPing } from "./TimelineIndicatorRadarPing";
-import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicatorRadarPingConfig";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -32,7 +27,6 @@ type TimelineIndicatorProps = {
   speedKnots?: number;
   sizePx?: number;
   showRadarPing?: boolean;
-  radarPingVariant?: TimelineIndicatorRadarPingVariant;
   theme?: TimelineVisualTheme;
 };
 
@@ -46,8 +40,7 @@ export const TimelineIndicator = ({
   speedKnots = 0,
   sizePx = TIMELINE_INDICATOR_SIZE_PX,
   showRadarPing = true,
-  radarPingVariant = "glass-orchid",
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx);
   const rockingStyle = useRockingAnimation(animate, speedKnots);
@@ -71,26 +64,8 @@ export const TimelineIndicator = ({
         rockingStyle,
       ]}
     >
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          width: sizePx + theme.indicator.glowRadius,
-          height: sizePx + theme.indicator.glowRadius,
-          marginLeft: -(sizePx + theme.indicator.glowRadius) / 2,
-          marginTop: -(sizePx + theme.indicator.glowRadius) / 2,
-          borderRadius: (sizePx + theme.indicator.glowRadius) / 2,
-          backgroundColor: theme.indicator.glowColor,
-          opacity: theme.indicator.glowOpacity,
-        }}
-      />
       {showRadarPing ? (
-        <TimelineIndicatorRadarPing
-          sizePx={sizePx}
-          variant={radarPingVariant ?? theme.indicator.radarPingVariant}
-        />
+        <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
       ) : null}
       <TimelineIndicatorBanner
         blurTargetRef={blurTargetRef}

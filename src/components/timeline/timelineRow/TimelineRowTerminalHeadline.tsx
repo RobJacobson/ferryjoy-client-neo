@@ -1,8 +1,5 @@
 import { Text, View } from "@/components/ui";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import type { TimelineRenderEvent } from "../types";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
@@ -16,7 +13,7 @@ type TimelineRowTerminalHeadlineProps = {
  */
 export const TimelineRowTerminalHeadline = ({
   event,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineRowTerminalHeadlineProps) => {
   const terminalDisplayName = event.currTerminalDisplayName;
 
@@ -30,17 +27,14 @@ export const TimelineRowTerminalHeadline = ({
       style={{
         zIndex: 2,
         elevation: 2,
-        transform: [{ rotate: `${theme.labels.terminalNameRotationDeg}deg` }],
+        transform: [{ rotate: "-9deg" }],
       }}
       pointerEvents="none"
     >
       <TimelineOutlinedText outlineClassName="" outlineWidth={2}>
         <Text
-          className={theme.labels.terminalNameFontClassName}
-          style={[
-            { color: theme.labels.terminalNameColor },
-            theme.labels.terminalNameStyle,
-          ]}
+          className="font-puffberry text-3xl"
+          style={{ color: theme.labels.terminalNameColor }}
         >
           {terminalDisplayName}
         </Text>

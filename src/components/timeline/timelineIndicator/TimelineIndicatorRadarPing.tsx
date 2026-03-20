@@ -1,30 +1,20 @@
 import Animated from "react-native-reanimated";
-import {
-  DEFAULT_TIMELINE_INDICATOR_RADAR_PING_VARIANT,
-  getTimelineIndicatorRadarPingLayerStyles,
-  type TimelineIndicatorRadarPingVariant,
-} from "./timelineIndicatorRadarPingConfig";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import { getTimelineIndicatorRadarPingStyle } from "./timelineIndicatorRadarPingConfig";
 
 type TimelineIndicatorRadarPingProps = {
   sizePx: number;
-  variant?: TimelineIndicatorRadarPingVariant;
+  theme?: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorRadarPing = ({
   sizePx,
-  variant = DEFAULT_TIMELINE_INDICATOR_RADAR_PING_VARIANT,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorRadarPingProps) => {
-  const layerStyles = getTimelineIndicatorRadarPingLayerStyles(variant, sizePx);
-
-  return (
-    <>
-      {layerStyles.map(({ key, style }) => (
-        <Animated.View
-          key={`${variant}-${key}`}
-          pointerEvents="none"
-          style={style}
-        />
-      ))}
-    </>
+  const pingStyle = getTimelineIndicatorRadarPingStyle(
+    theme.indicator.ping,
+    sizePx
   );
+
+  return <Animated.View pointerEvents="none" style={pingStyle} />;
 };

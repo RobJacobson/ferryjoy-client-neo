@@ -4,10 +4,7 @@
 
 import { View } from "@/components/ui";
 import { TIMELINE_TRACK_X_POSITION_PERCENT } from "../config";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 import { TimelineRowEventLabel } from "./TimelineRowEventLabel";
 import { TimelineRowEventTimes } from "./TimelineRowEventTimes";
@@ -21,7 +18,7 @@ type TimelineRowContentProps = {
 
 export const TimelineRowContent = ({
   row,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineRowContentProps) => (
   <View className="relative h-full w-full">
     <TimelineRowTerminalHeadline event={row.startEvent} theme={theme} />

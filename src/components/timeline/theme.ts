@@ -1,44 +1,37 @@
-import type { TextStyle } from "react-native";
-import type { TimelineIndicatorRadarPingVariant } from "./timelineIndicator/timelineIndicatorRadarPingConfig";
-
 /**
  * Low-level resolved render contract consumed by timeline components.
  *
  * This is intentionally more detailed than the human-authored theme schema used
  * by feature-level variant definitions.
  */
+export type TimelineIndicatorPingTheme = {
+  insetPx: number;
+  borderWidth: number;
+  peakOpacity: number;
+  borderColor: string;
+  fillColor?: string;
+};
+
 export type TimelineVisualTheme = {
   track: {
-    coreWidthPx: number;
-    glowWidthPx: number;
     completedColor: string;
     completedGlowColor: string;
-    completedGlowOpacity: number;
     remainingColor: string;
   };
   cards: {
-    blurIntensity: number;
     /** Backdrop blur material; not the same as `fillColor` (inner view only). */
     blurTint: "clear" | "light" | "dark" | "default";
     /** Inner overlay on top of blur; use transparent for tint from `blurTint` only. */
     fillColor: string;
-    borderColor: string;
     borderWidth: number;
   };
   labels: {
-    terminalNameFontClassName: string;
     terminalNameColor: string;
-    terminalNameRotationDeg: number;
-    eventLabelFontClassName: string;
     eventLabelColor: string;
-    terminalNameStyle?: TextStyle;
-    eventLabelStyle?: TextStyle;
   };
   times: {
-    fontClassName: string;
     textColor: string;
     iconColor: string;
-    textStyle?: TextStyle;
   };
   marker: {
     pastFillColor: string;
@@ -49,18 +42,11 @@ export type TimelineVisualTheme = {
     futureIconTintColor: string;
   };
   indicator: {
-    badgeTextColor: string;
-    titleColor: string;
-    subtitleColor: string;
-    glassBorderColor: string;
-    glassBlurIntensity: number;
-    glowColor: string;
-    glowOpacity: number;
-    glowRadius: number;
-    radarPingVariant: TimelineIndicatorRadarPingVariant;
-    badgeTextStyle?: TextStyle;
-    titleTextStyle?: TextStyle;
-    subtitleTextStyle?: TextStyle;
+    badgeLabelColor: string;
+    bannerTitleColor: string;
+    bannerSubtitleColor: string;
+    borderColor: string;
+    ping: TimelineIndicatorPingTheme;
   };
 };
 
@@ -70,31 +56,35 @@ export type TimelineVisualThemeOverrides = {
   >;
 };
 
-export const DEFAULT_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+export const TIMELINE_RENDER_CONSTANTS = {
   track: {
     coreWidthPx: 3,
     glowWidthPx: 8,
-    completedColor: "hsla(142, 69%, 58%, 1)",
-    completedGlowColor: "hsla(142, 69%, 58%, 1)",
-    completedGlowOpacity: 1,
-    remainingColor: "hsla(0, 0%, 100%, 0.78)",
   },
   cards: {
     blurIntensity: 20,
+  },
+  indicator: {
+    glassBlurIntensity: 8,
+  },
+} as const;
+
+export const BASE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(142, 69%, 58%, 1)",
+    completedGlowColor: "hsla(142, 69%, 58%, 1)",
+    remainingColor: "hsla(0, 0%, 100%, 0.78)",
+  },
+  cards: {
     blurTint: "clear",
     fillColor: "hsla(0, 0%, 100%, 0.25)",
-    borderColor: "hsla(0, 0%, 100%, 0.75)",
     borderWidth: 1,
   },
   labels: {
-    terminalNameFontClassName: "font-puffberry text-3xl",
     terminalNameColor: "hsla(270, 95%, 75%, 1)",
-    terminalNameRotationDeg: -9,
-    eventLabelFontClassName: "font-led-board text-lg py-[2px]",
     eventLabelColor: "hsla(263, 70%, 50%, 1)",
   },
   times: {
-    fontClassName: "font-led-board text-lg",
     textColor: "hsla(263, 70%, 50%, 1)",
     iconColor: "hsla(262, 83%, 58%, 1)",
   },
@@ -107,45 +97,47 @@ export const DEFAULT_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     futureIconTintColor: "hsla(142, 71%, 45%, 0.8)",
   },
   indicator: {
-    badgeTextColor: "hsla(263, 70%, 50%, 1)",
-    titleColor: "hsla(263, 69%, 42%, 1)",
-    subtitleColor: "hsla(263, 69%, 42%, 1)",
-    glassBorderColor: "hsla(270, 95%, 75%, 0.95)",
-    glassBlurIntensity: 8,
-    glowColor: "hsla(270, 95%, 75%, 0.55)",
-    glowOpacity: 0.34,
-    glowRadius: 14,
-    radarPingVariant: "glass-orchid",
+    badgeLabelColor: "hsla(263, 70%, 50%, 1)",
+    bannerTitleColor: "hsla(263, 69%, 42%, 1)",
+    bannerSubtitleColor: "hsla(263, 69%, 42%, 1)",
+    borderColor: "hsla(270, 95%, 75%, 0.95)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.42,
+      borderColor: "hsla(270, 95%, 75%, 0.36)",
+      fillColor: "hsla(0, 0%, 100%, 0.22)",
+    },
   },
 };
 
 export const createTimelineVisualTheme = (
   overrides: TimelineVisualThemeOverrides = {}
 ): TimelineVisualTheme => ({
-  ...DEFAULT_TIMELINE_VISUAL_THEME,
+  ...BASE_TIMELINE_VISUAL_THEME,
   ...overrides,
   track: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.track,
+    ...BASE_TIMELINE_VISUAL_THEME.track,
     ...overrides.track,
   },
   cards: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.cards,
+    ...BASE_TIMELINE_VISUAL_THEME.cards,
     ...overrides.cards,
   },
   labels: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.labels,
+    ...BASE_TIMELINE_VISUAL_THEME.labels,
     ...overrides.labels,
   },
   times: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.times,
+    ...BASE_TIMELINE_VISUAL_THEME.times,
     ...overrides.times,
   },
   marker: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.marker,
+    ...BASE_TIMELINE_VISUAL_THEME.marker,
     ...overrides.marker,
   },
   indicator: {
-    ...DEFAULT_TIMELINE_VISUAL_THEME.indicator,
+    ...BASE_TIMELINE_VISUAL_THEME.indicator,
     ...overrides.indicator,
   },
 });

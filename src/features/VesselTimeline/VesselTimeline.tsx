@@ -6,7 +6,7 @@
  */
 
 import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
+  BASE_TIMELINE_VISUAL_THEME,
   type TimelineVisualTheme,
 } from "@/components/timeline";
 import { Text, View } from "@/components/ui";
@@ -41,7 +41,7 @@ export const VesselTimeline = ({
   sailingDay,
   routeAbbrevs: _routeAbbrevs,
   now,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: VesselTimelineProps) => (
   <ConvexVesselTripEventsProvider
     vesselAbbrev={vesselAbbrev}
@@ -65,7 +65,7 @@ type VesselTimelineContentProps = {
  */
 const VesselTimelineContent = ({
   now,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: VesselTimelineContentProps) => {
   const nowMs = useNowMs(1000);
   const {

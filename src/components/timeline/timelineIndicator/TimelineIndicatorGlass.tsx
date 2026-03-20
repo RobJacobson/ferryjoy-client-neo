@@ -5,7 +5,8 @@ import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
+  BASE_TIMELINE_VISUAL_THEME,
+  TIMELINE_RENDER_CONSTANTS,
   type TimelineVisualTheme,
 } from "../theme";
 
@@ -24,14 +25,14 @@ export const TimelineIndicatorGlass = ({
   style,
   contentClassName,
   children,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorGlassProps) => (
   <View
     style={[
       style,
       {
         borderWidth: 1,
-        borderColor: theme.indicator.glassBorderColor,
+        borderColor: theme.indicator.borderColor,
       },
     ]}
     className={cn("overflow-hidden rounded-full", className)}
@@ -39,7 +40,7 @@ export const TimelineIndicatorGlass = ({
   >
     <BlurView
       blurTarget={blurTargetRef}
-      intensity={theme.indicator.glassBlurIntensity}
+      intensity={TIMELINE_RENDER_CONSTANTS.indicator.glassBlurIntensity}
       tint="light"
       blurMethod="dimezisBlurView"
       className="absolute inset-0"

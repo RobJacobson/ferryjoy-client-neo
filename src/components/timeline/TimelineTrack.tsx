@@ -10,7 +10,8 @@ import {
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "./config";
 import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
+  BASE_TIMELINE_VISUAL_THEME,
+  TIMELINE_RENDER_CONSTANTS,
   type TimelineVisualTheme,
 } from "./theme";
 
@@ -25,18 +26,19 @@ type TimelineTrackProps = {
 export const TimelineTrack = ({
   containerHeightPx,
   completedPercent,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
     return null;
   }
 
-  const trackWidthPx = theme.track.coreWidthPx;
-  const glowWidthPx = Math.max(trackWidthPx, theme.track.glowWidthPx);
-  const completedHeightPx = containerHeightPx * completedPercent;
-  const glowPulseStyle = createTrackGlowPulseStyle(
-    theme.track.completedGlowOpacity
+  const trackWidthPx = TIMELINE_RENDER_CONSTANTS.track.coreWidthPx;
+  const glowWidthPx = Math.max(
+    trackWidthPx,
+    TIMELINE_RENDER_CONSTANTS.track.glowWidthPx
   );
+  const completedHeightPx = containerHeightPx * completedPercent;
+  const glowPulseStyle = createTrackGlowPulseStyle();
 
   return (
     <View
@@ -94,16 +96,16 @@ export const TimelineTrack = ({
   );
 };
 
-const createTrackGlowPulseStyle = (peakOpacity: number): ViewStyle => ({
+const createTrackGlowPulseStyle = (): ViewStyle => ({
   animationName: {
     "0%": {
-      opacity: peakOpacity * 0.25,
+      opacity: 0.25,
     },
     "50%": {
-      opacity: peakOpacity,
+      opacity: 1,
     },
     "100%": {
-      opacity: peakOpacity * 0.25,
+      opacity: 0.25,
     },
   },
   animationDuration: TIMELINE_TRACK_GLOW_PULSE_DURATION_MS,

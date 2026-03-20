@@ -7,8 +7,9 @@ export {
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
 export {
+  BASE_TIMELINE_VISUAL_THEME,
   createTimelineVisualTheme,
-  DEFAULT_TIMELINE_VISUAL_THEME,
+  TIMELINE_RENDER_CONSTANTS,
   type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "./theme";

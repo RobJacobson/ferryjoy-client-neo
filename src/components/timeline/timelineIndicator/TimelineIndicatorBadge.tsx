@@ -2,10 +2,7 @@ import type { ComponentRef, RefObject } from "react";
 import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
-import {
-  DEFAULT_TIMELINE_VISUAL_THEME,
-  type TimelineVisualTheme,
-} from "../theme";
+import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
 import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
 
 type TimelineIndicatorBadgeProps = {
@@ -19,7 +16,7 @@ export const TimelineIndicatorBadge = ({
   blurTargetRef,
   label,
   sizePx,
-  theme = DEFAULT_TIMELINE_VISUAL_THEME,
+  theme = BASE_TIMELINE_VISUAL_THEME,
 }: TimelineIndicatorBadgeProps) => (
   <TimelineIndicatorGlass
     blurTargetRef={blurTargetRef}
@@ -30,10 +27,7 @@ export const TimelineIndicatorBadge = ({
   >
     <Text
       className="font-playpen-600"
-      style={[
-        { color: theme.indicator.badgeTextColor },
-        theme.indicator.badgeTextStyle,
-      ]}
+      style={{ color: theme.indicator.badgeLabelColor }}
     >
       {label}
     </Text>
