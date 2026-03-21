@@ -1,13 +1,13 @@
 import anchorIcon from "assets/icons/anchor.png";
 import vesselIcon from "assets/icons/vessel.png";
 import { Image } from "expo-image";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { TimelineMarkerAppearance, TimelineSegmentKind } from "../types";
 
 type TimelineRowMarkerIconProps = {
   kind: TimelineSegmentKind;
   markerAppearance: TimelineMarkerAppearance;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 const markerIconSource = {
@@ -18,7 +18,7 @@ const markerIconSource = {
 export const TimelineRowMarkerIcon = ({
   kind,
   markerAppearance,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineRowMarkerIconProps) => (
   <Image
     source={markerIconSource[kind]}

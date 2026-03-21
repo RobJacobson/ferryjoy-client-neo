@@ -1,11 +1,11 @@
 import { Text, View } from "@/components/ui";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderEvent } from "../types";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowTerminalHeadlineProps = {
   event: TimelineRenderEvent;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -13,7 +13,7 @@ type TimelineRowTerminalHeadlineProps = {
  */
 export const TimelineRowTerminalHeadline = ({
   event,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineRowTerminalHeadlineProps) => {
   const terminalDisplayName = event.currTerminalDisplayName;
 

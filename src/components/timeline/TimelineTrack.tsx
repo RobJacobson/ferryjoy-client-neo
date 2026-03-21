@@ -9,24 +9,20 @@ import {
   TIMELINE_INDICATOR_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "./config";
-import {
-  BASE_TIMELINE_VISUAL_THEME,
-  TIMELINE_RENDER_CONSTANTS,
-  type TimelineVisualTheme,
-} from "./theme";
+import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "./theme";
 
 const TIMELINE_TRACK_GLOW_PULSE_DURATION_MS = 7000;
 
 type TimelineTrackProps = {
   containerHeightPx: number;
   completedPercent: number;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineTrack = ({
   containerHeightPx,
   completedPercent,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
     return null;

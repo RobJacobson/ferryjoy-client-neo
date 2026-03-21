@@ -4,11 +4,7 @@ import type { StyleProp, ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import {
-  BASE_TIMELINE_VISUAL_THEME,
-  TIMELINE_RENDER_CONSTANTS,
-  type TimelineVisualTheme,
-} from "../theme";
+import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "../theme";
 
 type TimelineIndicatorGlassProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -16,7 +12,7 @@ type TimelineIndicatorGlassProps = {
   style?: StyleProp<ViewStyle>;
   contentClassName?: string;
   children: ReactNode;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorGlass = ({
@@ -25,7 +21,7 @@ export const TimelineIndicatorGlass = ({
   style,
   contentClassName,
   children,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineIndicatorGlassProps) => (
   <View
     style={[

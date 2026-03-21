@@ -11,7 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
-  BASE_TIMELINE_VISUAL_THEME,
   getBoundaryTopPx,
   getTrackFractions,
   type RowLayoutBounds,
@@ -36,7 +35,7 @@ export const TimelineContent = ({
   activeIndicator,
   contentHeightPx,
   layout,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: VesselTimelineRenderState) => {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const blurTargetRef = useRef<RNView | null>(null);

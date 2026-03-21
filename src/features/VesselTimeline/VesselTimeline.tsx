@@ -6,8 +6,9 @@
  */
 
 import {
-  BASE_TIMELINE_VISUAL_THEME,
+  createTimelineVisualTheme,
   type TimelineVisualTheme,
+  type TimelineVisualThemeOverrides,
 } from "@/components/timeline";
 import { Text, View } from "@/components/ui";
 import {
@@ -23,7 +24,7 @@ type VesselTimelineProps = {
   sailingDay: string;
   routeAbbrevs: string[];
   now?: Date;
-  theme?: TimelineVisualTheme;
+  theme?: TimelineVisualThemeOverrides;
 };
 
 /**
@@ -41,19 +42,23 @@ export const VesselTimeline = ({
   sailingDay,
   routeAbbrevs: _routeAbbrevs,
   now,
-  theme = BASE_TIMELINE_VISUAL_THEME,
-}: VesselTimelineProps) => (
-  <ConvexVesselTripEventsProvider
-    vesselAbbrev={vesselAbbrev}
-    sailingDay={sailingDay}
-  >
-    <VesselTimelineContent now={now} theme={theme} />
-  </ConvexVesselTripEventsProvider>
-);
+  theme,
+}: VesselTimelineProps) => {
+  const resolvedTheme = createTimelineVisualTheme(theme);
+
+  return (
+    <ConvexVesselTripEventsProvider
+      vesselAbbrev={vesselAbbrev}
+      sailingDay={sailingDay}
+    >
+      <VesselTimelineContent now={now} theme={resolvedTheme} />
+    </ConvexVesselTripEventsProvider>
+  );
+};
 
 type VesselTimelineContentProps = {
   now?: Date;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -63,10 +68,7 @@ type VesselTimelineContentProps = {
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @returns Loading, empty, error, or ready vessel timeline content
  */
-const VesselTimelineContent = ({
-  now,
-  theme = BASE_TIMELINE_VISUAL_THEME,
-}: VesselTimelineContentProps) => {
+const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
   const nowMs = useNowMs(1000);
   const {
     VesselAbbrev,

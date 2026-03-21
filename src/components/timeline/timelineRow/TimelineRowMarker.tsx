@@ -9,13 +9,13 @@ import {
   TIMELINE_MARKER_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "../config";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 import { TimelineRowMarkerIcon } from "./TimelineRowMarkerIcon";
 
 type TimelineRowMarkerProps = {
   row: TimelineRenderRow;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -24,10 +24,7 @@ type TimelineRowMarkerProps = {
  * @param row - The render row containing kind and marker appearance
  * @returns The centered marker view
  */
-export const TimelineRowMarker = ({
-  row,
-  theme = BASE_TIMELINE_VISUAL_THEME,
-}: TimelineRowMarkerProps) => (
+export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => (
   <View
     className={cn(
       "absolute items-center justify-center overflow-hidden rounded-full"

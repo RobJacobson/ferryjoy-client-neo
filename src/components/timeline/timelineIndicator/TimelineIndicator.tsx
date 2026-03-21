@@ -10,7 +10,7 @@ import {
   TIMELINE_INDICATOR_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "../config";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
@@ -27,7 +27,7 @@ type TimelineIndicatorProps = {
   speedKnots?: number;
   sizePx?: number;
   showRadarPing?: boolean;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineIndicator = ({
@@ -40,7 +40,7 @@ export const TimelineIndicator = ({
   speedKnots = 0,
   sizePx = TIMELINE_INDICATOR_SIZE_PX,
   showRadarPing = true,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx);
   const rockingStyle = useRockingAnimation(animate, speedKnots);

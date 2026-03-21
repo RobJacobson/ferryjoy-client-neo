@@ -81,5 +81,5 @@ export type VesselTimelineRenderState = {
   activeIndicator: TimelineActiveIndicator | null;
   contentHeightPx: number;
   layout: VesselTimelineLayoutConfig;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };

@@ -10,17 +10,13 @@ import type { View as RNView } from "react-native";
 import { BlurView } from "@/components/BlurView";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import {
-  BASE_TIMELINE_VISUAL_THEME,
-  TIMELINE_RENDER_CONSTANTS,
-  type TimelineVisualTheme,
-} from "./theme";
+import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "./theme";
 import type { TerminalCardGeometry } from "./types";
 
 type TimelineTerminalCardBackgroundsProps = {
   cards: TerminalCardGeometry[];
   blurTargetRef: RefObject<ComponentRef<typeof RNView> | null>;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 const terminalCardPositionClasses: Record<
@@ -41,7 +37,7 @@ const terminalCardPositionClasses: Record<
 export const TimelineTerminalCardBackgrounds = ({
   cards,
   blurTargetRef,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineTerminalCardBackgroundsProps) => (
   <View className="absolute inset-0" pointerEvents="none">
     {cards.map((card) => (

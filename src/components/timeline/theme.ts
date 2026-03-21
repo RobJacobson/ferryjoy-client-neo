@@ -104,9 +104,9 @@ export const BASE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     ping: {
       insetPx: 0,
       borderWidth: 1.5,
-      peakOpacity: 0.42,
-      borderColor: "hsla(270, 95%, 75%, 0.36)",
-      fillColor: "hsla(0, 0%, 100%, 0.22)",
+      peakOpacity: 0.75,
+      borderColor: "hsla(270, 95%, 75%, 0.5)",
+      fillColor: "hsla(0, 0%, 100%, 0.25)",
     },
   },
 };

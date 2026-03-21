@@ -2,21 +2,21 @@ import type { ComponentRef, RefObject } from "react";
 import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
 
 type TimelineIndicatorBadgeProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   label: string;
   sizePx: number;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorBadge = ({
   blurTargetRef,
   label,
   sizePx,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineIndicatorBadgeProps) => (
   <TimelineIndicatorGlass
     blurTargetRef={blurTargetRef}

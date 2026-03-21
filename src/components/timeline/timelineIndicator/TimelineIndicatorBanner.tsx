@@ -2,7 +2,7 @@ import type { ComponentRef, RefObject } from "react";
 import { View, type ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text } from "@/components/ui";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import { TimelineIndicatorGlass } from "./TimelineIndicatorGlass";
 
 type TimelineIndicatorBannerProps = {
@@ -10,7 +10,7 @@ type TimelineIndicatorBannerProps = {
   title?: string;
   subtitle?: string;
   sizePx: number;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorBanner = ({
@@ -18,7 +18,7 @@ export const TimelineIndicatorBanner = ({
   title,
   subtitle,
   sizePx,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineIndicatorBannerProps) => {
   if (!title && !subtitle) {
     return null;

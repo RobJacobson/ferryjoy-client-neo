@@ -7,7 +7,7 @@ import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
 import { TimelineOutlinedIcon } from "./TimelineOutlinedIcon";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
@@ -23,7 +23,7 @@ type EventType = keyof typeof eventTypeIcons;
 type TimelineRowEventTimesProps = {
   point: TimelineTimePoint;
   showPlaceholder?: boolean;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -35,7 +35,7 @@ type TimelineRowEventTimesProps = {
 export const TimelineRowEventTimes = ({
   point,
   showPlaceholder = false,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineRowEventTimesProps) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;

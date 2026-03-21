@@ -5,7 +5,7 @@
 import type { ComponentRef, RefObject } from "react";
 import { View } from "@/components/ui";
 import { TIMELINE_INDICATOR_SIZE_PX } from "../config";
-import { BASE_TIMELINE_VISUAL_THEME, type TimelineVisualTheme } from "../theme";
+import type { TimelineVisualTheme } from "../theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { getOverlayViewState } from "../viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
@@ -15,14 +15,14 @@ type TimelineIndicatorOverlayProps = {
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   /** Measured timeline row bounds used to position the active indicator. */
   rowLayouts: Record<string, RowLayoutBounds>;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
   blurTargetRef,
   rowLayouts,
-  theme = BASE_TIMELINE_VISUAL_THEME,
+  theme,
 }: TimelineIndicatorOverlayProps) => {
   const overlayViewState = getOverlayViewState(overlayIndicator, rowLayouts);
 

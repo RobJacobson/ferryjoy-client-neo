@@ -10,7 +10,7 @@ import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowEventLabelProps = {
   event: TimelineRenderEvent;
-  theme?: TimelineVisualTheme;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -31,8 +31,6 @@ export const TimelineRowEventLabel = ({
       : event.nextTerminalAbbrev
         ? `To: ${event.nextTerminalAbbrev}`
         : "Dep";
-  const eventLabelColor =
-    theme?.labels.eventLabelColor ?? "hsla(263, 70%, 50%, 1)";
 
   return (
     <View
@@ -40,10 +38,10 @@ export const TimelineRowEventLabel = ({
       style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
     >
       <View className="flex-1 flex-row justify-end">
-        <TimelineOutlinedText outlineClassName="" outlineWidth={1}>
+        <TimelineOutlinedText outlineClassName="" outlineWidth={2}>
           <Text
             className="mt-[-6px] py-[2px] font-led-board text-lg"
-            style={{ color: eventLabelColor }}
+            style={{ color: theme.labels.eventLabelColor }}
           >
             {labelText}
           </Text>
