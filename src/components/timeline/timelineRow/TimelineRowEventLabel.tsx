@@ -3,13 +3,11 @@
  */
 
 import { Text, View } from "@/components/ui";
-import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
 import type { TimelineVisualTheme } from "../theme";
-import type { TimelineRenderEvent } from "../types";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowEventLabelProps = {
-  event: TimelineRenderEvent;
+  label: string;
   theme: TimelineVisualTheme;
 };
 
@@ -20,33 +18,17 @@ type TimelineRowEventLabelProps = {
  * @returns The label view for the event
  */
 export const TimelineRowEventLabel = ({
-  event,
+  label,
   theme,
-}: TimelineRowEventLabelProps) => {
-  const labelText =
-    event.eventType === "arrive"
-      ? event.currTerminalAbbrev
-        ? `Arv: ${event.currTerminalAbbrev}`
-        : "Arv"
-      : event.nextTerminalAbbrev
-        ? `To: ${event.nextTerminalAbbrev}`
-        : "Dep";
-
-  return (
-    <View
-      className="relative mx-2 mt-[-8px] flex-1 flex-row"
-      style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
-    >
-      <View className="flex-1 flex-row justify-end">
-        <TimelineOutlinedText outlineClassName="" outlineWidth={2}>
-          <Text
-            className="mt-[-6px] py-[2px] font-led-board text-lg"
-            style={{ color: theme.labels.eventLabelColor }}
-          >
-            {labelText}
-          </Text>
-        </TimelineOutlinedText>
-      </View>
-    </View>
-  );
-};
+}: TimelineRowEventLabelProps) => (
+  <View className="relative">
+    <TimelineOutlinedText>
+      <Text
+        className="font-bitcount-500 text-lg"
+        style={{ color: theme.labels.eventLabelColor }}
+      >
+        {label}
+      </Text>
+    </TimelineOutlinedText>
+  </View>
+);

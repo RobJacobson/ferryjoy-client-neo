@@ -2,7 +2,6 @@ import { type ComponentProps, cloneElement, type ReactElement } from "react";
 import type { TextStyle } from "react-native";
 import { type Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { getOutlineOffsets } from "./getOutlineOffsets";
 
 type TimelineOutlinedTextProps = {
   children: ReactElement<ComponentProps<typeof Text>>;
@@ -19,10 +18,21 @@ export const TimelineOutlinedText = ({
   outlineStyle,
   outlineWidth = 1,
 }: TimelineOutlinedTextProps) => {
-  const outlineOffsets = getOutlineOffsets(outlineWidth);
-  const resolvedOutlineClassName = outlineClassName || "text-white/80";
-  const resolvedOutlineStyle = outlineStyle || {
-    color: "rgba(255, 255, 255, 0.8)",
+  const outlineOffsets: Array<{ x: number; y: number }> = [];
+
+  for (let x = -outlineWidth; x <= outlineWidth; x += 1) {
+    for (let y = -outlineWidth; y <= outlineWidth; y += 1) {
+      if (x === 0 && y === 0) {
+        continue;
+      }
+
+      outlineOffsets.push({ x, y });
+    }
+  }
+
+  const resolvedOutlineClassName = outlineClassName ?? "";
+  const resolvedOutlineStyle = outlineStyle ?? {
+    color: "rgba(255, 255, 255, 1)",
   };
 
   return (

@@ -59,8 +59,8 @@ export default function Layout() {
     "BitcountPropSingle-700": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-Bold.ttf"),
     "BitcountPropSingle-800": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-ExtraBold.ttf"),
     "BitcountPropSingle-900": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-Black.ttf"),
-    LedPhattt: require("../../assets/fonts/led/14-led-phattt-font/14LedPhatttHeavy-Bav3.ttf"),
-    AdvancedLedBoard7: require("../../assets/fonts/led/advanced-led-board-7-font/AdvancedLedBoard7-8qm2.ttf"),
+    "tgl-0": require("../../assets/fonts/tgl/TGL 0-16.ttf"),
+    "tgl-31034": require("../../assets/fonts/tgl/TGL 31034-1.ttf"),
   });
 
   useEffect(() => {

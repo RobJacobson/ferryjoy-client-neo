@@ -116,8 +116,10 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
   const renderState = getVesselTimelineRenderState(
     Events,
     VesselLocation,
-    now ?? new Date(nowMs)
+    now ?? new Date(nowMs),
+    undefined,
+    theme
   );
 
-  return <TimelineContent {...renderState} theme={theme} />;
+  return <TimelineContent {...renderState} />;
 };

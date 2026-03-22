@@ -2,6 +2,7 @@
  * Day-level vessel timeline view-model entry point.
  */
 
+import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline";
 import type { VesselLocation, VesselTimelineEvent } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
@@ -49,7 +50,8 @@ export const getVesselTimelineRenderState = (
   Events: VesselTimelineEvent[],
   vesselLocation: VesselLocation | undefined,
   now: Date = new Date(),
-  layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT
+  layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT,
+  theme = BASE_TIMELINE_VISUAL_THEME
 ): VesselTimelineRenderState => {
   const adjustedLayout = {
     ...layout,
@@ -80,6 +82,7 @@ export const getVesselTimelineRenderState = (
     }),
     contentHeightPx,
     layout: adjustedLayout,
+    theme,
   };
 };
 

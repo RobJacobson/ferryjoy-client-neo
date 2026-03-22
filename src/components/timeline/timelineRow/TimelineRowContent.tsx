@@ -3,38 +3,74 @@
  */
 
 import { View } from "@/components/ui";
-import { TIMELINE_TRACK_X_POSITION_PERCENT } from "../config";
+import {
+  TIMELINE_SIDE_COLUMN_OFFSET_PX,
+  TIMELINE_TRACK_X_POSITION_PERCENT,
+} from "../config";
 import type { TimelineVisualTheme } from "../theme";
-import type { TimelineRenderRow } from "../types";
+import type { TimelineRenderEvent, TimelineRenderRow } from "../types";
 import { TimelineRowEventLabel } from "./TimelineRowEventLabel";
 import { TimelineRowEventTimes } from "./TimelineRowEventTimes";
 import { TimelineRowMarker } from "./TimelineRowMarker";
-import { TimelineRowTerminalHeadline } from "./TimelineRowTerminalHeadline";
+import { TimelineRowTerminalName } from "./TimelineRowTerminalName";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
   theme: TimelineVisualTheme;
 };
 
-export const TimelineRowContent = ({ row, theme }: TimelineRowContentProps) => (
-  <View className="relative h-full w-full">
-    <TimelineRowTerminalHeadline event={row.startEvent} theme={theme} />
-    <View className="h-full flex-row">
-      <View
-        style={{
-          width: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
-        }}
-      >
-        <TimelineRowEventLabel event={row.startEvent} theme={theme} />
+export const TimelineRowContent = ({ row, theme }: TimelineRowContentProps) => {
+  const startEventDisplay = getStartEventDisplay(row.startEvent);
+  const terminalHeadline = getTerminalHeadline(row.startEvent);
+
+  return (
+    <View className="relative h-full w-full">
+      {terminalHeadline && (
+        <TimelineRowTerminalName text={terminalHeadline} theme={theme} />
+      )}
+      <View className="mt-[-13px] h-full flex-row">
+        <View
+          style={{
+            width: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+          }}
+        >
+          <View
+            className="flex-row justify-end"
+            style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX + 2 }}
+          >
+            <TimelineRowEventLabel
+              label={startEventDisplay.label}
+              theme={theme}
+            />
+          </View>
+        </View>
+        <View
+          className="flex-1"
+          style={{ marginLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX + 2 }}
+        >
+          <TimelineRowEventTimes
+            point={row.startEvent.timePoint}
+            showPlaceholder={startEventDisplay.showTimePlaceholder}
+            theme={theme}
+          />
+        </View>
       </View>
-      <View className="flex-1">
-        <TimelineRowEventTimes
-          point={row.startEvent.timePoint}
-          showPlaceholder={row.startEvent.isArrivalPlaceholder === true}
-          theme={theme}
-        />
-      </View>
+      <TimelineRowMarker row={row} theme={theme} />
     </View>
-    <TimelineRowMarker row={row} theme={theme} />
-  </View>
-);
+  );
+};
+
+const getStartEventDisplay = (event: TimelineRenderEvent) => ({
+  label:
+    event.eventType === "arrive"
+      ? event.currTerminalAbbrev
+        ? `Arv: ${event.currTerminalAbbrev}`
+        : "Arv"
+      : event.nextTerminalAbbrev
+        ? `To: ${event.nextTerminalAbbrev}`
+        : "Dep",
+  showTimePlaceholder: event.isArrivalPlaceholder === true,
+});
+
+const getTerminalHeadline = (event: TimelineRenderEvent) =>
+  event.eventType === "arrive" ? event.currTerminalDisplayName : undefined;

@@ -24,33 +24,45 @@ type TimelineRowMarkerProps = {
  * @param row - The render row containing kind and marker appearance
  * @returns The centered marker view
  */
-export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => (
-  <View
-    className={cn(
-      "absolute items-center justify-center overflow-hidden rounded-full"
-    )}
-    style={{
-      left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
-      top: 0,
-      ...getAbsoluteCenteredBoxStyle({
-        width: TIMELINE_MARKER_SIZE_PX,
-        height: TIMELINE_MARKER_SIZE_PX,
-      }),
-      borderWidth: 1,
-      borderColor:
-        row.markerAppearance === "future"
-          ? theme.marker.futureBorderColor
-          : theme.marker.pastBorderColor,
-      backgroundColor:
-        row.markerAppearance === "future"
-          ? theme.marker.futureFillColor
-          : theme.marker.pastFillColor,
-    }}
-  >
-    <TimelineRowMarkerIcon
-      kind={row.kind}
-      markerAppearance={row.markerAppearance}
-      theme={theme}
-    />
-  </View>
-);
+export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
+  const markerColors = getMarkerColors(row.markerAppearance, theme);
+
+  return (
+    <View
+      className={cn(
+        "absolute items-center justify-center overflow-hidden rounded-full"
+      )}
+      style={{
+        left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+        top: 0,
+        ...getAbsoluteCenteredBoxStyle({
+          width: TIMELINE_MARKER_SIZE_PX,
+          height: TIMELINE_MARKER_SIZE_PX,
+        }),
+        borderWidth: 1,
+        borderColor: markerColors.borderColor,
+        backgroundColor: markerColors.fillColor,
+      }}
+    >
+      <TimelineRowMarkerIcon
+        kind={row.kind}
+        markerAppearance={row.markerAppearance}
+        theme={theme}
+      />
+    </View>
+  );
+};
+
+const getMarkerColors = (
+  markerAppearance: TimelineRenderRow["markerAppearance"],
+  theme: TimelineVisualTheme
+) =>
+  markerAppearance === "future"
+    ? {
+        borderColor: theme.marker.futureBorderColor,
+        fillColor: theme.marker.futureFillColor,
+      }
+    : {
+        borderColor: theme.marker.pastBorderColor,
+        fillColor: theme.marker.pastFillColor,
+      };

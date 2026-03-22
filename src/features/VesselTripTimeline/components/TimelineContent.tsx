@@ -8,6 +8,7 @@
 import { BlurTargetView } from "expo-blur";
 import { type ComponentRef, useCallback, useRef, useState } from "react";
 import {
+  BASE_TIMELINE_VISUAL_THEME,
   getBoundaryTopPx,
   getTrackFractions,
   TimelineIndicatorOverlay,
@@ -34,6 +35,7 @@ export const TimelineContent = ({
   rows: renderRows,
   activeIndicator,
 }: TimelineRenderState) => {
+  const theme = BASE_TIMELINE_VISUAL_THEME;
   const blurTargetRef = useRef<ComponentRef<typeof View> | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
@@ -63,6 +65,7 @@ export const TimelineContent = ({
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
           completedPercent={completedPercent}
+          theme={theme}
         />
         {renderRows.map((row: TimelineRenderRow) => (
           <TimelineRow
@@ -73,13 +76,17 @@ export const TimelineContent = ({
             minHeight={row.isFinalRow ? 0 : undefined}
             onRowLayout={onRowLayout}
           >
-            <TimelineRowContent row={toSharedTimelineRenderRow(row)} />
+            <TimelineRowContent
+              row={toSharedTimelineRenderRow(row)}
+              theme={theme}
+            />
           </TimelineRow>
         ))}
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}
           blurTargetRef={blurTargetRef}
           rowLayouts={rowLayouts}
+          theme={theme}
         />
       </BlurTargetView>
     </View>
