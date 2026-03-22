@@ -2,6 +2,9 @@
  * Center track disc with dock vs sea icon and past vs future styling.
  */
 
+import anchorIcon from "assets/icons/anchor.png";
+import vesselIcon from "assets/icons/vessel.png";
+import { Image } from "expo-image";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
@@ -11,12 +14,16 @@ import {
 } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
-import { TimelineRowMarkerIcon } from "./TimelineRowMarkerIcon";
 
 type TimelineRowMarkerProps = {
   row: TimelineRenderRow;
   theme: TimelineVisualTheme;
 };
+
+const markerIconSource = {
+  "at-dock": anchorIcon,
+  "at-sea": vesselIcon,
+} as const;
 
 /**
  * Positions the circular marker on the shared track column for this row.
@@ -45,10 +52,17 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
         backgroundColor: markerColors.fillColor,
       }}
     >
-      <TimelineRowMarkerIcon
-        kind={row.kind}
-        markerAppearance={row.markerAppearance}
-        theme={theme}
+      <Image
+        source={markerIconSource[row.kind]}
+        contentFit="contain"
+        style={{
+          width: 20,
+          height: 20,
+          tintColor:
+            row.markerAppearance === "future"
+              ? theme.marker.futureIconTintColor
+              : theme.marker.pastIconTintColor,
+        }}
       />
     </View>
   );
