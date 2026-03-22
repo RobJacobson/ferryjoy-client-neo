@@ -7,7 +7,7 @@ import { View } from "@/components/ui";
 import { TIMELINE_INDICATOR_SIZE_PX } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
-import { getOverlayViewState } from "../viewState";
+import { getBoundaryTopPx } from "../viewState";
 import { TimelineIndicator } from "./TimelineIndicator";
 
 type TimelineIndicatorOverlayProps = {
@@ -18,7 +18,7 @@ type TimelineIndicatorOverlayProps = {
 };
 
 /**
- * Positions the active indicator from `getOverlayViewState` and row layouts.
+ * Positions the active indicator from its row layouts.
  *
  * @param overlayIndicator - Active row id, position, and copy, or null
  * @param blurTargetRef - Blur sampling target for glass surfaces
@@ -32,9 +32,9 @@ export const TimelineIndicatorOverlay = ({
   rowLayouts,
   theme,
 }: TimelineIndicatorOverlayProps) => {
-  const overlayViewState = getOverlayViewState(overlayIndicator, rowLayouts);
+  const topPx = getBoundaryTopPx(overlayIndicator, rowLayouts);
 
-  if (!overlayViewState) {
+  if (!overlayIndicator || topPx === null) {
     return null;
   }
 
@@ -46,12 +46,12 @@ export const TimelineIndicatorOverlay = ({
     >
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
-        topPx={overlayViewState.topPx}
-        label={overlayViewState.label}
-        title={overlayIndicator?.title}
-        subtitle={overlayIndicator?.subtitle}
-        animate={overlayIndicator?.animate}
-        speedKnots={overlayIndicator?.speedKnots}
+        topPx={topPx}
+        label={overlayIndicator.label}
+        title={overlayIndicator.title}
+        subtitle={overlayIndicator.subtitle}
+        animate={overlayIndicator.animate}
+        speedKnots={overlayIndicator.speedKnots}
         sizePx={TIMELINE_INDICATOR_SIZE_PX}
         theme={theme}
       />

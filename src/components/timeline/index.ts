@@ -34,10 +34,8 @@ export type {
   TimelineSegmentKind,
   TimelineTimePoint,
 } from "./types";
-export type { OverlayViewState } from "./viewState";
 export {
   getBoundaryTopPx,
   getIndicatorTopPx,
-  getOverlayViewState,
   getTrackFractions,
 } from "./viewState";

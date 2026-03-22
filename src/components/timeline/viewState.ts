@@ -6,11 +6,6 @@ import { clamp, lerp } from "@/shared/utils";
 import { TIMELINE_INDICATOR_POSITION_INSET_PERCENT } from "./config";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 
-export type OverlayViewState = {
-  topPx: number;
-  label: string;
-};
-
 /**
  * Maps a 0–1 row position to the inset range used for on-screen placement.
  *
@@ -80,31 +75,5 @@ export const getTrackFractions = (
   return {
     completedPercent,
     remainingPercent: 1 - completedPercent,
-  };
-};
-
-/**
- * Builds overlay props for the floating indicator from layout measurements.
- *
- * @param activeIndicator - Current indicator descriptor, if any
- * @param rowLayouts - Row id to measured bounds from `TimelineRow` layouts
- * @returns Top position and label for the overlay, or null when not shown
- */
-export const getOverlayViewState = (
-  activeIndicator: TimelineActiveIndicator | null,
-  rowLayouts: Record<string, RowLayoutBounds>
-): OverlayViewState | null => {
-  if (!activeIndicator) {
-    return null;
-  }
-
-  const topPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  if (topPx === null) {
-    return null;
-  }
-
-  return {
-    topPx,
-    label: activeIndicator.label,
   };
 };
