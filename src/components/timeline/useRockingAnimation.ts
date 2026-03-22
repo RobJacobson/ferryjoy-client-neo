@@ -1,3 +1,7 @@
+/**
+ * Gentle rocking rotation for the live indicator when the vessel is under way.
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelAnimation,
@@ -16,6 +20,12 @@ const ROCKING_MAX_ROTATION_DEG = 4;
 const ROCKING_RAMP_IN_MS = 900;
 const ROCKING_RAMP_OUT_MS = 700;
 
+/**
+ * Maps vessel speed to one full rocking cycle duration (faster = shorter).
+ *
+ * @param speedKnots - Current speed in knots
+ * @returns Cycle length in milliseconds, clamped to the configured range
+ */
 const speedToDurationMs = (speedKnots: number): number => {
   const range = ROCKING_MAX_SPEED_KNOTS - ROCKING_MIN_SPEED_KNOTS;
 
@@ -33,6 +43,13 @@ const speedToDurationMs = (speedKnots: number): number => {
   );
 };
 
+/**
+ * Worklet: maps a 0–1 phase to a signed rotation within ±`maxDeg`.
+ *
+ * @param phase - Animation phase in one cycle (0–1)
+ * @param maxDeg - Peak rotation magnitude in degrees
+ * @returns Rotation in degrees for the current phase
+ */
 const phaseToRotation = (phase: number, maxDeg: number): number => {
   "worklet";
 
@@ -47,6 +64,13 @@ const phaseToRotation = (phase: number, maxDeg: number): number => {
   return maxDeg - 2 * maxDeg * eased;
 };
 
+/**
+ * Returns an animated style that rocks the indicator when `animate` is true.
+ *
+ * @param animate - When false, ramps amplitude to zero and stops the cycle
+ * @param speedKnots - Drives cycle speed when animating
+ * @returns Reanimated style with `rotate` derived from phase and amplitude
+ */
 export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
   const phase = useSharedValue(0);
   const amplitude = useSharedValue(animate ? ROCKING_MAX_ROTATION_DEG : 0);

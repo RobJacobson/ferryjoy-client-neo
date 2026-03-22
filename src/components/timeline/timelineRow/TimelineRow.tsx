@@ -1,5 +1,5 @@
 /**
- * Shared measurable row shell for the vertical timeline renderer.
+ * Measurable row wrapper that reports layout bounds for indicator geometry.
  */
 
 import type { ReactNode } from "react";
@@ -18,6 +18,18 @@ export type TimelineRowProps = {
   onRowLayout: (rowId: string, bounds: RowLayoutBounds) => void;
 };
 
+/**
+ * Applies flex or fixed height and forwards `onLayout` measurements.
+ *
+ * @param id - Row id aligned with `TimelineRenderRow.id`
+ * @param layoutMode - `fixed` uses `size` as height; `flex` uses flex grow
+ * @param size - Height in px when fixed, or flex grow weight when flex
+ * @param minHeight - Optional minimum height when using flex layout
+ * @param rowClassName - Optional width/layout classes for the row container
+ * @param children - Row contents (typically `TimelineRowContent`)
+ * @param onRowLayout - Called with `{ y, height }` after each layout pass
+ * @returns The measurable row container
+ */
 export const TimelineRow = ({
   id,
   layoutMode = "flex",
@@ -29,6 +41,11 @@ export const TimelineRow = ({
 }: TimelineRowProps) => {
   const rowStyle = getVerticalRowStyle(layoutMode, size, minHeight);
 
+  /**
+   * Forwards native layout to the parent for indicator and track math.
+   *
+   * @param event - `onLayout` payload containing `y` and `height`
+   */
   const handleLayout = (event: {
     nativeEvent: { layout: RowLayoutBounds };
   }) => {
@@ -47,6 +64,14 @@ export const TimelineRow = ({
   );
 };
 
+/**
+ * Builds row container styles for fixed-height or flex-grown segments.
+ *
+ * @param layoutMode - `fixed` vs proportional flex growth
+ * @param size - Pixel height when fixed, or flex grow when flex
+ * @param minHeight - Optional minimum height in flex mode
+ * @returns Style object for the row `View`
+ */
 const getVerticalRowStyle = (
   layoutMode: "flex" | "fixed",
   size: number,

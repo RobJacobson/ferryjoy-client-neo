@@ -1,3 +1,7 @@
+/**
+ * Offset duplicate of a text child for a simple drop-shadow legibility effect.
+ */
+
 import { type ComponentProps, cloneElement, type ReactElement } from "react";
 import type { TextStyle } from "react-native";
 import { type Text, View } from "@/components/ui";
@@ -21,6 +25,16 @@ const DEFAULT_SHADOW_OFFSET: ShadowOffset = {
   y: 2,
 };
 
+/**
+ * Renders a shifted clone under the primary text for contrast on busy fills.
+ *
+ * @param children - Single `Text` element to shadow
+ * @param containerClassName - Optional wrapper classes
+ * @param shadowClassName - Classes for the duplicate (default light fill)
+ * @param shadowStyle - Optional extra style on the duplicate
+ * @param shadowOffset - Pixel offset of the shadow layer
+ * @returns Relative wrapper with shadow duplicate and original child
+ */
 export const TimelineShadowText = ({
   children,
   containerClassName,

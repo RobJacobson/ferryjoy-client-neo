@@ -1,5 +1,5 @@
 /**
- * Shared layout constants for the vertical timeline renderer.
+ * Layout constants for track position, marker column, and indicator sizing.
  */
 
 export const TIMELINE_TRACK_X_POSITION_PERCENT = 35;

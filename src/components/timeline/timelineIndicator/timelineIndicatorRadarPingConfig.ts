@@ -1,3 +1,7 @@
+/**
+ * Keyframes and layout for the timeline indicator radar ping animation.
+ */
+
 import type { ViewStyle } from "react-native";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 
@@ -11,6 +15,12 @@ type RadarPingStyleConfig = {
   fillColor?: string;
 };
 
+/**
+ * Builds opacity and scale keyframes for one ping cycle.
+ *
+ * @param peakOpacity - Maximum opacity at mid-cycle before fade-out
+ * @returns Reanimated-compatible animation fragment for the ping view
+ */
 const createRadarPingAnimationStyle = (peakOpacity: number): ViewStyle => ({
   animationName: {
     "0%": {
@@ -36,6 +46,13 @@ const createRadarPingAnimationStyle = (peakOpacity: number): ViewStyle => ({
   animationTimingFunction: "ease-out",
 });
 
+/**
+ * Combines geometry, colors, and animation for the radar ping layer.
+ *
+ * @param ping - Theme ping section (inset, border, fill, peak opacity)
+ * @param sizePx - Outer indicator size used to size the ring
+ * @returns Style object for `Animated.View` including animation fields
+ */
 export const getTimelineIndicatorRadarPingStyle = (
   ping: RadarPingStyleConfig,
   sizePx: number

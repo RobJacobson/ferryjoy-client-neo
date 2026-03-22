@@ -1,3 +1,7 @@
+/**
+ * Dock anchor vs sea vessel glyph inside the timeline row marker.
+ */
+
 import anchorIcon from "assets/icons/anchor.png";
 import vesselIcon from "assets/icons/vessel.png";
 import { Image } from "expo-image";
@@ -15,6 +19,14 @@ const markerIconSource = {
   "at-sea": vesselIcon,
 } as const;
 
+/**
+ * Raster icon tinted for past or future marker state.
+ *
+ * @param kind - At-dock (anchor) vs at-sea (vessel) artwork
+ * @param markerAppearance - Selects past vs future icon tint
+ * @param theme - Icon tint tokens from the visual theme
+ * @returns Sized `Image` for the marker interior
+ */
 export const TimelineRowMarkerIcon = ({
   kind,
   markerAppearance,

@@ -1,3 +1,7 @@
+/**
+ * Duplicates a text child at pixel offsets to synthesize an outline stroke.
+ */
+
 import { type ComponentProps, cloneElement, type ReactElement } from "react";
 import type { TextStyle } from "react-native";
 import { type Text, View } from "@/components/ui";
@@ -11,6 +15,16 @@ type TimelineOutlinedTextProps = {
   outlineWidth?: number;
 };
 
+/**
+ * Renders ghost copies of `children` around the original for a bold outline.
+ *
+ * @param children - Single `Text` element to outline
+ * @param containerClassName - Optional wrapper classes
+ * @param outlineClassName - Classes applied to each outline duplicate
+ * @param outlineStyle - Style merged into duplicates (typically outline color)
+ * @param outlineWidth - Pixel radius of the offset grid (default 1)
+ * @returns Stacked absolute duplicates plus the original child on top
+ */
 export const TimelineOutlinedText = ({
   children,
   containerClassName,

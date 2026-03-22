@@ -1,5 +1,5 @@
 /**
- * Left-column event label for timeline rows.
+ * Left column: short arrive/depart label with outline treatment.
  */
 
 import { Text, View } from "@/components/ui";
@@ -12,10 +12,11 @@ type TimelineRowEventLabelProps = {
 };
 
 /**
- * Renders the short event label text for a timeline row event.
+ * Outlined single-line label using the event label color from the theme.
  *
- * @param event - The event containing event and terminal data
- * @returns The label view for the event
+ * @param label - Preformatted string (e.g. `Arv: XX` or `To: YY`)
+ * @param theme - Event label color token
+ * @returns Relative wrapper around outlined text
  */
 export const TimelineRowEventLabel = ({
   label,

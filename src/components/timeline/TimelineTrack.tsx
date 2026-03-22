@@ -1,5 +1,5 @@
 /**
- * Shared full-height timeline track component.
+ * Full-height vertical track with optional completed segment and glow pulse.
  */
 
 import type { ViewStyle } from "react-native";
@@ -19,6 +19,14 @@ type TimelineTrackProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Renders the timeline spine and a proportional "completed" fill above it.
+ *
+ * @param containerHeightPx - Total track height in pixels
+ * @param completedPercent - Fraction of height filled (0–1)
+ * @param theme - Track colors from the visual theme
+ * @returns The track view, or null when height is non-positive
+ */
 export const TimelineTrack = ({
   containerHeightPx,
   completedPercent,
@@ -92,6 +100,11 @@ export const TimelineTrack = ({
   );
 };
 
+/**
+ * Keyframe style for the soft pulse on the completed segment glow layer.
+ *
+ * @returns Reanimated-compatible animation style for the glow `Animated.View`
+ */
 const createTrackGlowPulseStyle = (): ViewStyle => ({
   animationName: {
     "0%": {

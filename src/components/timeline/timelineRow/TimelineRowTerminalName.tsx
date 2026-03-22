@@ -1,3 +1,7 @@
+/**
+ * Stylized terminal name heading for dock rows (above the card region).
+ */
+
 import { Text, View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
 import { TimelineOutlinedText } from "./TimelineOutlinedText";
@@ -8,7 +12,11 @@ type TimelineRowTerminalNameProps = {
 };
 
 /**
- * Renders the terminal name that visually sits above an at-terminal card.
+ * Absolutely positioned, rotated display name using puffberry typography.
+ *
+ * @param text - Full terminal display name
+ * @param theme - Terminal name color from the visual theme
+ * @returns Non-interactive overlay text
  */
 export const TimelineRowTerminalName = ({
   text,

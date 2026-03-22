@@ -1,3 +1,10 @@
+/**
+ * Public re-exports for shared vertical timeline presentation primitives.
+ *
+ * Features such as `VesselTimeline` and `VesselTripTimeline` build rows and
+ * indicators upstream; these components render the shared visual contract.
+ */
+
 export {
   TIMELINE_INDICATOR_POSITION_INSET_PERCENT,
   TIMELINE_MARKER_COLUMN_WIDTH_PX,

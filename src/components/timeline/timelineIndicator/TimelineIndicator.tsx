@@ -1,5 +1,5 @@
 /**
- * Shared animated timeline indicator orchestrator.
+ * Composes badge, banner, and optional radar ping for the active timeline dot.
  */
 
 import type { ComponentRef, RefObject } from "react";
@@ -30,6 +30,21 @@ type TimelineIndicatorProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Absolutely positioned indicator with vertical motion and optional rocking.
+ *
+ * @param blurTargetRef - Blur sampling target for glass child surfaces
+ * @param topPx - Desired top offset before animated smoothing
+ * @param label - Short badge text (e.g. vessel or status)
+ * @param title - Optional banner title
+ * @param subtitle - Optional banner subtitle
+ * @param animate - When true, applies speed-based rocking
+ * @param speedKnots - Speed input for rocking cadence
+ * @param sizePx - Width and height of the circular indicator
+ * @param showRadarPing - Toggles the expanding ping ring
+ * @param theme - Indicator colors and ping styling
+ * @returns Animated indicator subtree aligned to the track column
+ */
 export const TimelineIndicator = ({
   blurTargetRef,
   topPx,

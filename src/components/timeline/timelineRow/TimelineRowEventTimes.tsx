@@ -1,5 +1,5 @@
 /**
- * Right-column event times with icons for timeline rows.
+ * Right column: scheduled time plus actual or estimated when present.
  */
 
 import {
@@ -39,10 +39,12 @@ type TimelineTimeEntry = {
 };
 
 /**
- * Renders scheduled, actual, and estimated times for a timeline event.
+ * Builds icon rows from schedule-first display rules and optional placeholder.
  *
- * @param point - The time point containing scheduled, actual, and estimated dates
- * @returns The event times view
+ * @param point - Scheduled, actual, and estimated instants for the event
+ * @param showPlaceholder - When true and no times exist, shows a placeholder row
+ * @param theme - Icon and text colors for the time rows
+ * @returns Horizontal group of time rows
  */
 export const TimelineRowEventTimes = ({
   point,
@@ -81,13 +83,13 @@ type TimelineRowEventTimeProps = {
 };
 
 /**
- * Single time row: outlined icon + outlined time label (shared chrome).
+ * One outlined icon beside an outlined time string.
  *
- * @param Icon - Lucide icon for this row
- * @param label - Time string or placeholder text
- * @param rowClassName - Optional row layout classes (e.g. gap between icon and text)
- * @param theme - Timeline colors for icon and text
- * @returns The row view
+ * @param Icon - Lucide icon for this row's time kind
+ * @param label - Formatted time or placeholder text
+ * @param rowClassName - Optional flex gap between icon and label
+ * @param theme - Icon tint and text color
+ * @returns A single time row view
  */
 const TimelineRowEventTime = ({
   Icon,
@@ -123,6 +125,15 @@ const TimelineRowEventTime = ({
   </View>
 );
 
+/**
+ * Produces ordered time rows: optional placeholder, scheduled, then secondary.
+ *
+ * @param scheduled - Baseline scheduled instant, if any
+ * @param secondary - Actual if set, else estimated, when present
+ * @param secondaryIcon - Icon matching actual vs estimated for the secondary row
+ * @param showPlaceholder - Enables `--` placeholder when no times exist
+ * @returns Entries rendered as `TimelineRowEventTime` rows
+ */
 const getTimeEntries = ({
   scheduled,
   secondary,

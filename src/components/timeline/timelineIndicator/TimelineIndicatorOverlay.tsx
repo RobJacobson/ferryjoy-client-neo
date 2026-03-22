@@ -1,5 +1,5 @@
 /**
- * Shared absolute overlay for a single active timeline indicator.
+ * Hosts `TimelineIndicator` when row layouts resolve an active overlay state.
  */
 
 import type { ComponentRef, RefObject } from "react";
@@ -13,11 +13,19 @@ import { TimelineIndicator } from "./TimelineIndicator";
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
-  /** Measured timeline row bounds used to position the active indicator. */
   rowLayouts: Record<string, RowLayoutBounds>;
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Positions the active indicator from `getOverlayViewState` and row layouts.
+ *
+ * @param overlayIndicator - Active row id, position, and copy, or null
+ * @param blurTargetRef - Blur sampling target for glass surfaces
+ * @param rowLayouts - Measured bounds keyed by row id
+ * @param theme - Visual theme for the indicator subtree
+ * @returns Overlay layer or null when the indicator should not show
+ */
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
   blurTargetRef,

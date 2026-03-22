@@ -1,3 +1,7 @@
+/**
+ * Circular glass surface shared by the indicator badge and banner.
+ */
+
 import { BlurView } from "expo-blur";
 import type { ComponentRef, ReactNode, RefObject } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -15,6 +19,17 @@ type TimelineIndicatorGlassProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Rounded blur-backed container with themed border for indicator chrome.
+ *
+ * @param blurTargetRef - Host view used as the blur sampling target
+ * @param className - Optional outer container classes
+ * @param style - Optional outer container styles
+ * @param contentClassName - Classes for the foreground content wrapper
+ * @param children - Inner content (typically text)
+ * @param theme - Indicator border color from the visual theme
+ * @returns Clipped circular glass frame
+ */
 export const TimelineIndicatorGlass = ({
   blurTargetRef,
   className,

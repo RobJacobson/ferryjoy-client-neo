@@ -1,8 +1,8 @@
 /**
- * Low-level resolved render contract consumed by timeline components.
+ * Resolved colors and blur settings for timeline track, cards, and indicator.
  *
- * This is intentionally more detailed than the human-authored theme schema used
- * by feature-level variant definitions.
+ * Features may override `BASE_TIMELINE_VISUAL_THEME` via
+ * `createTimelineVisualTheme` without duplicating nested merge logic.
  */
 export type TimelineIndicatorPingTheme = {
   insetPx: number;
@@ -111,6 +111,12 @@ export const BASE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   },
 };
 
+/**
+ * Merges optional theme overrides into the base timeline visual theme.
+ *
+ * @param overrides - Partial overrides per theme section
+ * @returns A complete `TimelineVisualTheme` safe for presentation components
+ */
 export const createTimelineVisualTheme = (
   overrides: TimelineVisualThemeOverrides = {}
 ): TimelineVisualTheme => ({

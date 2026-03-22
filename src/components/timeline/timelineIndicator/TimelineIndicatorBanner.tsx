@@ -1,3 +1,7 @@
+/**
+ * Optional title and subtitle stack above the indicator badge.
+ */
+
 import type { ComponentRef, RefObject } from "react";
 import { View, type ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
@@ -13,6 +17,16 @@ type TimelineIndicatorBannerProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Renders a glass banner when at least one of title or subtitle is set.
+ *
+ * @param blurTargetRef - Blur sampling target for the glass surface
+ * @param title - Primary banner line
+ * @param subtitle - Secondary banner line
+ * @param sizePx - Indicator size used to place the banner above the badge
+ * @param theme - Banner text colors from the visual theme
+ * @returns Banner container or null when both lines are absent
+ */
 export const TimelineIndicatorBanner = ({
   blurTargetRef,
   title,
@@ -56,6 +70,12 @@ export const TimelineIndicatorBanner = ({
   );
 };
 
+/**
+ * Positions the banner just above the circular badge.
+ *
+ * @param sizePx - Indicator diameter used for vertical offset
+ * @returns Style for the banner's horizontal center and bottom offset
+ */
 const getBannerStyle = (sizePx: number): ViewStyle => ({
   bottom: sizePx - 6,
   left: "50%",

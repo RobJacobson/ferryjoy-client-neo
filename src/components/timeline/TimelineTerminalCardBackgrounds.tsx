@@ -1,8 +1,8 @@
 /**
- * Shared terminal card backgrounds for "at terminal" portions of a timeline.
+ * Blurred terminal highlight regions behind "at terminal" timeline spans.
  *
- * Renders pre-computed rectangular regions with rounded corners. Must be
- * rendered before the timeline track so cards appear below it.
+ * Drawn before the track so the spine and markers read on top. Geometry is
+ * produced by the feature pipeline (`TerminalCardGeometry`).
  */
 
 import type { ComponentRef, RefObject } from "react";
@@ -29,10 +29,12 @@ const terminalCardPositionClasses: Record<
 };
 
 /**
- * Renders terminal card backgrounds from pre-computed geometry.
+ * Renders one blurred card per pre-computed geometry entry.
  *
- * @param props - Cards array from pipeline
- * @returns Absolute-positioned container with card views
+ * @param cards - Terminal regions and corner treatment from the pipeline
+ * @param blurTargetRef - Host view used as the blur sampling target
+ * @param theme - Card blur tint, fill, and border from the visual theme
+ * @returns Absolutely positioned layer of terminal backgrounds
  */
 export const TimelineTerminalCardBackgrounds = ({
   cards,

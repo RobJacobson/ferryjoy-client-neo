@@ -1,3 +1,7 @@
+/**
+ * Circular badge label centered on the active timeline indicator.
+ */
+
 import type { ComponentRef, RefObject } from "react";
 import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
@@ -12,6 +16,15 @@ type TimelineIndicatorBadgeProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Glass-backed single-line label at the track column center.
+ *
+ * @param blurTargetRef - Blur sampling target for the glass surface
+ * @param label - Badge text content
+ * @param sizePx - Diameter used for horizontal centering on the track
+ * @param theme - Badge text color from the visual theme
+ * @returns Positioned badge view
+ */
 export const TimelineIndicatorBadge = ({
   blurTargetRef,
   label,
@@ -34,6 +47,12 @@ export const TimelineIndicatorBadge = ({
   </TimelineIndicatorGlass>
 );
 
+/**
+ * Centers the badge horizontally on the vertical track column.
+ *
+ * @param sizePx - Badge width and height in pixels
+ * @returns Absolute positioning style for the badge
+ */
 const getBadgeStyle = (sizePx: number): ViewStyle => ({
   left: "50%",
   width: sizePx,

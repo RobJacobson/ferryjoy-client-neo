@@ -1,5 +1,5 @@
 /**
- * Center-column marker with icon for timeline rows.
+ * Center track disc with dock vs sea icon and past vs future styling.
  */
 
 import { View } from "@/components/ui";
@@ -19,10 +19,11 @@ type TimelineRowMarkerProps = {
 };
 
 /**
- * Renders the center marker for a timeline row.
+ * Positions the circular marker on the shared track column for this row.
  *
- * @param row - The render row containing kind and marker appearance
- * @returns The centered marker view
+ * @param row - Segment kind and past/future appearance
+ * @param theme - Marker fill, border, and icon tint tokens
+ * @returns Centered marker container with icon
  */
 export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
   const markerColors = getMarkerColors(row.markerAppearance, theme);
@@ -53,6 +54,13 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
   );
 };
 
+/**
+ * Resolves fill and border colors from marker appearance and theme.
+ *
+ * @param markerAppearance - Past vs future palette selection
+ * @param theme - Marker color section
+ * @returns Border and background colors for the disc
+ */
 const getMarkerColors = (
   markerAppearance: TimelineRenderRow["markerAppearance"],
   theme: TimelineVisualTheme
