@@ -11,16 +11,20 @@ import {
   type LucideIcon,
   Timer,
 } from "lucide-react-native";
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
-import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 const EVENT_TIME_ICON_SIZE_PX = 22;
 const EVENT_TIME_ICON_STROKE_WIDTH = 2;
 const EVENT_TIME_ICON_OUTLINE_WIDTH = 2;
+const EVENT_TIME_TEXT_STYLE = {
+  fontFamily: "BitcountPropSingle-500",
+  fontSize: 18,
+} as const;
 const eventTypeIcons = {
   actual: Timer,
   scheduled: CalendarClock,
@@ -104,14 +108,12 @@ const TimelineRowEventTime = ({
       color={theme.times.iconColor}
       outlineColor={theme.outlines.color}
     />
-    <TimelineOutlinedText outlineColor={theme.outlines.color}>
-      <Text
-        className="font-bitcount-500 text-lg"
-        style={{ color: theme.times.textColor }}
-      >
-        {label}
-      </Text>
-    </TimelineOutlinedText>
+    <StrokeText
+      outlineColor={theme.outlines.color}
+      style={[EVENT_TIME_TEXT_STYLE, { color: theme.times.textColor }]}
+    >
+      {label}
+    </StrokeText>
   </View>
 );
 

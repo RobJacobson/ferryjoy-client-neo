@@ -2,9 +2,9 @@
  * Left column: short arrive/depart label with outline treatment.
  */
 
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
-import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowEventLabelProps = {
   label: string;
@@ -23,13 +23,15 @@ export const TimelineRowEventLabel = ({
   theme,
 }: TimelineRowEventLabelProps) => (
   <View className="relative">
-    <TimelineOutlinedText outlineColor={theme.outlines.color}>
-      <Text
-        className="font-bitcount-500 text-lg"
-        style={{ color: theme.labels.eventLabelColor }}
-      >
-        {label}
-      </Text>
-    </TimelineOutlinedText>
+    <StrokeText
+      outlineColor={theme.outlines.color}
+      style={{
+        color: theme.labels.eventLabelColor,
+        fontFamily: "BitcountPropSingle-500",
+        fontSize: 18,
+      }}
+    >
+      {label}
+    </StrokeText>
   </View>
 );

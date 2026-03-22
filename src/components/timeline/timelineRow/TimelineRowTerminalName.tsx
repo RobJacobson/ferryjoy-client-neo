@@ -2,9 +2,9 @@
  * Stylized terminal name heading for dock rows (above the card region).
  */
 
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
-import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowTerminalNameProps = {
   text: string;
@@ -31,13 +31,16 @@ export const TimelineRowTerminalName = ({
     }}
     pointerEvents="none"
   >
-    <TimelineOutlinedText outlineColor={theme.outlines.color} outlineWidth={2}>
-      <Text
-        className="font-puffberry text-3xl"
-        style={{ color: theme.labels.terminalNameColor }}
-      >
-        {text}
-      </Text>
-    </TimelineOutlinedText>
+    <StrokeText
+      outlineColor={theme.outlines.color}
+      outlineWidth={2}
+      style={{
+        color: theme.labels.terminalNameColor,
+        fontFamily: "Puffberry",
+        fontSize: 30,
+      }}
+    >
+      {text}
+    </StrokeText>
   </View>
 );
