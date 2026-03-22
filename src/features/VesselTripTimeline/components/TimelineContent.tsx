@@ -9,13 +9,15 @@ import { BlurTargetView } from "expo-blur";
 import { type ComponentRef, useCallback, useRef, useState } from "react";
 import {
   BASE_TIMELINE_VISUAL_THEME,
-  getBoundaryTopPx,
-  getTrackFractions,
   TimelineIndicatorOverlay,
   TimelineRow,
   TimelineRowContent,
   TimelineTrack,
 } from "@/components/timeline";
+import {
+  getBoundaryTopPx,
+  getTrackFractions,
+} from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type {
   RowLayoutBounds,

@@ -11,8 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
-  getBoundaryTopPx,
-  getTrackFractions,
   type RowLayoutBounds,
   TimelineIndicatorOverlay,
   TimelineRow,
@@ -20,6 +18,10 @@ import {
   TimelineTerminalCardBackgrounds,
   TimelineTrack,
 } from "@/components/timeline";
+import {
+  getBoundaryTopPx,
+  getTrackFractions,
+} from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type { VesselTimelineRenderState } from "../types";
 
