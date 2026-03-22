@@ -19,6 +19,8 @@ type TimelineRowContentProps = {
   theme: TimelineVisualTheme;
 };
 
+const TIMELINE_ROW_CONTENT_NUDGE_PX = 2;
+
 /**
  * Renders pipeline row data around the shared vertical track column.
  *
@@ -76,14 +78,20 @@ const TimelineRowBody = ({
     >
       <View
         className="flex-row justify-end"
-        style={{ marginRight: TIMELINE_SIDE_COLUMN_OFFSET_PX + 2 }}
+        style={{
+          marginRight:
+            TIMELINE_SIDE_COLUMN_OFFSET_PX + TIMELINE_ROW_CONTENT_NUDGE_PX,
+        }}
       >
         <TimelineRowEventLabel label={label} theme={theme} />
       </View>
     </View>
     <View
       className="flex-1"
-      style={{ marginLeft: TIMELINE_SIDE_COLUMN_OFFSET_PX + 2 }}
+      style={{
+        marginLeft:
+          TIMELINE_SIDE_COLUMN_OFFSET_PX + TIMELINE_ROW_CONTENT_NUDGE_PX,
+      }}
     >
       <TimelineRowEventTimes
         point={point}
