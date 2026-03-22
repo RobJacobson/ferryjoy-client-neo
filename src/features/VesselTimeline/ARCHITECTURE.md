@@ -32,6 +32,14 @@ Notes:
 - `now` is optional and mainly supports deterministic rendering and tests.
 - `theme` is optional; it is merged via `createTimelineVisualTheme` and flows
   through `getVesselTimelineRenderState` into shared timeline components.
+  The theme contract is intentionally narrow: it controls palette/material
+  tokens for the shared timeline, not typography or layout geometry.
+  `outlines.color` is an explicitly exposed legibility token and should be
+  adjusted sparingly. Very dark themes often work best with near-none or no
+  outline at all, while moderately dark themes may benefit from a very slight
+  outline.
+  Current named presets include `Sea Glass` (default), `Harbor Dawn`, and
+  `Signal Night`.
 
 ## Product Decisions
 
