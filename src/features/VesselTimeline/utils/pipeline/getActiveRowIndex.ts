@@ -10,7 +10,7 @@ import type {
   VesselTimelineLayoutConfig,
   VesselTimelinePolicy,
 } from "../../types";
-import { getDisplayTime } from "./timePrecedence";
+import { getDisplayTime } from "../shared/rowEventTime";
 
 const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
 
@@ -235,6 +235,7 @@ const getMinutesUntil = (event: TimelineSemanticRow["endEvent"], now: Date) => {
     0,
     Math.ceil((targetTime.getTime() - now.getTime()) / 60_000)
   );
+
   return `${remainingMinutes}m`;
 };
 

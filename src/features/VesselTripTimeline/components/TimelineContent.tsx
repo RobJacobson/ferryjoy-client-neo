@@ -52,7 +52,7 @@ export const TimelineContent = ({
   }, []);
 
   const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const { completedPercent } = getTrackFractions(
+  const completedPercent = getTrackFractions(
     boundaryTopPx,
     CONTAINER_HEIGHT_PX
   );

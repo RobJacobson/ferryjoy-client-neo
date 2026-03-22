@@ -9,7 +9,7 @@ import type {
   TimelineSemanticRow,
   VesselTimelinePolicy,
 } from "../../types";
-import { getLayoutTime } from "./timePrecedence";
+import { getLayoutTime } from "../shared/rowEventTime";
 
 /**
  * Builds ordered dock and sea rows for the vessel-day timeline.
