@@ -2,19 +2,21 @@
  * Composes badge, banner, and optional radar ping for the active timeline dot.
  */
 
-import type { ComponentRef, RefObject } from "react";
+import { BlurView } from "expo-blur";
+import type { ComponentRef, ReactNode, RefObject } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
+import { Text, View } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import {
   TIMELINE_INDICATOR_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "../config";
-import type { TimelineVisualTheme } from "../theme";
+import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "../theme";
 import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
-import { TimelineIndicatorBadge } from "./TimelineIndicatorBadge";
-import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { TimelineIndicatorRadarPing } from "./TimelineIndicatorRadarPing";
 
 type TimelineIndicatorProps = {
@@ -29,6 +31,46 @@ type TimelineIndicatorProps = {
   showRadarPing?: boolean;
   theme: TimelineVisualTheme;
 };
+
+type IndicatorGlassProps = {
+  blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
+  className?: string;
+  style?: StyleProp<ViewStyle>;
+  contentClassName?: string;
+  children: ReactNode;
+  theme: TimelineVisualTheme;
+};
+
+const IndicatorGlass = ({
+  blurTargetRef,
+  className,
+  style,
+  contentClassName,
+  children,
+  theme,
+}: IndicatorGlassProps) => (
+  <View
+    style={[
+      style,
+      {
+        borderWidth: 1,
+        borderColor: theme.indicator.borderColor,
+      },
+    ]}
+    className={cn("overflow-hidden rounded-full", className)}
+    pointerEvents="none"
+  >
+    <BlurView
+      blurTarget={blurTargetRef}
+      intensity={TIMELINE_RENDER_CONSTANTS.indicator.glassBlurIntensity}
+      tint="light"
+      blurMethod="dimezisBlurView"
+      className="absolute inset-0"
+    />
+    <View className="absolute inset-0 bg-white/50" />
+    <View className={contentClassName}>{children}</View>
+  </View>
+);
 
 /**
  * Absolutely positioned indicator with vertical motion and optional rocking.
@@ -82,19 +124,64 @@ export const TimelineIndicator = ({
       {showRadarPing ? (
         <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
       ) : null}
-      <TimelineIndicatorBanner
+      {title || subtitle ? (
+        <View
+          pointerEvents="none"
+          className="absolute items-center"
+          style={getBannerStyle(sizePx)}
+        >
+          <IndicatorGlass
+            blurTargetRef={blurTargetRef}
+            theme={theme}
+            contentClassName="items-center px-4 py-1"
+          >
+            {title ? (
+              <Text
+                className="text-center font-playpen-600 leading-tight"
+                style={{ color: theme.indicator.bannerTitleColor }}
+              >
+                {title}
+              </Text>
+            ) : null}
+            {subtitle ? (
+              <Text
+                className="text-center font-playpen-300 text-sm leading-tight"
+                style={{ color: theme.indicator.bannerSubtitleColor }}
+              >
+                {subtitle}
+              </Text>
+            ) : null}
+          </IndicatorGlass>
+        </View>
+      ) : null}
+      <IndicatorGlass
         blurTargetRef={blurTargetRef}
-        title={title}
-        subtitle={subtitle}
-        sizePx={sizePx}
         theme={theme}
-      />
-      <TimelineIndicatorBadge
-        blurTargetRef={blurTargetRef}
-        label={label}
-        sizePx={sizePx}
-        theme={theme}
-      />
+        className="absolute"
+        style={getBadgeStyle(sizePx)}
+        contentClassName="h-full w-full items-center justify-center"
+      >
+        <Text
+          className="font-playpen-600"
+          style={{ color: theme.indicator.badgeLabelColor }}
+        >
+          {label}
+        </Text>
+      </IndicatorGlass>
     </Animated.View>
   );
 };
+
+const getBannerStyle = (sizePx: number): ViewStyle => ({
+  bottom: sizePx - 6,
+  left: "50%",
+  width: 200,
+  marginLeft: -100,
+});
+
+const getBadgeStyle = (sizePx: number): ViewStyle => ({
+  left: "50%",
+  width: sizePx,
+  height: sizePx,
+  marginLeft: -sizePx / 2,
+});
