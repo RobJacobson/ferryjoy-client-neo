@@ -1,30 +1,31 @@
+/**
+ * Expanding radar-style ring behind the active timeline indicator.
+ */
+
 import Animated from "react-native-reanimated";
-import {
-  DEFAULT_TIMELINE_INDICATOR_RADAR_PING_VARIANT,
-  getTimelineIndicatorRadarPingLayerStyles,
-  type TimelineIndicatorRadarPingVariant,
-} from "./timelineIndicatorRadarPingConfig";
+import type { TimelineVisualTheme } from "../theme";
+import { getTimelineIndicatorRadarPingStyle } from "./timelineIndicatorRadarPingConfig";
 
 type TimelineIndicatorRadarPingProps = {
   sizePx: number;
-  variant?: TimelineIndicatorRadarPingVariant;
+  theme: TimelineVisualTheme;
 };
 
+/**
+ * Animated ping ring sized from the indicator diameter and theme insets.
+ *
+ * @param sizePx - Outer indicator size used to derive ring diameter
+ * @param theme - Ping border, fill, and animation peak opacity
+ * @returns Non-interactive animated view for the ping layer
+ */
 export const TimelineIndicatorRadarPing = ({
   sizePx,
-  variant = DEFAULT_TIMELINE_INDICATOR_RADAR_PING_VARIANT,
+  theme,
 }: TimelineIndicatorRadarPingProps) => {
-  const layerStyles = getTimelineIndicatorRadarPingLayerStyles(variant, sizePx);
-
-  return (
-    <>
-      {layerStyles.map(({ key, style }) => (
-        <Animated.View
-          key={`${variant}-${key}`}
-          pointerEvents="none"
-          style={style}
-        />
-      ))}
-    </>
+  const pingStyle = getTimelineIndicatorRadarPingStyle(
+    theme.indicator.ping,
+    sizePx
   );
+
+  return <Animated.View pointerEvents="none" style={pingStyle} />;
 };

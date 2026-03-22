@@ -8,13 +8,16 @@
 import { BlurTargetView } from "expo-blur";
 import { type ComponentRef, useCallback, useRef, useState } from "react";
 import {
-  getBoundaryTopPx,
-  getTrackFractions,
+  BASE_TIMELINE_VISUAL_THEME,
   TimelineIndicatorOverlay,
   TimelineRow,
   TimelineRowContent,
   TimelineTrack,
 } from "@/components/timeline";
+import {
+  getBoundaryTopPx,
+  getTrackFractions,
+} from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type {
   RowLayoutBounds,
@@ -34,6 +37,7 @@ export const TimelineContent = ({
   rows: renderRows,
   activeIndicator,
 }: TimelineRenderState) => {
+  const theme = BASE_TIMELINE_VISUAL_THEME;
   const blurTargetRef = useRef<ComponentRef<typeof View> | null>(null);
   const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
     {}
@@ -48,7 +52,7 @@ export const TimelineContent = ({
   }, []);
 
   const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const { completedPercent, remainingPercent } = getTrackFractions(
+  const completedPercent = getTrackFractions(
     boundaryTopPx,
     CONTAINER_HEIGHT_PX
   );
@@ -63,7 +67,7 @@ export const TimelineContent = ({
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
           completedPercent={completedPercent}
-          remainingPercent={remainingPercent}
+          theme={theme}
         />
         {renderRows.map((row: TimelineRenderRow) => (
           <TimelineRow
@@ -74,13 +78,17 @@ export const TimelineContent = ({
             minHeight={row.isFinalRow ? 0 : undefined}
             onRowLayout={onRowLayout}
           >
-            <TimelineRowContent row={toSharedTimelineRenderRow(row)} />
+            <TimelineRowContent
+              row={toSharedTimelineRenderRow(row)}
+              theme={theme}
+            />
           </TimelineRow>
         ))}
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}
           blurTargetRef={blurTargetRef}
           rowLayouts={rowLayouts}
+          theme={theme}
         />
       </BlurTargetView>
     </View>
@@ -90,6 +98,6 @@ export const TimelineContent = ({
 const toSharedTimelineRenderRow = (row: TimelineRenderRow) => ({
   ...row,
   displayHeightPx: row.geometryMinutes,
-  startBoundary: row.startBoundary,
-  endBoundary: row.endBoundary,
+  startEvent: row.startBoundary,
+  endEvent: row.endBoundary,
 });

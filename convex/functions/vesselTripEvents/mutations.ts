@@ -8,12 +8,19 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
   applyLiveLocationToEvents,
+  buildEventKey,
+  canWriteLiveActuals,
+  getArrivalEligibilityTime,
   getLocationSailingDay,
+  isStrongArrival,
   mergeSeededVesselTripEvents,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTripEvents";
-import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import {
+  type ConvexVesselLocation,
+  vesselLocationValidationSchema,
+} from "functions/vesselLocation/schemas";
 import { type ConvexVesselTripEvent, vesselTripEventSchema } from "./schemas";
 
 /**
@@ -128,31 +135,16 @@ export const applyLiveUpdates = internalMutation({
   handler: async (ctx, args) => {
     for (const location of args.Locations) {
       const SailingDay = getLocationSailingDay(location);
-      const docs = await ctx.db
-        .query("vesselTripEvents")
-        .withIndex("by_vessel_and_sailing_day", (q) =>
-          q
-            .eq("VesselAbbrev", location.VesselAbbrev)
-            .eq("SailingDay", SailingDay)
-        )
-        .collect();
+      const docs = await getLiveUpdateCandidateDocs(ctx, location, SailingDay);
 
       if (docs.length === 0) {
         continue;
       }
 
-      const updatedEvents = normalizeScheduledDockSeams(
-        applyLiveLocationToEvents(
-          // Duplicate keys can exist during transitions, so normalize before
-          // applying live predictions to the ordered event sequence.
-          dedupeEventsById(toEventRecords(docs)).sort(sortVesselTripEvents),
-          location
-        )
+      const updatedEvents = applyLiveLocationToEvents(
+        toEventRecords(docs),
+        location
       );
-
-      for (const duplicateId of getDuplicateEventDocIds(docs)) {
-        await ctx.db.delete(duplicateId);
-      }
 
       await persistEventUpserts(ctx, indexEventDocs(docs), updatedEvents);
     }
@@ -160,6 +152,81 @@ export const applyLiveUpdates = internalMutation({
     return null;
   },
 });
+
+/**
+ * Collects the minimal set of persisted rows a live location tick can mutate.
+ *
+ * For scheduled ticks, this is limited to the keyed departure, keyed arrival,
+ * and the immediately preceding anchored arrival when present. For unanchored
+ * strong-arrival ticks, this falls back to the latest eligible unresolved
+ * arrival at the current terminal.
+ *
+ * @param ctx - Convex mutation context used for indexed point and range reads
+ * @param location - Live vessel location being applied to the read model
+ * @param SailingDay - Service day derived from the live location context
+ * @returns Persisted event documents that may be updated by this tick
+ */
+const getLiveUpdateCandidateDocs = async (
+  ctx: MutationCtx,
+  location: ConvexVesselLocation,
+  SailingDay: string
+) => {
+  const docsById = new Map<
+    Doc<"vesselTripEvents">["_id"],
+    Doc<"vesselTripEvents">
+  >();
+
+  const addDocs = (docs: Doc<"vesselTripEvents">[]) => {
+    for (const doc of docs) {
+      docsById.set(doc._id, doc);
+    }
+  };
+
+  if (location.ScheduledDeparture !== undefined) {
+    const departureKey = buildEventKey(
+      SailingDay,
+      location.VesselAbbrev,
+      location.ScheduledDeparture,
+      location.DepartingTerminalAbbrev,
+      "dep-dock"
+    );
+    const arrivalKey = buildEventKey(
+      SailingDay,
+      location.VesselAbbrev,
+      location.ScheduledDeparture,
+      location.DepartingTerminalAbbrev,
+      "arv-dock"
+    );
+
+    const departureDoc = await getEventDocByKey(ctx, departureKey);
+    const arrivalDoc = await getEventDocByKey(ctx, arrivalKey);
+    const anchoredArrivalDoc = await findAnchoredArrivalEventDoc(ctx, {
+      VesselAbbrev: location.VesselAbbrev,
+      SailingDay,
+      TerminalAbbrev: location.DepartingTerminalAbbrev,
+      ScheduledDepartureUpperBound: location.ScheduledDeparture,
+    });
+
+    addDocs(
+      [departureDoc, arrivalDoc, anchoredArrivalDoc].filter(
+        (doc): doc is Doc<"vesselTripEvents"> => doc != null
+      )
+    );
+  } else if (canWriteLiveActuals(location) && isStrongArrival(location)) {
+    const unresolvedArrivalDoc = await findEligibleArrivalEventDoc(ctx, {
+      VesselAbbrev: location.VesselAbbrev,
+      SailingDay,
+      TerminalAbbrev: location.DepartingTerminalAbbrev,
+      observedAt: location.TimeStamp,
+    });
+
+    if (unresolvedArrivalDoc) {
+      addDocs([unresolvedArrivalDoc]);
+    }
+  }
+
+  return Array.from(docsById.values());
+};
 
 /**
  * Deletes vesselTripEvents rows in batches so callers can purge the table
@@ -228,6 +295,96 @@ const persistEventUpserts = async (
 };
 
 /**
+ * Looks up a single vessel trip event by its stable read-model key.
+ *
+ * @param ctx - Convex mutation context used for the indexed lookup
+ * @param Key - Stable event identity key for the row to load
+ * @returns The matching document when present, otherwise `null`
+ */
+const getEventDocByKey = async (ctx: MutationCtx, Key: string) =>
+  await ctx.db
+    .query("vesselTripEvents")
+    .withIndex("by_key", (q) => q.eq("Key", Key))
+    .unique();
+
+/**
+ * Finds the most recent arrival row before the current scheduled departure
+ * anchor for the vessel/day/terminal context.
+ *
+ * @param ctx - Convex mutation context used for the indexed range lookup
+ * @param args - Anchor lookup parameters derived from the live location
+ * @returns The anchored arrival document when one exists, otherwise `undefined`
+ */
+const findAnchoredArrivalEventDoc = async (
+  ctx: MutationCtx,
+  args: {
+    VesselAbbrev: string;
+    SailingDay: string;
+    TerminalAbbrev: string;
+    ScheduledDepartureUpperBound: number;
+  }
+) => {
+  const query = ctx.db
+    .query("vesselTripEvents")
+    .withIndex("by_vessel_sailing_day_terminal_event_type_departure", (q) =>
+      q
+        .eq("VesselAbbrev", args.VesselAbbrev)
+        .eq("SailingDay", args.SailingDay)
+        .eq("TerminalAbbrev", args.TerminalAbbrev)
+        .eq("EventType", "arv-dock")
+        .lt("ScheduledDeparture", args.ScheduledDepartureUpperBound)
+    )
+    .order("desc");
+
+  for await (const doc of query) {
+    return doc;
+  }
+
+  return undefined;
+};
+
+/**
+ * Finds the latest unresolved arrival row that is already eligible to actualize
+ * for an unanchored strong-arrival tick.
+ *
+ * @param ctx - Convex mutation context used for the indexed range lookup
+ * @param args - Terminal-scoped arrival lookup parameters
+ * @returns The best eligible arrival document when present, otherwise `undefined`
+ */
+const findEligibleArrivalEventDoc = async (
+  ctx: MutationCtx,
+  args: {
+    VesselAbbrev: string;
+    SailingDay: string;
+    TerminalAbbrev: string;
+    observedAt: number;
+  }
+) => {
+  const query = ctx.db
+    .query("vesselTripEvents")
+    .withIndex("by_vessel_sailing_day_terminal_event_type_departure", (q) =>
+      q
+        .eq("VesselAbbrev", args.VesselAbbrev)
+        .eq("SailingDay", args.SailingDay)
+        .eq("TerminalAbbrev", args.TerminalAbbrev)
+        .eq("EventType", "arv-dock")
+    )
+    .order("desc");
+
+  for await (const doc of query) {
+    const event = toEventRecord(doc);
+    if (
+      event.ActualTime === undefined &&
+      getArrivalEligibilityTime(event) <= args.observedAt
+    ) {
+      return doc;
+    }
+  }
+
+  return undefined;
+};
+
+/**
  * Builds a map of persisted event documents keyed by event key.
  *
  * @param docs - Stored vessel trip event documents from Convex
@@ -285,29 +442,6 @@ const dedupeEventDocs = (docs: Doc<"vesselTripEvents">[]) =>
       { _id: Doc<"vesselTripEvents">["_id"]; event: ConvexVesselTripEvent }
     >())
   ).map(([, doc]) => doc);
-
-/**
- * Collects duplicate persisted row ids so callers can clean up dirty state
- * while preserving the last row seen for each event key.
- *
- * @param docs - Stored vessel trip event documents that may contain duplicates
- * @returns Duplicate document ids that are safe to delete
- */
-const getDuplicateEventDocIds = (docs: Doc<"vesselTripEvents">[]) => {
-  const duplicateIds: Doc<"vesselTripEvents">["_id"][] = [];
-  const latestDocIdByKey = new Map<string, Doc<"vesselTripEvents">["_id"]>();
-
-  for (const doc of docs) {
-    const previousId = latestDocIdByKey.get(doc.Key);
-    if (previousId) {
-      duplicateIds.push(previousId);
-    }
-
-    latestDocIdByKey.set(doc.Key, doc._id);
-  }
-
-  return duplicateIds;
-};
 
 /**
  * Compares two event payloads for storage-relevant equality.

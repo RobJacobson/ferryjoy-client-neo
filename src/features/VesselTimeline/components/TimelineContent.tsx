@@ -11,8 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
-  getBoundaryTopPx,
-  getTrackFractions,
   type RowLayoutBounds,
   TimelineIndicatorOverlay,
   TimelineRow,
@@ -20,6 +18,10 @@ import {
   TimelineTerminalCardBackgrounds,
   TimelineTrack,
 } from "@/components/timeline";
+import {
+  getBoundaryTopPx,
+  getTrackFractions,
+} from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type { VesselTimelineRenderState } from "../types";
 
@@ -35,6 +37,7 @@ export const TimelineContent = ({
   activeIndicator,
   contentHeightPx,
   layout,
+  theme,
 }: VesselTimelineRenderState) => {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const blurTargetRef = useRef<RNView | null>(null);
@@ -53,10 +56,7 @@ export const TimelineContent = ({
   }, []);
 
   const indicatorTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const { completedPercent, remainingPercent } = getTrackFractions(
-    indicatorTopPx,
-    contentHeightPx
-  );
+  const completedPercent = getTrackFractions(indicatorTopPx, contentHeightPx);
 
   useEffect(() => {
     if (
@@ -115,11 +115,12 @@ export const TimelineContent = ({
             <TimelineTerminalCardBackgrounds
               cards={terminalCards}
               blurTargetRef={blurTargetRef}
+              theme={theme}
             />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
               completedPercent={completedPercent}
-              remainingPercent={remainingPercent}
+              theme={theme}
             />
             {rows.map((row, _rowIndex) => (
               <TimelineRow
@@ -129,13 +130,14 @@ export const TimelineContent = ({
                 size={row.displayHeightPx}
                 onRowLayout={onRowLayout}
               >
-                <TimelineRowContent row={row} />
+                <TimelineRowContent row={row} theme={theme} />
               </TimelineRow>
             ))}
             <TimelineIndicatorOverlay
               overlayIndicator={activeIndicator}
               blurTargetRef={blurTargetRef}
               rowLayouts={rowLayouts}
+              theme={theme}
             />
           </BlurTargetView>
         </View>

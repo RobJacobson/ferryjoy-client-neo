@@ -57,13 +57,13 @@ describe("buildTimelineRows", () => {
 
     expect(renderState.rows).toHaveLength(5);
     expect(renderState.rows[2]?.kind).toBe("at-dock");
-    expect(renderState.rows[2]?.startBoundary.currTerminalAbbrev).toBe("VAI");
-    expect(renderState.rows[2]?.startBoundary.currTerminalDisplayName).toBe(
+    expect(renderState.rows[2]?.startEvent.currTerminalAbbrev).toBe("VAI");
+    expect(renderState.rows[2]?.startEvent.currTerminalDisplayName).toBe(
       "Vashon Is."
     );
-    expect(renderState.rows[2]?.startBoundary.isArrivalPlaceholder).toBeTrue();
+    expect(renderState.rows[2]?.startEvent.isArrivalPlaceholder).toBeTrue();
     expect(renderState.rows[3]?.kind).toBe("at-sea");
-    expect(renderState.rows[3]?.startBoundary.nextTerminalAbbrev).toBe("FAU");
+    expect(renderState.rows[3]?.startEvent.nextTerminalAbbrev).toBe("FAU");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([
       "top",
       "bottom",

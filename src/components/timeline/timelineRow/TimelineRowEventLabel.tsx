@@ -1,57 +1,35 @@
 /**
- * Left-column event label for timeline rows.
+ * Left column: short arrive/depart label with outline treatment.
  */
 
 import { Text, View } from "@/components/ui";
-import { TIMELINE_SIDE_COLUMN_OFFSET_PX } from "../config";
-import type { TimelineRenderBoundary } from "../types";
-import { TimelineShadowText } from "./TimelineShadowText";
+import type { TimelineVisualTheme } from "../theme";
+import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowEventLabelProps = {
-  boundary: TimelineRenderBoundary;
+  label: string;
+  theme: TimelineVisualTheme;
 };
 
 /**
- * Renders event label text and terminal name for a timeline row boundary.
+ * Outlined single-line label using the event label color from the theme.
  *
- * @param label - The boundary containing event and terminal data
- * @returns The label view or a spacer when no display text is available
+ * @param label - Preformatted string (e.g. `Arv: XX` or `To: YY`)
+ * @param theme - Event label color token
+ * @returns Relative wrapper around outlined text
  */
 export const TimelineRowEventLabel = ({
-  boundary,
-}: TimelineRowEventLabelProps) => {
-  const terminalDisplayName = boundary.currTerminalDisplayName;
-
-  const labelText =
-    boundary.eventType === "arrive"
-      ? boundary.currTerminalAbbrev
-        ? `Arv: ${boundary.currTerminalAbbrev}`
-        : "Arv"
-      : boundary.nextTerminalAbbrev
-        ? `To: ${boundary.nextTerminalAbbrev}`
-        : "Dep";
-
-  return (
-    <View
-      className="relative mx-2 mt-[-8px] flex-1 flex-row"
-      style={{ paddingRight: TIMELINE_SIDE_COLUMN_OFFSET_PX }}
-    >
-      {terminalDisplayName && boundary.eventType === "arrive" && (
-        <View className="absolute -top-8 -left-3 -rotate-[9deg]">
-          <TimelineShadowText>
-            <Text className="font-puffberry text-3xl text-purple-400">
-              {terminalDisplayName}
-            </Text>
-          </TimelineShadowText>
-        </View>
-      )}
-      <View className="flex-1 flex-row justify-end">
-        <TimelineShadowText>
-          <Text className="mt-[-6px] font-led-phatt text-lg text-purple-700">
-            {labelText}
-          </Text>
-        </TimelineShadowText>
-      </View>
-    </View>
-  );
-};
+  label,
+  theme,
+}: TimelineRowEventLabelProps) => (
+  <View className="relative">
+    <TimelineOutlinedText>
+      <Text
+        className="font-bitcount-500 text-lg"
+        style={{ color: theme.labels.eventLabelColor }}
+      >
+        {label}
+      </Text>
+    </TimelineOutlinedText>
+  </View>
+);

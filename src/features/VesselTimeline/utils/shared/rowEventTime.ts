@@ -1,3 +1,7 @@
+/**
+ * Shared time-precedence helpers for timeline row events.
+ */
+
 import type { TimelineRowEvent } from "../../types";
 
 export const getLayoutTime = (event: TimelineRowEvent) =>

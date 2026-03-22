@@ -10,7 +10,7 @@ import type {
   VesselTimelineLayoutConfig,
   VesselTimelinePolicy,
 } from "../../types";
-import { getDisplayTime } from "./timePrecedence";
+import { getDisplayTime } from "../shared/rowEventTime";
 
 const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
 
@@ -82,7 +82,6 @@ export const buildActiveIndicator = ({
 
   return {
     rowId: row.id,
-    rowIndex: activeRowIndex,
     positionPercent,
     label: getMinutesUntil(row.endEvent, now),
     title: vesselLocation?.VesselName,
@@ -236,6 +235,7 @@ const getMinutesUntil = (event: TimelineSemanticRow["endEvent"], now: Date) => {
     0,
     Math.ceil((targetTime.getTime() - now.getTime()) / 60_000)
   );
+
   return `${remainingMinutes}m`;
 };
 

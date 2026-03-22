@@ -5,6 +5,11 @@
  * day-level timeline content from the normalized vessel-centric data source.
  */
 
+import {
+  createTimelineVisualTheme,
+  type TimelineVisualTheme,
+  type TimelineVisualThemeOverrides,
+} from "@/components/timeline";
 import { Text, View } from "@/components/ui";
 import {
   ConvexVesselTripEventsProvider,
@@ -19,6 +24,7 @@ type VesselTimelineProps = {
   sailingDay: string;
   routeAbbrevs: string[];
   now?: Date;
+  theme?: TimelineVisualThemeOverrides;
 };
 
 /**
@@ -36,17 +42,23 @@ export const VesselTimeline = ({
   sailingDay,
   routeAbbrevs: _routeAbbrevs,
   now,
-}: VesselTimelineProps) => (
-  <ConvexVesselTripEventsProvider
-    vesselAbbrev={vesselAbbrev}
-    sailingDay={sailingDay}
-  >
-    <VesselTimelineContent now={now} />
-  </ConvexVesselTripEventsProvider>
-);
+  theme,
+}: VesselTimelineProps) => {
+  const resolvedTheme = createTimelineVisualTheme(theme);
+
+  return (
+    <ConvexVesselTripEventsProvider
+      vesselAbbrev={vesselAbbrev}
+      sailingDay={sailingDay}
+    >
+      <VesselTimelineContent now={now} theme={resolvedTheme} />
+    </ConvexVesselTripEventsProvider>
+  );
+};
 
 type VesselTimelineContentProps = {
   now?: Date;
+  theme: TimelineVisualTheme;
 };
 
 /**
@@ -56,7 +68,7 @@ type VesselTimelineContentProps = {
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @returns Loading, empty, error, or ready vessel timeline content
  */
-const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
+const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
   const nowMs = useNowMs(1000);
   const {
     VesselAbbrev,
@@ -104,7 +116,9 @@ const VesselTimelineContent = ({ now }: VesselTimelineContentProps) => {
   const renderState = getVesselTimelineRenderState(
     Events,
     VesselLocation,
-    now ?? new Date(nowMs)
+    now ?? new Date(nowMs),
+    undefined,
+    theme
   );
 
   return <TimelineContent {...renderState} />;

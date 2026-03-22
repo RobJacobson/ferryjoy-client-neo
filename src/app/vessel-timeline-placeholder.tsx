@@ -18,13 +18,23 @@ import {
 } from "@/components/ui/select";
 import { useConvexVesselLocations } from "@/data/contexts";
 import { GradientBackground } from "@/features/GradientBackground";
-import { VesselTimeline } from "@/features/VesselTimeline";
+import {
+  DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
+  getVesselTimelineDesignVariant,
+  VESSEL_TIMELINE_DESIGN_VARIANTS,
+  VesselTimeline,
+} from "@/features/VesselTimeline";
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 type VesselOption = {
   value: string;
   label: string;
   routeAbbrev?: string;
+};
+
+type DesignOption = {
+  value: string;
+  label: string;
 };
 
 /**
@@ -36,8 +46,19 @@ type VesselOption = {
 export default function VesselTimelinePlaceholderScreen() {
   const { vesselLocations, isLoading, error } = useConvexVesselLocations();
   const [selectedOption, setSelectedOption] = useState<VesselOption>();
+  const [selectedDesign, setSelectedDesign] = useState<DesignOption>({
+    value: DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
+    label: getVesselTimelineDesignVariant(
+      DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID
+    ).label,
+  });
 
   const sailingDay = getSailingDay(new Date());
+  const designOptions = VESSEL_TIMELINE_DESIGN_VARIANTS.map((variant) => ({
+    value: variant.id,
+    label: variant.label,
+  }));
+  const selectedVariant = getVesselTimelineDesignVariant(selectedDesign.value);
   const vesselOptions = vesselLocations
     .slice()
     .sort((left, right) => left.VesselName.localeCompare(right.VesselName))
@@ -64,7 +85,11 @@ export default function VesselTimelinePlaceholderScreen() {
   }, [selectedOption, vesselLocations, vesselOptions]);
 
   return (
-    <GradientBackground backgroundColor="#F5EFE3">
+    <GradientBackground
+      backgroundColor={selectedVariant.backgroundColor}
+      colors={selectedVariant.backgroundColors}
+      overlayColor={selectedVariant.backgroundOverlayColor}
+    >
       <View className="flex-1">
         <Stack.Screen
           options={{
@@ -73,11 +98,42 @@ export default function VesselTimelinePlaceholderScreen() {
           }}
         />
         <View className="gap-4 px-4 py-4">
-          <Text className="font-semibold text-lg">
+          <Text className="font-semibold text-lg text-slate-900">
             Placeholder Vessel Timeline
           </Text>
-          <Text className="text-muted-foreground text-sm">
+          <Text className="text-slate-700 text-sm">
             Select a vessel to preview the day-level timeline implementation.
+          </Text>
+          <Select
+            value={selectedDesign}
+            onValueChange={(option) => {
+              if (option) {
+                setSelectedDesign(option);
+              }
+            }}
+          >
+            <SelectTrigger className="border-white bg-white">
+              <SelectValue
+                placeholder="Select a design variant"
+                className="font-medium text-slate-900"
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <NativeSelectScrollView>
+                {designOptions.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    label={option.label}
+                  >
+                    <Text>{option.label}</Text>
+                  </SelectItem>
+                ))}
+              </NativeSelectScrollView>
+            </SelectContent>
+          </Select>
+          <Text className="text-slate-700 text-xs">
+            {selectedVariant.description}
           </Text>
           {isLoading ? (
             <Text className="text-muted-foreground text-sm">
@@ -91,8 +147,11 @@ export default function VesselTimelinePlaceholderScreen() {
             </Text>
           ) : (
             <Select value={selectedOption} onValueChange={setSelectedOption}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a vessel" />
+              <SelectTrigger className="border-white bg-white">
+                <SelectValue
+                  placeholder="Select a vessel"
+                  className="font-medium text-slate-900"
+                />
               </SelectTrigger>
               <SelectContent>
                 <NativeSelectScrollView>
@@ -117,6 +176,7 @@ export default function VesselTimelinePlaceholderScreen() {
             routeAbbrevs={
               selectedOption.routeAbbrev ? [selectedOption.routeAbbrev] : []
             }
+            theme={selectedVariant.timelineTheme}
           />
         ) : (
           <View className="flex-1 items-center justify-center px-6">

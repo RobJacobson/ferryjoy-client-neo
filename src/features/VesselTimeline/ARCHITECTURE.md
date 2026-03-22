@@ -138,7 +138,7 @@ Important characteristics:
 - each physical scheduled segment contributes two event boundaries:
   - departure from a terminal
   - arrival at a terminal
-- the identity anchor is:
+  - the identity anchor is:
   - `Key = SailingDay--VesselAbbrev--ScheduledDepartureIsoUtc--DepartingTerminalAbbrev--EventKind`
 
 ### `vesselTripEvents` table
@@ -161,7 +161,7 @@ Stored fields:
 
 This table exists specifically to support `VesselTimeline`. It is intentionally
 smaller than the trip lifecycle tables and is not an audit log. It is a mutable
-read model that stores the best current boundary data for one vessel/day.
+read model that stores the best current event data for one vessel/day.
 
 ### Schedule seeding and historical backfill
 
@@ -223,7 +223,7 @@ shape, and passes the same location batch to three parallel backend branches:
 2. update trip lifecycle tables via `vesselTrips/updates`
 3. update `vesselTripEvents`
 
-For `VesselTimeline`, live updates use lightweight boundary rules rather than
+For `VesselTimeline`, live updates use lightweight event rules rather than
 the full trip lifecycle model. Their main job is to refine in-progress and
 future rows after the daily rebuild has already populated completed rows from
 schedule/history sources.
@@ -385,12 +385,12 @@ WSF vessel locations
   -> VesselOrchestrator fetch + conversion
   -> store vesselLocations
   -> update vesselTrips lifecycle tables
-  -> enrich vesselTripEvents with predicted/actual boundary times
+  -> enrich vesselTripEvents with predicted/actual event times
 
 Frontend VesselTimeline
   -> query vesselTripEvents for vessel/day
   -> fetch current VesselLocation
-  -> convert ordered events to boundaries
-  -> convert boundaries to dock/sea rows
+  -> convert ordered events to render events
+  -> convert render events to dock/sea rows
   -> render timeline + active indicator
 ```

@@ -1,5 +1,5 @@
 /**
- * Animated position hook for the overlay indicator.
+ * Smoothly animates a scalar toward a new target (indicator vertical position).
  */
 
 import { useEffect } from "react";
@@ -12,6 +12,12 @@ const EASE_IN_OUT_CONFIG = {
   easing: Easing.inOut(Easing.quad),
 } as const;
 
+/**
+ * Drives a shared value with timing whenever `value` changes.
+ *
+ * @param value - Next target (e.g. indicator `top` in pixels)
+ * @returns Reanimated shared value reflecting the eased transition
+ */
 export const useAnimatedProgress = (value: number) => {
   const animatedProgress = useSharedValue(value);
 

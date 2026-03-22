@@ -75,7 +75,14 @@ export default defineSchema({
   vesselTripEvents: defineTable(vesselTripEventSchema)
     .index("by_key", ["Key"])
     .index("by_sailing_day", ["SailingDay"])
-    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
+    .index("by_vessel_sailing_day_terminal_event_type_departure", [
+      "VesselAbbrev",
+      "SailingDay",
+      "TerminalAbbrev",
+      "EventType",
+      "ScheduledDeparture",
+    ]),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)

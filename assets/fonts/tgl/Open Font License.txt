@@ -1,5 +1,5 @@
-Copyright (c) 2009, Peter Wiegel, www.peter-wiegel.de, wiegel@peter-wiegel.de
-with Reserved Font Name 24 LED.
+Copyright (c) 2010, Peter Wiegel, www.peter-wiegel.de, wiegel@peter-wiegel.de
+with Reserved Font Names TGL 0-16 and TGL 0-17.
 
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

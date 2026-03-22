@@ -40,8 +40,8 @@ module.exports = {
         "playpen-600": ["PlaypenSans-SemiBold"],
         "playpen-700": ["PlaypenSans-Bold"],
         "playpen-800": ["PlaypenSans-ExtraBold"],
-        "led-phatt": ["LedPhattt"],
-        "led-board": ["AdvancedLedBoard7"],
+        "tgl-0": ["tgl-0"],
+        "tgl-31034": ["tgl-31034"],
       },
       boxShadow: {
         glass: "2px 2px 5px rgba(0, 0, 0, 0.05)",

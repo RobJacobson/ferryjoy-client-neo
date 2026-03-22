@@ -1,8 +1,9 @@
 /**
- * Shared UI types for vertical timeline renderer components.
+ * Shared rendering contract for vertical timeline UI.
  *
- * These types intentionally capture only the rendering contract required by
- * the shared timeline components, not the feature-specific pipeline models.
+ * Describes row content, markers, and the active indicator as consumed by
+ * `src/components/timeline`. Feature pipelines map domain data into these
+ * shapes; this module stays presentation-only.
  */
 
 export type TimelineSegmentKind = "at-dock" | "at-sea";
@@ -15,7 +16,7 @@ export type TimelineTimePoint = {
   estimated?: Date;
 };
 
-export type TimelineRenderBoundary = {
+export type TimelineRenderEvent = {
   eventType: TimelineEventType;
   currTerminalAbbrev?: string;
   currTerminalDisplayName?: string;
@@ -30,14 +31,13 @@ export type TimelineRenderRow = {
   markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
   displayHeightPx: number;
-  startBoundary: TimelineRenderBoundary;
-  endBoundary?: TimelineRenderBoundary;
+  startEvent: TimelineRenderEvent;
+  endEvent?: TimelineRenderEvent;
   isFinalRow: boolean;
 };
 
 export type TimelineActiveIndicator = {
   rowId: string;
-  rowIndex: number;
   positionPercent: number;
   label: string;
   title?: string;
@@ -52,8 +52,7 @@ export type RowLayoutBounds = {
 };
 
 /**
- * Pre-computed geometry for a terminal card background.
- * Used by TimelineTerminalCardBackgrounds for "at terminal" highlight regions.
+ * Pre-computed layout for a blurred terminal highlight behind timeline rows.
  */
 export type TerminalCardGeometry = {
   id: string;
