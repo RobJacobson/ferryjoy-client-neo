@@ -31,6 +31,90 @@ type TimelineIndicatorProps = {
   theme: TimelineVisualTheme;
 };
 
+type RenderIndicatorContentParams = Pick<
+  TimelineIndicatorProps,
+  "blurTargetRef" | "label" | "title" | "subtitle" | "theme"
+> & {
+  sizePx: number;
+};
+
+const BANNER_MAX_WIDTH_PX = 400;
+
+/**
+ * Absolutely positioned indicator with vertical motion and optional rocking.
+ *
+ * @param blurTargetRef - Blur sampling target for glass child surfaces
+ * @param topPx - Desired top offset before animated smoothing
+ * @param label - Short badge text (e.g. vessel or status)
+ * @param title - Optional banner title
+ * @param subtitle - Optional banner subtitle
+ * @param animate - When true, applies speed-based rocking
+ * @param speedKnots - Speed input for rocking cadence
+ * @param sizePx - Width and height of the circular indicator
+ * @param theme - Indicator colors and ping styling
+ * @returns Animated indicator subtree aligned to the track column
+ */
+export const TimelineIndicator = ({
+  blurTargetRef,
+  topPx,
+  label,
+  title,
+  subtitle,
+  animate = false,
+  speedKnots = 0,
+  sizePx = TIMELINE_INDICATOR_SIZE_PX,
+  theme,
+}: TimelineIndicatorProps) => {
+  const progress = useAnimatedProgress(topPx);
+  const rockingStyle = useRockingAnimation(animate, speedKnots);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      top: progress.value,
+    };
+  }, [progress]);
+
+  const contentParams = {
+    blurTargetRef,
+    label,
+    title,
+    subtitle,
+    sizePx,
+    theme,
+  };
+
+  return (
+    <Animated.View
+      style={[
+        { position: "absolute", left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
+        animatedStyle,
+        rockingStyle,
+      ]}
+    >
+      {renderBanner(contentParams)}
+      <View style={getBadgeAnchorStyle(sizePx)}>
+        <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
+        {renderBadge(contentParams)}
+      </View>
+    </Animated.View>
+  );
+};
+
+const getBannerStyle = (sizePx: number): ViewStyle => ({
+  bottom: sizePx / 2 - 6,
+  left: -BANNER_MAX_WIDTH_PX / 2,
+  width: BANNER_MAX_WIDTH_PX,
+});
+
+const getBadgeAnchorStyle = (sizePx: number): ViewStyle => ({
+  top: 0,
+  left: 0,
+  ...getAbsoluteCenteredBoxStyle({
+    width: sizePx,
+    height: sizePx,
+  }),
+});
+
 type IndicatorGlassProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
   className?: string;
@@ -71,107 +155,68 @@ const IndicatorGlass = ({
   </View>
 );
 
-const BANNER_MAX_WIDTH_PX = 400;
-
-/**
- * Absolutely positioned indicator with vertical motion and optional rocking.
- *
- * @param blurTargetRef - Blur sampling target for glass child surfaces
- * @param topPx - Desired top offset before animated smoothing
- * @param label - Short badge text (e.g. vessel or status)
- * @param title - Optional banner title
- * @param subtitle - Optional banner subtitle
- * @param animate - When true, applies speed-based rocking
- * @param speedKnots - Speed input for rocking cadence
- * @param sizePx - Width and height of the circular indicator
- * @param theme - Indicator colors and ping styling
- * @returns Animated indicator subtree aligned to the track column
- */
-export const TimelineIndicator = ({
+const renderBanner = ({
   blurTargetRef,
-  topPx,
-  label,
   title,
   subtitle,
-  animate = false,
-  speedKnots = 0,
-  sizePx = TIMELINE_INDICATOR_SIZE_PX,
+  sizePx,
   theme,
-}: TimelineIndicatorProps) => {
-  const progress = useAnimatedProgress(topPx);
-  const rockingStyle = useRockingAnimation(animate, speedKnots);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      top: progress.value,
-    };
-  }, [progress]);
+}: RenderIndicatorContentParams) => {
+  if (!title && !subtitle) {
+    return null;
+  }
 
   return (
-    <Animated.View
-      style={[
-        getAbsoluteCenteredBoxStyle({
-          width: sizePx,
-          height: sizePx,
-          isVertical: true,
-        }),
-        { left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
-        animatedStyle,
-        rockingStyle,
-      ]}
+    <View
+      pointerEvents="none"
+      className="absolute items-center"
+      style={getBannerStyle(sizePx)}
     >
-      <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
-      {title || subtitle ? (
-        <View
-          pointerEvents="none"
-          className="absolute items-center"
-          style={getBannerStyle(sizePx)}
-        >
-          <IndicatorGlass
-            blurTargetRef={blurTargetRef}
-            theme={theme}
-            style={{ maxWidth: BANNER_MAX_WIDTH_PX }}
-            contentClassName="items-center px-4 py-1"
-          >
-            {title ? (
-              <Text
-                className="text-center font-playpen-600 leading-tight"
-                style={{ color: theme.indicator.bannerTitleColor }}
-              >
-                {title}
-              </Text>
-            ) : null}
-            {subtitle ? (
-              <Text
-                className="text-center font-playpen-300 text-sm leading-tight"
-                style={{ color: theme.indicator.bannerSubtitleColor }}
-              >
-                {subtitle}
-              </Text>
-            ) : null}
-          </IndicatorGlass>
-        </View>
-      ) : null}
       <IndicatorGlass
         blurTargetRef={blurTargetRef}
         theme={theme}
-        className="absolute"
-        style={{ width: sizePx, height: sizePx }}
-        contentClassName="h-full w-full items-center justify-center"
+        style={{ maxWidth: BANNER_MAX_WIDTH_PX }}
+        contentClassName="items-center px-4 py-1"
       >
-        <Text
-          className="font-playpen-600"
-          style={{ color: theme.indicator.badgeLabelColor }}
-        >
-          {label}
-        </Text>
+        {title ? (
+          <Text
+            className="text-center font-playpen-600 leading-tight"
+            style={{ color: theme.indicator.bannerTitleColor }}
+          >
+            {title}
+          </Text>
+        ) : null}
+        {subtitle ? (
+          <Text
+            className="text-center font-playpen-300 text-sm leading-tight"
+            style={{ color: theme.indicator.bannerSubtitleColor }}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
       </IndicatorGlass>
-    </Animated.View>
+    </View>
   );
 };
 
-const getBannerStyle = (sizePx: number): ViewStyle => ({
-  bottom: sizePx - 6,
-  left: sizePx / 2 - BANNER_MAX_WIDTH_PX / 2,
-  width: BANNER_MAX_WIDTH_PX,
-});
+const renderBadge = ({
+  blurTargetRef,
+  label,
+  sizePx,
+  theme,
+}: RenderIndicatorContentParams) => (
+  <IndicatorGlass
+    blurTargetRef={blurTargetRef}
+    theme={theme}
+    className="absolute"
+    style={{ width: sizePx, height: sizePx }}
+    contentClassName="h-full w-full items-center justify-center"
+  >
+    <Text
+      className="font-playpen-600"
+      style={{ color: theme.indicator.badgeLabelColor }}
+    >
+      {label}
+    </Text>
+  </IndicatorGlass>
+);

@@ -122,10 +122,7 @@ type TimelineOutlinedIconProps = {
  * @param color - Foreground icon color
  * @returns Outlined icon view
  */
-const TimelineOutlinedIcon = ({
-  Icon,
-  color,
-}: TimelineOutlinedIconProps) => (
+const TimelineOutlinedIcon = ({ Icon, color }: TimelineOutlinedIconProps) => (
   <View className="relative">
     <View className="absolute top-0 left-0">
       <Icon
