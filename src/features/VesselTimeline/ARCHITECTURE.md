@@ -5,28 +5,33 @@ feature.
 
 `VesselTimeline` renders one continuous day timeline for one vessel on one
 requested sailing day. The feature is event-based: the backend assembles a
-minimal ordered list of dock events, and the frontend converts adjacent event
-pairs into dock and sea rows for display.
+minimal ordered list of dock boundary events, and the frontend converts adjacent
+event pairs into dock and sea rows for display.
 
 ## Scope
 
-Public API:
+Public API (see `VesselTimeline.tsx`):
 
 ```ts
+// `TimelineVisualThemeOverrides` is imported from `@/components/timeline`.
 type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
   routeAbbrevs: string[];
   now?: Date;
+  theme?: TimelineVisualThemeOverrides;
 };
 ```
 
 Notes:
 
-- `vesselAbbrev` and `sailingDay` define the vessel/day scope.
-- `routeAbbrevs` remains part of the feature API for flexibility, but the
-  underlying data model is vessel-centric.
+- `vesselAbbrev` and `sailingDay` define the vessel/day scope passed into
+  `ConvexVesselTripEventsProvider`.
+- `routeAbbrevs` is kept for callers and screen composition but is **not** read
+  by the timeline pipeline today (the data path is vessel-centric only).
 - `now` is optional and mainly supports deterministic rendering and tests.
+- `theme` is optional; it is merged via `createTimelineVisualTheme` and flows
+  through `getVesselTimelineRenderState` into shared timeline components.
 
 ## Product Decisions
 
@@ -35,17 +40,26 @@ Notes:
 The visible timeline is a service-day timeline, not a literal 3:00 AM to
 2:59 AM berth-occupancy timeline.
 
+Product intent:
+
 - Start at the vessel's first scheduled departure for the requested sailing
   day.
 - End at the vessel's last scheduled arrival for the requested sailing day.
 - Overnight pre-service and post-service berth occupancy are not rendered as
   full proportional dock periods.
 
+In code, the rendered window is exactly the ordered `Events` returned for that
+`VesselAbbrev` + `SailingDay`; bounding the feed to first departure / last
+arrival is a **backend seeding** responsibility (`vesselTripEvents`), not
+something the React feature recomputes from raw schedule tables.
+
 ### Sailing-day boundary
 
-The upstream day cutoff remains:
-
-- `4:00 AM` local time to decide "yesterday" vs "today"
+Sailing day for labels, queries, and `getSailingDay` is defined in Pacific time
+as **3:00 AM through 2:59 AM** (times before 3:00 AM Pacific belong to the
+previous calendar day’s sailing day). See `convex/shared/time.ts`
+(`getSailingDay`). Some cron or action comments elsewhere may still mention
+4:00 AM; the implemented cutoff is 3:00 AM Pacific.
 
 ### Single-vessel v1
 
@@ -54,18 +68,20 @@ Version 1 remains scoped to one vessel at a time.
 ### Minimal backend contract
 
 The backend owns reconciliation and returns only the minimum event data needed
- to render the timeline.
+to render the timeline.
 
 - The frontend does not merge `ScheduledTrip`, `ActiveVesselTrip`, and
   `CompletedVesselTrip` records anymore.
-- The frontend receives a sorted array of vessel/day events.
+- The frontend receives a sorted array of vessel/day events (via Convex query;
+  see below).
 - The frontend still owns row construction, dock/sea segmentation, compression,
   indicator behavior, and visual rendering.
 
 ### Long dock periods
 
 Long dock periods are still represented as real dock spans, but they are
-compressed in the UI.
+compressed in the UI. Defaults live in `DEFAULT_VESSEL_TIMELINE_POLICY`
+(`getVesselTimelineRenderState.ts`).
 
 - dock segment `< 60 min`: render proportionally
 - dock segment `>= 60 min`: render as a compressed break row
@@ -73,7 +89,8 @@ compressed in the UI.
 Compressed break row layout:
 
 - visible arrival stub: `10 min`
-- break marker: explicit visual discontinuity
+- break marker: explicit visual discontinuity (`compressedBreakMarkerHeightPx`
+  in layout config)
 - visible departure window: `50 min`
 
 ### Off-schedule / out-of-service behavior
@@ -86,11 +103,12 @@ Primary signals:
 - `VesselLocation.InService === false`
 - live vessel state no longer aligns with expected progression
 
-Behavior:
+Current UI behavior (see `getActiveRowIndex.ts` / `TimelineContent.tsx`):
 
-- keep the timeline visible
-- keep the active indicator visible
-- freeze or warn when live state is unreliable
+- Timeline and active indicator stay on screen when data loads.
+- When `InService === false`, the indicator stops speed-based rocking
+  (`animate` is gated off); there is not yet a dedicated “unreliable live data”
+  banner—treat richer warnings as future work if product requires them.
 
 ## Why This Is A Separate Feature
 
@@ -111,11 +129,17 @@ while still sharing generic timeline presentation primitives with
 
 ### Backend-owned event feed
 
-The current backend contract is a vessel/day event feed returned by:
+The client loads the vessel/day feed with:
 
-- `functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
+- `api.functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
+  (Convex: `functions/vesselTripEvents/queries.ts`)
 
-The query returns:
+The query returns `{ VesselAbbrev, SailingDay, Events }`. Each persisted event
+uses epoch milliseconds for timestamps; `ConvexVesselTripEventsContext` maps
+rows through `toDomainVesselTripEvent` so the React tree sees `Date` fields.
+
+Domain / UI shape (alias: `VesselTimelineEvent` = `VesselTripEvent` in
+`ConvexVesselTripEventsContext.tsx`):
 
 ```ts
 type VesselTimelineEvent = {
@@ -134,12 +158,19 @@ type VesselTimelineEvent = {
 Important characteristics:
 
 - events are scoped to one vessel and one sailing day
-- events are returned already sorted
-- each physical scheduled segment contributes two event boundaries:
-  - departure from a terminal
-  - arrival at a terminal
-  - the identity anchor is:
-  - `Key = SailingDay--VesselAbbrev--ScheduledDepartureIsoUtc--DepartingTerminalAbbrev--EventKind`
+- the query sorts and **dedupes by `Key`**, then applies
+  `normalizeScheduledDockSeams` before returning
+- each direct physical scheduled segment contributes two event boundaries:
+  - departure from a terminal (`dep-dock`)
+  - arrival at a terminal (`arv-dock`)
+- stable row identity uses `buildEventKey` in
+  `convex/domain/vesselTripEvents/liveUpdates.ts`:
+
+`Key = SailingDay--VesselAbbrev--<ScheduledDeparture ISO with "T" replaced by "--">--DepartingTerminalAbbrev--dep|arv`
+
+  - The fourth segment is always the segment’s **departing** terminal abbrev
+    (same for both dep and arrival rows for that segment).
+  - The suffix is `dep` or `arv` (not `dep-dock` / `arv-dock`).
 
 ### `vesselTripEvents` table
 
@@ -178,22 +209,16 @@ creates seed events only from direct segments. For each direct segment:
 - create one `dep-dock` event
 - create one `arv-dock` event
 
-Field creation rules:
+Field creation rules (see `convex/domain/vesselTripEvents/seed.ts`):
 
-- `Key`
-  - `VesselAbbrev + ScheduledDeparture + EventType`
-- `ScheduledDeparture`
-  - segment departure time
-- `TerminalAbbrev`
-  - departing terminal for `dep-dock`
-  - arriving terminal for `arv-dock`
-- `ScheduledTime`
-  - departure event: `DepartingTime`
-  - arrival event: `ArrivingTime ?? SchedArriveNext`
-- `PredictedTime`
-  - omitted at seed time
-- `ActualTime`
-  - omitted at raw schedule seed time
+- `Key`: from `buildEventKey` (see above), not a naive concatenation of fields
+- `ScheduledDeparture`: segment departure time (epoch ms in Convex)
+- `TerminalAbbrev`: departing terminal for `dep-dock`, arriving terminal for
+  `arv-dock`
+- `ScheduledTime`: departure event: segment departure; arrival event:
+  `ArrivingTime ?? SchedArriveNext` (normalized)
+- `PredictedTime`: omitted at seed time
+- `ActualTime`: omitted at raw schedule seed time
 
 After the direct schedule skeleton is built, the backend may backfill completed
 rows from WSF vessel history:
@@ -217,11 +242,12 @@ This creates a stable vessel/day event skeleton before any live data arrives.
 Live `VesselLocation` updates enrich the seeded event rows in place.
 
 The orchestrator fetches vessel locations once, converts them to the Convex
-shape, and passes the same location batch to three parallel backend branches:
+shape, and passes the same location batch to three error-isolated backend
+branches (`convex/functions/vesselOrchestrator/actions.ts`):
 
-1. store the latest `vesselLocations`
-2. update trip lifecycle tables via `vesselTrips/updates`
-3. update `vesselTripEvents`
+1. store the latest `vesselLocations` (`bulkUpsert`)
+2. update trip lifecycle tables via `runUpdateVesselTrips`
+3. update `vesselTripEvents` via `applyLiveUpdates`
 
 For `VesselTimeline`, live updates use lightweight event rules rather than
 the full trip lifecycle model. Their main job is to refine in-progress and
@@ -260,11 +286,14 @@ Field precedence:
   - `ActualTime` is the best truth when present
   - `PredictedTime` is mutable and may be overwritten by better live data
   - `ScheduledTime` remains the fallback baseline
-- layout geometry:
+- layout geometry (frontend `getLayoutTime` in `rowEventTime.ts`):
   - `ScheduledTime` is the stable baseline for row sizing and positioning
   - `ActualTime` is the fallback when schedule time is missing
   - `PredictedTime` is the last-resort fallback when neither scheduled nor
     actual time exists
+
+Presentation rows map `PredictedTime` into the shared type’s `estimated` time
+field (`TimelineTimePoint.estimated` in `src/components/timeline/types.ts`).
 
 ### Frontend context
 
@@ -272,10 +301,10 @@ Field precedence:
 
 - `src/data/contexts/convex/ConvexVesselTripEventsContext.tsx`
 
-Current context value:
+Hook: `useConvexVesselTripEvents()`. Typical value shape:
 
 ```ts
-type ConvexVesselTripEventsContextType = {
+type ConvexVesselTripEventsValue = {
   VesselAbbrev: string;
   SailingDay: string;
   Events: VesselTimelineEvent[];
@@ -284,6 +313,12 @@ type ConvexVesselTripEventsContextType = {
   Error: string | null;
 };
 ```
+
+Data sources:
+
+- `getVesselDayTimelineEvents` for `Events`
+- `api.functions.vesselLocation.queries.getByVesselAbbrev` for
+  `VesselLocation`
 
 Responsibilities:
 
@@ -296,12 +331,14 @@ client-side.
 
 ## Frontend Pipeline
 
-The frontend pipeline is event-based and intentionally small.
+The frontend pipeline is event-based and intentionally small. The orchestration
+entry point is `getVesselTimelineRenderState` in
+`utils/pipeline/getVesselTimelineRenderState.ts`.
 
 ### Stage 1: Row construction
 
-`buildTimelineRows.ts` builds semantic rows directly from adjacent
-`VesselTimelineEvent` pairs.
+`utils/pipeline/buildTimelineRows.ts` builds **semantic** rows directly from
+adjacent `VesselTimelineEvent` pairs.
 
 Rules:
 
@@ -312,51 +349,55 @@ Rules:
 - sea row:
   - current event is `dep-dock`
   - next event is `arv-dock`
+- arrival placeholder dock row:
+  - when a sea row starts at a `dep-dock` that is **not** immediately preceded
+    by an `arv-dock` at the same terminal, insert a zero-duration placeholder
+    dock row so the UI still has an “arrival” side for that terminal
 - terminal tail row:
   - if the final event is an arrival, append a zero-duration terminal row
+    (`isTerminal`)
 
-Each row is represented by:
+Each semantic row carries:
 
-- `startEvent`
-- `endEvent`
-- row kind
-- display mode
-- duration metadata
+- `startEvent` / `endEvent` (`TimelineRowEvent`: backend fields plus display
+  name / placeholder flags)
+- `kind` (`dock` | `sea`)
+- `displayMode` (`proportional` | `compressed-dock-break`)
+- `actualDurationMinutes` and `displayDurationMinutes`
 
-Duration calculations intentionally use schedule-first layout precedence:
+Duration calculations use **schedule-first layout precedence** via
+`getLayoutTime` (`ScheduledTime` → `ActualTime` → `PredictedTime`). That keeps
+row heights stable as live predictions and actuals arrive. Labels and the
+active indicator use **display-first** times via `getDisplayTime` (`ActualTime`
+→ `PredictedTime` → `ScheduledTime`).
 
-- `scheduled`
-- `actual`
-- `estimated`
+### Stage 2: Active row, layout, and render state
 
-This keeps row heights and positions stable as live predictions and actuals
-arrive throughout the day. Live times are still preserved for labels and
-indicator behavior.
+Still inside `getVesselTimelineRenderState`:
 
-### Stage 2: Active row and layout
+1. **`getAdaptivePixelsPerMinute`**: scales vertical density from event count
+   (clamped), then builds an effective layout `{ ...layout, pixelsPerMinute }`.
+2. **`getActiveRowIndex`** (`getActiveRowIndex.ts`): chooses the semantic row
+   that owns the indicator (actual-backed “in progress” row preferred, else
+   time window, else edges). `VesselLocation` is reserved for future selection
+   rules; indicator **position within** the row uses location heavily.
+3. **`getLayoutTimelineRows`**: converts semantic rows to
+   `TimelineRenderRow[]`, marker past/future from the active index, terminal
+   card geometry, and `contentHeightPx`.
+4. **`buildActiveIndicator`**: builds `TimelineActiveIndicator | null` (badge,
+   banner copy, sea speed / distance subtitle, `animate` + `speedKnots`).
 
-The later pipeline steps derive:
-
-- the active row
-- active indicator state
-- pixel heights
-- terminal card geometry
-- final render rows for the shared timeline renderer
-
-The frontend still owns:
-
-- dock/sea segmentation
-- compressed long-dock behavior
-- active row selection
-- indicator positioning
-- warning presentation
+The UI layer (`components/TimelineContent.tsx`) only consumes
+`VesselTimelineRenderState`: shared timeline components render rows, track,
+terminal blurs, and `TimelineIndicatorOverlay`.
 
 `VesselLocation` remains important even though the timeline rows come from
 events:
 
-- it helps place the active indicator within the current row
+- it helps place the active indicator within the current row (especially at
+  sea, via distance or time progress)
 - it contributes at-dock vs at-sea presentation details
-- it surfaces out-of-service warning state
+- `InService` gates rocking animation on the indicator
 
 ## Source Of Truth Boundaries
 
@@ -388,9 +429,10 @@ WSF vessel locations
   -> enrich vesselTripEvents with predicted/actual event times
 
 Frontend VesselTimeline
-  -> query vesselTripEvents for vessel/day
-  -> fetch current VesselLocation
-  -> convert ordered events to render events
-  -> convert render events to dock/sea rows
-  -> render timeline + active indicator
+  -> getVesselDayTimelineEvents + getByVesselAbbrev (via context)
+  -> getVesselTimelineRenderState
+       -> buildTimelineRows (events -> semantic dock/sea rows)
+       -> getActiveRowIndex + buildActiveIndicator
+       -> getLayoutTimelineRows (semantic rows -> TimelineRenderRow + cards)
+  -> TimelineContent: shared timeline components + indicator overlay
 ```
