@@ -23,7 +23,7 @@ export const TimelineRowEventLabel = ({
   theme,
 }: TimelineRowEventLabelProps) => (
   <View className="relative">
-    <TimelineOutlinedText>
+    <TimelineOutlinedText outlineColor={theme.outlines.color}>
       <Text
         className="font-bitcount-500 text-lg"
         style={{ color: theme.labels.eventLabelColor }}

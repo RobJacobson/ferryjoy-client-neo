@@ -21,8 +21,6 @@ import { TimelineOutlinedText } from "./TimelineOutlinedText";
 const EVENT_TIME_ICON_SIZE_PX = 22;
 const EVENT_TIME_ICON_STROKE_WIDTH = 2;
 const EVENT_TIME_ICON_OUTLINE_WIDTH = 2;
-const EVENT_TIME_ICON_OUTLINE_COLOR = "rgba(255, 255, 255, 1)";
-
 const eventTypeIcons = {
   actual: Timer,
   scheduled: CalendarClock,
@@ -101,8 +99,12 @@ const TimelineRowEventTime = ({
   theme,
 }: TimelineRowEventTimeProps) => (
   <View className={cn("flex-row", rowClassName)}>
-    <TimelineOutlinedIcon Icon={Icon} color={theme.times.iconColor} />
-    <TimelineOutlinedText>
+    <TimelineOutlinedIcon
+      Icon={Icon}
+      color={theme.times.iconColor}
+      outlineColor={theme.outlines.color}
+    />
+    <TimelineOutlinedText outlineColor={theme.outlines.color}>
       <Text
         className="font-bitcount-500 text-lg"
         style={{ color: theme.times.textColor }}
@@ -116,6 +118,7 @@ const TimelineRowEventTime = ({
 type TimelineOutlinedIconProps = {
   Icon: LucideIcon;
   color: string;
+  outlineColor: string;
 };
 
 /**
@@ -123,9 +126,14 @@ type TimelineOutlinedIconProps = {
  *
  * @param Icon - Lucide icon to render
  * @param color - Foreground icon color
+ * @param outlineColor - HSLA outline color behind the icon
  * @returns Outlined icon view
  */
-const TimelineOutlinedIcon = ({ Icon, color }: TimelineOutlinedIconProps) => (
+const TimelineOutlinedIcon = ({
+  Icon,
+  color,
+  outlineColor,
+}: TimelineOutlinedIconProps) => (
   <View className="relative">
     <View className="absolute top-0 left-0">
       <Icon
@@ -133,7 +141,7 @@ const TimelineOutlinedIcon = ({ Icon, color }: TimelineOutlinedIconProps) => (
         strokeWidth={
           EVENT_TIME_ICON_STROKE_WIDTH + EVENT_TIME_ICON_OUTLINE_WIDTH * 2
         }
-        color={EVENT_TIME_ICON_OUTLINE_COLOR}
+        color={outlineColor}
       />
     </View>
     <Icon

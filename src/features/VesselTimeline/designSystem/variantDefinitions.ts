@@ -5,7 +5,12 @@
  * the full nested `TimelineVisualTheme` by hand.
  */
 
-import { createTimelineVisualTheme } from "@/components/timeline";
+import {
+  HARBOR_DAWN_TIMELINE_VISUAL_THEME,
+  SEA_GLASS_TIMELINE_VISUAL_THEME,
+  SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
+  createTimelineVisualTheme,
+} from "@/components/timeline";
 import type {
   VesselTimelineDesignVariant,
   VesselTimelineVariantDefinition,
@@ -13,61 +18,23 @@ import type {
 } from "./types";
 
 /**
- * Baseline harbor variant: default colors and merge root for other variants.
+ * Baseline design variant used as the merge root for derived presets.
  */
 export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
   {
-    id: "baseline-harbor",
-    label: "Baseline Harbor",
+    id: "sea-glass",
+    label: "Sea Glass",
     description:
-      "Default vessel timeline theme and authoring template for future variants.",
-    backgroundColor: "hsla(30, 67%, 95%, 1)",
+      "Cool coastal glass treatment with aqua accents and misty surfaces.",
+    backgroundColor: "hsla(196, 45%, 93%, 1)",
     backgroundColors: [
-      "hsla(18, 88%, 86%, 1)",
-      "hsla(44, 92%, 84%, 1)",
-      "hsla(345, 68%, 88%, 1)",
-      "hsla(12, 76%, 90%, 1)",
+      "hsla(188, 58%, 80%, 1)",
+      "hsla(201, 52%, 84%, 1)",
+      "hsla(178, 40%, 85%, 1)",
+      "hsla(212, 54%, 88%, 1)",
     ],
-    backgroundOverlayColor: "hsla(36, 100%, 98%, 0.22)",
-    timelineTheme: createTimelineVisualTheme({
-      track: {
-        completedColor: "hsla(14, 76%, 54%, 1)",
-        completedGlowColor: "hsla(14, 76%, 54%, 0.3)",
-        remainingColor: "hsla(14, 61%, 56%, 0.28)",
-      },
-      cards: {
-        fillColor: "hsla(36, 100%, 98%, 0.28)",
-      },
-      labels: {
-        terminalNameColor: "hsla(332, 58%, 42%, 1)",
-        eventLabelColor: "purple",
-      },
-      times: {
-        textColor: "hsla(355, 82%, 16%, 1)",
-        iconColor: "hsla(14, 76%, 54%, 1)",
-      },
-      marker: {
-        pastFillColor: "hsla(14, 76%, 54%, 1)",
-        pastBorderColor: "hsla(0, 0%, 100%, 0.96)",
-        futureFillColor: "hsla(0, 0%, 100%, 0.96)",
-        futureBorderColor: "hsla(14, 76%, 54%, 1)",
-        pastIconTintColor: "hsla(0, 0%, 100%, 0.96)",
-        futureIconTintColor: "hsla(14, 76%, 54%, 1)",
-      },
-      indicator: {
-        badgeLabelColor: "hsla(14, 76%, 54%, 1)",
-        bannerTitleColor: "hsla(355, 82%, 16%, 1)",
-        bannerSubtitleColor: "hsla(355, 82%, 16%, 1)",
-        borderColor: "hsla(14, 76%, 54%, 0.84)",
-        ping: {
-          insetPx: 0,
-          borderWidth: 2,
-          peakOpacity: 0.4,
-          borderColor: "hsla(14, 76%, 54%, 0.5)",
-          fillColor: "hsla(36, 100%, 98%, 0.24)",
-        },
-      },
-    }),
+    backgroundOverlayColor: "hsla(195, 70%, 98%, 0.18)",
+    timelineTheme: SEA_GLASS_TIMELINE_VISUAL_THEME,
   };
 
 /**
@@ -108,13 +75,43 @@ export const defineVesselTimelineVariant = ({
 export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariantDefinition[] =
   [
     defineVesselTimelineVariant({
-      id: "baseline-harbor",
-      label: "Baseline Harbor",
+      id: "sea-glass",
+      label: "Sea Glass",
       description: DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.description,
     }),
+    {
+      id: "harbor-dawn",
+      label: "Harbor Dawn",
+      description:
+        "Warm sunrise glass treatment with sand, coral, and soft harbor light.",
+      backgroundColor: "hsla(31, 70%, 94%, 1)",
+      backgroundColors: [
+        "hsla(18, 88%, 84%, 1)",
+        "hsla(39, 95%, 82%, 1)",
+        "hsla(350, 70%, 88%, 1)",
+        "hsla(14, 78%, 89%, 1)",
+      ],
+      backgroundOverlayColor: "hsla(36, 100%, 98%, 0.22)",
+      timelineTheme: HARBOR_DAWN_TIMELINE_VISUAL_THEME,
+    },
+    {
+      id: "signal-night",
+      label: "Signal Night",
+      description:
+        "Dark marine glass treatment with teal depth and bright signal accents.",
+      backgroundColor: "hsla(195, 34%, 13%, 1)",
+      backgroundColors: [
+        "hsla(193, 44%, 18%, 1)",
+        "hsla(181, 42%, 16%, 1)",
+        "hsla(205, 38%, 20%, 1)",
+        "hsla(168, 32%, 18%, 1)",
+      ],
+      backgroundOverlayColor: "hsla(188, 28%, 8%, 0.26)",
+      timelineTheme: SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
+    },
   ];
 
 /**
  * Id of the default design variant when the app does not select another.
  */
-export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID = "baseline-harbor";
+export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID = "sea-glass";

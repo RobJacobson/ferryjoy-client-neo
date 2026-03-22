@@ -3,15 +3,14 @@
  */
 
 import { type ComponentProps, cloneElement, type ReactElement } from "react";
-import type { TextStyle } from "react-native";
 import { type Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { DEFAULT_TIMELINE_OUTLINE_COLOR } from "../theme";
 
 type TimelineOutlinedTextProps = {
   children: ReactElement<ComponentProps<typeof Text>>;
   containerClassName?: string;
-  outlineClassName?: string;
-  outlineStyle?: TextStyle;
+  outlineColor?: string;
   outlineWidth?: number;
 };
 
@@ -20,16 +19,14 @@ type TimelineOutlinedTextProps = {
  *
  * @param children - Single `Text` element to outline
  * @param containerClassName - Optional wrapper classes
- * @param outlineClassName - Classes applied to each outline duplicate
- * @param outlineStyle - Style merged into duplicates (typically outline color)
+ * @param outlineColor - HSLA outline color used for all duplicate layers
  * @param outlineWidth - Pixel radius of the offset grid (default 1)
  * @returns Stacked absolute duplicates plus the original child on top
  */
 export const TimelineOutlinedText = ({
   children,
   containerClassName,
-  outlineClassName,
-  outlineStyle,
+  outlineColor = DEFAULT_TIMELINE_OUTLINE_COLOR,
   outlineWidth = 1,
 }: TimelineOutlinedTextProps) => {
   const outlineOffsets: Array<{ x: number; y: number }> = [];
@@ -44,11 +41,6 @@ export const TimelineOutlinedText = ({
     }
   }
 
-  const resolvedOutlineClassName = outlineClassName ?? "";
-  const resolvedOutlineStyle = outlineStyle ?? {
-    color: "rgba(255, 255, 255, 1)",
-  };
-
   return (
     <View className={cn("relative", containerClassName)}>
       {outlineOffsets.map(({ x, y }) => (
@@ -58,8 +50,8 @@ export const TimelineOutlinedText = ({
           style={{ left: x, top: y }}
         >
           {cloneElement(children, {
-            className: cn(children.props.className, resolvedOutlineClassName),
-            style: [children.props.style, resolvedOutlineStyle],
+            className: children.props.className,
+            style: [children.props.style, { color: outlineColor }],
           })}
         </View>
       ))}

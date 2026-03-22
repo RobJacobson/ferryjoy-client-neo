@@ -31,7 +31,7 @@ export const TimelineRowTerminalName = ({
     }}
     pointerEvents="none"
   >
-    <TimelineOutlinedText outlineWidth={2}>
+    <TimelineOutlinedText outlineColor={theme.outlines.color} outlineWidth={2}>
       <Text
         className="font-puffberry text-3xl"
         style={{ color: theme.labels.terminalNameColor }}
