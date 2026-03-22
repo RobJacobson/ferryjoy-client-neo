@@ -41,7 +41,9 @@ module.exports = {
         "playpen-700": ["PlaypenSans-Bold"],
         "playpen-800": ["PlaypenSans-ExtraBold"],
         "tgl-0": ["tgl-0"],
+        "tgl-0-italic": ["tgl-0-italic"],
         "tgl-31034": ["tgl-31034"],
+        "tgl-31034-italic": ["tgl-31034-italic"],
       },
       boxShadow: {
         glass: "2px 2px 5px rgba(0, 0, 0, 0.05)",
