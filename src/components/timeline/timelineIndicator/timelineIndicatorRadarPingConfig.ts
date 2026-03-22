@@ -5,7 +5,7 @@
 import type { ViewStyle } from "react-native";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 
-export const TIMELINE_INDICATOR_RADAR_PING_DURATION_MS = 10000;
+const TIMELINE_INDICATOR_RADAR_PING_DURATION_MS = 10000;
 
 type RadarPingStyleConfig = {
   insetPx: number;

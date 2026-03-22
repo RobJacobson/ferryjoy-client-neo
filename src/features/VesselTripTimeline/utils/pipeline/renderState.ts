@@ -233,7 +233,6 @@ const getActiveIndicator = (
 
   return {
     rowId: activeRow.id,
-    rowIndex: activeRow.segmentIndex,
     positionPercent,
     label: getMinutesUntil(
       getDisplayTime(activeRow.endBoundary.timePoint),

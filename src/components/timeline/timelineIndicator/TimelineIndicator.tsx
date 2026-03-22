@@ -28,7 +28,6 @@ type TimelineIndicatorProps = {
   animate?: boolean;
   speedKnots?: number;
   sizePx?: number;
-  showRadarPing?: boolean;
   theme: TimelineVisualTheme;
 };
 
@@ -72,6 +71,8 @@ const IndicatorGlass = ({
   </View>
 );
 
+const BANNER_MAX_WIDTH_PX = 400;
+
 /**
  * Absolutely positioned indicator with vertical motion and optional rocking.
  *
@@ -83,7 +84,6 @@ const IndicatorGlass = ({
  * @param animate - When true, applies speed-based rocking
  * @param speedKnots - Speed input for rocking cadence
  * @param sizePx - Width and height of the circular indicator
- * @param showRadarPing - Toggles the expanding ping ring
  * @param theme - Indicator colors and ping styling
  * @returns Animated indicator subtree aligned to the track column
  */
@@ -96,7 +96,6 @@ export const TimelineIndicator = ({
   animate = false,
   speedKnots = 0,
   sizePx = TIMELINE_INDICATOR_SIZE_PX,
-  showRadarPing = true,
   theme,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx);
@@ -121,9 +120,7 @@ export const TimelineIndicator = ({
         rockingStyle,
       ]}
     >
-      {showRadarPing ? (
-        <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
-      ) : null}
+      <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
       {title || subtitle ? (
         <View
           pointerEvents="none"
@@ -133,6 +130,7 @@ export const TimelineIndicator = ({
           <IndicatorGlass
             blurTargetRef={blurTargetRef}
             theme={theme}
+            style={{ maxWidth: BANNER_MAX_WIDTH_PX }}
             contentClassName="items-center px-4 py-1"
           >
             {title ? (
@@ -158,7 +156,7 @@ export const TimelineIndicator = ({
         blurTargetRef={blurTargetRef}
         theme={theme}
         className="absolute"
-        style={getBadgeStyle(sizePx)}
+        style={{ width: sizePx, height: sizePx }}
         contentClassName="h-full w-full items-center justify-center"
       >
         <Text
@@ -174,14 +172,6 @@ export const TimelineIndicator = ({
 
 const getBannerStyle = (sizePx: number): ViewStyle => ({
   bottom: sizePx - 6,
-  left: "50%",
-  width: 200,
-  marginLeft: -100,
-});
-
-const getBadgeStyle = (sizePx: number): ViewStyle => ({
-  left: "50%",
-  width: sizePx,
-  height: sizePx,
-  marginLeft: -sizePx / 2,
+  left: sizePx / 2 - BANNER_MAX_WIDTH_PX / 2,
+  width: BANNER_MAX_WIDTH_PX,
 });

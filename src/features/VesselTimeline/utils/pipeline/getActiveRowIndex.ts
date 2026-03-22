@@ -82,7 +82,6 @@ export const buildActiveIndicator = ({
 
   return {
     rowId: row.id,
-    rowIndex: activeRowIndex,
     positionPercent,
     label: getMinutesUntil(row.endEvent, now),
     title: vesselLocation?.VesselName,

@@ -38,7 +38,6 @@ export type TimelineRenderRow = {
 
 export type TimelineActiveIndicator = {
   rowId: string;
-  rowIndex: number;
   positionPercent: number;
   label: string;
   title?: string;
