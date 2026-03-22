@@ -98,22 +98,7 @@ const TimelineRowEventTime = ({
   theme,
 }: TimelineRowEventTimeProps) => (
   <View className={cn("flex-row", rowClassName)}>
-    <View className="relative">
-      <View className="absolute top-0 left-0">
-        <Icon
-          size={EVENT_TIME_ICON_SIZE_PX}
-          strokeWidth={
-            EVENT_TIME_ICON_STROKE_WIDTH + EVENT_TIME_ICON_OUTLINE_WIDTH * 2
-          }
-          color={EVENT_TIME_ICON_OUTLINE_COLOR}
-        />
-      </View>
-      <Icon
-        size={EVENT_TIME_ICON_SIZE_PX}
-        strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
-        color={theme.times.iconColor}
-      />
-    </View>
+    <TimelineOutlinedIcon Icon={Icon} color={theme.times.iconColor} />
     <TimelineOutlinedText>
       <Text
         className="font-bitcount-500 text-lg"
@@ -122,6 +107,40 @@ const TimelineRowEventTime = ({
         {label}
       </Text>
     </TimelineOutlinedText>
+  </View>
+);
+
+type TimelineOutlinedIconProps = {
+  Icon: LucideIcon;
+  color: string;
+};
+
+/**
+ * Draws the icon twice to create a simple outline behind the tinted glyph.
+ *
+ * @param Icon - Lucide icon to render
+ * @param color - Foreground icon color
+ * @returns Outlined icon view
+ */
+const TimelineOutlinedIcon = ({
+  Icon,
+  color,
+}: TimelineOutlinedIconProps) => (
+  <View className="relative">
+    <View className="absolute top-0 left-0">
+      <Icon
+        size={EVENT_TIME_ICON_SIZE_PX}
+        strokeWidth={
+          EVENT_TIME_ICON_STROKE_WIDTH + EVENT_TIME_ICON_OUTLINE_WIDTH * 2
+        }
+        color={EVENT_TIME_ICON_OUTLINE_COLOR}
+      />
+    </View>
+    <Icon
+      size={EVENT_TIME_ICON_SIZE_PX}
+      strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
+      color={color}
+    />
   </View>
 );
 
