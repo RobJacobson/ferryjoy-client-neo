@@ -56,24 +56,19 @@ export const getBoundaryTopPx = (
 };
 
 /**
- * Splits track height into completed (above boundary) and remaining portions.
+ * Resolves the completed fraction of the track above the boundary.
  *
  * @param boundaryTopPx - Top of the progress boundary in container coords
  * @param containerHeightPx - Full height of the timeline track container
- * @returns Fractions in 0–1 for completed and remaining segments
+ * @returns Completed fraction in 0–1
  */
 export const getTrackFractions = (
   boundaryTopPx: number | null,
   containerHeightPx: number
-): { completedPercent: number; remainingPercent: number } => {
+): number => {
   if (containerHeightPx <= 0 || boundaryTopPx === null) {
-    return { completedPercent: 0, remainingPercent: 1 };
+    return 0;
   }
 
-  const completedPercent = clamp(boundaryTopPx / containerHeightPx, 0, 1);
-
-  return {
-    completedPercent,
-    remainingPercent: 1 - completedPercent,
-  };
+  return clamp(boundaryTopPx / containerHeightPx, 0, 1);
 };
