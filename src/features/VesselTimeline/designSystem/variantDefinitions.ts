@@ -6,10 +6,10 @@
  */
 
 import {
+  createTimelineVisualTheme,
   HARBOR_DAWN_TIMELINE_VISUAL_THEME,
   SEA_GLASS_TIMELINE_VISUAL_THEME,
   SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
-  createTimelineVisualTheme,
 } from "@/components/timeline";
 import type {
   VesselTimelineDesignVariant,

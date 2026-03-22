@@ -14,10 +14,10 @@ export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgroun
 export { TimelineTrack } from "./TimelineTrack";
 export {
   BASE_TIMELINE_VISUAL_THEME,
+  createTimelineVisualTheme,
   HARBOR_DAWN_TIMELINE_VISUAL_THEME,
   SEA_GLASS_TIMELINE_VISUAL_THEME,
   SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
-  createTimelineVisualTheme,
   type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "./theme";
