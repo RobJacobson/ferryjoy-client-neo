@@ -1,8 +1,9 @@
 /**
  * Public re-exports for shared vertical timeline presentation primitives.
  *
- * Features such as `VesselTimeline` and `VesselTripTimeline` build rows and
- * indicators upstream; these components render the shared visual contract.
+ * Features build semantic rows and indicators upstream (see
+ * `VesselTimeline/ARCHITECTURE.md`); this package renders the shared visual
+ * contract only.
  */
 
 export {

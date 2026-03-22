@@ -1,3 +1,10 @@
+/**
+ * VesselTimeline design variants: baseline tokens and helpers to define themes.
+ *
+ * Prefer `defineVesselTimelineVariant` with partial overrides over rebuilding
+ * the full nested `TimelineVisualTheme` by hand.
+ */
+
 import { createTimelineVisualTheme } from "@/components/timeline";
 import type {
   VesselTimelineDesignVariant,
@@ -6,10 +13,7 @@ import type {
 } from "./types";
 
 /**
- * Baseline authoring template for future themes.
- *
- * New variants should usually override this direct variant definition rather
- * than rebuilding the entire timeline theme from scratch.
+ * Baseline harbor variant: default colors and merge root for other variants.
  */
 export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
   {
@@ -37,7 +41,6 @@ export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant
       labels: {
         terminalNameColor: "hsla(332, 58%, 42%, 1)",
         eventLabelColor: "purple",
-        // eventLabelColor: "hsla(355, 82%, 16%, 1)",
       },
       times: {
         textColor: "hsla(355, 82%, 16%, 1)",
@@ -67,6 +70,13 @@ export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant
     }),
   };
 
+/**
+ * Merges caller input with the baseline variant to produce a full definition.
+ *
+ * @param input - Id, labels, optional background colors, optional timeline
+ *   theme overrides
+ * @returns Complete variant with merged `timelineTheme`
+ */
 export const defineVesselTimelineVariant = ({
   id,
   label,
@@ -92,6 +102,9 @@ export const defineVesselTimelineVariant = ({
   }),
 });
 
+/**
+ * All registered variant definitions consumed by `variantRegistry`.
+ */
 export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariantDefinition[] =
   [
     defineVesselTimelineVariant({
@@ -101,4 +114,7 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariant
     }),
   ];
 
+/**
+ * Id of the default design variant when the app does not select another.
+ */
 export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID = "baseline-harbor";

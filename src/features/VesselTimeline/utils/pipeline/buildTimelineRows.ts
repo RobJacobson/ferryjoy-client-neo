@@ -1,5 +1,9 @@
 /**
- * Build semantic dock/sea rows directly from the ordered backend event feed.
+ * Builds semantic dock and sea rows from the backend vessel-day event feed.
+ *
+ * Adjacent event pairs become rows per `ARCHITECTURE.md`: dock spans share a
+ * terminal between arrival and departure; sea spans run departure to arrival.
+ * Long docks may use compressed display durations per feature policy.
  */
 
 import type { VesselTimelineEvent } from "@/data/contexts";
@@ -14,8 +18,13 @@ import { getLayoutTime } from "../shared/rowEventTime";
 /**
  * Builds ordered dock and sea rows for the vessel-day timeline.
  *
- * This is the main semantic transform for the feature: given a sorted vessel
- * event feed, emit the alternating dock and sea rows that the UI can lay out.
+ * This is stage 1 of the frontend pipeline: a sorted `VesselTimelineEvent`
+ * feed becomes alternating dock/sea semantic rows, including terminal tail
+ * and arrival placeholder rows when required.
+ *
+ * @param events - Backend events for one vessel and sailing day, sorted
+ * @param policy - Compressed-dock thresholds and stub/window minutes
+ * @returns Semantic rows with layout-ready duration metadata
  */
 export const buildTimelineRows = (
   events: VesselTimelineEvent[],
@@ -96,11 +105,25 @@ export const buildTimelineRows = (
   return rows;
 };
 
+/**
+ * Copies a backend event into a row event with display terminal name.
+ *
+ * @param event - Source vessel timeline event
+ * @returns Row event including abbreviated terminal display name when known
+ */
 const toRowEvent = (event: VesselTimelineEvent): TimelineRowEvent => ({
   ...event,
   TerminalDisplayName: getDisplayTerminalName(event.TerminalAbbrev),
 });
 
+/**
+ * Synthesizes a zero-duration dock row so the UI can show arrival before the
+ * matching departure exists in the feed.
+ *
+ * @param departureEvent - Current departure event missing a preceding arrival
+ * @param segmentIndex - Index of this row among semantic rows
+ * @returns Placeholder dock row bracketing synthetic arrival and real departure
+ */
 const buildArrivalPlaceholderRow = (
   departureEvent: VesselTimelineEvent,
   segmentIndex: number
@@ -128,14 +151,36 @@ const buildArrivalPlaceholderRow = (
   };
 };
 
+/**
+ * True when `current` is an arrival and `next` is a departure at the same
+ * terminal (dock span).
+ *
+ * @param current - First event in the pair
+ * @param next - Second event in the pair
+ * @returns Whether the pair forms a dock segment at one terminal
+ */
 const isDockPair = (current: VesselTimelineEvent, next: VesselTimelineEvent) =>
   current.EventType === "arv-dock" &&
   next.EventType === "dep-dock" &&
   current.TerminalAbbrev === next.TerminalAbbrev;
 
+/**
+ * True when `current` is a departure and `next` is an arrival (sea span).
+ *
+ * @param current - Departure event
+ * @param next - Arrival event at the next terminal
+ * @returns Whether the pair forms a sea segment
+ */
 const isSeaPair = (current: VesselTimelineEvent, next: VesselTimelineEvent) =>
   current.EventType === "dep-dock" && next.EventType === "arv-dock";
 
+/**
+ * True when a sea row should be preceded by a synthetic arrival dock row.
+ *
+ * @param previous - Event before the departure, if any
+ * @param current - Departure event starting a sea span
+ * @returns Whether to insert an arrival placeholder dock row before this sea
+ */
 const needsArrivalPlaceholder = (
   previous: VesselTimelineEvent | undefined,
   current: VesselTimelineEvent
@@ -146,6 +191,13 @@ const needsArrivalPlaceholder = (
     previous.TerminalAbbrev === current.TerminalAbbrev
   );
 
+/**
+ * Chooses proportional vs compressed dock display from actual duration.
+ *
+ * @param durationMinutes - Real dock span length from layout times
+ * @param policy - Threshold above which the UI uses compressed dock break
+ * @returns Row display mode for layout height rules
+ */
 const getDockDisplayMode = (
   durationMinutes: number,
   policy: VesselTimelinePolicy
@@ -154,6 +206,14 @@ const getDockDisplayMode = (
     ? "compressed-dock-break"
     : "proportional";
 
+/**
+ * Maps actual dock minutes to the minutes allocated in the layout height.
+ *
+ * @param durationMinutes - Real span length
+ * @param displayMode - Proportional or compressed break layout
+ * @param policy - Stub and departure window minutes when compressed
+ * @returns Minutes used for row `displayDurationMinutes`
+ */
 const getDisplayDurationMinutes = (
   durationMinutes: number,
   displayMode: TimelineSemanticRow["displayMode"],
@@ -164,6 +224,13 @@ const getDisplayDurationMinutes = (
       policy.compressedDockDepartureWindowMinutes
     : durationMinutes;
 
+/**
+ * Duration between row boundaries using schedule-first layout precedence.
+ *
+ * @param startEvent - Row start with `ScheduledTime` / `ActualTime` / etc.
+ * @param endEvent - Row end using the same precedence via `getLayoutTime`
+ * @returns Positive minute span, at least 1 when times are missing or invalid
+ */
 const getDurationMinutes = (
   startEvent: TimelineRowEvent,
   endEvent: TimelineRowEvent
@@ -183,6 +250,13 @@ const getDurationMinutes = (
   return Math.max(1, minutes);
 };
 
+/**
+ * Short display name for map labels (abbreviates common words in terminal
+ * names).
+ *
+ * @param terminalAbbrev - WSF terminal code, if known
+ * @returns Shortened display string or undefined when abbrev is missing
+ */
 const getDisplayTerminalName = (terminalAbbrev?: string) => {
   if (!terminalAbbrev) {
     return undefined;

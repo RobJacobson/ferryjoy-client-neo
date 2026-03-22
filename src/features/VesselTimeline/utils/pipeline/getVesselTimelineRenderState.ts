@@ -1,5 +1,8 @@
 /**
  * Day-level vessel timeline view-model entry point.
+ *
+ * Composes `buildTimelineRows`, active-row selection, layout geometry, and the
+ * active indicator into `VesselTimelineRenderState` for the feature UI.
  */
 
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline";
@@ -18,6 +21,12 @@ const PIXELS_PER_MINUTE_MIN = 4;
 const PIXELS_PER_MINUTE_MAX = 8;
 const PIXELS_PER_MINUTE_PER_ROW = 0.15;
 
+/**
+ * Default long-dock compression policy (60+ minute docks use break layout).
+ *
+ * Matches `ARCHITECTURE.md`: 10 min arrival stub, 50 min departure window, plus
+ * break marker height from layout config.
+ */
 export const DEFAULT_VESSEL_TIMELINE_POLICY: VesselTimelinePolicy = {
   compressedDockThresholdMinutes: 60,
   compressedDockArrivalStubMinutes: 10,
@@ -25,7 +34,7 @@ export const DEFAULT_VESSEL_TIMELINE_POLICY: VesselTimelinePolicy = {
 };
 
 /**
- * Default display/layout config for the vessel-day timeline.
+ * Default pixel layout for row heights, terminal cards, and initial scroll.
  */
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   pixelsPerMinute: 4,
@@ -44,6 +53,7 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
  * @param vesselLocation - Current vessel location for the selected vessel
  * @param now - Current wall-clock time
  * @param layout - Optional layout override
+ * @param theme - Resolved timeline visual theme passed through to render state
  * @returns Final render state for the VesselTimeline UI
  */
 export const getVesselTimelineRenderState = (

@@ -1,8 +1,9 @@
 /**
  * Shared types for the VesselTimeline feature.
  *
- * These types describe the simplified day-level view-model pipeline used to
- * turn backend-owned vessel events into renderer-ready timeline state.
+ * Describes the day-level pipeline from backend `VesselTimelineEvent` rows to
+ * `VesselTimelineRenderState`. See `ARCHITECTURE.md` for stage boundaries and
+ * data ownership.
  */
 
 import type {

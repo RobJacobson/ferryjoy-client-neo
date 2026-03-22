@@ -1,3 +1,7 @@
+/**
+ * Types for vessel-day timeline design variants and theme override authoring.
+ */
+
 import type {
   TimelineVisualTheme,
   TimelineVisualThemeOverrides,

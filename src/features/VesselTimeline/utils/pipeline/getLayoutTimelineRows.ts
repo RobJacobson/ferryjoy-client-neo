@@ -1,5 +1,8 @@
 /**
- * Layout helpers that convert semantic rows into renderer-ready geometry.
+ * Stage 2 layout: semantic vessel-day rows to shared timeline render rows.
+ *
+ * Assigns pixel heights, past/future markers, `TimelineRenderEvent` payloads,
+ * and terminal card highlight geometry consumed by `src/components/timeline`.
  */
 
 import type {
@@ -18,6 +21,15 @@ type LaidOutRow = {
   terminalAbbrev?: string;
 };
 
+/**
+ * Lays out semantic rows into renderer rows, terminal cards, and content
+ * height.
+ *
+ * @param semanticRows - Dock/sea rows from `buildTimelineRows`
+ * @param activeRowIndex - Split past vs future marker styling at this index
+ * @param layout - Pixels per minute, min height, and card offsets
+ * @returns Render rows, terminal card regions, and total scrollable height
+ */
 export const getLayoutTimelineRows = (
   semanticRows: TimelineSemanticRow[],
   activeRowIndex: number,
@@ -58,6 +70,14 @@ export const getLayoutTimelineRows = (
   };
 };
 
+/**
+ * Row display height from display minutes, optional compressed break marker, and
+ * minimum row height.
+ *
+ * @param row - Semantic row with `displayDurationMinutes` and `displayMode`
+ * @param layout - Scale and break marker height
+ * @returns Height in pixels for this row
+ */
 const getDisplayHeightPx = (
   row: TimelineSemanticRow,
   layout: VesselTimelineLayoutConfig
@@ -75,6 +95,14 @@ const getDisplayHeightPx = (
   );
 };
 
+/**
+ * Builds a presentation event for one end of a semantic row.
+ *
+ * @param kind - Dock vs sea determines arrive/depart labeling
+ * @param side - Start vs end boundary of the row
+ * @param row - Source semantic row
+ * @returns `TimelineRenderEvent` for labels, times, and placeholders
+ */
 const toRenderEvent = (
   kind: TimelineSemanticRow["kind"],
   side: "start" | "end",
@@ -106,6 +134,14 @@ const toRenderEvent = (
   };
 };
 
+/**
+ * Collects blurred terminal card regions for consecutive dock/sea pairs at
+ * the same terminal.
+ *
+ * @param rows - Laid-out rows with pixel tops
+ * @param layout - Card top offset and cap heights
+ * @returns Geometry entries for `TimelineTerminalCardBackgrounds`
+ */
 const computeTerminalCards = (
   rows: LaidOutRow[],
   layout: VesselTimelineLayoutConfig
@@ -145,6 +181,14 @@ const computeTerminalCards = (
   return cards;
 };
 
+/**
+ * Terminal highlight shape for one row: top cap, bottom cap, full single dock,
+ * or none.
+ *
+ * @param rows - All laid-out rows
+ * @param rowIndex - Index of the row being classified
+ * @returns Card position token, or `none` when no highlight applies
+ */
 const getCardPosition = (
   rows: LaidOutRow[],
   rowIndex: number

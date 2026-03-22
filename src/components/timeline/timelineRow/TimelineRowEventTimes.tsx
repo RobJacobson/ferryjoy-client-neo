@@ -1,5 +1,8 @@
 /**
- * Right column: scheduled time plus actual or estimated when present.
+ * Right column: one or more time rows (scheduled plus actual or estimated).
+ *
+ * Each row stacks a stroked icon silhouette with the tinted icon and outlined
+ * time text for legibility on busy backgrounds.
  */
 
 import {
