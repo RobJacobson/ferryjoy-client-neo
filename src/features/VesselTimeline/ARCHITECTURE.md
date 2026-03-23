@@ -33,13 +33,21 @@ Notes:
 - `theme` is optional; it is merged via `createTimelineVisualTheme` and flows
   through `getVesselTimelineRenderState` into shared timeline components.
   The theme contract is intentionally narrow: it controls palette/material
-  tokens for the shared timeline, not typography or layout geometry.
+  tokens for the shared timeline, not typography or layout geometry. Recent
+  simplifications intentionally reduced independent color knobs:
+  - marker uses a two-color accent/contrast swap for past vs future
+  - text uses semantic roles (`terminalNameColor`,
+    `indicatorHeadlineColor`, `bodyColor`) instead of per-subtree text tokens
+  - glass surfaces share `glassColor` and `glassBorderColor`
+  - the active indicator circle has its own emphasized `indicator.borderColor`
+  - track glow and ping fill are derived in rendering from a single authored
+    color rather than separate theme colors
   `outlines.color` is an explicitly exposed legibility token and should be
   adjusted sparingly. Very dark themes often work best with near-none or no
   outline at all, while moderately dark themes may benefit from a very slight
   outline.
   Current named presets include `Sea Glass` (default), `Harbor Dawn`,
-  `Carnival Fizz`, `Taffy Harbor`, `Kelp Disco`, `Confetti Tide`,
+  `Carnival Fizz`, `Taffy Harbor`, `Confetti Tide`,
   `Moon Jelly`, and `Picnic Postcard`.
 
 ## Product Decisions
@@ -398,7 +406,17 @@ Still inside `getVesselTimelineRenderState`:
 
 The UI layer (`components/TimelineContent.tsx`) only consumes
 `VesselTimelineRenderState`: shared timeline components render rows, track,
-terminal blurs, and `TimelineIndicatorOverlay`.
+terminal glass backgrounds, and `TimelineIndicatorOverlay`.
+
+Presentation note:
+
+- terminal card backgrounds and indicator glass surfaces now share the same
+  `TimelineGlassSurface` primitive
+- borders remain caller-owned (for example, terminal backgrounds vs indicator
+  banner vs indicator circle), while blur and glass tint are shared
+- `TimelineIndicator` is now primarily an orchestrator for positioning and
+  motion; banner, circle, and ping each live in separate presentation
+  components with their own local layout concerns
 
 `VesselLocation` remains important even though the timeline rows come from
 events:

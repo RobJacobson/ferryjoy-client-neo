@@ -17,13 +17,13 @@ const GRADIENT_BACKGROUND_COLORS = [
 ] as const;
 
 const GRADIENT_BACKGROUND_RADIUS_RANGE = {
-  min: 0.25,
-  max: 1,
+  min: 0.4,
+  max: 0.8,
 } as const;
 
 const GRADIENT_BACKGROUND_DURATION_RANGE_MS = {
-  min: 14000,
-  max: 24000,
+  min: 20000,
+  max: 60000,
 } as const;
 
 type GradientBackgroundProps = PropsWithChildren<{
@@ -99,6 +99,19 @@ export const GradientBackground = ({
 const randomBetween = (min: number, max: number) =>
   min + Math.random() * (max - min);
 
+const shuffleColors = (colors: readonly string[]) => {
+  const shuffledColors = [...colors];
+
+  for (let index = shuffledColors.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(randomBetween(0, index + 1));
+    const currentColor = shuffledColors[index];
+    shuffledColors[index] = shuffledColors[randomIndex];
+    shuffledColors[randomIndex] = currentColor;
+  }
+
+  return shuffledColors;
+};
+
 /**
  * Builds one orb config per palette color: radius, circular orbit, phase, and
  * animation duration, all scaled to the given viewport.
@@ -121,7 +134,7 @@ const createRandomGradientOrbs = ({
   maxDimension: number;
   colors?: readonly string[];
 }): GradientOrbConfig[] =>
-  colors.map((color, index) => {
+  shuffleColors(colors).map((color, index) => {
     const orbRadiusPx =
       maxDimension *
       randomBetween(

@@ -9,7 +9,6 @@ import {
   CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME,
   CONFETTI_TIDE_TIMELINE_VISUAL_THEME,
   HARBOR_DAWN_TIMELINE_VISUAL_THEME,
-  KELP_DISCO_TIMELINE_VISUAL_THEME,
   MOON_JELLY_TIMELINE_VISUAL_THEME,
   PICNIC_POSTCARD_TIMELINE_VISUAL_THEME,
   SEA_GLASS_TIMELINE_VISUAL_THEME,
@@ -132,23 +131,6 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariant
         "hsla(24, 100%, 85%, 1)",
       ],
       timelineTheme: TAFFY_HARBOR_TIMELINE_VISUAL_THEME,
-    },
-    {
-      id: "kelp-disco",
-      label: "Kelp Disco",
-      description:
-        "A moody underwater dance floor with electric lime accents and glossy seaweed glow.",
-      backgroundColor: "hsla(160, 35%, 14%, 1)",
-      backgroundColors: [
-        "hsla(162, 46%, 20%, 1)",
-        "hsla(146, 59%, 24%, 1)",
-        "hsla(174, 42%, 18%, 1)",
-        "hsla(52, 89%, 33%, 1)",
-        "hsla(156, 70%, 28%, 1)",
-        "hsla(168, 39%, 22%, 1)",
-        "hsla(144, 54%, 19%, 1)",
-      ],
-      timelineTheme: KELP_DISCO_TIMELINE_VISUAL_THEME,
     },
     {
       id: "confetti-tide",

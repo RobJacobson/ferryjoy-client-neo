@@ -14,8 +14,6 @@ type GradientOrbLayerProps = {
   svgIdPrefix: string;
 };
 
-const getGradientOrbSizePx = (orb: GradientOrbConfig) => orb.orbRadiusPx * 2;
-
 /**
  * Builds a repeating linear rotation animation from initial phase and duration.
  *
@@ -53,7 +51,6 @@ export const GradientOrbLayer = ({
   orb,
   svgIdPrefix,
 }: GradientOrbLayerProps) => {
-  const sizePx = getGradientOrbSizePx(orb);
   const animationStyle = createGradientOrbAnimationStyle(orb);
 
   return (
@@ -73,7 +70,6 @@ export const GradientOrbLayer = ({
           gradientId={`${svgIdPrefix}-${orb.id}`}
           orbRadiusPx={orb.orbRadiusPx}
           orbitRadiusPx={orb.orbitRadiusPx}
-          sizePx={sizePx}
         />
       </Animated.View>
     </Animated.View>

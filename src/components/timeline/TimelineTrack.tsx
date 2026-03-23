@@ -81,7 +81,7 @@ export const TimelineTrack = ({
               width: glowWidthPx,
               height: completedHeightPx,
               borderRadius: glowWidthPx / 2,
-              backgroundColor: theme.track.completedGlowColor,
+              backgroundColor: theme.track.completedColor,
               ...glowPulseStyle,
             }}
           />
@@ -108,13 +108,13 @@ export const TimelineTrack = ({
 const createTrackGlowPulseStyle = (): ViewStyle => ({
   animationName: {
     "0%": {
-      opacity: 0.25,
+      opacity: 0.025,
     },
     "50%": {
-      opacity: 1,
+      opacity: 0.1,
     },
     "100%": {
-      opacity: 0.25,
+      opacity: 0.025,
     },
   },
   animationDuration: TIMELINE_TRACK_GLOW_PULSE_DURATION_MS,

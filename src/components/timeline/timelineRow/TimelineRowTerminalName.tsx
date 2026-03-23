@@ -15,7 +15,7 @@ type TimelineRowTerminalNameProps = {
  * Absolutely positioned, rotated display name using puffberry typography.
  *
  * @param text - Full terminal display name
- * @param theme - Terminal name color from the visual theme
+ * @param theme - Terminal heading color from the visual theme
  * @returns Non-interactive overlay text
  */
 export const TimelineRowTerminalName = ({
@@ -35,7 +35,7 @@ export const TimelineRowTerminalName = ({
       outlineColor={theme.outlines.color}
       outlineWidth={2}
       style={{
-        color: theme.labels.terminalNameColor,
+        color: theme.text.terminalNameColor,
         fontFamily: "Puffberry",
         fontSize: 30,
       }}

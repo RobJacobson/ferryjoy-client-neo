@@ -1,8 +1,8 @@
 /**
- * Pure radial-gradient orb: defs + rect for one color with alpha stops.
+ * Pure radial-gradient orb: defs + circle for one color with alpha stops.
  */
 
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 
 type GradientStop = {
   position: number;
@@ -14,63 +14,70 @@ type GradientOrbSvgProps = {
   gradientId: string;
   orbRadiusPx: number;
   orbitRadiusPx: number;
-  sizePx: number;
 };
 
 const GRADIENT_ORB_STOPS: readonly GradientStop[] = [
-  { position: 0, alpha: 0.95 },
-  { position: 0.25, alpha: 0.75 },
-  { position: 0.5, alpha: 0.5 },
-  { position: 0.75, alpha: 0.1 },
+  { position: 0, alpha: 1 },
+  { position: 0.25, alpha: 0.9 },
+  { position: 0.5, alpha: 0.6 },
+  { position: 0.75, alpha: 0.2 },
   { position: 1, alpha: 0 },
 ];
 
 /**
- * Draws one soft orb using `RadialGradient` stops and horizontal offset for
- * orbit radius (parent handles rotation).
+ * Draws one soft orb using `RadialGradient` stops, a circular shape, and
+ * horizontal offset for orbit radius (parent handles rotation).
  *
  * @param props - SVG props
  * @param props.color - Center color for all gradient stops
  * @param props.gradientId - Unique SVG `id` for `url(#…)` fill
  * @param props.orbitRadiusPx - Horizontal translation of the orb graphic
- * @param props.sizePx - Width and height of the SVG viewport
- * @returns Square SVG with gradient defs and filled rect
+ * @returns Square SVG with gradient defs and filled circle
  */
 export const GradientOrbSvg = ({
   color,
   gradientId,
   orbRadiusPx,
   orbitRadiusPx,
-  sizePx,
-}: GradientOrbSvgProps) => (
-  <Svg
-    width={sizePx}
-    height={sizePx}
-    style={{
-      left: -orbRadiusPx,
-      position: "absolute",
-      top: -orbRadiusPx,
-      transform: [{ translateX: orbitRadiusPx }],
-    }}
-  >
-    <Defs>
-      <RadialGradient
-        id={gradientId}
-        cx="50%"
-        cy="50%"
-        r="50%"
-        gradientUnits="objectBoundingBox"
-      >
-        {GRADIENT_ORB_STOPS.map((stop) => (
-          <Stop
-            key={`${gradientId}-${stop.position}-${stop.alpha}`}
-            offset={`${stop.position * 100}%`}
-            stopColor={color}
-            stopOpacity={stop.alpha}
-          />
-        ))}
-      </RadialGradient>
-    </Defs>
-    <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
-  </Svg>
-);
+}: GradientOrbSvgProps) => {
+  const renderRadiusPx = orbRadiusPx;
+  const renderSizePx = renderRadiusPx * 2;
+
+  return (
+    <Svg
+      width={renderSizePx}
+      height={renderSizePx}
+      style={{
+        left: -renderRadiusPx,
+        position: "absolute",
+        top: -renderRadiusPx,
+        transform: [{ translateX: orbitRadiusPx }],
+      }}
+    >
+      <Defs>
+        <RadialGradient
+          id={gradientId}
+          cx={renderRadiusPx}
+          cy={renderRadiusPx}
+          r={orbRadiusPx}
+          gradientUnits="userSpaceOnUse"
+        >
+          {GRADIENT_ORB_STOPS.map((stop) => (
+            <Stop
+              key={`${gradientId}-${stop.position}-${stop.alpha}`}
+              offset={`${stop.position * 100}%`}
+              stopColor={color}
+              stopOpacity={stop.alpha}
+            />
+          ))}
+        </RadialGradient>
+      </Defs>
+      <Circle
+        cx={renderRadiusPx}
+        cy={renderRadiusPx}
+        r={orbRadiusPx}
+        fill={`url(#${gradientId})`}
+      />
+    </Svg>
+  );
+};

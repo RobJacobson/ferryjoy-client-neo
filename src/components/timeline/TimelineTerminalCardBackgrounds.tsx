@@ -7,9 +7,9 @@
 
 import type { ComponentRef, RefObject } from "react";
 import type { View as RNView } from "react-native";
-import { BlurView } from "@/components/BlurView";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { TimelineGlassSurface } from "./TimelineGlassSurface";
 import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "./theme";
 import type { TerminalCardGeometry } from "./types";
 
@@ -33,7 +33,7 @@ const terminalCardPositionClasses: Record<
  *
  * @param cards - Terminal regions and corner treatment from the pipeline
  * @param blurTargetRef - Host view used as the blur sampling target
- * @param theme - Card blur tint, fill, and border from the visual theme
+ * @param theme - Card blur tint, shared glass color, and border from the visual theme
  * @returns Absolutely positioned layer of terminal backgrounds
  */
 export const TimelineTerminalCardBackgrounds = ({
@@ -43,12 +43,11 @@ export const TimelineTerminalCardBackgrounds = ({
 }: TimelineTerminalCardBackgroundsProps) => (
   <View className="absolute inset-0" pointerEvents="none">
     {cards.map((card) => (
-      <BlurView
+      <TimelineGlassSurface
         key={card.id}
-        blurTarget={blurTargetRef}
-        intensity={TIMELINE_RENDER_CONSTANTS.cards.blurIntensity}
-        tint={TIMELINE_RENDER_CONSTANTS.cards.blurTint}
-        blurMethod="dimezisBlurView"
+        blurTargetRef={blurTargetRef}
+        blurIntensity={TIMELINE_RENDER_CONSTANTS.cards.blurIntensity}
+        theme={theme}
         className="absolute"
         style={{
           top: card.topPx,
@@ -64,15 +63,15 @@ export const TimelineTerminalCardBackgrounds = ({
       >
         <View
           className={cn(
-            "absolute inset-0 border-white/80",
+            "absolute inset-0",
             terminalCardPositionClasses[card.position]
           )}
           style={{
-            backgroundColor: theme.cards.fillColor,
+            borderColor: theme.glassBorderColor,
             borderWidth: theme.cards.borderWidth,
           }}
         />
-      </BlurView>
+      </TimelineGlassSurface>
     ))}
   </View>
 );

@@ -11,8 +11,7 @@ import {
   type LucideIcon,
   Timer,
 } from "lucide-react-native";
-import { StrokeText } from "@/components/StrokeText";
-import { View } from "@/components/ui";
+import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import type { TimelineVisualTheme } from "../theme";
@@ -49,7 +48,7 @@ type TimelineTimeEntry = {
  *
  * @param point - Scheduled, actual, and estimated instants for the event
  * @param showPlaceholder - When true and no times exist, shows a placeholder row
- * @param theme - Icon and text colors for the time rows
+ * @param theme - Body text color for the time rows
  * @returns Horizontal group of time rows
  */
 export const TimelineRowEventTimes = ({
@@ -94,7 +93,7 @@ type TimelineRowEventTimeProps = {
  * @param Icon - Lucide icon for this row's time kind
  * @param label - Formatted time or placeholder text
  * @param rowClassName - Optional flex gap between icon and label
- * @param theme - Icon tint and text color
+ * @param theme - Body text color
  * @returns A single time row view
  */
 const TimelineRowEventTime = ({
@@ -104,18 +103,30 @@ const TimelineRowEventTime = ({
   theme,
 }: TimelineRowEventTimeProps) => (
   <View className={cn("mt-[-1px] flex-row", rowClassName)}>
+    {/* Previous outlined icon kept for easy restoration:
     <TimelineOutlinedIcon
       Icon={Icon}
-      color={theme.times.iconColor}
+      color={theme.text.bodyColor}
       outlineColor={theme.outlines.color}
     />
+    */}
+    <Icon
+      size={EVENT_TIME_ICON_SIZE_PX}
+      strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
+      color={theme.text.bodyColor}
+    />
     <View>
+      {/* Previous outline treatment kept for easy restoration:
       <StrokeText
         outlineColor={theme.outlines.color}
-        style={[EVENT_TIME_TEXT_STYLE, { color: theme.times.textColor }]}
+        style={[EVENT_TIME_TEXT_STYLE, { color: theme.text.bodyColor }]}
       >
         {label}
       </StrokeText>
+      */}
+      <Text style={[EVENT_TIME_TEXT_STYLE, { color: theme.text.bodyColor }]}>
+        {label}
+      </Text>
     </View>
   </View>
 );

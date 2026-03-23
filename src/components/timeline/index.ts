@@ -10,6 +10,7 @@ export {
   TIMELINE_MARKER_SIZE_PX,
   TIMELINE_TRACK_X_POSITION_PERCENT,
 } from "./config";
+export { TimelineGlassSurface } from "./TimelineGlassSurface";
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
 export {
@@ -18,7 +19,6 @@ export {
   CONFETTI_TIDE_TIMELINE_VISUAL_THEME,
   createTimelineVisualTheme,
   HARBOR_DAWN_TIMELINE_VISUAL_THEME,
-  KELP_DISCO_TIMELINE_VISUAL_THEME,
   MOON_JELLY_TIMELINE_VISUAL_THEME,
   PICNIC_POSTCARD_TIMELINE_VISUAL_THEME,
   SEA_GLASS_TIMELINE_VISUAL_THEME,

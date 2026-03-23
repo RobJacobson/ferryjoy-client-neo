@@ -47,11 +47,7 @@ export const TimelineIndicatorOverlay = ({
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
         topPx={topPx}
-        label={overlayIndicator.label}
-        title={overlayIndicator.title}
-        subtitle={overlayIndicator.subtitle}
-        animate={overlayIndicator.animate}
-        speedKnots={overlayIndicator.speedKnots}
+        overlayIndicator={overlayIndicator}
         sizePx={TIMELINE_INDICATOR_SIZE_PX}
         theme={theme}
       />
