@@ -21,6 +21,7 @@ import type { TimelineTimePoint } from "../types";
 const EVENT_TIME_ICON_SIZE_PX = 22;
 const EVENT_TIME_ICON_STROKE_WIDTH = 2;
 const EVENT_TIME_ICON_OUTLINE_WIDTH = 2;
+const _EVENT_TIME_TEXT_NUDGE_Y_PX = -1;
 const EVENT_TIME_TEXT_STYLE = {
   fontFamily: "BitcountPropSingle-500",
   fontSize: 18,
@@ -102,18 +103,20 @@ const TimelineRowEventTime = ({
   rowClassName,
   theme,
 }: TimelineRowEventTimeProps) => (
-  <View className={cn("flex-row", rowClassName)}>
+  <View className={cn("mt-[-1px] flex-row", rowClassName)}>
     <TimelineOutlinedIcon
       Icon={Icon}
       color={theme.times.iconColor}
       outlineColor={theme.outlines.color}
     />
-    <StrokeText
-      outlineColor={theme.outlines.color}
-      style={[EVENT_TIME_TEXT_STYLE, { color: theme.times.textColor }]}
-    >
-      {label}
-    </StrokeText>
+    <View>
+      <StrokeText
+        outlineColor={theme.outlines.color}
+        style={[EVENT_TIME_TEXT_STYLE, { color: theme.times.textColor }]}
+      >
+        {label}
+      </StrokeText>
+    </View>
   </View>
 );
 

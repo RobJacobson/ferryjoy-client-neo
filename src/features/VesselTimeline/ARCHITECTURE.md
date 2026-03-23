@@ -38,8 +38,9 @@ Notes:
   adjusted sparingly. Very dark themes often work best with near-none or no
   outline at all, while moderately dark themes may benefit from a very slight
   outline.
-  Current named presets include `Sea Glass` (default), `Harbor Dawn`, and
-  `Signal Night`.
+  Current named presets include `Sea Glass` (default), `Harbor Dawn`,
+  `Carnival Fizz`, `Taffy Harbor`, `Kelp Disco`, `Confetti Tide`,
+  `Moon Jelly`, and `Picnic Postcard`.
 
 ## Product Decisions
 

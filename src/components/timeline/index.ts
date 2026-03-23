@@ -14,10 +14,15 @@ export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgroun
 export { TimelineTrack } from "./TimelineTrack";
 export {
   BASE_TIMELINE_VISUAL_THEME,
+  CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME,
+  CONFETTI_TIDE_TIMELINE_VISUAL_THEME,
   createTimelineVisualTheme,
   HARBOR_DAWN_TIMELINE_VISUAL_THEME,
+  KELP_DISCO_TIMELINE_VISUAL_THEME,
+  MOON_JELLY_TIMELINE_VISUAL_THEME,
+  PICNIC_POSTCARD_TIMELINE_VISUAL_THEME,
   SEA_GLASS_TIMELINE_VISUAL_THEME,
-  SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
+  TAFFY_HARBOR_TIMELINE_VISUAL_THEME,
   type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "./theme";

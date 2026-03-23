@@ -36,7 +36,7 @@ export const TimelineRowBody = ({
   showPlaceholder,
   theme,
 }: TimelineRowBodyProps) => (
-  <View className="mt-[-13px] h-full flex-row">
+  <View className="mt-[-10px] h-full flex-row">
     {/* Left column */}
     <View
       style={{

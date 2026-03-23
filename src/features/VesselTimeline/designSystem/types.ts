@@ -23,6 +23,6 @@ export type VesselTimelineVariantDefinitionInput = {
   label: string;
   description: string;
   backgroundColor?: string;
-  backgroundColors?: readonly [string, string, string, string];
+  backgroundColors?: readonly string[];
   timelineTheme?: TimelineVisualThemeOverrides;
 };

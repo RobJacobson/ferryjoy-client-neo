@@ -35,9 +35,7 @@ export type TimelineVisualTheme = {
     remainingColor: string;
   };
   cards: {
-    /** Backdrop blur material; not the same as `fillColor` (inner view only). */
-    blurTint: "clear" | "light" | "dark" | "default";
-    /** Inner overlay on top of blur; use transparent for tint from `blurTint` only. */
+    /** Inner overlay on top of blur; pairs with fixed card blur tint in render constants. */
     fillColor: string;
     borderWidth: number;
   };
@@ -90,6 +88,8 @@ export const TIMELINE_RENDER_CONSTANTS = {
   },
   cards: {
     blurIntensity: 20,
+    /** Fixed card blur material; not per-theme (see `TimelineTerminalCardBackgrounds`). */
+    blurTint: "light" as const,
   },
   indicator: {
     glassBlurIntensity: 8,
@@ -97,6 +97,7 @@ export const TIMELINE_RENDER_CONSTANTS = {
 } as const;
 
 export const DEFAULT_TIMELINE_OUTLINE_COLOR = "hsla(0, 0%, 100%, 0.75)";
+export const DEFAULT_TIMELINE_CARD_FILL_COLOR = "hsla(0, 0%, 100%, 0.30)";
 
 export const SEA_GLASS_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   track: {
@@ -105,8 +106,7 @@ export const SEA_GLASS_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     remainingColor: "hsla(210, 35%, 100%, 0.66)",
   },
   cards: {
-    blurTint: "light",
-    fillColor: "hsla(200, 55%, 96%, 0.18)",
+    fillColor: DEFAULT_TIMELINE_CARD_FILL_COLOR,
     borderWidth: 1,
   },
   labels: {
@@ -150,8 +150,7 @@ export const HARBOR_DAWN_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     remainingColor: "hsla(36, 65%, 96%, 0.72)",
   },
   cards: {
-    blurTint: "light",
-    fillColor: "hsla(33, 90%, 95%, 0.18)",
+    fillColor: DEFAULT_TIMELINE_CARD_FILL_COLOR,
     borderWidth: 1,
   },
   labels: {
@@ -188,47 +187,266 @@ export const HARBOR_DAWN_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   },
 };
 
-export const SIGNAL_NIGHT_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+export const CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   track: {
-    completedColor: "hsla(83, 88%, 56%, 1)",
-    completedGlowColor: "hsla(83, 95%, 63%, 0.95)",
-    remainingColor: "hsla(196, 28%, 84%, 0.54)",
+    completedColor: "hsla(24, 96%, 62%, 1)",
+    completedGlowColor: "hsla(47, 100%, 72%, 0.95)",
+    remainingColor: "hsla(194, 78%, 97%, 0.72)",
   },
   cards: {
-    blurTint: "dark",
-    fillColor: "hsla(190, 35%, 15%, 0.26)",
+    fillColor: DEFAULT_TIMELINE_CARD_FILL_COLOR,
     borderWidth: 1,
   },
   labels: {
-    terminalNameColor: "hsla(171, 63%, 61%, 1)",
-    eventLabelColor: "hsla(180, 31%, 88%, 1)",
+    terminalNameColor: "hsla(21, 94%, 63%, 1)",
+    eventLabelColor: "hsla(203, 44%, 31%, 1)",
   },
   times: {
-    textColor: "hsla(190, 18%, 90%, 1)",
-    iconColor: "hsla(83, 88%, 56%, 1)",
+    textColor: "hsla(205, 34%, 29%, 1)",
+    iconColor: "hsla(174, 72%, 43%, 1)",
   },
   outlines: {
-    color: "hsla(0, 0%, 100%, 0.05)",
+    color: DEFAULT_TIMELINE_OUTLINE_COLOR,
   },
   marker: {
-    pastFillColor: "hsla(83, 88%, 56%, 1)",
-    pastBorderColor: "hsla(168, 54%, 90%, 0.95)",
-    futureFillColor: "hsla(190, 28%, 92%, 0.96)",
-    futureBorderColor: "hsla(83, 88%, 56%, 1)",
-    pastIconTintColor: "hsla(194, 43%, 12%, 0.96)",
-    futureIconTintColor: "hsla(194, 43%, 23%, 0.88)",
+    pastFillColor: "hsla(24, 96%, 62%, 1)",
+    pastBorderColor: "hsla(49, 100%, 95%, 0.95)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.94)",
+    futureBorderColor: "hsla(24, 96%, 62%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.94)",
+    futureIconTintColor: "hsla(24, 96%, 62%, 0.84)",
   },
   indicator: {
-    badgeLabelColor: "hsla(194, 44%, 16%, 1)",
-    bannerTitleColor: "hsla(180, 24%, 92%, 1)",
-    bannerSubtitleColor: "hsla(181, 19%, 76%, 1)",
-    borderColor: "hsla(171, 63%, 61%, 0.92)",
+    badgeLabelColor: "hsla(203, 46%, 28%, 1)",
+    bannerTitleColor: "hsla(204, 48%, 26%, 1)",
+    bannerSubtitleColor: "hsla(201, 29%, 39%, 1)",
+    borderColor: "hsla(33, 100%, 74%, 0.95)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.72,
+      borderColor: "hsla(33, 100%, 74%, 0.48)",
+      fillColor: "hsla(47, 100%, 97%, 0.24)",
+    },
+  },
+};
+
+export const TAFFY_HARBOR_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(330, 79%, 68%, 1)",
+    completedGlowColor: "hsla(31, 100%, 79%, 0.95)",
+    remainingColor: "hsla(219, 72%, 98%, 0.74)",
+  },
+  cards: {
+    fillColor: "hsla(0, 0%, 100%, 0.34)",
+    borderWidth: 1,
+  },
+  labels: {
+    terminalNameColor: "hsla(322, 73%, 66%, 1)",
+    eventLabelColor: "hsla(224, 32%, 35%, 1)",
+  },
+  times: {
+    textColor: "hsla(229, 24%, 32%, 1)",
+    iconColor: "hsla(193, 73%, 47%, 1)",
+  },
+  outlines: {
+    color: "hsla(0, 0%, 100%, 0.7)",
+  },
+  marker: {
+    pastFillColor: "hsla(330, 79%, 68%, 1)",
+    pastBorderColor: "hsla(0, 0%, 100%, 0.95)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.94)",
+    futureBorderColor: "hsla(330, 79%, 68%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.94)",
+    futureIconTintColor: "hsla(330, 79%, 68%, 0.84)",
+  },
+  indicator: {
+    badgeLabelColor: "hsla(226, 34%, 31%, 1)",
+    bannerTitleColor: "hsla(228, 36%, 29%, 1)",
+    bannerSubtitleColor: "hsla(223, 19%, 43%, 1)",
+    borderColor: "hsla(327, 82%, 77%, 0.95)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.7,
+      borderColor: "hsla(327, 82%, 77%, 0.44)",
+      fillColor: "hsla(201, 100%, 97%, 0.22)",
+    },
+  },
+};
+
+export const KELP_DISCO_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(155, 77%, 47%, 1)",
+    completedGlowColor: "hsla(52, 97%, 67%, 0.9)",
+    remainingColor: "hsla(167, 49%, 93%, 0.56)",
+  },
+  cards: {
+    fillColor: "hsla(167, 36%, 97%, 0.22)",
+    borderWidth: 1,
+  },
+  labels: {
+    terminalNameColor: "hsla(161, 72%, 58%, 1)",
+    eventLabelColor: "hsla(162, 42%, 90%, 1)",
+  },
+  times: {
+    textColor: "hsla(156, 29%, 91%, 1)",
+    iconColor: "hsla(52, 97%, 67%, 1)",
+  },
+  outlines: {
+    color: "hsla(0, 0%, 100%, 0.08)",
+  },
+  marker: {
+    pastFillColor: "hsla(52, 97%, 67%, 1)",
+    pastBorderColor: "hsla(159, 46%, 83%, 0.9)",
+    futureFillColor: "hsla(164, 31%, 88%, 0.95)",
+    futureBorderColor: "hsla(52, 97%, 67%, 1)",
+    pastIconTintColor: "hsla(161, 50%, 13%, 0.96)",
+    futureIconTintColor: "hsla(161, 43%, 23%, 0.88)",
+  },
+  indicator: {
+    badgeLabelColor: "hsla(157, 53%, 14%, 1)",
+    bannerTitleColor: "hsla(159, 43%, 92%, 1)",
+    bannerSubtitleColor: "hsla(158, 22%, 76%, 1)",
+    borderColor: "hsla(155, 77%, 55%, 0.88)",
     ping: {
       insetPx: 0,
       borderWidth: 1.5,
       peakOpacity: 0.78,
-      borderColor: "hsla(171, 63%, 61%, 0.44)",
-      fillColor: "hsla(190, 34%, 24%, 0.2)",
+      borderColor: "hsla(155, 77%, 55%, 0.4)",
+      fillColor: "hsla(155, 52%, 30%, 0.22)",
+    },
+  },
+};
+
+export const CONFETTI_TIDE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(197, 82%, 57%, 1)",
+    completedGlowColor: "hsla(48, 100%, 73%, 0.92)",
+    remainingColor: "hsla(201, 79%, 98%, 0.74)",
+  },
+  cards: {
+    fillColor: "hsla(0, 0%, 100%, 0.33)",
+    borderWidth: 1,
+  },
+  labels: {
+    terminalNameColor: "hsla(198, 80%, 57%, 1)",
+    eventLabelColor: "hsla(220, 36%, 32%, 1)",
+  },
+  times: {
+    textColor: "hsla(223, 28%, 29%, 1)",
+    iconColor: "hsla(11, 86%, 65%, 1)",
+  },
+  outlines: {
+    color: DEFAULT_TIMELINE_OUTLINE_COLOR,
+  },
+  marker: {
+    pastFillColor: "hsla(11, 86%, 65%, 1)",
+    pastBorderColor: "hsla(53, 100%, 95%, 0.94)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.94)",
+    futureBorderColor: "hsla(11, 86%, 65%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.94)",
+    futureIconTintColor: "hsla(11, 86%, 65%, 0.84)",
+  },
+  indicator: {
+    badgeLabelColor: "hsla(220, 44%, 29%, 1)",
+    bannerTitleColor: "hsla(221, 46%, 27%, 1)",
+    bannerSubtitleColor: "hsla(217, 18%, 42%, 1)",
+    borderColor: "hsla(198, 83%, 70%, 0.94)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.7,
+      borderColor: "hsla(198, 83%, 70%, 0.44)",
+      fillColor: "hsla(201, 100%, 97%, 0.22)",
+    },
+  },
+};
+
+export const MOON_JELLY_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(267, 79%, 70%, 1)",
+    completedGlowColor: "hsla(196, 93%, 77%, 0.94)",
+    remainingColor: "hsla(225, 56%, 96%, 0.7)",
+  },
+  cards: {
+    fillColor: "hsla(0, 0%, 100%, 0.28)",
+    borderWidth: 1,
+  },
+  labels: {
+    terminalNameColor: "hsla(271, 78%, 72%, 1)",
+    eventLabelColor: "hsla(224, 33%, 34%, 1)",
+  },
+  times: {
+    textColor: "hsla(226, 24%, 31%, 1)",
+    iconColor: "hsla(194, 79%, 56%, 1)",
+  },
+  outlines: {
+    color: "hsla(0, 0%, 100%, 0.72)",
+  },
+  marker: {
+    pastFillColor: "hsla(267, 79%, 70%, 1)",
+    pastBorderColor: "hsla(195, 100%, 96%, 0.94)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.94)",
+    futureBorderColor: "hsla(267, 79%, 70%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.94)",
+    futureIconTintColor: "hsla(267, 79%, 70%, 0.84)",
+  },
+  indicator: {
+    badgeLabelColor: "hsla(225, 38%, 29%, 1)",
+    bannerTitleColor: "hsla(226, 40%, 27%, 1)",
+    bannerSubtitleColor: "hsla(222, 18%, 43%, 1)",
+    borderColor: "hsla(266, 83%, 79%, 0.94)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.72,
+      borderColor: "hsla(266, 83%, 79%, 0.42)",
+      fillColor: "hsla(194, 100%, 97%, 0.2)",
+    },
+  },
+};
+
+export const PICNIC_POSTCARD_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
+  track: {
+    completedColor: "hsla(356, 86%, 64%, 1)",
+    completedGlowColor: "hsla(45, 99%, 72%, 0.92)",
+    remainingColor: "hsla(90, 48%, 95%, 0.74)",
+  },
+  cards: {
+    fillColor: "hsla(0, 0%, 100%, 0.32)",
+    borderWidth: 1,
+  },
+  labels: {
+    terminalNameColor: "hsla(356, 79%, 64%, 1)",
+    eventLabelColor: "hsla(26, 30%, 31%, 1)",
+  },
+  times: {
+    textColor: "hsla(29, 24%, 29%, 1)",
+    iconColor: "hsla(144, 51%, 44%, 1)",
+  },
+  outlines: {
+    color: DEFAULT_TIMELINE_OUTLINE_COLOR,
+  },
+  marker: {
+    pastFillColor: "hsla(356, 86%, 64%, 1)",
+    pastBorderColor: "hsla(55, 90%, 95%, 0.94)",
+    futureFillColor: "hsla(0, 0%, 100%, 0.94)",
+    futureBorderColor: "hsla(356, 86%, 64%, 1)",
+    pastIconTintColor: "hsla(0, 0%, 100%, 0.94)",
+    futureIconTintColor: "hsla(356, 86%, 64%, 0.84)",
+  },
+  indicator: {
+    badgeLabelColor: "hsla(28, 38%, 27%, 1)",
+    bannerTitleColor: "hsla(28, 40%, 25%, 1)",
+    bannerSubtitleColor: "hsla(27, 16%, 41%, 1)",
+    borderColor: "hsla(356, 84%, 76%, 0.94)",
+    ping: {
+      insetPx: 0,
+      borderWidth: 1.5,
+      peakOpacity: 0.68,
+      borderColor: "hsla(356, 84%, 76%, 0.42)",
+      fillColor: "hsla(51, 100%, 97%, 0.22)",
     },
   },
 };
