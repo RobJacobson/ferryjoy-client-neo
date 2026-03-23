@@ -1,86 +1,50 @@
 /**
- * Gradient background feature entry point.
- *
- * This component owns viewport sizing, resolves either caller-supplied orbs or
- * randomly generated defaults, and renders the SVG background behind any
- * foreground children.
+ * Composes the gradient background draw order: base rect, orb layers, then
+ * optional noise on top.
  */
 
-import type { PropsWithChildren } from "react";
-import { useMemo } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
-import Animated from "react-native-reanimated";
-import { View } from "@/components/ui";
-import {
-  GRADIENT_BACKGROUND_COLORS,
-  GRADIENT_BACKGROUND_OVERLAY_COLOR,
-  type GradientOrbConfig,
-} from "./config";
-import { GradientBackgroundSvg } from "./GradientBackgroundSvg";
-import { createRandomGradientOrbs } from "./randomOrbs";
+import { StyleSheet } from "react-native";
+import Svg, { Rect } from "react-native-svg";
+import type { GradientOrbConfig } from "./GradientBackgroundLayer";
+import { GradientOrbLayer } from "./GradientOrbLayer";
+import { GradientBackgroundNoiseSvg } from "./svg/GradientBackgroundNoiseSvg";
 
-type GradientBackgroundProps = PropsWithChildren<{
+type GradientBackgroundProps = {
   backgroundColor: string;
-  orbs?: readonly GradientOrbConfig[];
-  colors?: readonly string[];
-  overlayColor?: string;
-}>;
+  orbs: readonly GradientOrbConfig[];
+  svgIdPrefix: string;
+  width: number;
+  height: number;
+};
 
 /**
- * Renders the full gradient background and optional foreground content.
+ * Renders base fill, all orbs, and the noise overlay for the given size.
  *
- * When `orbs` is omitted, the component synthesizes a random orb field sized
- * for the current viewport. The background itself is rendered in an
- * absolute-fill layer so callers can place normal content on top.
- *
- * @param props - Background props and optional foreground children
- * @param props.backgroundColor - Solid base color painted below all orb layers
- * @param props.children - Foreground content rendered above the background
- * @param props.orbs - Optional precomputed orb definitions for deterministic scenes
- * @param props.colors - Palette used when random orb definitions are generated
- * @param props.overlayColor - Final wash painted above the orbs to soften contrast
- * @returns Full-screen background layer with optional foreground content
+ * @param props - Scene props
+ * @param props.backgroundColor - Solid SVG rect fill behind orbs
+ * @param props.orbs - Orb configs mapped to `GradientOrbLayer` instances
+ * @param props.width - SVG width in logical pixels
+ * @param props.height - SVG height in logical pixels
+ * @returns Fragment of stacked SVG and orb layers
  */
 export const GradientBackground = ({
   backgroundColor,
-  children,
   orbs,
-  colors = GRADIENT_BACKGROUND_COLORS,
-  overlayColor = GRADIENT_BACKGROUND_OVERLAY_COLOR,
-}: GradientBackgroundProps) => {
-  const { width, height } = useWindowDimensions();
-  const maxDimension = Math.max(width, height);
-  const resolvedOrbs = useMemo(
-    () =>
-      orbs
-        ? [...orbs]
-        : createRandomGradientOrbs({
-            // Random defaults are regenerated when the viewport changes size so
-            // the starting positions remain valid for the visible bounds.
-            width,
-            height,
-            maxDimension,
-            colors,
-          }),
-    [colors, height, maxDimension, orbs, width]
-  );
-
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Animated.View style={StyleSheet.absoluteFill}>
-          <GradientBackgroundSvg
-            backgroundColor={backgroundColor}
-            overlayColor={overlayColor}
-            orbs={resolvedOrbs}
-            width={width}
-            height={height}
-          />
-        </Animated.View>
-      </View>
-      {children}
-    </View>
-  );
-};
-
-export default GradientBackground;
+  svgIdPrefix,
+  width,
+  height,
+}: GradientBackgroundProps) => (
+  <>
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+      <Rect width="100%" height="100%" fill={backgroundColor} />
+    </Svg>
+    {orbs.map((orb) => (
+      <GradientOrbLayer key={orb.id} orb={orb} svgIdPrefix={svgIdPrefix} />
+    ))}
+    <GradientBackgroundNoiseSvg
+      height={height}
+      svgIdPrefix={svgIdPrefix}
+      width={width}
+    />
+  </>
+);

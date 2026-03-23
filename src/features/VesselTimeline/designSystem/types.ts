@@ -13,7 +13,6 @@ export type VesselTimelineDesignVariant = {
   description: string;
   backgroundColor: string;
   backgroundColors: readonly string[];
-  backgroundOverlayColor: string;
   timelineTheme: TimelineVisualTheme;
 };
 
@@ -25,6 +24,5 @@ export type VesselTimelineVariantDefinitionInput = {
   description: string;
   backgroundColor?: string;
   backgroundColors?: readonly [string, string, string, string];
-  backgroundOverlayColor?: string;
   timelineTheme?: TimelineVisualThemeOverrides;
 };

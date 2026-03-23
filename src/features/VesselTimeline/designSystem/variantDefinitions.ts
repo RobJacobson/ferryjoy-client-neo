@@ -33,7 +33,6 @@ export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant
       "hsla(178, 40%, 85%, 1)",
       "hsla(212, 54%, 88%, 1)",
     ],
-    backgroundOverlayColor: "hsla(195, 70%, 98%, 0.18)",
     timelineTheme: SEA_GLASS_TIMELINE_VISUAL_THEME,
   };
 
@@ -50,7 +49,6 @@ export const defineVesselTimelineVariant = ({
   description,
   backgroundColor,
   backgroundColors,
-  backgroundOverlayColor,
   timelineTheme,
 }: VesselTimelineVariantDefinitionInput): VesselTimelineVariantDefinition => ({
   id,
@@ -60,9 +58,6 @@ export const defineVesselTimelineVariant = ({
     backgroundColor ?? DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundColor,
   backgroundColors:
     backgroundColors ?? DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundColors,
-  backgroundOverlayColor:
-    backgroundOverlayColor ??
-    DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.backgroundOverlayColor,
   timelineTheme: createTimelineVisualTheme({
     ...DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT.timelineTheme,
     ...timelineTheme,
@@ -91,7 +86,6 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariant
         "hsla(350, 70%, 88%, 1)",
         "hsla(14, 78%, 89%, 1)",
       ],
-      backgroundOverlayColor: "hsla(36, 100%, 98%, 0.22)",
       timelineTheme: HARBOR_DAWN_TIMELINE_VISUAL_THEME,
     },
     {
@@ -106,7 +100,6 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariant
         "hsla(205, 38%, 20%, 1)",
         "hsla(168, 32%, 18%, 1)",
       ],
-      backgroundOverlayColor: "hsla(188, 28%, 8%, 0.26)",
       timelineTheme: SIGNAL_NIGHT_TIMELINE_VISUAL_THEME,
     },
   ];
