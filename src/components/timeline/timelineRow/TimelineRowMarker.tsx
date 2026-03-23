@@ -8,10 +8,7 @@ import { Image } from "expo-image";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import {
-  TIMELINE_MARKER_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
-} from "../config";
+import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 
@@ -41,13 +38,13 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
         "absolute items-center justify-center overflow-hidden rounded-full"
       )}
       style={{
-        left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+        left: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
         top: 0,
         ...getAbsoluteCenteredBoxStyle({
-          width: TIMELINE_MARKER_SIZE_PX,
-          height: TIMELINE_MARKER_SIZE_PX,
+          width: TIMELINE_ROW_CONFIG.marker.sizePx,
+          height: TIMELINE_ROW_CONFIG.marker.sizePx,
         }),
-        borderWidth: 2,
+        borderWidth: TIMELINE_ROW_CONFIG.marker.borderWidthPx,
         borderColor: markerColors.borderColor,
         backgroundColor: markerColors.fillColor,
       }}
@@ -56,8 +53,8 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
         source={markerIconSource[row.kind]}
         contentFit="contain"
         style={{
-          width: 20,
-          height: 20,
+          width: TIMELINE_ROW_CONFIG.marker.iconSizePx,
+          height: TIMELINE_ROW_CONFIG.marker.iconSizePx,
           tintColor: markerColors.iconTintColor,
         }}
       />

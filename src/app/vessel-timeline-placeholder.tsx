@@ -146,12 +146,18 @@ export default function VesselTimelinePlaceholderScreen() {
                 </View>
               ) : vesselOptions.length === 0 ? (
                 <View className="h-10 justify-center rounded-md border border-white bg-white px-3">
-                  <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+                  <Text
+                    className="text-muted-foreground text-sm"
+                    numberOfLines={1}
+                  >
                     No vessels available
                   </Text>
                 </View>
               ) : (
-                <Select value={selectedOption} onValueChange={setSelectedOption}>
+                <Select
+                  value={selectedOption}
+                  onValueChange={setSelectedOption}
+                >
                   <SelectTrigger className="w-full border-white bg-white">
                     <SelectValue
                       placeholder="Select a vessel"

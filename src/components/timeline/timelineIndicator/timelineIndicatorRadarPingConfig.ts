@@ -4,8 +4,7 @@
 
 import type { ViewStyle } from "react-native";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-
-const TIMELINE_INDICATOR_RADAR_PING_DURATION_MS = 10000;
+import { TIMELINE_INDICATOR_CONFIG } from "../config";
 
 type RadarPingStyleConfig = {
   pingColor: string;
@@ -18,24 +17,24 @@ type RadarPingStyleConfig = {
  */
 const createRadarPingAnimationStyle = (): ViewStyle => ({
   animationName: {
-    "0%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.hiddenStartPercent]: {
       opacity: 0,
       transform: [{ scale: 1 }],
     },
-    "49.99%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.hiddenEndPercent]: {
       opacity: 0,
       transform: [{ scale: 1 }],
     },
-    "50%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.visibleStartPercent]: {
       opacity: 1,
       transform: [{ scale: 1 }],
     },
-    "100%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.endPercent]: {
       opacity: 0,
-      transform: [{ scale: 2.5 }],
+      transform: [{ scale: TIMELINE_INDICATOR_CONFIG.radarPing.maxScale }],
     },
   },
-  animationDuration: TIMELINE_INDICATOR_RADAR_PING_DURATION_MS,
+  animationDuration: TIMELINE_INDICATOR_CONFIG.radarPing.durationMs,
   animationDelay: 0,
   animationIterationCount: "infinite",
   animationTimingFunction: "ease-out",
@@ -60,7 +59,7 @@ export const getTimelineIndicatorRadarPingStyle = (
       height: sizePx,
     }),
     borderRadius: sizePx / 2,
-    borderWidth: 2,
+    borderWidth: TIMELINE_INDICATOR_CONFIG.radarPing.borderWidthPx,
     borderColor: ping.pingColor,
     ...createRadarPingAnimationStyle(),
   };
@@ -74,5 +73,5 @@ export const getTimelineIndicatorRadarPingFillStyle = (
   inset: 0,
   borderRadius: sizePx / 2,
   backgroundColor: pingColor,
-  opacity: 0.5,
+  opacity: TIMELINE_INDICATOR_CONFIG.radarPing.fillOpacity,
 });

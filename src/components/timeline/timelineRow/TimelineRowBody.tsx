@@ -3,16 +3,11 @@
  */
 
 import { View } from "@/components/ui";
-import {
-  TIMELINE_SIDE_COLUMN_OFFSET_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
-} from "../config";
+import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderEvent } from "../types";
 import { TimelineRowEventLabel } from "./TimelineRowEventLabel";
 import { TimelineRowEventTimes } from "./TimelineRowEventTimes";
-
-const TIMELINE_ROW_CONTENT_NUDGE_PX = 2;
 
 type TimelineRowBodyProps = {
   label: string;
@@ -40,14 +35,15 @@ export const TimelineRowBody = ({
     {/* Left column */}
     <View
       style={{
-        width: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+        width: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
       }}
     >
       <View
         className="flex-row justify-end"
         style={{
           marginRight:
-            TIMELINE_SIDE_COLUMN_OFFSET_PX + TIMELINE_ROW_CONTENT_NUDGE_PX,
+            TIMELINE_SHARED_CONFIG.sideColumnOffsetPx +
+            TIMELINE_ROW_CONFIG.body.contentNudgePx,
         }}
       >
         <TimelineRowEventLabel label={label} theme={theme} />
@@ -58,7 +54,8 @@ export const TimelineRowBody = ({
       className="flex-1"
       style={{
         marginLeft:
-          TIMELINE_SIDE_COLUMN_OFFSET_PX + TIMELINE_ROW_CONTENT_NUDGE_PX,
+          TIMELINE_SHARED_CONFIG.sideColumnOffsetPx +
+          TIMELINE_ROW_CONFIG.body.contentNudgePx,
       }}
     >
       <TimelineRowEventTimes

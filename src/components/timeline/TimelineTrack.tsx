@@ -5,10 +5,7 @@
 import type { ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { View } from "@/components/ui";
-import {
-  TIMELINE_INDICATOR_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
-} from "./config";
+import { TIMELINE_SHARED_CONFIG } from "./config";
 import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "./theme";
 
 const TIMELINE_TRACK_GLOW_PULSE_DURATION_MS = 7000;
@@ -49,10 +46,10 @@ export const TimelineTrack = ({
       className="absolute items-center"
       pointerEvents="none"
       style={{
-        left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
-        width: TIMELINE_INDICATOR_SIZE_PX,
+        left: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
+        width: TIMELINE_SHARED_CONFIG.indicatorSizePx,
         height: containerHeightPx,
-        marginLeft: -TIMELINE_INDICATOR_SIZE_PX / 2,
+        marginLeft: -TIMELINE_SHARED_CONFIG.indicatorSizePx / 2,
       }}
     >
       <View

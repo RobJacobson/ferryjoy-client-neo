@@ -2,13 +2,9 @@ import type { ComponentRef, RefObject } from "react";
 import type { ViewStyle } from "react-native";
 import type { View as UIView } from "@/components/ui";
 import { Text, View } from "@/components/ui";
+import { TIMELINE_INDICATOR_CONFIG } from "../config";
 import { TimelineGlassSurface } from "../TimelineGlassSurface";
-import {
-  TIMELINE_RENDER_CONSTANTS,
-  type TimelineVisualTheme,
-} from "../theme";
-
-const BANNER_MAX_WIDTH_PX = 400;
+import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "../theme";
 
 export type TimelineIndicatorBannerProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
@@ -18,10 +14,16 @@ export type TimelineIndicatorBannerProps = {
   theme: TimelineVisualTheme;
 };
 
+const {
+  borderWidthPx,
+  maxWidthPx,
+  verticalOffsetPx,
+} = TIMELINE_INDICATOR_CONFIG.banner;
+
 const getBannerStyle = (sizePx: number): ViewStyle => ({
-  bottom: sizePx / 2 - 6,
-  left: -BANNER_MAX_WIDTH_PX / 2,
-  width: BANNER_MAX_WIDTH_PX,
+  bottom: sizePx / 2 - verticalOffsetPx,
+  left: -maxWidthPx / 2,
+  width: maxWidthPx,
 });
 
 export const TimelineIndicatorBanner = ({
@@ -45,8 +47,8 @@ export const TimelineIndicatorBanner = ({
         pointerEvents="none"
         className="overflow-hidden rounded-full"
         style={{
-          maxWidth: BANNER_MAX_WIDTH_PX,
-          borderWidth: 2,
+          maxWidth: maxWidthPx,
+          borderWidth: borderWidthPx,
           borderColor: theme.glassBorderColor,
         }}
       >

@@ -7,8 +7,9 @@
  */
 
 export {
-  TIMELINE_MARKER_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
+  TIMELINE_INDICATOR_CONFIG,
+  TIMELINE_ROW_CONFIG,
+  TIMELINE_SHARED_CONFIG,
 } from "./config";
 export { TimelineGlassSurface } from "./TimelineGlassSurface";
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";

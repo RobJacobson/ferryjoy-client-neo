@@ -1,6 +1,7 @@
 import type { ComponentRef, RefObject } from "react";
 import type { View as UIView } from "@/components/ui";
 import { Text, View } from "@/components/ui";
+import { TIMELINE_INDICATOR_CONFIG } from "../config";
 import { TimelineGlassSurface } from "../TimelineGlassSurface";
 import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "../theme";
 
@@ -23,7 +24,7 @@ export const TimelineIndicatorCircle = ({
     style={{
       width: sizePx,
       height: sizePx,
-      borderWidth: 3,
+      borderWidth: TIMELINE_INDICATOR_CONFIG.circle.borderWidthPx,
       borderColor: theme.indicator.borderColor,
     }}
   >

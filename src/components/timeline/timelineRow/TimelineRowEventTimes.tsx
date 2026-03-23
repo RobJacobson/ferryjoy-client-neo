@@ -14,16 +14,14 @@ import {
 import { Text, View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
+import { TIMELINE_ROW_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
 
-const EVENT_TIME_ICON_SIZE_PX = 22;
-const EVENT_TIME_ICON_STROKE_WIDTH = 2;
-const EVENT_TIME_ICON_OUTLINE_WIDTH = 2;
 const _EVENT_TIME_TEXT_NUDGE_Y_PX = -1;
 const EVENT_TIME_TEXT_STYLE = {
   fontFamily: "BitcountPropSingle-500",
-  fontSize: 18,
+  fontSize: TIMELINE_ROW_CONFIG.times.textFontSizePx,
 } as const;
 const eventTypeIcons = {
   actual: Timer,
@@ -111,8 +109,8 @@ const TimelineRowEventTime = ({
     />
     */}
     <Icon
-      size={EVENT_TIME_ICON_SIZE_PX}
-      strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
+      size={TIMELINE_ROW_CONFIG.times.iconSizePx}
+      strokeWidth={TIMELINE_ROW_CONFIG.times.iconStrokeWidth}
       color={theme.text.bodyColor}
     />
     <View>
@@ -145,7 +143,7 @@ type TimelineOutlinedIconProps = {
  * @param outlineColor - HSLA outline color behind the icon
  * @returns Outlined icon view
  */
-const TimelineOutlinedIcon = ({
+const _TimelineOutlinedIcon = ({
   Icon,
   color,
   outlineColor,
@@ -153,16 +151,17 @@ const TimelineOutlinedIcon = ({
   <View className="relative">
     <View className="absolute top-0 left-0">
       <Icon
-        size={EVENT_TIME_ICON_SIZE_PX}
+        size={TIMELINE_ROW_CONFIG.times.iconSizePx}
         strokeWidth={
-          EVENT_TIME_ICON_STROKE_WIDTH + EVENT_TIME_ICON_OUTLINE_WIDTH * 2
+          TIMELINE_ROW_CONFIG.times.iconStrokeWidth +
+          TIMELINE_ROW_CONFIG.times.iconOutlineWidth * 2
         }
         color={outlineColor}
       />
     </View>
     <Icon
-      size={EVENT_TIME_ICON_SIZE_PX}
-      strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
+      size={TIMELINE_ROW_CONFIG.times.iconSizePx}
+      strokeWidth={TIMELINE_ROW_CONFIG.times.iconStrokeWidth}
       color={color}
     />
   </View>

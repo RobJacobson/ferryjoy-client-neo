@@ -8,10 +8,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import {
-  TIMELINE_INDICATOR_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
-} from "../config";
+import { TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineActiveIndicator } from "../types";
 import { useAnimatedProgress } from "../useAnimatedProgress";
@@ -42,7 +39,7 @@ export const TimelineIndicator = ({
   blurTargetRef,
   topPx,
   overlayIndicator,
-  sizePx = TIMELINE_INDICATOR_SIZE_PX,
+  sizePx = TIMELINE_SHARED_CONFIG.indicatorSizePx,
   theme,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx);
@@ -60,7 +57,10 @@ export const TimelineIndicator = ({
   return (
     <Animated.View
       style={[
-        { position: "absolute", left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%` },
+        {
+          position: "absolute",
+          left: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
+        },
         animatedStyle,
         rockingStyle,
       ]}

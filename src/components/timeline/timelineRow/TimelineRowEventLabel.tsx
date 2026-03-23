@@ -35,11 +35,8 @@ export const TimelineRowEventLabel = ({
     </StrokeText>
     */}
     <Text
-      style={{
-        color: theme.text.bodyColor,
-        fontFamily: "BitcountPropSingle-500",
-        fontSize: 18,
-      }}
+      className="font-bitcount-500 text-lg"
+      style={{ color: theme.text.bodyColor }}
     >
       {label}
     </Text>
