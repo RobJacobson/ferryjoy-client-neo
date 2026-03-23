@@ -2,13 +2,13 @@
  * Composes banner, circle, and optional radar ping for the active timeline dot.
  */
 
-import type { ComponentRef, RefObject } from "react";
+import { type ComponentRef, type RefObject, useState } from "react";
 import type { ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import { TIMELINE_SHARED_CONFIG } from "../config";
+import { TIMELINE_INDICATOR_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineActiveIndicator } from "../types";
 import { useAnimatedProgress } from "../useAnimatedProgress";
@@ -43,6 +43,7 @@ export const TimelineIndicator = ({
   theme,
 }: TimelineIndicatorProps) => {
   const progress = useAnimatedProgress(topPx);
+  const [isBannerVisible, setIsBannerVisible] = useState(true);
   const rockingStyle = useRockingAnimation(
     overlayIndicator.animate ?? false,
     overlayIndicator.speedKnots ?? 0
@@ -64,19 +65,34 @@ export const TimelineIndicator = ({
         animatedStyle,
         rockingStyle,
       ]}
+      pointerEvents="box-none"
     >
-      <TimelineIndicatorBanner
-        blurTargetRef={blurTargetRef}
-        title={overlayIndicator.title}
-        subtitle={overlayIndicator.subtitle}
-        sizePx={sizePx}
-        theme={theme}
-      />
+      <Animated.View
+        pointerEvents={isBannerVisible ? "auto" : "none"}
+        style={[
+          getBannerFadeStyle(isBannerVisible),
+          { opacity: isBannerVisible ? 1 : 0 },
+        ]}
+      >
+        <TimelineIndicatorBanner
+          blurTargetRef={blurTargetRef}
+          onPress={() => {
+            setIsBannerVisible((currentValue) => !currentValue);
+          }}
+          title={overlayIndicator.title}
+          subtitle={overlayIndicator.subtitle}
+          sizePx={sizePx}
+          theme={theme}
+        />
+      </Animated.View>
       <View style={getBadgeAnchorStyle(sizePx)}>
         <TimelineIndicatorRadarPing sizePx={sizePx} theme={theme} />
         <TimelineIndicatorCircle
           blurTargetRef={blurTargetRef}
           label={overlayIndicator.label}
+          onPress={() => {
+            setIsBannerVisible((currentValue) => !currentValue);
+          }}
           sizePx={sizePx}
           theme={theme}
         />
@@ -92,4 +108,17 @@ const getBadgeAnchorStyle = (sizePx: number): ViewStyle => ({
     width: sizePx,
     height: sizePx,
   }),
+});
+
+const getBannerFadeStyle = (isVisible: boolean): ViewStyle => ({
+  animationName: {
+    "0%": {
+      opacity: isVisible ? 0 : 1,
+    },
+    "100%": {
+      opacity: isVisible ? 1 : 0,
+    },
+  },
+  animationDuration: TIMELINE_INDICATOR_CONFIG.banner.fadeDurationMs,
+  animationTimingFunction: "ease-in-out",
 });

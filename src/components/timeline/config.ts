@@ -12,11 +12,16 @@ export const TIMELINE_SHARED_CONFIG = {
   sideColumnOffsetPx: 18,
 } as const;
 
+export const TIMELINE_CARD_CONFIG = {
+  cornerRadiusPx: 20,
+} as const;
+
 export const TIMELINE_INDICATOR_CONFIG = {
   banner: {
     maxWidthPx: 400,
     verticalOffsetPx: 6,
-    borderWidthPx: 2,
+    borderWidthPx: 1.5,
+    fadeDurationMs: 300,
   },
   circle: {
     borderWidthPx: 3,

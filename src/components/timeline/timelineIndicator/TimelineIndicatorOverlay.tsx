@@ -40,7 +40,7 @@ export const TimelineIndicatorOverlay = ({
 
   return (
     <View
-      pointerEvents="none"
+      pointerEvents="box-none"
       className="absolute inset-0"
       style={{
         zIndex: TIMELINE_INDICATOR_CONFIG.overlay.zIndex,
