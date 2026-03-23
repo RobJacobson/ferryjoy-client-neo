@@ -3,7 +3,7 @@
  */
 
 import { View } from "@/components/ui";
-import { GradientBackgroundLayer } from "@/features/GradientBackground/GradientBackgroundLayer";
+import { GradientBackground } from "@/features/GradientBackground/GradientBackground";
 import { getVesselTimelineDesignVariant } from "./designSystem";
 import { VesselTimeline } from "./VesselTimeline";
 
@@ -30,7 +30,7 @@ export const VesselTimelineScreen = ({
   const variant = getVesselTimelineDesignVariant();
 
   return (
-    <GradientBackgroundLayer
+    <GradientBackground
       backgroundColor={variant.backgroundColor}
       colors={variant.backgroundColors}
     >
@@ -42,6 +42,6 @@ export const VesselTimelineScreen = ({
           theme={variant.timelineTheme}
         />
       </View>
-    </GradientBackgroundLayer>
+    </GradientBackground>
   );
 };

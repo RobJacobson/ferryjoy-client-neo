@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConvexVesselLocations } from "@/data/contexts";
-import { GradientBackgroundLayer } from "@/features/GradientBackground/GradientBackgroundLayer";
+import { GradientBackground } from "@/features/GradientBackground/GradientBackground";
 import {
   DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
   getVesselTimelineDesignVariant,
@@ -85,7 +85,7 @@ export default function VesselTimelinePlaceholderScreen() {
   }, [selectedOption, vesselLocations, vesselOptions]);
 
   return (
-    <GradientBackgroundLayer
+    <GradientBackground
       backgroundColor={selectedVariant.backgroundColor}
       colors={selectedVariant.backgroundColors}
     >
@@ -193,6 +193,6 @@ export default function VesselTimelinePlaceholderScreen() {
           </View>
         )}
       </View>
-    </GradientBackgroundLayer>
+    </GradientBackground>
   );
 }

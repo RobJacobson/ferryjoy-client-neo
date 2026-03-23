@@ -6,7 +6,7 @@
 import type { ViewStyle } from "react-native";
 import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
-import type { GradientOrbConfig } from "./GradientBackgroundLayer";
+import type { GradientOrbConfig } from "./GradientBackground";
 import { GradientOrbSvg } from "./svg/GradientOrbSvg";
 
 type GradientOrbLayerProps = {

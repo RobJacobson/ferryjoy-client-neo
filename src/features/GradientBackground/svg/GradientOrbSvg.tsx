@@ -18,9 +18,9 @@ type GradientOrbSvgProps = {
 };
 
 const GRADIENT_ORB_STOPS: readonly GradientStop[] = [
-  { position: 0, alpha: 0.9 },
-  { position: 0.15, alpha: 0.85 },
-  { position: 0.5, alpha: 0.4 },
+  { position: 0, alpha: 0.95 },
+  { position: 0.25, alpha: 0.75 },
+  { position: 0.5, alpha: 0.5 },
   { position: 0.75, alpha: 0.1 },
   { position: 1, alpha: 0 },
 ];
