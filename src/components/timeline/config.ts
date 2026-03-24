@@ -12,10 +12,16 @@ export const TIMELINE_SHARED_CONFIG = {
   sideColumnOffsetPx: 18,
 } as const;
 
+/**
+ * Shared geometry for the blurred terminal card treatment.
+ */
 export const TIMELINE_CARD_CONFIG = {
   cornerRadiusPx: 20,
 } as const;
 
+/**
+ * Motion, sizing, and layering constants for the active indicator subtree.
+ */
 export const TIMELINE_INDICATOR_CONFIG = {
   banner: {
     maxWidthPx: 400,
@@ -56,6 +62,9 @@ export const TIMELINE_INDICATOR_CONFIG = {
   },
 } as const;
 
+/**
+ * Typography and marker sizing shared by row-level timeline components.
+ */
 export const TIMELINE_ROW_CONFIG = {
   label: {
     fontSizePx: 18,

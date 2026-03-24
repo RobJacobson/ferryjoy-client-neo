@@ -1,3 +1,9 @@
+/**
+ * Shared glass wrapper for timeline cards, indicator surfaces, and badges.
+ *
+ * It layers blur plus a theme-driven tint, while callers own sizing, borders,
+ * and any interior content.
+ */
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import { BlurView, type BlurViewProps } from "@/components/BlurView";
@@ -14,6 +20,17 @@ type TimelineGlassSurfaceProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Renders a reusable blurred glass surface with the timeline's shared tint.
+ *
+ * @param blurTargetRef - Host view sampled by the blur implementation
+ * @param blurIntensity - Blur strength for this surface
+ * @param className - Optional utility classes for the wrapper
+ * @param style - Optional style overrides for sizing or positioning
+ * @param children - Surface contents rendered above blur and tint layers
+ * @param theme - Visual theme supplying the shared glass color
+ * @returns Non-interactive glass wrapper view
+ */
 export const TimelineGlassSurface = ({
   blurTargetRef,
   blurIntensity,

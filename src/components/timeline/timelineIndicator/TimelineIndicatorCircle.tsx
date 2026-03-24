@@ -1,3 +1,6 @@
+/**
+ * Circular badge at the center of the active timeline indicator.
+ */
 import type { ComponentRef, RefObject } from "react";
 import { Pressable } from "react-native";
 import type { View as UIView } from "@/components/ui";
@@ -14,6 +17,16 @@ export type TimelineIndicatorCircleProps = {
   theme: TimelineVisualTheme;
 };
 
+/**
+ * Renders the tappable circular countdown badge for the active row.
+ *
+ * @param blurTargetRef - Host view sampled by the glass blur
+ * @param label - Short countdown or placeholder label inside the badge
+ * @param onPress - Toggles the companion banner
+ * @param sizePx - Badge width and height in pixels
+ * @param theme - Circle border, glass, and text colors
+ * @returns Circular pressable indicator badge
+ */
 export const TimelineIndicatorCircle = ({
   blurTargetRef,
   label,

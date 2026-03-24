@@ -1,10 +1,17 @@
+/**
+ * Resolves the compact active-state snapshot that accompanies the stable
+ * `vesselTripEvents` day feed.
+ *
+ * This module only derives row matches and indicator copy. It does not mutate
+ * read-model rows or recompute the heavier live-update reconciliation logic.
+ */
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
 import type {
   ConvexVesselTimelineActiveState,
   ConvexVesselTimelineLiveState,
   ConvexVesselTimelineRowMatch,
 } from "../../functions/vesselTripEvents/activeStateSchemas";
+import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 
@@ -14,6 +21,18 @@ type CandidateRow = {
   endEvent: ConvexVesselTripEvent;
 };
 
+/**
+ * Resolves the active row snapshot for one vessel/day timeline payload.
+ *
+ * Resolution order is: live location anchor, open actual-backed row,
+ * scheduled display-time window, then an edge fallback near the start or end
+ * of the service day.
+ *
+ * @param events - Ordered vessel/day boundary events from the read model
+ * @param location - Latest live vessel location used for row anchoring
+ * @param observedAt - Observation timestamp used by schedule fallbacks
+ * @returns Compact live state, active row state, and the timestamp used
+ */
 export const resolveVesselTimelineActiveState = ({
   events,
   location,
@@ -83,7 +102,15 @@ export const resolveVesselTimelineActiveState = ({
   };
 };
 
-const buildCandidateRows = (events: ConvexVesselTripEvent[]): CandidateRow[] => {
+/**
+ * Converts adjacent event pairs into dock and sea candidate rows.
+ *
+ * @param events - Ordered boundary events for one vessel and sailing day
+ * @returns Candidate rows eligible for active-state matching
+ */
+const buildCandidateRows = (
+  events: ConvexVesselTripEvent[]
+): CandidateRow[] => {
   const rows: CandidateRow[] = [];
 
   for (let index = 0; index < events.length - 1; index++) {
@@ -119,6 +146,13 @@ const buildCandidateRows = (events: ConvexVesselTripEvent[]): CandidateRow[] => 
   return rows;
 };
 
+/**
+ * Anchors the active row directly from the current live location when possible.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param location - Live vessel location payload
+ * @returns Active-state snapshot rooted in live vessel position, or `null`
+ */
 const resolveLocationAnchoredState = (
   rows: CandidateRow[],
   location: ConvexVesselLocation
@@ -160,6 +194,13 @@ const resolveLocationAnchoredState = (
   return null;
 };
 
+/**
+ * Finds the dock row whose departure boundary matches the live schedule anchor.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param location - Live location carrying scheduled departure context
+ * @returns Matching dock row, if the location exposes a departure anchor
+ */
 const findDockRowByScheduledDeparture = (
   rows: CandidateRow[],
   location: ConvexVesselLocation
@@ -176,6 +217,13 @@ const findDockRowByScheduledDeparture = (
   );
 };
 
+/**
+ * Finds the most recent dock row at the vessel's current terminal.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param terminalAbbrev - Terminal abbreviation from live location
+ * @returns Latest dock row at that terminal, if any
+ */
 const findLatestDockRowAtTerminal = (
   rows: CandidateRow[],
   terminalAbbrev: string
@@ -187,6 +235,13 @@ const findLatestDockRowAtTerminal = (
         row.kind === "dock" && row.endEvent.TerminalAbbrev === terminalAbbrev
     );
 
+/**
+ * Finds the sea row whose departure anchor matches the live location.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param location - Live location carrying departure context
+ * @returns Matching sea row, if one can be anchored directly
+ */
 const findSeaRowByScheduledDeparture = (
   rows: CandidateRow[],
   location: ConvexVesselLocation
@@ -205,6 +260,13 @@ const findSeaRowByScheduledDeparture = (
   );
 };
 
+/**
+ * Finds the most recent sea row that matches the live terminal pair.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param location - Live location carrying departure and optional arrival terminal
+ * @returns Latest compatible sea row, if any
+ */
 const findLatestSeaRowByTerminalPair = (
   rows: CandidateRow[],
   location: ConvexVesselLocation
@@ -219,6 +281,12 @@ const findLatestSeaRowByTerminalPair = (
           row.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
     );
 
+/**
+ * Uses event actuals as a fallback when no live row anchor is available.
+ *
+ * @param rows - Candidate dock and sea rows in timeline order
+ * @returns Most recent row whose start actualized but end has not
+ */
 const resolveActualBackedState = (
   rows: CandidateRow[]
 ): ConvexVesselTimelineActiveState | null => {
@@ -244,6 +312,13 @@ const resolveActualBackedState = (
   };
 };
 
+/**
+ * Uses display-time windows as the schedule-first active-row fallback.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param observedAt - Timestamp being matched against row windows
+ * @returns Scheduled fallback state, or `null` when no row contains the time
+ */
 const resolveScheduledWindowState = (
   rows: CandidateRow[],
   observedAt: number
@@ -274,6 +349,13 @@ const resolveScheduledWindowState = (
   };
 };
 
+/**
+ * Chooses the first or last row when the observation is outside all windows.
+ *
+ * @param rows - Candidate dock and sea rows
+ * @param observedAt - Timestamp being compared to the row bounds
+ * @returns Edge fallback state, or `null` when no rows exist
+ */
 const resolveEdgeFallbackState = (
   rows: CandidateRow[],
   observedAt: number
@@ -302,12 +384,24 @@ const resolveEdgeFallbackState = (
   };
 };
 
+/**
+ * Converts a candidate row into the compact key-only row match payload.
+ *
+ * @param row - Candidate dock or sea row
+ * @returns Stable-key row match for frontend correlation
+ */
 const toRowMatch = (row: CandidateRow): ConvexVesselTimelineRowMatch => ({
   kind: row.kind,
   startEventKey: row.startEvent.Key,
   endEventKey: row.endEvent.Key,
 });
 
+/**
+ * Copies the live vessel-location payload into the compact active snapshot.
+ *
+ * @param location - Latest live vessel location
+ * @returns Frontend-friendly live state projection
+ */
 const toLiveState = (
   location: ConvexVesselLocation
 ): ConvexVesselTimelineLiveState => ({
@@ -323,11 +417,23 @@ const toLiveState = (
   TimeStamp: location.TimeStamp,
 });
 
+/**
+ * Builds dock copy for the active indicator subtitle.
+ *
+ * @param location - Live vessel location
+ * @returns Dock subtitle string
+ */
 const getDockSubtitle = (location: ConvexVesselLocation) =>
   location.DepartingTerminalAbbrev
     ? `At dock ${location.DepartingTerminalAbbrev}`
     : "At dock";
 
+/**
+ * Builds sea copy for the active indicator subtitle.
+ *
+ * @param location - Live vessel location
+ * @returns Sea subtitle with speed and optional remaining distance
+ */
 const getSeaSubtitle = (location: ConvexVesselLocation) => {
   const speed = location.Speed ?? 0;
 
@@ -344,10 +450,22 @@ const getSeaSubtitle = (location: ConvexVesselLocation) => {
   )} mi${terminalPart}`;
 };
 
+/**
+ * Gates rocking animation to in-service, under-way live states.
+ *
+ * @param location - Live vessel location
+ * @returns True when the sea indicator should animate
+ */
 const shouldAnimateSeaIndicator = (location: ConvexVesselLocation) =>
   location.InService !== false &&
   !location.AtDock &&
   (location.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
 
+/**
+ * Active-state display-time precedence helper.
+ *
+ * @param event - Candidate boundary event
+ * @returns Actual time, else prediction, else scheduled time
+ */
 const getDisplayTime = (event: ConvexVesselTripEvent) =>
   event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;

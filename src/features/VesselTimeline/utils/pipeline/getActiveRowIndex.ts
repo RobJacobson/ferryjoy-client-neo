@@ -163,7 +163,6 @@ const findLastActiveActualRowIndex = (rows: TimelineSemanticRow[]) =>
   });
 
 /**
-/**
  * Fraction along the sea leg from departing vs arriving distance when both
  * exist and sum to a positive value.
  *
@@ -195,7 +194,7 @@ const getDistanceProgress = (
  * time-based progress between row ends.
  *
  * @param row - Active sea semantic row
- * @param vesselLocation - Live distances when available
+ * @param liveState - Live distances when available
  * @param now - Wall clock for time fallback
  * @returns Position along the row in 0–1
  */
@@ -243,7 +242,7 @@ const getDisplayHeightPx = (
  * docks map wall time into stub, break, and departure window bands.
  *
  * @param row - Active semantic row
- * @param vesselLocation - Live state for sea progress
+ * @param liveState - Live state for sea progress
  * @param now - Current instant
  * @param policy - Compressed dock minute bands
  * @param layout - Pixel heights for compressed mapping
