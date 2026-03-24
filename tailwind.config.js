@@ -44,6 +44,10 @@ module.exports = {
         "tgl-0-italic": ["tgl-0-italic"],
         "tgl-31034": ["tgl-31034"],
         "tgl-31034-italic": ["tgl-31034-italic"],
+        "digital-7": ["Digital-7"],
+        "digital-7-italic": ["Digital-7-Italic"],
+        "digital-7-mono": ["Digital-7-Mono"],
+        "digital-7-mono-italic": ["Digital-7-Mono-Italic"],
       },
       boxShadow: {
         glass: "2px 2px 5px rgba(0, 0, 0, 0.05)",

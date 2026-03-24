@@ -63,6 +63,10 @@ export default function Layout() {
     "tgl-0-italic": require("../../assets/fonts/tgl/tgl-0-16.ttf"),
     "tgl-31034": require("../../assets/fonts/tgl/tgl-31034-1.ttf"),
     "tgl-31034-italic": require("../../assets/fonts/tgl/tgl-31034-2.ttf"),
+    "Digital-7": require("../../assets/fonts/digital-7/digital-7.ttf"),
+    "Digital-7-Italic": require("../../assets/fonts/digital-7/digital-7-italic.ttf"),
+    "Digital-7-Mono": require("../../assets/fonts/digital-7/digital-7-mono.ttf"),
+    "Digital-7-Mono-Italic": require("../../assets/fonts/digital-7/digital-7-mono-italic.ttf"),
   });
 
   useEffect(() => {
