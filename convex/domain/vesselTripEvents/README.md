@@ -256,7 +256,6 @@ labels and indicator behavior.
 
 `VesselTimeline` consumes two backend queries:
 
-- `functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
 - `functions.vesselTripEvents.queries.getVesselDayActiveState`
 
 The first query is the stable vessel/day boundary feed used to build dock and
@@ -441,10 +440,9 @@ Important implications:
 
 ## Query Contract
 
-Frontend timeline consumers read from:
-
-- `functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
-- `functions.vesselTripEvents.queries.getVesselDayActiveState`
+Frontend timeline consumers read stable semantic segments from
+`functions.vesselTimeline.queries.getVesselDayTimelineSnapshot` and live
+indicator state from `functions.vesselTripEvents.queries.getVesselDayActiveState`.
 
 The day-feed query returns all rows for one:
 

@@ -13,31 +13,6 @@ import { stripConvexMeta } from "shared/stripConvexMeta";
 import { vesselTimelineActiveStateSnapshotSchema } from "./activeStateSchemas";
 import { vesselTripEventSchema } from "./schemas";
 
-/**
- * Returns the ordered dock-boundary event feed for one vessel on one sailing
- * day.
- */
-export const getVesselDayTimelineEvents = query({
-  args: {
-    VesselAbbrev: v.string(),
-    SailingDay: v.string(),
-  },
-  returns: v.object({
-    VesselAbbrev: v.string(),
-    SailingDay: v.string(),
-    Events: v.array(vesselTripEventSchema),
-  }),
-  handler: async (ctx, args) => {
-    return {
-      VesselAbbrev: args.VesselAbbrev,
-      SailingDay: args.SailingDay,
-      // Defensive dedupe keeps dirty duplicate rows from leaking out to
-      // timeline consumers.
-      Events: await getOrderedEventsForVesselDay(ctx, args),
-    };
-  },
-});
-
 export const getVesselDayActiveState = query({
   args: {
     VesselAbbrev: v.string(),

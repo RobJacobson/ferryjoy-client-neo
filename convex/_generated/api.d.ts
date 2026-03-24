@@ -43,6 +43,7 @@ import type * as domain_scheduledTrips_transform_estimates from "../domain/sched
 import type * as domain_scheduledTrips_transform_index from "../domain/scheduledTrips/transform/index.js";
 import type * as domain_scheduledTrips_transform_officialCrossingTimes from "../domain/scheduledTrips/transform/officialCrossingTimes.js";
 import type * as domain_scheduledTrips_transform_pipeline from "../domain/scheduledTrips/transform/pipeline.js";
+import type * as domain_vesselTimelineSnapshots_buildSnapshot from "../domain/vesselTimelineSnapshots/buildSnapshot.js";
 import type * as domain_vesselTripEvents_activeState from "../domain/vesselTripEvents/activeState.js";
 import type * as domain_vesselTripEvents_history from "../domain/vesselTripEvents/history.js";
 import type * as domain_vesselTripEvents_index from "../domain/vesselTripEvents/index.js";
@@ -88,6 +89,9 @@ import type * as functions_vesselPings_index from "../functions/vesselPings/inde
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
+import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
+import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
+import type * as functions_vesselTimeline_schemas from "../functions/vesselTimeline/schemas.js";
 import type * as functions_vesselTripEvents_actions from "../functions/vesselTripEvents/actions.js";
 import type * as functions_vesselTripEvents_activeStateSchemas from "../functions/vesselTripEvents/activeStateSchemas.js";
 import type * as functions_vesselTripEvents_index from "../functions/vesselTripEvents/index.js";
@@ -161,6 +165,7 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/transform/index": typeof domain_scheduledTrips_transform_index;
   "domain/scheduledTrips/transform/officialCrossingTimes": typeof domain_scheduledTrips_transform_officialCrossingTimes;
   "domain/scheduledTrips/transform/pipeline": typeof domain_scheduledTrips_transform_pipeline;
+  "domain/vesselTimelineSnapshots/buildSnapshot": typeof domain_vesselTimelineSnapshots_buildSnapshot;
   "domain/vesselTripEvents/activeState": typeof domain_vesselTripEvents_activeState;
   "domain/vesselTripEvents/history": typeof domain_vesselTripEvents_history;
   "domain/vesselTripEvents/index": typeof domain_vesselTripEvents_index;
@@ -206,6 +211,9 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
+  "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
+  "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;
+  "functions/vesselTimeline/schemas": typeof functions_vesselTimeline_schemas;
   "functions/vesselTripEvents/actions": typeof functions_vesselTripEvents_actions;
   "functions/vesselTripEvents/activeStateSchemas": typeof functions_vesselTripEvents_activeStateSchemas;
   "functions/vesselTripEvents/index": typeof functions_vesselTripEvents_index;
