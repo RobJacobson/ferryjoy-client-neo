@@ -66,6 +66,7 @@ describe("buildTimelineRows", () => {
       "Vashon Is."
     );
     expect(renderState.rows[2]?.startEvent.isArrivalPlaceholder).toBeTrue();
+    expect(renderState.rows[2]?.startEvent.timePoint.scheduled).toBeUndefined();
     expect(renderState.rows[3]?.kind).toBe("at-sea");
     expect(renderState.rows[3]?.startEvent.nextTerminalAbbrev).toBe("FAU");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([

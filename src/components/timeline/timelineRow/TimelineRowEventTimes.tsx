@@ -196,7 +196,7 @@ const getTimeColumns = ({
 }): TimelineTimeColumns => {
   const columns: TimelineTimeColumns = {};
 
-  if (!scheduled && !secondary && showPlaceholder) {
+  if (!scheduled && showPlaceholder) {
     columns.scheduled = {
       Icon: CalendarClock,
       label: "--",

@@ -3,6 +3,10 @@
 This document describes the current architecture for the `VesselTimeline`
 feature.
 
+For a detailed investigation of the recurring Cathlamet / triangle-route
+missing-segment anomaly and possible backend/frontend remedies, see
+`CAT_MISSING_SEGMENT_MEMO.md`.
+
 `VesselTimeline` renders one continuous day timeline for one vessel on one
 requested sailing day. The feature is event-based: the backend assembles a
 minimal ordered list of dock boundary events, and the frontend converts adjacent
