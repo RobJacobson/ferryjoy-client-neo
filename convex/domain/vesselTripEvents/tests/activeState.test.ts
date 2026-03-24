@@ -139,7 +139,33 @@ describe("resolveVesselTimelineActiveState", () => {
       startEventKey: "dep-1",
       endEventKey: "arv-1",
     });
+    expect(resolved.ActiveState?.terminalTailEventKey).toBeUndefined();
     expect(resolved.ActiveState?.reason).toBe("location_anchor");
+  });
+
+  it("returns a terminal-tail event key when the day ends after the final arrival", () => {
+    const resolved = resolveVesselTimelineActiveState({
+      events: makeRoundTripEvents(),
+      observedAt: at(10, 30),
+    });
+
+    expect(resolved.ActiveState?.rowMatch).toBeNull();
+    expect(resolved.ActiveState?.terminalTailEventKey).toBe("arv-2");
+    expect(resolved.ActiveState?.reason).toBe("fallback");
+  });
+
+  it("does not emit a terminal-tail event key while the final arrival is still in the future", () => {
+    const resolved = resolveVesselTimelineActiveState({
+      events: makeRoundTripEvents(),
+      observedAt: at(10, 20),
+    });
+
+    expect(resolved.ActiveState?.terminalTailEventKey).toBeUndefined();
+    expect(resolved.ActiveState?.rowMatch).toEqual({
+      kind: "sea",
+      startEventKey: "dep-2",
+      endEventKey: "arv-2",
+    });
   });
 });
 

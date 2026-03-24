@@ -273,50 +273,38 @@ describe("getActiveRowIndex", () => {
           endEventKey: "arv-1",
         },
         reason: "location_anchor",
-      }),
-      at(8, 45)
+      })
     );
 
     expect(activeRowIndex).toBe(0);
   });
 
-  it("falls back to clock-based row selection when there is no live anchor", () => {
+  it("matches the terminal row from terminalTailEventKey", () => {
     const rows = buildTimelineRows(
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    const activeRowIndex = getActiveRowIndex(rows, null, at(8, 50));
+    const activeRowIndex = getActiveRowIndex(
+      rows,
+      makeActiveState({
+        kind: "scheduled-fallback",
+        rowMatch: null,
+        terminalTailEventKey: "arv-2",
+        reason: "fallback",
+      })
+    );
 
-    expect(activeRowIndex).toBe(2);
+    expect(activeRowIndex).toBe(4);
   });
 
-  it("uses the last actual-started and not-yet-actual-ended row", () => {
+  it("returns no active row when the backend provides no row match", () => {
     const rows = buildTimelineRows(
       makeRoundTripEvents(),
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
-    const firstRow = getRowOrThrow(rows, 0);
-    const secondRow = getRowOrThrow(rows, 1);
-    const thirdRow = getRowOrThrow(rows, 2);
 
-    rows[0] = {
-      ...firstRow,
-      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...firstRow.endEvent, ActualTime: at(8, 36) },
-    };
-    rows[1] = {
-      ...secondRow,
-      startEvent: { ...secondRow.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...secondRow.endEvent, ActualTime: at(8, 36) },
-    };
-    rows[2] = {
-      ...thirdRow,
-      startEvent: { ...thirdRow.startEvent, ActualTime: at(8, 36) },
-      endEvent: { ...thirdRow.endEvent, ActualTime: undefined },
-    };
-
-    expect(getActiveRowIndex(rows, null, at(8, 50))).toBe(2);
+    expect(getActiveRowIndex(rows, null)).toBe(-1);
   });
 });
 
@@ -379,6 +367,33 @@ describe("getVesselTimelineRenderState", () => {
     expect(renderState.activeIndicator).not.toBeNull();
     expect(renderState.activeIndicator?.animate).toBeFalse();
     expect(renderState.activeIndicator?.speedKnots).toBe(12);
+  });
+
+  it("uses the terminal row when the backend resolves terminal-tail fallback", () => {
+    const renderState = getVesselTimelineRenderState(
+      makeRoundTripEvents(),
+      null,
+      makeActiveState({
+        kind: "scheduled-fallback",
+        rowMatch: null,
+        terminalTailEventKey: "arv-2",
+        reason: "fallback",
+      }),
+      at(10, 30)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("arv-2--terminal");
+  });
+
+  it("hides the active indicator when the backend provides no match", () => {
+    const renderState = getVesselTimelineRenderState(
+      makeRoundTripEvents(),
+      null,
+      null,
+      at(8, 10)
+    );
+
+    expect(renderState.activeIndicator).toBeNull();
   });
 });
 
@@ -447,6 +462,7 @@ const makeActiveState = (
 ): VesselTimelineActiveState => ({
   kind: "unknown",
   rowMatch: null,
+  terminalTailEventKey: undefined,
   subtitle: undefined,
   animate: false,
   speedKnots: 0,

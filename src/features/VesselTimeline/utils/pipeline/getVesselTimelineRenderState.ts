@@ -78,7 +78,7 @@ export const getVesselTimelineRenderState = (
     Events,
     DEFAULT_VESSEL_TIMELINE_POLICY
   );
-  const activeRowIndex = getActiveRowIndex(semanticRows, activeState, now);
+  const activeRowIndex = getActiveRowIndex(semanticRows, activeState);
   const { rows, terminalCards, contentHeightPx } = getLayoutTimelineRows(
     semanticRows,
     activeRowIndex,

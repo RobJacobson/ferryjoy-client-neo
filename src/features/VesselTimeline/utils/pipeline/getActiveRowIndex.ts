@@ -24,57 +24,24 @@ import { getDisplayTime } from "../shared/rowEventTime";
 /**
  * Picks the semantic row index that should host the active indicator.
  *
- * Prefers the backend-resolved event-pair match when available. Falls back to
- * the last row with started actuals and an open end (in progress or terminal
- * tail), else the row whose display-time window contains `now`, else edge rows
- * before the first start or after the last segment.
+ * Prefers the backend-resolved event-pair match when available. When the
+ * backend resolves a terminal-tail fallback, matches the final terminal row by
+ * event key. Otherwise, no active row is selected.
  *
  * @param rows - Semantic dock/sea rows for the day
  * @param activeState - Backend-resolved active row state, when available
- * @param now - Current instant for window and progress tests
  * @returns Index into `rows` for the active row
  */
 export const getActiveRowIndex = (
   rows: TimelineSemanticRow[],
-  activeState: VesselTimelineActiveState | null,
-  now: Date
+  activeState: VesselTimelineActiveState | null
 ) => {
   const matchedRowIndex = findRowMatchIndex(rows, activeState);
   if (matchedRowIndex >= 0) {
     return matchedRowIndex;
   }
 
-  const actualBackedRowIndex = findLastActiveActualRowIndex(rows);
-  if (actualBackedRowIndex >= 0) {
-    return actualBackedRowIndex;
-  }
-
-  const scheduledRowIndex = rows.findIndex((row) => {
-    const startTime = getDisplayTime(row.startEvent);
-    const endTime = getDisplayTime(row.endEvent);
-
-    return (
-      startTime !== undefined &&
-      endTime !== undefined &&
-      now.getTime() >= startTime.getTime() &&
-      now.getTime() <= endTime.getTime()
-    );
-  });
-
-  if (scheduledRowIndex >= 0) {
-    return scheduledRowIndex;
-  }
-
-  if (rows.length === 0) {
-    return 0;
-  }
-
-  const firstStart = getDisplayTime(rows[0].startEvent);
-  if (firstStart && now.getTime() < firstStart.getTime()) {
-    return 0;
-  }
-
-  return rows.length - 1;
+  return findTerminalTailMatchIndex(rows, activeState);
 };
 
 /**
@@ -148,19 +115,27 @@ const findRowMatchIndex = (
 };
 
 /**
- * Last index of a row that has actualized its start and not finished (or is
- * terminal tail with started actual).
+ * Finds the terminal-tail row that corresponds to the backend terminal-tail
+ * event key.
  *
  * @param rows - Semantic rows in order
- * @returns Index or -1 when no such row exists
+ * @param activeState - Backend-resolved active row state, when available
+ * @returns Index or -1 when no terminal-tail fallback was supplied
  */
-const findLastActiveActualRowIndex = (rows: TimelineSemanticRow[]) =>
-  rows.findLastIndex((row) => {
-    const hasStarted = row.startEvent.ActualTime !== undefined;
-    const hasEnded = row.endEvent.ActualTime !== undefined;
+const findTerminalTailMatchIndex = (
+  rows: TimelineSemanticRow[],
+  activeState: VesselTimelineActiveState | null
+) => {
+  const terminalTailEventKey = activeState?.terminalTailEventKey;
+  if (!terminalTailEventKey) {
+    return -1;
+  }
 
-    return hasStarted && (!hasEnded || row.isTerminal === true);
-  });
+  return rows.findIndex(
+    (row) =>
+      row.isTerminal === true && row.startEvent.Key === terminalTailEventKey
+  );
+};
 
 /**
  * Fraction along the sea leg from departing vs arriving distance when both

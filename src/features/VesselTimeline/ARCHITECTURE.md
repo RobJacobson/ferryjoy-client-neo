@@ -325,7 +325,8 @@ type ConvexVesselTripEventsValue = {
   VesselAbbrev: string;
   SailingDay: string;
   Events: VesselTimelineEvent[];
-  VesselLocation?: VesselLocation;
+  LiveState: VesselTimelineLiveState | null;
+  ActiveState: VesselTimelineActiveState | null;
   IsLoading: boolean;
   Error: string | null;
 };
@@ -334,13 +335,12 @@ type ConvexVesselTripEventsValue = {
 Data sources:
 
 - `getVesselDayTimelineEvents` for `Events`
-- `api.functions.vesselLocation.queries.getByVesselAbbrev` for
-  `VesselLocation`
+- `getVesselDayActiveState` for `LiveState` and `ActiveState`
 
 Responsibilities:
 
 - fetch the backend-owned vessel/day event feed
-- fetch the current `VesselLocation`
+- fetch the compact backend-resolved active-state snapshot
 - expose both in one vessel/day-scoped context
 
 The context no longer merges raw scheduled, active, and completed trip arrays
@@ -395,9 +395,11 @@ Still inside `getVesselTimelineRenderState`:
 1. **`getAdaptivePixelsPerMinute`**: scales vertical density from event count
    (clamped), then builds an effective layout `{ ...layout, pixelsPerMinute }`.
 2. **`getActiveRowIndex`** (`getActiveRowIndex.ts`): chooses the semantic row
-   that owns the indicator (actual-backed “in progress” row preferred, else
-   time window, else edges). `VesselLocation` is reserved for future selection
-   rules; indicator **position within** the row uses location heavily.
+   that owns the indicator by correlating backend active-state keys against the
+   semantic rows. Paired dock/sea rows use `rowMatch`; terminal-tail fallback
+   uses `terminalTailEventKey`. The frontend no longer recomputes active-row
+   fallback policy locally. Indicator **position within** the matched row still
+   uses live state heavily.
 3. **`getLayoutTimelineRows`**: converts semantic rows to
    `TimelineRenderRow[]`, marker past/future from the active index, terminal
    card geometry, and `contentHeightPx`.
@@ -456,7 +458,7 @@ WSF vessel locations
   -> enrich vesselTripEvents with predicted/actual event times
 
 Frontend VesselTimeline
-  -> getVesselDayTimelineEvents + getByVesselAbbrev (via context)
+  -> getVesselDayTimelineEvents + getVesselDayActiveState (via context)
   -> getVesselTimelineRenderState
        -> buildTimelineRows (events -> semantic dock/sea rows)
        -> getActiveRowIndex + buildActiveIndicator

@@ -25,8 +25,8 @@ type CandidateRow = {
  * Resolves the active row snapshot for one vessel/day timeline payload.
  *
  * Resolution order is: live location anchor, open actual-backed row,
- * scheduled display-time window, then an edge fallback near the start or end
- * of the service day.
+ * scheduled display-time window, then terminal-tail fallback at the end of the
+ * service day, then an edge fallback near the start of the service day.
  *
  * @param events - Ordered vessel/day boundary events from the read model
  * @param location - Latest live vessel location used for row anchoring
@@ -82,22 +82,37 @@ export const resolveVesselTimelineActiveState = ({
     };
   }
 
+  const terminalTailState = resolveTerminalTailState(events, observedAt);
+  if (terminalTailState) {
+    return {
+      Live,
+      ActiveState: terminalTailState,
+      ObservedAt: observedAt,
+    };
+  }
+
   const edgeFallbackState = resolveEdgeFallbackState(candidateRows, observedAt);
+  if (edgeFallbackState) {
+    return {
+      Live,
+      ActiveState: edgeFallbackState,
+      ObservedAt: observedAt,
+    };
+  }
 
   return {
     Live,
-    ActiveState:
-      edgeFallbackState ??
-      (Live
-        ? {
-            kind: "unknown",
-            rowMatch: null,
-            subtitle: undefined,
-            animate: false,
-            speedKnots: Live.Speed ?? 0,
-            reason: "unknown",
-          }
-        : null),
+    ActiveState: Live
+      ? {
+          kind: "unknown",
+          rowMatch: null,
+          terminalTailEventKey: undefined,
+          subtitle: undefined,
+          animate: false,
+          speedKnots: Live.Speed ?? 0,
+          reason: "unknown",
+        }
+      : null,
     ObservedAt: observedAt,
   };
 };
@@ -166,6 +181,7 @@ const resolveLocationAnchoredState = (
       return {
         kind: "dock",
         rowMatch: toRowMatch(row),
+        terminalTailEventKey: undefined,
         subtitle: getDockSubtitle(location),
         animate: false,
         speedKnots: location.Speed ?? 0,
@@ -183,6 +199,7 @@ const resolveLocationAnchoredState = (
       return {
         kind: "sea",
         rowMatch: toRowMatch(row),
+        terminalTailEventKey: undefined,
         subtitle: getSeaSubtitle(location),
         animate: shouldAnimateSeaIndicator(location),
         speedKnots: location.Speed ?? 0,
@@ -305,6 +322,7 @@ const resolveActualBackedState = (
   return {
     kind: row.kind,
     rowMatch: toRowMatch(row),
+    terminalTailEventKey: undefined,
     subtitle: undefined,
     animate: false,
     speedKnots: 0,
@@ -342,6 +360,7 @@ const resolveScheduledWindowState = (
   return {
     kind: "scheduled-fallback",
     rowMatch: toRowMatch(row),
+    terminalTailEventKey: undefined,
     subtitle: undefined,
     animate: false,
     speedKnots: 0,
@@ -377,6 +396,43 @@ const resolveEdgeFallbackState = (
   return {
     kind: "scheduled-fallback",
     rowMatch: toRowMatch(row),
+    terminalTailEventKey: undefined,
+    subtitle: undefined,
+    animate: false,
+    speedKnots: 0,
+    reason: "fallback",
+  };
+};
+
+/**
+ * Resolves terminal-tail fallback when the feed ends in an arrival that no
+ * paired candidate row can represent.
+ *
+ * @param events - Ordered vessel/day boundary events from the read model
+ * @param observedAt - Timestamp used to avoid selecting a future terminal tail
+ * @returns Terminal-tail active state, or `null` when not eligible
+ */
+const resolveTerminalTailState = (
+  events: ConvexVesselTripEvent[],
+  observedAt: number
+): ConvexVesselTimelineActiveState | null => {
+  const lastEvent = events[events.length - 1];
+  if (!lastEvent || lastEvent.EventType !== "arv-dock") {
+    return null;
+  }
+
+  const lastEventDisplayTime = getDisplayTime(lastEvent);
+  if (
+    lastEventDisplayTime !== undefined &&
+    observedAt < lastEventDisplayTime
+  ) {
+    return null;
+  }
+
+  return {
+    kind: "scheduled-fallback",
+    rowMatch: null,
+    terminalTailEventKey: lastEvent.Key,
     subtitle: undefined,
     animate: false,
     speedKnots: 0,

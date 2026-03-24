@@ -19,9 +19,6 @@ import {
   createContext,
   Component as ReactComponent,
   useContext,
-  useEffect,
-  useRef,
-  useState,
 } from "react";
 
 export type VesselTimelineEvent = VesselTripEvent;
@@ -50,11 +47,13 @@ const ConvexVesselTripEventsContext = createContext<
 >(undefined);
 
 class ConvexVesselTripEventsErrorBoundary extends ReactComponent<{
-  onError: (error: string) => void;
-  fallback: ReactNode;
+  fallback: (error: string) => ReactNode;
   children: ReactNode;
+}, {
+  hasError: boolean;
+  errorMessage: string | null;
 }> {
-  override state = { hasError: false };
+  override state = { hasError: false, errorMessage: null };
 
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -62,27 +61,36 @@ class ConvexVesselTripEventsErrorBoundary extends ReactComponent<{
 
   override componentDidCatch(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    this.props.onError(message);
+    this.setState({ errorMessage: message });
   }
 
   override render() {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return this.props.fallback(
+        this.state.errorMessage ?? "Failed to load vessel timeline events"
+      );
     }
 
     return this.props.children;
   }
 }
 
-const ConvexVesselTripEventsDataFetcher = ({
+/**
+ * Query-backed provider body that derives its value directly from Convex.
+ *
+ * @param props - Provider props
+ * @param props.vesselAbbrev - Vessel abbreviation for both queries
+ * @param props.sailingDay - Sailing day for both queries
+ * @param props.children - Descendant React tree consuming the context
+ * @returns Context provider populated from live query results
+ */
+const ConvexVesselTripEventsQueryProvider = ({
   vesselAbbrev,
   sailingDay,
-  onStateChange,
   children,
 }: PropsWithChildren<{
   vesselAbbrev: string;
   sailingDay: string;
-  onStateChange: (state: Partial<ConvexVesselTripEventsContextType>) => void;
 }>) => {
   const rawTimeline = useQuery(
     api.functions.vesselTripEvents.queries.getVesselDayTimelineEvents,
@@ -104,32 +112,21 @@ const ConvexVesselTripEventsDataFetcher = ({
   const activeStateSnapshot = rawActiveState
     ? toDomainVesselTimelineActiveStateSnapshot(rawActiveState)
     : null;
-  const LiveState = activeStateSnapshot?.Live ?? null;
-  const ActiveState = activeStateSnapshot?.ActiveState ?? null;
-
-  const onStateChangeRef = useRef(onStateChange);
-  onStateChangeRef.current = onStateChange;
-
-  useEffect(() => {
-    onStateChangeRef.current({
-      VesselAbbrev: vesselAbbrev,
-      SailingDay: sailingDay,
-      Events,
-      LiveState,
-      ActiveState,
-      IsLoading,
-      Error: null,
-    });
-  }, [
-    vesselAbbrev,
-    sailingDay,
+  const value: ConvexVesselTripEventsContextType = {
+    VesselAbbrev: vesselAbbrev,
+    SailingDay: sailingDay,
     Events,
-    LiveState,
-    ActiveState,
+    LiveState: activeStateSnapshot?.Live ?? null,
+    ActiveState: activeStateSnapshot?.ActiveState ?? null,
     IsLoading,
-  ]);
+    Error: null,
+  };
 
-  return <>{children}</>;
+  return (
+    <ConvexVesselTripEventsContext.Provider value={value}>
+      {children}
+    </ConvexVesselTripEventsContext.Provider>
+  );
 };
 
 export const ConvexVesselTripEventsProvider = ({
@@ -137,43 +134,36 @@ export const ConvexVesselTripEventsProvider = ({
   sailingDay,
   children,
 }: ConvexVesselTripEventsProviderProps) => {
-  const [state, setState] = useState<ConvexVesselTripEventsContextType>({
+  const errorValue: ConvexVesselTripEventsContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
     Events: [],
     LiveState: null,
     ActiveState: null,
-    IsLoading: true,
-    Error: null,
-  });
-
-  const handleError = (errorMessage: string) => {
-    setState((previous) => ({
-      ...previous,
-      VesselAbbrev: vesselAbbrev,
-      SailingDay: sailingDay,
-      Error: errorMessage,
-      IsLoading: false,
-    }));
+    IsLoading: false,
+    Error: "Failed to load vessel timeline events",
   };
 
   return (
-    <ConvexVesselTripEventsContext.Provider value={state}>
-      <ConvexVesselTripEventsErrorBoundary
-        onError={handleError}
-        fallback={children}
-      >
-        <ConvexVesselTripEventsDataFetcher
-          vesselAbbrev={vesselAbbrev}
-          sailingDay={sailingDay}
-          onStateChange={(partial) =>
-            setState((previous) => ({ ...previous, ...partial }))
-          }
+    <ConvexVesselTripEventsErrorBoundary
+      fallback={(errorMessage) => (
+        <ConvexVesselTripEventsContext.Provider
+          value={{
+            ...errorValue,
+            Error: errorMessage,
+          }}
         >
           {children}
-        </ConvexVesselTripEventsDataFetcher>
-      </ConvexVesselTripEventsErrorBoundary>
-    </ConvexVesselTripEventsContext.Provider>
+        </ConvexVesselTripEventsContext.Provider>
+      )}
+    >
+      <ConvexVesselTripEventsQueryProvider
+        vesselAbbrev={vesselAbbrev}
+        sailingDay={sailingDay}
+      >
+        {children}
+      </ConvexVesselTripEventsQueryProvider>
+    </ConvexVesselTripEventsErrorBoundary>
   );
 };
 

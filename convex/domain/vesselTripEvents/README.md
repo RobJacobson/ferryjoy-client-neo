@@ -309,6 +309,9 @@ The compact active-state query returns:
   - `{ kind, startEventKey, endEventKey }`
   - these are existing `vesselTripEvents.Key` values, not a second identity
     scheme
+- `terminalTailEventKey?`
+  - set only when the active indicator should target the frontend terminal-tail
+    row created from the final arrival event
 - `subtitle?`
 - `animate`
 - `speedKnots`
@@ -326,10 +329,14 @@ Frontend semantic rows are pair-derived from adjacent event rows:
 - dock row: `arv-dock` + `dep-dock`
 - sea row: `dep-dock` + `arv-dock`
 
-Because the semantic row identity is derived from existing event pairs, the
+Because most semantic row identity is derived from existing event pairs, the
 backend resolves the active row by returning the exact `startEventKey` /
 `endEventKey` pair. This lets the client match the correct semantic row
 without introducing array-index coupling or a parallel identity scheme.
+
+The one exception is the frontend terminal-tail row, which is synthesized from
+the final arrival event. For that case the backend returns
+`terminalTailEventKey` instead of inventing a second row-id format.
 
 ### Active-state resolution order
 
@@ -350,10 +357,12 @@ Resolution order:
    - use the most recent row whose start has actualized and whose end has not
 3. scheduled-window fallback
    - use the row whose display-time window currently contains `ObservedAt`
-4. edge fallback
+4. terminal-tail fallback
+   - when the feed ends in an eligible arrival and `ObservedAt` is at or past
+     that final arrival, return `terminalTailEventKey` for that final event
+5. edge fallback
    - before the first row, use the first row
-   - after the last row, use the last row
-5. unknown
+6. unknown
    - when no rows exist or nothing can be matched safely
 
 ### What moved out of the frontend
@@ -369,9 +378,7 @@ The backend active-state query now owns:
 The frontend still owns:
 
 - semantic row construction from the stable day event feed
-- matching `rowMatch` to a semantic row
-- a final local fallback heuristic only when the backend-supplied row match is
-  absent or cannot be found
+- matching `rowMatch` / `terminalTailEventKey` to a semantic row
 
 This split keeps the product-critical “what row is active right now?” decision
 backend-owned and debuggable, while preserving the existing row-building

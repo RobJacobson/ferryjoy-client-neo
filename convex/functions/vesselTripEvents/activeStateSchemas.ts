@@ -47,6 +47,7 @@ export const vesselTimelineLiveStateSchema = v.object({
 export const vesselTimelineActiveStateSchema = v.object({
   kind: vesselTimelineActiveStateKindSchema,
   rowMatch: v.union(vesselTimelineRowMatchSchema, v.null()),
+  terminalTailEventKey: v.optional(v.string()),
   subtitle: v.optional(v.string()),
   animate: v.boolean(),
   speedKnots: v.number(),
