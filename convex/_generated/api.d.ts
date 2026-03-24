@@ -72,6 +72,10 @@ import type * as functions_vesselLocation_index from "../functions/vesselLocatio
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
 import type * as functions_vesselLocation_queries from "../functions/vesselLocation/queries.js";
 import type * as functions_vesselLocation_schemas from "../functions/vesselLocation/schemas.js";
+import type * as functions_vesselLocationsHistoric_actions from "../functions/vesselLocationsHistoric/actions.js";
+import type * as functions_vesselLocationsHistoric_index from "../functions/vesselLocationsHistoric/index.js";
+import type * as functions_vesselLocationsHistoric_mutations from "../functions/vesselLocationsHistoric/mutations.js";
+import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
 import type * as functions_vesselPing_actions from "../functions/vesselPing/actions.js";
@@ -107,6 +111,7 @@ import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_convertVesselLocations from "../shared/convertVesselLocations.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
+import type * as shared_enrichConvexVesselLocations from "../shared/enrichConvexVesselLocations.js";
 import type * as shared_fetchWsfScheduleData from "../shared/fetchWsfScheduleData.js";
 import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLocations.js";
 import type * as shared_index from "../shared/index.js";
@@ -185,6 +190,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
   "functions/vesselLocation/queries": typeof functions_vesselLocation_queries;
   "functions/vesselLocation/schemas": typeof functions_vesselLocation_schemas;
+  "functions/vesselLocationsHistoric/actions": typeof functions_vesselLocationsHistoric_actions;
+  "functions/vesselLocationsHistoric/index": typeof functions_vesselLocationsHistoric_index;
+  "functions/vesselLocationsHistoric/mutations": typeof functions_vesselLocationsHistoric_mutations;
+  "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
   "functions/vesselPing/actions": typeof functions_vesselPing_actions;
@@ -220,6 +229,7 @@ declare const fullApi: ApiFromModules<{
   "shared/convertVesselLocations": typeof shared_convertVesselLocations;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
+  "shared/enrichConvexVesselLocations": typeof shared_enrichConvexVesselLocations;
   "shared/fetchWsfScheduleData": typeof shared_fetchWsfScheduleData;
   "shared/fetchWsfVesselLocations": typeof shared_fetchWsfVesselLocations;
   "shared/index": typeof shared_index;

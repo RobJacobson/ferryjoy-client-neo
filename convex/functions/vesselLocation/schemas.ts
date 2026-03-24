@@ -1,3 +1,6 @@
+/**
+ * Defines shared Convex vessel-location validators and conversions.
+ */
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
@@ -10,10 +13,10 @@ import {
 } from "../../shared/convertDates";
 
 /**
- * Convex validator for vessel locations (numbers)
- * This is used in defineTable and function argument validation
+ * Shared field validators for vessel-location storage.
+ * Used to build the live and historic vessel-location schemas.
  */
-export const vesselLocationValidationSchema = v.object({
+export const vesselLocationValidationFields = {
   VesselID: v.number(),
   VesselName: v.string(),
   VesselAbbrev: v.string(),
@@ -37,7 +40,15 @@ export const vesselLocationValidationSchema = v.object({
   TimeStamp: v.number(),
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
-});
+} as const;
+
+/**
+ * Convex validator for vessel locations (numbers)
+ * This is used in defineTable and function argument validation
+ */
+export const vesselLocationValidationSchema = v.object(
+  vesselLocationValidationFields
+);
 
 /**
  * Type for vessel location in Convex storage (with numbers)

@@ -9,6 +9,7 @@ import {
   scheduledTripSchema,
 } from "functions/scheduledTrips/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
 import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
@@ -71,6 +72,12 @@ export default defineSchema({
     "by_vessel_abbrev",
     ["VesselAbbrev"]
   ),
+
+  vesselLocationsHistoric: defineTable(historicVesselLocationValidationSchema)
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_vessel_abbrev_and_timestamp", ["VesselAbbrev", "TimeStamp"])
+    .index("by_vessel_abbrev_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 
   vesselTripEvents: defineTable(vesselTripEventSchema)
     .index("by_key", ["Key"])

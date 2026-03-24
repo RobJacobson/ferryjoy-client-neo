@@ -15,6 +15,13 @@ crons.interval(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
+crons.interval(
+  "capture vessel location history",
+  { minutes: 1 }, // every minute
+  internal.functions.vesselLocationsHistoric.actions
+    .captureHistoricVesselLocations
+);
+
 // Weekly model retraining at 11:00 AM UTC on Mondays
 // Note: Convex cron jobs run in UTC, not local timezones
 crons.cron(
@@ -60,6 +67,16 @@ crons.cron(
   "purge out-of-date scheduled trips",
   "0 11 * * *", // 11:00 AM UTC daily
   internal.functions.scheduledTrips.actions.purgeScheduledTripsOutOfDate,
+  {}
+);
+
+// Daily purge of historic vessel locations by sailing-day retention window.
+// Keeps the current sailing day plus the three immediately prior sailing days.
+crons.cron(
+  "purge historic vessel locations",
+  "0 11 * * *", // 11:00 AM UTC daily
+  internal.functions.vesselLocationsHistoric.actions
+    .cleanupHistoricVesselLocations,
   {}
 );
 

@@ -5,9 +5,8 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { calculateDistanceInMiles } from "shared/distanceUtils";
+import { enrichConvexVesselLocation } from "shared/enrichConvexVesselLocations";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
-import { terminalLocations } from "src/data/terminalLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
@@ -51,31 +50,7 @@ export const updateVesselOrchestrator = internalAction({
       // Transform chain: WSF API → Convex schema → enrich with distances → final format
       convexLocations = rawLocations
         .map(toConvexVesselLocation)
-        .map((loc) => {
-          const departingTerminal =
-            terminalLocations[loc.DepartingTerminalAbbrev];
-          const arrivingTerminal = loc.ArrivingTerminalAbbrev
-            ? terminalLocations[loc.ArrivingTerminalAbbrev]
-            : undefined;
-
-          return {
-            ...loc,
-            // Distance from current position to departing terminal
-            DepartingDistance: calculateDistanceInMiles(
-              loc.Latitude,
-              loc.Longitude,
-              departingTerminal?.Latitude,
-              departingTerminal?.Longitude
-            ),
-            // Distance from current position to arriving terminal (if known)
-            ArrivingDistance: calculateDistanceInMiles(
-              loc.Latitude,
-              loc.Longitude,
-              arrivingTerminal?.Latitude,
-              arrivingTerminal?.Longitude
-            ),
-          };
-        })
+        .map(enrichConvexVesselLocation)
         .map(convertConvexVesselLocation);
     } catch (error) {
       const err = normalizeError(error);
