@@ -6,8 +6,7 @@
  */
 
 import type { ComponentRef, RefObject } from "react";
-import type { View as RNView } from "react-native";
-import type { ViewStyle } from "react-native";
+import type { View as RNView, ViewStyle } from "react-native";
 import { View } from "@/components/ui";
 import { TIMELINE_CARD_CONFIG } from "./config";
 import { TimelineGlassSurface } from "./TimelineGlassSurface";

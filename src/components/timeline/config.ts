@@ -77,8 +77,8 @@ export const TIMELINE_ROW_CONFIG = {
   },
   times: {
     iconSizePx: 22,
-    iconStrokeWidth: 2,
-    iconOutlineWidth: 2,
+    iconStrokeWidth: 1.5,
+    iconOutlineWidth: 1.5,
     textFontSizePx: 18,
   },
 } as const;

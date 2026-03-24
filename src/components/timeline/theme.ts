@@ -76,9 +76,9 @@ export const TIMELINE_RENDER_CONSTANTS = {
   },
 } as const;
 
-export const DEFAULT_TIMELINE_OUTLINE_COLOR = "hsla(0, 0%, 100%, 0.75)";
-export const DEFAULT_TIMELINE_GLASS_COLOR = "hsla(0, 0%, 100%, 0.25)";
-export const DEFAULT_TIMELINE_GLASS_BORDER_COLOR = "hsla(0, 0%, 100%, 0.75)";
+export const DEFAULT_TIMELINE_OUTLINE_COLOR = "hsla(0, 0%, 100%, 0.8)";
+export const DEFAULT_TIMELINE_GLASS_COLOR = "hsla(0, 0%, 100%, 0.3)";
+export const DEFAULT_TIMELINE_GLASS_BORDER_COLOR = "hsla(0, 0%, 100%, 0.8)";
 
 export const SEA_GLASS_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
   glassColor: DEFAULT_TIMELINE_GLASS_COLOR,

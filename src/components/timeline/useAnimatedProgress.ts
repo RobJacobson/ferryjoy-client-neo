@@ -3,25 +3,26 @@
  */
 
 import { useEffect } from "react";
-import { Easing, useSharedValue, withTiming } from "react-native-reanimated";
-import { TIMELINE_INDICATOR_CONFIG } from "./config";
+import { useSharedValue, withSpring } from "react-native-reanimated";
 
-const EASE_IN_OUT_CONFIG = {
-  duration: TIMELINE_INDICATOR_CONFIG.motion.progressDurationMs,
-  easing: Easing.inOut(Easing.quad),
+const GRADUAL_SPRING_CONFIG = {
+  damping: 120,
+  stiffness: 4,
+  mass: 16,
+  overshootClamping: true,
 } as const;
 
 /**
- * Drives a shared value with timing whenever `value` changes.
+ * Drives a shared value with a gradual spring whenever `value` changes.
  *
  * @param value - Next target (e.g. indicator `top` in pixels)
- * @returns Reanimated shared value reflecting the eased transition
+ * @returns Reanimated shared value reflecting the spring transition
  */
 export const useAnimatedProgress = (value: number) => {
   const animatedProgress = useSharedValue(value);
 
   useEffect(() => {
-    animatedProgress.value = withTiming(value, EASE_IN_OUT_CONFIG);
+    animatedProgress.value = withSpring(value, GRADUAL_SPRING_CONFIG);
   }, [animatedProgress, value]);
 
   return animatedProgress;
