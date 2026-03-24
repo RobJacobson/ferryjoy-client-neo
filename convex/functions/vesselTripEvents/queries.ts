@@ -2,11 +2,11 @@
  * Exposes query helpers for reading the `vesselTripEvents` read model from
  * Convex.
  */
-import { internalQuery, query, type QueryCtx } from "_generated/server";
+import { internalQuery, type QueryCtx, query } from "_generated/server";
 import { v } from "convex/values";
 import {
-  resolveVesselTimelineActiveState,
   normalizeScheduledDockSeams,
+  resolveVesselTimelineActiveState,
   sortVesselTripEvents,
 } from "domain/vesselTripEvents";
 import { stripConvexMeta } from "shared/stripConvexMeta";

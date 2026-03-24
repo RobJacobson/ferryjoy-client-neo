@@ -495,7 +495,6 @@ The frontend owns:
 
 - row building
 - dock/sea segmentation
-- compression of long dock spans
 - active indicator rendering
 - exact `rowMatch` to semantic-row lookup
 - last-resort local fallback when a backend row match cannot be found

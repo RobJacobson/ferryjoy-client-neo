@@ -422,10 +422,7 @@ const resolveTerminalTailState = (
   }
 
   const lastEventDisplayTime = getDisplayTime(lastEvent);
-  if (
-    lastEventDisplayTime !== undefined &&
-    observedAt < lastEventDisplayTime
-  ) {
+  if (lastEventDisplayTime !== undefined && observedAt < lastEventDisplayTime) {
     return null;
   }
 

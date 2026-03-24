@@ -105,9 +105,7 @@ export const toDomainVesselTimelineActiveStateSnapshot = (
 ) => ({
   ...snapshot,
   ObservedAt: optionalEpochMsToDate(snapshot.ObservedAt),
-  Live: snapshot.Live
-    ? toDomainVesselTimelineLiveState(snapshot.Live)
-    : null,
+  Live: snapshot.Live ? toDomainVesselTimelineLiveState(snapshot.Live) : null,
 });
 
 export type VesselTimelineRowMatch = ConvexVesselTimelineRowMatch;

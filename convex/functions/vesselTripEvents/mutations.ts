@@ -495,7 +495,9 @@ export const validateSailingDayEvents = (
   SailingDay: string,
   events: ConvexVesselTripEvent[]
 ) => {
-  const mismatchedEvent = events.find((event) => event.SailingDay !== SailingDay);
+  const mismatchedEvent = events.find(
+    (event) => event.SailingDay !== SailingDay
+  );
 
   if (mismatchedEvent) {
     throw new Error(
