@@ -85,7 +85,6 @@ A list works well because:
 - events are naturally ordered
 - users can swipe item-by-item through the journey
 - each item can be summarized in plain language
-- long dock compression can be described semantically rather than visually
 
 Example spoken items:
 
@@ -215,11 +214,10 @@ If abbreviations must remain visible, the spoken label should expand them.
 
 ## How To Model Timeline Items
 
-The semantic item model should follow journey meaning, not visual compression.
+The semantic item model should follow journey meaning, not visual geometry.
 
-This matters because the architecture explicitly compresses long dock periods
-for display. A screen reader should not hear "compressed break row" or any
-geometry-driven concept. It should hear the actual state:
+Even if the visual timeline uses adaptive sizing, a screen reader should not
+hear geometry-driven concepts. It should hear the actual state:
 
 - "Docked at Friday Harbor for 3 hours"
 - "Long layover at Friday Harbor"
@@ -291,7 +289,7 @@ The implementation should aim for the following:
 - Do not depend on spacing, color, iconography, or motion for meaning.
 - Separate current/live status from historical events.
 - Expand abbreviations in spoken output.
-- Ensure long-dock compression is described semantically, not visually.
+- Ensure adaptive row sizing is described semantically, not visually.
 - Test with VoiceOver and TalkBack on real devices.
 - Verify swipe order, rotor/navigation landmarks, repeated announcements, and
   live update behavior.

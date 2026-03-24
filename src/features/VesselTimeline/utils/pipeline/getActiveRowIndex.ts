@@ -14,12 +14,8 @@ import type {
   VesselTimelineLiveState,
 } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
-import type {
-  TimelineSemanticRow,
-  VesselTimelineLayoutConfig,
-  VesselTimelinePolicy,
-} from "../../types";
-import { getDisplayTime } from "../shared/rowEventTime";
+import type { TimelineSemanticRow } from "../../types";
+import { getDisplayTime, getLayoutTime } from "../shared/rowEventTime";
 
 /**
  * Picks the semantic row index that should host the active indicator.
@@ -52,8 +48,6 @@ export const getActiveRowIndex = (
  * @param activeState - Backend-resolved active row state and copy
  * @param liveState - Compact live vessel state for title, motion, and progress
  * @param now - Wall clock for countdown label and progress
- * @param policy - Compressed dock geometry parameters
- * @param layout - Pixel sizing for compressed dock vertical mapping
  * @returns `TimelineActiveIndicator` or null when the row is missing
  */
 export const buildActiveIndicator = ({
@@ -62,29 +56,19 @@ export const buildActiveIndicator = ({
   activeState,
   liveState,
   now,
-  policy,
-  layout,
 }: {
   rows: TimelineSemanticRow[];
   activeRowIndex: number;
   activeState: VesselTimelineActiveState | null;
   liveState: VesselTimelineLiveState | null;
   now: Date;
-  policy: VesselTimelinePolicy;
-  layout: VesselTimelineLayoutConfig;
 }): TimelineActiveIndicator | null => {
   const row = rows[activeRowIndex];
   if (!row) {
     return null;
   }
 
-  const positionPercent = getRowPositionPercent(
-    row,
-    liveState,
-    now,
-    policy,
-    layout
-  );
+  const positionPercent = getRowPositionPercent(row, liveState, now);
 
   return {
     rowId: row.id,
@@ -165,12 +149,11 @@ const getDistanceProgress = (
 };
 
 /**
- * Indicator position along a sea row: distance-based when possible, else
- * time-based progress between row ends.
+ * Indicator position along a sea row from live distance when available, with an
+ * ETA-over-actual-departure fallback when distances are unavailable.
  *
  * @param row - Active sea semantic row
  * @param liveState - Live distances when available
- * @param now - Wall clock for time fallback
  * @returns Position along the row in 0–1
  */
 const getSeaProgress = (
@@ -183,82 +166,83 @@ const getSeaProgress = (
     liveState?.ArrivingDistance
   );
 
-  return distanceProgress ?? getTimeProgress(row.startEvent, row.endEvent, now);
+  if (distanceProgress !== null) {
+    return distanceProgress;
+  }
+
+  return getEtaFallbackProgress(row, liveState, now);
 };
 
 /**
- * Total pixel height for one semantic row including compressed break marker.
+ * Sea fallback progress from actual departure to live ETA when distance data is
+ * unavailable.
  *
- * @param row - Row with display duration and mode
- * @param layout - Pixels per minute and minimum row height
- * @returns Clamped row height in pixels
+ * @param row - Active sea semantic row
+ * @param liveState - Live state carrying `Eta` and optional `LeftDock`
+ * @param now - Current instant
+ * @returns 0–1 progress or `0` when the fallback inputs are unusable
  */
-const getDisplayHeightPx = (
+const getEtaFallbackProgress = (
   row: TimelineSemanticRow,
-  layout: VesselTimelineLayoutConfig
+  liveState: VesselTimelineLiveState | null,
+  now: Date
 ) => {
-  const proportionalHeightPx =
-    row.displayDurationMinutes * layout.pixelsPerMinute;
-  const compressedBreakHeightPx =
-    row.displayMode === "compressed-dock-break"
-      ? layout.compressedBreakMarkerHeightPx
-      : 0;
+  const departureTime = row.startEvent.ActualTime ?? liveState?.LeftDock;
+  const etaTime = liveState?.Eta;
 
-  return Math.max(
-    layout.minRowHeightPx,
-    proportionalHeightPx + compressedBreakHeightPx
-  );
+  if (!departureTime || !etaTime) {
+    return 0;
+  }
+
+  const totalMs = etaTime.getTime() - departureTime.getTime();
+  if (totalMs <= 0) {
+    return 0;
+  }
+
+  return clamp((now.getTime() - departureTime.getTime()) / totalMs, 0, 1);
 };
 
 /**
  * Maps the active row to a 0–1 position for the timeline indicator dot.
  *
- * Sea rows use `getSeaProgress`; proportional docks use elapsed time; compressed
- * docks map wall time into stub, break, and departure window bands.
+ * Sea rows use `getSeaProgress`; dock rows use schedule-first elapsed time so
+ * the indicator stays aligned with schedule-sized rows as live ETA data drifts.
  *
  * @param row - Active semantic row
  * @param liveState - Live state for sea progress
  * @param now - Current instant
- * @param policy - Compressed dock minute bands
- * @param layout - Pixel heights for compressed mapping
  * @returns Vertical position as a fraction of row height
  */
 const getRowPositionPercent = (
   row: TimelineSemanticRow,
   liveState: VesselTimelineLiveState | null,
-  now: Date,
-  policy: VesselTimelinePolicy,
-  layout: VesselTimelineLayoutConfig
+  now: Date
 ) => {
   if (row.kind === "sea") {
     return getSeaProgress(row, liveState, now);
   }
 
-  if (row.displayMode !== "compressed-dock-break") {
-    return getTimeProgress(row.startEvent, row.endEvent, now);
-  }
-
-  const naturalDisplayHeightPx = getDisplayHeightPx(row, layout);
-  const offsetPx = getCompressedDockOffsetPx(row, now, policy, layout);
-
-  return clamp(offsetPx / Math.max(1, naturalDisplayHeightPx), 0, 1);
+  return getTimeProgress(row.startEvent, row.endEvent, now, getLayoutTime);
 };
 
 /**
- * Linear time progress between two row boundary events using display times.
+ * Linear time progress between two row boundary events using the supplied
+ * event-time selector.
  *
  * @param startEvent - Row start event
  * @param endEvent - Row end event
  * @param now - Current instant
+ * @param getEventTime - Function that selects the timeline instant for an event
  * @returns 0–1 clamped fraction through the span
  */
 const getTimeProgress = (
   startEvent: TimelineSemanticRow["startEvent"],
   endEvent: TimelineSemanticRow["endEvent"],
-  now: Date
+  now: Date,
+  getEventTime = getDisplayTime
 ) => {
-  const startTime = getDisplayTime(startEvent);
-  const endTime = getDisplayTime(endEvent);
+  const startTime = getEventTime(startEvent);
+  const endTime = getEventTime(endEvent);
   if (!startTime || !endTime) {
     return 0;
   }
@@ -293,70 +277,4 @@ const getMinutesUntil = (event: TimelineSemanticRow["endEvent"], now: Date) => {
   );
 
   return `${remainingMinutes}m`;
-};
-
-/**
- * Pixel offset from the top of a compressed dock row for the current time.
- *
- * Maps elapsed real minutes into arrival stub height, break band, and departure
- * window height so the indicator moves through the compressed layout.
- *
- * @param row - Dock row in compressed display mode
- * @param now - Current instant
- * @param policy - Stub and window minute lengths
- * @param layout - Pixels per minute and break marker height
- * @returns Y offset in pixels within the row’s display height
- */
-const getCompressedDockOffsetPx = (
-  row: TimelineSemanticRow,
-  now: Date,
-  policy: VesselTimelinePolicy,
-  layout: VesselTimelineLayoutConfig
-) => {
-  const startTime = getDisplayTime(row.startEvent);
-  const endTime = getDisplayTime(row.endEvent);
-  if (!startTime || !endTime) {
-    return getDisplayHeightPx(row, layout) / 2;
-  }
-
-  const totalMinutes = Math.max(
-    1,
-    (endTime.getTime() - startTime.getTime()) / 60_000
-  );
-  const elapsedMinutes = Math.max(
-    0,
-    Math.min(totalMinutes, (now.getTime() - startTime.getTime()) / 60_000)
-  );
-
-  const arrivalHeightPx =
-    policy.compressedDockArrivalStubMinutes * layout.pixelsPerMinute;
-  const departureHeightPx =
-    policy.compressedDockDepartureWindowMinutes * layout.pixelsPerMinute;
-  const breakHeightPx = layout.compressedBreakMarkerHeightPx;
-
-  if (elapsedMinutes <= policy.compressedDockArrivalStubMinutes) {
-    return (
-      (elapsedMinutes / Math.max(1, policy.compressedDockArrivalStubMinutes)) *
-      arrivalHeightPx
-    );
-  }
-
-  if (
-    totalMinutes - elapsedMinutes <=
-    policy.compressedDockDepartureWindowMinutes
-  ) {
-    const minutesIntoDepartureWindow =
-      policy.compressedDockDepartureWindowMinutes -
-      (totalMinutes - elapsedMinutes);
-
-    return (
-      arrivalHeightPx +
-      breakHeightPx +
-      (minutesIntoDepartureWindow /
-        Math.max(1, policy.compressedDockDepartureWindowMinutes)) *
-        departureHeightPx
-    );
-  }
-
-  return arrivalHeightPx + breakHeightPx / 2;
 };

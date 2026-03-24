@@ -466,6 +466,8 @@ const toLiveState = (
   ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
   DepartingDistance: location.DepartingDistance,
   ArrivingDistance: location.ArrivingDistance,
+  LeftDock: location.LeftDock,
+  Eta: location.Eta,
   ScheduledDeparture: location.ScheduledDeparture,
   TimeStamp: location.TimeStamp,
 });

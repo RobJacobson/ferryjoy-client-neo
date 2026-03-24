@@ -14,7 +14,6 @@ import type {
 import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
-  VesselTimelinePolicy,
   VesselTimelineRenderState,
 } from "../../types";
 import { buildTimelineRows } from "./buildTimelineRows";
@@ -26,24 +25,11 @@ const PIXELS_PER_MINUTE_MAX = 8;
 const PIXELS_PER_MINUTE_PER_ROW = 0.15;
 
 /**
- * Default long-dock compression policy (60+ minute docks use break layout).
- *
- * Matches `ARCHITECTURE.md`: 10 min arrival stub, 50 min departure window, plus
- * break marker height from layout config.
- */
-export const DEFAULT_VESSEL_TIMELINE_POLICY: VesselTimelinePolicy = {
-  compressedDockThresholdMinutes: 60,
-  compressedDockArrivalStubMinutes: 10,
-  compressedDockDepartureWindowMinutes: 50,
-};
-
-/**
  * Default pixel layout for row heights, terminal cards, and initial scroll.
  */
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   pixelsPerMinute: 4,
   minRowHeightPx: 36,
-  compressedBreakMarkerHeightPx: 20,
   terminalCardTopOffsetPx: -20,
   terminalCardDepartureCapHeightPx: 20,
   initialAutoScroll: "center-active-indicator",
@@ -74,10 +60,7 @@ export const getVesselTimelineRenderState = (
     pixelsPerMinute: getAdaptivePixelsPerMinute(Events),
   };
 
-  const semanticRows = buildTimelineRows(
-    Events,
-    DEFAULT_VESSEL_TIMELINE_POLICY
-  );
+  const semanticRows = buildTimelineRows(Events);
   const activeRowIndex = getActiveRowIndex(semanticRows, activeState);
   const { rows, terminalCards, contentHeightPx } = getLayoutTimelineRows(
     semanticRows,
@@ -94,8 +77,6 @@ export const getVesselTimelineRenderState = (
       activeState,
       liveState,
       now,
-      policy: DEFAULT_VESSEL_TIMELINE_POLICY,
-      layout: adjustedLayout,
     }),
     contentHeightPx,
     layout: adjustedLayout,

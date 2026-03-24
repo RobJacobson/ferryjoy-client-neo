@@ -6,10 +6,7 @@ import type {
 import type { VesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
 import { buildTimelineRows } from "../buildTimelineRows";
 import { getActiveRowIndex } from "../getActiveRowIndex";
-import {
-  DEFAULT_VESSEL_TIMELINE_POLICY,
-  getVesselTimelineRenderState,
-} from "../getVesselTimelineRenderState";
+import { getVesselTimelineRenderState } from "../getVesselTimelineRenderState";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
@@ -79,39 +76,36 @@ describe("buildTimelineRows", () => {
   });
 
   it("builds sea, dock, sea, and terminal rows from ordered events", () => {
-    const rows = buildTimelineRows(
-      [
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 0),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 35),
-        }),
-        makeEvent({
-          Key: "dep-2",
-          EventType: "dep-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(9, 50),
-          ScheduledTime: at(9, 50),
-        }),
-        makeEvent({
-          Key: "arv-2",
-          EventType: "arv-dock",
-          TerminalAbbrev: "P52",
-          ScheduledDeparture: at(9, 50),
-          ScheduledTime: at(10, 25),
-        }),
-      ],
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows([
+      makeEvent({
+        Key: "dep-1",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: at(8, 0),
+        ScheduledTime: at(8, 0),
+      }),
+      makeEvent({
+        Key: "arv-1",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 0),
+        ScheduledTime: at(8, 35),
+      }),
+      makeEvent({
+        Key: "dep-2",
+        EventType: "dep-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: at(9, 50),
+        ScheduledTime: at(9, 50),
+      }),
+      makeEvent({
+        Key: "arv-2",
+        EventType: "arv-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: at(9, 50),
+        ScheduledTime: at(10, 25),
+      }),
+    ]);
 
     expect(rows.map((row) => row.kind)).toEqual([
       "dock",
@@ -131,131 +125,112 @@ describe("buildTimelineRows", () => {
     expect(rows[0]?.startEvent.IsArrivalPlaceholder).toBeTrue();
     expect(rows[1]?.startEvent.EventType).toBe("dep-dock");
     expect(rows[1]?.endEvent.EventType).toBe("arv-dock");
-    expect(rows[1]?.actualDurationMinutes).toBe(35);
-    expect(rows[2]?.actualDurationMinutes).toBe(75);
+    expect(rows[1]?.durationMinutes).toBe(35);
+    expect(rows[2]?.durationMinutes).toBe(75);
   });
 
-  it("marks long dock rows as compressed using visible dock windows", () => {
-    const rows = buildTimelineRows(
-      [
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 35),
-        }),
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(10, 0),
-          ScheduledTime: at(10, 0),
-        }),
-      ],
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+  it("keeps long dock rows at their full schedule-based duration", () => {
+    const rows = buildTimelineRows([
+      makeEvent({
+        Key: "arv-1",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 0),
+        ScheduledTime: at(8, 35),
+      }),
+      makeEvent({
+        Key: "dep-1",
+        EventType: "dep-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: at(10, 0),
+        ScheduledTime: at(10, 0),
+      }),
+    ]);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.displayMode).toBe("compressed-dock-break");
-    expect(rows[0]?.actualDurationMinutes).toBe(85);
-    expect(rows[0]?.displayDurationMinutes).toBe(60);
+    expect(rows[0]?.kind).toBe("dock");
+    expect(rows[0]?.durationMinutes).toBe(85);
   });
 
   it("keeps layout durations anchored to scheduled times when live times differ", () => {
-    const rows = buildTimelineRows(
-      [
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 0),
-          ActualTime: at(8, 2),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 35),
-          PredictedTime: at(8, 38),
-          ActualTime: at(8, 37),
-        }),
-      ],
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows([
+      makeEvent({
+        Key: "dep-1",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: at(8, 0),
+        ScheduledTime: at(8, 0),
+        ActualTime: at(8, 2),
+      }),
+      makeEvent({
+        Key: "arv-1",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 0),
+        ScheduledTime: at(8, 35),
+        PredictedTime: at(8, 38),
+        ActualTime: at(8, 37),
+      }),
+    ]);
 
     expect(rows).toHaveLength(3);
-    expect(rows[1]?.actualDurationMinutes).toBe(35);
-    expect(rows[1]?.displayDurationMinutes).toBe(35);
+    expect(rows[1]?.durationMinutes).toBe(35);
   });
 
   it("falls back from scheduled to actual to predicted for layout timing", () => {
-    const rows = buildTimelineRows(
-      [
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledTime: undefined,
-          ActualTime: at(8, 1),
-          PredictedTime: at(8, 2),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledTime: undefined,
-          ActualTime: undefined,
-          PredictedTime: at(8, 40),
-        }),
-      ],
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows([
+      makeEvent({
+        Key: "dep-1",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledTime: undefined,
+        ActualTime: at(8, 1),
+        PredictedTime: at(8, 2),
+      }),
+      makeEvent({
+        Key: "arv-1",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledTime: undefined,
+        ActualTime: undefined,
+        PredictedTime: at(8, 40),
+      }),
+    ]);
 
     expect(rows).toHaveLength(3);
-    expect(rows[1]?.actualDurationMinutes).toBe(39);
-    expect(rows[1]?.displayDurationMinutes).toBe(39);
+    expect(rows[1]?.durationMinutes).toBe(39);
   });
 
   it("falls back to a one-minute minimum duration when timestamps are missing", () => {
-    const rows = buildTimelineRows(
-      [
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledTime: undefined,
-          PredictedTime: undefined,
-          ActualTime: undefined,
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledTime: undefined,
-          PredictedTime: undefined,
-          ActualTime: undefined,
-        }),
-      ],
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows([
+      makeEvent({
+        Key: "dep-1",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledTime: undefined,
+        PredictedTime: undefined,
+        ActualTime: undefined,
+      }),
+      makeEvent({
+        Key: "arv-1",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledTime: undefined,
+        PredictedTime: undefined,
+        ActualTime: undefined,
+      }),
+    ]);
 
     expect(rows).toHaveLength(3);
     expect(rows[1]?.kind).toBe("sea");
-    expect(rows[1]?.actualDurationMinutes).toBe(1);
-    expect(rows[1]?.displayDurationMinutes).toBe(1);
+    expect(rows[1]?.durationMinutes).toBe(1);
     expect(rows[2]?.isTerminal).toBeTrue();
   });
 });
 
 describe("getActiveRowIndex", () => {
   it("prefers a live-anchored sea row over clock-only progress", () => {
-    const rows = buildTimelineRows(
-      makeRoundTripEvents(),
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows(makeRoundTripEvents());
     const firstRow = getRowOrThrow(rows, 0);
 
     rows[0] = {
@@ -281,10 +256,7 @@ describe("getActiveRowIndex", () => {
   });
 
   it("matches the terminal row from terminalTailEventKey", () => {
-    const rows = buildTimelineRows(
-      makeRoundTripEvents(),
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows(makeRoundTripEvents());
 
     const activeRowIndex = getActiveRowIndex(
       rows,
@@ -300,17 +272,14 @@ describe("getActiveRowIndex", () => {
   });
 
   it("returns no active row when the backend provides no row match", () => {
-    const rows = buildTimelineRows(
-      makeRoundTripEvents(),
-      DEFAULT_VESSEL_TIMELINE_POLICY
-    );
+    const rows = buildTimelineRows(makeRoundTripEvents());
 
     expect(getActiveRowIndex(rows, null)).toBe(-1);
   });
 });
 
 describe("getVesselTimelineRenderState", () => {
-  it("returns renderer-ready rows and a compressed dock row height", () => {
+  it("returns renderer-ready rows with full schedule-based dock heights", () => {
     const renderState = getVesselTimelineRenderState(
       makeRoundTripEvents(),
       makeLiveState({
@@ -336,9 +305,114 @@ describe("getVesselTimelineRenderState", () => {
 
     expect(renderState.rows).toHaveLength(5);
     expect(renderState.rows[2]?.kind).toBe("at-dock");
-    expect(renderState.rows[2]?.displayHeightPx).toBe(260);
+    expect(renderState.rows[2]?.displayHeightPx).toBe(300);
     expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
     expect(renderState.contentHeightPx).toBeGreaterThan(0);
+  });
+
+  it("uses live distance only for sea indicator progress", () => {
+    const renderState = getVesselTimelineRenderState(
+      makeRoundTripEvents(),
+      makeLiveState({
+        ScheduledDeparture: at(8, 0),
+        AtDock: false,
+        Speed: 12,
+        DepartingDistance: undefined,
+        ArrivingDistance: undefined,
+      }),
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        reason: "location_anchor",
+      }),
+      at(8, 20)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
+    expect(renderState.activeIndicator?.positionPercent).toBe(0);
+  });
+
+  it("falls back to eta-over-actual-departure for sea progress when distances are missing", () => {
+    const renderState = getVesselTimelineRenderState(
+      [
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(8, 0),
+          ScheduledTime: at(8, 0),
+          ActualTime: at(8, 5),
+        }),
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(8, 0),
+          ScheduledTime: at(8, 35),
+        }),
+      ],
+      makeLiveState({
+        ScheduledDeparture: at(8, 0),
+        AtDock: false,
+        Speed: 12,
+        DepartingDistance: undefined,
+        ArrivingDistance: undefined,
+        Eta: at(8, 45),
+      }),
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        reason: "location_anchor",
+      }),
+      at(8, 25)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
+    expect(renderState.activeIndicator?.positionPercent).toBe(0.5);
+  });
+
+  it("uses elapsed time for dock indicator progress on long dock rows", () => {
+    const renderState = getVesselTimelineRenderState(
+      [
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(11, 30),
+          ScheduledTime: at(11, 30),
+        }),
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(12, 35),
+          ScheduledTime: at(12, 35),
+        }),
+      ],
+      null,
+      makeActiveState({
+        kind: "dock",
+        rowMatch: {
+          kind: "dock",
+          startEventKey: "arv-1",
+          endEventKey: "dep-1",
+        },
+        reason: "scheduled_window",
+      }),
+      at(12, 2)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("arv-1--dep-1--dock");
+    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.48);
+    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
   });
 
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
@@ -452,6 +526,8 @@ const makeLiveState = (
   InService: true,
   AtDock: true,
   ScheduledDeparture: undefined,
+  LeftDock: undefined,
+  Eta: undefined,
   TimeStamp: at(8, 0),
   DepartingDistance: undefined,
   ArrivingDistance: undefined,

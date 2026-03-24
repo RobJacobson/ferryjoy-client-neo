@@ -15,17 +15,10 @@ import type { VesselTripEvent } from "convex/functions/vesselTripEvents/schemas"
 import { toDomainVesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import {
-  createContext,
-  Component as ReactComponent,
-  useContext,
-} from "react";
+import { createContext, Component as ReactComponent, useContext } from "react";
 
 export type VesselTimelineEvent = VesselTripEvent;
-export type {
-  VesselTimelineActiveState,
-  VesselTimelineLiveState,
-};
+export type { VesselTimelineActiveState, VesselTimelineLiveState };
 
 type ConvexVesselTripEventsContextType = {
   VesselAbbrev: string;
@@ -46,13 +39,16 @@ const ConvexVesselTripEventsContext = createContext<
   ConvexVesselTripEventsContextType | undefined
 >(undefined);
 
-class ConvexVesselTripEventsErrorBoundary extends ReactComponent<{
-  fallback: (error: string) => ReactNode;
-  children: ReactNode;
-}, {
-  hasError: boolean;
-  errorMessage: string | null;
-}> {
+class ConvexVesselTripEventsErrorBoundary extends ReactComponent<
+  {
+    fallback: (error: string) => ReactNode;
+    children: ReactNode;
+  },
+  {
+    hasError: boolean;
+    errorMessage: string | null;
+  }
+> {
   override state = { hasError: false, errorMessage: null };
 
   static getDerivedStateFromError() {

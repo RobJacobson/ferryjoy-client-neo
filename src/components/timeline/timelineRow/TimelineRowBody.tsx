@@ -3,7 +3,7 @@
  */
 
 import { View } from "@/components/ui";
-import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
+import { TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderEvent } from "../types";
 import { TimelineRowEventLabel } from "./TimelineRowEventLabel";

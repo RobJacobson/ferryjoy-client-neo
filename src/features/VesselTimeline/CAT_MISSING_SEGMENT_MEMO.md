@@ -382,19 +382,15 @@ Disadvantages:
 - too visually small for an important anomaly
 - may not communicate a missing physical segment clearly enough
 
-### Option 2: Render placeholder sea rows with fixed display duration
+### Option 2: Render placeholder sea rows with fixed illustrative duration
 
 Recommended frontend direction if placeholder segments are added.
 
 How:
 
 - placeholder rows receive an explicit display mode, for example:
-
-```ts
-"placeholder-gap"
-```
-
-- placeholder rows use a fixed `displayDurationMinutes`, e.g. `15` or `20`
+  or a dedicated semantic flag that the layout layer can recognize
+- placeholder rows use a fixed illustrative duration, e.g. `15` or `20`
 - no exact timestamps are claimed
 - schedule column shows `--`
 - actual/estimated column remains blank unless stronger truth becomes available

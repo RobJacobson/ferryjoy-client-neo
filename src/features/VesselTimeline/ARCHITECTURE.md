@@ -95,24 +95,18 @@ to render the timeline.
   `CompletedVesselTrip` records anymore.
 - The frontend receives a sorted array of vessel/day events (via Convex query;
   see below).
-- The frontend still owns row construction, dock/sea segmentation, compression,
-  indicator behavior, and visual rendering.
+- The frontend still owns row construction, dock/sea segmentation, indicator
+  behavior, and visual rendering.
 
 ### Long dock periods
 
-Long dock periods are still represented as real dock spans, but they are
-compressed in the UI. Defaults live in `DEFAULT_VESSEL_TIMELINE_POLICY`
-(`getVesselTimelineRenderState.ts`).
+Long dock periods are rendered with the same schedule-based sizing rules as all
+other rows in the current implementation.
 
-- dock segment `< 60 min`: render proportionally
-- dock segment `>= 60 min`: render as a compressed break row
-
-Compressed break row layout:
-
-- visible arrival stub: `10 min`
-- break marker: explicit visual discontinuity (`compressedBreakMarkerHeightPx`
-  in layout config)
-- visible departure window: `50 min`
+- row heights are based on schedule-first duration math
+- a minimum row height still protects readability when events are close
+- future nonlinear scaling remains possible, but is not part of the current
+  architecture
 
 ### Off-schedule / out-of-service behavior
 
@@ -138,7 +132,6 @@ three-row model. `VesselTimeline` instead needs:
 
 - a complete vessel-day document
 - any number of alternating dock and sea rows
-- compressed long-dock behavior
 - a vessel-centric data source
 - a live indicator driven by current vessel location
 
@@ -383,8 +376,7 @@ Each semantic row carries:
 - `startEvent` / `endEvent` (`TimelineRowEvent`: backend fields plus display
   name / placeholder flags)
 - `kind` (`dock` | `sea`)
-- `displayMode` (`proportional` | `compressed-dock-break`)
-- `actualDurationMinutes` and `displayDurationMinutes`
+- `durationMinutes`
 
 Duration calculations use **schedule-first layout precedence** via
 `getLayoutTime` (`ScheduledTime` → `ActualTime` → `PredictedTime`). That keeps

@@ -20,22 +20,6 @@ import type { VesselTimelineEvent } from "@/data/contexts";
 export type VesselTimelineRowKind = "dock" | "sea";
 
 /**
- * Display strategy for a row.
- */
-export type VesselTimelineRowDisplayMode =
-  | "proportional"
-  | "compressed-dock-break";
-
-/**
- * Product policy for timeline semantics independent from pixel layout.
- */
-export type VesselTimelinePolicy = {
-  compressedDockThresholdMinutes: number;
-  compressedDockArrivalStubMinutes: number;
-  compressedDockDepartureWindowMinutes: number;
-};
-
-/**
  * Feature-local event shape carried by a semantic row.
  */
 export type TimelineRowEvent = VesselTimelineEvent & {
@@ -55,9 +39,7 @@ export type TimelineSemanticRow = {
   isTerminal?: boolean;
   startEvent: TimelineRowEvent;
   endEvent: TimelineRowEvent;
-  actualDurationMinutes: number;
-  displayDurationMinutes: number;
-  displayMode: VesselTimelineRowDisplayMode;
+  durationMinutes: number;
 };
 
 /**
@@ -66,7 +48,6 @@ export type TimelineSemanticRow = {
 export type VesselTimelineLayoutConfig = {
   pixelsPerMinute: number;
   minRowHeightPx: number;
-  compressedBreakMarkerHeightPx: number;
   terminalCardTopOffsetPx: number;
   terminalCardDepartureCapHeightPx: number;
   initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";

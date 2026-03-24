@@ -40,6 +40,8 @@ export const vesselTimelineLiveStateSchema = v.object({
   ArrivingTerminalAbbrev: v.optional(v.string()),
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
+  LeftDock: v.optional(v.number()),
+  Eta: v.optional(v.number()),
   ScheduledDeparture: v.optional(v.number()),
   TimeStamp: v.optional(v.number()),
 });
@@ -84,10 +86,14 @@ export const toConvexVesselTimelineLiveState = (live: {
   ArrivingTerminalAbbrev?: string;
   DepartingDistance?: number;
   ArrivingDistance?: number;
+  LeftDock?: Date;
+  Eta?: Date;
   ScheduledDeparture?: Date;
   TimeStamp?: Date;
 }): ConvexVesselTimelineLiveState => ({
   ...live,
+  LeftDock: optionalDateToEpochMs(live.LeftDock),
+  Eta: optionalDateToEpochMs(live.Eta),
   ScheduledDeparture: optionalDateToEpochMs(live.ScheduledDeparture),
   TimeStamp: optionalDateToEpochMs(live.TimeStamp),
 });
@@ -96,6 +102,8 @@ export const toDomainVesselTimelineLiveState = (
   live: ConvexVesselTimelineLiveState
 ) => ({
   ...live,
+  LeftDock: optionalEpochMsToDate(live.LeftDock),
+  Eta: optionalEpochMsToDate(live.Eta),
   ScheduledDeparture: optionalEpochMsToDate(live.ScheduledDeparture),
   TimeStamp: optionalEpochMsToDate(live.TimeStamp),
 });

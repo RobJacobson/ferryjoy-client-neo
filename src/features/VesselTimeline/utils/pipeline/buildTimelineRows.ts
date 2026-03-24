@@ -3,16 +3,11 @@
  *
  * Adjacent event pairs become rows per `ARCHITECTURE.md`: dock spans share a
  * terminal between arrival and departure; sea spans run departure to arrival.
- * Long docks may use compressed display durations per feature policy.
  */
 
 import type { VesselTimelineEvent } from "@/data/contexts";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
-import type {
-  TimelineRowEvent,
-  TimelineSemanticRow,
-  VesselTimelinePolicy,
-} from "../../types";
+import type { TimelineRowEvent, TimelineSemanticRow } from "../../types";
 import { getLayoutTime } from "../shared/rowEventTime";
 
 /**
@@ -23,12 +18,10 @@ import { getLayoutTime } from "../shared/rowEventTime";
  * and arrival placeholder rows when required.
  *
  * @param events - Backend events for one vessel and sailing day, sorted
- * @param policy - Compressed-dock thresholds and stub/window minutes
  * @returns Semantic rows with layout-ready duration metadata
  */
 export const buildTimelineRows = (
-  events: VesselTimelineEvent[],
-  policy: VesselTimelinePolicy
+  events: VesselTimelineEvent[]
 ): TimelineSemanticRow[] => {
   const rows: TimelineSemanticRow[] = [];
 
@@ -44,8 +37,7 @@ export const buildTimelineRows = (
     if (isDockPair(current, next)) {
       const startEvent = toRowEvent(current);
       const endEvent = toRowEvent(next);
-      const dockDurationMinutes = getDurationMinutes(startEvent, endEvent);
-      const displayMode = getDockDisplayMode(dockDurationMinutes, policy);
+      const durationMinutes = getDurationMinutes(startEvent, endEvent);
 
       rows.push({
         id: `${current.Key}--${next.Key}--dock`,
@@ -53,13 +45,7 @@ export const buildTimelineRows = (
         kind: "dock",
         startEvent,
         endEvent,
-        actualDurationMinutes: dockDurationMinutes,
-        displayDurationMinutes: getDisplayDurationMinutes(
-          dockDurationMinutes,
-          displayMode,
-          policy
-        ),
-        displayMode,
+        durationMinutes,
       });
     }
 
@@ -78,9 +64,7 @@ export const buildTimelineRows = (
         kind: "sea",
         startEvent,
         endEvent,
-        actualDurationMinutes: seaDurationMinutes,
-        displayDurationMinutes: seaDurationMinutes,
-        displayMode: "proportional",
+        durationMinutes: seaDurationMinutes,
       });
     }
   }
@@ -96,9 +80,7 @@ export const buildTimelineRows = (
       isTerminal: true,
       startEvent: terminalEvent,
       endEvent: terminalEvent,
-      actualDurationMinutes: 0,
-      displayDurationMinutes: 0,
-      displayMode: "proportional",
+      durationMinutes: 0,
     });
   }
 
@@ -145,9 +127,7 @@ const buildArrivalPlaceholderRow = (
     kind: "dock",
     startEvent: placeholderArrivalEvent,
     endEvent: toRowEvent(departureEvent),
-    actualDurationMinutes: 0,
-    displayDurationMinutes: 0,
-    displayMode: "proportional",
+    durationMinutes: 0,
   };
 };
 
@@ -190,39 +170,6 @@ const needsArrivalPlaceholder = (
     previous?.EventType === "arv-dock" &&
     previous.TerminalAbbrev === current.TerminalAbbrev
   );
-
-/**
- * Chooses proportional vs compressed dock display from actual duration.
- *
- * @param durationMinutes - Real dock span length from layout times
- * @param policy - Threshold above which the UI uses compressed dock break
- * @returns Row display mode for layout height rules
- */
-const getDockDisplayMode = (
-  durationMinutes: number,
-  policy: VesselTimelinePolicy
-): TimelineSemanticRow["displayMode"] =>
-  durationMinutes >= policy.compressedDockThresholdMinutes
-    ? "compressed-dock-break"
-    : "proportional";
-
-/**
- * Maps actual dock minutes to the minutes allocated in the layout height.
- *
- * @param durationMinutes - Real span length
- * @param displayMode - Proportional or compressed break layout
- * @param policy - Stub and departure window minutes when compressed
- * @returns Minutes used for row `displayDurationMinutes`
- */
-const getDisplayDurationMinutes = (
-  durationMinutes: number,
-  displayMode: TimelineSemanticRow["displayMode"],
-  policy: VesselTimelinePolicy
-) =>
-  displayMode === "compressed-dock-break"
-    ? policy.compressedDockArrivalStubMinutes +
-      policy.compressedDockDepartureWindowMinutes
-    : durationMinutes;
 
 /**
  * Duration between row boundaries using schedule-first layout precedence.

@@ -71,29 +71,17 @@ export const getLayoutTimelineRows = (
 };
 
 /**
- * Row display height from display minutes, optional compressed break marker, and
- * minimum row height.
+ * Row display height from schedule-based minutes and a minimum row height.
  *
- * @param row - Semantic row with `displayDurationMinutes` and `displayMode`
- * @param layout - Scale and break marker height
+ * @param row - Semantic row with a schedule-based duration
+ * @param layout - Pixels-per-minute scale and min-height floor
  * @returns Height in pixels for this row
  */
 const getDisplayHeightPx = (
   row: TimelineSemanticRow,
   layout: VesselTimelineLayoutConfig
-) => {
-  const proportionalHeightPx =
-    row.displayDurationMinutes * layout.pixelsPerMinute;
-  const compressedBreakHeightPx =
-    row.displayMode === "compressed-dock-break"
-      ? layout.compressedBreakMarkerHeightPx
-      : 0;
-
-  return Math.max(
-    layout.minRowHeightPx,
-    proportionalHeightPx + compressedBreakHeightPx
-  );
-};
+) =>
+  Math.max(layout.minRowHeightPx, row.durationMinutes * layout.pixelsPerMinute);
 
 /**
  * Builds a presentation event for one end of a semantic row.
