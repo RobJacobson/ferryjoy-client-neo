@@ -93,17 +93,15 @@ const getHistoryActualsByEventKey = ({
       segment,
     ])
   );
-  const actualsByEventKey = new Map<string, number>();
-
-  for (const record of historyRecords) {
+  return historyRecords.reduce((actualsByEventKey, record) => {
     const normalizedRecord = normalizeHistoryRecord(record, sailingDay);
     if (!normalizedRecord) {
-      continue;
+      return actualsByEventKey;
     }
 
     const directSegment = directSegmentsByTripKey.get(normalizedRecord.tripKey);
     if (!directSegment) {
-      continue;
+      return actualsByEventKey;
     }
 
     const departureEventKey = buildEventKey(
@@ -131,9 +129,9 @@ const getHistoryActualsByEventKey = ({
     if (normalizedRecord.arrivalProxy !== undefined) {
       actualsByEventKey.set(arrivalEventKey, normalizedRecord.arrivalProxy);
     }
-  }
 
-  return actualsByEventKey;
+    return actualsByEventKey;
+  }, new Map<string, number>());
 };
 
 /**

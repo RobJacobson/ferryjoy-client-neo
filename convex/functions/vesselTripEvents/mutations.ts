@@ -495,11 +495,11 @@ export const validateSailingDayEvents = (
   SailingDay: string,
   events: ConvexVesselTripEvent[]
 ) => {
-  for (const event of events) {
-    if (event.SailingDay !== SailingDay) {
-      throw new Error(
-        `reseedForSailingDay expected event ${event.Key} to match sailing day ${SailingDay}, got ${event.SailingDay}`
-      );
-    }
+  const mismatchedEvent = events.find((event) => event.SailingDay !== SailingDay);
+
+  if (mismatchedEvent) {
+    throw new Error(
+      `reseedForSailingDay expected event ${mismatchedEvent.Key} to match sailing day ${SailingDay}, got ${mismatchedEvent.SailingDay}`
+    );
   }
 };
