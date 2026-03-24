@@ -72,7 +72,7 @@ export const TIMELINE_RENDER_CONSTANTS = {
     blurTint: "light" as const,
   },
   indicator: {
-    glassBlurIntensity: 8,
+    glassBlurIntensity: 20,
   },
 } as const;
 

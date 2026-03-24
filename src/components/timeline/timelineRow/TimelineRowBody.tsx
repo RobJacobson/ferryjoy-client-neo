@@ -41,9 +41,7 @@ export const TimelineRowBody = ({
       <View
         className="flex-row justify-end"
         style={{
-          marginRight:
-            TIMELINE_SHARED_CONFIG.sideColumnOffsetPx +
-            TIMELINE_ROW_CONFIG.body.contentNudgePx,
+          marginRight: TIMELINE_SHARED_CONFIG.sideColumnOffsetPx + 4,
         }}
       >
         <TimelineRowEventLabel label={label} theme={theme} />
@@ -51,11 +49,9 @@ export const TimelineRowBody = ({
     </View>
     {/* Right column */}
     <View
-      className="flex-1"
+      className="mr-1 flex-1"
       style={{
-        marginLeft:
-          TIMELINE_SHARED_CONFIG.sideColumnOffsetPx +
-          TIMELINE_ROW_CONFIG.body.contentNudgePx,
+        marginLeft: TIMELINE_SHARED_CONFIG.sideColumnOffsetPx,
       }}
     >
       <TimelineRowEventTimes

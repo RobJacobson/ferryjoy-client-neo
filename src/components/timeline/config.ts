@@ -20,11 +20,11 @@ export const TIMELINE_INDICATOR_CONFIG = {
   banner: {
     maxWidthPx: 400,
     verticalOffsetPx: 6,
-    borderWidthPx: 1.5,
+    borderWidthPx: 2,
     fadeDurationMs: 300,
   },
   circle: {
-    borderWidthPx: 3,
+    borderWidthPx: 2,
   },
   overlay: {
     zIndex: 10,
@@ -57,9 +57,6 @@ export const TIMELINE_INDICATOR_CONFIG = {
 } as const;
 
 export const TIMELINE_ROW_CONFIG = {
-  body: {
-    contentNudgePx: 2,
-  },
   label: {
     fontSizePx: 18,
   },

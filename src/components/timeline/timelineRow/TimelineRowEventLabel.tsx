@@ -2,7 +2,8 @@
  * Left column: short arrive/depart label with outline treatment.
  */
 
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
 
 type TimelineRowEventLabelProps = {
@@ -22,7 +23,6 @@ export const TimelineRowEventLabel = ({
   theme,
 }: TimelineRowEventLabelProps) => (
   <View className="relative">
-    {/* Previous outline treatment kept for easy restoration:
     <StrokeText
       outlineColor={theme.outlines.color}
       style={{
@@ -33,12 +33,5 @@ export const TimelineRowEventLabel = ({
     >
       {label}
     </StrokeText>
-    */}
-    <Text
-      className="font-bitcount-500 text-lg"
-      style={{ color: theme.text.bodyColor }}
-    >
-      {label}
-    </Text>
   </View>
 );

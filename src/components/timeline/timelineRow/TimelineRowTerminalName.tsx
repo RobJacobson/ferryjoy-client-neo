@@ -24,7 +24,7 @@ export const TimelineRowTerminalName = ({
   theme,
 }: TimelineRowTerminalNameProps) => (
   <View
-    className="absolute -top-10 -left-3"
+    className="absolute -top-11 -left-3"
     style={{
       zIndex: TIMELINE_ROW_CONFIG.terminalName.zIndex,
       elevation: TIMELINE_ROW_CONFIG.terminalName.elevation,
