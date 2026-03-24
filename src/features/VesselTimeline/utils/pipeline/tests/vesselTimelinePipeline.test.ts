@@ -1,56 +1,65 @@
 import { describe, expect, it } from "bun:test";
+import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTripEvents/activeStateSchemas";
-import type { VesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
-import { buildTimelineRows } from "../buildTimelineRows";
-import { getActiveRowIndex } from "../getActiveRowIndex";
 import { getVesselTimelineRenderState } from "../getVesselTimelineRenderState";
+import { resolveActiveSegmentIndex } from "../resolveActiveSegmentIndex";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
-describe("buildTimelineRows", () => {
-  it("inserts an arrival placeholder dock row before an orphan departure", () => {
+describe("resolveActiveSegmentIndex", () => {
+  it("prefers a live-anchored sea row over clock-only progress", () => {
+    const rows = makeRoundTripSegments();
+    const firstRow = getRowOrThrow(rows, 0);
+
+    rows[0] = {
+      ...firstRow,
+      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, ActualTime: undefined },
+    };
+
+    const activeRowIndex = resolveActiveSegmentIndex(
+      rows,
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        reason: "location_anchor",
+      })
+    );
+
+    expect(activeRowIndex).toBe(0);
+  });
+
+  it("matches the terminal row from terminalTailEventKey", () => {
+    const activeRowIndex = resolveActiveSegmentIndex(
+      makeRoundTripSegments(),
+      makeActiveState({
+        kind: "scheduled-fallback",
+        rowMatch: null,
+        terminalTailEventKey: "arv-2",
+        reason: "fallback",
+      })
+    );
+
+    expect(activeRowIndex).toBe(4);
+  });
+
+  it("returns no active row when the backend provides no row match", () => {
+    expect(resolveActiveSegmentIndex(makeRoundTripSegments(), null)).toBe(-1);
+  });
+});
+
+describe("getVesselTimelineRenderState", () => {
+  it("renders server-owned placeholder and terminal-tail segments", () => {
     const renderState = getVesselTimelineRenderState(
-      [
-        makeEvent({
-          Key: "arv-0",
-          EventType: "arv-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 5),
-          ScheduledTime: at(7, 5),
-        }),
-        makeEvent({
-          Key: "dep-0",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 5),
-          ScheduledTime: at(7, 5),
-        }),
-        makeEvent({
-          Key: "arv-0b",
-          EventType: "arv-dock",
-          TerminalAbbrev: "FAU",
-          ScheduledDeparture: at(7, 5),
-          ScheduledTime: at(7, 25),
-        }),
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 55),
-          ScheduledTime: at(7, 55),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "FAU",
-          ScheduledDeparture: at(7, 55),
-          ScheduledTime: at(8, 15),
-        }),
-      ],
+      makePlaceholderSegments(),
       null,
       null,
       at(8, 0)
@@ -75,213 +84,9 @@ describe("buildTimelineRows", () => {
     ]);
   });
 
-  it("builds sea, dock, sea, and terminal rows from ordered events", () => {
-    const rows = buildTimelineRows([
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "P52",
-        ScheduledDeparture: at(8, 0),
-        ScheduledTime: at(8, 0),
-      }),
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(8, 0),
-        ScheduledTime: at(8, 35),
-      }),
-      makeEvent({
-        Key: "dep-2",
-        EventType: "dep-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(9, 50),
-        ScheduledTime: at(9, 50),
-      }),
-      makeEvent({
-        Key: "arv-2",
-        EventType: "arv-dock",
-        TerminalAbbrev: "P52",
-        ScheduledDeparture: at(9, 50),
-        ScheduledTime: at(10, 25),
-      }),
-    ]);
-
-    expect(rows.map((row) => row.kind)).toEqual([
-      "dock",
-      "sea",
-      "dock",
-      "sea",
-      "dock",
-    ]);
-    expect(rows.map((row) => row.isTerminal === true)).toEqual([
-      false,
-      false,
-      false,
-      false,
-      true,
-    ]);
-    expect(rows[0]?.startEvent.EventType).toBe("arv-dock");
-    expect(rows[0]?.startEvent.IsArrivalPlaceholder).toBeTrue();
-    expect(rows[1]?.startEvent.EventType).toBe("dep-dock");
-    expect(rows[1]?.endEvent.EventType).toBe("arv-dock");
-    expect(rows[1]?.durationMinutes).toBe(35);
-    expect(rows[2]?.durationMinutes).toBe(75);
-  });
-
-  it("keeps long dock rows at their full schedule-based duration", () => {
-    const rows = buildTimelineRows([
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(8, 0),
-        ScheduledTime: at(8, 35),
-      }),
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(10, 0),
-        ScheduledTime: at(10, 0),
-      }),
-    ]);
-
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.kind).toBe("dock");
-    expect(rows[0]?.durationMinutes).toBe(85);
-  });
-
-  it("keeps layout durations anchored to scheduled times when live times differ", () => {
-    const rows = buildTimelineRows([
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "P52",
-        ScheduledDeparture: at(8, 0),
-        ScheduledTime: at(8, 0),
-        ActualTime: at(8, 2),
-      }),
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(8, 0),
-        ScheduledTime: at(8, 35),
-        PredictedTime: at(8, 38),
-        ActualTime: at(8, 37),
-      }),
-    ]);
-
-    expect(rows).toHaveLength(3);
-    expect(rows[1]?.durationMinutes).toBe(35);
-  });
-
-  it("falls back from scheduled to actual to predicted for layout timing", () => {
-    const rows = buildTimelineRows([
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "P52",
-        ScheduledTime: undefined,
-        ActualTime: at(8, 1),
-        PredictedTime: at(8, 2),
-      }),
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledTime: undefined,
-        ActualTime: undefined,
-        PredictedTime: at(8, 40),
-      }),
-    ]);
-
-    expect(rows).toHaveLength(3);
-    expect(rows[1]?.durationMinutes).toBe(39);
-  });
-
-  it("falls back to a one-minute minimum duration when timestamps are missing", () => {
-    const rows = buildTimelineRows([
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "P52",
-        ScheduledTime: undefined,
-        PredictedTime: undefined,
-        ActualTime: undefined,
-      }),
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledTime: undefined,
-        PredictedTime: undefined,
-        ActualTime: undefined,
-      }),
-    ]);
-
-    expect(rows).toHaveLength(3);
-    expect(rows[1]?.kind).toBe("sea");
-    expect(rows[1]?.durationMinutes).toBe(1);
-    expect(rows[2]?.isTerminal).toBeTrue();
-  });
-});
-
-describe("getActiveRowIndex", () => {
-  it("prefers a live-anchored sea row over clock-only progress", () => {
-    const rows = buildTimelineRows(makeRoundTripEvents());
-    const firstRow = getRowOrThrow(rows, 0);
-
-    rows[0] = {
-      ...firstRow,
-      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...firstRow.endEvent, ActualTime: undefined },
-    };
-
-    const activeRowIndex = getActiveRowIndex(
-      rows,
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        reason: "location_anchor",
-      })
-    );
-
-    expect(activeRowIndex).toBe(0);
-  });
-
-  it("matches the terminal row from terminalTailEventKey", () => {
-    const rows = buildTimelineRows(makeRoundTripEvents());
-
-    const activeRowIndex = getActiveRowIndex(
-      rows,
-      makeActiveState({
-        kind: "scheduled-fallback",
-        rowMatch: null,
-        terminalTailEventKey: "arv-2",
-        reason: "fallback",
-      })
-    );
-
-    expect(activeRowIndex).toBe(4);
-  });
-
-  it("returns no active row when the backend provides no row match", () => {
-    const rows = buildTimelineRows(makeRoundTripEvents());
-
-    expect(getActiveRowIndex(rows, null)).toBe(-1);
-  });
-});
-
-describe("getVesselTimelineRenderState", () => {
   it("returns renderer-ready rows with full schedule-based dock heights", () => {
     const renderState = getVesselTimelineRenderState(
-      makeRoundTripEvents(),
+      makeRoundTripSegments(),
       makeLiveState({
         ScheduledDeparture: at(8, 0),
         AtDock: false,
@@ -312,7 +117,7 @@ describe("getVesselTimelineRenderState", () => {
 
   it("uses live distance only for sea indicator progress", () => {
     const renderState = getVesselTimelineRenderState(
-      makeRoundTripEvents(),
+      makeRoundTripSegments(),
       makeLiveState({
         ScheduledDeparture: at(8, 0),
         AtDock: false,
@@ -339,20 +144,28 @@ describe("getVesselTimelineRenderState", () => {
   it("falls back to eta-over-actual-departure for sea progress when distances are missing", () => {
     const renderState = getVesselTimelineRenderState(
       [
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 0),
-          ActualTime: at(8, 5),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 0),
-          ScheduledTime: at(8, 35),
+        makeSegment({
+          id: "dep-1--arv-1--sea",
+          segmentIndex: 0,
+          kind: "sea",
+          startEvent: makeBoundary({
+            Key: "dep-1",
+            EventType: "dep-dock",
+            TerminalAbbrev: "P52",
+            TerminalDisplayName: "Seattle",
+            ScheduledDeparture: at(8, 0),
+            ScheduledTime: at(8, 0),
+            ActualTime: at(8, 5),
+          }),
+          endEvent: makeBoundary({
+            Key: "arv-1",
+            EventType: "arv-dock",
+            TerminalAbbrev: "BBI",
+            TerminalDisplayName: "Bainbridge Is.",
+            ScheduledDeparture: at(8, 0),
+            ScheduledTime: at(8, 35),
+          }),
+          durationMinutes: 35,
         }),
       ],
       makeLiveState({
@@ -382,19 +195,27 @@ describe("getVesselTimelineRenderState", () => {
   it("uses elapsed time for dock indicator progress on long dock rows", () => {
     const renderState = getVesselTimelineRenderState(
       [
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(11, 30),
-          ScheduledTime: at(11, 30),
-        }),
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(12, 35),
-          ScheduledTime: at(12, 35),
+        makeSegment({
+          id: "arv-1--dep-1--dock",
+          segmentIndex: 0,
+          kind: "dock",
+          startEvent: makeBoundary({
+            Key: "arv-1",
+            EventType: "arv-dock",
+            TerminalAbbrev: "VAI",
+            TerminalDisplayName: "Vashon Is.",
+            ScheduledDeparture: at(11, 30),
+            ScheduledTime: at(11, 30),
+          }),
+          endEvent: makeBoundary({
+            Key: "dep-1",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            TerminalDisplayName: "Vashon Is.",
+            ScheduledDeparture: at(12, 35),
+            ScheduledTime: at(12, 35),
+          }),
+          durationMinutes: 65,
         }),
       ],
       null,
@@ -417,7 +238,7 @@ describe("getVesselTimelineRenderState", () => {
 
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
     const renderState = getVesselTimelineRenderState(
-      makeRoundTripEvents(),
+      makeRoundTripSegments(),
       makeLiveState({
         InService: false,
         ScheduledDeparture: at(8, 0),
@@ -446,7 +267,7 @@ describe("getVesselTimelineRenderState", () => {
 
   it("uses the terminal row when the backend resolves terminal-tail fallback", () => {
     const renderState = getVesselTimelineRenderState(
-      makeRoundTripEvents(),
+      makeRoundTripSegments(),
       null,
       makeActiveState({
         kind: "scheduled-fallback",
@@ -462,7 +283,7 @@ describe("getVesselTimelineRenderState", () => {
 
   it("hides the active indicator when the backend provides no match", () => {
     const renderState = getVesselTimelineRenderState(
-      makeRoundTripEvents(),
+      makeRoundTripSegments(),
       null,
       null,
       at(8, 10)
@@ -472,47 +293,262 @@ describe("getVesselTimelineRenderState", () => {
   });
 });
 
-const makeRoundTripEvents = (): VesselTripEvent[] => [
-  makeEvent({
-    Key: "dep-1",
-    EventType: "dep-dock",
-    TerminalAbbrev: "P52",
-    ScheduledDeparture: at(8, 0),
-    ScheduledTime: at(8, 0),
+const makeRoundTripSegments = (): VesselTimelineSegment[] => [
+  makeSegment({
+    id: "dep-1--arrival-placeholder--dock",
+    segmentIndex: 0,
+    kind: "dock",
+    placeholderReason: "start-of-day",
+    startEvent: makeBoundary({
+      Key: "dep-1--arrival-placeholder",
+      EventType: "arv-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(8, 0),
+      IsArrivalPlaceholder: true,
+    }),
+    endEvent: makeBoundary({
+      Key: "dep-1",
+      EventType: "dep-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(8, 0),
+      ScheduledTime: at(8, 0),
+    }),
+    durationMinutes: 0,
   }),
-  makeEvent({
-    Key: "arv-1",
-    EventType: "arv-dock",
-    TerminalAbbrev: "BBI",
-    ScheduledDeparture: at(8, 0),
-    ScheduledTime: at(8, 35),
+  makeSegment({
+    id: "dep-1--arv-1--sea",
+    segmentIndex: 1,
+    kind: "sea",
+    startEvent: makeBoundary({
+      Key: "dep-1",
+      EventType: "dep-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(8, 0),
+      ScheduledTime: at(8, 0),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-1",
+      EventType: "arv-dock",
+      TerminalAbbrev: "BBI",
+      TerminalDisplayName: "Bainbridge Is.",
+      ScheduledDeparture: at(8, 0),
+      ScheduledTime: at(8, 35),
+    }),
+    durationMinutes: 35,
   }),
-  makeEvent({
-    Key: "dep-2",
-    EventType: "dep-dock",
-    TerminalAbbrev: "BBI",
-    ScheduledDeparture: at(9, 50),
-    ScheduledTime: at(9, 50),
+  makeSegment({
+    id: "arv-1--dep-2--dock",
+    segmentIndex: 2,
+    kind: "dock",
+    startEvent: makeBoundary({
+      Key: "arv-1",
+      EventType: "arv-dock",
+      TerminalAbbrev: "BBI",
+      TerminalDisplayName: "Bainbridge Is.",
+      ScheduledDeparture: at(8, 0),
+      ScheduledTime: at(8, 35),
+    }),
+    endEvent: makeBoundary({
+      Key: "dep-2",
+      EventType: "dep-dock",
+      TerminalAbbrev: "BBI",
+      TerminalDisplayName: "Bainbridge Is.",
+      ScheduledDeparture: at(9, 50),
+      ScheduledTime: at(9, 50),
+    }),
+    durationMinutes: 75,
   }),
-  makeEvent({
-    Key: "arv-2",
-    EventType: "arv-dock",
-    TerminalAbbrev: "P52",
-    ScheduledDeparture: at(9, 50),
-    ScheduledTime: at(10, 25),
+  makeSegment({
+    id: "dep-2--arv-2--sea",
+    segmentIndex: 3,
+    kind: "sea",
+    startEvent: makeBoundary({
+      Key: "dep-2",
+      EventType: "dep-dock",
+      TerminalAbbrev: "BBI",
+      TerminalDisplayName: "Bainbridge Is.",
+      ScheduledDeparture: at(9, 50),
+      ScheduledTime: at(9, 50),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-2",
+      EventType: "arv-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(9, 50),
+      ScheduledTime: at(10, 25),
+    }),
+    durationMinutes: 35,
+  }),
+  makeSegment({
+    id: "arv-2--terminal",
+    segmentIndex: 4,
+    kind: "dock",
+    isTerminal: true,
+    startEvent: makeBoundary({
+      Key: "arv-2",
+      EventType: "arv-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(9, 50),
+      ScheduledTime: at(10, 25),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-2",
+      EventType: "arv-dock",
+      TerminalAbbrev: "P52",
+      TerminalDisplayName: "Seattle",
+      ScheduledDeparture: at(9, 50),
+      ScheduledTime: at(10, 25),
+    }),
+    durationMinutes: 0,
   }),
 ];
 
-const makeEvent = (overrides: Partial<VesselTripEvent>): VesselTripEvent => ({
+const makePlaceholderSegments = (): VesselTimelineSegment[] => [
+  makeSegment({
+    id: "arv-0--dep-0--dock",
+    segmentIndex: 0,
+    kind: "dock",
+    startEvent: makeBoundary({
+      Key: "arv-0",
+      EventType: "arv-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 5),
+      ScheduledTime: at(7, 5),
+    }),
+    endEvent: makeBoundary({
+      Key: "dep-0",
+      EventType: "dep-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 5),
+      ScheduledTime: at(7, 5),
+    }),
+    durationMinutes: 0,
+  }),
+  makeSegment({
+    id: "dep-0--arv-0b--sea",
+    segmentIndex: 1,
+    kind: "sea",
+    startEvent: makeBoundary({
+      Key: "dep-0",
+      EventType: "dep-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 5),
+      ScheduledTime: at(7, 5),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-0b",
+      EventType: "arv-dock",
+      TerminalAbbrev: "FAU",
+      TerminalDisplayName: "Fauntleroy",
+      ScheduledDeparture: at(7, 5),
+      ScheduledTime: at(7, 25),
+    }),
+    durationMinutes: 20,
+  }),
+  makeSegment({
+    id: "dep-1--arrival-placeholder--dock",
+    segmentIndex: 2,
+    kind: "dock",
+    placeholderReason: "broken-seam",
+    startEvent: makeBoundary({
+      Key: "dep-1--arrival-placeholder",
+      EventType: "arv-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 55),
+      IsArrivalPlaceholder: true,
+    }),
+    endEvent: makeBoundary({
+      Key: "dep-1",
+      EventType: "dep-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 55),
+      ScheduledTime: at(7, 55),
+    }),
+    durationMinutes: 0,
+  }),
+  makeSegment({
+    id: "dep-1--arv-1--sea",
+    segmentIndex: 3,
+    kind: "sea",
+    startEvent: makeBoundary({
+      Key: "dep-1",
+      EventType: "dep-dock",
+      TerminalAbbrev: "VAI",
+      TerminalDisplayName: "Vashon Is.",
+      ScheduledDeparture: at(7, 55),
+      ScheduledTime: at(7, 55),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-1",
+      EventType: "arv-dock",
+      TerminalAbbrev: "FAU",
+      TerminalDisplayName: "Fauntleroy",
+      ScheduledDeparture: at(7, 55),
+      ScheduledTime: at(8, 15),
+    }),
+    durationMinutes: 20,
+  }),
+  makeSegment({
+    id: "arv-1--terminal",
+    segmentIndex: 4,
+    kind: "dock",
+    isTerminal: true,
+    startEvent: makeBoundary({
+      Key: "arv-1",
+      EventType: "arv-dock",
+      TerminalAbbrev: "FAU",
+      TerminalDisplayName: "Fauntleroy",
+      ScheduledDeparture: at(7, 55),
+      ScheduledTime: at(8, 15),
+    }),
+    endEvent: makeBoundary({
+      Key: "arv-1",
+      EventType: "arv-dock",
+      TerminalAbbrev: "FAU",
+      TerminalDisplayName: "Fauntleroy",
+      ScheduledDeparture: at(7, 55),
+      ScheduledTime: at(8, 15),
+    }),
+    durationMinutes: 0,
+  }),
+];
+
+const makeBoundary = (
+  overrides: Partial<VesselTimelineSegment["startEvent"]>
+): VesselTimelineSegment["startEvent"] => ({
   Key: "event",
-  VesselAbbrev: "TOK",
-  SailingDay: "2026-03-18",
-  ScheduledDeparture: at(8, 0),
+  ScheduledDeparture: undefined,
   TerminalAbbrev: "P52",
   EventType: "dep-dock",
-  ScheduledTime: at(8, 0),
+  TerminalDisplayName: "Seattle",
+  IsArrivalPlaceholder: undefined,
+  ScheduledTime: undefined,
   PredictedTime: undefined,
   ActualTime: undefined,
+  ...overrides,
+});
+
+const makeSegment = (
+  overrides: Partial<VesselTimelineSegment>
+): VesselTimelineSegment => ({
+  id: "segment",
+  segmentIndex: 0,
+  kind: "sea",
+  isTerminal: undefined,
+  placeholderReason: undefined,
+  startEvent: makeBoundary({ Key: "start" }),
+  endEvent: makeBoundary({ Key: "end", EventType: "arv-dock" }),
+  durationMinutes: 1,
   ...overrides,
 });
 
@@ -547,18 +583,7 @@ const makeActiveState = (
   ...overrides,
 });
 
-/**
- * Returns a timeline row fixture by index and throws when it is unexpectedly
- * missing.
- *
- * @param rows - Timeline rows under test
- * @param index - Row index expected to exist
- * @returns Timeline row at the requested index
- */
-const getRowOrThrow = (
-  rows: ReturnType<typeof buildTimelineRows>,
-  index: number
-) => {
+const getRowOrThrow = (rows: VesselTimelineSegment[], index: number) => {
   const row = rows[index];
 
   if (!row) {

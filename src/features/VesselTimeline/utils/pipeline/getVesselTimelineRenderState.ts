@@ -1,24 +1,25 @@
 /**
  * Day-level vessel timeline view-model entry point.
  *
- * Composes `buildTimelineRows`, active-row selection, layout geometry, and the
- * active indicator into `VesselTimelineRenderState` for the feature UI.
+ * Composes server-owned semantic segments, active-row selection, layout
+ * geometry, and the active indicator into `VesselTimelineRenderState` for the
+ * feature UI.
  */
 
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline";
 import type {
   VesselTimelineActiveState,
-  VesselTimelineEvent,
   VesselTimelineLiveState,
+  VesselTimelineSegment,
 } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRenderState,
 } from "../../types";
-import { buildTimelineRows } from "./buildTimelineRows";
-import { buildActiveIndicator, getActiveRowIndex } from "./getActiveRowIndex";
+import { buildActiveIndicator } from "./buildActiveIndicator";
 import { getLayoutTimelineRows } from "./getLayoutTimelineRows";
+import { resolveActiveSegmentIndex } from "./resolveActiveSegmentIndex";
 
 const PIXELS_PER_MINUTE_MIN = 4;
 const PIXELS_PER_MINUTE_MAX = 8;
@@ -37,9 +38,9 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
 };
 
 /**
- * Runs the vessel-day timeline pipeline from ordered events to render state.
+ * Runs the vessel-day timeline pipeline from semantic segments to render state.
  *
- * @param Events - Ordered normalized events for one vessel/day
+ * @param Segments - Ordered semantic timeline segments for one vessel/day
  * @param liveState - Compact live vessel state for indicator progress and title
  * @param activeState - Backend-resolved active row selection and copy
  * @param now - Current wall-clock time
@@ -48,7 +49,7 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
  * @returns Final render state for the VesselTimeline UI
  */
 export const getVesselTimelineRenderState = (
-  Events: VesselTimelineEvent[],
+  Segments: VesselTimelineSegment[],
   liveState: VesselTimelineLiveState | null,
   activeState: VesselTimelineActiveState | null,
   now: Date = new Date(),
@@ -57,23 +58,20 @@ export const getVesselTimelineRenderState = (
 ): VesselTimelineRenderState => {
   const adjustedLayout = {
     ...layout,
-    pixelsPerMinute: getAdaptivePixelsPerMinute(Events),
+    pixelsPerMinute: getAdaptivePixelsPerMinute(Segments),
   };
 
-  const semanticRows = buildTimelineRows(Events);
-  const activeRowIndex = getActiveRowIndex(semanticRows, activeState);
-  const { rows, terminalCards, contentHeightPx } = getLayoutTimelineRows(
-    semanticRows,
-    activeRowIndex,
-    adjustedLayout
-  );
+  const activeSegmentIndex = resolveActiveSegmentIndex(Segments, activeState);
+  const { rows, rowLayouts, terminalCards, contentHeightPx } =
+    getLayoutTimelineRows(Segments, activeSegmentIndex, adjustedLayout);
 
   return {
     rows,
+    rowLayouts,
     terminalCards,
     activeIndicator: buildActiveIndicator({
-      rows: semanticRows,
-      activeRowIndex,
+      segments: Segments,
+      activeSegmentIndex,
       activeState,
       liveState,
       now,
@@ -90,12 +88,12 @@ export const getVesselTimelineRenderState = (
  * This uses a single tunable multiplier and clamps the result to keep sparse
  * routes compact while preserving enough vertical space for dense schedules.
  *
- * @param Events - Ordered normalized events for one vessel/day
+ * @param Segments - Ordered semantic timeline segments for one vessel/day
  * @returns Adaptive pixels-per-minute ratio for the timeline
  */
-export const getAdaptivePixelsPerMinute = (Events: VesselTimelineEvent[]) =>
+export const getAdaptivePixelsPerMinute = (Segments: VesselTimelineSegment[]) =>
   clamp(
-    Math.max(1, Events.length) * PIXELS_PER_MINUTE_PER_ROW,
+    Math.max(1, Segments.length) * PIXELS_PER_MINUTE_PER_ROW,
     PIXELS_PER_MINUTE_MIN,
     PIXELS_PER_MINUTE_MAX
   );

@@ -22,14 +22,14 @@ consider.
 
 ## Relevant Code
 
-- [buildTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildTimelineRows.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
 - [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
 - [TimelineRowContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowContent.tsx)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
 ## Current Behavior
 
-In [buildTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildTimelineRows.ts),
+In [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts),
 when the pipeline sees:
 
 - a `dep-dock` event starting a sea row
@@ -169,7 +169,7 @@ IsArrivalPlaceholder?: boolean;
 PlaceholderReason?: "start-of-day" | "broken-seam";
 ```
 
-This could live on `TimelineRowEvent` or the semantic row.
+This could live on `TimelineBoundaryEvent` or the semantic segment.
 
 Benefits:
 

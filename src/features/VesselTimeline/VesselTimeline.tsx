@@ -12,8 +12,8 @@ import {
 } from "@/components/timeline";
 import { Text, View } from "@/components/ui";
 import {
-  ConvexVesselTripEventsProvider,
-  useConvexVesselTripEvents,
+  ConvexVesselTimelineProvider,
+  useConvexVesselTimeline,
 } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
@@ -47,12 +47,12 @@ export const VesselTimeline = ({
   const resolvedTheme = createTimelineVisualTheme(theme);
 
   return (
-    <ConvexVesselTripEventsProvider
+    <ConvexVesselTimelineProvider
       vesselAbbrev={vesselAbbrev}
       sailingDay={sailingDay}
     >
       <VesselTimelineContent now={now} theme={resolvedTheme} />
-    </ConvexVesselTripEventsProvider>
+    </ConvexVesselTimelineProvider>
   );
 };
 
@@ -73,12 +73,12 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
   const {
     VesselAbbrev,
     SailingDay,
-    Events,
+    Segments,
     LiveState,
     ActiveState,
     IsLoading,
     Error: errorMessage,
-  } = useConvexVesselTripEvents();
+  } = useConvexVesselTimeline();
 
   if (IsLoading) {
     return (
@@ -103,7 +103,7 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
     );
   }
 
-  if (Events.length === 0) {
+  if (Segments.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-6">
         <Text className="font-semibold text-lg">No vessel timeline found</Text>
@@ -115,7 +115,7 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
   }
 
   const renderState = getVesselTimelineRenderState(
-    Events,
+    Segments,
     LiveState,
     ActiveState,
     now ?? new Date(nowMs),

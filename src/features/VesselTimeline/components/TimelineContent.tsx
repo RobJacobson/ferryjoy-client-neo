@@ -7,11 +7,10 @@
  */
 
 import { BlurTargetView } from "expo-blur";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
-  type RowLayoutBounds,
   TimelineIndicatorOverlay,
   TimelineRow,
   TimelineRowContent,
@@ -37,23 +36,13 @@ export const TimelineContent = ({
   activeIndicator,
   contentHeightPx,
   layout,
+  rowLayouts,
   theme,
 }: VesselTimelineRenderState) => {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const blurTargetRef = useRef<RNView | null>(null);
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
-  const [rowLayouts, setRowLayouts] = useState<Record<string, RowLayoutBounds>>(
-    {}
-  );
-
-  const onRowLayout = useCallback((rowId: string, bounds: RowLayoutBounds) => {
-    setRowLayouts((prev) =>
-      prev[rowId]?.y === bounds.y && prev[rowId]?.height === bounds.height
-        ? prev
-        : { ...prev, [rowId]: bounds }
-    );
-  }, []);
 
   const indicatorTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
   const completedPercent = getTrackFractions(indicatorTopPx, contentHeightPx);
@@ -125,10 +114,8 @@ export const TimelineContent = ({
             {rows.map((row, _rowIndex) => (
               <TimelineRow
                 key={row.id}
-                id={row.id}
                 layoutMode="fixed"
                 size={row.displayHeightPx}
-                onRowLayout={onRowLayout}
               >
                 <TimelineRowContent row={row} theme={theme} />
               </TimelineRow>

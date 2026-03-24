@@ -1,46 +1,18 @@
 /**
  * Shared types for the VesselTimeline feature.
  *
- * Describes the day-level pipeline from backend `VesselTimelineEvent` rows to
+ * Describes the day-level pipeline from backend semantic timeline segments to
  * `VesselTimelineRenderState`. See `ARCHITECTURE.md` for stage boundaries and
  * data ownership.
  */
 
 import type {
+  RowLayoutBounds,
   TerminalCardGeometry,
   TimelineActiveIndicator,
   TimelineRenderRow,
   TimelineVisualTheme,
 } from "@/components/timeline";
-import type { VesselTimelineEvent } from "@/data/contexts";
-
-/**
- * Supported row kinds for the day-level timeline.
- */
-export type VesselTimelineRowKind = "dock" | "sea";
-
-/**
- * Feature-local event shape carried by a semantic row.
- */
-export type TimelineRowEvent = VesselTimelineEvent & {
-  TerminalDisplayName?: string;
-  IsArrivalPlaceholder?: boolean;
-};
-
-/**
- * Semantic row model for the day-level timeline.
- *
- * Each row is defined by the adjacent event pair that brackets it.
- */
-export type TimelineSemanticRow = {
-  id: string;
-  segmentIndex: number;
-  kind: VesselTimelineRowKind;
-  isTerminal?: boolean;
-  startEvent: TimelineRowEvent;
-  endEvent: TimelineRowEvent;
-  durationMinutes: number;
-};
 
 /**
  * Layout config for deterministic vessel timeline sizing.
@@ -59,6 +31,7 @@ export type VesselTimelineLayoutConfig = {
  */
 export type VesselTimelineRenderState = {
   rows: TimelineRenderRow[];
+  rowLayouts: Record<string, RowLayoutBounds>;
   terminalCards: TerminalCardGeometry[];
   activeIndicator: TimelineActiveIndicator | null;
   contentHeightPx: number;

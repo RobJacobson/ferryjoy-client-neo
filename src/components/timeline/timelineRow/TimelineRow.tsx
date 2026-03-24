@@ -1,5 +1,5 @@
 /**
- * Measurable row wrapper that reports layout bounds for indicator geometry.
+ * Row wrapper that applies either a fixed pixel height or flex-based size.
  */
 
 import type { ReactNode } from "react";
@@ -9,26 +9,24 @@ import { cn } from "@/lib/utils";
 import type { RowLayoutBounds } from "../types";
 
 export type TimelineRowProps = {
-  id: string;
+  id?: string;
   layoutMode?: "flex" | "fixed";
   size: number;
   minHeight?: number;
   rowClassName?: string;
   children: ReactNode;
-  onRowLayout: (rowId: string, bounds: RowLayoutBounds) => void;
+  onRowLayout?: (rowId: string, bounds: RowLayoutBounds) => void;
 };
 
 /**
- * Applies flex or fixed height and forwards `onLayout` measurements.
+ * Applies flex or fixed height for a timeline segment container.
  *
- * @param id - Row id aligned with `TimelineRenderRow.id`
  * @param layoutMode - `fixed` uses `size` as height; `flex` uses flex grow
  * @param size - Height in px when fixed, or flex grow weight when flex
  * @param minHeight - Optional minimum height when using flex layout
  * @param rowClassName - Optional width/layout classes for the row container
  * @param children - Row contents (typically `TimelineRowContent`)
- * @param onRowLayout - Called with `{ y, height }` after each layout pass
- * @returns The measurable row container
+ * @returns Row container with deterministic vertical sizing
  */
 export const TimelineRow = ({
   id,
@@ -40,18 +38,13 @@ export const TimelineRow = ({
   onRowLayout,
 }: TimelineRowProps) => {
   const rowStyle = getVerticalRowStyle(layoutMode, size, minHeight);
-
-  /**
-   * Forwards native layout to the parent for indicator and track math.
-   *
-   * @param event - `onLayout` payload containing `y` and `height`
-   */
-  const handleLayout = (event: {
-    nativeEvent: { layout: RowLayoutBounds };
-  }) => {
-    const { y, height } = event.nativeEvent.layout;
-    onRowLayout(id, { y, height });
-  };
+  const handleLayout =
+    onRowLayout && id
+      ? (event: { nativeEvent: { layout: RowLayoutBounds } }) => {
+          const { y, height } = event.nativeEvent.layout;
+          onRowLayout(id, { y, height });
+        }
+      : undefined;
 
   return (
     <View

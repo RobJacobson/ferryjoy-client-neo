@@ -59,8 +59,8 @@ Current high-level behavior:
 
 Relevant code:
 
-- [ConvexVesselTripEventsContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTripEventsContext.tsx)
-- [buildTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildTimelineRows.ts)
+- [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
 - [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
@@ -162,7 +162,7 @@ segment or omit its publishable passenger-facing representation.
 
 Relevant code:
 
-- [buildTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildTimelineRows.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
 Current placeholder behavior is designed for:
@@ -202,18 +202,19 @@ Relevant code:
 
 - [activeState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/activeState.ts)
 - [activeStateSchemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTripEvents/activeStateSchemas.ts)
-- [getActiveRowIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getActiveRowIndex.ts)
+- [resolveActiveSegmentIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/resolveActiveSegmentIndex.ts)
+- [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildActiveIndicator.ts)
 
 ### Context simplification
 
 Implemented earlier:
 
-- `ConvexVesselTripEventsContext` now derives its value directly from Convex
+- `ConvexVesselTimelineContext` now derives its value directly from Convex
   queries instead of mirroring query data through extra local React state
 
 Relevant code:
 
-- [ConvexVesselTripEventsContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTripEventsContext.tsx)
+- [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 
 ### Safe UX improvement already implemented
 
@@ -498,7 +499,7 @@ Backend candidates:
 
 Frontend candidates:
 
-- [buildTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildTimelineRows.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
 - [types.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/types.ts)
 - [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)

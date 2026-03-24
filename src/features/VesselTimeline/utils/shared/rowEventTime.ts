@@ -6,7 +6,7 @@
  * `ARCHITECTURE.md` (“Duration calculations” / “Field precedence”).
  */
 
-import type { TimelineRowEvent } from "../../types";
+import type { VesselTimelineSegment } from "@/data/contexts";
 
 /**
  * Instant used for row duration and geometry (stable as live data updates).
@@ -14,7 +14,7 @@ import type { TimelineRowEvent } from "../../types";
  * @param event - Row boundary event from the backend feed
  * @returns `ScheduledTime`, else `ActualTime`, else `PredictedTime`
  */
-export const getLayoutTime = (event: TimelineRowEvent) =>
+export const getLayoutTime = (event: VesselTimelineSegment["startEvent"]) =>
   event.ScheduledTime ?? event.ActualTime ?? event.PredictedTime;
 
 /**
@@ -24,5 +24,5 @@ export const getLayoutTime = (event: TimelineRowEvent) =>
  * @param event - Row boundary event from the backend feed
  * @returns `ActualTime`, else `PredictedTime`, else `ScheduledTime`
  */
-export const getDisplayTime = (event: TimelineRowEvent) =>
+export const getDisplayTime = (event: VesselTimelineSegment["startEvent"]) =>
   event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;

@@ -6,67 +6,63 @@
  */
 
 import type {
+  RowLayoutBounds,
   TerminalCardGeometry,
   TimelineRenderEvent,
   TimelineRenderRow,
 } from "@/components/timeline";
-import type {
-  TimelineSemanticRow,
-  VesselTimelineLayoutConfig,
-} from "../../types";
-
-type LaidOutRow = {
-  row: TimelineRenderRow;
-  topPx: number;
-  terminalAbbrev?: string;
-};
+import type { VesselTimelineSegment } from "@/data/contexts";
+import type { VesselTimelineLayoutConfig } from "../../types";
 
 /**
  * Lays out semantic rows into renderer rows, terminal cards, and content
  * height.
  *
- * @param semanticRows - Dock/sea rows from `buildTimelineRows`
+ * @param semanticRows - Server-owned dock/sea semantic segments
  * @param activeRowIndex - Split past vs future marker styling at this index
  * @param layout - Pixels per minute, min height, and card offsets
  * @returns Render rows, terminal card regions, and total scrollable height
  */
 export const getLayoutTimelineRows = (
-  semanticRows: TimelineSemanticRow[],
+  semanticRows: VesselTimelineSegment[],
   activeRowIndex: number,
   layout: VesselTimelineLayoutConfig
 ): {
   rows: TimelineRenderRow[];
+  rowLayouts: Record<string, RowLayoutBounds>;
   terminalCards: TerminalCardGeometry[];
   contentHeightPx: number;
 } => {
-  let topPx = 0;
+  let contentHeightPx = 0;
+  const rowTopPxs: number[] = [];
+  const rowLayouts: Record<string, RowLayoutBounds> = {};
 
-  const laidOutRows: LaidOutRow[] = semanticRows.map((row) => {
+  const rows = semanticRows.map((row) => {
     const displayHeightPx = getDisplayHeightPx(row, layout);
-    const laidOutRow: LaidOutRow = {
-      row: {
-        id: row.id,
-        kind: row.kind === "dock" ? "at-dock" : "at-sea",
-        markerAppearance:
-          row.segmentIndex <= activeRowIndex ? "past" : "future",
-        segmentIndex: row.segmentIndex,
-        displayHeightPx,
-        startEvent: toRenderEvent(row.kind, "start", row),
-        endEvent: toRenderEvent(row.kind, "end", row),
-        isFinalRow: row.isTerminal === true,
-      },
-      topPx,
-      terminalAbbrev: row.startEvent.TerminalAbbrev,
+    rowTopPxs.push(contentHeightPx);
+    rowLayouts[row.id] = {
+      y: contentHeightPx,
+      height: displayHeightPx,
     };
+    contentHeightPx += displayHeightPx;
 
-    topPx += displayHeightPx;
-    return laidOutRow;
+    return {
+      id: row.id,
+      kind: row.kind === "dock" ? "at-dock" : "at-sea",
+      markerAppearance: row.segmentIndex <= activeRowIndex ? "past" : "future",
+      segmentIndex: row.segmentIndex,
+      displayHeightPx,
+      startEvent: toRenderEvent(row.kind, "start", row),
+      endEvent: toRenderEvent(row.kind, "end", row),
+      isFinalRow: row.isTerminal === true,
+    } satisfies TimelineRenderRow;
   });
 
   return {
-    rows: laidOutRows.map(({ row }) => row),
-    terminalCards: computeTerminalCards(laidOutRows, layout),
-    contentHeightPx: topPx,
+    rows,
+    rowLayouts,
+    terminalCards: computeTerminalCards(semanticRows, rows, rowTopPxs, layout),
+    contentHeightPx,
   };
 };
 
@@ -78,7 +74,7 @@ export const getLayoutTimelineRows = (
  * @returns Height in pixels for this row
  */
 const getDisplayHeightPx = (
-  row: TimelineSemanticRow,
+  row: VesselTimelineSegment,
   layout: VesselTimelineLayoutConfig
 ) =>
   Math.max(layout.minRowHeightPx, row.durationMinutes * layout.pixelsPerMinute);
@@ -92,9 +88,9 @@ const getDisplayHeightPx = (
  * @returns `TimelineRenderEvent` for labels, times, and placeholders
  */
 const toRenderEvent = (
-  kind: TimelineSemanticRow["kind"],
+  kind: VesselTimelineSegment["kind"],
   side: "start" | "end",
-  row: TimelineSemanticRow
+  row: VesselTimelineSegment
 ): TimelineRenderEvent => {
   const event = side === "start" ? row.startEvent : row.endEvent;
 
@@ -131,35 +127,39 @@ const toRenderEvent = (
  * @returns Geometry entries for `TimelineTerminalCardBackgrounds`
  */
 const computeTerminalCards = (
-  rows: LaidOutRow[],
+  semanticRows: VesselTimelineSegment[],
+  rows: TimelineRenderRow[],
+  rowTopPxs: number[],
   layout: VesselTimelineLayoutConfig
 ): TerminalCardGeometry[] => {
   const cards: TerminalCardGeometry[] = [];
 
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
     const current = rows[rowIndex];
-    if (!current) {
+    const semanticRow = semanticRows[rowIndex];
+    const rowTopPx = rowTopPxs[rowIndex];
+    if (!current || !semanticRow || rowTopPx === undefined) {
       continue;
     }
 
-    const position = getCardPosition(rows, rowIndex);
-    if (position === "none") {
+    const position = getCardPosition(semanticRows, rows, rowIndex);
+    if (!position) {
       continue;
     }
 
     const topPx =
       position === "bottom"
-        ? current.topPx
-        : current.topPx + layout.terminalCardTopOffsetPx;
+        ? rowTopPx
+        : rowTopPx + layout.terminalCardTopOffsetPx;
     const heightPx =
       position === "bottom"
         ? layout.terminalCardDepartureCapHeightPx
         : position === "single"
-          ? current.row.displayHeightPx
-          : current.row.displayHeightPx - layout.terminalCardTopOffsetPx;
+          ? current.displayHeightPx
+          : current.displayHeightPx - layout.terminalCardTopOffsetPx;
 
     cards.push({
-      id: current.row.id,
+      id: current.id,
       position,
       topPx,
       heightPx,
@@ -178,28 +178,34 @@ const computeTerminalCards = (
  * @returns Card position token, or `none` when no highlight applies
  */
 const getCardPosition = (
-  rows: LaidOutRow[],
+  semanticRows: VesselTimelineSegment[],
+  rows: TimelineRenderRow[],
   rowIndex: number
-): TerminalCardGeometry["position"] | "none" => {
+): TerminalCardGeometry["position"] | null => {
   const row = rows[rowIndex];
-  if (!row) {
-    return "none";
+  const semanticRow = semanticRows[rowIndex];
+  if (!row || !semanticRow) {
+    return null;
   }
 
+  const terminalAbbrev = semanticRow.startEvent.TerminalAbbrev;
   const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
+  const previousSemanticRow =
+    rowIndex > 0 ? semanticRows[rowIndex - 1] : undefined;
   const nextRow = rows[rowIndex + 1];
+  const nextSemanticRow = semanticRows[rowIndex + 1];
 
   const matchesNext =
-    row.row.kind === "at-dock" &&
-    nextRow?.row.kind === "at-sea" &&
-    row.terminalAbbrev !== undefined &&
-    row.terminalAbbrev === nextRow.terminalAbbrev;
+    row.kind === "at-dock" &&
+    nextRow?.kind === "at-sea" &&
+    terminalAbbrev !== undefined &&
+    terminalAbbrev === nextSemanticRow?.startEvent.TerminalAbbrev;
 
   const matchesPrevious =
-    previousRow?.row.kind === "at-dock" &&
-    row.row.kind === "at-sea" &&
-    previousRow.terminalAbbrev !== undefined &&
-    previousRow.terminalAbbrev === row.terminalAbbrev;
+    previousRow?.kind === "at-dock" &&
+    row.kind === "at-sea" &&
+    previousSemanticRow?.startEvent.TerminalAbbrev !== undefined &&
+    previousSemanticRow.startEvent.TerminalAbbrev === terminalAbbrev;
 
   if (matchesNext) {
     return "top";
@@ -209,5 +215,5 @@ const getCardPosition = (
     return "bottom";
   }
 
-  return row.row.kind === "at-dock" && row.terminalAbbrev ? "single" : "none";
+  return row.kind === "at-dock" && terminalAbbrev ? "single" : null;
 };
