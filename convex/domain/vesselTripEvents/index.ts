@@ -4,6 +4,7 @@
  */
 
 export * from "./history";
+export * from "./activeState";
 export * from "./liveUpdates";
 export * from "./reseed";
 export * from "./seed";

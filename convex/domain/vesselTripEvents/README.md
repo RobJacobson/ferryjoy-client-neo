@@ -24,8 +24,15 @@ read model that stores the best current boundary data for timeline rendering.
 
 That made the UI responsible for source reconciliation and event precedence.
 
-`vesselTripEvents` moves that responsibility to the backend by exposing one
-ordered vessel/day event feed with only the fields the timeline needs.
+`vesselTripEvents` moves that responsibility to the backend by exposing:
+
+- one ordered vessel/day event feed for timeline row construction
+- one compact active-state snapshot for fast-changing live indicator state
+
+This keeps the stable day feed separate from the frequently changing live
+state. The event feed only invalidates when event rows change, while the active
+state can update every vessel-location tick without forcing the client to
+refetch the full day event payload.
 
 ## Table Shape
 
@@ -245,6 +252,131 @@ uses a separate schedule-first precedence:
 That keeps the rendered timeline stable while still exposing live truth for
 labels and indicator behavior.
 
+## Active State Contract
+
+`VesselTimeline` consumes two backend queries:
+
+- `functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
+- `functions.vesselTripEvents.queries.getVesselDayActiveState`
+
+The first query is the stable vessel/day boundary feed used to build dock and
+sea rows. The second query is a compact, fast-changing snapshot that resolves
+which of those rows should currently be treated as active.
+
+### Why the contract is split
+
+Convex subscriptions rerun when their dependencies change. Current vessel
+location changes roughly every five seconds, while `vesselTripEvents` rows only
+change when a prediction or actual boundary field changes.
+
+If the full event feed and live active state were combined into one query, the
+entire event list for the vessel/day would become eligible to invalidate every
+live vessel-location tick. Keeping them separate preserves the efficient update
+cadence of the day feed while still allowing the active indicator to react to
+live state.
+
+### `getVesselDayActiveState` shape
+
+The compact active-state query returns:
+
+- `VesselAbbrev`
+- `SailingDay`
+- `ObservedAt?`
+- `Live`
+- `ActiveState`
+
+`Live` includes only the minimal current vessel fields the timeline needs:
+
+- `VesselName?`
+- `AtDock?`
+- `InService?`
+- `Speed?`
+- `DepartingTerminalAbbrev?`
+- `ArrivingTerminalAbbrev?`
+- `DepartingDistance?`
+- `ArrivingDistance?`
+- `ScheduledDeparture?`
+- `TimeStamp?`
+
+`ActiveState` includes:
+
+- `kind`
+  - `dock`
+  - `sea`
+  - `scheduled-fallback`
+  - `unknown`
+- `rowMatch`
+  - `{ kind, startEventKey, endEventKey }`
+  - these are existing `vesselTripEvents.Key` values, not a second identity
+    scheme
+- `subtitle?`
+- `animate`
+- `speedKnots`
+- `reason`
+  - `location_anchor`
+  - `open_actual_row`
+  - `scheduled_window`
+  - `fallback`
+  - `unknown`
+
+### Why `rowMatch` uses event keys
+
+Frontend semantic rows are pair-derived from adjacent event rows:
+
+- dock row: `arv-dock` + `dep-dock`
+- sea row: `dep-dock` + `arv-dock`
+
+Because the semantic row identity is derived from existing event pairs, the
+backend resolves the active row by returning the exact `startEventKey` /
+`endEventKey` pair. This lets the client match the correct semantic row
+without introducing array-index coupling or a parallel identity scheme.
+
+### Active-state resolution order
+
+The backend resolver lives in:
+
+- `convex/domain/vesselTripEvents/activeState.ts`
+
+Resolution order:
+
+1. location anchor
+   - if `AtDock === true`, resolve the dock row for
+     `DepartingTerminalAbbrev`, preferring the current
+     `ScheduledDeparture` anchor when available
+   - if `AtDock === false`, resolve the sea row for the current scheduled
+     departure, falling back to terminal-pair matching when the live location
+     omits `ScheduledDeparture`
+2. open actual row fallback
+   - use the most recent row whose start has actualized and whose end has not
+3. scheduled-window fallback
+   - use the row whose display-time window currently contains `ObservedAt`
+4. edge fallback
+   - before the first row, use the first row
+   - after the last row, use the last row
+5. unknown
+   - when no rows exist or nothing can be matched safely
+
+### What moved out of the frontend
+
+The backend active-state query now owns:
+
+- dock-vs-sea reconciliation when live vessel location and event actuals briefly
+  disagree
+- subtitle generation for the active indicator
+- animation gating and speed payload
+- exact row-pair resolution using event keys
+
+The frontend still owns:
+
+- semantic row construction from the stable day event feed
+- matching `rowMatch` to a semantic row
+- a final local fallback heuristic only when the backend-supplied row match is
+  absent or cannot be found
+
+This split keeps the product-critical “what row is active right now?” decision
+backend-owned and debuggable, while preserving the existing row-building
+pipeline on the client.
+
 ## Reseed Behavior
 
 Two write modes exist:
@@ -305,14 +437,20 @@ Important implications:
 Frontend timeline consumers read from:
 
 - `functions.vesselTripEvents.queries.getVesselDayTimelineEvents`
+- `functions.vesselTripEvents.queries.getVesselDayActiveState`
 
-The query returns all rows for one:
+The day-feed query returns all rows for one:
 
 - `VesselAbbrev`
 - `SailingDay`
 
 It returns them already sorted using the shared domain sort and defensively
 deduped by `Key`.
+
+The active-state query returns the compact live snapshot for the same vessel/day
+scope. It reads the current vessel-location row plus the already-seeded
+`vesselTripEvents` rows and resolves the active row against those existing
+event identities.
 
 ## Relationship To Other Systems
 
@@ -343,6 +481,8 @@ The backend owns:
 - source reconciliation
 - schedule/history/live merge rules
 - prediction/actual precedence
+- active-row resolution for the live indicator
+- active-indicator subtitle / animation / speed payload
 
 The frontend owns:
 
@@ -350,6 +490,8 @@ The frontend owns:
 - dock/sea segmentation
 - compression of long dock spans
 - active indicator rendering
+- exact `rowMatch` to semantic-row lookup
+- last-resort local fallback when a backend row match cannot be found
 
 See:
 
@@ -361,16 +503,22 @@ See:
 
 - `actions.ts`
   - manual/windowed seed and purge entrypoints for the read model
+- `activeStateSchemas.ts`
+  - validators and conversion helpers for the compact active-state query
 - `schemas.ts`
   - Convex validator and domain conversion helpers
 - `queries.ts`
   - public vessel/day event query with defensive `Key` dedupe
+  - public compact active-state query for live indicator state
 - `mutations.ts`
   - full replace, merge reseed, purge batching, and live event persistence
   - includes sailing-day validation for schedule writes
 
 ### `convex/domain/vesselTripEvents/`
 
+- `activeState.ts`
+  - backend resolver that maps current vessel location plus event feed to an
+    exact active semantic-row pair and compact live indicator payload
 - `seed.ts`
   - build schedule-derived dep/arv boundary rows from either scheduled-trip
     rows or raw WSF schedule segments
@@ -382,12 +530,14 @@ See:
 - `reseed.ts`
   - merge fresh seed data with existing rows safely
 - `tests/`
-  - focused domain tests for seed, reseed, key format, and reconciliation rules
+  - focused domain tests for seed, reseed, key format, reconciliation rules,
+    and active-state resolution
 
 ## Important Invariants
 
 - `Key` must remain stable for the same logical schedule boundary
 - `Key` is the canonical identity for a vessel trip event row
+- active-state row matching must use existing event keys, not array indices
 - only direct physical scheduled segments should seed rows
 - only exact schedule/history matches should backfill actuals in the current
   implementation
@@ -407,5 +557,7 @@ For future agents, this is the fastest path:
 1. this README
 2. `convex/domain/vesselTripEvents/reseed.ts`
 3. `convex/domain/vesselTripEvents/liveUpdates.ts`
-4. `convex/functions/vesselTripEvents/mutations.ts`
-5. `src/features/VesselTimeline/ARCHITECTURE.md`
+4. `convex/domain/vesselTripEvents/activeState.ts`
+5. `convex/functions/vesselTripEvents/mutations.ts`
+6. `convex/functions/vesselTripEvents/queries.ts`
+7. `src/features/VesselTimeline/ARCHITECTURE.md`

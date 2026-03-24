@@ -2,13 +2,15 @@
  * Exposes query helpers for reading the `vesselTripEvents` read model from
  * Convex.
  */
-import { internalQuery, query } from "_generated/server";
+import { internalQuery, query, type QueryCtx } from "_generated/server";
 import { v } from "convex/values";
 import {
+  resolveVesselTimelineActiveState,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTripEvents";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { vesselTimelineActiveStateSnapshotSchema } from "./activeStateSchemas";
 import { vesselTripEventSchema } from "./schemas";
 
 /**
@@ -26,30 +28,44 @@ export const getVesselDayTimelineEvents = query({
     Events: v.array(vesselTripEventSchema),
   }),
   handler: async (ctx, args) => {
-    const docs = await ctx.db
-      .query("vesselTripEvents")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q
-          .eq("VesselAbbrev", args.VesselAbbrev)
-          .eq("SailingDay", args.SailingDay)
-      )
-      .collect();
-
-    const eventsById = new Map(
-      docs.map((doc) => {
-        const event = stripConvexMeta(doc);
-        return [event.Key, event];
-      })
-    );
-
     return {
       VesselAbbrev: args.VesselAbbrev,
       SailingDay: args.SailingDay,
       // Defensive dedupe keeps dirty duplicate rows from leaking out to
       // timeline consumers.
-      Events: normalizeScheduledDockSeams(
-        Array.from(eventsById.values()).sort(sortVesselTripEvents)
-      ),
+      Events: await getOrderedEventsForVesselDay(ctx, args),
+    };
+  },
+});
+
+export const getVesselDayActiveState = query({
+  args: {
+    VesselAbbrev: v.string(),
+    SailingDay: v.string(),
+  },
+  returns: vesselTimelineActiveStateSnapshotSchema,
+  handler: async (ctx, args) => {
+    const [Events, vesselLocation] = await Promise.all([
+      getOrderedEventsForVesselDay(ctx, args),
+      ctx.db
+        .query("vesselLocations")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.VesselAbbrev)
+        )
+        .unique(),
+    ]);
+
+    const resolved = resolveVesselTimelineActiveState({
+      events: Events,
+      location: vesselLocation ? stripConvexMeta(vesselLocation) : undefined,
+    });
+
+    return {
+      VesselAbbrev: args.VesselAbbrev,
+      SailingDay: args.SailingDay,
+      ObservedAt: resolved.ObservedAt,
+      Live: resolved.Live,
+      ActiveState: resolved.ActiveState,
     };
   },
 });
@@ -65,15 +81,41 @@ export const getEventsForSailingDay = internalQuery({
       .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
       .collect();
 
-    const eventsById = new Map(
-      docs.map((doc) => {
-        const event = stripConvexMeta(doc);
-        return [event.Key, event];
-      })
-    );
-
     return normalizeScheduledDockSeams(
-      Array.from(eventsById.values()).sort(sortVesselTripEvents)
+      Array.from(
+        new Map(
+          docs.map((doc) => {
+            const event = stripConvexMeta(doc);
+            return [event.Key, event];
+          })
+        ).values()
+      ).sort(sortVesselTripEvents)
     );
   },
 });
+
+const getOrderedEventsForVesselDay = async (
+  ctx: QueryCtx,
+  args: {
+    VesselAbbrev: string;
+    SailingDay: string;
+  }
+) => {
+  const docs = await ctx.db
+    .query("vesselTripEvents")
+    .withIndex("by_vessel_and_sailing_day", (q) =>
+      q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
+    )
+    .collect();
+
+  return normalizeScheduledDockSeams(
+    Array.from(
+      new Map(
+        docs.map((doc) => {
+          const event = stripConvexMeta(doc);
+          return [event.Key, event];
+        })
+      ).values()
+    ).sort(sortVesselTripEvents)
+  );
+};

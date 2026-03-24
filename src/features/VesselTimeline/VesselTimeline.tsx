@@ -74,7 +74,8 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
     VesselAbbrev,
     SailingDay,
     Events,
-    VesselLocation,
+    LiveState,
+    ActiveState,
     IsLoading,
     Error: errorMessage,
   } = useConvexVesselTripEvents();
@@ -115,7 +116,8 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
 
   const renderState = getVesselTimelineRenderState(
     Events,
-    VesselLocation,
+    LiveState,
+    ActiveState,
     now ?? new Date(nowMs),
     undefined,
     theme

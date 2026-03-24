@@ -6,7 +6,11 @@
  */
 
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline";
-import type { VesselLocation, VesselTimelineEvent } from "@/data/contexts";
+import type {
+  VesselTimelineActiveState,
+  VesselTimelineEvent,
+  VesselTimelineLiveState,
+} from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
@@ -50,7 +54,8 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
  * Runs the vessel-day timeline pipeline from ordered events to render state.
  *
  * @param Events - Ordered normalized events for one vessel/day
- * @param vesselLocation - Current vessel location for the selected vessel
+ * @param liveState - Compact live vessel state for indicator progress and title
+ * @param activeState - Backend-resolved active row selection and copy
  * @param now - Current wall-clock time
  * @param layout - Optional layout override
  * @param theme - Resolved timeline visual theme passed through to render state
@@ -58,7 +63,8 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
  */
 export const getVesselTimelineRenderState = (
   Events: VesselTimelineEvent[],
-  vesselLocation: VesselLocation | undefined,
+  liveState: VesselTimelineLiveState | null,
+  activeState: VesselTimelineActiveState | null,
   now: Date = new Date(),
   layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME
@@ -72,7 +78,7 @@ export const getVesselTimelineRenderState = (
     Events,
     DEFAULT_VESSEL_TIMELINE_POLICY
   );
-  const activeRowIndex = getActiveRowIndex(semanticRows, vesselLocation, now);
+  const activeRowIndex = getActiveRowIndex(semanticRows, activeState, now);
   const { rows, terminalCards, contentHeightPx } = getLayoutTimelineRows(
     semanticRows,
     activeRowIndex,
@@ -85,7 +91,8 @@ export const getVesselTimelineRenderState = (
     activeIndicator: buildActiveIndicator({
       rows: semanticRows,
       activeRowIndex,
-      vesselLocation,
+      activeState,
+      liveState,
       now,
       policy: DEFAULT_VESSEL_TIMELINE_POLICY,
       layout: adjustedLayout,

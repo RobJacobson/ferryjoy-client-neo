@@ -1,12 +1,16 @@
 /**
  * Convex-backed vessel trip events context.
  *
- * This provider fetches the backend-owned vessel-day event feed plus current
- * vessel location data for one vessel/day scope.
+ * This provider fetches the backend-owned vessel-day event feed plus the
+ * compact backend-resolved active state for one vessel/day scope.
  */
 
 import { api } from "convex/_generated/api";
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type {
+  VesselTimelineActiveState,
+  VesselTimelineLiveState,
+} from "convex/functions/vesselTripEvents/activeStateSchemas";
+import { toDomainVesselTimelineActiveStateSnapshot } from "convex/functions/vesselTripEvents/activeStateSchemas";
 import type { VesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
 import { toDomainVesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
 import { useQuery } from "convex/react";
@@ -16,19 +20,22 @@ import {
   Component as ReactComponent,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
-import { useConvexVesselLocations } from "./ConvexVesselLocationsContext";
 
 export type VesselTimelineEvent = VesselTripEvent;
+export type {
+  VesselTimelineActiveState,
+  VesselTimelineLiveState,
+};
 
 type ConvexVesselTripEventsContextType = {
   VesselAbbrev: string;
   SailingDay: string;
   Events: VesselTimelineEvent[];
-  VesselLocation?: VesselLocation;
+  LiveState: VesselTimelineLiveState | null;
+  ActiveState: VesselTimelineActiveState | null;
   IsLoading: boolean;
   Error: string | null;
 };
@@ -84,105 +91,42 @@ const ConvexVesselTripEventsDataFetcher = ({
       SailingDay: sailingDay,
     }
   );
-  const {
-    vesselLocations,
-    isLoading: vesselLocationsLoading,
-    error: vesselLocationsError,
-  } = useConvexVesselLocations();
+  const rawActiveState = useQuery(
+    api.functions.vesselTripEvents.queries.getVesselDayActiveState,
+    {
+      VesselAbbrev: vesselAbbrev,
+      SailingDay: sailingDay,
+    }
+  );
 
-  const IsLoading = rawTimeline === undefined || vesselLocationsLoading;
+  const IsLoading = rawTimeline === undefined || rawActiveState === undefined;
   const Events = rawTimeline?.Events.map(toDomainVesselTripEvent) ?? [];
-  const VesselLocation = vesselLocations.find(
-    (location) => location.VesselAbbrev === vesselAbbrev
-  );
-  const mountStartedAtRef = useRef(Date.now());
-  const timelineResolvedRef = useRef(false);
-  const vesselLocationResolvedRef = useRef(false);
-  const readyLoggedRef = useRef(false);
-  const contextLabel = useMemo(
-    () => `[VesselTimeline][${vesselAbbrev}][${sailingDay}]`,
-    [sailingDay, vesselAbbrev]
-  );
+  const activeStateSnapshot = rawActiveState
+    ? toDomainVesselTimelineActiveStateSnapshot(rawActiveState)
+    : null;
+  const LiveState = activeStateSnapshot?.Live ?? null;
+  const ActiveState = activeStateSnapshot?.ActiveState ?? null;
 
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
-
-  useEffect(() => {
-    const mountedAt = Date.now();
-    mountStartedAtRef.current = mountedAt;
-    timelineResolvedRef.current = false;
-    vesselLocationResolvedRef.current = false;
-    readyLoggedRef.current = false;
-
-    console.log(
-      `${contextLabel} provider mounted at ${new Date(mountedAt).toISOString()}`
-    );
-
-    return () => {
-      const lifetimeMs = Date.now() - mountedAt;
-      console.log(`${contextLabel} provider unmounted after ${lifetimeMs}ms`);
-    };
-  }, [contextLabel]);
-
-  useEffect(() => {
-    if (rawTimeline === undefined || timelineResolvedRef.current) {
-      return;
-    }
-
-    timelineResolvedRef.current = true;
-    console.log(
-      `${contextLabel} timeline query resolved in ${
-        Date.now() - mountStartedAtRef.current
-      }ms with ${rawTimeline.Events.length} events`
-    );
-  }, [contextLabel, rawTimeline]);
-
-  useEffect(() => {
-    if (
-      vesselLocationsLoading ||
-      vesselLocationResolvedRef.current ||
-      VesselLocation === undefined
-    ) {
-      return;
-    }
-
-    vesselLocationResolvedRef.current = true;
-    console.log(
-      `${contextLabel} vesselLocation query resolved in ${
-        Date.now() - mountStartedAtRef.current
-      }ms (${VesselLocation.VesselAbbrev} @ ${VesselLocation.TimeStamp.toISOString()})`
-    );
-  }, [contextLabel, vesselLocationsLoading, VesselLocation]);
-
-  useEffect(() => {
-    if (IsLoading || readyLoggedRef.current) {
-      return;
-    }
-
-    readyLoggedRef.current = true;
-    console.log(
-      `${contextLabel} all timeline data ready in ${
-        Date.now() - mountStartedAtRef.current
-      }ms`
-    );
-  }, [IsLoading, contextLabel]);
 
   useEffect(() => {
     onStateChangeRef.current({
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,
       Events,
-      VesselLocation,
+      LiveState,
+      ActiveState,
       IsLoading,
-      Error: vesselLocationsError,
+      Error: null,
     });
   }, [
     vesselAbbrev,
     sailingDay,
     Events,
-    VesselLocation,
+    LiveState,
+    ActiveState,
     IsLoading,
-    vesselLocationsError,
   ]);
 
   return <>{children}</>;
@@ -197,7 +141,8 @@ export const ConvexVesselTripEventsProvider = ({
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
     Events: [],
-    VesselLocation: undefined,
+    LiveState: null,
+    ActiveState: null,
     IsLoading: true,
     Error: null,
   });

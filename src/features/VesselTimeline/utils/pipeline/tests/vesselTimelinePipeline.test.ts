@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type {
+  VesselTimelineActiveState,
+  VesselTimelineLiveState,
+} from "convex/functions/vesselTripEvents/activeStateSchemas";
 import type { VesselTripEvent } from "convex/functions/vesselTripEvents/schemas";
 import { buildTimelineRows } from "../buildTimelineRows";
 import { getActiveRowIndex } from "../getActiveRowIndex";
@@ -51,7 +54,8 @@ describe("buildTimelineRows", () => {
           ScheduledTime: at(8, 15),
         }),
       ],
-      undefined,
+      null,
+      null,
       at(8, 0)
     );
 
@@ -261,8 +265,14 @@ describe("getActiveRowIndex", () => {
 
     const activeRowIndex = getActiveRowIndex(
       rows,
-      makeLocation({
-        ScheduledDeparture: at(8, 0),
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        reason: "location_anchor",
       }),
       at(8, 45)
     );
@@ -276,7 +286,7 @@ describe("getActiveRowIndex", () => {
       DEFAULT_VESSEL_TIMELINE_POLICY
     );
 
-    const activeRowIndex = getActiveRowIndex(rows, undefined, at(8, 50));
+    const activeRowIndex = getActiveRowIndex(rows, null, at(8, 50));
 
     expect(activeRowIndex).toBe(2);
   });
@@ -306,7 +316,7 @@ describe("getActiveRowIndex", () => {
       endEvent: { ...thirdRow.endEvent, ActualTime: undefined },
     };
 
-    expect(getActiveRowIndex(rows, undefined, at(8, 50))).toBe(2);
+    expect(getActiveRowIndex(rows, null, at(8, 50))).toBe(2);
   });
 });
 
@@ -314,10 +324,23 @@ describe("getVesselTimelineRenderState", () => {
   it("returns renderer-ready rows and a compressed dock row height", () => {
     const renderState = getVesselTimelineRenderState(
       makeRoundTripEvents(),
-      makeLocation({
+      makeLiveState({
         ScheduledDeparture: at(8, 0),
         AtDock: false,
         Speed: 12,
+        ArrivingDistance: 4.2,
+      }),
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        subtitle: "12 kn · 4.2 mi to BBI",
+        animate: true,
+        speedKnots: 12,
+        reason: "location_anchor",
       }),
       at(8, 10)
     );
@@ -332,11 +355,23 @@ describe("getVesselTimelineRenderState", () => {
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
     const renderState = getVesselTimelineRenderState(
       makeRoundTripEvents(),
-      makeLocation({
+      makeLiveState({
         InService: false,
         ScheduledDeparture: at(8, 0),
         AtDock: false,
         Speed: 12,
+      }),
+      makeActiveState({
+        kind: "sea",
+        rowMatch: {
+          kind: "sea",
+          startEventKey: "dep-1",
+          endEventKey: "arv-1",
+        },
+        subtitle: "12 kn",
+        animate: false,
+        speedKnots: 12,
+        reason: "location_anchor",
       }),
       at(8, 10)
     );
@@ -391,30 +426,31 @@ const makeEvent = (overrides: Partial<VesselTripEvent>): VesselTripEvent => ({
   ...overrides,
 });
 
-const makeLocation = (overrides: Partial<VesselLocation>): VesselLocation => ({
-  VesselID: 1,
+const makeLiveState = (
+  overrides: Partial<VesselTimelineLiveState>
+): VesselTimelineLiveState => ({
   VesselName: "Tokitae",
-  VesselAbbrev: "TOK",
-  DepartingTerminalID: 1,
-  DepartingTerminalName: "Seattle",
   DepartingTerminalAbbrev: "P52",
-  ArrivingTerminalID: 2,
-  ArrivingTerminalName: "Bainbridge Island",
   ArrivingTerminalAbbrev: "BBI",
-  Latitude: 0,
-  Longitude: 0,
   Speed: 0,
-  Heading: 0,
   InService: true,
   AtDock: true,
-  LeftDock: undefined,
-  Eta: undefined,
   ScheduledDeparture: undefined,
-  RouteAbbrev: "sea-bi",
-  VesselPositionNum: 1,
   TimeStamp: at(8, 0),
   DepartingDistance: undefined,
   ArrivingDistance: undefined,
+  ...overrides,
+});
+
+const makeActiveState = (
+  overrides: Partial<VesselTimelineActiveState>
+): VesselTimelineActiveState => ({
+  kind: "unknown",
+  rowMatch: null,
+  subtitle: undefined,
+  animate: false,
+  speedKnots: 0,
+  reason: "unknown",
   ...overrides,
 });
 

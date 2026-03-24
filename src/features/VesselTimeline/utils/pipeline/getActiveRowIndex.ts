@@ -3,12 +3,16 @@
  * timeline.
  *
  * Chooses which semantic row is “current” and derives indicator position,
- * labels, and motion hints from `VesselLocation` and time windows. See
+ * labels, and motion hints from backend-resolved active state plus live
+ * distances/time windows. See
  * `ARCHITECTURE.md` for schedule vs actual precedence in layout vs display.
  */
 
 import type { TimelineActiveIndicator } from "@/components/timeline";
-import type { VesselLocation } from "@/data/contexts";
+import type {
+  VesselTimelineActiveState,
+  VesselTimelineLiveState,
+} from "@/data/contexts";
 import { clamp } from "@/shared/utils";
 import type {
   TimelineSemanticRow,
@@ -17,25 +21,29 @@ import type {
 } from "../../types";
 import { getDisplayTime } from "../shared/rowEventTime";
 
-const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
-
 /**
  * Picks the semantic row index that should host the active indicator.
  *
- * Prefers the last row with started actuals and an open end (in progress or
- * terminal tail), else the row whose display-time window contains `now`, else
- * edge rows before the first start or after the last segment.
+ * Prefers the backend-resolved event-pair match when available. Falls back to
+ * the last row with started actuals and an open end (in progress or terminal
+ * tail), else the row whose display-time window contains `now`, else edge rows
+ * before the first start or after the last segment.
  *
  * @param rows - Semantic dock/sea rows for the day
- * @param _vesselLocation - Reserved for future location-driven selection
+ * @param activeState - Backend-resolved active row state, when available
  * @param now - Current instant for window and progress tests
  * @returns Index into `rows` for the active row
  */
 export const getActiveRowIndex = (
   rows: TimelineSemanticRow[],
-  _vesselLocation: VesselLocation | undefined,
+  activeState: VesselTimelineActiveState | null,
   now: Date
 ) => {
+  const matchedRowIndex = findRowMatchIndex(rows, activeState);
+  if (matchedRowIndex >= 0) {
+    return matchedRowIndex;
+  }
+
   const actualBackedRowIndex = findLastActiveActualRowIndex(rows);
   if (actualBackedRowIndex >= 0) {
     return actualBackedRowIndex;
@@ -74,7 +82,8 @@ export const getActiveRowIndex = (
  *
  * @param rows - Semantic rows (same array passed to layout)
  * @param activeRowIndex - Row index from `getActiveRowIndex`
- * @param vesselLocation - Live vessel state for subtitle and motion
+ * @param activeState - Backend-resolved active row state and copy
+ * @param liveState - Compact live vessel state for title, motion, and progress
  * @param now - Wall clock for countdown label and progress
  * @param policy - Compressed dock geometry parameters
  * @param layout - Pixel sizing for compressed dock vertical mapping
@@ -83,14 +92,16 @@ export const getActiveRowIndex = (
 export const buildActiveIndicator = ({
   rows,
   activeRowIndex,
-  vesselLocation,
+  activeState,
+  liveState,
   now,
   policy,
   layout,
 }: {
   rows: TimelineSemanticRow[];
   activeRowIndex: number;
-  vesselLocation: VesselLocation | undefined;
+  activeState: VesselTimelineActiveState | null;
+  liveState: VesselTimelineLiveState | null;
   now: Date;
   policy: VesselTimelinePolicy;
   layout: VesselTimelineLayoutConfig;
@@ -102,7 +113,7 @@ export const buildActiveIndicator = ({
 
   const positionPercent = getRowPositionPercent(
     row,
-    vesselLocation,
+    liveState,
     now,
     policy,
     layout
@@ -112,14 +123,28 @@ export const buildActiveIndicator = ({
     rowId: row.id,
     positionPercent,
     label: getMinutesUntil(row.endEvent, now),
-    title: vesselLocation?.VesselName,
-    subtitle: getIndicatorSubtitle(row, vesselLocation),
-    animate:
-      row.kind === "sea" &&
-      isIndicatorActive(vesselLocation) &&
-      (vesselLocation?.Speed ?? 0) > MOVING_SPEED_THRESHOLD_KNOTS,
-    speedKnots: vesselLocation?.Speed ?? 0,
+    title: liveState?.VesselName,
+    subtitle: activeState?.subtitle,
+    animate: activeState?.animate ?? false,
+    speedKnots: activeState?.speedKnots ?? liveState?.Speed ?? 0,
   };
+};
+
+const findRowMatchIndex = (
+  rows: TimelineSemanticRow[],
+  activeState: VesselTimelineActiveState | null
+) => {
+  const rowMatch = activeState?.rowMatch;
+  if (!rowMatch) {
+    return -1;
+  }
+
+  return rows.findIndex(
+    (row) =>
+      row.kind === rowMatch.kind &&
+      row.startEvent.Key === rowMatch.startEventKey &&
+      row.endEvent.Key === rowMatch.endEventKey
+  );
 };
 
 /**
@@ -138,49 +163,6 @@ const findLastActiveActualRowIndex = (rows: TimelineSemanticRow[]) =>
   });
 
 /**
- * True when live location data should drive indicator motion (in service).
- *
- * @param vesselLocation - Current vessel location, if any
- * @returns False when `InService` is explicitly false
- */
-const isIndicatorActive = (vesselLocation: VesselLocation | undefined) =>
-  vesselLocation?.InService !== false;
-
-/**
- * Secondary line under the indicator title (dock vs sea copy).
- *
- * @param row - Active semantic row
- * @param vesselLocation - Source for speed, distances, and terminal hints
- * @returns One-line status string or undefined when location is missing
- */
-const getIndicatorSubtitle = (
-  row: TimelineSemanticRow,
-  vesselLocation: VesselLocation | undefined
-) => {
-  if (!vesselLocation) {
-    return undefined;
-  }
-
-  if (row.kind === "dock") {
-    const terminalAbbrev =
-      vesselLocation.DepartingTerminalAbbrev ?? row.endEvent.TerminalAbbrev;
-    return terminalAbbrev ? `At dock ${terminalAbbrev}` : "At dock";
-  }
-
-  const speed = vesselLocation.Speed ?? 0;
-  const arrivalAbbrev =
-    vesselLocation.ArrivingTerminalAbbrev ?? row.endEvent.TerminalAbbrev;
-  if (vesselLocation.ArrivingDistance === undefined) {
-    return `${speed.toFixed(0)} kn`;
-  }
-
-  const distancePart = arrivalAbbrev
-    ? `${vesselLocation.ArrivingDistance.toFixed(1)} mi to ${arrivalAbbrev}`
-    : `${vesselLocation.ArrivingDistance.toFixed(1)} mi`;
-
-  return `${speed.toFixed(0)} kn · ${distancePart}`;
-};
-
 /**
  * Fraction along the sea leg from departing vs arriving distance when both
  * exist and sum to a positive value.
@@ -219,12 +201,12 @@ const getDistanceProgress = (
  */
 const getSeaProgress = (
   row: TimelineSemanticRow,
-  vesselLocation: VesselLocation | undefined,
+  liveState: VesselTimelineLiveState | null,
   now: Date
 ) => {
   const distanceProgress = getDistanceProgress(
-    vesselLocation?.DepartingDistance,
-    vesselLocation?.ArrivingDistance
+    liveState?.DepartingDistance,
+    liveState?.ArrivingDistance
   );
 
   return distanceProgress ?? getTimeProgress(row.startEvent, row.endEvent, now);
@@ -269,13 +251,13 @@ const getDisplayHeightPx = (
  */
 const getRowPositionPercent = (
   row: TimelineSemanticRow,
-  vesselLocation: VesselLocation | undefined,
+  liveState: VesselTimelineLiveState | null,
   now: Date,
   policy: VesselTimelinePolicy,
   layout: VesselTimelineLayoutConfig
 ) => {
   if (row.kind === "sea") {
-    return getSeaProgress(row, vesselLocation, now);
+    return getSeaProgress(row, liveState, now);
   }
 
   if (row.displayMode !== "compressed-dock-break") {
