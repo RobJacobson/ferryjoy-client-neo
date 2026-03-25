@@ -4,14 +4,16 @@
 
 import { type ComponentRef, type RefObject, useState } from "react";
 import type { ViewStyle } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import type { View as UIView } from "@/components/ui";
 import { View } from "@/components/ui";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
 import { TIMELINE_INDICATOR_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineActiveIndicator } from "../types";
-import { useAnimatedProgress } from "../useAnimatedProgress";
 import { useRockingAnimation } from "../useRockingAnimation";
 import { TimelineIndicatorBanner } from "./TimelineIndicatorBanner";
 import { TimelineIndicatorCircle } from "./TimelineIndicatorCircle";
@@ -19,7 +21,7 @@ import { TimelineIndicatorRadarPing } from "./TimelineIndicatorRadarPing";
 
 type TimelineIndicatorProps = {
   blurTargetRef: RefObject<ComponentRef<typeof UIView> | null>;
-  topPx: number;
+  animatedBoundaryTopPx: SharedValue<number>;
   overlayIndicator: TimelineActiveIndicator;
   sizePx?: number;
   theme: TimelineVisualTheme;
@@ -29,7 +31,7 @@ type TimelineIndicatorProps = {
  * Absolutely positioned indicator with vertical motion and optional rocking.
  *
  * @param blurTargetRef - Blur sampling target for glass child surfaces
- * @param topPx - Desired top offset before animated smoothing
+ * @param animatedBoundaryTopPx - Shared animated boundary from the parent layout
  * @param overlayIndicator - Active indicator copy and motion state
  * @param sizePx - Width and height of the circular indicator
  * @param theme - Indicator colors and ping styling
@@ -37,12 +39,11 @@ type TimelineIndicatorProps = {
  */
 export const TimelineIndicator = ({
   blurTargetRef,
-  topPx,
+  animatedBoundaryTopPx,
   overlayIndicator,
   sizePx = TIMELINE_SHARED_CONFIG.indicatorSizePx,
   theme,
 }: TimelineIndicatorProps) => {
-  const progress = useAnimatedProgress(topPx);
   const [isBannerVisible, setIsBannerVisible] = useState(true);
   const rockingStyle = useRockingAnimation(
     overlayIndicator.animate ?? false,
@@ -51,9 +52,9 @@ export const TimelineIndicator = ({
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      top: progress.value,
+      top: animatedBoundaryTopPx.value,
     };
-  }, [progress]);
+  }, [animatedBoundaryTopPx]);
 
   return (
     <Animated.View

@@ -235,6 +235,54 @@ describe("getVesselTimelineRenderState", () => {
     expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
   });
 
+  it("uses actual arrival and predicted departure for dock indicator progress", () => {
+    const renderState = getVesselTimelineRenderState(
+      [
+        makeSegment({
+          id: "arv-1--dep-1--dock",
+          segmentIndex: 0,
+          kind: "dock",
+          startEvent: makeBoundary({
+            Key: "arv-1",
+            EventType: "arv-dock",
+            TerminalAbbrev: "FAU",
+            TerminalDisplayName: "Fauntleroy",
+            ScheduledDeparture: at(22, 50),
+            ScheduledTime: at(22, 50),
+            ActualTime: at(22, 58),
+          }),
+          endEvent: makeBoundary({
+            Key: "dep-1",
+            EventType: "dep-dock",
+            TerminalAbbrev: "FAU",
+            TerminalDisplayName: "Fauntleroy",
+            ScheduledDeparture: at(23, 5),
+            ScheduledTime: at(23, 5),
+            PredictedTime: at(23, 12),
+          }),
+          durationMinutes: 15,
+        }),
+      ],
+      null,
+      makeActiveState({
+        kind: "dock",
+        rowMatch: {
+          kind: "dock",
+          startEventKey: "arv-1",
+          endEventKey: "dep-1",
+        },
+        subtitle: "At dock FAU",
+        reason: "location_anchor",
+      }),
+      at(23, 5)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("arv-1--dep-1--dock");
+    expect(renderState.activeIndicator?.label).toBe("7m");
+    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.56);
+    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.58);
+  });
+
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
     const renderState = getVesselTimelineRenderState(
       makeRoundTripSegments(),

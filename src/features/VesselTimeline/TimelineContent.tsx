@@ -16,11 +16,9 @@ import {
   TimelineRowContent,
   TimelineTerminalCardBackgrounds,
   TimelineTrack,
+  useAnimatedProgress,
 } from "@/components/timeline";
-import {
-  getBoundaryTopPx,
-  getTrackFractions,
-} from "@/components/timeline/viewState";
+import { getBoundaryTopPx } from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type { VesselTimelineRenderState } from "./types";
 
@@ -45,7 +43,7 @@ export const TimelineContent = ({
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
 
   const indicatorTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const completedPercent = getTrackFractions(indicatorTopPx, contentHeightPx);
+  const animatedBoundaryTopPx = useAnimatedProgress(indicatorTopPx ?? 0);
 
   useEffect(() => {
     if (
@@ -108,7 +106,11 @@ export const TimelineContent = ({
             />
             <TimelineTrack
               containerHeightPx={contentHeightPx}
-              completedPercent={completedPercent}
+              completedBoundaryTopPx={
+                activeIndicator && indicatorTopPx !== null
+                  ? animatedBoundaryTopPx
+                  : null
+              }
               theme={theme}
             />
             {rows.map((row, _rowIndex) => (
@@ -122,6 +124,11 @@ export const TimelineContent = ({
             ))}
             <TimelineIndicatorOverlay
               overlayIndicator={activeIndicator}
+              animatedBoundaryTopPx={
+                activeIndicator && indicatorTopPx !== null
+                  ? animatedBoundaryTopPx
+                  : null
+              }
               blurTargetRef={blurTargetRef}
               rowLayouts={rowLayouts}
               theme={theme}

@@ -12,7 +12,7 @@ import type {
   VesselTimelineSegment,
 } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
-import { getDisplayTime, getLayoutTime } from "./rowEventTime";
+import { getDisplayTime } from "./rowEventTime";
 
 /**
  * Builds the floating indicator descriptor for the active segment, or null.
@@ -139,9 +139,9 @@ const getEtaFallbackProgress = (
 /**
  * Maps the active segment to a 0–1 position for the timeline indicator dot.
  *
- * Sea segments use `getSeaProgress`; dock segments use schedule-first elapsed
- * time so the indicator stays aligned with schedule-sized rows as live ETA
- * data drifts.
+ * Sea segments use `getSeaProgress`; dock segments use display-time bounds so
+ * late arrivals and predicted departures shift the indicator within the
+ * schedule-sized row without changing row geometry.
  *
  * @param segment - Active semantic segment
  * @param liveState - Live state for sea progress
@@ -157,12 +157,7 @@ const getSegmentPositionPercent = (
     return getSeaProgress(segment, liveState, now);
   }
 
-  return getTimeProgress(
-    segment.startEvent,
-    segment.endEvent,
-    now,
-    getLayoutTime
-  );
+  return getTimeProgress(segment.startEvent, segment.endEvent, now);
 };
 
 /**

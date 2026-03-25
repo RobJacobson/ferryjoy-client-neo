@@ -3,7 +3,10 @@
  */
 
 import type { ViewStyle } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { View } from "@/components/ui";
 import { TIMELINE_SHARED_CONFIG } from "./config";
 import { TIMELINE_RENDER_CONSTANTS, type TimelineVisualTheme } from "./theme";
@@ -12,7 +15,7 @@ const TIMELINE_TRACK_GLOW_PULSE_DURATION_MS = 7000;
 
 type TimelineTrackProps = {
   containerHeightPx: number;
-  completedPercent: number;
+  completedBoundaryTopPx: SharedValue<number> | null;
   theme: TimelineVisualTheme;
 };
 
@@ -20,13 +23,13 @@ type TimelineTrackProps = {
  * Renders the timeline spine and a proportional "completed" fill above it.
  *
  * @param containerHeightPx - Total track height in pixels
- * @param completedPercent - Fraction of height filled (0–1)
+ * @param completedBoundaryTopPx - Shared animated boundary measured from the top
  * @param theme - Track colors from the visual theme
  * @returns The track view, or null when height is non-positive
  */
 export const TimelineTrack = ({
   containerHeightPx,
-  completedPercent,
+  completedBoundaryTopPx,
   theme,
 }: TimelineTrackProps) => {
   if (containerHeightPx <= 0) {
@@ -38,8 +41,18 @@ export const TimelineTrack = ({
     trackWidthPx,
     TIMELINE_RENDER_CONSTANTS.track.glowWidthPx
   );
-  const completedHeightPx = containerHeightPx * completedPercent;
   const glowPulseStyle = createTrackGlowPulseStyle();
+  const animatedCompletedStyle = useAnimatedStyle(
+    () => ({
+      height: completedBoundaryTopPx
+        ? Math.max(
+            0,
+            Math.min(containerHeightPx, completedBoundaryTopPx.value)
+          )
+        : 0,
+    }),
+    [completedBoundaryTopPx, containerHeightPx]
+  );
 
   return (
     <View
@@ -62,13 +75,13 @@ export const TimelineTrack = ({
           backgroundColor: theme.track.remainingColor,
         }}
       />
-      {completedPercent > 0 ? (
+      {completedBoundaryTopPx ? (
         <View
           className="absolute items-center"
           style={{
             top: 0,
             width: glowWidthPx,
-            height: completedHeightPx,
+            height: containerHeightPx,
           }}
         >
           <Animated.View
@@ -76,20 +89,34 @@ export const TimelineTrack = ({
             style={{
               top: 0,
               width: glowWidthPx,
-              height: completedHeightPx,
               borderRadius: glowWidthPx / 2,
               backgroundColor: theme.track.completedColor,
+              overflow: "hidden",
               ...glowPulseStyle,
             }}
-          />
-          <View
-            style={{
-              top: 0,
-              width: trackWidthPx,
-              height: completedHeightPx,
-              borderRadius: trackWidthPx / 2,
-              backgroundColor: theme.track.completedColor,
-            }}
+          >
+            <Animated.View
+              style={[
+                {
+                  top: 0,
+                  width: glowWidthPx,
+                  borderRadius: glowWidthPx / 2,
+                  backgroundColor: theme.track.completedColor,
+                },
+                animatedCompletedStyle,
+              ]}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              {
+                top: 0,
+                width: trackWidthPx,
+                borderRadius: trackWidthPx / 2,
+                backgroundColor: theme.track.completedColor,
+              },
+              animatedCompletedStyle,
+            ]}
           />
         </View>
       ) : null}

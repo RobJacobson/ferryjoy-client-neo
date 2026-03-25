@@ -3,6 +3,7 @@
  */
 
 import type { ComponentRef, RefObject } from "react";
+import type { SharedValue } from "react-native-reanimated";
 import { View } from "@/components/ui";
 import { TIMELINE_INDICATOR_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
@@ -12,6 +13,7 @@ import { TimelineIndicator } from "./TimelineIndicator";
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
+  animatedBoundaryTopPx: SharedValue<number> | null;
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   rowLayouts: Record<string, RowLayoutBounds>;
   theme: TimelineVisualTheme;
@@ -28,13 +30,14 @@ type TimelineIndicatorOverlayProps = {
  */
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
+  animatedBoundaryTopPx,
   blurTargetRef,
   rowLayouts,
   theme,
 }: TimelineIndicatorOverlayProps) => {
   const topPx = getBoundaryTopPx(overlayIndicator, rowLayouts);
 
-  if (!overlayIndicator || topPx === null) {
+  if (!overlayIndicator || topPx === null || !animatedBoundaryTopPx) {
     return null;
   }
 
@@ -49,7 +52,7 @@ export const TimelineIndicatorOverlay = ({
     >
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
-        topPx={topPx}
+        animatedBoundaryTopPx={animatedBoundaryTopPx}
         overlayIndicator={overlayIndicator}
         sizePx={TIMELINE_SHARED_CONFIG.indicatorSizePx}
         theme={theme}
