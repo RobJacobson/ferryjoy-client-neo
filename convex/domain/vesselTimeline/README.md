@@ -1,154 +1,248 @@
 ## VesselTimeline Backend Domain
 
-This folder contains the backend domain logic that exists specifically to
-support `VesselTimeline`.
+This folder contains the backend domain logic for the normalized
+boundary-event-based `VesselTimeline` system.
 
-The backend is split into two read-model layers:
+There is no snapshot layer and no legacy vessel/day event table. The backend
+persists only three normalized tables:
 
-- `events/`: the mutable vessel/day boundary-event feed stored in
-  `vesselTripEvents`
-- `snapshots/`: the derived semantic vessel/day snapshot stored in
-  `vesselTimelineSnapshots`
+- `eventsScheduled`
+- `eventsActual`
+- `eventsPredicted`
 
-The public feature contract is described in
-`src/features/VesselTimeline/docs/ARCHITECTURE.md`.
+The frontend composes timeline structure and active state from those tables plus
+the current `vesselLocations` row.
 
 ## Overview
 
-`VesselTimeline` renders one continuous service-day timeline for one vessel on
-one sailing day.
+`VesselTimeline` is modeled as a sequence of dock-boundary events:
 
-The backend owns source reconciliation and exposes two complementary payloads:
+- departure from dock
+- arrival at dock
 
-- a stable semantic snapshot for timeline structure
-- a compact active-state payload for fast-changing live indicator state
+The backend persists those boundaries in normalized form, split by update
+cadence:
 
-The lower-level event feed is the source for both.
+- schedule backbone
+- actual overlay
+- prediction overlay
 
-## Read-Model Layers
+Everything else is derived.
 
-### `events/`
+## Sources Of Truth
 
-`events/` owns the mutable vessel/day boundary-event read model persisted in
-`vesselTripEvents`.
+### `eventsScheduled`
 
-Responsibilities:
+Structural source of truth for the timeline.
 
-- seed departure and arrival dock-boundary rows from direct physical schedule
-  segments
-- merge WSF history into seeded rows
-- apply live vessel-location predictions and actuals
-- preserve historical truth across schedule reseeds
-- resolve active row state from existing event rows plus live location
+Source:
 
-Stored fields:
-
-- `Key`
-- `VesselAbbrev`
-- `SailingDay`
-- `ScheduledDeparture`
-- `TerminalAbbrev`
-- `EventType`
-- `ScheduledTime?`
-- `PredictedTime?`
-- `ActualTime?`
-
-### `snapshots/`
-
-`snapshots/` owns the derived semantic snapshot persisted in
-`vesselTimelineSnapshots`.
+- direct physical schedule segments from transformed WSF schedule data
 
 Responsibilities:
 
-- convert ordered normalized boundary events into semantic dock and sea
-  segments
-- insert synthetic start-of-day and broken-seam placeholders when required
-- append the terminal-tail dock segment after the final arrival
-- produce a stable comparable payload so unchanged snapshots are not rewritten
+- define which boundary events exist for the vessel/day
+- define `dep-dock` vs `arv-dock`
+- define scheduled timing and terminal identity
+- provide `NextTerminalAbbrev` for client composition and debugging
+
+Important behavior:
+
+- replace-only during schedule sync
+- never mutated by live vessel-location updates
+- removed sailings disappear when the schedule feed removes them
+
+### `eventsActual`
+
+Sparse actual-time overlay.
+
+Sources:
+
+- WSF vessel history during schedule sync
+- live `vesselLocations` updates during operation
+
+Responsibilities:
+
+- hold actual departure times
+- hold actual arrival times
+- support false-departure unwind
+
+Important behavior:
+
+- only rows with actuals exist
+- live updates rewrite only this table for the affected vessel/day
+
+### `eventsPredicted`
+
+Sparse best-prediction overlay.
+
+Sources:
+
+- prediction model output attached to active trips
+- WSF ETA when available
+
+Responsibilities:
+
+- store the single best currently displayable predicted time for an event
+- retain `PredictionType` and `PredictionSource` for backend debugging
+
+Important behavior:
+
+- the client timeline query does not expose prediction provenance
+- precedence is backend-owned
+
+Current precedence:
+
+- arrival:
+  - WSF ETA
+  - `AtSeaArriveNext`
+  - `AtDockArriveNext`
+- next departure:
+  - `AtSeaDepartNext`
+  - `AtDockDepartNext`
+- current departure:
+  - `AtDockDepartCurr`
+
+## Core Domain Files
+
+### `events/seed.ts`
+
+Builds in-memory boundary-event records from direct schedule segments.
+
+Responsibilities:
+
+- classify direct physical segments
+- create paired `dep-dock` and `arv-dock` records
+- normalize identical dock seams
+- generate stable event keys
+
+### `events/history.ts`
+
+Hydrates actuals from WSF vessel history into the in-memory schedule seed.
+
+Responsibilities:
+
+- map history rows back onto stable boundary-event keys
+- backfill actual departures
+- backfill arrival proxy actuals
+- resolve minor timing disagreements with replacement thresholds
+
+### `events/liveUpdates.ts`
+
+Applies live vessel-location evidence to an in-memory ordered boundary-event
+array.
+
+Responsibilities:
+
+- determine sailing day for a live location
+- resolve strong departures
+- resolve strong arrivals
+- unwind false departures
+- normalize dock seams
+- provide stable event-key construction and sort helpers
+
+Important current behavior:
+
+- this flow now owns actuals only
+- live location ticks do not write predicted times into event rows
+
+### `normalizedEvents.ts`
+
+Converts in-memory ordered boundary-event records into normalized table rows.
+
+Responsibilities:
+
+- build `eventsScheduled` rows
+- build `eventsActual` rows
+- build `eventsPredicted` rows from trip state
 
 ## Function Entrypoints
 
-`convex/functions/vesselTripEvents/` is still the operational entrypoint for
-seed, reseed, live-update, and active-state work.
+### `convex/functions/vesselTimeline/actions.ts`
 
-- `actions.ts`
-  - scheduled and manual sync/reset entrypoints for the event read model
-- `mutations.ts`
-  - persists event updates and synchronizes derived snapshots
-- `queries.ts`
-  - exposes the event feed and active-state query
+Schedule sync entrypoints.
 
-`convex/functions/vesselTimeline/` exposes snapshot reads.
+Responsibilities:
 
-- `queries.ts`
-  - reads persisted `vesselTimelineSnapshots`
+- fetch and transform raw schedule data
+- build direct boundary-event records
+- merge WSF history actuals
+- replace normalized schedule/actual rows for one sailing day
+- support windowed and sailing-day-boundary sync
+
+### `convex/functions/vesselTimeline/mutations.ts`
+
+Normalized write layer.
+
+Responsibilities:
+
+- replace `eventsScheduled` and `eventsActual` for a sailing day
+- apply live actual updates from `vesselLocations`
+- upsert best-prediction rows from active trip state
+
+### `convex/functions/vesselTimeline/queries.ts`
+
+Timeline-facing read layer.
+
+Responsibilities:
+
+- return scheduled rows for one vessel/day
+- return actual overlay rows for one vessel/day
+- return prediction overlay rows for one vessel/day
+
+Important behavior:
+
+- prediction queries hide `PredictionType` and `PredictionSource`
 
 ## Data Flow
 
 ```text
 WSF schedule sync
-  -> classify direct physical segments
-  -> build dep/arv event skeleton
+  -> transform raw schedule data
+  -> keep direct physical segments only
+  -> build boundary-event records
   -> merge WSF history actuals
-  -> reseed/replace vesselTripEvents
-  -> rebuild vesselTimelineSnapshots from ordered events
+  -> replace eventsScheduled
+  -> replace eventsActual
 
 WSF vessel location ticks
-  -> apply predictions/actuals to existing vesselTripEvents rows
-  -> rebuild affected vesselTimelineSnapshots
+  -> update vesselLocations
+  -> update active vessel trips
+  -> resolve actual boundary changes
+  -> replace affected eventsActual rows only
+
+Trip / prediction updates
+  -> compute best prediction per event key
+  -> upsert eventsPredicted
 
 Frontend VesselTimeline
-  -> query vesselTimelineSnapshots for stable timeline structure
-  -> query vesselTripEvents active-state endpoint for live indicator state
+  -> query eventsScheduled
+  -> query eventsActual
+  -> query eventsPredicted
+  -> query vesselLocations
+  -> merge rows client-side
+  -> build segments client-side
+  -> resolve active state client-side
+  -> render UX-specific timeline rows
 ```
 
-## Invariants
+## Backend Guarantees
 
-- `Key` must remain stable for the same logical schedule boundary
-- only direct physical scheduled segments should seed rows
-- historical rows must not be destroyed by mid-day schedule churn
-- future rows remain schedule-owned until they become present or historical
-- active-state matching must use existing event keys, not array indices
-- snapshots are derived from ordered normalized event rows
-- unchanged snapshots should not be rewritten
-
-## File Map
-
-### `events/`
-
-- `activeState.ts`
-  - resolves the compact live active-state snapshot
-- `history.ts`
-  - merges WSF history actuals into seeded rows
-- `index.ts`
-  - re-exports event-domain helpers
-- `liveUpdates.ts`
-  - applies live vessel-location evidence and owns event-key helpers
-- `reseed.ts`
-  - merges fresh seed data with existing rows safely
-- `seed.ts`
-  - builds schedule-derived departure and arrival boundary events
-
-### `snapshots/`
-
-- `buildSnapshot.ts`
-  - converts ordered event rows into persisted semantic snapshot segments
-
-### `tests/`
-
-- `activeState.test.ts`
-- `buildSnapshot.test.ts`
-- `history.test.ts`
-- `reseed.test.ts`
-- `seed.test.ts`
+- `eventsScheduled` is the structural truth for which boundary events exist
+- `eventsActual` and `eventsPredicted` are sparse overlays only
+- live ticks do not mutate the schedule backbone
+- prediction precedence is resolved on the server
+- the client never needs to understand prediction provenance
+- no snapshot persistence exists in the backend
 
 ## Suggested Reading Order
 
 1. this README
-2. `events/reseed.ts`
-3. `events/liveUpdates.ts`
-4. `events/activeState.ts`
-5. `snapshots/buildSnapshot.ts`
-6. `convex/functions/vesselTripEvents/mutations.ts`
-7. `convex/functions/vesselTripEvents/queries.ts`
-8. `src/features/VesselTimeline/docs/ARCHITECTURE.md`
+2. `events/seed.ts`
+3. `events/history.ts`
+4. `events/liveUpdates.ts`
+5. `normalizedEvents.ts`
+6. `convex/functions/vesselTimeline/actions.ts`
+7. `convex/functions/vesselTimeline/mutations.ts`
+8. `convex/functions/vesselTimeline/queries.ts`
+9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`
