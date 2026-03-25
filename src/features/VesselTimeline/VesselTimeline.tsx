@@ -5,12 +5,13 @@
  * day-level timeline content from the normalized vessel-centric data source.
  */
 
+import { useState } from "react";
 import {
   createTimelineVisualTheme,
   type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "@/components/timeline";
-import { Text, View } from "@/components/ui";
+import { Button, Text, View } from "@/components/ui";
 import {
   ConvexVesselTimelineProvider,
   useConvexVesselTimeline,
@@ -44,12 +45,18 @@ export const VesselTimeline = ({
   now,
   theme,
 }: VesselTimelineProps) => {
+  const [retryNonce, setRetryNonce] = useState(0);
   const resolvedTheme = createTimelineVisualTheme(theme);
+  const providerKey = `${vesselAbbrev}:${sailingDay}:${retryNonce}`;
 
   return (
     <ConvexVesselTimelineProvider
+      key={providerKey}
       vesselAbbrev={vesselAbbrev}
       sailingDay={sailingDay}
+      onRetry={() => {
+        setRetryNonce((current) => current + 1);
+      }}
     >
       <VesselTimelineContent now={now} theme={resolvedTheme} />
     </ConvexVesselTimelineProvider>
@@ -78,7 +85,9 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
     ActiveState,
     IsLoading,
     Error: errorMessage,
+    Retry,
   } = useConvexVesselTimeline();
+  const currentNow = now ?? new Date(nowMs);
 
   if (IsLoading) {
     return (
@@ -99,6 +108,12 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
         <Text className="mt-2 text-center text-muted-foreground text-sm">
           {errorMessage}
         </Text>
+        <Text className="mt-1 text-center text-muted-foreground text-sm">
+          Please try again.
+        </Text>
+        <Button className="mt-4" onPress={Retry} variant="outline">
+          <Text>Try again</Text>
+        </Button>
       </View>
     );
   }
@@ -118,7 +133,7 @@ const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
     Segments,
     LiveState,
     ActiveState,
-    now ?? new Date(nowMs),
+    currentNow,
     undefined,
     theme
   );

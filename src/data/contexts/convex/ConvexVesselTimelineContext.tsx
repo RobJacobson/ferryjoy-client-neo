@@ -35,11 +35,13 @@ type ConvexVesselTimelineContextType = {
   ActiveState: VesselTimelineActiveState | null;
   IsLoading: boolean;
   Error: string | null;
+  Retry: () => void;
 };
 
 type ConvexVesselTimelineProviderProps = PropsWithChildren<{
   vesselAbbrev: string;
   sailingDay: string;
+  onRetry: () => void;
 }>;
 
 const ConvexVesselTimelineContext = createContext<
@@ -90,10 +92,12 @@ class ConvexVesselTimelineErrorBoundary extends ReactComponent<
 const ConvexVesselTimelineQueryProvider = ({
   vesselAbbrev,
   sailingDay,
+  onRetry,
   children,
 }: PropsWithChildren<{
   vesselAbbrev: string;
   sailingDay: string;
+  onRetry: () => void;
 }>) => {
   const rawSnapshot = useQuery(
     api.functions.vesselTimeline.queries.getVesselDayTimelineSnapshot,
@@ -125,6 +129,7 @@ const ConvexVesselTimelineQueryProvider = ({
     ActiveState: activeStateSnapshot?.ActiveState ?? null,
     IsLoading,
     Error: null,
+    Retry: onRetry,
   };
 
   return (
@@ -137,6 +142,7 @@ const ConvexVesselTimelineQueryProvider = ({
 export const ConvexVesselTimelineProvider = ({
   vesselAbbrev,
   sailingDay,
+  onRetry,
   children,
 }: ConvexVesselTimelineProviderProps) => {
   const errorValue: ConvexVesselTimelineContextType = {
@@ -146,7 +152,8 @@ export const ConvexVesselTimelineProvider = ({
     LiveState: null,
     ActiveState: null,
     IsLoading: false,
-    Error: "Failed to load vessel timeline",
+    Error: "Live timeline data is temporarily unavailable.",
+    Retry: onRetry,
   };
 
   return (
@@ -165,6 +172,7 @@ export const ConvexVesselTimelineProvider = ({
       <ConvexVesselTimelineQueryProvider
         vesselAbbrev={vesselAbbrev}
         sailingDay={sailingDay}
+        onRetry={onRetry}
       >
         {children}
       </ConvexVesselTimelineQueryProvider>
