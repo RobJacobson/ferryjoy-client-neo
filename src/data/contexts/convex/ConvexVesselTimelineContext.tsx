@@ -1,16 +1,19 @@
 /**
  * Convex-backed vessel timeline context.
  *
- * This provider fetches the backend-owned vessel-day timeline snapshot plus
- * the compact backend-resolved active state for one vessel/day scope.
+ * This provider fetches normalized vessel-day boundary events plus the compact
+ * backend-resolved active state for one vessel/day scope.
  */
 
+import { buildSegmentsFromBoundaryEvents } from "@/features/VesselTimeline/utils/buildSegmentsFromBoundaryEvents";
 import { api } from "convex/_generated/api";
+import { toDomainActualBoundaryEvent } from "convex/functions/eventsActual/schemas";
+import { toDomainPredictedBoundaryEvent } from "convex/functions/eventsPredicted/schemas";
+import { toDomainScheduledBoundaryEvent } from "convex/functions/eventsScheduled/schemas";
 import type {
+  MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
-  VesselTimelineSnapshot,
 } from "convex/functions/vesselTimeline/schemas";
-import { toDomainVesselTimelineSnapshot } from "convex/functions/vesselTimeline/schemas";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
@@ -24,7 +27,6 @@ export type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
   VesselTimelineSegment,
-  VesselTimelineSnapshot,
 };
 
 type ConvexVesselTimelineContextType = {
@@ -99,8 +101,22 @@ const ConvexVesselTimelineQueryProvider = ({
   sailingDay: string;
   onRetry: () => void;
 }>) => {
-  const rawSnapshot = useQuery(
-    api.functions.vesselTimeline.queries.getVesselDayTimelineSnapshot,
+  const rawScheduledEvents = useQuery(
+    api.functions.vesselTimeline.queries.getVesselTimelineScheduledEvents,
+    {
+      VesselAbbrev: vesselAbbrev,
+      SailingDay: sailingDay,
+    }
+  );
+  const rawActualEvents = useQuery(
+    api.functions.vesselTimeline.queries.getVesselTimelineActualEvents,
+    {
+      VesselAbbrev: vesselAbbrev,
+      SailingDay: sailingDay,
+    }
+  );
+  const rawPredictedEvents = useQuery(
+    api.functions.vesselTimeline.queries.getVesselTimelinePredictedEvents,
     {
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,
@@ -114,17 +130,23 @@ const ConvexVesselTimelineQueryProvider = ({
     }
   );
 
-  const IsLoading = rawSnapshot === undefined || rawActiveState === undefined;
-  const snapshot = rawSnapshot
-    ? toDomainVesselTimelineSnapshot(rawSnapshot)
-    : null;
+  const IsLoading =
+    rawScheduledEvents === undefined ||
+    rawActualEvents === undefined ||
+    rawPredictedEvents === undefined ||
+    rawActiveState === undefined;
+  const mergedEvents = buildMergedBoundaryEvents(
+    rawScheduledEvents?.map(toDomainScheduledBoundaryEvent) ?? [],
+    rawActualEvents?.map(toDomainActualBoundaryEvent) ?? [],
+    rawPredictedEvents?.map(toDomainPredictedBoundaryEvent) ?? []
+  );
   const activeStateSnapshot = rawActiveState
     ? toDomainVesselTimelineActiveStateSnapshot(rawActiveState)
     : null;
   const value: ConvexVesselTimelineContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
-    Segments: snapshot?.Segments ?? [],
+    Segments: buildSegmentsFromBoundaryEvents(mergedEvents),
     LiveState: activeStateSnapshot?.Live ?? null,
     ActiveState: activeStateSnapshot?.ActiveState ?? null,
     IsLoading,
@@ -189,4 +211,36 @@ export const useConvexVesselTimeline = () => {
   }
 
   return context;
+};
+
+/**
+ * Merges scheduled boundary rows with actual and predicted overlays by stable
+ * event key.
+ *
+ * @param scheduledEvents - Stable schedule backbone
+ * @param actualEvents - Sparse actual-time overlay
+ * @param predictedEvents - Sparse best-prediction overlay
+ * @returns Ordered merged boundary events for semantic row construction
+ */
+const buildMergedBoundaryEvents = (
+  scheduledEvents: Array<ReturnType<typeof toDomainScheduledBoundaryEvent>>,
+  actualEvents: Array<ReturnType<typeof toDomainActualBoundaryEvent>>,
+  predictedEvents: Array<ReturnType<typeof toDomainPredictedBoundaryEvent>>
+): MergedTimelineBoundaryEvent[] => {
+  const actualByKey = new Map(actualEvents.map((event) => [event.Key, event]));
+  const predictedByKey = new Map(
+    predictedEvents.map((event) => [event.Key, event])
+  );
+
+  return scheduledEvents.map((event) => ({
+    Key: event.Key,
+    VesselAbbrev: event.VesselAbbrev,
+    SailingDay: event.SailingDay,
+    ScheduledDeparture: event.ScheduledDeparture,
+    TerminalAbbrev: event.TerminalAbbrev,
+    EventType: event.EventType,
+    ScheduledTime: event.ScheduledTime,
+    ActualTime: actualByKey.get(event.Key)?.ActualTime,
+    PredictedTime: predictedByKey.get(event.Key)?.PredictedTime,
+  }));
 };

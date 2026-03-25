@@ -22,7 +22,7 @@ import {
   getTrackFractions,
 } from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
-import type { VesselTimelineRenderState } from "../types";
+import type { VesselTimelineRenderState } from "./types";
 
 /**
  * Renders the full scrollable vessel-day timeline with initial auto-scroll.

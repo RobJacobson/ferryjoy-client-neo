@@ -41,8 +41,8 @@ Relevant code:
 - [fetchAndTransform.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/fetchAndTransform.ts)
 - [directSegments.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/directSegments.ts)
 - [estimates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/transform/estimates.ts)
-- [seed.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/seed.ts)
-- [liveUpdates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/liveUpdates.ts)
+- [seed.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/seed.ts)
+- [liveUpdates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/liveUpdates.ts)
 
 Current high-level behavior:
 
@@ -60,7 +60,7 @@ Current high-level behavior:
 Relevant code:
 
 - [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
 - [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
@@ -162,7 +162,7 @@ segment or omit its publishable passenger-facing representation.
 
 Relevant code:
 
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
 Current placeholder behavior is designed for:
@@ -200,7 +200,7 @@ Implemented earlier:
 
 Relevant code:
 
-- [activeState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/activeState.ts)
+- [activeState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/activeState.ts)
 - [activeStateSchemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTripEvents/activeStateSchemas.ts)
 - [resolveActiveSegmentIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/resolveActiveSegmentIndex.ts)
 - [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildActiveIndicator.ts)
@@ -492,14 +492,14 @@ The frontend can derive a placeholder sea row because:
 
 Backend candidates:
 
-- [seed.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/seed.ts)
-- [liveUpdates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/liveUpdates.ts)
+- [seed.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/seed.ts)
+- [liveUpdates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/liveUpdates.ts)
 - [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTripEvents/queries.ts)
 - possibly scheduled-trip transform files if choosing upstream reconciliation
 
 Frontend candidates:
 
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
+- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
 - [types.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/types.ts)
 - [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
