@@ -23,7 +23,6 @@ import { getVesselTimelineRenderState } from "./utils";
 type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
-  routeAbbrevs: string[];
   now?: Date;
   theme?: TimelineVisualThemeOverrides;
 };
@@ -34,14 +33,12 @@ type VesselTimelineProps = {
  * @param props - Vessel timeline props
  * @param props.vesselAbbrev - Vessel abbreviation to display
  * @param props.sailingDay - Sailing day in YYYY-MM-DD format
- * @param props.routeAbbrevs - Route abbreviations carried by the caller
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @returns Vessel-day timeline feature
  */
 export const VesselTimeline = ({
   vesselAbbrev,
   sailingDay,
-  routeAbbrevs: _routeAbbrevs,
   now,
   theme,
 }: VesselTimelineProps) => {

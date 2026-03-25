@@ -21,7 +21,6 @@ Public API (see `VesselTimeline.tsx`):
 type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
-  routeAbbrevs: string[];
   now?: Date;
   theme?: TimelineVisualThemeOverrides;
 };
@@ -31,8 +30,6 @@ Notes:
 
 - `vesselAbbrev` and `sailingDay` define the vessel/day scope passed into
   `ConvexVesselTimelineProvider`.
-- `routeAbbrevs` is kept for callers and screen composition but is **not** read
-  by the timeline pipeline today (the data path is vessel-centric only).
 - `now` is optional and mainly supports deterministic rendering and tests.
 - `theme` is optional; it is merged via `createTimelineVisualTheme` and flows
   through `getVesselTimelineRenderState` into shared timeline components.
