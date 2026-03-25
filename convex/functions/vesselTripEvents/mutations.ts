@@ -3,13 +3,10 @@
  * `vesselTripEvents` read model for vessel timeline rendering.
  */
 import type { Doc } from "_generated/dataModel";
+import { internal } from "_generated/api";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import {
-  buildVesselTimelineSnapshot,
-  getComparableSnapshotPayload,
-} from "domain/vesselTimelineSnapshots/buildSnapshot";
 import {
   applyLiveLocationToEvents,
   buildEventKey,
@@ -20,7 +17,7 @@ import {
   mergeSeededVesselTripEvents,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
-} from "domain/vesselTripEvents";
+} from "domain/vesselTimeline/events";
 import {
   type ConvexVesselLocation,
   vesselLocationValidationSchema,
@@ -78,13 +75,20 @@ export const reseedForSailingDay = internalMutation({
       existingById,
       mergedEvents
     );
-    await syncSnapshotsForSailingDay(ctx, args.SailingDay, [
-      ...new Set([
-        ...existingEvents.map((event) => event.VesselAbbrev),
-        ...mergedEvents.map((event) => event.VesselAbbrev),
-      ]),
-    ]);
-
+    await ctx.runMutation(
+      internal.functions.vesselTimeline.mutations.syncScheduledEventsForSailingDay,
+      {
+        SailingDay: args.SailingDay,
+        Events: mergedEvents,
+      }
+    );
+    await ctx.runMutation(
+      internal.functions.vesselTimeline.mutations.syncActualEventsForSailingDay,
+      {
+        SailingDay: args.SailingDay,
+        Events: mergedEvents,
+      }
+    );
     return {
       Deleted: deletedCount,
       Inserted: insertedCount,
@@ -125,13 +129,20 @@ export const replaceForSailingDay = internalMutation({
     for (const event of dedupedEvents) {
       await ctx.db.insert("vesselTripEvents", event);
     }
-    await syncSnapshotsForSailingDay(ctx, args.SailingDay, [
-      ...new Set([
-        ...existing.map((doc) => doc.VesselAbbrev),
-        ...dedupedEvents.map((event) => event.VesselAbbrev),
-      ]),
-    ]);
-
+    await ctx.runMutation(
+      internal.functions.vesselTimeline.mutations.syncScheduledEventsForSailingDay,
+      {
+        SailingDay: args.SailingDay,
+        Events: dedupedEvents,
+      }
+    );
+    await ctx.runMutation(
+      internal.functions.vesselTimeline.mutations.syncActualEventsForSailingDay,
+      {
+        SailingDay: args.SailingDay,
+        Events: dedupedEvents,
+      }
+    );
     return {
       Deleted: existing.length,
       Inserted: dedupedEvents.length,
@@ -163,7 +174,20 @@ export const applyLiveUpdates = internalMutation({
       );
 
       await persistEventUpserts(ctx, indexEventDocs(docs), updatedEvents);
-      await syncSnapshotForVesselDay(ctx, location.VesselAbbrev, SailingDay);
+      const vesselDayDocs = await ctx.db
+        .query("vesselTripEvents")
+        .withIndex("by_vessel_and_sailing_day", (q) =>
+          q.eq("VesselAbbrev", location.VesselAbbrev).eq("SailingDay", SailingDay)
+        )
+        .collect();
+      await ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.syncActualEventsForVesselDay,
+        {
+          VesselAbbrev: location.VesselAbbrev,
+          SailingDay,
+          Events: toEventRecords(vesselDayDocs).sort(sortVesselTripEvents),
+        }
+      );
     }
 
     return null;
@@ -500,83 +524,6 @@ const toEventRecord = (
   PredictedTime: doc.PredictedTime,
   ActualTime: doc.ActualTime,
 });
-
-/**
- * Rebuilds persisted timeline snapshots for one sailing day and the provided
- * vessel scopes after event writes complete.
- *
- * @param ctx - Convex mutation context
- * @param SailingDay - Sailing day whose snapshots may need updates
- * @param vesselAbbrevs - Vessel scopes impacted by the event mutation
- * @returns Nothing
- */
-const syncSnapshotsForSailingDay = async (
-  ctx: MutationCtx,
-  SailingDay: string,
-  vesselAbbrevs: string[]
-) => {
-  for (const VesselAbbrev of vesselAbbrevs) {
-    await syncSnapshotForVesselDay(ctx, VesselAbbrev, SailingDay);
-  }
-};
-
-/**
- * Rebuilds or deletes the persisted semantic snapshot for one vessel/day.
- *
- * @param ctx - Convex mutation context
- * @param VesselAbbrev - Vessel abbreviation for the snapshot scope
- * @param SailingDay - Sailing day for the snapshot scope
- * @returns Nothing
- */
-const syncSnapshotForVesselDay = async (
-  ctx: MutationCtx,
-  VesselAbbrev: string,
-  SailingDay: string
-) => {
-  const docs = await ctx.db
-    .query("vesselTripEvents")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", VesselAbbrev).eq("SailingDay", SailingDay)
-    )
-    .collect();
-
-  const existingSnapshot = await ctx.db
-    .query("vesselTimelineSnapshots")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", VesselAbbrev).eq("SailingDay", SailingDay)
-    )
-    .unique();
-
-  if (docs.length === 0) {
-    if (existingSnapshot) {
-      await ctx.db.delete(existingSnapshot._id);
-    }
-
-    return;
-  }
-
-  const nextSnapshot = buildVesselTimelineSnapshot({
-    VesselAbbrev,
-    SailingDay,
-    events: toEventRecords(docs).sort(sortVesselTripEvents),
-    generatedAt: Date.now(),
-  });
-
-  if (
-    existingSnapshot &&
-    JSON.stringify(getComparableSnapshotPayload(existingSnapshot)) ===
-      JSON.stringify(getComparableSnapshotPayload(nextSnapshot))
-  ) {
-    return;
-  }
-
-  if (existingSnapshot) {
-    await ctx.db.replace(existingSnapshot._id, nextSnapshot);
-    return;
-  }
-
-  await ctx.db.insert("vesselTimelineSnapshots", nextSnapshot);
-};
 
 /**
  * Verifies that every seeded event belongs to the requested sailing day.

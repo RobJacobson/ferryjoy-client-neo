@@ -1,14 +1,28 @@
 /**
- * Defines the Convex schema and conversion helpers for persisted
- * `vesselTimelineSnapshots`.
+ * Defines the Convex schemas and conversion helpers shared by VesselTimeline.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { eventsActualSchema } from "../eventsActual/schemas";
+import { eventsPredictedSchema } from "../eventsPredicted/schemas";
+import { boundaryEventTypeSchema, eventsScheduledSchema } from "../eventsScheduled/schemas";
 import {
   optionalDateToEpochMs,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
+
+export const mergedTimelineBoundaryEventSchema = v.object({
+  Key: v.string(),
+  VesselAbbrev: v.string(),
+  SailingDay: v.string(),
+  ScheduledDeparture: v.number(),
+  TerminalAbbrev: v.string(),
+  EventType: boundaryEventTypeSchema,
+  ScheduledTime: v.optional(v.number()),
+  PredictedTime: v.optional(v.number()),
+  ActualTime: v.optional(v.number()),
+});
 
 export const vesselTimelineSnapshotEventSchema = v.object({
   Key: v.string(),
@@ -55,6 +69,9 @@ export type ConvexVesselTimelineSegment = Infer<
 export type ConvexVesselTimelineSnapshot = Infer<
   typeof vesselTimelineSnapshotSchema
 >;
+export type ConvexMergedTimelineBoundaryEvent = Infer<
+  typeof mergedTimelineBoundaryEventSchema
+>;
 
 export const toConvexVesselTimelineSnapshotEvent = (event: {
   Key: string;
@@ -100,6 +117,16 @@ export const toDomainVesselTimelineSnapshot = (
   Segments: snapshot.Segments.map(toDomainVesselTimelineSegment),
 });
 
+export const toDomainMergedTimelineBoundaryEvent = (
+  event: ConvexMergedTimelineBoundaryEvent
+) => ({
+  ...event,
+  ScheduledDeparture: new Date(event.ScheduledDeparture),
+  ScheduledTime: optionalEpochMsToDate(event.ScheduledTime),
+  PredictedTime: optionalEpochMsToDate(event.PredictedTime),
+  ActualTime: optionalEpochMsToDate(event.ActualTime),
+});
+
 export type VesselTimelineSnapshotEvent = ReturnType<
   typeof toDomainVesselTimelineSnapshotEvent
 >;
@@ -109,3 +136,8 @@ export type VesselTimelineSegment = ReturnType<
 export type VesselTimelineSnapshot = ReturnType<
   typeof toDomainVesselTimelineSnapshot
 >;
+export type MergedTimelineBoundaryEvent = ReturnType<
+  typeof toDomainMergedTimelineBoundaryEvent
+>;
+
+export { eventsScheduledSchema, eventsActualSchema, eventsPredictedSchema };

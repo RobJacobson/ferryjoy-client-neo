@@ -17,8 +17,8 @@ async function syncVesselTripEvents(targetDate?: string) {
 
   console.log(
     targetDate
-      ? `Seeding vesselTripEvents for ${targetDate}...`
-      : "Seeding vesselTripEvents for the current sailing day..."
+      ? `Replacing vesselTripEvents for ${targetDate}...`
+      : "Replacing vesselTripEvents for the current sailing day..."
   );
   console.log(`Using Convex deployment: ${convexUrl}`);
   console.log(
@@ -37,10 +37,10 @@ async function syncVesselTripEvents(targetDate?: string) {
           api.functions.vesselTripEvents.actions.syncVesselTripEventsManual
         );
 
-    console.log("Seed results:", result);
-    console.log("vesselTripEvents seed completed successfully.");
+    console.log("Replace results:", result);
+    console.log("vesselTripEvents replace completed successfully.");
   } catch (error) {
-    console.error("vesselTripEvents seed failed:", error);
+    console.error("vesselTripEvents replace failed:", error);
     process.exit(1);
   }
 }

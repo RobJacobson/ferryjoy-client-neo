@@ -2,13 +2,13 @@
  * Builds persisted semantic timeline snapshots from ordered vessel trip events.
  */
 
-import { getTerminalNameByAbbrev } from "../../../src/data/terminalLocations";
+import { getTerminalNameByAbbrev } from "../../../shared/terminalLocations";
 import type {
   ConvexVesselTimelineSegment,
   ConvexVesselTimelineSnapshot,
   ConvexVesselTimelineSnapshotEvent,
-} from "../../functions/vesselTimeline/schemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
+} from "../../../functions/vesselTimeline/schemas";
+import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
 
 export const VESSEL_TIMELINE_SNAPSHOT_SCHEMA_VERSION = 1;
 

@@ -1,4 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
+import { eventsActualSchema } from "functions/eventsActual/schemas";
+import { eventsPredictedSchema } from "functions/eventsPredicted/schemas";
+import { eventsScheduledSchema } from "functions/eventsScheduled/schemas";
 import {
   modelConfigSchema,
   modelParametersSchema,
@@ -79,6 +82,22 @@ export default defineSchema({
     .index("by_timestamp", ["TimeStamp"])
     .index("by_vessel_abbrev_and_timestamp", ["VesselAbbrev", "TimeStamp"])
     .index("by_vessel_abbrev_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+
+  eventsScheduled: defineTable(eventsScheduledSchema)
+    .index("by_key", ["Key"])
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+
+  eventsActual: defineTable(eventsActualSchema)
+    .index("by_key", ["Key"])
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+
+  eventsPredicted: defineTable(eventsPredictedSchema)
+    .index("by_key", ["Key"])
+    .index("by_key_and_prediction_type", ["Key", "PredictionType"])
+    .index("by_sailing_day", ["SailingDay"])
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 
   vesselTripEvents: defineTable(vesselTripEventSchema)
     .index("by_key", ["Key"])

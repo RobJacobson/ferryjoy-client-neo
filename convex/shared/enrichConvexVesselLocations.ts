@@ -3,7 +3,7 @@
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
-import { terminalLocations } from "src/data/terminalLocations";
+import { terminalLocations } from "./terminalLocations";
 
 /**
  * Adds departing and arriving distance fields to a vessel location.

@@ -2,12 +2,12 @@
  * History-backed enrichment for schedule-seeded vessel trip events.
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { config } from "../../domain/ml/shared/config";
-import { getVesselAbbreviation } from "../../functions/scheduledTrips/schemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
-import { generateTripKey } from "../../shared/keys";
-import { getSailingDay } from "../../shared/time";
+import { config } from "../../ml/shared/config";
+import { getVesselAbbreviation } from "../../../functions/scheduledTrips/schemas";
+import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
+import { generateTripKey } from "../../../shared/keys";
+import { getSailingDay } from "../../../shared/time";
 import { buildEventKey } from "./liveUpdates";
 import { getDirectRawSeedSegments } from "./seed";
 

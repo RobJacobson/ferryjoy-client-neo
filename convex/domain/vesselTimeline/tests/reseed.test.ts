@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
-import { mergeSeededVesselTripEvents } from "../reseed";
+import { mergeSeededVesselTripEvents } from "../events/reseed";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);

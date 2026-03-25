@@ -1,4 +1,4 @@
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -158,6 +158,12 @@ const processCompletedTrips = async (
           newTrip,
         }
       );
+      await ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
+        {
+          Trips: [newTrip],
+        }
+      );
 
       // Delegate prediction lifecycle to service
       await handlePredictionEvent(ctx, {
@@ -249,6 +255,18 @@ const processCurrentTrips = async (
         `[VesselTrips] Failed active-trip upsert for ${result.vesselAbbrev}: ${
           result.reason ?? "unknown error"
         }`
+      );
+    }
+
+    const syncedTrips = activeUpserts.filter((trip) =>
+      successfulVessels.has(trip.VesselAbbrev)
+    );
+    if (syncedTrips.length > 0) {
+      await ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
+        {
+          Trips: syncedTrips,
+        }
       );
     }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripEvent } from "functions/vesselTripEvents/schemas";
-import { resolveVesselTimelineActiveState } from "../activeState";
+import { resolveVesselTimelineActiveState } from "../events/activeState";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 24, hours, minutes);

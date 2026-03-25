@@ -2,7 +2,7 @@
  * Merge logic for reseeding schedule-derived vessel trip events without
  * discarding live historical state.
  */
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
 import { sortVesselTripEvents } from "./liveUpdates";
 
 type MergeSeededVesselTripEventsArgs = {

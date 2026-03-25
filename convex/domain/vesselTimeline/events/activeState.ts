@@ -5,13 +5,13 @@
  * This module only derives row matches and indicator copy. It does not mutate
  * read-model rows or recompute the heavier live-update reconciliation logic.
  */
-import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type {
   ConvexVesselTimelineActiveState,
   ConvexVesselTimelineLiveState,
   ConvexVesselTimelineRowMatch,
-} from "../../functions/vesselTripEvents/activeStateSchemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
+} from "../../../functions/vesselTripEvents/activeStateSchemas";
+import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 

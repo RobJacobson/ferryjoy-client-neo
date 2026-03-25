@@ -12,7 +12,7 @@ import { fetchAndTransformScheduledTrips } from "../../domain/scheduledTrips/fet
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,
-} from "../../domain/vesselTripEvents";
+} from "../../domain/vesselTimeline/events";
 import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
 
@@ -26,7 +26,6 @@ type VesselTripEventPurgeResult = {
   deleted: number;
 };
 
-type VesselTripEventSyncMode = "merge" | "replace";
 type WindowSyncDayResult = {
   sailingDay: string;
   inserted: number;
@@ -34,48 +33,52 @@ type WindowSyncDayResult = {
 };
 
 /**
- * Manual seed for the current sailing day.
+ * Manual schedule sync for the current sailing day.
+ *
+ * This is replace-only in the normalized boundary-event architecture.
  */
 export const syncVesselTripEventsManual = action({
   args: {},
   handler: async (ctx): Promise<VesselTripEventSeedResult> => {
     const sailingDay = getSailingDay(new Date());
-    return await syncVesselTripEventsForDate(ctx, sailingDay, "merge");
+    return await syncVesselTripEventsForDate(ctx, sailingDay);
   },
 });
 
 /**
- * Manual seed for a specific sailing day.
+ * Manual schedule sync for a specific sailing day.
+ *
+ * This is replace-only in the normalized boundary-event architecture.
  */
 export const syncVesselTripEventsForDateManual = action({
   args: {
     targetDate: v.string(),
   },
   handler: async (ctx, args): Promise<VesselTripEventSeedResult> => {
-    return await syncVesselTripEventsForDate(ctx, args.targetDate, "merge");
+    return await syncVesselTripEventsForDate(ctx, args.targetDate);
   },
 });
 
 /**
- * Manual hard reset for the current sailing day.
+ * Backward-compatible alias for the current sailing day schedule sync.
  */
 export const resetVesselTripEventsManual = action({
   args: {},
   handler: async (ctx): Promise<VesselTripEventSeedResult> => {
     const sailingDay = getSailingDay(new Date());
-    return await syncVesselTripEventsForDate(ctx, sailingDay, "replace");
+    return await syncVesselTripEventsForDate(ctx, sailingDay);
   },
 });
 
 /**
- * Manual hard reset for a specific sailing day.
+ * Backward-compatible alias for a specific sailing day schedule sync.
  */
 export const resetVesselTripEventsForDateManual = action({
   args: {
     targetDate: v.string(),
   },
   handler: async (ctx, args): Promise<VesselTripEventSeedResult> => {
-    return await syncVesselTripEventsForDate(ctx, args.targetDate, "replace");
+    return await syncVesselTripEventsForDate(ctx, args.targetDate);
   },
 });
 
@@ -136,19 +139,17 @@ export const purgeVesselTripEventsManual = action({
 });
 
 /**
- * Runs the vessel-trip-event sync for one sailing day in the requested mode.
+ * Runs the vessel-trip-event sync for one sailing day.
  *
  * @param ctx - Convex action context
  * @param targetDate - Sailing day to sync
- * @param mode - Whether to merge into or replace the stored read model
  * @returns Insert/delete counts from the underlying mutation
  */
 const syncVesselTripEventsForDate = async (
   ctx: ActionCtx,
-  targetDate: string,
-  mode: VesselTripEventSyncMode
+  targetDate: string
 ): Promise<VesselTripEventSeedResult> => {
-  console.log(`${logPrefix} Starting ${mode} sync for ${targetDate}`);
+  console.log(`${logPrefix} Starting replace sync for ${targetDate}`);
 
   const { routeData } = await fetchAndTransformScheduledTrips(targetDate);
   const scheduleSegments = routeData.flatMap((data) => data.segments);
@@ -158,43 +159,28 @@ const syncVesselTripEventsForDate = async (
 
   const directEvents =
     buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
-  const existingEvents = await ctx.runQuery(
-    internal.functions.vesselTripEvents.queries.getEventsForSailingDay,
-    {
-      SailingDay: targetDate,
-    }
-  );
   const historyRecords = await fetchHistoryRecordsForDate(
     scheduleSegments,
     targetDate
   );
-  const mergedEvents = mergeSeededEventsWithHistory({
+  const hydratedEvents = mergeSeededEventsWithHistory({
     sailingDay: targetDate,
     seededEvents: directEvents,
-    existingEvents,
+    existingEvents: [],
     scheduleSegments,
     historyRecords,
   });
 
-  const result =
-    mode === "replace"
-      ? await ctx.runMutation(
-          internal.functions.vesselTripEvents.mutations.replaceForSailingDay,
-          {
-            SailingDay: targetDate,
-            Events: mergedEvents,
-          }
-        )
-      : await ctx.runMutation(
-          internal.functions.vesselTripEvents.mutations.reseedForSailingDay,
-          {
-            SailingDay: targetDate,
-            Events: mergedEvents,
-          }
-        );
+  const result = await ctx.runMutation(
+    internal.functions.vesselTripEvents.mutations.replaceForSailingDay,
+    {
+      SailingDay: targetDate,
+      Events: hydratedEvents,
+    }
+  );
 
   console.log(
-    `${logPrefix} ${mode} sync completed for ${targetDate}: ${mergedEvents.length} events`
+    `${logPrefix} replace sync completed for ${targetDate}: ${hydratedEvents.length} events`
   );
 
   return result;
@@ -235,7 +221,7 @@ const purgeVesselTripEvents = async (
 };
 
 /**
- * Runs the merge sync for the current sailing day window.
+ * Runs replace-only schedule sync for the current sailing day window.
  *
  * @param ctx - Convex action context
  * @param daysToSyncOverride - Optional number of sailing days to process
@@ -258,7 +244,7 @@ const syncWindowedVesselTripEvents = async (
 
   for (let i = 0; i < daysToSync; i++) {
     const sailingDay = addDays(startDate, i);
-    const result = await syncVesselTripEventsForDate(ctx, sailingDay, "merge");
+    const result = await syncVesselTripEventsForDate(ctx, sailingDay);
 
     totalInserted += result.Inserted;
     totalDeleted += result.Deleted;

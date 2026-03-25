@@ -2,13 +2,14 @@
  * Exposes query helpers for reading the `vesselTripEvents` read model from
  * Convex.
  */
+import { internal } from "_generated/api";
 import { internalQuery, type QueryCtx, query } from "_generated/server";
 import { v } from "convex/values";
 import {
   normalizeScheduledDockSeams,
   resolveVesselTimelineActiveState,
   sortVesselTripEvents,
-} from "domain/vesselTripEvents";
+} from "domain/vesselTimeline/events";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { vesselTimelineActiveStateSnapshotSchema } from "./activeStateSchemas";
 import { vesselTripEventSchema } from "./schemas";
@@ -21,7 +22,10 @@ export const getVesselDayActiveState = query({
   returns: vesselTimelineActiveStateSnapshotSchema,
   handler: async (ctx, args) => {
     const [Events, vesselLocation] = await Promise.all([
-      getOrderedEventsForVesselDay(ctx, args),
+      ctx.runQuery(
+        internal.functions.vesselTimeline.queries.getMergedBoundaryEventsForVesselDay,
+        args
+      ),
       ctx.db
         .query("vesselLocations")
         .withIndex("by_vessel_abbrev", (q) =>

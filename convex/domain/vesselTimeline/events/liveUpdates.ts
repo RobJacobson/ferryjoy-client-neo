@@ -2,17 +2,27 @@
  * Applies live vessel-location data to the `vesselTripEvents` read model and
  * exposes shared event identity and sorting helpers.
  */
-import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type {
   ConvexVesselTripEvent,
   VesselTripEventType,
-} from "../../functions/vesselTripEvents/schemas";
-import { getSailingDay } from "../../shared/time";
+} from "../../../functions/vesselTripEvents/schemas";
+import { getSailingDay } from "../../../shared/time";
 
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
 const MOVING_SPEED_THRESHOLD = 0.2;
 const DOCKED_SPEED_THRESHOLD = 0.2;
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
+const PACIFIC_KEY_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Los_Angeles",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
 
 /**
  * Builds the stable key used to reconcile schedule reseeds and live updates
@@ -373,10 +383,15 @@ export const getArrivalEligibilityTime = (event: ConvexVesselTripEvent) => {
  * Formats a scheduled departure timestamp for use inside a stable event key.
  *
  * @param timestamp - Scheduled departure timestamp in epoch ms
- * @returns ISO timestamp with the `T` separator replaced for key safety
+ * @returns Pacific-local timestamp with an ISO-like separator for key safety
  */
-const formatEventTimestamp = (timestamp: number) =>
-  new Date(timestamp).toISOString().replace("T", "--");
+const formatEventTimestamp = (timestamp: number) => {
+  const parts = PACIFIC_KEY_TIMESTAMP_FORMATTER.formatToParts(
+    new Date(timestamp)
+  );
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}--${values.hour}:${values.minute}:${values.second}`;
+};
 
 /**
  * Converts a read-model event type into the compact key suffix.

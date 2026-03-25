@@ -8,7 +8,7 @@ import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,
-} from "../index";
+} from "../events";
 
 /**
  * Creates a UTC fixture timestamp for history-merge tests.

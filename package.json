@@ -31,6 +31,8 @@
     "sync:scheduled-trips:date": "bunx tsx scripts/sync-scheduled-trips-date.ts",
     "purge:vessel-trip-events": "bunx tsx scripts/purge-vessel-trip-events.ts",
     "sync:vessel-trip-events": "bunx tsx scripts/sync-vessel-trip-events.ts",
+    "sync:vessel-trip-events:today": "bunx tsx scripts/sync-vessel-trip-events.ts",
+    "sync:vessel-trip-events:date": "bunx tsx scripts/sync-vessel-trip-events.ts",
     "check:vessel-availability:days": "bunx tsx scripts/check-vessel-availability-params.ts",
     "check:vessel-availability:csv": "bunx tsx scripts/check-vessel-availability-csv.ts",
     "generate:gradient-background-noise": "bun scripts/generate-gradient-background-noise.ts",

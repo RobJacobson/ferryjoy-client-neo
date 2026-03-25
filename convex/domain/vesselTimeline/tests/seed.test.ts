@@ -12,11 +12,11 @@ import {
   getLocationSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
-} from "../liveUpdates";
+} from "../events/liveUpdates";
 import {
   buildSeedVesselTripEvents,
   buildSeedVesselTripEventsFromRawSegments,
-} from "../seed";
+} from "../events/seed";
 
 /**
  * Creates a UTC timestamp for the fixture sailing day using local service

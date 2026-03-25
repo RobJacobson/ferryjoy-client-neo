@@ -2,16 +2,16 @@
  * Builds schedule-derived vessel trip event rows for the `vesselTripEvents`
  * read model.
  */
-import { classifyDirectSegmentsGeneric } from "../../domain/scheduledTrips/directSegments";
-import { getOfficialCrossingTimeMinutes } from "../../domain/scheduledTrips/transform/officialCrossingTimes";
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import { classifyDirectSegmentsGeneric } from "../../scheduledTrips/directSegments";
+import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips/transform/officialCrossingTimes";
+import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import {
   getTerminalAbbreviation,
   getVesselAbbreviation,
-} from "../../functions/scheduledTrips/schemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
-import { generateTripKey } from "../../shared/keys";
+} from "../../../functions/scheduledTrips/schemas";
+import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
+import { generateTripKey } from "../../../shared/keys";
 import { buildEventKey, sortVesselTripEvents } from "./liveUpdates";
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
