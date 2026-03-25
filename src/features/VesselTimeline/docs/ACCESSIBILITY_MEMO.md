@@ -3,7 +3,7 @@
 The `VesselTimeline` feature is a strong candidate for a dual-representation
 accessibility strategy: keep the current visual timeline for sighted users, and
 derive a separate semantic reading model for screen readers from the same
-vessel/day event pipeline.
+vessel/day event flow.
 
 That recommendation follows directly from the current architecture in
 [ARCHITECTURE.md](./ARCHITECTURE.md). The feature is already event-based, not
@@ -19,7 +19,7 @@ The current implementation is visually expressive but likely difficult for
 screen reader users.
 
 - The primary renderer in
-  [TimelineContent.tsx](./components/TimelineContent.tsx) is layout-driven. It
+  [TimelineContent.tsx](./../components/TimelineContent.tsx) is layout-driven. It
   uses a scrollable canvas, fixed row heights, absolute overlays, a central
   track, terminal card backgrounds, and an active indicator. That is great for
   visual comprehension but does not naturally produce a meaningful reading
@@ -60,7 +60,7 @@ From [ARCHITECTURE.md](./ARCHITECTURE.md):
   events.
 
 This means accessibility can be implemented by deriving a spoken journey model
-from the row/event pipeline without changing the visual timeline math.
+from the row/event render-state flow without changing the visual timeline math.
 
 ## Recommendation
 
@@ -130,7 +130,7 @@ Suggested additions:
 - `buildRowAccessibilityLabel(row, maybeExpandedNames)`
 - `AccessibleVesselTimelineList`
 
-A likely structure in [TimelineContent.tsx](./components/TimelineContent.tsx):
+A likely structure in [TimelineContent.tsx](./../components/TimelineContent.tsx):
 
 - Keep existing visual renderer as `VisualTimeline`
 - Add `VesselTimelineAccessibilitySummary`
@@ -173,11 +173,11 @@ depending on the specific RN target and component.
 
 These elements are good candidates to mark as decorative:
 
-- timeline track in [TimelineContent.tsx](./components/TimelineContent.tsx)
+- timeline track in [TimelineContent.tsx](./../components/TimelineContent.tsx)
 - terminal card backgrounds in
-  [TimelineContent.tsx](./components/TimelineContent.tsx)
+  [TimelineContent.tsx](./../components/TimelineContent.tsx)
 - active indicator visual overlay in
-  [TimelineContent.tsx](./components/TimelineContent.tsx)
+  [TimelineContent.tsx](./../components/TimelineContent.tsx)
 - marker chrome in
   [TimelineRowMarker.tsx](../../components/timeline/timelineRow/TimelineRowMarker.tsx)
 - shadow/decorative label layers in
@@ -314,7 +314,7 @@ feature's event/row semantics, not from its pixel layout.
 
 The good news is that your current architecture already supports this cleanly.
 The feature has a backend-owned ordered event feed, a frontend semantic row
-pipeline, and a separate visual renderer. That makes `VesselTimeline` a strong
+render-state layer, and a separate visual renderer. That makes `VesselTimeline` a strong
 fit for a semantic list + visual timeline approach, which is likely the most
 robust, maintainable, and user-friendly accessibility solution for this
 component.

@@ -4,8 +4,7 @@ import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTripEvents/activeStateSchemas";
-import { getVesselTimelineRenderState } from "../getVesselTimelineRenderState";
-import { resolveActiveSegmentIndex } from "../resolveActiveSegmentIndex";
+import { getVesselTimelineRenderState, resolveActiveSegmentIndex } from ".";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));

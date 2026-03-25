@@ -16,7 +16,7 @@ import { clamp } from "@/shared/utils";
 import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRenderState,
-} from "../../types";
+} from "../types";
 import { buildActiveIndicator } from "./buildActiveIndicator";
 import { getLayoutTimelineRows } from "./getLayoutTimelineRows";
 import { resolveActiveSegmentIndex } from "./resolveActiveSegmentIndex";

@@ -23,14 +23,14 @@ consider.
 ## Relevant Code
 
 - [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
-- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
+- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
 - [TimelineRowContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowContent.tsx)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
 ## Current Behavior
 
 In [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts),
-when the pipeline sees:
+when the render-state layer sees:
 
 - a `dep-dock` event starting a sea row
 - with no immediately preceding `arv-dock` at the same terminal

@@ -61,7 +61,7 @@ Relevant code:
 
 - [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 - [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
-- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
+- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 
 Current high-level behavior:
@@ -202,8 +202,8 @@ Relevant code:
 
 - [activeState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTripEvents/activeState.ts)
 - [activeStateSchemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTripEvents/activeStateSchemas.ts)
-- [resolveActiveSegmentIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/resolveActiveSegmentIndex.ts)
-- [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/buildActiveIndicator.ts)
+- [resolveActiveSegmentIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/resolveActiveSegmentIndex.ts)
+- [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildActiveIndicator.ts)
 
 ### Context simplification
 
@@ -501,7 +501,7 @@ Frontend candidates:
 
 - [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimelineSnapshots/buildSnapshot.ts)
 - [types.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/types.ts)
-- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/pipeline/getLayoutTimelineRows.ts)
+- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
 - [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
 - possibly row marker/body styling if placeholders need a distinct treatment
 

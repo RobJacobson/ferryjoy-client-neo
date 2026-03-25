@@ -12,7 +12,7 @@ import type {
   VesselTimelineSegment,
 } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
-import { getDisplayTime, getLayoutTime } from "../shared/rowEventTime";
+import { getDisplayTime, getLayoutTime } from "./rowEventTime";
 
 /**
  * Builds the floating indicator descriptor for the active segment, or null.

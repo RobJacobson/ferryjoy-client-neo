@@ -132,10 +132,11 @@ export const getSailingDay = (utcDate: Date): string => {
 
   // If the time is before 3:00 AM Pacific, it's part of the previous day's sailing day
   if (components.hour < 3) {
-    // Parse the date string and subtract one day
+    // Parse the Pacific date and subtract one day from a UTC anchor so the
+    // result is independent of the machine's local timezone.
     const [year, month, day] = pacificDateStr.split("-").map(Number);
-    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
-    date.setDate(date.getDate() - 1);
+    const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
+    date.setUTCDate(date.getUTCDate() - 1);
 
     return formatter.format(date);
   }

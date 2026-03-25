@@ -10,10 +10,14 @@ import {
   createTimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "@/components/timeline";
-import { VesselTimelineDataContainer } from "./components/VesselTimelineDataContainer";
-import { VesselTimelineDataHost } from "./components/VesselTimelineDataHost";
+import { Button, Text } from "@/components/ui";
+import { ConvexVesselTimelineProvider } from "@/data/contexts";
+import { useVesselTimelineViewModel } from "./hooks";
+import { TimelineContent } from "./TimelineContent";
+import { getVesselTimelineDataHostKey } from "./utils";
+import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
 
-type VesselTimelineProps = {
+export type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
   now?: Date;
@@ -37,17 +41,71 @@ export const VesselTimeline = ({
 }: VesselTimelineProps) => {
   const [retryNonce, setRetryNonce] = useState(0);
   const resolvedTheme = createTimelineVisualTheme(theme);
+  const retry = () => {
+    setRetryNonce((current) => current + 1);
+  };
 
   return (
-    <VesselTimelineDataHost
+    <ConvexVesselTimelineProvider
+      key={getVesselTimelineDataHostKey(vesselAbbrev, sailingDay, retryNonce)}
       vesselAbbrev={vesselAbbrev}
       sailingDay={sailingDay}
-      retryNonce={retryNonce}
-      onRetry={() => {
-        setRetryNonce((current) => current + 1);
-      }}
+      onRetry={retry}
     >
-      <VesselTimelineDataContainer now={now} theme={resolvedTheme} />
-    </VesselTimelineDataHost>
+      <VesselTimelinePresentation now={now} theme={resolvedTheme} />
+    </ConvexVesselTimelineProvider>
   );
+};
+
+/**
+ * Renders the user-visible VesselTimeline states from the hook-based view
+ * model.
+ *
+ * @param props - Presentation props
+ * @param props.now - Optional wall-clock override for deterministic rendering
+ * @param props.theme - Resolved visual theme for timeline rendering
+ * @returns Loading, error, empty, or ready timeline UI
+ */
+const VesselTimelinePresentation = ({
+  now,
+  theme,
+}: {
+  now?: Date;
+  theme: ReturnType<typeof createTimelineVisualTheme>;
+}) => {
+  const { isLoading, error, emptyMessage, retry, renderState } =
+    useVesselTimelineViewModel({
+      now,
+      theme,
+    });
+
+  if (isLoading) {
+    return <VesselTimelineStatusView message="Loading vessel timeline..." />;
+  }
+
+  if (error) {
+    return (
+      <VesselTimelineStatusView
+        action={
+          <Button className="mt-4" onPress={retry} variant="outline">
+            <Text>Try again</Text>
+          </Button>
+        }
+        detail={error}
+        message="Unable to load vessel timeline"
+        tone="destructive"
+      />
+    );
+  }
+
+  if (emptyMessage) {
+    return (
+      <VesselTimelineStatusView
+        detail={emptyMessage}
+        message="No vessel timeline found"
+      />
+    );
+  }
+
+  return renderState ? <TimelineContent {...renderState} /> : null;
 };

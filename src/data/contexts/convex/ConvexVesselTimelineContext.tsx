@@ -34,7 +34,7 @@ type ConvexVesselTimelineContextType = {
   LiveState: VesselTimelineLiveState | null;
   ActiveState: VesselTimelineActiveState | null;
   IsLoading: boolean;
-  Error: string | null;
+  ErrorMessage: string | null;
   Retry: () => void;
 };
 
@@ -128,7 +128,7 @@ const ConvexVesselTimelineQueryProvider = ({
     LiveState: activeStateSnapshot?.Live ?? null,
     ActiveState: activeStateSnapshot?.ActiveState ?? null,
     IsLoading,
-    Error: null,
+    ErrorMessage: null,
     Retry: onRetry,
   };
 
@@ -152,7 +152,7 @@ export const ConvexVesselTimelineProvider = ({
     LiveState: null,
     ActiveState: null,
     IsLoading: false,
-    Error: "Live timeline data is temporarily unavailable.",
+    ErrorMessage: "Live timeline data is temporarily unavailable.",
     Retry: onRetry,
   };
 
@@ -162,7 +162,7 @@ export const ConvexVesselTimelineProvider = ({
         <ConvexVesselTimelineContext.Provider
           value={{
             ...errorValue,
-            Error: errorMessage,
+            ErrorMessage: errorMessage,
           }}
         >
           {children}

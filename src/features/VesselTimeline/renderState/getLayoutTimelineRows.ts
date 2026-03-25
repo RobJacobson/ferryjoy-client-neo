@@ -12,7 +12,7 @@ import type {
   TimelineRenderRow,
 } from "@/components/timeline";
 import type { VesselTimelineSegment } from "@/data/contexts";
-import type { VesselTimelineLayoutConfig } from "../../types";
+import type { VesselTimelineLayoutConfig } from "../types";
 
 /**
  * Lays out semantic rows into renderer rows, terminal cards, and content

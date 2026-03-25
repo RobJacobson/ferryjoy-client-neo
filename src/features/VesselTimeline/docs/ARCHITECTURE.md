@@ -115,8 +115,8 @@ Primary signals:
 - `VesselLocation.InService === false`
 - live vessel state no longer aligns with expected progression
 
-Current UI behavior (see `resolveActiveSegmentIndex.ts`,
-`buildActiveIndicator.ts`, and `TimelineContent.tsx`):
+Current UI behavior (see `renderState/resolveActiveSegmentIndex.ts`,
+`renderState/buildActiveIndicator.ts`, and `TimelineContent.tsx`):
 
 - Timeline and active indicator stay on screen when data loads.
 - When `InService === false`, the indicator stops speed-based rocking
@@ -133,7 +133,8 @@ three-row model. `VesselTimeline` instead needs:
 - a vessel-centric data source
 - a live indicator driven by current vessel location
 
-The feature therefore has its own backend contract and feature-local pipeline,
+The feature therefore has its own backend contract and feature-local
+render-state layer,
 while still sharing generic timeline presentation primitives with
 `VesselTripTimeline`.
 
@@ -324,7 +325,7 @@ type ConvexVesselTimelineValue = {
   LiveState: VesselTimelineLiveState | null;
   ActiveState: VesselTimelineActiveState | null;
   IsLoading: boolean;
-  Error: string | null;
+  ErrorMessage: string | null;
 };
 ```
 
@@ -344,9 +345,9 @@ client-side.
 
 ## Frontend Pipeline
 
-The frontend pipeline is event-based and intentionally small. The orchestration
-entry point is `getVesselTimelineRenderState` in
-`utils/pipeline/getVesselTimelineRenderState.ts`.
+The frontend render-state layer is event-based and intentionally small. The
+orchestration entry point is `getVesselTimelineRenderState` in
+`renderState/getVesselTimelineRenderState.ts`.
 
 ### Stage 1: Server-owned semantic segments
 
@@ -387,10 +388,35 @@ Still inside `getVesselTimelineRenderState`:
    subtitle, `animate` + `speedKnots`) from the matched segment plus live
    state.
 
-The UI layer (`components/TimelineContent.tsx`) only consumes
+The UI layer (`TimelineContent.tsx`) only consumes
 `VesselTimelineRenderState`: shared timeline components render rows, track,
 terminal glass backgrounds, and `TimelineIndicatorOverlay` directly from the
 precomputed row geometry in render state.
+
+## Feature Layout
+
+The feature is organized around a small number of meaningful seams:
+
+- `VesselTimeline.tsx`
+  - public feature entry point and provider boundary
+- `VesselTimelineScreen.tsx`
+  - full-screen wrapper that applies the selected design variant
+- `hooks/`
+  - screen-level orchestration hooks such as `useVesselTimelineViewModel`
+- `renderState/`
+  - pure transformations from semantic segments to renderer-ready timeline state
+- `designSystem/`
+  - authored visual variants and theme helpers
+- `utils/`
+  - feature-local helpers such as sailing-day refresh and provider remount keys
+- `docs/`
+  - architecture notes and investigation memos
+
+The feature intentionally does not keep separate `data/`, `state/`, or
+`components/` folders for tiny wrappers. Provider/query code remains in the
+shared app data layer, while small presentational pieces such as
+`TimelineContent.tsx` and `VesselTimelineStatusView.tsx` live at the feature
+root.
 
 Presentation note:
 

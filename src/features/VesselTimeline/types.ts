@@ -1,9 +1,9 @@
 /**
  * Shared types for the VesselTimeline feature.
  *
- * Describes the day-level pipeline from backend semantic timeline segments to
- * `VesselTimelineRenderState`. See `ARCHITECTURE.md` for stage boundaries and
- * data ownership.
+ * Describes the day-level render-state flow from backend semantic timeline
+ * segments to `VesselTimelineRenderState`. See `docs/ARCHITECTURE.md` for
+ * stage boundaries and data ownership.
  */
 
 import type {

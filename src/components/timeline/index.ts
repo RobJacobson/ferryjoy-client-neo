@@ -2,7 +2,7 @@
  * Public re-exports for shared vertical timeline presentation primitives.
  *
  * Features build semantic rows and indicators upstream (see
- * `VesselTimeline/ARCHITECTURE.md`); this package renders the shared visual
+ * `VesselTimeline/docs/ARCHITECTURE.md`); this package renders the shared visual
  * contract only.
  */
 

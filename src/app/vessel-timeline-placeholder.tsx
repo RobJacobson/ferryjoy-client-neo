@@ -22,11 +22,12 @@ import { useConvexVesselLocations } from "@/data/contexts";
 import { GradientBackground } from "@/features/GradientBackground/GradientBackground";
 import {
   DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
+  getCurrentSailingDay,
+  getRefreshedSailingDay,
   getVesselTimelineDesignVariant,
   VESSEL_TIMELINE_DESIGN_VARIANTS,
   VesselTimeline,
 } from "@/features/VesselTimeline";
-import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 type VesselOption = {
   value: string;
@@ -38,13 +39,6 @@ type DesignOption = {
   value: string;
   label: string;
 };
-
-/**
- * Returns the current WSF sailing day using the 3:00 AM Pacific rollover.
- *
- * @returns Current sailing day in YYYY-MM-DD format
- */
-const getCurrentSailingDay = () => getSailingDay(new Date());
 
 /**
  * Placeholder route for exercising the VesselTimeline feature during
@@ -94,19 +88,13 @@ export default function VesselTimelinePlaceholderScreen() {
   }, [selectedOption, vesselLocations, vesselOptions]);
 
   useFocusEffect(() => {
-    setSailingDay((current) => {
-      const next = getCurrentSailingDay();
-      return current === next ? current : next;
-    });
+    setSailingDay((current) => getRefreshedSailingDay(current));
   });
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        setSailingDay((current) => {
-          const next = getCurrentSailingDay();
-          return current === next ? current : next;
-        });
+        setSailingDay((current) => getRefreshedSailingDay(current));
       }
     });
 
