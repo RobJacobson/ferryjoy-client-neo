@@ -7,111 +7,34 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
+  applyLiveLocationToEvents,
+  getLocationSailingDay,
+  normalizeScheduledDockSeams,
+  sortVesselTripEvents,
+} from "domain/vesselTimeline/events";
+import {
   buildActualBoundaryEvents,
   buildPredictedBoundaryEventsFromTrips,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
-import { buildEventKey } from "domain/vesselTimeline/events";
-import { getSailingDay } from "shared/time";
-import { type ConvexVesselTripEvent, vesselTripEventSchema } from "../vesselTripEvents/schemas";
-import { type ConvexVesselTrip, vesselTripSchema } from "../vesselTrips/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import { vesselTimelineEventRecordSchema } from "./eventRecordSchemas";
+import { vesselTripSchema } from "../vesselTrips/schemas";
 
-/**
- * Replaces the normalized scheduled boundary rows for one sailing day from the
- * current legacy event feed.
- *
- * Schedule/backfill flows own `eventsScheduled`. Live updates must not call
- * this mutation.
- */
-export const syncScheduledEventsForSailingDay = internalMutation({
+export const replaceBoundaryEventsForSailingDay = internalMutation({
   args: {
     SailingDay: v.string(),
-    Events: v.array(vesselTripEventSchema),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const scheduledRows = buildScheduledBoundaryEvents(args.Events, Date.now());
-
-    await replaceScheduledRowsForSailingDay(ctx, args.SailingDay, scheduledRows);
-    return null;
-  },
-});
-
-/**
- * Replaces normalized actual-time overlays for one sailing day from the
- * current legacy event feed.
- */
-export const syncActualEventsForSailingDay = internalMutation({
-  args: {
-    SailingDay: v.string(),
-    Events: v.array(vesselTripEventSchema),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const actualRows = buildActualBoundaryEvents(args.Events, Date.now());
-
-    await replaceActualRowsForSailingDay(ctx, args.SailingDay, actualRows);
-    return null;
-  },
-});
-
-/**
- * Syncs only actual-time overlays for one vessel/day from the current legacy
- * event mirror.
- */
-export const syncActualEventsForVesselDay = internalMutation({
-  args: {
-    VesselAbbrev: v.string(),
-    SailingDay: v.string(),
-    Events: v.array(vesselTripEventSchema),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const actualRows = buildActualBoundaryEvents(args.Events, Date.now()).filter(
-      (row) =>
-        row.VesselAbbrev === args.VesselAbbrev && row.SailingDay === args.SailingDay
-    );
-
-    await replaceActualRowsForVesselDay(
-      ctx,
-      args.VesselAbbrev,
-      args.SailingDay,
-      actualRows
-    );
-
-    return null;
-  },
-});
-
-/**
- * Backfills normalized scheduled and actual boundary rows directly from the
- * current legacy vesselTripEvents mirror for one sailing day.
- */
-export const backfillNormalizedEventsFromLegacyForSailingDay = internalMutation({
-  args: {
-    SailingDay: v.string(),
+    Events: v.array(vesselTimelineEventRecordSchema),
   },
   returns: v.object({
-    eventCount: v.number(),
+    ScheduledCount: v.number(),
+    ActualCount: v.number(),
   }),
   handler: async (ctx, args) => {
-    const docs = await ctx.db
-      .query("vesselTripEvents")
-      .withIndex("by_sailing_day", (q) => q.eq("SailingDay", args.SailingDay))
-      .collect();
-    const events = docs.map((doc) => ({
-      Key: doc.Key,
-      VesselAbbrev: doc.VesselAbbrev,
-      SailingDay: doc.SailingDay,
-      ScheduledDeparture: doc.ScheduledDeparture,
-      TerminalAbbrev: doc.TerminalAbbrev,
-      EventType: doc.EventType,
-      ScheduledTime: doc.ScheduledTime,
-      PredictedTime: doc.PredictedTime,
-      ActualTime: doc.ActualTime,
-    }));
-
     const updatedAt = Date.now();
+    const events = normalizeScheduledDockSeams(args.Events).sort(sortVesselTripEvents);
+
     await replaceScheduledRowsForSailingDay(
       ctx,
       args.SailingDay,
@@ -124,8 +47,23 @@ export const backfillNormalizedEventsFromLegacyForSailingDay = internalMutation(
     );
 
     return {
-      eventCount: events.length,
+      ScheduledCount: events.length,
+      ActualCount: events.filter((event) => event.ActualTime !== undefined).length,
     };
+  },
+});
+
+export const applyLiveActualUpdates = internalMutation({
+  args: {
+    Locations: v.array(vesselLocationValidationSchema),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    for (const location of args.Locations) {
+      await applyLiveActualUpdateForLocation(ctx, location);
+    }
+
+    return null;
   },
 });
 
@@ -147,8 +85,8 @@ export const syncPredictedEventsForTrips = internalMutation({
 
     const targetKeys = new Set<string>();
     for (const trip of args.Trips) {
-      for (const key of getPredictionTargetKeys(trip)) {
-        targetKeys.add(key);
+      for (const row of buildPredictedBoundaryEventsFromTrips([trip])) {
+        targetKeys.add(row.Key);
       }
     }
 
@@ -181,6 +119,64 @@ export const syncPredictedEventsForTrips = internalMutation({
     return null;
   },
 });
+
+const applyLiveActualUpdateForLocation = async (
+  ctx: MutationCtx,
+  location: ConvexVesselLocation
+) => {
+  const SailingDay = getLocationSailingDay(location);
+  const [scheduledDocs, actualDocs] = await Promise.all([
+    ctx.db
+      .query("eventsScheduled")
+      .withIndex("by_vessel_and_sailing_day", (q) =>
+        q.eq("VesselAbbrev", location.VesselAbbrev).eq("SailingDay", SailingDay)
+      )
+      .collect(),
+    ctx.db
+      .query("eventsActual")
+      .withIndex("by_vessel_and_sailing_day", (q) =>
+        q.eq("VesselAbbrev", location.VesselAbbrev).eq("SailingDay", SailingDay)
+      )
+      .collect(),
+  ]);
+
+  if (scheduledDocs.length === 0) {
+    return;
+  }
+
+  const actualByKey = new Map<
+    string,
+    Doc<"eventsActual">
+  >(actualDocs.map((doc) => [doc.Key, doc]));
+  const mergedEvents = normalizeScheduledDockSeams(
+    scheduledDocs
+      .map((doc) => ({
+        Key: doc.Key,
+        VesselAbbrev: doc.VesselAbbrev,
+        SailingDay: doc.SailingDay,
+        ScheduledDeparture: doc.ScheduledDeparture,
+        TerminalAbbrev: doc.TerminalAbbrev,
+        EventType: doc.EventType,
+        ScheduledTime: doc.ScheduledTime,
+        PredictedTime: undefined,
+        ActualTime: actualByKey.get(doc.Key)?.ActualTime,
+      }))
+      .sort(sortVesselTripEvents)
+  );
+
+  const updatedEvents = applyLiveLocationToEvents(mergedEvents, location);
+  const updatedActualRows = buildActualBoundaryEvents(updatedEvents, Date.now()).filter(
+    (row) =>
+      row.VesselAbbrev === location.VesselAbbrev && row.SailingDay === SailingDay
+  );
+
+  await replaceActualRowsForVesselDay(
+    ctx,
+    location.VesselAbbrev,
+    SailingDay,
+    updatedActualRows
+  );
+};
 
 const replaceScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -323,47 +319,3 @@ const predictedRowsEqual = (
   left.PredictedTime === right.PredictedTime &&
   left.PredictionType === right.PredictionType &&
   left.PredictionSource === right.PredictionSource;
-
-const getPredictionTargetKeys = (trip: ConvexVesselTrip) => {
-  const keys: string[] = [];
-
-  if (trip.ScheduledDeparture !== undefined && trip.DepartingTerminalAbbrev) {
-    const SailingDay = getSailingDay(new Date(trip.ScheduledDeparture));
-    keys.push(
-      buildEventKey(
-        SailingDay,
-        trip.VesselAbbrev,
-        trip.ScheduledDeparture,
-        trip.DepartingTerminalAbbrev,
-        "dep-dock"
-      )
-    );
-    keys.push(
-      buildEventKey(
-        SailingDay,
-        trip.VesselAbbrev,
-        trip.ScheduledDeparture,
-        trip.DepartingTerminalAbbrev,
-        "arv-dock"
-      )
-    );
-  }
-
-  if (
-    trip.NextScheduledDeparture !== undefined &&
-    trip.ArrivingTerminalAbbrev
-  ) {
-    const SailingDay = getSailingDay(new Date(trip.NextScheduledDeparture));
-    keys.push(
-      buildEventKey(
-        SailingDay,
-        trip.VesselAbbrev,
-        trip.NextScheduledDeparture,
-        trip.ArrivingTerminalAbbrev,
-        "dep-dock"
-      )
-    );
-  }
-
-  return keys;
-};

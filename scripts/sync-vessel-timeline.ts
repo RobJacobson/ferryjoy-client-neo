@@ -1,7 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
-async function syncVesselTripEvents(targetDate?: string) {
+async function syncVesselTimeline(targetDate?: string) {
   if (targetDate) {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(targetDate)) {
@@ -17,8 +17,8 @@ async function syncVesselTripEvents(targetDate?: string) {
 
   console.log(
     targetDate
-      ? `Replacing vesselTripEvents for ${targetDate}...`
-      : "Replacing vesselTripEvents for the current sailing day..."
+      ? `Replacing VesselTimeline boundary events for ${targetDate}...`
+      : "Replacing VesselTimeline boundary events for the current sailing day..."
   );
   console.log(`Using Convex deployment: ${convexUrl}`);
   console.log(
@@ -29,18 +29,17 @@ async function syncVesselTripEvents(targetDate?: string) {
     const convex = new ConvexHttpClient(convexUrl);
     const result = targetDate
       ? await convex.action(
-          api.functions.vesselTripEvents.actions
-            .syncVesselTripEventsForDateManual,
+          api.functions.vesselTimeline.index.syncVesselTimelineForDateManual,
           { targetDate }
         )
       : await convex.action(
-          api.functions.vesselTripEvents.actions.syncVesselTripEventsManual
+          api.functions.vesselTimeline.index.syncVesselTimelineManual
         );
 
     console.log("Replace results:", result);
-    console.log("vesselTripEvents replace completed successfully.");
+    console.log("VesselTimeline sync completed successfully.");
   } catch (error) {
-    console.error("vesselTripEvents replace failed:", error);
+    console.error("VesselTimeline sync failed:", error);
     process.exit(1);
   }
 }
@@ -49,16 +48,15 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length > 1) {
-    console.error("Usage: npm run sync:vessel-trip-events [date]");
+    console.error("Usage: npm run sync:vessel-timeline [date]");
     console.error("");
-    console.error("Arguments:");
     console.error(
-      "  date    - Optional target date in YYYY-MM-DD format (defaults to current sailing day)"
+      "Arguments: date - Optional target date in YYYY-MM-DD format (defaults to current sailing day)"
     );
     process.exit(1);
   }
 
-  syncVesselTripEvents(args[0]);
+  syncVesselTimeline(args[0]);
 }
 
 if (require.main === module) {

@@ -1,6 +1,6 @@
 /**
  * Resolves the compact active-state snapshot that accompanies the stable
- * `vesselTripEvents` day feed.
+ * merged boundary-event day feed.
  *
  * This module only derives row matches and indicator copy. It does not mutate
  * read-model rows or recompute the heavier live-update reconciliation logic.
@@ -10,15 +10,15 @@ import type {
   ConvexVesselTimelineActiveState,
   ConvexVesselTimelineLiveState,
   ConvexVesselTimelineRowMatch,
-} from "../../../functions/vesselTripEvents/activeStateSchemas";
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+} from "../../../functions/vesselTimeline/activeStateSchemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 
 type CandidateRow = {
   kind: "dock" | "sea";
-  startEvent: ConvexVesselTripEvent;
-  endEvent: ConvexVesselTripEvent;
+  startEvent: ConvexVesselTimelineEventRecord;
+  endEvent: ConvexVesselTimelineEventRecord;
 };
 
 /**
@@ -38,7 +38,7 @@ export const resolveVesselTimelineActiveState = ({
   location,
   observedAt = location?.TimeStamp ?? Date.now(),
 }: {
-  events: ConvexVesselTripEvent[];
+  events: ConvexVesselTimelineEventRecord[];
   location?: ConvexVesselLocation;
   observedAt?: number;
 }): {
@@ -124,7 +124,7 @@ export const resolveVesselTimelineActiveState = ({
  * @returns Candidate rows eligible for active-state matching
  */
 const buildCandidateRows = (
-  events: ConvexVesselTripEvent[]
+  events: ConvexVesselTimelineEventRecord[]
 ): CandidateRow[] => {
   const rows: CandidateRow[] = [];
 
@@ -413,7 +413,7 @@ const resolveEdgeFallbackState = (
  * @returns Terminal-tail active state, or `null` when not eligible
  */
 const resolveTerminalTailState = (
-  events: ConvexVesselTripEvent[],
+  events: ConvexVesselTimelineEventRecord[],
   observedAt: number
 ): ConvexVesselTimelineActiveState | null => {
   const lastEvent = events[events.length - 1];
@@ -522,5 +522,5 @@ const shouldAnimateSeaIndicator = (location: ConvexVesselLocation) =>
  * @param event - Candidate boundary event
  * @returns Actual time, else prediction, else scheduled time
  */
-const getDisplayTime = (event: ConvexVesselTripEvent) =>
+const getDisplayTime = (event: ConvexVesselTimelineEventRecord) =>
   event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;

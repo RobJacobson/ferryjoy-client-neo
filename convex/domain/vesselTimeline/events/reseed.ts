@@ -2,12 +2,12 @@
  * Merge logic for reseeding schedule-derived vessel trip events without
  * discarding live historical state.
  */
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import { sortVesselTripEvents } from "./liveUpdates";
 
 type MergeSeededVesselTripEventsArgs = {
-  existingEvents: ConvexVesselTripEvent[];
-  seededEvents: ConvexVesselTripEvent[];
+  existingEvents: ConvexVesselTimelineEventRecord[];
+  seededEvents: ConvexVesselTimelineEventRecord[];
   nowTimestamp: number;
 };
 
@@ -23,11 +23,11 @@ export const mergeSeededVesselTripEvents = ({
   existingEvents,
   seededEvents,
   nowTimestamp,
-}: MergeSeededVesselTripEventsArgs): ConvexVesselTripEvent[] => {
+}: MergeSeededVesselTripEventsArgs): ConvexVesselTimelineEventRecord[] => {
   const existingById = new Map(
     existingEvents.map((event) => [event.Key, event])
   );
-  const mergedEvents: ConvexVesselTripEvent[] = [];
+  const mergedEvents: ConvexVesselTimelineEventRecord[] = [];
 
   for (const seededEvent of seededEvents) {
     const existingEvent = existingById.get(seededEvent.Key);
@@ -78,7 +78,7 @@ export const mergeSeededVesselTripEvents = ({
  * @returns True when the event should no longer be replaced by schedule data
  */
 const isHistoryOwnedEvent = (
-  event: ConvexVesselTripEvent,
+  event: ConvexVesselTimelineEventRecord,
   nowTimestamp: number
 ) => {
   if (event.ActualTime !== undefined) {

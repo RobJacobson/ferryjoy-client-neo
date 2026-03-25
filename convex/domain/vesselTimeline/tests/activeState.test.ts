@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripEvent } from "functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "functions/vesselTimeline/eventRecordSchemas";
 import { resolveVesselTimelineActiveState } from "../events/activeState";
 
 const at = (hours: number, minutes: number) =>
@@ -169,7 +169,7 @@ describe("resolveVesselTimelineActiveState", () => {
   });
 });
 
-const makeRoundTripEvents = (): ConvexVesselTripEvent[] => [
+const makeRoundTripEvents = (): ConvexVesselTimelineEventRecord[] => [
   makeEvent({
     Key: "dep-1",
     EventType: "dep-dock",
@@ -201,8 +201,8 @@ const makeRoundTripEvents = (): ConvexVesselTripEvent[] => [
 ];
 
 const makeEvent = (
-  overrides: Partial<ConvexVesselTripEvent>
-): ConvexVesselTripEvent => ({
+  overrides: Partial<ConvexVesselTimelineEventRecord>
+): ConvexVesselTimelineEventRecord => ({
   Key: "event",
   VesselAbbrev: "TOK",
   SailingDay: "2026-03-24",

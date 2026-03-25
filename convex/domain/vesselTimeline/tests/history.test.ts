@@ -1,9 +1,9 @@
 /**
- * Covers history-backed enrichment for the vessel trip event read model.
+ * Covers history-backed enrichment for schedule-seeded boundary events.
  */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import {
   buildSeedVesselTripEventsFromRawSegments,
@@ -261,8 +261,8 @@ const makeHistory = (overrides: Partial<VesselHistory>): VesselHistory =>
   }) as VesselHistory;
 
 const makeEvent = (
-  overrides: Partial<ConvexVesselTripEvent>
-): ConvexVesselTripEvent => ({
+  overrides: Partial<ConvexVesselTimelineEventRecord>
+): ConvexVesselTimelineEventRecord => ({
   Key: "event",
   VesselAbbrev: "CAT",
   SailingDay: "2026-03-18",

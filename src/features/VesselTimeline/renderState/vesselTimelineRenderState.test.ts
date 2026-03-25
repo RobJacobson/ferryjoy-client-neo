@@ -3,7 +3,7 @@ import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/sche
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
-} from "convex/functions/vesselTripEvents/activeStateSchemas";
+} from "convex/functions/vesselTimeline/activeStateSchemas";
 import { getVesselTimelineRenderState, resolveActiveSegmentIndex } from ".";
 
 const at = (hours: number, minutes: number) =>

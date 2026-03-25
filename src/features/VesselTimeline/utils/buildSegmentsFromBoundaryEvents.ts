@@ -6,7 +6,7 @@ import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import type {
   MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
-  VesselTimelineSnapshotEvent,
+  VesselTimelineSegmentEvent,
 } from "convex/functions/vesselTimeline/schemas";
 
 /**
@@ -84,7 +84,7 @@ export const buildSegmentsFromBoundaryEvents = (
  */
 const toSegmentEvent = (
   event: MergedTimelineBoundaryEvent
-): VesselTimelineSnapshotEvent => ({
+): VesselTimelineSegmentEvent => ({
   Key: event.Key,
   ScheduledDeparture: event.ScheduledDeparture,
   TerminalAbbrev: event.TerminalAbbrev,

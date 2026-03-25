@@ -7,5 +7,4 @@
 export * as predictions from "functions/predictions";
 export * as vesselPings from "functions/vesselPings";
 export * as vesselTimeline from "functions/vesselTimeline";
-export * as vesselTripEvents from "functions/vesselTripEvents";
 export * as vesselTrips from "functions/vesselTrips";

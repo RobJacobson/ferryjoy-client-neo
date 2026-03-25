@@ -1,6 +1,5 @@
 /**
- * Builds schedule-derived vessel trip event rows for the `vesselTripEvents`
- * read model.
+ * Builds schedule-derived boundary-event records for VesselTimeline.
  */
 import { classifyDirectSegmentsGeneric } from "../../scheduledTrips/directSegments";
 import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips/transform/officialCrossingTimes";
@@ -9,7 +8,7 @@ import {
   getTerminalAbbreviation,
   getVesselAbbreviation,
 } from "../../../functions/scheduledTrips/schemas";
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { generateTripKey } from "../../../shared/keys";
 import { buildEventKey, sortVesselTripEvents } from "./liveUpdates";
@@ -25,7 +24,7 @@ const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
  */
 export const buildSeedVesselTripEvents = (
   trips: ConvexScheduledTrip[]
-): ConvexVesselTripEvent[] =>
+): ConvexVesselTimelineEventRecord[] =>
   trips
     .filter((trip) => trip.TripType === "direct")
     .flatMap((trip) =>
@@ -50,7 +49,7 @@ export const buildSeedVesselTripEvents = (
  */
 export const buildSeedVesselTripEventsFromRawSegments = (
   segments: RawWsfScheduleSegment[]
-): ConvexVesselTripEvent[] =>
+): ConvexVesselTimelineEventRecord[] =>
   getDirectRawSeedSegments(segments)
     .flatMap((segment) =>
       buildSeedEventsForSegment({
@@ -84,7 +83,7 @@ type SeedSegment = {
  */
 const buildSeedEventsForSegment = (
   segment: SeedSegment
-): ConvexVesselTripEvent[] => [
+): ConvexVesselTimelineEventRecord[] => [
   {
     Key: buildEventKey(
       segment.SailingDay,

@@ -9,7 +9,7 @@ import type {
 } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { PredictionType } from "../../functions/predictions/schemas";
-import type { ConvexVesselTripEvent } from "../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/eventRecordSchemas";
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import { getSailingDay } from "../../shared/time";
 import { buildEventKey } from "./events/liveUpdates";
@@ -22,7 +22,7 @@ import { buildEventKey } from "./events/liveUpdates";
  * @returns Scheduled boundary rows keyed by the stable event key
  */
 export const buildScheduledBoundaryEvents = (
-  events: ConvexVesselTripEvent[],
+  events: ConvexVesselTimelineEventRecord[],
   updatedAt: number
 ): ConvexScheduledBoundaryEvent[] => {
   const eventByKey = new Map(events.map((event) => [event.Key, event]));
@@ -51,7 +51,7 @@ export const buildScheduledBoundaryEvents = (
  * @returns Actual boundary rows for events that have an actual time
  */
 export const buildActualBoundaryEvents = (
-  events: ConvexVesselTripEvent[],
+  events: ConvexVesselTimelineEventRecord[],
   updatedAt: number
 ): ConvexActualBoundaryEvent[] =>
   events
@@ -100,8 +100,8 @@ export const buildPredictedBoundaryEventsFromTrips = (
 };
 
 const getNextTerminalAbbrev = (
-  event: ConvexVesselTripEvent,
-  eventByKey: Map<string, ConvexVesselTripEvent>
+  event: ConvexVesselTimelineEventRecord,
+  eventByKey: Map<string, ConvexVesselTimelineEventRecord>
 ) => {
   const arrivalKey = buildEventKey(
     event.SailingDay,

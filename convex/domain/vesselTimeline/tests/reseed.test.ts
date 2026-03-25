@@ -2,7 +2,7 @@
  * Tests for merging schedule reseeds into the vessel trip event read model.
  */
 import { describe, expect, it } from "bun:test";
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import { mergeSeededVesselTripEvents } from "../events/reseed";
 
 const at = (hours: number, minutes: number) =>
@@ -198,8 +198,8 @@ describe("mergeSeededVesselTripEvents", () => {
  * @returns A valid vessel trip event fixture for reseed tests
  */
 const makeEvent = (
-  overrides: Partial<ConvexVesselTripEvent>
-): ConvexVesselTripEvent => ({
+  overrides: Partial<ConvexVesselTimelineEventRecord>
+): ConvexVesselTimelineEventRecord => ({
   Key: "2026-03-13--TOK--0--P52--dep",
   VesselAbbrev: "TOK",
   SailingDay: "2026-03-13",

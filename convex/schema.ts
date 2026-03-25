@@ -17,8 +17,6 @@ import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
 } from "functions/vesselPings/schemas";
-import { vesselTimelineSnapshotSchema } from "functions/vesselTimeline/schemas";
-import { vesselTripEventSchema } from "functions/vesselTripEvents/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
@@ -98,22 +96,6 @@ export default defineSchema({
     .index("by_key_and_prediction_type", ["Key", "PredictionType"])
     .index("by_sailing_day", ["SailingDay"])
     .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
-
-  vesselTripEvents: defineTable(vesselTripEventSchema)
-    .index("by_key", ["Key"])
-    .index("by_sailing_day", ["SailingDay"])
-    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
-    .index("by_vessel_sailing_day_terminal_event_type_departure", [
-      "VesselAbbrev",
-      "SailingDay",
-      "TerminalAbbrev",
-      "EventType",
-      "ScheduledDeparture",
-    ]),
-
-  vesselTimelineSnapshots: defineTable(vesselTimelineSnapshotSchema)
-    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
-    .index("by_sailing_day", ["SailingDay"]),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)

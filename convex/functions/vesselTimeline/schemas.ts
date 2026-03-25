@@ -4,13 +4,21 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { eventsActualSchema } from "../eventsActual/schemas";
-import { eventsPredictedSchema } from "../eventsPredicted/schemas";
-import { boundaryEventTypeSchema, eventsScheduledSchema } from "../eventsScheduled/schemas";
 import {
   optionalDateToEpochMs,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
+import { eventsActualSchema } from "../eventsActual/schemas";
+import { eventsScheduledSchema, boundaryEventTypeSchema } from "../eventsScheduled/schemas";
+
+export const timelinePredictedBoundaryEventSchema = v.object({
+  Key: v.string(),
+  VesselAbbrev: v.string(),
+  SailingDay: v.string(),
+  ScheduledDeparture: v.number(),
+  TerminalAbbrev: v.string(),
+  PredictedTime: v.number(),
+});
 
 export const mergedTimelineBoundaryEventSchema = v.object({
   Key: v.string(),
@@ -24,11 +32,11 @@ export const mergedTimelineBoundaryEventSchema = v.object({
   ActualTime: v.optional(v.number()),
 });
 
-export const vesselTimelineSnapshotEventSchema = v.object({
+export const vesselTimelineSegmentEventSchema = v.object({
   Key: v.string(),
   ScheduledDeparture: v.optional(v.number()),
   TerminalAbbrev: v.optional(v.string()),
-  EventType: v.optional(v.union(v.literal("dep-dock"), v.literal("arv-dock"))),
+  EventType: v.optional(boundaryEventTypeSchema),
   TerminalDisplayName: v.optional(v.string()),
   IsArrivalPlaceholder: v.optional(v.boolean()),
   ScheduledTime: v.optional(v.number()),
@@ -47,33 +55,33 @@ export const vesselTimelineSegmentSchema = v.object({
   kind: v.union(v.literal("dock"), v.literal("sea")),
   isTerminal: v.optional(v.boolean()),
   placeholderReason: v.optional(vesselTimelinePlaceholderReasonSchema),
-  startEvent: vesselTimelineSnapshotEventSchema,
-  endEvent: vesselTimelineSnapshotEventSchema,
+  startEvent: vesselTimelineSegmentEventSchema,
+  endEvent: vesselTimelineSegmentEventSchema,
   durationMinutes: v.number(),
 });
 
-export const vesselTimelineSnapshotSchema = v.object({
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  SchemaVersion: v.number(),
-  GeneratedAt: v.number(),
-  Segments: v.array(vesselTimelineSegmentSchema),
-});
-
-export type ConvexVesselTimelineSnapshotEvent = Infer<
-  typeof vesselTimelineSnapshotEventSchema
->;
-export type ConvexVesselTimelineSegment = Infer<
-  typeof vesselTimelineSegmentSchema
->;
-export type ConvexVesselTimelineSnapshot = Infer<
-  typeof vesselTimelineSnapshotSchema
+export type ConvexTimelinePredictedBoundaryEvent = Infer<
+  typeof timelinePredictedBoundaryEventSchema
 >;
 export type ConvexMergedTimelineBoundaryEvent = Infer<
   typeof mergedTimelineBoundaryEventSchema
 >;
+export type ConvexVesselTimelineSegmentEvent = Infer<
+  typeof vesselTimelineSegmentEventSchema
+>;
+export type ConvexVesselTimelineSegment = Infer<
+  typeof vesselTimelineSegmentSchema
+>;
 
-export const toConvexVesselTimelineSnapshotEvent = (event: {
+export const toDomainTimelinePredictedBoundaryEvent = (
+  event: ConvexTimelinePredictedBoundaryEvent
+) => ({
+  ...event,
+  ScheduledDeparture: new Date(event.ScheduledDeparture),
+  PredictedTime: new Date(event.PredictedTime),
+});
+
+export const toConvexVesselTimelineSegmentEvent = (event: {
   Key: string;
   ScheduledDeparture?: Date;
   TerminalAbbrev?: string;
@@ -83,7 +91,7 @@ export const toConvexVesselTimelineSnapshotEvent = (event: {
   ScheduledTime?: Date;
   PredictedTime?: Date;
   ActualTime?: Date;
-}): ConvexVesselTimelineSnapshotEvent => ({
+}): ConvexVesselTimelineSegmentEvent => ({
   ...event,
   ScheduledDeparture: optionalDateToEpochMs(event.ScheduledDeparture),
   ScheduledTime: optionalDateToEpochMs(event.ScheduledTime),
@@ -91,8 +99,8 @@ export const toConvexVesselTimelineSnapshotEvent = (event: {
   ActualTime: optionalDateToEpochMs(event.ActualTime),
 });
 
-export const toDomainVesselTimelineSnapshotEvent = (
-  event: ConvexVesselTimelineSnapshotEvent
+export const toDomainVesselTimelineSegmentEvent = (
+  event: ConvexVesselTimelineSegmentEvent
 ) => ({
   ...event,
   ScheduledDeparture: optionalEpochMsToDate(event.ScheduledDeparture),
@@ -105,16 +113,8 @@ export const toDomainVesselTimelineSegment = (
   segment: ConvexVesselTimelineSegment
 ) => ({
   ...segment,
-  startEvent: toDomainVesselTimelineSnapshotEvent(segment.startEvent),
-  endEvent: toDomainVesselTimelineSnapshotEvent(segment.endEvent),
-});
-
-export const toDomainVesselTimelineSnapshot = (
-  snapshot: ConvexVesselTimelineSnapshot
-) => ({
-  ...snapshot,
-  GeneratedAt: new Date(snapshot.GeneratedAt),
-  Segments: snapshot.Segments.map(toDomainVesselTimelineSegment),
+  startEvent: toDomainVesselTimelineSegmentEvent(segment.startEvent),
+  endEvent: toDomainVesselTimelineSegmentEvent(segment.endEvent),
 });
 
 export const toDomainMergedTimelineBoundaryEvent = (
@@ -127,17 +127,17 @@ export const toDomainMergedTimelineBoundaryEvent = (
   ActualTime: optionalEpochMsToDate(event.ActualTime),
 });
 
-export type VesselTimelineSnapshotEvent = ReturnType<
-  typeof toDomainVesselTimelineSnapshotEvent
+export type TimelinePredictedBoundaryEvent = ReturnType<
+  typeof toDomainTimelinePredictedBoundaryEvent
+>;
+export type VesselTimelineSegmentEvent = ReturnType<
+  typeof toDomainVesselTimelineSegmentEvent
 >;
 export type VesselTimelineSegment = ReturnType<
   typeof toDomainVesselTimelineSegment
->;
-export type VesselTimelineSnapshot = ReturnType<
-  typeof toDomainVesselTimelineSnapshot
 >;
 export type MergedTimelineBoundaryEvent = ReturnType<
   typeof toDomainMergedTimelineBoundaryEvent
 >;
 
-export { eventsScheduledSchema, eventsActualSchema, eventsPredictedSchema };
+export { eventsScheduledSchema, eventsActualSchema };

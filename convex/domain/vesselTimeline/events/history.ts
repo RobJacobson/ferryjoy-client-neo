@@ -1,10 +1,10 @@
 /**
- * History-backed enrichment for schedule-seeded vessel trip events.
+ * History-backed enrichment for schedule-seeded boundary events.
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { config } from "../../ml/shared/config";
 import { getVesselAbbreviation } from "../../../functions/scheduledTrips/schemas";
-import type { ConvexVesselTripEvent } from "../../../functions/vesselTripEvents/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { generateTripKey } from "../../../shared/keys";
 import { getSailingDay } from "../../../shared/time";
@@ -16,8 +16,8 @@ const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 
 type MergeSeededEventsWithHistoryArgs = {
   sailingDay: string;
-  seededEvents: ConvexVesselTripEvent[];
-  existingEvents: ConvexVesselTripEvent[];
+  seededEvents: ConvexVesselTimelineEventRecord[];
+  existingEvents: ConvexVesselTimelineEventRecord[];
   scheduleSegments: RawWsfScheduleSegment[];
   historyRecords: VesselHistory[];
 };
@@ -42,7 +42,7 @@ export const mergeSeededEventsWithHistory = ({
   existingEvents,
   scheduleSegments,
   historyRecords,
-}: MergeSeededEventsWithHistoryArgs): ConvexVesselTripEvent[] => {
+}: MergeSeededEventsWithHistoryArgs): ConvexVesselTimelineEventRecord[] => {
   const existingByKey = new Map(
     existingEvents.map((event) => [event.Key, event])
   );

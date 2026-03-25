@@ -85,10 +85,10 @@ export const updateVesselOrchestrator = internalAction({
       console.error("runUpdateVesselTrips failed:", err);
     }
 
-    // Step 4: Update vessel trip events (error isolated from other branches)
+    // Step 4: Update VesselTimeline actual overlays (error isolated from other branches)
     try {
       await ctx.runMutation(
-        internal.functions.vesselTripEvents.mutations.applyLiveUpdates,
+        internal.functions.vesselTimeline.mutations.applyLiveActualUpdates,
         {
           Locations: convexLocations,
         }
@@ -97,7 +97,7 @@ export const updateVesselOrchestrator = internalAction({
     } catch (error) {
       const err = normalizeError(error);
       errors.tripEvents = { message: err.message, stack: err.stack };
-      console.error("applyLiveUpdates failed:", err);
+      console.error("applyLiveActualUpdates failed:", err);
     }
 
     return {

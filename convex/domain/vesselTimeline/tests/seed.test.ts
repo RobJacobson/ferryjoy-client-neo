@@ -1,10 +1,11 @@
 /**
- * Covers seeding and live-update behavior for the vessel trip event read
- * model.
+ * Covers seeding and live-update behavior for the VesselTimeline boundary
+ * event model.
  */
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import {
   applyLiveLocationToEvents,
@@ -83,10 +84,10 @@ describe("buildSeedVesselTripEvents", () => {
   it("formats Key with double-hyphen separators and ISO timestamps", () => {
     expect(
       buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "dep-dock")
-    ).toBe("2026-03-13--TOK--2026-03-13--15:35:00.000Z--P52--dep");
+    ).toBe("2026-03-13--TOK--2026-03-13--08:35:00--P52--dep");
     expect(
       buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "arv-dock")
-    ).toBe("2026-03-13--TOK--2026-03-13--15:35:00.000Z--P52--arv");
+    ).toBe("2026-03-13--TOK--2026-03-13--08:35:00--P52--arv");
   });
 
   it("builds dep/arv events directly from raw WSF schedule segments", () => {
@@ -187,7 +188,7 @@ describe("applyLiveLocationToEvents", () => {
     expect(unwound[0]?.ActualTime).toBeUndefined();
   });
 
-  it("overwrites arrival predictions with fresher ETA data", () => {
+  it("does not write predicted times from live vessel locations", () => {
     const seededEvents = buildSeedVesselTripEvents([
       makeTrip({
         VesselAbbrev: "TOK",
@@ -223,7 +224,7 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(secondPass[1]?.PredictedTime).toBe(at(9, 5));
+    expect(secondPass[1]?.PredictedTime).toBeUndefined();
   });
 
   it("writes early arrival actuals before the scheduled arrival time", () => {
@@ -515,7 +516,7 @@ describe("applyLiveLocationToEvents", () => {
 
     expect(updated[0]?.ActualTime).toBeUndefined();
     expect(updated[1]?.ActualTime).toBeUndefined();
-    expect(updated[1]?.PredictedTime).toBe(at(9, 5));
+    expect(updated[1]?.PredictedTime).toBeUndefined();
   });
 });
 
@@ -721,7 +722,7 @@ const makeLocation = (
  */
 const makeEvent = (
   overrides: Partial<
-    import("../../../functions/vesselTripEvents/schemas").ConvexVesselTripEvent
+    import("../../../functions/vesselTimeline/eventRecordSchemas").ConvexVesselTimelineEventRecord
   >
 ) => ({
   Key: "2026-03-13--TOK--2026-03-13--15:35:00.000Z--P52--dep",
