@@ -5,8 +5,10 @@
  * placeholder VesselTimeline implementation below it for the selected vessel.
  */
 
+import { useFocusEffect } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { Text, View } from "@/components/ui";
 import {
   NativeSelectScrollView,
@@ -38,6 +40,13 @@ type DesignOption = {
 };
 
 /**
+ * Returns the current WSF sailing day using the 3:00 AM Pacific rollover.
+ *
+ * @returns Current sailing day in YYYY-MM-DD format
+ */
+const getCurrentSailingDay = () => getSailingDay(new Date());
+
+/**
  * Placeholder route for exercising the VesselTimeline feature during
  * development.
  *
@@ -46,6 +55,7 @@ type DesignOption = {
 export default function VesselTimelinePlaceholderScreen() {
   const { vesselLocations, isLoading, error } = useConvexVesselLocations();
   const [selectedOption, setSelectedOption] = useState<VesselOption>();
+  const [sailingDay, setSailingDay] = useState(() => getCurrentSailingDay());
   const [selectedDesign, setSelectedDesign] = useState<DesignOption>({
     value: DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
     label: getVesselTimelineDesignVariant(
@@ -53,7 +63,6 @@ export default function VesselTimelinePlaceholderScreen() {
     ).label,
   });
 
-  const sailingDay = getSailingDay(new Date());
   const designOptions = VESSEL_TIMELINE_DESIGN_VARIANTS.map((variant) => ({
     value: variant.id,
     label: variant.label,
@@ -83,6 +92,28 @@ export default function VesselTimelinePlaceholderScreen() {
 
     setSelectedOption(inServiceOption ?? vesselOptions[0]);
   }, [selectedOption, vesselLocations, vesselOptions]);
+
+  useFocusEffect(() => {
+    setSailingDay((current) => {
+      const next = getCurrentSailingDay();
+      return current === next ? current : next;
+    });
+  });
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        setSailingDay((current) => {
+          const next = getCurrentSailingDay();
+          return current === next ? current : next;
+        });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <GradientBackground
