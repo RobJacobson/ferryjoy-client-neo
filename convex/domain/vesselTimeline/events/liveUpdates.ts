@@ -65,8 +65,8 @@ export const getLocationSailingDay = (location: ConvexVesselLocation) =>
  * boundary events.
  *
  * @param events - Existing vessel/day boundary events in timeline order
- * @param location - Live vessel location used to enrich predictions and actuals
- * @returns A cloned event array with live prediction and actual fields updated
+ * @param location - Live vessel location used to write actual boundary times
+ * @returns A cloned event array with live actual fields updated
  */
 export const applyLiveLocationToEvents = (
   events: ConvexVesselTimelineEventRecord[],
@@ -164,7 +164,10 @@ export const normalizeScheduledDockSeams = (
   events: ConvexVesselTimelineEventRecord[]
 ): ConvexVesselTimelineEventRecord[] => {
   const adjustedScheduledTimesByKey = new Map<string, number>();
-  const eventsByVesselDay = new Map<string, ConvexVesselTimelineEventRecord[]>();
+  const eventsByVesselDay = new Map<
+    string,
+    ConvexVesselTimelineEventRecord[]
+  >();
 
   for (const event of events) {
     const vesselDayKey = `${event.VesselAbbrev}:${event.SailingDay}`;
@@ -207,6 +210,14 @@ export const normalizeScheduledDockSeams = (
   });
 };
 
+/**
+ * Detects a zero-length dock seam where an arrival and departure share the
+ * same scheduled timestamp at the same terminal.
+ *
+ * @param current - Current event in sorted order
+ * @param next - Next event in sorted order
+ * @returns True when the seam should be expanded into a five-minute dock span
+ */
 const isIdenticalScheduledDockSeam = (
   current: ConvexVesselTimelineEventRecord,
   next: ConvexVesselTimelineEventRecord | undefined
@@ -234,8 +245,10 @@ const getEventTypeOrder = (eventType: VesselTimelineEventType) =>
  * @param Key - Stable event key to match
  * @returns Matching event when present
  */
-const getEventByKey = (events: ConvexVesselTimelineEventRecord[], Key: string) =>
-  events.find((event) => event.Key === Key);
+const getEventByKey = (
+  events: ConvexVesselTimelineEventRecord[],
+  Key: string
+) => events.find((event) => event.Key === Key);
 
 /**
  * Detects a strong departure signal from live location data.
@@ -399,6 +412,9 @@ export const getArrivalEligibilityTime = (
 /**
  * Formats a scheduled departure timestamp for use inside a stable event key.
  *
+ * The formatted value intentionally follows Pacific local service time so keys
+ * stay readable alongside sailing-day semantics.
+ *
  * @param timestamp - Scheduled departure timestamp in epoch ms
  * @returns Pacific-local timestamp with an ISO-like separator for key safety
  */
@@ -406,7 +422,9 @@ const formatEventTimestamp = (timestamp: number) => {
   const parts = PACIFIC_KEY_TIMESTAMP_FORMATTER.formatToParts(
     new Date(timestamp)
   );
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
+  );
   return `${values.year}-${values.month}-${values.day}--${values.hour}:${values.minute}:${values.second}`;
 };
 

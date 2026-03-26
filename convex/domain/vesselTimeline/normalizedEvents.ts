@@ -15,9 +15,10 @@ import { getSailingDay } from "../../shared/time";
 import { buildEventKey } from "./events/liveUpdates";
 
 /**
- * Builds normalized scheduled boundary rows from the current legacy event list.
+ * Builds normalized scheduled boundary rows from in-memory boundary event
+ * records.
  *
- * @param events - Legacy vessel timeline events
+ * @param events - Boundary event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
  * @returns Scheduled boundary rows keyed by the stable event key
  */
@@ -44,9 +45,9 @@ export const buildScheduledBoundaryEvents = (
 };
 
 /**
- * Builds normalized actual rows from the current legacy event list.
+ * Builds normalized actual rows from in-memory boundary event records.
  *
- * @param events - Legacy vessel timeline events
+ * @param events - Boundary event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
  * @returns Actual boundary rows for events that have an actual time
  */
@@ -114,6 +115,13 @@ const getNextTerminalAbbrev = (
   return eventByKey.get(arrivalKey)?.TerminalAbbrev ?? event.TerminalAbbrev;
 };
 
+/**
+ * Builds the prediction overlay row for the current trip's departure event.
+ *
+ * @param trip - Active vessel trip carrying at-dock departure predictions
+ * @param updatedAt - Timestamp to stamp on the normalized row
+ * @returns Predicted departure row, or `null` when no prediction is available
+ */
 const getCurrentDeparturePrediction = (
   trip: ConvexVesselTrip,
   updatedAt: number
@@ -145,6 +153,16 @@ const getCurrentDeparturePrediction = (
   });
 };
 
+/**
+ * Builds the best arrival prediction overlay row for the current trip.
+ *
+ * WSF ETA takes precedence over ML predictions, followed by at-sea and then
+ * at-dock ML outputs.
+ *
+ * @param trip - Active vessel trip carrying arrival predictions
+ * @param updatedAt - Timestamp to stamp on the normalized row
+ * @returns Predicted arrival row, or `null` when no prediction is available
+ */
 const getCurrentArrivalPrediction = (
   trip: ConvexVesselTrip,
   updatedAt: number
@@ -159,25 +177,25 @@ const getCurrentArrivalPrediction = (
 
   const bestPrediction =
     (trip.Eta
-      ? ({
+      ? {
           PredictedTime: trip.Eta,
           PredictionType: "AtSeaArriveNext" as PredictionType,
           PredictionSource: "wsf_eta" as ConvexPredictionSource,
-        })
+        }
       : null) ??
     (trip.AtSeaArriveNext
-      ? ({
+      ? {
           PredictedTime: trip.AtSeaArriveNext.PredTime,
           PredictionType: "AtSeaArriveNext" as PredictionType,
           PredictionSource: "ml" as ConvexPredictionSource,
-        })
+        }
       : null) ??
     (trip.AtDockArriveNext
-      ? ({
+      ? {
           PredictedTime: trip.AtDockArriveNext.PredTime,
           PredictionType: "AtDockArriveNext" as PredictionType,
           PredictionSource: "ml" as ConvexPredictionSource,
-        })
+        }
       : null);
 
   if (!bestPrediction) {
@@ -201,6 +219,14 @@ const getCurrentArrivalPrediction = (
   });
 };
 
+/**
+ * Builds the best next-departure prediction overlay row for the trip's
+ * arriving terminal.
+ *
+ * @param trip - Active vessel trip carrying next-departure predictions
+ * @param updatedAt - Timestamp to stamp on the normalized row
+ * @returns Predicted next-departure row, or `null` when no prediction exists
+ */
 const getNextDeparturePrediction = (
   trip: ConvexVesselTrip,
   updatedAt: number
@@ -214,18 +240,18 @@ const getNextDeparturePrediction = (
 
   const bestPrediction =
     (trip.AtSeaDepartNext
-      ? ({
+      ? {
           PredictedTime: trip.AtSeaDepartNext.PredTime,
           PredictionType: "AtSeaDepartNext" as PredictionType,
           PredictionSource: "ml" as ConvexPredictionSource,
-        })
+        }
       : null) ??
     (trip.AtDockDepartNext
-      ? ({
+      ? {
           PredictedTime: trip.AtDockDepartNext.PredTime,
           PredictionType: "AtDockDepartNext" as PredictionType,
           PredictionSource: "ml" as ConvexPredictionSource,
-        })
+        }
       : null);
 
   if (!bestPrediction) {
@@ -249,10 +275,23 @@ const getNextDeparturePrediction = (
   });
 };
 
+/**
+ * Preserves a typed seam for predicted boundary-row construction.
+ *
+ * @param row - Fully constructed normalized prediction row
+ * @returns The same row, unchanged
+ */
 const buildPredictedBoundaryEvent = (
   row: ConvexPredictedBoundaryEvent
 ): ConvexPredictedBoundaryEvent => row;
 
+/**
+ * Deduplicates prediction rows by stable event key, keeping the last row seen
+ * for each key.
+ *
+ * @param rows - Candidate prediction rows
+ * @returns Rows with at most one entry per event key
+ */
 const dedupePredictedBoundaryEvents = (
   rows: ConvexPredictedBoundaryEvent[]
 ): ConvexPredictedBoundaryEvent[] =>
