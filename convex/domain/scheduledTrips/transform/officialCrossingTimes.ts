@@ -1,9 +1,12 @@
 /**
  * Official crossing time configuration for ScheduledTrips synthetic arrival estimates.
  *
- * These values are used only when WSF schedule data does not provide `ArrivingTime`.
- * We prefer this curated, defensible set of “official” crossing times over ML-derived
- * historical averages for scheduled departure calculations.
+ * These values back the current scheduled-arrival fallback policy. Today that
+ * means all non-Route-9 sailings, plus any sailing that does not expose a
+ * trusted WSF `ArrivingTime`.
+ *
+ * We prefer this curated, defensible set of official crossing times over
+ * ML-derived historical averages for scheduled arrival calculations.
  *
  * Notes:
  * - Keys use the terminal pair format "FROM->TO" (see `formatTerminalPairKey`).

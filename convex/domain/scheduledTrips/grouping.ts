@@ -36,6 +36,13 @@ export const groupTripsByVessel = (
   trips: ConvexScheduledTrip[]
 ): Record<string, ConvexScheduledTrip[]> => groupTripsByVesselGeneric(trips);
 
+/**
+ * Groups any trip-like records by vessel abbreviation for chronological
+ * domain processing.
+ *
+ * @param trips - Trip-like records that carry a `VesselAbbrev`
+ * @returns Records grouped by vessel abbreviation
+ */
 export const groupTripsByVesselGeneric = <TTrip extends PhysicalDepartureInput>(
   trips: TTrip[]
 ): Record<string, TTrip[]> =>
@@ -59,6 +66,15 @@ export const groupTripsByPhysicalDeparture = (
   vesselTrips: ConvexScheduledTrip[]
 ): PhysicalDeparture[] => groupTripsByPhysicalDepartureGeneric(vesselTrips);
 
+/**
+ * Groups chronologically sorted trip-like records by physical departure.
+ *
+ * Records remain grouped only when vessel, departure terminal, and departure
+ * time all describe the same physical sailing.
+ *
+ * @param vesselTrips - Chronologically sorted trips for a single vessel
+ * @returns Physical-departure groups preserving input order
+ */
 export const groupTripsByPhysicalDepartureGeneric = <
   TTrip extends PhysicalDepartureInput,
 >(
