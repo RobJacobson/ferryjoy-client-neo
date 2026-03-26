@@ -198,9 +198,8 @@ const processCurrentTrips = async (
   // Queue leave-dock side effects to run only after successful upsert
   const pendingLeaveDockEffects: PendingLeaveDockEffect[] = [];
 
-  // Process each current trip
-  for (const { existingTrip, currLocation, events } of currentTrips) {
-    try {
+  const buildResults = await Promise.allSettled(
+    currentTrips.map(async ({ existingTrip, currLocation, events }) => {
       logDockSignalDisagreement(existingTrip, currLocation);
 
       // Build trip with all enrichments (schedule, predictions, actuals)
@@ -213,24 +212,39 @@ const processCurrentTrips = async (
         shouldRunPredictionFallback
       );
 
-      // Only write if trip changed (or is new)
-      if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
-        activeUpserts.push(finalProposed);
+      return {
+        existingTrip,
+        currLocation,
+        events,
+        finalProposed,
+      };
+    })
+  );
 
-        // Queue leave-dock side effects for post-persist execution
-        if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
-          pendingLeaveDockEffects.push({
-            vesselAbbrev: currLocation.VesselAbbrev,
-            trip: finalProposed,
-          });
-        }
-      }
-    } catch (error) {
+  for (const [index, result] of buildResults.entries()) {
+    if (result.status === "rejected") {
+      const transition = currentTrips[index];
       logVesselProcessingError(
-        currLocation.VesselAbbrev,
+        transition?.currLocation.VesselAbbrev ?? "unknown",
         "current-trip processing",
-        error
+        result.reason
       );
+      continue;
+    }
+
+    const { existingTrip, currLocation, events, finalProposed } = result.value;
+
+    // Only write if trip changed (or is new)
+    if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
+      activeUpserts.push(finalProposed);
+
+      // Queue leave-dock side effects for post-persist execution
+      if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+        pendingLeaveDockEffects.push({
+          vesselAbbrev: currLocation.VesselAbbrev,
+          trip: finalProposed,
+        });
+      }
     }
   }
 

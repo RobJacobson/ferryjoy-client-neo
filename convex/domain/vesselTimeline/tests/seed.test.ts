@@ -782,7 +782,7 @@ const makeLocation = (
   RouteAbbrev: "sea-bi",
   VesselPositionNum: 1,
   TimeStamp: at(8, 34),
-  DepartingDistance: undefined,
+  DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,
 });

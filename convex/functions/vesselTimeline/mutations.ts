@@ -76,19 +76,9 @@ export const syncPredictedEventsForTrips = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const nextRowsByKey = new Map(
-      buildPredictedBoundaryEventsFromTrips(args.Trips).map((row) => [
-        row.Key,
-        row,
-      ])
-    );
-
-    const targetKeys = new Set<string>();
-    for (const trip of args.Trips) {
-      for (const row of buildPredictedBoundaryEventsFromTrips([trip])) {
-        targetKeys.add(row.Key);
-      }
-    }
+    const nextRows = buildPredictedBoundaryEventsFromTrips(args.Trips);
+    const nextRowsByKey = new Map(nextRows.map((row) => [row.Key, row]));
+    const targetKeys = new Set(nextRowsByKey.keys());
 
     for (const Key of targetKeys) {
       const existing = await ctx.db
