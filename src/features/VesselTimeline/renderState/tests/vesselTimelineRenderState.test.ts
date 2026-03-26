@@ -4,13 +4,17 @@ import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
-import { getVesselTimelineRenderState, resolveActiveSegmentIndex } from "..";
+import {
+  getStaticVesselTimelineRenderState,
+  getVesselTimelineActiveIndicator,
+  resolveActiveSegmentIndex,
+} from "..";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
 describe("resolveActiveSegmentIndex", () => {
-  it("prefers a live-anchored sea row over clock-only progress", () => {
+  it("matches the live-anchored sea segment even when a placeholder dock row comes first", () => {
     const rows = makeRoundTripSegments();
     const firstRow = getRowOrThrow(rows, 0);
 
@@ -32,8 +36,7 @@ describe("resolveActiveSegmentIndex", () => {
         reason: "location_anchor",
       })
     );
-
-    expect(activeRowIndex).toBe(0);
+    expect(activeRowIndex).toBe(1);
   });
 
   it("matches the terminal row from terminalTailEventKey", () => {
@@ -55,9 +58,9 @@ describe("resolveActiveSegmentIndex", () => {
   });
 });
 
-describe("getVesselTimelineRenderState", () => {
+describe("getStaticVesselTimelineRenderState", () => {
   it("renders server-owned placeholder and terminal-tail segments", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       makePlaceholderSegments(),
       null,
       null,
@@ -83,8 +86,53 @@ describe("getVesselTimelineRenderState", () => {
     ]);
   });
 
+  it("keeps static layout unchanged across clock ticks while the indicator moves", () => {
+    const segments = makeRoundTripSegments();
+    const activeState = makeActiveState({
+      kind: "sea",
+      rowMatch: {
+        kind: "sea",
+        startEventKey: "dep-1",
+        endEventKey: "arv-1",
+      },
+      reason: "location_anchor",
+    });
+    const staticState = getStaticVesselTimelineRenderState(segments, activeState);
+    const earlyIndicator = getVesselTimelineActiveIndicator({
+      segments,
+      activeState,
+      liveState: makeLiveState({
+        ScheduledDeparture: at(8, 0),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: at(8, 5),
+        Eta: at(8, 45),
+      }),
+      now: at(8, 10),
+    });
+    const lateIndicator = getVesselTimelineActiveIndicator({
+      segments,
+      activeState,
+      liveState: makeLiveState({
+        ScheduledDeparture: at(8, 0),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: at(8, 5),
+        Eta: at(8, 45),
+      }),
+      now: at(8, 20),
+    });
+
+    expect(getStaticVesselTimelineRenderState(segments, activeState)).toEqual(
+      staticState
+    );
+    expect(earlyIndicator?.positionPercent).not.toBe(
+      lateIndicator?.positionPercent
+    );
+  });
+
   it("returns renderer-ready rows with full schedule-based dock heights", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       makeRoundTripSegments(),
       makeLiveState({
         ScheduledDeparture: at(8, 0),
@@ -109,19 +157,20 @@ describe("getVesselTimelineRenderState", () => {
 
     expect(renderState.rows).toHaveLength(5);
     expect(renderState.rows[2]?.kind).toBe("at-dock");
-    expect(renderState.rows[2]?.displayHeightPx).toBe(300);
+    expect(renderState.rows[2]?.displayHeightPx).toBeGreaterThan(356);
+    expect(renderState.rows[2]?.displayHeightPx).toBeLessThan(357);
     expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
     expect(renderState.contentHeightPx).toBeGreaterThan(0);
   });
 
-  it("uses live distance only for sea indicator progress", () => {
-    const renderState = getVesselTimelineRenderState(
+  it("falls back to time-based sea progress when arrival distance is missing", () => {
+    const renderState = getRenderState(
       makeRoundTripSegments(),
       makeLiveState({
         ScheduledDeparture: at(8, 0),
         AtDock: false,
         Speed: 12,
-        DepartingDistance: undefined,
+        DepartingDistance: 0,
         ArrivingDistance: undefined,
       }),
       makeActiveState({
@@ -137,11 +186,12 @@ describe("getVesselTimelineRenderState", () => {
     );
 
     expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
-    expect(renderState.activeIndicator?.positionPercent).toBe(0);
+    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.57);
+    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.58);
   });
 
-  it("falls back to eta-over-actual-departure for sea progress when distances are missing", () => {
-    const renderState = getVesselTimelineRenderState(
+  it("uses time-based sea progress even when eta is present but arrival distance is missing", () => {
+    const renderState = getRenderState(
       [
         makeSegment({
           id: "dep-1--arv-1--sea",
@@ -171,7 +221,7 @@ describe("getVesselTimelineRenderState", () => {
         ScheduledDeparture: at(8, 0),
         AtDock: false,
         Speed: 12,
-        DepartingDistance: undefined,
+        DepartingDistance: 0,
         ArrivingDistance: undefined,
         Eta: at(8, 45),
       }),
@@ -188,11 +238,12 @@ describe("getVesselTimelineRenderState", () => {
     );
 
     expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
-    expect(renderState.activeIndicator?.positionPercent).toBe(0.5);
+    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.66);
+    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.67);
   });
 
   it("uses elapsed time for dock indicator progress on long dock rows", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       [
         makeSegment({
           id: "arv-1--dep-1--dock",
@@ -236,7 +287,7 @@ describe("getVesselTimelineRenderState", () => {
   });
 
   it("uses actual arrival and predicted departure for dock indicator progress", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       [
         makeSegment({
           id: "arv-1--dep-1--dock",
@@ -279,12 +330,12 @@ describe("getVesselTimelineRenderState", () => {
 
     expect(renderState.activeIndicator?.rowId).toBe("arv-1--dep-1--dock");
     expect(renderState.activeIndicator?.label).toBe("7m");
-    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.56);
-    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.58);
+    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.49);
+    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
   });
 
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       makeRoundTripSegments(),
       makeLiveState({
         InService: false,
@@ -313,7 +364,7 @@ describe("getVesselTimelineRenderState", () => {
   });
 
   it("uses the terminal row when the backend resolves terminal-tail fallback", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       makeRoundTripSegments(),
       null,
       makeActiveState({
@@ -330,7 +381,7 @@ describe("getVesselTimelineRenderState", () => {
   });
 
   it("hides the active indicator when the backend provides no match", () => {
-    const renderState = getVesselTimelineRenderState(
+    const renderState = getRenderState(
       makeRoundTripSegments(),
       null,
       null,
@@ -613,7 +664,7 @@ const makeLiveState = (
   LeftDock: undefined,
   Eta: undefined,
   TimeStamp: at(8, 0),
-  DepartingDistance: undefined,
+  DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,
 });
@@ -639,4 +690,23 @@ const getRowOrThrow = (rows: VesselTimelineSegment[], index: number) => {
   }
 
   return row;
+};
+
+const getRenderState = (
+  segments: VesselTimelineSegment[],
+  liveState: VesselTimelineLiveState | null,
+  activeState: VesselTimelineActiveState | null,
+  now: Date
+) => {
+  const staticState = getStaticVesselTimelineRenderState(segments, activeState);
+
+  return {
+    ...staticState,
+    activeIndicator: getVesselTimelineActiveIndicator({
+      segments,
+      activeState,
+      liveState,
+      now,
+    }),
+  };
 };

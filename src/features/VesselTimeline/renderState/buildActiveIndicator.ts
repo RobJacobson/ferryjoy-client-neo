@@ -12,7 +12,7 @@ import type {
   VesselTimelineSegment,
 } from "@/data/contexts";
 import { clamp } from "@/shared/utils";
-import { getDisplayTime } from "./rowEventTime";
+import { getDisplayTime } from "../rowEventTime";
 
 /**
  * Builds the floating indicator descriptor for the active segment, or null.
@@ -42,11 +42,9 @@ export const buildActiveIndicator = ({
     return null;
   }
 
-  const positionPercent = getSegmentPositionPercent(segment, liveState, now);
-
   return {
     rowId: segment.id,
-    positionPercent,
+    positionPercent: getPositionPercent(segment, liveState, now),
     label: getMinutesUntil(segment, now),
     title: liveState?.VesselName,
     subtitle: activeState?.subtitle,
@@ -57,137 +55,88 @@ export const buildActiveIndicator = ({
 
 /**
  * Fraction along the sea leg from departing vs arriving distance when both
- * exist and sum to a positive value.
+ * exist.
+ *
+ * The backend now guarantees nonnegative `DepartingDistance` and
+ * `ArrivingDistance` whenever the active row is at sea and
+ * `ArrivingDistance` is present on `liveState`.
  *
  * @param departingDistance - Nautical miles from departure terminal
  * @param arrivingDistance - Nautical miles to arrival terminal
- * @returns Progress 0–1, or null when distances are unusable
+ * @returns Progress 0–1
  */
 const getDistanceProgress = (
-  departingDistance: number | undefined,
-  arrivingDistance: number | undefined
-) => {
-  if (
-    departingDistance === undefined ||
-    arrivingDistance === undefined ||
-    departingDistance + arrivingDistance <= 0
-  ) {
-    return null;
-  }
-
-  return clamp(
-    departingDistance / (departingDistance + arrivingDistance),
-    0,
-    1
-  );
-};
-
-/**
- * Indicator position along a sea segment from live distance when available,
- * with an ETA-over-actual-departure fallback when distances are unavailable.
- *
- * @param segment - Active sea semantic segment
- * @param liveState - Live distances when available
- * @returns Position along the segment in 0–1
- */
-const getSeaProgress = (
-  segment: VesselTimelineSegment,
-  liveState: VesselTimelineLiveState | null,
-  now: Date
-) => {
-  const distanceProgress = getDistanceProgress(
-    liveState?.DepartingDistance,
-    liveState?.ArrivingDistance
-  );
-
-  if (distanceProgress !== null) {
-    return distanceProgress;
-  }
-
-  return getEtaFallbackProgress(segment, liveState, now);
-};
-
-/**
- * Sea fallback progress from actual departure to live ETA when distance data is
- * unavailable.
- *
- * @param segment - Active sea segment
- * @param liveState - Live state carrying `Eta` and optional `LeftDock`
- * @param now - Current instant
- * @returns 0–1 progress or `0` when the fallback inputs are unusable
- */
-const getEtaFallbackProgress = (
-  segment: VesselTimelineSegment,
-  liveState: VesselTimelineLiveState | null,
-  now: Date
-) => {
-  const departureTime = segment.startEvent.ActualTime ?? liveState?.LeftDock;
-  const etaTime = liveState?.Eta;
-
-  if (!departureTime || !etaTime) {
-    return 0;
-  }
-
-  const totalMs = etaTime.getTime() - departureTime.getTime();
-  if (totalMs <= 0) {
-    return 0;
-  }
-
-  return clamp((now.getTime() - departureTime.getTime()) / totalMs, 0, 1);
-};
+  departingDistance: number,
+  arrivingDistance: number
+) => clamp(departingDistance / (departingDistance + arrivingDistance), 0, 1);
 
 /**
  * Maps the active segment to a 0–1 position for the timeline indicator dot.
  *
- * Sea segments use `getSeaProgress`; dock segments use display-time bounds so
- * late arrivals and predicted departures shift the indicator within the
- * schedule-sized row without changing row geometry.
+ * Sea segments use live distance when `ArrivingDistance` is present; otherwise
+ * they fall back to display-time progress. Dock segments always use
+ * display-time bounds, so late arrivals and predicted departures shift the
+ * indicator within the schedule-sized row without changing row geometry.
  *
  * @param segment - Active semantic segment
  * @param liveState - Live state for sea progress
  * @param now - Current instant
  * @returns Vertical position as a fraction of segment height
  */
-const getSegmentPositionPercent = (
+const getPositionPercent = (
   segment: VesselTimelineSegment,
   liveState: VesselTimelineLiveState | null,
   now: Date
-) => {
-  if (segment.kind === "sea") {
-    return getSeaProgress(segment, liveState, now);
-  }
-
-  return getTimeProgress(segment.startEvent, segment.endEvent, now);
-};
+) =>
+  segment.kind === "sea" && liveState?.ArrivingDistance !== undefined
+    ? getDistanceProgress(
+        liveState.DepartingDistance,
+        liveState.ArrivingDistance
+      )
+    : getTimeProgress(segment.startEvent, segment.endEvent, now);
 
 /**
- * Linear time progress between two segment boundary events using the supplied
- * event-time selector.
+ * Linear time progress between two segment boundary events using display-time
+ * precedence.
  *
  * @param startEvent - Segment start event
  * @param endEvent - Segment end event
  * @param now - Current instant
- * @param getEventTime - Function that selects the timeline instant for an event
  * @returns 0–1 clamped fraction through the span
  */
 const getTimeProgress = (
   startEvent: VesselTimelineSegment["startEvent"],
   endEvent: VesselTimelineSegment["endEvent"],
-  now: Date,
-  getEventTime = getDisplayTime
+  now: Date
+) =>
+  getClampedProgress(getDisplayTime(startEvent), getDisplayTime(endEvent), now);
+
+/**
+ * Clamped elapsed progress between two instants.
+ *
+ * Returns `0` when either instant is missing or when the interval is not
+ * positive.
+ *
+ * @param startTime - Interval start
+ * @param endTime - Interval end
+ * @param now - Current instant
+ * @returns 0–1 clamped progress through the interval
+ */
+const getClampedProgress = (
+  startTime: Date | undefined,
+  endTime: Date | undefined,
+  now: Date
 ) => {
-  const startTime = getEventTime(startEvent);
-  const endTime = getEventTime(endEvent);
   if (!startTime || !endTime) {
     return 0;
   }
 
-  const durationMs = endTime.getTime() - startTime.getTime();
-  if (durationMs <= 0) {
+  const totalMs = endTime.getTime() - startTime.getTime();
+  if (totalMs <= 0) {
     return 0;
   }
 
-  return clamp((now.getTime() - startTime.getTime()) / durationMs, 0, 1);
+  return clamp((now.getTime() - startTime.getTime()) / totalMs, 0, 1);
 };
 
 /**
@@ -197,10 +146,7 @@ const getTimeProgress = (
  * @param now - Current instant
  * @returns String such as `12m`, or `--` when time is unknown
  */
-const getMinutesUntil = (
-  segment: VesselTimelineSegment,
-  now: Date
-) => {
+const getMinutesUntil = (segment: VesselTimelineSegment, now: Date) => {
   if (segment.isTerminal === true) {
     return "--";
   }

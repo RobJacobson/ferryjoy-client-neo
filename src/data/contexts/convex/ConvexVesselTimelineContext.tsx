@@ -2,24 +2,26 @@
  * Convex-backed vessel timeline context.
  *
  * This provider fetches normalized vessel-day boundary events plus live vessel
- * location, then resolves active state client-side for one vessel/day scope.
+ * location for one vessel/day scope. Feature-specific timeline derivation
+ * happens in the VesselTimeline feature layer.
  */
 
-import { buildSegmentsFromBoundaryEvents } from "@/features/VesselTimeline/utils/buildSegmentsFromBoundaryEvents";
-import { resolveActiveStateFromTimeline } from "@/features/VesselTimeline/utils/resolveActiveStateFromTimeline";
 import { api } from "convex/_generated/api";
 import { toDomainActualBoundaryEvent } from "convex/functions/eventsActual/schemas";
 import { toDomainScheduledBoundaryEvent } from "convex/functions/eventsScheduled/schemas";
-import {
-  type VesselTimelineActiveState,
-  type VesselTimelineLiveState,
-} from "convex/functions/vesselTimeline/activeStateSchemas";
-import { toDomainTimelinePredictedBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
 import type {
-  MergedTimelineBoundaryEvent,
-  VesselTimelineSegment,
+  VesselTimelineActiveState,
+  VesselTimelineLiveState,
+} from "convex/functions/vesselTimeline/activeStateSchemas";
+import {
+  toDomainTimelinePredictedBoundaryEvent,
+  type MergedTimelineBoundaryEvent,
+  type VesselTimelineSegment,
 } from "convex/functions/vesselTimeline/schemas";
-import { toDomainVesselLocation } from "convex/functions/vesselLocation/schemas";
+import {
+  toDomainVesselLocation,
+  type VesselLocation,
+} from "convex/functions/vesselLocation/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
@@ -33,9 +35,8 @@ export type {
 type ConvexVesselTimelineContextType = {
   VesselAbbrev: string;
   SailingDay: string;
-  Segments: VesselTimelineSegment[];
-  LiveState: VesselTimelineLiveState | null;
-  ActiveState: VesselTimelineActiveState | null;
+  mergedEvents: MergedTimelineBoundaryEvent[];
+  location: VesselLocation | null;
   IsLoading: boolean;
   ErrorMessage: string | null;
   Retry: () => void;
@@ -140,16 +141,11 @@ const ConvexVesselTimelineQueryProvider = ({
     rawActualEvents?.map(toDomainActualBoundaryEvent) ?? [],
     rawPredictedEvents?.map(toDomainTimelinePredictedBoundaryEvent) ?? []
   );
-  const activeStateSnapshot = resolveActiveStateFromTimeline({
-    events: mergedEvents,
-    location: rawVesselLocation ? toDomainVesselLocation(rawVesselLocation) : null,
-  });
   const value: ConvexVesselTimelineContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
-    Segments: buildSegmentsFromBoundaryEvents(mergedEvents),
-    LiveState: activeStateSnapshot.Live ?? null,
-    ActiveState: activeStateSnapshot.ActiveState ?? null,
+    mergedEvents,
+    location: rawVesselLocation ? toDomainVesselLocation(rawVesselLocation) : null,
     IsLoading,
     ErrorMessage: null,
     Retry: onRetry,
@@ -171,9 +167,8 @@ export const ConvexVesselTimelineProvider = ({
   const errorValue: ConvexVesselTimelineContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
-    Segments: [],
-    LiveState: null,
-    ActiveState: null,
+    mergedEvents: [],
+    location: null,
     IsLoading: false,
     ErrorMessage: "Live timeline data is temporarily unavailable.",
     Retry: onRetry,

@@ -29,14 +29,21 @@ export type VesselTimelineLayoutConfig = {
 };
 
 /**
- * Final render state consumed by the timeline UI.
+ * Static render state consumed by the timeline UI.
  */
-export type VesselTimelineRenderState = {
+export type VesselTimelineStaticRenderState = {
   rows: TimelineRenderRow[];
   rowLayouts: Record<string, RowLayoutBounds>;
   terminalCards: TerminalCardGeometry[];
-  activeIndicator: TimelineActiveIndicator | null;
   contentHeightPx: number;
+  activeSegmentIndex: number;
   layout: VesselTimelineLayoutConfig;
   theme: TimelineVisualTheme;
+};
+
+/**
+ * Final render state consumed by the timeline UI.
+ */
+export type VesselTimelineRenderState = VesselTimelineStaticRenderState & {
+  activeIndicator: TimelineActiveIndicator | null;
 };

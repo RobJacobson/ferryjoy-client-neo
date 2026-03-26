@@ -4,22 +4,19 @@ import type {
   VesselTimelineLiveState,
   VesselTimelineRowMatch,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
-import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
+import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
+import { getDisplayTime } from "../rowEventTime";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 
-type CandidateRow = {
-  kind: "dock" | "sea";
-  startEvent: MergedTimelineBoundaryEvent;
-  endEvent: MergedTimelineBoundaryEvent;
-};
+type TimelineRowSegment = VesselTimelineSegment & { isTerminal?: false };
 
 export const resolveActiveStateFromTimeline = ({
-  events,
+  segments,
   location,
   observedAt = location?.TimeStamp ?? new Date(),
 }: {
-  events: MergedTimelineBoundaryEvent[];
+  segments: VesselTimelineSegment[];
   location?: VesselLocation | null;
   observedAt?: Date;
 }): {
@@ -27,58 +24,52 @@ export const resolveActiveStateFromTimeline = ({
   ActiveState: VesselTimelineActiveState | null;
   ObservedAt: Date;
 } => {
-  const candidateRows = buildCandidateRows(events);
-  const Live = location ? toLiveState(location) : null;
+  const rowSegments = segments.filter(isTimelineRowSegment);
+  const live = location ? toLiveState(location) : null;
 
   const locationAnchoredState =
-    location && candidateRows.length > 0
+    location && rowSegments.length > 0
       ? resolveLocationAnchoredState(
-          candidateRows,
-          events,
+          rowSegments,
+          segments,
           location,
           observedAt.getTime()
         )
       : null;
   if (locationAnchoredState) {
-    return { Live, ActiveState: locationAnchoredState, ObservedAt: observedAt };
+    return { Live: live, ActiveState: locationAnchoredState, ObservedAt: observedAt };
   }
 
-  const actualBackedState = resolveActualBackedState(candidateRows);
+  const actualBackedState = resolveActualBackedState(rowSegments);
   if (actualBackedState) {
-    return { Live, ActiveState: actualBackedState, ObservedAt: observedAt };
+    return { Live: live, ActiveState: actualBackedState, ObservedAt: observedAt };
   }
 
-  const scheduledWindowState = resolveScheduledWindowState(
-    candidateRows,
-    observedAt.getTime()
-  );
+  const scheduledWindowState = resolveScheduledWindowState(rowSegments, observedAt.getTime());
   if (scheduledWindowState) {
-    return { Live, ActiveState: scheduledWindowState, ObservedAt: observedAt };
+    return { Live: live, ActiveState: scheduledWindowState, ObservedAt: observedAt };
   }
 
-  const terminalTailState = resolveTerminalTailState(events, observedAt.getTime());
+  const terminalTailState = resolveTerminalTailState(segments, observedAt.getTime());
   if (terminalTailState) {
-    return { Live, ActiveState: terminalTailState, ObservedAt: observedAt };
+    return { Live: live, ActiveState: terminalTailState, ObservedAt: observedAt };
   }
 
-  const edgeFallbackState = resolveEdgeFallbackState(
-    candidateRows,
-    observedAt.getTime()
-  );
+  const edgeFallbackState = resolveEdgeFallbackState(rowSegments, observedAt.getTime());
   if (edgeFallbackState) {
-    return { Live, ActiveState: edgeFallbackState, ObservedAt: observedAt };
+    return { Live: live, ActiveState: edgeFallbackState, ObservedAt: observedAt };
   }
 
   return {
-    Live,
-    ActiveState: Live
+    Live: live,
+    ActiveState: live
       ? {
           kind: "unknown",
           rowMatch: null,
           terminalTailEventKey: undefined,
           subtitle: undefined,
           animate: false,
-          speedKnots: Live.Speed ?? 0,
+          speedKnots: live.Speed ?? 0,
           reason: "unknown",
         }
       : null,
@@ -86,60 +77,34 @@ export const resolveActiveStateFromTimeline = ({
   };
 };
 
-const buildCandidateRows = (
-  events: MergedTimelineBoundaryEvent[]
-): CandidateRow[] => {
-  const rows: CandidateRow[] = [];
-
-  for (let index = 0; index < events.length - 1; index++) {
-    const current = events[index];
-    const next = events[index + 1];
-
-    if (!current || !next) {
-      continue;
-    }
-
-    if (
-      current.EventType === "arv-dock" &&
-      next.EventType === "dep-dock" &&
-      current.TerminalAbbrev === next.TerminalAbbrev
-    ) {
-      rows.push({ kind: "dock", startEvent: current, endEvent: next });
-      continue;
-    }
-
-    if (current.EventType === "dep-dock" && next.EventType === "arv-dock") {
-      rows.push({ kind: "sea", startEvent: current, endEvent: next });
-    }
-  }
-
-  return rows;
-};
+const isTimelineRowSegment = (
+  segment: VesselTimelineSegment
+): segment is TimelineRowSegment => segment.isTerminal !== true;
 
 const resolveLocationAnchoredState = (
-  rows: CandidateRow[],
-  events: MergedTimelineBoundaryEvent[],
+  segments: TimelineRowSegment[],
+  allSegments: VesselTimelineSegment[],
   location: VesselLocation,
   observedAt: number
 ): VesselTimelineActiveState | null => {
   if (location.AtDock) {
-    const lastEvent = events[events.length - 1];
-    const lastEventDisplayTime =
-      lastEvent &&
-      lastEvent.EventType === "arv-dock" &&
-      lastEvent.TerminalAbbrev === location.DepartingTerminalAbbrev
-        ? getDisplayTime(lastEvent)
-        : undefined;
-    const lastEventDisplayMs =
-      typeof lastEventDisplayTime === "number"
-        ? lastEventDisplayTime
-        : lastEventDisplayTime?.getTime();
+    const terminalTailSegment = getTerminalTailSegment(
+      allSegments,
+      location.DepartingTerminalAbbrev
+    );
+    const terminalTailTime = terminalTailSegment
+      ? getDisplayTime(terminalTailSegment.startEvent)
+      : undefined;
 
-    if (lastEventDisplayMs !== undefined && observedAt >= lastEventDisplayMs) {
+    if (
+      terminalTailSegment &&
+      terminalTailTime !== undefined &&
+      observedAt >= terminalTailTime.getTime()
+    ) {
       return {
         kind: "scheduled-fallback",
         rowMatch: null,
-        terminalTailEventKey: lastEvent.Key,
+        terminalTailEventKey: terminalTailSegment.startEvent.Key,
         subtitle: getDockSubtitle(location),
         animate: false,
         speedKnots: location.Speed ?? 0,
@@ -148,9 +113,9 @@ const resolveLocationAnchoredState = (
     }
 
     const row =
-      findDockRowByScheduledDeparture(rows, location) ??
-      findNearestDockRowAtTerminal(
-        rows,
+      findDockSegmentByScheduledDeparture(segments, location) ??
+      findNearestDockSegmentAtTerminal(
+        segments,
         location.DepartingTerminalAbbrev,
         observedAt
       );
@@ -170,8 +135,8 @@ const resolveLocationAnchoredState = (
 
   if (!location.AtDock) {
     const row =
-      findSeaRowByScheduledDeparture(rows, location) ??
-      findNearestSeaRowByTerminalPair(rows, location, observedAt);
+      findSeaSegmentByScheduledDeparture(segments, location) ??
+      findNearestSeaSegmentByTerminalPair(segments, location, observedAt);
 
     if (row) {
       return {
@@ -189,8 +154,8 @@ const resolveLocationAnchoredState = (
   return null;
 };
 
-const findDockRowByScheduledDeparture = (
-  rows: CandidateRow[],
+const findDockSegmentByScheduledDeparture = (
+  segments: TimelineRowSegment[],
   location: VesselLocation
 ) => {
   const scheduledDeparture = location.ScheduledDeparture;
@@ -198,36 +163,34 @@ const findDockRowByScheduledDeparture = (
     return undefined;
   }
 
-  return rows.find(
-    (row) =>
-      row.kind === "dock" &&
-      row.endEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-      row.endEvent.ScheduledDeparture.getTime() === scheduledDeparture.getTime()
+  return segments.find(
+    (segment) =>
+      segment.kind === "dock" &&
+      segment.endEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+      segment.endEvent.ScheduledDeparture?.getTime() === scheduledDeparture.getTime()
   );
 };
 
-const findNearestDockRowAtTerminal = (
-  rows: CandidateRow[],
+const findNearestDockSegmentAtTerminal = (
+  segments: TimelineRowSegment[],
   terminalAbbrev: string,
   observedAt: number
 ) =>
-  [...rows]
+  [...segments]
     .filter(
-      (row) =>
-        row.kind === "dock" && row.endEvent.TerminalAbbrev === terminalAbbrev
+      (segment) =>
+        segment.kind === "dock" &&
+        segment.endEvent.TerminalAbbrev === terminalAbbrev
     )
     .sort(
       (left, right) =>
-        getRowWindowDistance(left, observedAt) -
-        getRowWindowDistance(right, observedAt)
+        getSegmentWindowDistance(left, observedAt) -
+        getSegmentWindowDistance(right, observedAt)
     )
-    .find(
-      (row) =>
-        row.kind === "dock" && row.endEvent.TerminalAbbrev === terminalAbbrev
-    );
+    .at(0);
 
-const findSeaRowByScheduledDeparture = (
-  rows: CandidateRow[],
+const findSeaSegmentByScheduledDeparture = (
+  segments: TimelineRowSegment[],
   location: VesselLocation
 ) => {
   const scheduledDeparture = location.ScheduledDeparture;
@@ -235,47 +198,41 @@ const findSeaRowByScheduledDeparture = (
     return undefined;
   }
 
-  return rows.find(
-    (row) =>
-      row.kind === "sea" &&
-      row.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-      row.startEvent.ScheduledDeparture.getTime() ===
+  return segments.find(
+    (segment) =>
+      segment.kind === "sea" &&
+      segment.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+      segment.startEvent.ScheduledDeparture?.getTime() ===
         scheduledDeparture.getTime() &&
       (location.ArrivingTerminalAbbrev === undefined ||
-        row.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
+        segment.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
   );
 };
 
-const findNearestSeaRowByTerminalPair = (
-  rows: CandidateRow[],
+const findNearestSeaSegmentByTerminalPair = (
+  segments: TimelineRowSegment[],
   location: VesselLocation,
   observedAt: number
 ) =>
-  [...rows]
+  [...segments]
     .filter(
-      (row) =>
-        row.kind === "sea" &&
-        row.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+      (segment) =>
+        segment.kind === "sea" &&
+        segment.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
         (location.ArrivingTerminalAbbrev === undefined ||
-          row.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
+          segment.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
     )
     .sort(
       (left, right) =>
-        getRowWindowDistance(left, observedAt) -
-        getRowWindowDistance(right, observedAt)
+        getSegmentWindowDistance(left, observedAt) -
+        getSegmentWindowDistance(right, observedAt)
     )
-    .find(
-      (row) =>
-        row.kind === "sea" &&
-        row.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-        (location.ArrivingTerminalAbbrev === undefined ||
-          row.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
-    );
+    .at(0);
 
 const resolveActualBackedState = (
-  rows: CandidateRow[]
+  segments: TimelineRowSegment[]
 ): VesselTimelineActiveState | null => {
-  const row = [...rows]
+  const row = [...segments]
     .reverse()
     .find(
       (candidate) =>
@@ -299,10 +256,10 @@ const resolveActualBackedState = (
 };
 
 const resolveScheduledWindowState = (
-  rows: CandidateRow[],
+  segments: TimelineRowSegment[],
   observedAt: number
 ): VesselTimelineActiveState | null => {
-  const row = rows.find((candidate) => {
+  const row = segments.find((candidate) => {
     const start = getDisplayTime(candidate.startEvent);
     const end = getDisplayTime(candidate.endEvent);
 
@@ -330,18 +287,18 @@ const resolveScheduledWindowState = (
 };
 
 const resolveEdgeFallbackState = (
-  rows: CandidateRow[],
+  segments: TimelineRowSegment[],
   observedAt: number
 ): VesselTimelineActiveState | null => {
-  if (rows.length === 0) {
+  if (segments.length === 0) {
     return null;
   }
 
-  const firstStart = getDisplayTime(rows[0]?.startEvent);
+  const firstStart = getDisplayTime(segments[0].startEvent);
   const row =
     firstStart !== undefined && observedAt < firstStart.getTime()
-      ? rows[0]
-      : rows[rows.length - 1];
+      ? segments[0]
+      : segments[segments.length - 1];
 
   if (!row) {
     return null;
@@ -359,23 +316,26 @@ const resolveEdgeFallbackState = (
 };
 
 const resolveTerminalTailState = (
-  events: MergedTimelineBoundaryEvent[],
+  segments: VesselTimelineSegment[],
   observedAt: number
 ): VesselTimelineActiveState | null => {
-  const lastEvent = events[events.length - 1];
-  if (!lastEvent || lastEvent.EventType !== "arv-dock") {
+  const lastSegment = segments[segments.length - 1];
+  if (!lastSegment || lastSegment.isTerminal !== true) {
     return null;
   }
 
-  const lastEventDisplayTime = getDisplayTime(lastEvent);
-  if (lastEventDisplayTime !== undefined && observedAt < lastEventDisplayTime.getTime()) {
+  const lastEventDisplayTime = getDisplayTime(lastSegment.startEvent);
+  if (
+    lastEventDisplayTime !== undefined &&
+    observedAt < lastEventDisplayTime.getTime()
+  ) {
     return null;
   }
 
   return {
     kind: "scheduled-fallback",
     rowMatch: null,
-    terminalTailEventKey: lastEvent.Key,
+    terminalTailEventKey: lastSegment.startEvent.Key,
     subtitle: undefined,
     animate: false,
     speedKnots: 0,
@@ -383,10 +343,10 @@ const resolveTerminalTailState = (
   };
 };
 
-const toRowMatch = (row: CandidateRow): VesselTimelineRowMatch => ({
-  kind: row.kind,
-  startEventKey: row.startEvent.Key,
-  endEventKey: row.endEvent.Key,
+const toRowMatch = (segment: TimelineRowSegment): VesselTimelineRowMatch => ({
+  kind: segment.kind,
+  startEventKey: segment.startEvent.Key,
+  endEventKey: segment.endEvent.Key,
 });
 
 const toLiveState = (location: VesselLocation): VesselTimelineLiveState => ({
@@ -430,12 +390,27 @@ const shouldAnimateSeaIndicator = (location: VesselLocation) =>
   !location.AtDock &&
   (location.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
 
-const getDisplayTime = (event: MergedTimelineBoundaryEvent) =>
-  event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;
+const getTerminalTailSegment = (
+  segments: VesselTimelineSegment[],
+  terminalAbbrev: string
+) => {
+  const lastSegment = segments[segments.length - 1];
+  if (
+    lastSegment?.isTerminal === true &&
+    lastSegment.startEvent.TerminalAbbrev === terminalAbbrev
+  ) {
+    return lastSegment;
+  }
 
-const getRowWindowDistance = (row: CandidateRow, observedAt: number) => {
-  const start = getDisplayTime(row.startEvent)?.getTime();
-  const end = getDisplayTime(row.endEvent)?.getTime();
+  return null;
+};
+
+const getSegmentWindowDistance = (
+  segment: TimelineRowSegment,
+  observedAt: number
+) => {
+  const start = getDisplayTime(segment.startEvent)?.getTime();
+  const end = getDisplayTime(segment.endEvent)?.getTime();
 
   if (start !== undefined && end !== undefined) {
     if (observedAt < start) {

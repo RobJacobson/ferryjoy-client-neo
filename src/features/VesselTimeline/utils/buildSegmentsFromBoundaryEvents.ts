@@ -3,6 +3,7 @@
  */
 
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
+import { getLayoutTime } from "../rowEventTime";
 import type {
   MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
@@ -197,15 +198,6 @@ const getDurationMinutes = (
 
   return Math.max(1, minutes);
 };
-
-/**
- * Returns the stable layout time for a boundary event.
- *
- * @param event - Boundary event
- * @returns Scheduled time first, then actual, then predicted
- */
-const getLayoutTime = (event: MergedTimelineBoundaryEvent) =>
-  event.ScheduledTime ?? event.ActualTime ?? event.PredictedTime;
 
 /**
  * Returns the shortened display terminal name used by VesselTimeline.

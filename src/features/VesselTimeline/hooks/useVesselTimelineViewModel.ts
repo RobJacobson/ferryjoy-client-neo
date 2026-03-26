@@ -2,11 +2,17 @@
  * View-model hook for the VesselTimeline feature.
  */
 
+import { useMemo } from "react";
 import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
-import { getVesselTimelineRenderState } from "../renderState";
+import {
+  getStaticVesselTimelineRenderState,
+  getVesselTimelineActiveIndicator,
+} from "../renderState";
 import type { VesselTimelineRenderState } from "../types";
+import { buildSegmentsFromBoundaryEvents } from "../utils/buildSegmentsFromBoundaryEvents";
+import { resolveActiveStateFromTimeline } from "../utils/resolveActiveStateFromTimeline";
 
 export type UseVesselTimelineViewModelResult = {
   isLoading: boolean;
@@ -36,13 +42,25 @@ export const useVesselTimelineViewModel = ({
   const {
     VesselAbbrev,
     SailingDay,
-    Segments,
-    LiveState,
-    ActiveState,
+    mergedEvents,
+    location,
     IsLoading,
     ErrorMessage,
     Retry,
   } = useConvexVesselTimeline();
+  const segments = useMemo(
+    () => buildSegmentsFromBoundaryEvents(mergedEvents),
+    [mergedEvents]
+  );
+  const { Live: liveState, ActiveState: activeState } = useMemo(
+    () => resolveActiveStateFromTimeline({ segments, location }),
+    [segments, location]
+  );
+  const staticRenderState = useMemo(
+    () =>
+      getStaticVesselTimelineRenderState(segments, activeState, undefined, theme),
+    [activeState, segments, theme]
+  );
 
   if (IsLoading) {
     return {
@@ -64,7 +82,7 @@ export const useVesselTimelineViewModel = ({
     };
   }
 
-  if (Segments.length === 0) {
+  if (segments.length === 0) {
     return {
       isLoading: false,
       error: null,
@@ -79,13 +97,14 @@ export const useVesselTimelineViewModel = ({
     error: null,
     emptyMessage: null,
     retry: Retry,
-    renderState: getVesselTimelineRenderState(
-      Segments,
-      LiveState,
-      ActiveState,
-      now ?? new Date(nowMs),
-      undefined,
-      theme
-    ),
+    renderState: {
+      ...staticRenderState,
+      activeIndicator: getVesselTimelineActiveIndicator({
+        segments,
+        activeState,
+        liveState,
+        now: now ?? new Date(nowMs),
+      }),
+    },
   };
 };

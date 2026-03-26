@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
 import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { resolveActiveStateFromTimeline } from "../resolveActiveStateFromTimeline";
@@ -6,12 +7,10 @@ import { resolveActiveStateFromTimeline } from "../resolveActiveStateFromTimelin
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 24, hours, minutes));
 
-const atMs = (hours: number, minutes: number) => at(hours, minutes).getTime();
-
 describe("resolveActiveStateFromTimeline", () => {
   it("prefers the final terminal-tail arrival over an older dock row at the same terminal", () => {
     const resolved = resolveActiveStateFromTimeline({
-      events: makeRoundTripEvents(),
+      segments: buildSegmentsFromBoundaryEvents(makeRoundTripEvents()),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "P52",
@@ -28,7 +27,7 @@ describe("resolveActiveStateFromTimeline", () => {
 
   it("anchors dock fallback to the nearest same-terminal row when schedule context is missing", () => {
     const resolved = resolveActiveStateFromTimeline({
-      events: [
+      segments: buildSegmentsFromBoundaryEvents([
         makeEvent({
           Key: "arv-early",
           EventType: "arv-dock",
@@ -57,7 +56,7 @@ describe("resolveActiveStateFromTimeline", () => {
           ScheduledDeparture: at(18, 40),
           ScheduledTime: at(18, 40),
         }),
-      ],
+      ]),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "VAI",
@@ -70,6 +69,95 @@ describe("resolveActiveStateFromTimeline", () => {
       kind: "dock",
       startEventKey: "arv-early",
       endEventKey: "dep-early",
+    });
+    expect(resolved.ActiveState?.reason).toBe("location_anchor");
+  });
+
+  it("matches the start-of-day placeholder dock segment before the first departure", () => {
+    const resolved = resolveActiveStateFromTimeline({
+      segments: buildSegmentsFromBoundaryEvents([
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(8, 0),
+          ScheduledTime: at(8, 0),
+        }),
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(8, 0),
+          ScheduledTime: at(8, 35),
+        }),
+      ]),
+      location: makeLocation({
+        AtDock: true,
+        DepartingTerminalAbbrev: "P52",
+        ScheduledDeparture: at(8, 0),
+        TimeStamp: at(7, 58),
+      }),
+    });
+
+    expect(resolved.ActiveState?.rowMatch).toEqual({
+      kind: "dock",
+      startEventKey: "dep-1--arrival-placeholder",
+      endEventKey: "dep-1",
+    });
+    expect(resolved.ActiveState?.reason).toBe("location_anchor");
+  });
+
+  it("matches a broken-seam placeholder dock segment at the current terminal", () => {
+    const resolved = resolveActiveStateFromTimeline({
+      segments: buildSegmentsFromBoundaryEvents([
+        makeEvent({
+          Key: "arv-0",
+          EventType: "arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 5),
+        }),
+        makeEvent({
+          Key: "dep-0",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 5),
+        }),
+        makeEvent({
+          Key: "arv-0b",
+          EventType: "arv-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 25),
+        }),
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(7, 55),
+          ScheduledTime: at(7, 55),
+        }),
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(7, 55),
+          ScheduledTime: at(8, 15),
+        }),
+      ]),
+      location: makeLocation({
+        AtDock: true,
+        DepartingTerminalAbbrev: "VAI",
+        ScheduledDeparture: at(7, 55),
+        TimeStamp: at(7, 54),
+      }),
+    });
+
+    expect(resolved.ActiveState?.rowMatch).toEqual({
+      kind: "dock",
+      startEventKey: "dep-1--arrival-placeholder",
+      endEventKey: "dep-1",
     });
     expect(resolved.ActiveState?.reason).toBe("location_anchor");
   });
@@ -144,8 +232,8 @@ const makeLocation = (
   ScheduledDeparture: undefined,
   RouteAbbrev: "sea-bi",
   VesselPositionNum: 1,
-  TimeStamp: atMs(10, 30),
-  DepartingDistance: undefined,
+  TimeStamp: at(10, 30),
+  DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,
 });

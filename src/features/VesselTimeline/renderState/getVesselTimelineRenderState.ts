@@ -1,12 +1,8 @@
 /**
- * Day-level vessel timeline view-model entry point.
- *
- * Composes server-owned semantic segments, active-row selection, layout
- * geometry, and the active indicator into `VesselTimelineRenderState` for the
- * feature UI.
+ * Day-level vessel timeline render-state helpers.
  */
 
-import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline";
+import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
@@ -15,48 +11,54 @@ import type {
 import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../config";
 import type {
   VesselTimelineLayoutConfig,
-  VesselTimelineRenderState,
+  VesselTimelineStaticRenderState,
 } from "../types";
 import { buildActiveIndicator } from "./buildActiveIndicator";
 import { getLayoutTimelineRows } from "./getLayoutTimelineRows";
 import { resolveActiveSegmentIndex } from "./resolveActiveSegmentIndex";
 
 /**
- * Runs the vessel-day timeline pipeline from semantic segments to render state.
- *
- * @param Segments - Ordered semantic timeline segments for one vessel/day
- * @param liveState - Compact live vessel state for indicator progress and title
- * @param activeState - Backend-resolved active row selection and copy
- * @param now - Current wall-clock time
- * @param layout - Optional layout override
- * @param theme - Resolved timeline visual theme passed through to render state
- * @returns Final render state for the VesselTimeline UI
+ * Builds the static render geometry for a vessel-day timeline.
  */
-export const getVesselTimelineRenderState = (
-  Segments: VesselTimelineSegment[],
-  liveState: VesselTimelineLiveState | null,
+export const getStaticVesselTimelineRenderState = (
+  segments: VesselTimelineSegment[],
   activeState: VesselTimelineActiveState | null,
-  now: Date = new Date(),
   layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME
-): VesselTimelineRenderState => {
-  const activeSegmentIndex = resolveActiveSegmentIndex(Segments, activeState);
+): VesselTimelineStaticRenderState => {
+  const activeSegmentIndex = resolveActiveSegmentIndex(segments, activeState);
   const { rows, rowLayouts, terminalCards, contentHeightPx } =
-    getLayoutTimelineRows(Segments, activeSegmentIndex, layout);
+    getLayoutTimelineRows(segments, activeSegmentIndex, layout);
 
   return {
     rows,
     rowLayouts,
     terminalCards,
-    activeIndicator: buildActiveIndicator({
-      segments: Segments,
-      activeSegmentIndex,
-      activeState,
-      liveState,
-      now,
-    }),
     contentHeightPx,
+    activeSegmentIndex,
     layout,
     theme,
   };
 };
+
+/**
+ * Builds the ticking active-indicator state for a vessel-day timeline.
+ */
+export const getVesselTimelineActiveIndicator = ({
+  segments,
+  activeState,
+  liveState,
+  now = new Date(),
+}: {
+  segments: VesselTimelineSegment[];
+  activeState: VesselTimelineActiveState | null;
+  liveState: VesselTimelineLiveState | null;
+  now?: Date;
+}) =>
+  buildActiveIndicator({
+    segments,
+    activeSegmentIndex: resolveActiveSegmentIndex(segments, activeState),
+    activeState,
+    liveState,
+    now,
+  });
