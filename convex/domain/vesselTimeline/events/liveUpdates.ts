@@ -162,17 +162,50 @@ export const sortVesselTripEvents = (
  */
 export const normalizeScheduledDockSeams = (
   events: ConvexVesselTimelineEventRecord[]
-): ConvexVesselTimelineEventRecord[] =>
-  events.map((event, index) =>
-    event.ScheduledTime &&
-    isIdenticalScheduledDockSeam(event, events[index + 1])
+): ConvexVesselTimelineEventRecord[] => {
+  const adjustedScheduledTimesByKey = new Map<string, number>();
+  const eventsByVesselDay = new Map<string, ConvexVesselTimelineEventRecord[]>();
+
+  for (const event of events) {
+    const vesselDayKey = `${event.VesselAbbrev}:${event.SailingDay}`;
+    const scopedEvents = eventsByVesselDay.get(vesselDayKey);
+
+    if (scopedEvents) {
+      scopedEvents.push(event);
+      continue;
+    }
+
+    eventsByVesselDay.set(vesselDayKey, [event]);
+  }
+
+  for (const scopedEvents of eventsByVesselDay.values()) {
+    const sortedScopedEvents = [...scopedEvents].sort(sortVesselTripEvents);
+
+    for (let index = 0; index < sortedScopedEvents.length; index++) {
+      const event = sortedScopedEvents[index];
+      if (
+        event?.ScheduledTime &&
+        isIdenticalScheduledDockSeam(event, sortedScopedEvents[index + 1])
+      ) {
+        adjustedScheduledTimesByKey.set(
+          event.Key,
+          event.ScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+        );
+      }
+    }
+  }
+
+  return events.map((event) => {
+    const adjustedScheduledTime = adjustedScheduledTimesByKey.get(event.Key);
+
+    return adjustedScheduledTime !== undefined
       ? {
           ...event,
-          ScheduledTime:
-            event.ScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
+          ScheduledTime: adjustedScheduledTime,
         }
-      : event
-  );
+      : event;
+  });
+};
 
 const isIdenticalScheduledDockSeam = (
   current: ConvexVesselTimelineEventRecord,

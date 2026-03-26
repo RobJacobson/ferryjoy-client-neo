@@ -92,6 +92,9 @@ import type * as functions_vesselPings_index from "../functions/vesselPings/inde
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
+import type * as functions_vesselTimeline_actions from "../functions/vesselTimeline/actions.js";
+import type * as functions_vesselTimeline_activeStateSchemas from "../functions/vesselTimeline/activeStateSchemas.js";
+import type * as functions_vesselTimeline_eventRecordSchemas from "../functions/vesselTimeline/eventRecordSchemas.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
 import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
@@ -213,6 +216,9 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
+  "functions/vesselTimeline/actions": typeof functions_vesselTimeline_actions;
+  "functions/vesselTimeline/activeStateSchemas": typeof functions_vesselTimeline_activeStateSchemas;
+  "functions/vesselTimeline/eventRecordSchemas": typeof functions_vesselTimeline_eventRecordSchemas;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
   "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;

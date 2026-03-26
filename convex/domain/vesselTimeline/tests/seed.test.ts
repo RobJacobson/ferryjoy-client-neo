@@ -63,6 +63,32 @@ describe("buildSeedVesselTripEvents", () => {
     expect(events[1]?.ScheduledTime).toBe(at(8, 30));
   });
 
+  it("subtracts five minutes from an arrival when the next same-terminal departure has the identical scheduled time", () => {
+    const events = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "ISS",
+        DepartingTerminalAbbrev: "ORI",
+        ArrivingTerminalAbbrev: "SHI",
+        DepartingTime: at(8, 30),
+        SchedArriveNext: at(9, 10),
+      }),
+      makeTrip({
+        VesselAbbrev: "ISS",
+        DepartingTerminalAbbrev: "SHI",
+        ArrivingTerminalAbbrev: "ANA",
+        DepartingTime: at(9, 10),
+        SchedArriveNext: at(9, 40),
+      }),
+    ]);
+
+    expect(events[1]?.EventType).toBe("arv-dock");
+    expect(events[1]?.TerminalAbbrev).toBe("SHI");
+    expect(events[1]?.ScheduledTime).toBe(at(9, 5));
+    expect(events[2]?.EventType).toBe("dep-dock");
+    expect(events[2]?.TerminalAbbrev).toBe("SHI");
+    expect(events[2]?.ScheduledTime).toBe(at(9, 10));
+  });
+
   it("uses sailing day, vessel, departure, terminal, and event type in Key", () => {
     const events = buildSeedVesselTripEvents([
       makeTrip({
@@ -598,6 +624,53 @@ describe("normalizeScheduledDockSeams", () => {
 
     expect(normalizedEvents[0]?.ScheduledTime).toBe(at(16, 45));
     expect(normalizedEvents[1]?.ScheduledTime).toBe(at(16, 50));
+  });
+
+  it("normalizes identical same-terminal seams even when other vessels are interleaved in the global day list", () => {
+    const normalizedEvents = normalizeScheduledDockSeams(
+      [
+        makeEvent({
+          Key: "che-arv-shi",
+          VesselAbbrev: "CHE",
+          SailingDay: "2026-03-13",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(6, 50),
+          ScheduledTime: at(7, 5),
+        }),
+        makeEvent({
+          Key: "yak-dep-fhy",
+          VesselAbbrev: "YAK",
+          SailingDay: "2026-03-13",
+          EventType: "dep-dock",
+          TerminalAbbrev: "FRH",
+          ScheduledDeparture: at(7, 0),
+          ScheduledTime: at(7, 0),
+        }),
+        makeEvent({
+          Key: "che-dep-shi",
+          VesselAbbrev: "CHE",
+          SailingDay: "2026-03-13",
+          EventType: "dep-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(7, 5),
+          ScheduledTime: at(7, 5),
+        }),
+      ].sort(sortVesselTripEvents)
+    );
+
+    expect(
+      normalizedEvents.find((event) => event.Key === "che-arv-shi")
+        ?.ScheduledTime
+    ).toBe(at(7, 0));
+    expect(
+      normalizedEvents.find((event) => event.Key === "che-dep-shi")
+        ?.ScheduledTime
+    ).toBe(at(7, 5));
+    expect(
+      normalizedEvents.find((event) => event.Key === "yak-dep-fhy")
+        ?.ScheduledTime
+    ).toBe(at(7, 0));
   });
 
   it("does not adjust dock seams for different terminals or different scheduled times", () => {

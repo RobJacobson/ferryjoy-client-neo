@@ -11,7 +11,11 @@ import {
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { generateTripKey } from "../../../shared/keys";
-import { buildEventKey, sortVesselTripEvents } from "./liveUpdates";
+import {
+  buildEventKey,
+  normalizeScheduledDockSeams,
+  sortVesselTripEvents,
+} from "./liveUpdates";
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 
@@ -25,22 +29,24 @@ const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 export const buildSeedVesselTripEvents = (
   trips: ConvexScheduledTrip[]
 ): ConvexVesselTimelineEventRecord[] =>
-  trips
-    .filter((trip) => trip.TripType === "direct")
-    .flatMap((trip) =>
-      buildSeedEventsForSegment({
-        SailingDay: trip.SailingDay,
-        VesselAbbrev: trip.VesselAbbrev,
-        ScheduledDeparture: trip.DepartingTime,
-        DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
-        ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-        ScheduledArrival: normalizeScheduledArrivalTime(
-          trip.ArrivingTime ?? trip.SchedArriveNext,
-          trip.DepartingTime
-        ),
-      })
-    )
-    .sort(sortVesselTripEvents);
+  normalizeScheduledDockSeams(
+    trips
+      .filter((trip) => trip.TripType === "direct")
+      .flatMap((trip) =>
+        buildSeedEventsForSegment({
+          SailingDay: trip.SailingDay,
+          VesselAbbrev: trip.VesselAbbrev,
+          ScheduledDeparture: trip.DepartingTime,
+          DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+          ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+          ScheduledArrival: normalizeScheduledArrivalTime(
+            trip.ArrivingTime ?? trip.SchedArriveNext,
+            trip.DepartingTime
+          ),
+        })
+      )
+      .sort(sortVesselTripEvents)
+  );
 
 /**
  * Builds vessel trip event rows directly from raw WSF schedule segments,
@@ -50,21 +56,23 @@ export const buildSeedVesselTripEvents = (
 export const buildSeedVesselTripEventsFromRawSegments = (
   segments: RawWsfScheduleSegment[]
 ): ConvexVesselTimelineEventRecord[] =>
-  getDirectRawSeedSegments(segments)
-    .flatMap((segment) =>
-      buildSeedEventsForSegment({
-        SailingDay: segment.SailingDay,
-        VesselAbbrev: segment.VesselAbbrev,
-        ScheduledDeparture: segment.DepartingTime,
-        DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
-        ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
-        ScheduledArrival: normalizeScheduledArrivalTime(
-          segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
-          segment.DepartingTime
-        ),
-      })
-    )
-    .sort(sortVesselTripEvents);
+  normalizeScheduledDockSeams(
+    getDirectRawSeedSegments(segments)
+      .flatMap((segment) =>
+        buildSeedEventsForSegment({
+          SailingDay: segment.SailingDay,
+          VesselAbbrev: segment.VesselAbbrev,
+          ScheduledDeparture: segment.DepartingTime,
+          DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+          ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+          ScheduledArrival: normalizeScheduledArrivalTime(
+            segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
+            segment.DepartingTime
+          ),
+        })
+      )
+      .sort(sortVesselTripEvents)
+  );
 
 type SeedSegment = {
   SailingDay: string;
