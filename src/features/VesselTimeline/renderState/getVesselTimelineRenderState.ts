@@ -12,7 +12,7 @@ import type {
   VesselTimelineLiveState,
   VesselTimelineSegment,
 } from "@/data/contexts";
-import { clamp } from "@/shared/utils";
+import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../config";
 import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRenderState,
@@ -20,22 +20,6 @@ import type {
 import { buildActiveIndicator } from "./buildActiveIndicator";
 import { getLayoutTimelineRows } from "./getLayoutTimelineRows";
 import { resolveActiveSegmentIndex } from "./resolveActiveSegmentIndex";
-
-const PIXELS_PER_MINUTE_MIN = 4;
-const PIXELS_PER_MINUTE_MAX = 8;
-const PIXELS_PER_MINUTE_PER_ROW = 0.15;
-
-/**
- * Default pixel layout for row heights, terminal cards, and initial scroll.
- */
-export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
-  pixelsPerMinute: 4,
-  minRowHeightPx: 36,
-  terminalCardTopOffsetPx: -20,
-  terminalCardDepartureCapHeightPx: 20,
-  initialAutoScroll: "center-active-indicator",
-  initialScrollAnchorPercent: 0.5,
-};
 
 /**
  * Runs the vessel-day timeline pipeline from semantic segments to render state.
@@ -56,14 +40,9 @@ export const getVesselTimelineRenderState = (
   layout: VesselTimelineLayoutConfig = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME
 ): VesselTimelineRenderState => {
-  const adjustedLayout = {
-    ...layout,
-    pixelsPerMinute: getAdaptivePixelsPerMinute(Segments),
-  };
-
   const activeSegmentIndex = resolveActiveSegmentIndex(Segments, activeState);
   const { rows, rowLayouts, terminalCards, contentHeightPx } =
-    getLayoutTimelineRows(Segments, activeSegmentIndex, adjustedLayout);
+    getLayoutTimelineRows(Segments, activeSegmentIndex, layout);
 
   return {
     rows,
@@ -77,23 +56,7 @@ export const getVesselTimelineRenderState = (
       now,
     }),
     contentHeightPx,
-    layout: adjustedLayout,
+    layout,
     theme,
   };
 };
-
-/**
- * Derives pixels-per-minute from the approximate number of visible rows.
- *
- * This uses a single tunable multiplier and clamps the result to keep sparse
- * routes compact while preserving enough vertical space for dense schedules.
- *
- * @param Segments - Ordered semantic timeline segments for one vessel/day
- * @returns Adaptive pixels-per-minute ratio for the timeline
- */
-export const getAdaptivePixelsPerMinute = (Segments: VesselTimelineSegment[]) =>
-  clamp(
-    Math.max(1, Segments.length) * PIXELS_PER_MINUTE_PER_ROW,
-    PIXELS_PER_MINUTE_MIN,
-    PIXELS_PER_MINUTE_MAX
-  );

@@ -18,10 +18,12 @@ import type {
  * Layout config for deterministic vessel timeline sizing.
  */
 export type VesselTimelineLayoutConfig = {
-  pixelsPerMinute: number;
+  rowHeightBasePx: number;
+  rowHeightScalePx: number;
+  rowHeightExponent: number;
   minRowHeightPx: number;
-  terminalCardTopOffsetPx: number;
-  terminalCardDepartureCapHeightPx: number;
+  terminalCardTopHeightPx: number;
+  terminalCardBottomHeightPx: number;
   initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";
   initialScrollAnchorPercent: number;
 };

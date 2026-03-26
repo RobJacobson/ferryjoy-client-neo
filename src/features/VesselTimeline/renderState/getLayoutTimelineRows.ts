@@ -70,14 +70,19 @@ export const getLayoutTimelineRows = (
  * Row display height from schedule-based minutes and a minimum row height.
  *
  * @param row - Semantic row with a schedule-based duration
- * @param layout - Pixels-per-minute scale and min-height floor
+ * @param layout - Nonlinear row-height tuning and min-height floor
  * @returns Height in pixels for this row
  */
 const getDisplayHeightPx = (
   row: VesselTimelineSegment,
   layout: VesselTimelineLayoutConfig
 ) =>
-  Math.max(layout.minRowHeightPx, row.durationMinutes * layout.pixelsPerMinute);
+  Math.max(
+    layout.minRowHeightPx,
+    layout.rowHeightBasePx +
+      layout.rowHeightScalePx *
+        Math.pow(Math.max(0, row.durationMinutes), layout.rowHeightExponent)
+  );
 
 /**
  * Builds a presentation event for one end of a semantic row.
@@ -123,7 +128,7 @@ const toRenderEvent = (
  * the same terminal.
  *
  * @param rows - Laid-out rows with pixel tops
- * @param layout - Card top offset and cap heights
+ * @param layout - Card top and bottom heights
  * @returns Geometry entries for `TimelineTerminalCardBackgrounds`
  */
 const computeTerminalCards = (
@@ -150,13 +155,13 @@ const computeTerminalCards = (
     const topPx =
       position === "bottom"
         ? rowTopPx
-        : rowTopPx + layout.terminalCardTopOffsetPx;
+        : rowTopPx - layout.terminalCardTopHeightPx;
     const heightPx =
       position === "bottom"
-        ? layout.terminalCardDepartureCapHeightPx
+        ? layout.terminalCardBottomHeightPx
         : position === "single"
           ? current.displayHeightPx
-          : current.displayHeightPx - layout.terminalCardTopOffsetPx;
+          : current.displayHeightPx + layout.terminalCardTopHeightPx;
 
     cards.push({
       id: current.id,

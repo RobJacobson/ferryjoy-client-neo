@@ -6,9 +6,13 @@ import { useEffect } from "react";
 import { useSharedValue, withSpring } from "react-native-reanimated";
 
 const GRADUAL_SPRING_CONFIG = {
-  damping: 120,
-  stiffness: 4,
-  mass: 16,
+  // Lower stiffness makes the boundary ease toward updates more gently.
+  stiffness: 2.5,
+  // Slightly lower damping reduces the "braced" feeling without adding bounce.
+  damping: 90,
+  // Higher mass gives the movement a heavier, more gliding feel.
+  mass: 20,
+  // Keep the indicator and completed track from overshooting their true target.
   overshootClamping: true,
 } as const;
 

@@ -15,8 +15,8 @@ import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 const getDisplayPositionPercent = (positionPercent: number): number =>
   lerp(
     clamp(positionPercent, 0, 1),
-    TIMELINE_SHARED_CONFIG.indicatorPositionInsetPercent,
-    1 - TIMELINE_SHARED_CONFIG.indicatorPositionInsetPercent
+    TIMELINE_SHARED_CONFIG.indicatorPositionStartPercent,
+    TIMELINE_SHARED_CONFIG.indicatorPositionEndPercent
   );
 
 /**

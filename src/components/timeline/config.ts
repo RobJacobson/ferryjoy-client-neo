@@ -8,7 +8,8 @@
 export const TIMELINE_SHARED_CONFIG = {
   trackXPositionPercent: 35,
   indicatorSizePx: 48,
-  indicatorPositionInsetPercent: 0.02,
+  indicatorPositionStartPercent: 0.02,
+  indicatorPositionEndPercent: 1,
   sideColumnOffsetPx: 18,
 } as const;
 
