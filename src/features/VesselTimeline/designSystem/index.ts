@@ -1,3 +1,7 @@
+/**
+ * Public exports for VesselTimeline design variants and theme helpers.
+ */
+
 export type {
   VesselTimelineDesignVariant,
   VesselTimelineVariantDefinition,

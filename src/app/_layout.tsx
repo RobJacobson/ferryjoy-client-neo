@@ -59,8 +59,14 @@ export default function Layout() {
     "BitcountPropSingle-700": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-Bold.ttf"),
     "BitcountPropSingle-800": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-ExtraBold.ttf"),
     "BitcountPropSingle-900": require("../../assets/fonts/led/BitcountPropSingle/BitcountPropSingle_Cursive-Black.ttf"),
-    "tgl-0": require("../../assets/fonts/tgl/TGL 0-16.ttf"),
-    "tgl-31034": require("../../assets/fonts/tgl/TGL 31034-1.ttf"),
+    "tgl-0": require("../../assets/fonts/tgl/tgl-0-17.ttf"),
+    "tgl-0-italic": require("../../assets/fonts/tgl/tgl-0-16.ttf"),
+    "tgl-31034": require("../../assets/fonts/tgl/tgl-31034-1.ttf"),
+    "tgl-31034-italic": require("../../assets/fonts/tgl/tgl-31034-2.ttf"),
+    "Digital-7": require("../../assets/fonts/digital-7/digital-7.ttf"),
+    "Digital-7-Italic": require("../../assets/fonts/digital-7/digital-7-italic.ttf"),
+    "Digital-7-Mono": require("../../assets/fonts/digital-7/digital-7-mono.ttf"),
+    "Digital-7-Mono-Italic": require("../../assets/fonts/digital-7/digital-7-mono-italic.ttf"),
   });
 
   useEffect(() => {

@@ -18,7 +18,7 @@ export type FetchAndTransformScheduledTripsResult = {
 
 /**
  * Shared schedule fetch + transformation flow used by both scheduledTrips and
- * vesselTripEvents. It fetches raw WSF schedule data once, maps it into the
+ * VesselTimeline boundary-event sync. It fetches raw WSF schedule data once, maps it into the
  * scheduled-trip shape, and computes the richer scheduled-trip transform.
  */
 export const fetchAndTransformScheduledTrips = async (

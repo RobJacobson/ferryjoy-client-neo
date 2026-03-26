@@ -3,7 +3,7 @@
  */
 
 import { clamp, lerp } from "@/shared/utils";
-import { TIMELINE_INDICATOR_POSITION_INSET_PERCENT } from "./config";
+import { TIMELINE_SHARED_CONFIG } from "./config";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 
 /**
@@ -15,8 +15,8 @@ import type { RowLayoutBounds, TimelineActiveIndicator } from "./types";
 const getDisplayPositionPercent = (positionPercent: number): number =>
   lerp(
     clamp(positionPercent, 0, 1),
-    TIMELINE_INDICATOR_POSITION_INSET_PERCENT,
-    1 - TIMELINE_INDICATOR_POSITION_INSET_PERCENT
+    TIMELINE_SHARED_CONFIG.indicatorPositionStartPercent,
+    TIMELINE_SHARED_CONFIG.indicatorPositionEndPercent
   );
 
 /**

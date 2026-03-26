@@ -5,24 +5,21 @@
  * day-level timeline content from the normalized vessel-centric data source.
  */
 
+import { useState } from "react";
 import {
   createTimelineVisualTheme,
-  type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "@/components/timeline";
-import { Text, View } from "@/components/ui";
-import {
-  ConvexVesselTripEventsProvider,
-  useConvexVesselTripEvents,
-} from "@/data/contexts";
-import { useNowMs } from "@/shared/hooks";
-import { TimelineContent } from "./components/TimelineContent";
-import { getVesselTimelineRenderState } from "./utils";
+import { Button, Text } from "@/components/ui";
+import { ConvexVesselTimelineProvider } from "@/data/contexts";
+import { useVesselTimelineViewModel } from "./hooks";
+import { getVesselTimelineDataHostKey } from "./utils";
+import { VesselTimelineContent } from "./VesselTimelineContent";
+import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
 
-type VesselTimelineProps = {
+export type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
-  routeAbbrevs: string[];
   now?: Date;
   theme?: TimelineVisualThemeOverrides;
 };
@@ -33,93 +30,82 @@ type VesselTimelineProps = {
  * @param props - Vessel timeline props
  * @param props.vesselAbbrev - Vessel abbreviation to display
  * @param props.sailingDay - Sailing day in YYYY-MM-DD format
- * @param props.routeAbbrevs - Route abbreviations carried by the caller
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @returns Vessel-day timeline feature
  */
 export const VesselTimeline = ({
   vesselAbbrev,
   sailingDay,
-  routeAbbrevs: _routeAbbrevs,
   now,
   theme,
 }: VesselTimelineProps) => {
+  const [retryNonce, setRetryNonce] = useState(0);
   const resolvedTheme = createTimelineVisualTheme(theme);
+  const retry = () => {
+    setRetryNonce((current) => current + 1);
+  };
 
   return (
-    <ConvexVesselTripEventsProvider
+    <ConvexVesselTimelineProvider
+      key={getVesselTimelineDataHostKey(vesselAbbrev, sailingDay, retryNonce)}
       vesselAbbrev={vesselAbbrev}
       sailingDay={sailingDay}
+      onRetry={retry}
     >
-      <VesselTimelineContent now={now} theme={resolvedTheme} />
-    </ConvexVesselTripEventsProvider>
+      <VesselTimelinePresentation now={now} theme={resolvedTheme} />
+    </ConvexVesselTimelineProvider>
   );
-};
-
-type VesselTimelineContentProps = {
-  now?: Date;
-  theme: TimelineVisualTheme;
 };
 
 /**
- * Inner content component that consumes the vessel-day context.
+ * Renders the user-visible VesselTimeline states from the hook-based view
+ * model.
  *
- * @param props - Inner content props
+ * @param props - Presentation props
  * @param props.now - Optional wall-clock override for deterministic rendering
- * @returns Loading, empty, error, or ready vessel timeline content
+ * @param props.theme - Resolved visual theme for timeline rendering
+ * @returns Loading, error, empty, or ready timeline UI
  */
-const VesselTimelineContent = ({ now, theme }: VesselTimelineContentProps) => {
-  const nowMs = useNowMs(1000);
-  const {
-    VesselAbbrev,
-    SailingDay,
-    Events,
-    VesselLocation,
-    IsLoading,
-    Error: errorMessage,
-  } = useConvexVesselTripEvents();
+const VesselTimelinePresentation = ({
+  now,
+  theme,
+}: {
+  now?: Date;
+  theme: ReturnType<typeof createTimelineVisualTheme>;
+}) => {
+  const { isLoading, error, emptyMessage, retry, renderState } =
+    useVesselTimelineViewModel({
+      now,
+      theme,
+    });
 
-  if (IsLoading) {
+  if (isLoading) {
+    return <VesselTimelineStatusView message="Loading vessel timeline..." />;
+  }
+
+  if (error) {
     return (
-      <View className="flex-1 items-center justify-center px-6">
-        <Text className="font-semibold text-lg">
-          Loading vessel timeline...
-        </Text>
-      </View>
+      <VesselTimelineStatusView
+        action={
+          <Button className="mt-4" onPress={retry} variant="outline">
+            <Text>Try again</Text>
+          </Button>
+        }
+        detail={error}
+        message="Unable to load vessel timeline"
+        tone="destructive"
+      />
     );
   }
 
-  if (errorMessage) {
+  if (emptyMessage) {
     return (
-      <View className="flex-1 items-center justify-center px-6">
-        <Text className="font-semibold text-destructive text-lg">
-          Unable to load vessel timeline
-        </Text>
-        <Text className="mt-2 text-center text-muted-foreground text-sm">
-          {errorMessage}
-        </Text>
-      </View>
+      <VesselTimelineStatusView
+        detail={emptyMessage}
+        message="No vessel timeline found"
+      />
     );
   }
 
-  if (Events.length === 0) {
-    return (
-      <View className="flex-1 items-center justify-center px-6">
-        <Text className="font-semibold text-lg">No vessel timeline found</Text>
-        <Text className="mt-2 text-center text-muted-foreground text-sm">
-          No vessel trip events were found for {VesselAbbrev} on {SailingDay}.
-        </Text>
-      </View>
-    );
-  }
-
-  const renderState = getVesselTimelineRenderState(
-    Events,
-    VesselLocation,
-    now ?? new Date(nowMs),
-    undefined,
-    theme
-  );
-
-  return <TimelineContent {...renderState} />;
+  return renderState ? <VesselTimelineContent {...renderState} /> : null;
 };

@@ -1,7 +1,3 @@
-export {
-  GRADIENT_BACKGROUND_COLORS,
-  GRADIENT_BACKGROUND_NOISE_CONFIG,
-  GRADIENT_BACKGROUND_OVERLAY_COLOR,
-  GRADIENT_BACKGROUND_STOPS,
-} from "./config";
+/** Public export for the gradient background screen feature. */
+
 export { GradientBackground } from "./GradientBackground";

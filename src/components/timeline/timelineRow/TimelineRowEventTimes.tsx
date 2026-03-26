@@ -1,5 +1,8 @@
 /**
- * Right column: scheduled time plus actual or estimated when present.
+ * Right column: one or more time rows (scheduled plus actual or estimated).
+ *
+ * Each row stacks a stroked icon silhouette with the tinted icon and outlined
+ * time text for legibility on busy backgrounds.
  */
 
 import {
@@ -8,18 +11,18 @@ import {
   type LucideIcon,
   Timer,
 } from "lucide-react-native";
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
+import { TIMELINE_ROW_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
-import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
-const EVENT_TIME_ICON_SIZE_PX = 22;
-const EVENT_TIME_ICON_STROKE_WIDTH = 2;
-const EVENT_TIME_ICON_OUTLINE_WIDTH = 2;
-const EVENT_TIME_ICON_OUTLINE_COLOR = "rgba(255, 255, 255, 1)";
-
+const EVENT_TIME_TEXT_STYLE = {
+  fontFamily: "BitcountPropSingle-500",
+  fontSize: TIMELINE_ROW_CONFIG.times.textFontSizePx,
+} as const;
 const eventTypeIcons = {
   actual: Timer,
   scheduled: CalendarClock,
@@ -38,12 +41,17 @@ type TimelineTimeEntry = {
   rowClassName?: string;
 };
 
+type TimelineTimeColumns = {
+  scheduled?: TimelineTimeEntry;
+  secondary?: TimelineTimeEntry;
+};
+
 /**
  * Builds icon rows from schedule-first display rules and optional placeholder.
  *
  * @param point - Scheduled, actual, and estimated instants for the event
  * @param showPlaceholder - When true and no times exist, shows a placeholder row
- * @param theme - Icon and text colors for the time rows
+ * @param theme - Body text color for the time rows
  * @returns Horizontal group of time rows
  */
 export const TimelineRowEventTimes = ({
@@ -53,7 +61,7 @@ export const TimelineRowEventTimes = ({
 }: TimelineRowEventTimesProps) => {
   const { scheduled, actual, estimated } = point;
   const secondary = actual ?? estimated;
-  const timeEntries = getTimeEntries({
+  const columns = getTimeColumns({
     scheduled,
     secondary,
     secondaryIcon: eventTypeIcons[actual ? "actual" : "estimated"],
@@ -61,19 +69,33 @@ export const TimelineRowEventTimes = ({
   });
 
   return (
-    <View className="flex-row gap-1">
-      {timeEntries.map(({ Icon, label, rowClassName }) => (
-        <TimelineRowEventTime
-          key={`${Icon.displayName ?? Icon.name}:${label}`}
-          Icon={Icon}
-          label={label}
-          rowClassName={rowClassName}
-          theme={theme}
-        />
-      ))}
+    <View className="w-full flex-row items-start">
+      <TimelineRowTimeColumn entry={columns.scheduled} theme={theme} />
+      <TimelineRowTimeColumn entry={columns.secondary} theme={theme} />
     </View>
   );
 };
+
+type TimelineRowTimeColumnProps = {
+  entry?: TimelineTimeEntry;
+  theme: TimelineVisualTheme;
+};
+
+const TimelineRowTimeColumn = ({
+  entry,
+  theme,
+}: TimelineRowTimeColumnProps) => (
+  <View className="w-1/2 items-start">
+    {entry ? (
+      <TimelineRowEventTime
+        Icon={entry.Icon}
+        label={entry.label}
+        rowClassName={entry.rowClassName}
+        theme={theme}
+      />
+    ) : null}
+  </View>
+);
 
 type TimelineRowEventTimeProps = {
   Icon: LucideIcon;
@@ -88,7 +110,7 @@ type TimelineRowEventTimeProps = {
  * @param Icon - Lucide icon for this row's time kind
  * @param label - Formatted time or placeholder text
  * @param rowClassName - Optional flex gap between icon and label
- * @param theme - Icon tint and text color
+ * @param theme - Body text color
  * @returns A single time row view
  */
 const TimelineRowEventTime = ({
@@ -97,22 +119,27 @@ const TimelineRowEventTime = ({
   rowClassName,
   theme,
 }: TimelineRowEventTimeProps) => (
-  <View className={cn("flex-row", rowClassName)}>
-    <TimelineOutlinedIcon Icon={Icon} color={theme.times.iconColor} />
-    <TimelineOutlinedText>
-      <Text
-        className="font-bitcount-500 text-lg"
-        style={{ color: theme.times.textColor }}
+  <View className={cn("mt-[-1px] flex-row items-center", rowClassName)}>
+    <TimelineOutlinedIcon
+      Icon={Icon}
+      color={theme.text.bodyColor}
+      outlineColor={theme.outlines.color}
+    />
+    <View>
+      <StrokeText
+        outlineColor={theme.outlines.color}
+        style={[EVENT_TIME_TEXT_STYLE, { color: theme.text.bodyColor }]}
       >
         {label}
-      </Text>
-    </TimelineOutlinedText>
+      </StrokeText>
+    </View>
   </View>
 );
 
 type TimelineOutlinedIconProps = {
   Icon: LucideIcon;
   color: string;
+  outlineColor: string;
 };
 
 /**
@@ -120,37 +147,43 @@ type TimelineOutlinedIconProps = {
  *
  * @param Icon - Lucide icon to render
  * @param color - Foreground icon color
+ * @param outlineColor - HSLA outline color behind the icon
  * @returns Outlined icon view
  */
-const TimelineOutlinedIcon = ({ Icon, color }: TimelineOutlinedIconProps) => (
+const TimelineOutlinedIcon = ({
+  Icon,
+  color,
+  outlineColor,
+}: TimelineOutlinedIconProps) => (
   <View className="relative">
     <View className="absolute top-0 left-0">
       <Icon
-        size={EVENT_TIME_ICON_SIZE_PX}
+        size={TIMELINE_ROW_CONFIG.times.iconSizePx}
         strokeWidth={
-          EVENT_TIME_ICON_STROKE_WIDTH + EVENT_TIME_ICON_OUTLINE_WIDTH * 2
+          TIMELINE_ROW_CONFIG.times.iconStrokeWidth +
+          TIMELINE_ROW_CONFIG.times.iconOutlineWidth * 2
         }
-        color={EVENT_TIME_ICON_OUTLINE_COLOR}
+        color={outlineColor}
       />
     </View>
     <Icon
-      size={EVENT_TIME_ICON_SIZE_PX}
-      strokeWidth={EVENT_TIME_ICON_STROKE_WIDTH}
+      size={TIMELINE_ROW_CONFIG.times.iconSizePx}
+      strokeWidth={TIMELINE_ROW_CONFIG.times.iconStrokeWidth}
       color={color}
     />
   </View>
 );
 
 /**
- * Produces ordered time rows: optional placeholder, scheduled, then secondary.
+ * Produces stable scheduled and secondary time columns.
  *
  * @param scheduled - Baseline scheduled instant, if any
  * @param secondary - Actual if set, else estimated, when present
  * @param secondaryIcon - Icon matching actual vs estimated for the secondary row
  * @param showPlaceholder - Enables `--` placeholder when no times exist
- * @returns Entries rendered as `TimelineRowEventTime` rows
+ * @returns Per-column entries rendered as `TimelineRowEventTime` rows
  */
-const getTimeEntries = ({
+const getTimeColumns = ({
   scheduled,
   secondary,
   secondaryIcon,
@@ -160,32 +193,32 @@ const getTimeEntries = ({
   secondary?: Date;
   secondaryIcon: LucideIcon;
   showPlaceholder: boolean;
-}): TimelineTimeEntry[] => {
-  const entries: TimelineTimeEntry[] = [];
+}): TimelineTimeColumns => {
+  const columns: TimelineTimeColumns = {};
 
-  if (!scheduled && !secondary && showPlaceholder) {
-    entries.push({
+  if (!scheduled && showPlaceholder) {
+    columns.scheduled = {
       Icon: CalendarClock,
       label: "--",
       rowClassName: "gap-2",
-    });
+    };
   }
 
   if (scheduled) {
-    entries.push({
+    columns.scheduled = {
       Icon: eventTypeIcons.scheduled,
       label: toDisplayTime(scheduled),
       rowClassName: "gap-0.5",
-    });
+    };
   }
 
   if (secondary) {
-    entries.push({
+    columns.secondary = {
       Icon: secondaryIcon,
       label: toDisplayTime(secondary),
       rowClassName: "gap-0.5",
-    });
+    };
   }
 
-  return entries;
+  return columns;
 };

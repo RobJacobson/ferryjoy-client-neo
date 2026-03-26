@@ -5,9 +5,8 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
 import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { calculateDistanceInMiles } from "shared/distanceUtils";
+import { enrichConvexVesselLocation } from "shared/enrichConvexVesselLocations";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
-import { terminalLocations } from "src/data/terminalLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
@@ -29,10 +28,19 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  */
 export const updateVesselOrchestrator = internalAction({
   args: {},
-  handler: async (ctx) => {
-    let locationsSuccess = false;
-    let tripsSuccess = false;
-    let tripEventsSuccess = false;
+  handler: async (
+    ctx
+  ): Promise<{
+    locationsSuccess: boolean;
+    tripsSuccess: boolean;
+    tripEventsSuccess: boolean;
+    errors?: {
+      fetch?: { message: string; stack?: string };
+      locations?: { message: string; stack?: string };
+      trips?: { message: string; stack?: string };
+      tripEvents?: { message: string; stack?: string };
+    };
+  }> => {
     // Track errors from each processing branch
     const errors: {
       fetch?: { message: string; stack?: string };
@@ -49,86 +57,63 @@ export const updateVesselOrchestrator = internalAction({
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
       // Transform chain: WSF API → Convex schema → enrich with distances → final format
-      convexLocations = rawLocations
-        .map(toConvexVesselLocation)
-        .map((loc) => {
-          const departingTerminal =
-            terminalLocations[loc.DepartingTerminalAbbrev];
-          const arrivingTerminal = loc.ArrivingTerminalAbbrev
-            ? terminalLocations[loc.ArrivingTerminalAbbrev]
-            : undefined;
-
-          return {
-            ...loc,
-            // Distance from current position to departing terminal
-            DepartingDistance: calculateDistanceInMiles(
-              loc.Latitude,
-              loc.Longitude,
-              departingTerminal?.Latitude,
-              departingTerminal?.Longitude
-            ),
-            // Distance from current position to arriving terminal (if known)
-            ArrivingDistance: calculateDistanceInMiles(
-              loc.Latitude,
-              loc.Longitude,
-              arrivingTerminal?.Latitude,
-              arrivingTerminal?.Longitude
-            ),
-          };
-        })
-        .map(convertConvexVesselLocation);
+      convexLocations = rawLocations.map((rawLocation) =>
+        convertConvexVesselLocation(
+          enrichConvexVesselLocation(toConvexVesselLocation(rawLocation))
+        )
+      );
     } catch (error) {
       const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
       console.error("Failed to fetch or process vessel locations:", err);
 
       return {
-        locationsSuccess,
-        tripsSuccess,
-        tripEventsSuccess,
+        locationsSuccess: false,
+        tripsSuccess: false,
+        tripEventsSuccess: false,
         errors,
       };
     }
 
-    // Step 2: Update vessel location database (error isolated)
-    try {
-      await updateVesselLocations(ctx, convexLocations);
-      locationsSuccess = true;
-    } catch (error) {
-      const err = normalizeError(error);
+    const branchResults: [
+      PromiseSettledResult<void>,
+      PromiseSettledResult<void>,
+      PromiseSettledResult<null>,
+    ] = await Promise.allSettled([
+      updateVesselLocations(ctx, convexLocations),
+      runUpdateVesselTrips(ctx, convexLocations),
+      ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.applyLiveActualUpdates,
+        {
+          Locations: convexLocations,
+        }
+      ),
+    ]);
+
+    const [locationsResult, tripsResult, tripEventsResult] = branchResults;
+
+    if (locationsResult.status === "rejected") {
+      const err = normalizeError(locationsResult.reason);
       errors.locations = { message: err.message, stack: err.stack };
       console.error("updateVesselLocations failed:", err);
     }
 
-    // Step 3: Update vessel trips (error isolated from location updates)
-    try {
-      await runUpdateVesselTrips(ctx, convexLocations);
-      tripsSuccess = true;
-    } catch (error) {
-      const err = normalizeError(error);
+    if (tripsResult.status === "rejected") {
+      const err = normalizeError(tripsResult.reason);
       errors.trips = { message: err.message, stack: err.stack };
       console.error("runUpdateVesselTrips failed:", err);
     }
 
-    // Step 4: Update vessel trip events (error isolated from other branches)
-    try {
-      await ctx.runMutation(
-        internal.functions.vesselTripEvents.mutations.applyLiveUpdates,
-        {
-          Locations: convexLocations,
-        }
-      );
-      tripEventsSuccess = true;
-    } catch (error) {
-      const err = normalizeError(error);
+    if (tripEventsResult.status === "rejected") {
+      const err = normalizeError(tripEventsResult.reason);
       errors.tripEvents = { message: err.message, stack: err.stack };
-      console.error("applyLiveUpdates failed:", err);
+      console.error("applyLiveActualUpdates failed:", err);
     }
 
     return {
-      locationsSuccess,
-      tripsSuccess,
-      tripEventsSuccess,
+      locationsSuccess: locationsResult.status === "fulfilled",
+      tripsSuccess: tripsResult.status === "fulfilled",
+      tripEventsSuccess: tripEventsResult.status === "fulfilled",
       ...(Object.keys(errors).length > 0 ? { errors } : {}),
     };
   },

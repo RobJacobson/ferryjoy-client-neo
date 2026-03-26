@@ -13,11 +13,9 @@ import {
   TimelineRow,
   TimelineRowContent,
   TimelineTrack,
+  useAnimatedProgress,
 } from "@/components/timeline";
-import {
-  getBoundaryTopPx,
-  getTrackFractions,
-} from "@/components/timeline/viewState";
+import { getBoundaryTopPx } from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type {
   RowLayoutBounds,
@@ -52,10 +50,7 @@ export const TimelineContent = ({
   }, []);
 
   const boundaryTopPx = getBoundaryTopPx(activeIndicator, rowLayouts);
-  const completedPercent = getTrackFractions(
-    boundaryTopPx,
-    CONTAINER_HEIGHT_PX
-  );
+  const animatedBoundaryTopPx = useAnimatedProgress(boundaryTopPx ?? 0);
 
   return (
     <View className="relative h-[350px]">
@@ -66,7 +61,9 @@ export const TimelineContent = ({
       >
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
-          completedPercent={completedPercent}
+          completedBoundaryTopPx={
+            activeIndicator && boundaryTopPx !== null ? animatedBoundaryTopPx : null
+          }
           theme={theme}
         />
         {renderRows.map((row: TimelineRenderRow) => (
@@ -86,6 +83,9 @@ export const TimelineContent = ({
         ))}
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}
+          animatedBoundaryTopPx={
+            activeIndicator && boundaryTopPx !== null ? animatedBoundaryTopPx : null
+          }
           blurTargetRef={blurTargetRef}
           rowLayouts={rowLayouts}
           theme={theme}

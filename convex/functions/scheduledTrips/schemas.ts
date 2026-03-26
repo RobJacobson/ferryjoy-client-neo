@@ -1,21 +1,16 @@
+/**
+ * Defines Convex schemas and conversion helpers for scheduled trips.
+ */
+
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { terminalLocations } from "src/data/terminalLocations";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { epochMsToDate } from "../../shared/convertDates";
+import { getTerminalAbbreviation } from "../../shared/terminalLocations";
 
 // Re-export for convenience
 export { getVesselAbbreviation };
-
-/**
- * Get terminal abbreviation by terminal name
- *
- * @param terminalName - The full name of the terminal
- * @returns The terminal abbreviation or empty string if not found
- */
-export const getTerminalAbbreviation = (terminalName: string): string =>
-  Object.values(terminalLocations).find((t) => t.TerminalName === terminalName)
-    ?.TerminalAbbrev || "";
+export { getTerminalAbbreviation };
 
 /**
  * Convex validator for scheduled trips

@@ -10,12 +10,18 @@ export type TimelineSegmentKind = "at-dock" | "at-sea";
 export type TimelineMarkerAppearance = "past" | "future";
 export type TimelineEventType = "arrive" | "depart";
 
+/**
+ * Event boundary times exposed to the shared presentation layer.
+ */
 export type TimelineTimePoint = {
   scheduled?: Date;
   actual?: Date;
   estimated?: Date;
 };
 
+/**
+ * One boundary event rendered at the start or end of a timeline row.
+ */
 export type TimelineRenderEvent = {
   eventType: TimelineEventType;
   currTerminalAbbrev?: string;
@@ -25,6 +31,9 @@ export type TimelineRenderEvent = {
   timePoint: TimelineTimePoint;
 };
 
+/**
+ * Presentation-only row shape consumed by the shared vertical timeline UI.
+ */
 export type TimelineRenderRow = {
   id: string;
   kind: TimelineSegmentKind;
@@ -36,6 +45,9 @@ export type TimelineRenderRow = {
   isFinalRow: boolean;
 };
 
+/**
+ * Floating indicator copy and placement info for the overlay layer.
+ */
 export type TimelineActiveIndicator = {
   rowId: string;
   positionPercent: number;
@@ -46,6 +58,9 @@ export type TimelineActiveIndicator = {
   speedKnots?: number;
 };
 
+/**
+ * Cached row measurements used for indicator placement and progress math.
+ */
 export type RowLayoutBounds = {
   y: number;
   height: number;

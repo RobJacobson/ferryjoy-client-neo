@@ -127,9 +127,9 @@ the fields needed to render a day timeline:
 - `PredictedTime?`
 - `ActualTime?`
 
-Detailed `vesselTripEvents` architecture now lives in:
+Detailed `VesselTimeline` backend architecture now lives in:
 
-- `convex/domain/vesselTripEvents/README.md`
+- `convex/domain/vesselTimeline/README.md`
 
 That document covers:
 
@@ -217,7 +217,7 @@ The new `vesselTripEvents` branch is designed to stay lightweight:
 
 - `convex/functions/vesselTrips/updates/README.md`
 - `convex/domain/scheduledTrips/README.md`
-- `src/features/VesselTimeline/ARCHITECTURE.md`
+- `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 
 ## Summary
 

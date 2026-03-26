@@ -2,9 +2,10 @@
  * Stylized terminal name heading for dock rows (above the card region).
  */
 
-import { Text, View } from "@/components/ui";
+import { StrokeText } from "@/components/StrokeText";
+import { View } from "@/components/ui";
+import { TIMELINE_ROW_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
-import { TimelineOutlinedText } from "./TimelineOutlinedText";
 
 type TimelineRowTerminalNameProps = {
   text: string;
@@ -15,7 +16,7 @@ type TimelineRowTerminalNameProps = {
  * Absolutely positioned, rotated display name using puffberry typography.
  *
  * @param text - Full terminal display name
- * @param theme - Terminal name color from the visual theme
+ * @param theme - Terminal heading color from the visual theme
  * @returns Non-interactive overlay text
  */
 export const TimelineRowTerminalName = ({
@@ -23,21 +24,26 @@ export const TimelineRowTerminalName = ({
   theme,
 }: TimelineRowTerminalNameProps) => (
   <View
-    className="absolute -top-10 -left-3"
+    className="absolute -top-11 -left-3"
     style={{
-      zIndex: 2,
-      elevation: 2,
-      transform: [{ rotate: "-9deg" }],
+      zIndex: TIMELINE_ROW_CONFIG.terminalName.zIndex,
+      elevation: TIMELINE_ROW_CONFIG.terminalName.elevation,
+      transform: [
+        { rotate: `${TIMELINE_ROW_CONFIG.terminalName.rotationDeg}deg` },
+      ],
     }}
     pointerEvents="none"
   >
-    <TimelineOutlinedText outlineWidth={2}>
-      <Text
-        className="font-puffberry text-3xl"
-        style={{ color: theme.labels.terminalNameColor }}
-      >
-        {text}
-      </Text>
-    </TimelineOutlinedText>
+    <StrokeText
+      outlineColor={theme.outlines.color}
+      outlineWidth={TIMELINE_ROW_CONFIG.terminalName.outlineWidthPx}
+      style={{
+        color: theme.text.terminalNameColor,
+        fontFamily: "Puffberry",
+        fontSize: TIMELINE_ROW_CONFIG.terminalName.fontSizePx,
+      }}
+    >
+      {text}
+    </StrokeText>
   </View>
 );

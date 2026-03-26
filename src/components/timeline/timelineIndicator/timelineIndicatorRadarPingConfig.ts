@@ -4,43 +4,37 @@
 
 import type { ViewStyle } from "react-native";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-
-const TIMELINE_INDICATOR_RADAR_PING_DURATION_MS = 10000;
+import { TIMELINE_INDICATOR_CONFIG } from "../config";
 
 type RadarPingStyleConfig = {
-  insetPx: number;
-  borderWidth: number;
-  peakOpacity: number;
-  borderColor: string;
-  fillColor?: string;
+  pingColor: string;
 };
 
 /**
  * Builds opacity and scale keyframes for one ping cycle.
  *
- * @param peakOpacity - Maximum opacity at mid-cycle before fade-out
  * @returns Reanimated-compatible animation fragment for the ping view
  */
-const createRadarPingAnimationStyle = (peakOpacity: number): ViewStyle => ({
+const createRadarPingAnimationStyle = (): ViewStyle => ({
   animationName: {
-    "0%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.hiddenStartPercent]: {
       opacity: 0,
       transform: [{ scale: 1 }],
     },
-    "49.99%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.hiddenEndPercent]: {
       opacity: 0,
       transform: [{ scale: 1 }],
     },
-    "50%": {
-      opacity: peakOpacity,
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.visibleStartPercent]: {
+      opacity: 1,
       transform: [{ scale: 1 }],
     },
-    "100%": {
+    [TIMELINE_INDICATOR_CONFIG.radarPing.keyframes.endPercent]: {
       opacity: 0,
-      transform: [{ scale: 2.5 }],
+      transform: [{ scale: TIMELINE_INDICATOR_CONFIG.radarPing.maxScale }],
     },
   },
-  animationDuration: TIMELINE_INDICATOR_RADAR_PING_DURATION_MS,
+  animationDuration: TIMELINE_INDICATOR_CONFIG.radarPing.durationMs,
   animationDelay: 0,
   animationIterationCount: "infinite",
   animationTimingFunction: "ease-out",
@@ -49,7 +43,7 @@ const createRadarPingAnimationStyle = (peakOpacity: number): ViewStyle => ({
 /**
  * Combines geometry, colors, and animation for the radar ping layer.
  *
- * @param ping - Theme ping section (inset, border, fill, peak opacity)
+ * @param ping - Theme ping section (border width and color)
  * @param sizePx - Outer indicator size used to size the ring
  * @returns Style object for `Animated.View` including animation fields
  */
@@ -57,19 +51,27 @@ export const getTimelineIndicatorRadarPingStyle = (
   ping: RadarPingStyleConfig,
   sizePx: number
 ): ViewStyle => {
-  const pingSizePx = Math.max(0, sizePx - ping.insetPx * 2);
-
   return {
     left: "50%",
     top: "50%",
     ...getAbsoluteCenteredBoxStyle({
-      width: pingSizePx,
-      height: pingSizePx,
+      width: sizePx,
+      height: sizePx,
     }),
-    borderRadius: pingSizePx / 2,
-    borderWidth: ping.borderWidth,
-    borderColor: ping.borderColor,
-    backgroundColor: ping.fillColor,
-    ...createRadarPingAnimationStyle(ping.peakOpacity),
+    borderRadius: sizePx / 2,
+    borderWidth: TIMELINE_INDICATOR_CONFIG.radarPing.borderWidthPx,
+    borderColor: ping.pingColor,
+    ...createRadarPingAnimationStyle(),
   };
 };
+
+export const getTimelineIndicatorRadarPingFillStyle = (
+  pingColor: string,
+  sizePx: number
+): ViewStyle => ({
+  position: "absolute",
+  inset: 0,
+  borderRadius: sizePx / 2,
+  backgroundColor: pingColor,
+  opacity: TIMELINE_INDICATOR_CONFIG.radarPing.fillOpacity,
+});

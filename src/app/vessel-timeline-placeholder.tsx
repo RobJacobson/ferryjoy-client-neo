@@ -5,8 +5,10 @@
  * placeholder VesselTimeline implementation below it for the selected vessel.
  */
 
+import { useFocusEffect } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { Text, View } from "@/components/ui";
 import {
   NativeSelectScrollView,
@@ -17,14 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConvexVesselLocations } from "@/data/contexts";
-import { GradientBackground } from "@/features/GradientBackground";
+import { GradientBackground } from "@/features/GradientBackground/GradientBackground";
 import {
   DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
+  getCurrentSailingDay,
+  getRefreshedSailingDay,
   getVesselTimelineDesignVariant,
   VESSEL_TIMELINE_DESIGN_VARIANTS,
   VesselTimeline,
 } from "@/features/VesselTimeline";
-import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 type VesselOption = {
   value: string;
@@ -46,6 +49,7 @@ type DesignOption = {
 export default function VesselTimelinePlaceholderScreen() {
   const { vesselLocations, isLoading, error } = useConvexVesselLocations();
   const [selectedOption, setSelectedOption] = useState<VesselOption>();
+  const [sailingDay, setSailingDay] = useState(() => getCurrentSailingDay());
   const [selectedDesign, setSelectedDesign] = useState<DesignOption>({
     value: DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID,
     label: getVesselTimelineDesignVariant(
@@ -53,7 +57,6 @@ export default function VesselTimelinePlaceholderScreen() {
     ).label,
   });
 
-  const sailingDay = getSailingDay(new Date());
   const designOptions = VESSEL_TIMELINE_DESIGN_VARIANTS.map((variant) => ({
     value: variant.id,
     label: variant.label,
@@ -84,11 +87,26 @@ export default function VesselTimelinePlaceholderScreen() {
     setSelectedOption(inServiceOption ?? vesselOptions[0]);
   }, [selectedOption, vesselLocations, vesselOptions]);
 
+  useFocusEffect(() => {
+    setSailingDay((current) => getRefreshedSailingDay(current));
+  });
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        setSailingDay((current) => getRefreshedSailingDay(current));
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <GradientBackground
       backgroundColor={selectedVariant.backgroundColor}
       colors={selectedVariant.backgroundColors}
-      overlayColor={selectedVariant.backgroundOverlayColor}
     >
       <View className="flex-1">
         <Stack.Screen
@@ -97,85 +115,96 @@ export default function VesselTimelinePlaceholderScreen() {
             headerTitleAlign: "center",
           }}
         />
-        <View className="gap-4 px-4 py-4">
+        <View className="gap-3 px-4 py-4">
           <Text className="font-semibold text-lg text-slate-900">
             Placeholder Vessel Timeline
           </Text>
-          <Text className="text-slate-700 text-sm">
-            Select a vessel to preview the day-level timeline implementation.
-          </Text>
-          <Select
-            value={selectedDesign}
-            onValueChange={(option) => {
-              if (option) {
-                setSelectedDesign(option);
-              }
-            }}
-          >
-            <SelectTrigger className="border-white bg-white">
-              <SelectValue
-                placeholder="Select a design variant"
-                className="font-medium text-slate-900"
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <NativeSelectScrollView>
-                {designOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    label={option.label}
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Select
+                value={selectedDesign}
+                onValueChange={(option) => {
+                  if (option) {
+                    setSelectedDesign(option);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full border-white bg-white">
+                  <SelectValue
+                    placeholder="Select a design variant"
+                    className="font-medium text-slate-900"
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <NativeSelectScrollView>
+                    {designOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        label={option.label}
+                      >
+                        <Text>{option.label}</Text>
+                      </SelectItem>
+                    ))}
+                  </NativeSelectScrollView>
+                </SelectContent>
+              </Select>
+            </View>
+            <View className="flex-1">
+              {isLoading ? (
+                <View className="h-10 justify-center rounded-md border border-white bg-white px-3">
+                  <Text className="text-muted-foreground text-sm">
+                    Loading vessel list...
+                  </Text>
+                </View>
+              ) : error ? (
+                <View className="h-10 justify-center rounded-md border border-destructive/30 bg-white px-3">
+                  <Text className="text-destructive text-sm" numberOfLines={1}>
+                    {error}
+                  </Text>
+                </View>
+              ) : vesselOptions.length === 0 ? (
+                <View className="h-10 justify-center rounded-md border border-white bg-white px-3">
+                  <Text
+                    className="text-muted-foreground text-sm"
+                    numberOfLines={1}
                   >
-                    <Text>{option.label}</Text>
-                  </SelectItem>
-                ))}
-              </NativeSelectScrollView>
-            </SelectContent>
-          </Select>
-          <Text className="text-slate-700 text-xs">
-            {selectedVariant.description}
-          </Text>
-          {isLoading ? (
-            <Text className="text-muted-foreground text-sm">
-              Loading vessel list...
-            </Text>
-          ) : error ? (
-            <Text className="text-destructive text-sm">{error}</Text>
-          ) : vesselOptions.length === 0 ? (
-            <Text className="text-muted-foreground text-sm">
-              No vessels are currently available.
-            </Text>
-          ) : (
-            <Select value={selectedOption} onValueChange={setSelectedOption}>
-              <SelectTrigger className="border-white bg-white">
-                <SelectValue
-                  placeholder="Select a vessel"
-                  className="font-medium text-slate-900"
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <NativeSelectScrollView>
-                  {vesselOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      label={option.label}
-                    >
-                      <Text>{option.label}</Text>
-                    </SelectItem>
-                  ))}
-                </NativeSelectScrollView>
-              </SelectContent>
-            </Select>
-          )}
+                    No vessels available
+                  </Text>
+                </View>
+              ) : (
+                <Select
+                  value={selectedOption}
+                  onValueChange={setSelectedOption}
+                >
+                  <SelectTrigger className="w-full border-white bg-white">
+                    <SelectValue
+                      placeholder="Select a vessel"
+                      className="font-medium text-slate-900"
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <NativeSelectScrollView>
+                      {vesselOptions.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          label={option.label}
+                        >
+                          <Text>{option.label}</Text>
+                        </SelectItem>
+                      ))}
+                    </NativeSelectScrollView>
+                  </SelectContent>
+                </Select>
+              )}
+            </View>
+          </View>
         </View>
         {selectedOption ? (
           <VesselTimeline
             vesselAbbrev={selectedOption.value}
             sailingDay={sailingDay}
-            routeAbbrevs={
-              selectedOption.routeAbbrev ? [selectedOption.routeAbbrev] : []
-            }
             theme={selectedVariant.timelineTheme}
           />
         ) : (

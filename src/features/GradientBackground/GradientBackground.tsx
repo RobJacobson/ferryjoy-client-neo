@@ -1,86 +1,162 @@
 /**
- * Gradient background feature entry point.
- *
- * This component owns viewport sizing, resolves either caller-supplied orbs or
- * randomly generated defaults, and renders the SVG background behind any
- * foreground children.
+ * Full-screen animated gradient background: random orb field, noise overlay,
+ * and absolute-fill layout so foreground content stacks above the scene.
  */
 
 import type { PropsWithChildren } from "react";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
-import Animated from "react-native-reanimated";
 import { View } from "@/components/ui";
-import {
-  GRADIENT_BACKGROUND_COLORS,
-  GRADIENT_BACKGROUND_OVERLAY_COLOR,
-  type GradientOrbConfig,
-} from "./config";
-import { GradientBackgroundSvg } from "./GradientBackgroundSvg";
-import { createRandomGradientOrbs } from "./randomOrbs";
+import { GradientBackgroundLayer } from "./GradientBackgroundLayer";
+
+const GRADIENT_BACKGROUND_COLORS = [
+  "#6FA8FF",
+  "#FF8E72",
+  "#7BE0C3",
+  "#8D7DFF",
+] as const;
+
+const GRADIENT_BACKGROUND_RADIUS_RANGE = {
+  min: 0.4,
+  max: 0.8,
+} as const;
+
+const GRADIENT_BACKGROUND_DURATION_RANGE_MS = {
+  min: 20000,
+  max: 60000,
+} as const;
 
 type GradientBackgroundProps = PropsWithChildren<{
   backgroundColor: string;
-  orbs?: readonly GradientOrbConfig[];
   colors?: readonly string[];
-  overlayColor?: string;
 }>;
 
+export type GradientOrbConfig = {
+  id: string;
+  color: string;
+  orbRadiusPx: number;
+  orbitCenterX: number;
+  orbitCenterY: number;
+  orbitRadiusPx: number;
+  initialThetaDeg: number;
+  durationMs: number;
+};
+
 /**
- * Renders the full gradient background and optional foreground content.
+ * Renders the gradient scene in an absolute-fill layer with optional children
+ * above. Orb layouts are recomputed when the viewport size changes.
  *
- * When `orbs` is omitted, the component synthesizes a random orb field sized
- * for the current viewport. The background itself is rendered in an
- * absolute-fill layer so callers can place normal content on top.
- *
- * @param props - Background props and optional foreground children
- * @param props.backgroundColor - Solid base color painted below all orb layers
- * @param props.children - Foreground content rendered above the background
- * @param props.orbs - Optional precomputed orb definitions for deterministic scenes
- * @param props.colors - Palette used when random orb definitions are generated
- * @param props.overlayColor - Final wash painted above the orbs to soften contrast
- * @returns Full-screen background layer with optional foreground content
+ * @param props - Root props
+ * @param props.backgroundColor - Solid fill behind orb layers
+ * @param props.children - Optional foreground content
+ * @param props.colors - Palette for generated orbs
+ * @returns Root view with background and optional children
  */
 export const GradientBackground = ({
   backgroundColor,
   children,
-  orbs,
   colors = GRADIENT_BACKGROUND_COLORS,
-  overlayColor = GRADIENT_BACKGROUND_OVERLAY_COLOR,
 }: GradientBackgroundProps) => {
+  const svgIdPrefix = useId().replace(/:/g, "");
   const { width, height } = useWindowDimensions();
   const maxDimension = Math.max(width, height);
   const resolvedOrbs = useMemo(
     () =>
-      orbs
-        ? [...orbs]
-        : createRandomGradientOrbs({
-            // Random defaults are regenerated when the viewport changes size so
-            // the starting positions remain valid for the visible bounds.
-            width,
-            height,
-            maxDimension,
-            colors,
-          }),
-    [colors, height, maxDimension, orbs, width]
+      createRandomGradientOrbs({
+        // Random defaults are regenerated when the viewport changes size so
+        // the starting positions remain valid for the visible bounds.
+        width,
+        height,
+        maxDimension,
+        colors,
+      }),
+    [colors, height, maxDimension, width]
   );
 
   return (
     <View style={StyleSheet.absoluteFill}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Animated.View style={StyleSheet.absoluteFill}>
-          <GradientBackgroundSvg
-            backgroundColor={backgroundColor}
-            overlayColor={overlayColor}
-            orbs={resolvedOrbs}
-            width={width}
-            height={height}
-          />
-        </Animated.View>
+        <GradientBackgroundLayer
+          backgroundColor={backgroundColor}
+          orbs={resolvedOrbs}
+          svgIdPrefix={svgIdPrefix}
+          width={width}
+          height={height}
+        />
       </View>
       {children}
     </View>
   );
 };
 
-export default GradientBackground;
+/**
+ * Returns a pseudo-random number in `[min, max)` using `Math.random`.
+ *
+ * @param min - Inclusive lower bound
+ * @param max - Exclusive upper bound (caller must ensure `max > min`)
+ * @returns Random float in the half-open interval
+ */
+const randomBetween = (min: number, max: number) =>
+  min + Math.random() * (max - min);
+
+const shuffleColors = (colors: readonly string[]) => {
+  const shuffledColors = [...colors];
+
+  for (let index = shuffledColors.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(randomBetween(0, index + 1));
+    const currentColor = shuffledColors[index];
+    shuffledColors[index] = shuffledColors[randomIndex];
+    shuffledColors[randomIndex] = currentColor;
+  }
+
+  return shuffledColors;
+};
+
+/**
+ * Builds one orb config per palette color: radius, circular orbit, phase, and
+ * animation duration, all scaled to the given viewport.
+ *
+ * @param params - Viewport and palette inputs
+ * @param params.width - Viewport width in logical pixels
+ * @param params.height - Viewport height in logical pixels
+ * @param params.maxDimension - `max(width, height)` for sizing orb radii
+ * @param params.colors - Orb fill colors; defaults to the feature palette
+ * @returns Orb definitions for `GradientBackgroundLayer`
+ */
+const createRandomGradientOrbs = ({
+  width,
+  height,
+  maxDimension,
+  colors = GRADIENT_BACKGROUND_COLORS,
+}: {
+  width: number;
+  height: number;
+  maxDimension: number;
+  colors?: readonly string[];
+}): GradientOrbConfig[] =>
+  shuffleColors(colors).map((color, index) => {
+    const orbRadiusPx =
+      maxDimension *
+      randomBetween(
+        GRADIENT_BACKGROUND_RADIUS_RANGE.min,
+        GRADIENT_BACKGROUND_RADIUS_RANGE.max
+      );
+    const orbitCenterX = randomBetween(0, width);
+    const orbitCenterY = randomBetween(0, height);
+    const orbitRadiusPx = randomBetween(0, orbRadiusPx);
+    const initialThetaRad = randomBetween(0, Math.PI * 2);
+
+    return {
+      id: `orb-${index}-${color.replace("#", "").toLowerCase()}`,
+      color,
+      orbRadiusPx,
+      orbitCenterX,
+      orbitCenterY,
+      orbitRadiusPx,
+      initialThetaDeg: (initialThetaRad * 180) / Math.PI,
+      durationMs: randomBetween(
+        GRADIENT_BACKGROUND_DURATION_RANGE_MS.min,
+        GRADIENT_BACKGROUND_DURATION_RANGE_MS.max
+      ),
+    };
+  });

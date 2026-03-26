@@ -1,19 +1,31 @@
 /**
  * Public re-exports for shared vertical timeline presentation primitives.
  *
- * Features such as `VesselTimeline` and `VesselTripTimeline` build rows and
- * indicators upstream; these components render the shared visual contract.
+ * Features build semantic rows and indicators upstream (see
+ * `VesselTimeline/docs/ARCHITECTURE.md`); this package renders the shared visual
+ * contract only.
  */
 
 export {
-  TIMELINE_MARKER_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
+  TIMELINE_CARD_CONFIG,
+  TIMELINE_INDICATOR_CONFIG,
+  TIMELINE_ROW_CONFIG,
+  TIMELINE_SHARED_CONFIG,
 } from "./config";
+export { TimelineGlassSurface } from "./TimelineGlassSurface";
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
+export { useAnimatedProgress } from "./useAnimatedProgress";
 export {
   BASE_TIMELINE_VISUAL_THEME,
+  CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME,
+  CONFETTI_TIDE_TIMELINE_VISUAL_THEME,
   createTimelineVisualTheme,
+  HARBOR_DAWN_TIMELINE_VISUAL_THEME,
+  MOON_JELLY_TIMELINE_VISUAL_THEME,
+  PICNIC_POSTCARD_TIMELINE_VISUAL_THEME,
+  SEA_GLASS_TIMELINE_VISUAL_THEME,
+  TAFFY_HARBOR_TIMELINE_VISUAL_THEME,
   type TimelineVisualTheme,
   type TimelineVisualThemeOverrides,
 } from "./theme";

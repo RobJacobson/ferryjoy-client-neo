@@ -11,14 +11,7 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-
-const ROCKING_MIN_SPEED_KNOTS = 0;
-const ROCKING_MAX_SPEED_KNOTS = 20;
-const ROCKING_PERIOD_SLOW_MS = 25000;
-const ROCKING_PERIOD_FAST_MS = 7500;
-const ROCKING_MAX_ROTATION_DEG = 4;
-const ROCKING_RAMP_IN_MS = 900;
-const ROCKING_RAMP_OUT_MS = 700;
+import { TIMELINE_INDICATOR_CONFIG } from "./config";
 
 /**
  * Maps vessel speed to one full rocking cycle duration (faster = shorter).
@@ -27,19 +20,27 @@ const ROCKING_RAMP_OUT_MS = 700;
  * @returns Cycle length in milliseconds, clamped to the configured range
  */
 const speedToDurationMs = (speedKnots: number): number => {
-  const range = ROCKING_MAX_SPEED_KNOTS - ROCKING_MIN_SPEED_KNOTS;
+  const range =
+    TIMELINE_INDICATOR_CONFIG.motion.rocking.maxSpeedKnots -
+    TIMELINE_INDICATOR_CONFIG.motion.rocking.minSpeedKnots;
 
   if (range <= 0) {
-    return ROCKING_PERIOD_SLOW_MS;
+    return TIMELINE_INDICATOR_CONFIG.motion.rocking.slowPeriodMs;
   }
 
   const t = Math.min(
     1,
-    Math.max(0, (speedKnots - ROCKING_MIN_SPEED_KNOTS) / range)
+    Math.max(
+      0,
+      (speedKnots - TIMELINE_INDICATOR_CONFIG.motion.rocking.minSpeedKnots) /
+        range
+    )
   );
   return Math.round(
-    ROCKING_PERIOD_SLOW_MS -
-      (ROCKING_PERIOD_SLOW_MS - ROCKING_PERIOD_FAST_MS) * t
+    TIMELINE_INDICATOR_CONFIG.motion.rocking.slowPeriodMs -
+      (TIMELINE_INDICATOR_CONFIG.motion.rocking.slowPeriodMs -
+        TIMELINE_INDICATOR_CONFIG.motion.rocking.fastPeriodMs) *
+        t
   );
 };
 
@@ -73,7 +74,9 @@ const phaseToRotation = (phase: number, maxDeg: number): number => {
  */
 export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
   const phase = useSharedValue(0);
-  const amplitude = useSharedValue(animate ? ROCKING_MAX_ROTATION_DEG : 0);
+  const amplitude = useSharedValue(
+    animate ? TIMELINE_INDICATOR_CONFIG.motion.rocking.maxRotationDeg : 0
+  );
   const speedRef = useRef(speedKnots);
   speedRef.current = speedKnots;
 
@@ -85,7 +88,7 @@ export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
 
     if (!animate) {
       amplitude.value = withTiming(0, {
-        duration: ROCKING_RAMP_OUT_MS,
+        duration: TIMELINE_INDICATOR_CONFIG.motion.rocking.rampOutMs,
         easing: Easing.out(Easing.cubic),
       });
       cancelAnimation(phase);
@@ -93,10 +96,13 @@ export const useRockingAnimation = (animate: boolean, speedKnots: number) => {
       return;
     }
 
-    amplitude.value = withTiming(ROCKING_MAX_ROTATION_DEG, {
-      duration: ROCKING_RAMP_IN_MS,
-      easing: Easing.out(Easing.cubic),
-    });
+    amplitude.value = withTiming(
+      TIMELINE_INDICATOR_CONFIG.motion.rocking.maxRotationDeg,
+      {
+        duration: TIMELINE_INDICATOR_CONFIG.motion.rocking.rampInMs,
+        easing: Easing.out(Easing.cubic),
+      }
+    );
 
     cancelAnimation(phase);
     phase.value = 0;

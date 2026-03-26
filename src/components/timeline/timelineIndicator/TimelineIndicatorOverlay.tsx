@@ -3,8 +3,9 @@
  */
 
 import type { ComponentRef, RefObject } from "react";
+import type { SharedValue } from "react-native-reanimated";
 import { View } from "@/components/ui";
-import { TIMELINE_INDICATOR_SIZE_PX } from "../config";
+import { TIMELINE_INDICATOR_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { RowLayoutBounds, TimelineActiveIndicator } from "../types";
 import { getBoundaryTopPx } from "../viewState";
@@ -12,6 +13,7 @@ import { TimelineIndicator } from "./TimelineIndicator";
 
 type TimelineIndicatorOverlayProps = {
   overlayIndicator: TimelineActiveIndicator | null;
+  animatedBoundaryTopPx: SharedValue<number> | null;
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;
   rowLayouts: Record<string, RowLayoutBounds>;
   theme: TimelineVisualTheme;
@@ -28,31 +30,31 @@ type TimelineIndicatorOverlayProps = {
  */
 export const TimelineIndicatorOverlay = ({
   overlayIndicator,
+  animatedBoundaryTopPx,
   blurTargetRef,
   rowLayouts,
   theme,
 }: TimelineIndicatorOverlayProps) => {
   const topPx = getBoundaryTopPx(overlayIndicator, rowLayouts);
 
-  if (!overlayIndicator || topPx === null) {
+  if (!overlayIndicator || topPx === null || !animatedBoundaryTopPx) {
     return null;
   }
 
   return (
     <View
-      pointerEvents="none"
+      pointerEvents="box-none"
       className="absolute inset-0"
-      style={{ zIndex: 10, elevation: 10 }}
+      style={{
+        zIndex: TIMELINE_INDICATOR_CONFIG.overlay.zIndex,
+        elevation: TIMELINE_INDICATOR_CONFIG.overlay.elevation,
+      }}
     >
       <TimelineIndicator
         blurTargetRef={blurTargetRef}
-        topPx={topPx}
-        label={overlayIndicator.label}
-        title={overlayIndicator.title}
-        subtitle={overlayIndicator.subtitle}
-        animate={overlayIndicator.animate}
-        speedKnots={overlayIndicator.speedKnots}
-        sizePx={TIMELINE_INDICATOR_SIZE_PX}
+        animatedBoundaryTopPx={animatedBoundaryTopPx}
+        overlayIndicator={overlayIndicator}
+        sizePx={TIMELINE_SHARED_CONFIG.indicatorSizePx}
         theme={theme}
       />
     </View>

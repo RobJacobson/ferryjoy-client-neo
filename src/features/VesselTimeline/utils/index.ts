@@ -2,7 +2,8 @@
  * Utility exports for the VesselTimeline feature.
  */
 
+export { getVesselTimelineDataHostKey } from "./hostKey";
 export {
-  DEFAULT_VESSEL_TIMELINE_LAYOUT,
-  getVesselTimelineRenderState,
-} from "./pipeline";
+  getCurrentSailingDay,
+  getRefreshedSailingDay,
+} from "./refreshSailingDay";

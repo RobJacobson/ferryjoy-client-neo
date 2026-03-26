@@ -1,4 +1,4 @@
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -158,6 +158,12 @@ const processCompletedTrips = async (
           newTrip,
         }
       );
+      await ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
+        {
+          Trips: [newTrip],
+        }
+      );
 
       // Delegate prediction lifecycle to service
       await handlePredictionEvent(ctx, {
@@ -192,9 +198,8 @@ const processCurrentTrips = async (
   // Queue leave-dock side effects to run only after successful upsert
   const pendingLeaveDockEffects: PendingLeaveDockEffect[] = [];
 
-  // Process each current trip
-  for (const { existingTrip, currLocation, events } of currentTrips) {
-    try {
+  const buildResults = await Promise.allSettled(
+    currentTrips.map(async ({ existingTrip, currLocation, events }) => {
       logDockSignalDisagreement(existingTrip, currLocation);
 
       // Build trip with all enrichments (schedule, predictions, actuals)
@@ -207,24 +212,39 @@ const processCurrentTrips = async (
         shouldRunPredictionFallback
       );
 
-      // Only write if trip changed (or is new)
-      if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
-        activeUpserts.push(finalProposed);
+      return {
+        existingTrip,
+        currLocation,
+        events,
+        finalProposed,
+      };
+    })
+  );
 
-        // Queue leave-dock side effects for post-persist execution
-        if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
-          pendingLeaveDockEffects.push({
-            vesselAbbrev: currLocation.VesselAbbrev,
-            trip: finalProposed,
-          });
-        }
-      }
-    } catch (error) {
+  for (const [index, result] of buildResults.entries()) {
+    if (result.status === "rejected") {
+      const transition = currentTrips[index];
       logVesselProcessingError(
-        currLocation.VesselAbbrev,
+        transition?.currLocation.VesselAbbrev ?? "unknown",
         "current-trip processing",
-        error
+        result.reason
       );
+      continue;
+    }
+
+    const { existingTrip, currLocation, events, finalProposed } = result.value;
+
+    // Only write if trip changed (or is new)
+    if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
+      activeUpserts.push(finalProposed);
+
+      // Queue leave-dock side effects for post-persist execution
+      if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
+        pendingLeaveDockEffects.push({
+          vesselAbbrev: currLocation.VesselAbbrev,
+          trip: finalProposed,
+        });
+      }
     }
   }
 
@@ -249,6 +269,18 @@ const processCurrentTrips = async (
         `[VesselTrips] Failed active-trip upsert for ${result.vesselAbbrev}: ${
           result.reason ?? "unknown error"
         }`
+      );
+    }
+
+    const syncedTrips = activeUpserts.filter((trip) =>
+      successfulVessels.has(trip.VesselAbbrev)
+    );
+    if (syncedTrips.length > 0) {
+      await ctx.runMutation(
+        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
+        {
+          Trips: syncedTrips,
+        }
       );
     }
 

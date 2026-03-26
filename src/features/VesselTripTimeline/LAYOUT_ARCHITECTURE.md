@@ -255,7 +255,7 @@ Rocking animation is separate from vertical movement:
 ## Documentation Boundary
 
 This document should not be merged wholesale with
-`src/features/VesselTimeline/ARCHITECTURE.md`.
+`src/features/VesselTimeline/docs/ARCHITECTURE.md`.
 
 The right split is:
 

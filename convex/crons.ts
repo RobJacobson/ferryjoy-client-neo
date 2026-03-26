@@ -15,6 +15,13 @@ crons.interval(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
+crons.interval(
+  "capture vessel location history",
+  { minutes: 1 }, // every minute
+  internal.functions.vesselLocationsHistoric.actions
+    .captureHistoricVesselLocations
+);
+
 // Weekly model retraining at 11:00 AM UTC on Mondays
 // Note: Convex cron jobs run in UTC, not local timezones
 crons.cron(
@@ -26,7 +33,7 @@ crons.cron(
 // Daily scheduled trips sync near the sailing-day boundary.
 // Convex cron expressions are UTC-only, so this fixed UTC time lands around
 // 3:01 AM Pacific in standard time and 4:01 AM Pacific in daylight time.
-// The vesselTripEvents cron below uses a stricter DST-safe local-hour guard
+// The VesselTimeline boundary-event cron below uses a stricter DST-safe local-hour guard
 // because it specifically targets 3:00 AM Pacific.
 crons.cron(
   "daily scheduled trips sync",
@@ -35,22 +42,20 @@ crons.cron(
   { daysToSync: 7 } // Maintain a 14-day rolling window
 );
 
-// Daily vesselTripEvents seed at the sailing-day boundary (~3:00 AM Pacific).
+// Daily VesselTimeline boundary-event sync at the sailing-day boundary (~3:00 AM Pacific).
 // Convex crons are UTC-only, so schedule both DST candidates and let the
 // action itself run only during the Pacific 3 AM hour.
 crons.cron(
-  "daily vesselTripEvents boundary sync (dst)",
+  "daily VesselTimeline boundary sync (dst)",
   "5 10 * * *", // 3:05 AM PDT
-  internal.functions.vesselTripEvents.actions
-    .syncVesselTripEventsAtSailingDayBoundary,
+  internal.functions.vesselTimeline.index.syncVesselTimelineAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 
 crons.cron(
-  "daily vesselTripEvents boundary sync (standard)",
+  "daily VesselTimeline boundary sync (standard)",
   "5 11 * * *", // 3:05 AM PST
-  internal.functions.vesselTripEvents.actions
-    .syncVesselTripEventsAtSailingDayBoundary,
+  internal.functions.vesselTimeline.index.syncVesselTimelineAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 
@@ -60,6 +65,16 @@ crons.cron(
   "purge out-of-date scheduled trips",
   "0 11 * * *", // 11:00 AM UTC daily
   internal.functions.scheduledTrips.actions.purgeScheduledTripsOutOfDate,
+  {}
+);
+
+// Daily purge of historic vessel locations by sailing-day retention window.
+// Keeps the current sailing day plus the three immediately prior sailing days.
+crons.cron(
+  "purge historic vessel locations",
+  "0 11 * * *", // 11:00 AM UTC daily
+  internal.functions.vesselLocationsHistoric.actions
+    .cleanupHistoricVesselLocations,
   {}
 );
 

@@ -8,10 +8,7 @@ import { Image } from "expo-image";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import {
-  TIMELINE_MARKER_SIZE_PX,
-  TIMELINE_TRACK_X_POSITION_PERCENT,
-} from "../config";
+import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 
@@ -29,7 +26,7 @@ const markerIconSource = {
  * Positions the circular marker on the shared track column for this row.
  *
  * @param row - Segment kind and past/future appearance
- * @param theme - Marker fill, border, and icon tint tokens
+ * @param theme - Marker accent/contrast tokens
  * @returns Centered marker container with icon
  */
 export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
@@ -41,13 +38,13 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
         "absolute items-center justify-center overflow-hidden rounded-full"
       )}
       style={{
-        left: `${TIMELINE_TRACK_X_POSITION_PERCENT}%`,
+        left: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
         top: 0,
         ...getAbsoluteCenteredBoxStyle({
-          width: TIMELINE_MARKER_SIZE_PX,
-          height: TIMELINE_MARKER_SIZE_PX,
+          width: TIMELINE_ROW_CONFIG.marker.sizePx,
+          height: TIMELINE_ROW_CONFIG.marker.sizePx,
         }),
-        borderWidth: 1,
+        borderWidth: TIMELINE_ROW_CONFIG.marker.borderWidthPx,
         borderColor: markerColors.borderColor,
         backgroundColor: markerColors.fillColor,
       }}
@@ -56,12 +53,9 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
         source={markerIconSource[row.kind]}
         contentFit="contain"
         style={{
-          width: 20,
-          height: 20,
-          tintColor:
-            row.markerAppearance === "future"
-              ? theme.marker.futureIconTintColor
-              : theme.marker.pastIconTintColor,
+          width: TIMELINE_ROW_CONFIG.marker.iconSizePx,
+          height: TIMELINE_ROW_CONFIG.marker.iconSizePx,
+          tintColor: markerColors.iconTintColor,
         }}
       />
     </View>
@@ -71,9 +65,13 @@ export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
 /**
  * Resolves fill and border colors from marker appearance and theme.
  *
+ * Past and future are a simple swap of the same two colors:
+ * future = [accent, contrast, accent]
+ * past = [contrast, accent, contrast]
+ *
  * @param markerAppearance - Past vs future palette selection
  * @param theme - Marker color section
- * @returns Border and background colors for the disc
+ * @returns Border, background, and icon colors for the disc
  */
 const getMarkerColors = (
   markerAppearance: TimelineRenderRow["markerAppearance"],
@@ -81,10 +79,12 @@ const getMarkerColors = (
 ) =>
   markerAppearance === "future"
     ? {
-        borderColor: theme.marker.futureBorderColor,
-        fillColor: theme.marker.futureFillColor,
+        borderColor: theme.marker.accentColor,
+        fillColor: theme.marker.contrastColor,
+        iconTintColor: theme.marker.accentColor,
       }
     : {
-        borderColor: theme.marker.pastBorderColor,
-        fillColor: theme.marker.pastFillColor,
+        borderColor: theme.marker.contrastColor,
+        fillColor: theme.marker.accentColor,
+        iconTintColor: theme.marker.contrastColor,
       };

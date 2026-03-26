@@ -1,3 +1,7 @@
+/**
+ * Types for vessel-day timeline design variants and theme override authoring.
+ */
+
 import type {
   TimelineVisualTheme,
   TimelineVisualThemeOverrides,
@@ -9,7 +13,6 @@ export type VesselTimelineDesignVariant = {
   description: string;
   backgroundColor: string;
   backgroundColors: readonly string[];
-  backgroundOverlayColor: string;
   timelineTheme: TimelineVisualTheme;
 };
 
@@ -20,7 +23,6 @@ export type VesselTimelineVariantDefinitionInput = {
   label: string;
   description: string;
   backgroundColor?: string;
-  backgroundColors?: readonly [string, string, string, string];
-  backgroundOverlayColor?: string;
+  backgroundColors?: readonly string[];
   timelineTheme?: TimelineVisualThemeOverrides;
 };

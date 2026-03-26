@@ -1,3 +1,6 @@
+/**
+ * Defines shared Convex vessel-location validators and conversions.
+ */
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
@@ -10,10 +13,10 @@ import {
 } from "../../shared/convertDates";
 
 /**
- * Convex validator for vessel locations (numbers)
- * This is used in defineTable and function argument validation
+ * Shared field validators for vessel-location storage.
+ * Used to build the live and historic vessel-location schemas.
  */
-export const vesselLocationValidationSchema = v.object({
+const vesselLocationBaseValidationFields = {
   VesselID: v.number(),
   VesselName: v.string(),
   VesselAbbrev: v.string(),
@@ -35,15 +38,49 @@ export const vesselLocationValidationSchema = v.object({
   RouteAbbrev: v.optional(v.string()),
   VesselPositionNum: v.optional(v.number()),
   TimeStamp: v.number(),
+} as const;
+
+/**
+ * Stored vessel-location fields after distance enrichment.
+ */
+export const vesselLocationValidationFields = {
+  ...vesselLocationBaseValidationFields,
+  DepartingDistance: v.number(),
+  ArrivingDistance: v.optional(v.number()),
+} as const;
+
+/**
+ * Pre-enrichment vessel-location fields produced directly from the WSF feed.
+ */
+export const rawVesselLocationValidationFields = {
+  ...vesselLocationBaseValidationFields,
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
-});
+} as const;
+
+/**
+ * Convex validator for vessel locations (numbers)
+ * This is used in defineTable and function argument validation
+ */
+export const vesselLocationValidationSchema = v.object(
+  vesselLocationValidationFields
+);
+
+/**
+ * Convex validator for vessel locations before terminal-distance enrichment.
+ */
+export const rawVesselLocationValidationSchema = v.object(
+  rawVesselLocationValidationFields
+);
 
 /**
  * Type for vessel location in Convex storage (with numbers)
  * Inferred from the Convex validator
  */
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
+export type RawConvexVesselLocation = Infer<
+  typeof rawVesselLocationValidationSchema
+>;
 
 /**
  * Convert a Dottie vessel location to a convex vessel location.
@@ -53,7 +90,7 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  */
 export const toConvexVesselLocation = (
   dvl: DottieVesselLocation
-): ConvexVesselLocation => ({
+): RawConvexVesselLocation => ({
   VesselID: dvl.VesselID,
   VesselName: dvl.VesselName ?? "",
   VesselAbbrev: getVesselAbbreviation(dvl.VesselName ?? ""),
