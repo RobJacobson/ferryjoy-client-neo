@@ -3,7 +3,6 @@
  * live update reconciliation.
  */
 
-export * from "./activeState";
 export * from "./history";
 export * from "./liveUpdates";
 export * from "./reseed";
