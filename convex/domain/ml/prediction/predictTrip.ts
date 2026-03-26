@@ -157,6 +157,13 @@ export const loadModelsForPairBatch = async (
   return batch as Record<ModelType, ModelDoc | null>;
 };
 
+/**
+ * Asserts that a required trip field is present before feature extraction.
+ *
+ * @param value - Candidate field value
+ * @param message - Error message to throw when the field is missing
+ * @returns The non-null value
+ */
 const requireTripField = <T>(
   value: T | null | undefined,
   message: string
