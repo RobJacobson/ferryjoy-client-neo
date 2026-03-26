@@ -1,90 +1,80 @@
 # VesselTimeline Accessibility Memo
 
-The `VesselTimeline` feature is a strong candidate for a dual-representation
-accessibility strategy: keep the current visual timeline for sighted users, and
-derive a separate semantic reading model for screen readers from the same
-vessel/day event flow.
+`VesselTimeline` is a strong candidate for a dual-representation accessibility
+strategy:
 
-That recommendation follows directly from the current architecture in
-[ARCHITECTURE.md](./ARCHITECTURE.md). The feature is already event-based, not
-pixel-based at the data level. The backend returns an ordered vessel/day event
-feed, the frontend converts adjacent events into semantic dock/sea rows, and
-only then does the renderer turn those rows into fixed-height visual geometry.
-That separation is exactly what we want for accessibility: assistive technology
-should consume the semantic model, not the geometric one.
+- keep the current visual timeline for sighted users
+- derive a separate semantic representation for assistive technology
 
-## Findings
+That recommendation still matches the current architecture. The feature already
+separates:
 
-The current implementation is visually expressive but likely difficult for
-screen reader users.
+- merged boundary events
+- semantic dock/sea segments
+- render-time geometry
 
-- The primary renderer in
-  [TimelineContent.tsx](./../components/TimelineContent.tsx) is layout-driven. It
-  uses a scrollable canvas, fixed row heights, absolute overlays, a central
-  track, terminal card backgrounds, and an active indicator. That is great for
-  visual comprehension but does not naturally produce a meaningful reading
-  order.
-- The row UI in
-  [TimelineRowContent.tsx](../../components/timeline/timelineRow/TimelineRowContent.tsx)
-  splits one logical event across several independent subtrees: label, times,
-  and marker.
-- The label layer in
-  [TimelineRowEventLabel.tsx](../../components/timeline/timelineRow/TimelineRowEventLabel.tsx)
-  uses stylized decorative text and abbreviations like `Arv`, `To`, and
-  terminal abbreviations. Those are compact visually, but not ideal for spoken
-  output.
-- The time layer in
-  [TimelineRowEventTimes.tsx](../../components/timeline/timelineRow/TimelineRowEventTimes.tsx)
-  renders both decorative shadow text and visible text, which risks duplicate
-  or noisy announcements if exposed directly.
-- The center marker in
-  [TimelineRowMarker.tsx](../../components/timeline/timelineRow/TimelineRowMarker.tsx)
-  is visually helpful, but likely decorative from an accessibility perspective
-  unless it conveys unique status not expressed elsewhere.
+That is the important boundary: assistive technology should consume the
+semantic model, not the pixel geometry.
 
-The biggest practical risk is that a screen reader user may hear a fragmented
-or repetitive sequence of partial information rather than a clean chronological
-narration of the vessel's journey.
+## Current Risk
 
-## Why The Architecture Helps
+The current renderer is visually expressive, but likely awkward for screen
+reader users if exposed directly.
 
-The architecture already gives you the right semantic units.
+Relevant code:
 
-From [ARCHITECTURE.md](./ARCHITECTURE.md):
+- [TimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/TimelineContent.tsx)
+- [TimelineRowContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowContent.tsx)
+- [TimelineRowEventLabel.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventLabel.tsx)
+- [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
+- [TimelineRowMarker.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowMarker.tsx)
 
-- The backend returns a sorted array of vessel/day dock events.
-- The frontend constructs semantic rows from adjacent events.
-- Row kinds already distinguish `at-dock` vs `at-sea`.
-- Live data is already separated conceptually from stable schedule geometry.
-- The active indicator is a separate concept from the underlying journey
-  events.
+Why:
 
-This means accessibility can be implemented by deriving a spoken journey model
-from the row/event render-state flow without changing the visual timeline math.
+- the timeline is layout-heavy and spatial
+- one logical event is split across multiple visual subtrees
+- abbreviations and decorative text are optimized for scanning, not speech
+- overlays, markers, blur, and track chrome are useful visually but likely
+  noisy in the accessibility tree
 
-## Recommendation
+The practical risk is a fragmented reading experience instead of a clean
+chronological narration of the vessel’s journey.
 
-Use a dual-layer accessibility design.
+## Why The Current Architecture Helps
 
-1. Preserve the existing visual timeline for sighted users.
-2. Add a semantic screen-reader representation derived from the same `rows` and
-   `activeIndicator`.
-3. Hide decorative visual-only timeline elements from the accessibility tree.
-4. Present each stop or segment as a single synthesized accessible item.
+The feature already gives us the right semantic units.
 
-This is the safest and cleanest approach because it avoids forcing the spatial
-layout itself to serve as the accessibility model.
+- merged boundary events are ordered and stable
+- dock and sea segments are already explicit
+- live state is separate from the stable journey structure
+- the active indicator is already modeled separately from the rows
+
+That means we do not need to make the visual layout itself accessible. We can
+derive a better accessibility model from the same underlying data.
+
+## Recommended Direction
+
+If we enhance accessibility here, the safest path is:
+
+1. keep the existing visual timeline
+2. derive a semantic summary and chronological list from the same render-state
+   inputs
+3. expose that semantic representation to accessibility
+4. hide decorative visual-only timeline chrome from the accessibility tree
+
+This is safer than trying to make the current layered visual subtree read well
+item by item.
 
 ## Preferred Accessible Representation
 
-A list is the best default representation for screen readers.
+A chronological list is the best default representation for screen readers.
 
-A list works well because:
+Why it fits:
 
 - chronology matters more than spacing
-- events are naturally ordered
-- users can swipe item-by-item through the journey
-- each item can be summarized in plain language
+- the journey is naturally ordered
+- users can navigate item by item
+- each item can be phrased in plain language
 
 Example spoken items:
 
@@ -93,110 +83,83 @@ Example spoken items:
 - "At sea to Friday Harbor. Speed 7 knots. 0.2 miles remaining."
 - "Arrive Friday Harbor. Scheduled 5:50 PM. Estimated 5:54 PM."
 
-That is much easier to navigate than exposing the current layered visuals
-directly.
-
 ## Recommended UX Model
 
-I'd recommend three accessible layers:
+The most useful accessible structure would be:
 
-- A summary region at the top
-- A chronological semantic list of events and segments
-- Optional expandable detail within each item if needed later
+- a top summary region
+- a chronological semantic list of segments and boundary events
+- optional deeper detail later if we decide it is needed
 
-The summary region should answer the top-level questions immediately:
+The summary should answer the top-level questions quickly:
 
-- Which vessel and day is this?
-- Where is the vessel now?
-- What is the next important event?
-- Is the vessel on time, delayed, or out of service?
+- which vessel and day is this
+- where is the vessel now
+- what is the next important event
+- is the vessel on time, delayed, or out of service
 
-For example:
+Example:
 
 "Issaquah timeline for Friday, March 18. Currently at sea to Friday Harbor.
 Estimated arrival 5:54 PM. About 4 minutes late."
 
-That gives context before the user enters the event list.
+## Likely Implementation Shape
 
-## Implementation Strategy
+The best implementation is probably not "make the current visual subtree
+accessible." Instead, add a dedicated semantic layer derived from the same
+inputs.
 
-The best implementation is not to make the current visual subtree accessible
-item-by-item. Instead, derive a dedicated semantic component from the render
-state.
+Likely additions:
 
-Suggested additions:
-
-- `buildTimelineSummaryLabel(activeIndicator, rows, vessel metadata)`
-- `buildRowAccessibilityLabel(row, maybeExpandedNames)`
+- `buildTimelineSummaryLabel(...)`
+- `buildRowAccessibilityLabel(...)`
 - `AccessibleVesselTimelineList`
 
-A likely structure in [TimelineContent.tsx](./../components/TimelineContent.tsx):
+A likely shape in or around
+[TimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/TimelineContent.tsx):
 
-- Keep existing visual renderer as `VisualTimeline`
-- Add `VesselTimelineAccessibilitySummary`
-- Add `AccessibleVesselTimelineList`
-- When a screen reader is enabled, either:
-  - show only the semantic list, or
-  - leave the visual timeline on screen but hide it from the accessibility tree
+- keep the current visual timeline renderer
+- add a summary component for the current vessel state
+- add a semantic list component for assistive technology
+- hide decorative visual-only elements from accessibility
 
-I prefer showing the semantic list to assistive tech and hiding the visual
-timeline subtree from accessibility. It is less fragile and easier to reason
-about.
+I would prefer the semantic list as the primary accessibility representation,
+with the visual subtree hidden from screen-reader focus.
 
-## Accessibility Semantics To Use
+## Accessibility Semantics To Prefer
 
-For each semantic list item:
+For each logical item:
 
-- make the container accessible
+- use one accessible parent
 - give it one complete `accessibilityLabel`
-- use one accessible parent rather than many nested accessible children
-- keep the label in natural language
-- avoid unexplained abbreviations
+- use natural language
+- expand abbreviations
+- avoid splitting one idea across several focus targets
 
 For the visual subtree:
 
-- hide decorative children from accessibility
-- ensure duplicate shadow text is not exposed
-- ensure icons do not announce if they are only decorative
-- ensure track/background/blur overlays do not participate in focus order
+- hide decorative descendants from accessibility
+- ensure shadow text is not announced twice
+- ensure icons and markers do not announce when decorative
+- keep track/background/overlay layers out of focus order
 
-In practice that means the timeline renderer should likely use patterns such
-as:
+In practice that likely means some combination of:
 
-- `importantForAccessibility="no-hide-descendants"`
 - `accessible={false}`
+- `importantForAccessibility="no-hide-descendants"`
 - `accessibilityElementsHidden`
 
-depending on the specific RN target and component.
+depending on target platform behavior.
 
-## What Should Be Hidden From Accessibility
+## Good Spoken Language
 
-These elements are good candidates to mark as decorative:
-
-- timeline track in [TimelineContent.tsx](./../components/TimelineContent.tsx)
-- terminal card backgrounds in
-  [TimelineContent.tsx](./../components/TimelineContent.tsx)
-- active indicator visual overlay in
-  [TimelineContent.tsx](./../components/TimelineContent.tsx)
-- marker chrome in
-  [TimelineRowMarker.tsx](../../components/timeline/timelineRow/TimelineRowMarker.tsx)
-- shadow/decorative label layers in
-  [TimelineRowEventLabel.tsx](../../components/timeline/timelineRow/TimelineRowEventLabel.tsx)
-- duplicate decorative time layers in
-  [TimelineRowEventTimes.tsx](../../components/timeline/timelineRow/TimelineRowEventTimes.tsx)
-
-## How To Phrase Spoken Labels
-
-Spoken labels should use expanded, task-oriented language.
-
-Prefer:
+Prefer labels like:
 
 - "Arrive Friday Harbor"
 - "Depart Lopez Island for Friday Harbor"
 - "Scheduled 5:10 PM"
 - "Actual 5:01 PM"
 - "Estimated 5:54 PM"
-- "Current segment"
 - "At sea"
 - "Docked at Friday Harbor"
 - "Out of service"
@@ -207,114 +170,56 @@ Avoid:
 - `Dep`
 - `To`
 - unexplained terminal abbreviations
-- icon-driven meaning
-- decorative names read separately from the event sentence
+- decorative or icon-driven meaning
 
-If abbreviations must remain visible, the spoken label should expand them.
+If abbreviations remain visible in the UI, spoken labels should still expand
+them.
 
-## How To Model Timeline Items
+## What Should Stay Out Of The Accessibility Tree
 
-The semantic item model should follow journey meaning, not visual geometry.
+These are good candidates to mark as decorative:
 
-Even if the visual timeline uses adaptive sizing, a screen reader should not
-hear geometry-driven concepts. It should hear the actual state:
+- timeline track
+- terminal card backgrounds
+- active indicator overlay
+- marker chrome
+- shadow/decorative label layers
+- duplicate decorative time layers
 
-- "Docked at Friday Harbor for 3 hours"
-- "Long layover at Friday Harbor"
-- "Departing Friday Harbor at 6:20 PM"
-
-The accessibility model should be based on semantic boundaries and real-world
-status, not display-height heuristics.
+The principle is simple: expose the journey meaning once, not every visual
+piece used to render it.
 
 ## Live Updates
 
-Because this component has a live active indicator, accessibility should
-separate stable history from live status.
+Because `VesselTimeline` has live status and an active indicator, accessibility
+should separate stable history from current live state.
 
 Recommended behavior:
 
-- The event list should remain stable and chronological.
-- The current vessel state should be announced in a summary region.
-- If live status updates, the summary may use polite live-region semantics where
-  supported.
-- Do not continuously re-announce the entire timeline as the vessel moves.
-- Avoid frequent accessibility churn for minor position changes unless they
-  materially change user understanding.
+- keep the event list stable and chronological
+- announce current status in the summary region
+- use polite live updates only for meaningful changes
+- do not re-announce the full timeline for minor position changes
 
-Examples of meaningful live announcements:
+Good live announcements:
 
 - "Now departed Lopez Island."
 - "Now at sea to Friday Harbor."
 - "Now docked at Friday Harbor."
 - "Estimated arrival updated to 5:54 PM."
 
-Examples of noisy updates to avoid:
+Noisy updates to avoid:
 
-- repeated small progress changes
-- every animation tick of the active indicator
-- re-reading all visible timeline items after each location update
+- every animation tick
+- tiny continuous progress changes
+- rereading all rows after each location update
 
-## Alternative Patterns
+## Guidance For Future Work
 
-If you do not want a separate semantic list, there are two workable
-alternatives.
-
-First alternative: flatten each visual row into one accessible parent.
-
-- Each `TimelineRow` becomes one accessible element
-- All descendants are hidden from accessibility
-- `accessibilityLabel` is synthesized from row semantics
-
-This is a reasonable compromise, but it is more brittle because the visual
-structure still drives the accessible tree.
-
-Second alternative: provide a user-facing mode switch.
-
-- "Visual timeline"
-- "Accessible list"
-
-This can be useful for all users, not just screen reader users, especially if
-some low-vision or cognitive-access users prefer the simpler list even when not
-using VoiceOver or TalkBack.
-
-## Best-Practice Checklist
-
-The implementation should aim for the following:
-
-- Provide a concise timeline summary at the top.
-- Expose one semantic item per meaningful event or segment.
-- Use natural-language labels, not visual shorthand.
-- Hide decorative visual layers from accessibility.
-- Keep event order chronological and stable.
-- Do not depend on spacing, color, iconography, or motion for meaning.
-- Separate current/live status from historical events.
-- Expand abbreviations in spoken output.
-- Ensure adaptive row sizing is described semantically, not visually.
-- Test with VoiceOver and TalkBack on real devices.
-- Verify swipe order, rotor/navigation landmarks, repeated announcements, and
-  live update behavior.
-
-## Suggested Implementation Order
-
-I'd sequence the work like this:
-
-1. Add a summary label builder from existing render state.
-2. Add a semantic list component derived from `rows` and `activeIndicator`.
-3. Hide the visual timeline subtree from accessibility when the semantic list
-   is present.
-4. Add plain-language expansion for terminal and event abbreviations.
-5. Tune live update behavior for the current vessel status.
-6. Run manual screen reader testing and refine wording.
-
-## Conclusion
-
-The core issue is not that the component is "too visual" to make accessible.
-The core issue is that the accessible representation should come from the
-feature's event/row semantics, not from its pixel layout.
-
-The good news is that your current architecture already supports this cleanly.
-The feature has a backend-owned ordered event feed, a frontend semantic row
-render-state layer, and a separate visual renderer. That makes `VesselTimeline` a strong
-fit for a semantic list + visual timeline approach, which is likely the most
-robust, maintainable, and user-friendly accessibility solution for this
-component.
+- Build accessibility from semantic rows and live state, not from row height or
+  overlay geometry.
+- Prefer one clear accessible item per dock or sea segment.
+- Keep the visual timeline expressive, but hide decorative chrome from
+  assistive tech.
+- If we add this work later, start with a summary plus semantic list before
+  trying to perfect every visual row.

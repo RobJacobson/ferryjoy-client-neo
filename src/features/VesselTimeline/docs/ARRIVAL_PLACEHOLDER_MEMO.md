@@ -1,223 +1,111 @@
-/**
- * Engineering memo for the synthetic arrival-placeholder behavior in
- * VesselTimeline.
- */
-
 # Arrival Placeholder Memo
+
+`VesselTimeline` inserts a synthetic dock placeholder when a departure starts a
+sea segment without an immediately preceding same-terminal arrival.
+
+Source:
+
+- [buildSegmentsFromBoundaryEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/buildSegmentsFromBoundaryEvents.ts)
 
 ## Summary
 
-`VesselTimeline` currently synthesizes an arrival-placeholder dock row when a
-departure event does not have an immediately preceding same-terminal arrival.
-
-This behavior is intentional and still useful, but it serves two very
-different cases:
+This behavior is intentional and still useful, but it serves two different
+cases:
 
 - a legitimate product case at the start of the visible service-day window
-- a degraded fallback when backend/upstream event seams are broken
+- a degraded fallback when the event chain is broken
 
-Those two uses should not be conflated forever. This memo documents the current
-behavior, why it exists, what risks it creates, and what future cleanup should
-consider.
-
-## Relevant Code
-
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
-- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
-- [TimelineRowContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowContent.tsx)
-- [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
-
-## Current Behavior
-
-In [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts),
-when the render-state layer sees:
-
-- a `dep-dock` event starting a sea row
-- with no immediately preceding `arv-dock` at the same terminal
-
-it inserts a synthetic dock row before the sea row.
-
-That placeholder row:
-
-- uses the departure event as its base shape
-- changes the synthetic start event to `EventType: "arv-dock"`
-- clears:
-  - `ScheduledTime`
-  - `PredictedTime`
-  - `ActualTime`
-- marks `IsArrivalPlaceholder: true`
-
-The UI then renders:
-
-- an arrival label like `Arv: VAI`
-- a placeholder time row with `--`
-
-This is currently the only built-in degraded representation for “we do not
-have a trustworthy arrival boundary here.”
+Those cases should stay distinct in our thinking even though they share the
+same rendering mechanism.
 
 ## Why It Exists
 
-### Legitimate case: start-of-day truncation
+### Start-of-day truncation
 
-The service-day timeline begins at the vessel's first departure for the
-requested day, not at an absolute berth-occupancy boundary from the prior
-calendar period.
+The timeline is a bounded service-day view, not a full vessel occupancy
+history. That means the first visible event for a day can legitimately be a
+departure with no preceding arrival in the returned feed.
 
-That means the first row can legitimately be:
+In that case, the placeholder is the right UX:
 
-- a departure from terminal `X`
-- with no preceding arrival event in the bounded feed
+- it gives the user some dock context before the first sea leg
+- it does not pretend we know the missing arrival time
 
-In that case, the placeholder is appropriate. It gives the user a compact dock
-context before the first visible sea segment without pretending we know the
-arrival time.
+### Broken seams
 
-### Accidental case: broken seams
+The same placeholder path also handles inconsistent event chains, for example
+when a departure does not line up with the prior arrival terminal.
 
-The same placeholder mechanism is also triggered when the feed contains:
+In that case, the placeholder is not expressing a real known arrival. It is a
+conservative fallback that keeps the timeline structurally readable while
+signaling that the seam is not trustworthy.
 
-- a prior arrival event
-- but at a different terminal than the departure that follows
+## Current Behavior
 
-This is not a legitimate bounded-window case. It is a data seam problem.
+The placeholder is intentionally conservative:
 
-The placeholder is still useful as a graceful fallback, but it also hides the
-fact that:
+- it is a dock segment
+- it has zero duration
+- its synthetic arrival event has no scheduled, actual, or predicted time
+- it carries `placeholderReason`
+  - `start-of-day`
+  - `broken-seam`
 
-- the row builder encountered a broken event chain
-- the backend normalization did not fully reconcile it
+That means the row can honestly render dock context without implying timing
+confidence we do not have.
 
-## Why This Needs Attention
+## What It Should Mean
 
-The placeholder path is doing two jobs:
+The placeholder means:
 
-1. representing intentional service-day truncation
-2. masking event inconsistency
+- "there should be dock context here"
+- "the visible timeline should not jump directly into a sea leg"
 
-That creates debugging and UX risks:
+It does not mean:
 
-- a legitimate placeholder and a broken-data placeholder look the same
-- engineers may misread the UI as “missing first arrival” when the real issue
-  is a corrupted seam
-- attempts to “improve” the placeholder can accidentally surface misleading
-  times from broken rows
+- "we know the missing arrival time"
+- "the backend confirmed a real arrival boundary"
+- "adjacent rows can safely donate timing to this synthetic event"
 
-This happened during investigation of the CAT triangle-route anomaly:
+## Why This Needs Care
 
-- a temporary refactor tried to preserve `ActualTime` from a mismatched prior
-  arrival row
-- this produced a plausible-looking but incorrect time
-- the change was reverted
+The main risk is that one mechanism is doing two jobs:
 
-That is a strong signal that the placeholder should remain conservative unless
-it is backed by explicit backend truth.
+1. representing expected start-of-day truncation
+2. masking inconsistent upstream data
 
-## Current Safe State
+That can blur debugging and product reasoning:
 
-As of now, the placeholder row intentionally preserves no timing fields:
+- a legitimate placeholder and a broken-seam placeholder can look similar in UI
+- future refactors may be tempted to make the placeholder appear more precise
+- timing inheritance can easily create plausible-looking but false information
 
-- scheduled: empty
-- predicted: empty
-- actual: empty
+The current conservative behavior is safer than "smart" guessing.
 
-The time UI can still show `--` honestly in the scheduled slot when
-`showPlaceholder` is enabled.
+## Guidance For Future Changes
 
-This is the safest fallback because it avoids implying confidence in a time
-whose semantics are unclear.
+- Keep placeholders for true start-of-day orphan departures.
+- Treat mid-day placeholders as likely seam problems first.
+- Prefer backend seam repair over smarter frontend inference.
+- Do not inherit scheduled, actual, or predicted times onto placeholders unless
+  the backend explicitly provides a trustworthy source for that synthetic row.
 
-## What We Should Remember
+## Useful Future Directions
 
-### Keep
+If we revisit this area later, good directions would be:
 
-Keep the placeholder mechanism for the true start-of-day case.
+- better diagnostics for unexpected mid-day placeholders
+- clearer UI treatment if `broken-seam` needs to look distinct from
+  `start-of-day`
+- shifting more seam repair responsibility to the backend if we develop a
+  reliable normalization rule
 
-It is still the right UX for:
+## Recommended Default For Future Agents
 
-- “the bounded day feed begins with a departure”
-- “we want a small dock context before the first sea leg”
+If you encounter the placeholder path during later work:
 
-### Be careful with
-
-Be very cautious about adding timing inheritance to placeholders.
-
-Do not reuse:
-
-- `ActualTime`
-- `PredictedTime`
-- `ScheduledTime`
-
-from adjacent mismatched rows unless the backend explicitly marks that timing as
-valid for the placeholder terminal/event.
-
-### Prefer backend fixes for seam issues
-
-If a placeholder appears in the middle of the day because of a broken seam, the
-preferred fix is backend normalization or reconciliation, not smarter frontend
-guessing.
-
-The frontend should degrade conservatively.
-
-## Future Cleanup Ideas
-
-### Option A: Differentiate placeholder reasons
-
-Potential extension:
-
-```ts
-IsArrivalPlaceholder?: boolean;
-PlaceholderReason?: "start-of-day" | "broken-seam";
-```
-
-This could live on `TimelineBoundaryEvent` or the semantic segment.
-
-Benefits:
-
-- easier debugging
-- easier future UX decisions
-- avoids treating all placeholders as equivalent
-
-### Option B: Narrow frontend placeholder creation
-
-Possible future goal:
-
-- keep frontend placeholder creation only for start-of-day orphan departures
-- push mid-day seam repair responsibility fully to the backend
-
-Benefits:
-
-- clearer ownership
-- fewer ambiguous degraded states
-
-Risks:
-
-- requires backend work before the frontend can safely narrow the rule
-
-### Option C: Add diagnostics
-
-If mid-day placeholders are unexpected, the row builder or backend query layer
-could optionally log or count them in development.
-
-Benefits:
-
-- makes seam issues visible earlier
-- helps distinguish “normal bounded start” from “something broke”
-
-## Recommended Guidance For Future Agents
-
-If you encounter the arrival-placeholder path during future work:
-
-1. First ask whether the placeholder is at the start of the day or in the
-   middle of the day.
-2. If it is at the start of the day, the current behavior is probably correct.
-3. If it is in the middle of the day, assume there may be a backend seam issue
-   before making the frontend smarter.
-4. Do not attach times to the placeholder unless the timing source is
-   explicitly trustworthy for that synthetic event.
-
-## Status
-
-This behavior is intentionally preserved.
-
-No additional placeholder timing inference should be reintroduced without a
-clear backend-backed source of truth.
+1. first ask whether the placeholder is at the start of the day or mid-day
+2. if it is start-of-day, the current behavior is probably correct
+3. if it is mid-day, assume seam inconsistency before making the frontend
+   smarter
+4. do not attach times unless the source of truth is explicit and trustworthy

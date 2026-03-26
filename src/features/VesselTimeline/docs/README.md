@@ -1,12 +1,13 @@
 # VesselTimeline Docs
 
-Use these docs as a quick map for the feature:
+This folder only keeps the decisions that are still useful while working on
+`VesselTimeline`.
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
-  The current backend/frontend contract, feature layout, and render-state flow.
-- [ACCESSIBILITY_MEMO.md](./ACCESSIBILITY_MEMO.md)
-  Accessibility considerations and possible non-visual timeline representations.
+  Current feature shape: public API, data flow, and ownership boundaries.
 - [ARRIVAL_PLACEHOLDER_MEMO.md](./ARRIVAL_PLACEHOLDER_MEMO.md)
-  Why placeholder dock rows exist and how they affect rendering.
+  Why placeholder dock rows exist and what they are allowed to imply.
 - [CAT_MISSING_SEGMENT_MEMO.md](./CAT_MISSING_SEGMENT_MEMO.md)
-  Investigation notes for the Cathlamet / triangle-route missing-segment anomaly.
+  Notes on the recurring CAT / triangle-route broken-seam anomaly.
+- [ACCESSIBILITY_MEMO.md](./ACCESSIBILITY_MEMO.md)
+  A future-facing note on how to add a better non-visual representation.
