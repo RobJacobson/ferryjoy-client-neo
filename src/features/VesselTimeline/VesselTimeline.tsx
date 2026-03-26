@@ -13,8 +13,8 @@ import {
 import { Button, Text } from "@/components/ui";
 import { ConvexVesselTimelineProvider } from "@/data/contexts";
 import { useVesselTimelineViewModel } from "./hooks";
-import { TimelineContent } from "./TimelineContent";
 import { getVesselTimelineDataHostKey } from "./utils";
+import { VesselTimelineContent } from "./VesselTimelineContent";
 import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
 
 export type VesselTimelineProps = {
@@ -107,5 +107,5 @@ const VesselTimelinePresentation = ({
     );
   }
 
-  return renderState ? <TimelineContent {...renderState} /> : null;
+  return renderState ? <VesselTimelineContent {...renderState} /> : null;
 };

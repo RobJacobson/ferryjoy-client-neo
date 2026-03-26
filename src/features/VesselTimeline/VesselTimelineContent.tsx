@@ -28,7 +28,7 @@ import type { VesselTimelineRenderState } from "./types";
  * @param props - Render-ready vessel timeline state
  * @returns Scrollable vessel timeline
  */
-export const TimelineContent = ({
+export const VesselTimelineContent = ({
   rows,
   terminalCards,
   activeIndicator,
