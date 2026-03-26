@@ -4,7 +4,7 @@ import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
-import { getVesselTimelineRenderState, resolveActiveSegmentIndex } from ".";
+import { getVesselTimelineRenderState, resolveActiveSegmentIndex } from "..";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
@@ -326,6 +326,7 @@ describe("getVesselTimelineRenderState", () => {
     );
 
     expect(renderState.activeIndicator?.rowId).toBe("arv-2--terminal");
+    expect(renderState.activeIndicator?.label).toBe("--");
   });
 
   it("hides the active indicator when the backend provides no match", () => {

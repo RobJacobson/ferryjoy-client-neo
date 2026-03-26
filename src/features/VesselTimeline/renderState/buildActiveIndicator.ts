@@ -47,7 +47,7 @@ export const buildActiveIndicator = ({
   return {
     rowId: segment.id,
     positionPercent,
-    label: getMinutesUntil(segment.endEvent, now),
+    label: getMinutesUntil(segment, now),
     title: liveState?.VesselName,
     subtitle: activeState?.subtitle,
     animate: activeState?.animate ?? false,
@@ -193,14 +193,19 @@ const getTimeProgress = (
 /**
  * Countdown minutes until the event’s display time for the badge label.
  *
- * @param event - Segment end event
+ * @param segment - Active segment
  * @param now - Current instant
  * @returns String such as `12m`, or `--` when time is unknown
  */
 const getMinutesUntil = (
-  event: VesselTimelineSegment["endEvent"],
+  segment: VesselTimelineSegment,
   now: Date
 ) => {
+  if (segment.isTerminal === true) {
+    return "--";
+  }
+
+  const event = segment.endEvent;
   const targetTime = getDisplayTime(event);
   if (!targetTime) {
     return "--";

@@ -32,7 +32,12 @@ export const resolveActiveStateFromTimeline = ({
 
   const locationAnchoredState =
     location && candidateRows.length > 0
-      ? resolveLocationAnchoredState(candidateRows, location)
+      ? resolveLocationAnchoredState(
+          candidateRows,
+          events,
+          location,
+          observedAt.getTime()
+        )
       : null;
   if (locationAnchoredState) {
     return { Live, ActiveState: locationAnchoredState, ObservedAt: observedAt };
@@ -113,12 +118,42 @@ const buildCandidateRows = (
 
 const resolveLocationAnchoredState = (
   rows: CandidateRow[],
-  location: VesselLocation
+  events: MergedTimelineBoundaryEvent[],
+  location: VesselLocation,
+  observedAt: number
 ): VesselTimelineActiveState | null => {
   if (location.AtDock) {
+    const lastEvent = events[events.length - 1];
+    const lastEventDisplayTime =
+      lastEvent &&
+      lastEvent.EventType === "arv-dock" &&
+      lastEvent.TerminalAbbrev === location.DepartingTerminalAbbrev
+        ? getDisplayTime(lastEvent)
+        : undefined;
+    const lastEventDisplayMs =
+      typeof lastEventDisplayTime === "number"
+        ? lastEventDisplayTime
+        : lastEventDisplayTime?.getTime();
+
+    if (lastEventDisplayMs !== undefined && observedAt >= lastEventDisplayMs) {
+      return {
+        kind: "scheduled-fallback",
+        rowMatch: null,
+        terminalTailEventKey: lastEvent.Key,
+        subtitle: getDockSubtitle(location),
+        animate: false,
+        speedKnots: location.Speed ?? 0,
+        reason: "location_anchor",
+      };
+    }
+
     const row =
       findDockRowByScheduledDeparture(rows, location) ??
-      findLatestDockRowAtTerminal(rows, location.DepartingTerminalAbbrev);
+      findNearestDockRowAtTerminal(
+        rows,
+        location.DepartingTerminalAbbrev,
+        observedAt
+      );
 
     if (row) {
       return {
@@ -136,7 +171,7 @@ const resolveLocationAnchoredState = (
   if (!location.AtDock) {
     const row =
       findSeaRowByScheduledDeparture(rows, location) ??
-      findLatestSeaRowByTerminalPair(rows, location);
+      findNearestSeaRowByTerminalPair(rows, location, observedAt);
 
     if (row) {
       return {
@@ -171,12 +206,21 @@ const findDockRowByScheduledDeparture = (
   );
 };
 
-const findLatestDockRowAtTerminal = (
+const findNearestDockRowAtTerminal = (
   rows: CandidateRow[],
-  terminalAbbrev: string
+  terminalAbbrev: string,
+  observedAt: number
 ) =>
   [...rows]
-    .reverse()
+    .filter(
+      (row) =>
+        row.kind === "dock" && row.endEvent.TerminalAbbrev === terminalAbbrev
+    )
+    .sort(
+      (left, right) =>
+        getRowWindowDistance(left, observedAt) -
+        getRowWindowDistance(right, observedAt)
+    )
     .find(
       (row) =>
         row.kind === "dock" && row.endEvent.TerminalAbbrev === terminalAbbrev
@@ -202,12 +246,24 @@ const findSeaRowByScheduledDeparture = (
   );
 };
 
-const findLatestSeaRowByTerminalPair = (
+const findNearestSeaRowByTerminalPair = (
   rows: CandidateRow[],
-  location: VesselLocation
+  location: VesselLocation,
+  observedAt: number
 ) =>
   [...rows]
-    .reverse()
+    .filter(
+      (row) =>
+        row.kind === "sea" &&
+        row.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+        (location.ArrivingTerminalAbbrev === undefined ||
+          row.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
+    )
+    .sort(
+      (left, right) =>
+        getRowWindowDistance(left, observedAt) -
+        getRowWindowDistance(right, observedAt)
+    )
     .find(
       (row) =>
         row.kind === "sea" &&
@@ -253,8 +309,8 @@ const resolveScheduledWindowState = (
     return (
       start !== undefined &&
       end !== undefined &&
-      observedAt >= start &&
-      observedAt <= end
+      observedAt >= start.getTime() &&
+      observedAt <= end.getTime()
     );
   });
 
@@ -283,7 +339,7 @@ const resolveEdgeFallbackState = (
 
   const firstStart = getDisplayTime(rows[0]?.startEvent);
   const row =
-    firstStart !== undefined && observedAt < firstStart
+    firstStart !== undefined && observedAt < firstStart.getTime()
       ? rows[0]
       : rows[rows.length - 1];
 
@@ -312,7 +368,7 @@ const resolveTerminalTailState = (
   }
 
   const lastEventDisplayTime = getDisplayTime(lastEvent);
-  if (lastEventDisplayTime !== undefined && observedAt < lastEventDisplayTime) {
+  if (lastEventDisplayTime !== undefined && observedAt < lastEventDisplayTime.getTime()) {
     return null;
   }
 
@@ -375,6 +431,28 @@ const shouldAnimateSeaIndicator = (location: VesselLocation) =>
   (location.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
 
 const getDisplayTime = (event: MergedTimelineBoundaryEvent) =>
-  event.ActualTime?.getTime() ??
-  event.PredictedTime?.getTime() ??
-  event.ScheduledTime?.getTime();
+  event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;
+
+const getRowWindowDistance = (row: CandidateRow, observedAt: number) => {
+  const start = getDisplayTime(row.startEvent)?.getTime();
+  const end = getDisplayTime(row.endEvent)?.getTime();
+
+  if (start !== undefined && end !== undefined) {
+    if (observedAt < start) {
+      return start - observedAt;
+    }
+
+    if (observedAt > end) {
+      return observedAt - end;
+    }
+
+    return 0;
+  }
+
+  const fallbackTime = end ?? start;
+  if (fallbackTime === undefined) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.abs(observedAt - fallbackTime);
+};

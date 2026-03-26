@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { getVesselTimelineDataHostKey } from "./hostKey";
+import { getVesselTimelineDataHostKey } from "../hostKey";
 import {
   getCurrentSailingDay,
   getRefreshedSailingDay,
-} from "./refreshSailingDay";
+} from "../refreshSailingDay";
 
 describe("getVesselTimelineDataHostKey", () => {
   it("changes when the retry nonce changes", () => {

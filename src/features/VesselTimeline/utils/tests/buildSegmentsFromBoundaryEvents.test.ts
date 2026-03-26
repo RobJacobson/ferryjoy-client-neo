@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
-import { buildSegmentsFromBoundaryEvents } from "./buildSegmentsFromBoundaryEvents";
+import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 25, hours, minutes));

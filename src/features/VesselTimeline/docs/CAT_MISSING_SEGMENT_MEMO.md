@@ -7,257 +7,163 @@
 
 ## Summary
 
-This memo documents a recurring data-quality issue affecting the
-`VesselTimeline` for vessel `CAT` (Cathlamet) on the
-Fauntleroy / Vashon / Southworth triangle.
+`CAT` on the Fauntleroy / Vashon / Southworth triangle still exposes a recurring
+WSF data anomaly: the schedule can imply an impossible sequence such as
+`VAI -> FAU`, then again `VAI -> FAU`, with no corresponding `FAU -> VAI`
+movement in between.
 
-The user-facing symptom is that the timeline can render an impossible physical
-sequence such as:
+The current code does not special-case `CAT`. The failure mode comes from two
+generic frontend behaviors:
 
-- `VAI -> FAU`
-- then again `VAI -> FAU`
+1. segment reconstruction gracefully inserts placeholder dock rows when a sea
+   segment starts without a same-terminal arrival
+2. active-state fallback must choose a “best” row when live schedule context is
+   incomplete
 
-with no intervening `FAU -> VAI` or at least no indication that the schedule
-feed is discontinuous.
+The second point was the source of the recent bad indicator placement. When WSF
+omitted part of the cycle and the live feed had no `ScheduledDeparture`, the
+old fallback picked the latest row at the same terminal, which could place the
+indicator hours away from the vessel’s real position. The current code now
+chooses the nearest matching row by time window instead.
 
-This is a credibility problem for the timeline UI. Even if WSF's public
-schedule or API omits a segment, our timeline should not confidently display an
-impossible vessel path with no caveat.
+## Current Pipeline
 
-This memo explains:
-
-- the current backend/frontend pipeline
-- the specific data pattern causing the break
-- why the current placeholder behavior is not sufficient
-- what has already been attempted
-- recommended backend and frontend directions
-
-## Current Timeline Pipeline
-
-### Backend flow
+### Backend
 
 Relevant code:
 
 - [fetchAndTransform.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/fetchAndTransform.ts)
 - [directSegments.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/directSegments.ts)
-- [estimates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/scheduledTrips/transform/estimates.ts)
 - [seed.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/seed.ts)
 - [liveUpdates.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/liveUpdates.ts)
+- [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
 
 Current high-level behavior:
 
-1. Raw WSF schedule segments are fetched and mapped into `ScheduledTrip`.
-2. Trips are classified as direct vs indirect by vessel/day chronology.
-3. Only direct physical segments are used to seed `vesselTripEvents`.
-4. Each direct segment produces:
-   - one `dep-dock` event
-   - one `arv-dock` event
-5. Live data and vessel history enrich the seeded event rows in place.
-6. The timeline query returns a normalized event feed plus compact active state.
+1. WSF schedule data is transformed into direct physical sailings.
+2. Each direct sailing becomes paired normalized boundary events:
+   - `dep-dock`
+   - `arv-dock`
+3. Actuals and predictions are overlaid into normalized event tables.
+4. The frontend reads scheduled, actual, predicted, and current location rows.
 
-### Frontend flow
+### Frontend
 
 Relevant code:
 
 - [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
-- [getLayoutTimelineRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getLayoutTimelineRows.ts)
-- [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
-
-Current high-level behavior:
-
-1. The frontend consumes normalized `vesselTripEvents`.
-2. Adjacent event pairs become semantic rows:
-   - `arv-dock -> dep-dock` at same terminal => dock row
-   - `dep-dock -> arv-dock` => sea row
-3. If a sea row starts with no immediately preceding same-terminal arrival, the
-   frontend inserts an arrival-placeholder dock row.
-4. Placeholder rows have no true times and currently rely on minimum-height
-   layout fallback.
-
-## The Specific CAT Problem
-
-### User-facing symptom
-
-The timeline can show two surrounding segments that both read `VAI -> FAU`,
-even though the vessel must have physically reversed direction or otherwise
-repositioned in between.
-
-The impossible visual sequence is what breaks trust.
-
-### Why this is not just a UI issue
-
-The issue is not simply missing formatting or missing actuals. The actual
-problem is that the schedule-derived event chain is discontinuous in a way that
-does not represent a valid physical vessel path.
-
-Even if WSF's published schedule omits or misclassifies a trip, the timeline
-should not present that broken chain as if it were a normal day plan.
-
-## Relevant Evidence
-
-### 1. `vesselTripEvents` evidence
-
-The provided event sample for `2026-03-24` includes, in order:
-
-- `06:45 SOU -> VAI`
-- `07:05 VAI -> FAU`
-- `07:55 VAI -> FAU`
-- `08:25 FAU -> VAI`
-
-Important rows from the sample:
-
-- `dep-dock` at `07:55`, `TerminalAbbrev: "VAI"`
-- matching arrival row for that block carries inconsistent terminal semantics
-- then `dep-dock` at `08:25`, `TerminalAbbrev: "FAU"`
-
-This is sufficient to produce a broken timeline seam or duplicate-direction
-visual story.
-
-### 2. `CompletedVesselTrip` evidence
-
-The provided completed-trip data for `2026-03-24` includes:
-
-- `CAT--2026-03-24--06:45--SOU-VAI`
-- `CAT--2026-03-24--07:05--VAI-FAU`
-- `CAT--2026-03-24--07:55--VAI-FAU`
-- `CAT--2026-03-24--08:25--FAU-VAI`
-
-This shows that richer trip lifecycle data also contains the strange repeated
-direction.
-
-The user's product interpretation is that the `~7:30` / `7:55` gap likely
-contains a missing physical reposition or unlisted trip, even if the public
-schedule/API does not publish it.
-
-### 3. `ScheduledTrip` evidence
-
-The provided scheduled-trip sample from another day (`2026-03-30`) shows the
-same recurring structure:
-
-- `06:45 SOU -> VAI`
-- `07:05 VAI -> FAU`
-- `07:55 VAI -> FAU`
-- `08:25 FAU -> VAI`
-
-This matters because it means:
-
-- the discontinuity appears to originate in scheduled data itself
-- this is not merely a live-update pollution issue
-- we can detect the anomaly in advance without relying on completed-trip truth
-
-### 4. Public WSF webpage evidence
-
-The public schedule screenshot also reflects the same omission/inconsistency:
-
-- `07:05` appears in `Leave Vashon`
-- `08:25` appears in `Leave Fauntleroy`
-- there is no corresponding listed crossing that would reconcile the duplicate
-  same-direction sequence in our vessel-specific interpretation
-
-This supports the product assumption that the public schedule itself may omit a
-segment or omit its publishable passenger-facing representation.
-
-## Why the Current Placeholder Behavior Is Not Enough
-
-Relevant code:
-
-- [buildSnapshot.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/snapshots/buildSnapshot.ts)
-- [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
-
-Current placeholder behavior is designed for:
-
-- start-of-day orphan departures
-- generic degraded cases where a matching arrival is absent
-
-It does not solve the deeper UX issue here because:
-
-- the repeated-direction anomaly is not simply a missing arrival label
-- the vessel path itself becomes implausible
-- rendering `VAI -> FAU` followed by `VAI -> FAU` still looks unreliable even
-  if one row shows `--`
-
-### What the current `--` row really is
-
-The current frontend placeholder row:
-
-- is a synthetic zero-duration dock row
-- is positioned by semantic adjacency, not real timing
-- falls back to minimum height when times are missing
-
-It is useful for graceful degradation, but it does not represent a missing
-physical sea segment.
-
-## What Has Already Been Changed
-
-### Active-state refactor
-
-Implemented earlier:
-
-- backend-owned active row selection
-- `terminalTailEventKey` contract for terminal-tail matching
-- frontend no longer recomputes active-row fallback policy locally
-
-Relevant code:
-
-- [activeState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/events/activeState.ts)
-- [activeStateSchemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTripEvents/activeStateSchemas.ts)
+- [buildSegmentsFromBoundaryEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/buildSegmentsFromBoundaryEvents.ts)
+- [resolveActiveStateFromTimeline.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/resolveActiveStateFromTimeline.ts)
 - [resolveActiveSegmentIndex.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/resolveActiveSegmentIndex.ts)
 - [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildActiveIndicator.ts)
 
-### Context simplification
+Current high-level behavior:
 
-Implemented earlier:
+1. The frontend merges scheduled, actual, and predicted boundary rows.
+2. Adjacent event pairs become semantic segments:
+   - `arv-dock -> dep-dock` at same terminal => dock
+   - `dep-dock -> arv-dock` => sea
+3. If a sea segment starts without a same-terminal arrival immediately before
+   it, the frontend inserts an arrival-placeholder dock segment.
+4. Active-state resolution happens on the frontend only.
 
-- `ConvexVesselTimelineContext` now derives its value directly from Convex
-  queries instead of mirroring query data through extra local React state
+## The CAT / Missing-Cycle Pattern
+
+The recurring evidence still looks like:
+
+- `06:45 SOU -> VAI`
+- `07:05 VAI -> FAU`
+- `07:55 VAI -> FAU`
+- `08:25 FAU -> VAI`
+
+This strongly suggests a missing physical cycle or a passenger-facing omission
+in WSF’s published data, not a `VesselTimeline`-specific calculation bug.
+
+The important point is that the timeline may receive a discontinuous chain that
+does not describe a believable physical vessel path. That is why CAT keeps
+surfacing this issue while other vessels are usually fine.
+
+## Current Graceful-Degradation Behavior
+
+### Placeholder segments
 
 Relevant code:
 
-- [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
+- [buildSegmentsFromBoundaryEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/buildSegmentsFromBoundaryEvents.ts)
 
-### Safe UX improvement already implemented
+What the client does today:
 
-Implemented:
+- inserts a synthetic dock segment when a departure has no matching prior
+  arrival at the same terminal
+- marks it as `start-of-day` or `broken-seam`
+- gives it zero duration and no real schedule/actual/predicted time
 
-- when a row has no scheduled time but does have actual or estimated time, the
-  UI shows `--` in the scheduled column and the real time in the secondary
-  column
+This does not “repair” the missing trip. It only prevents the render pipeline
+from collapsing when the event chain is broken.
+
+### Active-state fallback
 
 Relevant code:
 
-- [TimelineRowEventTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowEventTimes.tsx)
+- [resolveActiveStateFromTimeline.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/resolveActiveStateFromTimeline.ts)
 
-This is helpful for degraded rows, but it does not fix the duplicate-direction
-timeline story on its own.
+Current resolution order:
 
-## Attempted Backend Seam Fix That Was Rejected
+1. live location anchor
+2. open actual-backed row
+3. scheduled window fallback
+4. terminal-tail fallback
+5. edge fallback
 
-A generic attempt was made to normalize mismatched adjacent `arv-dock ->
-dep-dock` seams in `normalizeScheduledDockSeams`.
+Important current degraded-data behavior:
 
-That attempt was reverted because:
+- if live `ScheduledDeparture` is present, we anchor directly by row identity
+- if it is missing, we no longer pick the latest same-terminal row
+- instead, we pick the same-terminal row whose time window is nearest to `now`
 
-- it was not robust against the actual sorted event shape
-- it risked incorrectly rewriting triangle-route terminals
-- it was solving the wrong layer of the problem
+This was added specifically to stop broken WSF CAT cycles from placing the
+indicator many hours away from the expected range.
 
-Conclusion:
+### Indicator copy
 
-- a naive adjacent-event seam rewrite is too brittle
-- the CAT anomaly should not be “fixed” by a one-line terminal overwrite in
-  `vesselTripEvents` normalization
+Relevant code:
 
-## Product Direction Agreed In Conversation
+- [buildActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildActiveIndicator.ts)
 
-The current preferred direction is:
+Current behavior:
 
-- do not depend on `CompletedVesselTrip` for the primary repair
-- detect the discontinuity from scheduled data alone
-- if scheduled data says `A -> B`, then again `A -> B`, infer a missing
-  physical movement `B -> A`
-- represent that inferred movement as a placeholder, not as an authoritative
-  published sailing
+- terminal-tail segments show `--` instead of `0m`
+- normal segments still show countdown minutes from their end boundary
+
+## What Changed Recently
+
+### Dead backend active-state code was removed
+
+There is no longer a parallel backend active-state resolver kept alive only for
+tests. The feature now has a single frontend resolver:
+
+- [resolveActiveStateFromTimeline.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/utils/resolveActiveStateFromTimeline.ts)
+
+### The off-by-hours degraded-data indicator bug was fixed
+
+The previous implementation could choose the wrong same-terminal row when live
+schedule context was incomplete. That produced obviously wrong indicators such
+as a vessel appearing twelve hours away from the correct segment.
+
+The current implementation uses nearest-time matching instead of latest-row
+matching for terminal-pair fallback.
+
+## Conclusion
+
+There is still no trustworthy way to infer the truly missing physical trip from
+WSF schedule data alone. The current code deliberately degrades instead of
+inventing an authoritative segment.
+
+The practical goal for now is:
+
+- keep the timeline structurally valid when WSF omits a cycle
+- keep the active indicator in a believable range
+- avoid CAT-specific one-off logic unless the product explicitly chooses that
 
 Preferred contract term from the user:
 
