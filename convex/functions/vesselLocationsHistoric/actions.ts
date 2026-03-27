@@ -7,8 +7,6 @@ import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { enrichConvexVesselLocation } from "shared/enrichConvexVesselLocations";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
@@ -41,8 +39,6 @@ export const captureHistoricVesselLocations = internalAction({
       await fetchWsfVesselLocations()
     )
       .map(toConvexVesselLocation)
-      .map(enrichConvexVesselLocation)
-      .map(convertConvexVesselLocation)
       .map((location) => ({
         ...location,
         SailingDay: getSailingDay(new Date(location.TimeStamp)),

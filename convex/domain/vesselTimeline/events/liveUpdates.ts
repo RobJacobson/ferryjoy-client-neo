@@ -7,6 +7,7 @@ import type {
   ConvexVesselTimelineEventRecord,
   VesselTimelineEventType,
 } from "../../../functions/vesselTimeline/eventRecordSchemas";
+import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { getSailingDay } from "../../../shared/time";
 
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
@@ -77,38 +78,19 @@ export const applyLiveLocationToEvents = (
   }
 
   const nextEvents = events.map((event) => ({ ...event }));
-  const SailingDay = getLocationSailingDay(location);
-  const departureEvent = location.ScheduledDeparture
-    ? getEventByKey(
-        nextEvents,
-        buildEventKey(
-          SailingDay,
-          location.VesselAbbrev,
-          location.ScheduledDeparture,
-          location.DepartingTerminalAbbrev,
-          "dep-dock"
-        )
-      )
-    : undefined;
-  const arrivalEvent = location.ScheduledDeparture
-    ? getEventByKey(
-        nextEvents,
-        buildEventKey(
-          SailingDay,
-          location.VesselAbbrev,
-          location.ScheduledDeparture,
-          location.DepartingTerminalAbbrev,
-          "arv-dock"
-        )
-      )
-    : undefined;
+  const departureEvent = getLocationAnchoredEvent(
+    nextEvents,
+    location,
+    "dep-dock"
+  );
+  const arrivalEvent = getLocationAnchoredEvent(nextEvents, location, "arv-dock");
 
   if (
     canWriteLiveActuals(location) &&
     isStrongDeparture(location) &&
     departureEvent
   ) {
-    departureEvent.ActualTime = location.LeftDock ?? location.TimeStamp;
+    departureEvent.EventActualTime = location.LeftDock ?? location.TimeStamp;
   }
 
   if (isFalseDeparture(location, departureEvent, arrivalEvent)) {
@@ -118,7 +100,7 @@ export const applyLiveLocationToEvents = (
 
     // Undo a noisy departure signal if the vessel is seen docked again at the
     // same terminal before the paired arrival resolves.
-    departureEvent.ActualTime = undefined;
+    departureEvent.EventActualTime = undefined;
     return nextEvents;
   }
 
@@ -129,8 +111,11 @@ export const applyLiveLocationToEvents = (
       departureEvent
     );
 
-    if (resolvedArrivalEvent && resolvedArrivalEvent.ActualTime === undefined) {
-      resolvedArrivalEvent.ActualTime = location.TimeStamp;
+    if (
+      resolvedArrivalEvent &&
+      resolvedArrivalEvent.EventActualTime === undefined
+    ) {
+      resolvedArrivalEvent.EventActualTime = location.TimeStamp;
     }
   }
 
@@ -187,12 +172,13 @@ export const normalizeScheduledDockSeams = (
     for (let index = 0; index < sortedScopedEvents.length; index++) {
       const event = sortedScopedEvents[index];
       if (
-        event?.ScheduledTime &&
+        event?.EventScheduledTime &&
         isIdenticalScheduledDockSeam(event, sortedScopedEvents[index + 1])
       ) {
         adjustedScheduledTimesByKey.set(
           event.Key,
-          event.ScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+          event.EventScheduledTime -
+            IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
         );
       }
     }
@@ -204,7 +190,7 @@ export const normalizeScheduledDockSeams = (
     return adjustedScheduledTime !== undefined
       ? {
           ...event,
-          ScheduledTime: adjustedScheduledTime,
+          EventScheduledTime: adjustedScheduledTime,
         }
       : event;
   });
@@ -226,8 +212,8 @@ const isIdenticalScheduledDockSeam = (
   current.EventType === "arv-dock" &&
   next.EventType === "dep-dock" &&
   current.TerminalAbbrev === next.TerminalAbbrev &&
-  next.ScheduledTime !== undefined &&
-  current.ScheduledTime === next.ScheduledTime;
+  next.EventScheduledTime !== undefined &&
+  current.EventScheduledTime === next.EventScheduledTime;
 
 /**
  * Maps event types to a deterministic sort order.
@@ -249,6 +235,54 @@ const getEventByKey = (
   events: ConvexVesselTimelineEventRecord[],
   Key: string
 ) => events.find((event) => event.Key === Key);
+
+/**
+ * Resolves the anchored boundary event for a live location using the canonical
+ * segment key when available, with a field-based fallback for partial fixtures.
+ *
+ * @param events - Candidate vessel/day boundary events
+ * @param location - Live vessel location currently being applied
+ * @param eventType - Boundary event to resolve for the current segment
+ * @returns Matching boundary event when one can be found
+ */
+const getLocationAnchoredEvent = (
+  events: ConvexVesselTimelineEventRecord[],
+  location: ConvexVesselLocation,
+  eventType: VesselTimelineEventType
+) => {
+  if (location.ScheduledDeparture === undefined) {
+    return undefined;
+  }
+
+  if (location.ArrivingTerminalAbbrev) {
+    const segmentKey = buildSegmentKey(
+      location.VesselAbbrev,
+      location.DepartingTerminalAbbrev,
+      location.ArrivingTerminalAbbrev,
+      new Date(location.ScheduledDeparture)
+    );
+
+    if (segmentKey) {
+      const keyedEvent = getEventByKey(
+        events,
+        buildBoundaryKey(segmentKey, eventType)
+      );
+
+      if (keyedEvent) {
+        return keyedEvent;
+      }
+    }
+  }
+
+  return events.find(
+    (event) =>
+      event.VesselAbbrev === location.VesselAbbrev &&
+      event.EventType === eventType &&
+      event.ScheduledDeparture === location.ScheduledDeparture &&
+      (eventType === "arv-dock" ||
+        event.TerminalAbbrev === location.DepartingTerminalAbbrev)
+  );
+};
 
 /**
  * Detects a strong departure signal from live location data.
@@ -291,18 +325,18 @@ const isFalseDeparture = (
 ) => {
   if (
     !isStrongArrival(location) ||
-    !departureEvent?.ActualTime ||
+    !departureEvent?.EventActualTime ||
     departureEvent.TerminalAbbrev !== location.DepartingTerminalAbbrev
   ) {
     return false;
   }
 
-  if (arrivalEvent?.ActualTime !== undefined) {
+  if (arrivalEvent?.EventActualTime !== undefined) {
     return false;
   }
 
   return (
-    location.TimeStamp - departureEvent.ActualTime <=
+    location.TimeStamp - departureEvent.EventActualTime <=
     FALSE_DEPARTURE_UNWIND_WINDOW_MS
   );
 };
@@ -330,14 +364,14 @@ const findArrivalEventForLocation = (
 
   if (location.ScheduledDeparture !== undefined) {
     return anchoredArrivalEvent &&
-      anchoredArrivalEvent.ActualTime === undefined &&
+      anchoredArrivalEvent.EventActualTime === undefined &&
       getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
       ? anchoredArrivalEvent
       : undefined;
   }
 
   if (anchoredArrivalEvent) {
-    return anchoredArrivalEvent.ActualTime === undefined &&
+    return anchoredArrivalEvent.EventActualTime === undefined &&
       getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
       ? anchoredArrivalEvent
       : undefined;
@@ -348,7 +382,7 @@ const findArrivalEventForLocation = (
       (event) =>
         event.EventType === "arv-dock" &&
         event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-        event.ActualTime === undefined &&
+        event.EventActualTime === undefined &&
         getArrivalEligibilityTime(event) <= location.TimeStamp
     )
     .sort(
@@ -404,8 +438,8 @@ export const getArrivalEligibilityTime = (
 ) => {
   return Math.min(
     event.ScheduledDeparture,
-    event.PredictedTime ?? Number.POSITIVE_INFINITY,
-    event.ScheduledTime ?? Number.POSITIVE_INFINITY
+    event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
+    event.EventScheduledTime ?? Number.POSITIVE_INFINITY
   );
 };
 

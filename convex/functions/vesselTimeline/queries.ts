@@ -89,7 +89,7 @@ export const getVesselTimelinePredictedEvents = query({
           SailingDay: predicted.SailingDay,
           ScheduledDeparture: predicted.ScheduledDeparture,
           TerminalAbbrev: predicted.TerminalAbbrev,
-          PredictedTime: predicted.PredictedTime,
+          EventPredictedTime: predicted.EventPredictedTime,
         };
       })
       .sort((left, right) => left.ScheduledDeparture - right.ScheduledDeparture);

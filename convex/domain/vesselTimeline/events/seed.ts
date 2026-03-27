@@ -10,9 +10,8 @@ import {
 } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
-import { generateTripKey } from "../../../shared/keys";
+import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import {
-  buildEventKey,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "./liveUpdates";
@@ -91,42 +90,45 @@ type SeedSegment = {
  */
 const buildSeedEventsForSegment = (
   segment: SeedSegment
-): ConvexVesselTimelineEventRecord[] => [
-  {
-    Key: buildEventKey(
-      segment.SailingDay,
-      segment.VesselAbbrev,
-      segment.ScheduledDeparture,
-      segment.DepartingTerminalAbbrev,
-      "dep-dock"
-    ),
-    VesselAbbrev: segment.VesselAbbrev,
-    SailingDay: segment.SailingDay,
-    ScheduledDeparture: segment.ScheduledDeparture,
-    TerminalAbbrev: segment.DepartingTerminalAbbrev,
-    EventType: "dep-dock",
-    ScheduledTime: segment.ScheduledDeparture,
-    PredictedTime: undefined,
-    ActualTime: undefined,
-  },
-  {
-    Key: buildEventKey(
-      segment.SailingDay,
-      segment.VesselAbbrev,
-      segment.ScheduledDeparture,
-      segment.DepartingTerminalAbbrev,
-      "arv-dock"
-    ),
-    VesselAbbrev: segment.VesselAbbrev,
-    SailingDay: segment.SailingDay,
-    ScheduledDeparture: segment.ScheduledDeparture,
-    TerminalAbbrev: segment.ArrivingTerminalAbbrev,
-    EventType: "arv-dock",
-    ScheduledTime: segment.ScheduledArrival,
-    PredictedTime: undefined,
-    ActualTime: undefined,
-  },
-];
+): ConvexVesselTimelineEventRecord[] => {
+  const SegmentKey = buildSegmentKey(
+    segment.VesselAbbrev,
+    segment.DepartingTerminalAbbrev,
+    segment.ArrivingTerminalAbbrev,
+    new Date(segment.ScheduledDeparture)
+  );
+
+  if (!SegmentKey) {
+    return [];
+  }
+
+  return [
+    {
+      SegmentKey,
+      Key: buildBoundaryKey(SegmentKey, "dep-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.ScheduledDeparture,
+      TerminalAbbrev: segment.DepartingTerminalAbbrev,
+      EventType: "dep-dock",
+      EventScheduledTime: segment.ScheduledDeparture,
+      EventPredictedTime: undefined,
+      EventActualTime: undefined,
+    },
+    {
+      SegmentKey,
+      Key: buildBoundaryKey(SegmentKey, "arv-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.ScheduledDeparture,
+      TerminalAbbrev: segment.ArrivingTerminalAbbrev,
+      EventType: "arv-dock",
+      EventScheduledTime: segment.ScheduledArrival,
+      EventPredictedTime: undefined,
+      EventActualTime: undefined,
+    },
+  ];
+};
 
 /**
  * Filters raw WSF schedule segments down to direct physical sailings that can
@@ -176,7 +178,7 @@ const toRawSeedSegment = (
     return null;
   }
 
-  const key = generateTripKey(
+  const key = buildSegmentKey(
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,

@@ -3,7 +3,6 @@
  */
 
 export * from "./convertDates";
-export * from "./convertVesselLocations";
 export * from "./durationUtils";
 export * from "./fetchWsfScheduleData";
 export * from "./keys";

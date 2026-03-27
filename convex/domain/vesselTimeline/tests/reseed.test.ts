@@ -15,8 +15,8 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--1--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(8, 35),
-        ScheduledTime: at(8, 35),
-        ActualTime: at(8, 37),
+        EventScheduledTime: at(8, 35),
+        EventActualTime: at(8, 37),
       }),
     ];
     const seededEvents = [
@@ -24,7 +24,7 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--1--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(8, 35),
-        ScheduledTime: at(8, 40),
+        EventScheduledTime: at(8, 40),
       }),
     ];
 
@@ -44,8 +44,8 @@ describe("mergeSeededVesselTripEvents", () => {
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: at(10, 0),
-        ScheduledTime: at(10, 35),
-        PredictedTime: at(10, 32),
+        EventScheduledTime: at(10, 35),
+        EventPredictedTime: at(10, 32),
       }),
     ];
     const seededEvents = [
@@ -54,7 +54,7 @@ describe("mergeSeededVesselTripEvents", () => {
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: at(10, 0),
-        ScheduledTime: at(10, 40),
+        EventScheduledTime: at(10, 40),
       }),
     ];
 
@@ -70,8 +70,8 @@ describe("mergeSeededVesselTripEvents", () => {
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: at(10, 0),
-        ScheduledTime: at(10, 40),
-        PredictedTime: at(10, 32),
+        EventScheduledTime: at(10, 40),
+        EventPredictedTime: at(10, 32),
       }),
     ]);
   });
@@ -82,7 +82,7 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--3--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(11, 0),
-        ScheduledTime: at(11, 0),
+        EventScheduledTime: at(11, 0),
       }),
     ];
 
@@ -101,8 +101,8 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--4--P52--arv",
         EventType: "arv-dock",
         ScheduledDeparture: at(8, 35),
-        ScheduledTime: at(9, 10),
-        ActualTime: at(9, 8),
+        EventScheduledTime: at(9, 10),
+        EventActualTime: at(9, 8),
       }),
     ];
 
@@ -121,7 +121,7 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--5--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(8, 35),
-        ScheduledTime: at(8, 35),
+        EventScheduledTime: at(8, 35),
       }),
     ];
 
@@ -141,8 +141,8 @@ describe("mergeSeededVesselTripEvents", () => {
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: at(9, 0),
-        ScheduledTime: at(9, 20),
-        PredictedTime: at(9, 5),
+        EventScheduledTime: at(9, 20),
+        EventPredictedTime: at(9, 5),
       }),
     ];
     const seededEvents = [
@@ -151,7 +151,7 @@ describe("mergeSeededVesselTripEvents", () => {
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: at(9, 0),
-        ScheduledTime: at(9, 25),
+        EventScheduledTime: at(9, 25),
       }),
     ];
 
@@ -170,14 +170,14 @@ describe("mergeSeededVesselTripEvents", () => {
         Key: "2026-03-13--TOK--7--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(8, 35),
-        ScheduledTime: at(8, 35),
-        ActualTime: at(8, 37),
+        EventScheduledTime: at(8, 35),
+        EventActualTime: at(8, 37),
       }),
       makeEvent({
         Key: "2026-03-13--TOK--8--P52--dep",
         EventType: "dep-dock",
         ScheduledDeparture: at(11, 0),
-        ScheduledTime: at(11, 0),
+        EventScheduledTime: at(11, 0),
       }),
     ];
 
@@ -206,8 +206,8 @@ const makeEvent = (
   ScheduledDeparture: at(8, 35),
   TerminalAbbrev: "P52",
   EventType: "dep-dock",
-  ScheduledTime: at(8, 35),
-  PredictedTime: undefined,
-  ActualTime: undefined,
+  EventScheduledTime: at(8, 35),
+  EventPredictedTime: undefined,
+  EventActualTime: undefined,
   ...overrides,
 });

@@ -7,9 +7,9 @@ import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/sche
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
+import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import {
   applyLiveLocationToEvents,
-  buildEventKey,
   getLocationSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
@@ -46,7 +46,7 @@ describe("buildSeedVesselTripEvents", () => {
       "dep-dock",
       "arv-dock",
     ]);
-    expect(events[1]?.ScheduledTime).toBe(at(9, 10));
+    expect(events[1]?.EventScheduledTime).toBe(at(9, 10));
   });
 
   it("subtracts five minutes from arrival time when schedule arrival equals departure", () => {
@@ -60,7 +60,7 @@ describe("buildSeedVesselTripEvents", () => {
       }),
     ]);
 
-    expect(events[1]?.ScheduledTime).toBe(at(8, 30));
+    expect(events[1]?.EventScheduledTime).toBe(at(8, 30));
   });
 
   it("subtracts five minutes from an arrival when the next same-terminal departure has the identical scheduled time", () => {
@@ -83,13 +83,13 @@ describe("buildSeedVesselTripEvents", () => {
 
     expect(events[1]?.EventType).toBe("arv-dock");
     expect(events[1]?.TerminalAbbrev).toBe("SHI");
-    expect(events[1]?.ScheduledTime).toBe(at(9, 5));
+    expect(events[1]?.EventScheduledTime).toBe(at(9, 5));
     expect(events[2]?.EventType).toBe("dep-dock");
     expect(events[2]?.TerminalAbbrev).toBe("SHI");
-    expect(events[2]?.ScheduledTime).toBe(at(9, 10));
+    expect(events[2]?.EventScheduledTime).toBe(at(9, 10));
   });
 
-  it("uses sailing day, vessel, departure, terminal, and event type in Key", () => {
+  it("derives boundary keys from the canonical segment key", () => {
     const events = buildSeedVesselTripEvents([
       makeTrip({
         SailingDay: "2026-03-13",
@@ -99,21 +99,35 @@ describe("buildSeedVesselTripEvents", () => {
       }),
     ]);
 
+    const segmentKey = buildSegmentKey(
+      "TOK",
+      "P52",
+      "BBI",
+      new Date(at(8, 35))
+    );
+
     expect(events[0]?.Key).toBe(
-      buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "dep-dock")
+      buildBoundaryKey(segmentKey as string, "dep-dock")
     );
     expect(events[1]?.Key).toBe(
-      buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "arv-dock")
+      buildBoundaryKey(segmentKey as string, "arv-dock")
     );
   });
 
-  it("formats Key with double-hyphen separators and ISO timestamps", () => {
-    expect(
-      buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "dep-dock")
-    ).toBe("2026-03-13--TOK--2026-03-13--08:35:00--P52--dep");
-    expect(
-      buildEventKey("2026-03-13", "TOK", at(8, 35), "P52", "arv-dock")
-    ).toBe("2026-03-13--TOK--2026-03-13--08:35:00--P52--arv");
+  it("formats Key as segment key plus boundary type", () => {
+    const segmentKey = buildSegmentKey(
+      "TOK",
+      "P52",
+      "BBI",
+      new Date(at(8, 35))
+    );
+
+    expect(buildBoundaryKey(segmentKey as string, "dep-dock")).toBe(
+      "TOK--2026-03-13--08:35--P52-BBI--dep-dock"
+    );
+    expect(buildBoundaryKey(segmentKey as string, "arv-dock")).toBe(
+      "TOK--2026-03-13--08:35--P52-BBI--arv-dock"
+    );
   });
 
   it("builds dep/arv events directly from raw WSF schedule segments", () => {
@@ -134,7 +148,7 @@ describe("buildSeedVesselTripEvents", () => {
     ]);
     expect(events[0]?.TerminalAbbrev).toBe("P52");
     expect(events[1]?.TerminalAbbrev).toBe("BBI");
-    expect(events[1]?.ScheduledTime).toBe(at(9, 10));
+    expect(events[1]?.EventScheduledTime).toBe(at(9, 10));
   });
 
   it("filters indirect raw schedule segments before seeding events", () => {
@@ -196,7 +210,7 @@ describe("applyLiveLocationToEvents", () => {
         Speed: 12,
       })
     );
-    expect(departed[0]?.ActualTime).toBe(at(8, 36));
+    expect(departed[0]?.EventActualTime).toBe(at(8, 36));
 
     const unwound = applyLiveLocationToEvents(
       departed,
@@ -211,7 +225,7 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(unwound[0]?.ActualTime).toBeUndefined();
+    expect(unwound[0]?.EventActualTime).toBeUndefined();
   });
 
   it("does not write predicted times from live vessel locations", () => {
@@ -250,7 +264,7 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(secondPass[1]?.PredictedTime).toBeUndefined();
+    expect(secondPass[1]?.EventPredictedTime).toBeUndefined();
   });
 
   it("writes early arrival actuals before the scheduled arrival time", () => {
@@ -291,8 +305,8 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(arrivedEarly[1]?.ActualTime).toBe(at(9, 6));
-    expect(arrivedEarly[1]?.PredictedTime).toBeUndefined();
+    expect(arrivedEarly[1]?.EventActualTime).toBe(at(9, 6));
+    expect(arrivedEarly[1]?.EventPredictedTime).toBeUndefined();
   });
 
   it("resolves the most recent eligible arrival for a terminal", () => {
@@ -326,8 +340,8 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(arrived[1]?.ActualTime).toBeUndefined();
-    expect(arrived[3]?.ActualTime).toBe(at(10, 0));
+    expect(arrived[1]?.EventActualTime).toBeUndefined();
+    expect(arrived[3]?.EventActualTime).toBe(at(10, 0));
   });
 
   it("does not keep backfilling older arrivals on repeated docked ticks", () => {
@@ -381,9 +395,9 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(firstDockedTick[3]?.ActualTime).toBe(at(10, 0));
-    expect(secondDockedTick[3]?.ActualTime).toBe(at(10, 0));
-    expect(secondDockedTick[1]?.ActualTime).toBeUndefined();
+    expect(firstDockedTick[3]?.EventActualTime).toBe(at(10, 0));
+    expect(secondDockedTick[3]?.EventActualTime).toBe(at(10, 0));
+    expect(secondDockedTick[1]?.EventActualTime).toBeUndefined();
   });
 
   it("treats ScheduledDeparture as authoritative for arrival anchoring", () => {
@@ -417,8 +431,8 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(arrived[1]?.ActualTime).toBeUndefined();
-    expect(arrived[3]?.ActualTime).toBeUndefined();
+    expect(arrived[1]?.EventActualTime).toBeUndefined();
+    expect(arrived[3]?.EventActualTime).toBeUndefined();
   });
 
   it("does not unwind a departure after the paired arrival has actualized", () => {
@@ -482,8 +496,8 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(dockBounce[0]?.ActualTime).toBe(at(8, 36));
-    expect(dockBounce[1]?.ActualTime).toBe(at(8, 37));
+    expect(dockBounce[0]?.EventActualTime).toBe(at(8, 36));
+    expect(dockBounce[1]?.EventActualTime).toBe(at(8, 37));
   });
 
   it("ignores live updates when the departing terminal does not match the keyed trip", () => {
@@ -540,9 +554,9 @@ describe("applyLiveLocationToEvents", () => {
       })
     );
 
-    expect(updated[0]?.ActualTime).toBeUndefined();
-    expect(updated[1]?.ActualTime).toBeUndefined();
-    expect(updated[1]?.PredictedTime).toBeUndefined();
+    expect(updated[0]?.EventActualTime).toBeUndefined();
+    expect(updated[1]?.EventActualTime).toBeUndefined();
+    expect(updated[1]?.EventPredictedTime).toBeUndefined();
   });
 });
 
@@ -610,20 +624,20 @@ describe("normalizeScheduledDockSeams", () => {
           EventType: "arv-dock",
           TerminalAbbrev: "SHI",
           ScheduledDeparture: at(16, 15),
-          ScheduledTime: at(16, 50),
+          EventScheduledTime: at(16, 50),
         }),
         makeEvent({
           Key: "dep-1",
           EventType: "dep-dock",
           TerminalAbbrev: "SHI",
           ScheduledDeparture: at(16, 50),
-          ScheduledTime: at(16, 50),
+          EventScheduledTime: at(16, 50),
         }),
       ].sort(sortVesselTripEvents)
     );
 
-    expect(normalizedEvents[0]?.ScheduledTime).toBe(at(16, 45));
-    expect(normalizedEvents[1]?.ScheduledTime).toBe(at(16, 50));
+    expect(normalizedEvents[0]?.EventScheduledTime).toBe(at(16, 45));
+    expect(normalizedEvents[1]?.EventScheduledTime).toBe(at(16, 50));
   });
 
   it("normalizes identical same-terminal seams even when other vessels are interleaved in the global day list", () => {
@@ -636,7 +650,7 @@ describe("normalizeScheduledDockSeams", () => {
           EventType: "arv-dock",
           TerminalAbbrev: "SHI",
           ScheduledDeparture: at(6, 50),
-          ScheduledTime: at(7, 5),
+          EventScheduledTime: at(7, 5),
         }),
         makeEvent({
           Key: "yak-dep-fhy",
@@ -645,7 +659,7 @@ describe("normalizeScheduledDockSeams", () => {
           EventType: "dep-dock",
           TerminalAbbrev: "FRH",
           ScheduledDeparture: at(7, 0),
-          ScheduledTime: at(7, 0),
+          EventScheduledTime: at(7, 0),
         }),
         makeEvent({
           Key: "che-dep-shi",
@@ -654,22 +668,22 @@ describe("normalizeScheduledDockSeams", () => {
           EventType: "dep-dock",
           TerminalAbbrev: "SHI",
           ScheduledDeparture: at(7, 5),
-          ScheduledTime: at(7, 5),
+          EventScheduledTime: at(7, 5),
         }),
       ].sort(sortVesselTripEvents)
     );
 
     expect(
       normalizedEvents.find((event) => event.Key === "che-arv-shi")
-        ?.ScheduledTime
+        ?.EventScheduledTime
     ).toBe(at(7, 0));
     expect(
       normalizedEvents.find((event) => event.Key === "che-dep-shi")
-        ?.ScheduledTime
+        ?.EventScheduledTime
     ).toBe(at(7, 5));
     expect(
       normalizedEvents.find((event) => event.Key === "yak-dep-fhy")
-        ?.ScheduledTime
+        ?.EventScheduledTime
     ).toBe(at(7, 0));
   });
 
@@ -681,34 +695,34 @@ describe("normalizeScheduledDockSeams", () => {
           EventType: "arv-dock",
           TerminalAbbrev: "ORI",
           ScheduledDeparture: at(16, 15),
-          ScheduledTime: at(16, 50),
+          EventScheduledTime: at(16, 50),
         }),
         makeEvent({
           Key: "dep-1",
           EventType: "dep-dock",
           TerminalAbbrev: "SHI",
           ScheduledDeparture: at(16, 50),
-          ScheduledTime: at(16, 50),
+          EventScheduledTime: at(16, 50),
         }),
         makeEvent({
           Key: "arv-2",
           EventType: "arv-dock",
           TerminalAbbrev: "ANA",
           ScheduledDeparture: at(17, 15),
-          ScheduledTime: at(17, 44),
+          EventScheduledTime: at(17, 44),
         }),
         makeEvent({
           Key: "dep-2",
           EventType: "dep-dock",
           TerminalAbbrev: "ANA",
           ScheduledDeparture: at(17, 50),
-          ScheduledTime: at(17, 50),
+          EventScheduledTime: at(17, 50),
         }),
       ].sort(sortVesselTripEvents)
     );
 
-    expect(normalizedEvents[0]?.ScheduledTime).toBe(at(16, 50));
-    expect(normalizedEvents[2]?.ScheduledTime).toBe(at(17, 44));
+    expect(normalizedEvents[0]?.EventScheduledTime).toBe(at(16, 50));
+    expect(normalizedEvents[2]?.EventScheduledTime).toBe(at(17, 44));
   });
 });
 
@@ -804,8 +818,8 @@ const makeEvent = (
   ScheduledDeparture: at(8, 35),
   TerminalAbbrev: "P52",
   EventType: "dep-dock" as const,
-  ScheduledTime: at(8, 35),
-  PredictedTime: undefined,
-  ActualTime: undefined,
+  EventScheduledTime: at(8, 35),
+  EventPredictedTime: undefined,
+  EventActualTime: undefined,
   ...overrides,
 });

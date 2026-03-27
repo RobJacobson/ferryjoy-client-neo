@@ -1,7 +1,13 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
+import {
+  buildPredictedBoundaryClearEffect,
+  buildPredictedBoundaryProjectionEffect,
+} from "domain/vesselTimeline/normalizedEvents";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
+import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
 import { buildTrip } from "./buildTrip";
@@ -31,6 +37,11 @@ type CompletedTripTransition = TripTransition & {
 type PendingLeaveDockEffect = {
   vesselAbbrev: string;
   trip: ConvexVesselTrip;
+};
+
+type ProjectionResults = {
+  actualEffects: ConvexActualBoundaryEffect[];
+  predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
 const logDockSignalDisagreement = (
@@ -114,8 +125,45 @@ export const runUpdateVesselTrips = async (
   );
 
   // Process each category with appropriate handlers
-  await processCompletedTrips(ctx, completedTrips, shouldRunPredictionFallback);
-  await processCurrentTrips(ctx, currentTrips, shouldRunPredictionFallback);
+  const completedEffects = await processCompletedTrips(
+    ctx,
+    completedTrips,
+    shouldRunPredictionFallback
+  );
+  const currentEffects = await processCurrentTrips(
+    ctx,
+    currentTrips,
+    shouldRunPredictionFallback
+  );
+  const actualEffects = [
+    ...completedEffects.actualEffects,
+    ...currentEffects.actualEffects,
+  ];
+  const predictedEffects = [
+    ...completedEffects.predictedEffects,
+    ...currentEffects.predictedEffects,
+  ];
+
+  await Promise.all([
+    actualEffects.length > 0
+      ? ctx.runMutation(
+          internal.functions.vesselTimeline.mutations
+            .projectActualBoundaryEffects,
+          {
+            Effects: actualEffects,
+          }
+        )
+      : Promise.resolve(),
+    predictedEffects.length > 0
+      ? ctx.runMutation(
+          internal.functions.vesselTimeline.mutations
+            .projectPredictedBoundaryEffects,
+          {
+            Effects: predictedEffects,
+          }
+        )
+      : Promise.resolve(),
+  ]);
 };
 
 // ============================================================================
@@ -134,7 +182,10 @@ const processCompletedTrips = async (
   ctx: ActionCtx,
   completedTrips: CompletedTripTransition[],
   shouldRunPredictionFallback: boolean
-): Promise<void> => {
+): Promise<ProjectionResults> => {
+  const actualEffects: ConvexActualBoundaryEffect[] = [];
+  const predictedEffects: ConvexPredictedBoundaryProjectionEffect[] = [];
+
   for (const { existingTrip, currLocation, events } of completedTrips) {
     try {
       // Build completed trip from the existing active trip.
@@ -158,18 +209,27 @@ const processCompletedTrips = async (
           newTrip,
         }
       );
-      await ctx.runMutation(
-        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
-        {
-          Trips: [newTrip],
-        }
-      );
 
       // Delegate prediction lifecycle to service
       await handlePredictionEvent(ctx, {
         eventType: "trip_complete",
         trip: tripToComplete,
       });
+
+      const arrivalEffect = buildArrivalActualEffect(tripToComplete);
+      if (arrivalEffect) {
+        actualEffects.push(arrivalEffect);
+      }
+
+      const clearEffect = buildPredictedBoundaryClearEffect(existingTrip);
+      if (clearEffect) {
+        predictedEffects.push(clearEffect);
+      }
+
+      const projectEffect = buildPredictedBoundaryProjectionEffect(newTrip);
+      if (projectEffect) {
+        predictedEffects.push(projectEffect);
+      }
     } catch (error) {
       logVesselProcessingError(
         currLocation.VesselAbbrev,
@@ -178,6 +238,11 @@ const processCompletedTrips = async (
       );
     }
   }
+
+  return {
+    actualEffects,
+    predictedEffects,
+  };
 };
 
 /**
@@ -192,8 +257,16 @@ const processCurrentTrips = async (
   ctx: ActionCtx,
   currentTrips: TripTransition[],
   shouldRunPredictionFallback: boolean
-): Promise<void> => {
+): Promise<ProjectionResults> => {
   const activeUpserts: ConvexVesselTrip[] = [];
+  const pendingActualEffects: Array<{
+    vesselAbbrev: string;
+    effect: ConvexActualBoundaryEffect;
+  }> = [];
+  const pendingPredictedEffects: Array<{
+    vesselAbbrev: string;
+    effect: ConvexPredictedBoundaryProjectionEffect;
+  }> = [];
 
   // Queue leave-dock side effects to run only after successful upsert
   const pendingLeaveDockEffects: PendingLeaveDockEffect[] = [];
@@ -238,12 +311,58 @@ const processCurrentTrips = async (
     if (!existingTrip || !tripsAreEqual(existingTrip, finalProposed)) {
       activeUpserts.push(finalProposed);
 
+      const projectEffect =
+        buildPredictedBoundaryProjectionEffect(finalProposed);
+      if (projectEffect) {
+        pendingPredictedEffects.push({
+          vesselAbbrev: currLocation.VesselAbbrev,
+          effect: projectEffect,
+        });
+      }
+
+      const shouldClearExistingPredictions =
+        existingTrip !== undefined &&
+        (existingTrip.SailingDay !== finalProposed.SailingDay ||
+          existingTrip.Key !== finalProposed.Key ||
+          existingTrip.NextKey !== finalProposed.NextKey);
+
+      if (shouldClearExistingPredictions) {
+        const clearEffect = buildPredictedBoundaryClearEffect(existingTrip);
+        if (clearEffect) {
+          pendingPredictedEffects.push({
+            vesselAbbrev: currLocation.VesselAbbrev,
+            effect: clearEffect,
+          });
+        }
+      }
+
       // Queue leave-dock side effects for post-persist execution
       if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
         pendingLeaveDockEffects.push({
           vesselAbbrev: currLocation.VesselAbbrev,
           trip: finalProposed,
         });
+
+        const departureEffect = buildDepartureActualEffect(finalProposed);
+        if (departureEffect) {
+          pendingActualEffects.push({
+            vesselAbbrev: currLocation.VesselAbbrev,
+            effect: departureEffect,
+          });
+        }
+      }
+
+      if (
+        events.didJustArriveAtDock &&
+        finalProposed.ArriveDest !== undefined
+      ) {
+        const arrivalEffect = buildArrivalActualEffect(finalProposed);
+        if (arrivalEffect) {
+          pendingActualEffects.push({
+            vesselAbbrev: currLocation.VesselAbbrev,
+            effect: arrivalEffect,
+          });
+        }
       }
     }
   }
@@ -272,17 +391,12 @@ const processCurrentTrips = async (
       );
     }
 
-    const syncedTrips = activeUpserts.filter((trip) =>
-      successfulVessels.has(trip.VesselAbbrev)
-    );
-    if (syncedTrips.length > 0) {
-      await ctx.runMutation(
-        internal.functions.vesselTimeline.mutations.syncPredictedEventsForTrips,
-        {
-          Trips: syncedTrips,
-        }
-      );
-    }
+    const actualEffects = pendingActualEffects
+      .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
+      .map((effect) => effect.effect);
+    const predictedEffects = pendingPredictedEffects
+      .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
+      .map((effect) => effect.effect);
 
     // Execute leave-dock side effects only for vessels that successfully upserted
     for (const effect of pendingLeaveDockEffects) {
@@ -313,7 +427,17 @@ const processCurrentTrips = async (
         );
       }
     }
+
+    return {
+      actualEffects,
+      predictedEffects,
+    };
   }
+
+  return {
+    actualEffects: [],
+    predictedEffects: [],
+  };
 };
 
 /**
@@ -364,4 +488,63 @@ const logVesselProcessingError = (
     `[VesselTrips] Failed ${phase} for ${vesselAbbrev}: ${err.message}`,
     err
   );
+};
+
+/**
+ * Builds the actual departure projection effect for a finalized trip state.
+ *
+ * @param trip - Finalized trip carrying a canonical segment key and departure time
+ * @returns Departure effect, or `null` when the trip is not projection-ready
+ */
+const buildDepartureActualEffect = (
+  trip: ConvexVesselTrip
+): ConvexActualBoundaryEffect | null => {
+  if (
+    !trip.Key ||
+    !trip.SailingDay ||
+    trip.ScheduledDeparture === undefined ||
+    trip.LeftDock === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    SegmentKey: trip.Key,
+    VesselAbbrev: trip.VesselAbbrev,
+    SailingDay: trip.SailingDay,
+    ScheduledDeparture: trip.ScheduledDeparture,
+    TerminalAbbrev: trip.DepartingTerminalAbbrev,
+    EventType: "dep-dock",
+    EventActualTime: trip.LeftDock,
+  };
+};
+
+/**
+ * Builds the actual arrival projection effect for a finalized trip state.
+ *
+ * @param trip - Finalized trip carrying a canonical segment key and arrival time
+ * @returns Arrival effect, or `null` when the trip is not projection-ready
+ */
+const buildArrivalActualEffect = (
+  trip: ConvexVesselTrip
+): ConvexActualBoundaryEffect | null => {
+  if (
+    !trip.Key ||
+    !trip.SailingDay ||
+    trip.ScheduledDeparture === undefined ||
+    trip.ArriveDest === undefined ||
+    !trip.ArrivingTerminalAbbrev
+  ) {
+    return null;
+  }
+
+  return {
+    SegmentKey: trip.Key,
+    VesselAbbrev: trip.VesselAbbrev,
+    SailingDay: trip.SailingDay,
+    ScheduledDeparture: trip.ScheduledDeparture,
+    TerminalAbbrev: trip.ArrivingTerminalAbbrev,
+    EventType: "arv-dock",
+    EventActualTime: trip.ArriveDest,
+  };
 };

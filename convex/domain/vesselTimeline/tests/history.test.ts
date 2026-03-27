@@ -50,8 +50,8 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[0]?.ActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
   });
 
   it("keeps departure actuals when history differs by less than three minutes", () => {
@@ -61,7 +61,7 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -82,7 +82,7 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[0]?.ActualTime).toBe(at(14, 9).getTime());
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 9).getTime());
   });
 
   it("keeps arrival actuals when ETA proxy differs by only one minute", () => {
@@ -92,7 +92,7 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -113,7 +113,7 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[1]?.ActualTime).toBe(at(14, 23).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 23).getTime());
   });
 
   it("replaces departure actuals when history differs by three minutes or more", () => {
@@ -123,7 +123,7 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime: index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
+        EventActualTime: index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
       })
     );
 
@@ -144,8 +144,8 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[0]?.ActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
   });
 
   it("replaces arrival actuals when ETA proxy differs by two minutes or more", () => {
@@ -155,7 +155,7 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        ActualTime: index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
+        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
       })
     );
 
@@ -176,7 +176,7 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[1]?.ActualTime).toBe(at(14, 24).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
   });
 
   it("backfills departure actuals even when the arrival proxy is missing", () => {
@@ -199,8 +199,8 @@ describe("mergeSeededEventsWithHistory", () => {
       ],
     });
 
-    expect(mergedEvents[0]?.ActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.ActualTime).toBeUndefined();
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBeUndefined();
   });
 });
 
@@ -269,8 +269,8 @@ const makeEvent = (
   ScheduledDeparture: at(14, 5).getTime(),
   TerminalAbbrev: "VAI",
   EventType: "dep-dock",
-  ScheduledTime: at(14, 5).getTime(),
-  PredictedTime: undefined,
-  ActualTime: undefined,
+  EventScheduledTime: at(14, 5).getTime(),
+  EventPredictedTime: undefined,
+  EventActualTime: undefined,
   ...overrides,
 });

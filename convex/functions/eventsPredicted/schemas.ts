@@ -19,7 +19,7 @@ export const eventsPredictedSchema = v.object({
   UpdatedAt: v.number(),
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
-  PredictedTime: v.number(),
+  EventPredictedTime: v.number(),
   PredictionType: predictionTypeValidator,
   PredictionSource: predictionSourceSchema,
 });
@@ -40,7 +40,7 @@ export const toDomainPredictedBoundaryEvent = (
   ...event,
   UpdatedAt: epochMsToDate(event.UpdatedAt),
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  PredictedTime: epochMsToDate(event.PredictedTime),
+  EventPredictedTime: epochMsToDate(event.EventPredictedTime),
 });
 
 export type PredictedBoundaryEvent = ReturnType<

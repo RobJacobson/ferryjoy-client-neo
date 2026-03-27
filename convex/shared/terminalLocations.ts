@@ -49,6 +49,12 @@ export const terminalLocations: Record<string, ConvexTerminalLocation> = {
     Latitude: 47.813378,
     Longitude: -122.385378,
   },
+  EAH: {
+    TerminalName: "Eagle Harbor",
+    TerminalAbbrev: "EAH",
+    Latitude: 47.620552,
+    Longitude: -122.514245,
+  },
   FAU: {
     TerminalName: "Fauntleroy",
     TerminalAbbrev: "FAU",

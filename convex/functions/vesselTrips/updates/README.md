@@ -2,7 +2,7 @@
 
 This module synchronizes active vessel trips with live location data. It runs as part of the vessel orchestrator (every 5 seconds) and processes vessel location updates to determine whether database writes are needed.
 
-**Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, and `leave_dock` side effects run only after the active trip upsert succeeds.
+**Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
 
 **Current design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
@@ -38,6 +38,7 @@ runUpdateVesselTrips (entry point)
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
             │       → handlePredictionEvent (trip_complete) → PredictionService
+            │       → emit actual/predicted boundary projection effects
             │       (internal: baseTripFromLocation → appendFinalSchedule
             │                 → appendArriveDockPredictions
             │                 → appendLeaveDockPredictions
@@ -46,10 +47,14 @@ runUpdateVesselTrips (entry point)
                     buildTrip (tripStart=events.shouldStartTrip for pre-trips/first appearances, events, shouldRunPredictionFallback)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
                     → handlePredictionEvent (leave_dock, post-persist only) → PredictionService
+                    → emit actual/predicted boundary projection effects
                     (internal: baseTripFromLocation → appendFinalSchedule
                               → appendArriveDockPredictions
                               → appendLeaveDockPredictions
                               → actualizePredictionsOnLeaveDock)
+    └─> Batch-project VesselTimeline overlays after successful trip persistence
+            ├─> eventsActual
+            └─> eventsPredicted
 ```
 
 ### File Structure
@@ -244,12 +249,14 @@ Departure is recorded only when the feed provides `LeftDock`. `AtDock` may disag
 - Same-trip actualization in `buildTrip()` before persistence
 - Prediction record insertion via `handlePredictionEvent` in PredictionService after a successful active-trip write
 - Backfill of depart-next actuals onto previous trip (handled by PredictionService internally)
+- `eventsActual` departure projection for the current trip
+- `eventsPredicted` refresh for the affected boundary-key scope
 
 The PredictionService now manages only post-persist prediction side effects:
 - Extraction and insertion of `completedPredictionRecords` for bulk insert
 - Backfill of previous trip's `AtDockDepartNext` and `AtSeaDepartNext` with actual departure time
 
-Trip orchestration code builds the fully-correct trip object first, then delegates post-persist prediction side effects to the PredictionService.
+Trip orchestration code builds the fully-correct trip object first, then delegates post-persist prediction side effects to the PredictionService and separately emits timeline projection effects keyed to the canonical segment/boundary identities.
 
 ### SailingDay from Raw Data
 
@@ -326,6 +333,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 - Same-trip actuals are written onto trip objects before persistence
 - Prediction records are automatically extracted and inserted into database for completed predictions
 - Previous trip's depart-next predictions are backfilled with actual departure time when current trip leaves dock
+- `eventsActual` and `eventsPredicted` are refreshed from finalized trip state after the trip write succeeds
 
 **Separation of Concerns**:
 - Trip orchestrator (`updateVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries
@@ -344,6 +352,8 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs (batch when 2+ specs) |
 | Mutation | `completeAndStartNewTrip` | Per vessel, on trip boundary |
 | Mutation | `upsertVesselTripsBatch` | Once if has active upserts |
+| Mutation | `projectActualBoundaryEffects` | Once if any trip-driven actual effects were emitted |
+| Mutation | `projectPredictedBoundaryEffects` | Once if any trip-driven predicted effects were emitted |
 | Mutation | `setDepartNextActualsForMostRecentCompletedTrip` | Per vessel, when didJustLeaveDock |
 | Mutation | `bulkInsertPredictions` | Once if has completed prediction records |
 

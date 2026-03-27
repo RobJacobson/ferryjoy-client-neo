@@ -121,6 +121,7 @@ export const vesselTripSchema = v.object({
   PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
   PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
   // Denormalized next trip schedule for depart-next predictions
+  NextKey: v.optional(v.string()), // Next trip's canonical segment key
   NextScheduledDeparture: v.optional(v.number()), // Next trip's scheduled departure time in milliseconds (from current arriving terminal)
   // ML model predictions with uncertainty bounds and actual outcomes
   AtDockDepartCurr: v.optional(predictionSchema), // at-dock-depart-curr model

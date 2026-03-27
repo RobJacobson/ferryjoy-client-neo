@@ -42,6 +42,8 @@ Source:
 Responsibilities:
 
 - define which boundary events exist for the vessel/day
+- keep the canonical segment identity shared with `scheduledTrips` /
+  `vesselTrips`
 - define `dep-dock` vs `arv-dock`
 - define scheduled timing and terminal identity
 - provide `NextTerminalAbbrev` for client composition and debugging
@@ -59,18 +61,17 @@ Sparse actual-time overlay.
 Sources:
 
 - WSF vessel history during schedule sync
-- live `vesselLocations` updates during operation
+- trip lifecycle transitions during operation
 
 Responsibilities:
 
 - hold actual departure times
 - hold actual arrival times
-- support false-departure unwind
 
 Important behavior:
 
 - only rows with actuals exist
-- live updates rewrite only this table for the affected vessel/day
+- trip lifecycle transitions project into this table by boundary key
 
 ### `eventsPredicted`
 
@@ -90,6 +91,10 @@ Important behavior:
 
 - the client timeline query does not expose prediction provenance
 - precedence is backend-owned
+- `vesselTrips` emits prediction projection effects; timeline writes rows but
+  does not derive predictions independently
+- stale predicted rows are cleared by scoped boundary keys when a trip stops
+  emitting a prediction
 
 Current precedence:
 
@@ -129,22 +134,12 @@ Responsibilities:
 
 ### `events/liveUpdates.ts`
 
-Applies live vessel-location evidence to an in-memory ordered boundary-event
-array.
+Shared timeline ordering and seam-normalization helpers.
 
 Responsibilities:
 
-- determine sailing day for a live location
-- resolve strong departures
-- resolve strong arrivals
-- unwind false departures
 - normalize dock seams
-- provide stable event-key construction and sort helpers
-
-Important current behavior:
-
-- this flow now owns actuals only
-- live location ticks do not write predicted times into event rows
+- provide stable sort helpers
 
 ### `normalizedEvents.ts`
 
@@ -177,8 +172,8 @@ Normalized write layer.
 Responsibilities:
 
 - replace `eventsScheduled` and `eventsActual` for a sailing day
-- apply live actual updates from `vesselLocations`
-- upsert best-prediction rows from active trip state
+- project actual boundary effects emitted by `vesselTrips`
+- project predicted boundary effects emitted by `vesselTrips`
 
 ### `convex/functions/vesselTimeline/queries.ts`
 
@@ -208,12 +203,13 @@ WSF schedule sync
 WSF vessel location ticks
   -> update vesselLocations
   -> update active vessel trips
-  -> resolve actual boundary changes
-  -> replace affected eventsActual rows only
+  -> emit actual boundary effects
+  -> project affected eventsActual rows only
 
 Trip / prediction updates
   -> compute best prediction per event key
-  -> upsert eventsPredicted
+  -> emit prediction boundary effects
+  -> project affected eventsPredicted rows only
 
 Frontend VesselTimeline
   -> query eventsScheduled
@@ -230,6 +226,8 @@ Frontend VesselTimeline
 
 - `eventsScheduled` is the structural truth for which boundary events exist
 - `eventsActual` and `eventsPredicted` are sparse overlays only
+- `eventsActual.Key` and `eventsPredicted.Key` are derived from the canonical
+  segment key plus boundary type
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
 - the client never needs to understand prediction provenance

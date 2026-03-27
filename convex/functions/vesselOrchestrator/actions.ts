@@ -1,11 +1,9 @@
-import { api, internal } from "_generated/api";
+import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { enrichConvexVesselLocation } from "shared/enrichConvexVesselLocations";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
@@ -19,7 +17,7 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
- * 2. Convert: toConvexVesselLocation() → convertConvexVesselLocation()
+ * 2. Convert each WSF payload to `ConvexVesselLocation`
  * 3. Call updateVesselLocations() with error isolation
  * 4. Call runUpdateVesselTrips() with error isolation
  *
@@ -33,12 +31,10 @@ export const updateVesselOrchestrator = internalAction({
   ): Promise<{
     locationsSuccess: boolean;
     tripsSuccess: boolean;
-    tripEventsSuccess: boolean;
     errors?: {
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
-      tripEvents?: { message: string; stack?: string };
     };
   }> => {
     // Track errors from each processing branch
@@ -46,7 +42,6 @@ export const updateVesselOrchestrator = internalAction({
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
-      tripEvents?: { message: string; stack?: string };
     } = {};
 
     // Step 1: Fetch and convert vessel locations
@@ -56,12 +51,7 @@ export const updateVesselOrchestrator = internalAction({
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
-      // Transform chain: WSF API → Convex schema → enrich with distances → final format
-      convexLocations = rawLocations.map((rawLocation) =>
-        convertConvexVesselLocation(
-          enrichConvexVesselLocation(toConvexVesselLocation(rawLocation))
-        )
-      );
+      convexLocations = rawLocations.map(toConvexVesselLocation);
     } catch (error) {
       const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
@@ -70,27 +60,17 @@ export const updateVesselOrchestrator = internalAction({
       return {
         locationsSuccess: false,
         tripsSuccess: false,
-        tripEventsSuccess: false,
         errors,
       };
     }
 
-    const branchResults: [
-      PromiseSettledResult<void>,
-      PromiseSettledResult<void>,
-      PromiseSettledResult<null>,
-    ] = await Promise.allSettled([
+    const branchResults: [PromiseSettledResult<void>, PromiseSettledResult<void>] =
+      await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
       runUpdateVesselTrips(ctx, convexLocations),
-      ctx.runMutation(
-        internal.functions.vesselTimeline.mutations.applyLiveActualUpdates,
-        {
-          Locations: convexLocations,
-        }
-      ),
     ]);
 
-    const [locationsResult, tripsResult, tripEventsResult] = branchResults;
+    const [locationsResult, tripsResult] = branchResults;
 
     if (locationsResult.status === "rejected") {
       const err = normalizeError(locationsResult.reason);
@@ -104,16 +84,9 @@ export const updateVesselOrchestrator = internalAction({
       console.error("runUpdateVesselTrips failed:", err);
     }
 
-    if (tripEventsResult.status === "rejected") {
-      const err = normalizeError(tripEventsResult.reason);
-      errors.tripEvents = { message: err.message, stack: err.stack };
-      console.error("applyLiveActualUpdates failed:", err);
-    }
-
     return {
       locationsSuccess: locationsResult.status === "fulfilled",
       tripsSuccess: tripsResult.status === "fulfilled",
-      tripEventsSuccess: tripEventsResult.status === "fulfilled",
       ...(Object.keys(errors).length > 0 ? { errors } : {}),
     };
   },

@@ -53,8 +53,8 @@ export const mergeSeededVesselTripEvents = ({
     // already attached to the logical event.
     mergedEvents.push({
       ...seededEvent,
-      PredictedTime: existingEvent.PredictedTime,
-      ActualTime: existingEvent.ActualTime,
+      EventPredictedTime: existingEvent.EventPredictedTime,
+      EventActualTime: existingEvent.EventActualTime,
     });
   }
 
@@ -81,14 +81,16 @@ const isHistoryOwnedEvent = (
   event: ConvexVesselTimelineEventRecord,
   nowTimestamp: number
 ) => {
-  if (event.ActualTime !== undefined) {
+  if (event.EventActualTime !== undefined) {
     return true;
   }
 
   // Predictions can pull an event into the present earlier than the scheduled
   // fallback, so use the best known effective timestamp.
   const eventTimestamp =
-    event.PredictedTime ?? event.ScheduledTime ?? event.ScheduledDeparture;
+    event.EventPredictedTime ??
+    event.EventScheduledTime ??
+    event.ScheduledDeparture;
 
   return eventTimestamp <= nowTimestamp;
 };

@@ -11,6 +11,8 @@ import {
   optionalDateToEpochMs,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
+import { calculateDistanceInMiles } from "../../shared/distanceUtils";
+import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
 
 /**
  * Shared field validators for vessel-location storage.
@@ -41,18 +43,9 @@ const vesselLocationBaseValidationFields = {
 } as const;
 
 /**
- * Stored vessel-location fields after distance enrichment.
+ * Stored vessel-location fields, including derived terminal distances.
  */
 export const vesselLocationValidationFields = {
-  ...vesselLocationBaseValidationFields,
-  DepartingDistance: v.number(),
-  ArrivingDistance: v.optional(v.number()),
-} as const;
-
-/**
- * Pre-enrichment vessel-location fields produced directly from the WSF feed.
- */
-export const rawVesselLocationValidationFields = {
   ...vesselLocationBaseValidationFields,
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
@@ -67,20 +60,10 @@ export const vesselLocationValidationSchema = v.object(
 );
 
 /**
- * Convex validator for vessel locations before terminal-distance enrichment.
- */
-export const rawVesselLocationValidationSchema = v.object(
-  rawVesselLocationValidationFields
-);
-
-/**
  * Type for vessel location in Convex storage (with numbers)
  * Inferred from the Convex validator
  */
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
-export type RawConvexVesselLocation = Infer<
-  typeof rawVesselLocationValidationSchema
->;
 
 /**
  * Convert a Dottie vessel location to a convex vessel location.
@@ -90,31 +73,45 @@ export type RawConvexVesselLocation = Infer<
  */
 export const toConvexVesselLocation = (
   dvl: DottieVesselLocation
-): RawConvexVesselLocation => ({
-  VesselID: dvl.VesselID,
-  VesselName: dvl.VesselName ?? "",
-  VesselAbbrev: getVesselAbbreviation(dvl.VesselName ?? ""),
-  DepartingTerminalID: dvl.DepartingTerminalID,
-  DepartingTerminalName: dvl.DepartingTerminalName ?? "",
-  DepartingTerminalAbbrev: dvl.DepartingTerminalAbbrev ?? "",
-  ArrivingTerminalID: dvl.ArrivingTerminalID ?? undefined,
-  ArrivingTerminalName: dvl.ArrivingTerminalName ?? undefined,
-  ArrivingTerminalAbbrev: dvl.ArrivingTerminalAbbrev ?? undefined,
-  Latitude: dvl.Latitude,
-  Longitude: dvl.Longitude,
-  Speed: dvl.Speed,
-  Heading: dvl.Heading,
-  InService: dvl.InService,
-  AtDock: dvl.AtDock,
-  LeftDock: optionalDateToEpochMs(dvl.LeftDock),
-  Eta: optionalDateToEpochMs(dvl.Eta),
-  ScheduledDeparture: optionalDateToEpochMs(dvl.ScheduledDeparture),
-  RouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
-  VesselPositionNum: dvl.VesselPositionNum ?? undefined,
-  TimeStamp: dateToEpochMs(dvl.TimeStamp),
-  DepartingDistance: undefined,
-  ArrivingDistance: undefined,
-});
+): ConvexVesselLocation => {
+  const VesselName = dvl.VesselName ?? "";
+  const DepartingTerminalAbbrev = dvl.DepartingTerminalAbbrev ?? "";
+  const ArrivingTerminalAbbrev = dvl.ArrivingTerminalAbbrev ?? undefined;
+
+  return {
+    VesselID: dvl.VesselID,
+    VesselName,
+    VesselAbbrev: getVesselAbbreviation(VesselName),
+    DepartingTerminalID: dvl.DepartingTerminalID,
+    DepartingTerminalName: dvl.DepartingTerminalName ?? "",
+    DepartingTerminalAbbrev,
+    ArrivingTerminalID: dvl.ArrivingTerminalID ?? undefined,
+    ArrivingTerminalName: dvl.ArrivingTerminalName ?? undefined,
+    ArrivingTerminalAbbrev,
+    Latitude: dvl.Latitude,
+    Longitude: dvl.Longitude,
+    Speed: dvl.Speed < 0.2 ? 0 : dvl.Speed,
+    Heading: dvl.Heading,
+    InService: dvl.InService,
+    AtDock: dvl.AtDock,
+    LeftDock: optionalDateToEpochMs(dvl.LeftDock),
+    Eta: optionalDateToEpochMs(dvl.Eta),
+    ScheduledDeparture: optionalDateToEpochMs(dvl.ScheduledDeparture),
+    RouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
+    VesselPositionNum: dvl.VesselPositionNum ?? undefined,
+    TimeStamp: dateToEpochMs(dvl.TimeStamp),
+    DepartingDistance: getDistanceToTerminal(
+      dvl.Latitude,
+      dvl.Longitude,
+      DepartingTerminalAbbrev
+    ),
+    ArrivingDistance: getDistanceToTerminal(
+      dvl.Latitude,
+      dvl.Longitude,
+      ArrivingTerminalAbbrev
+    ),
+  };
+};
 
 /**
  * Convert Convex vessel location (numbers) to domain vessel location (Dates).
@@ -135,3 +132,21 @@ export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
  * Inferred from the return type of our conversion function
  */
 export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;
+
+const getDistanceToTerminal = (
+  latitude: number,
+  longitude: number,
+  terminalAbbrev: string | undefined | null
+): number | undefined => {
+  if (!terminalAbbrev) {
+    return undefined;
+  }
+
+  const terminal = getTerminalLocationByAbbrev(terminalAbbrev);
+  return calculateDistanceInMiles(
+    latitude,
+    longitude,
+    terminal?.Latitude,
+    terminal?.Longitude
+  );
+};

@@ -109,6 +109,7 @@ const baseTripForStart = (
     LeftDock: undefined, // Not departed yet
     TripDelay: undefined, // Will be computed when vessel leaves dock
     Eta: undefined,
+    NextKey: undefined,
     TripEnd: undefined, // Only set on completed trips
     AtSeaDuration: undefined, // Only set on completed trips
     TotalDuration: undefined, // Only set on completed trips
@@ -137,6 +138,7 @@ const baseTripForDockHold = (
   AtDock: currLocation.AtDock,
   Eta: currLocation.Eta ?? existingTrip.Eta,
   InService: currLocation.InService,
+  NextKey: existingTrip.NextKey,
   RouteAbbrev: currLocation.RouteAbbrev ?? existingTrip.RouteAbbrev,
   TimeStamp: currLocation.TimeStamp,
 });
@@ -210,6 +212,7 @@ const baseTripForContinuing = (
     // Eta: null-overwrite protection (preserve existing when curr omits it)
     Eta: currLocation.Eta ?? existingTrip?.Eta,
     // NextScheduledDeparture: from schedule lookups; carry forward when appends don't run
+    NextKey: existingTrip?.NextKey,
     NextScheduledDeparture: existingTrip?.NextScheduledDeparture,
     TripEnd: undefined, // Only set on completed trips
     AtSeaDuration: existingTrip?.AtSeaDuration, // Carried from existing
