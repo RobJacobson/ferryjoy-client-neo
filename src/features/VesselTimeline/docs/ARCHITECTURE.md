@@ -124,13 +124,13 @@ Source:
 - `TimelineContent` renders a fixed-height scrollable canvas.
 - Initial auto-scroll centers the active indicator when one exists.
 - Displayed event times are chosen in user-facing order:
-  - `ActualTime`
-  - `PredictedTime`
-  - `ScheduledTime`
+  - `EventActualTime`
+  - `EventPredictedTime`
+  - `EventScheduledTime`
 - Layout sizing is schedule-first:
-  - `ScheduledTime`
-  - fallback to `ActualTime`
-  - fallback to `PredictedTime`
+  - `EventScheduledTime`
+  - fallback to `EventActualTime`
+  - fallback to `EventPredictedTime`
 
 ## Important Invariants
 

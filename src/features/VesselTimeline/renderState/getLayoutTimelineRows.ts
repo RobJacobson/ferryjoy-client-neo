@@ -116,9 +116,9 @@ const toRenderEvent = (
         : undefined,
     isArrivalPlaceholder: event.IsArrivalPlaceholder,
     timePoint: {
-      scheduled: event.ScheduledTime,
-      actual: event.ActualTime,
-      estimated: event.PredictedTime,
+      scheduled: event.EventScheduledTime,
+      actual: event.EventActualTime,
+      estimated: event.EventPredictedTime,
     },
   };
 };

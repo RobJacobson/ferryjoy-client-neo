@@ -236,8 +236,8 @@ const resolveActualBackedState = (
     .reverse()
     .find(
       (candidate) =>
-        candidate.startEvent.ActualTime !== undefined &&
-        candidate.endEvent.ActualTime === undefined
+        candidate.startEvent.EventActualTime !== undefined &&
+        candidate.endEvent.EventActualTime === undefined
     );
 
   if (!row) {

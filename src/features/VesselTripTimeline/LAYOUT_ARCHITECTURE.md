@@ -202,15 +202,16 @@ manage its own trip-specific overlay semantics locally.
 - `activeSegmentIndex` points at the active row
 - `rows.length` means all rows are completed
 - at-dock rows are always time-based from the row boundary `TimePoint`s
-- at-sea rows prefer distance-based progress when telemetry is available
+- at-sea rows prefer distance-based progress when both live terminal
+  distances are available
 - distance-based at-sea progress uses
   `DepartingDistance / (DepartingDistance + ArrivingDistance)`
   which is equivalent to
   `1 - ArrivingDistance / (DepartingDistance + ArrivingDistance)`
 - `DepartingDistance` is the current distance from the vessel to the departing
   terminal, not "remaining distance before departure"
-- if distance telemetry is unavailable or unusable, at-sea rows fall back to
-  time-based progress from the row boundary `TimePoint`s
+- if either terminal distance is unavailable or unusable, at-sea rows fall back
+  to time-based progress from the row boundary `TimePoint`s
 - the first active dock row applies a small minimum offset (`0.06`) so the
   indicator does not sit directly on top of the static marker
 

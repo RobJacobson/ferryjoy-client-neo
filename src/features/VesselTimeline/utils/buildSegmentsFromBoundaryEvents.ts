@@ -91,9 +91,9 @@ const toSegmentEvent = (
   TerminalAbbrev: event.TerminalAbbrev,
   EventType: event.EventType,
   TerminalDisplayName: getDisplayTerminalName(event.TerminalAbbrev),
-  ScheduledTime: event.ScheduledTime,
-  PredictedTime: event.PredictedTime,
-  ActualTime: event.ActualTime,
+  EventScheduledTime: event.EventScheduledTime,
+  EventPredictedTime: event.EventPredictedTime,
+  EventActualTime: event.EventActualTime,
 });
 
 /**
@@ -121,9 +121,9 @@ const buildArrivalPlaceholderSegment = (
     EventType: "arv-dock",
     TerminalDisplayName: getDisplayTerminalName(departureEvent.TerminalAbbrev),
     IsArrivalPlaceholder: true,
-    ScheduledTime: undefined,
-    PredictedTime: undefined,
-    ActualTime: undefined,
+    EventScheduledTime: undefined,
+    EventPredictedTime: undefined,
+    EventActualTime: undefined,
   },
   endEvent: toSegmentEvent(departureEvent),
   durationMinutes: 0,

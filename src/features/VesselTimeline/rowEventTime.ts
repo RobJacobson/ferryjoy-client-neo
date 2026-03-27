@@ -16,11 +16,15 @@ type TimelineEvent =
  * Instant used for row duration and geometry (stable as live data updates).
  */
 export const getLayoutTime = (event: TimelineEvent) =>
-  event.ScheduledTime ?? event.ActualTime ?? event.PredictedTime;
+  event.EventScheduledTime ??
+  event.EventActualTime ??
+  event.EventPredictedTime;
 
 /**
  * Instant shown in UI and used for indicator math when not otherwise
  * overridden.
  */
 export const getDisplayTime = (event: TimelineEvent) =>
-  event.ActualTime ?? event.PredictedTime ?? event.ScheduledTime;
+  event.EventActualTime ??
+  event.EventPredictedTime ??
+  event.EventScheduledTime;

@@ -235,8 +235,8 @@ const buildMergedBoundaryEvents = (
     ScheduledDeparture: event.ScheduledDeparture,
     TerminalAbbrev: event.TerminalAbbrev,
     EventType: event.EventType,
-    ScheduledTime: event.ScheduledTime,
-    ActualTime: actualByKey.get(event.Key)?.ActualTime,
-    PredictedTime: predictedByKey.get(event.Key)?.PredictedTime,
+    EventScheduledTime: event.EventScheduledTime,
+    EventActualTime: actualByKey.get(event.Key)?.EventActualTime,
+    EventPredictedTime: predictedByKey.get(event.Key)?.EventPredictedTime,
   }));
 };
