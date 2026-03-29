@@ -222,7 +222,7 @@ The timeline projection path is designed to stay lightweight:
 ## Related Documentation
 
 - `convex/functions/vesselTrips/updates/README.md`
-- `convex/domain/scheduledTrips/README.md`
+- `convex/functions/scheduledTrips/sync/README.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 
 ## Summary

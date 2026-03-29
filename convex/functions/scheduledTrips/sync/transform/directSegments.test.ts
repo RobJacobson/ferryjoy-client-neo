@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import type { ConvexScheduledTrip } from "../../schemas";
 import {
   classifyDirectSegments,
   classifyDirectSegmentsGeneric,

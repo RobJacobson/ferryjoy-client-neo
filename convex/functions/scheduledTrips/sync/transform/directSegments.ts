@@ -6,7 +6,7 @@
  * segment and marks the remaining rows as indirect views of the same sailing.
  */
 
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import type { ConvexScheduledTrip } from "../../schemas";
 import {
   groupTripsByPhysicalDeparture,
   groupTripsByPhysicalDepartureGeneric,

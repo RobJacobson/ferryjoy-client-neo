@@ -1,16 +1,16 @@
 /**
  * Shared schedule download and transformation helpers for schedule-backed
- * domains.
+ * consumers owned by the ScheduledTrips sync module.
  */
 
 import type { Route } from "ws-dottie/wsf-schedule";
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
-import { createScheduledTripFromRawSegment } from "../../functions/scheduledTrips/sync/fetching/mapping";
-import type { RawWsfRouteScheduleData } from "../../shared/fetchWsfScheduleData";
+import type { ConvexScheduledTrip } from "../schemas";
+import { createScheduledTripFromRawSegment } from "./fetching/mapping";
+import type { RawWsfRouteScheduleData } from "../../../shared/fetchWsfScheduleData";
 import {
   downloadRawWsfScheduleData,
   fetchActiveRoutes,
-} from "../../shared/fetchWsfScheduleData";
+} from "../../../shared/fetchWsfScheduleData";
 import { runTransformationPipeline } from "./transform";
 
 export type FetchAndTransformScheduledTripsResult = {
@@ -22,7 +22,7 @@ export type FetchAndTransformScheduledTripsResult = {
 };
 
 /**
- * Shared schedule fetch + transformation flow used by both scheduledTrips and
+ * Shared schedule fetch + transformation flow used by ScheduledTrips sync and
  * VesselTimeline boundary-event sync.
  *
  * @param targetDate - Service date to fetch in `YYYY-MM-DD` format

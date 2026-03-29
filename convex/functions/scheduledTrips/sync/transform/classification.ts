@@ -5,8 +5,8 @@
  * @module
  */
 
-import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
-import { classifyDirectSegments } from "../directSegments";
+import type { ConvexScheduledTrip } from "../../schemas";
+import { classifyDirectSegments } from "./directSegments";
 
 /**
  * Classifies trips as direct or indirect using a chronological physical departure scan.

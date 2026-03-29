@@ -6,9 +6,9 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
+import { fetchAndTransformScheduledTrips } from "functions/scheduledTrips/sync/fetchAndTransform";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { fetchAndTransformScheduledTrips } from "../../domain/scheduledTrips/fetchAndTransform";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,

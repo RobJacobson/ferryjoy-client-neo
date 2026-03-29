@@ -10,8 +10,8 @@ import {
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import { classifyDirectSegmentsGeneric } from "../../scheduledTrips/directSegments";
-import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips/transform/officialCrossingTimes";
+import { classifyDirectSegmentsGeneric } from "../../../functions/scheduledTrips/sync/transform/directSegments";
+import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import {
   normalizeScheduledDockSeams,
   sortVesselTripEvents,

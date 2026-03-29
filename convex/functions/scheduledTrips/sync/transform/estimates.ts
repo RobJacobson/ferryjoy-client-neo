@@ -4,14 +4,14 @@
  * @module
  */
 
-import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
-import { roundUpToNextMinute } from "../../../shared/durationUtils";
-import { config, formatTerminalPairKey } from "../../ml/shared/config";
+import type { ConvexScheduledTrip } from "../../schemas";
+import { roundUpToNextMinute } from "../../../../shared/durationUtils";
+import { config, formatTerminalPairKey } from "../../../../domain/ml/shared/config";
 import {
   groupTripsByPhysicalDeparture,
   groupTripsByVessel,
   type PhysicalDeparture,
-} from "../grouping";
+} from "./grouping";
 import { getOfficialCrossingTimeMinutes } from "./officialCrossingTimes";
 
 /**
@@ -40,8 +40,6 @@ export const calculateTripEstimates = (
     );
     const groups = groupTripsByPhysicalDeparture(sortedTrips);
 
-    // Initial pass: Calculate arrival times for all trips
-    // Direct trips use durations; Indirect trips will be backfilled later
     const tripsWithArrivals = sortedTrips.map((trip) => ({
       ...trip,
       SchedArriveNext:
@@ -50,7 +48,6 @@ export const calculateTripEstimates = (
         trip.TripType === "direct" ? calculateEstArrive(trip) : undefined,
     }));
 
-    // Backfill indirect arrivals by looking ahead in the vessel's day
     const backfilledTrips = tripsWithArrivals.map((trip) => {
       if (trip.TripType === "direct") return trip;
       const completion = findCompletionArrival(trip, tripsWithArrivals);
@@ -61,7 +58,6 @@ export const calculateTripEstimates = (
       };
     });
 
-    // Final pass: Link keys and set arrival-at-current-terminal times
     return linkVesselSegments(backfilledTrips, groups);
   });
 };
@@ -95,11 +91,9 @@ const linkVesselSegments = (
     const updatedTrips = group.trips.map((trip) => {
       const tripWithConnections = {
         ...trip,
-        // Connections
         PrevKey: prevDirectKey,
         NextKey: nextDirect?.Key,
         NextDepartingTime: nextDirect?.DepartingTime,
-        // Arrivals at current terminal (if valid)
         EstArriveCurr: validateArrivalTime(
           state.lastArriveByTerminal[group.departingTerminal],
           group.departingTime
@@ -110,7 +104,6 @@ const linkVesselSegments = (
         ),
       };
 
-      // Find the specific trip in the backfilled array to get its calculated arrivals
       const backfilled = trips.find((t) => t.Key === trip.Key);
       if (!backfilled) {
         throw new Error(
@@ -124,14 +117,15 @@ const linkVesselSegments = (
       };
     });
 
-    // Update state for next groups based on DIRECT trips in this group
     for (const trip of updatedTrips) {
       if (trip.TripType !== "direct") continue;
       const dest = trip.ArrivingTerminalAbbrev;
-      if (trip.EstArriveNext)
+      if (trip.EstArriveNext) {
         state.lastArriveByTerminal[dest] = trip.EstArriveNext;
-      if (trip.SchedArriveNext)
+      }
+      if (trip.SchedArriveNext) {
         state.lastSchedArriveByTerminal[dest] = trip.SchedArriveNext;
+      }
       state.lastDirectKeyByTerminal[dest] = trip.Key;
     }
 
@@ -180,7 +174,6 @@ const calculateEstArrive = (trip: ConvexScheduledTrip): number | undefined => {
 const calculateSchedArrive = (
   trip: ConvexScheduledTrip
 ): number | undefined => {
-  // Route 9 (San Juans) often has ArrivingTime in raw data
   if (trip.RouteID === 9 && trip.ArrivingTime) return trip.ArrivingTime;
 
   const duration = getOfficialCrossingTimeMinutes({
