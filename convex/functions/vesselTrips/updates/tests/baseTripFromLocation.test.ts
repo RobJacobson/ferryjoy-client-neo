@@ -9,7 +9,7 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
-import { baseTripFromLocation } from "./baseTripFromLocation";
+import { baseTripFromLocation } from "../baseTripFromLocation";
 
 describe("baseTripFromLocation", () => {
   it("uses the current scheduled departure to set SailingDay on trip start", () => {

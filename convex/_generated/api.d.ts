@@ -109,6 +109,7 @@ import type * as functions_vesselTrips_updates_appendSchedule from "../functions
 import type * as functions_vesselTrips_updates_baseTripFromLocation from "../functions/vesselTrips/updates/baseTripFromLocation.js";
 import type * as functions_vesselTrips_updates_buildCompletedTrip from "../functions/vesselTrips/updates/buildCompletedTrip.js";
 import type * as functions_vesselTrips_updates_buildTrip from "../functions/vesselTrips/updates/buildTrip.js";
+import type * as functions_vesselTrips_updates_currentTripProcessing from "../functions/vesselTrips/updates/currentTripProcessing.js";
 import type * as functions_vesselTrips_updates_eventDetection from "../functions/vesselTrips/updates/eventDetection.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_tripDerivation from "../functions/vesselTrips/updates/tripDerivation.js";
@@ -233,6 +234,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/baseTripFromLocation": typeof functions_vesselTrips_updates_baseTripFromLocation;
   "functions/vesselTrips/updates/buildCompletedTrip": typeof functions_vesselTrips_updates_buildCompletedTrip;
   "functions/vesselTrips/updates/buildTrip": typeof functions_vesselTrips_updates_buildTrip;
+  "functions/vesselTrips/updates/currentTripProcessing": typeof functions_vesselTrips_updates_currentTripProcessing;
   "functions/vesselTrips/updates/eventDetection": typeof functions_vesselTrips_updates_eventDetection;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/tripDerivation": typeof functions_vesselTrips_updates_tripDerivation;

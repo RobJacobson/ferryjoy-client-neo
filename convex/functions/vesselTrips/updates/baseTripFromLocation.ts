@@ -50,10 +50,6 @@ export const baseTripFromLocation = (
   }
 };
 
-// ============================================================================
-// baseTripFromLocation
-// ============================================================================
-
 /**
  * Build the base trip for a new trip start.
  *
@@ -67,6 +63,7 @@ const baseTripForStart = (
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTrip => {
+  // Reuse the just-finished arrival time when the next trip starts immediately.
   const tripStartTime =
     existingTrip?.ArriveDest ??
     (tripInputs.didJustBecomeStartReady ? currLocation.TimeStamp : undefined);
@@ -142,6 +139,7 @@ const baseTripForContinuing = (
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTrip => {
+  // Preserve the first recorded arrival/start timestamps across later ticks.
   const arriveDestTime = existingTrip?.ArriveDest;
   const tripStartTime = existingTrip?.TripStart;
 

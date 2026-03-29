@@ -9,10 +9,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 
-// ============================================================================
-// Trip Events
-// ============================================================================
-
 /**
  * Result of trip event detection for a vessel update.
  */
@@ -47,6 +43,7 @@ export const detectTripEvents = (
     tripInputs.currentScheduledDeparture &&
       tripInputs.currentArrivingTerminalAbbrev
   );
+  // Arrival is only credible after a recorded departure and a terminal change.
   const didJustArriveAtDock = Boolean(
     existingTrip &&
       existingTrip.LeftDock !== undefined &&

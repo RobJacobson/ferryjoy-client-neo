@@ -1,10 +1,19 @@
+/**
+ * Query handlers for active and completed vessel trips.
+ *
+ * Exposes read paths for route, vessel, and sailing-day views, plus the
+ * optional schedule join used by trip display surfaces.
+ */
+
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
-/** Vessel trip with optional joined ScheduledTrip (for display) */
+/**
+ * Active trip shape with the optional scheduled-trip join resolved for UI use.
+ */
 const vesselTripWithScheduledSchema = vesselTripSchema.extend({
   ScheduledTrip: v.optional(scheduledTripSchema),
 });
@@ -87,6 +96,8 @@ export const getActiveTripsWithScheduledTrip = query({
           if (!tripKey) {
             return trip;
           }
+
+          // Active trips can exist before a canonical schedule key is available.
           const scheduledDoc = await ctx.db
             .query("scheduledTrips")
             .withIndex("by_key", (q) => q.eq("Key", tripKey))
@@ -167,6 +178,7 @@ export const getCompletedTripsByRouteAndTripDate = query({
           q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
         )
         .collect();
+      // Multiple writes for the same logical trip can exist, so collapse by Key.
       const byKey = new Map<string, (typeof docs)[number]>();
       for (const doc of docs) {
         if (doc.Key) byKey.set(doc.Key, doc);
@@ -289,6 +301,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
             .collect()
         )
       );
+      // Different route batches can still resolve to the same logical trip.
       const byKey = new Map<string, (typeof batches)[0][number]>();
       for (const batch of batches) {
         for (const doc of batch) {
@@ -341,6 +354,7 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
             .collect()
         )
       );
+      // Terminal-scoped queries can overlap, so dedupe by canonical trip key.
       const byKey = new Map<string, (typeof results)[0][number]>();
       for (const batch of results) {
         for (const doc of batch) {

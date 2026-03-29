@@ -1,3 +1,10 @@
+/**
+ * Convex schemas and domain conversion helpers for vessel trips.
+ *
+ * Defines the persisted trip and prediction shapes and converts epoch-based
+ * Convex records into the `Date`-based domain objects used elsewhere.
+ */
+
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
@@ -8,53 +15,38 @@ import {
 } from "../../shared/convertDates";
 
 /**
- * Convex validator for ML prediction data (numbers)
- * Contains prediction results with uncertainty bounds and actual outcomes
+ * Convex validator for vessel-trip prediction payloads.
  */
 export const predictionSchema = v.object({
-  // Our actual predicted time (milliseconds since epoch)
+  // Predicted timestamp window plus model accuracy metadata.
   PredTime: v.number(),
-  // Lower bound for time prediction (PredTime - 1 Std Dev)
   MinTime: v.number(),
-  // Upper bound for time prediction (PredTime + 1 Std Dev)
   MaxTime: v.number(),
-  // Model performance metrics (from training)
-  MAE: v.number(), // Mean Absolute Error in minutes
-  StdDev: v.number(), // Standard deviation of errors in minutes
-  // Actual observed time (optional, set when trip completes)
+  MAE: v.number(),
+  StdDev: v.number(),
+  // Actuals are backfilled after the predicted event is observed.
   Actual: v.optional(v.number()),
-  // Signed difference: Actual - PredTime (optional, in minutes)
   DeltaTotal: v.optional(v.number()),
-  // Range deviation: (Actual - MinTime) if Actual < MinTime,
-  // (Actual - MaxTime) if Actual > MinTime, 0 if within bounds
+  // DeltaRange stays 0 when the actual lands inside the predicted interval.
   DeltaRange: v.optional(v.number()),
 });
 
 /**
- * Type for prediction data in Convex storage (with numbers)
- * Inferred from the Convex validator
+ * Stored prediction shape in Convex.
  */
 export type ConvexPrediction = Infer<typeof predictionSchema>;
 
 /**
- * Type for prediction data in domain layer (with Date objects)
+ * Domain-layer prediction shape with `Date` instances.
  */
 export type Prediction = {
-  // Our actual predicted time
   PredTime: Date;
-  // Lower bound for time prediction (PredTime - 1 Std Dev)
   MinTime: Date;
-  // Upper bound for time prediction (PredTime + 1 Std Dev)
   MaxTime: Date;
-  // Model performance metrics (from training)
-  MAE: number; // Mean Absolute Error in minutes
-  StdDev: number; // Standard deviation of errors in minutes
-  // Actual observed time (optional, set when trip completes)
+  MAE: number;
+  StdDev: number;
   Actual?: Date;
-  // Signed difference: Actual - PredTime (optional, in minutes)
   DeltaTotal?: number;
-  // Range deviation: (Actual - MinTime) if Actual < MinTime,
-  // (Actual - MaxTime) if Actual > MaxTime, 0 if within bounds
   DeltaRange?: number;
 };
 
@@ -91,18 +83,17 @@ export const optionalToDomainPrediction = (
   prediction ? toDomainPrediction(prediction) : undefined;
 
 /**
- * Convex validator for vessel trips (numbers)
- * Vessel trip records with an optional composite `Key` for schedule joins.
+ * Convex validator for persisted vessel-trip records.
  */
 export const vesselTripSchema = v.object({
-  // Core trip identity fields (from vessel locations)
+  // Trip identity and schedule-join fields.
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
   RouteAbbrev: v.optional(v.string()),
-  Key: v.optional(v.string()), // Optional given need for departing terminal
-  SailingDay: v.optional(v.string()), // Present when ScheduledDeparture is known
-  // Additional VesselTrip-specific fields
+  Key: v.optional(v.string()),
+  SailingDay: v.optional(v.string()),
+  // Lifecycle timestamps and derived durations.
   PrevTerminalAbbrev: v.optional(v.string()),
   ArriveDest: v.optional(v.number()),
   TripStart: v.optional(v.number()),
@@ -117,20 +108,22 @@ export const vesselTripSchema = v.object({
   TotalDuration: v.optional(v.number()),
   InService: v.boolean(),
   TimeStamp: v.number(),
-  // Denormalized previous trip data for efficient predictions
-  PrevScheduledDeparture: v.optional(v.number()), // Previous trip's scheduled departure time in milliseconds
-  PrevLeftDock: v.optional(v.number()), // Previous trip's left dock time in milliseconds
-  // Denormalized next trip schedule for depart-next predictions
-  NextKey: v.optional(v.string()), // Next trip's canonical segment key
-  NextScheduledDeparture: v.optional(v.number()), // Next trip's scheduled departure time in milliseconds (from current arriving terminal)
-  // ML model predictions with uncertainty bounds and actual outcomes
-  AtDockDepartCurr: v.optional(predictionSchema), // at-dock-depart-curr model
-  AtDockArriveNext: v.optional(predictionSchema), // at-dock-arrive-next model
-  AtDockDepartNext: v.optional(predictionSchema), // at-dock-depart-next model
-  AtSeaArriveNext: v.optional(predictionSchema), // at-sea-arrive-next model
-  AtSeaDepartNext: v.optional(predictionSchema), // at-sea-depart-next model
+  // Previous and next-leg schedule context used by prediction models.
+  PrevScheduledDeparture: v.optional(v.number()),
+  PrevLeftDock: v.optional(v.number()),
+  NextKey: v.optional(v.string()),
+  NextScheduledDeparture: v.optional(v.number()),
+  // Prediction outputs for current-leg and next-leg boundary events.
+  AtDockDepartCurr: v.optional(predictionSchema),
+  AtDockArriveNext: v.optional(predictionSchema),
+  AtDockDepartNext: v.optional(predictionSchema),
+  AtSeaArriveNext: v.optional(predictionSchema),
+  AtSeaDepartNext: v.optional(predictionSchema),
 });
 
+/**
+ * Stored vessel-trip shape in Convex.
+ */
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 
 /**
@@ -151,7 +144,7 @@ export const toDomainVesselTrip = (trip: ConvexVesselTrip) => {
     ArriveDest: optionalEpochMsToDate(trip.ArriveDest),
     TripStart: optionalEpochMsToDate(trip.TripStart),
     TripEnd: optionalEpochMsToDate(trip.TripEnd),
-    // ML model predictions
+    // Nested prediction payloads are converted after copying scalar fields.
     AtDockDepartCurr: optionalToDomainPrediction(trip.AtDockDepartCurr),
     AtDockArriveNext: optionalToDomainPrediction(trip.AtDockArriveNext),
     AtDockDepartNext: optionalToDomainPrediction(trip.AtDockDepartNext),
@@ -189,8 +182,7 @@ export type PredictionReadyTrip = ConvexVesselTrip & {
 };
 
 /**
- * Type for active vessel trip in domain layer (with Date objects)
- * Inferred from return type of our conversion function
+ * Domain-layer vessel trip shape with `Date` instances.
  */
 export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
 

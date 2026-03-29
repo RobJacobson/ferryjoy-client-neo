@@ -58,6 +58,7 @@ Responsibilities:
 - fetch vessel locations from WSF
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   distance-to-terminal fields
+- capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
 
 Transformation pipeline:

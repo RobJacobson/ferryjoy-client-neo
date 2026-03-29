@@ -35,7 +35,7 @@ runUpdateVesselTrips (entry point)
     │       Events are computed once and passed through call chain
     ├─> Categorize transitions into two groups:
     │       completedTrips, currentTrips
-    ├─> Compute shouldRunPredictionFallback once for the current tick
+    ├─> Derive shouldRunPredictionFallback from the orchestrator-owned tick timestamp
     └─> Delegate to processing functions (each handles own persistence
             with per-vessel error isolation):
             ├─> processCompletedTrips (trip boundary)
@@ -75,12 +75,17 @@ runUpdateVesselTrips (entry point)
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
+| `tests/*.test.ts` | Focused unit and sequencing coverage for builders, event detection, current-trip processing, and top-level update orchestration |
 
 **External dependencies**:
 - `convex/domain/ml/prediction/predictionService.ts` — Prediction side effects after persistence (`trip_complete`, `leave_dock` record insertion and backfill)
 - `convex/domain/ml/prediction/vesselTripPredictions.ts` — `PREDICTION_SPECS`, `predictFromSpec`, `actualizePredictionsOnTripComplete`, `actualizePredictionsOnLeaveDock`
 - `convex/domain/ml/prediction/predictTrip.ts` — `loadModelsForPairBatch`, `predictTripValue`
 - `convex/functions/vesselTrips/mutations.ts` — `completeAndStartNewTrip`, `upsertVesselTripsBatch`, `setDepartNextActualsForMostRecentCompletedTrip`
+
+**Tests**:
+- Colocated under `convex/functions/vesselTrips/updates/tests/`
+- Typical command: `bun test convex/functions/vesselTrips/updates/tests/*.test.ts`
 
 ---
 
@@ -146,7 +151,7 @@ buildTrip(
   │   ├─> didJustArriveAtDock (from events.didJustArriveAtDock)
   │   ├─> didJustLeaveDock (from events.didJustLeaveDock)
   │   └─> keyChanged (from events.keyChanged)
-  │   └─> shouldRunPredictionFallback (computed once by runUpdateVesselTrips)
+  │   └─> shouldRunPredictionFallback (computed once from the tick timestamp passed in by VesselOrchestrator)
   ├─> stamp ArriveDest (when destination terminal changes)
   ├─> appendFinalSchedule (if tripStart or keyChanged)
   ├─> appendArriveDockPredictions (if at dock && TripStart exists && (tripStart || time-based fallback))

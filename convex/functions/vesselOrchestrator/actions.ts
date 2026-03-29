@@ -18,8 +18,9 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
  * 2. Convert each WSF payload to `ConvexVesselLocation`
- * 3. Call updateVesselLocations() with error isolation
- * 4. Call runUpdateVesselTrips() with error isolation
+ * 3. Capture one tick timestamp for downstream consumers
+ * 4. Call updateVesselLocations() with error isolation
+ * 5. Call runUpdateVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -64,12 +65,14 @@ export const updateVesselOrchestrator = internalAction({
       };
     }
 
+    const tickStartedAt = Date.now();
+
     const branchResults: [
       PromiseSettledResult<void>,
       PromiseSettledResult<void>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      runUpdateVesselTrips(ctx, convexLocations),
+      runUpdateVesselTrips(ctx, convexLocations, tickStartedAt),
     ]);
 
     const [locationsResult, tripsResult] = branchResults;
