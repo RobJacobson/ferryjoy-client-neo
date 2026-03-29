@@ -100,7 +100,10 @@ Purpose:
   lifecycle
 
 This remains the richer state machine responsible for trip lifecycle tracking,
-ML predictions, and event-driven trip transitions.
+ML predictions, and event-driven trip transitions. Inside that module, event
+detection and base-trip construction now share one normalized derivation layer
+so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
+pipeline.
 
 ### 4. Timeline Projection (`vesselTimeline/`)
 

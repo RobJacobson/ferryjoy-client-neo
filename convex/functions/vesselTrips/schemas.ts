@@ -101,7 +101,7 @@ export const vesselTripSchema = v.object({
   ArrivingTerminalAbbrev: v.optional(v.string()),
   RouteAbbrev: v.optional(v.string()),
   Key: v.optional(v.string()), // Optional given need for departing terminal
-  SailingDay: v.optional(v.string()), // WSF operational day in YYYY-MM-DD format
+  SailingDay: v.optional(v.string()), // Present when ScheduledDeparture is known
   // Additional VesselTrip-specific fields
   PrevTerminalAbbrev: v.optional(v.string()),
   ArriveDest: v.optional(v.number()),

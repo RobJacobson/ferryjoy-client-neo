@@ -6,11 +6,14 @@ This module synchronizes active vessel trips with live location data. It runs as
 
 **Current design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
-2. `baseTripFromLocation` — base trip from raw location data; preserves active-trip identity through the dock gap and supports pre-trip records with no `TripStart`
-3. `appendFinalSchedule` — deterministic schedule lookup by Key once the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
-4. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
+2. `tripDerivation` — shared normalized per-tick derivation for event detection and base-trip construction (`ScheduledDeparture`, `SailingDay`, `Key`, dock-departure state, start-ready promotion, explicit base-trip mode)
+3. `baseTripFromLocation` — base trip from raw location data using explicit `start`, `dock_hold`, and `continue` modes
+4. `appendFinalSchedule` — deterministic schedule lookup by Key once the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
+5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
-**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update, and `getDockDepartureState` provides the shared `LeftDock` handling used by both event detection and trip field derivation.
+**Centralized trip derivation**: `tripDerivation.ts` owns the shared per-tick derivation used by both `detectTripEvents` and `baseTripFromLocation`, including carry-forward protection, `SailingDay`/`Key` derivation, start-ready promotion, and dock-departure state.
+
+**Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update using the shared derived inputs from `tripDerivation.ts`.
 
 **Naming convention**:
 - `buildTrip` - Main orchestrator that creates complete trip from scratch
@@ -39,7 +42,8 @@ runUpdateVesselTrips (entry point)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
             │       → handlePredictionEvent (trip_complete) → PredictionService
             │       → emit actual/predicted boundary projection effects
-            │       (internal: baseTripFromLocation → appendFinalSchedule
+            │       (internal: tripDerivation → baseTripFromLocation
+            │                 → appendFinalSchedule
             │                 → appendArriveDockPredictions
             │                 → appendLeaveDockPredictions
             │                 → actualizePredictionsOnTripComplete / OnLeaveDock)
@@ -48,7 +52,8 @@ runUpdateVesselTrips (entry point)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
                     → handlePredictionEvent (leave_dock, post-persist only) → PredictionService
                     → emit actual/predicted boundary projection effects
-                    (internal: baseTripFromLocation → appendFinalSchedule
+                    (internal: tripDerivation → baseTripFromLocation
+                              → appendFinalSchedule
                               → appendArriveDockPredictions
                               → appendLeaveDockPredictions
                               → actualizePredictionsOnLeaveDock)
@@ -62,10 +67,11 @@ runUpdateVesselTrips (entry point)
 | File | Purpose |
 |------|---------|
 | `updateVesselTrips.ts` | Main orchestrator: builds `TripTransition` objects, categorizes them into completed/current, delegates to processing functions |
-| `eventDetection.ts` | `detectTripEvents`, `getDockDepartureState` — centralized event detection and shared dock-departure inference |
+| `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, `SailingDay`, `Key`, dock departure, start-ready promotion, and explicit base-trip mode selection |
+| `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
-| `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived fields, handles first trip, trip boundary, regular updates, and carry-forward protection for durable fields |
+| `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip using explicit `start` / `dock_hold` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
@@ -134,6 +140,7 @@ buildTrip(
   events,
   shouldRunPredictionFallback
 )
+  ├─> tripDerivation (shared normalized per-tick values and explicit base-trip mode)
   ├─> baseTripFromLocation (base trip from raw data, using tripStart flag)
   ├─> Use provided events and trip state to drive enrichments:
   │   ├─> didJustArriveAtDock (from events.didJustArriveAtDock)
@@ -150,6 +157,7 @@ buildTrip(
 **Benefits**:
 - Single entry point for trip construction used by both `processCompletedTrips` and `processCurrentTrips`, with `tripStart` explicitly marking when a real trip begins
 - Events computed once in `runUpdateVesselTrips` and passed through call chain, avoiding redundant computation
+- Shared trip derivation keeps event detection and base-trip construction in sync
 - Consistent application of all enrichments across trip boundaries and regular updates
 - Clear separation of concerns: `baseTripFromLocation` for raw data, schedule functions for database lookups, prediction functions for ML
 - Time-based fallback provides resilience against missed events or prediction generation failures
@@ -172,7 +180,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 **Benefits**:
 - Single source of truth for all event detection
-- Shared dock-departure inference via `getDockDepartureState`
+- Shared trip derivation via `tripDerivation.ts`
 - Easy to test and understand what events exist
 
 ---
@@ -199,8 +207,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
 | **ArrivingTerminalAbbrev** | currLocation or existingTrip | `currLocation` when truthy; else `existingTrip` (regular updates only; never old trip at boundary) |
-| **Key** | Raw data | From `generateTripKey` in baseTripFromLocation; used for schedule lookup |
-| **SailingDay** | Raw data | From `getSailingDay(ScheduledDeparture)` in baseTripFromLocation; uses carried-forward `ScheduledDeparture` when current feed omits it |
+| **Key** | Raw data | From shared trip derivation; start mode uses the current tick's `ScheduledDeparture`/`ArrivingTerminalAbbrev`, continuing mode uses carried-forward values when the feed omits them |
+| **SailingDay** | Raw data | Present if and only if `ScheduledDeparture` is known; derived from `getSailingDay(ScheduledDeparture)` using the same current-vs-carried-forward rule as `ScheduledDeparture` |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
 | **ArriveDest** | Arrival event | `currLocation.TimeStamp` only when the vessel has already left dock and is now docked at the destination terminal; carried until completion |
 | **TripStart** | Observed start event | Set only when the system observed the start transition. At delayed boundaries this is the previous trip's `ArriveDest`; for pre-trips it can be the tick where `ArrivingTerminalAbbrev` first becomes defined while the vessel is at dock. |
@@ -232,11 +240,21 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 `ScheduledDeparture`, `Eta`, `LeftDock`: Preserve the existing trip value when the current feed omits it. This prevents overwriting good data with null/undefined from REST glitches.
 
+`SailingDay`: Exists exactly when `ScheduledDeparture` exists. There is no separate notion of a missing sailing day once a scheduled departure is known.
+
 `NextScheduledDeparture`: Set by `appendFinalSchedule`. Carried forward from `existingTrip` in `baseTripForContinuing` when the lookup does not run. Prevents overwriting with undefined on regular updates.
 
 ### LeftDock Source of Truth
 
 Departure is recorded only when the feed provides `LeftDock`. `AtDock` may disagree transiently, but it does not create or clear `LeftDock`.
+
+### Base Trip Modes
+
+`baseTripFromLocation` now uses three explicit modes:
+
+- `start` — create a new trip from current feed data; clear predictions and set `Prev*` context from the completed trip when available
+- `dock_hold` — preserve the existing trip after physical arrival while waiting for the feed to expose the next trip's start-ready data
+- `continue` — update the current trip or first-seen pre-trip using carried-forward values where needed
 
 ### ArriveDest Guardrails
 

@@ -111,6 +111,7 @@ import type * as functions_vesselTrips_updates_buildCompletedTrip from "../funct
 import type * as functions_vesselTrips_updates_buildTrip from "../functions/vesselTrips/updates/buildTrip.js";
 import type * as functions_vesselTrips_updates_eventDetection from "../functions/vesselTrips/updates/eventDetection.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
+import type * as functions_vesselTrips_updates_tripDerivation from "../functions/vesselTrips/updates/tripDerivation.js";
 import type * as functions_vesselTrips_updates_updateVesselTrips from "../functions/vesselTrips/updates/updateVesselTrips.js";
 import type * as functions_vesselTrips_updates_utils from "../functions/vesselTrips/updates/utils.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
@@ -234,6 +235,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/buildTrip": typeof functions_vesselTrips_updates_buildTrip;
   "functions/vesselTrips/updates/eventDetection": typeof functions_vesselTrips_updates_eventDetection;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
+  "functions/vesselTrips/updates/tripDerivation": typeof functions_vesselTrips_updates_tripDerivation;
   "functions/vesselTrips/updates/updateVesselTrips": typeof functions_vesselTrips_updates_updateVesselTrips;
   "functions/vesselTrips/updates/utils": typeof functions_vesselTrips_updates_utils;
   "shared/convertDates": typeof shared_convertDates;
