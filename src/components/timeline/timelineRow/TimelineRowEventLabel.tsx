@@ -27,7 +27,7 @@ export const TimelineRowEventLabel = ({
       outlineColor={theme.outlines.color}
       style={{
         color: theme.text.bodyColor,
-        fontFamily: "BitcountPropSingle-500",
+        // fontFamily: "BitcountPropSingle-500",
         fontSize: 18,
       }}
     >

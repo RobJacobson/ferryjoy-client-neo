@@ -40,6 +40,9 @@ export type TimelineRenderRow = {
   markerAppearance: TimelineMarkerAppearance;
   segmentIndex: number;
   displayHeightPx: number;
+  startLabel: string;
+  showStartTimePlaceholder: boolean;
+  terminalHeadline?: string;
   startEvent: TimelineRenderEvent;
   endEvent?: TimelineRenderEvent;
   isFinalRow: boolean;

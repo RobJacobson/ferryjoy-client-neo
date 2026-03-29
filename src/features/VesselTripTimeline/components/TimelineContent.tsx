@@ -15,6 +15,7 @@ import {
   TimelineTrack,
   useAnimatedProgress,
 } from "@/components/timeline";
+import type { TimelineRenderRow as SharedTimelineRenderRow } from "@/components/timeline";
 import { getBoundaryTopPx } from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type {
@@ -99,7 +100,9 @@ export const TimelineContent = ({
   );
 };
 
-const toSharedTimelineRenderRow = (row: TimelineRenderRow) => ({
+const toSharedTimelineRenderRow = (
+  row: TimelineRenderRow
+): SharedTimelineRenderRow => ({
   ...row,
   displayHeightPx: row.geometryMinutes,
   startEvent: row.startBoundary,

@@ -69,6 +69,9 @@ describe("getStaticVesselTimelineRenderState", () => {
 
     expect(renderState.rows).toHaveLength(5);
     expect(renderState.rows[2]?.kind).toBe("at-dock");
+    expect(renderState.rows[2]?.startLabel).toBe("Arv: VAI");
+    expect(renderState.rows[2]?.terminalHeadline).toBe("Vashon Is.");
+    expect(renderState.rows[2]?.showStartTimePlaceholder).toBeTrue();
     expect(renderState.rows[2]?.startEvent.currTerminalAbbrev).toBe("VAI");
     expect(renderState.rows[2]?.startEvent.currTerminalDisplayName).toBe(
       "Vashon Is."
@@ -76,6 +79,9 @@ describe("getStaticVesselTimelineRenderState", () => {
     expect(renderState.rows[2]?.startEvent.isArrivalPlaceholder).toBeTrue();
     expect(renderState.rows[2]?.startEvent.timePoint.scheduled).toBeUndefined();
     expect(renderState.rows[3]?.kind).toBe("at-sea");
+    expect(renderState.rows[3]?.startLabel).toBe("To: FAU");
+    expect(renderState.rows[3]?.terminalHeadline).toBeUndefined();
+    expect(renderState.rows[3]?.showStartTimePlaceholder).toBeFalse();
     expect(renderState.rows[3]?.startEvent.nextTerminalAbbrev).toBe("FAU");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([
       "top",

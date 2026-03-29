@@ -20,7 +20,7 @@ import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
 
 const EVENT_TIME_TEXT_STYLE = {
-  fontFamily: "BitcountPropSingle-500",
+  // fontFamily: "BitcountPropSingle-500",
   fontSize: TIMELINE_ROW_CONFIG.times.textFontSizePx,
 } as const;
 const eventTypeIcons = {

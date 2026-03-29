@@ -106,10 +106,13 @@ Source:
 
 ### 5. The render-state layer builds UI-ready geometry
 
-`getVesselTimelineRenderState` turns semantic segments plus active/live state
-into:
+`getStaticVesselTimelineRenderState` and
+`getVesselTimelineActiveIndicator` turn semantic segments plus active/live
+state into:
 
 - timeline rows
+- row display props such as start labels, optional terminal headlines, and
+  placeholder visibility
 - row layout bounds
 - terminal card geometry
 - active indicator placement
@@ -121,7 +124,7 @@ Source:
 
 ## Rendering Notes
 
-- `TimelineContent` renders a fixed-height scrollable canvas.
+- `VesselTimelineContent` renders a fixed-height scrollable canvas.
 - Initial auto-scroll centers the active indicator when one exists.
 - Displayed event times are chosen in user-facing order:
   - `EventActualTime`
@@ -138,6 +141,7 @@ Source:
 - actual and predicted rows are sparse overlays keyed to scheduled rows
 - placeholders are client-owned presentation artifacts
 - active-state resolution is client-owned
+- row display copy is computed in render-state, not in shared row components
 - no backend snapshot document exists for `VesselTimeline`
 
 ## Where To Look
@@ -153,4 +157,4 @@ Source:
 - Render-state assembly:
   [getVesselTimelineRenderState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getVesselTimelineRenderState.ts)
 - Final renderer:
-  [TimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/TimelineContent.tsx)
+  [VesselTimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimelineContent.tsx)
