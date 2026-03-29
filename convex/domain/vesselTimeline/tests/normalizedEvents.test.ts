@@ -3,12 +3,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryEventsFromTrips,
   buildPredictedBoundaryProjectionEffect,
 } from "../normalizedEvents";
-import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -104,9 +104,7 @@ const makePrediction = (PredTime: number) => ({
   DeltaRange: undefined,
 });
 
-const makeTrip = (
-  overrides: Partial<ConvexVesselTrip>
-): ConvexVesselTrip => ({
+const makeTrip = (overrides: Partial<ConvexVesselTrip>): ConvexVesselTrip => ({
   VesselAbbrev: "WEN",
   DepartingTerminalAbbrev: "BBI",
   ArrivingTerminalAbbrev: "P52",

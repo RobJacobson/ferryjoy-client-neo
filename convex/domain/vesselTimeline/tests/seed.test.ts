@@ -5,7 +5,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
-import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import {

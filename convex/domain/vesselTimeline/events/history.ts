@@ -2,12 +2,12 @@
  * History-backed enrichment for schedule-seeded boundary events.
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { config } from "../../ml/shared/config";
 import { getVesselAbbreviation } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { getSailingDay } from "../../../shared/time";
+import { config } from "../../ml/shared/config";
 import { getDirectRawSeedSegments } from "./seed";
 
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;

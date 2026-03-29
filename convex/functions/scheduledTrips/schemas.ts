@@ -9,8 +9,7 @@ import { epochMsToDate } from "../../shared/convertDates";
 import { getTerminalAbbreviation } from "../../shared/terminalLocations";
 
 // Re-export for convenience
-export { getVesselAbbreviation };
-export { getTerminalAbbreviation };
+export { getTerminalAbbreviation, getVesselAbbreviation };
 
 /**
  * Convex validator for scheduled trips

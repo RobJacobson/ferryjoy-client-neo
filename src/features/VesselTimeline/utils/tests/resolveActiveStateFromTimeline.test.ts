@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
-import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
 import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
+import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
+import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
 import { resolveActiveStateFromTimeline } from "../resolveActiveStateFromTimeline";
 
 const at = (hours: number, minutes: number) =>

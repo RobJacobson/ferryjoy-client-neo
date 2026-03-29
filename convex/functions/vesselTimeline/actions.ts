@@ -47,7 +47,8 @@ export const syncVesselTimelineForDateManual = action({
 
 export const syncVesselTimelineWindowed = internalAction({
   args: { daysToSync: v.optional(v.number()) },
-  handler: async (ctx, args) => await syncWindowedVesselTimeline(ctx, args.daysToSync),
+  handler: async (ctx, args) =>
+    await syncWindowedVesselTimeline(ctx, args.daysToSync),
 });
 
 export const syncVesselTimelineAtSailingDayBoundary = internalAction({
@@ -84,8 +85,12 @@ const syncVesselTimelineForDate = async (
     `${logPrefix} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
   );
 
-  const directEvents = buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
-  const historyRecords = await fetchHistoryRecordsForDate(scheduleSegments, targetDate);
+  const directEvents =
+    buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+  const historyRecords = await fetchHistoryRecordsForDate(
+    scheduleSegments,
+    targetDate
+  );
   const hydratedEvents = mergeSeededEventsWithHistory({
     sailingDay: targetDate,
     seededEvents: directEvents,
@@ -95,7 +100,8 @@ const syncVesselTimelineForDate = async (
   });
 
   const result = await ctx.runMutation(
-    internal.functions.vesselTimeline.mutations.replaceBoundaryEventsForSailingDay,
+    internal.functions.vesselTimeline.mutations
+      .replaceBoundaryEventsForSailingDay,
     {
       SailingDay: targetDate,
       Events: hydratedEvents,

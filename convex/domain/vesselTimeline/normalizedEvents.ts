@@ -10,11 +10,11 @@ import type {
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { PredictionType } from "../../functions/predictions/schemas";
 import type { ConvexActualBoundaryEffect } from "../../functions/vesselTimeline/actualEffects";
+import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/eventRecordSchemas";
 import type {
   ConvexPredictedBoundaryProjectionEffect,
   ConvexPredictedBoundaryProjectionRow,
 } from "../../functions/vesselTimeline/predictedEffects";
-import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/eventRecordSchemas";
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import { buildBoundaryKey } from "../../shared/keys";
 
@@ -135,7 +135,9 @@ export const buildPredictedBoundaryProjectionEffect = (
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay,
     TargetKeys,
-    Rows: buildPredictedBoundaryEventsFromTrip(trip).map(stripPredictedUpdatedAt),
+    Rows: buildPredictedBoundaryEventsFromTrip(trip).map(
+      stripPredictedUpdatedAt
+    ),
   };
 };
 

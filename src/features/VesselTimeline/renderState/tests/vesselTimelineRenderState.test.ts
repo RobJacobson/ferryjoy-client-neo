@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
+import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
 import {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
@@ -97,7 +97,10 @@ describe("getStaticVesselTimelineRenderState", () => {
       },
       reason: "location_anchor",
     });
-    const staticState = getStaticVesselTimelineRenderState(segments, activeState);
+    const staticState = getStaticVesselTimelineRenderState(
+      segments,
+      activeState
+    );
     const earlyIndicator = getVesselTimelineActiveIndicator({
       segments,
       activeState,

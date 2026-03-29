@@ -25,11 +25,15 @@ export type ConvexActualBoundaryEvent = Infer<typeof eventsActualSchema>;
  * @param event - Actual boundary event using epoch milliseconds
  * @returns Actual boundary event with `Date` instances
  */
-export const toDomainActualBoundaryEvent = (event: ConvexActualBoundaryEvent) => ({
+export const toDomainActualBoundaryEvent = (
+  event: ConvexActualBoundaryEvent
+) => ({
   ...event,
   UpdatedAt: epochMsToDate(event.UpdatedAt),
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
   EventActualTime: epochMsToDate(event.EventActualTime),
 });
 
-export type ActualBoundaryEvent = ReturnType<typeof toDomainActualBoundaryEvent>;
+export type ActualBoundaryEvent = ReturnType<
+  typeof toDomainActualBoundaryEvent
+>;

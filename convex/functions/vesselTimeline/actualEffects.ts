@@ -16,4 +16,6 @@ export const actualBoundaryEffectSchema = v.object({
   EventActualTime: v.number(),
 });
 
-export type ConvexActualBoundaryEffect = Infer<typeof actualBoundaryEffectSchema>;
+export type ConvexActualBoundaryEffect = Infer<
+  typeof actualBoundaryEffectSchema
+>;

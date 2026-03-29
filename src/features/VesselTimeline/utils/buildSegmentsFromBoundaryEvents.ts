@@ -2,13 +2,13 @@
  * Builds semantic VesselTimeline segments from normalized boundary events.
  */
 
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
-import { getLayoutTime } from "../rowEventTime";
 import type {
   MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
   VesselTimelineSegmentEvent,
 } from "convex/functions/vesselTimeline/schemas";
+import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
+import { getLayoutTime } from "../rowEventTime";
 
 /**
  * Converts ordered merged boundary events into semantic dock and sea segments.

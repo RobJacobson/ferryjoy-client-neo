@@ -15,7 +15,6 @@ export {
 export { TimelineGlassSurface } from "./TimelineGlassSurface";
 export { TimelineTerminalCardBackgrounds } from "./TimelineTerminalCardBackgrounds";
 export { TimelineTrack } from "./TimelineTrack";
-export { useAnimatedProgress } from "./useAnimatedProgress";
 export {
   BASE_TIMELINE_VISUAL_THEME,
   CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME,
@@ -39,6 +38,7 @@ export type {
   TimelineRenderRow,
   TimelineTimePoint,
 } from "./types";
+export { useAnimatedProgress } from "./useAnimatedProgress";
 export {
   getBoundaryTopPx,
   getTrackFractions,

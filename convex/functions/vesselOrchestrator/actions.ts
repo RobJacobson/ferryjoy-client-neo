@@ -64,8 +64,10 @@ export const updateVesselOrchestrator = internalAction({
       };
     }
 
-    const branchResults: [PromiseSettledResult<void>, PromiseSettledResult<void>] =
-      await Promise.allSettled([
+    const branchResults: [
+      PromiseSettledResult<void>,
+      PromiseSettledResult<void>,
+    ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
       runUpdateVesselTrips(ctx, convexLocations),
     ]);

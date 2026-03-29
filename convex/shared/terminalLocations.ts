@@ -170,5 +170,4 @@ export const getTerminalNameByAbbrev = (abbrev: string): string | null =>
 export const getTerminalAbbreviation = (terminalName: string): string =>
   Object.values(terminalLocations).find(
     (terminal) => terminal.TerminalName === terminalName
-  )
-    ?.TerminalAbbrev || "";
+  )?.TerminalAbbrev || "";

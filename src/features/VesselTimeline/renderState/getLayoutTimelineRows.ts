@@ -81,7 +81,7 @@ const getDisplayHeightPx = (
     layout.minRowHeightPx,
     layout.rowHeightBasePx +
       layout.rowHeightScalePx *
-        Math.pow(Math.max(0, row.durationMinutes), layout.rowHeightExponent)
+        Math.max(0, row.durationMinutes) ** layout.rowHeightExponent
   );
 
 /**

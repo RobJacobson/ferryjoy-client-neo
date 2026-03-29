@@ -27,7 +27,9 @@ export const vesselTimelineEventRecordSchema = v.object({
   EventActualTime: v.optional(v.number()),
 });
 
-export type VesselTimelineEventType = Infer<typeof vesselTimelineEventTypeSchema>;
+export type VesselTimelineEventType = Infer<
+  typeof vesselTimelineEventTypeSchema
+>;
 export type ConvexVesselTimelineEventRecord = Infer<
   typeof vesselTimelineEventRecordSchema
 >;

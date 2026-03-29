@@ -45,10 +45,7 @@ export const TimelineTrack = ({
   const animatedCompletedStyle = useAnimatedStyle(
     () => ({
       height: completedBoundaryTopPx
-        ? Math.max(
-            0,
-            Math.min(containerHeightPx, completedBoundaryTopPx.value)
-          )
+        ? Math.max(0, Math.min(containerHeightPx, completedBoundaryTopPx.value))
         : 0,
     }),
     [completedBoundaryTopPx, containerHeightPx]

@@ -61,7 +61,8 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        EventActualTime:
+          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -92,7 +93,8 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+        EventActualTime:
+          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
       })
     );
 
@@ -123,7 +125,8 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        EventActualTime: index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
+        EventActualTime:
+          index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
       })
     );
 
@@ -155,7 +158,8 @@ describe("mergeSeededEventsWithHistory", () => {
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
-        EventActualTime: index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
+        EventActualTime:
+          index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
       })
     );
 

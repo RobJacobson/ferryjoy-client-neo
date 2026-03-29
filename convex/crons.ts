@@ -48,14 +48,16 @@ crons.cron(
 crons.cron(
   "daily VesselTimeline boundary sync (dst)",
   "5 10 * * *", // 3:05 AM PDT
-  internal.functions.vesselTimeline.index.syncVesselTimelineAtSailingDayBoundary,
+  internal.functions.vesselTimeline.index
+    .syncVesselTimelineAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 
 crons.cron(
   "daily VesselTimeline boundary sync (standard)",
   "5 11 * * *", // 3:05 AM PST
-  internal.functions.vesselTimeline.index.syncVesselTimelineAtSailingDayBoundary,
+  internal.functions.vesselTimeline.index
+    .syncVesselTimelineAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 

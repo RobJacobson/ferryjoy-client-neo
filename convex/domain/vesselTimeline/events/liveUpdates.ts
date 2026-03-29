@@ -83,7 +83,11 @@ export const applyLiveLocationToEvents = (
     location,
     "dep-dock"
   );
-  const arrivalEvent = getLocationAnchoredEvent(nextEvents, location, "arv-dock");
+  const arrivalEvent = getLocationAnchoredEvent(
+    nextEvents,
+    location,
+    "arv-dock"
+  );
 
   if (
     canWriteLiveActuals(location) &&
@@ -177,8 +181,7 @@ export const normalizeScheduledDockSeams = (
       ) {
         adjustedScheduledTimesByKey.set(
           event.Key,
-          event.EventScheduledTime -
-            IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+          event.EventScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
         );
       }
     }

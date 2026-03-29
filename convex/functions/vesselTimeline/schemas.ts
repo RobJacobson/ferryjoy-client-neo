@@ -9,7 +9,10 @@ import {
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
 import { eventsActualSchema } from "../eventsActual/schemas";
-import { eventsScheduledSchema, boundaryEventTypeSchema } from "../eventsScheduled/schemas";
+import {
+  boundaryEventTypeSchema,
+  eventsScheduledSchema,
+} from "../eventsScheduled/schemas";
 
 export const timelinePredictedBoundaryEventSchema = v.object({
   Key: v.string(),
@@ -140,4 +143,4 @@ export type MergedTimelineBoundaryEvent = ReturnType<
   typeof toDomainMergedTimelineBoundaryEvent
 >;
 
-export { eventsScheduledSchema, eventsActualSchema };
+export { eventsActualSchema, eventsScheduledSchema };

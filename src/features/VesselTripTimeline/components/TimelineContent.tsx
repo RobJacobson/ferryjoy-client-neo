@@ -62,7 +62,9 @@ export const TimelineContent = ({
         <TimelineTrack
           containerHeightPx={CONTAINER_HEIGHT_PX}
           completedBoundaryTopPx={
-            activeIndicator && boundaryTopPx !== null ? animatedBoundaryTopPx : null
+            activeIndicator && boundaryTopPx !== null
+              ? animatedBoundaryTopPx
+              : null
           }
           theme={theme}
         />
@@ -84,7 +86,9 @@ export const TimelineContent = ({
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}
           animatedBoundaryTopPx={
-            activeIndicator && boundaryTopPx !== null ? animatedBoundaryTopPx : null
+            activeIndicator && boundaryTopPx !== null
+              ? animatedBoundaryTopPx
+              : null
           }
           blurTargetRef={blurTargetRef}
           rowLayouts={rowLayouts}

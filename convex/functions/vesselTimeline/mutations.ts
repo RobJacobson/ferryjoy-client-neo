@@ -6,19 +6,22 @@ import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { normalizeScheduledDockSeams, sortVesselTripEvents } from "domain/vesselTimeline/events";
+import {
+  normalizeScheduledDockSeams,
+  sortVesselTripEvents,
+} from "domain/vesselTimeline/events";
 import {
   buildActualBoundaryEventFromEffect,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
-import { actualBoundaryEffectSchema } from "./actualEffects";
-import {
-  predictedBoundaryProjectionEffectSchema,
-  type ConvexPredictedBoundaryProjectionRow,
-} from "./predictedEffects";
-import { vesselTimelineEventRecordSchema } from "./eventRecordSchemas";
 import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
+import { actualBoundaryEffectSchema } from "./actualEffects";
+import { vesselTimelineEventRecordSchema } from "./eventRecordSchemas";
+import {
+  type ConvexPredictedBoundaryProjectionRow,
+  predictedBoundaryProjectionEffectSchema,
+} from "./predictedEffects";
 
 export const replaceBoundaryEventsForSailingDay = internalMutation({
   args: {
@@ -31,7 +34,9 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
   }),
   handler: async (ctx, args) => {
     const updatedAt = Date.now();
-    const events = normalizeScheduledDockSeams(args.Events).sort(sortVesselTripEvents);
+    const events = normalizeScheduledDockSeams(args.Events).sort(
+      sortVesselTripEvents
+    );
 
     await replaceScheduledRowsForSailingDay(
       ctx,
@@ -159,7 +164,9 @@ export const projectPredictedBoundaryEffects = internalMutation({
           ...row,
           UpdatedAt: updatedAt,
         };
-        const existing = existingRows.find((existingRow) => existingRow.Key === Key);
+        const existing = existingRows.find(
+          (existingRow) => existingRow.Key === Key
+        );
 
         if (!existing) {
           await ctx.db.insert("eventsPredicted", nextRow);
