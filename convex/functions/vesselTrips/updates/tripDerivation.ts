@@ -8,7 +8,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
-import { computeTripKey } from "./utils";
+import { computeTripKey } from "./tripEquality";
 
 export type BaseTripMode = "start" | "dock_hold" | "continue";
 

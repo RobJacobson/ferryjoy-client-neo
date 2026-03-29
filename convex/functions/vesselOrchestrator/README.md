@@ -148,7 +148,7 @@ WSF API
   -> convert locations
   -> fan out in parallel:
        branch 1: vesselLocations bulkUpsert
-       branch 2: runUpdateVesselTrips
+       branch 2: processVesselTrips
 ```
 
 ### Timeline feed flow
@@ -190,7 +190,7 @@ The orchestrator keeps external API usage efficient:
 - one conversion pass over the fetched payload before downstream fan-out
 - concurrent downstream execution instead of serial branch processing
 
-Within `runUpdateVesselTrips`, per-vessel trip build/enrichment work is also
+Within `processVesselTrips`, per-vessel trip build/enrichment work is also
 parallelized before persistence, while database writes remain batched where
 possible (`upsertVesselTripsBatch` and batched predicted-event sync).
 

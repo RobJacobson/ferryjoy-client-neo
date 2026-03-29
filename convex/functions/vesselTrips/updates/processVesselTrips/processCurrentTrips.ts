@@ -16,9 +16,9 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildTrip } from "./buildTrip";
-import type { TripEvents } from "./eventDetection";
-import { tripsAreEqual } from "./utils";
+import { buildTrip } from "../buildTrip";
+import type { TripEvents } from "../eventDetection";
+import { tripsAreEqual } from "../tripEquality";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;

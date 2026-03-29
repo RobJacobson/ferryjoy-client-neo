@@ -1,5 +1,5 @@
 /**
- * Top-level vessel-trip update orchestrator.
+ * Vessel-trip processing entrypoint.
  *
  * Coordinates trip-boundary detection, active-trip persistence, prediction
  * lifecycle events, and downstream projection writes for each vessel tick.
@@ -10,10 +10,10 @@ import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip } from "./buildCompletedTrip";
-import { buildTrip } from "./buildTrip";
-import type { TripEvents } from "./eventDetection";
-import { detectTripEvents } from "./eventDetection";
+import { buildCompletedTrip } from "../buildCompletedTrip";
+import { buildTrip } from "../buildTrip";
+import type { TripEvents } from "../eventDetection";
+import { detectTripEvents } from "../eventDetection";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
@@ -36,12 +36,12 @@ type CompletedTripTransition = TripTransition & {
   existingTrip: ConvexVesselTrip;
 };
 
-type UpdateVesselTripsDeps = ProcessCurrentTripsDeps &
+type ProcessVesselTripsDeps = ProcessCurrentTripsDeps &
   ProcessCompletedTripsDeps & {
     detectTripEvents: typeof detectTripEvents;
   };
 
-const DEFAULT_UPDATE_VESSEL_TRIPS_DEPS: UpdateVesselTripsDeps = {
+const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
   buildCompletedTrip,
   buildTrip,
   detectTripEvents,
@@ -96,7 +96,7 @@ const logDockSignalDisagreement = (
 };
 
 /**
- * Main orchestration for updating active vessel trips.
+ * Process vessel trips for one orchestrator tick.
  *
  * Builds a per-vessel transition object once, categorizes transitions by trip
  * boundary, then delegates to processing functions that handle persistence.
@@ -106,21 +106,21 @@ const logDockSignalDisagreement = (
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
  * @returns Promise that resolves once the update pass completes
  */
-export const runUpdateVesselTrips = async (
+export const processVesselTrips = async (
   ctx: ActionCtx,
   locations: ConvexVesselLocation[],
   tickStartedAt: number
 ): Promise<void> => {
-  await runUpdateVesselTripsWithDeps(
+  await processVesselTripsWithDeps(
     ctx,
     locations,
     tickStartedAt,
-    DEFAULT_UPDATE_VESSEL_TRIPS_DEPS
+    DEFAULT_PROCESS_VESSEL_TRIPS_DEPS
   );
 };
 
 /**
- * Main orchestration for updating active vessel trips with injectable dependencies.
+ * Process vessel trips with injectable dependencies.
  *
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to process after orchestrator conversion
@@ -128,11 +128,11 @@ export const runUpdateVesselTrips = async (
  * @param deps - Internal dependency bag used for testability
  * @returns Promise that resolves after all trip updates and projections complete
  */
-export const runUpdateVesselTripsWithDeps = async (
+export const processVesselTripsWithDeps = async (
   ctx: ActionCtx,
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
-  deps: UpdateVesselTripsDeps
+  deps: ProcessVesselTripsDeps
 ): Promise<void> => {
   const existingTripsList = await ctx.runQuery(
     api.functions.vesselTrips.queries.getActiveTrips

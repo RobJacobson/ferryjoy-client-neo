@@ -28,7 +28,7 @@ This module synchronizes active vessel trips with live location data. It runs as
 ### Pipeline Overview
 
 ```
-runUpdateVesselTrips (entry point)
+processVesselTrips (entry point)
     ├─> Load active trips (once)
     ├─> Build TripTransition objects:
     │       { currLocation, existingTrip, events }
@@ -66,17 +66,17 @@ runUpdateVesselTrips (entry point)
 
 | File | Purpose |
 |------|---------|
-| `updateVesselTrips.ts` | Main orchestrator: builds `TripTransition` objects, categorizes them into completed/current, delegates to processing functions |
+| `processVesselTrips/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, and delegates to processing functions |
+| `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence, `trip_complete` prediction side effects, and boundary effect collection |
+| `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-persist `leave_dock` side effects, and boundary effect collection |
 | `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, `SailingDay`, `Key`, dock departure, start-ready promotion, and explicit base-trip mode selection |
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
-| `processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence, `trip_complete` prediction side effects, and boundary effect collection |
-| `processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-persist `leave_dock` side effects, and boundary effect collection |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip using explicit `start` / `dock_hold` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
-| `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
+| `tripEquality.ts` | `computeTripKey`, `tripsAreEqual`, `deepEqual`, `compareTripFields` — trip key and equality utilities |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
 **External dependencies**:
@@ -163,7 +163,7 @@ buildTrip(
 
 **Benefits**:
 - Single entry point for trip construction used by both `processCompletedTrips` and `processCurrentTrips`, with `tripStart` explicitly marking when a real trip begins
-- Events computed once in `runUpdateVesselTrips` and passed through call chain, avoiding redundant computation
+- Events computed once in `processVesselTrips` and passed through call chain, avoiding redundant computation
 - Shared trip derivation keeps event detection and base-trip construction in sync
 - Consistent application of all enrichments across trip boundaries and regular updates
 - Clear separation of concerns: `baseTripFromLocation` for raw data, schedule functions for database lookups, prediction functions for ML
@@ -361,7 +361,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 - `eventsActual` and `eventsPredicted` are refreshed from finalized trip state after the trip write succeeds
 
 **Separation of Concerns**:
-- Trip orchestrator (`updateVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries
+- Trip processor (`processVesselTrips/processVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries
 - Prediction service (`convex/domain/ml/prediction/predictionService.ts`) handles post-persist prediction side effects independently
 
 ---
@@ -411,10 +411,10 @@ The `PredictionService` manages post-persist prediction side effects through an 
 ## Recent Improvements
 
 1. **Renamed file**: `buildTripWithAllData.ts` → `buildTrip.ts` for consistency between file name and export
-2. **Transition-based orchestration**: `runUpdateVesselTrips()` now builds `TripTransition` objects so events are computed once and carried through the pipeline
+2. **Transition-based orchestration**: `processVesselTrips()` now builds `TripTransition` objects so events are computed once and carried through the pipeline
 3. **Shared dock-departure inference**: `getDockDepartureState()` now centralizes `LeftDock` inference for both event detection and trip field derivation
 4. **Post-persist leave-dock side effects**: `PredictionService` leave-dock handlers now run only after `upsertVesselTripsBatch` succeeds for that vessel
-5. **Explicit fallback flag**: `runUpdateVesselTrips()` computes `shouldRunPredictionFallback` once per tick and passes it into `buildTrip()`
+5. **Explicit fallback flag**: `processVesselTrips()` computes `shouldRunPredictionFallback` once per tick and passes it into `buildTrip()`
 6. **Cleaned up console logs**: Removed debug `console.log` statements from `buildTrip.ts`
 7. **Fixed documentation**: Removed outdated comment in `buildCompletedTrip.ts` about prediction actualization (handled separately by PredictionService)
 8. **Simplified naming**: Implemented clearer naming convention:

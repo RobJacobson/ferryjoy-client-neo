@@ -1,12 +1,12 @@
 /**
- * Sequencing tests for the top-level vessel trip updater.
+ * Sequencing tests for the top-level vessel trip processor.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "../eventDetection";
-import { runUpdateVesselTripsWithDeps } from "../updateVesselTrips";
+import { processVesselTripsWithDeps } from "../processVesselTrips/processVesselTrips";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -18,7 +18,7 @@ const defaultEvents: TripEvents = {
   keyChanged: false,
 };
 
-describe("runUpdateVesselTripsWithDeps", () => {
+describe("processVesselTripsWithDeps", () => {
   it("skips writes and side effects when the current trip is unchanged", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
@@ -27,7 +27,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       activeTrips: [existingTrip],
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [currLocation],
       tickMs(),
@@ -55,7 +55,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       },
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [currLocation],
       tickMs(),
@@ -89,7 +89,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       },
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [currLocation],
       tickMs(),
@@ -131,7 +131,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       },
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [currLocation],
       tickMs(),
@@ -178,7 +178,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       callSequence,
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [currLocation],
       tickMs(),
@@ -246,7 +246,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
       ]),
     });
 
-    await runUpdateVesselTripsWithDeps(
+    await processVesselTripsWithDeps(
       ctx,
       [cheLocation, tacLocation],
       tickMs(),
@@ -303,7 +303,7 @@ describe("runUpdateVesselTripsWithDeps", () => {
     };
 
     try {
-      await runUpdateVesselTripsWithDeps(
+      await processVesselTripsWithDeps(
         ctx,
         [cheLocation, tacLocation],
         tickMs(),
@@ -419,7 +419,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `runUpdateVesselTripsWithDeps`
+ * @returns Dependency bag for `processVesselTripsWithDeps`
  */
 const createDeps = (input: TestDepsInput) => ({
   buildCompletedTrip: (existingTrip: ConvexVesselTrip) => existingTrip,

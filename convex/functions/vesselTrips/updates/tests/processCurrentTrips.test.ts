@@ -9,7 +9,7 @@ import type { TripEvents } from "../eventDetection";
 import {
   type ProcessCurrentTripsDeps,
   processCurrentTrips,
-} from "../processCurrentTrips";
+} from "../processVesselTrips/processCurrentTrips";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,

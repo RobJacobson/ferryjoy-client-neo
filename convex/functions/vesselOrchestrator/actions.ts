@@ -3,13 +3,13 @@ import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
+import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
- * updateVesselLocations and updateVesselTrips subroutines with robust error isolation.
+ * updateVesselLocations and processVesselTrips subroutines with robust error isolation.
  *
  * This action eliminates duplicate API calls by fetching vessel locations once,
  * then passing the same converted data to both processing functions. Failures
@@ -20,7 +20,7 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  * 2. Convert each WSF payload to `ConvexVesselLocation`
  * 3. Capture one tick timestamp for downstream consumers
  * 4. Call updateVesselLocations() with error isolation
- * 5. Call runUpdateVesselTrips() with error isolation
+ * 5. Call processVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -72,7 +72,7 @@ export const updateVesselOrchestrator = internalAction({
       PromiseSettledResult<void>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      runUpdateVesselTrips(ctx, convexLocations, tickStartedAt),
+      processVesselTrips(ctx, convexLocations, tickStartedAt),
     ]);
 
     const [locationsResult, tripsResult] = branchResults;
@@ -86,7 +86,7 @@ export const updateVesselOrchestrator = internalAction({
     if (tripsResult.status === "rejected") {
       const err = normalizeError(tripsResult.reason);
       errors.trips = { message: err.message, stack: err.stack };
-      console.error("runUpdateVesselTrips failed:", err);
+      console.error("processVesselTrips failed:", err);
     }
 
     return {
