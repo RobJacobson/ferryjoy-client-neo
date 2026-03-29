@@ -71,11 +71,13 @@ runUpdateVesselTrips (entry point)
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
+| `processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence, `trip_complete` prediction side effects, and boundary effect collection |
+| `processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-persist `leave_dock` side effects, and boundary effect collection |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip using explicit `start` / `dock_hold` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
 | `utils.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality checking utilities |
-| `tests/*.test.ts` | Focused unit and sequencing coverage for builders, event detection, current-trip processing, and top-level update orchestration |
+| `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
 **External dependencies**:
 - `convex/domain/ml/prediction/predictionService.ts` — Prediction side effects after persistence (`trip_complete`, `leave_dock` record insertion and backfill)

@@ -8,23 +8,20 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
-import {
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
-} from "domain/vesselTimeline/normalizedEvents";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "./buildCompletedTrip";
 import { buildTrip } from "./buildTrip";
-import {
-  type CurrentTripProcessingDeps,
-  type ProjectionResults,
-  processCurrentTrips,
-} from "./currentTripProcessing";
 import type { TripEvents } from "./eventDetection";
 import { detectTripEvents } from "./eventDetection";
+import {
+  type ProcessCompletedTripsDeps,
+  processCompletedTrips,
+} from "./processCompletedTrips";
+import {
+  type ProcessCurrentTripsDeps,
+  processCurrentTrips,
+} from "./processCurrentTrips";
 
 // Restrict time-based retries to the first few seconds of each minute.
 const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
@@ -39,10 +36,10 @@ type CompletedTripTransition = TripTransition & {
   existingTrip: ConvexVesselTrip;
 };
 
-type UpdateVesselTripsDeps = CurrentTripProcessingDeps & {
-  buildCompletedTrip: typeof buildCompletedTrip;
-  detectTripEvents: typeof detectTripEvents;
-};
+type UpdateVesselTripsDeps = ProcessCurrentTripsDeps &
+  ProcessCompletedTripsDeps & {
+    detectTripEvents: typeof detectTripEvents;
+  };
 
 const DEFAULT_UPDATE_VESSEL_TRIPS_DEPS: UpdateVesselTripsDeps = {
   buildCompletedTrip,
@@ -166,7 +163,12 @@ export const runUpdateVesselTripsWithDeps = async (
     ctx,
     completedTrips,
     shouldRunPredictionFallback,
-    deps
+    logVesselProcessingError,
+    {
+      buildCompletedTrip: deps.buildCompletedTrip,
+      buildTrip: deps.buildTrip,
+      handlePredictionEvent: deps.handlePredictionEvent,
+    }
   );
   const currentEffects = await processCurrentTrips(
     ctx,
@@ -211,89 +213,6 @@ export const runUpdateVesselTripsWithDeps = async (
         )
       : Promise.resolve(),
   ]);
-};
-
-/**
- * Process trip boundaries: complete current trip and start new one.
- *
- * Takes the vessels at trip boundaries, finalizes the old trip, and replaces it
- * with the new active trip.
- *
- * @param ctx - Convex action context
- * @param completedTrips - Array of vessel transitions at trip boundaries
- * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
- * @param deps - Injectable helpers used by the orchestrator
- * @returns Projection effects derived from successfully processed boundaries
- */
-const processCompletedTrips = async (
-  ctx: ActionCtx,
-  completedTrips: CompletedTripTransition[],
-  shouldRunPredictionFallback: boolean,
-  deps: UpdateVesselTripsDeps
-): Promise<ProjectionResults> => {
-  const actualEffects: ConvexActualBoundaryEffect[] = [];
-  const predictedEffects: ConvexPredictedBoundaryProjectionEffect[] = [];
-
-  for (const { existingTrip, currLocation, events } of completedTrips) {
-    try {
-      // Build completed trip from the existing active trip.
-      const tripToComplete = deps.buildCompletedTrip(
-        existingTrip,
-        currLocation
-      );
-
-      // Build the replacement active trip using the same transition context.
-      const newTrip = await deps.buildTrip(
-        ctx,
-        currLocation,
-        tripToComplete,
-        true,
-        events,
-        shouldRunPredictionFallback
-      );
-
-      // Persist atomically (complete + start)
-      await ctx.runMutation(
-        api.functions.vesselTrips.mutations.completeAndStartNewTrip,
-        {
-          completedTrip: tripToComplete,
-          newTrip,
-        }
-      );
-
-      // Delegate prediction lifecycle to service
-      await deps.handlePredictionEvent(ctx, {
-        eventType: "trip_complete",
-        trip: tripToComplete,
-      });
-
-      const arrivalEffect = buildArrivalActualEffect(tripToComplete);
-      if (arrivalEffect) {
-        actualEffects.push(arrivalEffect);
-      }
-
-      const clearEffect = buildPredictedBoundaryClearEffect(existingTrip);
-      if (clearEffect) {
-        predictedEffects.push(clearEffect);
-      }
-
-      const projectEffect = buildPredictedBoundaryProjectionEffect(newTrip);
-      if (projectEffect) {
-        predictedEffects.push(projectEffect);
-      }
-    } catch (error) {
-      logVesselProcessingError(
-        currLocation.VesselAbbrev,
-        "completed-trip processing",
-        error
-      );
-    }
-  }
-
-  return {
-    actualEffects,
-    predictedEffects,
-  };
 };
 
 /**
@@ -346,34 +265,4 @@ const logVesselProcessingError = (
     `[VesselTrips] Failed ${phase} for ${vesselAbbrev}: ${err.message}`,
     err
   );
-};
-
-/**
- * Build the actual arrival projection effect for a finalized trip state.
- *
- * @param trip - Finalized trip carrying a canonical segment key and arrival time
- * @returns Arrival effect, or null when the trip is not projection-ready
- */
-const buildArrivalActualEffect = (
-  trip: ConvexVesselTrip
-): ConvexActualBoundaryEffect | null => {
-  if (
-    !trip.Key ||
-    !trip.SailingDay ||
-    trip.ScheduledDeparture === undefined ||
-    trip.ArriveDest === undefined ||
-    !trip.ArrivingTerminalAbbrev
-  ) {
-    return null;
-  }
-
-  return {
-    SegmentKey: trip.Key,
-    VesselAbbrev: trip.VesselAbbrev,
-    SailingDay: trip.SailingDay,
-    ScheduledDeparture: trip.ScheduledDeparture,
-    TerminalAbbrev: trip.ArrivingTerminalAbbrev,
-    EventType: "arv-dock",
-    EventActualTime: trip.ArriveDest,
-  };
 };

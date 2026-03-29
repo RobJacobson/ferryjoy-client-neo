@@ -1,7 +1,7 @@
 /**
- * Current-trip processing helpers for vessel trip updates.
+ * Current-trip processing for vessel trip updates.
  *
- * Keeps the steady-state active-trip path separate from the top-level updater
+ * Handles the steady-state active-trip path outside the top-level orchestrator
  * while preserving the existing persistence and post-persist sequencing rules.
  */
 
@@ -60,7 +60,7 @@ type UpsertBatchResult = {
   }>;
 };
 
-type CurrentTripProcessingCallbacks = {
+type ProcessCurrentTripsCallbacks = {
   logDockSignalDisagreement: (
     existingTrip: ConvexVesselTrip | undefined,
     currLocation: ConvexVesselLocation
@@ -72,17 +72,17 @@ type CurrentTripProcessingCallbacks = {
   ) => void;
 };
 
-export type ProjectionResults = {
+type ProjectionResults = {
   actualEffects: ConvexActualBoundaryEffect[];
   predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
-export type CurrentTripProcessingDeps = {
+export type ProcessCurrentTripsDeps = {
   buildTrip: typeof buildTrip;
   handlePredictionEvent: typeof handlePredictionEvent;
 };
 
-const DEFAULT_CURRENT_TRIP_PROCESSING_DEPS: CurrentTripProcessingDeps = {
+const DEFAULT_PROCESS_CURRENT_TRIPS_DEPS: ProcessCurrentTripsDeps = {
   buildTrip,
   handlePredictionEvent,
 };
@@ -101,8 +101,8 @@ export const processCurrentTrips = async (
   ctx: ActionCtx,
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
-  callbacks: CurrentTripProcessingCallbacks,
-  deps: CurrentTripProcessingDeps = DEFAULT_CURRENT_TRIP_PROCESSING_DEPS
+  callbacks: ProcessCurrentTripsCallbacks,
+  deps: ProcessCurrentTripsDeps = DEFAULT_PROCESS_CURRENT_TRIPS_DEPS
 ): Promise<ProjectionResults> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map((transition) =>

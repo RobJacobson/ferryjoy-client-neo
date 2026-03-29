@@ -5,11 +5,11 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import {
-  type CurrentTripProcessingDeps,
-  processCurrentTrips,
-} from "../currentTripProcessing";
 import type { TripEvents } from "../eventDetection";
+import {
+  type ProcessCurrentTripsDeps,
+  processCurrentTrips,
+} from "../processCurrentTrips";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -279,7 +279,7 @@ const createCallbacks = () => ({
   logVesselProcessingError: () => undefined,
 });
 
-const createDeps = (input: TestDepsInput): CurrentTripProcessingDeps => ({
+const createDeps = (input: TestDepsInput): ProcessCurrentTripsDeps => ({
   buildTrip: async (_ctx, currLocation): Promise<ConvexVesselTrip> => {
     const builtTrip = input.builtTripsByVessel.get(currLocation.VesselAbbrev);
     if (!builtTrip) {
