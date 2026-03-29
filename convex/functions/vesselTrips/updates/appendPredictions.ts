@@ -1,7 +1,9 @@
-// ============================================================================
-// Append ML Predictions
-// Enriches vessel trips with ML predictions using hybrid event and time-based approach
-// ============================================================================
+/**
+ * Prediction enrichment helpers for vessel-trip updates.
+ *
+ * Adds the ML predictions that are valid for the trip's current phase and
+ * supports both event-driven runs and the once-per-minute fallback window.
+ */
 
 import type { ActionCtx } from "_generated/server";
 import { loadModelsForPairBatch } from "domain/ml/prediction/predictTrip";
@@ -42,25 +44,21 @@ const computePredictions = async (
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTrip> => {
   try {
-    // Skip predictions that already exist (avoid redundant work)
     const specsToAttempt = specs.filter(
       (spec) => trip[spec.field] === undefined
     );
 
-    // Skip if no predictions to attempt
     if (specsToAttempt.length === 0) return trip;
 
-    // Trip lacks required context (Prev* fields) for predictions
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    // Validate LeftDock requirements - skip if any spec requires LeftDock but trip lacks it
     if (
       specsToAttempt.some((spec) => spec.requiresLeftDock && !trip.LeftDock)
     ) {
       return trip;
     }
 
-    // Batch load models when computing 2+ predictions (efficiency optimization)
+    // When multiple specs share the same terminal pair, load models once.
     let modelsMap: Record<ModelType, ModelDoc | null> = {} as Record<
       ModelType,
       ModelDoc | null
@@ -78,7 +76,6 @@ const computePredictions = async (
       modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
     }
 
-    // Run predictions in parallel
     const results = await Promise.all(
       specsToAttempt.map(async (spec) => ({
         spec,
@@ -91,7 +88,6 @@ const computePredictions = async (
       }))
     );
 
-    // Aggregate prediction results into update object
     const updates = results.reduce<Record<string, unknown>>(
       (acc, { spec, prediction }) => {
         if (prediction) {
@@ -104,7 +100,6 @@ const computePredictions = async (
 
     return { ...trip, ...updates } as ConvexVesselTrip;
   } catch (error) {
-    // Log prediction failures (especially for time-based fallback retries)
     console.error(
       `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
       error

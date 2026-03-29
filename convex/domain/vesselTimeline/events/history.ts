@@ -2,13 +2,12 @@
  * History-backed enrichment for schedule-seeded boundary events.
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { config } from "../../ml/shared/config";
 import { getVesselAbbreviation } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
-import { generateTripKey } from "../../../shared/keys";
+import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { getSailingDay } from "../../../shared/time";
-import { buildEventKey } from "./liveUpdates";
+import { config } from "../../ml/shared/config";
 import { getDirectRawSeedSegments } from "./seed";
 
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
@@ -56,17 +55,17 @@ export const mergeSeededEventsWithHistory = ({
     const existingEvent = existingByKey.get(event.Key);
     const historyActualTime = historyActualsByEventKey.get(event.Key);
     const mergedActualTime = mergeActualTime(
-      existingEvent?.ActualTime,
+      existingEvent?.EventActualTime,
       historyActualTime,
       event.EventType === "dep-dock" ? "departure-actual" : "arrival-proxy"
     );
 
     return {
       ...event,
-      ActualTime: mergedActualTime,
-      PredictedTime:
+      EventActualTime: mergedActualTime,
+      EventPredictedTime:
         mergedActualTime === undefined
-          ? existingEvent?.PredictedTime
+          ? existingEvent?.EventPredictedTime
           : undefined,
     };
   });
@@ -104,20 +103,8 @@ const getHistoryActualsByEventKey = ({
       return actualsByEventKey;
     }
 
-    const departureEventKey = buildEventKey(
-      sailingDay,
-      directSegment.VesselAbbrev,
-      directSegment.DepartingTime,
-      directSegment.DepartingTerminalAbbrev,
-      "dep-dock"
-    );
-    const arrivalEventKey = buildEventKey(
-      sailingDay,
-      directSegment.VesselAbbrev,
-      directSegment.DepartingTime,
-      directSegment.DepartingTerminalAbbrev,
-      "arv-dock"
-    );
+    const departureEventKey = buildBoundaryKey(directSegment.Key, "dep-dock");
+    const arrivalEventKey = buildBoundaryKey(directSegment.Key, "arv-dock");
 
     if (normalizedRecord.actualDeparture !== undefined) {
       actualsByEventKey.set(
@@ -166,7 +153,7 @@ const normalizeHistoryRecord = (
     return null;
   }
 
-  const tripKey = generateTripKey(
+  const tripKey = buildSegmentKey(
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,

@@ -9,19 +9,19 @@
 import { api } from "convex/_generated/api";
 import { toDomainActualBoundaryEvent } from "convex/functions/eventsActual/schemas";
 import { toDomainScheduledBoundaryEvent } from "convex/functions/eventsScheduled/schemas";
+import {
+  toDomainVesselLocation,
+  type VesselLocation,
+} from "convex/functions/vesselLocation/schemas";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
 import {
-  toDomainTimelinePredictedBoundaryEvent,
   type MergedTimelineBoundaryEvent,
+  toDomainTimelinePredictedBoundaryEvent,
   type VesselTimelineSegment,
 } from "convex/functions/vesselTimeline/schemas";
-import {
-  toDomainVesselLocation,
-  type VesselLocation,
-} from "convex/functions/vesselLocation/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
@@ -145,7 +145,9 @@ const ConvexVesselTimelineQueryProvider = ({
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
     mergedEvents,
-    location: rawVesselLocation ? toDomainVesselLocation(rawVesselLocation) : null,
+    location: rawVesselLocation
+      ? toDomainVesselLocation(rawVesselLocation)
+      : null,
     IsLoading,
     ErrorMessage: null,
     Retry: onRetry,
@@ -221,7 +223,9 @@ export const useConvexVesselTimeline = () => {
 const buildMergedBoundaryEvents = (
   scheduledEvents: Array<ReturnType<typeof toDomainScheduledBoundaryEvent>>,
   actualEvents: Array<ReturnType<typeof toDomainActualBoundaryEvent>>,
-  predictedEvents: Array<ReturnType<typeof toDomainTimelinePredictedBoundaryEvent>>
+  predictedEvents: Array<
+    ReturnType<typeof toDomainTimelinePredictedBoundaryEvent>
+  >
 ): MergedTimelineBoundaryEvent[] => {
   const actualByKey = new Map(actualEvents.map((event) => [event.Key, event]));
   const predictedByKey = new Map(
@@ -235,8 +239,8 @@ const buildMergedBoundaryEvents = (
     ScheduledDeparture: event.ScheduledDeparture,
     TerminalAbbrev: event.TerminalAbbrev,
     EventType: event.EventType,
-    ScheduledTime: event.ScheduledTime,
-    ActualTime: actualByKey.get(event.Key)?.ActualTime,
-    PredictedTime: predictedByKey.get(event.Key)?.PredictedTime,
+    EventScheduledTime: event.EventScheduledTime,
+    EventActualTime: actualByKey.get(event.Key)?.EventActualTime,
+    EventPredictedTime: predictedByKey.get(event.Key)?.EventPredictedTime,
   }));
 };

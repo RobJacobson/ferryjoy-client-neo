@@ -1,5 +1,5 @@
 /**
- * Build complete vessel trip from raw location data with all enrichments.
+ * Build complete vessel-trip state for one live location tick.
  */
 import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
@@ -43,6 +43,7 @@ export const buildTrip = async (
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
   const withArriveDest = {
     ...baseTrip,
+    // Capture the first arrival-at-dock tick before the next trip fully starts.
     ArriveDest:
       baseTrip.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
@@ -50,7 +51,7 @@ export const buildTrip = async (
         : undefined),
   };
 
-  // Compute enrichment conditions
+  // Only rerun enrichments when a boundary changed or fallback timing allows it.
   const shouldAppendFinalSchedule = tripStart || events.keyChanged;
   const shouldAttemptAtDockPredictions =
     withArriveDest.AtDock &&
@@ -66,7 +67,6 @@ export const buildTrip = async (
     (events.didJustLeaveDock || shouldRunPredictionFallback) &&
     (!withArriveDest.AtSeaArriveNext || !withArriveDest.AtSeaDepartNext);
 
-  // Sequential enrichment pipeline
   const withFinalSchedule = shouldAppendFinalSchedule
     ? await appendFinalSchedule(ctx, withArriveDest, existingTrip)
     : withArriveDest;

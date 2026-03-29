@@ -418,8 +418,8 @@ to be stored while maintaining clear distinction for filtering purposes.
 Predictions are generated and stored as part of the vessel orchestrator action
 `updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`).
 The orchestrator fetches vessel locations once, deduplicates them, and delegates to
-both `updateVesselLocations` and `runUpdateVesselTrips` subroutines with error isolation.
-The trip update logic is implemented in `convex/functions/vesselTrips/updates/updateVesselTrips.ts`.
+both `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
+The trip update logic is implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
 
@@ -485,7 +485,7 @@ observed:
 - `AtDockDepartNext.Actual` / `AtSeaDepartNext.Actual`: set when the _next_ trip
   leaves dock (the next trip's `LeftDock` is the previous trip's "depart next"
   actual), using `setDepartNextActualsForMostRecentCompletedTrip`.
-  - Trigger: `convex/functions/vesselTrips/updates/updateVesselTrips.ts` (`handleTripUpdate`, `didJustLeaveDock`)
+  - Trigger: `convex/functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 

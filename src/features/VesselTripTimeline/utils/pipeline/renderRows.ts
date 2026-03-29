@@ -31,6 +31,9 @@ export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
       markerAppearance,
       segmentIndex: row.segmentIndex,
       geometryMinutes: row.geometryMinutes,
+      startLabel: getStartLabel(row),
+      showStartTimePlaceholder: false,
+      terminalHeadline: getTerminalHeadline(row),
       startBoundary: getStartBoundary(row),
       isFinalRow: index === document.rows.length - 1,
     } satisfies TimelineRenderRow;
@@ -80,6 +83,20 @@ const getStartBoundary = (
     row.kind === "at-sea" ? row.endBoundary.terminalAbbrev : undefined,
   timePoint: row.startBoundary.timePoint,
 });
+
+const getStartLabel = (row: TimelineDocumentRow) =>
+  row.kind === "at-dock"
+    ? row.startBoundary.terminalAbbrev
+      ? `Arv: ${row.startBoundary.terminalAbbrev}`
+      : "Arv"
+    : row.endBoundary.terminalAbbrev
+      ? `To: ${row.endBoundary.terminalAbbrev}`
+      : "Dep";
+
+const getTerminalHeadline = (row: TimelineDocumentRow) =>
+  row.kind === "at-dock"
+    ? getDisplayTerminalName(row.startBoundary.terminalAbbrev)
+    : undefined;
 
 const getDisplayTerminalName = (terminalAbbrev?: string) => {
   if (!terminalAbbrev) {

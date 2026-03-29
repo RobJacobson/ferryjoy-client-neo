@@ -23,7 +23,7 @@ export const eventsScheduledSchema = v.object({
   TerminalAbbrev: v.string(),
   NextTerminalAbbrev: v.string(),
   EventType: boundaryEventTypeSchema,
-  ScheduledTime: v.optional(v.number()),
+  EventScheduledTime: v.optional(v.number()),
 });
 
 export type ConvexScheduledBoundaryEvent = Infer<typeof eventsScheduledSchema>;
@@ -41,7 +41,7 @@ export const toDomainScheduledBoundaryEvent = (
   ...event,
   UpdatedAt: epochMsToDate(event.UpdatedAt),
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  ScheduledTime: optionalEpochMsToDate(event.ScheduledTime),
+  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
 });
 
 export type ScheduledBoundaryEvent = ReturnType<

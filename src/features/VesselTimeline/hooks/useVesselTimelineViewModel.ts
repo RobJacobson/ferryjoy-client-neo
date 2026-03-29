@@ -58,7 +58,12 @@ export const useVesselTimelineViewModel = ({
   );
   const staticRenderState = useMemo(
     () =>
-      getStaticVesselTimelineRenderState(segments, activeState, undefined, theme),
+      getStaticVesselTimelineRenderState(
+        segments,
+        activeState,
+        undefined,
+        theme
+      ),
     [activeState, segments, theme]
   );
 

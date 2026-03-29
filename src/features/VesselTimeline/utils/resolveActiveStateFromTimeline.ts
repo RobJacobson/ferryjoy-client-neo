@@ -37,27 +37,56 @@ export const resolveActiveStateFromTimeline = ({
         )
       : null;
   if (locationAnchoredState) {
-    return { Live: live, ActiveState: locationAnchoredState, ObservedAt: observedAt };
+    return {
+      Live: live,
+      ActiveState: locationAnchoredState,
+      ObservedAt: observedAt,
+    };
   }
 
   const actualBackedState = resolveActualBackedState(rowSegments);
   if (actualBackedState) {
-    return { Live: live, ActiveState: actualBackedState, ObservedAt: observedAt };
+    return {
+      Live: live,
+      ActiveState: actualBackedState,
+      ObservedAt: observedAt,
+    };
   }
 
-  const scheduledWindowState = resolveScheduledWindowState(rowSegments, observedAt.getTime());
+  const scheduledWindowState = resolveScheduledWindowState(
+    rowSegments,
+    observedAt.getTime()
+  );
   if (scheduledWindowState) {
-    return { Live: live, ActiveState: scheduledWindowState, ObservedAt: observedAt };
+    return {
+      Live: live,
+      ActiveState: scheduledWindowState,
+      ObservedAt: observedAt,
+    };
   }
 
-  const terminalTailState = resolveTerminalTailState(segments, observedAt.getTime());
+  const terminalTailState = resolveTerminalTailState(
+    segments,
+    observedAt.getTime()
+  );
   if (terminalTailState) {
-    return { Live: live, ActiveState: terminalTailState, ObservedAt: observedAt };
+    return {
+      Live: live,
+      ActiveState: terminalTailState,
+      ObservedAt: observedAt,
+    };
   }
 
-  const edgeFallbackState = resolveEdgeFallbackState(rowSegments, observedAt.getTime());
+  const edgeFallbackState = resolveEdgeFallbackState(
+    rowSegments,
+    observedAt.getTime()
+  );
   if (edgeFallbackState) {
-    return { Live: live, ActiveState: edgeFallbackState, ObservedAt: observedAt };
+    return {
+      Live: live,
+      ActiveState: edgeFallbackState,
+      ObservedAt: observedAt,
+    };
   }
 
   return {
@@ -167,7 +196,8 @@ const findDockSegmentByScheduledDeparture = (
     (segment) =>
       segment.kind === "dock" &&
       segment.endEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-      segment.endEvent.ScheduledDeparture?.getTime() === scheduledDeparture.getTime()
+      segment.endEvent.ScheduledDeparture?.getTime() ===
+        scheduledDeparture.getTime()
   );
 };
 
@@ -218,7 +248,8 @@ const findNearestSeaSegmentByTerminalPair = (
     .filter(
       (segment) =>
         segment.kind === "sea" &&
-        segment.startEvent.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+        segment.startEvent.TerminalAbbrev ===
+          location.DepartingTerminalAbbrev &&
         (location.ArrivingTerminalAbbrev === undefined ||
           segment.endEvent.TerminalAbbrev === location.ArrivingTerminalAbbrev)
     )
@@ -236,8 +267,8 @@ const resolveActualBackedState = (
     .reverse()
     .find(
       (candidate) =>
-        candidate.startEvent.ActualTime !== undefined &&
-        candidate.endEvent.ActualTime === undefined
+        candidate.startEvent.EventActualTime !== undefined &&
+        candidate.endEvent.EventActualTime === undefined
     );
 
   if (!row) {

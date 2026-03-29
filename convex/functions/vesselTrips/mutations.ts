@@ -1,3 +1,10 @@
+/**
+ * Mutation handlers for active and completed vessel trips.
+ *
+ * Owns the write paths for active-trip upserts, trip completion rollover, and
+ * depart-next prediction backfills on completed trips.
+ */
+
 import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
@@ -20,7 +27,7 @@ export const upsertActiveTrip = mutation({
   args: { trip: vesselTripSchema },
   handler: async (ctx, args: { trip: ConvexVesselTrip }) => {
     try {
-      // Find existing active trip for this vessel
+      // Active trips are unique per vessel, so replace in place when present.
       const existing = await ctx.db
         .query("activeVesselTrips")
         .withIndex("by_vessel_abbrev", (q) =>
@@ -29,14 +36,12 @@ export const upsertActiveTrip = mutation({
         .first();
 
       if (existing) {
-        // Vessel already has an active trip - replace it
         await ctx.db.replace(existing._id, args.trip);
         return existing._id;
-      } else {
-        // First active trip for this vessel - insert new
-        const id = await ctx.db.insert("activeVesselTrips", args.trip);
-        return id;
       }
+
+      const id = await ctx.db.insert("activeVesselTrips", args.trip);
+      return id;
     } catch (error) {
       throw new ConvexError({
         message: `Failed to upsert active trip for vessel ${args.trip.VesselAbbrev}`,
@@ -59,6 +64,7 @@ export const upsertActiveTrip = mutation({
  *
  * Note: ML predictions are calculated in the action layer after trip creation
  * if both departing and arriving terminals are non-null
+ *
  * @param ctx - Convex context
  * @param args.completedTrip - The completed vessel trip to archive
  * @param args.newTrip - The new vessel trip to start
@@ -74,7 +80,7 @@ export const completeAndStartNewTrip = mutation({
     args: { completedTrip: ConvexVesselTrip; newTrip: ConvexVesselTrip }
   ) => {
     try {
-      // Validate that completed trip has TripEnd set
+      // Completed trips must be finalized before they move to the archive table.
       if (!args.completedTrip.TripEnd) {
         throw new ConvexError({
           message: "Completed trip must have TripEnd set",
@@ -83,7 +89,7 @@ export const completeAndStartNewTrip = mutation({
         });
       }
 
-      // Get the existing active trip to overwrite
+      // Replace the existing active row so the vessel keeps a stable active-trip id.
       const existingActive = await ctx.db
         .query("activeVesselTrips")
         .withIndex("by_vessel_abbrev", (q) =>
@@ -100,15 +106,12 @@ export const completeAndStartNewTrip = mutation({
         });
       }
 
-      // Step 1: Insert completed trip into archive
       const completedId = await ctx.db.insert(
         "completedVesselTrips",
         args.completedTrip
       );
 
-      // Step 2: Overwrite active trip with new trip data
-      // Note: ML predictions are calculated in the action layer when the arriving
-      // terminal first becomes available
+      // Prediction writes stay in the action layer so this mutation stays atomic.
       await ctx.db.replace(existingActive._id, args.newTrip);
 
       return {
@@ -153,10 +156,10 @@ export const upsertVesselTripsBatch = mutation({
     activeUpserts: v.array(vesselTripSchema),
   },
   handler: async (ctx, args) => {
-    // Load all active trips into memory for batch processing
+    // Load once so each vessel write can reuse the same lookup table.
     const activeTrips = await ctx.db.query("activeVesselTrips").collect();
 
-    // Build index by vessel for O(1) lookups during batch
+    // Preserve inserts performed earlier in this batch for later iterations.
     const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
       activeTrips.map((t) => [t.VesselAbbrev, { _id: t._id }])
     );
@@ -167,23 +170,18 @@ export const upsertVesselTripsBatch = mutation({
       reason?: string;
     }> = [];
 
-    // Process each vessel's trip independently for error isolation
     for (const trip of args.activeUpserts) {
       const vesselAbbrev = trip.VesselAbbrev;
       try {
         const existing = activeByVessel.get(vesselAbbrev);
         if (existing) {
-          // Vessel has existing active trip - replace it
           await ctx.db.replace(existing._id, trip);
         } else {
-          // First active trip for this vessel - insert new
           const id = await ctx.db.insert("activeVesselTrips", trip);
-          // Store ID in map so subsequent operations in this batch can see it
           activeByVessel.set(vesselAbbrev, { _id: id });
         }
         perVessel.push({ vesselAbbrev, ok: true });
       } catch (error) {
-        // Isolate failure - log but continue processing other vessels
         perVessel.push({
           vesselAbbrev,
           ok: false,
@@ -218,7 +216,6 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     updatedTrip: v.optional(vesselTripSchema),
   }),
   handler: async (ctx, args) => {
-    // Find most recent completed trip for this vessel
     const mostRecent = await ctx.db
       .query("completedVesselTrips")
       .withIndex("by_vessel_and_trip_end", (q) =>
@@ -234,13 +231,11 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    // Compute which prediction fields need actuals applied
     const updates = computeDepartNextActualsPatch(
       mostRecent as unknown as ConvexVesselTrip,
       args.actualDepartMs
     );
 
-    // No predictions to backfill
     if (Object.keys(updates).length === 0) {
       return {
         updated: false as const,
@@ -249,10 +244,8 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    // Apply patch with actual departure times
     await ctx.db.patch(mostRecent._id, updates);
 
-    // Return updated trip for action layer to insert completed prediction records
     const updatedTrip = await ctx.db.get(mostRecent._id);
     if (!updatedTrip) {
       return { updated: true as const, updatedTrip: undefined };

@@ -7,11 +7,7 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { computeTripKey } from "./utils";
-
-// ============================================================================
-// Trip Events
-// ============================================================================
+import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 
 /**
  * Result of trip event detection for a vessel update.
@@ -26,39 +22,7 @@ export type TripEvents = {
   keyChanged: boolean;
 };
 
-type DockDepartureState = {
-  leftDockTime: number | undefined;
-  didJustLeaveDock: boolean;
-};
-
-/**
- * Derive dock-departure state from the previous trip and current location.
- *
- * Uses one shared rule for both event detection and trip field derivation:
- * preserve an existing LeftDock, prefer feed-provided LeftDock, and infer the
- * departure time from the current tick when the vessel has clearly left the dock.
- *
- * @param existingTrip - Previous trip state (undefined for first appearance)
- * @param currLocation - Current vessel location from REST/API
- * @returns Derived LeftDock timestamp and whether this tick represents departure
- */
-export const getDockDepartureState = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
-): DockDepartureState => {
-  // Prefer feed-provided LeftDock and preserve any already-recorded departure.
-  const leftDockTime = currLocation.LeftDock ?? existingTrip?.LeftDock;
-
-  // Vessel just left dock if it had no LeftDock before and has one now
-  return {
-    leftDockTime,
-    didJustLeaveDock: Boolean(
-      existingTrip &&
-        existingTrip.LeftDock === undefined &&
-        currLocation.LeftDock !== undefined
-    ),
-  };
-};
+export { getDockDepartureState } from "./tripDerivation";
 
 /**
  * Detect all trip events for a vessel update.
@@ -74,38 +38,12 @@ export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): TripEvents => {
+  const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const isTripStartReady = Boolean(
-    currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev
+    tripInputs.currentScheduledDeparture &&
+      tripInputs.currentArrivingTerminalAbbrev
   );
-  const didJustBecomeStartReady = Boolean(
-    existingTrip &&
-      !existingTrip.TripStart &&
-      !existingTrip.ArrivingTerminalAbbrev &&
-      currLocation.ArrivingTerminalAbbrev &&
-      currLocation.AtDock
-  );
-
-  // Carry forward ArrivingTerminal when curr omits it (feed glitch protection)
-  const arrivingTerminalAbbrev =
-    currLocation.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
-
-  // Carry forward ScheduledDeparture when curr omits it (feed glitch protection)
-  const scheduledDeparture =
-    currLocation.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
-
-  // Compute trip key for schedule lookup (shared with baseTripFromLocation)
-  const computedKey = computeTripKey(
-    currLocation.VesselAbbrev,
-    currLocation.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev,
-    scheduledDeparture
-  );
-
-  // Dock departure state: shared with trip field derivation
-  const { didJustLeaveDock } = getDockDepartureState(
-    existingTrip,
-    currLocation
-  );
+  // Arrival is only credible after a recorded departure and a terminal change.
   const didJustArriveAtDock = Boolean(
     existingTrip &&
       existingTrip.LeftDock !== undefined &&
@@ -114,31 +52,21 @@ export const detectTripEvents = (
       currLocation.DepartingTerminalAbbrev !==
         existingTrip.DepartingTerminalAbbrev
   );
-  const hasTripEvidence = Boolean(
-    existingTrip &&
-      (existingTrip.LeftDock !== undefined ||
-        existingTrip.ArriveDest !== undefined)
-  );
 
-  // Return all computed events in a single object
   return {
-    // Vessel's first appearance
     isFirstTrip: !existingTrip,
-    // Start a trip only when we actually observed the start transition.
-    shouldStartTrip: didJustBecomeStartReady,
+    shouldStartTrip: tripInputs.didJustBecomeStartReady,
     isTripStartReady,
-    // Trip boundary: next trip info is available and departing terminal changed.
     isCompletedTrip: Boolean(
-      hasTripEvidence &&
+      hasTripEvidence(existingTrip) &&
         isTripStartReady &&
         existingTrip?.DepartingTerminalAbbrev !==
           currLocation.DepartingTerminalAbbrev
     ),
-    // Arrive at dock only after a real sailing leg ends at a new terminal.
     didJustArriveAtDock,
-    // Dock departure state computed by getDockDepartureState
-    didJustLeaveDock,
-    // Key changed: newly available or differs from existing (triggers schedule lookup)
-    keyChanged: Boolean(computedKey && existingTrip?.Key !== computedKey),
+    didJustLeaveDock: tripInputs.didJustLeaveDock,
+    keyChanged: Boolean(
+      tripInputs.continuingKey && existingTrip?.Key !== tripInputs.continuingKey
+    ),
   };
 };

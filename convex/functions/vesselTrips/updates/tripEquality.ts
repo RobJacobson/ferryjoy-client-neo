@@ -1,13 +1,12 @@
 /**
- * Utility functions for vessel trips - equality checking, type guards, etc.
+ * Shared utility helpers for vessel-trip updates.
+ *
+ * Provides stable key derivation plus the deep equality checks used to avoid
+ * rewriting active trips when only the tick timestamp has changed.
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/keys";
-
-// ============================================================================
-// Key Derivation (shared by eventDetection and baseTripFromLocation)
-// ============================================================================
 
 /**
  * Compute trip key from vessel, terminals, and scheduled departure (epoch ms).
@@ -79,10 +78,6 @@ const compareTripFields = (
           proposed[key as keyof ConvexVesselTrip]
         )
   );
-
-// ============================================================================
-// Deep Equality Utilities
-// ============================================================================
 
 /**
  * Deep equality check for arbitrary values.

@@ -7,20 +7,21 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
-  applyLiveLocationToEvents,
-  getLocationSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTimeline/events";
 import {
+  buildActualBoundaryEventFromEffect,
   buildActualBoundaryEvents,
-  buildPredictedBoundaryEventsFromTrips,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
+import { actualBoundaryEffectSchema } from "./actualEffects";
 import { vesselTimelineEventRecordSchema } from "./eventRecordSchemas";
-import { vesselTripSchema } from "../vesselTrips/schemas";
+import {
+  type ConvexPredictedBoundaryProjectionRow,
+  predictedBoundaryProjectionEffectSchema,
+} from "./predictedEffects";
 
 export const replaceBoundaryEventsForSailingDay = internalMutation({
   args: {
@@ -33,7 +34,9 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
   }),
   handler: async (ctx, args) => {
     const updatedAt = Date.now();
-    const events = normalizeScheduledDockSeams(args.Events).sort(sortVesselTripEvents);
+    const events = normalizeScheduledDockSeams(args.Events).sort(
+      sortVesselTripEvents
+    );
 
     await replaceScheduledRowsForSailingDay(
       ctx,
@@ -48,58 +51,38 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
 
     return {
       ScheduledCount: events.length,
-      ActualCount: events.filter((event) => event.ActualTime !== undefined).length,
+      ActualCount: events.filter((event) => event.EventActualTime !== undefined)
+        .length,
     };
   },
 });
 
-export const applyLiveActualUpdates = internalMutation({
+export const projectActualBoundaryEffects = internalMutation({
   args: {
-    Locations: v.array(vesselLocationValidationSchema),
+    Effects: v.array(actualBoundaryEffectSchema),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    for (const location of args.Locations) {
-      await applyLiveActualUpdateForLocation(ctx, location);
-    }
+    const updatedAt = Date.now();
+    const nextRowsByKey = new Map(
+      args.Effects.map((effect) => {
+        const row = buildActualBoundaryEventFromEffect(effect, updatedAt);
+        return [row.Key, row] as const;
+      })
+    );
 
-    return null;
-  },
-});
-
-/**
- * Syncs best-prediction overlays from finalized active trip state.
- */
-export const syncPredictedEventsForTrips = internalMutation({
-  args: {
-    Trips: v.array(vesselTripSchema),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const nextRows = buildPredictedBoundaryEventsFromTrips(args.Trips);
-    const nextRowsByKey = new Map(nextRows.map((row) => [row.Key, row]));
-    const targetKeys = new Set(nextRowsByKey.keys());
-
-    for (const Key of targetKeys) {
+    for (const [Key, nextRow] of nextRowsByKey) {
       const existing = await ctx.db
-        .query("eventsPredicted")
+        .query("eventsActual")
         .withIndex("by_key", (q) => q.eq("Key", Key))
         .unique();
-      const nextRow = nextRowsByKey.get(Key);
-
-      if (!nextRow) {
-        if (existing) {
-          await ctx.db.delete(existing._id);
-        }
-        continue;
-      }
 
       if (!existing) {
-        await ctx.db.insert("eventsPredicted", nextRow);
+        await ctx.db.insert("eventsActual", nextRow);
         continue;
       }
 
-      if (predictedRowsEqual(existing, nextRow)) {
+      if (actualRowsEqual(existing, nextRow)) {
         continue;
       }
 
@@ -110,63 +93,97 @@ export const syncPredictedEventsForTrips = internalMutation({
   },
 });
 
-const applyLiveActualUpdateForLocation = async (
-  ctx: MutationCtx,
-  location: ConvexVesselLocation
-) => {
-  const SailingDay = getLocationSailingDay(location);
-  const [scheduledDocs, actualDocs] = await Promise.all([
-    ctx.db
-      .query("eventsScheduled")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", location.VesselAbbrev).eq("SailingDay", SailingDay)
-      )
-      .collect(),
-    ctx.db
-      .query("eventsActual")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", location.VesselAbbrev).eq("SailingDay", SailingDay)
-      )
-      .collect(),
-  ]);
+export const projectPredictedBoundaryEffects = internalMutation({
+  args: {
+    Effects: v.array(predictedBoundaryProjectionEffectSchema),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const updatedAt = Date.now();
+    const effectsByScope = new Map<
+      string,
+      {
+        VesselAbbrev: string;
+        SailingDay: string;
+        TargetKeys: Set<string>;
+        RowsByKey: Map<string, ConvexPredictedBoundaryProjectionRow>;
+      }
+    >();
 
-  if (scheduledDocs.length === 0) {
-    return;
-  }
+    for (const effect of args.Effects) {
+      const scopeKey = `${effect.VesselAbbrev}:${effect.SailingDay}`;
+      const existingScope = effectsByScope.get(scopeKey);
 
-  const actualByKey = new Map<
-    string,
-    Doc<"eventsActual">
-  >(actualDocs.map((doc) => [doc.Key, doc]));
-  const mergedEvents = normalizeScheduledDockSeams(
-    scheduledDocs
-      .map((doc) => ({
-        Key: doc.Key,
-        VesselAbbrev: doc.VesselAbbrev,
-        SailingDay: doc.SailingDay,
-        ScheduledDeparture: doc.ScheduledDeparture,
-        TerminalAbbrev: doc.TerminalAbbrev,
-        EventType: doc.EventType,
-        ScheduledTime: doc.ScheduledTime,
-        PredictedTime: undefined,
-        ActualTime: actualByKey.get(doc.Key)?.ActualTime,
-      }))
-      .sort(sortVesselTripEvents)
-  );
+      if (existingScope) {
+        for (const targetKey of effect.TargetKeys) {
+          existingScope.TargetKeys.add(targetKey);
+        }
+        for (const row of effect.Rows) {
+          existingScope.RowsByKey.set(row.Key, row);
+        }
+        continue;
+      }
 
-  const updatedEvents = applyLiveLocationToEvents(mergedEvents, location);
-  const updatedActualRows = buildActualBoundaryEvents(updatedEvents, Date.now()).filter(
-    (row) =>
-      row.VesselAbbrev === location.VesselAbbrev && row.SailingDay === SailingDay
-  );
+      effectsByScope.set(scopeKey, {
+        VesselAbbrev: effect.VesselAbbrev,
+        SailingDay: effect.SailingDay,
+        TargetKeys: new Set(effect.TargetKeys),
+        RowsByKey: new Map(effect.Rows.map((row) => [row.Key, row])),
+      });
+    }
 
-  await replaceActualRowsForVesselDay(
-    ctx,
-    location.VesselAbbrev,
-    SailingDay,
-    updatedActualRows
-  );
-};
+    for (const effect of effectsByScope.values()) {
+      if (effect.TargetKeys.size === 0) {
+        continue;
+      }
+
+      const existingRows = await ctx.db
+        .query("eventsPredicted")
+        .withIndex("by_vessel_and_sailing_day", (q) =>
+          q
+            .eq("VesselAbbrev", effect.VesselAbbrev)
+            .eq("SailingDay", effect.SailingDay)
+        )
+        .collect();
+
+      for (const existing of existingRows) {
+        if (
+          effect.TargetKeys.has(existing.Key) &&
+          !effect.RowsByKey.has(existing.Key)
+        ) {
+          await ctx.db.delete(existing._id);
+        }
+      }
+
+      for (const [Key, row] of effect.RowsByKey) {
+        if (!effect.TargetKeys.has(Key)) {
+          continue;
+        }
+
+        const nextRow = {
+          ...row,
+          UpdatedAt: updatedAt,
+        };
+        const existing = existingRows.find(
+          (existingRow) => existingRow.Key === Key
+        );
+
+        if (!existing) {
+          await ctx.db.insert("eventsPredicted", nextRow);
+          continue;
+        }
+
+        if (predictedRowsEqual(existing, nextRow)) {
+          continue;
+        }
+
+        await ctx.db.replace(existing._id, nextRow);
+      }
+    }
+
+    return null;
+  },
+});
 
 const replaceScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -236,43 +253,6 @@ const replaceActualRowsForSailingDay = async (
   }
 };
 
-const replaceActualRowsForVesselDay = async (
-  ctx: MutationCtx,
-  VesselAbbrev: string,
-  SailingDay: string,
-  nextRows: ReturnType<typeof buildActualBoundaryEvents>
-) => {
-  const existingRows = await ctx.db
-    .query("eventsActual")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", VesselAbbrev).eq("SailingDay", SailingDay)
-    )
-    .collect();
-  const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
-  const nextKeys = new Set(nextRows.map((row) => row.Key));
-
-  for (const existing of existingRows) {
-    if (!nextKeys.has(existing.Key)) {
-      await ctx.db.delete(existing._id);
-    }
-  }
-
-  for (const nextRow of nextRows) {
-    const existing = existingByKey.get(nextRow.Key);
-
-    if (!existing) {
-      await ctx.db.insert("eventsActual", nextRow);
-      continue;
-    }
-
-    if (actualRowsEqual(existing, nextRow)) {
-      continue;
-    }
-
-    await ctx.db.replace(existing._id, nextRow);
-  }
-};
-
 const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,
   right: ReturnType<typeof buildScheduledBoundaryEvents>[number]
@@ -284,7 +264,7 @@ const scheduledRowsEqual = (
   left.TerminalAbbrev === right.TerminalAbbrev &&
   left.NextTerminalAbbrev === right.NextTerminalAbbrev &&
   left.EventType === right.EventType &&
-  left.ScheduledTime === right.ScheduledTime;
+  left.EventScheduledTime === right.EventScheduledTime;
 
 const actualRowsEqual = (
   left: Doc<"eventsActual">,
@@ -295,17 +275,17 @@ const actualRowsEqual = (
   left.SailingDay === right.SailingDay &&
   left.ScheduledDeparture === right.ScheduledDeparture &&
   left.TerminalAbbrev === right.TerminalAbbrev &&
-  left.ActualTime === right.ActualTime;
+  left.EventActualTime === right.EventActualTime;
 
 const predictedRowsEqual = (
   left: Doc<"eventsPredicted">,
-  right: ReturnType<typeof buildPredictedBoundaryEventsFromTrips>[number]
+  right: ConvexPredictedBoundaryEvent
 ) =>
   left.Key === right.Key &&
   left.VesselAbbrev === right.VesselAbbrev &&
   left.SailingDay === right.SailingDay &&
   left.ScheduledDeparture === right.ScheduledDeparture &&
   left.TerminalAbbrev === right.TerminalAbbrev &&
-  left.PredictedTime === right.PredictedTime &&
+  left.EventPredictedTime === right.EventPredictedTime &&
   left.PredictionType === right.PredictionType &&
   left.PredictionSource === right.PredictionSource;

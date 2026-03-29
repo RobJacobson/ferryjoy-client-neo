@@ -2,13 +2,13 @@
  * Builds semantic VesselTimeline segments from normalized boundary events.
  */
 
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
-import { getLayoutTime } from "../rowEventTime";
 import type {
   MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
   VesselTimelineSegmentEvent,
 } from "convex/functions/vesselTimeline/schemas";
+import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
+import { getLayoutTime } from "../rowEventTime";
 
 /**
  * Converts ordered merged boundary events into semantic dock and sea segments.
@@ -91,9 +91,9 @@ const toSegmentEvent = (
   TerminalAbbrev: event.TerminalAbbrev,
   EventType: event.EventType,
   TerminalDisplayName: getDisplayTerminalName(event.TerminalAbbrev),
-  ScheduledTime: event.ScheduledTime,
-  PredictedTime: event.PredictedTime,
-  ActualTime: event.ActualTime,
+  EventScheduledTime: event.EventScheduledTime,
+  EventPredictedTime: event.EventPredictedTime,
+  EventActualTime: event.EventActualTime,
 });
 
 /**
@@ -121,9 +121,9 @@ const buildArrivalPlaceholderSegment = (
     EventType: "arv-dock",
     TerminalDisplayName: getDisplayTerminalName(departureEvent.TerminalAbbrev),
     IsArrivalPlaceholder: true,
-    ScheduledTime: undefined,
-    PredictedTime: undefined,
-    ActualTime: undefined,
+    EventScheduledTime: undefined,
+    EventPredictedTime: undefined,
+    EventActualTime: undefined,
   },
   endEvent: toSegmentEvent(departureEvent),
   durationMinutes: 0,

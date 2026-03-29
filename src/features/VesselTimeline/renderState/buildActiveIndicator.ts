@@ -57,10 +57,6 @@ export const buildActiveIndicator = ({
  * Fraction along the sea leg from departing vs arriving distance when both
  * exist.
  *
- * The backend now guarantees nonnegative `DepartingDistance` and
- * `ArrivingDistance` whenever the active row is at sea and
- * `ArrivingDistance` is present on `liveState`.
- *
  * @param departingDistance - Nautical miles from departure terminal
  * @param arrivingDistance - Nautical miles to arrival terminal
  * @returns Progress 0–1
@@ -88,7 +84,9 @@ const getPositionPercent = (
   liveState: VesselTimelineLiveState | null,
   now: Date
 ) =>
-  segment.kind === "sea" && liveState?.ArrivingDistance !== undefined
+  segment.kind === "sea" &&
+  liveState?.DepartingDistance !== undefined &&
+  liveState?.ArrivingDistance !== undefined
     ? getDistanceProgress(
         liveState.DepartingDistance,
         liveState.ArrivingDistance

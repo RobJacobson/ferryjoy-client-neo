@@ -20,7 +20,7 @@
  *
  * ## Sampling Logic
  *
- * - **Recency Bias**: Prioritize recent examples (last 720 days)
+ * - **Recency Bias**: Prioritize the most recent examples in the configured window
  * - **Volume Limits**: Cap samples per route to prevent overfitting
  * - **Sorting**: Sample by recency, then store oldest→newest for time split
  *

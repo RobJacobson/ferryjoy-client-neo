@@ -14,6 +14,9 @@ import { predictTripValue } from "./predictTrip";
 
 const MINUTES_TO_MS = 60 * 1000;
 
+/**
+ * Prediction-bearing fields attached to an active vessel trip.
+ */
 export type PredictionField =
   | "AtDockDepartCurr"
   | "AtDockArriveNext"
@@ -21,6 +24,9 @@ export type PredictionField =
   | "AtSeaArriveNext"
   | "AtSeaDepartNext";
 
+/**
+ * Declarative description of how to compute one prediction field.
+ */
 export type PredictionSpec = {
   field: PredictionField;
   modelType: ModelType;
@@ -28,6 +34,9 @@ export type PredictionSpec = {
   getAnchorMs: (trip: ConvexVesselTrip) => number | null;
 };
 
+/**
+ * Registry of supported trip prediction fields and their model wiring.
+ */
 export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
   AtDockDepartCurr: {
     field: "AtDockDepartCurr",

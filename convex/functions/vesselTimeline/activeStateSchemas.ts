@@ -38,7 +38,7 @@ export const vesselTimelineLiveStateSchema = v.object({
   Speed: v.optional(v.number()),
   DepartingTerminalAbbrev: v.optional(v.string()),
   ArrivingTerminalAbbrev: v.optional(v.string()),
-  DepartingDistance: v.number(),
+  DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
   LeftDock: v.optional(v.number()),
   Eta: v.optional(v.number()),
@@ -84,7 +84,7 @@ export const toConvexVesselTimelineLiveState = (live: {
   Speed?: number;
   DepartingTerminalAbbrev?: string;
   ArrivingTerminalAbbrev?: string;
-  DepartingDistance: number;
+  DepartingDistance?: number;
   ArrivingDistance?: number;
   LeftDock?: Date;
   Eta?: Date;

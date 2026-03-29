@@ -5,4 +5,4 @@
  * constructs full intended state per tick, writes only when different from existing.
  */
 
-export { runUpdateVesselTrips } from "./updateVesselTrips";
+export { processVesselTrips } from "./processVesselTrips";

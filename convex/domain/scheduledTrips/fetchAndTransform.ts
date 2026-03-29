@@ -1,3 +1,8 @@
+/**
+ * Shared schedule download and transformation helpers for schedule-backed
+ * domains.
+ */
+
 import type { Route } from "ws-dottie/wsf-schedule";
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import { createScheduledTripFromRawSegment } from "../../functions/scheduledTrips/sync/fetching/mapping";
@@ -18,8 +23,10 @@ export type FetchAndTransformScheduledTripsResult = {
 
 /**
  * Shared schedule fetch + transformation flow used by both scheduledTrips and
- * VesselTimeline boundary-event sync. It fetches raw WSF schedule data once, maps it into the
- * scheduled-trip shape, and computes the richer scheduled-trip transform.
+ * VesselTimeline boundary-event sync.
+ *
+ * @param targetDate - Service date to fetch in `YYYY-MM-DD` format
+ * @returns Raw route payloads plus the mapped and transformed trip rows
  */
 export const fetchAndTransformScheduledTrips = async (
   targetDate: string

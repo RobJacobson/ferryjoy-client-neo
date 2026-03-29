@@ -68,6 +68,10 @@ export const calculateTripEstimates = (
 
 /**
  * Links segments and sets EstArriveCurr/SchedArriveCurr using a stateful scan.
+ *
+ * @param trips - Trip rows that already carry their arrival-at-next estimates
+ * @param groups - Physical-departure groups for the same vessel/day slice
+ * @returns Trips with current-terminal arrivals plus Prev/Next links populated
  */
 const linkVesselSegments = (
   trips: ConvexScheduledTrip[],
@@ -136,13 +140,21 @@ const linkVesselSegments = (
 };
 
 /**
- * Validates that an arrival time happened before the departure.
+ * Validates that an arrival timestamp is plausible for the current departure.
+ *
+ * @param arrival - Candidate arrival timestamp in epoch milliseconds
+ * @param departure - Departure timestamp that the arrival must not exceed
+ * @returns The arrival when it is valid, otherwise `undefined`
  */
 const validateArrivalTime = (arrival: number | undefined, departure: number) =>
   arrival !== undefined && arrival <= departure ? arrival : undefined;
 
 /**
- * Calculates estimated arrival using historical mean durations.
+ * Calculates estimated arrival using route-level historical mean at-sea
+ * duration.
+ *
+ * @param trip - Direct trip row to estimate
+ * @returns Rounded estimated arrival time, or `undefined` when no prior exists
  */
 const calculateEstArrive = (trip: ConvexScheduledTrip): number | undefined => {
   const pair = formatTerminalPairKey(
@@ -156,7 +168,14 @@ const calculateEstArrive = (trip: ConvexScheduledTrip): number | undefined => {
 };
 
 /**
- * Calculates scheduled arrival using official crossing times.
+ * Calculates scheduled arrival using the current domain policy.
+ *
+ * Route 9 trusts the raw WSF `ArrivingTime` when present. Other routes fall
+ * back to curated official crossing times so schedule-derived rows stay
+ * consistent with the physical-departure model.
+ *
+ * @param trip - Direct trip row to derive a scheduled arrival for
+ * @returns Scheduled arrival time, or `undefined` when no source is available
  */
 const calculateSchedArrive = (
   trip: ConvexScheduledTrip
@@ -176,7 +195,11 @@ const calculateSchedArrive = (
 };
 
 /**
- * Finds the completion arrival for an indirect trip by looking ahead.
+ * Finds the later direct segment that completes an indirect trip's journey.
+ *
+ * @param indirect - Indirect trip row that needs backfilled arrivals
+ * @param allTrips - Same-vessel trip rows with direct arrivals already derived
+ * @returns Backfilled estimated and scheduled arrivals, or `null`
  */
 const findCompletionArrival = (
   indirect: ConvexScheduledTrip,

@@ -1,3 +1,11 @@
+/**
+ * Direct-segment classification helpers for schedule-derived trip rows.
+ *
+ * The raw WSF schedule can expose multiple logical trips for a single physical
+ * departure. This module identifies the immediate next stop as the direct
+ * segment and marks the remaining rows as indirect views of the same sailing.
+ */
+
 import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import {
   groupTripsByPhysicalDeparture,
@@ -75,6 +83,15 @@ const classifyDepartureGroup = (
   nextTerminal: string | undefined
 ): ConvexScheduledTrip[] => classifyDepartureGroupGeneric(trips, nextTerminal);
 
+/**
+ * Classifies one physical-departure group using the next departure terminal as
+ * the lookahead signal.
+ *
+ * @param trips - Rows that share a single physical departure
+ * @param nextTerminal - Departing terminal of the vessel's next physical
+ * departure, when known
+ * @returns Group rows marked as direct or indirect
+ */
 const classifyDepartureGroupGeneric = <TTrip extends DirectSegmentInput>(
   trips: TTrip[],
   nextTerminal: string | undefined

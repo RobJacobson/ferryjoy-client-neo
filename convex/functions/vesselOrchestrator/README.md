@@ -8,12 +8,11 @@ out to multiple backend consumers.
 ## System Overview
 
 The orchestrator runs periodically, roughly every 5 seconds, and coordinates
-three separate downstream branches:
+two separate downstream branches:
 
 1. store the latest vessel locations
-2. update trip lifecycle state in `vesselTrips/updates`
-3. update `vesselTripEvents`, the minimal timeline event feed used by
-   `VesselTimeline`
+2. update trip lifecycle state in `vesselTrips/updates`, which also projects the
+   timeline overlays consumed by `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.
@@ -23,16 +22,15 @@ WSF VesselLocations API
   -> VesselOrchestrator fetch + conversion
   -> vesselLocations table
   -> vesselTrips/updates
-  -> vesselTripEvents
 ```
 
-## Why `vesselTripEvents` Exists
+## Why The Timeline Event Tables Exist
 
 `VesselTimeline` used to depend on a more convoluted frontend data pipeline that
 merged scheduled trips, active trips, completed trips, and current vessel
 location state in the browser.
 
-The new `vesselTripEvents` table exists to simplify that contract.
+The normalized `vesselTimeline` event tables exist to simplify that contract.
 
 Its purpose is:
 
@@ -42,10 +40,10 @@ Its purpose is:
 - let the frontend render from a small ordered boundary list instead of merging
   multiple raw sources
 
-`vesselTripEvents` is not intended to replace `activeVesselTrips` or
+The timeline event tables are not intended to replace `activeVesselTrips` or
 `completedVesselTrips`. Those tables still support trip lifecycle logic and
-other features. `vesselTripEvents` is a purpose-built read model for
-`VesselTimeline`.
+other features. `eventsScheduled`, `eventsActual`, and `eventsPredicted` are a
+purpose-built read model for `VesselTimeline`.
 
 ## Architecture Components
 
@@ -58,34 +56,31 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- convert raw WSF payloads into `ConvexVesselLocation`
-- enrich locations with distance-to-terminal fields
-- execute three downstream branches with error isolation
+- convert raw WSF payloads into `ConvexVesselLocation`, including
+  distance-to-terminal fields
+- capture one tick timestamp shared by downstream consumers
+- execute two downstream branches in parallel with error isolation
 
 Transformation pipeline:
 
 ```text
 WSF VesselLocation
   -> toConvexVesselLocation()
-  -> add DepartingDistance / ArrivingDistance
-  -> convertConvexVesselLocation()
   -> ConvexVesselLocation[]
 ```
 
 The orchestrator returns branch-level success flags:
 
 ```ts
-{
-  locationsSuccess: boolean;
-  tripsSuccess: boolean;
-  tripEventsSuccess: boolean;
-  errors?: {
-    fetch?: { message: string; stack?: string };
-    locations?: { message: string; stack?: string };
-    trips?: { message: string; stack?: string };
-    tripEvents?: { message: string; stack?: string };
-  };
-}
+  {
+    locationsSuccess: boolean;
+    tripsSuccess: boolean;
+    errors?: {
+      fetch?: { message: string; stack?: string };
+      locations?: { message: string; stack?: string };
+      trips?: { message: string; stack?: string };
+    };
+  }
 ```
 
 ### 2. Vessel Location Storage (`vesselLocation/`)
@@ -106,16 +101,19 @@ Purpose:
   lifecycle
 
 This remains the richer state machine responsible for trip lifecycle tracking,
-ML predictions, and event-driven trip transitions.
+ML predictions, and event-driven trip transitions. Inside that module, event
+detection and base-trip construction now share one normalized derivation layer
+so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
+pipeline.
 
-### 4. Timeline Event Updates (`vesselTripEvents/`)
+### 4. Timeline Projection (`vesselTimeline/`)
 
 Purpose:
 
 - maintain the minimal vessel/day boundary feed consumed by `VesselTimeline`
 
-This is intentionally smaller than the trip lifecycle pipeline. It stores only
-the fields needed to render a day timeline:
+This remains intentionally smaller than the trip lifecycle pipeline. It stores
+only the fields needed to render a day timeline:
 
 - `Key`
 - `VesselAbbrev`
@@ -123,9 +121,9 @@ the fields needed to render a day timeline:
 - `ScheduledDeparture`
 - `TerminalAbbrev`
 - `EventType`
-- `ScheduledTime?`
-- `PredictedTime?`
-- `ActualTime?`
+- `EventScheduledTime?`
+- `EventPredictedTime?`
+- `EventActualTime?`
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
@@ -147,10 +145,10 @@ That document covers:
 ```text
 WSF API
   -> fetch vessel locations once
-  -> convert and enrich locations
-  -> branch 1: vesselLocations bulkUpsert
-  -> branch 2: runUpdateVesselTrips
-  -> branch 3: vesselTripEvents.applyLiveUpdates
+  -> convert locations
+  -> fan out in parallel:
+       branch 1: vesselLocations bulkUpsert
+       branch 2: processVesselTrips
 ```
 
 ### Timeline feed flow
@@ -158,14 +156,15 @@ WSF API
 ```text
 WSF schedule sync
   -> classify direct physical segments
-  -> seed vesselTripEvents skeleton
+  -> seed eventsScheduled skeleton
 
 WSF vessel location ticks
   -> VesselOrchestrator
-  -> apply predicted/actual event updates
+  -> update trip lifecycle state
+  -> project actual/predicted event updates
 
 Frontend VesselTimeline
-  -> query vesselTripEvents for vessel/day
+  -> query normalized vesselTimeline event tables for vessel/day
   -> build dock/sea rows from ordered events
 ```
 
@@ -176,10 +175,11 @@ The orchestrator isolates failures at the branch level.
 - fetch/conversion failure stops the tick because nothing downstream can run
 - location storage failure does not block trip updates
 - trip update failure does not block location storage
-- trip event update failure does not block the other two branches
+- the two downstream branches run concurrently via `Promise.allSettled`, while
+  preserving branch-specific success flags and error reporting
 
-This matters because `vesselTripEvents` is intentionally parallel to the
-existing trip pipeline, not embedded inside it.
+This matters because timeline projection now rides on the trip pipeline’s
+transition logic instead of re-deriving actuals from raw location ticks.
 
 ## Performance Characteristics
 
@@ -187,12 +187,18 @@ The orchestrator keeps external API usage efficient:
 
 - one WSF vessel-location fetch per tick
 - one converted location batch reused by all downstream consumers
+- one conversion pass over the fetched payload before downstream fan-out
+- concurrent downstream execution instead of serial branch processing
 
-The new `vesselTripEvents` branch is designed to stay lightweight:
+Within `processVesselTrips`, per-vessel trip build/enrichment work is also
+parallelized before persistence, while database writes remain batched where
+possible (`upsertVesselTripsBatch` and batched predicted-event sync).
+
+The timeline projection path is designed to stay lightweight:
 
 - no extra external fetches
 - no frontend-side source merging
-- updates are keyed to stable event identities
+- updates are keyed to stable event identities derived from the trip segment key
 - unchanged event rows are not rewritten
 
 ## Relationship To Other Tables
@@ -207,11 +213,11 @@ The new `vesselTripEvents` branch is designed to stay lightweight:
 - richer trip lifecycle models
 - support trip state tracking, predictions, and other operational features
 
-`vesselTripEvents`
+`vesselTimeline` event tables
 
 - minimal read model for `VesselTimeline`
 - stores ordered boundary events for one vessel/day
-- fed by schedule seeding plus live vessel-location enrichment
+- fed by schedule seeding plus trip-driven actual/predicted projection
 
 ## Related Documentation
 
@@ -222,11 +228,11 @@ The new `vesselTripEvents` branch is designed to stay lightweight:
 ## Summary
 
 The current orchestrator coordinates one shared vessel-location fetch across
-three backend consumers:
+two backend consumers:
 
 1. `vesselLocations` for current live state
-2. `vesselTrips/updates` for full trip lifecycle management
-3. `vesselTripEvents` for the minimal vessel/day timeline feed
+2. `vesselTrips/updates` for full trip lifecycle management plus timeline
+   projection
 
 That split keeps the timeline contract simple without removing the richer trip
 pipeline that other parts of the system still depend on.

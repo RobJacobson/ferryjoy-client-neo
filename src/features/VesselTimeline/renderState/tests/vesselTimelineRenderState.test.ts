@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/activeStateSchemas";
+import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
 import {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
@@ -20,8 +20,8 @@ describe("resolveActiveSegmentIndex", () => {
 
     rows[0] = {
       ...firstRow,
-      startEvent: { ...firstRow.startEvent, ActualTime: at(8, 1) },
-      endEvent: { ...firstRow.endEvent, ActualTime: undefined },
+      startEvent: { ...firstRow.startEvent, EventActualTime: at(8, 1) },
+      endEvent: { ...firstRow.endEvent, EventActualTime: undefined },
     };
 
     const activeRowIndex = resolveActiveSegmentIndex(
@@ -69,6 +69,9 @@ describe("getStaticVesselTimelineRenderState", () => {
 
     expect(renderState.rows).toHaveLength(5);
     expect(renderState.rows[2]?.kind).toBe("at-dock");
+    expect(renderState.rows[2]?.startLabel).toBe("Arv: VAI");
+    expect(renderState.rows[2]?.terminalHeadline).toBe("Vashon Is.");
+    expect(renderState.rows[2]?.showStartTimePlaceholder).toBeTrue();
     expect(renderState.rows[2]?.startEvent.currTerminalAbbrev).toBe("VAI");
     expect(renderState.rows[2]?.startEvent.currTerminalDisplayName).toBe(
       "Vashon Is."
@@ -76,6 +79,9 @@ describe("getStaticVesselTimelineRenderState", () => {
     expect(renderState.rows[2]?.startEvent.isArrivalPlaceholder).toBeTrue();
     expect(renderState.rows[2]?.startEvent.timePoint.scheduled).toBeUndefined();
     expect(renderState.rows[3]?.kind).toBe("at-sea");
+    expect(renderState.rows[3]?.startLabel).toBe("To: FAU");
+    expect(renderState.rows[3]?.terminalHeadline).toBeUndefined();
+    expect(renderState.rows[3]?.showStartTimePlaceholder).toBeFalse();
     expect(renderState.rows[3]?.startEvent.nextTerminalAbbrev).toBe("FAU");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([
       "top",
@@ -97,7 +103,10 @@ describe("getStaticVesselTimelineRenderState", () => {
       },
       reason: "location_anchor",
     });
-    const staticState = getStaticVesselTimelineRenderState(segments, activeState);
+    const staticState = getStaticVesselTimelineRenderState(
+      segments,
+      activeState
+    );
     const earlyIndicator = getVesselTimelineActiveIndicator({
       segments,
       activeState,
@@ -203,8 +212,8 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "P52",
             TerminalDisplayName: "Seattle",
             ScheduledDeparture: at(8, 0),
-            ScheduledTime: at(8, 0),
-            ActualTime: at(8, 5),
+            EventScheduledTime: at(8, 0),
+            EventActualTime: at(8, 5),
           }),
           endEvent: makeBoundary({
             Key: "arv-1",
@@ -212,7 +221,7 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "BBI",
             TerminalDisplayName: "Bainbridge Is.",
             ScheduledDeparture: at(8, 0),
-            ScheduledTime: at(8, 35),
+            EventScheduledTime: at(8, 35),
           }),
           durationMinutes: 35,
         }),
@@ -255,7 +264,7 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "VAI",
             TerminalDisplayName: "Vashon Is.",
             ScheduledDeparture: at(11, 30),
-            ScheduledTime: at(11, 30),
+            EventScheduledTime: at(11, 30),
           }),
           endEvent: makeBoundary({
             Key: "dep-1",
@@ -263,7 +272,7 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "VAI",
             TerminalDisplayName: "Vashon Is.",
             ScheduledDeparture: at(12, 35),
-            ScheduledTime: at(12, 35),
+            EventScheduledTime: at(12, 35),
           }),
           durationMinutes: 65,
         }),
@@ -299,8 +308,8 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "FAU",
             TerminalDisplayName: "Fauntleroy",
             ScheduledDeparture: at(22, 50),
-            ScheduledTime: at(22, 50),
-            ActualTime: at(22, 58),
+            EventScheduledTime: at(22, 50),
+            EventActualTime: at(22, 58),
           }),
           endEvent: makeBoundary({
             Key: "dep-1",
@@ -308,8 +317,8 @@ describe("getStaticVesselTimelineRenderState", () => {
             TerminalAbbrev: "FAU",
             TerminalDisplayName: "Fauntleroy",
             ScheduledDeparture: at(23, 5),
-            ScheduledTime: at(23, 5),
-            PredictedTime: at(23, 12),
+            EventScheduledTime: at(23, 5),
+            EventPredictedTime: at(23, 12),
           }),
           durationMinutes: 15,
         }),
@@ -412,7 +421,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "P52",
       TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(8, 0),
-      ScheduledTime: at(8, 0),
+      EventScheduledTime: at(8, 0),
     }),
     durationMinutes: 0,
   }),
@@ -426,7 +435,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "P52",
       TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(8, 0),
-      ScheduledTime: at(8, 0),
+      EventScheduledTime: at(8, 0),
     }),
     endEvent: makeBoundary({
       Key: "arv-1",
@@ -434,7 +443,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "BBI",
       TerminalDisplayName: "Bainbridge Is.",
       ScheduledDeparture: at(8, 0),
-      ScheduledTime: at(8, 35),
+      EventScheduledTime: at(8, 35),
     }),
     durationMinutes: 35,
   }),
@@ -448,7 +457,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "BBI",
       TerminalDisplayName: "Bainbridge Is.",
       ScheduledDeparture: at(8, 0),
-      ScheduledTime: at(8, 35),
+      EventScheduledTime: at(8, 35),
     }),
     endEvent: makeBoundary({
       Key: "dep-2",
@@ -456,7 +465,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "BBI",
       TerminalDisplayName: "Bainbridge Is.",
       ScheduledDeparture: at(9, 50),
-      ScheduledTime: at(9, 50),
+      EventScheduledTime: at(9, 50),
     }),
     durationMinutes: 75,
   }),
@@ -470,7 +479,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "BBI",
       TerminalDisplayName: "Bainbridge Is.",
       ScheduledDeparture: at(9, 50),
-      ScheduledTime: at(9, 50),
+      EventScheduledTime: at(9, 50),
     }),
     endEvent: makeBoundary({
       Key: "arv-2",
@@ -478,7 +487,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "P52",
       TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(9, 50),
-      ScheduledTime: at(10, 25),
+      EventScheduledTime: at(10, 25),
     }),
     durationMinutes: 35,
   }),
@@ -493,7 +502,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "P52",
       TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(9, 50),
-      ScheduledTime: at(10, 25),
+      EventScheduledTime: at(10, 25),
     }),
     endEvent: makeBoundary({
       Key: "arv-2",
@@ -501,7 +510,7 @@ const makeRoundTripSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "P52",
       TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(9, 50),
-      ScheduledTime: at(10, 25),
+      EventScheduledTime: at(10, 25),
     }),
     durationMinutes: 0,
   }),
@@ -518,7 +527,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "VAI",
       TerminalDisplayName: "Vashon Is.",
       ScheduledDeparture: at(7, 5),
-      ScheduledTime: at(7, 5),
+      EventScheduledTime: at(7, 5),
     }),
     endEvent: makeBoundary({
       Key: "dep-0",
@@ -526,7 +535,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "VAI",
       TerminalDisplayName: "Vashon Is.",
       ScheduledDeparture: at(7, 5),
-      ScheduledTime: at(7, 5),
+      EventScheduledTime: at(7, 5),
     }),
     durationMinutes: 0,
   }),
@@ -540,7 +549,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "VAI",
       TerminalDisplayName: "Vashon Is.",
       ScheduledDeparture: at(7, 5),
-      ScheduledTime: at(7, 5),
+      EventScheduledTime: at(7, 5),
     }),
     endEvent: makeBoundary({
       Key: "arv-0b",
@@ -548,7 +557,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "FAU",
       TerminalDisplayName: "Fauntleroy",
       ScheduledDeparture: at(7, 5),
-      ScheduledTime: at(7, 25),
+      EventScheduledTime: at(7, 25),
     }),
     durationMinutes: 20,
   }),
@@ -571,7 +580,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "VAI",
       TerminalDisplayName: "Vashon Is.",
       ScheduledDeparture: at(7, 55),
-      ScheduledTime: at(7, 55),
+      EventScheduledTime: at(7, 55),
     }),
     durationMinutes: 0,
   }),
@@ -585,7 +594,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "VAI",
       TerminalDisplayName: "Vashon Is.",
       ScheduledDeparture: at(7, 55),
-      ScheduledTime: at(7, 55),
+      EventScheduledTime: at(7, 55),
     }),
     endEvent: makeBoundary({
       Key: "arv-1",
@@ -593,7 +602,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "FAU",
       TerminalDisplayName: "Fauntleroy",
       ScheduledDeparture: at(7, 55),
-      ScheduledTime: at(8, 15),
+      EventScheduledTime: at(8, 15),
     }),
     durationMinutes: 20,
   }),
@@ -608,7 +617,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "FAU",
       TerminalDisplayName: "Fauntleroy",
       ScheduledDeparture: at(7, 55),
-      ScheduledTime: at(8, 15),
+      EventScheduledTime: at(8, 15),
     }),
     endEvent: makeBoundary({
       Key: "arv-1",
@@ -616,7 +625,7 @@ const makePlaceholderSegments = (): VesselTimelineSegment[] => [
       TerminalAbbrev: "FAU",
       TerminalDisplayName: "Fauntleroy",
       ScheduledDeparture: at(7, 55),
-      ScheduledTime: at(8, 15),
+      EventScheduledTime: at(8, 15),
     }),
     durationMinutes: 0,
   }),
@@ -631,9 +640,9 @@ const makeBoundary = (
   EventType: "dep-dock",
   TerminalDisplayName: "Seattle",
   IsArrivalPlaceholder: undefined,
-  ScheduledTime: undefined,
-  PredictedTime: undefined,
-  ActualTime: undefined,
+  EventScheduledTime: undefined,
+  EventPredictedTime: undefined,
+  EventActualTime: undefined,
   ...overrides,
 });
 

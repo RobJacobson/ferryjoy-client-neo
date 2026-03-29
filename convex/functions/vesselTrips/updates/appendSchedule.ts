@@ -37,6 +37,7 @@ export const appendFinalSchedule = async (
   if (existingTrip?.Key === tripKey) {
     return {
       ...baseTrip,
+      NextKey: baseTrip.NextKey ?? existingTrip.NextKey,
       NextScheduledDeparture:
         baseTrip.NextScheduledDeparture ?? existingTrip.NextScheduledDeparture,
     };
@@ -51,6 +52,7 @@ export const appendFinalSchedule = async (
   // Prefer fresh lookup (new schedule); fall back to carried when lookup fails
   return {
     ...baseTrip,
+    NextKey: scheduledTrip?.NextKey ?? baseTrip.NextKey,
     NextScheduledDeparture:
       scheduledTrip?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };

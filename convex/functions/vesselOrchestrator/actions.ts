@@ -1,17 +1,15 @@
-import { api, internal } from "_generated/api";
+import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { runUpdateVesselTrips } from "functions/vesselTrips/updates";
-import { convertConvexVesselLocation } from "shared/convertVesselLocations";
-import { enrichConvexVesselLocation } from "shared/enrichConvexVesselLocations";
+import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
- * updateVesselLocations and updateVesselTrips subroutines with robust error isolation.
+ * updateVesselLocations and processVesselTrips subroutines with robust error isolation.
  *
  * This action eliminates duplicate API calls by fetching vessel locations once,
  * then passing the same converted data to both processing functions. Failures
@@ -19,9 +17,10 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
- * 2. Convert: toConvexVesselLocation() → convertConvexVesselLocation()
- * 3. Call updateVesselLocations() with error isolation
- * 4. Call runUpdateVesselTrips() with error isolation
+ * 2. Convert each WSF payload to `ConvexVesselLocation`
+ * 3. Capture one tick timestamp for downstream consumers
+ * 4. Call updateVesselLocations() with error isolation
+ * 5. Call processVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -33,12 +32,10 @@ export const updateVesselOrchestrator = internalAction({
   ): Promise<{
     locationsSuccess: boolean;
     tripsSuccess: boolean;
-    tripEventsSuccess: boolean;
     errors?: {
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
-      tripEvents?: { message: string; stack?: string };
     };
   }> => {
     // Track errors from each processing branch
@@ -46,7 +43,6 @@ export const updateVesselOrchestrator = internalAction({
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
-      tripEvents?: { message: string; stack?: string };
     } = {};
 
     // Step 1: Fetch and convert vessel locations
@@ -56,12 +52,7 @@ export const updateVesselOrchestrator = internalAction({
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
-      // Transform chain: WSF API → Convex schema → enrich with distances → final format
-      convexLocations = rawLocations.map((rawLocation) =>
-        convertConvexVesselLocation(
-          enrichConvexVesselLocation(toConvexVesselLocation(rawLocation))
-        )
-      );
+      convexLocations = rawLocations.map(toConvexVesselLocation);
     } catch (error) {
       const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
@@ -70,27 +61,21 @@ export const updateVesselOrchestrator = internalAction({
       return {
         locationsSuccess: false,
         tripsSuccess: false,
-        tripEventsSuccess: false,
         errors,
       };
     }
 
+    const tickStartedAt = Date.now();
+
     const branchResults: [
       PromiseSettledResult<void>,
       PromiseSettledResult<void>,
-      PromiseSettledResult<null>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      runUpdateVesselTrips(ctx, convexLocations),
-      ctx.runMutation(
-        internal.functions.vesselTimeline.mutations.applyLiveActualUpdates,
-        {
-          Locations: convexLocations,
-        }
-      ),
+      processVesselTrips(ctx, convexLocations, tickStartedAt),
     ]);
 
-    const [locationsResult, tripsResult, tripEventsResult] = branchResults;
+    const [locationsResult, tripsResult] = branchResults;
 
     if (locationsResult.status === "rejected") {
       const err = normalizeError(locationsResult.reason);
@@ -101,19 +86,12 @@ export const updateVesselOrchestrator = internalAction({
     if (tripsResult.status === "rejected") {
       const err = normalizeError(tripsResult.reason);
       errors.trips = { message: err.message, stack: err.stack };
-      console.error("runUpdateVesselTrips failed:", err);
-    }
-
-    if (tripEventsResult.status === "rejected") {
-      const err = normalizeError(tripEventsResult.reason);
-      errors.tripEvents = { message: err.message, stack: err.stack };
-      console.error("applyLiveActualUpdates failed:", err);
+      console.error("processVesselTrips failed:", err);
     }
 
     return {
       locationsSuccess: locationsResult.status === "fulfilled",
       tripsSuccess: tripsResult.status === "fulfilled",
-      tripEventsSuccess: tripEventsResult.status === "fulfilled",
       ...(Object.keys(errors).length > 0 ? { errors } : {}),
     };
   },

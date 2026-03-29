@@ -15,18 +15,21 @@ export const vesselTimelineEventTypeSchema = v.union(
 );
 
 export const vesselTimelineEventRecordSchema = v.object({
+  SegmentKey: v.string(),
   Key: v.string(),
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
   EventType: vesselTimelineEventTypeSchema,
-  ScheduledTime: v.optional(v.number()),
-  PredictedTime: v.optional(v.number()),
-  ActualTime: v.optional(v.number()),
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventActualTime: v.optional(v.number()),
 });
 
-export type VesselTimelineEventType = Infer<typeof vesselTimelineEventTypeSchema>;
+export type VesselTimelineEventType = Infer<
+  typeof vesselTimelineEventTypeSchema
+>;
 export type ConvexVesselTimelineEventRecord = Infer<
   typeof vesselTimelineEventRecordSchema
 >;
@@ -36,9 +39,9 @@ export const toDomainVesselTimelineEventRecord = (
 ) => ({
   ...event,
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  ScheduledTime: optionalEpochMsToDate(event.ScheduledTime),
-  PredictedTime: optionalEpochMsToDate(event.PredictedTime),
-  ActualTime: optionalEpochMsToDate(event.ActualTime),
+  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
+  EventPredictedTime: optionalEpochMsToDate(event.EventPredictedTime),
+  EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
 export type VesselTimelineEventRecord = ReturnType<

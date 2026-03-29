@@ -1,3 +1,10 @@
+/**
+ * ScheduledTrips transformation pipeline.
+ *
+ * This module coordinates the domain steps that classify raw schedule rows and
+ * then enrich them with arrival estimates plus chain-link metadata.
+ */
+
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import { classifyTripsByType } from "./classification";
 import { calculateTripEstimates } from "./estimates";

@@ -30,9 +30,7 @@ export const getVesselTimelineScheduledEvents = query({
       )
       .collect();
 
-    return docs
-      .map(stripConvexMeta)
-      .sort(sortScheduledBoundaryEvents);
+    return docs.map(stripConvexMeta).sort(sortScheduledBoundaryEvents);
   },
 });
 
@@ -57,7 +55,9 @@ export const getVesselTimelineActualEvents = query({
 
     return docs
       .map(stripConvexMeta)
-      .sort((left, right) => left.ScheduledDeparture - right.ScheduledDeparture);
+      .sort(
+        (left, right) => left.ScheduledDeparture - right.ScheduledDeparture
+      );
   },
 });
 
@@ -89,10 +89,12 @@ export const getVesselTimelinePredictedEvents = query({
           SailingDay: predicted.SailingDay,
           ScheduledDeparture: predicted.ScheduledDeparture,
           TerminalAbbrev: predicted.TerminalAbbrev,
-          PredictedTime: predicted.PredictedTime,
+          EventPredictedTime: predicted.EventPredictedTime,
         };
       })
-      .sort((left, right) => left.ScheduledDeparture - right.ScheduledDeparture);
+      .sort(
+        (left, right) => left.ScheduledDeparture - right.ScheduledDeparture
+      );
   },
 });
 

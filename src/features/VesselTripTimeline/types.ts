@@ -97,6 +97,9 @@ export type TimelineRenderRow = {
   markerAppearance: "past" | "future";
   segmentIndex: number;
   geometryMinutes: number;
+  startLabel: string;
+  showStartTimePlaceholder: boolean;
+  terminalHeadline?: string;
   startBoundary: TimelineRenderBoundary;
   endBoundary?: TimelineRenderBoundary;
   isFinalRow: boolean;

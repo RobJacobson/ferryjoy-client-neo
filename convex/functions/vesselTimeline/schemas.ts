@@ -9,7 +9,10 @@ import {
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
 import { eventsActualSchema } from "../eventsActual/schemas";
-import { eventsScheduledSchema, boundaryEventTypeSchema } from "../eventsScheduled/schemas";
+import {
+  boundaryEventTypeSchema,
+  eventsScheduledSchema,
+} from "../eventsScheduled/schemas";
 
 export const timelinePredictedBoundaryEventSchema = v.object({
   Key: v.string(),
@@ -17,7 +20,7 @@ export const timelinePredictedBoundaryEventSchema = v.object({
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
-  PredictedTime: v.number(),
+  EventPredictedTime: v.number(),
 });
 
 export const mergedTimelineBoundaryEventSchema = v.object({
@@ -27,9 +30,9 @@ export const mergedTimelineBoundaryEventSchema = v.object({
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
   EventType: boundaryEventTypeSchema,
-  ScheduledTime: v.optional(v.number()),
-  PredictedTime: v.optional(v.number()),
-  ActualTime: v.optional(v.number()),
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventActualTime: v.optional(v.number()),
 });
 
 export const vesselTimelineSegmentEventSchema = v.object({
@@ -39,9 +42,9 @@ export const vesselTimelineSegmentEventSchema = v.object({
   EventType: v.optional(boundaryEventTypeSchema),
   TerminalDisplayName: v.optional(v.string()),
   IsArrivalPlaceholder: v.optional(v.boolean()),
-  ScheduledTime: v.optional(v.number()),
-  PredictedTime: v.optional(v.number()),
-  ActualTime: v.optional(v.number()),
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventActualTime: v.optional(v.number()),
 });
 
 export const vesselTimelinePlaceholderReasonSchema = v.union(
@@ -78,7 +81,7 @@ export const toDomainTimelinePredictedBoundaryEvent = (
 ) => ({
   ...event,
   ScheduledDeparture: new Date(event.ScheduledDeparture),
-  PredictedTime: new Date(event.PredictedTime),
+  EventPredictedTime: new Date(event.EventPredictedTime),
 });
 
 export const toConvexVesselTimelineSegmentEvent = (event: {
@@ -88,15 +91,15 @@ export const toConvexVesselTimelineSegmentEvent = (event: {
   EventType?: "dep-dock" | "arv-dock";
   TerminalDisplayName?: string;
   IsArrivalPlaceholder?: boolean;
-  ScheduledTime?: Date;
-  PredictedTime?: Date;
-  ActualTime?: Date;
+  EventScheduledTime?: Date;
+  EventPredictedTime?: Date;
+  EventActualTime?: Date;
 }): ConvexVesselTimelineSegmentEvent => ({
   ...event,
   ScheduledDeparture: optionalDateToEpochMs(event.ScheduledDeparture),
-  ScheduledTime: optionalDateToEpochMs(event.ScheduledTime),
-  PredictedTime: optionalDateToEpochMs(event.PredictedTime),
-  ActualTime: optionalDateToEpochMs(event.ActualTime),
+  EventScheduledTime: optionalDateToEpochMs(event.EventScheduledTime),
+  EventPredictedTime: optionalDateToEpochMs(event.EventPredictedTime),
+  EventActualTime: optionalDateToEpochMs(event.EventActualTime),
 });
 
 export const toDomainVesselTimelineSegmentEvent = (
@@ -104,9 +107,9 @@ export const toDomainVesselTimelineSegmentEvent = (
 ) => ({
   ...event,
   ScheduledDeparture: optionalEpochMsToDate(event.ScheduledDeparture),
-  ScheduledTime: optionalEpochMsToDate(event.ScheduledTime),
-  PredictedTime: optionalEpochMsToDate(event.PredictedTime),
-  ActualTime: optionalEpochMsToDate(event.ActualTime),
+  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
+  EventPredictedTime: optionalEpochMsToDate(event.EventPredictedTime),
+  EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
 export const toDomainVesselTimelineSegment = (
@@ -122,9 +125,9 @@ export const toDomainMergedTimelineBoundaryEvent = (
 ) => ({
   ...event,
   ScheduledDeparture: new Date(event.ScheduledDeparture),
-  ScheduledTime: optionalEpochMsToDate(event.ScheduledTime),
-  PredictedTime: optionalEpochMsToDate(event.PredictedTime),
-  ActualTime: optionalEpochMsToDate(event.ActualTime),
+  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
+  EventPredictedTime: optionalEpochMsToDate(event.EventPredictedTime),
+  EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
 export type TimelinePredictedBoundaryEvent = ReturnType<
@@ -140,4 +143,4 @@ export type MergedTimelineBoundaryEvent = ReturnType<
   typeof toDomainMergedTimelineBoundaryEvent
 >;
 
-export { eventsScheduledSchema, eventsActualSchema };
+export { eventsActualSchema, eventsScheduledSchema };

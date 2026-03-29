@@ -9,7 +9,7 @@
  * This module orchestrates the complete ML training process for ferry schedule predictions.
  * The pipeline follows these steps:
  *
- * 1. **Data Loading**: Load historical WSF trip data (720 days back)
+ * 1. **Data Loading**: Load historical WSF trip data from the configured lookback window
  * 2. **Window Creation**: Build training windows from consecutive vessel trips
  * 3. **Feature Extraction**: Transform windows into ML-ready feature records
  * 4. **Bucketing**: Group records by route for specialized model training
@@ -44,7 +44,7 @@ import { storeModels, trainModel } from "./models";
  *
  * Creates a training task for every combination of:
  * - Route bucket (each terminal pair or chain with sufficient data)
- * - Model type (10 different prediction models)
+ * - Model type (the five configured prediction models)
  *
  * Uses Promise.all for parallel execution to maximize training throughput.
  * Filters out failed/null training results (e.g., insufficient data).
@@ -76,7 +76,7 @@ const trainAllModels = async (
  * ## Pipeline Steps
  *
  * 1. **Clean Slate**: Delete existing models to prevent stale data
- * 2. **Data Loading**: Fetch 720 days of historical WSF trip data
+ * 2. **Data Loading**: Fetch the configured historical WSF trip window
  * 3. **Window Creation**: Build training windows from consecutive trips per vessel
  * 4. **Feature Extraction**: Transform windows into ML-ready feature vectors
  * 5. **Bucketing**: Group by route (terminal pairs) for specialized models
@@ -101,7 +101,7 @@ const trainAllModels = async (
 export const runMLPipeline = async (
   ctx: ActionCtx
 ): Promise<TrainingResponse> => {
-  // Load historical training data (720 days ≈ 2 years of ferry operations)
+  // Load historical training data from the configured lookback window.
   // Note: Models are now versioned, so we don't delete existing models.
   // New training runs create dev-temp versions that can be promoted later.
   const wsfRecords = await loadWsfTrainingData();

@@ -16,7 +16,7 @@
  *
  * ## Data Sources
  * - **Terminal mappings**: Derived from WSF (Washington State Ferries) system
- * - **Duration statistics**: Calculated from historical vessel trip data (720 days back)
+ * - **Duration statistics**: Calculated from a precomputed historical training window
  * - **Thresholds**: Determined through statistical analysis and business requirements
  *
  * ## Duration Data Methodology
@@ -98,7 +98,8 @@ export const ML_CONFIG = {
      * Historical mean at-dock durations by terminal pair (in minutes).
      *
      * Represents average time vessels spend at terminals between arrival and departure.
-     * Calculated from 720 days of historical WSF data. Used for:
+     * Calculated from the historical training window used to derive route
+     * priors. Used for:
      * - Feature engineering (regime classification)
      * - Prediction baseline calculations
      * - Layover vs in-service regime determination
@@ -146,7 +147,8 @@ export const ML_CONFIG = {
      * Historical mean at-sea durations by terminal pair (in minutes).
      *
      * Represents average transit time between terminals.
-     * Calculated from 720 days of historical WSF data. Used for:
+     * Calculated from the historical training window used to derive route
+     * priors. Used for:
      * - Estimating expected arrival times
      * - Calculating arrival schedule deviations
      * - Feature engineering for prediction models
@@ -222,7 +224,7 @@ export const ML_CONFIG = {
      * Training data loading parameters.
      *
      * Determines how much historical data to include in training:
-     * - daysBack: How far back to look (720 days = ~2 years)
+     * - daysBack: How far back to look from the current training run
      * - maxRecordsPerVessel: Prevents any single vessel from dominating training
      * - maxSamplesPerRoute: Limits samples per route to prevent overfitting
      * - samplingStrategy: "recent_first" prioritizes recent data for relevance

@@ -10,10 +10,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 
-// ============================================================================
-// buildCompletedTrip
-// ============================================================================
-
 /**
  * Build completed trip with TripEnd, AtSeaDuration, and TotalDuration.
  *
@@ -52,6 +48,16 @@ export const buildCompletedTrip = (
   return actualizePredictionsOnTripComplete(withDurations);
 };
 
+/**
+ * Choose a safe arrival timestamp for trip completion.
+ *
+ * Falls back to the current tick when the carried `ArriveDest` is missing or
+ * would place arrival before the trip started or left dock.
+ *
+ * @param existingTrip - Trip being completed
+ * @param fallbackArrivalTime - Current tick timestamp in epoch milliseconds
+ * @returns Arrival timestamp safe to persist on the completed trip
+ */
 const getEffectiveArrivalTime = (
   existingTrip: ConvexVesselTrip,
   fallbackArrivalTime: number
@@ -68,6 +74,7 @@ const getEffectiveArrivalTime = (
     (existingTrip.TripStart !== undefined &&
       candidateArrivalTime < existingTrip.TripStart)
   ) {
+    // Guard against stale feed values that would make the trip go backward.
     return fallbackArrivalTime;
   }
 

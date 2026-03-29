@@ -39,6 +39,7 @@ export const getLayoutTimelineRows = (
 
   const rows = semanticRows.map((row) => {
     const displayHeightPx = getDisplayHeightPx(row, layout);
+    const startEvent = toRenderEvent(row.kind, "start", row);
     rowTopPxs.push(contentHeightPx);
     rowLayouts[row.id] = {
       y: contentHeightPx,
@@ -52,7 +53,10 @@ export const getLayoutTimelineRows = (
       markerAppearance: row.segmentIndex <= activeRowIndex ? "past" : "future",
       segmentIndex: row.segmentIndex,
       displayHeightPx,
-      startEvent: toRenderEvent(row.kind, "start", row),
+      startLabel: getStartEventLabel(startEvent),
+      showStartTimePlaceholder: startEvent.isArrivalPlaceholder === true,
+      terminalHeadline: getTerminalHeadline(startEvent),
+      startEvent,
       endEvent: toRenderEvent(row.kind, "end", row),
       isFinalRow: row.isTerminal === true,
     } satisfies TimelineRenderRow;
@@ -81,7 +85,7 @@ const getDisplayHeightPx = (
     layout.minRowHeightPx,
     layout.rowHeightBasePx +
       layout.rowHeightScalePx *
-        Math.pow(Math.max(0, row.durationMinutes), layout.rowHeightExponent)
+        Math.max(0, row.durationMinutes) ** layout.rowHeightExponent
   );
 
 /**
@@ -116,12 +120,36 @@ const toRenderEvent = (
         : undefined,
     isArrivalPlaceholder: event.IsArrivalPlaceholder,
     timePoint: {
-      scheduled: event.ScheduledTime,
-      actual: event.ActualTime,
-      estimated: event.PredictedTime,
+      scheduled: event.EventScheduledTime,
+      actual: event.EventActualTime,
+      estimated: event.EventPredictedTime,
     },
   };
 };
+
+/**
+ * Precomputes the left-column row label for the shared timeline renderer.
+ *
+ * @param event - Start-of-row render event
+ * @returns Arrive/depart display label
+ */
+const getStartEventLabel = (event: TimelineRenderEvent) =>
+  event.eventType === "arrive"
+    ? event.currTerminalAbbrev
+      ? `Arv: ${event.currTerminalAbbrev}`
+      : "Arv"
+    : event.nextTerminalAbbrev
+      ? `To: ${event.nextTerminalAbbrev}`
+      : "Dep";
+
+/**
+ * Optional terminal heading shown above dock rows.
+ *
+ * @param event - Start-of-row render event
+ * @returns Terminal headline text when this row starts at a dock
+ */
+const getTerminalHeadline = (event: TimelineRenderEvent) =>
+  event.eventType === "arrive" ? event.currTerminalDisplayName : undefined;
 
 /**
  * Collects blurred terminal card regions for consecutive dock/sea pairs at

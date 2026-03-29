@@ -3,6 +3,8 @@
  * Provides consistent key generation across different trip types
  */
 
+export type BoundaryEventType = "dep-dock" | "arv-dock";
+
 /**
  * Format a UTC date as Pacific local date (YYYY-MM-DD).
  *
@@ -40,7 +42,8 @@ export const formatPacificTime = (utcDate: Date): string => {
 };
 
 /**
- * Generate composite key for any trip type
+ * Generate the canonical segment key shared by scheduled trips, vessel trips,
+ * and timeline boundary events.
  * Format: "[vessel]--[sailing day]--[time]--[departing terminal]-[arriving terminal]"
  * Uses Pacific calendar day (not WSF sailing day logic).
  * Time is in HH:MM format (Pacific timezone)
@@ -49,9 +52,9 @@ export const formatPacificTime = (utcDate: Date): string => {
  * @param departingTerminalAbbrev - Departing terminal abbreviation
  * @param arrivingTerminalAbbrev - Arriving terminal abbreviation (can be empty string or undefined)
  * @param departingTime - Departure time as Date object
- * @returns Composite key string, or undefined if required fields are missing
+ * @returns Segment key string, or undefined if required fields are missing
  */
-export const generateTripKey = (
+export const buildSegmentKey = (
   vesselAbbrev: string,
   departingTerminalAbbrev: string,
   arrivingTerminalAbbrev: string | undefined,
@@ -71,3 +74,37 @@ export const generateTripKey = (
   const timeStr = formatPacificTime(departingTime);
   return `${vesselAbbrev}--${dateStr}--${timeStr}--${departingTerminalAbbrev}-${arrivingTerminalAbbrev}`;
 };
+
+/**
+ * Backwards-compatible alias for the canonical segment key helper.
+ *
+ * @param vesselAbbrev - Vessel abbreviation
+ * @param departingTerminalAbbrev - Departing terminal abbreviation
+ * @param arrivingTerminalAbbrev - Arriving terminal abbreviation
+ * @param departingTime - Departure time as Date object
+ * @returns Segment key string, or undefined if required fields are missing
+ */
+export const generateTripKey = (
+  vesselAbbrev: string,
+  departingTerminalAbbrev: string,
+  arrivingTerminalAbbrev: string | undefined,
+  departingTime: Date | undefined
+) =>
+  buildSegmentKey(
+    vesselAbbrev,
+    departingTerminalAbbrev,
+    arrivingTerminalAbbrev,
+    departingTime
+  );
+
+/**
+ * Generate a boundary-event key from the canonical segment key.
+ *
+ * @param segmentKey - Canonical segment key for the sailing
+ * @param eventType - Boundary event type for the segment
+ * @returns Stable boundary-event key
+ */
+export const buildBoundaryKey = (
+  segmentKey: string,
+  eventType: BoundaryEventType
+) => `${segmentKey}--${eventType}`;

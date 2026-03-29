@@ -22,13 +22,14 @@ export type UnifiedTrip = {
 };
 
 /**
- * Create UnifiedTrip from VesselTrip (for prediction)
+ * Creates a `UnifiedTrip` from the persisted vessel-trip shape used in
+ * prediction flows.
  *
- * Normalizes VesselTrip data for ML feature extraction.
- * Required fields are enforced (TripStart, PrevAtSeaDuration, PrevTripDelay).
+ * Normalizes `ConvexVesselTrip` data for ML feature extraction and enforces
+ * the minimum fields needed by the shared feature pipeline.
  *
  * @param trip - Convex vessel trip record
- * @returns Unified trip structure or null if required fields missing
+ * @returns Unified trip structure ready for feature extraction
  */
 export const fromVesselTrip = (trip: ConvexVesselTrip): UnifiedTrip => {
   if (
