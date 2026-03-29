@@ -1,5 +1,3 @@
-"use node";
-
 /**
  * Defines scheduled actions for historic vessel-location snapshots and cleanup.
  */
