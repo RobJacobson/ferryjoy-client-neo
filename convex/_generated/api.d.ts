@@ -44,6 +44,13 @@ import type * as functions_eventsActual_schemas from "../functions/eventsActual/
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
 import type * as functions_index from "../functions/index.js";
+import type * as functions_keyValueStore_actions from "../functions/keyValueStore/actions.js";
+import type * as functions_keyValueStore_helpers from "../functions/keyValueStore/helpers.js";
+import type * as functions_keyValueStore_index from "../functions/keyValueStore/index.js";
+import type * as functions_keyValueStore_migrations from "../functions/keyValueStore/migrations.js";
+import type * as functions_keyValueStore_mutations from "../functions/keyValueStore/mutations.js";
+import type * as functions_keyValueStore_queries from "../functions/keyValueStore/queries.js";
+import type * as functions_keyValueStore_schemas from "../functions/keyValueStore/schemas.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
@@ -69,6 +76,7 @@ import type * as functions_scheduledTrips_sync_transform_index from "../function
 import type * as functions_scheduledTrips_sync_transform_officialCrossingTimes from "../functions/scheduledTrips/sync/transform/officialCrossingTimes.js";
 import type * as functions_scheduledTrips_sync_transform_pipeline from "../functions/scheduledTrips/sync/transform/pipeline.js";
 import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
+import type * as functions_terminals_schemas from "../functions/terminals/schemas.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
 import type * as functions_vesselLocation_queries from "../functions/vesselLocation/queries.js";
@@ -115,6 +123,7 @@ import type * as functions_vesselTrips_updates_processVesselTrips_processCurrent
 import type * as functions_vesselTrips_updates_processVesselTrips_processVesselTrips from "../functions/vesselTrips/updates/processVesselTrips/processVesselTrips.js";
 import type * as functions_vesselTrips_updates_tripDerivation from "../functions/vesselTrips/updates/tripDerivation.js";
 import type * as functions_vesselTrips_updates_tripEquality from "../functions/vesselTrips/updates/tripEquality.js";
+import type * as functions_vessels_schemas from "../functions/vessels/schemas.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
@@ -169,6 +178,13 @@ declare const fullApi: ApiFromModules<{
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
   "functions/index": typeof functions_index;
+  "functions/keyValueStore/actions": typeof functions_keyValueStore_actions;
+  "functions/keyValueStore/helpers": typeof functions_keyValueStore_helpers;
+  "functions/keyValueStore/index": typeof functions_keyValueStore_index;
+  "functions/keyValueStore/migrations": typeof functions_keyValueStore_migrations;
+  "functions/keyValueStore/mutations": typeof functions_keyValueStore_mutations;
+  "functions/keyValueStore/queries": typeof functions_keyValueStore_queries;
+  "functions/keyValueStore/schemas": typeof functions_keyValueStore_schemas;
   "functions/predictions/index": typeof functions_predictions_index;
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;
@@ -194,6 +210,7 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/transform/officialCrossingTimes": typeof functions_scheduledTrips_sync_transform_officialCrossingTimes;
   "functions/scheduledTrips/sync/transform/pipeline": typeof functions_scheduledTrips_sync_transform_pipeline;
   "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
+  "functions/terminals/schemas": typeof functions_terminals_schemas;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
   "functions/vesselLocation/queries": typeof functions_vesselLocation_queries;
@@ -240,6 +257,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/processVesselTrips/processVesselTrips": typeof functions_vesselTrips_updates_processVesselTrips_processVesselTrips;
   "functions/vesselTrips/updates/tripDerivation": typeof functions_vesselTrips_updates_tripDerivation;
   "functions/vesselTrips/updates/tripEquality": typeof functions_vesselTrips_updates_tripEquality;
+  "functions/vessels/schemas": typeof functions_vessels_schemas;
   "shared/convertDates": typeof shared_convertDates;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;

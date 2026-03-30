@@ -41,6 +41,7 @@ import { api } from "_generated/api";
 import type { ActionCtx, MutationCtx } from "_generated/server";
 import { roundToPrecision } from "shared";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import { getProductionVersionTagValue } from "../../../functions/keyValueStore/helpers";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import { config, formatTerminalPairKey } from "../shared/config";
 import { createFeatureRecord } from "../shared/featureRecord";
@@ -92,13 +93,7 @@ const loadModelForPair = async (
 ): Promise<ModelDoc | null> => {
   if (isMutationCtx(ctx)) {
     // Mutations have direct database access
-    // Get production version tag from config
-    const config = await ctx.db
-      .query("keyValueStore")
-      .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-      .first();
-
-    const prodVersionTag = config?.value as string | null;
+    const prodVersionTag = await getProductionVersionTagValue(ctx);
     if (!prodVersionTag) {
       // Fallback: try to find any model (for backward compatibility)
       const doc = await ctx.db

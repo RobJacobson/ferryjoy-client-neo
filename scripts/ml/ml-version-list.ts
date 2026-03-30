@@ -36,7 +36,7 @@ async function listVersions() {
 
     // Get current production version tag
     const currentProdTag = await convex.query(
-      api.functions.predictions.queries.getProductionVersionTag
+      api.functions.keyValueStore.queries.getProductionVersionTag
     );
 
     // Get all models to calculate statistics

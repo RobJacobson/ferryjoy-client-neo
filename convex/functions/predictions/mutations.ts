@@ -2,6 +2,11 @@ import type { MutationCtx } from "_generated/server";
 import { mutation } from "_generated/server";
 import { v } from "convex/values";
 import {
+  getProductionVersionTagValue,
+  upsertByKey,
+} from "functions/keyValueStore/helpers";
+import { KEY_PRODUCTION_VERSION_TAG } from "functions/keyValueStore/schemas";
+import {
   modelParametersSchema,
   predictionRecordSchema,
 } from "functions/predictions/schemas";
@@ -318,55 +323,21 @@ export const setProductionVersionTag = mutation({
       );
     }
 
-    await setProductionVersionTagInternal(ctx, args.versionTag);
+    await upsertByKey(ctx, KEY_PRODUCTION_VERSION_TAG, args.versionTag);
 
     return { success: true };
   },
 });
 
 /**
- * Internal helper to set production version tag in keyValueStore.
- *
- * @param ctx - Convex mutation context
- * @param versionTag - The production version tag
- */
-async function setProductionVersionTagInternal(
-  ctx: MutationCtx,
-  versionTag: string
-): Promise<void> {
-  const existing = await ctx.db
-    .query("keyValueStore")
-    .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-    .first();
-
-  const config = {
-    key: "productionVersionTag",
-    value: versionTag,
-    updatedAt: Date.now(),
-  };
-
-  if (existing) {
-    await ctx.db.replace(existing._id, config);
-  } else {
-    await ctx.db.insert("keyValueStore", config);
-  }
-}
-
-/**
  * Get model configuration (internal helper).
  *
  * @param ctx - Convex mutation context
- * @returns Model config or null if not set
+ * @returns Model config with production version tag (null when unset)
  */
 async function getModelConfig(ctx: MutationCtx): Promise<{
   productionVersionTag: string | null;
-} | null> {
-  const config = await ctx.db
-    .query("keyValueStore")
-    .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-    .first();
-
-  return config
-    ? { productionVersionTag: config.value as string | null }
-    : { productionVersionTag: null };
+}> {
+  const productionVersionTag = await getProductionVersionTagValue(ctx);
+  return { productionVersionTag };
 }
