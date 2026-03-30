@@ -6,6 +6,19 @@ import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
 import { toConvexVesselLocation } from "./schemas";
 
+describe("calculateDistanceInMiles", () => {
+  it("floors distances to one decimal place", () => {
+    const flooredDistance = calculateDistanceInMiles(
+      47.6205,
+      -122.3493,
+      47.6133,
+      -122.35035
+    );
+
+    expect(flooredDistance).toBe(0.4);
+  });
+});
+
 describe("toConvexVesselLocation", () => {
   it("computes both terminal distances when both terminals are known", () => {
     const location = toConvexVesselLocation(

@@ -4,13 +4,13 @@
  */
 
 import type { Route } from "ws-dottie/wsf-schedule";
-import type { ConvexScheduledTrip } from "../schemas";
-import { createScheduledTripFromRawSegment } from "./fetching/mapping";
 import type { RawWsfRouteScheduleData } from "../../../shared/fetchWsfScheduleData";
 import {
   downloadRawWsfScheduleData,
   fetchActiveRoutes,
 } from "../../../shared/fetchWsfScheduleData";
+import type { ConvexScheduledTrip } from "../schemas";
+import { createScheduledTripFromRawSegment } from "./fetching/mapping";
 import { runTransformationPipeline } from "./transform";
 
 export type FetchAndTransformScheduledTripsResult = {
