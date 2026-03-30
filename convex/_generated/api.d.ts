@@ -134,6 +134,7 @@ import type * as shared_keys from "../shared/keys.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_terminalLocations from "../shared/terminalLocations.js";
 import type * as shared_time from "../shared/time.js";
+import type * as shared_vessels from "../shared/vessels.js";
 
 import type {
   ApiFromModules,
@@ -268,6 +269,7 @@ declare const fullApi: ApiFromModules<{
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/terminalLocations": typeof shared_terminalLocations;
   "shared/time": typeof shared_time;
+  "shared/vessels": typeof shared_vessels;
 }>;
 
 /**
