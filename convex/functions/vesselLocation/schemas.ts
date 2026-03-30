@@ -3,8 +3,11 @@
  */
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+import {
+  resolveVessel,
+  type VesselIdentity,
+} from "../../shared/vessels";
 import {
   dateToEpochMs,
   epochMsToDate,
@@ -69,19 +72,26 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  * Convert a Dottie vessel location to a convex vessel location.
  * Manual conversion from Date objects to epoch milliseconds.
  * @param dvl - Dottie vessel location with Date objects
- * @returns Convex vessel location with numeric timestamps
+ * @param vessels - Canonical vessel rows used to resolve the vessel abbreviation
+  * @returns Convex vessel location with numeric timestamps
  */
-export const toConvexVesselLocation = (
-  dvl: DottieVesselLocation
-): ConvexVesselLocation => {
+export function toConvexVesselLocation(
+  dvl: DottieVesselLocation,
+  vessels: ReadonlyArray<VesselIdentity>
+): ConvexVesselLocation {
   const VesselName = dvl.VesselName ?? "";
   const DepartingTerminalAbbrev = dvl.DepartingTerminalAbbrev ?? "";
   const ArrivingTerminalAbbrev = dvl.ArrivingTerminalAbbrev ?? undefined;
+  const resolvedVessel = resolveVessel({ VesselName }, vessels);
+
+  if (!resolvedVessel) {
+    throw new Error(`Unknown vessel in canonical table lookup: ${VesselName}`);
+  }
 
   return {
     VesselID: dvl.VesselID,
     VesselName,
-    VesselAbbrev: getVesselAbbreviation(VesselName),
+    VesselAbbrev: resolvedVessel.VesselAbbrev,
     DepartingTerminalID: dvl.DepartingTerminalID,
     DepartingTerminalName: dvl.DepartingTerminalName ?? "",
     DepartingTerminalAbbrev,
@@ -111,7 +121,7 @@ export const toConvexVesselLocation = (
       ArrivingTerminalAbbrev
     ),
   };
-};
+}
 
 /**
  * Convert Convex vessel location (numbers) to domain vessel location (Dates).

@@ -5,6 +5,8 @@ import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { Vessel } from "functions/vessels/schemas";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
@@ -33,14 +35,32 @@ export const captureHistoricVesselLocations = internalAction({
     inserted: v.number(),
   }),
   handler: async (ctx): Promise<HistoricSnapshotResult> => {
-    const locations: ConvexHistoricVesselLocation[] = (
-      await fetchWsfVesselLocations()
-    )
-      .map(toConvexVesselLocation)
-      .map((location) => ({
+    const vessels: Array<Vessel> = await ctx.runQuery(
+      internal.functions.vesselLocation.queries.getAllCanonicalVesselsInternal
+    );
+    const rawLocations = await fetchWsfVesselLocations();
+    const convexLocations: Array<ConvexVesselLocation> = [];
+
+    for (const rawLocation of rawLocations) {
+      try {
+        convexLocations.push(toConvexVesselLocation(rawLocation, vessels));
+      } catch (error) {
+        const normalized =
+          error instanceof Error ? error : new Error(String(error));
+        console.error("Skipping historic vessel location:", {
+          VesselID: rawLocation.VesselID,
+          VesselName: rawLocation.VesselName,
+          error: normalized.message,
+        });
+      }
+    }
+
+    const locations: ConvexHistoricVesselLocation[] = convexLocations.map(
+      (location) => ({
         ...location,
         SailingDay: getSailingDay(new Date(location.TimeStamp)),
-      }));
+      })
+    );
 
     const result: HistoricSnapshotResult = await ctx.runMutation(
       internal.functions.vesselLocationsHistoric.mutations.insertSnapshotBatch,

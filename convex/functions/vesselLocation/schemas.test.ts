@@ -4,6 +4,7 @@ import { describe, expect, it } from "bun:test";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
+import type { VesselIdentity } from "../../shared/vessels";
 import { toConvexVesselLocation } from "./schemas";
 
 describe("calculateDistanceInMiles", () => {
@@ -34,7 +35,8 @@ describe("toConvexVesselLocation", () => {
         Latitude: 48.55,
         Longitude: -122.82,
         Speed: 15.7,
-      })
+      }),
+      TEST_VESSELS
     );
 
     const departing = getTerminalLocationByAbbrev("ANA");
@@ -69,7 +71,8 @@ describe("toConvexVesselLocation", () => {
         ArrivingTerminalAbbrev: null,
         Latitude: 47.62,
         Longitude: -122.45,
-      })
+      }),
+      TEST_VESSELS
     );
 
     expect(location.DepartingDistance).toBeDefined();
@@ -84,7 +87,8 @@ describe("toConvexVesselLocation", () => {
         DepartingTerminalAbbrev: "EAH",
         Latitude: 47.620552,
         Longitude: -122.514245,
-      })
+      }),
+      TEST_VESSELS
     );
 
     expect(location.DepartingDistance).toBe(0);
@@ -96,7 +100,8 @@ describe("toConvexVesselLocation", () => {
         VesselID: 75,
         VesselName: "Suquamish",
         Speed: 0.15,
-      })
+      }),
+      TEST_VESSELS
     );
 
     expect(location.VesselAbbrev).toBe("SUQ");
@@ -110,7 +115,8 @@ describe("toConvexVesselLocation", () => {
         VesselName: "Tacoma",
         DepartingTerminalID: 999,
         DepartingTerminalAbbrev: null,
-      })
+      }),
+      TEST_VESSELS
     );
 
     expect(location.DepartingDistance).toBeUndefined();
@@ -123,12 +129,31 @@ describe("toConvexVesselLocation", () => {
         VesselName: "Tacoma",
         DepartingTerminalID: 999,
         DepartingTerminalAbbrev: "ZZZ",
-      })
+      }),
+      TEST_VESSELS
     );
 
     expect(location.DepartingDistance).toBeUndefined();
   });
 });
+
+const TEST_VESSELS: Array<VesselIdentity> = [
+  {
+    VesselID: 1,
+    VesselName: "Cathlamet",
+    VesselAbbrev: "CAT",
+  },
+  {
+    VesselID: 32,
+    VesselName: "Tacoma",
+    VesselAbbrev: "TAC",
+  },
+  {
+    VesselID: 75,
+    VesselName: "Suquamish",
+    VesselAbbrev: "SUQ",
+  },
+];
 
 const makeDottieLocation = (
   overrides: Partial<DottieVesselLocation> = {}

@@ -1,7 +1,21 @@
-import { query } from "_generated/server";
+import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { resolveVessel, type VesselSelector } from "../../shared/vessels";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { vesselLocationValidationSchema } from "./schemas";
+import { vesselSchema } from "../vessels/schemas";
+
+const vesselSelectorSchema = v.union(
+  v.object({
+    VesselAbbrev: v.string(),
+  }),
+  v.object({
+    VesselID: v.number(),
+  }),
+  v.object({
+    VesselName: v.string(),
+  })
+);
 
 /**
  * Get all vessel locations from the database
@@ -60,5 +74,41 @@ export const getByVesselAbbrev = query({
         },
       });
     }
+  },
+});
+
+/**
+ * Fetch all canonical vessels.
+ *
+ * @param ctx - Convex internal query context
+ * @returns Canonical vessels without Convex metadata
+ */
+export const getAllCanonicalVesselsInternal = internalQuery({
+  args: {},
+  returns: v.array(vesselSchema),
+  handler: async (ctx) => {
+    const vessels = await ctx.db.query("vessels").collect();
+    return vessels.map(stripConvexMeta);
+  },
+});
+
+/**
+ * Resolve a single vessel from the canonical table using one selector field.
+ *
+ * @param ctx - Convex internal query context
+ * @param args.selector - Exactly one vessel selector field
+ * @returns Matching vessel, or `null` when not found
+ */
+export const resolveCanonicalVesselInternal = internalQuery({
+  args: {
+    selector: vesselSelectorSchema,
+  },
+  returns: v.union(vesselSchema, v.null()),
+  handler: async (ctx, args) => {
+    const vessels = await ctx.db.query("vessels").collect();
+    const strippedVessels = vessels.map(stripConvexMeta);
+    const selector = args.selector as VesselSelector;
+
+    return resolveVessel(selector, strippedVessels) ?? null;
   },
 });

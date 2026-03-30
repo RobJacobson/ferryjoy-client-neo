@@ -88,4 +88,10 @@ crons.interval(
   internal.functions.vesselPings.actions.cleanupOldPings
 );
 
+crons.interval(
+  "refresh canonical vessels",
+  { hours: 1 }, // every hour
+  internal.functions.vesselOrchestrator.actions.refreshCanonicalVessels
+);
+
 export default crons;

@@ -1,11 +1,24 @@
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
+import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { Vessel } from "functions/vessels/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
+import { fetchVesselBasics } from "ws-dottie/wsf-vessels/core";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+
+type RefreshVesselsResult = {
+  success: boolean;
+  fetched: number;
+  inserted: number;
+  replaced: number;
+  deleted: number;
+  updatedAt?: number;
+  error?: string;
+};
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -17,10 +30,11 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
- * 2. Convert each WSF payload to `ConvexVesselLocation`
- * 3. Capture one tick timestamp for downstream consumers
- * 4. Call updateVesselLocations() with error isolation
- * 5. Call processVesselTrips() with error isolation
+ * 2. Load the canonical vessel snapshot once for this tick
+ * 3. Convert each WSF payload to `ConvexVesselLocation`
+ * 4. Capture one tick timestamp for downstream consumers
+ * 5. Call updateVesselLocations() with error isolation
+ * 6. Call processVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -49,10 +63,24 @@ export const updateVesselOrchestrator = internalAction({
     let convexLocations: ConvexVesselLocation[] = [];
 
     try {
+      const vessels = await loadVesselsForTick(ctx);
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
-      convexLocations = rawLocations.map(toConvexVesselLocation);
+      convexLocations = rawLocations.flatMap((rawLocation) => {
+        try {
+          return [toConvexVesselLocation(rawLocation, vessels)];
+        } catch (error) {
+          const err = normalizeError(error);
+          console.error("Skipping vessel location due to unresolved vessel:", {
+            VesselID: rawLocation.VesselID,
+            VesselName: rawLocation.VesselName,
+            error: err.message,
+          });
+
+          return [];
+        }
+      });
     } catch (error) {
       const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
@@ -98,6 +126,46 @@ export const updateVesselOrchestrator = internalAction({
 });
 
 /**
+ * Refresh the canonical vessel table from WSF basics and persist the snapshot.
+ *
+ * Failures are reported without mutating the existing table so prior data
+ * remains available to the rest of the system.
+ *
+ * @param ctx - Convex internal action context
+ * @returns Summary of the refresh attempt
+ */
+export const refreshCanonicalVessels = internalAction({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    fetched: v.number(),
+    inserted: v.number(),
+    replaced: v.number(),
+    deleted: v.number(),
+    updatedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx): Promise<RefreshVesselsResult> => {
+    try {
+      return await refreshVesselsOrThrow(ctx);
+    } catch (error) {
+      const normalized =
+        error instanceof Error ? error : new Error(String(error));
+      console.error("refreshCanonicalVessels failed:", normalized);
+
+      return {
+        success: false,
+        fetched: 0,
+        inserted: 0,
+        replaced: 0,
+        deleted: 0,
+        error: normalized.message,
+      };
+    }
+  },
+});
+
+/**
  * Subroutine function for updating vessel locations in the database.
  *
  * Stores vessel locations to the database using bulk upsert mutation.
@@ -113,6 +181,85 @@ async function updateVesselLocations(
   await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
     locations,
   });
+}
+
+/**
+ * Load the canonical vessel snapshot for one orchestrator tick.
+ *
+ * If the table is empty, bootstrap it immediately from WSF basics so the hot
+ * path can continue without waiting for the hourly refresh cron.
+ *
+ * @param ctx - Convex action context for database operations
+ * @returns Canonical vessels for this tick
+ */
+async function loadVesselsForTick(ctx: ActionCtx): Promise<Array<Vessel>> {
+  let vessels: Array<Vessel> = await ctx.runQuery(
+    internal.functions.vesselLocation.queries.getAllCanonicalVesselsInternal
+  );
+
+  if (vessels.length > 0) {
+    return vessels;
+  }
+
+  await refreshVesselsOrThrow(ctx);
+
+  vessels = await ctx.runQuery(
+    internal.functions.vesselLocation.queries.getAllCanonicalVesselsInternal
+  );
+
+  if (vessels.length === 0) {
+    throw new Error(
+      "Canonical vessels table is still empty after bootstrap refresh."
+    );
+  }
+
+  return vessels;
+}
+
+/**
+ * Fetch and normalize the latest canonical vessel snapshot from WSF basics.
+ *
+ * @param ctx - Convex internal action context
+ * @returns Persisted refresh summary
+ */
+async function refreshVesselsOrThrow(
+  ctx: ActionCtx
+): Promise<RefreshVesselsResult> {
+  const fetchedVessels = await fetchVesselBasics();
+  const updatedAt = Date.now();
+  const vessels: Array<Vessel> = fetchedVessels
+    .filter(
+      (vessel): vessel is typeof vessel & {
+        VesselName: string;
+        VesselAbbrev: string;
+      } => Boolean(vessel.VesselName && vessel.VesselAbbrev)
+    )
+    .map((vessel) => ({
+      VesselID: vessel.VesselID,
+      VesselName: vessel.VesselName,
+      VesselAbbrev: vessel.VesselAbbrev,
+      UpdatedAt: updatedAt,
+    }));
+
+  const mutationResult: {
+    inserted: number;
+    replaced: number;
+    deleted: number;
+  } = await ctx.runMutation(
+    internal.functions.vesselLocation.mutations.replaceCanonicalVessels,
+    {
+      vessels,
+    }
+  );
+
+  return {
+    success: true,
+    fetched: vessels.length,
+    inserted: mutationResult.inserted,
+    replaced: mutationResult.replaced,
+    deleted: mutationResult.deleted,
+    updatedAt,
+  };
 }
 
 const normalizeError = (error: unknown) => {
