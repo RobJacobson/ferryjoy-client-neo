@@ -11,15 +11,27 @@ import {
   keyValueStoreSchema,
   scheduledTripSchema,
 } from "functions/scheduledTrips/schemas";
+import { terminalSchema } from "functions/terminals/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
 import {
   vesselPingListValidationSchema,
   vesselPingValidationSchema,
 } from "functions/vesselPings/schemas";
+import { vesselSchema } from "functions/vessels/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
+  vessels: defineTable(vesselSchema)
+    .index("by_vessel_abbrev", ["VesselAbbrev"])
+    .index("by_vessel_id", ["VesselID"])
+    .index("by_vessel_name", ["VesselName"]),
+
+  terminals: defineTable(terminalSchema)
+    .index("by_terminal_abbrev", ["TerminalAbbrev"])
+    .index("by_terminal_id", ["TerminalID"])
+    .index("by_terminal_name", ["TerminalName"]),
+
   // Active vessel trips - currently in progress, one per vessel
   activeVesselTrips: defineTable(vesselTripSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
