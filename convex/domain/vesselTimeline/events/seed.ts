@@ -10,7 +10,7 @@ import {
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import { classifyDirectSegmentsGeneric } from "../../../functions/scheduledTrips/sync/transform/directSegments";
+import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
 import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import {
   normalizeScheduledDockSeams,
@@ -139,7 +139,7 @@ const buildSeedEventsForSegment = (
  * @returns Direct segments normalized into the seed classification shape
  */
 export const getDirectRawSeedSegments = (segments: RawWsfScheduleSegment[]) =>
-  classifyDirectSegmentsGeneric(
+  classifyDirectSegments(
     segments
       .map(toRawSeedSegment)
       .filter((segment): segment is RawSeedSegment => segment !== null)

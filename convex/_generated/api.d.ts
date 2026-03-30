@@ -62,7 +62,6 @@ import type * as functions_scheduledTrips_sync_fetching_wsfApi from "../function
 import type * as functions_scheduledTrips_sync_index from "../functions/scheduledTrips/sync/index.js";
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
-import type * as functions_scheduledTrips_sync_transform_classification from "../functions/scheduledTrips/sync/transform/classification.js";
 import type * as functions_scheduledTrips_sync_transform_directSegments from "../functions/scheduledTrips/sync/transform/directSegments.js";
 import type * as functions_scheduledTrips_sync_transform_estimates from "../functions/scheduledTrips/sync/transform/estimates.js";
 import type * as functions_scheduledTrips_sync_transform_grouping from "../functions/scheduledTrips/sync/transform/grouping.js";
@@ -188,7 +187,6 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/sync/index": typeof functions_scheduledTrips_sync_index;
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
-  "functions/scheduledTrips/sync/transform/classification": typeof functions_scheduledTrips_sync_transform_classification;
   "functions/scheduledTrips/sync/transform/directSegments": typeof functions_scheduledTrips_sync_transform_directSegments;
   "functions/scheduledTrips/sync/transform/estimates": typeof functions_scheduledTrips_sync_transform_estimates;
   "functions/scheduledTrips/sync/transform/grouping": typeof functions_scheduledTrips_sync_transform_grouping;

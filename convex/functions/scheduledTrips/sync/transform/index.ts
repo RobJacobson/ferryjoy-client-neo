@@ -1,4 +1,4 @@
-export { classifyDirectSegments, classifyDirectSegmentsGeneric, getDirectSegments } from "./directSegments";
+export { classifyDirectSegments } from "./directSegments";
 export {
   groupTripsByPhysicalDeparture,
   groupTripsByPhysicalDepartureGeneric,

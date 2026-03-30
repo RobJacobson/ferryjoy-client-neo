@@ -6,7 +6,7 @@
  */
 
 import type { ConvexScheduledTrip } from "../../schemas";
-import { classifyTripsByType } from "./classification";
+import { classifyDirectSegments } from "./directSegments";
 import { calculateTripEstimates } from "./estimates";
 
 /**
@@ -19,7 +19,7 @@ import { calculateTripEstimates } from "./estimates";
 export const runTransformationPipeline = (
   trips: ConvexScheduledTrip[]
 ): ConvexScheduledTrip[] => {
-  const classified = classifyTripsByType(trips);
+  const classified = classifyDirectSegments(trips);
   const enhanced = calculateTripEstimates(classified);
 
   return enhanced;

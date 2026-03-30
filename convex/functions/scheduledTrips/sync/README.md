@@ -65,7 +65,6 @@ Pure scheduled-trips transformation steps:
 
 - `grouping.ts`: physical-departure grouping helpers
 - `directSegments.ts`: direct vs indirect classification helpers
-- `classification.ts`: transform classification step
 - `estimates.ts`: arrival estimation and `PrevKey`/`NextKey` linking
 - `officialCrossingTimes.ts`: curated scheduled-arrival fallback durations
 - `pipeline.ts`: top-level transform coordinator

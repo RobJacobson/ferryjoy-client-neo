@@ -78,7 +78,7 @@ export const createScheduledTripFromRawSegment = (
     RouteAbbrev: segment.RouteAbbrev,
     Key: key,
     SailingDay: segment.SailingDay,
-    // TripType will be set correctly by classifyTripsByType() during sync
+    // TripType will be set correctly by direct-segment classification during sync
     // Default to "direct" as most trips are direct; classification will correct this
     TripType: "direct",
   };
