@@ -5,10 +5,6 @@ import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import {
-  resolveVessel,
-  type VesselIdentity,
-} from "../../shared/vessels";
-import {
   dateToEpochMs,
   epochMsToDate,
   optionalDateToEpochMs,
@@ -16,6 +12,7 @@ import {
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
+import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
 
 /**
  * Shared field validators for vessel-location storage.
@@ -73,7 +70,7 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  * Manual conversion from Date objects to epoch milliseconds.
  * @param dvl - Dottie vessel location with Date objects
  * @param vessels - Canonical vessel rows used to resolve the vessel abbreviation
-  * @returns Convex vessel location with numeric timestamps
+ * @returns Convex vessel location with numeric timestamps
  */
 export function toConvexVesselLocation(
   dvl: DottieVesselLocation,

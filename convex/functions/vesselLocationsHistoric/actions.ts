@@ -4,8 +4,8 @@
 import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
-import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import type { Vessel } from "functions/vessels/schemas";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";

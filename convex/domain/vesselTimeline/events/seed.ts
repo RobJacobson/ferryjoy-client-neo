@@ -7,11 +7,11 @@ import {
   getTerminalAbbreviation,
   getVesselAbbreviation,
 } from "../../../functions/scheduledTrips/schemas";
+import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
+import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
-import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import {
   normalizeScheduledDockSeams,
   sortVesselTripEvents,

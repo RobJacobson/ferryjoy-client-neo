@@ -1,12 +1,11 @@
 import type { Doc } from "_generated/dataModel";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
-
+import { vesselSchema } from "../vessels/schemas";
 import {
   type ConvexVesselLocation,
   vesselLocationValidationSchema,
 } from "./schemas";
-import { vesselSchema } from "../vessels/schemas";
 
 /**
  * Bulk upsert vessel locations into the database

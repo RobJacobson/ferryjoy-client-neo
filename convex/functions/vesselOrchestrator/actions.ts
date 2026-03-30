@@ -1,14 +1,14 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { internalAction } from "_generated/server";
+import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { Vessel } from "functions/vessels/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
-import { fetchVesselBasics } from "ws-dottie/wsf-vessels/core";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+import { fetchVesselBasics } from "ws-dottie/wsf-vessels/core";
 
 type RefreshVesselsResult = {
   success: boolean;
@@ -125,6 +125,16 @@ export const updateVesselOrchestrator = internalAction({
   },
 });
 
+const refreshCanonicalVesselsReturns = v.object({
+  success: v.boolean(),
+  fetched: v.number(),
+  inserted: v.number(),
+  replaced: v.number(),
+  deleted: v.number(),
+  updatedAt: v.optional(v.number()),
+  error: v.optional(v.string()),
+});
+
 /**
  * Refresh the canonical vessel table from WSF basics and persist the snapshot.
  *
@@ -136,34 +146,52 @@ export const updateVesselOrchestrator = internalAction({
  */
 export const refreshCanonicalVessels = internalAction({
   args: {},
-  returns: v.object({
-    success: v.boolean(),
-    fetched: v.number(),
-    inserted: v.number(),
-    replaced: v.number(),
-    deleted: v.number(),
-    updatedAt: v.optional(v.number()),
-    error: v.optional(v.string()),
-  }),
-  handler: async (ctx): Promise<RefreshVesselsResult> => {
-    try {
-      return await refreshVesselsOrThrow(ctx);
-    } catch (error) {
-      const normalized =
-        error instanceof Error ? error : new Error(String(error));
-      console.error("refreshCanonicalVessels failed:", normalized);
-
-      return {
-        success: false,
-        fetched: 0,
-        inserted: 0,
-        replaced: 0,
-        deleted: 0,
-        error: normalized.message,
-      };
-    }
-  },
+  returns: refreshCanonicalVesselsReturns,
+  handler: async (ctx) => refreshCanonicalVesselsImpl(ctx),
 });
+
+/**
+ * Public entry point for `bunx convex run`, `convex:repopulate-vessels`, and
+ * optional `convex:dev:with-repopulate`.
+ * Same idempotent behavior as {@link refreshCanonicalVessels}; callable from
+ * the CLI because internal actions are not. Harden before exposing broadly in
+ * production clients if abuse becomes a concern.
+ *
+ * @param ctx - Convex public action context
+ * @returns Summary of the refresh attempt
+ */
+export const runRefreshCanonicalVessels = action({
+  args: {},
+  returns: refreshCanonicalVesselsReturns,
+  handler: async (ctx) => refreshCanonicalVesselsImpl(ctx),
+});
+
+/**
+ * Shared handler for internal cron and public `convex run` / dev bootstrap.
+ *
+ * @param ctx - Convex action context
+ * @returns Summary of the refresh attempt
+ */
+async function refreshCanonicalVesselsImpl(
+  ctx: ActionCtx
+): Promise<RefreshVesselsResult> {
+  try {
+    return await refreshVesselsOrThrow(ctx);
+  } catch (error) {
+    const normalized =
+      error instanceof Error ? error : new Error(String(error));
+    console.error("refreshCanonicalVessels failed:", normalized);
+
+    return {
+      success: false,
+      fetched: 0,
+      inserted: 0,
+      replaced: 0,
+      deleted: 0,
+      error: normalized.message,
+    };
+  }
+}
 
 /**
  * Subroutine function for updating vessel locations in the database.
@@ -229,7 +257,9 @@ async function refreshVesselsOrThrow(
   const updatedAt = Date.now();
   const vessels: Array<Vessel> = fetchedVessels
     .filter(
-      (vessel): vessel is typeof vessel & {
+      (
+        vessel
+      ): vessel is typeof vessel & {
         VesselName: string;
         VesselAbbrev: string;
       } => Boolean(vessel.VesselName && vessel.VesselAbbrev)

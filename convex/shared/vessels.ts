@@ -26,9 +26,8 @@ export const resolveVessel = (
 ): VesselIdentity | null => {
   if ("VesselAbbrev" in selector) {
     return (
-      vessels.find(
-        (vessel) => vessel.VesselAbbrev === selector.VesselAbbrev
-      ) ?? null
+      vessels.find((vessel) => vessel.VesselAbbrev === selector.VesselAbbrev) ??
+      null
     );
   }
 

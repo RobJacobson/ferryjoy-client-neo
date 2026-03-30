@@ -1,9 +1,9 @@
 import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { resolveVessel, type VesselSelector } from "../../shared/vessels";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { vesselLocationValidationSchema } from "./schemas";
+import { resolveVessel, type VesselSelector } from "../../shared/vessels";
 import { vesselSchema } from "../vessels/schemas";
+import { vesselLocationValidationSchema } from "./schemas";
 
 const vesselSelectorSchema = v.union(
   v.object({

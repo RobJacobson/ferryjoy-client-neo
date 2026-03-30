@@ -1,6 +1,6 @@
 import type { ActionCtx } from "_generated/server";
-import { fetchAndTransformScheduledTrips } from "./fetchAndTransform";
 import { getSailingDay } from "../../../shared/time";
+import { fetchAndTransformScheduledTrips } from "./fetchAndTransform";
 import { saveFinalTrips } from "./persistence";
 import type { DaySyncResult } from "./types";
 

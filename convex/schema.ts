@@ -2,15 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { eventsActualSchema } from "functions/eventsActual/schemas";
 import { eventsPredictedSchema } from "functions/eventsPredicted/schemas";
 import { eventsScheduledSchema } from "functions/eventsScheduled/schemas";
+import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
   modelConfigSchema,
   modelParametersSchema,
   predictionRecordSchema,
 } from "functions/predictions/schemas";
-import {
-  keyValueStoreSchema,
-  scheduledTripSchema,
-} from "functions/scheduledTrips/schemas";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { terminalSchema } from "functions/terminals/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
