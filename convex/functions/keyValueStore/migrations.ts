@@ -1,22 +1,31 @@
 /**
- * @fileoverview Script to migrate modelConfig to keyValueStore and set up initial sync date
- *
- * This script:
- * 1. Migrates ML modelConfig data to keyValueStore
- * 2. Sets initial sync date to enable cache flush checking
+ * One-off migrations and setup mutations that use keyValueStore.
  */
 
-import { internalAction, internalMutation } from "./convex/_generated/server";
+import { internalMutation } from "_generated/server";
+import { v } from "convex/values";
+import { fetchEntryByKey } from "./helpers";
+import {
+  KEY_LAST_SCHEDULED_TRIPS_SYNC_DATE,
+  keyValueStoreValueValidator,
+} from "./schemas";
 
 /**
- * Migrate modelConfig to keyValueStore
+ * Copies rows from deprecated modelConfig into keyValueStore when missing.
+ *
+ * @param ctx - Convex mutation context
+ * @returns Counts of migrated and skipped rows
  */
 export const migrateModelConfigToKeyValueStore = internalMutation({
   args: {},
+  returns: v.object({
+    migrated: v.number(),
+    skipped: v.number(),
+    total: v.number(),
+  }),
   handler: async (ctx) => {
     console.log("[MIGRATION] Starting modelConfig to keyValueStore migration");
 
-    // Get all entries from modelConfig
     const modelConfigEntries = await ctx.db.query("modelConfig").collect();
 
     console.log(
@@ -27,19 +36,14 @@ export const migrateModelConfigToKeyValueStore = internalMutation({
     let skippedCount = 0;
 
     for (const entry of modelConfigEntries) {
-      // Check if already migrated
-      const existingInKvStore = await ctx.db
-        .query("keyValueStore")
-        .withIndex("by_key", (q) => q.eq("key", entry.key))
-        .first();
+      const existingInKvStore = await fetchEntryByKey(ctx, entry.key);
 
       if (existingInKvStore) {
         console.log(`[MIGRATION] Skipping ${entry.key} - already migrated`);
-        skippedCount++;
+        skippedCount += 1;
         continue;
       }
 
-      // Map modelConfig fields to keyValueStore format
       const kvEntry = {
         key: entry.key,
         value: entry.productionVersionTag,
@@ -50,7 +54,7 @@ export const migrateModelConfigToKeyValueStore = internalMutation({
       console.log(
         `[MIGRATION] Migrated ${entry.key}: ${entry.productionVersionTag}`
       );
-      migratedCount++;
+      migratedCount += 1;
     }
 
     console.log(
@@ -66,18 +70,24 @@ export const migrateModelConfigToKeyValueStore = internalMutation({
 });
 
 /**
- * Set up initial sync date for scheduled trips
+ * Seeds lastScheduledTripsSyncDate once so cache-flush tooling can run.
+ *
+ * @param ctx - Convex mutation context
+ * @returns Whether a new row was created and the stored timestamp value
  */
 export const setupInitialSyncDate = internalMutation({
   args: {},
+  returns: v.object({
+    created: v.boolean(),
+    timestamp: keyValueStoreValueValidator,
+  }),
   handler: async (ctx) => {
     console.log("[SETUP] Setting up initial sync date for scheduled trips");
 
-    // Check if sync date already exists
-    const existingSyncDate = await ctx.db
-      .query("keyValueStore")
-      .withIndex("by_key", (q) => q.eq("key", "lastScheduledTripsSyncDate"))
-      .first();
+    const existingSyncDate = await fetchEntryByKey(
+      ctx,
+      KEY_LAST_SCHEDULED_TRIPS_SYNC_DATE
+    );
 
     if (existingSyncDate) {
       console.log(
@@ -90,10 +100,9 @@ export const setupInitialSyncDate = internalMutation({
       };
     }
 
-    // Set to yesterday so the cache flush check will trigger a sync
     const yesterday = Date.now() - 24 * 60 * 60 * 1000;
     const entry = {
-      key: "lastScheduledTripsSyncDate",
+      key: KEY_LAST_SCHEDULED_TRIPS_SYNC_DATE,
       value: yesterday,
       updatedAt: Date.now(),
     };
@@ -107,32 +116,6 @@ export const setupInitialSyncDate = internalMutation({
     return {
       created: true,
       timestamp: yesterday,
-    };
-  },
-});
-
-/**
- * Run both migrations and setup
- */
-export const runAllSetup = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    console.log("[SETUP] Running all migrations and setup");
-
-    // Run modelConfig migration
-    const mlResult = await ctx.runMutation(
-      migrateModelConfigToKeyValueStore,
-      {}
-    );
-    console.log("[SETUP] ML migration result:", mlResult);
-
-    // Set up initial sync date
-    const syncResult = await ctx.runMutation(setupInitialSyncDate, {});
-    console.log("[SETUP] Sync date setup result:", syncResult);
-
-    return {
-      mlMigration: mlResult,
-      syncDateSetup: syncResult,
     };
   },
 });

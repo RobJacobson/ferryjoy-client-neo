@@ -4,12 +4,7 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { epochMsToDate } from "../../shared/convertDates";
-import { getTerminalAbbreviation } from "../../shared/terminalLocations";
-
-// Re-export for convenience
-export { getTerminalAbbreviation, getVesselAbbreviation };
 
 /**
  * Convex validator for scheduled trips
@@ -81,18 +76,3 @@ export const toDomainScheduledTrip = (
  * Inferred from the return type of our conversion function
  */
 export type ScheduledTrip = ReturnType<typeof toDomainScheduledTrip>;
-
-/**
- * Convex validator for key-value store.
- * Generic storage for arbitrary configuration and metadata values.
- */
-export const keyValueStoreSchema = v.object({
-  key: v.string(),
-  value: v.union(v.string(), v.number(), v.boolean(), v.null()),
-  updatedAt: v.number(),
-});
-
-/**
- * Type for key-value store entry in Convex storage
- */
-export type KeyValueStore = Infer<typeof keyValueStoreSchema>;

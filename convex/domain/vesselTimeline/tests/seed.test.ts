@@ -4,9 +4,11 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
+import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import type { VesselIdentity } from "../../../shared/vessels";
 import {
   applyLiveLocationToEvents,
   getLocationSailingDay,
@@ -28,6 +30,52 @@ import {
  */
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
+
+const backendVessels: VesselIdentity[] = [
+  {
+    VesselID: 8,
+    VesselName: "Issaquah",
+    VesselAbbrev: "ISS",
+  },
+  {
+    VesselID: 64,
+    VesselName: "Tokitae",
+    VesselAbbrev: "TOK",
+  },
+];
+
+const backendTerminals: TerminalIdentity[] = [
+  {
+    TerminalID: 1,
+    TerminalName: "Anacortes",
+    TerminalAbbrev: "ANA",
+  },
+  {
+    TerminalID: 2,
+    TerminalName: "Bainbridge Island",
+    TerminalAbbrev: "BBI",
+  },
+  {
+    TerminalID: 3,
+    TerminalName: "Bremerton",
+    TerminalAbbrev: "BRE",
+  },
+  {
+    TerminalID: 4,
+    TerminalName: "Seattle",
+    TerminalAbbrev: "P52",
+  },
+  {
+    TerminalID: 5,
+    TerminalName: "Orcas Island",
+    TerminalAbbrev: "ORI",
+  },
+  {
+    TerminalID: 6,
+    TerminalName: "Shaw Island",
+    TerminalAbbrev: "SHI",
+  },
+];
 
 describe("buildSeedVesselTripEvents", () => {
   it("builds dep/arv events from direct segments", () => {
@@ -130,16 +178,20 @@ describe("buildSeedVesselTripEvents", () => {
   });
 
   it("builds dep/arv events directly from raw WSF schedule segments", () => {
-    const events = buildSeedVesselTripEventsFromRawSegments([
-      makeRawSegment({
-        VesselName: "Tokitae",
-        DepartingTerminalName: "Seattle",
-        ArrivingTerminalName: "Bainbridge Island",
-        DepartingTime: new Date(at(8, 35)),
-        RouteID: 7,
-        RouteAbbrev: "sea-bi",
-      }),
-    ]);
+    const events = buildSeedVesselTripEventsFromRawSegments(
+      [
+        makeRawSegment({
+          VesselName: "Tokitae",
+          DepartingTerminalName: "Seattle",
+          ArrivingTerminalName: "Bainbridge Island",
+          DepartingTime: new Date(at(8, 35)),
+          RouteID: 7,
+          RouteAbbrev: "sea-bi",
+        }),
+      ],
+      backendVessels,
+      backendTerminals
+    );
 
     expect(events.map((event) => event.EventType)).toEqual([
       "dep-dock",
@@ -151,32 +203,36 @@ describe("buildSeedVesselTripEvents", () => {
   });
 
   it("filters indirect raw schedule segments before seeding events", () => {
-    const events = buildSeedVesselTripEventsFromRawSegments([
-      makeRawSegment({
-        VesselName: "Tokitae",
-        DepartingTerminalName: "Seattle",
-        ArrivingTerminalName: "Bainbridge Island",
-        DepartingTime: new Date(at(8, 35)),
-        RouteID: 7,
-        RouteAbbrev: "sea-bi",
-      }),
-      makeRawSegment({
-        VesselName: "Tokitae",
-        DepartingTerminalName: "Seattle",
-        ArrivingTerminalName: "Bremerton",
-        DepartingTime: new Date(at(8, 35)),
-        RouteID: 8,
-        RouteAbbrev: "sea-br",
-      }),
-      makeRawSegment({
-        VesselName: "Tokitae",
-        DepartingTerminalName: "Bainbridge Island",
-        ArrivingTerminalName: "Seattle",
-        DepartingTime: new Date(at(9, 20)),
-        RouteID: 7,
-        RouteAbbrev: "sea-bi",
-      }),
-    ]);
+    const events = buildSeedVesselTripEventsFromRawSegments(
+      [
+        makeRawSegment({
+          VesselName: "Tokitae",
+          DepartingTerminalName: "Seattle",
+          ArrivingTerminalName: "Bainbridge Island",
+          DepartingTime: new Date(at(8, 35)),
+          RouteID: 7,
+          RouteAbbrev: "sea-bi",
+        }),
+        makeRawSegment({
+          VesselName: "Tokitae",
+          DepartingTerminalName: "Seattle",
+          ArrivingTerminalName: "Bremerton",
+          DepartingTime: new Date(at(8, 35)),
+          RouteID: 8,
+          RouteAbbrev: "sea-br",
+        }),
+        makeRawSegment({
+          VesselName: "Tokitae",
+          DepartingTerminalName: "Bainbridge Island",
+          ArrivingTerminalName: "Seattle",
+          DepartingTime: new Date(at(9, 20)),
+          RouteID: 7,
+          RouteAbbrev: "sea-bi",
+        }),
+      ],
+      backendVessels,
+      backendTerminals
+    );
 
     expect(events).toHaveLength(4);
     expect(events[0]?.TerminalAbbrev).toBe("P52");

@@ -1,7 +1,7 @@
 import type { Doc } from "_generated/dataModel";
-import { mutation } from "_generated/server";
+import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
-
+import { type Vessel, vesselSchema } from "../vessels/schemas";
 import {
   type ConvexVesselLocation,
   vesselLocationValidationSchema,
@@ -41,6 +41,70 @@ export const bulkUpsert = mutation({
     }
   },
 });
+
+/**
+ * Upsert the backend vessel snapshot with the latest upstream data.
+ *
+ * Existing rows are replaced in place when the VesselAbbrev matches, new rows
+ * are inserted, and rows missing from the incoming snapshot are preserved.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args.vessels - Backend vessel snapshot rows from WSF basics
+ */
+export const replaceBackendVessels = internalMutation({
+  args: {
+    vessels: v.array(vesselSchema),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.query("vessels").collect();
+    const { toInsert, toReplace } = buildBackendVesselUpsertOperations(
+      existing,
+      args.vessels
+    );
+
+    for (const { existing: existingVessel, incoming: vessel } of toReplace) {
+      await ctx.db.replace(existingVessel._id, vessel);
+    }
+
+    for (const vessel of toInsert) {
+      await ctx.db.insert("vessels", vessel);
+    }
+  },
+});
+
+/**
+ * Build the abbreviation-keyed vessel upsert operations for one incoming snapshot.
+ *
+ * @param existing - Existing backend vessels
+ * @param incoming - Incoming backend vessel snapshot
+ * @returns Insert and replace operations without any delete step
+ */
+export const buildBackendVesselUpsertOperations = (
+  existing: Array<Doc<"vessels">>,
+  incoming: Array<Vessel>
+) => {
+  const existingByVesselAbbrev = new Map<string, Doc<"vessels">>(
+    existing.map((vessel) => [vessel.VesselAbbrev, vessel])
+  );
+  const toInsert: Array<Vessel> = [];
+  const toReplace: Array<{ existing: Doc<"vessels">; incoming: Vessel }> = [];
+
+  for (const vessel of incoming) {
+    const existingVessel = existingByVesselAbbrev.get(vessel.VesselAbbrev);
+
+    if (existingVessel) {
+      toReplace.push({ existing: existingVessel, incoming: vessel });
+      continue;
+    }
+
+    toInsert.push(vessel);
+  }
+
+  return {
+    toInsert,
+    toReplace,
+  };
+};
 
 /**
  * Returns true if location needs a database write.

@@ -5,8 +5,8 @@
  * then enrich them with arrival estimates plus chain-link metadata.
  */
 
-import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
-import { classifyTripsByType } from "./classification";
+import type { ConvexScheduledTrip } from "../../schemas";
+import { classifyDirectSegments } from "./directSegments";
 import { calculateTripEstimates } from "./estimates";
 
 /**
@@ -19,10 +19,7 @@ import { calculateTripEstimates } from "./estimates";
 export const runTransformationPipeline = (
   trips: ConvexScheduledTrip[]
 ): ConvexScheduledTrip[] => {
-  // 1. Classify trips as direct or indirect
-  const classified = classifyTripsByType(trips);
-
-  // 2. Calculate arrival estimates and link keys
+  const classified = classifyDirectSegments(trips);
   const enhanced = calculateTripEstimates(classified);
 
   return enhanced;

@@ -12,7 +12,7 @@ import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -21,7 +21,7 @@ import type { TripEvents } from "../eventDetection";
 import { tripsAreEqual } from "../tripEquality";
 
 type CurrentTripTransition = {
-  currLocation: ConvexVesselLocation;
+  currLocation: ResolvedVesselLocation;
   existingTrip?: ConvexVesselTrip;
   events: TripEvents;
 };
@@ -63,7 +63,7 @@ type UpsertBatchResult = {
 type ProcessCurrentTripsCallbacks = {
   logDockSignalDisagreement: (
     existingTrip: ConvexVesselTrip | undefined,
-    currLocation: ConvexVesselLocation
+    currLocation: ResolvedVesselLocation
   ) => void;
   logVesselProcessingError: (
     vesselAbbrev: string,
@@ -398,7 +398,7 @@ const buildCurrentTripResult = async (
   shouldRunPredictionFallback: boolean,
   logDockSignalDisagreement: (
     existingTrip: ConvexVesselTrip | undefined,
-    currLocation: ConvexVesselLocation
+    currLocation: ResolvedVesselLocation
   ) => void,
   buildTripFn: typeof buildTrip
 ): Promise<CurrentTripBuildResult> => {

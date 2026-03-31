@@ -1,18 +1,14 @@
 /**
- * Direct-segment classification helpers for schedule-derived trip rows.
+ * Direct-segment classification for schedule-derived trip rows.
  *
  * The raw WSF schedule can expose multiple logical trips for a single physical
  * departure. This module identifies the immediate next stop as the direct
  * segment and marks the remaining rows as indirect views of the same sailing.
  */
 
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 import {
-  groupTripsByPhysicalDeparture,
   groupTripsByPhysicalDepartureGeneric,
-  groupTripsByVessel,
   groupTripsByVesselGeneric,
-  type PhysicalDeparture,
 } from "./grouping";
 
 type DirectSegmentInput = {
@@ -29,10 +25,10 @@ type DirectSegmentResult<TTrip extends DirectSegmentInput> = TTrip & {
 };
 
 /**
- * Generic direct/indirect classifier that can be reused by raw schedule
- * consumers without depending on the full ScheduledTrip shape.
+ * Classifies trip-like rows into direct and indirect physical segments using
+ * only physical-departure grouping and next-terminal lookahead.
  */
-export const classifyDirectSegmentsGeneric = <TTrip extends DirectSegmentInput>(
+export const classifyDirectSegments = <TTrip extends DirectSegmentInput>(
   trips: TTrip[]
 ): DirectSegmentResult<TTrip>[] => {
   const tripsByVessel = groupTripsByVesselGeneric(trips);
@@ -45,43 +41,10 @@ export const classifyDirectSegmentsGeneric = <TTrip extends DirectSegmentInput>(
 
     return groups.flatMap((group, index) => {
       const nextTerminal = groups[index + 1]?.departingTerminal;
-      return classifyDepartureGroupGeneric(group.trips, nextTerminal);
+      return classifyDepartureGroup(group.trips, nextTerminal);
     });
   });
 };
-
-/**
- * Classifies raw schedule rows into direct/indirect rows using only
- * physical-departure grouping and next-terminal lookahead.
- */
-export const classifyDirectSegments = (
-  trips: ConvexScheduledTrip[]
-): ConvexScheduledTrip[] => {
-  const tripsByVessel = groupTripsByVessel(trips);
-
-  return Object.values(tripsByVessel).flatMap((vesselTrips) => {
-    const sortedTrips = [...vesselTrips].sort(
-      (a, b) => a.DepartingTime - b.DepartingTime
-    );
-    const groups = groupTripsByPhysicalDeparture(sortedTrips);
-
-    return groups.flatMap((group, index) => {
-      const nextTerminal = groups[index + 1]?.departingTerminal;
-      return classifyDepartureGroup(group, nextTerminal);
-    });
-  });
-};
-
-/**
- * Returns only the direct physical segments from a raw schedule set.
- */
-export const getDirectSegments = (trips: ConvexScheduledTrip[]) =>
-  classifyDirectSegments(trips).filter((trip) => trip.TripType === "direct");
-
-const classifyDepartureGroup = (
-  { trips }: PhysicalDeparture,
-  nextTerminal: string | undefined
-): ConvexScheduledTrip[] => classifyDepartureGroupGeneric(trips, nextTerminal);
 
 /**
  * Classifies one physical-departure group using the next departure terminal as
@@ -92,7 +55,7 @@ const classifyDepartureGroup = (
  * departure, when known
  * @returns Group rows marked as direct or indirect
  */
-const classifyDepartureGroupGeneric = <TTrip extends DirectSegmentInput>(
+const classifyDepartureGroup = <TTrip extends DirectSegmentInput>(
   trips: TTrip[],
   nextTerminal: string | undefined
 ): DirectSegmentResult<TTrip>[] => {

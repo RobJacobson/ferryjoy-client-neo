@@ -7,7 +7,7 @@
  * continuing updates.
  */
 
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import {
@@ -25,7 +25,7 @@ import {
  * @returns Location-derived trip state before schedule and prediction enrichments
  */
 export const baseTripFromLocation = (
-  currLocation: ConvexVesselLocation,
+  currLocation: ResolvedVesselLocation,
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
 ): ConvexVesselTrip => {
@@ -59,7 +59,7 @@ export const baseTripFromLocation = (
  * @returns Base trip for a newly started trip
  */
 const baseTripForStart = (
-  currLocation: ConvexVesselLocation,
+  currLocation: ResolvedVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTrip => {
@@ -112,7 +112,7 @@ const baseTripForStart = (
  * @returns Existing trip with only dock-gap-safe fields refreshed
  */
 const baseTripForDockHold = (
-  currLocation: ConvexVesselLocation,
+  currLocation: ResolvedVesselLocation,
   existingTrip: ConvexVesselTrip
 ): ConvexVesselTrip => ({
   ...existingTrip,
@@ -135,7 +135,7 @@ const baseTripForDockHold = (
  * @returns Base trip for a continuing or first-seen trip
  */
 const baseTripForContinuing = (
-  currLocation: ConvexVesselLocation,
+  currLocation: ResolvedVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTrip => {

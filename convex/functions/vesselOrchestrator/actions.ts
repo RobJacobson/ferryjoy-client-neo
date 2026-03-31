@@ -1,8 +1,13 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { loadBackendTerminalsOrThrow } from "functions/terminals/actions";
+import type {
+  ConvexVesselLocation,
+  ResolvedVesselLocation,
+} from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { loadBackendVesselsOrThrow } from "functions/vessels/actions";
 import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
@@ -17,10 +22,11 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
- * 2. Convert each WSF payload to `ConvexVesselLocation`
- * 3. Capture one tick timestamp for downstream consumers
- * 4. Call updateVesselLocations() with error isolation
- * 5. Call processVesselTrips() with error isolation
+ * 2. Load the backend vessel snapshot once for this tick
+ * 3. Convert each WSF payload to `ConvexVesselLocation`
+ * 4. Capture one tick timestamp for downstream consumers
+ * 5. Call updateVesselLocations() with error isolation
+ * 6. Call processVesselTrips() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -46,13 +52,28 @@ export const updateVesselOrchestrator = internalAction({
     } = {};
 
     // Step 1: Fetch and convert vessel locations
-    let convexLocations: ConvexVesselLocation[] = [];
+    let convexLocations: ResolvedVesselLocation[] = [];
 
     try {
+      const vessels = await loadBackendVesselsOrThrow(ctx);
+      const terminals = await loadBackendTerminalsOrThrow(ctx);
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
-      convexLocations = rawLocations.map(toConvexVesselLocation);
+      convexLocations = rawLocations.flatMap((rawLocation) => {
+        try {
+          return [toConvexVesselLocation(rawLocation, vessels, terminals)];
+        } catch (error) {
+          const err = normalizeError(error);
+          console.error("Skipping vessel location due to unresolved vessel:", {
+            VesselID: rawLocation.VesselID,
+            VesselName: rawLocation.VesselName,
+            error: err.message,
+          });
+
+          return [];
+        }
+      });
     } catch (error) {
       const err = normalizeError(error);
       errors.fetch = { message: err.message, stack: err.stack };
@@ -108,10 +129,10 @@ export const updateVesselOrchestrator = internalAction({
  */
 async function updateVesselLocations(
   ctx: ActionCtx,
-  locations: ConvexVesselLocation[]
+  locations: ReadonlyArray<ConvexVesselLocation>
 ): Promise<void> {
   await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
-    locations,
+    locations: [...locations],
   });
 }
 

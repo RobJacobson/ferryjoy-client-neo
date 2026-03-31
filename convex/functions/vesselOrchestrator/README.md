@@ -56,8 +56,10 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- convert raw WSF payloads into `ConvexVesselLocation`, including
-  distance-to-terminal fields
+- load backend vessel/terminal identity snapshots once per tick
+- convert raw WSF payloads into `ResolvedVesselLocation`, including
+  resolved vessel/terminal identity and distance-to-terminal fields derived
+  from the backend `terminals` table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
 
@@ -65,8 +67,8 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
-  -> toConvexVesselLocation()
-  -> ConvexVesselLocation[]
+  -> toConvexVesselLocation(raw, vessels, terminals)
+  -> ResolvedVesselLocation[]
 ```
 
 The orchestrator returns branch-level success flags:
@@ -186,6 +188,8 @@ transition logic instead of re-deriving actuals from raw location ticks.
 The orchestrator keeps external API usage efficient:
 
 - one WSF vessel-location fetch per tick
+- one backend vessel snapshot load per tick
+- one backend terminal snapshot load per tick
 - one converted location batch reused by all downstream consumers
 - one conversion pass over the fetched payload before downstream fan-out
 - concurrent downstream execution instead of serial branch processing
@@ -222,7 +226,7 @@ The timeline projection path is designed to stay lightweight:
 ## Related Documentation
 
 - `convex/functions/vesselTrips/updates/README.md`
-- `convex/domain/scheduledTrips/README.md`
+- `convex/functions/scheduledTrips/sync/README.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 
 ## Summary

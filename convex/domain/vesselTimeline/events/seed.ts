@@ -3,15 +3,14 @@
  */
 
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
-import {
-  getTerminalAbbreviation,
-  getVesselAbbreviation,
-} from "../../../functions/scheduledTrips/schemas";
+import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
+import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
+import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import { classifyDirectSegmentsGeneric } from "../../scheduledTrips/directSegments";
-import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips/transform/officialCrossingTimes";
+import { resolveScheduleSegmentIdentity } from "../../../shared/scheduleIdentity";
+import type { VesselIdentity } from "../../../shared/vessels";
 import {
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
@@ -54,10 +53,12 @@ export const buildSeedVesselTripEvents = (
  * timeline read model.
  */
 export const buildSeedVesselTripEventsFromRawSegments = (
-  segments: RawWsfScheduleSegment[]
+  segments: RawWsfScheduleSegment[],
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): ConvexVesselTimelineEventRecord[] =>
   normalizeScheduledDockSeams(
-    getDirectRawSeedSegments(segments)
+    getDirectRawSeedSegments(segments, vessels, terminals)
       .flatMap((segment) =>
         buildSeedEventsForSegment({
           SailingDay: segment.SailingDay,
@@ -138,10 +139,14 @@ const buildSeedEventsForSegment = (
  * @param segments - Raw WSF schedule segments for one or more routes
  * @returns Direct segments normalized into the seed classification shape
  */
-export const getDirectRawSeedSegments = (segments: RawWsfScheduleSegment[]) =>
-  classifyDirectSegmentsGeneric(
+export const getDirectRawSeedSegments = (
+  segments: RawWsfScheduleSegment[],
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+) =>
+  classifyDirectSegments(
     segments
-      .map(toRawSeedSegment)
+      .map((segment) => toRawSeedSegment(segment, vessels, terminals))
       .filter((segment): segment is RawSeedSegment => segment !== null)
   ).filter((segment) => segment.TripType === "direct");
 
@@ -165,19 +170,22 @@ export type RawSeedSegment = {
  * missing
  */
 const toRawSeedSegment = (
-  segment: RawWsfScheduleSegment
+  segment: RawWsfScheduleSegment,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): RawSeedSegment | null => {
-  const vesselAbbrev = getVesselAbbreviation(segment.VesselName);
-  const departingTerminalAbbrev = getTerminalAbbreviation(
-    segment.DepartingTerminalName
-  );
-  const arrivingTerminalAbbrev = getTerminalAbbreviation(
-    segment.ArrivingTerminalName
+  const resolvedIdentity = resolveScheduleSegmentIdentity(
+    segment,
+    vessels,
+    terminals
   );
 
-  if (!vesselAbbrev || !departingTerminalAbbrev || !arrivingTerminalAbbrev) {
+  if (!resolvedIdentity) {
     return null;
   }
+
+  const { vesselAbbrev, departingTerminalAbbrev, arrivingTerminalAbbrev } =
+    resolvedIdentity;
 
   const key = buildSegmentKey(
     vesselAbbrev,

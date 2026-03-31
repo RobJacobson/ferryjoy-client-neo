@@ -7,10 +7,10 @@ export * from "./durationUtils";
 export * from "./fetchWsfScheduleData";
 export * from "./keys";
 export * from "./stripConvexMeta";
-export * from "./terminalLocations";
 // Note: time.ts functions are exported individually to avoid conflicts
 export {
   getPacificDayOfWeek,
   getPacificTime,
   getPacificTimeComponents,
 } from "./time";
+export * from "./vessels";

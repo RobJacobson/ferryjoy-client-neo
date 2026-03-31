@@ -1,6 +1,8 @@
 import type { ActionCtx } from "_generated/server";
-import { fetchAndTransformScheduledTrips } from "../../../domain/scheduledTrips";
 import { getSailingDay } from "../../../shared/time";
+import { loadBackendTerminalsOrThrow } from "../../terminals/actions";
+import { loadBackendVesselsOrThrow } from "../../vessels/actions";
+import { fetchAndTransformScheduledTrips } from "./fetchAndTransform";
 import { saveFinalTrips } from "./persistence";
 import type { DaySyncResult } from "./types";
 
@@ -97,8 +99,10 @@ export const syncScheduledTripsForDate = async (
 
     // Phase 1: Fetch all active routes
     console.log(`${logPrefix}Fetching routes for ${targetDate}`);
+    const vessels = await loadBackendVesselsOrThrow(ctx);
+    const terminals = await loadBackendTerminalsOrThrow(ctx);
     const { routes, routeData, rawTrips, finalTrips, totalIndirect } =
-      await fetchAndTransformScheduledTrips(targetDate);
+      await fetchAndTransformScheduledTrips(targetDate, vessels, terminals);
     console.log(
       `${logPrefix}Found ${routes.length} routes:`,
       routes

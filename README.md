@@ -71,11 +71,10 @@ ferryjoy-client-neo/
 │   │   ├── vesselTrips/     # Trip management logic
 │   │   │   └── updates/      # Real-time trip updates
 │   │   ├── vesselLocation/  # Location data processing
-│   │   ├── scheduledTrips/  # Schedule synchronization
+│   │   ├── scheduledTrips/  # Schedule sync + transform pipeline
 │   │   └── vesselOrchestrator/  # Main orchestrator
 │   ├── domain/              # Business logic
-│   │   ├── ml/             # ML prediction pipeline
-│   │   └── scheduledTrips/ # Schedule domain logic
+│   │   └── ml/             # ML prediction pipeline
 │   └── _generated/         # Auto-generated Convex types
 ├── scripts/                # Utility scripts
 │   └── ml/                 # ML training and management

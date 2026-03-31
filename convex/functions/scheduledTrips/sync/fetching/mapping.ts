@@ -1,28 +1,30 @@
 import type { RawWsfScheduleSegment } from "shared/fetchWsfScheduleData";
 import { generateTripKey } from "shared/keys";
+import { resolveScheduleSegmentIdentity } from "../../../../shared/scheduleIdentity";
+import type { VesselIdentity } from "../../../../shared/vessels";
+import type { TerminalIdentity } from "../../../terminals/resolver";
 import type { ConvexScheduledTrip } from "../../schemas";
-import { getTerminalAbbreviation, getVesselAbbreviation } from "../../schemas";
 
 /**
  * Resolves all required abbreviations for a raw schedule segment, rejecting if
  * any are missing.
  */
 export const resolveTripAbbreviations = (
-  segment: RawWsfScheduleSegment
+  segment: RawWsfScheduleSegment,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): {
   vesselAbbrev: string;
   departingTerminalAbbrev: string;
   arrivingTerminalAbbrev: string;
 } | null => {
-  const vesselAbbrev = getVesselAbbreviation(segment.VesselName);
-  const departingTerminalAbbrev = getTerminalAbbreviation(
-    segment.DepartingTerminalName
-  );
-  const arrivingTerminalAbbrev = getTerminalAbbreviation(
-    segment.ArrivingTerminalName
+  const resolvedIdentity = resolveScheduleSegmentIdentity(
+    segment,
+    vessels,
+    terminals
   );
 
-  if (!vesselAbbrev || !departingTerminalAbbrev || !arrivingTerminalAbbrev) {
+  if (!resolvedIdentity) {
     console.warn(`Skipping trip due to missing abbreviations:`, {
       vessel: segment.VesselName,
       departing: segment.DepartingTerminalName,
@@ -31,7 +33,7 @@ export const resolveTripAbbreviations = (
     return null;
   }
 
-  return { vesselAbbrev, departingTerminalAbbrev, arrivingTerminalAbbrev };
+  return resolvedIdentity;
 };
 
 /**
@@ -41,9 +43,11 @@ export const resolveTripAbbreviations = (
  * @returns Complete scheduled trip record ready for Convex storage, or null if invalid
  */
 export const createScheduledTripFromRawSegment = (
-  segment: RawWsfScheduleSegment
+  segment: RawWsfScheduleSegment,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): ConvexScheduledTrip | null => {
-  const abbreviations = resolveTripAbbreviations(segment);
+  const abbreviations = resolveTripAbbreviations(segment, vessels, terminals);
 
   if (!abbreviations) return null;
 
@@ -78,7 +82,7 @@ export const createScheduledTripFromRawSegment = (
     RouteAbbrev: segment.RouteAbbrev,
     Key: key,
     SailingDay: segment.SailingDay,
-    // TripType will be set correctly by classifyTripsByType() during sync
+    // TripType will be set correctly by direct-segment classification during sync
     // Default to "direct" as most trips are direct; classification will correct this
     TripType: "direct",
   };

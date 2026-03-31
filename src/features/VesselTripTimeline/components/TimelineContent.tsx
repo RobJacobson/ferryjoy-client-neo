@@ -7,6 +7,7 @@
 
 import { BlurTargetView } from "expo-blur";
 import { type ComponentRef, useCallback, useRef, useState } from "react";
+import type { TimelineRenderRow as SharedTimelineRenderRow } from "@/components/timeline";
 import {
   BASE_TIMELINE_VISUAL_THEME,
   TimelineIndicatorOverlay,
@@ -15,7 +16,6 @@ import {
   TimelineTrack,
   useAnimatedProgress,
 } from "@/components/timeline";
-import type { TimelineRenderRow as SharedTimelineRenderRow } from "@/components/timeline";
 import { getBoundaryTopPx } from "@/components/timeline/viewState";
 import { View } from "@/components/ui";
 import type {

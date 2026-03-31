@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
-import {
-  classifyDirectSegments,
-  classifyDirectSegmentsGeneric,
-} from "./directSegments";
+import type { ConvexScheduledTrip } from "../../../schemas";
+import { classifyDirectSegments } from "../directSegments";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours, minutes);
@@ -37,7 +34,7 @@ describe("classifyDirectSegments", () => {
   });
 
   it("supports the same direct classification on lighter raw segment shapes", () => {
-    const segments = classifyDirectSegmentsGeneric([
+    const segments = classifyDirectSegments([
       {
         Key: "A-B",
         VesselAbbrev: "TOK",

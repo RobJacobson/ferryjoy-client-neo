@@ -1,5 +1,6 @@
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { getProductionVersionTagValue } from "functions/keyValueStore/helpers";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import {
   type ConvexModelParameters,
@@ -48,13 +49,7 @@ export const getModelParametersForProduction = query({
   returns: v.union(modelParametersSchema, v.null()),
   handler: async (ctx, args) => {
     try {
-      // Get production version tag from config
-      const config = await ctx.db
-        .query("keyValueStore")
-        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-        .first();
-
-      const prodVersionTag = config?.value as string | null;
+      const prodVersionTag = await getProductionVersionTagValue(ctx);
       if (!prodVersionTag) {
         return null;
       }
@@ -115,12 +110,7 @@ export const getModelParametersForProductionBatch = query({
   returns: v.record(v.string(), v.union(modelParametersSchema, v.null())),
   handler: async (ctx, args) => {
     try {
-      const config = await ctx.db
-        .query("keyValueStore")
-        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-        .first();
-
-      const prodVersionTag = config?.value as string | null;
+      const prodVersionTag = await getProductionVersionTagValue(ctx);
       if (!prodVersionTag) {
         return {};
       }
@@ -216,30 +206,4 @@ export const getAllVersions = query({
   },
 });
 
-/**
- * Get the current production version tag from config.
- *
- * @param ctx - Convex context
- * @returns The production version tag or null if not set
- */
-export const getProductionVersionTag = query({
-  args: {},
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx) => {
-    try {
-      const config = await ctx.db
-        .query("keyValueStore")
-        .withIndex("by_key", (q) => q.eq("key", "productionVersionTag"))
-        .first();
-
-      return (config?.value as string | null) ?? null;
-    } catch (error) {
-      throw new ConvexError({
-        message: "Failed to fetch production version tag from config",
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { configKey: "productionVersionTag", error: String(error) },
-      });
-    }
-  },
-});
+export { getProductionVersionTag } from "../keyValueStore/queries";
