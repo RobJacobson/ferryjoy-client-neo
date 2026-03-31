@@ -100,4 +100,10 @@ crons.cron(
   internal.functions.terminals.actions.refreshBackendTerminals
 );
 
+crons.cron(
+  "refresh backend terminals topology",
+  "0 * * * *", // every hour at minute 0 UTC
+  internal.functions.terminalsTopology.actions.refreshBackendTerminalsTopology
+);
+
 export default crons;

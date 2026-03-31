@@ -93,6 +93,26 @@ export const getAllBackendVesselsInternal = internalQuery({
 });
 
 /**
+ * Public frontend snapshot query for canonical vessel identity data.
+ *
+ * @param ctx - Convex public query context
+ * @returns Vessel snapshot rows without Convex metadata, or `null` when empty
+ */
+export const getFrontendVesselsSnapshot = query({
+  args: {},
+  returns: v.union(v.array(vesselSchema), v.null()),
+  handler: async (ctx) => {
+    const vessels = await ctx.db.query("vessels").collect();
+
+    if (vessels.length === 0) {
+      return null;
+    }
+
+    return vessels.map(stripConvexMeta);
+  },
+});
+
+/**
  * Resolve a single vessel from the backend vessel table using one selector field.
  *
  * @param ctx - Convex internal query context

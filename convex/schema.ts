@@ -10,6 +10,7 @@ import {
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { terminalSchema } from "functions/terminals/schemas";
+import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
 import {
@@ -29,6 +30,11 @@ export default defineSchema({
     .index("by_terminal_abbrev", ["TerminalAbbrev"])
     .index("by_terminal_id", ["TerminalID"])
     .index("by_terminal_name", ["TerminalName"]),
+
+  terminalsTopology: defineTable(terminalTopologySchema).index(
+    "by_terminal_abbrev",
+    ["TerminalAbbrev"]
+  ),
 
   // Active vessel trips - currently in progress, one per vessel
   activeVesselTrips: defineTable(vesselTripSchema)

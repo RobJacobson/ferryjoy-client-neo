@@ -12,6 +12,7 @@ import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
 import { useEffect } from "react";
 import {
   useMapCameraController,
+  useIdentityCatalog,
   useNavigationHistory,
   useSelectedTerminalPair,
 } from "@/data/contexts";
@@ -32,6 +33,12 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
  * @returns Camera state targeting the terminal
  */
 const createTerminalCameraState = (terminal: TerminalLocation): CameraState => {
+  if (terminal.Longitude === undefined || terminal.Latitude === undefined) {
+    throw new Error(
+      `Terminal ${terminal.TerminalAbbrev} is missing map coordinates.`
+    );
+  }
+
   return {
     centerCoordinate: [terminal.Longitude, terminal.Latitude],
     zoomLevel: 9,
@@ -58,6 +65,7 @@ const generateTitle = (
 };
 
 const MapTerminalPairPage = () => {
+  useIdentityCatalog();
   const { from, dest } = useLocalSearchParams<{
     from: string;
     dest?: string;
@@ -81,7 +89,9 @@ const MapTerminalPairPage = () => {
 
   // Create camera state for departing terminal at zoom 9 (null if terminal not found)
   const cameraState = fromTerminal
-    ? createTerminalCameraState(fromTerminal)
+    ? fromTerminal.Longitude !== undefined && fromTerminal.Latitude !== undefined
+      ? createTerminalCameraState(fromTerminal)
+      : null
     : null;
 
   // Generate title (fallback if terminal not found)

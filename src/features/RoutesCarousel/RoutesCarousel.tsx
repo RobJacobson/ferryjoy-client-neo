@@ -8,11 +8,11 @@
 import type { ComponentRef, RefObject } from "react";
 import { useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
-import type { TerminalMate } from "ws-dottie/wsf-schedule";
 import type { View } from "@/components/ui";
+import { useIdentityCatalog } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
 import {
-  TERMINAL_CONNECTIONS,
+  getTerminalConnections,
   transformConnectionsToTerminalCards,
 } from "@/data/terminalConnections";
 import { AnimatedList } from "@/features/AnimatedList";
@@ -46,11 +46,12 @@ const RoutesCarousel = ({
   blurTargetRef,
   scrollProgressSink,
 }: RoutesCarouselProps) => {
+  useIdentityCatalog();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const { cardWidth, cardHeight, layout } = useCardDimensions();
 
-  const carouselData = prepareCarouselData(TERMINAL_CONNECTIONS);
+  const carouselData = prepareCarouselData(getTerminalConnections());
   const totalCount = carouselData.length;
 
   // Render each carousel item as a RouteCard with explicit dimensions
@@ -110,7 +111,7 @@ const RoutesCarousel = ({
  * @returns Array with placeholder card followed by all terminal cards
  */
 const prepareCarouselData = (
-  connections: Record<number, TerminalMate[]>
+  connections: ReturnType<typeof getTerminalConnections>
 ): Array<TerminalCardData & { isPlaceholder?: boolean }> => {
   const terminalCards = transformConnectionsToTerminalCards(connections);
 

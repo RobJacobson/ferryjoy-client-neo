@@ -7,6 +7,7 @@ import {
 import { useEffect } from "react";
 import {
   useMapCameraController,
+  useIdentityCatalog,
   useNavigationHistory,
   useSelectedTerminalPair,
 } from "@/data/contexts";
@@ -26,7 +27,10 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
 const createTerminalCameraState = (
   terminal: ReturnType<typeof getTerminalLocationByAbbrev>
 ): CameraState | null => {
-  if (!terminal) return null;
+  if (!terminal || terminal.Longitude === undefined || terminal.Latitude === undefined) {
+    return null;
+  }
+
   return {
     centerCoordinate: [terminal.Longitude, terminal.Latitude],
     zoomLevel: 9,
@@ -36,6 +40,7 @@ const createTerminalCameraState = (
 };
 
 const MapSlugPage = () => {
+  useIdentityCatalog();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { controller } = useMapCameraController();
   const { previousPathname } = useNavigationHistory();

@@ -14,6 +14,7 @@ export type TerminalIdentity = {
   TerminalID: number;
   TerminalName: string;
   TerminalAbbrev: string;
+  IsPassengerTerminal?: boolean;
   Latitude?: number;
   Longitude?: number;
 };
@@ -22,6 +23,7 @@ export type ResolvedTerminal = {
   TerminalID: number;
   TerminalName: TerminalName;
   TerminalAbbrev: TerminalAbbrev;
+  IsPassengerTerminal?: boolean;
   Latitude?: number;
   Longitude?: number;
 };
@@ -79,6 +81,7 @@ const toResolvedTerminal = (
         TerminalID: terminal.TerminalID,
         TerminalName: toTerminalName(terminal.TerminalName),
         TerminalAbbrev: toTerminalAbbrev(terminal.TerminalAbbrev),
+        IsPassengerTerminal: terminal.IsPassengerTerminal,
         Latitude: terminal.Latitude,
         Longitude: terminal.Longitude,
       }

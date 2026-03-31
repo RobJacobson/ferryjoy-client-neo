@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { IdentityProvider } from "../IdentityContext";
 import { ConvexVesselLocationsProvider } from "./ConvexVesselLocationsContext";
 import { ConvexVesselPingsProvider } from "./ConvexVesselPingsContext";
 import { ConvexVesselTripsProvider } from "./ConvexVesselTripsContext";
@@ -22,10 +23,12 @@ import { ConvexVesselTripsProvider } from "./ConvexVesselTripsContext";
  */
 export const ConvexProvider = ({ children }: PropsWithChildren) => {
   return (
-    <ConvexVesselLocationsProvider>
-      <ConvexVesselPingsProvider>
-        <ConvexVesselTripsProvider>{children}</ConvexVesselTripsProvider>
-      </ConvexVesselPingsProvider>
-    </ConvexVesselLocationsProvider>
+    <IdentityProvider>
+      <ConvexVesselLocationsProvider>
+        <ConvexVesselPingsProvider>
+          <ConvexVesselTripsProvider>{children}</ConvexVesselTripsProvider>
+        </ConvexVesselPingsProvider>
+      </ConvexVesselLocationsProvider>
+    </IdentityProvider>
   );
 };

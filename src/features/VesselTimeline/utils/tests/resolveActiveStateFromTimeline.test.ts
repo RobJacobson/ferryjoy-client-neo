@@ -10,7 +10,10 @@ const at = (hours: number, minutes: number) =>
 describe("resolveActiveStateFromTimeline", () => {
   it("prefers the final terminal-tail arrival over an older dock row at the same terminal", () => {
     const resolved = resolveActiveStateFromTimeline({
-      segments: buildSegmentsFromBoundaryEvents(makeRoundTripEvents()),
+      segments: buildSegmentsFromBoundaryEvents(
+        makeRoundTripEvents(),
+        (terminalAbbrev) => terminalAbbrev
+      ),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "P52",
@@ -27,36 +30,39 @@ describe("resolveActiveStateFromTimeline", () => {
 
   it("anchors dock fallback to the nearest same-terminal row when schedule context is missing", () => {
     const resolved = resolveActiveStateFromTimeline({
-      segments: buildSegmentsFromBoundaryEvents([
-        makeEvent({
-          Key: "arv-early",
-          EventType: "arv-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(13, 45),
-          EventScheduledTime: at(13, 55),
-        }),
-        makeEvent({
-          Key: "dep-early",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(14, 5),
-          EventScheduledTime: at(14, 5),
-        }),
-        makeEvent({
-          Key: "arv-late",
-          EventType: "arv-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(18, 35),
-          EventScheduledTime: at(18, 35),
-        }),
-        makeEvent({
-          Key: "dep-late",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(18, 40),
-          EventScheduledTime: at(18, 40),
-        }),
-      ]),
+      segments: buildSegmentsFromBoundaryEvents(
+        [
+          makeEvent({
+            Key: "arv-early",
+            EventType: "arv-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(13, 45),
+            EventScheduledTime: at(13, 55),
+          }),
+          makeEvent({
+            Key: "dep-early",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(14, 5),
+            EventScheduledTime: at(14, 5),
+          }),
+          makeEvent({
+            Key: "arv-late",
+            EventType: "arv-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(18, 35),
+            EventScheduledTime: at(18, 35),
+          }),
+          makeEvent({
+            Key: "dep-late",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(18, 40),
+            EventScheduledTime: at(18, 40),
+          }),
+        ],
+        (terminalAbbrev) => terminalAbbrev
+      ),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "VAI",
@@ -75,22 +81,25 @@ describe("resolveActiveStateFromTimeline", () => {
 
   it("matches the start-of-day placeholder dock segment before the first departure", () => {
     const resolved = resolveActiveStateFromTimeline({
-      segments: buildSegmentsFromBoundaryEvents([
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "P52",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 0),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 35),
-        }),
-      ]),
+      segments: buildSegmentsFromBoundaryEvents(
+        [
+          makeEvent({
+            Key: "dep-1",
+            EventType: "dep-dock",
+            TerminalAbbrev: "P52",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 0),
+          }),
+          makeEvent({
+            Key: "arv-1",
+            EventType: "arv-dock",
+            TerminalAbbrev: "BBI",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 35),
+          }),
+        ],
+        (terminalAbbrev) => terminalAbbrev
+      ),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "P52",
@@ -109,43 +118,46 @@ describe("resolveActiveStateFromTimeline", () => {
 
   it("matches a broken-seam placeholder dock segment at the current terminal", () => {
     const resolved = resolveActiveStateFromTimeline({
-      segments: buildSegmentsFromBoundaryEvents([
-        makeEvent({
-          Key: "arv-0",
-          EventType: "arv-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 5),
-          EventScheduledTime: at(7, 5),
-        }),
-        makeEvent({
-          Key: "dep-0",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 5),
-          EventScheduledTime: at(7, 5),
-        }),
-        makeEvent({
-          Key: "arv-0b",
-          EventType: "arv-dock",
-          TerminalAbbrev: "FAU",
-          ScheduledDeparture: at(7, 5),
-          EventScheduledTime: at(7, 25),
-        }),
-        makeEvent({
-          Key: "dep-1",
-          EventType: "dep-dock",
-          TerminalAbbrev: "VAI",
-          ScheduledDeparture: at(7, 55),
-          EventScheduledTime: at(7, 55),
-        }),
-        makeEvent({
-          Key: "arv-1",
-          EventType: "arv-dock",
-          TerminalAbbrev: "FAU",
-          ScheduledDeparture: at(7, 55),
-          EventScheduledTime: at(8, 15),
-        }),
-      ]),
+      segments: buildSegmentsFromBoundaryEvents(
+        [
+          makeEvent({
+            Key: "arv-0",
+            EventType: "arv-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(7, 5),
+            EventScheduledTime: at(7, 5),
+          }),
+          makeEvent({
+            Key: "dep-0",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(7, 5),
+            EventScheduledTime: at(7, 5),
+          }),
+          makeEvent({
+            Key: "arv-0b",
+            EventType: "arv-dock",
+            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(7, 5),
+            EventScheduledTime: at(7, 25),
+          }),
+          makeEvent({
+            Key: "dep-1",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(7, 55),
+            EventScheduledTime: at(7, 55),
+          }),
+          makeEvent({
+            Key: "arv-1",
+            EventType: "arv-dock",
+            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(7, 55),
+            EventScheduledTime: at(8, 15),
+          }),
+        ],
+        (terminalAbbrev) => terminalAbbrev
+      ),
       location: makeLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "VAI",

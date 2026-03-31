@@ -16,6 +16,35 @@ type TerminalLocationWithIdentity = TerminalLocation & {
   TerminalAbbrev: string;
 };
 
+type ManualMarineLocation = Pick<
+  Terminal,
+  | "TerminalID"
+  | "TerminalName"
+  | "TerminalAbbrev"
+  | "Latitude"
+  | "Longitude"
+  | "IsPassengerTerminal"
+>;
+
+const KNOWN_MARINE_LOCATIONS: ReadonlyArray<ManualMarineLocation> = [
+  {
+    TerminalID: -1001,
+    TerminalName: "Eagle Harbor Maintenance Facility",
+    TerminalAbbrev: "EAH",
+    IsPassengerTerminal: false,
+    Latitude: 47.62,
+    Longitude: -122.5153,
+  },
+  {
+    TerminalID: -1002,
+    TerminalName: "Vigor Shipyard",
+    TerminalAbbrev: "VIG",
+    IsPassengerTerminal: false,
+    Latitude: 47.5845,
+    Longitude: -122.3579,
+  },
+];
+
 /**
  * Refresh the backend terminal table from WSF basics and persist the snapshot.
  *
@@ -65,16 +94,20 @@ export async function refreshBackendTerminalsOrThrow(
 ): Promise<void> {
   const fetchedTerminals = await fetchTerminalLocations();
   const updatedAt = Date.now();
-  const terminals: Array<Terminal> = fetchedTerminals
-    .filter(hasTerminalIdentity)
-    .map((terminal) => ({
-      TerminalID: terminal.TerminalID,
-      TerminalName: terminal.TerminalName.trim(),
-      TerminalAbbrev: terminal.TerminalAbbrev.trim(),
-      Latitude: roundCoordinate(terminal.Latitude),
-      Longitude: roundCoordinate(terminal.Longitude),
-      UpdatedAt: updatedAt,
-    }));
+  const terminals = mergeKnownMarineLocations(
+    fetchedTerminals
+      .filter(hasTerminalIdentity)
+      .map((terminal) => ({
+        TerminalID: terminal.TerminalID,
+        TerminalName: terminal.TerminalName.trim(),
+        TerminalAbbrev: terminal.TerminalAbbrev.trim(),
+        IsPassengerTerminal: true,
+        Latitude: roundCoordinate(terminal.Latitude),
+        Longitude: roundCoordinate(terminal.Longitude),
+        UpdatedAt: updatedAt,
+      })),
+    updatedAt
+  );
 
   await ctx.runMutation(
     internal.functions.terminals.mutations.replaceBackendTerminals,
@@ -130,6 +163,39 @@ const hasTerminalIdentity = (
   terminal: TerminalLocation
 ): terminal is TerminalLocationWithIdentity =>
   Boolean(terminal.TerminalName && terminal.TerminalAbbrev);
+
+/**
+ * Append known WSF-referenced marine locations that are omitted from the
+ * upstream terminals basics feed.
+ *
+ * Upstream terminal rows win if WSF ever starts publishing one of these
+ * abbreviations directly.
+ *
+ * @param fetchedTerminals - Canonical terminal rows from WSF basics
+ * @param updatedAt - Shared refresh timestamp
+ * @returns Merged marine-location snapshot
+ */
+export const mergeKnownMarineLocations = (
+  fetchedTerminals: Array<Terminal>,
+  updatedAt: number
+): Array<Terminal> => {
+  const terminalsByAbbrev = new Map<string, Terminal>(
+    fetchedTerminals.map((terminal) => [terminal.TerminalAbbrev, terminal])
+  );
+
+  for (const location of KNOWN_MARINE_LOCATIONS) {
+    if (terminalsByAbbrev.has(location.TerminalAbbrev)) {
+      continue;
+    }
+
+    terminalsByAbbrev.set(location.TerminalAbbrev, {
+      ...location,
+      UpdatedAt: updatedAt,
+    });
+  }
+
+  return [...terminalsByAbbrev.values()];
+};
 
 /**
  * Normalize unknown thrown values into an Error with useful detail.

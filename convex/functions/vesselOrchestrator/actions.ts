@@ -53,10 +53,16 @@ export const updateVesselOrchestrator = internalAction({
 
     // Step 1: Fetch and convert vessel locations
     let convexLocations: ResolvedVesselLocation[] = [];
+    let passengerTerminalAbbrevs = new Set<string>();
 
     try {
       const vessels = await loadBackendVesselsOrThrow(ctx);
       const terminals = await loadBackendTerminalsOrThrow(ctx);
+      passengerTerminalAbbrevs = new Set(
+        terminals
+          .filter((terminal) => terminal.IsPassengerTerminal !== false)
+          .map((terminal) => terminal.TerminalAbbrev)
+      );
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
@@ -87,13 +93,19 @@ export const updateVesselOrchestrator = internalAction({
     }
 
     const tickStartedAt = Date.now();
+    const tripEligibleLocations = convexLocations.filter(
+      (location) =>
+        passengerTerminalAbbrevs.has(location.DepartingTerminalAbbrev) &&
+        (!location.ArrivingTerminalAbbrev ||
+          passengerTerminalAbbrevs.has(location.ArrivingTerminalAbbrev))
+    );
 
     const branchResults: [
       PromiseSettledResult<void>,
       PromiseSettledResult<void>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      processVesselTrips(ctx, convexLocations, tickStartedAt),
+      processVesselTrips(ctx, tripEligibleLocations, tickStartedAt),
     ]);
 
     const [locationsResult, tripsResult] = branchResults;

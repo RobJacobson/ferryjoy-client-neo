@@ -1,0 +1,351 @@
+[
+  {
+    "TerminalAbbrev": "ANA",
+    "TerminalMates": [
+      "FRH",
+      "LOP",
+      "ORI",
+      "SHI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "FRH": [
+        "ana-sj"
+      ],
+      "LOP": [
+        "ana-sj"
+      ],
+      "ORI": [
+        "ana-sj"
+      ],
+      "SHI": [
+        "ana-sj"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ana-sj"
+    ]
+  },
+  {
+    "TerminalAbbrev": "BBI",
+    "TerminalMates": [
+      "P52"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "P52": [
+        "sea-bi"
+      ]
+    },
+    "RouteAbbrevs": [
+      "sea-bi"
+    ]
+  },
+  {
+    "TerminalAbbrev": "BRE",
+    "TerminalMates": [
+      "P52"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "P52": [
+        "sea-br"
+      ]
+    },
+    "RouteAbbrevs": [
+      "sea-br"
+    ]
+  },
+  {
+    "TerminalAbbrev": "CLI",
+    "TerminalMates": [
+      "MUK"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "MUK": [
+        "muk-cl"
+      ]
+    },
+    "RouteAbbrevs": [
+      "muk-cl"
+    ]
+  },
+  {
+    "TerminalAbbrev": "COU",
+    "TerminalMates": [
+      "POT"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "POT": [
+        "pt-key"
+      ]
+    },
+    "RouteAbbrevs": [
+      "pt-key"
+    ]
+  },
+  {
+    "TerminalAbbrev": "EDM",
+    "TerminalMates": [
+      "KIN"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "KIN": [
+        "ed-king"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ed-king"
+    ]
+  },
+  {
+    "TerminalAbbrev": "FAU",
+    "TerminalMates": [
+      "SOU",
+      "VAI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "SOU": [
+        "f-v-s"
+      ],
+      "VAI": [
+        "f-v-s"
+      ]
+    },
+    "RouteAbbrevs": [
+      "f-v-s"
+    ]
+  },
+  {
+    "TerminalAbbrev": "FRH",
+    "TerminalMates": [
+      "ANA",
+      "LOP",
+      "ORI",
+      "SHI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "ANA": [
+        "ana-sj"
+      ],
+      "LOP": [
+        "ana-sj"
+      ],
+      "ORI": [
+        "ana-sj"
+      ],
+      "SHI": [
+        "ana-sj"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ana-sj"
+    ]
+  },
+  {
+    "TerminalAbbrev": "KIN",
+    "TerminalMates": [
+      "EDM"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "EDM": [
+        "ed-king"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ed-king"
+    ]
+  },
+  {
+    "TerminalAbbrev": "LOP",
+    "TerminalMates": [
+      "ANA",
+      "FRH",
+      "ORI",
+      "SHI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "ANA": [
+        "ana-sj"
+      ],
+      "FRH": [
+        "ana-sj"
+      ],
+      "ORI": [
+        "ana-sj"
+      ],
+      "SHI": [
+        "ana-sj"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ana-sj"
+    ]
+  },
+  {
+    "TerminalAbbrev": "MUK",
+    "TerminalMates": [
+      "CLI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "CLI": [
+        "muk-cl"
+      ]
+    },
+    "RouteAbbrevs": [
+      "muk-cl"
+    ]
+  },
+  {
+    "TerminalAbbrev": "ORI",
+    "TerminalMates": [
+      "ANA",
+      "FRH",
+      "LOP",
+      "SHI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "ANA": [
+        "ana-sj"
+      ],
+      "FRH": [
+        "ana-sj"
+      ],
+      "LOP": [
+        "ana-sj"
+      ],
+      "SHI": [
+        "ana-sj"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ana-sj"
+    ]
+  },
+  {
+    "TerminalAbbrev": "PTD",
+    "TerminalMates": [
+      "TAH"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "TAH": [
+        "pd-tal"
+      ]
+    },
+    "RouteAbbrevs": [
+      "pd-tal"
+    ]
+  },
+  {
+    "TerminalAbbrev": "POT",
+    "TerminalMates": [
+      "COU"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "COU": [
+        "pt-key"
+      ]
+    },
+    "RouteAbbrevs": [
+      "pt-key"
+    ]
+  },
+  {
+    "TerminalAbbrev": "P52",
+    "TerminalMates": [
+      "BBI",
+      "BRE"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "BBI": [
+        "sea-bi"
+      ],
+      "BRE": [
+        "sea-br"
+      ]
+    },
+    "RouteAbbrevs": [
+      "sea-bi",
+      "sea-br"
+    ]
+  },
+  {
+    "TerminalAbbrev": "SHI",
+    "TerminalMates": [
+      "ANA",
+      "FRH",
+      "LOP",
+      "ORI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "ANA": [
+        "ana-sj"
+      ],
+      "FRH": [
+        "ana-sj"
+      ],
+      "LOP": [
+        "ana-sj"
+      ],
+      "ORI": [
+        "ana-sj"
+      ]
+    },
+    "RouteAbbrevs": [
+      "ana-sj"
+    ]
+  },
+  {
+    "TerminalAbbrev": "SID",
+    "TerminalMates": [],
+    "RouteAbbrevsByArrivingTerminal": {},
+    "RouteAbbrevs": []
+  },
+  {
+    "TerminalAbbrev": "SOU",
+    "TerminalMates": [
+      "FAU",
+      "VAI"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "FAU": [
+        "f-v-s"
+      ],
+      "VAI": [
+        "f-v-s"
+      ]
+    },
+    "RouteAbbrevs": [
+      "f-v-s"
+    ]
+  },
+  {
+    "TerminalAbbrev": "TAH",
+    "TerminalMates": [
+      "PTD"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "PTD": [
+        "pd-tal"
+      ]
+    },
+    "RouteAbbrevs": [
+      "pd-tal"
+    ]
+  },
+  {
+    "TerminalAbbrev": "VAI",
+    "TerminalMates": [
+      "FAU",
+      "SOU"
+    ],
+    "RouteAbbrevsByArrivingTerminal": {
+      "FAU": [
+        "f-v-s"
+      ],
+      "SOU": [
+        "f-v-s"
+      ]
+    },
+    "RouteAbbrevs": [
+      "f-v-s"
+    ]
+  }
+]

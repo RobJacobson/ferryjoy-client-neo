@@ -1,0 +1,142 @@
+[
+  {
+    "TerminalID": 1,
+    "TerminalName": "Anacortes",
+    "TerminalAbbrev": "ANA",
+    "Latitude": 48.507351,
+    "Longitude": -122.677
+  },
+  {
+    "TerminalID": 3,
+    "TerminalName": "Bainbridge Island",
+    "TerminalAbbrev": "BBI",
+    "Latitude": 47.622339,
+    "Longitude": -122.509617
+  },
+  {
+    "TerminalID": 4,
+    "TerminalName": "Bremerton",
+    "TerminalAbbrev": "BRE",
+    "Latitude": 47.561847,
+    "Longitude": -122.624089
+  },
+  {
+    "TerminalID": 5,
+    "TerminalName": "Clinton",
+    "TerminalAbbrev": "CLI",
+    "Latitude": 47.9754,
+    "Longitude": -122.349581
+  },
+  {
+    "TerminalID": 11,
+    "TerminalName": "Coupeville",
+    "TerminalAbbrev": "COU",
+    "Latitude": 48.159008,
+    "Longitude": -122.672603
+  },
+  {
+    "TerminalID": 8,
+    "TerminalName": "Edmonds",
+    "TerminalAbbrev": "EDM",
+    "Latitude": 47.813378,
+    "Longitude": -122.385378
+  },
+  {
+    "TerminalID": 9,
+    "TerminalName": "Fauntleroy",
+    "TerminalAbbrev": "FAU",
+    "Latitude": 47.5232,
+    "Longitude": -122.3967
+  },
+  {
+    "TerminalID": 10,
+    "TerminalName": "Friday Harbor",
+    "TerminalAbbrev": "FRH",
+    "Latitude": 48.535783,
+    "Longitude": -123.013844
+  },
+  {
+    "TerminalID": 12,
+    "TerminalName": "Kingston",
+    "TerminalAbbrev": "KIN",
+    "Latitude": 47.794606,
+    "Longitude": -122.494328
+  },
+  {
+    "TerminalID": 13,
+    "TerminalName": "Lopez Island",
+    "TerminalAbbrev": "LOP",
+    "Latitude": 48.570928,
+    "Longitude": -122.882764
+  },
+  {
+    "TerminalID": 14,
+    "TerminalName": "Mukilteo",
+    "TerminalAbbrev": "MUK",
+    "Latitude": 47.9506,
+    "Longitude": -122.297
+  },
+  {
+    "TerminalID": 15,
+    "TerminalName": "Orcas Island",
+    "TerminalAbbrev": "ORI",
+    "Latitude": 48.597333,
+    "Longitude": -122.943494
+  },
+  {
+    "TerminalID": 16,
+    "TerminalName": "Point Defiance",
+    "TerminalAbbrev": "PTD",
+    "Latitude": 47.306519,
+    "Longitude": -122.514053
+  },
+  {
+    "TerminalID": 17,
+    "TerminalName": "Port Townsend",
+    "TerminalAbbrev": "POT",
+    "Latitude": 48.110847,
+    "Longitude": -122.759039
+  },
+  {
+    "TerminalID": 7,
+    "TerminalName": "Seattle",
+    "TerminalAbbrev": "P52",
+    "Latitude": 47.602501,
+    "Longitude": -122.340472
+  },
+  {
+    "TerminalID": 18,
+    "TerminalName": "Shaw Island",
+    "TerminalAbbrev": "SHI",
+    "Latitude": 48.584792,
+    "Longitude": -122.92965
+  },
+  {
+    "TerminalID": 19,
+    "TerminalName": "Sidney B.C.",
+    "TerminalAbbrev": "SID",
+    "Latitude": 48.643114,
+    "Longitude": -123.396739
+  },
+  {
+    "TerminalID": 20,
+    "TerminalName": "Southworth",
+    "TerminalAbbrev": "SOU",
+    "Latitude": 47.513064,
+    "Longitude": -122.495742
+  },
+  {
+    "TerminalID": 21,
+    "TerminalName": "Tahlequah",
+    "TerminalAbbrev": "TAH",
+    "Latitude": 47.331961,
+    "Longitude": -122.507786
+  },
+  {
+    "TerminalID": 22,
+    "TerminalName": "Vashon Island",
+    "TerminalAbbrev": "VAI",
+    "Latitude": 47.51095,
+    "Longitude": -122.463639
+  }
+]

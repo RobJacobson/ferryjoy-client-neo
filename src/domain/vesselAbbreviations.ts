@@ -1,54 +1,23 @@
 /**
- * Mapping from vessel names to their abbreviations
- * Based on WSDOT ferry vessel data
+ * Vessel identity helpers backed by the shared frontend identity catalog.
  */
-export const toVesselAbbreviation: Record<string, string> = {
-  Cathlamet: "CAT",
-  Chelan: "CHE",
-  Chetzemoka: "CHZ",
-  Chimacum: "CHM",
-  Issaquah: "ISS",
-  Kaleetan: "KAL",
-  Kennewick: "KEN",
-  Kitsap: "KIS",
-  Kittitas: "KIT",
-  Puyallup: "PUY",
-  Salish: "SAL",
-  Samish: "SAM",
-  Sealth: "SEA",
-  Spokane: "SPO",
-  Suquamish: "SUQ",
-  Tacoma: "TAC",
-  Tillikum: "TIL",
-  Tokitae: "TOK",
-  "Walla Walla": "WAL",
-  Wenatchee: "WEN",
-  Yakima: "YAK",
-};
+
+import { getVesselByAbbrev, getVesselByName } from "@/data/identity/catalog";
 
 /**
- * Get vessel abbreviation by vessel name
- * @param vesselName - The full name of the vessel
- * @returns The vessel abbreviation or undefined if not found
- */
-export const getVesselAbbreviation = (vesselName: string): string => {
-  return toVesselAbbreviation[vesselName] || "";
-};
-
-/**
- * Get vessel full name by abbreviation.
+ * Get the canonical vessel abbreviation for a vessel name.
  *
- * @param abbrev - The vessel abbreviation (e.g., "KAL", "WEN")
- * @returns The full vessel name if found, otherwise returns the abbreviation
+ * @param vesselName - Full vessel name
+ * @returns Vessel abbreviation, or `null` when unknown
  */
-export const getVesselName = (abbrev: string): string => {
-  // Build reverse lookup map on first call
-  const abbrevToName = Object.entries(toVesselAbbreviation).reduce<
-    Record<string, string>
-  >((acc, [name, abbr]) => {
-    acc[abbr] = name;
-    return acc;
-  }, {});
+export const getVesselAbbreviation = (vesselName: string): string | null =>
+  getVesselByName(vesselName)?.VesselAbbrev ?? null;
 
-  return abbrevToName[abbrev] || abbrev;
-};
+/**
+ * Get the canonical vessel name for a vessel abbreviation.
+ *
+ * @param vesselAbbrev - Vessel abbreviation
+ * @returns Vessel name, or `null` when unknown
+ */
+export const getVesselName = (vesselAbbrev: string): string | null =>
+  getVesselByAbbrev(vesselAbbrev)?.VesselName ?? null;

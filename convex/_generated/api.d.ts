@@ -81,6 +81,10 @@ import type * as functions_terminals_mutations from "../functions/terminals/muta
 import type * as functions_terminals_queries from "../functions/terminals/queries.js";
 import type * as functions_terminals_resolver from "../functions/terminals/resolver.js";
 import type * as functions_terminals_schemas from "../functions/terminals/schemas.js";
+import type * as functions_terminalsTopology_actions from "../functions/terminalsTopology/actions.js";
+import type * as functions_terminalsTopology_mutations from "../functions/terminalsTopology/mutations.js";
+import type * as functions_terminalsTopology_queries from "../functions/terminalsTopology/queries.js";
+import type * as functions_terminalsTopology_schemas from "../functions/terminalsTopology/schemas.js";
 import type * as functions_vesselLocation_index from "../functions/vesselLocation/index.js";
 import type * as functions_vesselLocation_mutations from "../functions/vesselLocation/mutations.js";
 import type * as functions_vesselLocation_queries from "../functions/vesselLocation/queries.js";
@@ -222,6 +226,10 @@ declare const fullApi: ApiFromModules<{
   "functions/terminals/queries": typeof functions_terminals_queries;
   "functions/terminals/resolver": typeof functions_terminals_resolver;
   "functions/terminals/schemas": typeof functions_terminals_schemas;
+  "functions/terminalsTopology/actions": typeof functions_terminalsTopology_actions;
+  "functions/terminalsTopology/mutations": typeof functions_terminalsTopology_mutations;
+  "functions/terminalsTopology/queries": typeof functions_terminalsTopology_queries;
+  "functions/terminalsTopology/schemas": typeof functions_terminalsTopology_schemas;
   "functions/vesselLocation/index": typeof functions_vesselLocation_index;
   "functions/vesselLocation/mutations": typeof functions_vesselLocation_mutations;
   "functions/vesselLocation/queries": typeof functions_vesselLocation_queries;

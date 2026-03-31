@@ -12,8 +12,6 @@ import {
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import type {
-  TerminalAbbrev,
-  TerminalName,
   VesselAbbrev,
 } from "../../shared/identity";
 import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
@@ -77,16 +75,8 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 export type ResolvedVesselLocation = Omit<
   ConvexVesselLocation,
   | "VesselAbbrev"
-  | "DepartingTerminalAbbrev"
-  | "DepartingTerminalName"
-  | "ArrivingTerminalAbbrev"
-  | "ArrivingTerminalName"
 > & {
   VesselAbbrev: VesselAbbrev;
-  DepartingTerminalAbbrev: TerminalAbbrev;
-  DepartingTerminalName: TerminalName;
-  ArrivingTerminalAbbrev?: TerminalAbbrev;
-  ArrivingTerminalName?: TerminalName;
 };
 
 /**
@@ -103,8 +93,10 @@ export function toConvexVesselLocation(
 ): ResolvedVesselLocation {
   const VesselName = (dvl.VesselName ?? "").trim();
   const rawDepartingTerminalAbbrev = (dvl.DepartingTerminalAbbrev ?? "").trim();
+  const rawDepartingTerminalName = (dvl.DepartingTerminalName ?? "").trim();
   const rawArrivingTerminalAbbrev =
     dvl.ArrivingTerminalAbbrev?.trim() ?? undefined;
+  const rawArrivingTerminalName = dvl.ArrivingTerminalName?.trim() ?? undefined;
   const resolvedVessel = resolveVessel({ VesselName }, vessels);
   const resolvedDepartingTerminal = rawDepartingTerminalAbbrev
     ? resolveTerminal({ TerminalAbbrev: rawDepartingTerminalAbbrev }, terminals)
@@ -117,16 +109,30 @@ export function toConvexVesselLocation(
     throw new Error(`Unknown vessel in backend vessel lookup: ${VesselName}`);
   }
 
-  if (!resolvedDepartingTerminal) {
-    throw new Error(
-      `Unknown departing terminal in backend terminal lookup: ${rawDepartingTerminalAbbrev}`
-    );
+  if (!rawDepartingTerminalAbbrev) {
+    throw new Error("Missing departing terminal abbreviation in vessel location.");
   }
 
-  const DepartingTerminalAbbrev = resolvedDepartingTerminal.TerminalAbbrev;
-  const ArrivingTerminalAbbrev = resolvedArrivingTerminal?.TerminalAbbrev;
-  const DepartingTerminalName = resolvedDepartingTerminal.TerminalName;
-  const ArrivingTerminalName = resolvedArrivingTerminal?.TerminalName;
+  if (!resolvedDepartingTerminal) {
+    warnAboutUnknownMarineLocation("departing", rawDepartingTerminalAbbrev);
+  }
+
+  if (rawArrivingTerminalAbbrev && !resolvedArrivingTerminal) {
+    warnAboutUnknownMarineLocation("arriving", rawArrivingTerminalAbbrev);
+  }
+
+  const DepartingTerminalAbbrev =
+    resolvedDepartingTerminal?.TerminalAbbrev ?? rawDepartingTerminalAbbrev;
+  const ArrivingTerminalAbbrev =
+    resolvedArrivingTerminal?.TerminalAbbrev ?? rawArrivingTerminalAbbrev;
+  const DepartingTerminalName =
+    resolvedDepartingTerminal?.TerminalName ??
+    rawDepartingTerminalName ??
+    rawDepartingTerminalAbbrev;
+  const ArrivingTerminalName =
+    resolvedArrivingTerminal?.TerminalName ??
+    rawArrivingTerminalName ??
+    rawArrivingTerminalAbbrev;
 
   return {
     VesselID: dvl.VesselID,
@@ -203,5 +209,23 @@ const getDistanceToTerminal = (
     longitude,
     terminal?.Latitude,
     terminal?.Longitude
+  );
+};
+
+const warnedUnknownMarineLocations = new Set<string>();
+
+const warnAboutUnknownMarineLocation = (
+  role: "departing" | "arriving",
+  terminalAbbrev: string
+) => {
+  const key = `${role}:${terminalAbbrev.toUpperCase()}`;
+
+  if (warnedUnknownMarineLocations.has(key)) {
+    return;
+  }
+
+  warnedUnknownMarineLocations.add(key);
+  console.warn(
+    `[vesselLocation] Unknown ${role} marine location in backend terminal lookup: ${terminalAbbrev}`
   );
 };
