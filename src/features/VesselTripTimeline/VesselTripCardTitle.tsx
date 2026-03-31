@@ -4,6 +4,7 @@
 
 import type { VesselTrip } from "functions/vesselTrips/schemas";
 import { Text, View } from "@/components/ui";
+import { useIdentityCatalog } from "@/data/contexts";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 
@@ -18,6 +19,7 @@ import { toDisplayTime } from "@/shared/utils/dateConversions";
  * @returns Component with terminal names, arrow indicator, and departure time
  */
 export const VesselTripCardTitle = ({ trip }: { trip: VesselTrip }) => {
+  useIdentityCatalog();
   const departingName = getTerminalNameByAbbrev(trip.DepartingTerminalAbbrev);
   const arrivingName = trip.ArrivingTerminalAbbrev
     ? getTerminalNameByAbbrev(trip.ArrivingTerminalAbbrev)
@@ -42,7 +44,7 @@ export const VesselTripCardTitle = ({ trip }: { trip: VesselTrip }) => {
     >
       <View className="flex-1 flex-row gap-1">
         <Text className="font-bitcount-400 text-green-700 text-xl">
-          {departingName}
+          {departingName ?? trip.DepartingTerminalAbbrev}
         </Text>
         {arrivingName && (
           <>

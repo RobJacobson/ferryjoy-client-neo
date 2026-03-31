@@ -58,7 +58,7 @@ Responsibilities:
 - fetch vessel locations from WSF
 - load backend vessel/terminal identity snapshots once per tick
 - convert raw WSF payloads into `ResolvedVesselLocation`, including
-  resolved vessel/terminal identity and distance-to-terminal fields derived
+  resolved vessel identity plus terminal-or-marine-location fields derived
   from the backend `terminals` table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
@@ -70,6 +70,16 @@ WSF VesselLocation
   -> toConvexVesselLocation(raw, vessels, terminals)
   -> ResolvedVesselLocation[]
 ```
+
+Notes:
+
+- the backend `terminals` table remains the canonical lookup for passenger
+  terminals
+- it also contains a small number of known non-passenger marine locations used
+  by the WSF vessel feed, such as `EAH` and `VIG`
+- unknown future marine-location abbreviations are preserved for vessel-location
+  continuity instead of failing ingestion
+- only passenger-terminal locations are forwarded into trip processing
 
 The orchestrator returns branch-level success flags:
 
@@ -95,6 +105,12 @@ The orchestrator passes the full converted location batch to the
 `bulkUpsert` mutation, which atomically inserts or replaces the current
 `vesselLocations` rows.
 
+This table can therefore contain both:
+
+- canonical passenger-terminal locations
+- non-passenger marine locations reported by WSF, when needed to keep live
+  vessel state visible
+
 ### 3. Trip Lifecycle Updates (`vesselTrips/updates/`)
 
 Purpose:
@@ -107,6 +123,9 @@ ML predictions, and event-driven trip transitions. Inside that module, event
 detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.
+
+Trip processing remains intentionally stricter than vessel-location storage:
+only rows that resolve to passenger terminals participate in trip derivation.
 
 ### 4. Timeline Projection (`vesselTimeline/`)
 
@@ -211,11 +230,14 @@ The timeline projection path is designed to stay lightweight:
 
 - current snapshot of live vessel state
 - used directly by the UI for current indicator state and warnings
+- may include non-passenger marine locations when the WSF vessel feed reports
+  them
 
 `activeVesselTrips` / `completedVesselTrips`
 
 - richer trip lifecycle models
 - support trip state tracking, predictions, and other operational features
+- intentionally exclude non-passenger marine-location rows
 
 `vesselTimeline` event tables
 
@@ -227,6 +249,7 @@ The timeline projection path is designed to stay lightweight:
 
 - `convex/functions/vesselTrips/updates/README.md`
 - `convex/functions/scheduledTrips/sync/README.md`
+- `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 
 ## Summary

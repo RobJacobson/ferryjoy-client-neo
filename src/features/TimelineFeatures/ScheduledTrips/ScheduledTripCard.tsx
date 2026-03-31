@@ -8,6 +8,7 @@ import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { CardTitle, Text, View } from "@/components/ui";
+import { useIdentityCatalog } from "@/data/contexts";
 import { getVesselName } from "@/domain/vesselAbbreviations";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
@@ -47,6 +48,8 @@ export const ScheduledTripCard = ({
   vesselTripByKeys,
   heldTrip,
 }: ScheduledTripCardProps) => {
+  useIdentityCatalog();
+
   return (
     <TripCard
       cardClassName="pt-2 pb-10 overflow-visible"
@@ -101,7 +104,7 @@ const ScheduledTripRouteHeader = ({
       ))}
     </View>
     <Text className="font-light text-muted-foreground text-xl">
-      {getVesselName(vesselAbbrev)}
+      {getVesselName(vesselAbbrev) ?? vesselAbbrev}
     </Text>
   </View>
 );

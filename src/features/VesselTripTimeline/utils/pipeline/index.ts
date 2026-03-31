@@ -25,11 +25,12 @@ import { getRows } from "./rows";
  */
 export const getTimelineRenderState = (
   item: TimelineItem,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null,
   now: Date = new Date()
 ): TimelineRenderState => {
   const boundaryData = getBoundaries(item);
   const rowsWithGeometry = getRows(boundaryData, item);
   const doc = documentStage(rowsWithGeometry, item);
-  const renderRowsOut = renderRows(doc);
+  const renderRowsOut = renderRows(doc, getTerminalNameByAbbrev);
   return renderState(doc, renderRowsOut, item, now);
 };

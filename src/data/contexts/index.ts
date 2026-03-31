@@ -4,6 +4,7 @@
 
 export * from "../../shared/utils/projectVesselLocation";
 // Export combined provider
+export * from "./IdentityContext";
 export * from "./convex/ConvexProvider";
 export * from "./convex/ConvexUnifiedTripsContext";
 export * from "./convex/ConvexVesselLocationsContext";

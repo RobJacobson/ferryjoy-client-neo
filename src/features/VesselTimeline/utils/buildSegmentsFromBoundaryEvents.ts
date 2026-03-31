@@ -7,7 +7,6 @@ import type {
   VesselTimelineSegment,
   VesselTimelineSegmentEvent,
 } from "convex/functions/vesselTimeline/schemas";
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { getLayoutTime } from "../rowEventTime";
 
 /**
@@ -17,7 +16,8 @@ import { getLayoutTime } from "../rowEventTime";
  * @returns Semantic timeline segments for VesselTimeline rendering
  */
 export const buildSegmentsFromBoundaryEvents = (
-  events: MergedTimelineBoundaryEvent[]
+  events: MergedTimelineBoundaryEvent[],
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): VesselTimelineSegment[] => {
   const segments: VesselTimelineSegment[] = [];
 
@@ -35,8 +35,8 @@ export const buildSegmentsFromBoundaryEvents = (
         id: `${current.Key}--${next.Key}--dock`,
         segmentIndex: segments.length,
         kind: "dock",
-        startEvent: toSegmentEvent(current),
-        endEvent: toSegmentEvent(next),
+        startEvent: toSegmentEvent(current, getTerminalNameByAbbrev),
+        endEvent: toSegmentEvent(next, getTerminalNameByAbbrev),
         durationMinutes: getDurationMinutes(current, next),
       });
     }
@@ -44,7 +44,12 @@ export const buildSegmentsFromBoundaryEvents = (
     if (isSeaPair(current, next)) {
       if (needsArrivalPlaceholder(previous, current)) {
         segments.push(
-          buildArrivalPlaceholderSegment(current, segments.length, index)
+          buildArrivalPlaceholderSegment(
+            current,
+            segments.length,
+            index,
+            getTerminalNameByAbbrev
+          )
         );
       }
 
@@ -52,8 +57,8 @@ export const buildSegmentsFromBoundaryEvents = (
         id: `${current.Key}--${next.Key}--sea`,
         segmentIndex: segments.length,
         kind: "sea",
-        startEvent: toSegmentEvent(current),
-        endEvent: toSegmentEvent(next),
+        startEvent: toSegmentEvent(current, getTerminalNameByAbbrev),
+        endEvent: toSegmentEvent(next, getTerminalNameByAbbrev),
         durationMinutes: getDurationMinutes(current, next),
       });
     }
@@ -61,7 +66,7 @@ export const buildSegmentsFromBoundaryEvents = (
 
   const lastEvent = events[events.length - 1];
   if (lastEvent?.EventType === "arv-dock") {
-    const terminalEvent = toSegmentEvent(lastEvent);
+    const terminalEvent = toSegmentEvent(lastEvent, getTerminalNameByAbbrev);
     segments.push({
       id: `${lastEvent.Key}--terminal`,
       segmentIndex: segments.length,
@@ -84,13 +89,17 @@ export const buildSegmentsFromBoundaryEvents = (
  * @returns Segment event payload with display terminal name
  */
 const toSegmentEvent = (
-  event: MergedTimelineBoundaryEvent
+  event: MergedTimelineBoundaryEvent,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): VesselTimelineSegmentEvent => ({
   Key: event.Key,
   ScheduledDeparture: event.ScheduledDeparture,
   TerminalAbbrev: event.TerminalAbbrev,
   EventType: event.EventType,
-  TerminalDisplayName: getDisplayTerminalName(event.TerminalAbbrev),
+  TerminalDisplayName: getDisplayTerminalName(
+    event.TerminalAbbrev,
+    getTerminalNameByAbbrev
+  ),
   EventScheduledTime: event.EventScheduledTime,
   EventPredictedTime: event.EventPredictedTime,
   EventActualTime: event.EventActualTime,
@@ -108,7 +117,8 @@ const toSegmentEvent = (
 const buildArrivalPlaceholderSegment = (
   departureEvent: MergedTimelineBoundaryEvent,
   segmentIndex: number,
-  eventIndex: number
+  eventIndex: number,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): VesselTimelineSegment => ({
   id: `${departureEvent.Key}--arrival-placeholder--dock`,
   segmentIndex,
@@ -119,13 +129,16 @@ const buildArrivalPlaceholderSegment = (
     ScheduledDeparture: departureEvent.ScheduledDeparture,
     TerminalAbbrev: departureEvent.TerminalAbbrev,
     EventType: "arv-dock",
-    TerminalDisplayName: getDisplayTerminalName(departureEvent.TerminalAbbrev),
+    TerminalDisplayName: getDisplayTerminalName(
+      departureEvent.TerminalAbbrev,
+      getTerminalNameByAbbrev
+    ),
     IsArrivalPlaceholder: true,
     EventScheduledTime: undefined,
     EventPredictedTime: undefined,
     EventActualTime: undefined,
   },
-  endEvent: toSegmentEvent(departureEvent),
+  endEvent: toSegmentEvent(departureEvent, getTerminalNameByAbbrev),
   durationMinutes: 0,
 });
 
@@ -205,7 +218,10 @@ const getDurationMinutes = (
  * @param terminalAbbrev - Terminal abbreviation
  * @returns Short display name or `undefined`
  */
-const getDisplayTerminalName = (terminalAbbrev?: string) => {
+const getDisplayTerminalName = (
+  terminalAbbrev: string | undefined,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
+) => {
   if (!terminalAbbrev) {
     return undefined;
   }

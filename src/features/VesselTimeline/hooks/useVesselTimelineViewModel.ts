@@ -4,7 +4,8 @@
 
 import { useMemo } from "react";
 import type { TimelineVisualTheme } from "@/components/timeline";
-import { useConvexVesselTimeline } from "@/data/contexts";
+import { useConvexVesselTimeline, useIdentityCatalog } from "@/data/contexts";
+import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { useNowMs } from "@/shared/hooks";
 import {
   getStaticVesselTimelineRenderState,
@@ -38,6 +39,7 @@ export const useVesselTimelineViewModel = ({
   now?: Date;
   theme: TimelineVisualTheme;
 }): UseVesselTimelineViewModelResult => {
+  useIdentityCatalog();
   const nowMs = useNowMs(1000);
   const {
     VesselAbbrev,
@@ -49,7 +51,7 @@ export const useVesselTimelineViewModel = ({
     Retry,
   } = useConvexVesselTimeline();
   const segments = useMemo(
-    () => buildSegmentsFromBoundaryEvents(mergedEvents),
+    () => buildSegmentsFromBoundaryEvents(mergedEvents, getTerminalNameByAbbrev),
     [mergedEvents]
   );
   const { Live: liveState, ActiveState: activeState } = useMemo(

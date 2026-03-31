@@ -10,6 +10,7 @@ export const terminalSchema = v.object({
   TerminalID: v.number(),
   TerminalName: v.string(),
   TerminalAbbrev: v.string(),
+  IsPassengerTerminal: v.optional(v.boolean()),
   Latitude: v.optional(v.number()),
   Longitude: v.optional(v.number()),
   UpdatedAt: v.optional(v.number()),

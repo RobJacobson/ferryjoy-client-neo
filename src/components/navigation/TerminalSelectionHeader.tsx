@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import { Text, View } from "@/components/ui";
-import { useSelectedTerminalPair } from "@/data/contexts";
+import { useIdentityCatalog, useSelectedTerminalPair } from "@/data/contexts";
 import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
 
 // ============================================================================
@@ -14,6 +14,7 @@ import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
 // ============================================================================
 
 export const TerminalSelectionHeader = () => {
+  useIdentityCatalog();
   const { selectedTerminalPair, isHydrated } = useSelectedTerminalPair();
 
   const title = useMemo((): string => {

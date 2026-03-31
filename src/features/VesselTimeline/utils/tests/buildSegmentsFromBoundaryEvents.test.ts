@@ -12,36 +12,39 @@ const at = (hours: number, minutes: number) =>
 
 describe("buildSegmentsFromBoundaryEvents", () => {
   it("builds placeholder, sea, dock, and terminal-tail segments client-side", () => {
-    const segments = buildSegmentsFromBoundaryEvents([
-      makeEvent({
-        Key: "dep-1",
-        EventType: "dep-dock",
-        TerminalAbbrev: "P52",
-        ScheduledDeparture: at(12, 20),
-        EventScheduledTime: at(12, 20),
-      }),
-      makeEvent({
-        Key: "arv-1",
-        EventType: "arv-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(12, 20),
-        EventScheduledTime: at(12, 55),
-      }),
-      makeEvent({
-        Key: "dep-2",
-        EventType: "dep-dock",
-        TerminalAbbrev: "BBI",
-        ScheduledDeparture: at(13, 10),
-        EventScheduledTime: at(13, 10),
-      }),
-      makeEvent({
-        Key: "arv-2",
-        EventType: "arv-dock",
-        TerminalAbbrev: "P52",
-        ScheduledDeparture: at(13, 10),
-        EventScheduledTime: at(13, 45),
-      }),
-    ]);
+    const segments = buildSegmentsFromBoundaryEvents(
+      [
+        makeEvent({
+          Key: "dep-1",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(12, 20),
+          EventScheduledTime: at(12, 20),
+        }),
+        makeEvent({
+          Key: "arv-1",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(12, 20),
+          EventScheduledTime: at(12, 55),
+        }),
+        makeEvent({
+          Key: "dep-2",
+          EventType: "dep-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(13, 10),
+          EventScheduledTime: at(13, 10),
+        }),
+        makeEvent({
+          Key: "arv-2",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(13, 10),
+          EventScheduledTime: at(13, 45),
+        }),
+      ],
+      (terminalAbbrev) => terminalAbbrev
+    );
 
     expect(segments.map((segment) => segment.kind)).toEqual([
       "dock",

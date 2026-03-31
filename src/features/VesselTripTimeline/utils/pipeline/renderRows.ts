@@ -3,7 +3,6 @@
  * Output is combined with the active indicator in the renderState stage.
  */
 
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import type {
   TimelineDocument,
   TimelineDocumentRow,
@@ -18,7 +17,10 @@ import type {
  * @param document - Output from the document stage
  * @returns Render-ready rows for the UI
  */
-export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
+export const renderRows = (
+  document: TimelineDocument,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
+): TimelineRenderRow[] =>
   document.rows.map((row: TimelineDocumentRow, index: number) => {
     const markerAppearance =
       getRowPhase(row.segmentIndex, document.activeSegmentIndex) === "upcoming"
@@ -33,8 +35,8 @@ export const renderRows = (document: TimelineDocument): TimelineRenderRow[] =>
       geometryMinutes: row.geometryMinutes,
       startLabel: getStartLabel(row),
       showStartTimePlaceholder: false,
-      terminalHeadline: getTerminalHeadline(row),
-      startBoundary: getStartBoundary(row),
+      terminalHeadline: getTerminalHeadline(row, getTerminalNameByAbbrev),
+      startBoundary: getStartBoundary(row, getTerminalNameByAbbrev),
       isFinalRow: index === document.rows.length - 1,
     } satisfies TimelineRenderRow;
   });
@@ -72,12 +74,14 @@ const getRowPhase = (
  * @returns Start boundary label and timepoint
  */
 const getStartBoundary = (
-  row: TimelineDocumentRow
+  row: TimelineDocumentRow,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): TimelineRenderBoundary => ({
   eventType: row.kind === "at-dock" ? "arrive" : "depart",
   currTerminalAbbrev: row.startBoundary.terminalAbbrev,
   currTerminalDisplayName: getDisplayTerminalName(
-    row.startBoundary.terminalAbbrev
+    row.startBoundary.terminalAbbrev,
+    getTerminalNameByAbbrev
   ),
   nextTerminalAbbrev:
     row.kind === "at-sea" ? row.endBoundary.terminalAbbrev : undefined,
@@ -93,12 +97,21 @@ const getStartLabel = (row: TimelineDocumentRow) =>
       ? `To: ${row.endBoundary.terminalAbbrev}`
       : "Dep";
 
-const getTerminalHeadline = (row: TimelineDocumentRow) =>
+const getTerminalHeadline = (
+  row: TimelineDocumentRow,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
+) =>
   row.kind === "at-dock"
-    ? getDisplayTerminalName(row.startBoundary.terminalAbbrev)
+    ? getDisplayTerminalName(
+        row.startBoundary.terminalAbbrev,
+        getTerminalNameByAbbrev
+      )
     : undefined;
 
-const getDisplayTerminalName = (terminalAbbrev?: string) => {
+const getDisplayTerminalName = (
+  terminalAbbrev: string | undefined,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
+) => {
   if (!terminalAbbrev) {
     return undefined;
   }
