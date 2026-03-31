@@ -23,7 +23,10 @@ export const replaceBackendTerminals = internalMutation({
       args.terminals
     );
 
-    for (const { existing: existingTerminal, incoming: terminal } of toReplace) {
+    for (const {
+      existing: existingTerminal,
+      incoming: terminal,
+    } of toReplace) {
       await ctx.db.replace(existingTerminal._id, terminal);
     }
 
