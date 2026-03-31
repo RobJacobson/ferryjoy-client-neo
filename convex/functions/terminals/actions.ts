@@ -51,6 +51,7 @@ async function refreshBackendTerminalsImpl(ctx: ActionCtx): Promise<void> {
   } catch (error) {
     const normalized = normalizeUnknownError(error);
     console.error("refreshBackendTerminals failed:", normalized);
+    throw normalized;
   }
 }
 

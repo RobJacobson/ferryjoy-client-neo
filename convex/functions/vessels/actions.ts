@@ -54,6 +54,7 @@ async function refreshBackendVesselsImpl(ctx: ActionCtx): Promise<void> {
   } catch (error) {
     const normalized = normalizeUnknownError(error);
     console.error("refreshBackendVessels failed:", normalized);
+    throw normalized;
   }
 }
 
