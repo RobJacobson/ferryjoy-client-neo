@@ -89,9 +89,15 @@ crons.cron(
 );
 
 crons.cron(
-  "refresh canonical vessels",
+  "refresh backend vessels",
   "0 * * * *", // every hour at minute 0 UTC
-  internal.functions.vesselOrchestrator.actions.refreshCanonicalVessels
+  internal.functions.vessels.actions.refreshBackendVessels
+);
+
+crons.cron(
+  "refresh backend terminals",
+  "0 * * * *", // every hour at minute 0 UTC
+  internal.functions.terminals.actions.refreshBackendTerminals
 );
 
 export default crons;

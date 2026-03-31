@@ -43,16 +43,16 @@ export const bulkUpsert = mutation({
 });
 
 /**
- * Replace the canonical vessel snapshot with the latest upstream data.
+ * Replace the backend vessel snapshot with the latest upstream data.
  *
  * Existing rows are replaced in place when the VesselID matches, new rows are
  * inserted, and rows missing from the incoming snapshot are deleted.
  *
  * @param ctx - Convex internal mutation context
- * @param args.vessels - Full canonical vessel snapshot from WSF basics
+ * @param args.vessels - Full backend vessel snapshot from WSF basics
  * @returns Summary of rows inserted, replaced, and deleted
  */
-export const replaceCanonicalVessels = internalMutation({
+export const replaceBackendVessels = internalMutation({
   args: {
     vessels: v.array(vesselSchema),
   },

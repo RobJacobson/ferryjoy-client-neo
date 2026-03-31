@@ -4,11 +4,13 @@
  */
 
 import type { Route } from "ws-dottie/wsf-schedule";
+import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { RawWsfRouteScheduleData } from "../../../shared/fetchWsfScheduleData";
 import {
   downloadRawWsfScheduleData,
   fetchActiveRoutes,
 } from "../../../shared/fetchWsfScheduleData";
+import type { VesselIdentity } from "../../../shared/vessels";
 import type { ConvexScheduledTrip } from "../schemas";
 import { createScheduledTripFromRawSegment } from "./fetching/mapping";
 import { runTransformationPipeline } from "./transform";
@@ -29,7 +31,9 @@ export type FetchAndTransformScheduledTripsResult = {
  * @returns Raw route payloads plus the mapped and transformed trip rows
  */
 export const fetchAndTransformScheduledTrips = async (
-  targetDate: string
+  targetDate: string,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): Promise<FetchAndTransformScheduledTripsResult> => {
   const routes = await fetchActiveRoutes(targetDate);
 
@@ -46,7 +50,9 @@ export const fetchAndTransformScheduledTrips = async (
   const routeData = await downloadRawWsfScheduleData(routes, targetDate);
   const rawTrips = routeData
     .flatMap((data) => data.segments)
-    .map((segment) => createScheduledTripFromRawSegment(segment))
+    .map((segment) =>
+      createScheduledTripFromRawSegment(segment, vessels, terminals)
+    )
     .filter((trip): trip is ConvexScheduledTrip => trip !== null);
 
   const finalTrips = runTransformationPipeline(rawTrips);

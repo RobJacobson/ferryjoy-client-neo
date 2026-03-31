@@ -11,8 +11,13 @@ import {
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
-import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
+import type {
+  TerminalAbbrev,
+  TerminalName,
+  VesselAbbrev,
+} from "../../shared/identity";
 import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
+import { resolveTerminal, type TerminalIdentity } from "../terminals/resolver";
 
 /**
  * Shared field validators for vessel-location storage.
@@ -66,34 +71,72 @@ export const vesselLocationValidationSchema = v.object(
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 
 /**
+ * Vessel location whose vessel abbreviation has been resolved against the
+ * backend vessel table.
+ */
+export type ResolvedVesselLocation = Omit<
+  ConvexVesselLocation,
+  | "VesselAbbrev"
+  | "DepartingTerminalAbbrev"
+  | "DepartingTerminalName"
+  | "ArrivingTerminalAbbrev"
+  | "ArrivingTerminalName"
+> & {
+  VesselAbbrev: VesselAbbrev;
+  DepartingTerminalAbbrev: TerminalAbbrev;
+  DepartingTerminalName: TerminalName;
+  ArrivingTerminalAbbrev?: TerminalAbbrev;
+  ArrivingTerminalName?: TerminalName;
+};
+
+/**
  * Convert a Dottie vessel location to a convex vessel location.
  * Manual conversion from Date objects to epoch milliseconds.
  * @param dvl - Dottie vessel location with Date objects
- * @param vessels - Canonical vessel rows used to resolve the vessel abbreviation
+ * @param vessels - Backend vessel rows used to resolve the vessel abbreviation
  * @returns Convex vessel location with numeric timestamps
  */
 export function toConvexVesselLocation(
   dvl: DottieVesselLocation,
-  vessels: ReadonlyArray<VesselIdentity>
-): ConvexVesselLocation {
-  const VesselName = dvl.VesselName ?? "";
-  const DepartingTerminalAbbrev = dvl.DepartingTerminalAbbrev ?? "";
-  const ArrivingTerminalAbbrev = dvl.ArrivingTerminalAbbrev ?? undefined;
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+): ResolvedVesselLocation {
+  const VesselName = (dvl.VesselName ?? "").trim();
+  const rawDepartingTerminalAbbrev = (dvl.DepartingTerminalAbbrev ?? "").trim();
+  const rawArrivingTerminalAbbrev =
+    dvl.ArrivingTerminalAbbrev?.trim() ?? undefined;
   const resolvedVessel = resolveVessel({ VesselName }, vessels);
+  const resolvedDepartingTerminal = rawDepartingTerminalAbbrev
+    ? resolveTerminal({ TerminalAbbrev: rawDepartingTerminalAbbrev }, terminals)
+    : null;
+  const resolvedArrivingTerminal = rawArrivingTerminalAbbrev
+    ? resolveTerminal({ TerminalAbbrev: rawArrivingTerminalAbbrev }, terminals)
+    : null;
 
   if (!resolvedVessel) {
-    throw new Error(`Unknown vessel in canonical table lookup: ${VesselName}`);
+    throw new Error(`Unknown vessel in backend vessel lookup: ${VesselName}`);
   }
+
+  if (!resolvedDepartingTerminal) {
+    throw new Error(
+      `Unknown departing terminal in backend terminal lookup: ${rawDepartingTerminalAbbrev}`
+    );
+  }
+
+  const DepartingTerminalAbbrev = resolvedDepartingTerminal.TerminalAbbrev;
+  const ArrivingTerminalAbbrev = resolvedArrivingTerminal?.TerminalAbbrev;
+  const DepartingTerminalName = resolvedDepartingTerminal.TerminalName;
+  const ArrivingTerminalName = resolvedArrivingTerminal?.TerminalName;
 
   return {
     VesselID: dvl.VesselID,
     VesselName,
     VesselAbbrev: resolvedVessel.VesselAbbrev,
     DepartingTerminalID: dvl.DepartingTerminalID,
-    DepartingTerminalName: dvl.DepartingTerminalName ?? "",
+    DepartingTerminalName,
     DepartingTerminalAbbrev,
     ArrivingTerminalID: dvl.ArrivingTerminalID ?? undefined,
-    ArrivingTerminalName: dvl.ArrivingTerminalName ?? undefined,
+    ArrivingTerminalName,
     ArrivingTerminalAbbrev,
     Latitude: dvl.Latitude,
     Longitude: dvl.Longitude,
@@ -110,12 +153,14 @@ export function toConvexVesselLocation(
     DepartingDistance: getDistanceToTerminal(
       dvl.Latitude,
       dvl.Longitude,
-      DepartingTerminalAbbrev
+      DepartingTerminalAbbrev,
+      terminals
     ),
     ArrivingDistance: getDistanceToTerminal(
       dvl.Latitude,
       dvl.Longitude,
-      ArrivingTerminalAbbrev
+      ArrivingTerminalAbbrev,
+      terminals
     ),
   };
 }
@@ -143,13 +188,16 @@ export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;
 const getDistanceToTerminal = (
   latitude: number,
   longitude: number,
-  terminalAbbrev: string | undefined | null
+  terminalAbbrev: string | undefined | null,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): number | undefined => {
   if (!terminalAbbrev) {
     return undefined;
   }
 
-  const terminal = getTerminalLocationByAbbrev(terminalAbbrev);
+  const terminal =
+    resolveTerminal({ TerminalAbbrev: terminalAbbrev }, terminals) ?? null;
+
   return calculateDistanceInMiles(
     latitude,
     longitude,

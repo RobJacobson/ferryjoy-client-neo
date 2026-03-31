@@ -78,12 +78,12 @@ export const getByVesselAbbrev = query({
 });
 
 /**
- * Fetch all canonical vessels.
+ * Fetch all backend vessel rows.
  *
  * @param ctx - Convex internal query context
- * @returns Canonical vessels without Convex metadata
+ * @returns Backend vessel rows without Convex metadata
  */
-export const getAllCanonicalVesselsInternal = internalQuery({
+export const getAllBackendVesselsInternal = internalQuery({
   args: {},
   returns: v.array(vesselSchema),
   handler: async (ctx) => {
@@ -93,13 +93,13 @@ export const getAllCanonicalVesselsInternal = internalQuery({
 });
 
 /**
- * Resolve a single vessel from the canonical table using one selector field.
+ * Resolve a single vessel from the backend vessel table using one selector field.
  *
  * @param ctx - Convex internal query context
  * @param args.selector - Exactly one vessel selector field
  * @returns Matching vessel, or `null` when not found
  */
-export const resolveCanonicalVesselInternal = internalQuery({
+export const resolveBackendVesselInternal = internalQuery({
   args: {
     selector: vesselSelectorSchema,
   },

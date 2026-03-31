@@ -8,7 +8,7 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { handlePredictionEvent } from "domain/ml/prediction";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "../buildCompletedTrip";
 import { buildTrip } from "../buildTrip";
@@ -27,7 +27,7 @@ import {
 const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
 
 type TripTransition = {
-  currLocation: ConvexVesselLocation;
+  currLocation: ResolvedVesselLocation;
   existingTrip?: ConvexVesselTrip;
   events: TripEvents;
 };
@@ -59,7 +59,7 @@ const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
  */
 const logDockSignalDisagreement = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
+  currLocation: ResolvedVesselLocation
 ): void => {
   const hasLeftDockSignal =
     currLocation.LeftDock !== undefined || existingTrip?.LeftDock !== undefined;
@@ -108,7 +108,7 @@ const logDockSignalDisagreement = (
  */
 export const processVesselTrips = async (
   ctx: ActionCtx,
-  locations: ConvexVesselLocation[],
+  locations: ResolvedVesselLocation[],
   tickStartedAt: number
 ): Promise<void> => {
   await processVesselTripsWithDeps(
@@ -130,7 +130,7 @@ export const processVesselTrips = async (
  */
 export const processVesselTripsWithDeps = async (
   ctx: ActionCtx,
-  locations: ConvexVesselLocation[],
+  locations: ResolvedVesselLocation[],
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps
 ): Promise<void> => {
@@ -224,7 +224,7 @@ export const processVesselTripsWithDeps = async (
  * @returns Array of vessel transitions with precomputed events
  */
 const buildTripTransitions = (
-  locations: ConvexVesselLocation[],
+  locations: ResolvedVesselLocation[],
   existingTripsDict: Record<string, ConvexVesselTrip>,
   detectTripEventsFn: typeof detectTripEvents
 ): TripTransition[] =>

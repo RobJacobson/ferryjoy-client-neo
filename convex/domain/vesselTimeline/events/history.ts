@@ -2,12 +2,16 @@
  * History-backed enrichment for schedule-seeded boundary events.
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { getVesselAbbreviation } from "../../../functions/scheduledTrips/schemas";
+import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import { resolveHistoryTerminalAbbrev } from "../../../shared/scheduleIdentity";
 import { getSailingDay } from "../../../shared/time";
-import { config } from "../../ml/shared/config";
+import {
+  resolveVesselAbbrev,
+  type VesselIdentity,
+} from "../../../shared/vessels";
 import { getDirectRawSeedSegments } from "./seed";
 
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
@@ -19,6 +23,8 @@ type MergeSeededEventsWithHistoryArgs = {
   existingEvents: ConvexVesselTimelineEventRecord[];
   scheduleSegments: RawWsfScheduleSegment[];
   historyRecords: VesselHistory[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
 };
 
 type NormalizedHistoryRecord = {
@@ -41,6 +47,8 @@ export const mergeSeededEventsWithHistory = ({
   existingEvents,
   scheduleSegments,
   historyRecords,
+  vessels,
+  terminals,
 }: MergeSeededEventsWithHistoryArgs): ConvexVesselTimelineEventRecord[] => {
   const existingByKey = new Map(
     existingEvents.map((event) => [event.Key, event])
@@ -49,6 +57,8 @@ export const mergeSeededEventsWithHistory = ({
     sailingDay,
     scheduleSegments,
     historyRecords,
+    vessels,
+    terminals,
   });
 
   return seededEvents.map((event) => {
@@ -81,19 +91,27 @@ const getHistoryActualsByEventKey = ({
   sailingDay,
   scheduleSegments,
   historyRecords,
+  vessels,
+  terminals,
 }: {
   sailingDay: string;
   scheduleSegments: RawWsfScheduleSegment[];
   historyRecords: VesselHistory[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
 }) => {
   const directSegmentsByTripKey = new Map(
-    getDirectRawSeedSegments(scheduleSegments).map((segment) => [
-      segment.Key,
-      segment,
-    ])
+    getDirectRawSeedSegments(scheduleSegments, vessels, terminals).map(
+      (segment) => [segment.Key, segment]
+    )
   );
   return historyRecords.reduce((actualsByEventKey, record) => {
-    const normalizedRecord = normalizeHistoryRecord(record, sailingDay);
+    const normalizedRecord = normalizeHistoryRecord(
+      record,
+      sailingDay,
+      vessels,
+      terminals
+    );
     if (!normalizedRecord) {
       return actualsByEventKey;
     }
@@ -130,17 +148,23 @@ const getHistoryActualsByEventKey = ({
  */
 const normalizeHistoryRecord = (
   record: VesselHistory,
-  sailingDay: string
+  sailingDay: string,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
 ): NormalizedHistoryRecord | null => {
   const scheduledDepart = record.ScheduledDepart;
   const actualDeparture = record.ActualDepart?.getTime();
   const arrivalProxy = record.EstArrival?.getTime();
   const vesselRaw = record.Vessel ? String(record.Vessel).trim() : "";
-  const vesselAbbrev = normalizeVesselAbbrev(vesselRaw);
+  const vesselAbbrev = normalizeVesselAbbrev(vesselRaw, vessels);
   const departingTerminalAbbrev = normalizeTerminalAbbrev(
-    record.Departing ?? ""
+    record.Departing ?? "",
+    terminals
   );
-  const arrivingTerminalAbbrev = normalizeTerminalAbbrev(record.Arriving ?? "");
+  const arrivingTerminalAbbrev = normalizeTerminalAbbrev(
+    record.Arriving ?? "",
+    terminals
+  );
 
   if (
     !scheduledDepart ||
@@ -171,28 +195,22 @@ const normalizeHistoryRecord = (
   };
 };
 
-/**
- * Normalizes a vessel identifier into the abbreviation used by schedule data.
- *
- * @param vesselRaw - Raw vessel identifier or name from WSF history
- * @returns Vessel abbreviation or `undefined` when it cannot be resolved
- */
-const normalizeVesselAbbrev = (vesselRaw: string) => {
-  if (/^[A-Z]{2,4}$/.test(vesselRaw)) {
-    return vesselRaw;
-  }
-
-  return getVesselAbbreviation(vesselRaw);
-};
+const normalizeVesselAbbrev = (
+  vesselRaw: string,
+  vessels: ReadonlyArray<VesselIdentity>
+) => resolveVesselAbbrev(vesselRaw, vessels) || "";
 
 /**
  * Normalizes a terminal name into the abbreviation used by schedule data.
  *
  * @param terminalName - Raw terminal name from WSF history
+ * @param terminals - Backend terminal identity rows
  * @returns Terminal abbreviation or an empty string when unresolved
  */
-const normalizeTerminalAbbrev = (terminalName: string) =>
-  config.getTerminalAbbrev(terminalName) || "";
+const normalizeTerminalAbbrev = (
+  terminalName: string,
+  terminals: ReadonlyArray<TerminalIdentity>
+) => resolveHistoryTerminalAbbrev(terminalName, terminals) || "";
 
 /**
  * Chooses between an existing stored actual and a history-derived actual.

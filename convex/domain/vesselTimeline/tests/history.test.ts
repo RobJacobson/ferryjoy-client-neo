@@ -3,8 +3,10 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
+import type { VesselIdentity } from "../../../shared/vessels";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   mergeSeededEventsWithHistory,
@@ -19,6 +21,42 @@ import {
  */
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
+
+const backendVessels: VesselIdentity[] = [
+  {
+    VesselID: 1,
+    VesselName: "Tokitae",
+    VesselAbbrev: "TOK",
+  },
+  {
+    VesselID: 2,
+    VesselName: "Cathlamet",
+    VesselAbbrev: "CAT",
+  },
+];
+
+const backendTerminals: TerminalIdentity[] = [
+  {
+    TerminalID: 1,
+    TerminalName: "Seattle",
+    TerminalAbbrev: "P52",
+  },
+  {
+    TerminalID: 2,
+    TerminalName: "Bainbridge Island",
+    TerminalAbbrev: "BBI",
+  },
+  {
+    TerminalID: 3,
+    TerminalName: "Vashon Island",
+    TerminalAbbrev: "VAI",
+  },
+  {
+    TerminalID: 4,
+    TerminalName: "Fauntleroy",
+    TerminalAbbrev: "FAU",
+  },
+];
 
 describe("mergeSeededEventsWithHistory", () => {
   it("backfills actuals from exact-matched vessel history", () => {
@@ -35,7 +73,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
     const mergedEvents = mergeSeededEventsWithHistory({
       sailingDay: "2026-03-18",
-      seededEvents: buildSeedVesselTripEventsFromRawSegments(scheduleSegments),
+      seededEvents: buildSeedVesselTripEventsFromRawSegments(
+        scheduleSegments,
+        backendVessels,
+        backendTerminals
+      ),
       existingEvents: [],
       scheduleSegments,
       historyRecords: [
@@ -48,6 +90,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: at(14, 24),
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
@@ -56,8 +100,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("keeps departure actuals when history differs by less than three minutes", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents =
-      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(
+      scheduleSegments,
+      backendVessels,
+      backendTerminals
+    );
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
@@ -81,6 +128,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: at(14, 24),
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 9).getTime());
@@ -88,8 +137,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("keeps arrival actuals when ETA proxy differs by only one minute", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents =
-      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(
+      scheduleSegments,
+      backendVessels,
+      backendTerminals
+    );
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
@@ -113,6 +165,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: at(14, 24),
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 23).getTime());
@@ -120,8 +174,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("replaces departure actuals when history differs by three minutes or more", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents =
-      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(
+      scheduleSegments,
+      backendVessels,
+      backendTerminals
+    );
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
@@ -145,6 +202,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: at(14, 24),
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
@@ -153,8 +212,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
   it("replaces arrival actuals when ETA proxy differs by two minutes or more", () => {
     const scheduleSegments = [makeRoute14Segment()];
-    const seededEvents =
-      buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+    const seededEvents = buildSeedVesselTripEventsFromRawSegments(
+      scheduleSegments,
+      backendVessels,
+      backendTerminals
+    );
     const existingEvents = seededEvents.map((event, index) =>
       makeEvent({
         ...event,
@@ -178,6 +240,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: at(14, 24),
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
@@ -188,7 +252,11 @@ describe("mergeSeededEventsWithHistory", () => {
 
     const mergedEvents = mergeSeededEventsWithHistory({
       sailingDay: "2026-03-18",
-      seededEvents: buildSeedVesselTripEventsFromRawSegments(scheduleSegments),
+      seededEvents: buildSeedVesselTripEventsFromRawSegments(
+        scheduleSegments,
+        backendVessels,
+        backendTerminals
+      ),
       existingEvents: [],
       scheduleSegments,
       historyRecords: [
@@ -201,6 +269,8 @@ describe("mergeSeededEventsWithHistory", () => {
           EstArrival: undefined,
         }),
       ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
     });
 
     expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());

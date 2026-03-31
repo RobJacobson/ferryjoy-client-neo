@@ -4,12 +4,7 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { getVesselAbbreviation } from "src/domain/vesselAbbreviations";
 import { epochMsToDate } from "../../shared/convertDates";
-import { getTerminalAbbreviation } from "../../shared/terminalLocations";
-
-// Re-export for convenience
-export { getTerminalAbbreviation, getVesselAbbreviation };
 
 /**
  * Convex validator for scheduled trips

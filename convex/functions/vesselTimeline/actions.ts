@@ -15,6 +15,8 @@ import {
 } from "../../domain/vesselTimeline/events";
 import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
+import { loadBackendTerminalsOrThrow } from "../terminals/actions";
+import { loadBackendVesselsOrThrow } from "../vessels/actions";
 
 const logPrefix = "[SYNC VESSEL TIMELINE]";
 
@@ -79,14 +81,23 @@ const syncVesselTimelineForDate = async (
 ): Promise<TimelineSyncResult> => {
   console.log(`${logPrefix} Starting replace sync for ${targetDate}`);
 
-  const { routeData } = await fetchAndTransformScheduledTrips(targetDate);
+  const vessels = await loadBackendVesselsOrThrow(ctx);
+  const terminals = await loadBackendTerminalsOrThrow(ctx);
+  const { routeData } = await fetchAndTransformScheduledTrips(
+    targetDate,
+    vessels,
+    terminals
+  );
   const scheduleSegments = routeData.flatMap((data) => data.segments);
   console.log(
     `${logPrefix} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
   );
 
-  const directEvents =
-    buildSeedVesselTripEventsFromRawSegments(scheduleSegments);
+  const directEvents = buildSeedVesselTripEventsFromRawSegments(
+    scheduleSegments,
+    vessels,
+    terminals
+  );
   const historyRecords = await fetchHistoryRecordsForDate(
     scheduleSegments,
     targetDate
@@ -97,6 +108,8 @@ const syncVesselTimelineForDate = async (
     existingEvents: [],
     scheduleSegments,
     historyRecords,
+    vessels,
+    terminals,
   });
 
   const result = await ctx.runMutation(

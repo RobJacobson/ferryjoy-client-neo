@@ -3,8 +3,9 @@
 import { describe, expect, it } from "bun:test";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
-import { getTerminalLocationByAbbrev } from "../../shared/terminalLocations";
+import type { TerminalAbbrev, VesselAbbrev } from "../../shared/identity";
 import type { VesselIdentity } from "../../shared/vessels";
+import type { TerminalIdentity } from "../terminals/resolver";
 import { toConvexVesselLocation } from "./schemas";
 
 describe("calculateDistanceInMiles", () => {
@@ -36,11 +37,16 @@ describe("toConvexVesselLocation", () => {
         Longitude: -122.82,
         Speed: 15.7,
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
-    const departing = getTerminalLocationByAbbrev("ANA");
-    const arriving = getTerminalLocationByAbbrev("ORI");
+    const departing = TEST_TERMINALS.find(
+      (terminal) => terminal.TerminalAbbrev === "ANA"
+    );
+    const arriving = TEST_TERMINALS.find(
+      (terminal) => terminal.TerminalAbbrev === "ORI"
+    );
 
     expect(location.DepartingDistance).toBe(
       calculateDistanceInMiles(
@@ -72,7 +78,8 @@ describe("toConvexVesselLocation", () => {
         Latitude: 47.62,
         Longitude: -122.45,
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
     expect(location.DepartingDistance).toBeDefined();
@@ -88,10 +95,27 @@ describe("toConvexVesselLocation", () => {
         Latitude: 47.620552,
         Longitude: -122.514245,
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
     expect(location.DepartingDistance).toBe(0);
+  });
+
+  it("normalizes terminal names from the resolved terminal metadata", () => {
+    const location = toConvexVesselLocation(
+      makeDottieLocation({
+        DepartingTerminalName: "Wrong Name",
+        DepartingTerminalAbbrev: "ANA",
+        ArrivingTerminalName: "Also Wrong",
+        ArrivingTerminalAbbrev: "ORI",
+      }),
+      TEST_VESSELS,
+      TEST_TERMINALS
+    );
+
+    expect(location.DepartingTerminalName).toBe("Anacortes");
+    expect(location.ArrivingTerminalName).toBe("Orcas Island");
   });
 
   it("normalizes vessel abbreviation and speed in the same pass", () => {
@@ -101,39 +125,86 @@ describe("toConvexVesselLocation", () => {
         VesselName: "Suquamish",
         Speed: 0.15,
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
     expect(location.VesselAbbrev).toBe("SUQ");
     expect(location.Speed).toBe(0);
   });
 
-  it("leaves departing distance undefined when departing terminal abbreviation is missing", () => {
+  it("returns a branded resolved vessel abbreviation", () => {
     const location = toConvexVesselLocation(
       makeDottieLocation({
-        VesselID: 32,
-        VesselName: "Tacoma",
-        DepartingTerminalID: 999,
-        DepartingTerminalAbbrev: null,
+        VesselID: 1,
+        VesselName: "Cathlamet",
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
-    expect(location.DepartingDistance).toBeUndefined();
+    const resolvedAbbrev: VesselAbbrev = location.VesselAbbrev;
+
+    expect(resolvedAbbrev).toBe("CAT");
   });
 
-  it("leaves departing distance undefined when departing terminal abbreviation is unknown", () => {
+  it("returns a branded resolved departing terminal abbreviation", () => {
     const location = toConvexVesselLocation(
       makeDottieLocation({
-        VesselID: 32,
-        VesselName: "Tacoma",
-        DepartingTerminalID: 999,
-        DepartingTerminalAbbrev: "ZZZ",
+        DepartingTerminalAbbrev: "ANA",
       }),
-      TEST_VESSELS
+      TEST_VESSELS,
+      TEST_TERMINALS
     );
 
-    expect(location.DepartingDistance).toBeUndefined();
+    const resolvedTerminalAbbrev: TerminalAbbrev =
+      location.DepartingTerminalAbbrev;
+
+    expect(resolvedTerminalAbbrev).toBe("ANA");
+  });
+
+  it("throws when departing terminal abbreviation is missing", () => {
+    expect(() =>
+      toConvexVesselLocation(
+        makeDottieLocation({
+          VesselID: 32,
+          VesselName: "Tacoma",
+          DepartingTerminalID: 999,
+          DepartingTerminalAbbrev: null,
+        }),
+        TEST_VESSELS,
+        TEST_TERMINALS
+      )
+    ).toThrow("Unknown departing terminal");
+  });
+
+  it("throws when departing terminal abbreviation is unknown", () => {
+    expect(() =>
+      toConvexVesselLocation(
+        makeDottieLocation({
+          VesselID: 32,
+          VesselName: "Tacoma",
+          DepartingTerminalID: 999,
+          DepartingTerminalAbbrev: "ZZZ",
+        }),
+        TEST_VESSELS,
+        TEST_TERMINALS
+      )
+    ).toThrow("Unknown departing terminal");
+  });
+
+  it("leaves arriving distance undefined when arriving terminal abbreviation is unknown", () => {
+    const location = toConvexVesselLocation(
+      makeDottieLocation({
+        ArrivingTerminalID: 999,
+        ArrivingTerminalName: "Unknown",
+        ArrivingTerminalAbbrev: "ZZZ",
+      }),
+      TEST_VESSELS,
+      TEST_TERMINALS
+    );
+
+    expect(location.ArrivingDistance).toBeUndefined();
   });
 });
 
@@ -152,6 +223,37 @@ const TEST_VESSELS: Array<VesselIdentity> = [
     VesselID: 75,
     VesselName: "Suquamish",
     VesselAbbrev: "SUQ",
+  },
+];
+
+const TEST_TERMINALS: Array<TerminalIdentity> = [
+  {
+    TerminalID: 1,
+    TerminalName: "Anacortes",
+    TerminalAbbrev: "ANA",
+    Latitude: 48.507351,
+    Longitude: -122.677,
+  },
+  {
+    TerminalID: 3,
+    TerminalName: "Bainbridge Island",
+    TerminalAbbrev: "BBI",
+    Latitude: 47.622339,
+    Longitude: -122.509617,
+  },
+  {
+    TerminalID: 15,
+    TerminalName: "Orcas Island",
+    TerminalAbbrev: "ORI",
+    Latitude: 48.597333,
+    Longitude: -122.943494,
+  },
+  {
+    TerminalID: 122,
+    TerminalName: "Eagle Harbor",
+    TerminalAbbrev: "EAH",
+    Latitude: 47.620552,
+    Longitude: -122.514245,
   },
 ];
 

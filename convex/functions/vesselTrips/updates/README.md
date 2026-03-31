@@ -4,6 +4,8 @@ This module synchronizes active vessel trips with live location data. It runs as
 
 **Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
 
+**Identity boundary**: This module now consumes `ResolvedVesselLocation` from `vesselLocation/schemas.ts`. That means `VesselAbbrev` and the hot-path terminal fields were already validated against the backend vessel/terminal tables before trip logic runs. Persisted trip rows still use plain strings; the branding is a backend runtime guarantee, not a storage-schema migration.
+
 **Current design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
 2. `tripDerivation` — shared normalized per-tick derivation for event detection and base-trip construction (`ScheduledDeparture`, `SailingDay`, `Key`, dock-departure state, start-ready promotion, explicit base-trip mode)
@@ -73,7 +75,7 @@ processVesselTrips (entry point)
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
-| `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip using explicit `start` / `dock_hold` / `continue` modes |
+| `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ResolvedVesselLocation` using explicit `start` / `dock_hold` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
 | `tripEquality.ts` | `computeTripKey`, `tripsAreEqual`, `deepEqual`, `compareTripFields` — trip key and equality utilities |

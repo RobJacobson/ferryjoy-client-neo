@@ -13,7 +13,7 @@ import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -22,7 +22,7 @@ import { buildTrip } from "../buildTrip";
 import type { TripEvents } from "../eventDetection";
 
 type CompletedTripTransition = {
-  currLocation: ConvexVesselLocation;
+  currLocation: ResolvedVesselLocation;
   existingTrip: ConvexVesselTrip;
   events: TripEvents;
 };

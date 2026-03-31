@@ -1,6 +1,6 @@
 /**
  * Optional: runs `convex dev` and, once the deployment accepts RPC calls,
- * invokes the canonical-vessel refresh (same as `convex:repopulate-vessels`).
+ * invokes the backend-vessel refresh (same as `convex:repopulate-vessels`).
  */
 
 import { spawn } from "node:child_process";
@@ -9,7 +9,7 @@ const REFRESH_RUN = [
   "bunx",
   "convex",
   "run",
-  "functions/vesselOrchestrator/actions:runRefreshCanonicalVessels",
+  "functions/vessels/actions:runRefreshBackendVessels",
   "{}",
   "--typecheck=disable",
 ] as const;
@@ -46,8 +46,8 @@ const runRefreshWhenReady = async (): Promise<void> => {
 
     if (code === 0) {
       console.log(
-        "[convex:dev:with-repopulate] Canonical vessels refreshed " +
-          "(runRefreshCanonicalVessels)."
+        "[convex:dev:with-repopulate] Backend vessels refreshed " +
+          "(runRefreshBackendVessels)."
       );
       return;
     }
