@@ -8,8 +8,7 @@ import { dirname, resolve } from "node:path";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
-const convexUrl =
-  process.env.EXPO_PUBLIC_CONVEX_URL ?? "http://127.0.0.1:3210";
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL ?? "http://127.0.0.1:3210";
 const outputDir = resolve(process.cwd(), "assets/data");
 
 /**
@@ -18,7 +17,9 @@ const outputDir = resolve(process.cwd(), "assets/data");
 const main = async () => {
   const convex = new ConvexHttpClient(convexUrl);
   const [vessels, terminals, terminalsTopology] = await Promise.all([
-    convex.query(api.functions.vesselLocation.queries.getFrontendVesselsSnapshot),
+    convex.query(
+      api.functions.vesselLocation.queries.getFrontendVesselsSnapshot
+    ),
     convex.query(api.functions.terminals.queries.getFrontendTerminalsSnapshot),
     convex.query(
       api.functions.terminalsTopology.queries

@@ -6,8 +6,8 @@ import {
 } from "expo-router";
 import { useEffect } from "react";
 import {
-  useMapCameraController,
   useIdentityCatalog,
+  useMapCameraController,
   useNavigationHistory,
   useSelectedTerminalPair,
 } from "@/data/contexts";
@@ -27,7 +27,11 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
 const createTerminalCameraState = (
   terminal: ReturnType<typeof getTerminalLocationByAbbrev>
 ): CameraState | null => {
-  if (!terminal || terminal.Longitude === undefined || terminal.Latitude === undefined) {
+  if (
+    !terminal ||
+    terminal.Longitude === undefined ||
+    terminal.Latitude === undefined
+  ) {
     return null;
   }
 

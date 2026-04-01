@@ -5,8 +5,8 @@
  * actual-then-predicted-then-scheduled display precedence.
  */
 
-import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
 import type { VesselTimelineSegment } from "@/data/contexts";
+import type { MergedTimelineBoundaryEvent } from "@/types";
 
 type TimelineEvent =
   | VesselTimelineSegment["startEvent"]

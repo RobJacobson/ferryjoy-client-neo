@@ -2,8 +2,8 @@
  * Terminal identity snapshot assets, storage keys, and lookup index builders.
  */
 
-import type { Terminal } from "functions/terminals/schemas";
 import { storageKv } from "@/shared/storage";
+import type { Terminal } from "@/types";
 import terminalsAssetJson from "../../../assets/data/terminals.json";
 import { indexByString, indexByTrimmed, indexByUppercase } from "./utils";
 

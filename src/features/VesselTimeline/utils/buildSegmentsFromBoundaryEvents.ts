@@ -6,7 +6,7 @@ import type {
   MergedTimelineBoundaryEvent,
   VesselTimelineSegment,
   VesselTimelineSegmentEvent,
-} from "convex/functions/vesselTimeline/schemas";
+} from "@/types";
 import { getLayoutTime } from "../rowEventTime";
 
 /**

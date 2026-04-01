@@ -7,24 +7,20 @@
  */
 
 import { api } from "convex/_generated/api";
-import { toDomainActualBoundaryEvent } from "convex/functions/eventsActual/schemas";
-import { toDomainScheduledBoundaryEvent } from "convex/functions/eventsScheduled/schemas";
-import {
-  toDomainVesselLocation,
-  type VesselLocation,
-} from "convex/functions/vesselLocation/schemas";
-import type {
-  VesselTimelineActiveState,
-  VesselTimelineLiveState,
-} from "convex/functions/vesselTimeline/activeStateSchemas";
-import {
-  type MergedTimelineBoundaryEvent,
-  toDomainTimelinePredictedBoundaryEvent,
-  type VesselTimelineSegment,
-} from "convex/functions/vesselTimeline/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
+import {
+  type MergedTimelineBoundaryEvent,
+  toDomainActualBoundaryEvent,
+  toDomainScheduledBoundaryEvent,
+  toDomainTimelinePredictedBoundaryEvent,
+  toDomainVesselLocation,
+  type VesselLocation,
+  type VesselTimelineActiveState,
+  type VesselTimelineLiveState,
+  type VesselTimelineSegment,
+} from "@/types";
 
 export type {
   VesselTimelineActiveState,

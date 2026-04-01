@@ -5,7 +5,7 @@
  * return chains chronologically. No grouping or target-selection logic.
  */
 
-import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
+import type { ScheduledTrip } from "@/types";
 import type { ScheduledTripJourney } from "../types";
 
 /**

@@ -222,7 +222,10 @@ export const buildTerminalTopologyRows = (
     current.TerminalMates = mergeSortedStrings(current.TerminalMates, [
       arrivingAbbrev,
     ]);
-    current.RouteAbbrevs = mergeSortedStrings(current.RouteAbbrevs, routeAbbrevs);
+    current.RouteAbbrevs = mergeSortedStrings(
+      current.RouteAbbrevs,
+      routeAbbrevs
+    );
     current.RouteAbbrevsByArrivingTerminal[arrivingAbbrev] = routeAbbrevs;
 
     topologyByTerminalAbbrev[departingAbbrev] = current;

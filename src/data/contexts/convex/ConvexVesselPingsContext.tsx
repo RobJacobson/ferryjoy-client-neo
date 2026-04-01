@@ -1,12 +1,12 @@
 import { api } from "convex/_generated/api";
+import { useQuery } from "convex/react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   type ConvexVesselPingCollection,
   toDomainVesselPing,
   type VesselPing,
-} from "convex/functions/vesselPings/schemas";
-import { useQuery } from "convex/react";
-import type { PropsWithChildren } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+} from "@/types";
 
 export type VesselPingsByVesselId = Record<number, VesselPing[]>;
 

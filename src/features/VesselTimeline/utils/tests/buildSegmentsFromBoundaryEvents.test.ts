@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
+import type { MergedTimelineBoundaryEvent } from "@/types";
 import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
 
 const at = (hours: number, minutes: number) =>

@@ -6,14 +6,14 @@
  * Must be used within UnifiedTripsProvider.
  */
 
-import type { ScheduledTrip } from "convex/functions/scheduledTrips/schemas";
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type {
-  VesselTrip,
-  VesselTripWithScheduledTrip,
-} from "convex/functions/vesselTrips/schemas";
 import { useUnifiedTrips } from "@/data/contexts";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
+import type {
+  ScheduledTrip,
+  VesselLocation,
+  VesselTrip,
+  VesselTripWithScheduledTrip,
+} from "@/types";
 import type { ScheduledTripJourney } from "../../ScheduledTrips/types";
 import { useDelayedVesselTrips } from "..";
 import { buildJourneyChains } from "../utils";

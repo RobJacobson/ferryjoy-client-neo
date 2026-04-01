@@ -2,8 +2,8 @@
  * Terminals topology snapshot assets, storage keys, and lookup index builders.
  */
 
-import type { TerminalTopology } from "functions/terminalsTopology/schemas";
 import { storageKv } from "@/shared/storage";
+import type { TerminalTopology } from "@/types";
 import terminalsTopologyAssetJson from "../../../assets/data/terminalsTopology.json";
 import { indexByUppercase } from "./utils";
 

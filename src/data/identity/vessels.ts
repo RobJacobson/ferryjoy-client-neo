@@ -2,8 +2,8 @@
  * Vessel identity snapshot assets, storage keys, and lookup index builders.
  */
 
-import type { Vessel } from "functions/vessels/schemas";
 import { storageKv } from "@/shared/storage";
+import type { Vessel } from "@/types";
 import vesselsAssetJson from "../../../assets/data/vessels.json";
 import { indexByString, indexByTrimmed, indexByUppercase } from "./utils";
 

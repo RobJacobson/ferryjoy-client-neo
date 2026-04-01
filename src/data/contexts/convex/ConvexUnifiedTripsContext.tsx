@@ -10,14 +10,6 @@
  */
 
 import { api } from "convex/_generated/api";
-import {
-  type ScheduledTrip,
-  toDomainScheduledTrip,
-} from "convex/functions/scheduledTrips/schemas";
-import {
-  toDomainVesselTrip,
-  type VesselTrip,
-} from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import {
@@ -29,6 +21,12 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  type ScheduledTrip,
+  toDomainScheduledTrip,
+  toDomainVesselTrip,
+  type VesselTrip,
+} from "@/types";
 
 // ============================================================================
 // Types

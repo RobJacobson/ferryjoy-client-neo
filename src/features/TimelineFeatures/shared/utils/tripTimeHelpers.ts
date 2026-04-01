@@ -3,8 +3,7 @@
  * Used by vesselTripToTripSegment for TimePoint construction.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselLocation, VesselTrip } from "@/types";
 
 /**
  * Gets the best available departure time for a trip.

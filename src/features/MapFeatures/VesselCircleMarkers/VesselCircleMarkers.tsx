@@ -7,7 +7,7 @@
  */
 
 import { useSmoothedVesselLocations } from "@/data/contexts";
-import type { VesselLocation } from "@/domain";
+import type { VesselLocation } from "@/types";
 import { CircleLayer } from "./components/CircleLayer";
 import { CIRCLE_STYLES } from "./config";
 import { CIRCLE_LAYER_IDS, CIRCLE_SOURCE_IDS } from "./constants";

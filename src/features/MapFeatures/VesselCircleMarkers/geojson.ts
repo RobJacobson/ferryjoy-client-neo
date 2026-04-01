@@ -6,7 +6,7 @@
  */
 
 import type { Feature, FeatureCollection, Point } from "geojson";
-import type { VesselLocation } from "@/domain";
+import type { VesselLocation } from "@/types";
 
 /**
  * Properties stored in each vessel point feature

@@ -11,8 +11,8 @@
 import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
 import { useEffect } from "react";
 import {
-  useMapCameraController,
   useIdentityCatalog,
+  useMapCameraController,
   useNavigationHistory,
   useSelectedTerminalPair,
 } from "@/data/contexts";
@@ -89,7 +89,8 @@ const MapTerminalPairPage = () => {
 
   // Create camera state for departing terminal at zoom 9 (null if terminal not found)
   const cameraState = fromTerminal
-    ? fromTerminal.Longitude !== undefined && fromTerminal.Latitude !== undefined
+    ? fromTerminal.Longitude !== undefined &&
+      fromTerminal.Latitude !== undefined
       ? createTerminalCameraState(fromTerminal)
       : null
     : null;

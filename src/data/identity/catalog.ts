@@ -4,9 +4,7 @@
  * `vessels.ts`, `terminals.ts`, `terminalsTopology.ts`, and `utils.ts`.
  */
 
-import type { Terminal } from "functions/terminals/schemas";
-import type { TerminalTopology } from "functions/terminalsTopology/schemas";
-import type { Vessel } from "functions/vessels/schemas";
+import type { Terminal, TerminalTopology, Vessel } from "@/types";
 import {
   buildTerminalIndexes,
   type FrontendTerminalSnapshot,

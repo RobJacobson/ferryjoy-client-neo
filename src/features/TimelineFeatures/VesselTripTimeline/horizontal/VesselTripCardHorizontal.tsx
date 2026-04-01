@@ -4,10 +4,10 @@
  * Uses ShadCN Card components for a polished, consistent UI.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import { TripCard } from "@/components/TripCard";
 import { CardTitle, Text, View } from "@/components/ui";
 import type { VesselTripWithScheduledTrip } from "@/data/contexts/convex/ConvexVesselTripsContext";
+import type { VesselLocation } from "@/types";
 import VesselTripTimelineHorizontal from "./VesselTripTimelineHorizontal";
 
 type VesselTripCardHorizontalProps = {

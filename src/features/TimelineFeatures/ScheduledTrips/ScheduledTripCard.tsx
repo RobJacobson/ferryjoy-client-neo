@@ -3,13 +3,11 @@
  * and a multi-segment timeline. Uses TripCard and ShadCN Card for consistent UI.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { CardTitle, Text, View } from "@/components/ui";
 import { useIdentityCatalog } from "@/data/contexts";
-import { getVesselName } from "@/domain/vesselAbbreviations";
+import type { VesselLocation, VesselTrip } from "@/types";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
 
@@ -83,28 +81,33 @@ const ScheduledTripRouteHeader = ({
 }: {
   segments: Segment[];
   vesselAbbrev: string;
-}) => (
-  <View className="w-full flex-row">
-    <View className="flex-1 flex-row flex-wrap">
-      {/* Each segment: departing terminal, arrow; only the last segment shows final destination. */}
-      {segments.map((segment, index) => (
-        <React.Fragment key={segment.Key}>
-          <CardTitle className="font-bold text-xl">
-            {segment.DepartingTerminalAbbrev}
-          </CardTitle>
-          <Text className="mx-2 font-light text-muted-foreground text-xl">
-            →
-          </Text>
-          {index === segments.length - 1 && (
-            <CardTitle className="font-semibold text-xl">
-              {segment.ArrivingTerminalAbbrev}
+}) => {
+  const { vesselsByAbbrev } = useIdentityCatalog();
+  const vesselName = vesselsByAbbrev[vesselAbbrev.toUpperCase()]?.VesselName;
+
+  return (
+    <View className="w-full flex-row">
+      <View className="flex-1 flex-row flex-wrap">
+        {/* Each segment: departing terminal, arrow; only the last segment shows final destination. */}
+        {segments.map((segment, index) => (
+          <React.Fragment key={segment.Key}>
+            <CardTitle className="font-bold text-xl">
+              {segment.DepartingTerminalAbbrev}
             </CardTitle>
-          )}
-        </React.Fragment>
-      ))}
+            <Text className="mx-2 font-light text-muted-foreground text-xl">
+              →
+            </Text>
+            {index === segments.length - 1 && (
+              <CardTitle className="font-semibold text-xl">
+                {segment.ArrivingTerminalAbbrev}
+              </CardTitle>
+            )}
+          </React.Fragment>
+        ))}
+      </View>
+      <Text className="font-light text-muted-foreground text-xl">
+        {vesselName ?? vesselAbbrev}
+      </Text>
     </View>
-    <Text className="font-light text-muted-foreground text-xl">
-      {getVesselName(vesselAbbrev) ?? vesselAbbrev}
-    </Text>
-  </View>
-);
+  );
+};

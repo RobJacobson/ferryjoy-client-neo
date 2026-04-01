@@ -2,11 +2,11 @@
  * Card title component for vessel trip cards showing route and departure time.
  */
 
-import type { VesselTrip } from "functions/vesselTrips/schemas";
 import { Text, View } from "@/components/ui";
 import { useIdentityCatalog } from "@/data/contexts";
 import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
+import type { VesselTrip } from "@/types";
 
 /**
  * Renders the card title for a vessel trip showing departure/arrival terminals
