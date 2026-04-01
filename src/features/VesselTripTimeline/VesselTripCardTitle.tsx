@@ -3,8 +3,8 @@
  */
 
 import { Text, View } from "@/components/ui";
-import { useIdentityCatalog } from "@/data/contexts";
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
+import { useTerminalsData } from "@/data/contexts";
+import { selectTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import type { VesselTrip } from "@/types";
 
@@ -19,10 +19,13 @@ import type { VesselTrip } from "@/types";
  * @returns Component with terminal names, arrow indicator, and departure time
  */
 export const VesselTripCardTitle = ({ trip }: { trip: VesselTrip }) => {
-  useIdentityCatalog();
-  const departingName = getTerminalNameByAbbrev(trip.DepartingTerminalAbbrev);
+  const terminalsData = useTerminalsData();
+  const departingName = selectTerminalNameByAbbrev(
+    terminalsData,
+    trip.DepartingTerminalAbbrev
+  );
   const arrivingName = trip.ArrivingTerminalAbbrev
-    ? getTerminalNameByAbbrev(trip.ArrivingTerminalAbbrev)
+    ? selectTerminalNameByAbbrev(terminalsData, trip.ArrivingTerminalAbbrev)
     : null;
   const departTime = trip.ScheduledDeparture
     ? toDisplayTime(trip.ScheduledDeparture)

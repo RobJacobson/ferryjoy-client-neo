@@ -11,14 +11,15 @@
 import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
 import { useEffect } from "react";
 import {
-  useIdentityCatalog,
   useMapCameraController,
   useNavigationHistory,
   useSelectedTerminalPair,
+  useTerminalsData,
+  useTerminalsTopologyData,
 } from "@/data/contexts";
 import { MAP_NAV_CONFIG } from "@/data/mapEntities";
 import {
-  getTerminalLocationByAbbrev,
+  selectTerminalLocationByAbbrev,
   type TerminalLocation,
 } from "@/data/terminalLocations";
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
@@ -65,7 +66,6 @@ const generateTitle = (
 };
 
 const MapTerminalPairPage = () => {
-  useIdentityCatalog();
   const { from, dest } = useLocalSearchParams<{
     from: string;
     dest?: string;
@@ -74,6 +74,8 @@ const MapTerminalPairPage = () => {
   const { previousPathname } = useNavigationHistory();
   const { setPair } = useSelectedTerminalPair();
   const pathname = usePathname();
+  const terminalsData = useTerminalsData();
+  const topologyData = useTerminalsTopologyData();
 
   // Extract and normalize terminal abbreviations
   const fromAbbrev = (from || "").toString();
@@ -81,10 +83,10 @@ const MapTerminalPairPage = () => {
 
   // Look up terminal locations (case-insensitive)
   const fromTerminal = fromAbbrev
-    ? getTerminalLocationByAbbrev(fromAbbrev)
+    ? selectTerminalLocationByAbbrev(terminalsData, topologyData, fromAbbrev)
     : null;
   const destTerminal = destAbbrev
-    ? getTerminalLocationByAbbrev(destAbbrev)
+    ? selectTerminalLocationByAbbrev(terminalsData, topologyData, destAbbrev)
     : null;
 
   // Create camera state for departing terminal at zoom 9 (null if terminal not found)

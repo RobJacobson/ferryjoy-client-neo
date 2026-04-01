@@ -6,13 +6,14 @@ import {
 } from "expo-router";
 import { useEffect } from "react";
 import {
-  useIdentityCatalog,
   useMapCameraController,
   useNavigationHistory,
   useSelectedTerminalPair,
+  useTerminalsData,
+  useTerminalsTopologyData,
 } from "@/data/contexts";
 import { getMapEntity, MAP_NAV_CONFIG } from "@/data/mapEntities";
-import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
+import { selectTerminalLocationByAbbrev } from "@/data/terminalLocations";
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
 import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation";
 import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
@@ -25,7 +26,7 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
  * @returns Camera state targeting the terminal
  */
 const createTerminalCameraState = (
-  terminal: ReturnType<typeof getTerminalLocationByAbbrev>
+  terminal: ReturnType<typeof selectTerminalLocationByAbbrev>
 ): CameraState | null => {
   if (
     !terminal ||
@@ -44,13 +45,14 @@ const createTerminalCameraState = (
 };
 
 const MapSlugPage = () => {
-  useIdentityCatalog();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { controller } = useMapCameraController();
   const { previousPathname } = useNavigationHistory();
   const pathname = usePathname();
   const router = useRouter();
   const { clear, setAll } = useSelectedTerminalPair();
+  const terminalsData = useTerminalsData();
+  const topologyData = useTerminalsTopologyData();
 
   const slugStr = (slug || "").toString();
 
@@ -58,7 +60,9 @@ const MapSlugPage = () => {
   const entity = getMapEntity(slugStr);
 
   // If no entity found, check if it's an uppercase terminal abbreviation
-  const terminal = !entity ? getTerminalLocationByAbbrev(slugStr) : null;
+  const terminal = !entity
+    ? selectTerminalLocationByAbbrev(terminalsData, topologyData, slugStr)
+    : null;
 
   const terminalMates = terminal?.TerminalMates ?? [];
 

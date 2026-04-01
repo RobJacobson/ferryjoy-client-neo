@@ -1,5 +1,5 @@
 /**
- * Shared record builders for identity catalog lookup indexes.
+ * Shared record builders for identity-backed data context lookups.
  */
 
 /**

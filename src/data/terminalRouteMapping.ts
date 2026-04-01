@@ -2,25 +2,36 @@
  * Terminal-to-route mapping helpers backed by the derived topology snapshot.
  */
 
+import { useMemo } from "react";
+import {
+  type TerminalsTopologyDataContextValue,
+  useTerminalsTopologyData,
+} from "@/data/contexts/identity";
 import type { SelectedTerminalPair } from "@/data/contexts/SelectedTerminalPairContext";
-import { readIdentityCatalog } from "@/data/identity";
 
 const DEFAULT_ROUTE_ABBREVS = ["sea-bi"];
+
+type TerminalsTopologyLookupData = Pick<
+  TerminalsTopologyDataContextValue,
+  "terminalsTopologyByAbbrev"
+>;
 
 /**
  * Returns route abbreviations for a departing terminal and optional arriving
  * terminal.
  *
+ * @param topologyData - Topology dataset lookup maps
  * @param departingTerminalAbbrev - Departure terminal abbreviation
  * @param arrivingTerminalAbbrev - Optional destination terminal abbreviation
  * @returns Array of route abbreviations
  */
-export const getRouteAbbrevs = (
+export const selectRouteAbbrevs = (
+  topologyData: TerminalsTopologyLookupData,
   departingTerminalAbbrev: string,
   arrivingTerminalAbbrev?: string
 ): string[] => {
   const topology =
-    readIdentityCatalog().terminalsTopologyByAbbrev[
+    topologyData.terminalsTopologyByAbbrev[
       departingTerminalAbbrev.toUpperCase()
     ];
 
@@ -42,10 +53,12 @@ export const getRouteAbbrevs = (
 /**
  * Derive route abbreviations from the selected terminal pair state.
  *
+ * @param topologyData - Topology dataset lookup maps
  * @param selectedTerminalPair - Current selection from navigation state
  * @returns Matching route abbreviations or the default route selection
  */
-export const getRouteAbbrevsForSelection = (
+export const selectRouteAbbrevsForSelection = (
+  topologyData: TerminalsTopologyLookupData,
   selectedTerminalPair: SelectedTerminalPair
 ): string[] => {
   if (!selectedTerminalPair) {
@@ -53,11 +66,27 @@ export const getRouteAbbrevsForSelection = (
   }
 
   if (selectedTerminalPair.kind === "pair") {
-    return getRouteAbbrevs(
+    return selectRouteAbbrevs(
+      topologyData,
       selectedTerminalPair.from,
       selectedTerminalPair.dest
     );
   }
 
-  return getRouteAbbrevs(selectedTerminalPair.terminal, undefined);
+  return selectRouteAbbrevs(
+    topologyData,
+    selectedTerminalPair.terminal,
+    undefined
+  );
+};
+
+export const useRouteAbbrevsForSelection = (
+  selectedTerminalPair: SelectedTerminalPair
+): string[] => {
+  const topologyData = useTerminalsTopologyData();
+
+  return useMemo(
+    () => selectRouteAbbrevsForSelection(topologyData, selectedTerminalPair),
+    [selectedTerminalPair, topologyData]
+  );
 };

@@ -1,9 +1,5 @@
-import {
-  UnifiedTripsProvider,
-  useIdentityCatalog,
-  useSelectedTerminalPair,
-} from "@/data/contexts";
-import { getRouteAbbrevsForSelection } from "@/data/terminalRouteMapping";
+import { UnifiedTripsProvider, useSelectedTerminalPair } from "@/data/contexts";
+import { useRouteAbbrevsForSelection } from "@/data/terminalRouteMapping";
 import {
   ScheduledTripList,
   useUnifiedTripsPageData,
@@ -11,10 +7,8 @@ import {
 import { getSailingDay } from "@/shared/utils/getSailingDay";
 
 export default function SchedulesScreen() {
-  useIdentityCatalog();
   const { selectedTerminalPair } = useSelectedTerminalPair();
-
-  const routeAbbrevs = getRouteAbbrevsForSelection(selectedTerminalPair);
+  const routeAbbrevs = useRouteAbbrevsForSelection(selectedTerminalPair);
   const tripDate = getSailingDay(new Date());
 
   const terminalAbbrev =

@@ -2,10 +2,11 @@
  * Card-level vessel trip timeline presentation using timeline primitives.
  */
 
+import { useMemo } from "react";
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useIdentityCatalog } from "@/data/contexts";
-import { getTerminalNameByAbbrev } from "@/data/terminalLocations";
+import { useTerminalsData } from "@/data/contexts";
+import { selectTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
 import type { TimelineItem } from "./types";
@@ -24,12 +25,17 @@ export const VesselTripTimeline = ({
   trip,
   vesselLocation,
 }: VesselTripTimelineProps) => {
-  useIdentityCatalog();
   const nowMs = useNowMs(1000);
+  const terminalsData = useTerminalsData();
   const item = { trip, vesselLocation };
+  const getTerminalName = useMemo(
+    () => (terminalAbbrev: string) =>
+      selectTerminalNameByAbbrev(terminalsData, terminalAbbrev),
+    [terminalsData]
+  );
   const renderState = getTimelineRenderState(
     item,
-    getTerminalNameByAbbrev,
+    getTerminalName,
     new Date(nowMs)
   );
 

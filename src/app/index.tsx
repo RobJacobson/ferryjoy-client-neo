@@ -3,22 +3,21 @@ import { Stack, useRouter } from "expo-router";
 import { type ComponentRef, useRef } from "react";
 import { useSharedValue } from "react-native-reanimated";
 import { Button, Text, View } from "@/components/ui";
-import { useIdentityCatalog } from "@/data/contexts";
-import { getTotalCarouselItems } from "@/data/terminalConnections";
+import { useTotalCarouselItems } from "@/data/terminalConnections";
 import { Background, ParallaxProvider } from "@/features/Background";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel";
 import { RoutesCarousel, useCardDimensions } from "@/features/RoutesCarousel";
 
 export default function Home() {
-  useIdentityCatalog();
   const router = useRouter();
   const blurTargetRef = useRef<ComponentRef<typeof View> | null>(null);
   const carouselRef = useRef<RoutesCarouselRef>(null);
   const scrollProgress = useSharedValue(0);
   const { layout } = useCardDimensions();
+  const totalCarouselItems = useTotalCarouselItems();
 
   const itemStride = layout.itemSize + layout.spacing;
-  const scrollableRange = (getTotalCarouselItems() - 1) * itemStride;
+  const scrollableRange = (totalCarouselItems - 1) * itemStride;
 
   return (
     <ParallaxProvider scrollProgress={scrollProgress}>

@@ -1,12 +1,11 @@
 /**
- * Terminal identity and topology helpers backed by the shared frontend
- * identity catalog.
+ * Terminal identity and topology selectors backed by the shared data contexts.
  */
 
-import {
-  type IdentityCatalogState,
-  readIdentityCatalog,
-} from "@/data/identity";
+import type {
+  TerminalsDataContextValue,
+  TerminalsTopologyDataContextValue,
+} from "@/data/contexts/identity";
 
 export type TerminalLocation = {
   TerminalID: number;
@@ -19,74 +18,107 @@ export type TerminalLocation = {
   TerminalMates: Array<string>;
 };
 
+type TerminalsLookupData = Pick<
+  TerminalsDataContextValue,
+  "data" | "terminalsByAbbrev" | "terminalsById"
+>;
+
+type TerminalsTopologyLookupData = Pick<
+  TerminalsTopologyDataContextValue,
+  "terminalsTopologyByAbbrev"
+>;
+
 /**
  * Get terminal location data by abbreviation.
  *
+ * @param terminalsData - Terminals dataset and lookup maps
+ * @param topologyData - Topology dataset lookup maps
  * @param terminalAbbrev - Terminal abbreviation
  * @returns Terminal location view model or `null`
  */
-export const getTerminalLocationByAbbrev = (
+export const selectTerminalLocationByAbbrev = (
+  terminalsData: TerminalsLookupData,
+  topologyData: TerminalsTopologyLookupData,
   terminalAbbrev: string
 ): TerminalLocation | null => {
   const terminal =
-    readIdentityCatalog().terminalsByAbbrev[terminalAbbrev.toUpperCase()];
+    terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()];
 
   if (!terminal) {
     return null;
   }
 
-  return toTerminalLocation(terminal);
+  return toTerminalLocation(terminalsData, topologyData, terminal);
 };
 
 /**
  * Get terminal display name by abbreviation.
  *
+ * @param terminalsData - Terminals dataset and lookup maps
  * @param terminalAbbrev - Terminal abbreviation
  * @returns Terminal name or `null`
  */
-export const getTerminalNameByAbbrev = (
+export const selectTerminalNameByAbbrev = (
+  terminalsData: Pick<TerminalsDataContextValue, "terminalsByAbbrev">,
   terminalAbbrev: string
 ): string | null =>
-  readIdentityCatalog().terminalsByAbbrev[terminalAbbrev.toUpperCase()]
-    ?.TerminalName ?? null;
+  terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]?.TerminalName ??
+  null;
 
 /**
  * Get terminal location data by numeric terminal ID.
  *
+ * @param terminalsData - Terminals dataset and lookup maps
+ * @param topologyData - Topology dataset lookup maps
  * @param terminalId - Terminal ID
  * @returns Terminal location view model or `null`
  */
-export const getTerminalLocationById = (
+export const selectTerminalLocationById = (
+  terminalsData: TerminalsLookupData,
+  topologyData: TerminalsTopologyLookupData,
   terminalId: number
 ): TerminalLocation | null => {
-  const terminal = readIdentityCatalog().terminalsById[String(terminalId)];
+  const terminal = terminalsData.terminalsById[String(terminalId)];
 
   if (!terminal) {
     return null;
   }
 
-  return toTerminalLocation(terminal);
+  return toTerminalLocation(terminalsData, topologyData, terminal);
 };
 
 /**
  * Get all terminals associated with one route abbreviation.
  *
+ * @param terminalsData - Terminals dataset and lookup maps
+ * @param topologyData - Topology dataset lookup maps
  * @param routeAbbrev - Route abbreviation
  * @returns Matching terminal locations
  */
-export const getTerminalsByRoute = (routeAbbrev: string): TerminalLocation[] =>
-  readIdentityCatalog()
-    .terminals.map((terminal) => toTerminalLocation(terminal))
+export const selectTerminalsByRoute = (
+  terminalsData: TerminalsLookupData,
+  topologyData: TerminalsTopologyLookupData,
+  routeAbbrev: string
+): TerminalLocation[] =>
+  terminalsData.data
+    .map((terminal) =>
+      toTerminalLocation(terminalsData, topologyData, terminal)
+    )
     .filter((terminal) => terminal.routeAbbrevs.includes(routeAbbrev));
 
 /**
- * Get all terminals in the current catalog.
+ * Get all terminals in the current data stores.
  *
+ * @param terminalsData - Terminals dataset and lookup maps
+ * @param topologyData - Topology dataset lookup maps
  * @returns All terminal location view models
  */
-export const getAllTerminalLocations = (): TerminalLocation[] =>
-  readIdentityCatalog().terminals.map((terminal) =>
-    toTerminalLocation(terminal)
+export const selectAllTerminalLocations = (
+  terminalsData: TerminalsLookupData,
+  topologyData: TerminalsTopologyLookupData
+): TerminalLocation[] =>
+  terminalsData.data.map((terminal) =>
+    toTerminalLocation(terminalsData, topologyData, terminal)
   );
 
 /**
@@ -95,15 +127,19 @@ export const getAllTerminalLocations = (): TerminalLocation[] =>
  * @param terminal - Canonical terminal identity row
  * @returns Terminal location compatibility object
  */
-const toTerminalLocation = (terminal: {
-  TerminalID: number;
-  TerminalName: string;
-  TerminalAbbrev: string;
-  Latitude?: number;
-  Longitude?: number;
-}) => {
+const toTerminalLocation = (
+  _terminalsData: TerminalsLookupData,
+  topologyData: TerminalsTopologyLookupData,
+  terminal: {
+    TerminalID: number;
+    TerminalName: string;
+    TerminalAbbrev: string;
+    Latitude?: number;
+    Longitude?: number;
+  }
+) => {
   const topology = getTerminalTopologyByTerminalAbbrev(
-    readIdentityCatalog(),
+    topologyData,
     terminal.TerminalAbbrev
   );
   const routeAbbrevs = topology?.RouteAbbrevs ?? [];
@@ -121,6 +157,7 @@ const toTerminalLocation = (terminal: {
 };
 
 const getTerminalTopologyByTerminalAbbrev = (
-  catalog: IdentityCatalogState,
+  topologyData: TerminalsTopologyLookupData,
   terminalAbbrev: string
-) => catalog.terminalsTopologyByAbbrev[terminalAbbrev.toUpperCase()] ?? null;
+) =>
+  topologyData.terminalsTopologyByAbbrev[terminalAbbrev.toUpperCase()] ?? null;

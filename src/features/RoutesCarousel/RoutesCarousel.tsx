@@ -9,12 +9,8 @@ import type { ComponentRef, RefObject } from "react";
 import { useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
 import type { View } from "@/components/ui";
-import { useIdentityCatalog } from "@/data/contexts";
 import type { TerminalCardData } from "@/data/terminalConnections";
-import {
-  getTerminalConnections,
-  transformConnectionsToTerminalCards,
-} from "@/data/terminalConnections";
+import { useTerminalCardData } from "@/data/terminalConnections";
 import { AnimatedList } from "@/features/AnimatedList";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselLayout } from "@/features/RoutesCarousel/RoutesCarouselLayout";
@@ -46,12 +42,11 @@ const RoutesCarousel = ({
   blurTargetRef,
   scrollProgressSink,
 }: RoutesCarouselProps) => {
-  useIdentityCatalog();
   const [currentIndex, setCurrentIndex] = useState(0);
-
+  const terminalCards = useTerminalCardData();
   const { cardWidth, cardHeight, layout } = useCardDimensions();
 
-  const carouselData = prepareCarouselData(getTerminalConnections());
+  const carouselData = prepareCarouselData(terminalCards);
   const totalCount = carouselData.length;
 
   // Render each carousel item as a RouteCard with explicit dimensions
@@ -111,10 +106,8 @@ const RoutesCarousel = ({
  * @returns Array with placeholder card followed by all terminal cards
  */
 const prepareCarouselData = (
-  connections: ReturnType<typeof getTerminalConnections>
+  terminalCards: TerminalCardData[]
 ): Array<TerminalCardData & { isPlaceholder?: boolean }> => {
-  const terminalCards = transformConnectionsToTerminalCards(connections);
-
   const placeholderCard: TerminalCardData & { isPlaceholder: boolean } = {
     terminalId: 0,
     terminalName: "placeholder",
