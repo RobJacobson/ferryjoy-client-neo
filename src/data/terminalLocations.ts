@@ -4,11 +4,9 @@
  */
 
 import {
-  getIdentityCatalogSnapshot,
-  getTerminalByAbbrev,
-  getTerminalById,
-  getTerminalTopologyByAbbrev,
-} from "@/data/identity/catalog";
+  type IdentityCatalogState,
+  readIdentityCatalog,
+} from "@/data/identity";
 
 export type TerminalLocation = {
   TerminalID: number;
@@ -30,7 +28,8 @@ export type TerminalLocation = {
 export const getTerminalLocationByAbbrev = (
   terminalAbbrev: string
 ): TerminalLocation | null => {
-  const terminal = getTerminalByAbbrev(terminalAbbrev);
+  const terminal =
+    readIdentityCatalog().terminalsByAbbrev[terminalAbbrev.toUpperCase()];
 
   if (!terminal) {
     return null;
@@ -47,7 +46,9 @@ export const getTerminalLocationByAbbrev = (
  */
 export const getTerminalNameByAbbrev = (
   terminalAbbrev: string
-): string | null => getTerminalByAbbrev(terminalAbbrev)?.TerminalName ?? null;
+): string | null =>
+  readIdentityCatalog().terminalsByAbbrev[terminalAbbrev.toUpperCase()]
+    ?.TerminalName ?? null;
 
 /**
  * Get terminal location data by numeric terminal ID.
@@ -58,7 +59,7 @@ export const getTerminalNameByAbbrev = (
 export const getTerminalLocationById = (
   terminalId: number
 ): TerminalLocation | null => {
-  const terminal = getTerminalById(terminalId);
+  const terminal = readIdentityCatalog().terminalsById[String(terminalId)];
 
   if (!terminal) {
     return null;
@@ -74,8 +75,8 @@ export const getTerminalLocationById = (
  * @returns Matching terminal locations
  */
 export const getTerminalsByRoute = (routeAbbrev: string): TerminalLocation[] =>
-  getIdentityCatalogSnapshot().terminals
-    .map((terminal) => toTerminalLocation(terminal))
+  readIdentityCatalog()
+    .terminals.map((terminal) => toTerminalLocation(terminal))
     .filter((terminal) => terminal.routeAbbrevs.includes(routeAbbrev));
 
 /**
@@ -84,7 +85,7 @@ export const getTerminalsByRoute = (routeAbbrev: string): TerminalLocation[] =>
  * @returns All terminal location view models
  */
 export const getAllTerminalLocations = (): TerminalLocation[] =>
-  getIdentityCatalogSnapshot().terminals.map((terminal) =>
+  readIdentityCatalog().terminals.map((terminal) =>
     toTerminalLocation(terminal)
   );
 
@@ -101,7 +102,10 @@ const toTerminalLocation = (terminal: {
   Latitude?: number;
   Longitude?: number;
 }) => {
-  const topology = getTerminalTopologyByAbbrev(terminal.TerminalAbbrev);
+  const topology = getTerminalTopologyByTerminalAbbrev(
+    readIdentityCatalog(),
+    terminal.TerminalAbbrev
+  );
   const routeAbbrevs = topology?.RouteAbbrevs ?? [];
 
   return {
@@ -111,7 +115,12 @@ const toTerminalLocation = (terminal: {
     Latitude: terminal.Latitude,
     Longitude: terminal.Longitude,
     routeAbbrevs,
-    routeAbbrev: routeAbbrevs.length === 1 ? routeAbbrevs[0] ?? null : null,
+    routeAbbrev: routeAbbrevs.length === 1 ? (routeAbbrevs[0] ?? null) : null,
     TerminalMates: topology?.TerminalMates ?? [],
   } satisfies TerminalLocation;
 };
+
+const getTerminalTopologyByTerminalAbbrev = (
+  catalog: IdentityCatalogState,
+  terminalAbbrev: string
+) => catalog.terminalsTopologyByAbbrev[terminalAbbrev.toUpperCase()] ?? null;

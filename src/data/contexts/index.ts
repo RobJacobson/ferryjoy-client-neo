@@ -3,14 +3,14 @@
  */
 
 export * from "../../shared/utils/projectVesselLocation";
-// Export combined provider
-export * from "./IdentityContext";
 export * from "./convex/ConvexProvider";
 export * from "./convex/ConvexUnifiedTripsContext";
 export * from "./convex/ConvexVesselLocationsContext";
 export * from "./convex/ConvexVesselPingsContext";
 export * from "./convex/ConvexVesselTimelineContext";
 export * from "./convex/ConvexVesselTripsContext";
+// Export combined provider
+export * from "./IdentityContext";
 
 export * from "./MapCameraControllerContext";
 

@@ -2,7 +2,7 @@
  * Topology-driven terminal connection helpers for the home carousel.
  */
 
-import { getIdentityCatalogSnapshot } from "@/data/identity/catalog";
+import { readIdentityCatalog } from "@/data/identity";
 import {
   getTerminalLocationByAbbrev,
   getTerminalLocationById,
@@ -35,18 +35,20 @@ export type TerminalCardData = {
  * @returns Connections keyed by departing terminal ID
  */
 export const getTerminalConnections = (): TerminalConnectionsMap => {
-  const { terminalsTopology } = getIdentityCatalogSnapshot();
+  const { terminalsTopology } = readIdentityCatalog();
   const connections: TerminalConnectionsMap = {};
 
   for (const topology of terminalsTopology) {
-    const departingTerminal = getTerminalLocationByAbbrev(topology.TerminalAbbrev);
+    const departingTerminal = getTerminalLocationByAbbrev(
+      topology.TerminalAbbrev
+    );
 
     if (!departingTerminal) {
       continue;
     }
 
-    connections[departingTerminal.TerminalID] = topology.TerminalMates
-      .map((arrivingAbbrev) => {
+    connections[departingTerminal.TerminalID] = topology.TerminalMates.map(
+      (arrivingAbbrev) => {
         const arrivingTerminal = getTerminalLocationByAbbrev(arrivingAbbrev);
 
         if (!arrivingTerminal) {
@@ -59,8 +61,10 @@ export const getTerminalConnections = (): TerminalConnectionsMap => {
           ArrivingTerminalID: arrivingTerminal.TerminalID,
           ArrivingDescription: arrivingTerminal.TerminalName,
         } satisfies TerminalConnection;
-      })
-      .filter((connection): connection is TerminalConnection => connection !== null);
+      }
+    ).filter(
+      (connection): connection is TerminalConnection => connection !== null
+    );
   }
 
   return connections;
@@ -79,7 +83,8 @@ export const transformConnectionsToTerminalCards = (
     .map(Number)
     .sort((a, b) => a - b)
     .flatMap((departingTerminalId) => {
-      const departingTerminal = getTerminalLocationByIdOrNull(departingTerminalId);
+      const departingTerminal =
+        getTerminalLocationByIdOrNull(departingTerminalId);
 
       if (!departingTerminal) {
         return [];
@@ -101,8 +106,9 @@ export const transformConnectionsToTerminalCards = (
             terminalSlug: arrivingTerminal.TerminalAbbrev.toLowerCase(),
           };
         })
-        .filter((destination): destination is NonNullable<typeof destination> =>
-          destination !== null
+        .filter(
+          (destination): destination is NonNullable<typeof destination> =>
+            destination !== null
         );
 
       return [
@@ -139,7 +145,7 @@ export const getTotalCarouselItems = () => getNumTerminalCards() + 1;
  * @returns Terminal location or `null`
  */
 const getTerminalLocationByIdOrNull = (terminalId: number) =>
-  getIdentityCatalogSnapshot().terminals.find(
+  readIdentityCatalog().terminals.find(
     (terminal) => terminal.TerminalID === terminalId
   )
     ? getTerminalLocationById(terminalId)
