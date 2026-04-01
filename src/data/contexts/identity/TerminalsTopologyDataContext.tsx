@@ -14,7 +14,7 @@ import {
   useLayeredDataset,
 } from "./useLayeredDataset";
 
-export type TerminalsTopologyDataContextValue = Readonly<
+type TerminalsTopologyDataContextDebugValue = Readonly<
   {
     data: TerminalsTopologySnapshot;
     source: LayeredDatasetSource;
@@ -22,8 +22,13 @@ export type TerminalsTopologyDataContextValue = Readonly<
   } & TerminalsTopologyDerivedData
 >;
 
+export type TerminalsTopologyDataContextValue = Omit<
+  TerminalsTopologyDataContextDebugValue,
+  "source" | "isHydrated"
+>;
+
 const TerminalsTopologyDataContext = createContext<
-  TerminalsTopologyDataContextValue | undefined
+  TerminalsTopologyDataContextDebugValue | undefined
 >(undefined);
 
 export const TerminalsTopologyDataProvider = ({

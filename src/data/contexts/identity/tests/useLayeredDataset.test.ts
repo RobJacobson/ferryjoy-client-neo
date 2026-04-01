@@ -3,7 +3,7 @@ import {
   applyLayeredDatasetUpdate,
   applyStorageHydrationResult,
   createInitialLayeredDatasetState,
-} from "./useLayeredDataset";
+} from "../useLayeredDataset";
 
 describe("useLayeredDataset helpers", () => {
   it("starts with the compiled asset data immediately", () => {

@@ -42,12 +42,20 @@ Each context exposes:
 - `data` for the raw snapshot array
 - derived lookup maps such as `vesselsByAbbrev`, `terminalsById`, or
   `terminalsTopologyByAbbrev`
+
+The lookup maps are derived convenience data for fast reads. They are not a
+separate persistence concept and they are rebuilt from the active raw array.
+
+The underlying stores still retain debug metadata including:
+
 - `source`, which reports whether the active dataset currently came from the
   compiled asset, local storage, or Convex
 - `isHydrated`, which reports whether the async storage read has completed
 
-The lookup maps are derived convenience data for fast reads. They are not a
-separate persistence concept and they are rebuilt from the active raw array.
+In normal app code, identity consumers are expected to read the indexed maps
+directly. Small adapter modules still exist, but they now live close to the
+features that need them rather than hiding ordinary object lookups behind
+generic selectors.
 
 ## Layered Loading Model
 
@@ -68,6 +76,35 @@ Behavior:
 This gives the app graceful startup and offline behavior without forcing app
 code to understand the loading choreography.
 
+## Current Boundaries
+
+This folder is the canonical source of truth for identity snapshots and indexed
+lookup records.
+
+What still belongs here:
+
+- bootstrapping layered datasets from asset, storage, and Convex
+- exposing canonical snapshots through React contexts
+- deriving shared lookup maps such as `terminalsByAbbrev` and
+  `terminalsTopologyByAbbrev`
+
+What no longer belongs here:
+
+- feature-specific view models
+- thin wrappers around direct indexed lookups
+- presentation adapters for one screen or component
+
+Examples:
+
+- the home carousel terminal-card adapter now lives in
+  [terminalCards.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/RoutesCarousel/model/terminalCards.ts)
+- the map-only terminal/topology join helper remains in
+  [terminalLocations.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/terminalLocations.ts)
+  because it is still reused by the terminal slug map flow
+- the schedules screen still uses
+  [terminalRouteMapping.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/terminalRouteMapping.ts)
+  to translate terminal selection into route query params
+
 ## Key Files
 
 - [useLayeredDataset.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/identity/useLayeredDataset.ts)
@@ -76,5 +113,5 @@ code to understand the loading choreography.
 - [TerminalsTopologyDataContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/identity/TerminalsTopologyDataContext.tsx)
 - [datasets.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/identity/datasets.ts)
 - [terminalLocations.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/terminalLocations.ts)
-- [terminalConnections.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/terminalConnections.ts)
+- [terminalCards.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/RoutesCarousel/model/terminalCards.ts)
 - [terminalRouteMapping.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/terminalRouteMapping.ts)

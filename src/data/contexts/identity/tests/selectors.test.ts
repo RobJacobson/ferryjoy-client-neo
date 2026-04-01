@@ -1,19 +1,14 @@
+/** biome-ignore-all lint/style/noNonNullAssertion: For test */
 import { describe, expect, it } from "bun:test";
 import type { SelectedTerminalPair } from "@/data/contexts/SelectedTerminalPairContext";
 import {
   selectTerminalCards,
-  selectTerminalConnections,
   selectTotalCarouselItems,
-} from "../../terminalConnections";
+} from "@/features/RoutesCarousel/model/terminalCards";
+import { toTerminalWithMates } from "../../../terminalLocations";
 import {
-  selectTerminalLocationByAbbrev,
-  selectTerminalLocationById,
-  selectTerminalNameByAbbrev,
-} from "../../terminalLocations";
-import {
-  selectRouteAbbrevs,
   selectRouteAbbrevsForSelection,
-} from "../../terminalRouteMapping";
+} from "../../../terminalRouteMapping";
 import {
   deriveTerminalsData,
   deriveTerminalsTopologyData,
@@ -21,7 +16,7 @@ import {
   type TerminalsSnapshot,
   type TerminalsTopologySnapshot,
   type VesselsSnapshot,
-} from "./datasets";
+} from "../datasets";
 
 const vessels: VesselsSnapshot = [
   {
@@ -65,6 +60,13 @@ const terminals: TerminalsSnapshot = [
     Latitude: 47.466,
     Longitude: -122.459,
   },
+  {
+    TerminalID: 19,
+    TerminalName: "Sidney B.C.",
+    TerminalAbbrev: "SID",
+    Latitude: 48.643114,
+    Longitude: -123.396739,
+  },
 ];
 
 const topology: TerminalsTopologySnapshot = [
@@ -90,6 +92,14 @@ const topology: TerminalsTopologySnapshot = [
     RouteAbbrevs: ["f-v-s"],
     RouteAbbrevsByArrivingTerminal: {
       VAI: ["f-v-s"],
+    },
+  },
+  {
+    TerminalAbbrev: "VAI",
+    TerminalMates: ["FAU"],
+    RouteAbbrevs: ["f-v-s"],
+    RouteAbbrevsByArrivingTerminal: {
+      FAU: ["f-v-s"],
     },
   },
 ];
@@ -121,24 +131,28 @@ describe("identity-backed selectors", () => {
     expect(vesselsData.vesselsById["2"]?.VesselName).toBe("Puyallup");
   });
 
-  it("resolves terminal locations and names from context data", () => {
-    expect(selectTerminalNameByAbbrev(terminalsData, "p52")).toBe("Seattle");
+  it("joins terminal identity rows with terminal mates from topology", () => {
+    expect(terminalsData.terminalsByAbbrev.P52?.TerminalName).toBe("Seattle");
 
     expect(
-      selectTerminalLocationByAbbrev(terminalsData, topologyData, "fau")
+      toTerminalWithMates(
+        topologyData.terminalsTopologyByAbbrev,
+        terminalsData.terminalsByAbbrev.FAU!
+      )
     ).toEqual({
       TerminalID: 12,
       TerminalName: "Fauntleroy",
       TerminalAbbrev: "FAU",
       Latitude: 47.5232,
       Longitude: -122.3967,
-      routeAbbrevs: ["f-v-s"],
-      routeAbbrev: "f-v-s",
       TerminalMates: ["VAI"],
     });
 
     expect(
-      selectTerminalLocationById(terminalsData, topologyData, 11)?.TerminalName
+      toTerminalWithMates(
+        topologyData.terminalsTopologyByAbbrev,
+        terminalsData.terminalsById["11"]!
+      ).TerminalName
     ).toBe("Bainbridge Island");
   });
 
@@ -148,50 +162,34 @@ describe("identity-backed selectors", () => {
       from: "P52",
       dest: "BBI",
     } satisfies SelectedTerminalPair;
+    const allSelection = {
+      kind: "all",
+      terminal: "P52",
+    } satisfies SelectedTerminalPair;
 
-    expect(selectRouteAbbrevs(topologyData, "P52")).toEqual(["sea-bi"]);
-    expect(selectRouteAbbrevsForSelection(topologyData, pairSelection)).toEqual(
-      ["sea-bi"]
-    );
-    expect(selectRouteAbbrevsForSelection(topologyData, null)).toEqual([
-      "sea-bi",
-    ]);
-  });
-
-  it("builds terminal connections from the shared terminal and topology stores", () => {
-    expect(selectTerminalConnections(terminalsData, topologyData)).toEqual({
-      10: [
-        {
-          DepartingTerminalID: 10,
-          DepartingDescription: "Seattle",
-          ArrivingTerminalID: 11,
-          ArrivingDescription: "Bainbridge Island",
-        },
-      ],
-      11: [
-        {
-          DepartingTerminalID: 11,
-          DepartingDescription: "Bainbridge Island",
-          ArrivingTerminalID: 10,
-          ArrivingDescription: "Seattle",
-        },
-      ],
-      12: [
-        {
-          DepartingTerminalID: 12,
-          DepartingDescription: "Fauntleroy",
-          ArrivingTerminalID: 13,
-          ArrivingDescription: "Vashon Island",
-        },
-      ],
-    });
+    expect(
+      selectRouteAbbrevsForSelection(
+        topologyData.terminalsTopologyByAbbrev,
+        pairSelection
+      )
+    ).toEqual(["sea-bi"]);
+    expect(
+      selectRouteAbbrevsForSelection(
+        topologyData.terminalsTopologyByAbbrev,
+        allSelection
+      )
+    ).toEqual(["sea-bi"]);
+    expect(
+      selectRouteAbbrevsForSelection(
+        topologyData.terminalsTopologyByAbbrev,
+        null
+      )
+    ).toEqual(["sea-bi"]);
   });
 
   it("transforms terminal connections into sorted carousel cards and total counts", () => {
-    const connections = selectTerminalConnections(terminalsData, topologyData);
-
     expect(
-      selectTerminalCards(terminalsData, topologyData, connections)
+      selectTerminalCards(terminalsData, topologyData.terminalsTopologyByAbbrev)
     ).toEqual([
       {
         terminalId: 11,
@@ -229,8 +227,22 @@ describe("identity-backed selectors", () => {
           },
         ],
       },
+      {
+        terminalId: 13,
+        terminalName: "Vashon Island",
+        terminalSlug: "vai",
+        destinations: [
+          {
+            terminalId: 12,
+            terminalName: "Fauntleroy",
+            terminalSlug: "fau",
+          },
+        ],
+      },
     ]);
 
-    expect(selectTotalCarouselItems(terminalsData, topologyData)).toBe(4);
+    expect(
+      selectTotalCarouselItems(terminalsData, topologyData.terminalsTopologyByAbbrev)
+    ).toBe(5);
   });
 });

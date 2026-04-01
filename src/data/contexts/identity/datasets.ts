@@ -1,8 +1,8 @@
+import terminalsAssetJson from "assets/data/terminals.json";
+import terminalsTopologyAssetJson from "assets/data/terminalsTopology.json";
+import vesselsAssetJson from "assets/data/vessels.json";
 import { storageKv } from "@/shared/storage";
 import type { Terminal, TerminalTopology, Vessel } from "@/types";
-import terminalsAssetJson from "../../../../assets/data/terminals.json";
-import terminalsTopologyAssetJson from "../../../../assets/data/terminalsTopology.json";
-import vesselsAssetJson from "../../../../assets/data/vessels.json";
 import { indexByString, indexByTrimmed, indexByUppercase } from "./lookup";
 
 export type VesselsSnapshot = Array<Vessel>;

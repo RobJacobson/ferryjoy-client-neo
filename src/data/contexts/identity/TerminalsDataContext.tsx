@@ -14,7 +14,7 @@ import {
   useLayeredDataset,
 } from "./useLayeredDataset";
 
-export type TerminalsDataContextValue = Readonly<
+type TerminalsDataContextDebugValue = Readonly<
   {
     data: TerminalsSnapshot;
     source: LayeredDatasetSource;
@@ -22,8 +22,13 @@ export type TerminalsDataContextValue = Readonly<
   } & TerminalsDerivedData
 >;
 
+export type TerminalsDataContextValue = Omit<
+  TerminalsDataContextDebugValue,
+  "source" | "isHydrated"
+>;
+
 const TerminalsDataContext = createContext<
-  TerminalsDataContextValue | undefined
+  TerminalsDataContextDebugValue | undefined
 >(undefined);
 
 export const TerminalsDataProvider = ({ children }: PropsWithChildren) => {

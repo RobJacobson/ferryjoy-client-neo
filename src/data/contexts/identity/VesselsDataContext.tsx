@@ -14,7 +14,7 @@ import {
   useLayeredDataset,
 } from "./useLayeredDataset";
 
-export type VesselsDataContextValue = Readonly<
+type VesselsDataContextDebugValue = Readonly<
   {
     data: VesselsSnapshot;
     source: LayeredDatasetSource;
@@ -22,9 +22,14 @@ export type VesselsDataContextValue = Readonly<
   } & VesselsDerivedData
 >;
 
-const VesselsDataContext = createContext<VesselsDataContextValue | undefined>(
-  undefined
-);
+export type VesselsDataContextValue = Omit<
+  VesselsDataContextDebugValue,
+  "source" | "isHydrated"
+>;
+
+const VesselsDataContext = createContext<
+  VesselsDataContextDebugValue | undefined
+>(undefined);
 
 export const VesselsDataProvider = ({ children }: PropsWithChildren) => {
   const convexData = useQuery(

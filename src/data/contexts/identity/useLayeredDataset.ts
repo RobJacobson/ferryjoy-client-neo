@@ -4,7 +4,7 @@ import type { GetJsonResult } from "@/shared/storage/kv";
 
 export type LayeredDatasetSource = "asset" | "storage" | "convex";
 
-export type LayeredDatasetState<TData> = Readonly<{
+type LayeredDatasetState<TData> = Readonly<{
   data: TData;
   source: LayeredDatasetSource;
   isHydrated: boolean;
@@ -68,7 +68,7 @@ type UseLayeredDatasetArgs<TData, TDerived> = Readonly<{
   derive: (data: TData) => TDerived;
 }>;
 
-export type LayeredDatasetValue<TData, TDerived> = Readonly<
+type LayeredDatasetValue<TData, TDerived> = Readonly<
   {
     data: TData;
     source: LayeredDatasetSource;
