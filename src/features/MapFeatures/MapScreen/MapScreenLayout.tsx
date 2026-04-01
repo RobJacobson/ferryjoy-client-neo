@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { View } from "@/components/ui";
 import { SmoothedVesselLocationsProvider, useMapState } from "@/data/contexts";
-import type { VesselLocation } from "@/domain";
 import { MapComponent } from "@/features/MapFeatures/MapComponent";
 import { MapDebugOverlay } from "@/features/MapFeatures/MapDebugOverlay";
 import { VesselCircleMarkers } from "@/features/MapFeatures/VesselCircleMarkers";
 import { VesselLines } from "@/features/MapFeatures/VesselLines";
+import type { VesselLocation } from "@/types";
 
 export interface MapScreenLayoutProps {
   /** Optional callback when a vessel marker is selected */

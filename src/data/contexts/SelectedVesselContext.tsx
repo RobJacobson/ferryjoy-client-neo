@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useState } from "react";
-import type { VesselLocation } from "@/domain";
+import type { VesselLocation } from "@/types";
 
 /**
  * Type definition for the Selected Vessel context value

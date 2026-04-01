@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { MergedTimelineBoundaryEvent } from "convex/functions/vesselTimeline/schemas";
+import type { MergedTimelineBoundaryEvent, VesselLocation } from "@/types";
 import { buildSegmentsFromBoundaryEvents } from "../buildSegmentsFromBoundaryEvents";
 import { resolveActiveStateFromTimeline } from "../resolveActiveStateFromTimeline";
 

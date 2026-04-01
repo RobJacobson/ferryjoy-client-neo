@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import { FlatList, StyleSheet } from "react-native";
 import { Text, View } from "@/components/ui";
 import { useConvexVesselPings } from "@/data/contexts";
-import type { VesselLocation } from "@/domain";
+import type { VesselLocation } from "@/types";
 
 interface VesselBottomSheetProps {
   selectedVessel: VesselLocation | null;

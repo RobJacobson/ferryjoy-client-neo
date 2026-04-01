@@ -21,7 +21,9 @@ describe("mergeKnownMarineLocations", () => {
       updatedAt
     );
 
-    expect(merged.find((terminal) => terminal.TerminalAbbrev === "P52")).toEqual(
+    expect(
+      merged.find((terminal) => terminal.TerminalAbbrev === "P52")
+    ).toEqual(
       makeTerminal({
         TerminalID: 7,
         TerminalAbbrev: "P52",
@@ -29,7 +31,9 @@ describe("mergeKnownMarineLocations", () => {
         IsPassengerTerminal: true,
       })
     );
-    expect(merged.find((terminal) => terminal.TerminalAbbrev === "EAH")).toEqual(
+    expect(
+      merged.find((terminal) => terminal.TerminalAbbrev === "EAH")
+    ).toEqual(
       expect.objectContaining({
         TerminalID: -1001,
         TerminalAbbrev: "EAH",
@@ -38,7 +42,9 @@ describe("mergeKnownMarineLocations", () => {
         UpdatedAt: updatedAt,
       })
     );
-    expect(merged.find((terminal) => terminal.TerminalAbbrev === "VIG")).toEqual(
+    expect(
+      merged.find((terminal) => terminal.TerminalAbbrev === "VIG")
+    ).toEqual(
       expect.objectContaining({
         TerminalID: -1002,
         TerminalAbbrev: "VIG",

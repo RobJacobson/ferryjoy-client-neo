@@ -1,11 +1,11 @@
 import { distance } from "@turf/distance";
 import { useEffect, useRef, useState } from "react";
-import type { VesselLocation } from "@/domain";
 import { lerp } from "@/shared/utils/lerp";
 import {
   PROJECTION_TIME_MS,
   projectVesselLocation,
 } from "@/shared/utils/projectVesselLocation";
+import type { VesselLocation } from "@/types";
 
 const SMOOTHING_INTERVAL_MS = 1000;
 const TELEPORT_THRESHOLD_KM = 0.5;

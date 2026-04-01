@@ -4,10 +4,9 @@
  * Selects markers and blocks for the segment.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
 import {
   extractArriveCurrLabel,
   extractArriveNextLabel,

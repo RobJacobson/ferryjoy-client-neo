@@ -8,8 +8,8 @@
 
 import { Text, View } from "@/components/ui";
 import { useMapState } from "@/data/contexts";
-import type { VesselLocation } from "@/domain";
 import { cn } from "@/lib/utils";
+import type { VesselLocation } from "@/types";
 
 /**
  * VesselMarkerContent component

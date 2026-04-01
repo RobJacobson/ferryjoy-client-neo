@@ -3,7 +3,7 @@
  */
 
 import type { SelectedTerminalPair } from "@/data/contexts/SelectedTerminalPairContext";
-import { getTerminalTopologyByAbbrev } from "@/data/identity/catalog";
+import { readIdentityCatalog } from "@/data/identity";
 
 const DEFAULT_ROUTE_ABBREVS = ["sea-bi"];
 
@@ -19,7 +19,10 @@ export const getRouteAbbrevs = (
   departingTerminalAbbrev: string,
   arrivingTerminalAbbrev?: string
 ): string[] => {
-  const topology = getTerminalTopologyByAbbrev(departingTerminalAbbrev);
+  const topology =
+    readIdentityCatalog().terminalsTopologyByAbbrev[
+      departingTerminalAbbrev.toUpperCase()
+    ];
 
   if (!topology) {
     return [];
@@ -30,8 +33,9 @@ export const getRouteAbbrevs = (
   }
 
   return (
-    topology.RouteAbbrevsByArrivingTerminal[arrivingTerminalAbbrev.toUpperCase()] ??
-    []
+    topology.RouteAbbrevsByArrivingTerminal[
+      arrivingTerminalAbbrev.toUpperCase()
+    ] ?? []
   );
 };
 

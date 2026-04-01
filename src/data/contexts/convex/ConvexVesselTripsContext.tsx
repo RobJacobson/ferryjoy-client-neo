@@ -8,14 +8,11 @@
  */
 
 import { api } from "convex/_generated/api";
-import type {
-  VesselTrip,
-  VesselTripWithScheduledTrip,
-} from "convex/functions/vesselTrips/schemas";
-import { toDomainVesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useMemo } from "react";
+import type { VesselTrip, VesselTripWithScheduledTrip } from "@/types";
+import { toDomainVesselTripWithScheduledTrip } from "@/types";
 
 export type { VesselTrip, VesselTripWithScheduledTrip };
 

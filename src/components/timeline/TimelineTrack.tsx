@@ -32,6 +32,15 @@ export const TimelineTrack = ({
   completedBoundaryTopPx,
   theme,
 }: TimelineTrackProps) => {
+  const animatedCompletedStyle = useAnimatedStyle(
+    () => ({
+      height: completedBoundaryTopPx
+        ? Math.max(0, Math.min(containerHeightPx, completedBoundaryTopPx.value))
+        : 0,
+    }),
+    [completedBoundaryTopPx, containerHeightPx]
+  );
+
   if (containerHeightPx <= 0) {
     return null;
   }
@@ -42,14 +51,6 @@ export const TimelineTrack = ({
     TIMELINE_RENDER_CONSTANTS.track.glowWidthPx
   );
   const glowPulseStyle = createTrackGlowPulseStyle();
-  const animatedCompletedStyle = useAnimatedStyle(
-    () => ({
-      height: completedBoundaryTopPx
-        ? Math.max(0, Math.min(containerHeightPx, completedBoundaryTopPx.value))
-        : 0,
-    }),
-    [completedBoundaryTopPx, containerHeightPx]
-  );
 
   return (
     <View

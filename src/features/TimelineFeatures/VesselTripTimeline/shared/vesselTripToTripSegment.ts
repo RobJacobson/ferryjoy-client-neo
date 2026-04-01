@@ -3,8 +3,7 @@
  * Enables VesselTripTimeline to use the shared timeline primitives.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
 import type { TimePoint, TripSegment } from "../../shared/types";
 import { getBestArrivalTime, getBestDepartureTime } from "../../shared/utils";
 

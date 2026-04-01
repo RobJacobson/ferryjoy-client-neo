@@ -11,9 +11,7 @@ import {
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
-import type {
-  VesselAbbrev,
-} from "../../shared/identity";
+import type { VesselAbbrev } from "../../shared/identity";
 import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
 import { resolveTerminal, type TerminalIdentity } from "../terminals/resolver";
 
@@ -74,7 +72,7 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  */
 export type ResolvedVesselLocation = Omit<
   ConvexVesselLocation,
-  | "VesselAbbrev"
+  "VesselAbbrev"
 > & {
   VesselAbbrev: VesselAbbrev;
 };
@@ -110,7 +108,9 @@ export function toConvexVesselLocation(
   }
 
   if (!rawDepartingTerminalAbbrev) {
-    throw new Error("Missing departing terminal abbreviation in vessel location.");
+    throw new Error(
+      "Missing departing terminal abbreviation in vessel location."
+    );
   }
 
   if (!resolvedDepartingTerminal) {

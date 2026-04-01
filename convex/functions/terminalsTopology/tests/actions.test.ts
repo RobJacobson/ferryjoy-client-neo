@@ -10,15 +10,31 @@ describe("buildTerminalTopologyRows", () => {
   it("merges mates, aggregate routes, and triangle normalization by terminal", () => {
     const topology = buildTerminalTopologyRows(
       [
-        makeTerminal({ TerminalID: 7, TerminalAbbrev: "P52", TerminalName: "Seattle" }),
+        makeTerminal({
+          TerminalID: 7,
+          TerminalAbbrev: "P52",
+          TerminalName: "Seattle",
+        }),
         makeTerminal({
           TerminalID: 3,
           TerminalAbbrev: "BBI",
           TerminalName: "Bainbridge Island",
         }),
-        makeTerminal({ TerminalID: 9, TerminalAbbrev: "FAU", TerminalName: "Fauntleroy" }),
-        makeTerminal({ TerminalID: 20, TerminalAbbrev: "SOU", TerminalName: "Southworth" }),
-        makeTerminal({ TerminalID: 22, TerminalAbbrev: "VAI", TerminalName: "Vashon Island" }),
+        makeTerminal({
+          TerminalID: 9,
+          TerminalAbbrev: "FAU",
+          TerminalName: "Fauntleroy",
+        }),
+        makeTerminal({
+          TerminalID: 20,
+          TerminalAbbrev: "SOU",
+          TerminalName: "Southworth",
+        }),
+        makeTerminal({
+          TerminalID: 22,
+          TerminalAbbrev: "VAI",
+          TerminalName: "Vashon Island",
+        }),
       ],
       [
         { DepartingTerminalID: 7, ArrivingTerminalID: 3 },

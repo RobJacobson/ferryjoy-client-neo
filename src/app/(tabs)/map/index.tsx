@@ -1,9 +1,9 @@
 import type BottomSheet from "@gorhom/bottom-sheet";
 import { useRef } from "react";
 import { useSelectedVessel } from "@/data/contexts";
-import type { VesselLocation } from "@/domain";
 import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
 import { VesselBottomSheet } from "@/features/VesselBottomSheet";
+import type { VesselLocation } from "@/types";
 
 // Base map tab screen (no deep-link focus)
 const MapIndexPage = () => {

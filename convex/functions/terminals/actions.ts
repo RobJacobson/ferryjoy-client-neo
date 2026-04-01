@@ -95,17 +95,15 @@ export async function refreshBackendTerminalsOrThrow(
   const fetchedTerminals = await fetchTerminalLocations();
   const updatedAt = Date.now();
   const terminals = mergeKnownMarineLocations(
-    fetchedTerminals
-      .filter(hasTerminalIdentity)
-      .map((terminal) => ({
-        TerminalID: terminal.TerminalID,
-        TerminalName: terminal.TerminalName.trim(),
-        TerminalAbbrev: terminal.TerminalAbbrev.trim(),
-        IsPassengerTerminal: true,
-        Latitude: roundCoordinate(terminal.Latitude),
-        Longitude: roundCoordinate(terminal.Longitude),
-        UpdatedAt: updatedAt,
-      })),
+    fetchedTerminals.filter(hasTerminalIdentity).map((terminal) => ({
+      TerminalID: terminal.TerminalID,
+      TerminalName: terminal.TerminalName.trim(),
+      TerminalAbbrev: terminal.TerminalAbbrev.trim(),
+      IsPassengerTerminal: true,
+      Latitude: roundCoordinate(terminal.Latitude),
+      Longitude: roundCoordinate(terminal.Longitude),
+      UpdatedAt: updatedAt,
+    })),
     updatedAt
   );
 

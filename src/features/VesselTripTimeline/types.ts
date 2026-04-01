@@ -5,8 +5,7 @@
  * shared primitives.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
 
 /**
  * Input item for the VesselTripTimeline list.

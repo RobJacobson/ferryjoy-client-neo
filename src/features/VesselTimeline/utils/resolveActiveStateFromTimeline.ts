@@ -1,10 +1,10 @@
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type {
+  VesselLocation,
   VesselTimelineActiveState,
   VesselTimelineLiveState,
   VesselTimelineRowMatch,
-} from "convex/functions/vesselTimeline/activeStateSchemas";
-import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
+  VesselTimelineSegment,
+} from "@/types";
 import { getDisplayTime } from "../rowEventTime";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;

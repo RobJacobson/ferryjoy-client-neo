@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type {
   VesselTimelineActiveState,
   VesselTimelineLiveState,
-} from "convex/functions/vesselTimeline/activeStateSchemas";
-import type { VesselTimelineSegment } from "convex/functions/vesselTimeline/schemas";
+  VesselTimelineSegment,
+} from "@/types";
 import {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,

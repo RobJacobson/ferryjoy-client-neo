@@ -3,10 +3,9 @@
  * Selects markers and blocks for each segment.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
 import React, { useMemo } from "react";
 import { View } from "@/components/ui";
+import type { VesselLocation, VesselTrip } from "@/types";
 import {
   extractArriveCurrLabel,
   extractArriveNextLabel,

@@ -6,10 +6,9 @@
  * This prevents UI flicker and allows showing a "Completed" state.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTripWithScheduledTrip } from "convex/functions/vesselTrips/schemas";
 import { useEffect, useRef, useState } from "react";
 import { useInterval } from "@/shared/hooks";
+import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
 
 const HOLD_DURATION_MS = 30 * 1000; // 30 seconds
 

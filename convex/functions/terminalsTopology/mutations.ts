@@ -5,7 +5,7 @@
 import type { Doc } from "_generated/dataModel";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { type TerminalTopology, terminalTopologySchema } from "./schemas";
+import { terminalTopologySchema } from "./schemas";
 
 /**
  * Replace the backend terminals topology rows.

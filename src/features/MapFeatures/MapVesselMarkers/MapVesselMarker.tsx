@@ -7,8 +7,8 @@
  */
 
 import { View } from "@/components/ui";
-import type { VesselLocation } from "@/domain";
 import { useMapPitch, useMarkerScale } from "@/shared/hooks";
+import type { VesselLocation } from "@/types";
 import { Marker } from "../MapMarkers";
 import { VesselMarkerContent } from "./VesselMarkerContent";
 

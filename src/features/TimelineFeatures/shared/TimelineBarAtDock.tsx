@@ -4,10 +4,10 @@
  * Handles at-dock status labels.
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
 import type { ViewStyle } from "react-native";
 import { Text } from "@/components/ui";
 import { useNowMs } from "@/shared/hooks";
+import type { VesselLocation } from "@/types";
 import { useAnimatedProgress } from "./hooks/useAnimatedProgress";
 import TimelineBar from "./TimelineBar";
 import { TimelineBlock } from "./TimelineBlock";

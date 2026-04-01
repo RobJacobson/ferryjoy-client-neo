@@ -51,7 +51,8 @@ export const useVesselTimelineViewModel = ({
     Retry,
   } = useConvexVesselTimeline();
   const segments = useMemo(
-    () => buildSegmentsFromBoundaryEvents(mergedEvents, getTerminalNameByAbbrev),
+    () =>
+      buildSegmentsFromBoundaryEvents(mergedEvents, getTerminalNameByAbbrev),
     [mergedEvents]
   );
   const { Live: liveState, ActiveState: activeState } = useMemo(

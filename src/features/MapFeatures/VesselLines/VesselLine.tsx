@@ -1,6 +1,6 @@
-import type { VesselLocation, VesselPing } from "@/domain";
 import { CIRCLE_LAYER_IDS } from "@/features/MapFeatures/VesselCircleMarkers";
 import { useZoomScale } from "@/shared/hooks";
+import type { VesselLocation, VesselPing } from "@/types";
 import { LineLayer } from "./components/LineLayer"; // Will be resolved to platform-specific version
 import { VESSEL_LINE_CONFIG } from "./config";
 import { filterVesselPings } from "./utils/filtering";

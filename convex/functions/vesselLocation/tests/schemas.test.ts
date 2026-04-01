@@ -57,9 +57,7 @@ const makeTerminal = (
   ...overrides,
 });
 
-const makeRawLocation = (
-  overrides: Record<string, unknown>
-) =>
+const makeRawLocation = (overrides: Record<string, unknown>) =>
   ({
     VesselID: 2,
     VesselName: "Chelan",

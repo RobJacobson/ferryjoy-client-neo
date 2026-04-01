@@ -4,24 +4,24 @@
  */
 
 import { api } from "convex/_generated/api";
+import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { useEffect, useSyncExternalStore } from "react";
-import { useQuery } from "convex/react";
 import {
-  getIdentityCatalogSnapshot,
-  getIdentityTerminalsAsset,
-  getIdentityTerminalsStorageKey,
-  getIdentityTerminalsTopologyAsset,
-  getIdentityTerminalsTopologyStorageKey,
-  getIdentityVesselsAsset,
-  getIdentityVesselsStorageKey,
-  replaceIdentityCatalogSnapshots,
-  subscribeIdentityCatalog,
-  type IdentityCatalogState,
   type FrontendTerminalSnapshot,
   type FrontendTerminalsTopologySnapshot,
   type FrontendVesselSnapshot,
-} from "@/data/identity/catalog";
+  IDENTITY_TERMINALS_ASSET,
+  IDENTITY_TERMINALS_STORAGE_KEY,
+  IDENTITY_TERMINALS_TOPOLOGY_ASSET,
+  IDENTITY_TERMINALS_TOPOLOGY_STORAGE_KEY,
+  IDENTITY_VESSELS_ASSET,
+  IDENTITY_VESSELS_STORAGE_KEY,
+  type IdentityCatalogState,
+  readIdentityCatalog,
+  replaceIdentityCatalogSnapshots,
+  subscribeIdentityCatalog,
+} from "@/data/identity";
 import { storageKv } from "@/shared/storage";
 
 /**
@@ -53,7 +53,7 @@ export const IdentityProvider = ({ children }: PropsWithChildren) => {
     }
 
     replaceIdentityCatalogSnapshots({ vessels: rawVessels });
-    void storageKv.setJson(getIdentityVesselsStorageKey(), rawVessels);
+    void storageKv.setJson(IDENTITY_VESSELS_STORAGE_KEY, rawVessels);
   }, [rawVessels]);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export const IdentityProvider = ({ children }: PropsWithChildren) => {
     }
 
     replaceIdentityCatalogSnapshots({ terminals: rawTerminals });
-    void storageKv.setJson(getIdentityTerminalsStorageKey(), rawTerminals);
+    void storageKv.setJson(IDENTITY_TERMINALS_STORAGE_KEY, rawTerminals);
   }, [rawTerminals]);
 
   useEffect(() => {
@@ -70,9 +70,11 @@ export const IdentityProvider = ({ children }: PropsWithChildren) => {
       return;
     }
 
-    replaceIdentityCatalogSnapshots({ terminalsTopology: rawTerminalsTopology });
+    replaceIdentityCatalogSnapshots({
+      terminalsTopology: rawTerminalsTopology,
+    });
     void storageKv.setJson(
-      getIdentityTerminalsTopologyStorageKey(),
+      IDENTITY_TERMINALS_TOPOLOGY_STORAGE_KEY,
       rawTerminalsTopology
     );
   }, [rawTerminalsTopology]);
@@ -88,8 +90,8 @@ export const IdentityProvider = ({ children }: PropsWithChildren) => {
 export const useIdentityCatalog = (): IdentityCatalogState =>
   useSyncExternalStore(
     subscribeIdentityCatalog,
-    getIdentityCatalogSnapshot,
-    getIdentityCatalogSnapshot
+    readIdentityCatalog,
+    readIdentityCatalog
   );
 
 /**
@@ -98,10 +100,10 @@ export const useIdentityCatalog = (): IdentityCatalogState =>
  */
 const hydrateIdentitySnapshotFromStorage = async () => {
   const [storedVessels, storedTerminals, storedTopology] = await Promise.all([
-    storageKv.getJson<FrontendVesselSnapshot>(getIdentityVesselsStorageKey()),
-    storageKv.getJson<FrontendTerminalSnapshot>(getIdentityTerminalsStorageKey()),
+    storageKv.getJson<FrontendVesselSnapshot>(IDENTITY_VESSELS_STORAGE_KEY),
+    storageKv.getJson<FrontendTerminalSnapshot>(IDENTITY_TERMINALS_STORAGE_KEY),
     storageKv.getJson<FrontendTerminalsTopologySnapshot>(
-      getIdentityTerminalsTopologyStorageKey()
+      IDENTITY_TERMINALS_TOPOLOGY_STORAGE_KEY
     ),
   ]);
   const storedTopologyValue =
@@ -110,16 +112,16 @@ const hydrateIdentitySnapshotFromStorage = async () => {
       : null;
 
   if (storedTopology.ok && storedTopology.value && !storedTopologyValue) {
-    await storageKv.remove(getIdentityTerminalsTopologyStorageKey());
+    await storageKv.remove(IDENTITY_TERMINALS_TOPOLOGY_STORAGE_KEY);
   }
 
   replaceIdentityCatalogSnapshots({
     vessels: storedVessels.ok
-      ? (storedVessels.value ?? getIdentityVesselsAsset())
-      : getIdentityVesselsAsset(),
+      ? (storedVessels.value ?? IDENTITY_VESSELS_ASSET)
+      : IDENTITY_VESSELS_ASSET,
     terminals: storedTerminals.ok
-      ? (storedTerminals.value ?? getIdentityTerminalsAsset())
-      : getIdentityTerminalsAsset(),
-    terminalsTopology: storedTopologyValue ?? getIdentityTerminalsTopologyAsset(),
+      ? (storedTerminals.value ?? IDENTITY_TERMINALS_ASSET)
+      : IDENTITY_TERMINALS_ASSET,
+    terminalsTopology: storedTopologyValue ?? IDENTITY_TERMINALS_TOPOLOGY_ASSET,
   });
 };

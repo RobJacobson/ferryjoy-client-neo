@@ -6,8 +6,7 @@
  * by looking at the vesselTripByKeys (for actuals) and vesselLocation (for current activity).
  */
 
-import type { VesselLocation } from "convex/functions/vesselLocation/schemas";
-import type { VesselTrip } from "convex/functions/vesselTrips/schemas";
+import type { VesselLocation, VesselTrip } from "@/types";
 import type {
   Segment,
   TimelineActivePhase,
