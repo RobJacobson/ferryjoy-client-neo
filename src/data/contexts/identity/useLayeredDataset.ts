@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ZodType } from "zod";
 import { storageKv } from "@/shared/storage";
 import type { GetJsonResult } from "@/shared/storage/kv";
 
@@ -64,6 +65,7 @@ export const applyStorageHydrationResult = <TData>(
 type UseLayeredDatasetArgs<TData, TDerived> = Readonly<{
   assetData: TData;
   storageKey: string;
+  storageSchema?: ZodType<TData>;
   convexData: TData | null | undefined;
   derive: (data: TData) => TDerived;
 }>;
@@ -86,6 +88,7 @@ type LayeredDatasetValue<TData, TDerived> = Readonly<
 export const useLayeredDataset = <TData, TDerived>({
   assetData,
   storageKey,
+  storageSchema,
   convexData,
   derive,
 }: UseLayeredDatasetArgs<TData, TDerived>): LayeredDatasetValue<
@@ -100,7 +103,10 @@ export const useLayeredDataset = <TData, TDerived>({
     let isCancelled = false;
 
     const hydrate = async () => {
-      const result = await storageKv.getJson<TData>(storageKey);
+      const result = await storageKv.getJson<TData>(
+        storageKey,
+        storageSchema ? { schema: storageSchema } : undefined
+      );
 
       if (isCancelled) {
         return;
@@ -114,7 +120,7 @@ export const useLayeredDataset = <TData, TDerived>({
     return () => {
       isCancelled = true;
     };
-  }, [storageKey]);
+  }, [storageKey, storageSchema]);
 
   useEffect(() => {
     if (convexData === undefined || convexData === null) {

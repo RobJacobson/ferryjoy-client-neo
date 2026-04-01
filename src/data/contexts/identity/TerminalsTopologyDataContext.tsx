@@ -6,6 +6,7 @@ import {
   deriveTerminalsTopologyData,
   TERMINALS_TOPOLOGY_ASSET,
   TERMINALS_TOPOLOGY_STORAGE_KEY,
+  TERMINALS_TOPOLOGY_STORAGE_SCHEMA,
   type TerminalsTopologyDerivedData,
   type TerminalsTopologySnapshot,
 } from "./datasets";
@@ -40,6 +41,7 @@ export const TerminalsTopologyDataProvider = ({
   const value = useLayeredDataset({
     assetData: TERMINALS_TOPOLOGY_ASSET,
     storageKey: TERMINALS_TOPOLOGY_STORAGE_KEY,
+    storageSchema: TERMINALS_TOPOLOGY_STORAGE_SCHEMA,
     convexData,
     derive: deriveTerminalsTopologyData,
   });

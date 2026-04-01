@@ -6,9 +6,7 @@ import {
   selectTotalCarouselItems,
 } from "@/features/RoutesCarousel/model/terminalCards";
 import { toTerminalWithMates } from "../../../terminalLocations";
-import {
-  selectRouteAbbrevsForSelection,
-} from "../../../terminalRouteMapping";
+import { selectRouteAbbrevsForSelection } from "../../../terminalRouteMapping";
 import {
   deriveTerminalsData,
   deriveTerminalsTopologyData,
@@ -242,7 +240,96 @@ describe("identity-backed selectors", () => {
     ]);
 
     expect(
-      selectTotalCarouselItems(terminalsData, topologyData.terminalsTopologyByAbbrev)
+      selectTotalCarouselItems(
+        terminalsData,
+        topologyData.terminalsTopologyByAbbrev
+      )
     ).toBe(5);
+  });
+
+  it("skips topology rows whose departing terminal is temporarily missing", () => {
+    const skewedTerminalsData = {
+      ...terminalsData,
+      terminalsByAbbrev: {
+        BBI: terminalsData.terminalsByAbbrev.BBI!,
+        FAU: terminalsData.terminalsByAbbrev.FAU!,
+        VAI: terminalsData.terminalsByAbbrev.VAI!,
+      },
+    };
+
+    expect(
+      selectTerminalCards(
+        skewedTerminalsData,
+        topologyData.terminalsTopologyByAbbrev
+      )
+    ).toEqual([
+      {
+        terminalId: 12,
+        terminalName: "Fauntleroy",
+        terminalSlug: "fau",
+        destinations: [
+          {
+            terminalId: 13,
+            terminalName: "Vashon Island",
+            terminalSlug: "vai",
+          },
+        ],
+      },
+      {
+        terminalId: 13,
+        terminalName: "Vashon Island",
+        terminalSlug: "vai",
+        destinations: [
+          {
+            terminalId: 12,
+            terminalName: "Fauntleroy",
+            terminalSlug: "fau",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("skips missing destination terminals but keeps the rest of a card", () => {
+    const skewedTerminalsData = {
+      ...terminalsData,
+      terminalsByAbbrev: {
+        P52: terminalsData.terminalsByAbbrev.P52!,
+        BBI: terminalsData.terminalsByAbbrev.BBI!,
+        FAU: terminalsData.terminalsByAbbrev.FAU!,
+      },
+    };
+
+    expect(
+      selectTerminalCards(
+        skewedTerminalsData,
+        topologyData.terminalsTopologyByAbbrev
+      )
+    ).toEqual([
+      {
+        terminalId: 11,
+        terminalName: "Bainbridge Island",
+        terminalSlug: "bbi",
+        destinations: [
+          {
+            terminalId: 10,
+            terminalName: "Seattle",
+            terminalSlug: "p52",
+          },
+        ],
+      },
+      {
+        terminalId: 10,
+        terminalName: "Seattle",
+        terminalSlug: "p52",
+        destinations: [
+          {
+            terminalId: 11,
+            terminalName: "Bainbridge Island",
+            terminalSlug: "bbi",
+          },
+        ],
+      },
+    ]);
   });
 });

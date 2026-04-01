@@ -6,6 +6,7 @@ import {
   deriveVesselsData,
   VESSELS_ASSET,
   VESSELS_STORAGE_KEY,
+  VESSELS_STORAGE_SCHEMA,
   type VesselsDerivedData,
   type VesselsSnapshot,
 } from "./datasets";
@@ -38,6 +39,7 @@ export const VesselsDataProvider = ({ children }: PropsWithChildren) => {
   const value = useLayeredDataset({
     assetData: VESSELS_ASSET,
     storageKey: VESSELS_STORAGE_KEY,
+    storageSchema: VESSELS_STORAGE_SCHEMA,
     convexData,
     derive: deriveVesselsData,
   });

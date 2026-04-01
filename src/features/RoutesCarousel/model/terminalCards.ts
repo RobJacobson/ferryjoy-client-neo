@@ -20,10 +20,7 @@ export type TerminalCardData = {
   }>;
 };
 
-type TerminalsLookupData = Pick<
-  TerminalsDataContextValue,
-  "data" | "terminalsByAbbrev"
->;
+type TerminalsLookupData = Pick<TerminalsDataContextValue, "terminalsByAbbrev">;
 
 type TerminalsTopologyByAbbrev =
   TerminalsTopologyDataContextValue["terminalsTopologyByAbbrev"];
@@ -41,29 +38,47 @@ export const selectTerminalCards = (
 ): TerminalCardData[] =>
   Object.values(terminalsTopologyByAbbrev)
     .filter((topology) => topology.TerminalMates.length > 0)
-    .map((topology) => {
-      const terminal = getTerminalByAbbrevOrThrow(
+    .flatMap((topology) => {
+      const terminal = getTerminalByAbbrev(
         terminalsData,
         topology.TerminalAbbrev
       );
 
-      return {
-        terminalId: terminal.TerminalID,
-        terminalName: terminal.TerminalName,
-        terminalSlug: terminal.TerminalAbbrev.toLowerCase(),
-        destinations: topology.TerminalMates.map((arrivingAbbrev) => {
-          const arrivingTerminal = getTerminalByAbbrevOrThrow(
-            terminalsData,
-            arrivingAbbrev
-          );
+      if (!terminal) {
+        return [];
+      }
 
-          return {
+      const destinations = topology.TerminalMates.flatMap((arrivingAbbrev) => {
+        const arrivingTerminal = getTerminalByAbbrev(
+          terminalsData,
+          arrivingAbbrev
+        );
+
+        if (!arrivingTerminal) {
+          return [];
+        }
+
+        return [
+          {
             terminalId: arrivingTerminal.TerminalID,
             terminalName: arrivingTerminal.TerminalName,
             terminalSlug: arrivingTerminal.TerminalAbbrev.toLowerCase(),
-          };
-        }),
-      } satisfies TerminalCardData;
+          },
+        ];
+      });
+
+      if (destinations.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          terminalId: terminal.TerminalID,
+          terminalName: terminal.TerminalName,
+          terminalSlug: terminal.TerminalAbbrev.toLowerCase(),
+          destinations,
+        } satisfies TerminalCardData,
+      ];
     })
     .sort((left, right) => left.terminalName.localeCompare(right.terminalName));
 
@@ -75,21 +90,10 @@ export const selectTotalCarouselItems = (
   terminalsTopologyByAbbrev: TerminalsTopologyByAbbrev
 ) => selectTerminalCards(terminalsData, terminalsTopologyByAbbrev).length + 1;
 
-const getTerminalByAbbrevOrThrow = (
+const getTerminalByAbbrev = (
   terminalsData: TerminalsLookupData,
   terminalAbbrev: string
-) => {
-  const terminal =
-    terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()];
-
-  if (!terminal) {
-    throw new Error(
-      `Missing canonical terminal for abbreviation "${terminalAbbrev}"`
-    );
-  }
-
-  return terminal;
-};
+) => terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()] ?? null;
 
 export const useTerminalCardData = (): TerminalCardData[] => {
   const terminalsData = useTerminalsData();

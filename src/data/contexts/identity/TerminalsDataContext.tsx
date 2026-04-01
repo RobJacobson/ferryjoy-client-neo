@@ -6,6 +6,7 @@ import {
   deriveTerminalsData,
   TERMINALS_ASSET,
   TERMINALS_STORAGE_KEY,
+  TERMINALS_STORAGE_SCHEMA,
   type TerminalsDerivedData,
   type TerminalsSnapshot,
 } from "./datasets";
@@ -38,6 +39,7 @@ export const TerminalsDataProvider = ({ children }: PropsWithChildren) => {
   const value = useLayeredDataset({
     assetData: TERMINALS_ASSET,
     storageKey: TERMINALS_STORAGE_KEY,
+    storageSchema: TERMINALS_STORAGE_SCHEMA,
     convexData,
     derive: deriveTerminalsData,
   });

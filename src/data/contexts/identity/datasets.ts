@@ -1,6 +1,7 @@
 import terminalsAssetJson from "assets/data/terminals.json";
 import terminalsTopologyAssetJson from "assets/data/terminalsTopology.json";
 import vesselsAssetJson from "assets/data/vessels.json";
+import { z } from "zod";
 import { storageKv } from "@/shared/storage";
 import type { Terminal, TerminalTopology, Vessel } from "@/types";
 import { indexByString, indexByTrimmed, indexByUppercase } from "./lookup";
@@ -31,6 +32,37 @@ export const TERMINALS_TOPOLOGY_STORAGE_KEY = storageKv.makeKey({
   version: "v1",
   key: "terminalsTopology",
 });
+
+export const VESSELS_STORAGE_SCHEMA = z.array(
+  z.object({
+    VesselID: z.number(),
+    VesselName: z.string(),
+    VesselAbbrev: z.string(),
+    UpdatedAt: z.number().optional(),
+  })
+);
+
+export const TERMINALS_STORAGE_SCHEMA = z.array(
+  z.object({
+    TerminalID: z.number(),
+    TerminalName: z.string(),
+    TerminalAbbrev: z.string(),
+    IsPassengerTerminal: z.boolean().optional(),
+    Latitude: z.number().optional(),
+    Longitude: z.number().optional(),
+    UpdatedAt: z.number().optional(),
+  })
+);
+
+export const TERMINALS_TOPOLOGY_STORAGE_SCHEMA = z.array(
+  z.object({
+    TerminalAbbrev: z.string(),
+    TerminalMates: z.array(z.string()),
+    RouteAbbrevs: z.array(z.string()),
+    RouteAbbrevsByArrivingTerminal: z.record(z.string(), z.array(z.string())),
+    UpdatedAt: z.number().optional(),
+  })
+);
 
 export const deriveVesselsData = (data: VesselsSnapshot) => ({
   vesselsByAbbrev: indexByUppercase(data, (vessel) => vessel.VesselAbbrev),
