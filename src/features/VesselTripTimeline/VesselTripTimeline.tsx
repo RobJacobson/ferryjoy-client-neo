@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import { Text, View } from "@/components/ui";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useTerminalsData } from "@/data/contexts";
-import { selectTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
 import type { TimelineItem } from "./types";
@@ -30,7 +29,8 @@ export const VesselTripTimeline = ({
   const item = { trip, vesselLocation };
   const getTerminalName = useMemo(
     () => (terminalAbbrev: string) =>
-      selectTerminalNameByAbbrev(terminalsData, terminalAbbrev),
+      terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
+        ?.TerminalName ?? null,
     [terminalsData]
   );
   const renderState = getTimelineRenderState(

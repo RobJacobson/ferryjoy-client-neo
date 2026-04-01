@@ -4,7 +4,6 @@
 
 import { Text, View } from "@/components/ui";
 import { useTerminalsData } from "@/data/contexts";
-import { selectTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { toDisplayTime } from "@/shared/utils/dateConversions";
 import type { VesselTrip } from "@/types";
 
@@ -20,12 +19,13 @@ import type { VesselTrip } from "@/types";
  */
 export const VesselTripCardTitle = ({ trip }: { trip: VesselTrip }) => {
   const terminalsData = useTerminalsData();
-  const departingName = selectTerminalNameByAbbrev(
-    terminalsData,
-    trip.DepartingTerminalAbbrev
-  );
+  const departingName =
+    terminalsData.terminalsByAbbrev[trip.DepartingTerminalAbbrev.toUpperCase()]
+      ?.TerminalName ?? null;
   const arrivingName = trip.ArrivingTerminalAbbrev
-    ? selectTerminalNameByAbbrev(terminalsData, trip.ArrivingTerminalAbbrev)
+    ? (terminalsData.terminalsByAbbrev[
+        trip.ArrivingTerminalAbbrev.toUpperCase()
+      ]?.TerminalName ?? null)
     : null;
   const departTime = trip.ScheduledDeparture
     ? toDisplayTime(trip.ScheduledDeparture)

@@ -3,7 +3,7 @@ import { createContext, useContext, useRef, useState } from "react";
 
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
 
-export type FlyToOptions = {
+type FlyToOptions = {
   durationMs?: number;
 };
 

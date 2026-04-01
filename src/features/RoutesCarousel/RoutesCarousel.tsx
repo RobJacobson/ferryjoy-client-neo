@@ -9,8 +9,6 @@ import type { ComponentRef, RefObject } from "react";
 import { useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
 import type { View } from "@/components/ui";
-import type { TerminalCardData } from "@/data/terminalConnections";
-import { useTerminalCardData } from "@/data/terminalConnections";
 import { AnimatedList } from "@/features/AnimatedList";
 import { RouteCard } from "@/features/RoutesCarousel/RouteCard";
 import { RoutesCarouselLayout } from "@/features/RoutesCarousel/RoutesCarouselLayout";
@@ -18,6 +16,10 @@ import { routesCarouselAnimation } from "@/features/RoutesCarousel/routesCarouse
 import { TerminalCarouselNav } from "@/features/RoutesCarousel/TerminalCarouselNav";
 import type { RoutesCarouselRef } from "@/features/RoutesCarousel/types";
 import { useCardDimensions } from "@/features/RoutesCarousel/useCardDimensions";
+import {
+  type TerminalCardData,
+  useTerminalCardData,
+} from "./model/terminalCards";
 
 type RoutesCarouselProps = {
   ref: React.Ref<RoutesCarouselRef>;

@@ -22,5 +22,3 @@ export * from "./SelectedTerminalPairContext";
 export * from "./SelectedVesselContext";
 
 export * from "./SmoothedVesselLocationsContext";
-
-export * from "./WsDottieContext";

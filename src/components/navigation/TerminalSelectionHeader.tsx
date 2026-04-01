@@ -6,12 +6,7 @@
 
 import { useMemo } from "react";
 import { Text, View } from "@/components/ui";
-import {
-  useSelectedTerminalPair,
-  useTerminalsData,
-  useTerminalsTopologyData,
-} from "@/data/contexts";
-import { selectTerminalLocationByAbbrev } from "@/data/terminalLocations";
+import { useSelectedTerminalPair, useTerminalsData } from "@/data/contexts";
 
 // ============================================================================
 // Main component
@@ -20,7 +15,6 @@ import { selectTerminalLocationByAbbrev } from "@/data/terminalLocations";
 export const TerminalSelectionHeader = () => {
   const { selectedTerminalPair, isHydrated } = useSelectedTerminalPair();
   const terminalsData = useTerminalsData();
-  const topologyData = useTerminalsTopologyData();
 
   const title = useMemo((): string => {
     if (!isHydrated || selectedTerminalPair == null) {
@@ -28,32 +22,29 @@ export const TerminalSelectionHeader = () => {
     }
 
     if (selectedTerminalPair.kind === "pair") {
-      const from = selectTerminalLocationByAbbrev(
-        terminalsData,
-        topologyData,
-        selectedTerminalPair.from
-      );
-      const dest = selectTerminalLocationByAbbrev(
-        terminalsData,
-        topologyData,
-        selectedTerminalPair.dest
-      );
+      const from =
+        terminalsData.terminalsByAbbrev[
+          selectedTerminalPair.from.toUpperCase()
+        ];
+      const dest =
+        terminalsData.terminalsByAbbrev[
+          selectedTerminalPair.dest.toUpperCase()
+        ];
       if (!from || !dest) {
         return "Ferryjoy";
       }
       return `${from.TerminalName} to ${dest.TerminalName}`;
     }
 
-    const terminal = selectTerminalLocationByAbbrev(
-      terminalsData,
-      topologyData,
-      selectedTerminalPair.terminal
-    );
+    const terminal =
+      terminalsData.terminalsByAbbrev[
+        selectedTerminalPair.terminal.toUpperCase()
+      ];
     if (!terminal) {
       return "Ferryjoy";
     }
     return `${terminal.TerminalName} (all terminals)`;
-  }, [isHydrated, selectedTerminalPair, terminalsData, topologyData]);
+  }, [isHydrated, selectedTerminalPair, terminalsData]);
 
   return (
     <View className="flex-row items-center justify-center">

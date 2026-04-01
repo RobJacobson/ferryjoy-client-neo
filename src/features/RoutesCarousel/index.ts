@@ -40,6 +40,13 @@
  * See types.ts for RoutesCarouselRef imperative handle documentation.
  */
 
+export type { TerminalCardData } from "./model/terminalCards";
+export {
+  selectTerminalCards,
+  selectTotalCarouselItems,
+  useTerminalCardData,
+  useTotalCarouselItems,
+} from "./model/terminalCards";
 export { default as RoutesCarousel } from "./RoutesCarousel";
 export type { RoutesCarouselRef } from "./types";
 export { useCardDimensions } from "./useCardDimensions";

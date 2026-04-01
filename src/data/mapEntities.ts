@@ -12,9 +12,9 @@
 
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
 
-export type MapEntityKind = "terminal" | "route";
+type MapEntityKind = "terminal" | "route";
 
-export type MapEntity = {
+type MapEntity = {
   slug: string;
   kind: MapEntityKind;
   title: string;

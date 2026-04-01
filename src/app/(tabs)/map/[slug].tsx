@@ -13,7 +13,10 @@ import {
   useTerminalsTopologyData,
 } from "@/data/contexts";
 import { getMapEntity, MAP_NAV_CONFIG } from "@/data/mapEntities";
-import { selectTerminalLocationByAbbrev } from "@/data/terminalLocations";
+import {
+  type TerminalWithMates,
+  toTerminalWithMates,
+} from "@/data/terminalLocations";
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
 import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation";
 import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
@@ -26,7 +29,7 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
  * @returns Camera state targeting the terminal
  */
 const createTerminalCameraState = (
-  terminal: ReturnType<typeof selectTerminalLocationByAbbrev>
+  terminal: TerminalWithMates | null
 ): CameraState | null => {
   if (
     !terminal ||
@@ -52,7 +55,7 @@ const MapSlugPage = () => {
   const router = useRouter();
   const { clear, setAll } = useSelectedTerminalPair();
   const terminalsData = useTerminalsData();
-  const topologyData = useTerminalsTopologyData();
+  const { terminalsTopologyByAbbrev } = useTerminalsTopologyData();
 
   const slugStr = (slug || "").toString();
 
@@ -60,8 +63,11 @@ const MapSlugPage = () => {
   const entity = getMapEntity(slugStr);
 
   // If no entity found, check if it's an uppercase terminal abbreviation
-  const terminal = !entity
-    ? selectTerminalLocationByAbbrev(terminalsData, topologyData, slugStr)
+  const terminalIdentity = !entity
+    ? (terminalsData.terminalsByAbbrev[slugStr.toUpperCase()] ?? null)
+    : null;
+  const terminal = terminalIdentity
+    ? toTerminalWithMates(terminalsTopologyByAbbrev, terminalIdentity)
     : null;
 
   const terminalMates = terminal?.TerminalMates ?? [];

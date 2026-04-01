@@ -3,10 +3,13 @@ import { Stack, useRouter } from "expo-router";
 import { type ComponentRef, useRef } from "react";
 import { useSharedValue } from "react-native-reanimated";
 import { Button, Text, View } from "@/components/ui";
-import { useTotalCarouselItems } from "@/data/terminalConnections";
 import { Background, ParallaxProvider } from "@/features/Background";
-import type { RoutesCarouselRef } from "@/features/RoutesCarousel";
-import { RoutesCarousel, useCardDimensions } from "@/features/RoutesCarousel";
+import {
+  RoutesCarousel,
+  type RoutesCarouselRef,
+  useCardDimensions,
+  useTotalCarouselItems,
+} from "@/features/RoutesCarousel";
 
 export default function Home() {
   const router = useRouter();

@@ -5,7 +5,6 @@
 import { useMemo } from "react";
 import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
-import { selectTerminalNameByAbbrev } from "@/data/terminalLocations";
 import { useNowMs } from "@/shared/hooks";
 import {
   getStaticVesselTimelineRenderState,
@@ -52,8 +51,11 @@ export const useVesselTimelineViewModel = ({
   } = useConvexVesselTimeline();
   const segments = useMemo(
     () =>
-      buildSegmentsFromBoundaryEvents(mergedEvents, (terminalAbbrev) =>
-        selectTerminalNameByAbbrev(terminalsData, terminalAbbrev)
+      buildSegmentsFromBoundaryEvents(
+        mergedEvents,
+        (terminalAbbrev) =>
+          terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
+            ?.TerminalName ?? null
       ),
     [mergedEvents, terminalsData]
   );

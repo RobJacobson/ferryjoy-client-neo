@@ -8,7 +8,7 @@ import {
   type VesselPing,
 } from "@/types";
 
-export type VesselPingsByVesselId = Record<number, VesselPing[]>;
+type VesselPingsByVesselId = Record<number, VesselPing[]>;
 
 /**
  * Type definition for the Convex Vessel Pings context value
@@ -41,13 +41,6 @@ const ConvexVesselPingsContext = createContext<
  * This component fetches the latest vessel ping collections from Convex,
  * transforms them into domain values,
  * and provides this data to child components through the context.
- *
- * @example
- * ```tsx
- * <ConvexVesselPingsProvider>
- *   <App />
- * </ConvexVesselPingsProvider>
- * ```
  *
  * @param props - Component props
  * @param props.children - Child components that will have access to the vessel pings data
@@ -108,15 +101,6 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
  *
  * Provides vessel pings data with consistent loading and error states.
  * Must be used within a ConvexVesselPingsProvider component.
- *
- * @example
- * ```tsx
- * const { vesselPings, isLoading, error } = useConvexVesselPings();
- * if (isLoading) return <LoadingSpinner />;
- * if (error) return <ErrorMessage error={error} />;
- * const vessel123Pings = vesselPings[123];
- * return <VesselPingsList pings={vessel123Pings} />;
- * ```
  *
  * @returns Object with vessel pings, loading state, and error state
  * @throws Error if used outside of ConvexVesselPingsProvider
