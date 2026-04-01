@@ -7,8 +7,8 @@
 import type { ComponentRef, RefObject } from "react";
 import { BlurView } from "@/components/BlurView";
 import { Button, Text, View } from "@/components/ui";
-import type { TerminalCardData } from "@/data/terminalConnections";
 import { useDestinationNavigation } from "@/shared/hooks";
+import type { TerminalCardData } from "./model/terminalCards";
 
 type RouteCardProps = {
   blurTargetRef: RefObject<ComponentRef<typeof View> | null>;

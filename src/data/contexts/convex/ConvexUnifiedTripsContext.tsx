@@ -5,8 +5,7 @@
  * a single Record<key, UnifiedTrip>. Each key maps to at most one scheduled trip,
  * one active trip, and one completed trip (active and completed are mutually exclusive).
  *
- * Supports direct trips only (backend filter). For indirect trips A→C, use
- * resolveIndirectToSegments with a separate query for indirect scheduled trips.
+ * Supports direct trips only (backend filter).
  */
 
 import { api } from "convex/_generated/api";
@@ -32,7 +31,7 @@ import {
 // Types
 // ============================================================================
 
-export type UnifiedTrip = {
+type UnifiedTrip = {
   scheduledTrip?: ScheduledTrip;
   activeVesselTrip?: VesselTrip;
   completedVesselTrip?: VesselTrip;
@@ -45,10 +44,7 @@ export type UnifiedTrip = {
   scheduledDeparture: Date;
 };
 
-export type UnifiedTripRecord = Record<string, UnifiedTrip>;
-
-/** Canonical route abbrev for the Fauntleroy/Vashon/Southworth triangle. Backend normalizes all triangle routes to this. */
-export const SOUTH_SOUND_TRIANGLE_ROUTE_GROUP = "f-v-s";
+type UnifiedTripRecord = Record<string, UnifiedTrip>;
 
 // ============================================================================
 // Context
@@ -304,54 +300,6 @@ const buildUnifiedTripRecord = (
  * @param routeAbbrev - Route abbreviation (e.g. "sea-bi" or "f-v-s")
  * @returns Single-element array
  */
-export const expandRouteAbbrev = (routeAbbrev: string): string[] => [
-  routeAbbrev,
-];
-
-/**
- * Flattens and deduplicates route abbreviations for Convex queries.
- * Convex stores "f-v-s" normalized for triangle routes, so no expansion needed.
- *
- * @param routeAbbrevs - Array of internal route abbreviations
- * @returns Deduplicated array of route abbreviations
- */
-export const expandRouteAbbrevs = (routeAbbrevs: string[]): string[] => [
+const expandRouteAbbrevs = (routeAbbrevs: string[]): string[] => [
   ...new Set(routeAbbrevs),
 ];
-
-/**
- * Resolves an indirect trip A→C into direct segments [A→B, B→C].
- * Walks the NextKey chain from the direct segment (via DirectKey) to the target.
- * Each segment's actuals come from unifiedTrips[segment.Key].
- *
- * @param indirectTrip - Scheduled trip with TripType "indirect" and DirectKey
- * @param byKey - Map of all scheduled trips by Key (for NextKey traversal)
- * @param unifiedTrips - Unified trip record (direct-only) for actuals
- * @returns Array of UnifiedTrip, one per direct segment
- */
-export const resolveIndirectToSegments = (
-  indirectTrip: ScheduledTrip,
-  byKey: Map<string, ScheduledTrip>,
-  unifiedTrips: UnifiedTripRecord
-): UnifiedTrip[] => {
-  if (indirectTrip.TripType !== "indirect" || !indirectTrip.DirectKey) {
-    return [];
-  }
-
-  const startSegment = byKey.get(indirectTrip.DirectKey);
-  if (!startSegment) return [];
-
-  const targetTerminal = indirectTrip.ArrivingTerminalAbbrev;
-  const segments: ScheduledTrip[] = [];
-  let current: ScheduledTrip | undefined = startSegment;
-
-  while (current && !segments.some((s) => s.Key === current?.Key)) {
-    segments.push(current);
-    if (current.ArrivingTerminalAbbrev === targetTerminal) break;
-    current = current.NextKey ? byKey.get(current.NextKey) : undefined;
-  }
-
-  return segments
-    .map((seg) => unifiedTrips[seg.Key])
-    .filter((u): u is UnifiedTrip => u != null);
-};

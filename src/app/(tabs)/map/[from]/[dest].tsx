@@ -11,20 +11,17 @@
 import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
 import { useEffect } from "react";
 import {
-  useIdentityCatalog,
   useMapCameraController,
   useNavigationHistory,
   useSelectedTerminalPair,
+  useTerminalsData,
 } from "@/data/contexts";
 import { MAP_NAV_CONFIG } from "@/data/mapEntities";
-import {
-  getTerminalLocationByAbbrev,
-  type TerminalLocation,
-} from "@/data/terminalLocations";
 import type { CameraState } from "@/features/MapFeatures/MapComponent";
 import { useMapSlugCameraAnimation } from "@/features/MapFeatures/MapNavigation";
 import { MapScreenLayout } from "@/features/MapFeatures/MapScreen";
 import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomSheet";
+import type { Terminal } from "@/types";
 
 /**
  * Create camera state for a terminal at zoom level 9.
@@ -32,7 +29,7 @@ import { TerminalOrRouteBottomSheet } from "@/features/TerminalOrRouteBottomShee
  * @param terminal - Terminal location data
  * @returns Camera state targeting the terminal
  */
-const createTerminalCameraState = (terminal: TerminalLocation): CameraState => {
+const createTerminalCameraState = (terminal: Terminal): CameraState => {
   if (terminal.Longitude === undefined || terminal.Latitude === undefined) {
     throw new Error(
       `Terminal ${terminal.TerminalAbbrev} is missing map coordinates.`
@@ -55,8 +52,8 @@ const createTerminalCameraState = (terminal: TerminalLocation): CameraState => {
  * @returns Title string for the map view
  */
 const generateTitle = (
-  fromTerminal: TerminalLocation,
-  destTerminal: TerminalLocation | null
+  fromTerminal: Terminal,
+  destTerminal: Terminal | null
 ): string => {
   if (destTerminal) {
     return `${fromTerminal.TerminalName} to ${destTerminal.TerminalName}`;
@@ -65,7 +62,6 @@ const generateTitle = (
 };
 
 const MapTerminalPairPage = () => {
-  useIdentityCatalog();
   const { from, dest } = useLocalSearchParams<{
     from: string;
     dest?: string;
@@ -74,18 +70,21 @@ const MapTerminalPairPage = () => {
   const { previousPathname } = useNavigationHistory();
   const { setPair } = useSelectedTerminalPair();
   const pathname = usePathname();
+  const terminalsData = useTerminalsData();
 
   // Extract and normalize terminal abbreviations
   const fromAbbrev = (from || "").toString();
   const destAbbrev = dest ? dest.toString() : null;
 
   // Look up terminal locations (case-insensitive)
-  const fromTerminal = fromAbbrev
-    ? getTerminalLocationByAbbrev(fromAbbrev)
+  const fromTerminalIdentity = fromAbbrev
+    ? (terminalsData.terminalsByAbbrev[fromAbbrev.toUpperCase()] ?? null)
     : null;
-  const destTerminal = destAbbrev
-    ? getTerminalLocationByAbbrev(destAbbrev)
+  const destTerminalIdentity = destAbbrev
+    ? (terminalsData.terminalsByAbbrev[destAbbrev.toUpperCase()] ?? null)
     : null;
+  const fromTerminal = fromTerminalIdentity;
+  const destTerminal = destTerminalIdentity;
 
   // Create camera state for departing terminal at zoom 9 (null if terminal not found)
   const cameraState = fromTerminal

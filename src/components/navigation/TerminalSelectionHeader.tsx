@@ -6,16 +6,15 @@
 
 import { useMemo } from "react";
 import { Text, View } from "@/components/ui";
-import { useIdentityCatalog, useSelectedTerminalPair } from "@/data/contexts";
-import { getTerminalLocationByAbbrev } from "@/data/terminalLocations";
+import { useSelectedTerminalPair, useTerminalsData } from "@/data/contexts";
 
 // ============================================================================
 // Main component
 // ============================================================================
 
 export const TerminalSelectionHeader = () => {
-  useIdentityCatalog();
   const { selectedTerminalPair, isHydrated } = useSelectedTerminalPair();
+  const terminalsData = useTerminalsData();
 
   const title = useMemo((): string => {
     if (!isHydrated || selectedTerminalPair == null) {
@@ -23,20 +22,29 @@ export const TerminalSelectionHeader = () => {
     }
 
     if (selectedTerminalPair.kind === "pair") {
-      const from = getTerminalLocationByAbbrev(selectedTerminalPair.from);
-      const dest = getTerminalLocationByAbbrev(selectedTerminalPair.dest);
+      const from =
+        terminalsData.terminalsByAbbrev[
+          selectedTerminalPair.from.toUpperCase()
+        ];
+      const dest =
+        terminalsData.terminalsByAbbrev[
+          selectedTerminalPair.dest.toUpperCase()
+        ];
       if (!from || !dest) {
         return "Ferryjoy";
       }
       return `${from.TerminalName} to ${dest.TerminalName}`;
     }
 
-    const terminal = getTerminalLocationByAbbrev(selectedTerminalPair.terminal);
+    const terminal =
+      terminalsData.terminalsByAbbrev[
+        selectedTerminalPair.terminal.toUpperCase()
+      ];
     if (!terminal) {
       return "Ferryjoy";
     }
     return `${terminal.TerminalName} (all terminals)`;
-  }, [isHydrated, selectedTerminalPair]);
+  }, [isHydrated, selectedTerminalPair, terminalsData]);
 
   return (
     <View className="flex-row items-center justify-center">

@@ -9,8 +9,7 @@ export * from "./convex/ConvexVesselLocationsContext";
 export * from "./convex/ConvexVesselPingsContext";
 export * from "./convex/ConvexVesselTimelineContext";
 export * from "./convex/ConvexVesselTripsContext";
-// Export combined provider
-export * from "./IdentityContext";
+export * from "./identity";
 
 export * from "./MapCameraControllerContext";
 
@@ -23,5 +22,3 @@ export * from "./SelectedTerminalPairContext";
 export * from "./SelectedVesselContext";
 
 export * from "./SmoothedVesselLocationsContext";
-
-export * from "./WsDottieContext";

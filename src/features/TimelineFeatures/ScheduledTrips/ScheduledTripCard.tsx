@@ -6,7 +6,7 @@
 import React from "react";
 import { TripCard } from "@/components/TripCard";
 import { CardTitle, Text, View } from "@/components/ui";
-import { useIdentityCatalog } from "@/data/contexts";
+import { useVesselsData } from "@/data/contexts";
 import type { VesselLocation, VesselTrip } from "@/types";
 import { ScheduledTripTimeline } from "./ScheduledTripTimeline";
 import type { ScheduledTripJourney, Segment } from "./types";
@@ -46,8 +46,6 @@ export const ScheduledTripCard = ({
   vesselTripByKeys,
   heldTrip,
 }: ScheduledTripCardProps) => {
-  useIdentityCatalog();
-
   return (
     <TripCard
       cardClassName="pt-2 pb-10 overflow-visible"
@@ -82,7 +80,7 @@ const ScheduledTripRouteHeader = ({
   segments: Segment[];
   vesselAbbrev: string;
 }) => {
-  const { vesselsByAbbrev } = useIdentityCatalog();
+  const { vesselsByAbbrev } = useVesselsData();
   const vesselName = vesselsByAbbrev[vesselAbbrev.toUpperCase()]?.VesselName;
 
   return (

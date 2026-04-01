@@ -16,7 +16,6 @@ import {
   NavigationHistoryProvider,
   SelectedTerminalPairProvider,
   SelectedVesselProvider,
-  WsDottieProvider,
 } from "@/data/contexts";
 import { NAV_THEME } from "@/lib/theme";
 
@@ -47,13 +46,11 @@ export const Providers = ({ children }: PropsWithChildren) => {
               <NavigationHistoryProvider>
                 <MapStateProvider>
                   <MapCameraControllerProvider>
-                    <WsDottieProvider>
-                      <SelectedTerminalPairProvider>
-                        <SelectedVesselProvider>
-                          <ConvexProvider>{children}</ConvexProvider>
-                        </SelectedVesselProvider>
-                      </SelectedTerminalPairProvider>
-                    </WsDottieProvider>
+                    <SelectedTerminalPairProvider>
+                      <SelectedVesselProvider>
+                        <ConvexProvider>{children}</ConvexProvider>
+                      </SelectedVesselProvider>
+                    </SelectedTerminalPairProvider>
                   </MapCameraControllerProvider>
                 </MapStateProvider>
               </NavigationHistoryProvider>

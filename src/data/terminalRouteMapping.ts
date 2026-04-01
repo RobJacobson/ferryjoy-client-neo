@@ -1,63 +1,66 @@
 /**
- * Terminal-to-route mapping helpers backed by the derived topology snapshot.
+ * Resolve schedule-query route abbreviations from the current terminal
+ * selection.
  */
 
+import {
+  type TerminalsTopologyDataContextValue,
+  useTerminalsTopologyData,
+} from "@/data/contexts/identity";
 import type { SelectedTerminalPair } from "@/data/contexts/SelectedTerminalPairContext";
-import { readIdentityCatalog } from "@/data/identity";
 
 const DEFAULT_ROUTE_ABBREVS = ["sea-bi"];
 
-/**
- * Returns route abbreviations for a departing terminal and optional arriving
- * terminal.
- *
- * @param departingTerminalAbbrev - Departure terminal abbreviation
- * @param arrivingTerminalAbbrev - Optional destination terminal abbreviation
- * @returns Array of route abbreviations
- */
-export const getRouteAbbrevs = (
-  departingTerminalAbbrev: string,
-  arrivingTerminalAbbrev?: string
-): string[] => {
-  const topology =
-    readIdentityCatalog().terminalsTopologyByAbbrev[
-      departingTerminalAbbrev.toUpperCase()
-    ];
-
-  if (!topology) {
-    return [];
-  }
-
-  if (!arrivingTerminalAbbrev) {
-    return topology.RouteAbbrevs;
-  }
-
-  return (
-    topology.RouteAbbrevsByArrivingTerminal[
-      arrivingTerminalAbbrev.toUpperCase()
-    ] ?? []
-  );
-};
+type TerminalsTopologyByAbbrev =
+  TerminalsTopologyDataContextValue["terminalsTopologyByAbbrev"];
 
 /**
- * Derive route abbreviations from the selected terminal pair state.
+ * Resolve the route abbreviations that the schedules screen should query for
+ * the current terminal selection.
  *
- * @param selectedTerminalPair - Current selection from navigation state
- * @returns Matching route abbreviations or the default route selection
+ * - `null` falls back to the default home route.
+ * - `{ kind: "all" }` returns every route that departs from that terminal.
+ * - `{ kind: "pair" }` returns only the route(s) between the two terminals.
  */
-export const getRouteAbbrevsForSelection = (
+export const selectRouteAbbrevsForSelection = (
+  terminalsTopologyByAbbrev: TerminalsTopologyByAbbrev,
   selectedTerminalPair: SelectedTerminalPair
 ): string[] => {
   if (!selectedTerminalPair) {
     return DEFAULT_ROUTE_ABBREVS;
   }
 
-  if (selectedTerminalPair.kind === "pair") {
-    return getRouteAbbrevs(
-      selectedTerminalPair.from,
-      selectedTerminalPair.dest
-    );
+  const departingTopology =
+    terminalsTopologyByAbbrev[
+      (
+        selectedTerminalPair.kind === "pair"
+          ? selectedTerminalPair.from
+          : selectedTerminalPair.terminal
+      ).toUpperCase()
+    ];
+
+  if (!departingTopology) {
+    return [];
   }
 
-  return getRouteAbbrevs(selectedTerminalPair.terminal, undefined);
+  if (selectedTerminalPair.kind === "all") {
+    return departingTopology.RouteAbbrevs;
+  }
+
+  return (
+    departingTopology.RouteAbbrevsByArrivingTerminal[
+      selectedTerminalPair.dest.toUpperCase()
+    ] ?? []
+  );
+};
+
+export const useRouteAbbrevsForSelection = (
+  selectedTerminalPair: SelectedTerminalPair
+): string[] => {
+  const { terminalsTopologyByAbbrev } = useTerminalsTopologyData();
+
+  return selectRouteAbbrevsForSelection(
+    terminalsTopologyByAbbrev,
+    selectedTerminalPair
+  );
 };
