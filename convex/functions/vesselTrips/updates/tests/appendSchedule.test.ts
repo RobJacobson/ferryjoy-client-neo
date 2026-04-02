@@ -4,6 +4,114 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { appendFinalSchedule } from "../appendSchedule";
 
 describe("appendFinalSchedule", () => {
+  it("prefers the exact next scheduled trip from the prior trip context during rollover", async () => {
+    const previousScheduledTrip = makeScheduledTrip({
+      Key: "CHE--2026-03-13--09:30--MUK-CLI",
+      NextKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      NextDepartingTime: ms("2026-03-13T11:00:00-07:00"),
+    });
+    const delayedNextTrip = makeScheduledTrip({
+      Key: "CHE--2026-03-13--11:00--CLI-MUK",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      DepartingTime: ms("2026-03-13T11:00:00-07:00"),
+      NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const laterTrip = makeScheduledTrip({
+      Key: "CHE--2026-03-13--12:30--CLI-MUK",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const ctx = createTestActionCtx({
+      scheduledTripByKey: new Map([
+        [previousScheduledTrip.Key, previousScheduledTrip],
+        [delayedNextTrip.Key, delayedNextTrip],
+      ]),
+      inferredScheduledTrip: laterTrip,
+    });
+    const existingTrip = makeTrip({
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      Key: previousScheduledTrip.Key,
+      ScheduledDeparture: previousScheduledTrip.DepartingTime,
+      NextKey: delayedNextTrip.Key,
+      NextScheduledDeparture: delayedNextTrip.DepartingTime,
+    });
+    const baseTrip = makeTrip({
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: undefined,
+      Key: undefined,
+      SailingDay: undefined,
+      ScheduledDeparture: undefined,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T11:08:00-07:00"),
+    });
+
+    const enriched = await appendFinalSchedule(ctx as never, baseTrip, existingTrip);
+
+    expect(enriched.Key).toBe(delayedNextTrip.Key);
+    expect(enriched.ScheduledDeparture).toBe(delayedNextTrip.DepartingTime);
+    expect(enriched.ArrivingTerminalAbbrev).toBe(
+      delayedNextTrip.ArrivingTerminalAbbrev
+    );
+    expect(enriched.NextKey).toBe(delayedNextTrip.NextKey);
+    expect(enriched.NextScheduledDeparture).toBe(
+      delayedNextTrip.NextDepartingTime
+    );
+  });
+
+  it("falls back to the first surviving trip after the previous scheduled departure when NextKey is unavailable", async () => {
+    const rolloverTrip = makeScheduledTrip({
+      Key: "CHE--2026-03-13--11:00--CLI-MUK",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      DepartingTime: ms("2026-03-13T11:00:00-07:00"),
+      NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const laterTrip = makeScheduledTrip({
+      Key: "CHE--2026-03-13--13:00--CLI-MUK",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      DepartingTime: ms("2026-03-13T13:00:00-07:00"),
+    });
+    const ctx = createTestActionCtx({
+      rolloverScheduledTrip: rolloverTrip,
+      inferredScheduledTrip: laterTrip,
+    });
+    const existingTrip = makeTrip({
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      Key: "CHE--2026-03-13--09:30--MUK-CLI",
+      ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      NextKey: undefined,
+      NextScheduledDeparture: undefined,
+    });
+    const baseTrip = makeTrip({
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: undefined,
+      Key: undefined,
+      SailingDay: undefined,
+      ScheduledDeparture: undefined,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T11:08:00-07:00"),
+    });
+
+    const enriched = await appendFinalSchedule(ctx as never, baseTrip, existingTrip);
+
+    expect(enriched.Key).toBe(rolloverTrip.Key);
+    expect(enriched.ScheduledDeparture).toBe(rolloverTrip.DepartingTime);
+    expect(enriched.ArrivingTerminalAbbrev).toBe(
+      rolloverTrip.ArrivingTerminalAbbrev
+    );
+  });
+
   it("infers the next trip from schedule when a docked trip has no key", async () => {
     const scheduledTrip = makeScheduledTrip({
       Key: "CHE--2026-03-13--07:00--ORI-LOP",
@@ -77,14 +185,25 @@ type TestActionCtx = {
 
 const createTestActionCtx = (options: {
   inferredScheduledTrip?: ConvexScheduledTrip | null;
-  scheduledTripByKey?: ConvexScheduledTrip | null;
+  rolloverScheduledTrip?: ConvexScheduledTrip | null;
+  scheduledTripByKey?: Map<string, ConvexScheduledTrip>;
 }): TestActionCtx => ({
   runQuery: async (_ref, args) => {
+    if (args && "key" in args) {
+      return args.key && options.scheduledTripByKey
+        ? options.scheduledTripByKey.get(String(args.key)) ?? null
+        : null;
+    }
+
+    if (args && "previousScheduledDeparture" in args) {
+      return options.rolloverScheduledTrip ?? null;
+    }
+
     if (args && "arrivalTime" in args) {
       return options.inferredScheduledTrip ?? null;
     }
 
-    return options.scheduledTripByKey ?? null;
+    return null;
   },
 });
 

@@ -79,7 +79,7 @@ processVesselTrips (entry point)
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ResolvedVesselLocation` using explicit `start` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
-| `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key plus dock-time inference when the feed lags |
+| `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key plus dock-time inference that prefers exact next-trip continuity from the completed trip |
 | `tripEquality.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality utilities used to avoid unnecessary writes |
 | `shared/tripIdentity.ts` | `deriveTripIdentity` — canonical `Key` / `SailingDay` / start-ready derivation shared by live locations and trip updates |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
@@ -116,6 +116,10 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 **Behavior**:
 1. Complete the current trip immediately on arrival via `buildCompletedTrip`: set `TripEnd`, compute durations from the real arrival time (`ArriveDest` when available), and actualize same-trip at-sea predictions before persistence.
 2. Start the replacement trip via `buildTrip(ctx, currLocation, tripToComplete, true, events, shouldRunPredictionFallback)` with `tripStart=true` for `Prev*` context and deterministic schedule lookup by Key or dock-time schedule inference.
+   Dock-time inference prefers, in order:
+   - the exact `NextKey` already linked from the completed trip
+   - the first surviving scheduled trip after the completed trip's `ScheduledDeparture`
+   - arrival-time lookup only when no prior-trip schedule context exists
 3. The replacement trip's `TripStart` equals the completed trip's `TripEnd`.
 4. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
 5. Insert completed prediction records from the already-finalized completed trip via PredictionService.
@@ -292,7 +296,7 @@ Trip orchestration code builds the fully-correct trip object first, then delegat
 
 ### Event-Driven Lookups
 
-- `appendFinalSchedule`: Event-driven when a trip starts, its key changes, or a docked trip still needs inferred schedule identity. Reuses existing schedule fields when the key matches and can infer the next trip directly from schedule when the feed lags.
+- `appendFinalSchedule`: Event-driven when a trip starts, its key changes, or a docked trip still needs inferred schedule identity. Reuses existing schedule fields when the key matches. When the feed lags after arrival, it infers the replacement trip by preferring exact schedule continuity from the completed trip and only falls back to arrival-time lookup for first-seen docked vessels without prior-trip context.
 
 ---
 
@@ -376,7 +380,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | Call Type | Function | When |
 |-----------|----------|------|
 | Query | `getActiveTrips` | Once at start |
-| Query | `getScheduledTripByKey` / `getNextScheduledTripForVesselAtTerminal` | Per vessel, when a trip starts, a computed Key changes, or a docked trip needs inferred schedule identity |
+| Query | `getScheduledTripByKey` / `getNextScheduledTripForVesselAtTerminalAfterDeparture` / `getNextScheduledTripForVesselAtTerminal` | Per vessel, when a trip starts, a computed Key changes, or a docked trip needs inferred schedule identity |
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs (batch when 2+ specs) |
 | Mutation | `completeAndStartNewTrip` | Per vessel, on trip boundary |
 | Mutation | `upsertVesselTripsBatch` | Once if has active upserts |
@@ -390,7 +394,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 ### Optimizations
 
 - **Schedule reuse**: `appendFinalSchedule` reuses existing schedule-derived fields when the key matches, avoiding redundant lookups.
-- **Dock-time inference**: When the feed lags after arrival, `appendFinalSchedule` infers the next direct scheduled trip for the vessel and terminal across the current and next sailing day.
+- **Dock-time inference**: When the feed lags after arrival, `appendFinalSchedule` first tries to stay on the exact next scheduled trip linked from the completed trip, then falls back to the first direct scheduled trip after the completed trip's scheduled departure, and only uses arrival-time lookup for docked trips that have no usable prior-trip schedule context.
 - **Batch model loading**: `computePredictions` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
 - **Batch upserts**: Active trips are batched and upserted together in `upsertVesselTripsBatch`.
 - **Event-gated predictions**: Expensive ML operations only run when a real trip start is observed or when the vessel departs dock, not every tick.

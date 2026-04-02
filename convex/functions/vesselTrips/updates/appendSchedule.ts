@@ -28,15 +28,7 @@ export const appendFinalSchedule = async (
 ): Promise<ConvexVesselTrip> => {
   const inferredScheduledTrip =
     baseTrip.AtDock && !baseTrip.LeftDock && !baseTrip.Key
-      ? await ctx.runQuery(
-          internal.functions.scheduledTrips.queries
-            .getNextScheduledTripForVesselAtTerminal,
-          {
-            vesselAbbrev: baseTrip.VesselAbbrev,
-            departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
-            arrivalTime: baseTrip.TimeStamp,
-          }
-        )
+      ? await inferDockedTripFromSchedule(ctx, baseTrip, existingTrip)
       : null;
 
   if (inferredScheduledTrip) {
@@ -86,4 +78,68 @@ export const appendFinalSchedule = async (
     NextScheduledDeparture:
       scheduledTrip?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };
+};
+
+/**
+ * Infer schedule identity for a docked trip that does not yet have a key.
+ *
+ * Rollover cases prefer continuity from the previously scheduled trip so late
+ * arrivals stay attached to the delayed "next" trip instead of skipping ahead
+ * to a later trip whose scheduled departure is after the observed arrival.
+ * First-seen docked vessels without prior trip context fall back to a
+ * best-effort lookup from the current arrival time.
+ *
+ * @param ctx - Convex action context for scheduled-trip lookups
+ * @param baseTrip - Docked trip still missing schedule identity
+ * @param existingTrip - Previous trip context when available
+ * @returns Matching scheduled trip, or `null` when no candidate is found
+ */
+const inferDockedTripFromSchedule = async (
+  ctx: ActionCtx,
+  baseTrip: ConvexVesselTrip,
+  existingTrip: ConvexVesselTrip | undefined
+) => {
+  if (existingTrip?.NextKey) {
+    // Best case: the completed trip already knows its exact scheduled successor.
+    const exactNextTrip = await ctx.runQuery(
+      internal.functions.scheduledTrips.queries.getScheduledTripByKey,
+      { key: existingTrip.NextKey }
+    );
+
+    if (
+      exactNextTrip &&
+      exactNextTrip.DepartingTerminalAbbrev === baseTrip.DepartingTerminalAbbrev
+    ) {
+      return exactNextTrip;
+    }
+  }
+
+  if (existingTrip?.ScheduledDeparture !== undefined) {
+    // Late-service fallback: stay on the next trip after the completed trip's
+    // scheduled departure, even if that departure time is already in the past.
+    const rolloverMatch = await ctx.runQuery(
+      internal.functions.scheduledTrips.queries
+        .getNextScheduledTripForVesselAtTerminalAfterDeparture,
+      {
+        vesselAbbrev: baseTrip.VesselAbbrev,
+        departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
+        previousScheduledDeparture: existingTrip.ScheduledDeparture,
+      }
+    );
+
+    if (rolloverMatch) {
+      return rolloverMatch;
+    }
+  }
+
+  // First-seen docked vessels have no prior schedule context, so fall back to
+  // the first scheduled trip still ahead of the observed dock timestamp.
+  return ctx.runQuery(
+    internal.functions.scheduledTrips.queries.getNextScheduledTripForVesselAtTerminal,
+    {
+      vesselAbbrev: baseTrip.VesselAbbrev,
+      departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
+      arrivalTime: baseTrip.TimeStamp,
+    }
+  );
 };

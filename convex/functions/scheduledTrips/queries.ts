@@ -327,6 +327,79 @@ export const getNextScheduledTripForVesselAtTerminal = internalQuery({
   },
 });
 
+/**
+ * Find the next direct scheduled trip for a vessel leaving a terminal after a
+ * known prior scheduled departure.
+ *
+ * Used during trip rollover after a late arrival so the system can keep the
+ * vessel on the delayed "next" trip instead of skipping ahead to a later trip
+ * whose scheduled departure happens to be after the observed arrival time.
+ *
+ * @param ctx - Convex context
+ * @param args.vesselAbbrev - Vessel abbreviation
+ * @param args.departingTerminalAbbrev - Current dock terminal abbreviation
+ * @param args.previousScheduledDeparture - Scheduled departure of the trip that
+ * just completed
+ * @returns Matching scheduled trip, or null if none found across the current or next sailing day
+ */
+export const getNextScheduledTripForVesselAtTerminalAfterDeparture =
+  internalQuery({
+    args: {
+      vesselAbbrev: v.string(),
+      departingTerminalAbbrev: v.string(),
+      previousScheduledDeparture: v.number(),
+    },
+    returns: v.union(scheduledTripSchema, v.null()),
+    handler: async (ctx, args) => {
+      try {
+        const currentSailingDay = getSailingDay(
+          new Date(args.previousScheduledDeparture)
+        );
+        const nextSailingDay = addDays(currentSailingDay, 1);
+        const directTrips = (
+          await Promise.all(
+            [currentSailingDay, nextSailingDay].map((sailingDay) =>
+              ctx.db
+                .query("scheduledTrips")
+                .withIndex("by_vessel_sailing_day_trip_type", (q) =>
+                  q
+                    .eq("VesselAbbrev", args.vesselAbbrev)
+                    .eq("SailingDay", sailingDay)
+                    .eq("TripType", "direct")
+                )
+                .collect()
+            )
+          )
+        ).flat();
+
+        const matchingTrip = directTrips
+          .filter(
+            (trip) =>
+              // Use the schedule sequence, not observed arrival time, so a
+              // delayed "next" trip is not skipped after a late arrival.
+              trip.DepartingTerminalAbbrev === args.departingTerminalAbbrev &&
+              trip.DepartingTime > args.previousScheduledDeparture
+          )
+          .sort((a, b) => a.DepartingTime - b.DepartingTime)[0];
+
+        return matchingTrip ? stripConvexMeta(matchingTrip) : null;
+      } catch (error) {
+        throw new ConvexError({
+          message:
+            "Failed to find next scheduled trip after prior departure for vessel at terminal",
+          code: "QUERY_FAILED",
+          severity: "error",
+          details: {
+            vesselAbbrev: args.vesselAbbrev,
+            departingTerminalAbbrev: args.departingTerminalAbbrev,
+            previousScheduledDeparture: args.previousScheduledDeparture,
+            error: String(error),
+          },
+        });
+      }
+    },
+  });
+
 const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
