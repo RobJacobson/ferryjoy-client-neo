@@ -26,6 +26,36 @@ export const appendFinalSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
+  const inferredScheduledTrip =
+    baseTrip.AtDock && !baseTrip.LeftDock && !baseTrip.Key
+      ? await ctx.runQuery(
+          internal.functions.scheduledTrips.queries
+            .getNextScheduledTripForVesselAtTerminal,
+          {
+            vesselAbbrev: baseTrip.VesselAbbrev,
+            departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
+            arrivalTime: baseTrip.TimeStamp,
+          }
+        )
+      : null;
+
+  if (inferredScheduledTrip) {
+    return {
+      ...baseTrip,
+      ArrivingTerminalAbbrev:
+        baseTrip.ArrivingTerminalAbbrev ??
+        inferredScheduledTrip.ArrivingTerminalAbbrev,
+      Key: inferredScheduledTrip.Key,
+      SailingDay: inferredScheduledTrip.SailingDay,
+      ScheduledDeparture:
+        baseTrip.ScheduledDeparture ?? inferredScheduledTrip.DepartingTime,
+      NextKey: inferredScheduledTrip.NextKey ?? baseTrip.NextKey,
+      NextScheduledDeparture:
+        inferredScheduledTrip.NextDepartingTime ??
+        baseTrip.NextScheduledDeparture,
+    };
+  }
+
   // If the trip key is not present, we cannot perform the lookup
   const tripKey = baseTrip.Key ?? null;
   if (!tripKey) {

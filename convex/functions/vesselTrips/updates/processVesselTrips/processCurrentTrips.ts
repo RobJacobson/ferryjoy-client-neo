@@ -410,7 +410,7 @@ const buildCurrentTripResult = async (
       ctx,
       transition.currLocation,
       transition.existingTrip,
-      transition.events.shouldStartTrip,
+      false,
       transition.events,
       shouldRunPredictionFallback
     ),

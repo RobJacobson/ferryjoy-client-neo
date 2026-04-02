@@ -60,31 +60,45 @@ describe("baseTripFromLocation", () => {
     expect(trip.SailingDay).toBeUndefined();
   });
 
-  it("preserves the existing trip during dock hold updates", () => {
+  it("uses the completed trip end as TripStart when the next trip is created", () => {
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
-      NextKey: "NEXT-SEGMENT",
-      TimeStamp: ms("2026-03-13T06:28:45-07:00"),
+      TripEnd: ms("2026-03-13T06:29:56-07:00"),
     });
     const currLocation = makeLocation({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      TimeStamp: ms("2026-03-13T06:30:05-07:00"),
+    });
+
+    const trip = baseTripFromLocation(currLocation, existingTrip, true);
+
+    expect(trip.DepartingTerminalAbbrev).toBe(
+      currLocation.DepartingTerminalAbbrev
+    );
+    expect(trip.TripStart).toBe(existingTrip.TripEnd);
+    expect(trip.PrevTerminalAbbrev).toBe(existingTrip.DepartingTerminalAbbrev);
+    expect(trip.PrevScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
+    expect(trip.PrevLeftDock).toBe(existingTrip.LeftDock);
+  });
+
+  it("keeps TripStart undefined for first-seen docked trips", () => {
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
       TimeStamp: ms("2026-03-13T06:29:56-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, existingTrip, false);
+    const trip = baseTripFromLocation(currLocation, undefined, false);
 
-    expect(trip.DepartingTerminalAbbrev).toBe(
-      existingTrip.DepartingTerminalAbbrev
-    );
-    expect(trip.ArrivingTerminalAbbrev).toBe(
-      existingTrip.ArrivingTerminalAbbrev
-    );
-    expect(trip.LeftDock).toBe(existingTrip.LeftDock);
-    expect(trip.NextKey).toBe(existingTrip.NextKey);
-    expect(trip.TimeStamp).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBeUndefined();
+    expect(trip.PrevTerminalAbbrev).toBeUndefined();
+    expect(trip.PrevScheduledDeparture).toBeUndefined();
+    expect(trip.PrevLeftDock).toBeUndefined();
   });
 });
 

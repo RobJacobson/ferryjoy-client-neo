@@ -129,6 +129,17 @@ detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.
 
+The active-trip lifecycle now follows the vessel's physical state more directly:
+
+- `at-dock`
+- `at-sea`
+
+When a vessel arrives at dock, the previous trip completes immediately and the
+next trip starts immediately. If the live feed lags on next-trip fields such as
+`ScheduledDeparture` or `ArrivingTerminalAbbrev`, the trip pipeline infers the
+next trip deterministically from the scheduled-trip backbone instead of holding
+the vessel in a separate waiting state.
+
 Trip processing remains intentionally stricter than vessel-location storage:
 only rows that resolve to passenger terminals participate in trip derivation.
 

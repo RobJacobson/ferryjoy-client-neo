@@ -52,13 +52,10 @@ export const detectTripEvents = (
 
   return {
     isFirstTrip: !existingTrip,
-    shouldStartTrip: tripInputs.didJustBecomeStartReady,
+    shouldStartTrip: false,
     isTripStartReady,
     isCompletedTrip: Boolean(
-      hasTripEvidence(existingTrip) &&
-        isTripStartReady &&
-        existingTrip?.DepartingTerminalAbbrev !==
-          currLocation.DepartingTerminalAbbrev
+      hasTripEvidence(existingTrip) && didJustArriveAtDock
     ),
     didJustArriveAtDock,
     didJustLeaveDock: tripInputs.didJustLeaveDock,

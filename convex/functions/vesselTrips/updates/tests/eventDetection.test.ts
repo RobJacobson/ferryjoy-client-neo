@@ -52,6 +52,7 @@ describe("detectTripEvents", () => {
     const events = detectTripEvents(existingTrip, currLocation);
 
     expect(events.didJustArriveAtDock).toBe(true);
+    expect(events.isCompletedTrip).toBe(true);
   });
 
   it("detects arrival even when the stored expected destination is stale", () => {
@@ -78,6 +79,34 @@ describe("detectTripEvents", () => {
     const events = detectTripEvents(existingTrip, currLocation);
 
     expect(events.didJustArriveAtDock).toBe(true);
+    expect(events.isCompletedTrip).toBe(true);
+  });
+
+  it("completes the trip on arrival even when the next-trip feed fields are missing", () => {
+    const existingTrip = makeTrip({
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: "ORI",
+      ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+      TripStart: ms("2026-03-13T04:33:00-07:00"),
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      ArriveDest: undefined,
+      AtDock: false,
+      TimeStamp: ms("2026-03-13T06:28:45-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      AtDock: true,
+      TimeStamp: ms("2026-03-13T06:29:56-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.isTripStartReady).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(true);
+    expect(events.isCompletedTrip).toBe(true);
   });
 
   it("does not infer departure from AtDock false without LeftDock", () => {

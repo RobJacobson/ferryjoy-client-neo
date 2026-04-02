@@ -9,7 +9,7 @@ import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 
-export type BaseTripMode = "start" | "dock_hold" | "continue";
+export type BaseTripMode = "start" | "continue";
 
 export type DockDepartureState = {
   leftDockTime: number | undefined;
@@ -28,7 +28,6 @@ export type DerivedTripInputs = {
   currentIsTripStartReady: boolean;
   leftDockTime: number | undefined;
   didJustLeaveDock: boolean;
-  didJustBecomeStartReady: boolean;
   previousCompletedTrip: ConvexVesselTrip | undefined;
 };
 
@@ -73,26 +72,6 @@ export const getDockDepartureState = (
     ),
   };
 };
-
-/**
- * Detect whether a pre-trip record has just gained enough feed data to become
- * a real trip while the vessel is still at dock.
- *
- * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Current vessel location from the live feed
- * @returns True when the vessel should transition from pre-trip to real trip
- */
-export const didTripJustBecomeStartReady = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
-): boolean =>
-  Boolean(
-    existingTrip &&
-      !existingTrip.TripStart &&
-      !existingTrip.ArrivingTerminalAbbrev &&
-      currLocation.ArrivingTerminalAbbrev &&
-      currLocation.AtDock
-  );
 
 /**
  * Normalize the shared inputs needed by event detection and base trip
@@ -144,10 +123,6 @@ export const deriveTripInputs = (
     currentIsTripStartReady: currentIdentity.isTripStartReady,
     leftDockTime,
     didJustLeaveDock,
-    didJustBecomeStartReady: didTripJustBecomeStartReady(
-      existingTrip,
-      currLocation
-    ),
     previousCompletedTrip: hasTripEvidence(existingTrip)
       ? existingTrip
       : undefined,
@@ -163,20 +138,12 @@ export const deriveTripInputs = (
  * @returns Explicit base-trip mode for this tick
  */
 export const determineBaseTripMode = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation,
+  _existingTrip: ConvexVesselTrip | undefined,
+  _currLocation: ResolvedVesselLocation,
   isTripStart: boolean
 ): BaseTripMode => {
   if (isTripStart) {
     return "start";
-  }
-
-  if (
-    hasTripEvidence(existingTrip) &&
-    existingTrip.DepartingTerminalAbbrev !==
-      currLocation.DepartingTerminalAbbrev
-  ) {
-    return "dock_hold";
   }
 
   return "continue";
