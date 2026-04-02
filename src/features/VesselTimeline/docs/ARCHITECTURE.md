@@ -52,6 +52,19 @@ Source:
 
 - [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 
+Backend layering for that query is now:
+
+- [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
+  is a thin public Convex entrypoint
+- [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
+  owns Convex table reads and schedule-backed query helpers
+- [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
+  owns row construction and row IDs
+- [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
+  owns active-row resolution
+- [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
+  owns final pure assembly from loaded inputs
+
 ### 2. The backend owns row construction
 
 The backend query now derives rows from normalized boundary events plus live
@@ -136,7 +149,13 @@ The render-state layer should not own:
   [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 - Backend read-model contract:
   [schemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/schemas.ts)
-- Backend row/view-model builder:
+- Backend query loaders:
+  [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
+- Backend row builder:
+  [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
+- Backend active-row resolver:
+  [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
+- Backend view-model assembler:
   [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
 - Backend query:
   [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)

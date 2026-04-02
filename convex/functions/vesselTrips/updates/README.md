@@ -68,8 +68,10 @@ processVesselTrips (entry point)
 
 `eventsScheduled`, `eventsActual`, and `eventsPredicted` are now the
 normalized persistence layer only. The public `VesselTimeline` read contract is
-built later in `convex/domain/vesselTimeline/viewModel.ts` as backend-owned
-rows plus `activeRowId`.
+built later in `convex/domain/vesselTimeline/rows.ts`,
+`convex/domain/vesselTimeline/activeRow.ts`, and
+`convex/domain/vesselTimeline/viewModel.ts` as backend-owned rows plus
+`activeRowId`.
 
 ### File Structure
 

@@ -14,6 +14,13 @@ The backend now composes the public timeline read model from those tables plus
 live trip/location state. The frontend is expected to consume backend-owned rows
 and `activeRowId`, not reconstruct rows or guess active attachment itself.
 
+The implementation boundary is now explicit:
+
+- `convex/functions/vesselTimeline/*` owns Convex entrypoints, table reads, and
+  query-time schedule lookups
+- `convex/domain/vesselTimeline/*` owns pure boundary-event, row, and
+  read-model logic over plain objects
+
 ## Overview
 
 `VesselTimeline` is modeled as a sequence of dock-boundary events:
@@ -157,17 +164,35 @@ Responsibilities:
 - build `eventsActual` rows
 - build `eventsPredicted` rows from trip state
 
+### `rows.ts`
+
+Builds backend-owned `at-dock` / `at-sea` rows from merged boundary events.
+
+Responsibilities:
+
+- build stable row IDs from trip identity
+- emit placeholder dock rows only when required
+- emit terminal-tail row metadata when the slice ends on an arrival
+
+### `activeRow.ts`
+
+Resolves backend-owned row attachment from live trip and vessel-location state.
+
+Responsibilities:
+
+- choose the active row from authoritative trip/location identity
+- use inferred docked trip keys only when live state is docked and keyless
+- never guess between same-terminal rows by proximity
+
 ### `viewModel.ts`
 
-Builds the public backend-owned timeline view model.
+Assembles the public backend-owned timeline view model from preloaded inputs.
 
 Responsibilities:
 
 - merge scheduled, actual, and predicted overlays by boundary key
-- build stable `at-dock` / `at-sea` rows keyed by trip identity
-- emit placeholder dock rows only when required
-- emit terminal-tail row metadata when the slice ends on an arrival
-- resolve backend-owned `activeRowId`
+- call `rows.ts` for row construction
+- call `activeRow.ts` for active-row resolution
 - return raw live vessel state needed for frontend rendering decisions
 
 ## Function Entrypoints
@@ -196,14 +221,23 @@ Responsibilities:
 
 ### `convex/functions/vesselTimeline/queries.ts`
 
-Timeline-facing read layer.
+Thin public timeline-facing read layer.
 
 Responsibilities:
 
-- return one backend-owned vessel/day view model
-- load live trip/location state needed for active attachment
-- resolve deterministic schedule lookups for docked-key inference and
-  terminal-tail next-trip identity
+- validate public query args
+- load query inputs through `loaders.ts`
+- hand plain inputs to the domain read-model builder
+
+### `convex/functions/vesselTimeline/loaders.ts`
+
+Convex-specific loader and schedule-lookup layer for the public query.
+
+Responsibilities:
+
+- read normalized event tables and live trip/location state
+- perform deterministic schedule lookups used by query-time row attachment
+- keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow
 
@@ -255,7 +289,11 @@ Frontend VesselTimeline
 3. `events/history.ts`
 4. `events/liveUpdates.ts`
 5. `normalizedEvents.ts`
-6. `convex/functions/vesselTimeline/actions.ts`
-7. `convex/functions/vesselTimeline/mutations.ts`
-8. `convex/functions/vesselTimeline/queries.ts`
+6. `rows.ts`
+7. `activeRow.ts`
+8. `viewModel.ts`
+9. `convex/functions/vesselTimeline/actions.ts`
+10. `convex/functions/vesselTimeline/mutations.ts`
+11. `convex/functions/vesselTimeline/loaders.ts`
+12. `convex/functions/vesselTimeline/queries.ts`
 9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

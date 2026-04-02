@@ -34,12 +34,15 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
+import type * as domain_vesselTimeline_activeRow from "../domain/vesselTimeline/activeRow.js";
 import type * as domain_vesselTimeline_events_history from "../domain/vesselTimeline/events/history.js";
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
 import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimeline/events/reseed.js";
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
+import type * as domain_vesselTimeline_rows from "../domain/vesselTimeline/rows.js";
+import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
@@ -111,6 +114,7 @@ import type * as functions_vesselTimeline_activeStateSchemas from "../functions/
 import type * as functions_vesselTimeline_actualEffects from "../functions/vesselTimeline/actualEffects.js";
 import type * as functions_vesselTimeline_eventRecordSchemas from "../functions/vesselTimeline/eventRecordSchemas.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
+import type * as functions_vesselTimeline_loaders from "../functions/vesselTimeline/loaders.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
 import type * as functions_vesselTimeline_predictedEffects from "../functions/vesselTimeline/predictedEffects.js";
 import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
@@ -145,6 +149,7 @@ import type * as shared_keys from "../shared/keys.js";
 import type * as shared_scheduleIdentity from "../shared/scheduleIdentity.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_time from "../shared/time.js";
+import type * as shared_tripIdentity from "../shared/tripIdentity.js";
 import type * as shared_vessels from "../shared/vessels.js";
 
 import type {
@@ -180,12 +185,15 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
+  "domain/vesselTimeline/activeRow": typeof domain_vesselTimeline_activeRow;
   "domain/vesselTimeline/events/history": typeof domain_vesselTimeline_events_history;
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;
   "domain/vesselTimeline/events/reseed": typeof domain_vesselTimeline_events_reseed;
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
+  "domain/vesselTimeline/rows": typeof domain_vesselTimeline_rows;
+  "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
@@ -257,6 +265,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTimeline/actualEffects": typeof functions_vesselTimeline_actualEffects;
   "functions/vesselTimeline/eventRecordSchemas": typeof functions_vesselTimeline_eventRecordSchemas;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
+  "functions/vesselTimeline/loaders": typeof functions_vesselTimeline_loaders;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
   "functions/vesselTimeline/predictedEffects": typeof functions_vesselTimeline_predictedEffects;
   "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;
@@ -291,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   "shared/scheduleIdentity": typeof shared_scheduleIdentity;
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/time": typeof shared_time;
+  "shared/tripIdentity": typeof shared_tripIdentity;
   "shared/vessels": typeof shared_vessels;
 }>;
 
