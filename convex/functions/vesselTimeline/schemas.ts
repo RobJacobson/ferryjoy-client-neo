@@ -9,7 +9,6 @@ import { boundaryEventTypeSchema } from "../eventsScheduled/schemas";
 import {
   type ConvexVesselTimelineLiveState,
   toDomainVesselTimelineLiveState,
-  vesselTimelineActiveIndicatorSchema,
   vesselTimelineLiveStateSchema,
 } from "./activeStateSchemas";
 
@@ -56,7 +55,6 @@ export const vesselTimelineViewModelSchema = v.object({
   ObservedAt: v.union(v.number(), v.null()),
   rows: v.array(vesselTimelineRowSchema),
   activeRowId: v.union(v.string(), v.null()),
-  activeIndicator: v.union(vesselTimelineActiveIndicatorSchema, v.null()),
   live: v.union(vesselTimelineLiveStateSchema, v.null()),
 });
 

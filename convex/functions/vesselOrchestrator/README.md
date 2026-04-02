@@ -168,7 +168,7 @@ now builds:
 
 - stable `at-dock` / `at-sea` rows keyed by trip identity
 - backend-owned `activeRowId`
-- compact active-indicator hints
+- raw live vessel state consumed by frontend rendering logic
 
 Detailed `VesselTimeline` backend architecture now lives in:
 

@@ -168,7 +168,7 @@ Responsibilities:
 - emit placeholder dock rows only when required
 - emit terminal-tail row metadata when the slice ends on an arrival
 - resolve backend-owned `activeRowId`
-- derive minimal active-indicator hint payloads
+- return raw live vessel state needed for frontend rendering decisions
 
 ## Function Entrypoints
 

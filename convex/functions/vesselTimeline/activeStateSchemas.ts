@@ -1,5 +1,5 @@
 /**
- * Defines live-state and active-indicator schemas for VesselTimeline.
+ * Defines the live-state schema for VesselTimeline.
  */
 
 import type { Infer } from "convex/values";
@@ -21,17 +21,8 @@ export const vesselTimelineLiveStateSchema = v.object({
   TimeStamp: v.optional(v.number()),
 });
 
-export const vesselTimelineActiveIndicatorSchema = v.object({
-  subtitle: v.optional(v.string()),
-  animate: v.boolean(),
-  speedKnots: v.number(),
-});
-
 export type ConvexVesselTimelineLiveState = Infer<
   typeof vesselTimelineLiveStateSchema
->;
-export type ConvexVesselTimelineActiveIndicator = Infer<
-  typeof vesselTimelineActiveIndicatorSchema
 >;
 
 /**
@@ -53,4 +44,3 @@ export const toDomainVesselTimelineLiveState = (
 export type VesselTimelineLiveState = ReturnType<
   typeof toDomainVesselTimelineLiveState
 >;
-export type VesselTimelineActiveIndicator = ConvexVesselTimelineActiveIndicator;

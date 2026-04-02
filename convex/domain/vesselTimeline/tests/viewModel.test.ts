@@ -234,7 +234,8 @@ describe("buildVesselTimelineViewModel", () => {
     });
 
     expect(viewModel.activeRowId).toBe("trip-2--at-dock");
-    expect(viewModel.activeIndicator?.subtitle).toBe("At dock MUK");
+    expect(viewModel.live?.AtDock).toBe(true);
+    expect(viewModel.live?.DepartingTerminalAbbrev).toBe("MUK");
   });
 
   it("follows the resolved trip key instead of guessing between same-terminal rows", () => {
@@ -392,10 +393,10 @@ describe("buildVesselTimelineViewModel", () => {
     });
 
     expect(viewModel.activeRowId).toBeNull();
-    expect(viewModel.activeIndicator).toBeNull();
+    expect(viewModel.live?.AtDock).toBe(true);
   });
 
-  it("builds sea indicator hints from live movement state", () => {
+  it("returns raw live movement state for frontend indicator derivation", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "WEN",
       SailingDay: "2026-03-25",
@@ -441,10 +442,11 @@ describe("buildVesselTimelineViewModel", () => {
     });
 
     expect(viewModel.activeRowId).toBe("trip-1--at-sea");
-    expect(viewModel.activeIndicator).toEqual({
-      subtitle: "12 kn · 4.2 mi to BBI",
-      animate: true,
-      speedKnots: 12,
+    expect(viewModel.live).toMatchObject({
+      AtDock: false,
+      ArrivingTerminalAbbrev: "BBI",
+      ArrivingDistance: 4.2,
+      Speed: 12,
     });
   });
 });

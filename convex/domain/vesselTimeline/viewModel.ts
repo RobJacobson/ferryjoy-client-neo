@@ -6,7 +6,6 @@ import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/sch
 import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
-import type { ConvexVesselTimelineActiveIndicator } from "../../functions/vesselTimeline/activeStateSchemas";
 import type {
   ConvexVesselTimelineRow,
   ConvexVesselTimelineRowEvent,
@@ -15,7 +14,6 @@ import type {
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import type { BoundaryEventType } from "../../shared/keys";
 
-const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 const BOUNDARY_KEY_SUFFIX_PATTERN = /--(?:dep|arv)-dock$/;
 
 type MergedTimelineBoundaryEvent = {
@@ -87,12 +85,6 @@ export const buildVesselTimelineViewModel = ({
     ObservedAt: location?.TimeStamp ?? activeTrip?.TimeStamp ?? null,
     rows,
     activeRowId,
-    activeIndicator:
-      live && activeRowId
-        ? buildActiveIndicator({
-            live,
-          })
-        : null,
     live,
   };
 };
@@ -446,72 +438,6 @@ const toTimelineLiveState = (
   ScheduledDeparture: location.ScheduledDeparture,
   TimeStamp: location.TimeStamp,
 });
-
-/**
- * Builds the minimal indicator hints returned with the view model.
- *
- * @param args - Live-state payload for the active vessel
- * @returns Minimal indicator hint payload
- */
-const buildActiveIndicator = ({
-  live,
-}: {
-  live: NonNullable<ConvexVesselTimelineViewModel["live"]>;
-}): ConvexVesselTimelineActiveIndicator => ({
-  subtitle: live.AtDock ? getDockSubtitle(live) : getSeaSubtitle(live),
-  animate: shouldAnimateSeaIndicator(live),
-  speedKnots: live.Speed ?? 0,
-});
-
-/**
- * Formats the dock subtitle for the active indicator.
- *
- * @param live - Live timeline state
- * @returns Dock subtitle text
- */
-const getDockSubtitle = (
-  live: NonNullable<ConvexVesselTimelineViewModel["live"]>
-) =>
-  live.DepartingTerminalAbbrev
-    ? `At dock ${live.DepartingTerminalAbbrev}`
-    : "At dock";
-
-/**
- * Formats the sea subtitle for the active indicator.
- *
- * @param live - Live timeline state
- * @returns Sea subtitle text
- */
-const getSeaSubtitle = (
-  live: NonNullable<ConvexVesselTimelineViewModel["live"]>
-) => {
-  const speed = live.Speed ?? 0;
-
-  if (live.ArrivingDistance === undefined) {
-    return `${speed.toFixed(0)} kn`;
-  }
-
-  const terminalPart = live.ArrivingTerminalAbbrev
-    ? ` to ${live.ArrivingTerminalAbbrev}`
-    : "";
-
-  return `${speed.toFixed(0)} kn · ${live.ArrivingDistance.toFixed(
-    1
-  )} mi${terminalPart}`;
-};
-
-/**
- * Determines whether the active indicator should animate.
- *
- * @param live - Live timeline state
- * @returns True when the vessel is moving at sea in service
- */
-const shouldAnimateSeaIndicator = (
-  live: NonNullable<ConvexVesselTimelineViewModel["live"]>
-) =>
-  live.InService !== false &&
-  live.AtDock !== true &&
-  (live.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
 
 /**
  * Sorts scheduled boundary events into stable timeline order.

@@ -46,8 +46,7 @@ That payload includes:
 
 - ordered backend-owned rows
 - `activeRowId`
-- compact active-indicator hints
-- compact live state for title and position calculations
+- raw live state for title and position calculations
 
 Source:
 
@@ -76,8 +75,7 @@ The frontend should not reconstruct dock/sea rows from raw boundary adjacency.
 The backend returns:
 
 - `activeRowId`
-- minimal active-indicator hints
-- compact live state
+- raw live state
 
 The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
 or terminal-tail fallback on its own.
@@ -91,6 +89,7 @@ The frontend render-state layer should continue to own:
 - terminal card geometry
 - active-indicator position within the chosen row
 - animation and scroll behavior
+- indicator subtitle / speed formatting
 
 The render-state layer should not own:
 
