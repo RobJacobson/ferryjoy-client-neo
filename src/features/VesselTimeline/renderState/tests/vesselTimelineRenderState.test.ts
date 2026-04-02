@@ -343,6 +343,51 @@ describe("getStaticVesselTimelineRenderState", () => {
     expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
   });
 
+  it("centers the dock indicator when the selected row starts in the future", () => {
+    const renderState = getRenderState(
+      [
+        makeSegment({
+          id: "arv-future--dep-future--dock",
+          segmentIndex: 0,
+          kind: "dock",
+          startEvent: makeBoundary({
+            Key: "arv-future",
+            EventType: "arv-dock",
+            TerminalAbbrev: "MUK",
+            TerminalDisplayName: "Mukilteo",
+            ScheduledDeparture: at(14, 35),
+            EventScheduledTime: at(14, 55),
+          }),
+          endEvent: makeBoundary({
+            Key: "dep-future",
+            EventType: "dep-dock",
+            TerminalAbbrev: "MUK",
+            TerminalDisplayName: "Mukilteo",
+            ScheduledDeparture: at(15, 4),
+            EventScheduledTime: at(15, 4),
+          }),
+          durationMinutes: 9,
+        }),
+      ],
+      null,
+      makeActiveState({
+        kind: "dock",
+        rowMatch: {
+          kind: "dock",
+          startEventKey: "arv-future",
+          endEventKey: "dep-future",
+        },
+        subtitle: "At dock MUK",
+        reason: "location_anchor",
+      }),
+      at(14, 22)
+    );
+
+    expect(renderState.activeIndicator?.rowId).toBe("arv-future--dep-future--dock");
+    expect(renderState.activeIndicator?.label).toBe("42m");
+    expect(renderState.activeIndicator?.positionPercent).toBe(0.5);
+  });
+
   it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
     const renderState = getRenderState(
       makeRoundTripSegments(),

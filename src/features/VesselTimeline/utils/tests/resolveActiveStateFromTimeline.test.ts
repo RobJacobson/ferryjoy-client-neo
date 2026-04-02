@@ -172,6 +172,58 @@ describe("resolveActiveStateFromTimeline", () => {
     });
     expect(resolved.ActiveState?.reason).toBe("location_anchor");
   });
+
+  it("ignores a schedule-matched dock row when its arrival time is still in the future", () => {
+    const resolved = resolveActiveStateFromTimeline({
+      segments: buildSegmentsFromBoundaryEvents(
+        [
+          makeEvent({
+            Key: "arv-current",
+            EventType: "arv-dock",
+            TerminalAbbrev: "MUK",
+            ScheduledDeparture: at(13, 0),
+            EventScheduledTime: at(13, 10),
+            EventActualTime: at(13, 12),
+          }),
+          makeEvent({
+            Key: "dep-current",
+            EventType: "dep-dock",
+            TerminalAbbrev: "MUK",
+            ScheduledDeparture: at(13, 30),
+            EventScheduledTime: at(13, 30),
+          }),
+          makeEvent({
+            Key: "arv-future",
+            EventType: "arv-dock",
+            TerminalAbbrev: "MUK",
+            ScheduledDeparture: at(14, 35),
+            EventScheduledTime: at(14, 55),
+          }),
+          makeEvent({
+            Key: "dep-future",
+            EventType: "dep-dock",
+            TerminalAbbrev: "MUK",
+            ScheduledDeparture: at(15, 4),
+            EventScheduledTime: at(15, 4),
+          }),
+        ],
+        (terminalAbbrev) => terminalAbbrev
+      ),
+      location: makeLocation({
+        AtDock: true,
+        DepartingTerminalAbbrev: "MUK",
+        ScheduledDeparture: at(15, 4),
+        TimeStamp: at(14, 22),
+      }),
+    });
+
+    expect(resolved.ActiveState?.rowMatch).toEqual({
+      kind: "dock",
+      startEventKey: "arv-current",
+      endEventKey: "dep-current",
+    });
+    expect(resolved.ActiveState?.reason).toBe("location_anchor");
+  });
 });
 
 const makeRoundTripEvents = (): MergedTimelineBoundaryEvent[] => [

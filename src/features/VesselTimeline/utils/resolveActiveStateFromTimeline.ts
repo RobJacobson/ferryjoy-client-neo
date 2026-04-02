@@ -142,7 +142,7 @@ const resolveLocationAnchoredState = (
     }
 
     const row =
-      findDockSegmentByScheduledDeparture(segments, location) ??
+      findUsableDockSegmentByScheduledDeparture(segments, location, observedAt) ??
       findNearestDockSegmentAtTerminal(
         segments,
         location.DepartingTerminalAbbrev,
@@ -183,6 +183,27 @@ const resolveLocationAnchoredState = (
   return null;
 };
 
+const findUsableDockSegmentByScheduledDeparture = (
+  segments: TimelineRowSegment[],
+  location: VesselLocation,
+  observedAt: number
+) => {
+  const matchedRow = findDockSegmentByScheduledDeparture(segments, location);
+  if (!matchedRow) {
+    return undefined;
+  }
+
+  const startDisplayTime = getDisplayTime(matchedRow.startEvent)?.getTime();
+  // A docked vessel can report the next departure before we have a trustworthy
+  // arrival boundary for that row. In that case, snapping to this schedule
+  // match would make the indicator sit on a future arrival marker.
+  if (startDisplayTime !== undefined && startDisplayTime > observedAt) {
+    return undefined;
+  }
+
+  return matchedRow;
+};
+
 const findDockSegmentByScheduledDeparture = (
   segments: TimelineRowSegment[],
   location: VesselLocation
@@ -206,18 +227,43 @@ const findNearestDockSegmentAtTerminal = (
   terminalAbbrev: string,
   observedAt: number
 ) =>
-  [...segments]
-    .filter(
+  getNearestDockSegment(
+    [...segments].filter(
+      (segment) =>
+        segment.kind === "dock" &&
+        segment.endEvent.TerminalAbbrev === terminalAbbrev &&
+        hasStartedByObservedAt(segment, observedAt)
+    ),
+    observedAt
+  ) ??
+  getNearestDockSegment(
+    [...segments].filter(
       (segment) =>
         segment.kind === "dock" &&
         segment.endEvent.TerminalAbbrev === terminalAbbrev
-    )
+    ),
+    observedAt
+  );
+
+const getNearestDockSegment = (
+  segments: TimelineRowSegment[],
+  observedAt: number
+) =>
+  segments
     .sort(
       (left, right) =>
         getSegmentWindowDistance(left, observedAt) -
         getSegmentWindowDistance(right, observedAt)
     )
     .at(0);
+
+const hasStartedByObservedAt = (
+  segment: TimelineRowSegment,
+  observedAt: number
+) => {
+  const startDisplayTime = getDisplayTime(segment.startEvent)?.getTime();
+  return startDisplayTime === undefined || startDisplayTime <= observedAt;
+};
 
 const findSeaSegmentByScheduledDeparture = (
   segments: TimelineRowSegment[],

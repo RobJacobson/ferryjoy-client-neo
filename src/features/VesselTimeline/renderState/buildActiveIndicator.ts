@@ -70,9 +70,11 @@ const getDistanceProgress = (
  * Maps the active segment to a 0–1 position for the timeline indicator dot.
  *
  * Sea segments use live distance when `ArrivingDistance` is present; otherwise
- * they fall back to display-time progress. Dock segments always use
- * display-time bounds, so late arrivals and predicted departures shift the
- * indicator within the schedule-sized row without changing row geometry.
+ * they fall back to display-time progress. Dock segments usually use
+ * display-time bounds, but fall back to a centered badge when the arrival
+ * boundary is missing or still in the future. That keeps an at-dock vessel
+ * from visually snapping onto a future-arrival marker when backend actuals
+ * are sparse.
  *
  * @param segment - Active semantic segment
  * @param liveState - Live state for sea progress
@@ -91,7 +93,32 @@ const getPositionPercent = (
         liveState.DepartingDistance,
         liveState.ArrivingDistance
       )
-    : getTimeProgress(segment.startEvent, segment.endEvent, now);
+    : segment.kind === "dock"
+      ? getDockPositionPercent(segment, now)
+      : getTimeProgress(segment.startEvent, segment.endEvent, now);
+
+/**
+ * Positioning for dock rows.
+ *
+ * When the row's arrival edge is untrustworthy, centering the indicator is
+ * less misleading than pinning it to the top of a card whose arrival time has
+ * not happened yet.
+ *
+ * @param segment - Active dock segment
+ * @param now - Current instant
+ * @returns Vertical position as a fraction of segment height
+ */
+const getDockPositionPercent = (
+  segment: Extract<VesselTimelineSegment, { kind: "dock" }>,
+  now: Date
+) => {
+  const startTime = getDisplayTime(segment.startEvent);
+  if (!startTime || startTime.getTime() > now.getTime()) {
+    return 0.5;
+  }
+
+  return getTimeProgress(segment.startEvent, segment.endEvent, now);
+};
 
 /**
  * Linear time progress between two segment boundary events using display-time

@@ -60,7 +60,8 @@ export const upsertActiveTrip = mutation({
  * Complete an active trip and start a new one
  * Performs two atomic operations:
  * 1. Insert the completed trip into completedVesselTrips
- * 2. Overwrite the active trip with new trip data
+ * 2. Delete the previous active trip row
+ * 3. Insert a fresh active trip row for the new trip
  *
  * Note: ML predictions are calculated in the action layer after trip creation
  * if both departing and arriving terminals are non-null
@@ -89,7 +90,8 @@ export const completeAndStartNewTrip = mutation({
         });
       }
 
-      // Replace the existing active row so the vessel keeps a stable active-trip id.
+      // Trip boundaries create a brand-new active trip row rather than
+      // preserving the previous document identity.
       const existingActive = await ctx.db
         .query("activeVesselTrips")
         .withIndex("by_vessel_abbrev", (q) =>
@@ -112,11 +114,12 @@ export const completeAndStartNewTrip = mutation({
       );
 
       // Prediction writes stay in the action layer so this mutation stays atomic.
-      await ctx.db.replace(existingActive._id, args.newTrip);
+      await ctx.db.delete(existingActive._id);
+      const activeTripId = await ctx.db.insert("activeVesselTrips", args.newTrip);
 
       return {
         completedId,
-        activeTripId: existingActive._id,
+        activeTripId,
       };
     } catch (error) {
       if (error instanceof ConvexError) {
