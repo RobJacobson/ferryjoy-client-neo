@@ -51,7 +51,11 @@ describe("appendFinalSchedule", () => {
       TimeStamp: ms("2026-03-13T11:08:00-07:00"),
     });
 
-    const enriched = await appendFinalSchedule(ctx as never, baseTrip, existingTrip);
+    const enriched = await appendFinalSchedule(
+      ctx as never,
+      baseTrip,
+      existingTrip
+    );
 
     expect(enriched.Key).toBe(delayedNextTrip.Key);
     expect(enriched.ScheduledDeparture).toBe(delayedNextTrip.DepartingTime);
@@ -103,7 +107,11 @@ describe("appendFinalSchedule", () => {
       TimeStamp: ms("2026-03-13T11:08:00-07:00"),
     });
 
-    const enriched = await appendFinalSchedule(ctx as never, baseTrip, existingTrip);
+    const enriched = await appendFinalSchedule(
+      ctx as never,
+      baseTrip,
+      existingTrip
+    );
 
     expect(enriched.Key).toBe(rolloverTrip.Key);
     expect(enriched.ScheduledDeparture).toBe(rolloverTrip.DepartingTime);
@@ -191,7 +199,7 @@ const createTestActionCtx = (options: {
   runQuery: async (_ref, args) => {
     if (args && "key" in args) {
       return args.key && options.scheduledTripByKey
-        ? options.scheduledTripByKey.get(String(args.key)) ?? null
+        ? (options.scheduledTripByKey.get(String(args.key)) ?? null)
         : null;
     }
 

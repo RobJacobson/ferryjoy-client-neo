@@ -7,4 +7,3 @@ export {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
 } from "./getVesselTimelineRenderState";
-export { resolveActiveSegmentIndex } from "./resolveActiveSegmentIndex";

@@ -7,9 +7,8 @@ The backend contract is now row-based:
 - backend owns active-row attachment
 - frontend should render backend-owned rows with minimal domain logic
 
-This document reflects the intended feature architecture after the backend
-hard-reset. At the moment of writing, the backend contract has landed and the
-frontend adaptation is the immediate follow-up.
+This document reflects the current feature architecture after the backend
+hard-reset and frontend migration to backend-owned rows.
 
 ## Public API
 
@@ -38,7 +37,7 @@ type VesselTimelineProps = {
 
 ### 1. Provider fetches one backend query result
 
-`ConvexVesselTimelineProvider` should load one query result:
+`ConvexVesselTimelineProvider` loads one query result:
 
 - `getVesselTimelineViewModel({ VesselAbbrev, SailingDay })`
 
@@ -46,6 +45,7 @@ That payload includes:
 
 - ordered backend-owned rows
 - `activeRowId`
+- `ObservedAt`
 - raw live state for title and position calculations
 
 Source:
@@ -69,6 +69,8 @@ Each row has:
 - `durationMinutes`
 
 The frontend should not reconstruct dock/sea rows from raw boundary adjacency.
+Terminal-tail is represented as one final backend-owned `at-dock` row, not a
+synthetic extra row added by the client.
 
 ### 3. The backend owns active attachment
 
@@ -79,6 +81,8 @@ The backend returns:
 
 The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
 or terminal-tail fallback on its own.
+When `activeRowId` is `null`, the frontend still renders rows but omits the
+active indicator.
 
 ### 4. The render-state layer stays presentation-focused
 
@@ -86,10 +90,12 @@ The frontend render-state layer should continue to own:
 
 - row layout sizing
 - labels and display copy
+- terminal-name shortening
 - terminal card geometry
 - active-indicator position within the chosen row
 - animation and scroll behavior
 - indicator subtitle / speed formatting
+- terminal-tail `"--"` label behavior
 
 The render-state layer should not own:
 

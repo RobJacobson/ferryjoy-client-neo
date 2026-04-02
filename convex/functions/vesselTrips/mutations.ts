@@ -115,7 +115,10 @@ export const completeAndStartNewTrip = mutation({
 
       // Prediction writes stay in the action layer so this mutation stays atomic.
       await ctx.db.delete(existingActive._id);
-      const activeTripId = await ctx.db.insert("activeVesselTrips", args.newTrip);
+      const activeTripId = await ctx.db.insert(
+        "activeVesselTrips",
+        args.newTrip
+      );
 
       return {
         completedId,

@@ -135,7 +135,8 @@ const inferDockedTripFromSchedule = async (
   // First-seen docked vessels have no prior schedule context, so fall back to
   // the first scheduled trip still ahead of the observed dock timestamp.
   return ctx.runQuery(
-    internal.functions.scheduledTrips.queries.getNextScheduledTripForVesselAtTerminal,
+    internal.functions.scheduledTrips.queries
+      .getNextScheduledTripForVesselAtTerminal,
     {
       vesselAbbrev: baseTrip.VesselAbbrev,
       departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,

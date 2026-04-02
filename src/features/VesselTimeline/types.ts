@@ -1,9 +1,8 @@
 /**
  * Shared types for the VesselTimeline feature.
  *
- * Describes the day-level render-state flow from backend semantic timeline
- * segments to `VesselTimelineRenderState`. See `docs/ARCHITECTURE.md` for
- * stage boundaries and data ownership.
+ * Describes the render-state boundary between backend-owned timeline rows and
+ * the presentation-only `src/components/timeline` renderer.
  */
 
 import type {
@@ -36,7 +35,7 @@ export type VesselTimelineStaticRenderState = {
   rowLayouts: Record<string, RowLayoutBounds>;
   terminalCards: TerminalCardGeometry[];
   contentHeightPx: number;
-  activeSegmentIndex: number;
+  activeRowIndex: number;
   layout: VesselTimelineLayoutConfig;
   theme: TimelineVisualTheme;
 };

@@ -160,7 +160,12 @@ const reconstructTerminalVisits = (
 
     if (
       openVisit &&
-      shouldCloseVisit(row, openVisit, currentTerminalSample, departureThresholdMiles)
+      shouldCloseVisit(
+        row,
+        openVisit,
+        currentTerminalSample,
+        departureThresholdMiles
+      )
     ) {
       openVisit.departedAt = row.TimeStamp;
       openVisit.departureReason = describeDepartureReason(
@@ -296,7 +301,7 @@ const getSampleForTerminal = (
  */
 const shouldCloseVisit = (
   row: ConvexHistoricVesselLocation,
-  openVisit: TerminalVisit,
+  _openVisit: TerminalVisit,
   currentTerminalSample: TerminalDistanceSample | undefined,
   departureThresholdMiles: number
 ) => {
@@ -475,7 +480,9 @@ const printReport = (
   console.log("");
 
   if (visits.length === 0) {
-    console.log("No terminal visits were inferred from the supplied thresholds.");
+    console.log(
+      "No terminal visits were inferred from the supplied thresholds."
+    );
     return;
   }
 

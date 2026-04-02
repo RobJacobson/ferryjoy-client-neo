@@ -142,7 +142,10 @@ async function updateVesselLocations(
 }
 
 export const getPassengerTerminalAbbrevs = (
-  terminals: ReadonlyArray<{ TerminalAbbrev: string; IsPassengerTerminal?: boolean }>
+  terminals: ReadonlyArray<{
+    TerminalAbbrev: string;
+    IsPassengerTerminal?: boolean;
+  }>
 ) =>
   new Set(
     terminals

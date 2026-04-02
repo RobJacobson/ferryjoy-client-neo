@@ -2,7 +2,6 @@
  * View-model hook for the VesselTimeline feature.
  */
 
-import { useMemo } from "react";
 import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
@@ -11,8 +10,6 @@ import {
   getVesselTimelineActiveIndicator,
 } from "../renderState";
 import type { VesselTimelineRenderState } from "../types";
-import { buildSegmentsFromBoundaryEvents } from "../utils/buildSegmentsFromBoundaryEvents";
-import { resolveActiveStateFromTimeline } from "../utils/resolveActiveStateFromTimeline";
 
 export type UseVesselTimelineViewModelResult = {
   isLoading: boolean;
@@ -23,8 +20,8 @@ export type UseVesselTimelineViewModelResult = {
 };
 
 /**
- * Builds the screen-level VesselTimeline state from Convex data and the
- * feature's render-state helpers.
+ * Builds the screen-level VesselTimeline state from the backend-owned row
+ * contract plus presentation-only render helpers.
  *
  * @param args - Hook inputs
  * @param args.now - Optional wall-clock override for deterministic rendering
@@ -43,36 +40,13 @@ export const useVesselTimelineViewModel = ({
   const {
     VesselAbbrev,
     SailingDay,
-    mergedEvents,
-    location,
+    rows,
+    activeRowId,
+    live,
     IsLoading,
     ErrorMessage,
     Retry,
   } = useConvexVesselTimeline();
-  const segments = useMemo(
-    () =>
-      buildSegmentsFromBoundaryEvents(
-        mergedEvents,
-        (terminalAbbrev) =>
-          terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
-            ?.TerminalName ?? null
-      ),
-    [mergedEvents, terminalsData]
-  );
-  const { Live: liveState, ActiveState: activeState } = useMemo(
-    () => resolveActiveStateFromTimeline({ segments, location }),
-    [segments, location]
-  );
-  const staticRenderState = useMemo(
-    () =>
-      getStaticVesselTimelineRenderState(
-        segments,
-        activeState,
-        undefined,
-        theme
-      ),
-    [activeState, segments, theme]
-  );
 
   if (IsLoading) {
     return {
@@ -94,7 +68,7 @@ export const useVesselTimelineViewModel = ({
     };
   }
 
-  if (segments.length === 0) {
+  if (rows.length === 0) {
     return {
       isLoading: false,
       error: null,
@@ -104,6 +78,17 @@ export const useVesselTimelineViewModel = ({
     };
   }
 
+  const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
+    terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
+      ?.TerminalName ?? null;
+  const staticRenderState = getStaticVesselTimelineRenderState(
+    rows,
+    activeRowId,
+    getTerminalNameByAbbrev,
+    undefined,
+    theme
+  );
+
   return {
     isLoading: false,
     error: null,
@@ -112,9 +97,9 @@ export const useVesselTimelineViewModel = ({
     renderState: {
       ...staticRenderState,
       activeIndicator: getVesselTimelineActiveIndicator({
-        segments,
-        activeState,
-        liveState,
+        rows,
+        activeRowId,
+        liveState: live,
         now: now ?? new Date(nowMs),
       }),
     },

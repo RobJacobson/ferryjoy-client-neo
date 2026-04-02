@@ -1,8 +1,8 @@
 import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
-import { getSailingDay } from "shared/time";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { getSailingDay } from "shared/time";
 
 /**
  * Fetch scheduled trips for a route and trip date (sailing day).
