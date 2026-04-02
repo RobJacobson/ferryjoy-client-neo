@@ -12,6 +12,7 @@ import {
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import type { VesselAbbrev } from "../../shared/identity";
+import { deriveTripIdentity } from "../../shared/tripIdentity";
 import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
 import { resolveTerminal, type TerminalIdentity } from "../terminals/resolver";
 
@@ -48,6 +49,7 @@ const vesselLocationBaseValidationFields = {
  */
 export const vesselLocationValidationFields = {
   ...vesselLocationBaseValidationFields,
+  Key: v.optional(v.string()),
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
 } as const;
@@ -133,6 +135,13 @@ export function toConvexVesselLocation(
     resolvedArrivingTerminal?.TerminalName ??
     rawArrivingTerminalName ??
     rawArrivingTerminalAbbrev;
+  const tripIdentity = deriveTripIdentity({
+    vesselAbbrev: resolvedVessel.VesselAbbrev,
+    departingTerminalAbbrev: DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: ArrivingTerminalAbbrev,
+    scheduledDepartureMs: optionalDateToEpochMs(dvl.ScheduledDeparture),
+  });
+  const scheduledDepartureMs = optionalDateToEpochMs(dvl.ScheduledDeparture);
 
   return {
     VesselID: dvl.VesselID,
@@ -152,10 +161,11 @@ export function toConvexVesselLocation(
     AtDock: dvl.AtDock,
     LeftDock: optionalDateToEpochMs(dvl.LeftDock),
     Eta: optionalDateToEpochMs(dvl.Eta),
-    ScheduledDeparture: optionalDateToEpochMs(dvl.ScheduledDeparture),
+    ScheduledDeparture: scheduledDepartureMs,
     RouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
     VesselPositionNum: dvl.VesselPositionNum ?? undefined,
     TimeStamp: dateToEpochMs(dvl.TimeStamp),
+    Key: tripIdentity.Key,
     DepartingDistance: getDistanceToTerminal(
       dvl.Latitude,
       dvl.Longitude,

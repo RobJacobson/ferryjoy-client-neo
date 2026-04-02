@@ -11,7 +11,8 @@ persists only three normalized tables:
 - `eventsPredicted`
 
 The frontend composes timeline structure and active state from those tables plus
-the current `vesselLocations` row.
+the current `vesselLocations` row, which can also carry the optional canonical
+trip `Key` for debugging and identity tracing.
 
 ## Overview
 

@@ -58,8 +58,9 @@ Responsibilities:
 - fetch vessel locations from WSF
 - load backend vessel/terminal identity snapshots once per tick
 - convert raw WSF payloads into `ResolvedVesselLocation`, including
-  resolved vessel identity plus terminal-or-marine-location fields derived
-  from the backend `terminals` table
+  resolved vessel identity, canonical optional `Key`, and
+  terminal-or-marine-location fields derived from the backend `terminals`
+  table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
 
@@ -80,6 +81,8 @@ Notes:
 - unknown future marine-location abbreviations are preserved for vessel-location
   continuity instead of failing ingestion
 - only passenger-terminal locations are forwarded into trip processing
+- passenger-terminal trip eligibility is intentionally simple set membership on
+  departing and optional arriving terminal abbreviations
 
 The orchestrator returns branch-level success flags:
 
@@ -100,6 +103,8 @@ The orchestrator returns branch-level success flags:
 Purpose:
 
 - store one current vessel-location record per vessel
+- keep the optional canonical trip `Key` alongside live vessel state when it is
+  safely derivable from the feed
 
 The orchestrator passes the full converted location batch to the
 `bulkUpsert` mutation, which atomically inserts or replaces the current
@@ -229,6 +234,7 @@ The timeline projection path is designed to stay lightweight:
 `vesselLocations`
 
 - current snapshot of live vessel state
+- includes optional derived trip identity via `Key`
 - used directly by the UI for current indicator state and warnings
 - may include non-passenger marine locations when the WSF vessel feed reports
   them

@@ -7,8 +7,7 @@
 
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { getSailingDay } from "shared/time";
-import { computeTripKey } from "./tripEquality";
+import { deriveTripIdentity } from "shared/tripIdentity";
 
 export type BaseTripMode = "start" | "dock_hold" | "continue";
 
@@ -26,6 +25,7 @@ export type DerivedTripInputs = {
   continuingKey: string | undefined;
   startSailingDay: string | undefined;
   continuingSailingDay: string | undefined;
+  currentIsTripStartReady: boolean;
   leftDockTime: number | undefined;
   didJustLeaveDock: boolean;
   didJustBecomeStartReady: boolean;
@@ -119,26 +119,29 @@ export const deriveTripInputs = (
     existingTrip,
     currLocation
   );
+  const currentIdentity = deriveTripIdentity({
+    vesselAbbrev: currLocation.VesselAbbrev,
+    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: currentArrivingTerminalAbbrev,
+    scheduledDepartureMs: currentScheduledDeparture,
+  });
+  const continuingIdentity = deriveTripIdentity({
+    vesselAbbrev: currLocation.VesselAbbrev,
+    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: continuingArrivingTerminalAbbrev,
+    scheduledDepartureMs: continuingScheduledDeparture,
+  });
 
   return {
     currentArrivingTerminalAbbrev,
     continuingArrivingTerminalAbbrev,
     currentScheduledDeparture,
     continuingScheduledDeparture,
-    startKey: computeTripKey(
-      currLocation.VesselAbbrev,
-      currLocation.DepartingTerminalAbbrev,
-      currentArrivingTerminalAbbrev,
-      currentScheduledDeparture
-    ),
-    continuingKey: computeTripKey(
-      currLocation.VesselAbbrev,
-      currLocation.DepartingTerminalAbbrev,
-      continuingArrivingTerminalAbbrev,
-      continuingScheduledDeparture
-    ),
-    startSailingDay: toSailingDay(currentScheduledDeparture),
-    continuingSailingDay: toSailingDay(continuingScheduledDeparture),
+    startKey: currentIdentity.Key,
+    continuingKey: continuingIdentity.Key,
+    startSailingDay: currentIdentity.SailingDay,
+    continuingSailingDay: continuingIdentity.SailingDay,
+    currentIsTripStartReady: currentIdentity.isTripStartReady,
     leftDockTime,
     didJustLeaveDock,
     didJustBecomeStartReady: didTripJustBecomeStartReady(
@@ -178,16 +181,3 @@ export const determineBaseTripMode = (
 
   return "continue";
 };
-
-/**
- * Convert a scheduled departure timestamp into a sailing day when present.
- *
- * @param scheduledDeparture - Scheduled departure timestamp in epoch milliseconds
- * @returns Sailing day string, or undefined when no scheduled departure exists
- */
-const toSailingDay = (
-  scheduledDeparture: number | undefined
-): string | undefined =>
-  scheduledDeparture === undefined
-    ? undefined
-    : getSailingDay(new Date(scheduledDeparture));

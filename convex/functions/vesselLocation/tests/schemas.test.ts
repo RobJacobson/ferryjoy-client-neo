@@ -8,6 +8,85 @@ import type { TerminalIdentity } from "functions/terminals/resolver";
 import { toConvexVesselLocation } from "../schemas";
 
 describe("toConvexVesselLocation", () => {
+  it("stamps the canonical key when arriving terminal and scheduled departure are present", () => {
+    const location = toConvexVesselLocation(
+      makeRawLocation({
+        ScheduledDeparture: new Date("2026-03-13T05:30:00-07:00"),
+      }),
+      [
+        {
+          VesselID: 2,
+          VesselName: "Chelan",
+          VesselAbbrev: "CHE",
+        },
+      ],
+      [
+        makeTerminal({
+          TerminalID: 1,
+          TerminalAbbrev: "ANA",
+          TerminalName: "Anacortes",
+        }),
+        makeTerminal({
+          TerminalID: 15,
+          TerminalAbbrev: "ORI",
+          TerminalName: "Orcas Island",
+        }),
+      ]
+    );
+
+    expect(location.Key).toBe("CHE--2026-03-13--05:30--ANA-ORI");
+  });
+
+  it("omits key when arriving terminal is missing", () => {
+    const location = toConvexVesselLocation(
+      makeRawLocation({
+        ArrivingTerminalID: undefined,
+        ArrivingTerminalAbbrev: undefined,
+        ArrivingTerminalName: undefined,
+        ScheduledDeparture: new Date("2026-03-13T05:30:00-07:00"),
+      }),
+      [
+        {
+          VesselID: 2,
+          VesselName: "Chelan",
+          VesselAbbrev: "CHE",
+        },
+      ],
+      [makeTerminal({ TerminalID: 1, TerminalAbbrev: "ANA" })]
+    );
+
+    expect(location.Key).toBeUndefined();
+  });
+
+  it("omits key when scheduled departure is missing", () => {
+    const location = toConvexVesselLocation(
+      makeRawLocation({
+        ScheduledDeparture: undefined,
+      }),
+      [
+        {
+          VesselID: 2,
+          VesselName: "Chelan",
+          VesselAbbrev: "CHE",
+        },
+      ],
+      [
+        makeTerminal({
+          TerminalID: 1,
+          TerminalAbbrev: "ANA",
+          TerminalName: "Anacortes",
+        }),
+        makeTerminal({
+          TerminalID: 15,
+          TerminalAbbrev: "ORI",
+          TerminalName: "Orcas Island",
+        }),
+      ]
+    );
+
+    expect(location.Key).toBeUndefined();
+  });
+
   it("falls back to raw marine-location values when the terminal abbrev is unknown", () => {
     const location = toConvexVesselLocation(
       makeRawLocation({
@@ -42,6 +121,7 @@ describe("toConvexVesselLocation", () => {
     expect(location.DepartingDistance).toBeUndefined();
     expect(location.ArrivingTerminalAbbrev).toBe("ORI");
     expect(location.ArrivingTerminalName).toBe("Orcas Island");
+    expect(location.Key).toBeUndefined();
   });
 });
 

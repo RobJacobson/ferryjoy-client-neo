@@ -13,7 +13,9 @@ This module synchronizes active vessel trips with live location data. It runs as
 4. `appendFinalSchedule` — deterministic schedule lookup by Key once the feed exposes `ScheduledDeparture` and `ArrivingTerminalAbbrev`
 5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
-**Centralized trip derivation**: `tripDerivation.ts` owns the shared per-tick derivation used by both `detectTripEvents` and `baseTripFromLocation`, including carry-forward protection, `SailingDay`/`Key` derivation, start-ready promotion, and dock-departure state.
+**Centralized trip identity**: `shared/tripIdentity.ts` owns canonical derivation of `Key`, `SailingDay`, and trip-start readiness. `tripDerivation.ts` uses that helper for both current-tick and carry-forward cases so event detection and base-trip construction stay aligned with `vesselLocations`.
+
+**Centralized trip derivation**: `tripDerivation.ts` owns the shared per-tick derivation used by both `detectTripEvents` and `baseTripFromLocation`, including carry-forward protection, start-ready promotion, and dock-departure state.
 
 **Centralized event detection**: `detectTripEvents` in `eventDetection.ts` computes the event bundle once per vessel update using the shared derived inputs from `tripDerivation.ts`.
 
@@ -71,14 +73,15 @@ processVesselTrips (entry point)
 | `processVesselTrips/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, and delegates to processing functions |
 | `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence, `trip_complete` prediction side effects, and boundary effect collection |
 | `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-persist `leave_dock` side effects, and boundary effect collection |
-| `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, `SailingDay`, `Key`, dock departure, start-ready promotion, and explicit base-trip mode selection |
+| `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, dock departure, start-ready promotion, and explicit base-trip mode selection |
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ResolvedVesselLocation` using explicit `start` / `dock_hold` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key |
-| `tripEquality.ts` | `computeTripKey`, `tripsAreEqual`, `deepEqual`, `compareTripFields` — trip key and equality utilities |
+| `tripEquality.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality utilities used to avoid unnecessary writes |
+| `shared/tripIdentity.ts` | `deriveTripIdentity` — canonical `Key` / `SailingDay` / start-ready derivation shared by live locations and trip updates |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
 **External dependencies**:
@@ -180,7 +183,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | Event | Detection Logic | Triggers |
 |-------|----------------|----------|
 | `isFirstTrip` | `!existingTrip` | Vessel's first appearance |
-| `isTripStartReady` | `currLocation.ScheduledDeparture && currLocation.ArrivingTerminalAbbrev` | Feed now exposes real next-trip data |
+| `isTripStartReady` | Derived by `deriveTripIdentity` from `ScheduledDeparture` + `ArrivingTerminalAbbrev` | Feed now exposes real next-trip data |
 | `shouldStartTrip` | `existingTrip && !existingTrip.TripStart && !existingTrip.ArrivingTerminalAbbrev && currLocation.ArrivingTerminalAbbrev && currLocation.AtDock` | Promote an observed pre-trip into a real trip |
 | `isCompletedTrip` | `hasTripEvidence && isTripStartReady && existingTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev` | Delayed trip boundary once the previous trip has real evidence (`LeftDock` or `ArriveDest`) |
 | `didJustArriveAtDock` | `existingTrip.LeftDock && !existingTrip.ArriveDest && currLocation.AtDock && currLocation.DepartingTerminalAbbrev !== existingTrip.DepartingTerminalAbbrev` | Vessel physically reached a new dock after a real sailing leg, even if the feed's expected-destination field is stale |
@@ -196,7 +199,7 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 ## VesselTrip vs VesselLocation
 
-**VesselLocation** is a point-in-time snapshot from REST/API feed: position, terminals, AtDock, Eta, TimeStamp, etc.
+**VesselLocation** is a point-in-time snapshot from REST/API feed: position, terminals, AtDock, Eta, TimeStamp, optional canonical `Key`, etc.
 
 **VesselTrip** maintains history across many updates. It adds:
 - `ArriveDest` — actual destination-arrival time when the vessel reaches the terminal
@@ -216,8 +219,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
 | **ArrivingTerminalAbbrev** | currLocation or existingTrip | `currLocation` when truthy; else `existingTrip` (regular updates only; never old trip at boundary) |
-| **Key** | Raw data | From shared trip derivation; start mode uses the current tick's `ScheduledDeparture`/`ArrivingTerminalAbbrev`, continuing mode uses carried-forward values when the feed omits them |
-| **SailingDay** | Raw data | Present if and only if `ScheduledDeparture` is known; derived from `getSailingDay(ScheduledDeparture)` using the same current-vs-carried-forward rule as `ScheduledDeparture` |
+| **Key** | Raw data | From shared trip identity derivation; start mode uses the current tick's `ScheduledDeparture`/`ArrivingTerminalAbbrev`, continuing mode uses carried-forward values when the feed omits them |
+| **SailingDay** | Raw data | Present if and only if `ScheduledDeparture` is known; derived by the same shared trip identity helper, using the same current-vs-carried-forward rule as `ScheduledDeparture` |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
 | **ArriveDest** | Arrival event | `currLocation.TimeStamp` only when the vessel has already left dock and is now docked at the destination terminal; carried until completion |
 | **TripStart** | Observed start event | Set only when the system observed the start transition. At delayed boundaries this is the previous trip's `ArriveDest`; for pre-trips it can be the tick where `ArrivingTerminalAbbrev` first becomes defined while the vessel is at dock. |
@@ -287,7 +290,7 @@ Trip orchestration code builds the fully-correct trip object first, then delegat
 
 ### SailingDay from Raw Data
 
-`SailingDay` is core business logic (WSF sailing day, 3 AM Pacific cutoff). It comes from raw data via `getSailingDay` in `baseTripFromLocation`, not from schedule lookup. Uses `ScheduledDeparture` only. Needed whether or not we have a schedule match.
+`SailingDay` is core business logic (WSF sailing day, 3 AM Pacific cutoff). It comes from raw data via the shared trip identity helper, not from schedule lookup. Uses `ScheduledDeparture` only. Needed whether or not we have a schedule match.
 
 ### Event-Driven Lookups
 

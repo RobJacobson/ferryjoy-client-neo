@@ -41,7 +41,8 @@ type VesselTimelineProps = {
 - scheduled boundary events
 - actual boundary events
 - predicted boundary events
-- the current vessel location
+- the current vessel location, including live state plus optional canonical
+  trip `Key`
 
 Source:
 
