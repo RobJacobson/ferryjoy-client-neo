@@ -1,35 +1,10 @@
+/**
+ * Defines live-state and active-indicator schemas for VesselTimeline.
+ */
+
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  optionalDateToEpochMs,
-  optionalEpochMsToDate,
-} from "../../shared/convertDates";
-
-export const vesselTimelineRowMatchKindSchema = v.union(
-  v.literal("dock"),
-  v.literal("sea")
-);
-
-export const vesselTimelineRowMatchSchema = v.object({
-  kind: vesselTimelineRowMatchKindSchema,
-  startEventKey: v.string(),
-  endEventKey: v.string(),
-});
-
-export const vesselTimelineActiveStateKindSchema = v.union(
-  v.literal("dock"),
-  v.literal("sea"),
-  v.literal("scheduled-fallback"),
-  v.literal("unknown")
-);
-
-export const vesselTimelineActiveStateReasonSchema = v.union(
-  v.literal("location_anchor"),
-  v.literal("open_actual_row"),
-  v.literal("scheduled_window"),
-  v.literal("fallback"),
-  v.literal("unknown")
-);
+import { optionalEpochMsToDate } from "../../shared/convertDates";
 
 export const vesselTimelineLiveStateSchema = v.object({
   VesselName: v.optional(v.string()),
@@ -46,58 +21,25 @@ export const vesselTimelineLiveStateSchema = v.object({
   TimeStamp: v.optional(v.number()),
 });
 
-export const vesselTimelineActiveStateSchema = v.object({
-  kind: vesselTimelineActiveStateKindSchema,
-  rowMatch: v.union(vesselTimelineRowMatchSchema, v.null()),
-  terminalTailEventKey: v.optional(v.string()),
+export const vesselTimelineActiveIndicatorSchema = v.object({
   subtitle: v.optional(v.string()),
   animate: v.boolean(),
   speedKnots: v.number(),
-  reason: vesselTimelineActiveStateReasonSchema,
 });
 
-export const vesselTimelineActiveStateSnapshotSchema = v.object({
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  ObservedAt: v.optional(v.number()),
-  Live: v.union(vesselTimelineLiveStateSchema, v.null()),
-  ActiveState: v.union(vesselTimelineActiveStateSchema, v.null()),
-});
-
-export type ConvexVesselTimelineRowMatch = Infer<
-  typeof vesselTimelineRowMatchSchema
->;
 export type ConvexVesselTimelineLiveState = Infer<
   typeof vesselTimelineLiveStateSchema
 >;
-export type ConvexVesselTimelineActiveState = Infer<
-  typeof vesselTimelineActiveStateSchema
->;
-export type ConvexVesselTimelineActiveStateSnapshot = Infer<
-  typeof vesselTimelineActiveStateSnapshotSchema
+export type ConvexVesselTimelineActiveIndicator = Infer<
+  typeof vesselTimelineActiveIndicatorSchema
 >;
 
-export const toConvexVesselTimelineLiveState = (live: {
-  VesselName?: string;
-  AtDock?: boolean;
-  InService?: boolean;
-  Speed?: number;
-  DepartingTerminalAbbrev?: string;
-  ArrivingTerminalAbbrev?: string;
-  DepartingDistance?: number;
-  ArrivingDistance?: number;
-  LeftDock?: Date;
-  Eta?: Date;
-  ScheduledDeparture?: Date;
-  TimeStamp?: Date;
-}): ConvexVesselTimelineLiveState => ({
-  ...live,
-  LeftDock: optionalDateToEpochMs(live.LeftDock),
-  Eta: optionalDateToEpochMs(live.Eta),
-  ScheduledDeparture: optionalDateToEpochMs(live.ScheduledDeparture),
-  TimeStamp: optionalDateToEpochMs(live.TimeStamp),
-});
-
+/**
+ * Converts a Convex live-state payload into the domain shape.
+ *
+ * @param live - Convex live-state payload with epoch timestamps
+ * @returns Domain live-state payload with `Date` instances
+ */
 export const toDomainVesselTimelineLiveState = (
   live: ConvexVesselTimelineLiveState
 ) => ({
@@ -108,19 +50,7 @@ export const toDomainVesselTimelineLiveState = (
   TimeStamp: optionalEpochMsToDate(live.TimeStamp),
 });
 
-export const toDomainVesselTimelineActiveStateSnapshot = (
-  snapshot: ConvexVesselTimelineActiveStateSnapshot
-) => ({
-  ...snapshot,
-  ObservedAt: optionalEpochMsToDate(snapshot.ObservedAt),
-  Live: snapshot.Live ? toDomainVesselTimelineLiveState(snapshot.Live) : null,
-});
-
-export type VesselTimelineRowMatch = ConvexVesselTimelineRowMatch;
-export type VesselTimelineActiveState = ConvexVesselTimelineActiveState;
 export type VesselTimelineLiveState = ReturnType<
   typeof toDomainVesselTimelineLiveState
 >;
-export type VesselTimelineActiveStateSnapshot = ReturnType<
-  typeof toDomainVesselTimelineActiveStateSnapshot
->;
+export type VesselTimelineActiveIndicator = ConvexVesselTimelineActiveIndicator;

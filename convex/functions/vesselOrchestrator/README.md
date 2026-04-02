@@ -34,11 +34,11 @@ The normalized `vesselTimeline` event tables exist to simplify that contract.
 
 Its purpose is:
 
-- provide one backend-owned vessel/day event feed for timeline rendering
+- provide the normalized persistence layer for timeline structure and overlays
 - separate timeline rendering needs from the heavier trip lifecycle tables
 - keep reconciliation and source-priority logic on the backend
-- let the frontend render from a small ordered boundary list instead of merging
-  multiple raw sources
+- support a backend-built row/view-model query instead of exposing raw event
+  tables as the public timeline contract
 
 The timeline event tables are not intended to replace `activeVesselTrips` or
 `completedVesselTrips`. Those tables still support trip lifecycle logic and
@@ -147,10 +147,11 @@ only rows that resolve to passenger terminals participate in trip derivation.
 
 Purpose:
 
-- maintain the minimal vessel/day boundary feed consumed by `VesselTimeline`
+- maintain the normalized boundary-event persistence layer used to build the
+  public `VesselTimeline` view model
 
 This remains intentionally smaller than the trip lifecycle pipeline. It stores
-only the fields needed to render a day timeline:
+only the boundary fields needed to derive a day timeline:
 
 - `Key`
 - `VesselAbbrev`
@@ -161,6 +162,13 @@ only the fields needed to render a day timeline:
 - `EventScheduledTime?`
 - `EventPredictedTime?`
 - `EventActualTime?`
+
+Those normalized rows are not the public query contract anymore. The backend
+now builds:
+
+- stable `at-dock` / `at-sea` rows keyed by trip identity
+- backend-owned `activeRowId`
+- compact active-indicator hints
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
@@ -201,8 +209,8 @@ WSF vessel location ticks
   -> project actual/predicted event updates
 
 Frontend VesselTimeline
-  -> query normalized vesselTimeline event tables for vessel/day
-  -> build dock/sea rows from ordered events
+  -> query backend-owned VesselTimeline view model
+  -> render backend-owned rows
 ```
 
 ## Error Isolation
@@ -216,7 +224,8 @@ The orchestrator isolates failures at the branch level.
   preserving branch-specific success flags and error reporting
 
 This matters because timeline projection now rides on the trip pipeline’s
-transition logic instead of re-deriving actuals from raw location ticks.
+transition logic instead of re-deriving actuals from raw location ticks, and
+the public timeline query now trusts that backend-owned model directly.
 
 ## Performance Characteristics
 
@@ -236,7 +245,7 @@ possible (`upsertVesselTripsBatch` and batched predicted-event sync).
 The timeline projection path is designed to stay lightweight:
 
 - no extra external fetches
-- no frontend-side source merging
+- no frontend-side source merging in the target architecture
 - updates are keyed to stable event identities derived from the trip segment key
 - unchanged event rows are not rewritten
 
@@ -258,9 +267,10 @@ The timeline projection path is designed to stay lightweight:
 
 `vesselTimeline` event tables
 
-- minimal read model for `VesselTimeline`
-- stores ordered boundary events for one vessel/day
-- fed by schedule seeding plus trip-driven actual/predicted projection
+- normalized persistence layer for `VesselTimeline`
+- store ordered boundary events for one vessel/day
+- feed the backend-owned row/view-model query
+- are fed by schedule seeding plus trip-driven actual/predicted projection
 
 ## Related Documentation
 

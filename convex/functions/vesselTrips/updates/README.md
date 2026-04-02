@@ -66,6 +66,11 @@ processVesselTrips (entry point)
             └─> eventsPredicted
 ```
 
+`eventsScheduled`, `eventsActual`, and `eventsPredicted` are now the
+normalized persistence layer only. The public `VesselTimeline` read contract is
+built later in `convex/domain/vesselTimeline/viewModel.ts` as backend-owned
+rows plus `activeRowId`.
+
 ### File Structure
 
 | File | Purpose |
@@ -288,7 +293,14 @@ The PredictionService now manages only post-persist prediction side effects:
 - Extraction and insertion of `completedPredictionRecords` for bulk insert
 - Backfill of previous trip's `AtDockDepartNext` and `AtSeaDepartNext` with actual departure time
 
-Trip orchestration code builds the fully-correct trip object first, then delegates post-persist prediction side effects to the PredictionService and separately emits timeline projection effects keyed to the canonical segment/boundary identities.
+Trip orchestration code builds the fully-correct trip object first, then
+delegates post-persist prediction side effects to the PredictionService and
+separately emits timeline projection effects keyed to the canonical
+segment/boundary identities.
+
+Those projected overlays no longer imply a public raw-event query surface. The
+timeline feature now treats them as backend inputs to the final row/view-model
+builder.
 
 ### SailingDay from Raw Data
 
@@ -365,7 +377,10 @@ The `PredictionService` manages post-persist prediction side effects through an 
 - Same-trip actuals are written onto trip objects before persistence
 - Prediction records are automatically extracted and inserted into database for completed predictions
 - Previous trip's depart-next predictions are backfilled with actual departure time when current trip leaves dock
-- `eventsActual` and `eventsPredicted` are refreshed from finalized trip state after the trip write succeeds
+- `eventsActual` and `eventsPredicted` are refreshed from finalized trip state
+  after the trip write succeeds
+- the final public `VesselTimeline` contract is derived later as stable
+  `at-dock` / `at-sea` rows plus `activeRowId`
 
 **Separation of Concerns**:
 - Trip processor (`processVesselTrips/processVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries

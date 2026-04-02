@@ -1,127 +1,81 @@
 /**
- * Defines the Convex schemas and conversion helpers shared by VesselTimeline.
+ * Defines the backend-owned VesselTimeline row and view-model schemas.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { optionalEpochMsToDate } from "../../shared/convertDates";
+import { boundaryEventTypeSchema } from "../eventsScheduled/schemas";
 import {
-  optionalDateToEpochMs,
-  optionalEpochMsToDate,
-} from "../../shared/convertDates";
-import { eventsActualSchema } from "../eventsActual/schemas";
-import {
-  boundaryEventTypeSchema,
-  eventsScheduledSchema,
-} from "../eventsScheduled/schemas";
-
-export const timelinePredictedBoundaryEventSchema = v.object({
-  Key: v.string(),
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-  EventPredictedTime: v.number(),
-});
-
-export const mergedTimelineBoundaryEventSchema = v.object({
-  Key: v.string(),
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-  EventType: boundaryEventTypeSchema,
-  EventScheduledTime: v.optional(v.number()),
-  EventPredictedTime: v.optional(v.number()),
-  EventActualTime: v.optional(v.number()),
-});
-
-export const vesselTimelineSegmentEventSchema = v.object({
-  Key: v.string(),
-  ScheduledDeparture: v.optional(v.number()),
-  TerminalAbbrev: v.optional(v.string()),
-  EventType: v.optional(boundaryEventTypeSchema),
-  TerminalDisplayName: v.optional(v.string()),
-  IsArrivalPlaceholder: v.optional(v.boolean()),
-  EventScheduledTime: v.optional(v.number()),
-  EventPredictedTime: v.optional(v.number()),
-  EventActualTime: v.optional(v.number()),
-});
+  type ConvexVesselTimelineLiveState,
+  toDomainVesselTimelineLiveState,
+  vesselTimelineActiveIndicatorSchema,
+  vesselTimelineLiveStateSchema,
+} from "./activeStateSchemas";
 
 export const vesselTimelinePlaceholderReasonSchema = v.union(
   v.literal("start-of-day"),
   v.literal("broken-seam")
 );
 
-export const vesselTimelineSegmentSchema = v.object({
-  id: v.string(),
-  segmentIndex: v.number(),
-  kind: v.union(v.literal("dock"), v.literal("sea")),
-  isTerminal: v.optional(v.boolean()),
+export const vesselTimelineRowKindSchema = v.union(
+  v.literal("at-dock"),
+  v.literal("at-sea")
+);
+
+export const vesselTimelineRowEdgeSchema = v.union(
+  v.literal("normal"),
+  v.literal("terminal-tail")
+);
+
+export const vesselTimelineRowEventSchema = v.object({
+  Key: v.string(),
+  ScheduledDeparture: v.number(),
+  TerminalAbbrev: v.string(),
+  EventType: boundaryEventTypeSchema,
+  IsArrivalPlaceholder: v.optional(v.boolean()),
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventActualTime: v.optional(v.number()),
+});
+
+export const vesselTimelineRowSchema = v.object({
+  rowId: v.string(),
+  tripKey: v.string(),
+  kind: vesselTimelineRowKindSchema,
+  rowEdge: vesselTimelineRowEdgeSchema,
   placeholderReason: v.optional(vesselTimelinePlaceholderReasonSchema),
-  startEvent: vesselTimelineSegmentEventSchema,
-  endEvent: vesselTimelineSegmentEventSchema,
+  startEvent: vesselTimelineRowEventSchema,
+  endEvent: vesselTimelineRowEventSchema,
   durationMinutes: v.number(),
 });
 
-export type ConvexTimelinePredictedBoundaryEvent = Infer<
-  typeof timelinePredictedBoundaryEventSchema
->;
-export type ConvexMergedTimelineBoundaryEvent = Infer<
-  typeof mergedTimelineBoundaryEventSchema
->;
-export type ConvexVesselTimelineSegmentEvent = Infer<
-  typeof vesselTimelineSegmentEventSchema
->;
-export type ConvexVesselTimelineSegment = Infer<
-  typeof vesselTimelineSegmentSchema
->;
-
-export const toDomainTimelinePredictedBoundaryEvent = (
-  event: ConvexTimelinePredictedBoundaryEvent
-) => ({
-  ...event,
-  ScheduledDeparture: new Date(event.ScheduledDeparture),
-  EventPredictedTime: new Date(event.EventPredictedTime),
+export const vesselTimelineViewModelSchema = v.object({
+  VesselAbbrev: v.string(),
+  SailingDay: v.string(),
+  ObservedAt: v.union(v.number(), v.null()),
+  rows: v.array(vesselTimelineRowSchema),
+  activeRowId: v.union(v.string(), v.null()),
+  activeIndicator: v.union(vesselTimelineActiveIndicatorSchema, v.null()),
+  live: v.union(vesselTimelineLiveStateSchema, v.null()),
 });
 
-export const toConvexVesselTimelineSegmentEvent = (event: {
-  Key: string;
-  ScheduledDeparture?: Date;
-  TerminalAbbrev?: string;
-  EventType?: "dep-dock" | "arv-dock";
-  TerminalDisplayName?: string;
-  IsArrivalPlaceholder?: boolean;
-  EventScheduledTime?: Date;
-  EventPredictedTime?: Date;
-  EventActualTime?: Date;
-}): ConvexVesselTimelineSegmentEvent => ({
-  ...event,
-  ScheduledDeparture: optionalDateToEpochMs(event.ScheduledDeparture),
-  EventScheduledTime: optionalDateToEpochMs(event.EventScheduledTime),
-  EventPredictedTime: optionalDateToEpochMs(event.EventPredictedTime),
-  EventActualTime: optionalDateToEpochMs(event.EventActualTime),
-});
+export type ConvexVesselTimelineRowEvent = Infer<
+  typeof vesselTimelineRowEventSchema
+>;
+export type ConvexVesselTimelineRow = Infer<typeof vesselTimelineRowSchema>;
+export type ConvexVesselTimelineViewModel = Infer<
+  typeof vesselTimelineViewModelSchema
+>;
 
-export const toDomainVesselTimelineSegmentEvent = (
-  event: ConvexVesselTimelineSegmentEvent
-) => ({
-  ...event,
-  ScheduledDeparture: optionalEpochMsToDate(event.ScheduledDeparture),
-  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
-  EventPredictedTime: optionalEpochMsToDate(event.EventPredictedTime),
-  EventActualTime: optionalEpochMsToDate(event.EventActualTime),
-});
-
-export const toDomainVesselTimelineSegment = (
-  segment: ConvexVesselTimelineSegment
-) => ({
-  ...segment,
-  startEvent: toDomainVesselTimelineSegmentEvent(segment.startEvent),
-  endEvent: toDomainVesselTimelineSegmentEvent(segment.endEvent),
-});
-
-export const toDomainMergedTimelineBoundaryEvent = (
-  event: ConvexMergedTimelineBoundaryEvent
+/**
+ * Converts a Convex row event into the domain shape.
+ *
+ * @param event - Convex row event with epoch timestamps
+ * @returns Domain row event with `Date` timestamps
+ */
+export const toDomainVesselTimelineRowEvent = (
+  event: ConvexVesselTimelineRowEvent
 ) => ({
   ...event,
   ScheduledDeparture: new Date(event.ScheduledDeparture),
@@ -130,17 +84,41 @@ export const toDomainMergedTimelineBoundaryEvent = (
   EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
-export type TimelinePredictedBoundaryEvent = ReturnType<
-  typeof toDomainTimelinePredictedBoundaryEvent
->;
-export type VesselTimelineSegmentEvent = ReturnType<
-  typeof toDomainVesselTimelineSegmentEvent
->;
-export type VesselTimelineSegment = ReturnType<
-  typeof toDomainVesselTimelineSegment
->;
-export type MergedTimelineBoundaryEvent = ReturnType<
-  typeof toDomainMergedTimelineBoundaryEvent
->;
+/**
+ * Converts a Convex timeline row into the domain shape.
+ *
+ * @param row - Convex timeline row with epoch timestamps
+ * @returns Domain timeline row with `Date` timestamps
+ */
+export const toDomainVesselTimelineRow = (row: ConvexVesselTimelineRow) => ({
+  ...row,
+  startEvent: toDomainVesselTimelineRowEvent(row.startEvent),
+  endEvent: toDomainVesselTimelineRowEvent(row.endEvent),
+});
 
-export { eventsActualSchema, eventsScheduledSchema };
+/**
+ * Converts a Convex timeline view model into the domain shape.
+ *
+ * @param viewModel - Convex view model with epoch timestamps
+ * @returns Domain view model with `Date` timestamps
+ */
+export const toDomainVesselTimelineViewModel = (
+  viewModel: ConvexVesselTimelineViewModel
+) => ({
+  ...viewModel,
+  ObservedAt: viewModel.ObservedAt ? new Date(viewModel.ObservedAt) : null,
+  rows: viewModel.rows.map(toDomainVesselTimelineRow),
+  live: viewModel.live
+    ? toDomainVesselTimelineLiveState(
+        viewModel.live as ConvexVesselTimelineLiveState
+      )
+    : null,
+});
+
+export type VesselTimelineRowEvent = ReturnType<
+  typeof toDomainVesselTimelineRowEvent
+>;
+export type VesselTimelineRow = ReturnType<typeof toDomainVesselTimelineRow>;
+export type VesselTimelineViewModel = ReturnType<
+  typeof toDomainVesselTimelineViewModel
+>;

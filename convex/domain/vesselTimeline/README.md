@@ -10,9 +10,9 @@ persists only three normalized tables:
 - `eventsActual`
 - `eventsPredicted`
 
-The frontend composes timeline structure and active state from those tables plus
-the current `vesselLocations` row, which can also carry the optional canonical
-trip `Key` for debugging and identity tracing.
+The backend now composes the public timeline read model from those tables plus
+live trip/location state. The frontend is expected to consume backend-owned rows
+and `activeRowId`, not reconstruct rows or guess active attachment itself.
 
 ## Overview
 
@@ -28,7 +28,12 @@ cadence:
 - actual overlay
 - prediction overlay
 
-Everything else is derived.
+Everything else is derived, including:
+
+- stable at-dock / at-sea row identity
+- placeholder dock rows when a dock start is missing
+- terminal-tail metadata when the slice ends on an arrival
+- active-row attachment
 
 ## Sources Of Truth
 
@@ -152,6 +157,19 @@ Responsibilities:
 - build `eventsActual` rows
 - build `eventsPredicted` rows from trip state
 
+### `viewModel.ts`
+
+Builds the public backend-owned timeline view model.
+
+Responsibilities:
+
+- merge scheduled, actual, and predicted overlays by boundary key
+- build stable `at-dock` / `at-sea` rows keyed by trip identity
+- emit placeholder dock rows only when required
+- emit terminal-tail row metadata when the slice ends on an arrival
+- resolve backend-owned `activeRowId`
+- derive minimal active-indicator hint payloads
+
 ## Function Entrypoints
 
 ### `convex/functions/vesselTimeline/actions.ts`
@@ -182,13 +200,10 @@ Timeline-facing read layer.
 
 Responsibilities:
 
-- return scheduled rows for one vessel/day
-- return actual overlay rows for one vessel/day
-- return prediction overlay rows for one vessel/day
-
-Important behavior:
-
-- prediction queries hide `PredictionType` and `PredictionSource`
+- return one backend-owned vessel/day view model
+- load live trip/location state needed for active attachment
+- resolve deterministic schedule lookups for docked-key inference and
+  terminal-tail next-trip identity
 
 ## Data Flow
 
@@ -213,14 +228,10 @@ Trip / prediction updates
   -> project affected eventsPredicted rows only
 
 Frontend VesselTimeline
-  -> query eventsScheduled
-  -> query eventsActual
-  -> query eventsPredicted
-  -> query vesselLocations
-  -> merge rows client-side
-  -> build segments client-side
-  -> resolve active state client-side
-  -> render UX-specific timeline rows
+  -> query getVesselTimelineViewModel
+  -> render backend-owned rows
+  -> place indicator using backend-owned activeRowId
+  -> keep layout / animation / presentation logic only
 ```
 
 ## Backend Guarantees
@@ -231,8 +242,11 @@ Frontend VesselTimeline
   segment key plus boundary type
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
-- the client never needs to understand prediction provenance
-- no snapshot persistence exists in the backend
+- public timeline reads expose stable rows, not raw boundary tables
+- dock and sea rows for a trip share the same trip key
+- placeholders are backend-emitted fallback only
+- terminal-tail is row metadata, not a separate row kind
+- `activeRowId` is backend-owned
 
 ## Suggested Reading Order
 
