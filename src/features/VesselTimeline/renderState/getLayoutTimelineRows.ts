@@ -1,11 +1,10 @@
 /**
- * Stage 2 layout: backend-owned VesselTimeline rows to shared render rows.
+ * Layout: feature-derived VesselTimeline rows to shared render rows.
  *
  * Assigns pixel heights, past/future markers, display labels, and terminal
  * card geometry consumed by `src/components/timeline`.
  */
 
-import type { VesselTimelineRow } from "convex/functions/vesselTimeline/schemas";
 import type {
   RowLayoutBounds,
   TerminalCardGeometry,
@@ -13,19 +12,20 @@ import type {
   TimelineRenderRow,
 } from "@/components/timeline";
 import type { VesselTimelineLayoutConfig } from "../types";
+import type { VesselTimelineRow } from "../types";
 
 /**
- * Lays out backend-owned rows into renderer rows, terminal cards, and content
+ * Lays out feature-derived rows into renderer rows, terminal cards, and content
  * height.
  *
- * @param backendRows - Ordered backend rows for the current vessel/day
+ * @param timelineRows - Ordered feature-derived rows for the current vessel/day
  * @param activeRowIndex - Split past vs future marker styling at this index
  * @param layout - Pixels per minute, min height, and card offsets
  * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
  * @returns Render rows, row layouts, terminal cards, and content height
  */
 export const getLayoutTimelineRows = (
-  backendRows: VesselTimelineRow[],
+  timelineRows: VesselTimelineRow[],
   activeRowIndex: number,
   layout: VesselTimelineLayoutConfig,
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
@@ -39,7 +39,7 @@ export const getLayoutTimelineRows = (
   const rowTopPxs: number[] = [];
   const rowLayouts: Record<string, RowLayoutBounds> = {};
 
-  const rows = backendRows.map((row, rowIndex) => {
+  const rows = timelineRows.map((row, rowIndex) => {
     const displayHeightPx = getDisplayHeightPx(row, layout);
     const startEvent = toRenderEvent(row, "start", getTerminalNameByAbbrev);
     rowTopPxs.push(contentHeightPx);
@@ -67,7 +67,7 @@ export const getLayoutTimelineRows = (
   return {
     rows,
     rowLayouts,
-    terminalCards: computeTerminalCards(backendRows, rows, rowTopPxs, layout),
+    terminalCards: computeTerminalCards(timelineRows, rows, rowTopPxs, layout),
     contentHeightPx,
   };
 };
@@ -75,7 +75,7 @@ export const getLayoutTimelineRows = (
 /**
  * Row display height from schedule-based minutes and a minimum row height.
  *
- * @param row - Backend row with a schedule-based duration
+ * @param row - Derived row with a schedule-based duration
  * @param layout - Nonlinear row-height tuning and min-height floor
  * @returns Height in pixels for this row
  */
@@ -91,9 +91,9 @@ const getDisplayHeightPx = (
   );
 
 /**
- * Builds a presentation event for one end of a backend-owned row.
+ * Builds a presentation event for one end of a derived row.
  *
- * @param row - Backend row being rendered
+ * @param row - Derived row being rendered
  * @param side - Start vs end boundary of the row
  * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
  * @returns Timeline render event for labels, times, and placeholders
@@ -160,14 +160,14 @@ const getTerminalHeadline = (event: TimelineRenderEvent) =>
  * Collects blurred terminal-card regions for dock rows and their paired sea
  * rows at the same terminal.
  *
- * @param backendRows - Backend rows in render order
+ * @param timelineRows - Derived rows in render order
  * @param rows - Shared renderer rows in render order
  * @param rowTopPxs - Row top positions in pixels
  * @param layout - Card top and bottom heights
  * @returns Geometry entries for `TimelineTerminalCardBackgrounds`
  */
 const computeTerminalCards = (
-  backendRows: VesselTimelineRow[],
+  timelineRows: VesselTimelineRow[],
   rows: TimelineRenderRow[],
   rowTopPxs: number[],
   layout: VesselTimelineLayoutConfig
@@ -176,13 +176,13 @@ const computeTerminalCards = (
 
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
     const current = rows[rowIndex];
-    const backendRow = backendRows[rowIndex];
+    const backendRow = timelineRows[rowIndex];
     const rowTopPx = rowTopPxs[rowIndex];
     if (!current || !backendRow || rowTopPx === undefined) {
       continue;
     }
 
-    const position = getCardPosition(backendRows, rows, rowIndex);
+    const position = getCardPosition(timelineRows, rows, rowIndex);
     if (!position) {
       continue;
     }
@@ -213,18 +213,18 @@ const computeTerminalCards = (
  * Terminal highlight shape for one row: top cap, bottom cap, full single dock,
  * or none.
  *
- * @param backendRows - Backend rows in render order
+ * @param timelineRows - Derived rows in render order
  * @param rows - Shared renderer rows in render order
  * @param rowIndex - Index of the row being classified
  * @returns Card position token, or `null` when no highlight applies
  */
 const getCardPosition = (
-  backendRows: VesselTimelineRow[],
+  timelineRows: VesselTimelineRow[],
   rows: TimelineRenderRow[],
   rowIndex: number
 ): TerminalCardGeometry["position"] | null => {
   const row = rows[rowIndex];
-  const backendRow = backendRows[rowIndex];
+  const backendRow = timelineRows[rowIndex];
   if (!row || !backendRow) {
     return null;
   }
@@ -232,9 +232,9 @@ const getCardPosition = (
   const terminalAbbrev = backendRow.startEvent.TerminalAbbrev;
   const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
   const previousBackendRow =
-    rowIndex > 0 ? backendRows[rowIndex - 1] : undefined;
+    rowIndex > 0 ? timelineRows[rowIndex - 1] : undefined;
   const nextRow = rows[rowIndex + 1];
-  const nextBackendRow = backendRows[rowIndex + 1];
+  const nextBackendRow = timelineRows[rowIndex + 1];
 
   const matchesNext =
     row.kind === "at-dock" &&
@@ -262,7 +262,7 @@ const getCardPosition = (
 /**
  * Returns the shortened terminal name used in the VesselTimeline UI.
  *
- * @param terminalAbbrev - Terminal abbreviation from the backend row
+ * @param terminalAbbrev - Terminal abbreviation from the derived row
  * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
  * @returns Short display terminal name, or the abbreviation as fallback
  */

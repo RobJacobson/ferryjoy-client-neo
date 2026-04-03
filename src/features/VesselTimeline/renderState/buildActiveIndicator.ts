@@ -1,17 +1,17 @@
 /**
  * Active-indicator payload construction for the vessel-day timeline.
  *
- * Derives indicator position, labels, and motion hints from the backend-owned
+ * Derives indicator position, labels, and motion hints from the feature-owned
  * active row plus the raw live vessel state.
  */
 
 import type {
   VesselTimelineLiveState,
-  VesselTimelineRow,
 } from "convex/functions/vesselTimeline/schemas";
 import type { TimelineActiveIndicator } from "@/components/timeline";
 import { clamp } from "@/shared/utils";
 import { getDisplayTime } from "../rowEventTime";
+import type { VesselTimelineRow } from "../types";
 
 const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 
@@ -19,8 +19,8 @@ const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
  * Builds the floating indicator descriptor for the active row, or `null` when
  * the backend does not attach one.
  *
- * @param rows - Backend-owned timeline rows for the day
- * @param activeRowId - Backend-owned active row identifier
+ * @param rows - Feature-derived timeline rows for the day
+ * @param activeRowId - Active row identifier derived from the backend interval
  * @param liveState - Raw live vessel state used for subtitle and motion
  * @param now - Wall clock for countdown label and progress
  * @returns Timeline indicator payload, or `null` when no active row is present
@@ -53,10 +53,10 @@ export const buildActiveIndicator = ({
 };
 
 /**
- * Resolves the active backend row from its row id.
+ * Resolves the active derived row from its row id.
  *
- * @param rows - Backend-owned timeline rows for the day
- * @param activeRowId - Backend-owned active row identifier
+ * @param rows - Feature-derived timeline rows for the day
+ * @param activeRowId - Active row identifier derived from the backend interval
  * @returns Selected row, or `null` when unavailable
  */
 const getActiveRow = (
@@ -91,7 +91,7 @@ const getDistanceProgress = (
  * future-start rows are centered to avoid snapping the indicator onto an
  * arrival marker that has not happened yet.
  *
- * @param row - Active backend row
+ * @param row - Active derived row
  * @param liveState - Raw live state for sea progress
  * @param now - Current instant
  * @returns Vertical position as a fraction of row height
@@ -185,7 +185,7 @@ const getClampedProgress = (
  * Terminal-tail rows show `"--"` because the end-of-day stop is not a
  * countdown.
  *
- * @param row - Active backend row
+ * @param row - Active derived row
  * @param now - Current instant
  * @returns Countdown string such as `12m`, or `"--"` when time is unknown
  */
@@ -210,7 +210,7 @@ const getMinutesUntil = (row: VesselTimelineRow, now: Date) => {
 /**
  * Builds the indicator subtitle from the active row kind and raw live state.
  *
- * @param row - Active backend row
+ * @param row - Active derived row
  * @param liveState - Raw live vessel state
  * @returns Subtitle copy, or `undefined` when no useful copy exists
  */
@@ -269,7 +269,7 @@ const getSeaSubtitle = (liveState: VesselTimelineLiveState | null) => {
 /**
  * Determines whether the active indicator should animate.
  *
- * @param row - Active backend row
+ * @param row - Active derived row
  * @param liveState - Raw live vessel state
  * @returns Whether rocking animation should run
  */

@@ -1,16 +1,16 @@
 /**
- * Time precedence helpers for backend-owned VesselTimeline rows.
+ * Time precedence helpers for feature-derived VesselTimeline rows.
  *
  * Layout uses schedule-first stability, while labels and the active indicator
  * use actual-then-predicted-then-scheduled display precedence.
  */
 
-import type { VesselTimelineRowEvent } from "convex/functions/vesselTimeline/schemas";
+import type { VesselTimelineRowEvent } from "./types";
 
 /**
  * Instant used for row duration and geometry.
  *
- * @param event - Backend-owned row boundary event
+ * @param event - Derived row boundary event
  * @returns Schedule-first layout time
  */
 export const getLayoutTime = (event: VesselTimelineRowEvent) =>
@@ -19,7 +19,7 @@ export const getLayoutTime = (event: VesselTimelineRowEvent) =>
 /**
  * Instant shown in the UI and used for indicator math.
  *
- * @param event - Backend-owned row boundary event
+ * @param event - Derived row boundary event
  * @returns Display-precedence event time
  */
 export const getDisplayTime = (event: VesselTimelineRowEvent) =>

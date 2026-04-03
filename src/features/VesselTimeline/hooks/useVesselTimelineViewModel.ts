@@ -6,8 +6,10 @@ import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import {
+  buildRowsFromEvents,
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
+  resolveActiveRowIdFromInterval,
 } from "../renderState";
 import type { VesselTimelineRenderState } from "../types";
 
@@ -20,8 +22,8 @@ export type UseVesselTimelineViewModelResult = {
 };
 
 /**
- * Builds the screen-level VesselTimeline state from the backend-owned row
- * contract plus presentation-only render helpers.
+ * Builds the screen-level VesselTimeline state from the backend-owned event
+ * contract plus feature-owned row derivation and render helpers.
  *
  * @param args - Hook inputs
  * @param args.now - Optional wall-clock override for deterministic rendering
@@ -40,8 +42,8 @@ export const useVesselTimelineViewModel = ({
   const {
     VesselAbbrev,
     SailingDay,
-    rows,
-    activeRowId,
+    events,
+    activeInterval,
     live,
     IsLoading,
     ErrorMessage,
@@ -68,7 +70,7 @@ export const useVesselTimelineViewModel = ({
     };
   }
 
-  if (rows.length === 0) {
+  if (events.length === 0) {
     return {
       isLoading: false,
       error: null,
@@ -77,6 +79,9 @@ export const useVesselTimelineViewModel = ({
       renderState: null,
     };
   }
+
+  const rows = buildRowsFromEvents(events);
+  const activeRowId = resolveActiveRowIdFromInterval(rows, activeInterval);
 
   const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
     terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]

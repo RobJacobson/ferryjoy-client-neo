@@ -1,14 +1,14 @@
 # VesselTimeline Architecture
 
 `VesselTimeline` shows one vessel for one sailing day as a dock/sea timeline.
-The backend contract is now row-based:
+The backend contract is now event-first:
 
-- backend owns row identity
-- backend owns active-row attachment
-- frontend should render backend-owned rows with minimal domain logic
+- backend owns ordered timeline events
+- backend owns the active interval
+- frontend derives rows from events for presentation
 
-This document reflects the current feature architecture after the backend
-hard-reset and frontend migration to backend-owned rows.
+This document reflects the current feature architecture after moving the
+public query back toward fundamental event truth.
 
 ## Public API
 
@@ -30,7 +30,7 @@ type VesselTimelineProps = {
 - Scope is one vessel and one sailing day.
 - The timeline is a service-day view, not a full berth-occupancy history.
 - The service day follows Pacific rules: `3:00 AM` through `2:59 AM`.
-- The visible window is bounded by the backend-owned rows returned for that
+- The visible window is bounded by the backend-owned events returned for that
   day.
 
 ## Target Data Flow
@@ -43,8 +43,8 @@ type VesselTimelineProps = {
 
 That payload includes:
 
-- ordered backend-owned rows
-- `activeRowId`
+- ordered backend-owned events
+- `activeInterval`
 - `ObservedAt`
 - raw live state for title and position calculations
 
@@ -67,54 +67,51 @@ Backend layering for that query is now:
   [ownership.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/ownership.ts)
   and shared event-order primitives in
   [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
-- [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
-  owns row construction and row IDs
-- [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
-  owns active-row resolution
+- [timelineEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/timelineEvents.ts)
+  owns event merging and stable ordering
+- [activeInterval.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeInterval.ts)
+  owns active-interval resolution
 - [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
   owns final pure assembly from loaded inputs
 
-### 2. The backend owns row construction
+### 2. The frontend derives rows from backend events
 
-The backend query now derives rows from normalized boundary events plus live
-vessel-location state.
+The backend query now returns normalized timeline events plus live
+vessel-location state and one backend-owned `activeInterval`.
 
-Each row has:
+The feature layer derives rows locally from ordered events:
 
-- stable `rowId`
-- `tripKey`
-- `kind`: `at-dock` or `at-sea`
-- `rowEdge`: `normal` or `terminal-tail`
-- optional `placeholderReason`
-- `startEvent`
-- `endEvent`
-- `durationMinutes`
+- `arv-dock -> dep-dock` becomes an `at-dock` row
+- `dep-dock -> arv-dock` becomes an `at-sea` row
+- start-of-day gaps produce placeholder dock rows
+- final arrivals produce terminal-tail dock rows
 
-The frontend should not reconstruct dock/sea rows from raw boundary adjacency.
-Terminal-tail is represented as one final backend-owned `at-dock` row, not a
-synthetic extra row added by the client.
+This is presentation logic, not storage truth. The feature layer may own row
+IDs, placeholder handling, and terminal-tail rendering as long as it stays a
+pure derivation from backend events.
 
 ### 3. The backend owns active attachment
 
 The backend returns:
 
-- `activeRowId`
+- `activeInterval`
 - raw live state
 
 Active attachment prefers `vesselLocations` for `AtDock` and `Key`, with only a
 single-sailing-day scheduled fallback when the vessel is docked but keyless.
-The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
-or terminal-tail fallback on its own.
+The frontend should not resolve same-terminal ambiguity or trip ownership on
+its own.
 For keyless docked vessels, the backend resolves active attachment only from
 the requested sailing day's scheduled dock interval. It never looks across
 sailing-day boundaries and never consults `activeVesselTrips`.
-When `activeRowId` is `null`, the frontend still renders rows but omits the
+When `activeInterval` is `null`, the frontend still renders rows but omits the
 active indicator.
 
 ### 4. The render-state layer stays presentation-focused
 
 The frontend render-state layer should continue to own:
 
+- row derivation from ordered events
 - row layout sizing
 - labels and display copy
 - terminal-name shortening
@@ -127,10 +124,9 @@ The frontend render-state layer should continue to own:
 
 The render-state layer should not own:
 
-- row identity
-- placeholder synthesis
-- terminal-tail identity
-- active-row selection
+- schedule ownership inference
+- live trip attachment inference
+- cross-day continuity guesses
 
 ## Rendering Notes
 
@@ -154,12 +150,9 @@ The render-state layer should not own:
 - `eventsScheduled` is the only schedule backbone used by the timeline read
   path
 - `vesselLocations` is the only live-state source used by the timeline query
-- predictions can change displayed times but never row identity
-- dock and sea rows for one trip share the same trip key
-- placeholders are backend-emitted fallback only
-- terminal-tail is backend-owned row metadata
-- terminal-tail rows are keyed to the arriving trip for that sailing day
-- `activeRowId` is sufficient for the frontend to place the indicator
+- predictions can change displayed times but never event identity
+- row derivation is pure and local to the feature layer
+- `activeInterval` is sufficient for the frontend to place the indicator
 - terminal-tail rows anchor the indicator to the arrival marker line, not the
   vertical center of the full row box
 - no separate backend snapshot table exists for `VesselTimeline`
@@ -174,18 +167,20 @@ The render-state layer should not own:
   [schemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/schemas.ts)
 - Backend query loaders:
   [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-- Backend row builder:
-  [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
+- Backend event merger:
+  [timelineEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/timelineEvents.ts)
 - Backend same-day ownership helper:
   [ownership.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/ownership.ts)
-- Backend active-row resolver:
-  [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
+- Backend active-interval resolver:
+  [activeInterval.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeInterval.ts)
 - Backend view-model assembler:
   [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
 - Backend query:
   [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
 - Shared scheduled-segment resolver logic:
   [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
+- Frontend row derivation:
+  [buildRowsFromEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildRowsFromEvents.ts)
 - Render-state assembly:
   [getVesselTimelineRenderState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getVesselTimelineRenderState.ts)
 - Final renderer:

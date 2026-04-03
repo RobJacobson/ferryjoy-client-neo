@@ -1,23 +1,20 @@
 /**
- * Covers the frontend render-state path for backend-owned VesselTimeline rows.
+ * Covers the frontend render-state path for feature-derived VesselTimeline rows.
  */
 
 import { describe, expect, it } from "bun:test";
-import type {
-  VesselTimelineLiveState,
-  VesselTimelineRow,
-  VesselTimelineRowEvent,
-} from "convex/functions/vesselTimeline/schemas";
+import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/schemas";
 import {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
 } from "..";
+import type { VesselTimelineRow, VesselTimelineRowEvent } from "../../types";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
 describe("getStaticVesselTimelineRenderState", () => {
-  it("renders backend placeholder and terminal-tail rows without client synthesis", () => {
+  it("renders derived placeholder and terminal-tail rows without extra synthesis", () => {
     const renderState = getStaticVesselTimelineRenderState(
       makeRows(),
       "trip-1--at-sea",
@@ -163,10 +160,10 @@ describe("getVesselTimelineActiveIndicator", () => {
 });
 
 /**
- * Builds a compact backend-row fixture set with a placeholder dock row, a sea
+ * Builds a compact derived-row fixture set with a placeholder dock row, a sea
  * row, and a terminal-tail dock row.
  *
- * @returns Backend-owned timeline rows for render-state tests
+ * @returns Feature-derived timeline rows for render-state tests
  */
 const makeRows = (): VesselTimelineRow[] => [
   makeRow({
@@ -236,10 +233,10 @@ const makeRows = (): VesselTimelineRow[] => [
 ];
 
 /**
- * Builds a backend row event fixture.
+ * Builds a derived row event fixture.
  *
  * @param overrides - Field overrides for the event fixture
- * @returns Backend row event
+ * @returns Derived row event
  */
 const makeRowEvent = (
   overrides: Partial<VesselTimelineRowEvent>
@@ -256,10 +253,10 @@ const makeRowEvent = (
 });
 
 /**
- * Builds a backend row fixture.
+ * Builds a derived row fixture.
  *
  * @param overrides - Field overrides for the row fixture
- * @returns Backend-owned timeline row
+ * @returns Feature-derived timeline row
  */
 const makeRow = (overrides: Partial<VesselTimelineRow>): VesselTimelineRow => ({
   rowId: "trip-1--at-sea",
@@ -305,7 +302,7 @@ const makeLiveState = (
 /**
  * Resolves full terminal names for render-state tests.
  *
- * @param terminalAbbrev - Terminal abbreviation used by backend rows
+ * @param terminalAbbrev - Terminal abbreviation used by derived rows
  * @returns Full terminal name, or `null`
  */
 const getTerminalNameByAbbrev = (terminalAbbrev: string) =>

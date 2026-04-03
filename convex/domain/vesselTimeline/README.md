@@ -10,16 +10,16 @@ persists only three normalized tables:
 - `eventsActual`
 - `eventsPredicted`
 
-The backend now composes the public timeline read model from those tables plus
-live vessel state. The frontend is expected to consume backend-owned rows and
-`activeRowId`, not reconstruct rows or guess active attachment itself.
+The backend now composes a public event-first read model from those tables plus
+live vessel state. The frontend derives rows locally from backend events and
+uses one backend-owned `activeInterval` to ground the live indicator.
 
 The implementation boundary is now explicit:
 
 - `convex/functions/vesselTimeline/*` owns Convex entrypoints, table reads, and
   query-time data loading
-- `convex/domain/vesselTimeline/*` owns pure boundary-event, row, and
-  read-model logic over plain objects
+- `convex/domain/vesselTimeline/*` owns pure event and read-model logic over
+  plain objects
 
 ## Overview
 
@@ -37,10 +37,8 @@ cadence:
 
 Everything else is derived, including:
 
-- stable at-dock / at-sea row identity
-- placeholder dock rows when a dock start is missing
-- terminal-tail metadata when the slice ends on an arrival
-- active-row attachment
+- event overlays and stable ordering
+- active-interval attachment
 - observed timestamp for the current live slice
 
 ## Sources Of Truth
@@ -164,19 +162,19 @@ Responsibilities:
 - build `eventsActual` rows
 - build `eventsPredicted` rows from trip state
 
-### `rows.ts`
+### `timelineEvents.ts`
 
-Builds backend-owned `at-dock` / `at-sea` rows from merged boundary events.
+Builds the event-first public read backbone from normalized tables.
 
 Responsibilities:
 
-- build stable row IDs from trip identity
-- emit placeholder dock rows only when required
-- emit terminal-tail row metadata when the slice ends on an arrival
+- merge `eventsScheduled`, `eventsActual`, and `eventsPredicted` by key
+- attach `SegmentKey`
+- sort same-day events into stable timeline order
 
-### `activeRow.ts`
+### `activeInterval.ts`
 
-Resolves backend-owned row attachment from live vessel-location state.
+Resolves the backend-owned active interval from live vessel-location state.
 
 Responsibilities:
 
@@ -184,11 +182,9 @@ Responsibilities:
   attachment
 - prefer `vesselLocations.Key` when present
 - use inferred docked trip keys only when live state is docked and keyless
-- prefer terminal-tail rows only when the live docked terminal matches the
-  final arrival terminal for that trip key
 - return `null` when no live location row or no same-day event evidence exists
 - never guess across sailing-day boundaries
-- never guess between same-terminal rows by proximity
+- never guess between same-terminal trips by proximity
 
 ### `ownership.ts`
 
@@ -203,13 +199,13 @@ Responsibilities:
 
 ### `viewModel.ts`
 
-Assembles the public backend-owned timeline view model from preloaded inputs.
+Assembles the public backend-owned event-first timeline view model from
+preloaded inputs.
 
 Responsibilities:
 
-- merge scheduled, actual, and predicted overlays by boundary key
-- call `rows.ts` for row construction
-- call `activeRow.ts` for active-row resolution
+- call `timelineEvents.ts` for event construction
+- call `activeInterval.ts` for active-interval resolution
 - return raw live vessel state needed for frontend rendering decisions
 - set `ObservedAt` from `vesselLocations.TimeStamp`
 
@@ -285,8 +281,8 @@ Trip / prediction updates
 
 Frontend VesselTimeline
   -> query getVesselTimelineViewModel
-  -> render backend-owned rows
-  -> place indicator using backend-owned activeRowId
+  -> derive rows from backend events
+  -> place indicator using backend-owned activeInterval
   -> keep layout / animation / presentation logic only
 ```
 
@@ -303,13 +299,10 @@ Frontend VesselTimeline
 - `vesselLocations` is the only live-state source used by the timeline query
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
-- public timeline reads expose stable rows, not raw boundary tables
-- dock and sea rows for a trip share the same trip key
-- placeholders are backend-emitted fallback only
-- terminal-tail is row metadata, not a separate row kind
-- terminal-tail rows are keyed to the arriving trip for that sailing day
-- `activeRowId` is backend-owned
-- `activeRowId` may be `null` when same-day event evidence is insufficient
+- public timeline reads expose stable ordered events plus `activeInterval`
+- the frontend derives rows from events as presentation logic
+- `activeInterval` is backend-owned
+- `activeInterval` may be `null` when same-day event evidence is insufficient
 - delayed docked vessels stay attached to the current dock row when the
   same-day schedule slice proves that dock ownership
 
@@ -320,9 +313,9 @@ Frontend VesselTimeline
 3. `events/history.ts`
 4. `events/liveUpdates.ts`
 5. `normalizedEvents.ts`
-6. `rows.ts`
+6. `timelineEvents.ts`
 7. `ownership.ts`
-8. `activeRow.ts`
+8. `activeInterval.ts`
 9. `viewModel.ts`
 10. `convex/functions/vesselTimeline/actions.ts`
 11. `convex/functions/vesselTimeline/mutations.ts`

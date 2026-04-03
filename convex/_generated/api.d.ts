@@ -34,7 +34,7 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
-import type * as domain_vesselTimeline_activeRow from "../domain/vesselTimeline/activeRow.js";
+import type * as domain_vesselTimeline_activeInterval from "../domain/vesselTimeline/activeInterval.js";
 import type * as domain_vesselTimeline_events_history from "../domain/vesselTimeline/events/history.js";
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
@@ -42,7 +42,7 @@ import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimel
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
 import type * as domain_vesselTimeline_ownership from "../domain/vesselTimeline/ownership.js";
-import type * as domain_vesselTimeline_rows from "../domain/vesselTimeline/rows.js";
+import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
@@ -185,7 +185,7 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
-  "domain/vesselTimeline/activeRow": typeof domain_vesselTimeline_activeRow;
+  "domain/vesselTimeline/activeInterval": typeof domain_vesselTimeline_activeInterval;
   "domain/vesselTimeline/events/history": typeof domain_vesselTimeline_events_history;
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;
@@ -193,7 +193,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
   "domain/vesselTimeline/ownership": typeof domain_vesselTimeline_ownership;
-  "domain/vesselTimeline/rows": typeof domain_vesselTimeline_rows;
+  "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;

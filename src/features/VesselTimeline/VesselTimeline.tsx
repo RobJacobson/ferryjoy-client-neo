@@ -2,7 +2,7 @@
  * Main VesselTimeline feature component.
  *
  * This component owns the vessel-day provider boundary and renders the
- * day-level timeline content from the backend-owned row view model.
+ * day-level timeline content from the backend-owned timeline view model.
  */
 
 import { useState } from "react";

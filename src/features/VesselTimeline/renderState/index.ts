@@ -7,3 +7,7 @@ export {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
 } from "./getVesselTimelineRenderState";
+export {
+  buildRowsFromEvents,
+  resolveActiveRowIdFromInterval,
+} from "./buildRowsFromEvents";

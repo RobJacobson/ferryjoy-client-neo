@@ -3,8 +3,8 @@
  *
  * This module owns database access and query-time orchestration for the public
  * VesselTimeline query. The read path is intentionally scoped to one sailing
- * day plus the current `vesselLocations` row; pure row-building and attachment
- * logic stay in the domain layer.
+ * day plus the current `vesselLocations` row; pure event assembly and
+ * attachment logic stay in the domain layer.
  */
 
 import type { QueryCtx } from "_generated/server";
