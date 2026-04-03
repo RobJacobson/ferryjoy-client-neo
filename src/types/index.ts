@@ -19,17 +19,6 @@ export {
   toDomainVesselPing,
   type VesselPing,
 } from "convex/functions/vesselPings/schemas";
-export type {
-  VesselTimelineActiveState,
-  VesselTimelineLiveState,
-  VesselTimelineRowMatch,
-} from "convex/functions/vesselTimeline/activeStateSchemas";
-export {
-  type MergedTimelineBoundaryEvent,
-  toDomainTimelinePredictedBoundaryEvent,
-  type VesselTimelineSegment,
-  type VesselTimelineSegmentEvent,
-} from "convex/functions/vesselTimeline/schemas";
 export {
   toDomainVesselTrip,
   toDomainVesselTripWithScheduledTrip,

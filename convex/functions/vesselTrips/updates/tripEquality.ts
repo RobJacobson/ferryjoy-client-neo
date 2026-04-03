@@ -1,37 +1,11 @@
 /**
  * Shared utility helpers for vessel-trip updates.
  *
- * Provides stable key derivation plus the deep equality checks used to avoid
- * rewriting active trips when only the tick timestamp has changed.
+ * Provides the deep equality checks used to avoid rewriting active trips when
+ * only the tick timestamp has changed.
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/keys";
-
-/**
- * Compute trip key from vessel, terminals, and scheduled departure (epoch ms).
- *
- * Centralizes epoch-to-Date conversion so event detection and trip derivation
- * stay in sync.
- *
- * @param vessel - Vessel abbreviation
- * @param departing - Departing terminal abbreviation
- * @param arriving - Arriving terminal abbreviation (can be undefined)
- * @param scheduledMs - Scheduled departure in epoch milliseconds
- * @returns Trip key string or undefined if required fields missing
- */
-export const computeTripKey = (
-  vessel: string,
-  departing: string,
-  arriving: string | undefined,
-  scheduledMs: number | undefined
-): string | undefined =>
-  generateTripKey(
-    vessel,
-    departing,
-    arriving,
-    scheduledMs ? new Date(scheduledMs) : undefined
-  );
 
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.

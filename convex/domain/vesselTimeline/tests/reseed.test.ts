@@ -2,7 +2,7 @@
  * Tests for merging schedule reseeds into the vessel trip event read model.
  */
 import { describe, expect, it } from "bun:test";
-import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { mergeSeededVesselTripEvents } from "../events/reseed";
 
 const at = (hours: number, minutes: number) =>

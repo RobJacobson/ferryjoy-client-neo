@@ -10,8 +10,16 @@ persists only three normalized tables:
 - `eventsActual`
 - `eventsPredicted`
 
-The frontend composes timeline structure and active state from those tables plus
-the current `vesselLocations` row.
+The backend now composes the public timeline read model from those tables plus
+live vessel state. The frontend is expected to consume backend-owned rows and
+`activeRowId`, not reconstruct rows or guess active attachment itself.
+
+The implementation boundary is now explicit:
+
+- `convex/functions/vesselTimeline/*` owns Convex entrypoints, table reads, and
+  query-time data loading
+- `convex/domain/vesselTimeline/*` owns pure boundary-event, row, and
+  read-model logic over plain objects
 
 ## Overview
 
@@ -27,7 +35,13 @@ cadence:
 - actual overlay
 - prediction overlay
 
-Everything else is derived.
+Everything else is derived, including:
+
+- stable at-dock / at-sea row identity
+- placeholder dock rows when a dock start is missing
+- terminal-tail metadata when the slice ends on an arrival
+- active-row attachment
+- observed timestamp for the current live slice
 
 ## Sources Of Truth
 
@@ -42,8 +56,7 @@ Source:
 Responsibilities:
 
 - define which boundary events exist for the vessel/day
-- keep the canonical segment identity shared with `scheduledTrips` /
-  `vesselTrips`
+- keep the canonical segment identity shared with `vesselTrips`
 - define `dep-dock` vs `arv-dock`
 - define scheduled timing and terminal identity
 - provide `NextTerminalAbbrev` for client composition and debugging
@@ -151,6 +164,42 @@ Responsibilities:
 - build `eventsActual` rows
 - build `eventsPredicted` rows from trip state
 
+### `rows.ts`
+
+Builds backend-owned `at-dock` / `at-sea` rows from merged boundary events.
+
+Responsibilities:
+
+- build stable row IDs from trip identity
+- emit placeholder dock rows only when required
+- emit terminal-tail row metadata when the slice ends on an arrival
+
+### `activeRow.ts`
+
+Resolves backend-owned row attachment from live vessel-location state with a
+narrow active-trip fallback.
+
+Responsibilities:
+
+- prefer `vesselLocations` for `AtDock` and `Key`
+- fall back to `activeVesselTrips` only when a live location row is missing
+- use inferred docked trip keys only when live state is docked and keyless
+- infer those docked trip keys from the scheduled dock interval, not from the
+  next future departure after the observation timestamp
+- never guess between same-terminal rows by proximity
+
+### `viewModel.ts`
+
+Assembles the public backend-owned timeline view model from preloaded inputs.
+
+Responsibilities:
+
+- merge scheduled, actual, and predicted overlays by boundary key
+- call `rows.ts` for row construction
+- call `activeRow.ts` for active-row resolution
+- return raw live vessel state needed for frontend rendering decisions
+- set `ObservedAt` from `vesselLocations.TimeStamp`
+
 ## Function Entrypoints
 
 ### `convex/functions/vesselTimeline/actions.ts`
@@ -177,17 +226,27 @@ Responsibilities:
 
 ### `convex/functions/vesselTimeline/queries.ts`
 
-Timeline-facing read layer.
+Thin public timeline-facing read layer.
 
 Responsibilities:
 
-- return scheduled rows for one vessel/day
-- return actual overlay rows for one vessel/day
-- return prediction overlay rows for one vessel/day
+- validate public query args
+- load query inputs through `loaders.ts`
+- hand plain inputs to the domain read-model builder
 
-Important behavior:
+### `convex/functions/vesselTimeline/loaders.ts`
 
-- prediction queries hide `PredictionType` and `PredictionSource`
+Convex-specific loader and query-time inference layer for the public query.
+
+Responsibilities:
+
+- read normalized event tables and live trip/location state
+- derive docked and terminal-tail attachment from the loaded event slice plus
+  live state
+- delegate schedule-backed dock-interval resolution to shared
+  `eventsScheduled` query helpers, whose pure selection logic lives in
+  `convex/functions/eventsScheduled/segmentResolvers.ts`
+- keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow
 
@@ -212,14 +271,10 @@ Trip / prediction updates
   -> project affected eventsPredicted rows only
 
 Frontend VesselTimeline
-  -> query eventsScheduled
-  -> query eventsActual
-  -> query eventsPredicted
-  -> query vesselLocations
-  -> merge rows client-side
-  -> build segments client-side
-  -> resolve active state client-side
-  -> render UX-specific timeline rows
+  -> query getVesselTimelineViewModel
+  -> render backend-owned rows
+  -> place indicator using backend-owned activeRowId
+  -> keep layout / animation / presentation logic only
 ```
 
 ## Backend Guarantees
@@ -230,8 +285,13 @@ Frontend VesselTimeline
   segment key plus boundary type
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
-- the client never needs to understand prediction provenance
-- no snapshot persistence exists in the backend
+- public timeline reads expose stable rows, not raw boundary tables
+- dock and sea rows for a trip share the same trip key
+- placeholders are backend-emitted fallback only
+- terminal-tail is row metadata, not a separate row kind
+- `activeRowId` is backend-owned
+- delayed docked vessels stay attached to the current dock row when the
+  scheduled departure is overdue but still belongs to the active dock interval
 
 ## Suggested Reading Order
 
@@ -240,7 +300,11 @@ Frontend VesselTimeline
 3. `events/history.ts`
 4. `events/liveUpdates.ts`
 5. `normalizedEvents.ts`
-6. `convex/functions/vesselTimeline/actions.ts`
-7. `convex/functions/vesselTimeline/mutations.ts`
-8. `convex/functions/vesselTimeline/queries.ts`
+6. `rows.ts`
+7. `activeRow.ts`
+8. `viewModel.ts`
+9. `convex/functions/vesselTimeline/actions.ts`
+10. `convex/functions/vesselTimeline/mutations.ts`
+11. `convex/functions/vesselTimeline/loaders.ts`
+12. `convex/functions/vesselTimeline/queries.ts`
 9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

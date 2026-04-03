@@ -1,7 +1,7 @@
 import { api } from "convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import {
   type ConvexVesselPingCollection,
   toDomainVesselPing,
@@ -48,40 +48,38 @@ const ConvexVesselPingsContext = createContext<
  */
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   // Fetch the latest 20 VesselPingCollections from Convex
-  const rawPingCollections =
-    useQuery(api.functions.vesselPings.queries.getLatest) ?? [];
+  const connectionState = useConvexConnectionState();
+  const rawPingCollections = useQuery(api.functions.vesselPings.queries.getLatest);
 
   // Flatten all pings from all collections and group by vessel ID
-  const vesselPingsByVesselId: VesselPingsByVesselId =
-    rawPingCollections.reduce(
-      (acc: VesselPingsByVesselId, collection: ConvexVesselPingCollection) => {
-        collection.pings.forEach((ping) => {
-          const domainPing = toDomainVesselPing(ping);
-          if (!acc[ping.VesselID]) {
-            acc[ping.VesselID] = [];
-          }
-          acc[ping.VesselID].push(domainPing);
-        });
-        return acc;
-      },
-      {} as VesselPingsByVesselId
-    );
+  const vesselPingsByVesselId: VesselPingsByVesselId = (
+    rawPingCollections ?? []
+  ).reduce(
+    (acc: VesselPingsByVesselId, collection: ConvexVesselPingCollection) => {
+      collection.pings.forEach((ping) => {
+        const domainPing = toDomainVesselPing(ping);
+        if (!acc[ping.VesselID]) {
+          acc[ping.VesselID] = [];
+        }
+        acc[ping.VesselID].push(domainPing);
+      });
+      return acc;
+    },
+    {} as VesselPingsByVesselId
+  );
 
   // Sort each vessel's pings by timestamp (most recent first)
   Object.values(vesselPingsByVesselId).forEach((pings) => {
     pings.sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
   });
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Handle loading and error states
-  useEffect(() => {
-    if (rawPingCollections !== undefined) {
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [rawPingCollections]);
+  const hasConnectionIssue =
+    rawPingCollections === undefined &&
+    !connectionState.isWebSocketConnected &&
+    connectionState.connectionRetries > 0;
+  const isLoading = rawPingCollections === undefined && !hasConnectionIssue;
+  const error = hasConnectionIssue
+    ? "Unable to connect to live vessel pings."
+    : null;
 
   const contextValue: ConvexVesselPingsContextType = {
     vesselPingsByVesselId,

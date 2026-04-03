@@ -2,7 +2,7 @@
  * Merge logic for reseeding schedule-derived vessel trip events without
  * discarding live historical state.
  */
-import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { sortVesselTripEvents } from "./liveUpdates";
 
 type MergeSeededVesselTripEventsArgs = {

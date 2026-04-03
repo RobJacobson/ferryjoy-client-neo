@@ -43,7 +43,8 @@ export const buildTrip = async (
   const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
   const withArriveDest = {
     ...baseTrip,
-    // Capture the first arrival-at-dock tick before the next trip fully starts.
+    // Same-trip arrivals are only stamped on continuing trips that were not
+    // rolled over into a replacement trip.
     ArriveDest:
       baseTrip.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
@@ -51,8 +52,12 @@ export const buildTrip = async (
         : undefined),
   };
 
-  // Only rerun enrichments when a boundary changed or fallback timing allows it.
-  const shouldAppendFinalSchedule = tripStart || events.keyChanged;
+  const shouldInferScheduleAtDock =
+    withArriveDest.AtDock && !withArriveDest.LeftDock && !withArriveDest.Key;
+  // Only rerun enrichments when a boundary changed, schedule inference is
+  // still needed at dock, or fallback timing allows it.
+  const shouldAppendFinalSchedule =
+    tripStart || events.keyChanged || shouldInferScheduleAtDock;
   const shouldAttemptAtDockPredictions =
     withArriveDest.AtDock &&
     !withArriveDest.LeftDock &&

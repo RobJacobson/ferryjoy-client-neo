@@ -13,8 +13,10 @@ import {
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexActualBoundaryEffect } from "functions/vesselTimeline/actualEffects";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/vesselTimeline/predictedEffects";
+import type {
+  ConvexActualBoundaryEffect,
+  ConvexPredictedBoundaryProjectionEffect,
+} from "functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildTrip } from "../buildTrip";
 import type { TripEvents } from "../eventDetection";
@@ -410,7 +412,7 @@ const buildCurrentTripResult = async (
       ctx,
       transition.currLocation,
       transition.existingTrip,
-      transition.events.shouldStartTrip,
+      false,
       transition.events,
       shouldRunPredictionFallback
     ),

@@ -6,7 +6,7 @@ import type { ConvexVesselLocation } from "../../../functions/vesselLocation/sch
 import type {
   ConvexVesselTimelineEventRecord,
   VesselTimelineEventType,
-} from "../../../functions/vesselTimeline/eventRecordSchemas";
+} from "../../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { getSailingDay } from "../../../shared/time";
 

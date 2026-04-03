@@ -3,7 +3,7 @@
  */
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { TerminalIdentity } from "../../../functions/terminals/resolver";
-import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { resolveHistoryTerminalAbbrev } from "../../../shared/scheduleIdentity";

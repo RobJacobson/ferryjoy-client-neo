@@ -3,8 +3,8 @@
  *
  * Builds the location-derived base `ConvexVesselTrip` for a single vessel tick.
  * The builder uses an explicit mode and shared derived inputs so the same
- * carry-forward rules apply consistently across start, dock-hold, and
- * continuing updates.
+ * carry-forward rules apply consistently across newly created and continuing
+ * updates.
  */
 
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
@@ -39,12 +39,6 @@ export const baseTripFromLocation = (
   switch (tripMode) {
     case "start":
       return baseTripForStart(currLocation, existingTrip, tripInputs);
-    case "dock_hold":
-      if (!existingTrip) {
-        return baseTripForContinuing(currLocation, existingTrip, tripInputs);
-      }
-
-      return baseTripForDockHold(currLocation, existingTrip);
     case "continue":
       return baseTripForContinuing(currLocation, existingTrip, tripInputs);
   }
@@ -63,10 +57,8 @@ const baseTripForStart = (
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTrip => {
-  // Reuse the just-finished arrival time when the next trip starts immediately.
-  const tripStartTime =
-    existingTrip?.ArriveDest ??
-    (tripInputs.didJustBecomeStartReady ? currLocation.TimeStamp : undefined);
+  // The next trip begins at the same observed boundary where the previous trip ended.
+  const tripStartTime = existingTrip?.TripEnd;
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -102,29 +94,6 @@ const baseTripForStart = (
     AtSeaDepartNext: undefined,
   };
 };
-
-/**
- * Preserve the active trip after the vessel reaches dock but before the feed
- * exposes enough data to start the next trip.
- *
- * @param currLocation - Latest vessel location from the live feed
- * @param existingTrip - Existing active trip to preserve through the dock gap
- * @returns Existing trip with only dock-gap-safe fields refreshed
- */
-const baseTripForDockHold = (
-  currLocation: ResolvedVesselLocation,
-  existingTrip: ConvexVesselTrip
-): ConvexVesselTrip => ({
-  ...existingTrip,
-  ArrivingTerminalAbbrev:
-    currLocation.ArrivingTerminalAbbrev ?? existingTrip.ArrivingTerminalAbbrev,
-  AtDock: currLocation.AtDock,
-  Eta: currLocation.Eta ?? existingTrip.Eta,
-  InService: currLocation.InService,
-  NextKey: existingTrip.NextKey,
-  RouteAbbrev: currLocation.RouteAbbrev ?? existingTrip.RouteAbbrev,
-  TimeStamp: currLocation.TimeStamp,
-});
 
 /**
  * Build the base trip for a continuing or first-seen trip.

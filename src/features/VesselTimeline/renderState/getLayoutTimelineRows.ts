@@ -1,32 +1,34 @@
 /**
- * Stage 2 layout: semantic vessel-day rows to shared timeline render rows.
+ * Stage 2 layout: backend-owned VesselTimeline rows to shared render rows.
  *
- * Assigns pixel heights, past/future markers, `TimelineRenderEvent` payloads,
- * and terminal card highlight geometry consumed by `src/components/timeline`.
+ * Assigns pixel heights, past/future markers, display labels, and terminal
+ * card geometry consumed by `src/components/timeline`.
  */
 
+import type { VesselTimelineRow } from "convex/functions/vesselTimeline/schemas";
 import type {
   RowLayoutBounds,
   TerminalCardGeometry,
   TimelineRenderEvent,
   TimelineRenderRow,
 } from "@/components/timeline";
-import type { VesselTimelineSegment } from "@/data/contexts";
 import type { VesselTimelineLayoutConfig } from "../types";
 
 /**
- * Lays out semantic rows into renderer rows, terminal cards, and content
+ * Lays out backend-owned rows into renderer rows, terminal cards, and content
  * height.
  *
- * @param semanticRows - Server-owned dock/sea semantic segments
+ * @param backendRows - Ordered backend rows for the current vessel/day
  * @param activeRowIndex - Split past vs future marker styling at this index
  * @param layout - Pixels per minute, min height, and card offsets
- * @returns Render rows, terminal card regions, and total scrollable height
+ * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
+ * @returns Render rows, row layouts, terminal cards, and content height
  */
 export const getLayoutTimelineRows = (
-  semanticRows: VesselTimelineSegment[],
+  backendRows: VesselTimelineRow[],
   activeRowIndex: number,
-  layout: VesselTimelineLayoutConfig
+  layout: VesselTimelineLayoutConfig,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): {
   rows: TimelineRenderRow[];
   rowLayouts: Record<string, RowLayoutBounds>;
@@ -37,35 +39,35 @@ export const getLayoutTimelineRows = (
   const rowTopPxs: number[] = [];
   const rowLayouts: Record<string, RowLayoutBounds> = {};
 
-  const rows = semanticRows.map((row) => {
+  const rows = backendRows.map((row, rowIndex) => {
     const displayHeightPx = getDisplayHeightPx(row, layout);
-    const startEvent = toRenderEvent(row.kind, "start", row);
+    const startEvent = toRenderEvent(row, "start", getTerminalNameByAbbrev);
     rowTopPxs.push(contentHeightPx);
-    rowLayouts[row.id] = {
+    rowLayouts[row.rowId] = {
       y: contentHeightPx,
       height: displayHeightPx,
     };
     contentHeightPx += displayHeightPx;
 
     return {
-      id: row.id,
-      kind: row.kind === "dock" ? "at-dock" : "at-sea",
-      markerAppearance: row.segmentIndex <= activeRowIndex ? "past" : "future",
-      segmentIndex: row.segmentIndex,
+      id: row.rowId,
+      kind: row.kind,
+      markerAppearance: rowIndex <= activeRowIndex ? "past" : "future",
+      segmentIndex: rowIndex,
       displayHeightPx,
       startLabel: getStartEventLabel(startEvent),
       showStartTimePlaceholder: startEvent.isArrivalPlaceholder === true,
       terminalHeadline: getTerminalHeadline(startEvent),
       startEvent,
-      endEvent: toRenderEvent(row.kind, "end", row),
-      isFinalRow: row.isTerminal === true,
+      endEvent: toRenderEvent(row, "end", getTerminalNameByAbbrev),
+      isFinalRow: row.rowEdge === "terminal-tail",
     } satisfies TimelineRenderRow;
   });
 
   return {
     rows,
     rowLayouts,
-    terminalCards: computeTerminalCards(semanticRows, rows, rowTopPxs, layout),
+    terminalCards: computeTerminalCards(backendRows, rows, rowTopPxs, layout),
     contentHeightPx,
   };
 };
@@ -73,12 +75,12 @@ export const getLayoutTimelineRows = (
 /**
  * Row display height from schedule-based minutes and a minimum row height.
  *
- * @param row - Semantic row with a schedule-based duration
+ * @param row - Backend row with a schedule-based duration
  * @param layout - Nonlinear row-height tuning and min-height floor
  * @returns Height in pixels for this row
  */
 const getDisplayHeightPx = (
-  row: VesselTimelineSegment,
+  row: VesselTimelineRow,
   layout: VesselTimelineLayoutConfig
 ) =>
   Math.max(
@@ -89,33 +91,36 @@ const getDisplayHeightPx = (
   );
 
 /**
- * Builds a presentation event for one end of a semantic row.
+ * Builds a presentation event for one end of a backend-owned row.
  *
- * @param kind - Dock vs sea determines arrive/depart labeling
+ * @param row - Backend row being rendered
  * @param side - Start vs end boundary of the row
- * @param row - Source semantic row
- * @returns `TimelineRenderEvent` for labels, times, and placeholders
+ * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
+ * @returns Timeline render event for labels, times, and placeholders
  */
 const toRenderEvent = (
-  kind: VesselTimelineSegment["kind"],
+  row: VesselTimelineRow,
   side: "start" | "end",
-  row: VesselTimelineSegment
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
 ): TimelineRenderEvent => {
   const event = side === "start" ? row.startEvent : row.endEvent;
 
   return {
     eventType:
       side === "start"
-        ? kind === "dock"
+        ? row.kind === "at-dock"
           ? "arrive"
           : "depart"
-        : kind === "dock"
+        : row.kind === "at-dock"
           ? "depart"
           : "arrive",
     currTerminalAbbrev: event.TerminalAbbrev,
-    currTerminalDisplayName: event.TerminalDisplayName,
+    currTerminalDisplayName: getDisplayTerminalName(
+      event.TerminalAbbrev,
+      getTerminalNameByAbbrev
+    ),
     nextTerminalAbbrev:
-      side === "start" && kind === "sea"
+      side === "start" && row.kind === "at-sea"
         ? row.endEvent.TerminalAbbrev
         : undefined,
     isArrivalPlaceholder: event.IsArrivalPlaceholder,
@@ -143,24 +148,26 @@ const getStartEventLabel = (event: TimelineRenderEvent) =>
       : "Dep";
 
 /**
- * Optional terminal heading shown above dock rows.
+ * Optional terminal heading shown above at-dock rows.
  *
  * @param event - Start-of-row render event
- * @returns Terminal headline text when this row starts at a dock
+ * @returns Terminal headline text when the row starts at a dock
  */
 const getTerminalHeadline = (event: TimelineRenderEvent) =>
   event.eventType === "arrive" ? event.currTerminalDisplayName : undefined;
 
 /**
- * Collects blurred terminal card regions for consecutive dock/sea pairs at
- * the same terminal.
+ * Collects blurred terminal-card regions for dock rows and their paired sea
+ * rows at the same terminal.
  *
- * @param rows - Laid-out rows with pixel tops
+ * @param backendRows - Backend rows in render order
+ * @param rows - Shared renderer rows in render order
+ * @param rowTopPxs - Row top positions in pixels
  * @param layout - Card top and bottom heights
  * @returns Geometry entries for `TimelineTerminalCardBackgrounds`
  */
 const computeTerminalCards = (
-  semanticRows: VesselTimelineSegment[],
+  backendRows: VesselTimelineRow[],
   rows: TimelineRenderRow[],
   rowTopPxs: number[],
   layout: VesselTimelineLayoutConfig
@@ -169,13 +176,13 @@ const computeTerminalCards = (
 
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
     const current = rows[rowIndex];
-    const semanticRow = semanticRows[rowIndex];
+    const backendRow = backendRows[rowIndex];
     const rowTopPx = rowTopPxs[rowIndex];
-    if (!current || !semanticRow || rowTopPx === undefined) {
+    if (!current || !backendRow || rowTopPx === undefined) {
       continue;
     }
 
-    const position = getCardPosition(semanticRows, rows, rowIndex);
+    const position = getCardPosition(backendRows, rows, rowIndex);
     if (!position) {
       continue;
     }
@@ -206,39 +213,40 @@ const computeTerminalCards = (
  * Terminal highlight shape for one row: top cap, bottom cap, full single dock,
  * or none.
  *
- * @param rows - All laid-out rows
+ * @param backendRows - Backend rows in render order
+ * @param rows - Shared renderer rows in render order
  * @param rowIndex - Index of the row being classified
- * @returns Card position token, or `none` when no highlight applies
+ * @returns Card position token, or `null` when no highlight applies
  */
 const getCardPosition = (
-  semanticRows: VesselTimelineSegment[],
+  backendRows: VesselTimelineRow[],
   rows: TimelineRenderRow[],
   rowIndex: number
 ): TerminalCardGeometry["position"] | null => {
   const row = rows[rowIndex];
-  const semanticRow = semanticRows[rowIndex];
-  if (!row || !semanticRow) {
+  const backendRow = backendRows[rowIndex];
+  if (!row || !backendRow) {
     return null;
   }
 
-  const terminalAbbrev = semanticRow.startEvent.TerminalAbbrev;
+  const terminalAbbrev = backendRow.startEvent.TerminalAbbrev;
   const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
-  const previousSemanticRow =
-    rowIndex > 0 ? semanticRows[rowIndex - 1] : undefined;
+  const previousBackendRow =
+    rowIndex > 0 ? backendRows[rowIndex - 1] : undefined;
   const nextRow = rows[rowIndex + 1];
-  const nextSemanticRow = semanticRows[rowIndex + 1];
+  const nextBackendRow = backendRows[rowIndex + 1];
 
   const matchesNext =
     row.kind === "at-dock" &&
     nextRow?.kind === "at-sea" &&
     terminalAbbrev !== undefined &&
-    terminalAbbrev === nextSemanticRow?.startEvent.TerminalAbbrev;
+    terminalAbbrev === nextBackendRow?.startEvent.TerminalAbbrev;
 
   const matchesPrevious =
     previousRow?.kind === "at-dock" &&
     row.kind === "at-sea" &&
-    previousSemanticRow?.startEvent.TerminalAbbrev !== undefined &&
-    previousSemanticRow.startEvent.TerminalAbbrev === terminalAbbrev;
+    previousBackendRow?.startEvent.TerminalAbbrev !== undefined &&
+    previousBackendRow.startEvent.TerminalAbbrev === terminalAbbrev;
 
   if (matchesNext) {
     return "top";
@@ -249,4 +257,27 @@ const getCardPosition = (
   }
 
   return row.kind === "at-dock" && terminalAbbrev ? "single" : null;
+};
+
+/**
+ * Returns the shortened terminal name used in the VesselTimeline UI.
+ *
+ * @param terminalAbbrev - Terminal abbreviation from the backend row
+ * @param getTerminalNameByAbbrev - Terminal-name lookup for display copy
+ * @returns Short display terminal name, or the abbreviation as fallback
+ */
+const getDisplayTerminalName = (
+  terminalAbbrev: string | undefined,
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null
+) => {
+  if (!terminalAbbrev) {
+    return undefined;
+  }
+
+  const terminalName = getTerminalNameByAbbrev(terminalAbbrev);
+  if (!terminalName) {
+    return terminalAbbrev;
+  }
+
+  return terminalName.replace(/Island\b/, "Is.").trim();
 };

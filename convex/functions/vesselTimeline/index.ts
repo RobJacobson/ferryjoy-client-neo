@@ -3,8 +3,6 @@
  */
 
 export * from "./actions";
-export * from "./activeStateSchemas";
-export * from "./eventRecordSchemas";
 export * from "./mutations";
 export * from "./queries";
 export * from "./schemas";

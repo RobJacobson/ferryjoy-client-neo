@@ -39,10 +39,7 @@ export const detectTripEvents = (
   currLocation: ResolvedVesselLocation
 ): TripEvents => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
-  const isTripStartReady = Boolean(
-    tripInputs.currentScheduledDeparture &&
-      tripInputs.currentArrivingTerminalAbbrev
-  );
+  const isTripStartReady = tripInputs.currentIsTripStartReady;
   // Arrival is only credible after a recorded departure and a terminal change.
   const didJustArriveAtDock = Boolean(
     existingTrip &&
@@ -55,13 +52,10 @@ export const detectTripEvents = (
 
   return {
     isFirstTrip: !existingTrip,
-    shouldStartTrip: tripInputs.didJustBecomeStartReady,
+    shouldStartTrip: false,
     isTripStartReady,
     isCompletedTrip: Boolean(
-      hasTripEvidence(existingTrip) &&
-        isTripStartReady &&
-        existingTrip?.DepartingTerminalAbbrev !==
-          currLocation.DepartingTerminalAbbrev
+      hasTripEvidence(existingTrip) && didJustArriveAtDock
     ),
     didJustArriveAtDock,
     didJustLeaveDock: tripInputs.didJustLeaveDock,

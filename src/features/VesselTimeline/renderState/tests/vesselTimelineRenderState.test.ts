@@ -1,321 +1,126 @@
+/**
+ * Covers the frontend render-state path for backend-owned VesselTimeline rows.
+ */
+
 import { describe, expect, it } from "bun:test";
 import type {
-  VesselTimelineActiveState,
   VesselTimelineLiveState,
-  VesselTimelineSegment,
-} from "@/types";
+  VesselTimelineRow,
+  VesselTimelineRowEvent,
+} from "convex/functions/vesselTimeline/schemas";
 import {
   getStaticVesselTimelineRenderState,
   getVesselTimelineActiveIndicator,
-  resolveActiveSegmentIndex,
 } from "..";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
-describe("resolveActiveSegmentIndex", () => {
-  it("matches the live-anchored sea segment even when a placeholder dock row comes first", () => {
-    const rows = makeRoundTripSegments();
-    const firstRow = getRowOrThrow(rows, 0);
-
-    rows[0] = {
-      ...firstRow,
-      startEvent: { ...firstRow.startEvent, EventActualTime: at(8, 1) },
-      endEvent: { ...firstRow.endEvent, EventActualTime: undefined },
-    };
-
-    const activeRowIndex = resolveActiveSegmentIndex(
-      rows,
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        reason: "location_anchor",
-      })
-    );
-    expect(activeRowIndex).toBe(1);
-  });
-
-  it("matches the terminal row from terminalTailEventKey", () => {
-    const activeRowIndex = resolveActiveSegmentIndex(
-      makeRoundTripSegments(),
-      makeActiveState({
-        kind: "scheduled-fallback",
-        rowMatch: null,
-        terminalTailEventKey: "arv-2",
-        reason: "fallback",
-      })
-    );
-
-    expect(activeRowIndex).toBe(4);
-  });
-
-  it("returns no active row when the backend provides no row match", () => {
-    expect(resolveActiveSegmentIndex(makeRoundTripSegments(), null)).toBe(-1);
-  });
-});
-
 describe("getStaticVesselTimelineRenderState", () => {
-  it("renders server-owned placeholder and terminal-tail segments", () => {
-    const renderState = getRenderState(
-      makePlaceholderSegments(),
-      null,
-      null,
-      at(8, 0)
+  it("renders backend placeholder and terminal-tail rows without client synthesis", () => {
+    const renderState = getStaticVesselTimelineRenderState(
+      makeRows(),
+      "trip-1--at-sea",
+      getTerminalNameByAbbrev
     );
 
-    expect(renderState.rows).toHaveLength(5);
-    expect(renderState.rows[2]?.kind).toBe("at-dock");
-    expect(renderState.rows[2]?.startLabel).toBe("Arv: VAI");
+    expect(renderState.rows).toHaveLength(3);
+    expect(renderState.activeRowIndex).toBe(1);
+    expect(renderState.rows.map((row) => row.markerAppearance)).toEqual([
+      "past",
+      "past",
+      "future",
+    ]);
+    expect(renderState.rows[0]?.showStartTimePlaceholder).toBeTrue();
+    expect(renderState.rows[0]?.terminalHeadline).toBe("Seattle");
+    expect(renderState.rows[1]?.startLabel).toBe("To: VAI");
+    expect(renderState.rows[2]?.id).toBe("trip-2--at-dock");
+    expect(renderState.rows[2]?.isFinalRow).toBeTrue();
     expect(renderState.rows[2]?.terminalHeadline).toBe("Vashon Is.");
-    expect(renderState.rows[2]?.showStartTimePlaceholder).toBeTrue();
-    expect(renderState.rows[2]?.startEvent.currTerminalAbbrev).toBe("VAI");
-    expect(renderState.rows[2]?.startEvent.currTerminalDisplayName).toBe(
-      "Vashon Is."
-    );
-    expect(renderState.rows[2]?.startEvent.isArrivalPlaceholder).toBeTrue();
-    expect(renderState.rows[2]?.startEvent.timePoint.scheduled).toBeUndefined();
-    expect(renderState.rows[3]?.kind).toBe("at-sea");
-    expect(renderState.rows[3]?.startLabel).toBe("To: FAU");
-    expect(renderState.rows[3]?.terminalHeadline).toBeUndefined();
-    expect(renderState.rows[3]?.showStartTimePlaceholder).toBeFalse();
-    expect(renderState.rows[3]?.startEvent.nextTerminalAbbrev).toBe("FAU");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([
-      "top",
-      "bottom",
       "top",
       "bottom",
       "single",
     ]);
   });
+});
 
-  it("keeps static layout unchanged across clock ticks while the indicator moves", () => {
-    const segments = makeRoundTripSegments();
-    const activeState = makeActiveState({
-      kind: "sea",
-      rowMatch: {
-        kind: "sea",
-        startEventKey: "dep-1",
-        endEventKey: "arv-1",
-      },
-      reason: "location_anchor",
-    });
-    const staticState = getStaticVesselTimelineRenderState(
-      segments,
-      activeState
-    );
-    const earlyIndicator = getVesselTimelineActiveIndicator({
-      segments,
-      activeState,
+describe("getVesselTimelineActiveIndicator", () => {
+  it("hides the active indicator when the backend provides no active row", () => {
+    expect(
+      getVesselTimelineActiveIndicator({
+        rows: makeRows(),
+        activeRowId: null,
+        liveState: makeLiveState({
+          AtDock: true,
+          DepartingTerminalAbbrev: "VAI",
+        }),
+        now: at(9, 0),
+      })
+    ).toBeNull();
+  });
+
+  it("uses the backend active row id for sea progress and subtitle copy", () => {
+    const indicator = getVesselTimelineActiveIndicator({
+      rows: makeRows(),
+      activeRowId: "trip-1--at-sea",
       liveState: makeLiveState({
-        ScheduledDeparture: at(8, 0),
         AtDock: false,
+        InService: true,
         Speed: 12,
-        LeftDock: at(8, 5),
-        Eta: at(8, 45),
-      }),
-      now: at(8, 10),
-    });
-    const lateIndicator = getVesselTimelineActiveIndicator({
-      segments,
-      activeState,
-      liveState: makeLiveState({
-        ScheduledDeparture: at(8, 0),
-        AtDock: false,
-        Speed: 12,
-        LeftDock: at(8, 5),
-        Eta: at(8, 45),
+        ArrivingDistance: 4.2,
+        DepartingDistance: 3.8,
+        ArrivingTerminalAbbrev: "VAI",
       }),
       now: at(8, 20),
     });
 
-    expect(getStaticVesselTimelineRenderState(segments, activeState)).toEqual(
-      staticState
-    );
-    expect(earlyIndicator?.positionPercent).not.toBe(
-      lateIndicator?.positionPercent
-    );
-  });
-
-  it("returns renderer-ready rows with full schedule-based dock heights", () => {
-    const renderState = getRenderState(
-      makeRoundTripSegments(),
-      makeLiveState({
-        ScheduledDeparture: at(8, 0),
-        AtDock: false,
-        Speed: 12,
-        ArrivingDistance: 4.2,
-      }),
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        subtitle: "12 kn · 4.2 mi to BBI",
-        animate: true,
-        speedKnots: 12,
-        reason: "location_anchor",
-      }),
-      at(8, 10)
-    );
-
-    expect(renderState.rows).toHaveLength(5);
-    expect(renderState.rows[2]?.kind).toBe("at-dock");
-    expect(renderState.rows[2]?.displayHeightPx).toBeGreaterThan(356);
-    expect(renderState.rows[2]?.displayHeightPx).toBeLessThan(357);
-    expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
-    expect(renderState.contentHeightPx).toBeGreaterThan(0);
+    expect(indicator?.rowId).toBe("trip-1--at-sea");
+    expect(indicator?.subtitle).toBe("12 kn · 4.2 mi to VAI");
+    expect(indicator?.animate).toBeTrue();
+    expect(indicator?.positionPercent).toBeGreaterThan(0.47);
+    expect(indicator?.positionPercent).toBeLessThan(0.48);
   });
 
   it("falls back to time-based sea progress when arrival distance is missing", () => {
-    const renderState = getRenderState(
-      makeRoundTripSegments(),
-      makeLiveState({
-        ScheduledDeparture: at(8, 0),
+    const indicator = getVesselTimelineActiveIndicator({
+      rows: makeRows(),
+      activeRowId: "trip-1--at-sea",
+      liveState: makeLiveState({
         AtDock: false,
+        InService: true,
         Speed: 12,
-        DepartingDistance: 0,
         ArrivingDistance: undefined,
-      }),
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        reason: "location_anchor",
-      }),
-      at(8, 20)
-    );
-
-    expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
-    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.57);
-    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.58);
-  });
-
-  it("uses time-based sea progress even when eta is present but arrival distance is missing", () => {
-    const renderState = getRenderState(
-      [
-        makeSegment({
-          id: "dep-1--arv-1--sea",
-          segmentIndex: 0,
-          kind: "sea",
-          startEvent: makeBoundary({
-            Key: "dep-1",
-            EventType: "dep-dock",
-            TerminalAbbrev: "P52",
-            TerminalDisplayName: "Seattle",
-            ScheduledDeparture: at(8, 0),
-            EventScheduledTime: at(8, 0),
-            EventActualTime: at(8, 5),
-          }),
-          endEvent: makeBoundary({
-            Key: "arv-1",
-            EventType: "arv-dock",
-            TerminalAbbrev: "BBI",
-            TerminalDisplayName: "Bainbridge Is.",
-            ScheduledDeparture: at(8, 0),
-            EventScheduledTime: at(8, 35),
-          }),
-          durationMinutes: 35,
-        }),
-      ],
-      makeLiveState({
-        ScheduledDeparture: at(8, 0),
-        AtDock: false,
-        Speed: 12,
         DepartingDistance: 0,
-        ArrivingDistance: undefined,
-        Eta: at(8, 45),
       }),
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        reason: "location_anchor",
-      }),
-      at(8, 25)
-    );
+      now: at(8, 20),
+    });
 
-    expect(renderState.activeIndicator?.rowId).toBe("dep-1--arv-1--sea");
-    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.66);
-    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.67);
+    expect(indicator?.label).toBe("15m");
+    expect(indicator?.positionPercent).toBeGreaterThan(0.57);
+    expect(indicator?.positionPercent).toBeLessThan(0.58);
   });
 
-  it("uses elapsed time for dock indicator progress on long dock rows", () => {
-    const renderState = getRenderState(
-      [
-        makeSegment({
-          id: "arv-1--dep-1--dock",
-          segmentIndex: 0,
-          kind: "dock",
-          startEvent: makeBoundary({
-            Key: "arv-1",
-            EventType: "arv-dock",
-            TerminalAbbrev: "VAI",
-            TerminalDisplayName: "Vashon Is.",
-            ScheduledDeparture: at(11, 30),
-            EventScheduledTime: at(11, 30),
-          }),
-          endEvent: makeBoundary({
-            Key: "dep-1",
-            EventType: "dep-dock",
-            TerminalAbbrev: "VAI",
-            TerminalDisplayName: "Vashon Is.",
-            ScheduledDeparture: at(12, 35),
-            EventScheduledTime: at(12, 35),
-          }),
-          durationMinutes: 65,
-        }),
-      ],
-      null,
-      makeActiveState({
-        kind: "dock",
-        rowMatch: {
-          kind: "dock",
-          startEventKey: "arv-1",
-          endEventKey: "dep-1",
-        },
-        reason: "scheduled_window",
-      }),
-      at(12, 2)
-    );
-
-    expect(renderState.activeIndicator?.rowId).toBe("arv-1--dep-1--dock");
-    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.48);
-    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
-  });
-
-  it("uses actual arrival and predicted departure for dock indicator progress", () => {
-    const renderState = getRenderState(
-      [
-        makeSegment({
-          id: "arv-1--dep-1--dock",
-          segmentIndex: 0,
-          kind: "dock",
-          startEvent: makeBoundary({
-            Key: "arv-1",
+  it("uses actual arrival and predicted departure for dock progress", () => {
+    const indicator = getVesselTimelineActiveIndicator({
+      rows: [
+        makeRow({
+          rowId: "trip-7--at-dock",
+          tripKey: "trip-7",
+          kind: "at-dock",
+          rowEdge: "normal",
+          startEvent: makeRowEvent({
+            Key: "trip-6--arv-dock",
             EventType: "arv-dock",
             TerminalAbbrev: "FAU",
-            TerminalDisplayName: "Fauntleroy",
             ScheduledDeparture: at(22, 50),
             EventScheduledTime: at(22, 50),
             EventActualTime: at(22, 58),
           }),
-          endEvent: makeBoundary({
-            Key: "dep-1",
+          endEvent: makeRowEvent({
+            Key: "trip-7--dep-dock",
             EventType: "dep-dock",
             TerminalAbbrev: "FAU",
-            TerminalDisplayName: "Fauntleroy",
             ScheduledDeparture: at(23, 5),
             EventScheduledTime: at(23, 5),
             EventPredictedTime: at(23, 12),
@@ -323,399 +128,191 @@ describe("getStaticVesselTimelineRenderState", () => {
           durationMinutes: 15,
         }),
       ],
-      null,
-      makeActiveState({
-        kind: "dock",
-        rowMatch: {
-          kind: "dock",
-          startEventKey: "arv-1",
-          endEventKey: "dep-1",
-        },
-        subtitle: "At dock FAU",
-        reason: "location_anchor",
+      activeRowId: "trip-7--at-dock",
+      liveState: makeLiveState({
+        AtDock: true,
+        DepartingTerminalAbbrev: "FAU",
       }),
-      at(23, 5)
-    );
+      now: at(23, 5),
+    });
 
-    expect(renderState.activeIndicator?.rowId).toBe("arv-1--dep-1--dock");
-    expect(renderState.activeIndicator?.label).toBe("7m");
-    expect(renderState.activeIndicator?.positionPercent).toBeGreaterThan(0.49);
-    expect(renderState.activeIndicator?.positionPercent).toBeLessThan(0.51);
+    expect(indicator?.rowId).toBe("trip-7--at-dock");
+    expect(indicator?.label).toBe("7m");
+    expect(indicator?.subtitle).toBe("At dock FAU");
+    expect(indicator?.animate).toBeFalse();
+    expect(indicator?.positionPercent).toBeGreaterThan(0.49);
+    expect(indicator?.positionPercent).toBeLessThan(0.51);
   });
 
-  it("keeps the indicator visible but disables animation when the vessel is off-service", () => {
-    const renderState = getRenderState(
-      makeRoundTripSegments(),
-      makeLiveState({
-        InService: false,
-        ScheduledDeparture: at(8, 0),
-        AtDock: false,
-        Speed: 12,
+  it("renders terminal-tail rows with a terminal stop label", () => {
+    const indicator = getVesselTimelineActiveIndicator({
+      rows: makeRows(),
+      activeRowId: "trip-2--at-dock",
+      liveState: makeLiveState({
+        AtDock: true,
+        DepartingTerminalAbbrev: "VAI",
       }),
-      makeActiveState({
-        kind: "sea",
-        rowMatch: {
-          kind: "sea",
-          startEventKey: "dep-1",
-          endEventKey: "arv-1",
-        },
-        subtitle: "12 kn",
-        animate: false,
-        speedKnots: 12,
-        reason: "location_anchor",
-      }),
-      at(8, 10)
-    );
+      now: at(9, 0),
+    });
 
-    expect(renderState.activeIndicator).not.toBeNull();
-    expect(renderState.activeIndicator?.animate).toBeFalse();
-    expect(renderState.activeIndicator?.speedKnots).toBe(12);
-  });
-
-  it("uses the terminal row when the backend resolves terminal-tail fallback", () => {
-    const renderState = getRenderState(
-      makeRoundTripSegments(),
-      null,
-      makeActiveState({
-        kind: "scheduled-fallback",
-        rowMatch: null,
-        terminalTailEventKey: "arv-2",
-        reason: "fallback",
-      }),
-      at(10, 30)
-    );
-
-    expect(renderState.activeIndicator?.rowId).toBe("arv-2--terminal");
-    expect(renderState.activeIndicator?.label).toBe("--");
-  });
-
-  it("hides the active indicator when the backend provides no match", () => {
-    const renderState = getRenderState(
-      makeRoundTripSegments(),
-      null,
-      null,
-      at(8, 10)
-    );
-
-    expect(renderState.activeIndicator).toBeNull();
+    expect(indicator?.rowId).toBe("trip-2--at-dock");
+    expect(indicator?.label).toBe("--");
+    expect(indicator?.subtitle).toBe("At dock VAI");
+    expect(indicator?.positionPercent).toBe(0);
   });
 });
 
-const makeRoundTripSegments = (): VesselTimelineSegment[] => [
-  makeSegment({
-    id: "dep-1--arrival-placeholder--dock",
-    segmentIndex: 0,
-    kind: "dock",
+/**
+ * Builds a compact backend-row fixture set with a placeholder dock row, a sea
+ * row, and a terminal-tail dock row.
+ *
+ * @returns Backend-owned timeline rows for render-state tests
+ */
+const makeRows = (): VesselTimelineRow[] => [
+  makeRow({
+    rowId: "trip-1--at-dock",
+    tripKey: "trip-1",
+    kind: "at-dock",
+    rowEdge: "normal",
     placeholderReason: "start-of-day",
-    startEvent: makeBoundary({
-      Key: "dep-1--arrival-placeholder",
+    startEvent: makeRowEvent({
+      Key: "trip-1--arrival-placeholder",
       EventType: "arv-dock",
       TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(8, 0),
       IsArrivalPlaceholder: true,
     }),
-    endEvent: makeBoundary({
-      Key: "dep-1",
+    endEvent: makeRowEvent({
+      Key: "trip-1--dep-dock",
       EventType: "dep-dock",
       TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(8, 0),
       EventScheduledTime: at(8, 0),
     }),
     durationMinutes: 0,
   }),
-  makeSegment({
-    id: "dep-1--arv-1--sea",
-    segmentIndex: 1,
-    kind: "sea",
-    startEvent: makeBoundary({
-      Key: "dep-1",
+  makeRow({
+    rowId: "trip-1--at-sea",
+    tripKey: "trip-1",
+    kind: "at-sea",
+    rowEdge: "normal",
+    startEvent: makeRowEvent({
+      Key: "trip-1--dep-dock",
       EventType: "dep-dock",
       TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
       ScheduledDeparture: at(8, 0),
       EventScheduledTime: at(8, 0),
     }),
-    endEvent: makeBoundary({
-      Key: "arv-1",
+    endEvent: makeRowEvent({
+      Key: "trip-1--arv-dock",
       EventType: "arv-dock",
-      TerminalAbbrev: "BBI",
-      TerminalDisplayName: "Bainbridge Is.",
+      TerminalAbbrev: "VAI",
       ScheduledDeparture: at(8, 0),
       EventScheduledTime: at(8, 35),
     }),
     durationMinutes: 35,
   }),
-  makeSegment({
-    id: "arv-1--dep-2--dock",
-    segmentIndex: 2,
-    kind: "dock",
-    startEvent: makeBoundary({
-      Key: "arv-1",
+  makeRow({
+    rowId: "trip-2--at-dock",
+    tripKey: "trip-2",
+    kind: "at-dock",
+    rowEdge: "terminal-tail",
+    startEvent: makeRowEvent({
+      Key: "trip-1--arv-dock",
       EventType: "arv-dock",
-      TerminalAbbrev: "BBI",
-      TerminalDisplayName: "Bainbridge Is.",
+      TerminalAbbrev: "VAI",
       ScheduledDeparture: at(8, 0),
       EventScheduledTime: at(8, 35),
     }),
-    endEvent: makeBoundary({
-      Key: "dep-2",
-      EventType: "dep-dock",
-      TerminalAbbrev: "BBI",
-      TerminalDisplayName: "Bainbridge Is.",
-      ScheduledDeparture: at(9, 50),
-      EventScheduledTime: at(9, 50),
-    }),
-    durationMinutes: 75,
-  }),
-  makeSegment({
-    id: "dep-2--arv-2--sea",
-    segmentIndex: 3,
-    kind: "sea",
-    startEvent: makeBoundary({
-      Key: "dep-2",
-      EventType: "dep-dock",
-      TerminalAbbrev: "BBI",
-      TerminalDisplayName: "Bainbridge Is.",
-      ScheduledDeparture: at(9, 50),
-      EventScheduledTime: at(9, 50),
-    }),
-    endEvent: makeBoundary({
-      Key: "arv-2",
+    endEvent: makeRowEvent({
+      Key: "trip-1--arv-dock",
       EventType: "arv-dock",
-      TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
-      ScheduledDeparture: at(9, 50),
-      EventScheduledTime: at(10, 25),
-    }),
-    durationMinutes: 35,
-  }),
-  makeSegment({
-    id: "arv-2--terminal",
-    segmentIndex: 4,
-    kind: "dock",
-    isTerminal: true,
-    startEvent: makeBoundary({
-      Key: "arv-2",
-      EventType: "arv-dock",
-      TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
-      ScheduledDeparture: at(9, 50),
-      EventScheduledTime: at(10, 25),
-    }),
-    endEvent: makeBoundary({
-      Key: "arv-2",
-      EventType: "arv-dock",
-      TerminalAbbrev: "P52",
-      TerminalDisplayName: "Seattle",
-      ScheduledDeparture: at(9, 50),
-      EventScheduledTime: at(10, 25),
+      TerminalAbbrev: "VAI",
+      ScheduledDeparture: at(8, 0),
+      EventScheduledTime: at(8, 35),
     }),
     durationMinutes: 0,
   }),
 ];
 
-const makePlaceholderSegments = (): VesselTimelineSegment[] => [
-  makeSegment({
-    id: "arv-0--dep-0--dock",
-    segmentIndex: 0,
-    kind: "dock",
-    startEvent: makeBoundary({
-      Key: "arv-0",
-      EventType: "arv-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 5),
-      EventScheduledTime: at(7, 5),
-    }),
-    endEvent: makeBoundary({
-      Key: "dep-0",
-      EventType: "dep-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 5),
-      EventScheduledTime: at(7, 5),
-    }),
-    durationMinutes: 0,
-  }),
-  makeSegment({
-    id: "dep-0--arv-0b--sea",
-    segmentIndex: 1,
-    kind: "sea",
-    startEvent: makeBoundary({
-      Key: "dep-0",
-      EventType: "dep-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 5),
-      EventScheduledTime: at(7, 5),
-    }),
-    endEvent: makeBoundary({
-      Key: "arv-0b",
-      EventType: "arv-dock",
-      TerminalAbbrev: "FAU",
-      TerminalDisplayName: "Fauntleroy",
-      ScheduledDeparture: at(7, 5),
-      EventScheduledTime: at(7, 25),
-    }),
-    durationMinutes: 20,
-  }),
-  makeSegment({
-    id: "dep-1--arrival-placeholder--dock",
-    segmentIndex: 2,
-    kind: "dock",
-    placeholderReason: "broken-seam",
-    startEvent: makeBoundary({
-      Key: "dep-1--arrival-placeholder",
-      EventType: "arv-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 55),
-      IsArrivalPlaceholder: true,
-    }),
-    endEvent: makeBoundary({
-      Key: "dep-1",
-      EventType: "dep-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 55),
-      EventScheduledTime: at(7, 55),
-    }),
-    durationMinutes: 0,
-  }),
-  makeSegment({
-    id: "dep-1--arv-1--sea",
-    segmentIndex: 3,
-    kind: "sea",
-    startEvent: makeBoundary({
-      Key: "dep-1",
-      EventType: "dep-dock",
-      TerminalAbbrev: "VAI",
-      TerminalDisplayName: "Vashon Is.",
-      ScheduledDeparture: at(7, 55),
-      EventScheduledTime: at(7, 55),
-    }),
-    endEvent: makeBoundary({
-      Key: "arv-1",
-      EventType: "arv-dock",
-      TerminalAbbrev: "FAU",
-      TerminalDisplayName: "Fauntleroy",
-      ScheduledDeparture: at(7, 55),
-      EventScheduledTime: at(8, 15),
-    }),
-    durationMinutes: 20,
-  }),
-  makeSegment({
-    id: "arv-1--terminal",
-    segmentIndex: 4,
-    kind: "dock",
-    isTerminal: true,
-    startEvent: makeBoundary({
-      Key: "arv-1",
-      EventType: "arv-dock",
-      TerminalAbbrev: "FAU",
-      TerminalDisplayName: "Fauntleroy",
-      ScheduledDeparture: at(7, 55),
-      EventScheduledTime: at(8, 15),
-    }),
-    endEvent: makeBoundary({
-      Key: "arv-1",
-      EventType: "arv-dock",
-      TerminalAbbrev: "FAU",
-      TerminalDisplayName: "Fauntleroy",
-      ScheduledDeparture: at(7, 55),
-      EventScheduledTime: at(8, 15),
-    }),
-    durationMinutes: 0,
-  }),
-];
-
-const makeBoundary = (
-  overrides: Partial<VesselTimelineSegment["startEvent"]>
-): VesselTimelineSegment["startEvent"] => ({
-  Key: "event",
-  ScheduledDeparture: undefined,
+/**
+ * Builds a backend row event fixture.
+ *
+ * @param overrides - Field overrides for the event fixture
+ * @returns Backend row event
+ */
+const makeRowEvent = (
+  overrides: Partial<VesselTimelineRowEvent>
+): VesselTimelineRowEvent => ({
+  Key: "trip-1--dep-dock",
+  ScheduledDeparture: at(8, 0),
   TerminalAbbrev: "P52",
   EventType: "dep-dock",
-  TerminalDisplayName: "Seattle",
-  IsArrivalPlaceholder: undefined,
-  EventScheduledTime: undefined,
+  IsArrivalPlaceholder: false,
+  EventScheduledTime: at(8, 0),
   EventPredictedTime: undefined,
   EventActualTime: undefined,
   ...overrides,
 });
 
-const makeSegment = (
-  overrides: Partial<VesselTimelineSegment>
-): VesselTimelineSegment => ({
-  id: "segment",
-  segmentIndex: 0,
-  kind: "sea",
-  isTerminal: undefined,
+/**
+ * Builds a backend row fixture.
+ *
+ * @param overrides - Field overrides for the row fixture
+ * @returns Backend-owned timeline row
+ */
+const makeRow = (overrides: Partial<VesselTimelineRow>): VesselTimelineRow => ({
+  rowId: "trip-1--at-sea",
+  tripKey: "trip-1",
+  kind: "at-sea",
+  rowEdge: "normal",
   placeholderReason: undefined,
-  startEvent: makeBoundary({ Key: "start" }),
-  endEvent: makeBoundary({ Key: "end", EventType: "arv-dock" }),
-  durationMinutes: 1,
+  startEvent: makeRowEvent({}),
+  endEvent: makeRowEvent({
+    Key: "trip-1--arv-dock",
+    EventType: "arv-dock",
+    TerminalAbbrev: "VAI",
+    EventScheduledTime: at(8, 35),
+  }),
+  durationMinutes: 35,
   ...overrides,
 });
 
+/**
+ * Builds a live-state fixture for active-indicator tests.
+ *
+ * @param overrides - Field overrides for the live-state fixture
+ * @returns Raw live-state payload
+ */
 const makeLiveState = (
   overrides: Partial<VesselTimelineLiveState>
 ): VesselTimelineLiveState => ({
-  VesselName: "Tokitae",
-  DepartingTerminalAbbrev: "P52",
-  ArrivingTerminalAbbrev: "BBI",
-  Speed: 0,
+  VesselName: "Wenatchee",
+  AtDock: false,
   InService: true,
-  AtDock: true,
-  ScheduledDeparture: undefined,
-  LeftDock: undefined,
-  Eta: undefined,
-  TimeStamp: at(8, 0),
+  Speed: 0,
+  DepartingTerminalAbbrev: "P52",
+  ArrivingTerminalAbbrev: "VAI",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
+  LeftDock: undefined,
+  Eta: undefined,
+  ScheduledDeparture: at(8, 0),
+  TimeStamp: at(8, 10),
   ...overrides,
 });
 
-const makeActiveState = (
-  overrides: Partial<VesselTimelineActiveState>
-): VesselTimelineActiveState => ({
-  kind: "unknown",
-  rowMatch: null,
-  terminalTailEventKey: undefined,
-  subtitle: undefined,
-  animate: false,
-  speedKnots: 0,
-  reason: "unknown",
-  ...overrides,
-});
-
-const getRowOrThrow = (rows: VesselTimelineSegment[], index: number) => {
-  const row = rows[index];
-
-  if (!row) {
-    throw new Error(`Expected timeline row at index ${index}`);
-  }
-
-  return row;
-};
-
-const getRenderState = (
-  segments: VesselTimelineSegment[],
-  liveState: VesselTimelineLiveState | null,
-  activeState: VesselTimelineActiveState | null,
-  now: Date
-) => {
-  const staticState = getStaticVesselTimelineRenderState(segments, activeState);
-
-  return {
-    ...staticState,
-    activeIndicator: getVesselTimelineActiveIndicator({
-      segments,
-      activeState,
-      liveState,
-      now,
-    }),
-  };
-};
+/**
+ * Resolves full terminal names for render-state tests.
+ *
+ * @param terminalAbbrev - Terminal abbreviation used by backend rows
+ * @returns Full terminal name, or `null`
+ */
+const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
+  (
+    ({
+      P52: "Seattle",
+      VAI: "Vashon Island",
+      FAU: "Fauntleroy",
+    }) as const
+  )[terminalAbbrev] ?? null;

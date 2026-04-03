@@ -34,11 +34,11 @@ The normalized `vesselTimeline` event tables exist to simplify that contract.
 
 Its purpose is:
 
-- provide one backend-owned vessel/day event feed for timeline rendering
+- provide the normalized persistence layer for timeline structure and overlays
 - separate timeline rendering needs from the heavier trip lifecycle tables
 - keep reconciliation and source-priority logic on the backend
-- let the frontend render from a small ordered boundary list instead of merging
-  multiple raw sources
+- support a backend-built row/view-model query instead of exposing raw event
+  tables as the public timeline contract
 
 The timeline event tables are not intended to replace `activeVesselTrips` or
 `completedVesselTrips`. Those tables still support trip lifecycle logic and
@@ -58,8 +58,9 @@ Responsibilities:
 - fetch vessel locations from WSF
 - load backend vessel/terminal identity snapshots once per tick
 - convert raw WSF payloads into `ResolvedVesselLocation`, including
-  resolved vessel identity plus terminal-or-marine-location fields derived
-  from the backend `terminals` table
+  resolved vessel identity, canonical optional `Key`, and
+  terminal-or-marine-location fields derived from the backend `terminals`
+  table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
 
@@ -80,6 +81,8 @@ Notes:
 - unknown future marine-location abbreviations are preserved for vessel-location
   continuity instead of failing ingestion
 - only passenger-terminal locations are forwarded into trip processing
+- passenger-terminal trip eligibility is intentionally simple set membership on
+  departing and optional arriving terminal abbreviations
 
 The orchestrator returns branch-level success flags:
 
@@ -100,6 +103,8 @@ The orchestrator returns branch-level success flags:
 Purpose:
 
 - store one current vessel-location record per vessel
+- keep the optional canonical trip `Key` alongside live vessel state when it is
+  safely derivable from the feed
 
 The orchestrator passes the full converted location batch to the
 `bulkUpsert` mutation, which atomically inserts or replaces the current
@@ -124,6 +129,17 @@ detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.
 
+The active-trip lifecycle now follows the vessel's physical state more directly:
+
+- `at-dock`
+- `at-sea`
+
+When a vessel arrives at dock, the previous trip completes immediately and the
+next trip starts immediately. If the live feed lags on next-trip fields such as
+`ScheduledDeparture` or `ArrivingTerminalAbbrev`, the trip pipeline infers the
+next trip deterministically from the scheduled-trip backbone instead of holding
+the vessel in a separate waiting state.
+
 Trip processing remains intentionally stricter than vessel-location storage:
 only rows that resolve to passenger terminals participate in trip derivation.
 
@@ -131,10 +147,11 @@ only rows that resolve to passenger terminals participate in trip derivation.
 
 Purpose:
 
-- maintain the minimal vessel/day boundary feed consumed by `VesselTimeline`
+- maintain the normalized boundary-event persistence layer used to build the
+  public `VesselTimeline` view model
 
 This remains intentionally smaller than the trip lifecycle pipeline. It stores
-only the fields needed to render a day timeline:
+only the boundary fields needed to derive a day timeline:
 
 - `Key`
 - `VesselAbbrev`
@@ -145,6 +162,13 @@ only the fields needed to render a day timeline:
 - `EventScheduledTime?`
 - `EventPredictedTime?`
 - `EventActualTime?`
+
+Those normalized rows are not the public query contract anymore. The backend
+now builds:
+
+- stable `at-dock` / `at-sea` rows keyed by trip identity
+- backend-owned `activeRowId`
+- raw live vessel state consumed by frontend rendering logic
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
@@ -185,8 +209,8 @@ WSF vessel location ticks
   -> project actual/predicted event updates
 
 Frontend VesselTimeline
-  -> query normalized vesselTimeline event tables for vessel/day
-  -> build dock/sea rows from ordered events
+  -> query backend-owned VesselTimeline view model
+  -> render backend-owned rows
 ```
 
 ## Error Isolation
@@ -200,7 +224,8 @@ The orchestrator isolates failures at the branch level.
   preserving branch-specific success flags and error reporting
 
 This matters because timeline projection now rides on the trip pipeline’s
-transition logic instead of re-deriving actuals from raw location ticks.
+transition logic instead of re-deriving actuals from raw location ticks, and
+the public timeline query now trusts that backend-owned model directly.
 
 ## Performance Characteristics
 
@@ -220,7 +245,7 @@ possible (`upsertVesselTripsBatch` and batched predicted-event sync).
 The timeline projection path is designed to stay lightweight:
 
 - no extra external fetches
-- no frontend-side source merging
+- no frontend-side source merging in the target architecture
 - updates are keyed to stable event identities derived from the trip segment key
 - unchanged event rows are not rewritten
 
@@ -229,6 +254,7 @@ The timeline projection path is designed to stay lightweight:
 `vesselLocations`
 
 - current snapshot of live vessel state
+- includes optional derived trip identity via `Key`
 - used directly by the UI for current indicator state and warnings
 - may include non-passenger marine locations when the WSF vessel feed reports
   them
@@ -241,9 +267,10 @@ The timeline projection path is designed to stay lightweight:
 
 `vesselTimeline` event tables
 
-- minimal read model for `VesselTimeline`
-- stores ordered boundary events for one vessel/day
-- fed by schedule seeding plus trip-driven actual/predicted projection
+- normalized persistence layer for `VesselTimeline`
+- store ordered boundary events for one vessel/day
+- feed the backend-owned row/view-model query
+- are fed by schedule seeding plus trip-driven actual/predicted projection
 
 ## Related Documentation
 

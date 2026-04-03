@@ -58,11 +58,7 @@ export const updateVesselOrchestrator = internalAction({
     try {
       const vessels = await loadBackendVesselsOrThrow(ctx);
       const terminals = await loadBackendTerminalsOrThrow(ctx);
-      passengerTerminalAbbrevs = new Set(
-        terminals
-          .filter((terminal) => terminal.IsPassengerTerminal !== false)
-          .map((terminal) => terminal.TerminalAbbrev)
-      );
+      passengerTerminalAbbrevs = getPassengerTerminalAbbrevs(terminals);
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
 
@@ -93,11 +89,8 @@ export const updateVesselOrchestrator = internalAction({
     }
 
     const tickStartedAt = Date.now();
-    const tripEligibleLocations = convexLocations.filter(
-      (location) =>
-        passengerTerminalAbbrevs.has(location.DepartingTerminalAbbrev) &&
-        (!location.ArrivingTerminalAbbrev ||
-          passengerTerminalAbbrevs.has(location.ArrivingTerminalAbbrev))
+    const tripEligibleLocations = convexLocations.filter((location) =>
+      isTripEligibleLocation(location, passengerTerminalAbbrevs)
     );
 
     const branchResults: [
@@ -147,6 +140,41 @@ async function updateVesselLocations(
     locations: [...locations],
   });
 }
+
+export const getPassengerTerminalAbbrevs = (
+  terminals: ReadonlyArray<{
+    TerminalAbbrev: string;
+    IsPassengerTerminal?: boolean;
+  }>
+) =>
+  new Set(
+    terminals
+      .filter((terminal) => terminal.IsPassengerTerminal !== false)
+      .map((terminal) => terminal.TerminalAbbrev)
+  );
+
+export const isPassengerTerminalAbbrev = (
+  terminalAbbrev: string | undefined,
+  passengerTerminalAbbrevs: ReadonlySet<string>
+) =>
+  terminalAbbrev !== undefined && passengerTerminalAbbrevs.has(terminalAbbrev);
+
+export const isTripEligibleLocation = (
+  location: Pick<
+    ConvexVesselLocation,
+    "DepartingTerminalAbbrev" | "ArrivingTerminalAbbrev"
+  >,
+  passengerTerminalAbbrevs: ReadonlySet<string>
+) =>
+  isPassengerTerminalAbbrev(
+    location.DepartingTerminalAbbrev,
+    passengerTerminalAbbrevs
+  ) &&
+  (location.ArrivingTerminalAbbrev === undefined ||
+    isPassengerTerminalAbbrev(
+      location.ArrivingTerminalAbbrev,
+      passengerTerminalAbbrevs
+    ));
 
 const normalizeError = (error: unknown) => {
   if (error instanceof Error) {

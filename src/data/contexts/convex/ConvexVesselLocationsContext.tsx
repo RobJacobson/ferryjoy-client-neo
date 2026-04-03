@@ -1,6 +1,6 @@
-import { useQuery } from "convex/react";
+import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { toDomainVesselLocation, type VesselLocation } from "@/types";
 import { api } from "../../../../convex/_generated/api";
 
@@ -54,21 +54,18 @@ export const ConvexVesselLocationsProvider = ({
   children,
 }: PropsWithChildren) => {
   // Fetch all current vessel locations from Convex
+  const connectionState = useConvexConnectionState();
+  const rawVesselLocations = useQuery(api.functions.vesselLocation.queries.getAll);
   const currentVesselLocations =
-    useQuery(api.functions.vesselLocation.queries.getAll)?.map(
-      toDomainVesselLocation
-    ) || [];
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Handle loading and error states
-  useEffect(() => {
-    if (currentVesselLocations !== undefined) {
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [currentVesselLocations]);
+    rawVesselLocations?.map(toDomainVesselLocation) ?? [];
+  const hasConnectionIssue =
+    rawVesselLocations === undefined &&
+    !connectionState.isWebSocketConnected &&
+    connectionState.connectionRetries > 0;
+  const isLoading = rawVesselLocations === undefined && !hasConnectionIssue;
+  const error = hasConnectionIssue
+    ? "Unable to connect to live vessel data."
+    : null;
 
   const contextValue: ConvexVesselLocationsContextType = {
     vesselLocations: currentVesselLocations,

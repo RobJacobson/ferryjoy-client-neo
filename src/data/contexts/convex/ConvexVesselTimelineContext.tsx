@@ -1,38 +1,35 @@
 /**
  * Convex-backed vessel timeline context.
  *
- * This provider fetches normalized vessel-day boundary events plus live vessel
- * location for one vessel/day scope. Feature-specific timeline derivation
- * happens in the VesselTimeline feature layer.
+ * This provider fetches the backend-owned row view model for one vessel/day
+ * scope. The frontend consumes backend rows and active-row identity directly,
+ * deriving only presentation details locally inside the feature layer.
  */
 
 import { api } from "convex/_generated/api";
+import {
+  toDomainVesselTimelineViewModel,
+  type VesselTimelineLiveState,
+  type VesselTimelineRow,
+  type VesselTimelineViewModel,
+} from "convex/functions/vesselTimeline/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
-import {
-  type MergedTimelineBoundaryEvent,
-  toDomainActualBoundaryEvent,
-  toDomainScheduledBoundaryEvent,
-  toDomainTimelinePredictedBoundaryEvent,
-  toDomainVesselLocation,
-  type VesselLocation,
-  type VesselTimelineActiveState,
-  type VesselTimelineLiveState,
-  type VesselTimelineSegment,
-} from "@/types";
 
 export type {
-  VesselTimelineActiveState,
   VesselTimelineLiveState,
-  VesselTimelineSegment,
+  VesselTimelineRow,
+  VesselTimelineViewModel,
 };
 
 type ConvexVesselTimelineContextType = {
   VesselAbbrev: string;
   SailingDay: string;
-  mergedEvents: MergedTimelineBoundaryEvent[];
-  location: VesselLocation | null;
+  ObservedAt: Date | null;
+  rows: VesselTimelineRow[];
+  activeRowId: string | null;
+  live: VesselTimelineLiveState | null;
   IsLoading: boolean;
   ErrorMessage: string | null;
   Retry: () => void;
@@ -60,15 +57,30 @@ class ConvexVesselTimelineErrorBoundary extends ReactComponent<
 > {
   override state = { hasError: false, errorMessage: null };
 
+  /**
+   * Mirrors React error-boundary state shape after a child throws.
+   *
+   * @returns Error-boundary state patch
+   */
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
+  /**
+   * Captures the thrown error so the fallback can show a concrete message.
+   *
+   * @param error - Unknown render or query error
+   */
   override componentDidCatch(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     this.setState({ errorMessage: message });
   }
 
+  /**
+   * Renders either the fallback tree or the normal descendants.
+   *
+   * @returns Fallback UI context or children
+   */
   override render() {
     if (this.state.hasError) {
       return this.props.fallback(
@@ -81,13 +93,15 @@ class ConvexVesselTimelineErrorBoundary extends ReactComponent<
 }
 
 /**
- * Query-backed provider body that derives its value directly from Convex.
+ * Query-backed provider body that exposes the backend-owned timeline view
+ * model directly to the feature layer.
  *
  * @param props - Provider props
- * @param props.vesselAbbrev - Vessel abbreviation for both queries
- * @param props.sailingDay - Sailing day for both queries
+ * @param props.vesselAbbrev - Vessel abbreviation for the query scope
+ * @param props.sailingDay - Sailing day for the query scope
+ * @param props.onRetry - Callback used to remount the provider on retry
  * @param props.children - Descendant React tree consuming the context
- * @returns Context provider populated from live query results
+ * @returns Context provider populated from the Convex row view model
  */
 const ConvexVesselTimelineQueryProvider = ({
   vesselAbbrev,
@@ -99,52 +113,26 @@ const ConvexVesselTimelineQueryProvider = ({
   sailingDay: string;
   onRetry: () => void;
 }>) => {
-  const rawScheduledEvents = useQuery(
-    api.functions.vesselTimeline.queries.getVesselTimelineScheduledEvents,
+  const rawViewModel = useQuery(
+    api.functions.vesselTimeline.queries.getVesselTimelineViewModel,
     {
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,
     }
   );
-  const rawActualEvents = useQuery(
-    api.functions.vesselTimeline.queries.getVesselTimelineActualEvents,
-    {
-      VesselAbbrev: vesselAbbrev,
-      SailingDay: sailingDay,
-    }
-  );
-  const rawPredictedEvents = useQuery(
-    api.functions.vesselTimeline.queries.getVesselTimelinePredictedEvents,
-    {
-      VesselAbbrev: vesselAbbrev,
-      SailingDay: sailingDay,
-    }
-  );
-  const rawVesselLocation = useQuery(
-    api.functions.vesselLocation.queries.getByVesselAbbrev,
-    {
-      vesselAbbrev,
-    }
-  );
+  const viewModel = rawViewModel
+    ? toDomainVesselTimelineViewModel(rawViewModel)
+    : null;
+  const isLoading = rawViewModel === undefined;
 
-  const IsLoading =
-    rawScheduledEvents === undefined ||
-    rawActualEvents === undefined ||
-    rawPredictedEvents === undefined ||
-    rawVesselLocation === undefined;
-  const mergedEvents = buildMergedBoundaryEvents(
-    rawScheduledEvents?.map(toDomainScheduledBoundaryEvent) ?? [],
-    rawActualEvents?.map(toDomainActualBoundaryEvent) ?? [],
-    rawPredictedEvents?.map(toDomainTimelinePredictedBoundaryEvent) ?? []
-  );
   const value: ConvexVesselTimelineContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
-    mergedEvents,
-    location: rawVesselLocation
-      ? toDomainVesselLocation(rawVesselLocation)
-      : null,
-    IsLoading,
+    ObservedAt: viewModel?.ObservedAt ?? null,
+    rows: viewModel?.rows ?? [],
+    activeRowId: viewModel?.activeRowId ?? null,
+    live: viewModel?.live ?? null,
+    IsLoading: isLoading,
     ErrorMessage: null,
     Retry: onRetry,
   };
@@ -156,6 +144,16 @@ const ConvexVesselTimelineQueryProvider = ({
   );
 };
 
+/**
+ * Error-boundary wrapper around the query-backed provider.
+ *
+ * @param props - Provider props
+ * @param props.vesselAbbrev - Vessel abbreviation for the query scope
+ * @param props.sailingDay - Sailing day for the query scope
+ * @param props.onRetry - Callback used to remount the provider on retry
+ * @param props.children - Descendant React tree consuming the context
+ * @returns Provider tree with a fallback error context
+ */
 export const ConvexVesselTimelineProvider = ({
   vesselAbbrev,
   sailingDay,
@@ -165,8 +163,10 @@ export const ConvexVesselTimelineProvider = ({
   const errorValue: ConvexVesselTimelineContextType = {
     VesselAbbrev: vesselAbbrev,
     SailingDay: sailingDay,
-    mergedEvents: [],
-    location: null,
+    ObservedAt: null,
+    rows: [],
+    activeRowId: null,
+    live: null,
     IsLoading: false,
     ErrorMessage: "Live timeline data is temporarily unavailable.",
     Retry: onRetry,
@@ -196,6 +196,11 @@ export const ConvexVesselTimelineProvider = ({
   );
 };
 
+/**
+ * Reads the backend-owned VesselTimeline view model from context.
+ *
+ * @returns Timeline query state for the current provider scope
+ */
 export const useConvexVesselTimeline = () => {
   const context = useContext(ConvexVesselTimelineContext);
   if (context === undefined) {
@@ -205,38 +210,4 @@ export const useConvexVesselTimeline = () => {
   }
 
   return context;
-};
-
-/**
- * Merges scheduled boundary rows with actual and predicted overlays by stable
- * event key.
- *
- * @param scheduledEvents - Stable schedule backbone
- * @param actualEvents - Sparse actual-time overlay
- * @param predictedEvents - Sparse best-prediction overlay
- * @returns Ordered merged boundary events for semantic row construction
- */
-const buildMergedBoundaryEvents = (
-  scheduledEvents: Array<ReturnType<typeof toDomainScheduledBoundaryEvent>>,
-  actualEvents: Array<ReturnType<typeof toDomainActualBoundaryEvent>>,
-  predictedEvents: Array<
-    ReturnType<typeof toDomainTimelinePredictedBoundaryEvent>
-  >
-): MergedTimelineBoundaryEvent[] => {
-  const actualByKey = new Map(actualEvents.map((event) => [event.Key, event]));
-  const predictedByKey = new Map(
-    predictedEvents.map((event) => [event.Key, event])
-  );
-
-  return scheduledEvents.map((event) => ({
-    Key: event.Key,
-    VesselAbbrev: event.VesselAbbrev,
-    SailingDay: event.SailingDay,
-    ScheduledDeparture: event.ScheduledDeparture,
-    TerminalAbbrev: event.TerminalAbbrev,
-    EventType: event.EventType,
-    EventScheduledTime: event.EventScheduledTime,
-    EventActualTime: actualByKey.get(event.Key)?.EventActualTime,
-    EventPredictedTime: predictedByKey.get(event.Key)?.EventPredictedTime,
-  }));
 };

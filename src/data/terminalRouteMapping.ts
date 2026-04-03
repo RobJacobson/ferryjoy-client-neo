@@ -32,10 +32,9 @@ export const selectRouteAbbrevsForSelection = (
 
   const departingTopology =
     terminalsTopologyByAbbrev[
-      (
-        selectedTerminalPair.kind === "pair"
-          ? selectedTerminalPair.from
-          : selectedTerminalPair.terminal
+      (selectedTerminalPair.kind === "pair"
+        ? selectedTerminalPair.from
+        : selectedTerminalPair.terminal
       ).toUpperCase()
     ];
 
