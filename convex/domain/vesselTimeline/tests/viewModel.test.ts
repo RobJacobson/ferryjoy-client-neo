@@ -438,6 +438,64 @@ describe("buildVesselTimelineViewModel", () => {
     expect(viewModel.live?.AtDock).toBe(true);
   });
 
+  it("keeps a keyless docked vessel attached to the delayed current dock row", () => {
+    const viewModel = buildVesselTimelineViewModel({
+      VesselAbbrev: "CHE",
+      SailingDay: "2026-03-25",
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          TerminalAbbrev: "CLI",
+          EventType: "arv-dock",
+          ScheduledDeparture: at(9, 30),
+          EventScheduledTime: at(10, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "CLI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(11, 0),
+          EventScheduledTime: at(11, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          TerminalAbbrev: "MUK",
+          EventType: "arv-dock",
+          ScheduledDeparture: at(11, 0),
+          EventScheduledTime: at(11, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--dep-dock",
+          TerminalAbbrev: "CLI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(12, 30),
+          EventScheduledTime: at(12, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--arv-dock",
+          TerminalAbbrev: "MUK",
+          EventType: "arv-dock",
+          ScheduledDeparture: at(12, 30),
+          EventScheduledTime: at(13, 5),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+      location: makeLocation({
+        VesselAbbrev: "CHE",
+        AtDock: true,
+        DepartingTerminalAbbrev: "CLI",
+        Key: undefined,
+        TimeStamp: at(11, 8),
+      }),
+      activeTrip: null,
+      inferredDockedTripKey: "trip-2",
+      terminalTailTripKey: null,
+    });
+
+    expect(viewModel.activeRowId).toBe("trip-2--at-dock");
+  });
+
   it("prefers vessel-location dock state and key over active trip state", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "WEN",

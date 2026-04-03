@@ -7,6 +7,7 @@
  */
 
 import type { QueryCtx } from "_generated/server";
+import { internal } from "_generated/api";
 import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../eventsScheduled/schemas";
@@ -40,40 +41,45 @@ export const loadVesselTimelineViewModelInputs = async (
     SailingDay: string;
   }
 ): Promise<LoadedVesselTimelineViewModelInputs> => {
-  const [
-    scheduledDocs,
-    actualDocs,
-    predictedDocs,
-    locationDoc,
-    activeTripDoc,
-  ] = await Promise.all([
-    ctx.db
-      .query("eventsScheduled")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
-      )
-      .collect(),
-    ctx.db
-      .query("eventsActual")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
-      )
-      .collect(),
-    ctx.db
-      .query("eventsPredicted")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
-      )
-      .collect(),
-    ctx.db
-      .query("vesselLocations")
-      .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", args.VesselAbbrev))
-      .unique(),
-    ctx.db
-      .query("activeVesselTrips")
-      .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", args.VesselAbbrev))
-      .unique(),
-  ]);
+  const [scheduledDocs, actualDocs, predictedDocs, locationDoc, activeTripDoc] =
+    await Promise.all([
+      ctx.db
+        .query("eventsScheduled")
+        .withIndex("by_vessel_and_sailing_day", (q) =>
+          q
+            .eq("VesselAbbrev", args.VesselAbbrev)
+            .eq("SailingDay", args.SailingDay)
+        )
+        .collect(),
+      ctx.db
+        .query("eventsActual")
+        .withIndex("by_vessel_and_sailing_day", (q) =>
+          q
+            .eq("VesselAbbrev", args.VesselAbbrev)
+            .eq("SailingDay", args.SailingDay)
+        )
+        .collect(),
+      ctx.db
+        .query("eventsPredicted")
+        .withIndex("by_vessel_and_sailing_day", (q) =>
+          q
+            .eq("VesselAbbrev", args.VesselAbbrev)
+            .eq("SailingDay", args.SailingDay)
+        )
+        .collect(),
+      ctx.db
+        .query("vesselLocations")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.VesselAbbrev)
+        )
+        .unique(),
+      ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_vessel_abbrev", (q) =>
+          q.eq("VesselAbbrev", args.VesselAbbrev)
+        )
+        .unique(),
+    ]);
 
   const scheduledEvents = scheduledDocs.map(stripConvexMeta);
   const actualEvents = actualDocs.map(stripConvexMeta);
@@ -142,7 +148,9 @@ const resolveTerminalTailTripKey = async (
   // If the trip table is missing a matching scheduledTrip row, fall back to
   // the arrival boundary's own trip key so the final dock stop still renders.
   return (
-    nextTrip?.Key ?? currentTrip?.Key ?? getTripKeyFromBoundaryKey(lastEvent.Key)
+    nextTrip?.Key ??
+    currentTrip?.Key ??
+    getTripKeyFromBoundaryKey(lastEvent.Key)
   );
 };
 
@@ -194,14 +202,18 @@ const resolveInferredDockedTripKey = async (
     }
   }
 
-  const nextTrip = await getNextScheduledTripForVesselAtTerminal(ctx, {
-    vesselAbbrev: args.VesselAbbrev,
-    departingTerminalAbbrev: args.location.DepartingTerminalAbbrev,
-    arrivalTime: args.location.TimeStamp,
-  });
+  const dockedTrip = await ctx.runQuery(
+    internal.functions.eventsScheduled.queries
+      .getDockedDepartureSegmentForVesselAtTerminal,
+    {
+      vesselAbbrev: args.VesselAbbrev,
+      departingTerminalAbbrev: args.location.DepartingTerminalAbbrev,
+      observedAt: args.location.TimeStamp,
+    }
+  );
 
-  if (nextTrip) {
-    return nextTrip.Key;
+  if (dockedTrip) {
+    return dockedTrip.Key;
   }
 
   const lastScheduledEvent = [...args.scheduledEvents].sort(

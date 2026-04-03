@@ -30,7 +30,7 @@ describe("appendFinalSchedule", () => {
         [previousScheduledSegment.Key, previousScheduledSegment],
         [delayedNextSegment.Key, delayedNextSegment],
       ]),
-      inferredScheduledSegment: laterSegment,
+      dockedScheduledSegment: laterSegment,
     });
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "MUK",
@@ -86,7 +86,7 @@ describe("appendFinalSchedule", () => {
     });
     const ctx = createTestActionCtx({
       rolloverScheduledSegment: rolloverSegment,
-      inferredScheduledSegment: laterSegment,
+      dockedScheduledSegment: laterSegment,
     });
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "MUK",
@@ -130,7 +130,7 @@ describe("appendFinalSchedule", () => {
       NextDepartingTime: ms("2026-03-13T08:30:00-07:00"),
     });
     const ctx = createTestActionCtx({
-      inferredScheduledSegment: scheduledSegment,
+      dockedScheduledSegment: scheduledSegment,
     });
     const baseTrip = makeTrip({
       DepartingTerminalAbbrev: "ORI",
@@ -157,6 +157,44 @@ describe("appendFinalSchedule", () => {
     expect(enriched.NextKey).toBe(scheduledSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime
+    );
+  });
+
+  it("keeps a first-seen delayed docked trip attached to the overdue current sailing", async () => {
+    const delayedCurrentSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--11:00--CLI-MUK",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      DepartingTime: ms("2026-03-13T11:00:00-07:00"),
+      NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const ctx = createTestActionCtx({
+      dockedScheduledSegment: delayedCurrentSegment,
+    });
+    const baseTrip = makeTrip({
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: undefined,
+      Key: undefined,
+      SailingDay: undefined,
+      ScheduledDeparture: undefined,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T11:08:00-07:00"),
+    });
+
+    const enriched = await appendFinalSchedule(
+      ctx as never,
+      baseTrip,
+      undefined
+    );
+
+    expect(enriched.Key).toBe(delayedCurrentSegment.Key);
+    expect(enriched.ScheduledDeparture).toBe(
+      delayedCurrentSegment.DepartingTime
+    );
+    expect(enriched.ArrivingTerminalAbbrev).toBe(
+      delayedCurrentSegment.ArrivingTerminalAbbrev
     );
   });
 
@@ -191,7 +229,7 @@ type TestActionCtx = {
 };
 
 const createTestActionCtx = (options: {
-  inferredScheduledSegment?: InferredScheduledSegment | null;
+  dockedScheduledSegment?: InferredScheduledSegment | null;
   rolloverScheduledSegment?: InferredScheduledSegment | null;
   scheduledSegmentByKey?: Map<string, InferredScheduledSegment>;
 }): TestActionCtx => ({
@@ -206,8 +244,8 @@ const createTestActionCtx = (options: {
       return options.rolloverScheduledSegment ?? null;
     }
 
-    if (args && "arrivalTime" in args) {
-      return options.inferredScheduledSegment ?? null;
+    if (args && "observedAt" in args) {
+      return options.dockedScheduledSegment ?? null;
     }
 
     return null;

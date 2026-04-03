@@ -99,6 +99,9 @@ Active attachment prefers `vesselLocations` for `AtDock` and `Key`, with only a
 narrow active-trip fallback when no live location row is present.
 The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
 or terminal-tail fallback on its own.
+For keyless docked vessels, the backend resolves active attachment from the
+scheduled dock interval, so delayed sailings remain attached to the current
+dock row instead of hopping to the next future departure after now.
 When `activeRowId` is `null`, the frontend still renders rows but omits the
 active indicator.
 

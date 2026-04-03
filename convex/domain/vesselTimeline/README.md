@@ -184,6 +184,8 @@ Responsibilities:
 - prefer `vesselLocations` for `AtDock` and `Key`
 - fall back to `activeVesselTrips` only when a live location row is missing
 - use inferred docked trip keys only when live state is docked and keyless
+- infer those docked trip keys from the scheduled dock interval, not from the
+  next future departure after the observation timestamp
 - never guess between same-terminal rows by proximity
 
 ### `viewModel.ts`
@@ -285,6 +287,8 @@ Frontend VesselTimeline
 - placeholders are backend-emitted fallback only
 - terminal-tail is row metadata, not a separate row kind
 - `activeRowId` is backend-owned
+- delayed docked vessels stay attached to the current dock row when the
+  scheduled departure is overdue but still belongs to the active dock interval
 
 ## Suggested Reading Order
 

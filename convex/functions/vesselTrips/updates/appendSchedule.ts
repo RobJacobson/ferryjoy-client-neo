@@ -133,14 +133,14 @@ const inferDockedTripFromSchedule = async (
   }
 
   // First-seen docked vessels have no prior trip context, so fall back to the
-  // first departure boundary still ahead of the observed dock timestamp.
+  // departure that owns the vessel's current dock interval.
   return ctx.runQuery(
     internal.functions.eventsScheduled.queries
-      .getNextScheduledDepartureSegmentForVesselAtTerminal,
+      .getDockedDepartureSegmentForVesselAtTerminal,
     {
       vesselAbbrev: baseTrip.VesselAbbrev,
       departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
-      arrivalTime: baseTrip.TimeStamp,
+      observedAt: baseTrip.TimeStamp,
     }
   );
 };

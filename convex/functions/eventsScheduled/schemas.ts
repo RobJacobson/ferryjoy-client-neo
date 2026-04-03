@@ -26,7 +26,20 @@ export const eventsScheduledSchema = v.object({
   EventScheduledTime: v.optional(v.number()),
 });
 
+export const inferredScheduledSegmentSchema = v.object({
+  Key: v.string(),
+  SailingDay: v.string(),
+  DepartingTerminalAbbrev: v.string(),
+  ArrivingTerminalAbbrev: v.string(),
+  DepartingTime: v.number(),
+  NextKey: v.optional(v.string()),
+  NextDepartingTime: v.optional(v.number()),
+});
+
 export type ConvexScheduledBoundaryEvent = Infer<typeof eventsScheduledSchema>;
+export type ConvexInferredScheduledSegment = Infer<
+  typeof inferredScheduledSegmentSchema
+>;
 
 /**
  * Converts a scheduled boundary event into the domain shape with `Date`

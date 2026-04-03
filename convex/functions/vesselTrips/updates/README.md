@@ -10,7 +10,7 @@ This module synchronizes active vessel trips with live location data. It runs as
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
 2. `tripDerivation` — shared normalized per-tick derivation for event detection and base-trip construction (`ScheduledDeparture`, `SailingDay`, `Key`, dock-departure state, explicit base-trip mode)
 3. `baseTripFromLocation` — base trip from raw location data using explicit `start` and `continue` modes
-4. `appendFinalSchedule` — deterministic schedule lookup by Key, plus dock-time inference of the next scheduled trip when the feed lags
+4. `appendFinalSchedule` — deterministic schedule lookup by Key, plus dock-time inference of the scheduled departure that owns the vessel's current dock interval when the feed lags
 5. `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions gated on a real trip start (at-dock: AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext; at-sea: AtSeaArriveNext, AtSeaDepartNext)
 
 **Centralized trip identity**: `shared/tripIdentity.ts` owns canonical derivation of `Key`, `SailingDay`, and trip-start readiness. `tripDerivation.ts` uses that helper for both current-tick and carry-forward cases so event detection and base-trip construction stay aligned with `vesselLocations`.
@@ -86,7 +86,7 @@ built later in `convex/domain/vesselTimeline/rows.ts`,
 | `buildTrip.ts` | `buildTrip` — orchestrates all build functions (location, schedule, predictions) with provided events, then finalizes leave-dock actuals before persistence |
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ResolvedVesselLocation` using explicit `start` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
-| `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key plus dock-time inference that prefers exact next-trip continuity from the completed trip |
+| `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key plus dock-time inference that prefers exact next-trip continuity from the completed trip and otherwise resolves the departure owning the current dock interval |
 | `tripEquality.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality utilities used to avoid unnecessary writes |
 | `shared/tripIdentity.ts` | `deriveTripIdentity` — canonical `Key` / `SailingDay` / start-ready derivation shared by live locations and trip updates |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
@@ -126,7 +126,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
    Dock-time inference prefers, in order:
    - the exact `NextKey` already linked from the completed trip
    - the first surviving scheduled trip after the completed trip's `ScheduledDeparture`
-   - arrival-time lookup only when no prior-trip schedule context exists
+   - dock-interval ownership lookup only when no prior-trip schedule context exists
 3. The replacement trip's `TripStart` equals the completed trip's `TripEnd`.
 4. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
 5. Insert completed prediction records from the already-finalized completed trip via PredictionService.
@@ -310,7 +310,7 @@ builder.
 
 ### Event-Driven Lookups
 
-- `appendFinalSchedule`: Event-driven when a trip starts, its key changes, or a docked trip still needs inferred schedule identity. Reuses existing schedule fields when the key matches. When the feed lags after arrival, it infers the replacement trip by preferring exact schedule continuity from the completed trip and only falls back to arrival-time lookup for first-seen docked vessels without prior-trip context.
+- `appendFinalSchedule`: Event-driven when a trip starts, its key changes, or a docked trip still needs inferred schedule identity. Reuses existing schedule fields when the key matches. When the feed lags after arrival, it infers the replacement trip by preferring exact schedule continuity from the completed trip and otherwise resolves the departure that owns the vessel's current dock interval, so delayed sailings stay attached to the current trip instead of skipping ahead.
 
 ---
 
@@ -411,7 +411,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 ### Optimizations
 
 - **Schedule reuse**: `appendFinalSchedule` reuses existing schedule-derived fields when the key matches, avoiding redundant lookups.
-- **Dock-time inference**: When the feed lags after arrival, `appendFinalSchedule` first tries to stay on the exact next scheduled trip linked from the completed trip, then falls back to the first direct scheduled trip after the completed trip's scheduled departure, and only uses arrival-time lookup for docked trips that have no usable prior-trip schedule context.
+- **Dock-time inference**: When the feed lags after arrival, `appendFinalSchedule` first tries to stay on the exact next scheduled trip linked from the completed trip, then falls back to the first direct scheduled trip after the completed trip's scheduled departure, and only uses dock-interval ownership lookup for docked trips that have no usable prior-trip schedule context. That final fallback finds the latest arrival at the current terminal and keeps the vessel attached to the corresponding delayed departure instead of jumping to the next future sailing after now.
 - **Batch model loading**: `computePredictions` uses `loadModelsForPairBatch` when computing 2+ predictions for a vessel.
 - **Batch upserts**: Active trips are batched and upserted together in `upsertVesselTripsBatch`.
 - **Event-gated predictions**: Expensive ML operations only run when a real trip start is observed or when the vessel departs dock, not every tick.
