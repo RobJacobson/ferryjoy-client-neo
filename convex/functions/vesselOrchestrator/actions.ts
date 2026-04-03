@@ -1,3 +1,11 @@
+/**
+ * Top-level real-time vessel orchestrator.
+ *
+ * Fetches one batch of WSF vessel locations, converts it into backend-owned
+ * identity, then fans that same batch out to location storage and trip/timeline
+ * processing.
+ */
+
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
@@ -141,6 +149,16 @@ async function updateVesselLocations(
   });
 }
 
+/**
+ * Collect the passenger-terminal abbreviations that are eligible for trip
+ * processing.
+ *
+ * Non-passenger marine locations can still be stored in `vesselLocations`,
+ * but they are intentionally excluded from trip lifecycle derivation.
+ *
+ * @param terminals - Backend terminal snapshot
+ * @returns Set of terminal abbreviations eligible for trip processing
+ */
 export const getPassengerTerminalAbbrevs = (
   terminals: ReadonlyArray<{
     TerminalAbbrev: string;
@@ -153,12 +171,29 @@ export const getPassengerTerminalAbbrevs = (
       .map((terminal) => terminal.TerminalAbbrev)
   );
 
+/**
+ * Test whether a terminal abbreviation participates in passenger trip logic.
+ *
+ * @param terminalAbbrev - Candidate terminal abbreviation
+ * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
+ * @returns True when the abbreviation is trip-eligible
+ */
 export const isPassengerTerminalAbbrev = (
   terminalAbbrev: string | undefined,
   passengerTerminalAbbrevs: ReadonlySet<string>
 ) =>
   terminalAbbrev !== undefined && passengerTerminalAbbrevs.has(terminalAbbrev);
 
+/**
+ * Decide whether a resolved vessel location should enter the trip pipeline.
+ *
+ * The location branch stores more raw fidelity than the trip branch. This gate
+ * keeps trip derivation constrained to passenger-terminal movements only.
+ *
+ * @param location - Converted vessel location for the current tick
+ * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
+ * @returns True when the location should be processed by `vesselTrips`
+ */
 export const isTripEligibleLocation = (
   location: Pick<
     ConvexVesselLocation,
@@ -176,6 +211,13 @@ export const isTripEligibleLocation = (
       passengerTerminalAbbrevs
     ));
 
+/**
+ * Convert unknown thrown values into an `Error` for consistent branch-level
+ * reporting.
+ *
+ * @param error - Unknown thrown value
+ * @returns Error instance with a stable message and optional stack
+ */
 const normalizeError = (error: unknown) => {
   if (error instanceof Error) {
     return error;

@@ -23,6 +23,17 @@ import {
   vesselTimelineEventRecordSchema,
 } from "./schemas";
 
+/**
+ * Replaces the structural scheduled backbone and hydrated actual rows for one
+ * sailing day.
+ *
+ * Schedule sync owns this mutation. It treats the supplied day slice as the
+ * complete truth and makes the normalized tables match it exactly.
+ *
+ * @param args.SailingDay - Service day being fully replaced
+ * @param args.Events - Boundary events already normalized in memory
+ * @returns Counts for the rows represented by that replaced slice
+ */
 export const replaceBoundaryEventsForSailingDay = internalMutation({
   args: {
     SailingDay: v.string(),
@@ -57,6 +68,15 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
   },
 });
 
+/**
+ * Applies sparse actual-time boundary effects emitted by `vesselTrips`.
+ *
+ * These are incremental overlays, not full-day replacements, so the mutation
+ * upserts only the affected keys and skips no-op rewrites.
+ *
+ * @param args.Effects - Departure and arrival actual effects keyed by segment
+ * @returns `null`
+ */
 export const projectActualBoundaryEffects = internalMutation({
   args: {
     Effects: v.array(actualBoundaryEffectSchema),
@@ -93,6 +113,16 @@ export const projectActualBoundaryEffects = internalMutation({
   },
 });
 
+/**
+ * Applies sparse predicted-time boundary effects emitted by `vesselTrips`.
+ *
+ * Each effect carries both the replacement rows and the key scope that should
+ * exist afterwards, which lets the mutation delete stale predictions without
+ * reloading unrelated vessels or sailing days.
+ *
+ * @param args.Effects - Prediction projection effects grouped by vessel/day scope
+ * @returns `null`
+ */
 export const projectPredictedBoundaryEffects = internalMutation({
   args: {
     Effects: v.array(predictedBoundaryProjectionEffectSchema),
@@ -111,6 +141,9 @@ export const projectPredictedBoundaryEffects = internalMutation({
     >();
 
     for (const effect of args.Effects) {
+      // Multiple vessels in the same tick may emit overlapping prediction
+      // effects for the same vessel/day scope. Merge them first so we only
+      // read and rewrite that scope once.
       const scopeKey = `${effect.VesselAbbrev}:${effect.SailingDay}`;
       const existingScope = effectsByScope.get(scopeKey);
 

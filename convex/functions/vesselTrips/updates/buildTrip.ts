@@ -58,6 +58,9 @@ export const buildTrip = async (
   // still needed at dock, or fallback timing allows it.
   const shouldAppendFinalSchedule =
     tripStart || events.keyChanged || shouldInferScheduleAtDock;
+  // At-dock predictions belong only to real dock occupancy for a started trip.
+  // This avoids generating model output for first-seen placeholder rows that
+  // have not yet observed a trustworthy trip start.
   const shouldAttemptAtDockPredictions =
     withArriveDest.AtDock &&
     !withArriveDest.LeftDock &&
@@ -66,6 +69,9 @@ export const buildTrip = async (
     (!withArriveDest.AtDockDepartCurr ||
       !withArriveDest.AtDockArriveNext ||
       !withArriveDest.AtDockDepartNext);
+  // At-sea predictions are allowed once a real departure exists. Event ticks
+  // trigger them immediately, and the short fallback window gives the system a
+  // bounded retry path if that first prediction attempt fails.
   const shouldAttemptAtSeaPredictions =
     !withArriveDest.AtDock &&
     Boolean(withArriveDest.LeftDock) &&

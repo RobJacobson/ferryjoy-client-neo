@@ -3,6 +3,9 @@
  *
  * These helpers sit at the Convex boundary so the pure selection rules can
  * stay in `segmentResolvers.ts` while database/index orchestration stays here.
+ * The cost of that split is that some lookups intentionally read multiple
+ * sailing days, because dock ownership and next-trip continuity can cross the
+ * visible service-day boundary.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -96,6 +99,9 @@ export const getDockedDepartureSegmentForVesselAtTerminal = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
+    // Dock ownership needs a small cross-day window so the pure resolver can
+    // decide whether this vessel still belongs to the current dock interval or
+    // has already rolled into the next scheduled departure.
     const departureEvent = findDockedDepartureEvent(
       await loadScheduledBoundaryEventsAroundTime(
         ctx,
@@ -121,6 +127,9 @@ const inferScheduledSegment = async (
   ctx: QueryCtx,
   departureEvent: ConvexScheduledBoundaryEvent
 ) => {
+  // The inferred segment intentionally carries "what comes after this trip?"
+  // so callers in `vesselTrips` and `vesselTimeline` can preserve continuity
+  // without consulting trip-shaped tables.
   const nextDepartureEvent = findNextDepartureEvent(
     await loadScheduledBoundaryEventsAfterTime(
       ctx,
@@ -215,6 +224,8 @@ const loadScheduledBoundaryEventsForSailingDays = async (
   vesselAbbrev: string,
   sailingDays: string[]
 ) =>
+  // Keep the reads separate per sailing day so each query stays index-friendly
+  // on `by_vessel_and_sailing_day`, then flatten for the pure resolver layer.
   (
     await Promise.all(
       sailingDays.map((sailingDay) =>

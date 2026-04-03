@@ -89,6 +89,10 @@ export const loadVesselTimelineViewModelInputs = async (
   const predictedEvents = predictedDocs.map(stripConvexMeta);
   const location = locationDoc ? stripConvexMeta(locationDoc) : null;
   const activeTrip = activeTripDoc ? stripConvexMeta(activeTripDoc) : null;
+
+  // Most timeline work stays inside the requested sailing day. Adjacent days
+  // are loaded lazily only for the two cases that need event-order continuity:
+  // terminal-tail ownership and keyless docked-trip attachment.
   const loadScheduledLookupEvents = async (argsForLookup: {
     includePreviousDay?: boolean;
     includeNextDay?: boolean;
@@ -101,6 +105,8 @@ export const loadVesselTimelineViewModelInputs = async (
       includeNextDay: argsForLookup.includeNextDay,
     });
   const [terminalTailTripKey, inferredDockedTripKey] = await Promise.all([
+    // These are independent read-time attachments over the same event slice, so
+    // compute them together once the base tables are loaded.
     resolveTerminalTailTripKey({
       scheduledEvents,
       loadScheduledLookupEvents,
@@ -213,6 +219,8 @@ const resolveInferredDockedTripKey = async (
   });
 
   if (args.activeTrip?.PrevScheduledDeparture !== undefined) {
+    // A just-completed trip is stronger evidence than "what departure is next
+    // after now?" because the next real sailing may already be late.
     const rolloverTrip = findNextDepartureEvent(lookupEvents, {
       terminalAbbrev: args.location.DepartingTerminalAbbrev,
       afterTime: args.activeTrip.PrevScheduledDeparture,
@@ -244,6 +252,9 @@ const resolveInferredDockedTripKey = async (
     lastScheduledEvent?.EventType === "arv-dock" &&
     lastScheduledEvent.TerminalAbbrev === args.location.DepartingTerminalAbbrev
   ) {
+    // This preserves an understandable dock attachment at the end of service
+    // even when the next departure has not been scheduled into the visible
+    // slice.
     return getSegmentKeyFromBoundaryKey(lastScheduledEvent.Key);
   }
 
@@ -301,6 +312,9 @@ const loadScheduledLookupEventsAroundSailingDay = async (
     return [...args.currentDayEvents].sort(sortScheduledBoundaryEvents);
   }
 
+  // The query contract is still "one vessel, one sailing day"; these extra
+  // reads exist only to answer event-order questions that spill just beyond
+  // that boundary.
   const adjacentDocs = (
     await Promise.all(
       adjacentSailingDays.map((sailingDay) =>
