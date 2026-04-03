@@ -243,6 +243,9 @@ Responsibilities:
 - read normalized event tables and live trip/location state
 - derive docked and terminal-tail attachment from the loaded event slice plus
   live state
+- delegate schedule-backed dock-interval resolution to shared
+  `eventsScheduled` query helpers, whose pure selection logic lives in
+  `convex/functions/eventsScheduled/segmentResolvers.ts`
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow

@@ -95,6 +95,8 @@ built later in `convex/domain/vesselTimeline/rows.ts`,
 - `convex/domain/ml/prediction/predictionService.ts` — Prediction side effects after persistence (`trip_complete`, `leave_dock` record insertion and backfill)
 - `convex/domain/ml/prediction/vesselTripPredictions.ts` — `PREDICTION_SPECS`, `predictFromSpec`, `actualizePredictionsOnTripComplete`, `actualizePredictionsOnLeaveDock`
 - `convex/domain/ml/prediction/predictTrip.ts` — `loadModelsForPairBatch`, `predictTripValue`
+- `convex/functions/eventsScheduled/queries.ts` — thin Convex query handlers for schedule-backed segment lookup
+- `convex/functions/eventsScheduled/segmentResolvers.ts` — pure scheduled-segment selection and dock-interval ownership logic reused by those query handlers
 - `convex/functions/vesselTrips/mutations.ts` — `completeAndStartNewTrip`, `upsertVesselTripsBatch`, `setDepartNextActualsForMostRecentCompletedTrip`
 
 **Tests**:

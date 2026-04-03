@@ -48,6 +48,7 @@ import type * as functions_eventsPredicted_schemas from "../functions/eventsPred
 import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
 import type * as functions_eventsScheduled_queries from "../functions/eventsScheduled/queries.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
+import type * as functions_eventsScheduled_segmentResolvers from "../functions/eventsScheduled/segmentResolvers.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_keyValueStore_actions from "../functions/keyValueStore/actions.js";
 import type * as functions_keyValueStore_helpers from "../functions/keyValueStore/helpers.js";
@@ -197,6 +198,7 @@ declare const fullApi: ApiFromModules<{
   "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;
   "functions/eventsScheduled/queries": typeof functions_eventsScheduled_queries;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
+  "functions/eventsScheduled/segmentResolvers": typeof functions_eventsScheduled_segmentResolvers;
   "functions/index": typeof functions_index;
   "functions/keyValueStore/actions": typeof functions_keyValueStore_actions;
   "functions/keyValueStore/helpers": typeof functions_keyValueStore_helpers;

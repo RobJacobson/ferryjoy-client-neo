@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { findDockedDepartureEvent } from "./queries";
+import { findDockedDepartureEvent } from "./segmentResolvers";
 
 describe("findDockedDepartureEvent", () => {
   it("keeps a delayed sailing attached to the current dock interval", () => {

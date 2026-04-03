@@ -3,11 +3,13 @@ import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { buildBoundaryKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledBoundaryEvent,
-} from "./schemas";
+import type { ConvexScheduledBoundaryEvent } from "./schemas";
 import { inferredScheduledSegmentSchema } from "./schemas";
+import {
+  buildInferredScheduledSegment,
+  findDockedDepartureEvent,
+  findNextDepartureEvent,
+} from "./segmentResolvers";
 
 export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
   args: {
@@ -15,12 +17,10 @@ export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    const event = await ctx.db
-      .query("eventsScheduled")
-      .withIndex("by_key", (q) =>
-        q.eq("Key", buildBoundaryKey(args.segmentKey, "dep-dock"))
-      )
-      .unique();
+    const event = await loadScheduledDepartureEventBySegmentKey(
+      ctx,
+      args.segmentKey
+    );
 
     if (!event) {
       return null;
@@ -30,25 +30,6 @@ export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
   },
 });
 
-export const getNextScheduledDepartureSegmentForVesselAtTerminal =
-  internalQuery({
-    args: {
-      vesselAbbrev: v.string(),
-      departingTerminalAbbrev: v.string(),
-      arrivalTime: v.number(),
-    },
-    returns: v.union(inferredScheduledSegmentSchema, v.null()),
-    handler: async (ctx, args) => {
-      const event = await findNextDepartureEvent(ctx, {
-        vesselAbbrev: args.vesselAbbrev,
-        terminalAbbrev: args.departingTerminalAbbrev,
-        afterTime: args.arrivalTime,
-      });
-
-      return event ? inferScheduledSegment(ctx, event) : null;
-    },
-  });
-
 export const getNextDepartureSegmentAfterDeparture = internalQuery({
   args: {
     vesselAbbrev: v.string(),
@@ -57,11 +38,17 @@ export const getNextDepartureSegmentAfterDeparture = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    const event = await findNextDepartureEvent(ctx, {
-      vesselAbbrev: args.vesselAbbrev,
-      terminalAbbrev: args.departingTerminalAbbrev,
-      afterTime: args.previousScheduledDeparture,
-    });
+    const event = findNextDepartureEvent(
+      await loadScheduledBoundaryEventsAfterTime(
+        ctx,
+        args.vesselAbbrev,
+        args.previousScheduledDeparture
+      ),
+      {
+        terminalAbbrev: args.departingTerminalAbbrev,
+        afterTime: args.previousScheduledDeparture,
+      }
+    );
 
     return event ? inferScheduledSegment(ctx, event) : null;
   },
@@ -92,30 +79,31 @@ export const getDockedDepartureSegmentForVesselAtTerminal = internalQuery({
 const inferScheduledSegment = async (
   ctx: QueryCtx,
   departureEvent: ConvexScheduledBoundaryEvent
-): Promise<ConvexInferredScheduledSegment> => {
-  const departureTime =
-    departureEvent.EventScheduledTime ?? departureEvent.ScheduledDeparture;
-  const nextDepartureEvent = await findNextDepartureEvent(ctx, {
-    vesselAbbrev: departureEvent.VesselAbbrev,
-    terminalAbbrev: undefined,
-    afterTime: departureEvent.ScheduledDeparture,
-  });
+) => {
+  const nextDepartureEvent = findNextDepartureEvent(
+    await loadScheduledBoundaryEventsAfterTime(
+      ctx,
+      departureEvent.VesselAbbrev,
+      departureEvent.ScheduledDeparture
+    ),
+    {
+      afterTime: departureEvent.ScheduledDeparture,
+    }
+  );
 
-  return {
-    Key: getSegmentKeyFromBoundaryKey(departureEvent.Key),
-    SailingDay: departureEvent.SailingDay,
-    DepartingTerminalAbbrev: departureEvent.TerminalAbbrev,
-    ArrivingTerminalAbbrev: departureEvent.NextTerminalAbbrev,
-    DepartingTime: departureTime,
-    NextKey: nextDepartureEvent
-      ? getSegmentKeyFromBoundaryKey(nextDepartureEvent.Key)
-      : undefined,
-    NextDepartingTime: nextDepartureEvent
-      ? (nextDepartureEvent.EventScheduledTime ??
-        nextDepartureEvent.ScheduledDeparture)
-      : undefined,
-  };
+  return buildInferredScheduledSegment(departureEvent, nextDepartureEvent);
 };
+
+const loadScheduledDepartureEventBySegmentKey = async (
+  ctx: QueryCtx,
+  segmentKey: string
+) =>
+  ctx.db
+    .query("eventsScheduled")
+    .withIndex("by_key", (q) =>
+      q.eq("Key", buildBoundaryKey(segmentKey, "dep-dock"))
+    )
+    .unique();
 
 const loadScheduledBoundaryEventsAroundTime = async (
   ctx: QueryCtx,
@@ -143,90 +131,26 @@ const loadScheduledBoundaryEventsAroundTime = async (
   ).flat();
 };
 
-export const findDockedDepartureEvent = (
-  events: ConvexScheduledBoundaryEvent[],
-  terminalAbbrev: string,
-  observedAt: number
-) => {
-  const sortedEvents = [...events].sort(sortScheduledBoundaryEvents);
-  const latestArrival = [...sortedEvents]
-    .reverse()
-    .find(
-      (event) =>
-        event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === terminalAbbrev &&
-        getBoundaryTime(event) <= observedAt
-    );
-
-  if (latestArrival) {
-    return (
-      sortedEvents.find(
-        (event) =>
-          event.EventType === "dep-dock" &&
-          event.TerminalAbbrev === terminalAbbrev &&
-          getBoundaryTime(event) >= getBoundaryTime(latestArrival)
-      ) ?? null
-    );
-  }
-
-  return (
-    sortedEvents.find(
-      (event) =>
-        event.EventType === "dep-dock" &&
-        event.TerminalAbbrev === terminalAbbrev &&
-        getBoundaryTime(event) >= observedAt
-    ) ?? null
-  );
-};
-
-const findNextDepartureEvent = async (
+const loadScheduledBoundaryEventsAfterTime = async (
   ctx: QueryCtx,
-  args: {
-    vesselAbbrev: string;
-    terminalAbbrev?: string;
-    afterTime: number;
-  }
+  vesselAbbrev: string,
+  afterTime: number
 ) => {
-  const currentSailingDay = getSailingDay(new Date(args.afterTime));
+  const currentSailingDay = getSailingDay(new Date(afterTime));
   const nextSailingDay = addDays(currentSailingDay, 1);
-  const candidateEvents = (
+  return (
     await Promise.all(
       [currentSailingDay, nextSailingDay].map((sailingDay) =>
         ctx.db
           .query("eventsScheduled")
           .withIndex("by_vessel_and_sailing_day", (q) =>
-            q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", sailingDay)
+            q.eq("VesselAbbrev", vesselAbbrev).eq("SailingDay", sailingDay)
           )
           .collect()
       )
     )
-  )
-    .flat()
-    .filter(
-      (event) =>
-        event.EventType === "dep-dock" &&
-        (args.terminalAbbrev === undefined ||
-          event.TerminalAbbrev === args.terminalAbbrev) &&
-        event.ScheduledDeparture > args.afterTime
-    )
-    .sort(
-      (left, right) =>
-        left.ScheduledDeparture - right.ScheduledDeparture ||
-        left.TerminalAbbrev.localeCompare(right.TerminalAbbrev)
-    );
-
-  return candidateEvents[0] ?? null;
+  ).flat();
 };
-
-const getSegmentKeyFromBoundaryKey = (boundaryKey: string) =>
-  boundaryKey.replace(/--(?:dep|arv)-dock$/, "");
-
-const getBoundaryTime = (
-  event: Pick<
-    ConvexScheduledBoundaryEvent,
-    "EventScheduledTime" | "ScheduledDeparture"
-  >
-) => event.EventScheduledTime ?? event.ScheduledDeparture;
 
 const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
@@ -234,16 +158,3 @@ const addDays = (dateString: string, days: number): string => {
   date.setUTCDate(date.getUTCDate() + days);
   return getSailingDay(date);
 };
-
-const sortScheduledBoundaryEvents = (
-  left: ConvexScheduledBoundaryEvent,
-  right: ConvexScheduledBoundaryEvent
-) =>
-  getBoundaryTime(left) - getBoundaryTime(right) ||
-  getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
-  left.TerminalAbbrev.localeCompare(right.TerminalAbbrev);
-
-const getEventTypeOrder = (
-  eventType: ConvexScheduledBoundaryEvent["EventType"]
-) =>
-  eventType === "arv-dock" ? 0 : 1;
