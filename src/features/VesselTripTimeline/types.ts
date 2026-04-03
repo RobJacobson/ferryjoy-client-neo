@@ -1,8 +1,8 @@
 /**
  * Shared types for the VesselTripTimeline feature.
- * Owns the canonical document, render-state, and layout types used by the
- * pipeline and renderer. These types are feature-local and do not re-export
- * shared primitives.
+ * Owns the event-first pipeline, render-state, and layout types used by the
+ * feature-local trip timeline renderer. These types are local to the feature
+ * and do not re-export shared renderer primitives.
  */
 
 import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
@@ -19,10 +19,7 @@ export type TimelineItem = {
 export type SegmentKind = "at-dock" | "at-sea";
 
 /** Progress source for the active indicator within a row. */
-type TimelineProgressMode = "time" | "distance";
-
-/** Lifecycle phase of a row relative to the current active cursor. */
-export type TimelineLifecyclePhase = "upcoming" | "active" | "completed";
+export type TimelineProgressMode = "time" | "distance";
 
 /**
  * Single point in time with scheduled, actual, and estimated values.
@@ -36,38 +33,34 @@ export type TimePoint = {
 };
 
 /**
- * Boundary data owned by a timeline row.
+ * Ordered boundary event used to derive timeline rows.
  */
-type TimelineBoundary = {
+export type TimelineEvent = {
+  eventType: "arrive" | "depart";
   terminalAbbrev?: string;
   timePoint: TimePoint;
 };
 
 /**
- * Canonical document row for the feature timeline.
- * Rows are ordered, share adjacent boundary points, and carry only the data
- * needed to derive the current render state.
+ * Feature-owned row derived from adjacent ordered events.
  */
-export type TimelineDocumentRow = {
-  id: string;
-  segmentIndex: number;
+export type TimelineRow = {
+  rowId: string;
   kind: SegmentKind;
-  startBoundary: TimelineBoundary;
-  endBoundary: TimelineBoundary;
+  startEvent: TimelineEvent;
+  endEvent: TimelineEvent;
   geometryMinutes: number;
   fallbackDurationMinutes: number;
   progressMode: TimelineProgressMode;
 };
 
 /**
- * Canonical feature-owned timeline document plus the active row cursor.
- * `activeSegmentIndex` may be:
- * - `0..rows.length - 1` when a row is active
- * - `rows.length` when all rows are completed
+ * Active derived row selected from the current timeline rows.
  */
-export type TimelineDocument = {
-  rows: TimelineDocumentRow[];
-  activeSegmentIndex: number;
+export type ActiveTimelineRow = {
+  row: TimelineRow;
+  rowIndex: number;
+  isComplete: boolean;
 };
 
 /** Layout bounds (y, height) for a timeline row; used to align the overlay. */
@@ -118,9 +111,36 @@ export type TimelineActiveIndicator = {
 };
 
 /**
- * Render-ready timeline state derived from the canonical document.
+ * Render-ready timeline state returned by the feature-local pipeline.
  */
 export type TimelineRenderState = {
   rows: TimelineRenderRow[];
   activeIndicator: TimelineActiveIndicator | null;
 };
+
+export type TimelinePipelineInput = {
+  item: TimelineItem;
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
+  now: Date;
+};
+
+export type TimelinePipelineWithEvents = TimelinePipelineInput & {
+  events: TimelineEvent[];
+};
+
+export type TimelinePipelineWithRows = TimelinePipelineWithEvents & {
+  rows: TimelineRow[];
+};
+
+export type TimelinePipelineWithActiveRow = TimelinePipelineWithRows & {
+  activeRow: ActiveTimelineRow | null;
+};
+
+export type TimelinePipelineWithRenderRows = TimelinePipelineWithActiveRow & {
+  renderRows: TimelineRenderRow[];
+};
+
+export type TimelinePipelineWithActiveIndicator =
+  TimelinePipelineWithRenderRows & {
+    activeIndicator: TimelineActiveIndicator | null;
+  };
