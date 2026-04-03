@@ -176,17 +176,30 @@ Responsibilities:
 
 ### `activeRow.ts`
 
-Resolves backend-owned row attachment from live vessel-location state with a
-narrow active-trip fallback.
+Resolves backend-owned row attachment from live vessel-location state.
 
 Responsibilities:
 
-- prefer `vesselLocations` for `AtDock` and `Key`
-- fall back to `activeVesselTrips` only when a live location row is missing
+- use `vesselLocations` as the only live-state source for query-time
+  attachment
+- prefer `vesselLocations.Key` when present
 - use inferred docked trip keys only when live state is docked and keyless
-- infer those docked trip keys from the scheduled dock interval, not from the
-  next future departure after the observation timestamp
+- prefer terminal-tail rows only when the live docked terminal matches the
+  final arrival terminal for that trip key
+- return `null` when no live location row or no same-day event evidence exists
+- never guess across sailing-day boundaries
 - never guess between same-terminal rows by proximity
+
+### `ownership.ts`
+
+Pure same-sailing-day dock-ownership helper for the public query.
+
+Responsibilities:
+
+- infer a docked trip key only from the requested sailing day's
+  `eventsScheduled` slice plus `vesselLocations`
+- return `null` when same-day schedule evidence is insufficient
+- keep sailing-day boundary rules out of Convex table loaders
 
 ### `viewModel.ts`
 
@@ -240,13 +253,12 @@ Convex-specific loader and query-time inference layer for the public query.
 
 Responsibilities:
 
-- read normalized event tables and live trip/location state
-- derive docked and terminal-tail attachment from the loaded event slice plus
-  live state
-- widen the `eventsScheduled` slice to adjacent sailing days only when an
-  event-order lookup crosses the current service-day boundary
-- delegate event-order adjacency and dock-interval ownership rules to shared
-  pure helpers in `convex/functions/eventsScheduled/segmentResolvers.ts`
+- read normalized event tables plus `vesselLocations`
+- derive same-day docked attachment from the loaded event slice plus live state
+- never widen the `eventsScheduled` slice beyond the requested sailing day
+- delegate same-day dock-interval ownership rules to pure helpers in
+  `convex/domain/vesselTimeline/ownership.ts` and
+  `convex/functions/eventsScheduled/segmentResolvers.ts`
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow
@@ -284,17 +296,22 @@ Frontend VesselTimeline
 - `eventsActual` and `eventsPredicted` are sparse overlays only
 - `eventsActual.Key` and `eventsPredicted.Key` are derived from the canonical
   segment key plus boundary type
-- `vesselTimeline` derives next-trip continuity and dock ownership from
-  `eventsScheduled`, not from `scheduledTrips`
+- the requested sailing day is a hard ownership boundary for public timeline
+  reads
+- `vesselTimeline` derives same-day dock ownership from `eventsScheduled`, not
+  from `scheduledTrips`
+- `vesselLocations` is the only live-state source used by the timeline query
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
 - public timeline reads expose stable rows, not raw boundary tables
 - dock and sea rows for a trip share the same trip key
 - placeholders are backend-emitted fallback only
 - terminal-tail is row metadata, not a separate row kind
+- terminal-tail rows are keyed to the arriving trip for that sailing day
 - `activeRowId` is backend-owned
+- `activeRowId` may be `null` when same-day event evidence is insufficient
 - delayed docked vessels stay attached to the current dock row when the
-  scheduled departure is overdue but still belongs to the active dock interval
+  same-day schedule slice proves that dock ownership
 
 ## Suggested Reading Order
 
@@ -304,10 +321,11 @@ Frontend VesselTimeline
 4. `events/liveUpdates.ts`
 5. `normalizedEvents.ts`
 6. `rows.ts`
-7. `activeRow.ts`
-8. `viewModel.ts`
-9. `convex/functions/vesselTimeline/actions.ts`
-10. `convex/functions/vesselTimeline/mutations.ts`
-11. `convex/functions/vesselTimeline/loaders.ts`
-12. `convex/functions/vesselTimeline/queries.ts`
-9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`
+7. `ownership.ts`
+8. `activeRow.ts`
+9. `viewModel.ts`
+10. `convex/functions/vesselTimeline/actions.ts`
+11. `convex/functions/vesselTimeline/mutations.ts`
+12. `convex/functions/vesselTimeline/loaders.ts`
+13. `convex/functions/vesselTimeline/queries.ts`
+14. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

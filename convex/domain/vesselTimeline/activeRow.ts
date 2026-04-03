@@ -4,14 +4,14 @@
 
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineRow } from "../../functions/vesselTimeline/schemas";
-import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import { buildRowId } from "./rows";
 
 /**
- * Resolves the active row ID from live trip and location state.
+ * Resolves the active row ID from live vessel-location state.
  *
- * Prefer raw vessel-location state whenever it exists. Active trip state is a
- * fallback for cases where the live location row is temporarily unavailable.
+ * The timeline read path intentionally trusts `vesselLocations` as its only
+ * live source. When the live row is missing, or when a keyless at-sea vessel
+ * cannot be attached to a stable trip key, the read model returns `null`.
  *
  * @param args - Rows plus authoritative live identity inputs
  * @returns Stable active row ID, or `null` when none can be resolved
@@ -19,41 +19,37 @@ import { buildRowId } from "./rows";
 export const resolveActiveRowId = ({
   rows,
   location,
-  activeTrip,
   inferredDockedTripKey,
 }: {
   rows: ConvexVesselTimelineRow[];
   location: ConvexVesselLocation | null;
-  activeTrip: ConvexVesselTrip | null;
   inferredDockedTripKey?: string | null;
 }) => {
-  const atDock = location?.AtDock ?? activeTrip?.AtDock;
-  if (atDock === undefined) {
+  if (!location) {
     return null;
   }
 
   const tripKey =
-    location?.Key ??
-    activeTrip?.Key ??
-    (atDock ? (inferredDockedTripKey ?? undefined) : undefined);
+    location.Key ??
+    (location.AtDock ? (inferredDockedTripKey ?? undefined) : undefined);
 
   if (!tripKey) {
     return null;
   }
 
-  const rowId = buildRowId(tripKey, atDock ? "at-dock" : "at-sea");
-  if (atDock) {
+  const rowId = buildRowId(tripKey, location.AtDock ? "at-dock" : "at-sea");
+  if (location.AtDock) {
     const terminalTailRow = rows.find(
       (row) =>
         row.kind === "at-dock" &&
         row.rowEdge === "terminal-tail" &&
-        row.tripKey === tripKey
+        row.tripKey === tripKey &&
+        row.endEvent.TerminalAbbrev === location.DepartingTerminalAbbrev
     );
 
     if (terminalTailRow) {
-      // Once service has ended, the terminal-tail row is the backend-owned
-      // dock attachment for that trip key and should win over the earlier
-      // pre-departure dock row with the same base identity.
+      // Terminal tails only win when the live docked terminal matches the
+      // final arrival terminal for that trip key.
       return terminalTailRow.rowId;
     }
   }

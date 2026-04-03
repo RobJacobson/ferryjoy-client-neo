@@ -7,7 +7,6 @@ import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredict
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineViewModel } from "../../functions/vesselTimeline/schemas";
-import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import type { BoundaryEventType } from "../../shared/keys";
 import { resolveActiveRowId } from "./activeRow";
 import {
@@ -22,9 +21,7 @@ type BuildVesselTimelineViewModelArgs = {
   actualEvents: ConvexActualBoundaryEvent[];
   predictedEvents: ConvexPredictedBoundaryEvent[];
   location: ConvexVesselLocation | null;
-  activeTrip: ConvexVesselTrip | null;
   inferredDockedTripKey?: string | null;
-  terminalTailTripKey?: string | null;
 };
 
 /**
@@ -40,23 +37,17 @@ export const buildVesselTimelineViewModel = ({
   actualEvents,
   predictedEvents,
   location,
-  activeTrip,
   inferredDockedTripKey,
-  terminalTailTripKey,
 }: BuildVesselTimelineViewModelArgs): ConvexVesselTimelineViewModel => {
   const mergedEvents = mergeBoundaryEvents({
     scheduledEvents,
     actualEvents,
     predictedEvents,
   });
-  const rows = buildVesselTimelineRows({
-    mergedEvents,
-    terminalTailTripKey,
-  });
+  const rows = buildVesselTimelineRows({ mergedEvents });
   const activeRowId = resolveActiveRowId({
     rows,
     location,
-    activeTrip,
     inferredDockedTripKey,
   });
   const live = location ? toTimelineLiveState(location) : null;

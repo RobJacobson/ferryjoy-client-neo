@@ -41,6 +41,7 @@ import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vessel
 import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimeline/events/reseed.js";
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
+import type * as domain_vesselTimeline_ownership from "../domain/vesselTimeline/ownership.js";
 import type * as domain_vesselTimeline_rows from "../domain/vesselTimeline/rows.js";
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
@@ -191,6 +192,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/reseed": typeof domain_vesselTimeline_events_reseed;
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
+  "domain/vesselTimeline/ownership": typeof domain_vesselTimeline_ownership;
   "domain/vesselTimeline/rows": typeof domain_vesselTimeline_rows;
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;

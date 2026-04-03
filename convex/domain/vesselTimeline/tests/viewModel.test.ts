@@ -7,14 +7,13 @@ import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/
 import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import { buildVesselTimelineViewModel } from "../viewModel";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
 describe("buildVesselTimelineViewModel", () => {
-  it("builds stable at-dock and at-sea rows for a trip", () => {
+  it("builds stable at-dock and at-sea rows within a larger slice", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "WEN",
       SailingDay: "2026-03-25",
@@ -40,18 +39,24 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(8, 0),
           EventScheduledTime: at(8, 35),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
       location: null,
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.rows.map((row) => row.rowId)).toEqual([
       "trip-1--at-dock",
       "trip-1--at-sea",
+      "trip-2--at-dock",
     ]);
     expect(viewModel.rows[0]?.kind).toBe("at-dock");
     expect(viewModel.rows[1]?.kind).toBe("at-sea");
@@ -76,13 +81,18 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(8, 0),
           EventScheduledTime: at(8, 35),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
       location: null,
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.rows[0]?.rowId).toBe("trip-1--at-dock");
@@ -116,13 +126,18 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(7, 55),
           EventScheduledTime: at(8, 15),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "FAU",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(8, 40),
+          EventScheduledTime: at(8, 40),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
       location: null,
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.rows[0]?.rowId).toBe("trip-1--at-dock");
@@ -130,50 +145,7 @@ describe("buildVesselTimelineViewModel", () => {
     expect(viewModel.rows[0]?.startEvent.IsArrivalPlaceholder).toBe(true);
   });
 
-  it("emits a terminal-tail dock row keyed to the next trip", () => {
-    const viewModel = buildVesselTimelineViewModel({
-      VesselAbbrev: "WEN",
-      SailingDay: "2026-03-25",
-      scheduledEvents: [
-        makeScheduledEvent({
-          Key: "trip-0--arv-dock",
-          TerminalAbbrev: "P52",
-          EventType: "arv-dock",
-          ScheduledDeparture: at(7, 10),
-          EventScheduledTime: at(7, 45),
-        }),
-        makeScheduledEvent({
-          Key: "trip-1--dep-dock",
-          TerminalAbbrev: "P52",
-          EventType: "dep-dock",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 0),
-        }),
-        makeScheduledEvent({
-          Key: "trip-1--arv-dock",
-          TerminalAbbrev: "BBI",
-          EventType: "arv-dock",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 35),
-        }),
-      ],
-      actualEvents: [],
-      predictedEvents: [],
-      location: null,
-      activeTrip: null,
-      inferredDockedTripKey: null,
-      terminalTailTripKey: "trip-2",
-    });
-
-    const tailRow = viewModel.rows.at(-1);
-    expect(tailRow?.rowId).toBe("trip-2--at-dock");
-    expect(tailRow?.rowEdge).toBe("terminal-tail");
-    expect(tailRow?.startEvent.Key).toBe("trip-1--arv-dock");
-    expect(tailRow?.endEvent.Key).toBe("trip-1--arv-dock");
-    expect(tailRow?.durationMinutes).toBe(0);
-  });
-
-  it("emits a terminal-tail dock row keyed to the arriving trip when no next trip exists", () => {
+  it("emits a terminal-tail dock row keyed to the arriving trip", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "CAT",
       SailingDay: "2026-03-25",
@@ -203,9 +175,7 @@ describe("buildVesselTimelineViewModel", () => {
       ],
       predictedEvents: [],
       location: null,
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: "trip-1",
     });
 
     const tailRow = viewModel.rows.at(-1);
@@ -213,71 +183,7 @@ describe("buildVesselTimelineViewModel", () => {
     expect(tailRow?.rowEdge).toBe("terminal-tail");
     expect(tailRow?.startEvent.Key).toBe("trip-1--arv-dock");
     expect(tailRow?.endEvent.Key).toBe("trip-1--arv-dock");
-  });
-
-  it("keeps a late docked vessel attached to the delayed next trip row", () => {
-    const viewModel = buildVesselTimelineViewModel({
-      VesselAbbrev: "KIS",
-      SailingDay: "2026-03-25",
-      scheduledEvents: [
-        makeScheduledEvent({
-          Key: "trip-1--dep-dock",
-          TerminalAbbrev: "CLI",
-          EventType: "dep-dock",
-          ScheduledDeparture: at(10, 30),
-          EventScheduledTime: at(10, 30),
-        }),
-        makeScheduledEvent({
-          Key: "trip-1--arv-dock",
-          TerminalAbbrev: "MUK",
-          EventType: "arv-dock",
-          ScheduledDeparture: at(10, 30),
-          EventScheduledTime: at(11, 5),
-        }),
-        makeScheduledEvent({
-          Key: "trip-2--dep-dock",
-          TerminalAbbrev: "MUK",
-          EventType: "dep-dock",
-          ScheduledDeparture: at(11, 30),
-          EventScheduledTime: at(11, 30),
-        }),
-        makeScheduledEvent({
-          Key: "trip-2--arv-dock",
-          TerminalAbbrev: "CLI",
-          EventType: "arv-dock",
-          ScheduledDeparture: at(11, 30),
-          EventScheduledTime: at(12, 5),
-        }),
-      ],
-      actualEvents: [
-        makeActualEvent({
-          Key: "trip-1--arv-dock",
-          ScheduledDeparture: at(10, 30),
-          TerminalAbbrev: "MUK",
-          EventActualTime: at(11, 8),
-        }),
-      ],
-      predictedEvents: [],
-      location: makeLocation({
-        VesselAbbrev: "KIS",
-        AtDock: true,
-        DepartingTerminalAbbrev: "MUK",
-        Key: undefined,
-        TimeStamp: at(11, 12),
-      }),
-      activeTrip: makeTrip({
-        VesselAbbrev: "KIS",
-        Key: "trip-2",
-        AtDock: true,
-        DepartingTerminalAbbrev: "MUK",
-      }),
-      inferredDockedTripKey: null,
-      terminalTailTripKey: null,
-    });
-
-    expect(viewModel.activeRowId).toBe("trip-2--at-dock");
-    expect(viewModel.live?.AtDock).toBe(true);
-    expect(viewModel.live?.DepartingTerminalAbbrev).toBe("MUK");
+    expect(tailRow?.durationMinutes).toBe(0);
   });
 
   it("follows the resolved trip key instead of guessing between same-terminal rows", () => {
@@ -327,6 +233,13 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(15, 4),
           EventScheduledTime: at(15, 39),
         }),
+        makeScheduledEvent({
+          Key: "trip-4--dep-dock",
+          TerminalAbbrev: "CLI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(16, 15),
+          EventScheduledTime: at(16, 15),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
@@ -337,9 +250,7 @@ describe("buildVesselTimelineViewModel", () => {
         Key: "trip-3",
         TimeStamp: at(14, 22),
       }),
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.activeRowId).toBe("trip-3--at-dock");
@@ -371,12 +282,17 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(8, 0),
           EventScheduledTime: at(8, 35),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
       ],
       actualEvents: [],
       location: null,
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     } satisfies Parameters<typeof buildVesselTimelineViewModel>[0];
     const withoutPredictions = buildVesselTimelineViewModel({
       ...baseArgs,
@@ -421,6 +337,13 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(8, 0),
           EventScheduledTime: at(8, 35),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
@@ -429,9 +352,7 @@ describe("buildVesselTimelineViewModel", () => {
         Key: undefined,
         TimeStamp: at(8, 10),
       }),
-      activeTrip: null,
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.activeRowId).toBeNull();
@@ -444,25 +365,32 @@ describe("buildVesselTimelineViewModel", () => {
       SailingDay: "2026-03-25",
       scheduledEvents: [
         makeScheduledEvent({
-          Key: "trip-1--arv-dock",
+          Key: "trip-1--dep-dock",
           TerminalAbbrev: "CLI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(10, 30),
+          EventScheduledTime: at(10, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          TerminalAbbrev: "MUK",
           EventType: "arv-dock",
-          ScheduledDeparture: at(9, 30),
-          EventScheduledTime: at(10, 35),
+          ScheduledDeparture: at(10, 30),
+          EventScheduledTime: at(11, 5),
         }),
         makeScheduledEvent({
           Key: "trip-2--dep-dock",
-          TerminalAbbrev: "CLI",
+          TerminalAbbrev: "MUK",
           EventType: "dep-dock",
-          ScheduledDeparture: at(11, 0),
-          EventScheduledTime: at(11, 0),
+          ScheduledDeparture: at(11, 30),
+          EventScheduledTime: at(11, 30),
         }),
         makeScheduledEvent({
           Key: "trip-2--arv-dock",
-          TerminalAbbrev: "MUK",
+          TerminalAbbrev: "CLI",
           EventType: "arv-dock",
-          ScheduledDeparture: at(11, 0),
-          EventScheduledTime: at(11, 35),
+          ScheduledDeparture: at(11, 30),
+          EventScheduledTime: at(12, 5),
         }),
         makeScheduledEvent({
           Key: "trip-3--dep-dock",
@@ -471,32 +399,95 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(12, 30),
           EventScheduledTime: at(12, 30),
         }),
-        makeScheduledEvent({
-          Key: "trip-3--arv-dock",
-          TerminalAbbrev: "MUK",
-          EventType: "arv-dock",
-          ScheduledDeparture: at(12, 30),
-          EventScheduledTime: at(13, 5),
-        }),
       ],
       actualEvents: [],
       predictedEvents: [],
       location: makeLocation({
         VesselAbbrev: "CHE",
         AtDock: true,
-        DepartingTerminalAbbrev: "CLI",
+        DepartingTerminalAbbrev: "MUK",
         Key: undefined,
-        TimeStamp: at(11, 8),
+        TimeStamp: at(11, 12),
       }),
-      activeTrip: null,
       inferredDockedTripKey: "trip-2",
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.activeRowId).toBe("trip-2--at-dock");
   });
 
-  it("prefers vessel-location dock state and key over active trip state", () => {
+  it("prefers vessel-location state and key for active attachment", () => {
+    const viewModel = buildVesselTimelineViewModel({
+      VesselAbbrev: "WEN",
+      SailingDay: "2026-03-25",
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          TerminalAbbrev: "P52",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "arv-dock",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+      location: makeLocation({
+        AtDock: false,
+        Key: "trip-1",
+        TimeStamp: at(8, 10),
+      }),
+      inferredDockedTripKey: null,
+    });
+
+    expect(viewModel.activeRowId).toBe("trip-1--at-sea");
+    expect(viewModel.ObservedAt).toBe(at(8, 10));
+  });
+
+  it("returns null active row when location is missing", () => {
+    const viewModel = buildVesselTimelineViewModel({
+      VesselAbbrev: "WEN",
+      SailingDay: "2026-03-25",
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          TerminalAbbrev: "P52",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "arv-dock",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 35),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+      location: null,
+      inferredDockedTripKey: null,
+    });
+
+    expect(viewModel.activeRowId).toBeNull();
+    expect(viewModel.ObservedAt).toBeNull();
+    expect(viewModel.live).toBeNull();
+  });
+
+  it("returns null active row for a keyless at-sea location", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "WEN",
       SailingDay: "2026-03-25",
@@ -520,56 +511,51 @@ describe("buildVesselTimelineViewModel", () => {
       predictedEvents: [],
       location: makeLocation({
         AtDock: false,
-        Key: "trip-1",
+        Key: undefined,
         TimeStamp: at(8, 10),
       }),
-      activeTrip: makeTrip({
-        AtDock: true,
-        Key: "trip-2",
-        TimeStamp: at(8, 5),
-      }),
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
-    expect(viewModel.activeRowId).toBe("trip-1--at-sea");
-    expect(viewModel.ObservedAt).toBe(at(8, 10));
+    expect(viewModel.activeRowId).toBeNull();
   });
 
-  it("does not fall back to the active trip timestamp when location is missing", () => {
+  it("does not choose the terminal-tail row before the final trip reaches its arrival terminal", () => {
     const viewModel = buildVesselTimelineViewModel({
-      VesselAbbrev: "WEN",
+      VesselAbbrev: "CAT",
       SailingDay: "2026-03-25",
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
-          TerminalAbbrev: "P52",
+          TerminalAbbrev: "FAU",
           EventType: "dep-dock",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 0),
+          ScheduledDeparture: at(19, 0),
+          EventScheduledTime: at(19, 0),
         }),
         makeScheduledEvent({
           Key: "trip-1--arv-dock",
-          TerminalAbbrev: "BBI",
+          TerminalAbbrev: "VAI",
           EventType: "arv-dock",
-          ScheduledDeparture: at(8, 0),
-          EventScheduledTime: at(8, 35),
+          ScheduledDeparture: at(19, 0),
+          EventScheduledTime: at(19, 30),
         }),
       ],
       actualEvents: [],
       predictedEvents: [],
-      location: null,
-      activeTrip: makeTrip({
-        TimeStamp: at(8, 5),
+      location: makeLocation({
+        VesselAbbrev: "CAT",
+        AtDock: true,
+        DepartingTerminalAbbrev: "FAU",
+        Key: "trip-1",
+        TimeStamp: at(18, 45),
       }),
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
-    expect(viewModel.ObservedAt).toBeNull();
+    expect(viewModel.activeRowId).toBe("trip-1--at-dock");
   });
 
-  it("attaches a docked vessel to the final terminal-tail row when service has ended", () => {
+  it("attaches a docked vessel to the terminal-tail row when docked at the arrival terminal", () => {
     const viewModel = buildVesselTimelineViewModel({
       VesselAbbrev: "CAT",
       SailingDay: "2026-03-25",
@@ -602,12 +588,10 @@ describe("buildVesselTimelineViewModel", () => {
         VesselAbbrev: "CAT",
         AtDock: true,
         DepartingTerminalAbbrev: "VAI",
-        Key: undefined,
+        Key: "trip-1",
         TimeStamp: at(19, 58),
       }),
-      activeTrip: null,
-      inferredDockedTripKey: "trip-1",
-      terminalTailTripKey: "trip-1",
+      inferredDockedTripKey: null,
     });
 
     expect(viewModel.activeRowId).toBe("trip-1--at-dock--terminal-tail");
@@ -640,6 +624,13 @@ describe("buildVesselTimelineViewModel", () => {
           ScheduledDeparture: at(8, 0),
           EventScheduledTime: at(8, 35),
         }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "BBI",
+          EventType: "dep-dock",
+          ScheduledDeparture: at(9, 0),
+          EventScheduledTime: at(9, 0),
+        }),
       ],
       actualEvents: [],
       predictedEvents: [],
@@ -651,12 +642,7 @@ describe("buildVesselTimelineViewModel", () => {
         Speed: 12,
         TimeStamp: at(8, 10),
       }),
-      activeTrip: makeTrip({
-        Key: "trip-1",
-        AtDock: false,
-      }),
       inferredDockedTripKey: null,
-      terminalTailTripKey: null,
     });
 
     expect(viewModel.activeRowId).toBe("trip-1--at-sea");
@@ -763,44 +749,5 @@ const makeLocation = (
   Key: "trip-1",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
-  ...overrides,
-});
-
-/**
- * Builds an active or completed trip row for tests.
- *
- * @param overrides - Field overrides
- * @returns Vessel trip row
- */
-const makeTrip = (overrides: Partial<ConvexVesselTrip>): ConvexVesselTrip => ({
-  VesselAbbrev: "WEN",
-  DepartingTerminalAbbrev: "P52",
-  ArrivingTerminalAbbrev: "BBI",
-  RouteAbbrev: "SEA-BBI",
-  Key: "trip-1",
-  SailingDay: "2026-03-25",
-  PrevTerminalAbbrev: "BBI",
-  ArriveDest: undefined,
-  TripStart: at(7, 45),
-  AtDock: true,
-  AtDockDuration: undefined,
-  ScheduledDeparture: at(8, 0),
-  LeftDock: undefined,
-  TripDelay: undefined,
-  Eta: undefined,
-  TripEnd: undefined,
-  AtSeaDuration: undefined,
-  TotalDuration: undefined,
-  InService: true,
-  TimeStamp: at(8, 0),
-  PrevScheduledDeparture: at(6, 55),
-  PrevLeftDock: at(7, 0),
-  NextKey: "trip-2",
-  NextScheduledDeparture: at(9, 0),
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });
