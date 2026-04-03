@@ -60,9 +60,10 @@ Backend layering for that query is now:
 - [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
   is a thin public Convex entrypoint
 - [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-  owns Convex table reads and query-time live attachment helpers
-- shared schedule-backed dock inference is delegated from those loaders to
-  thin `eventsScheduled` queries backed by
+  owns Convex table reads, adjacent-day `eventsScheduled` widening when needed,
+  and query-time live attachment helpers
+- shared event-order adjacency and dock-interval inference is delegated from
+  those loaders to pure helpers in
   [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
 - [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
   owns row construction and row IDs
@@ -146,6 +147,8 @@ The render-state layer should not own:
 
 - normalized boundary-event tables remain the persistence layer, not the public
   feature contract
+- `eventsScheduled` is the only schedule backbone used by the timeline read
+  path
 - predictions can change displayed times but never row identity
 - dock and sea rows for one trip share the same trip key
 - placeholders are backend-emitted fallback only

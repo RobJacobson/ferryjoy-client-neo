@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { deriveTripIdentity } from "./tripIdentity";
+import { deriveTripIdentity } from "../tripIdentity";
 
 describe("deriveTripIdentity", () => {
   it("derives key, sailing day, and trip readiness from complete inputs", () => {

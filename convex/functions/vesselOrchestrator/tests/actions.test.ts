@@ -4,7 +4,7 @@ import {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
-} from "./actions";
+} from "../actions";
 
 describe("vesselOrchestrator passenger terminal helpers", () => {
   it("treats passenger terminal membership as simple set membership", () => {

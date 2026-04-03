@@ -243,9 +243,10 @@ Responsibilities:
 - read normalized event tables and live trip/location state
 - derive docked and terminal-tail attachment from the loaded event slice plus
   live state
-- delegate schedule-backed dock-interval resolution to shared
-  `eventsScheduled` query helpers, whose pure selection logic lives in
-  `convex/functions/eventsScheduled/segmentResolvers.ts`
+- widen the `eventsScheduled` slice to adjacent sailing days only when an
+  event-order lookup crosses the current service-day boundary
+- delegate event-order adjacency and dock-interval ownership rules to shared
+  pure helpers in `convex/functions/eventsScheduled/segmentResolvers.ts`
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow
@@ -283,6 +284,8 @@ Frontend VesselTimeline
 - `eventsActual` and `eventsPredicted` are sparse overlays only
 - `eventsActual.Key` and `eventsPredicted.Key` are derived from the canonical
   segment key plus boundary type
+- `vesselTimeline` derives next-trip continuity and dock ownership from
+  `eventsScheduled`, not from `scheduledTrips`
 - live ticks do not mutate the schedule backbone
 - prediction precedence is resolved on the server
 - public timeline reads expose stable rows, not raw boundary tables

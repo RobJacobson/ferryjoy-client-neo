@@ -50,6 +50,8 @@ export const buildVesselTimelineRows = ({
 
     const tripKey = getTripKeyFromBoundaryKey(currentEvent.Key);
     const previousEvent = mergedEvents[index - 1];
+    // Row grammar is departure-driven: every departure starts a dock row, and
+    // an arrival for the same trip, when present, adds the following sea row.
     rows.push(
       buildDockRow({
         tripKey,
@@ -80,7 +82,8 @@ export const buildVesselTimelineRows = ({
     terminalTailTripKey &&
     !rows.some(
       (row) =>
-        row.rowId === buildTerminalTailRowId(terminalTailTripKey, lastArrivalTripKey)
+        row.rowId ===
+        buildTerminalTailRowId(terminalTailTripKey, lastArrivalTripKey)
     )
   ) {
     rows.push(
@@ -145,6 +148,9 @@ const buildDockRow = ({
     previousEvent.TerminalAbbrev === departureEvent.TerminalAbbrev
       ? previousEvent
       : undefined;
+  // A dock row is "real" only when the previous boundary is the matching
+  // arrival at the same terminal. Otherwise we keep the row but mark why its
+  // start had to be synthesized for the public read model.
   const placeholderReason = matchedArrival
     ? undefined
     : previousEvent
@@ -282,6 +288,8 @@ const getTripKeyFromBoundaryKey = (boundaryKey: string) =>
  * @returns Preferred layout timestamp
  */
 const getLayoutTime = (event: ConvexVesselTimelineRowEvent) =>
+  // Schedule stays primary for layout stability; actual/predicted times only
+  // take over when schedule data for that boundary is absent.
   event.EventScheduledTime ?? event.EventActualTime ?? event.EventPredictedTime;
 
 /**

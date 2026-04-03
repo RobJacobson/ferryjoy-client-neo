@@ -51,6 +51,9 @@ export const resolveActiveRowId = ({
     );
 
     if (terminalTailRow) {
+      // Once service has ended, the terminal-tail row is the backend-owned
+      // dock attachment for that trip key and should win over the earlier
+      // pre-departure dock row with the same base identity.
       return terminalTailRow.rowId;
     }
   }

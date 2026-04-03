@@ -1,5 +1,5 @@
 /**
- * Convex-specific VesselTimeline loaders and schedule-backed identity helpers.
+ * Convex-specific VesselTimeline loaders and event-backed identity helpers.
  *
  * This module owns database access and query-time orchestration for the public
  * VesselTimeline query. Pure row-building and view-model assembly stay in the
@@ -7,13 +7,19 @@
  */
 
 import type { QueryCtx } from "_generated/server";
-import { internal } from "_generated/api";
+import { stripConvexMeta } from "../../shared/stripConvexMeta";
+import { getSailingDay } from "../../shared/time";
 import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../eventsScheduled/schemas";
+import {
+  findDockedDepartureEvent,
+  findNextDepartureAfterBoundaryEvent,
+  findNextDepartureEvent,
+  getSegmentKeyFromBoundaryKey,
+  sortScheduledBoundaryEvents,
+} from "../eventsScheduled/segmentResolvers";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
-import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { getSailingDay } from "../../shared/time";
 import type { ConvexVesselTrip } from "../vesselTrips/schemas";
 
 export type LoadedVesselTimelineViewModelInputs = {
@@ -43,14 +49,11 @@ export const loadVesselTimelineViewModelInputs = async (
 ): Promise<LoadedVesselTimelineViewModelInputs> => {
   const [scheduledDocs, actualDocs, predictedDocs, locationDoc, activeTripDoc] =
     await Promise.all([
-      ctx.db
-        .query("eventsScheduled")
-        .withIndex("by_vessel_and_sailing_day", (q) =>
-          q
-            .eq("VesselAbbrev", args.VesselAbbrev)
-            .eq("SailingDay", args.SailingDay)
-        )
-        .collect(),
+      loadScheduledBoundaryEventsForSailingDay(
+        ctx,
+        args.VesselAbbrev,
+        args.SailingDay
+      ),
       ctx.db
         .query("eventsActual")
         .withIndex("by_vessel_and_sailing_day", (q) =>
@@ -86,13 +89,29 @@ export const loadVesselTimelineViewModelInputs = async (
   const predictedEvents = predictedDocs.map(stripConvexMeta);
   const location = locationDoc ? stripConvexMeta(locationDoc) : null;
   const activeTrip = activeTripDoc ? stripConvexMeta(activeTripDoc) : null;
+  const loadScheduledLookupEvents = async (argsForLookup: {
+    includePreviousDay?: boolean;
+    includeNextDay?: boolean;
+  }) =>
+    await loadScheduledLookupEventsAroundSailingDay(ctx, {
+      vesselAbbrev: args.VesselAbbrev,
+      sailingDay: args.SailingDay,
+      currentDayEvents: scheduledEvents,
+      includePreviousDay: argsForLookup.includePreviousDay,
+      includeNextDay: argsForLookup.includeNextDay,
+    });
   const [terminalTailTripKey, inferredDockedTripKey] = await Promise.all([
-    resolveTerminalTailTripKey(ctx, scheduledEvents),
+    resolveTerminalTailTripKey({
+      scheduledEvents,
+      loadScheduledLookupEvents,
+    }),
     resolveInferredDockedTripKey(ctx, {
       VesselAbbrev: args.VesselAbbrev,
+      SailingDay: args.SailingDay,
       location,
       activeTrip,
       scheduledEvents,
+      loadScheduledLookupEvents,
     }),
   ]);
 
@@ -110,48 +129,48 @@ export const loadVesselTimelineViewModelInputs = async (
 /**
  * Resolves the next-trip key for a terminal-tail arrival row.
  *
- * @param ctx - Convex query context
- * @param scheduledEvents - Scheduled boundary events for the visible slice
+ * @param args.scheduledEvents - Scheduled boundary events for the visible slice
+ * @param args.loadScheduledLookupEvents - Lazy adjacent-day event loader
  * @returns Next-trip key for the terminal tail, or `null`
  */
-const resolveTerminalTailTripKey = async (
-  ctx: QueryCtx,
-  scheduledEvents: Array<{
-    Key: string;
-    VesselAbbrev: string;
-    TerminalAbbrev: string;
-    EventType: "dep-dock" | "arv-dock";
-    EventScheduledTime?: number;
-    ScheduledDeparture: number;
-  }>
-) => {
+const resolveTerminalTailTripKey = async ({
+  scheduledEvents,
+  loadScheduledLookupEvents,
+}: {
+  scheduledEvents: ConvexScheduledBoundaryEvent[];
+  loadScheduledLookupEvents: (args: {
+    includePreviousDay?: boolean;
+    includeNextDay?: boolean;
+  }) => Promise<ConvexScheduledBoundaryEvent[]>;
+}) => {
   const sortedEvents = [...scheduledEvents].sort(sortScheduledBoundaryEvents);
   const lastEvent = sortedEvents[sortedEvents.length - 1];
   if (!lastEvent || lastEvent.EventType !== "arv-dock") {
     return null;
   }
 
-  const currentTrip = await getScheduledTripByKey(
-    ctx,
-    getTripKeyFromBoundaryKey(lastEvent.Key)
+  const nextDepartureInSlice = findNextDepartureAfterBoundaryEvent(
+    sortedEvents,
+    lastEvent
   );
-  if (currentTrip?.NextKey) {
-    return currentTrip.NextKey;
+  if (nextDepartureInSlice) {
+    return getSegmentKeyFromBoundaryKey(nextDepartureInSlice.Key);
   }
 
-  const nextTrip = await getNextScheduledTripForVesselAtTerminal(ctx, {
-    vesselAbbrev: lastEvent.VesselAbbrev,
-    departingTerminalAbbrev: lastEvent.TerminalAbbrev,
-    arrivalTime: lastEvent.EventScheduledTime ?? lastEvent.ScheduledDeparture,
+  const lookupEvents = await loadScheduledLookupEvents({
+    includeNextDay: true,
   });
-
-  // If the trip table is missing a matching scheduledTrip row, fall back to
-  // the arrival boundary's own trip key so the final dock stop still renders.
-  return (
-    nextTrip?.Key ??
-    currentTrip?.Key ??
-    getTripKeyFromBoundaryKey(lastEvent.Key)
+  const nextDeparture = findNextDepartureAfterBoundaryEvent(
+    lookupEvents,
+    lastEvent
   );
+  if (nextDeparture) {
+    return getSegmentKeyFromBoundaryKey(nextDeparture.Key);
+  }
+
+  // If the slice has ended for the service day, keep the terminal tail attached
+  // to the arriving trip so the final dock stop still renders.
+  return getSegmentKeyFromBoundaryKey(lastEvent.Key);
 };
 
 /**
@@ -162,9 +181,10 @@ const resolveTerminalTailTripKey = async (
  * @returns Deterministically inferred docked trip key, or `null`
  */
 const resolveInferredDockedTripKey = async (
-  ctx: QueryCtx,
+  _ctx: QueryCtx,
   args: {
     VesselAbbrev: string;
+    SailingDay: string;
     location: {
       AtDock: boolean;
       Key?: string;
@@ -172,13 +192,11 @@ const resolveInferredDockedTripKey = async (
       DepartingTerminalAbbrev: string;
     } | null;
     activeTrip: Pick<ConvexVesselTrip, "Key" | "PrevScheduledDeparture"> | null;
-    scheduledEvents: Array<{
-      Key: string;
-      TerminalAbbrev: string;
-      EventType: "dep-dock" | "arv-dock";
-      EventScheduledTime?: number;
-      ScheduledDeparture: number;
-    }>;
+    scheduledEvents: ConvexScheduledBoundaryEvent[];
+    loadScheduledLookupEvents: (args: {
+      includePreviousDay?: boolean;
+      includeNextDay?: boolean;
+    }) => Promise<ConvexScheduledBoundaryEvent[]>;
   }
 ) => {
   if (!args.location?.AtDock) {
@@ -189,33 +207,35 @@ const resolveInferredDockedTripKey = async (
     return null;
   }
 
+  const lookupEvents = await args.loadScheduledLookupEvents({
+    includePreviousDay: true,
+    includeNextDay: true,
+  });
+
   if (args.activeTrip?.PrevScheduledDeparture !== undefined) {
-    const rolloverTrip =
-      await getNextScheduledTripForVesselAtTerminalAfterDeparture(ctx, {
-        vesselAbbrev: args.VesselAbbrev,
-        departingTerminalAbbrev: args.location.DepartingTerminalAbbrev,
-        previousScheduledDeparture: args.activeTrip.PrevScheduledDeparture,
-      });
+    const rolloverTrip = findNextDepartureEvent(lookupEvents, {
+      terminalAbbrev: args.location.DepartingTerminalAbbrev,
+      afterTime: args.activeTrip.PrevScheduledDeparture,
+    });
 
     if (rolloverTrip) {
-      return rolloverTrip.Key;
+      return getSegmentKeyFromBoundaryKey(rolloverTrip.Key);
     }
   }
 
-  const dockedTrip = await ctx.runQuery(
-    internal.functions.eventsScheduled.queries
-      .getDockedDepartureSegmentForVesselAtTerminal,
-    {
-      vesselAbbrev: args.VesselAbbrev,
-      departingTerminalAbbrev: args.location.DepartingTerminalAbbrev,
-      observedAt: args.location.TimeStamp,
-    }
+  const dockedTrip = findDockedDepartureEvent(
+    lookupEvents,
+    args.location.DepartingTerminalAbbrev,
+    args.location.TimeStamp
   );
 
   if (dockedTrip) {
-    return dockedTrip.Key;
+    return getSegmentKeyFromBoundaryKey(dockedTrip.Key);
   }
 
+  // End-of-day fallback: if the visible slice ends on an arrival at the
+  // vessel's current terminal, keep the vessel attached to that final dock row
+  // rather than dropping the active indicator entirely.
   const lastScheduledEvent = [...args.scheduledEvents].sort(
     sortScheduledBoundaryEvents
   )[args.scheduledEvents.length - 1];
@@ -224,132 +244,81 @@ const resolveInferredDockedTripKey = async (
     lastScheduledEvent?.EventType === "arv-dock" &&
     lastScheduledEvent.TerminalAbbrev === args.location.DepartingTerminalAbbrev
   ) {
-    return getTripKeyFromBoundaryKey(lastScheduledEvent.Key);
+    return getSegmentKeyFromBoundaryKey(lastScheduledEvent.Key);
   }
 
   return null;
 };
 
 /**
- * Finds a scheduled trip by its stable trip key.
+ * Loads scheduled boundary events for one vessel and sailing day.
  *
  * @param ctx - Convex query context
- * @param tripKey - Stable scheduled trip key
- * @returns Matching scheduled trip, or `null`
+ * @param vesselAbbrev - Vessel abbreviation
+ * @param sailingDay - Sailing day in YYYY-MM-DD format
+ * @returns Scheduled boundary-event documents for that vessel/day
  */
-const getScheduledTripByKey = async (ctx: QueryCtx, tripKey: string) => {
-  const doc = await ctx.db
-    .query("scheduledTrips")
-    .withIndex("by_key", (q) => q.eq("Key", tripKey))
-    .first();
-
-  return doc ? stripConvexMeta(doc) : null;
+const loadScheduledBoundaryEventsForSailingDay = async (
+  ctx: QueryCtx,
+  vesselAbbrev: string,
+  sailingDay: string
+) => {
+  return await ctx.db
+    .query("eventsScheduled")
+    .withIndex("by_vessel_and_sailing_day", (q) =>
+      q.eq("VesselAbbrev", vesselAbbrev).eq("SailingDay", sailingDay)
+    )
+    .collect();
 };
 
 /**
- * Finds the first next direct scheduled trip at or after an arrival instant.
+ * Loads the current-day event slice plus optional adjacent sailing days for
+ * event-only lookup decisions.
  *
  * @param ctx - Convex query context
- * @param args - Vessel, terminal, and arrival context
- * @returns Matching scheduled trip, or `null`
+ * @param args - Vessel/day scope plus already-loaded current-day events
+ * @returns Ordered scheduled boundary events across the requested lookup window
  */
-const getNextScheduledTripForVesselAtTerminal = async (
+const loadScheduledLookupEventsAroundSailingDay = async (
   ctx: QueryCtx,
   args: {
     vesselAbbrev: string;
-    departingTerminalAbbrev: string;
-    arrivalTime: number;
+    sailingDay: string;
+    currentDayEvents: ConvexScheduledBoundaryEvent[];
+    includePreviousDay?: boolean;
+    includeNextDay?: boolean;
   }
 ) => {
-  const currentSailingDay = getSailingDay(new Date(args.arrivalTime));
-  const nextSailingDay = addDays(currentSailingDay, 1);
-  const directTrips = (
+  const adjacentSailingDays: string[] = [];
+  if (args.includePreviousDay) {
+    adjacentSailingDays.push(addDays(args.sailingDay, -1));
+  }
+  if (args.includeNextDay) {
+    adjacentSailingDays.push(addDays(args.sailingDay, 1));
+  }
+
+  if (adjacentSailingDays.length === 0) {
+    return [...args.currentDayEvents].sort(sortScheduledBoundaryEvents);
+  }
+
+  const adjacentDocs = (
     await Promise.all(
-      [currentSailingDay, nextSailingDay].map((sailingDay) =>
-        ctx.db
-          .query("scheduledTrips")
-          .withIndex("by_vessel_sailing_day_trip_type", (q) =>
-            q
-              .eq("VesselAbbrev", args.vesselAbbrev)
-              .eq("SailingDay", sailingDay)
-              .eq("TripType", "direct")
-          )
-          .collect()
+      adjacentSailingDays.map((sailingDay) =>
+        loadScheduledBoundaryEventsForSailingDay(
+          ctx,
+          args.vesselAbbrev,
+          sailingDay
+        )
       )
     )
   )
     .flat()
     .map(stripConvexMeta);
 
-  return (
-    directTrips
-      .filter(
-        (trip) =>
-          trip.DepartingTerminalAbbrev === args.departingTerminalAbbrev &&
-          trip.DepartingTime >= args.arrivalTime
-      )
-      .sort((left, right) => left.DepartingTime - right.DepartingTime)[0] ??
-    null
+  return [...args.currentDayEvents, ...adjacentDocs].sort(
+    sortScheduledBoundaryEvents
   );
 };
-
-/**
- * Finds the next direct scheduled trip after a prior scheduled departure.
- *
- * @param ctx - Convex query context
- * @param args - Vessel, terminal, and prior scheduled departure
- * @returns Matching scheduled trip, or `null`
- */
-const getNextScheduledTripForVesselAtTerminalAfterDeparture = async (
-  ctx: QueryCtx,
-  args: {
-    vesselAbbrev: string;
-    departingTerminalAbbrev: string;
-    previousScheduledDeparture: number;
-  }
-) => {
-  const currentSailingDay = getSailingDay(
-    new Date(args.previousScheduledDeparture)
-  );
-  const nextSailingDay = addDays(currentSailingDay, 1);
-  const directTrips = (
-    await Promise.all(
-      [currentSailingDay, nextSailingDay].map((sailingDay) =>
-        ctx.db
-          .query("scheduledTrips")
-          .withIndex("by_vessel_sailing_day_trip_type", (q) =>
-            q
-              .eq("VesselAbbrev", args.vesselAbbrev)
-              .eq("SailingDay", sailingDay)
-              .eq("TripType", "direct")
-          )
-          .collect()
-      )
-    )
-  )
-    .flat()
-    .map(stripConvexMeta);
-
-  return (
-    directTrips
-      .filter(
-        (trip) =>
-          trip.DepartingTerminalAbbrev === args.departingTerminalAbbrev &&
-          trip.DepartingTime > args.previousScheduledDeparture
-      )
-      .sort((left, right) => left.DepartingTime - right.DepartingTime)[0] ??
-    null
-  );
-};
-
-/**
- * Extracts the trip key prefix from a boundary-event key.
- *
- * @param boundaryKey - Boundary-event key
- * @returns Stable trip key
- */
-const getTripKeyFromBoundaryKey = (boundaryKey: string) =>
-  boundaryKey.replace(/--(?:dep|arv)-dock$/, "");
 
 /**
  * Adds whole days to a sailing-day string.
@@ -364,35 +333,3 @@ const addDays = (sailingDay: string, days: number) => {
   date.setUTCDate(date.getUTCDate() + days);
   return getSailingDay(date);
 };
-
-/**
- * Sorts scheduled boundary events into stable timeline order.
- *
- * @param left - Left scheduled event
- * @param right - Right scheduled event
- * @returns Stable sort comparison result
- */
-const sortScheduledBoundaryEvents = (
-  left: {
-    ScheduledDeparture: number;
-    EventType: "dep-dock" | "arv-dock";
-    TerminalAbbrev: string;
-  },
-  right: {
-    ScheduledDeparture: number;
-    EventType: "dep-dock" | "arv-dock";
-    TerminalAbbrev: string;
-  }
-) =>
-  left.ScheduledDeparture - right.ScheduledDeparture ||
-  getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
-  left.TerminalAbbrev.localeCompare(right.TerminalAbbrev);
-
-/**
- * Returns the stable sort rank for one boundary-event type.
- *
- * @param eventType - Boundary-event type
- * @returns Sort rank
- */
-const getEventTypeOrder = (eventType: "dep-dock" | "arv-dock") =>
-  eventType === "dep-dock" ? 0 : 1;
