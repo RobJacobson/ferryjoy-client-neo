@@ -32,17 +32,25 @@ export const resolveActiveInterval = ({
     return null;
   }
 
-  const segmentKey =
-    location.Key ??
-    (location.AtDock ? (inferredDockedTripKey ?? undefined) : undefined);
+  const segmentKey = resolveActiveSegmentKey({
+    events,
+    location,
+    inferredDockedTripKey,
+  });
 
   if (!segmentKey) {
     return null;
   }
 
-  const segmentEvents = events.filter((event) => event.SegmentKey === segmentKey);
-  const departureEvent = segmentEvents.find((event) => event.EventType === "dep-dock");
-  const arrivalEvent = segmentEvents.find((event) => event.EventType === "arv-dock");
+  const segmentEvents = events.filter(
+    (event) => event.SegmentKey === segmentKey
+  );
+  const departureEvent = segmentEvents.find(
+    (event) => event.EventType === "dep-dock"
+  );
+  const arrivalEvent = segmentEvents.find(
+    (event) => event.EventType === "arv-dock"
+  );
 
   if (location.AtDock) {
     const dockTerminal = location.DepartingTerminalAbbrev;
@@ -87,6 +95,67 @@ export const resolveActiveInterval = ({
   };
 };
 
+/**
+ * Chooses the segment key used to anchor the active interval.
+ *
+ * Docked rows are validated against the observed dock terminal before trusting
+ * `location.Key`. This avoids transient stale-key cases where actual event
+ * overlays have advanced but the live location row still points at the prior
+ * trip.
+ *
+ * @param args - Same-day events plus live identity inputs
+ * @returns Segment key to use for active-interval resolution, or `null`
+ */
+const resolveActiveSegmentKey = ({
+  events,
+  location,
+  inferredDockedTripKey,
+}: {
+  events: ConvexVesselTimelineEvent[];
+  location: ConvexVesselLocation;
+  inferredDockedTripKey?: string | null;
+}) => {
+  if (!location.AtDock) {
+    return location.Key ?? null;
+  }
+
+  if (!location.Key) {
+    return inferredDockedTripKey ?? null;
+  }
+
+  const dockTerminal = location.DepartingTerminalAbbrev;
+  if (!dockTerminal) {
+    return location.Key;
+  }
+
+  const keyedEvents = events.filter(
+    (event) => event.SegmentKey === location.Key
+  );
+  const keyedDeparture = keyedEvents.find(
+    (event) => event.EventType === "dep-dock"
+  );
+  const keyedArrival = keyedEvents.find(
+    (event) => event.EventType === "arv-dock"
+  );
+
+  if (keyedArrival?.TerminalAbbrev === dockTerminal) {
+    return location.Key;
+  }
+
+  if (inferredDockedTripKey) {
+    return inferredDockedTripKey;
+  }
+
+  return keyedDeparture?.TerminalAbbrev === dockTerminal ? location.Key : null;
+};
+
+/**
+ * Returns the previous ordered event for one event key.
+ *
+ * @param events - Ordered same-day events
+ * @param eventKey - Boundary event key to look up
+ * @returns Previous ordered event, or `undefined`
+ */
 const getPreviousEvent = (
   events: ConvexVesselTimelineEvent[],
   eventKey: string

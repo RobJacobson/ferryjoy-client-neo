@@ -181,6 +181,74 @@ describe("resolveActiveInterval", () => {
       endEventKey: null,
     });
   });
+
+  it("ignores a stale docked location key when it conflicts with the observed dock terminal", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(13, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "LOP",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(13, 55),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ANA",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(15, 20),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(16, 15),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 45),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: "trip-1",
+          DepartingTerminalAbbrev: "ORI",
+          TimeStamp: at(16, 20),
+        }),
+        inferredDockedTripKey: "trip-3",
+      })
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-2--arv-dock",
+      endEventKey: "trip-3--dep-dock",
+    });
+  });
 });
 
 const makeScheduledEvent = (
