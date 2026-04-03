@@ -3,14 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type {
-  VesselTimelineActiveInterval,
-  VesselTimelineEvent,
-} from "convex/functions/vesselTimeline/schemas";
-import {
-  buildRowsFromEvents,
-  resolveActiveRowIdFromInterval,
-} from "../buildRowsFromEvents";
+import type { VesselTimelineEvent } from "convex/functions/vesselTimeline/schemas";
+import { buildRowsFromEvents } from "../buildRowsFromEvents";
 
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 25, hours, minutes));
@@ -77,79 +71,6 @@ describe("buildRowsFromEvents", () => {
     expect(rows[0]?.startEvent.Key).toBe("trip-0--arv-dock");
   });
 });
-
-describe("resolveActiveRowIdFromInterval", () => {
-  it("maps a sea interval to the derived sea row", () => {
-    const rows = buildRowsFromEvents(makeTwoLegEvents());
-
-    expect(
-      resolveActiveRowIdFromInterval(rows, {
-        kind: "at-sea",
-        startEventKey: "trip-1--dep-dock",
-        endEventKey: "trip-1--arv-dock",
-      })
-    ).toBe("trip-1--at-sea");
-  });
-
-  it("maps a post-arrival dock interval to the terminal-tail row", () => {
-    const rows = buildRowsFromEvents(makeTwoLegEvents());
-
-    expect(
-      resolveActiveRowIdFromInterval(rows, {
-        kind: "at-dock",
-        startEventKey: "trip-2--arv-dock",
-        endEventKey: null,
-      })
-    ).toBe("trip-2--at-dock--terminal-tail");
-  });
-
-  it("returns null when the interval cannot be matched to a derived row", () => {
-    const rows = buildRowsFromEvents(makeTwoLegEvents());
-
-    expect(
-      resolveActiveRowIdFromInterval(rows, {
-        kind: "at-dock",
-        startEventKey: null,
-        endEventKey: "missing--dep-dock",
-      })
-    ).toBeNull();
-  });
-});
-
-const makeTwoLegEvents = (): VesselTimelineEvent[] => [
-  makeEvent({
-    SegmentKey: "trip-1",
-    Key: "trip-1--dep-dock",
-    EventType: "dep-dock",
-    TerminalAbbrev: "P52",
-    ScheduledDeparture: at(8, 0),
-    EventScheduledTime: at(8, 0),
-  }),
-  makeEvent({
-    SegmentKey: "trip-1",
-    Key: "trip-1--arv-dock",
-    EventType: "arv-dock",
-    TerminalAbbrev: "VAI",
-    ScheduledDeparture: at(8, 0),
-    EventScheduledTime: at(8, 35),
-  }),
-  makeEvent({
-    SegmentKey: "trip-2",
-    Key: "trip-2--dep-dock",
-    EventType: "dep-dock",
-    TerminalAbbrev: "VAI",
-    ScheduledDeparture: at(9, 0),
-    EventScheduledTime: at(9, 0),
-  }),
-  makeEvent({
-    SegmentKey: "trip-2",
-    Key: "trip-2--arv-dock",
-    EventType: "arv-dock",
-    TerminalAbbrev: "P52",
-    ScheduledDeparture: at(9, 0),
-    EventScheduledTime: at(9, 35),
-  }),
-];
 
 const makeEvent = (
   overrides: Partial<VesselTimelineEvent>

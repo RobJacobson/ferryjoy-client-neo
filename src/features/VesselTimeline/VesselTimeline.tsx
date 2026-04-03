@@ -2,7 +2,7 @@
  * Main VesselTimeline feature component.
  *
  * This component owns the vessel-day provider boundary and renders the
- * day-level timeline content from the backend-owned timeline view model.
+ * day-level timeline content from the backend-owned event-first query result.
  */
 
 import { useState } from "react";
@@ -12,7 +12,7 @@ import {
 } from "@/components/timeline";
 import { Button, Text } from "@/components/ui";
 import { ConvexVesselTimelineProvider } from "@/data/contexts";
-import { useVesselTimelineViewModel } from "./hooks";
+import { useVesselTimelinePresentationState } from "./hooks";
 import { getVesselTimelineDataHostKey } from "./utils";
 import { VesselTimelineContent } from "./VesselTimelineContent";
 import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
@@ -58,8 +58,8 @@ export const VesselTimeline = ({
 };
 
 /**
- * Renders the user-visible VesselTimeline states from the hook-based view
- * model.
+ * Renders the user-visible VesselTimeline states from the hook-based
+ * presentation state.
  *
  * @param props - Presentation props
  * @param props.now - Optional wall-clock override for deterministic rendering
@@ -74,7 +74,7 @@ const VesselTimelinePresentation = ({
   theme: ReturnType<typeof createTimelineVisualTheme>;
 }) => {
   const { isLoading, error, emptyMessage, retry, renderState } =
-    useVesselTimelineViewModel({
+    useVesselTimelinePresentationState({
       now,
       theme,
     });

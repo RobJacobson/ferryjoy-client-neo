@@ -2,4 +2,4 @@
  * Hook exports for the VesselTimeline feature.
  */
 
-export { useVesselTimelineViewModel } from "./useVesselTimelineViewModel";
+export { useVesselTimelinePresentationState } from "./useVesselTimelinePresentationState";

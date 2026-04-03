@@ -2,10 +2,7 @@
  * Frontend row derivation from the event-first VesselTimeline contract.
  */
 
-import type {
-  VesselTimelineActiveInterval,
-  VesselTimelineEvent,
-} from "convex/functions/vesselTimeline/schemas";
+import type { VesselTimelineEvent } from "convex/functions/vesselTimeline/schemas";
 import type { VesselTimelineRow, VesselTimelineRowEvent } from "../types";
 
 /**
@@ -60,53 +57,6 @@ export const buildRowsFromEvents = (
   return rows;
 };
 
-/**
- * Resolves the derived row id from the backend-owned active interval.
- *
- * @param rows - Rows derived from the public event payload
- * @param activeInterval - Backend-owned active interval
- * @returns Row id matching the active interval, or `null`
- */
-export const resolveActiveRowIdFromInterval = (
-  rows: VesselTimelineRow[],
-  activeInterval: VesselTimelineActiveInterval
-) => {
-  if (!activeInterval) {
-    return null;
-  }
-
-  if (activeInterval.kind === "at-sea") {
-    return (
-      rows.find(
-        (row) =>
-          row.kind === "at-sea" &&
-          row.startEvent.Key === activeInterval.startEventKey &&
-          row.endEvent.Key === activeInterval.endEventKey
-      )?.rowId ?? null
-    );
-  }
-
-  if (activeInterval.endEventKey === null) {
-    return (
-      rows.find(
-        (row) =>
-          row.kind === "at-dock" &&
-          row.rowEdge === "terminal-tail" &&
-          row.startEvent.Key === activeInterval.startEventKey
-      )?.rowId ?? null
-    );
-  }
-
-  return (
-    rows.find(
-      (row) =>
-        row.kind === "at-dock" &&
-        row.rowEdge === "normal" &&
-        row.endEvent.Key === activeInterval.endEventKey
-    )?.rowId ?? null
-  );
-};
-
 const buildRowId = (segmentKey: string, kind: VesselTimelineRow["kind"]) =>
   `${segmentKey}--${kind}`;
 
@@ -139,7 +89,7 @@ const buildDockRow = ({
 
   return {
     rowId: buildRowId(segmentKey, "at-dock"),
-    tripKey: segmentKey,
+    segmentKey,
     kind: "at-dock",
     rowEdge: "normal",
     placeholderReason,
@@ -166,7 +116,7 @@ const buildSeaRow = ({
 
   return {
     rowId: buildRowId(segmentKey, "at-sea"),
-    tripKey: segmentKey,
+    segmentKey,
     kind: "at-sea",
     rowEdge: "normal",
     placeholderReason: undefined,
@@ -185,7 +135,7 @@ const buildTerminalTailRow = ({
 
   return {
     rowId: buildTerminalTailRowId(arrivalEvent.SegmentKey),
-    tripKey: arrivalEvent.SegmentKey,
+    segmentKey: arrivalEvent.SegmentKey,
     kind: "at-dock",
     rowEdge: "terminal-tail",
     placeholderReason: undefined,

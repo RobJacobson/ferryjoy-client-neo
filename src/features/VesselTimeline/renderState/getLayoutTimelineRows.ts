@@ -11,8 +11,7 @@ import type {
   TimelineRenderEvent,
   TimelineRenderRow,
 } from "@/components/timeline";
-import type { VesselTimelineLayoutConfig } from "../types";
-import type { VesselTimelineRow } from "../types";
+import type { VesselTimelineLayoutConfig, VesselTimelineRow } from "../types";
 
 /**
  * Lays out feature-derived rows into renderer rows, terminal cards, and content
@@ -175,10 +174,10 @@ const computeTerminalCards = (
   const cards: TerminalCardGeometry[] = [];
 
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-    const current = rows[rowIndex];
-    const backendRow = timelineRows[rowIndex];
+    const renderRow = rows[rowIndex];
+    const timelineRow = timelineRows[rowIndex];
     const rowTopPx = rowTopPxs[rowIndex];
-    if (!current || !backendRow || rowTopPx === undefined) {
+    if (!renderRow || !timelineRow || rowTopPx === undefined) {
       continue;
     }
 
@@ -195,11 +194,11 @@ const computeTerminalCards = (
       position === "bottom"
         ? layout.terminalCardBottomHeightPx
         : position === "single"
-          ? current.displayHeightPx
-          : current.displayHeightPx + layout.terminalCardTopHeightPx;
+          ? renderRow.displayHeightPx
+          : renderRow.displayHeightPx + layout.terminalCardTopHeightPx;
 
     cards.push({
-      id: current.id,
+      id: renderRow.id,
       position,
       topPx,
       heightPx,
@@ -224,29 +223,29 @@ const getCardPosition = (
   rowIndex: number
 ): TerminalCardGeometry["position"] | null => {
   const row = rows[rowIndex];
-  const backendRow = timelineRows[rowIndex];
-  if (!row || !backendRow) {
+  const timelineRow = timelineRows[rowIndex];
+  if (!row || !timelineRow) {
     return null;
   }
 
-  const terminalAbbrev = backendRow.startEvent.TerminalAbbrev;
+  const terminalAbbrev = timelineRow.startEvent.TerminalAbbrev;
   const previousRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
-  const previousBackendRow =
+  const previousTimelineRow =
     rowIndex > 0 ? timelineRows[rowIndex - 1] : undefined;
   const nextRow = rows[rowIndex + 1];
-  const nextBackendRow = timelineRows[rowIndex + 1];
+  const nextTimelineRow = timelineRows[rowIndex + 1];
 
   const matchesNext =
     row.kind === "at-dock" &&
     nextRow?.kind === "at-sea" &&
     terminalAbbrev !== undefined &&
-    terminalAbbrev === nextBackendRow?.startEvent.TerminalAbbrev;
+    terminalAbbrev === nextTimelineRow?.startEvent.TerminalAbbrev;
 
   const matchesPrevious =
     previousRow?.kind === "at-dock" &&
     row.kind === "at-sea" &&
-    previousBackendRow?.startEvent.TerminalAbbrev !== undefined &&
-    previousBackendRow.startEvent.TerminalAbbrev === terminalAbbrev;
+    previousTimelineRow?.startEvent.TerminalAbbrev !== undefined &&
+    previousTimelineRow.startEvent.TerminalAbbrev === terminalAbbrev;
 
   if (matchesNext) {
     return "top";
