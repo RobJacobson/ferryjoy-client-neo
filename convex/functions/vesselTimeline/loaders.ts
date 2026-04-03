@@ -1,5 +1,5 @@
 /**
- * Convex-specific VesselTimeline loaders and event-backed identity helpers.
+ * Convex-specific VesselTimeline loaders for the public event-first query.
  *
  * This module owns database access and query-time orchestration for the public
  * VesselTimeline query. The read path is intentionally scoped to one sailing
@@ -8,7 +8,6 @@
  */
 
 import type { QueryCtx } from "_generated/server";
-import { resolveInferredDockedTripKey } from "../../domain/vesselTimeline/ownership";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
@@ -20,7 +19,6 @@ export type LoadedVesselTimelineViewModelInputs = {
   actualEvents: ConvexActualBoundaryEvent[];
   predictedEvents: ConvexPredictedBoundaryEvent[];
   location: ConvexVesselLocation | null;
-  inferredDockedTripKey: string | null;
 };
 
 /**
@@ -73,17 +71,12 @@ export const loadVesselTimelineViewModelInputs = async (
   const actualEvents = actualDocs.map(stripConvexMeta);
   const predictedEvents = predictedDocs.map(stripConvexMeta);
   const location = locationDoc ? stripConvexMeta(locationDoc) : null;
-  const inferredDockedTripKey = resolveInferredDockedTripKey({
-    scheduledEvents,
-    location,
-  });
 
   return {
     scheduledEvents,
     actualEvents,
     predictedEvents,
     location,
-    inferredDockedTripKey,
   };
 };
 

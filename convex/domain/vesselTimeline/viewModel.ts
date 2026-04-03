@@ -17,7 +17,6 @@ type BuildVesselTimelineViewModelArgs = {
   actualEvents: ConvexActualBoundaryEvent[];
   predictedEvents: ConvexPredictedBoundaryEvent[];
   location: ConvexVesselLocation | null;
-  inferredDockedTripKey?: string | null;
 };
 
 /**
@@ -33,7 +32,6 @@ export const buildVesselTimelineViewModel = ({
   actualEvents,
   predictedEvents,
   location,
-  inferredDockedTripKey,
 }: BuildVesselTimelineViewModelArgs): ConvexVesselTimelineViewModel => {
   const events = mergeTimelineEvents({
     scheduledEvents,
@@ -43,7 +41,6 @@ export const buildVesselTimelineViewModel = ({
   const activeInterval = resolveActiveInterval({
     events,
     location,
-    inferredDockedTripKey,
   });
   const live = location ? toTimelineLiveState(location) : null;
 

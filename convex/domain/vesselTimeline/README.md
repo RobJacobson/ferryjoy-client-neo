@@ -180,22 +180,12 @@ Responsibilities:
 
 - use `vesselLocations` as the only live-state source for query-time
   attachment
-- prefer `vesselLocations.Key` when present
-- use inferred docked trip keys only when live state is docked and keyless
+- use `vesselLocations.Key` only as a same-day at-sea identity hint
+- resolve docked attachment directly from same-day ordered events plus the
+  observed dock terminal
 - return `null` when no live location row or no same-day event evidence exists
 - never guess across sailing-day boundaries
 - never guess between same-terminal trips by proximity
-
-### `ownership.ts`
-
-Pure same-sailing-day dock-ownership helper for the public query.
-
-Responsibilities:
-
-- infer a docked trip key only from the requested sailing day's
-  `eventsScheduled` slice plus `vesselLocations`
-- return `null` when same-day schedule evidence is insufficient
-- keep sailing-day boundary rules out of Convex table loaders
 
 ### `viewModel.ts`
 
@@ -245,16 +235,12 @@ Responsibilities:
 
 ### `convex/functions/vesselTimeline/loaders.ts`
 
-Convex-specific loader and query-time inference layer for the public query.
+Convex-specific loader for the public query.
 
 Responsibilities:
 
 - read normalized event tables plus `vesselLocations`
-- derive same-day docked attachment from the loaded event slice plus live state
 - never widen the `eventsScheduled` slice beyond the requested sailing day
-- delegate same-day dock-interval ownership rules to pure helpers in
-  `convex/domain/vesselTimeline/ownership.ts` and
-  `convex/functions/eventsScheduled/segmentResolvers.ts`
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow
@@ -314,11 +300,10 @@ Frontend VesselTimeline
 4. `events/liveUpdates.ts`
 5. `normalizedEvents.ts`
 6. `timelineEvents.ts`
-7. `ownership.ts`
-8. `activeInterval.ts`
-9. `viewModel.ts`
-10. `convex/functions/vesselTimeline/actions.ts`
-11. `convex/functions/vesselTimeline/mutations.ts`
-12. `convex/functions/vesselTimeline/loaders.ts`
-13. `convex/functions/vesselTimeline/queries.ts`
-14. `src/features/VesselTimeline/docs/ARCHITECTURE.md`
+7. `activeInterval.ts`
+8. `viewModel.ts`
+9. `convex/functions/vesselTimeline/actions.ts`
+10. `convex/functions/vesselTimeline/mutations.ts`
+11. `convex/functions/vesselTimeline/loaders.ts`
+12. `convex/functions/vesselTimeline/queries.ts`
+13. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

@@ -31,6 +31,20 @@ describe("toActiveRow", () => {
     expect(activeRow?.rowIndex).toBe(1);
   });
 
+  it("returns null for an open-ended at-sea interval", () => {
+    const withRows = toDerivedRows(
+      makePipelineInput({
+        activeInterval: {
+          kind: "at-sea",
+          startEventKey: "trip-1--dep-dock",
+          endEventKey: null,
+        },
+      })
+    );
+
+    expect(toActiveRow(withRows).activeRow).toBeNull();
+  });
+
   it("matches a normal at-dock interval by the departure event key", () => {
     const withRows = toDerivedRows(
       makePipelineInput({

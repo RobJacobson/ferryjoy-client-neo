@@ -93,7 +93,6 @@ describe("resolveActiveInterval", () => {
           Key: "trip-1",
           TimeStamp: at(8, 10),
         }),
-        inferredDockedTripKey: null,
       })
     ).toEqual({
       kind: "at-sea",
@@ -102,7 +101,7 @@ describe("resolveActiveInterval", () => {
     });
   });
 
-  it("returns a start-of-day dock interval for a keyless inferred docked trip", () => {
+  it("returns a start-of-day dock interval before the first same-day departure", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
         makeScheduledEvent({
@@ -133,7 +132,6 @@ describe("resolveActiveInterval", () => {
           DepartingTerminalAbbrev: "CLI",
           TimeStamp: at(10, 55),
         }),
-        inferredDockedTripKey: "trip-2",
       })
     ).toEqual({
       kind: "at-dock",
@@ -173,7 +171,6 @@ describe("resolveActiveInterval", () => {
           DepartingTerminalAbbrev: "VAI",
           TimeStamp: at(19, 58),
         }),
-        inferredDockedTripKey: null,
       })
     ).toEqual({
       kind: "at-dock",
@@ -182,7 +179,46 @@ describe("resolveActiveInterval", () => {
     });
   });
 
-  it("ignores a stale docked location key when it conflicts with the observed dock terminal", () => {
+  it("returns a normal dock interval when the vessel is between same-terminal arrival and departure", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(16, 15),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 35),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: undefined,
+          DepartingTerminalAbbrev: "ORI",
+          TimeStamp: at(16, 20),
+        }),
+      })
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-1--arv-dock",
+      endEventKey: "trip-2--dep-dock",
+    });
+  });
+
+  it("ignores a stale docked location key when same-day terminal evidence proves a different dock interval", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
         makeScheduledEvent({
@@ -241,13 +277,39 @@ describe("resolveActiveInterval", () => {
           DepartingTerminalAbbrev: "ORI",
           TimeStamp: at(16, 20),
         }),
-        inferredDockedTripKey: "trip-3",
       })
     ).toEqual({
       kind: "at-dock",
       startEventKey: "trip-2--arv-dock",
       endEventKey: "trip-3--dep-dock",
     });
+  });
+
+  it("returns null when the live at-sea segment is missing its same-day arrival", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(23, 50),
+          EventScheduledTime: at(23, 50),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: false,
+          Key: "trip-1",
+          TimeStamp: at(23, 55),
+        }),
+      })
+    ).toBeNull();
   });
 });
 

@@ -12,7 +12,7 @@ const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
 describe("loadVesselTimelineViewModelInputs", () => {
-  it("keeps a keyless docked vessel attached to the delayed current dock row", async () => {
+  it("loads only the requested sailing day's scheduled rows", async () => {
     const viewModelInputs = await loadVesselTimelineViewModelInputs(
       makeQueryCtx({
         scheduledEvents: [
@@ -37,6 +37,14 @@ describe("loadVesselTimelineViewModelInputs", () => {
             ScheduledDeparture: at(11, 0),
             EventScheduledTime: at(11, 35),
           }),
+          makeScheduledEvent({
+            Key: "trip-3--dep-dock",
+            SailingDay: "2026-03-26",
+            TerminalAbbrev: "MUK",
+            EventType: "dep-dock",
+            ScheduledDeparture: at(6, 0, 26),
+            EventScheduledTime: at(6, 0, 26),
+          }),
         ],
         location: makeLocation({
           VesselAbbrev: "WEN",
@@ -52,10 +60,15 @@ describe("loadVesselTimelineViewModelInputs", () => {
       }
     );
 
-    expect(viewModelInputs.inferredDockedTripKey).toBe("trip-2");
+    expect(viewModelInputs.scheduledEvents.map((event) => event.Key)).toEqual([
+      "trip-1--arv-dock",
+      "trip-2--dep-dock",
+      "trip-2--arv-dock",
+    ]);
+    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("CLI");
   });
 
-  it("returns null when attachment would require next-day continuity", async () => {
+  it("keeps attachment inputs scoped to the requested day when continuity would require the next day", async () => {
     const viewModelInputs = await loadVesselTimelineViewModelInputs(
       makeQueryCtx({
         scheduledEvents: [
@@ -102,10 +115,10 @@ describe("loadVesselTimelineViewModelInputs", () => {
       "trip-1--dep-dock",
       "trip-1--arv-dock",
     ]);
-    expect(viewModelInputs.inferredDockedTripKey).toBeNull();
+    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("VAI");
   });
 
-  it("returns null when the requested sailing day has no owning departure", async () => {
+  it("returns an empty scheduled slice when the requested sailing day has no rows", async () => {
     const viewModelInputs = await loadVesselTimelineViewModelInputs(
       makeQueryCtx({
         scheduledEvents: [
@@ -133,7 +146,7 @@ describe("loadVesselTimelineViewModelInputs", () => {
     );
 
     expect(viewModelInputs.scheduledEvents).toEqual([]);
-    expect(viewModelInputs.inferredDockedTripKey).toBeNull();
+    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("VAI");
   });
 
   it("returns null when the live location row is missing", async () => {
@@ -156,7 +169,6 @@ describe("loadVesselTimelineViewModelInputs", () => {
     );
 
     expect(viewModelInputs.location).toBeNull();
-    expect(viewModelInputs.inferredDockedTripKey).toBeNull();
   });
 });
 

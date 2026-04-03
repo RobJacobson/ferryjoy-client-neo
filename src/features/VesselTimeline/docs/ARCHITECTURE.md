@@ -60,17 +60,13 @@ Backend layering for that query is now:
 - [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
   is a thin public Convex entrypoint
 - [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-  owns Convex table reads and same-sailing-day query-time live attachment
-  helpers
-- same-day dock-interval inference is delegated from those loaders to pure
-  helpers in
-  [ownership.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/ownership.ts)
-  and shared event-order primitives in
-  [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
+  owns Convex table reads for the requested same-day event slice plus the live
+  vessel-location row
 - [timelineEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/timelineEvents.ts)
   owns event merging and stable ordering
 - [activeInterval.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeInterval.ts)
-  owns active-interval resolution
+  owns same-day active-interval resolution directly from ordered events plus
+  live vessel state
 - [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
   owns final pure assembly from loaded inputs
 
@@ -97,13 +93,15 @@ The backend returns:
 - `activeInterval`
 - raw live state
 
-Active attachment prefers `vesselLocations` for `AtDock` and `Key`, with only a
-single-sailing-day scheduled fallback when the vessel is docked but keyless.
+Active attachment uses `vesselLocations` plus the requested sailing day's
+ordered events.
 The frontend should not resolve same-terminal ambiguity or trip ownership on
 its own.
-For keyless docked vessels, the backend resolves active attachment only from
-the requested sailing day's scheduled dock interval. It never looks across
-sailing-day boundaries and never consults `activeVesselTrips`.
+For docked vessels, the backend resolves the active dock interval directly from
+same-day event order and the observed dock terminal. For at-sea vessels, it
+uses `vesselLocations.Key` only when that key matches a same-day segment with
+both boundaries present. It never looks across sailing-day boundaries and never
+consults `activeVesselTrips`.
 When `activeInterval` is `null`, the frontend still renders rows but omits the
 active indicator.
 
@@ -169,8 +167,6 @@ The render-state layer should not own:
   [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
 - Backend event merger:
   [timelineEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/timelineEvents.ts)
-- Backend same-day ownership helper:
-  [ownership.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/ownership.ts)
 - Backend active-interval resolver:
   [activeInterval.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeInterval.ts)
 - Backend view-model assembler:
