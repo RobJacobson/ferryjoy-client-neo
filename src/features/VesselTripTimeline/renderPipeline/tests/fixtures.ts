@@ -3,7 +3,7 @@ import type {
   VesselLocation,
   VesselTripWithScheduledTrip,
 } from "@/types";
-import type { TimelineItem, TimelinePipelineInput } from "../../../types";
+import type { TimelineItem, TimelinePipelineInput } from "../../types";
 
 type TripPrediction = NonNullable<
   VesselTripWithScheduledTrip["AtDockDepartCurr"]

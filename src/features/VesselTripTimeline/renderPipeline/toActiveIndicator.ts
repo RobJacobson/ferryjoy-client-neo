@@ -10,7 +10,7 @@ import type {
   TimelinePipelineWithRenderRows,
   TimelineRow,
   TimePoint,
-} from "../../types";
+} from "../types";
 
 const ACTIVE_DOCK_MIN_OFFSET = 0.06;
 const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;

@@ -9,7 +9,7 @@ import type {
   TimelineRenderBoundary,
   TimelineRenderRow,
   TimelineRow,
-} from "../../types";
+} from "../types";
 
 /**
  * Adds render-ready rows to the pipeline context.

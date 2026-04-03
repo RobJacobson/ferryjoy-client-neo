@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTimelineRenderState } from "..";
+import { getVesselTripTimelineRenderState } from "..";
 import {
   at,
   makeGetTerminalNameByAbbrev,
@@ -7,9 +7,9 @@ import {
   makeTimelineItem,
 } from "./fixtures";
 
-describe("getTimelineRenderState", () => {
+describe("getVesselTripTimelineRenderState", () => {
   it("keeps the trip timeline on the first dock row before departure", () => {
-    const renderState = getTimelineRenderState(
+    const renderState = getVesselTripTimelineRenderState(
       makeTimelineItem(),
       makeGetTerminalNameByAbbrev(),
       at(7, 50)
@@ -32,7 +32,7 @@ describe("getTimelineRenderState", () => {
   });
 
   it("switches to the sea row and prefers distance progress in transit", () => {
-    const renderState = getTimelineRenderState(
+    const renderState = getVesselTripTimelineRenderState(
       makeTimelineItem({
         trip: {
           LeftDock: at(8, 5),
@@ -61,7 +61,7 @@ describe("getTimelineRenderState", () => {
   });
 
   it("switches to the final dock row after arrival", () => {
-    const renderState = getTimelineRenderState(
+    const renderState = getVesselTripTimelineRenderState(
       makeTimelineItem({
         trip: {
           ArriveDest: at(8, 36),
@@ -89,7 +89,7 @@ describe("getTimelineRenderState", () => {
         }),
       },
     });
-    const renderState = getTimelineRenderState(
+    const renderState = getVesselTripTimelineRenderState(
       completedTrip,
       makeGetTerminalNameByAbbrev(),
       at(9, 10)

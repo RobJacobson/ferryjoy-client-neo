@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { TimelinePipelineWithEvents } from "../../../types";
+import type { TimelinePipelineWithEvents } from "../../types";
 import { toDerivedRows } from "../toDerivedRows";
 import { toTimelineEvents } from "../toTimelineEvents";
 import { at, makePipelineInput } from "./fixtures";

@@ -7,7 +7,7 @@ import type {
   TimelinePipelineInput,
   TimelinePipelineWithEvents,
   TimePoint,
-} from "../../types";
+} from "../types";
 
 /**
  * Adds ordered trip-boundary events to the pipeline context.

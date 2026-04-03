@@ -14,14 +14,14 @@ timeline semantics stay local to `src/features/VesselTripTimeline`.
 ## High-Level Flow
 
 Callers use a single entry point:
-`getTimelineRenderState(item, getTerminalNameByAbbrev, now?)`.
+`getVesselTripTimelineRenderState(item, getTerminalNameByAbbrev, now?)`.
 
 That entry point runs the feature-local pipeline internally and returns only
 `TimelineRenderState`.
 
 ```mermaid
 flowchart TD
-  featureInput["Feature input (trip + vesselLocation)"] --> getRenderState["getTimelineRenderState"]
+  featureInput["Feature input (trip + vesselLocation)"] --> getRenderState["getVesselTripTimelineRenderState"]
   getRenderState --> toTimelineEvents["1. toTimelineEvents"]
   toTimelineEvents --> timelineEvents["TimelineEvent[]"]
   timelineEvents --> toDerivedRows["2. toDerivedRows"]
@@ -45,7 +45,7 @@ flowchart TD
   timelineContent --> overlayLayer["TimelineIndicatorOverlay"]
 ```
 
-## Pipeline (`utils/pipeline/`)
+## Render Pipeline (`renderPipeline/`)
 
 The pipeline is a literal chain: each stage accepts the previous stage's output
 and returns the next enriched value.
@@ -59,8 +59,8 @@ and returns the next enriched value.
 | 5 | `toActiveIndicator.ts` | `TimelinePipelineWithRenderRows` | `TimelinePipelineWithActiveIndicator` |
 | 6 | `toTimelineRenderState.ts` | `TimelinePipelineWithActiveIndicator` | `TimelineRenderState` |
 
-The entry point `utils/pipeline/index.ts` runs these stages in order and
-exports `getTimelineRenderState`.
+The entry point `renderPipeline/index.ts` runs these stages in order and
+exports `getVesselTripTimelineRenderState`.
 
 ## Core Feature Model
 
@@ -160,7 +160,7 @@ After the pipeline, the UI layer is:
 - `VesselTripTimeline.tsx`
   - owns a local `useNowMs(1000)` clock so the indicator keeps moving even when
     live backend data is quiet
-  - passes `new Date(nowMs)` into `getTimelineRenderState`
+  - passes `new Date(nowMs)` into `getVesselTripTimelineRenderState`
 - `components/TimelineContent.tsx`
   - receives render-ready rows and the active indicator
   - measures row bounds
@@ -249,7 +249,7 @@ That shared module owns:
 
 `VesselTripTimeline` still owns:
 
-- the event-first trip-card pipeline in `utils/pipeline/`
+- the event-first trip-card render pipeline in `renderPipeline/`
 - compact terminal and label copy
 - trip-specific overlay subtitle text
 - time-vs-distance indicator rules

@@ -5,7 +5,7 @@
 import type {
   TimelinePipelineWithActiveRow,
   TimelinePipelineWithRows,
-} from "../../types";
+} from "../types";
 
 /**
  * Adds the active derived row to the pipeline context.

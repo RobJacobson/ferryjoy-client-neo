@@ -6,7 +6,7 @@ import type {
   TimelineItem,
   TimelinePipelineInput,
   TimelineRenderState,
-} from "../../types";
+} from "../types";
 import { toActiveIndicator } from "./toActiveIndicator";
 import { toActiveRow } from "./toActiveRow";
 import { toDerivedRows } from "./toDerivedRows";
@@ -21,7 +21,7 @@ import { toTimelineRenderState } from "./toTimelineRenderState";
  * @param now - Current wall-clock time (defaults to new Date())
  * @returns TimelineRenderState for TimelineContent
  */
-export const getTimelineRenderState = (
+export const getVesselTripTimelineRenderState = (
   item: TimelineItem,
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null,
   now: Date = new Date()

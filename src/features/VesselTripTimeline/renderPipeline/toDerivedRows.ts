@@ -11,7 +11,7 @@ import type {
   TimelineProgressMode,
   TimelineRow,
   TimePoint,
-} from "../../types";
+} from "../types";
 
 const MIN_SEGMENT_MINUTES = 1;
 const MS_PER_MINUTE = 60_000;

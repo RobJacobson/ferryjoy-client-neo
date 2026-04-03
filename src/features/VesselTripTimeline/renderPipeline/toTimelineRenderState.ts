@@ -5,7 +5,7 @@
 import type {
   TimelinePipelineWithActiveIndicator,
   TimelineRenderState,
-} from "../../types";
+} from "../types";
 
 /**
  * Converts the enriched pipeline context into final render state.
