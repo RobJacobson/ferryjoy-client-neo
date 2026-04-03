@@ -5,7 +5,7 @@
 import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
-import { getVesselTimelineRenderState } from "../renderState";
+import { getVesselTimelineRenderState } from "../renderPipeline";
 import type { VesselTimelineRenderState } from "../types";
 
 export type UseVesselTimelinePresentationStateResult = {

@@ -179,9 +179,12 @@ The render-state layer should not own:
   [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
 - Shared scheduled-segment resolver logic:
   [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
-- Frontend row derivation:
-  [buildRowsFromEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/buildRowsFromEvents.ts)
-- Render-state assembly:
-  [getVesselTimelineRenderState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getVesselTimelineRenderState.ts)
+- Frontend render pipeline:
+  [toDerivedRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderPipeline/toDerivedRows.ts),
+  [toActiveRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderPipeline/toActiveRow.ts),
+  [toRenderRows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderPipeline/toRenderRows.ts),
+  [toActiveIndicator.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderPipeline/toActiveIndicator.ts)
+- Render-pipeline assembly:
+  [getVesselTimelineRenderState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderPipeline/getVesselTimelineRenderState.ts)
 - Final renderer:
   [VesselTimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimelineContent.tsx)

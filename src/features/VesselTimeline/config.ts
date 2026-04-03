@@ -2,7 +2,7 @@
  * Feature-local render configuration for VesselTimeline.
  *
  * Keeps the timeline's sizing and layout knobs in one place so visual tuning
- * stays separate from the render-state pipeline logic.
+ * stays separate from the render-pipeline logic.
  */
 
 import type { VesselTimelineLayoutConfig } from "./types";

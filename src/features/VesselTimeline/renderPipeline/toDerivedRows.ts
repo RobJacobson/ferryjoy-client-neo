@@ -1,19 +1,34 @@
 /**
- * Frontend row derivation from the event-first VesselTimeline contract.
+ * Pipeline stage: derive feature-owned rows from ordered VesselTimeline events.
  */
 
 import type { VesselTimelineEvent } from "convex/functions/vesselTimeline/schemas";
 import type { VesselTimelineRow, VesselTimelineRowEvent } from "../types";
+import type {
+  VesselTimelinePipelineInput,
+  VesselTimelinePipelineWithRows,
+} from "./pipelineTypes";
 
 /**
- * Builds presentation rows from ordered timeline events.
+ * Adds derived rows to the VesselTimeline render pipeline.
  *
- * @param events - Ordered event-first timeline payload
- * @returns Derived rows used by the shared renderer
+ * @param input - Pipeline input containing ordered backend events
+ * @returns Pipeline context enriched with derived rows
  */
-export const buildRowsFromEvents = (
-  events: VesselTimelineEvent[]
-): VesselTimelineRow[] => {
+export const toDerivedRows = (
+  input: VesselTimelinePipelineInput
+): VesselTimelinePipelineWithRows => ({
+  ...input,
+  rows: deriveRows(input.events),
+});
+
+/**
+ * Builds feature-owned presentation rows from ordered timeline events.
+ *
+ * @param events - Ordered backend timeline events
+ * @returns Derived rows used by later render-state stages
+ */
+const deriveRows = (events: VesselTimelineEvent[]): VesselTimelineRow[] => {
   const rows: VesselTimelineRow[] = [];
   const arrivalsBySegmentKey = new Map(
     events
@@ -57,12 +72,34 @@ export const buildRowsFromEvents = (
   return rows;
 };
 
+/**
+ * Builds the stable row id for one segment and row kind.
+ *
+ * @param segmentKey - Segment identifier from the backend event payload
+ * @param kind - Derived row kind
+ * @returns Stable row identifier
+ */
 const buildRowId = (segmentKey: string, kind: VesselTimelineRow["kind"]) =>
   `${segmentKey}--${kind}`;
 
+/**
+ * Builds the stable row id for the terminal-tail dock row.
+ *
+ * @param segmentKey - Segment identifier from the backend event payload
+ * @returns Terminal-tail row identifier
+ */
 const buildTerminalTailRowId = (segmentKey: string) =>
   `${buildRowId(segmentKey, "at-dock")}--terminal-tail`;
 
+/**
+ * Builds an at-dock row from the previous arrival and current departure.
+ *
+ * @param args - Dock-row inputs
+ * @param args.segmentKey - Segment identifier
+ * @param args.departureEvent - Current departure event
+ * @param args.previousEvent - Previous ordered event, if any
+ * @returns Derived at-dock row
+ */
 const buildDockRow = ({
   segmentKey,
   departureEvent,
@@ -102,6 +139,15 @@ const buildDockRow = ({
   };
 };
 
+/**
+ * Builds an at-sea row from a departure and its paired arrival.
+ *
+ * @param args - Sea-row inputs
+ * @param args.segmentKey - Segment identifier
+ * @param args.departureEvent - Current departure event
+ * @param args.arrivalEvent - Paired arrival event
+ * @returns Derived at-sea row
+ */
 const buildSeaRow = ({
   segmentKey,
   departureEvent,
@@ -126,6 +172,13 @@ const buildSeaRow = ({
   };
 };
 
+/**
+ * Builds the final terminal-tail row after the last arrival of the day.
+ *
+ * @param args - Terminal-tail inputs
+ * @param args.arrivalEvent - Final arrival event for the day
+ * @returns Derived terminal-tail dock row
+ */
 const buildTerminalTailRow = ({
   arrivalEvent,
 }: {
@@ -145,6 +198,12 @@ const buildTerminalTailRow = ({
   };
 };
 
+/**
+ * Converts one backend event into the feature-owned row event shape.
+ *
+ * @param event - Backend timeline event
+ * @returns Feature-owned row event
+ */
 const toRowEvent = (event: VesselTimelineEvent): VesselTimelineRowEvent => ({
   Key: event.Key,
   ScheduledDeparture: event.ScheduledDeparture,
@@ -156,6 +215,12 @@ const toRowEvent = (event: VesselTimelineEvent): VesselTimelineRowEvent => ({
   EventActualTime: event.EventActualTime,
 });
 
+/**
+ * Builds the placeholder arrival event used for start-of-day or broken seams.
+ *
+ * @param departureEvent - Departure event that owns the placeholder
+ * @returns Placeholder arrival row event
+ */
 const buildPlaceholderStartEvent = (
   departureEvent: VesselTimelineEvent
 ): VesselTimelineRowEvent => ({
@@ -169,12 +234,25 @@ const buildPlaceholderStartEvent = (
   EventActualTime: undefined,
 });
 
+/**
+ * Returns the best available time for row geometry calculations.
+ *
+ * @param event - Feature-owned row event
+ * @returns Schedule-first layout time for the row event
+ */
 const getLayoutTime = (event: VesselTimelineRowEvent) =>
   event.EventScheduledTime ??
   event.EventActualTime ??
   event.EventPredictedTime ??
   event.ScheduledDeparture;
 
+/**
+ * Calculates schedule-first duration minutes for a derived row.
+ *
+ * @param startEvent - Row start event
+ * @param endEvent - Row end event
+ * @returns Non-negative duration in minutes
+ */
 const getDurationMinutes = (
   startEvent: VesselTimelineRowEvent,
   endEvent: VesselTimelineRowEvent
