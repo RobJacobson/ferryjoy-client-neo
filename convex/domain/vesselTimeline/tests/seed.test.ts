@@ -864,7 +864,7 @@ const makeLocation = (
  */
 const makeEvent = (
   overrides: Partial<
-    import("../../../functions/vesselTimeline/eventRecordSchemas").ConvexVesselTimelineEventRecord
+    import("../../../functions/vesselTimeline/schemas").ConvexVesselTimelineEventRecord
   >
 ) => ({
   Key: "2026-03-13--TOK--2026-03-13--15:35:00.000Z--P52--dep",

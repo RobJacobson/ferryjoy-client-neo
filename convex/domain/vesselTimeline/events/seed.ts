@@ -6,7 +6,7 @@ import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/sche
 import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
 import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import type { TerminalIdentity } from "../../../functions/terminals/resolver";
-import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/eventRecordSchemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { resolveScheduleSegmentIdentity } from "../../../shared/scheduleIdentity";

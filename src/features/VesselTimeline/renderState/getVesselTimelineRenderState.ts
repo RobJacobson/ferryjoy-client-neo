@@ -2,8 +2,10 @@
  * Day-level VesselTimeline render-state helpers.
  */
 
-import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/activeStateSchemas";
-import type { VesselTimelineRow } from "convex/functions/vesselTimeline/schemas";
+import type {
+  VesselTimelineLiveState,
+  VesselTimelineRow,
+} from "convex/functions/vesselTimeline/schemas";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../config";
 import type {

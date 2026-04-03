@@ -7,9 +7,9 @@
  */
 
 import { api } from "convex/_generated/api";
-import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/activeStateSchemas";
 import {
   toDomainVesselTimelineViewModel,
+  type VesselTimelineLiveState,
   type VesselTimelineRow,
   type VesselTimelineViewModel,
 } from "convex/functions/vesselTimeline/schemas";

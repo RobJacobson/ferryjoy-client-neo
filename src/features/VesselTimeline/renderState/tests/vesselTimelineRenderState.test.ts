@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/activeStateSchemas";
 import type {
+  VesselTimelineLiveState,
   VesselTimelineRow,
   VesselTimelineRowEvent,
 } from "convex/functions/vesselTimeline/schemas";

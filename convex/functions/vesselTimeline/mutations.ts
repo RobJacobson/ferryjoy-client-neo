@@ -16,12 +16,12 @@ import {
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
 import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
-import { actualBoundaryEffectSchema } from "./actualEffects";
-import { vesselTimelineEventRecordSchema } from "./eventRecordSchemas";
 import {
+  actualBoundaryEffectSchema,
   type ConvexPredictedBoundaryProjectionRow,
   predictedBoundaryProjectionEffectSchema,
-} from "./predictedEffects";
+  vesselTimelineEventRecordSchema,
+} from "./schemas";
 
 export const replaceBoundaryEventsForSailingDay = internalMutation({
   args: {

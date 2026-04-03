@@ -9,12 +9,12 @@ import type {
 } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { PredictionType } from "../../functions/predictions/schemas";
-import type { ConvexActualBoundaryEffect } from "../../functions/vesselTimeline/actualEffects";
-import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/eventRecordSchemas";
 import type {
+  ConvexActualBoundaryEffect,
   ConvexPredictedBoundaryProjectionEffect,
   ConvexPredictedBoundaryProjectionRow,
-} from "../../functions/vesselTimeline/predictedEffects";
+  ConvexVesselTimelineEventRecord,
+} from "../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import { buildBoundaryKey } from "../../shared/keys";
 

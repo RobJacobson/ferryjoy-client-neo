@@ -45,6 +45,8 @@ import type * as domain_vesselTimeline_rows from "../domain/vesselTimeline/rows.
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
+import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
+import type * as functions_eventsScheduled_queries from "../functions/eventsScheduled/queries.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_keyValueStore_actions from "../functions/keyValueStore/actions.js";
@@ -110,13 +112,9 @@ import type * as functions_vesselPings_mutations from "../functions/vesselPings/
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
 import type * as functions_vesselTimeline_actions from "../functions/vesselTimeline/actions.js";
-import type * as functions_vesselTimeline_activeStateSchemas from "../functions/vesselTimeline/activeStateSchemas.js";
-import type * as functions_vesselTimeline_actualEffects from "../functions/vesselTimeline/actualEffects.js";
-import type * as functions_vesselTimeline_eventRecordSchemas from "../functions/vesselTimeline/eventRecordSchemas.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
 import type * as functions_vesselTimeline_loaders from "../functions/vesselTimeline/loaders.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
-import type * as functions_vesselTimeline_predictedEffects from "../functions/vesselTimeline/predictedEffects.js";
 import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
 import type * as functions_vesselTimeline_schemas from "../functions/vesselTimeline/schemas.js";
 import type * as functions_vesselTrips_index from "../functions/vesselTrips/index.js";
@@ -196,6 +194,8 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
+  "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;
+  "functions/eventsScheduled/queries": typeof functions_eventsScheduled_queries;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
   "functions/index": typeof functions_index;
   "functions/keyValueStore/actions": typeof functions_keyValueStore_actions;
@@ -261,13 +261,9 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
   "functions/vesselTimeline/actions": typeof functions_vesselTimeline_actions;
-  "functions/vesselTimeline/activeStateSchemas": typeof functions_vesselTimeline_activeStateSchemas;
-  "functions/vesselTimeline/actualEffects": typeof functions_vesselTimeline_actualEffects;
-  "functions/vesselTimeline/eventRecordSchemas": typeof functions_vesselTimeline_eventRecordSchemas;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
   "functions/vesselTimeline/loaders": typeof functions_vesselTimeline_loaders;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
-  "functions/vesselTimeline/predictedEffects": typeof functions_vesselTimeline_predictedEffects;
   "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;
   "functions/vesselTimeline/schemas": typeof functions_vesselTimeline_schemas;
   "functions/vesselTrips/index": typeof functions_vesselTrips_index;

@@ -5,8 +5,10 @@
  * active row plus the raw live vessel state.
  */
 
-import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/activeStateSchemas";
-import type { VesselTimelineRow } from "convex/functions/vesselTimeline/schemas";
+import type {
+  VesselTimelineLiveState,
+  VesselTimelineRow,
+} from "convex/functions/vesselTimeline/schemas";
 import type { TimelineActiveIndicator } from "@/components/timeline";
 import { clamp } from "@/shared/utils";
 import { getDisplayTime } from "../rowEventTime";

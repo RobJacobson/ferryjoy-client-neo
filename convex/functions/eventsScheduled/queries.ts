@@ -45,42 +45,42 @@ export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
   },
 });
 
-export const getNextScheduledDepartureSegmentForVesselAtTerminal = internalQuery({
-  args: {
-    vesselAbbrev: v.string(),
-    departingTerminalAbbrev: v.string(),
-    arrivalTime: v.number(),
-  },
-  returns: v.union(inferredScheduledSegmentSchema, v.null()),
-  handler: async (ctx, args) => {
-    const event = await findNextDepartureEvent(ctx, {
-      vesselAbbrev: args.vesselAbbrev,
-      terminalAbbrev: args.departingTerminalAbbrev,
-      afterTime: args.arrivalTime,
-    });
-
-    return event ? inferScheduledSegment(ctx, event) : null;
-  },
-});
-
-export const getNextScheduledDepartureSegmentForVesselAtTerminalAfterDeparture =
+export const getNextScheduledDepartureSegmentForVesselAtTerminal =
   internalQuery({
     args: {
       vesselAbbrev: v.string(),
       departingTerminalAbbrev: v.string(),
-      previousScheduledDeparture: v.number(),
+      arrivalTime: v.number(),
     },
     returns: v.union(inferredScheduledSegmentSchema, v.null()),
     handler: async (ctx, args) => {
       const event = await findNextDepartureEvent(ctx, {
         vesselAbbrev: args.vesselAbbrev,
         terminalAbbrev: args.departingTerminalAbbrev,
-        afterTime: args.previousScheduledDeparture,
+        afterTime: args.arrivalTime,
       });
 
       return event ? inferScheduledSegment(ctx, event) : null;
     },
   });
+
+export const getNextDepartureSegmentAfterDeparture = internalQuery({
+  args: {
+    vesselAbbrev: v.string(),
+    departingTerminalAbbrev: v.string(),
+    previousScheduledDeparture: v.number(),
+  },
+  returns: v.union(inferredScheduledSegmentSchema, v.null()),
+  handler: async (ctx, args) => {
+    const event = await findNextDepartureEvent(ctx, {
+      vesselAbbrev: args.vesselAbbrev,
+      terminalAbbrev: args.departingTerminalAbbrev,
+      afterTime: args.previousScheduledDeparture,
+    });
+
+    return event ? inferScheduledSegment(ctx, event) : null;
+  },
+});
 
 const inferScheduledSegment = async (
   ctx: QueryCtx,
@@ -112,7 +112,8 @@ const inferScheduledSegment = async (
       ? getSegmentKeyFromBoundaryKey(nextDepartureEvent.Key)
       : undefined,
     NextDepartingTime: nextDepartureEvent
-      ? nextDepartureEvent.EventScheduledTime ?? nextDepartureEvent.ScheduledDeparture
+      ? (nextDepartureEvent.EventScheduledTime ??
+        nextDepartureEvent.ScheduledDeparture)
       : undefined,
   };
 };

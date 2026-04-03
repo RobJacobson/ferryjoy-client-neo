@@ -119,7 +119,7 @@ const inferDockedTripFromSchedule = async (
     // completed trip's scheduled departure, even if that time is in the past.
     const rolloverMatch = await ctx.runQuery(
       internal.functions.eventsScheduled.queries
-        .getNextScheduledDepartureSegmentForVesselAtTerminalAfterDeparture,
+        .getNextDepartureSegmentAfterDeparture,
       {
         vesselAbbrev: baseTrip.VesselAbbrev,
         departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
