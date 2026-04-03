@@ -64,7 +64,7 @@ export const buildVesselTimelineViewModel = ({
   return {
     VesselAbbrev,
     SailingDay,
-    ObservedAt: location?.TimeStamp ?? activeTrip?.TimeStamp ?? null,
+    ObservedAt: location?.TimeStamp ?? null,
     rows,
     activeRowId,
     live,

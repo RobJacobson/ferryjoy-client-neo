@@ -158,6 +158,7 @@ describe("getVesselTimelineActiveIndicator", () => {
     expect(indicator?.rowId).toBe("trip-2--at-dock");
     expect(indicator?.label).toBe("--");
     expect(indicator?.subtitle).toBe("At dock VAI");
+    expect(indicator?.positionPercent).toBe(0);
   });
 });
 

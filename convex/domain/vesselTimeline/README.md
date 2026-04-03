@@ -11,13 +11,13 @@ persists only three normalized tables:
 - `eventsPredicted`
 
 The backend now composes the public timeline read model from those tables plus
-live trip/location state. The frontend is expected to consume backend-owned rows
-and `activeRowId`, not reconstruct rows or guess active attachment itself.
+live vessel state. The frontend is expected to consume backend-owned rows and
+`activeRowId`, not reconstruct rows or guess active attachment itself.
 
 The implementation boundary is now explicit:
 
 - `convex/functions/vesselTimeline/*` owns Convex entrypoints, table reads, and
-  query-time schedule lookups
+  query-time data loading
 - `convex/domain/vesselTimeline/*` owns pure boundary-event, row, and
   read-model logic over plain objects
 
@@ -41,6 +41,7 @@ Everything else is derived, including:
 - placeholder dock rows when a dock start is missing
 - terminal-tail metadata when the slice ends on an arrival
 - active-row attachment
+- observed timestamp for the current live slice
 
 ## Sources Of Truth
 
@@ -55,8 +56,7 @@ Source:
 Responsibilities:
 
 - define which boundary events exist for the vessel/day
-- keep the canonical segment identity shared with `scheduledTrips` /
-  `vesselTrips`
+- keep the canonical segment identity shared with `vesselTrips`
 - define `dep-dock` vs `arv-dock`
 - define scheduled timing and terminal identity
 - provide `NextTerminalAbbrev` for client composition and debugging
@@ -176,11 +176,13 @@ Responsibilities:
 
 ### `activeRow.ts`
 
-Resolves backend-owned row attachment from live trip and vessel-location state.
+Resolves backend-owned row attachment from live vessel-location state with a
+narrow active-trip fallback.
 
 Responsibilities:
 
-- choose the active row from authoritative trip/location identity
+- prefer `vesselLocations` for `AtDock` and `Key`
+- fall back to `activeVesselTrips` only when a live location row is missing
 - use inferred docked trip keys only when live state is docked and keyless
 - never guess between same-terminal rows by proximity
 
@@ -194,6 +196,7 @@ Responsibilities:
 - call `rows.ts` for row construction
 - call `activeRow.ts` for active-row resolution
 - return raw live vessel state needed for frontend rendering decisions
+- set `ObservedAt` from `vesselLocations.TimeStamp`
 
 ## Function Entrypoints
 
@@ -231,12 +234,13 @@ Responsibilities:
 
 ### `convex/functions/vesselTimeline/loaders.ts`
 
-Convex-specific loader and schedule-lookup layer for the public query.
+Convex-specific loader and query-time inference layer for the public query.
 
 Responsibilities:
 
 - read normalized event tables and live trip/location state
-- perform deterministic schedule lookups used by query-time row attachment
+- derive docked and terminal-tail attachment from the loaded event slice plus
+  live state
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow

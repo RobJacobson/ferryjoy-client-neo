@@ -121,6 +121,10 @@ const getPositionPercent = (
  * @returns Vertical position as a fraction of row height
  */
 const getDockPositionPercent = (row: VesselTimelineRow, now: Date) => {
+  if (row.rowEdge === "terminal-tail") {
+    return 0;
+  }
+
   const startTime = getDisplayTime(row.startEvent);
   if (!startTime || startTime.getTime() > now.getTime()) {
     return 0.5;

@@ -46,7 +46,6 @@ export const loadVesselTimelineViewModelInputs = async (
     predictedDocs,
     locationDoc,
     activeTripDoc,
-    mostRecentCompletedTripDoc,
   ] = await Promise.all([
     ctx.db
       .query("eventsScheduled")
@@ -74,11 +73,6 @@ export const loadVesselTimelineViewModelInputs = async (
       .query("activeVesselTrips")
       .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", args.VesselAbbrev))
       .unique(),
-    ctx.db
-      .query("completedVesselTrips")
-      .withIndex("by_vessel_and_trip_end", (q) => q.eq("VesselAbbrev", args.VesselAbbrev))
-      .order("desc")
-      .first(),
   ]);
 
   const scheduledEvents = scheduledDocs.map(stripConvexMeta);
@@ -86,16 +80,13 @@ export const loadVesselTimelineViewModelInputs = async (
   const predictedEvents = predictedDocs.map(stripConvexMeta);
   const location = locationDoc ? stripConvexMeta(locationDoc) : null;
   const activeTrip = activeTripDoc ? stripConvexMeta(activeTripDoc) : null;
-  const mostRecentCompletedTrip = mostRecentCompletedTripDoc
-    ? stripConvexMeta(mostRecentCompletedTripDoc)
-    : null;
   const [terminalTailTripKey, inferredDockedTripKey] = await Promise.all([
     resolveTerminalTailTripKey(ctx, scheduledEvents),
     resolveInferredDockedTripKey(ctx, {
       VesselAbbrev: args.VesselAbbrev,
       location,
       activeTrip,
-      mostRecentCompletedTrip,
+      scheduledEvents,
     }),
   ]);
 
@@ -148,14 +139,18 @@ const resolveTerminalTailTripKey = async (
     arrivalTime: lastEvent.EventScheduledTime ?? lastEvent.ScheduledDeparture,
   });
 
-  return nextTrip?.Key ?? null;
+  // If the trip table is missing a matching scheduledTrip row, fall back to
+  // the arrival boundary's own trip key so the final dock stop still renders.
+  return (
+    nextTrip?.Key ?? currentTrip?.Key ?? getTripKeyFromBoundaryKey(lastEvent.Key)
+  );
 };
 
 /**
  * Resolves the docked trip key when live state is docked but keyless.
  *
  * @param ctx - Convex query context
- * @param args - Live and persisted trip context
+ * @param args - Live and active-trip context
  * @returns Deterministically inferred docked trip key, or `null`
  */
 const resolveInferredDockedTripKey = async (
@@ -169,10 +164,13 @@ const resolveInferredDockedTripKey = async (
       DepartingTerminalAbbrev: string;
     } | null;
     activeTrip: Pick<ConvexVesselTrip, "Key" | "PrevScheduledDeparture"> | null;
-    mostRecentCompletedTrip: Pick<
-      ConvexVesselTrip,
-      "NextKey" | "ScheduledDeparture"
-    > | null;
+    scheduledEvents: Array<{
+      Key: string;
+      TerminalAbbrev: string;
+      EventType: "dep-dock" | "arv-dock";
+      EventScheduledTime?: number;
+      ScheduledDeparture: number;
+    }>;
   }
 ) => {
   if (!args.location?.AtDock) {
@@ -183,31 +181,12 @@ const resolveInferredDockedTripKey = async (
     return null;
   }
 
-  if (args.mostRecentCompletedTrip?.NextKey) {
-    const exactNextTrip = await getScheduledTripByKey(
-      ctx,
-      args.mostRecentCompletedTrip.NextKey
-    );
-
-    if (
-      exactNextTrip &&
-      exactNextTrip.DepartingTerminalAbbrev ===
-        args.location.DepartingTerminalAbbrev
-    ) {
-      return exactNextTrip.Key;
-    }
-  }
-
-  const previousScheduledDeparture =
-    args.activeTrip?.PrevScheduledDeparture ??
-    args.mostRecentCompletedTrip?.ScheduledDeparture;
-
-  if (previousScheduledDeparture !== undefined) {
+  if (args.activeTrip?.PrevScheduledDeparture !== undefined) {
     const rolloverTrip =
       await getNextScheduledTripForVesselAtTerminalAfterDeparture(ctx, {
         vesselAbbrev: args.VesselAbbrev,
         departingTerminalAbbrev: args.location.DepartingTerminalAbbrev,
-        previousScheduledDeparture,
+        previousScheduledDeparture: args.activeTrip.PrevScheduledDeparture,
       });
 
     if (rolloverTrip) {
@@ -221,7 +200,22 @@ const resolveInferredDockedTripKey = async (
     arrivalTime: args.location.TimeStamp,
   });
 
-  return nextTrip?.Key ?? null;
+  if (nextTrip) {
+    return nextTrip.Key;
+  }
+
+  const lastScheduledEvent = [...args.scheduledEvents].sort(
+    sortScheduledBoundaryEvents
+  )[args.scheduledEvents.length - 1];
+
+  if (
+    lastScheduledEvent?.EventType === "arv-dock" &&
+    lastScheduledEvent.TerminalAbbrev === args.location.DepartingTerminalAbbrev
+  ) {
+    return getTripKeyFromBoundaryKey(lastScheduledEvent.Key);
+  }
+
+  return null;
 };
 
 /**

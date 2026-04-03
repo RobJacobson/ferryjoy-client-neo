@@ -48,6 +48,9 @@ That payload includes:
 - `ObservedAt`
 - raw live state for title and position calculations
 
+`ObservedAt` comes from `vesselLocations.TimeStamp`. The timeline no longer
+falls back to `activeVesselTrips.TimeStamp`.
+
 Source:
 
 - [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
@@ -57,7 +60,7 @@ Backend layering for that query is now:
 - [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
   is a thin public Convex entrypoint
 - [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-  owns Convex table reads and schedule-backed query helpers
+  owns Convex table reads and query-time live attachment helpers
 - [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
   owns row construction and row IDs
 - [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
@@ -92,6 +95,8 @@ The backend returns:
 - `activeRowId`
 - raw live state
 
+Active attachment prefers `vesselLocations` for `AtDock` and `Key`, with only a
+narrow active-trip fallback when no live location row is present.
 The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
 or terminal-tail fallback on its own.
 When `activeRowId` is `null`, the frontend still renders rows but omits the
@@ -109,6 +114,7 @@ The frontend render-state layer should continue to own:
 - animation and scroll behavior
 - indicator subtitle / speed formatting
 - terminal-tail `"--"` label behavior
+- terminal-tail indicator alignment with the arrival marker line
 
 The render-state layer should not own:
 
@@ -139,6 +145,8 @@ The render-state layer should not own:
 - placeholders are backend-emitted fallback only
 - terminal-tail is backend-owned row metadata
 - `activeRowId` is sufficient for the frontend to place the indicator
+- terminal-tail rows anchor the indicator to the arrival marker line, not the
+  vertical center of the full row box
 - no separate backend snapshot table exists for `VesselTimeline`
 
 ## Where To Look

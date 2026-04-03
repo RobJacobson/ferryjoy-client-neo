@@ -71,11 +71,16 @@ export const buildVesselTimelineRows = ({
   }
 
   const lastEvent = mergedEvents[mergedEvents.length - 1];
+  const lastArrivalTripKey =
+    lastEvent?.EventType === "arv-dock"
+      ? getTripKeyFromBoundaryKey(lastEvent.Key)
+      : null;
   if (
     lastEvent?.EventType === "arv-dock" &&
     terminalTailTripKey &&
     !rows.some(
-      (row) => row.rowId === buildRowId(terminalTailTripKey, "at-dock")
+      (row) =>
+        row.rowId === buildTerminalTailRowId(terminalTailTripKey, lastArrivalTripKey)
     )
   ) {
     rows.push(
@@ -100,6 +105,25 @@ export const buildRowId = (
   tripKey: string,
   kind: ConvexVesselTimelineRow["kind"]
 ) => `${tripKey}--${kind}`;
+
+/**
+ * Builds a stable row id for terminal tails.
+ *
+ * When the terminal tail belongs to the same trip as the arrival event, it
+ * needs its own suffix so it does not collide with that trip's earlier
+ * pre-departure dock row.
+ *
+ * @param tripKey - Trip key attached to the terminal-tail row
+ * @param arrivalTripKey - Trip key extracted from the final arrival event
+ * @returns Stable terminal-tail row id
+ */
+const buildTerminalTailRowId = (
+  tripKey: string,
+  arrivalTripKey: string | null
+) =>
+  tripKey === arrivalTripKey
+    ? `${buildRowId(tripKey, "at-dock")}--terminal-tail`
+    : buildRowId(tripKey, "at-dock");
 
 /**
  * Builds one at-dock row for a trip.
@@ -190,9 +214,10 @@ const buildTerminalTailRow = ({
   arrivalEvent: MergedTimelineBoundaryEvent;
 }): ConvexVesselTimelineRow => {
   const event = toRowEvent(arrivalEvent);
+  const arrivalTripKey = getTripKeyFromBoundaryKey(arrivalEvent.Key);
 
   return {
-    rowId: buildRowId(tripKey, "at-dock"),
+    rowId: buildTerminalTailRowId(tripKey, arrivalTripKey),
     tripKey,
     kind: "at-dock",
     rowEdge: "terminal-tail",

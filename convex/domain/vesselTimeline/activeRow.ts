@@ -10,6 +10,9 @@ import { buildRowId } from "./rows";
 /**
  * Resolves the active row ID from live trip and location state.
  *
+ * Prefer raw vessel-location state whenever it exists. Active trip state is a
+ * fallback for cases where the live location row is temporarily unavailable.
+ *
  * @param args - Rows plus authoritative live identity inputs
  * @returns Stable active row ID, or `null` when none can be resolved
  */
@@ -24,14 +27,14 @@ export const resolveActiveRowId = ({
   activeTrip: ConvexVesselTrip | null;
   inferredDockedTripKey?: string | null;
 }) => {
-  const atDock = activeTrip?.AtDock ?? location?.AtDock;
+  const atDock = location?.AtDock ?? activeTrip?.AtDock;
   if (atDock === undefined) {
     return null;
   }
 
   const tripKey =
-    activeTrip?.Key ??
     location?.Key ??
+    activeTrip?.Key ??
     (atDock ? (inferredDockedTripKey ?? undefined) : undefined);
 
   if (!tripKey) {
@@ -39,5 +42,18 @@ export const resolveActiveRowId = ({
   }
 
   const rowId = buildRowId(tripKey, atDock ? "at-dock" : "at-sea");
-  return rows.some((row) => row.rowId === rowId) ? rowId : null;
+  if (atDock) {
+    const terminalTailRow = rows.find(
+      (row) =>
+        row.kind === "at-dock" &&
+        row.rowEdge === "terminal-tail" &&
+        row.tripKey === tripKey
+    );
+
+    if (terminalTailRow) {
+      return terminalTailRow.rowId;
+    }
+  }
+
+  return rows.find((row) => row.rowId === rowId)?.rowId ?? null;
 };
