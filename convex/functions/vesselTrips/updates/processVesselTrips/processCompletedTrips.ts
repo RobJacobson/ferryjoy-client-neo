@@ -168,7 +168,10 @@ const buildCompletedTripEffects = (
   tripToComplete: ConvexVesselTrip,
   newTrip: ConvexVesselTrip
 ): ProjectionResults => ({
-  actualEffects: [buildArrivalActualEffect(tripToComplete)].filter(
+  actualEffects: [
+    buildDepartureActualEffect(tripToComplete),
+    buildArrivalActualEffect(tripToComplete),
+  ].filter(
     (effect): effect is ConvexActualBoundaryEffect => Boolean(effect)
   ),
   predictedEffects: [
@@ -203,6 +206,38 @@ const createEmptyProjectionResults = (): ProjectionResults => ({
   actualEffects: [],
   predictedEffects: [],
 });
+
+/**
+ * Build the actual departure projection effect for a finalized trip state.
+ *
+ * This re-projects departure actuals at trip completion so `eventsActual`
+ * still recovers when the earlier leave-dock transition tick was missed.
+ *
+ * @param trip - Finalized trip carrying a canonical segment key and departure time
+ * @returns Departure effect, or null when the trip is not projection-ready
+ */
+const buildDepartureActualEffect = (
+  trip: ConvexVesselTrip
+): ConvexActualBoundaryEffect | null => {
+  if (
+    !trip.Key ||
+    !trip.SailingDay ||
+    trip.ScheduledDeparture === undefined ||
+    trip.LeftDock === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    SegmentKey: trip.Key,
+    VesselAbbrev: trip.VesselAbbrev,
+    SailingDay: trip.SailingDay,
+    ScheduledDeparture: trip.ScheduledDeparture,
+    TerminalAbbrev: trip.DepartingTerminalAbbrev,
+    EventType: "dep-dock",
+    EventActualTime: trip.LeftDock,
+  };
+};
 
 /**
  * Build the actual arrival projection effect for a finalized trip state.

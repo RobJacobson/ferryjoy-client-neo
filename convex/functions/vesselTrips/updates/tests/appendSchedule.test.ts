@@ -1,16 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { appendFinalSchedule } from "../appendSchedule";
 
 describe("appendFinalSchedule", () => {
   it("prefers the exact next scheduled trip from the prior trip context during rollover", async () => {
-    const previousScheduledTrip = makeScheduledTrip({
+    const previousScheduledSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--09:30--MUK-CLI",
       NextKey: "CHE--2026-03-13--11:00--CLI-MUK",
       NextDepartingTime: ms("2026-03-13T11:00:00-07:00"),
     });
-    const delayedNextTrip = makeScheduledTrip({
+    const delayedNextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "CLI",
@@ -19,7 +18,7 @@ describe("appendFinalSchedule", () => {
       NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
       NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
-    const laterTrip = makeScheduledTrip({
+    const laterSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "CLI",
@@ -27,19 +26,19 @@ describe("appendFinalSchedule", () => {
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
     const ctx = createTestActionCtx({
-      scheduledTripByKey: new Map([
-        [previousScheduledTrip.Key, previousScheduledTrip],
-        [delayedNextTrip.Key, delayedNextTrip],
+      scheduledSegmentByKey: new Map([
+        [previousScheduledSegment.Key, previousScheduledSegment],
+        [delayedNextSegment.Key, delayedNextSegment],
       ]),
-      inferredScheduledTrip: laterTrip,
+      inferredScheduledSegment: laterSegment,
     });
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "MUK",
       ArrivingTerminalAbbrev: "CLI",
-      Key: previousScheduledTrip.Key,
-      ScheduledDeparture: previousScheduledTrip.DepartingTime,
-      NextKey: delayedNextTrip.Key,
-      NextScheduledDeparture: delayedNextTrip.DepartingTime,
+      Key: previousScheduledSegment.Key,
+      ScheduledDeparture: previousScheduledSegment.DepartingTime,
+      NextKey: delayedNextSegment.Key,
+      NextScheduledDeparture: delayedNextSegment.DepartingTime,
     });
     const baseTrip = makeTrip({
       DepartingTerminalAbbrev: "CLI",
@@ -57,19 +56,19 @@ describe("appendFinalSchedule", () => {
       existingTrip
     );
 
-    expect(enriched.Key).toBe(delayedNextTrip.Key);
-    expect(enriched.ScheduledDeparture).toBe(delayedNextTrip.DepartingTime);
+    expect(enriched.Key).toBe(delayedNextSegment.Key);
+    expect(enriched.ScheduledDeparture).toBe(delayedNextSegment.DepartingTime);
     expect(enriched.ArrivingTerminalAbbrev).toBe(
-      delayedNextTrip.ArrivingTerminalAbbrev
+      delayedNextSegment.ArrivingTerminalAbbrev
     );
-    expect(enriched.NextKey).toBe(delayedNextTrip.NextKey);
+    expect(enriched.NextKey).toBe(delayedNextSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
-      delayedNextTrip.NextDepartingTime
+      delayedNextSegment.NextDepartingTime
     );
   });
 
   it("falls back to the first surviving trip after the previous scheduled departure when NextKey is unavailable", async () => {
-    const rolloverTrip = makeScheduledTrip({
+    const rolloverSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "CLI",
@@ -78,7 +77,7 @@ describe("appendFinalSchedule", () => {
       NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
       NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
-    const laterTrip = makeScheduledTrip({
+    const laterSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--13:00--CLI-MUK",
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "CLI",
@@ -86,8 +85,8 @@ describe("appendFinalSchedule", () => {
       DepartingTime: ms("2026-03-13T13:00:00-07:00"),
     });
     const ctx = createTestActionCtx({
-      rolloverScheduledTrip: rolloverTrip,
-      inferredScheduledTrip: laterTrip,
+      rolloverScheduledSegment: rolloverSegment,
+      inferredScheduledSegment: laterSegment,
     });
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "MUK",
@@ -113,15 +112,15 @@ describe("appendFinalSchedule", () => {
       existingTrip
     );
 
-    expect(enriched.Key).toBe(rolloverTrip.Key);
-    expect(enriched.ScheduledDeparture).toBe(rolloverTrip.DepartingTime);
+    expect(enriched.Key).toBe(rolloverSegment.Key);
+    expect(enriched.ScheduledDeparture).toBe(rolloverSegment.DepartingTime);
     expect(enriched.ArrivingTerminalAbbrev).toBe(
-      rolloverTrip.ArrivingTerminalAbbrev
+      rolloverSegment.ArrivingTerminalAbbrev
     );
   });
 
   it("infers the next trip from schedule when a docked trip has no key", async () => {
-    const scheduledTrip = makeScheduledTrip({
+    const scheduledSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--07:00--ORI-LOP",
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "ORI",
@@ -131,7 +130,7 @@ describe("appendFinalSchedule", () => {
       NextDepartingTime: ms("2026-03-13T08:30:00-07:00"),
     });
     const ctx = createTestActionCtx({
-      inferredScheduledTrip: scheduledTrip,
+      inferredScheduledSegment: scheduledSegment,
     });
     const baseTrip = makeTrip({
       DepartingTerminalAbbrev: "ORI",
@@ -149,15 +148,15 @@ describe("appendFinalSchedule", () => {
       undefined
     );
 
-    expect(enriched.Key).toBe(scheduledTrip.Key);
-    expect(enriched.SailingDay).toBe(scheduledTrip.SailingDay);
-    expect(enriched.ScheduledDeparture).toBe(scheduledTrip.DepartingTime);
+    expect(enriched.Key).toBe(scheduledSegment.Key);
+    expect(enriched.SailingDay).toBe(scheduledSegment.SailingDay);
+    expect(enriched.ScheduledDeparture).toBe(scheduledSegment.DepartingTime);
     expect(enriched.ArrivingTerminalAbbrev).toBe(
-      scheduledTrip.ArrivingTerminalAbbrev
+      scheduledSegment.ArrivingTerminalAbbrev
     );
-    expect(enriched.NextKey).toBe(scheduledTrip.NextKey);
+    expect(enriched.NextKey).toBe(scheduledSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
-      scheduledTrip.NextDepartingTime
+      scheduledSegment.NextDepartingTime
     );
   });
 
@@ -192,23 +191,23 @@ type TestActionCtx = {
 };
 
 const createTestActionCtx = (options: {
-  inferredScheduledTrip?: ConvexScheduledTrip | null;
-  rolloverScheduledTrip?: ConvexScheduledTrip | null;
-  scheduledTripByKey?: Map<string, ConvexScheduledTrip>;
+  inferredScheduledSegment?: InferredScheduledSegment | null;
+  rolloverScheduledSegment?: InferredScheduledSegment | null;
+  scheduledSegmentByKey?: Map<string, InferredScheduledSegment>;
 }): TestActionCtx => ({
   runQuery: async (_ref, args) => {
-    if (args && "key" in args) {
-      return args.key && options.scheduledTripByKey
-        ? (options.scheduledTripByKey.get(String(args.key)) ?? null)
+    if (args && "segmentKey" in args) {
+      return args.segmentKey && options.scheduledSegmentByKey
+        ? (options.scheduledSegmentByKey.get(String(args.segmentKey)) ?? null)
         : null;
     }
 
     if (args && "previousScheduledDeparture" in args) {
-      return options.rolloverScheduledTrip ?? null;
+      return options.rolloverScheduledSegment ?? null;
     }
 
     if (args && "arrivalTime" in args) {
-      return options.inferredScheduledTrip ?? null;
+      return options.inferredScheduledSegment ?? null;
     }
 
     return null;
@@ -252,28 +251,25 @@ const makeTrip = (
   ...overrides,
 });
 
-const makeScheduledTrip = (
-  overrides: Partial<ConvexScheduledTrip> = {}
-): ConvexScheduledTrip => ({
-  VesselAbbrev: "CHE",
+type InferredScheduledSegment = {
+  Key: string;
+  SailingDay: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  DepartingTime: number;
+  NextKey?: string;
+  NextDepartingTime?: number;
+};
+
+const makeScheduledSegment = (
+  overrides: Partial<InferredScheduledSegment> = {}
+): InferredScheduledSegment => ({
+  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  SailingDay: "2026-03-13",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   DepartingTime: ms("2026-03-13T05:30:00-07:00"),
-  ArrivingTime: ms("2026-03-13T06:30:00-07:00"),
-  SailingNotes: "",
-  Annotations: [],
-  RouteID: 1,
-  RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
-  SailingDay: "2026-03-13",
-  TripType: "direct",
-  DirectKey: undefined,
-  PrevKey: undefined,
   NextKey: undefined,
   NextDepartingTime: undefined,
-  EstArriveNext: undefined,
-  EstArriveCurr: undefined,
-  SchedArriveNext: undefined,
-  SchedArriveCurr: undefined,
   ...overrides,
 });

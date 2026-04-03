@@ -1,20 +1,19 @@
 /**
- * Scheduled trip lookup - enriches trip with schedule data.
+ * Scheduled-boundary lookup - enriches trips from normalized `eventsScheduled`.
  *
- * Takes base trip (Key from baseTripFromLocation) and performs I/O-conditioned
- * lookup by Key. Schedule data is resolved lazily by Key rather than persisted
- * as a ScheduledTrips document ID.
+ * Takes a base trip and resolves schedule-derived context from the backend's
+ * canonical boundary-event table rather than from `scheduledTrips`.
  */
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Look up scheduled trip using deterministic key and enrich schedule-derived fields.
+ * Look up normalized scheduled boundary context and enrich schedule-derived fields.
  *
  * Performs lookup when called by buildTrip (which handles event detection).
- * This no longer persists a ScheduledTrips document ID; instead it copies over
- * the small amount of schedule data that VesselTrips need immediately.
+ * This copies the small amount of schedule context `vesselTrips` need
+ * immediately without depending on `scheduledTrips`.
  *
  * @param ctx - Convex action context for database queries
  * @param baseTrip - Trip from baseTripFromLocation (has Key when derivable)
@@ -26,24 +25,24 @@ export const appendFinalSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
-  const inferredScheduledTrip =
+  const inferredScheduledSegment =
     baseTrip.AtDock && !baseTrip.LeftDock && !baseTrip.Key
       ? await inferDockedTripFromSchedule(ctx, baseTrip, existingTrip)
       : null;
 
-  if (inferredScheduledTrip) {
+  if (inferredScheduledSegment) {
     return {
       ...baseTrip,
       ArrivingTerminalAbbrev:
         baseTrip.ArrivingTerminalAbbrev ??
-        inferredScheduledTrip.ArrivingTerminalAbbrev,
-      Key: inferredScheduledTrip.Key,
-      SailingDay: inferredScheduledTrip.SailingDay,
+        inferredScheduledSegment.ArrivingTerminalAbbrev,
+      Key: inferredScheduledSegment.Key,
+      SailingDay: inferredScheduledSegment.SailingDay,
       ScheduledDeparture:
-        baseTrip.ScheduledDeparture ?? inferredScheduledTrip.DepartingTime,
-      NextKey: inferredScheduledTrip.NextKey ?? baseTrip.NextKey,
+        baseTrip.ScheduledDeparture ?? inferredScheduledSegment.DepartingTime,
+      NextKey: inferredScheduledSegment.NextKey ?? baseTrip.NextKey,
       NextScheduledDeparture:
-        inferredScheduledTrip.NextDepartingTime ??
+        inferredScheduledSegment.NextDepartingTime ??
         baseTrip.NextScheduledDeparture,
     };
   }
@@ -66,33 +65,32 @@ export const appendFinalSchedule = async (
   }
 
   // Perform the lookup
-  const scheduledTrip = await ctx.runQuery(
-    internal.functions.scheduledTrips.queries.getScheduledTripByKey,
-    { key: tripKey }
+  const scheduledSegment = await ctx.runQuery(
+    internal.functions.eventsScheduled.queries
+      .getScheduledDepartureSegmentBySegmentKey,
+    { segmentKey: tripKey }
   );
 
-  // Prefer fresh lookup (new schedule); fall back to carried when lookup fails
+  // Prefer fresh lookup (new normalized events); fall back to carried values.
   return {
     ...baseTrip,
-    NextKey: scheduledTrip?.NextKey ?? baseTrip.NextKey,
+    NextKey: scheduledSegment?.NextKey ?? baseTrip.NextKey,
     NextScheduledDeparture:
-      scheduledTrip?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+      scheduledSegment?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };
 };
 
 /**
- * Infer schedule identity for a docked trip that does not yet have a key.
+ * Infer scheduled identity for a docked trip that does not yet have a key.
  *
- * Rollover cases prefer continuity from the previously scheduled trip so late
- * arrivals stay attached to the delayed "next" trip instead of skipping ahead
- * to a later trip whose scheduled departure is after the observed arrival.
- * First-seen docked vessels without prior trip context fall back to a
- * best-effort lookup from the current arrival time.
+ * Rollover cases prefer continuity from the previous trip's next segment so
+ * late arrivals stay attached to the delayed real next sailing instead of
+ * skipping ahead to a later scheduled departure.
  *
- * @param ctx - Convex action context for scheduled-trip lookups
+ * @param ctx - Convex action context for scheduled-boundary lookups
  * @param baseTrip - Docked trip still missing schedule identity
  * @param existingTrip - Previous trip context when available
- * @returns Matching scheduled trip, or `null` when no candidate is found
+ * @returns Matching scheduled segment, or `null` when no candidate is found
  */
 const inferDockedTripFromSchedule = async (
   ctx: ActionCtx,
@@ -101,25 +99,27 @@ const inferDockedTripFromSchedule = async (
 ) => {
   if (existingTrip?.NextKey) {
     // Best case: the completed trip already knows its exact scheduled successor.
-    const exactNextTrip = await ctx.runQuery(
-      internal.functions.scheduledTrips.queries.getScheduledTripByKey,
-      { key: existingTrip.NextKey }
+    const exactNextSegment = await ctx.runQuery(
+      internal.functions.eventsScheduled.queries
+        .getScheduledDepartureSegmentBySegmentKey,
+      { segmentKey: existingTrip.NextKey }
     );
 
     if (
-      exactNextTrip &&
-      exactNextTrip.DepartingTerminalAbbrev === baseTrip.DepartingTerminalAbbrev
+      exactNextSegment &&
+      exactNextSegment.DepartingTerminalAbbrev ===
+        baseTrip.DepartingTerminalAbbrev
     ) {
-      return exactNextTrip;
+      return exactNextSegment;
     }
   }
 
   if (existingTrip?.ScheduledDeparture !== undefined) {
-    // Late-service fallback: stay on the next trip after the completed trip's
-    // scheduled departure, even if that departure time is already in the past.
+    // Late-service fallback: stay on the next departure event after the
+    // completed trip's scheduled departure, even if that time is in the past.
     const rolloverMatch = await ctx.runQuery(
-      internal.functions.scheduledTrips.queries
-        .getNextScheduledTripForVesselAtTerminalAfterDeparture,
+      internal.functions.eventsScheduled.queries
+        .getNextScheduledDepartureSegmentForVesselAtTerminalAfterDeparture,
       {
         vesselAbbrev: baseTrip.VesselAbbrev,
         departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
@@ -132,11 +132,11 @@ const inferDockedTripFromSchedule = async (
     }
   }
 
-  // First-seen docked vessels have no prior schedule context, so fall back to
-  // the first scheduled trip still ahead of the observed dock timestamp.
+  // First-seen docked vessels have no prior trip context, so fall back to the
+  // first departure boundary still ahead of the observed dock timestamp.
   return ctx.runQuery(
-    internal.functions.scheduledTrips.queries
-      .getNextScheduledTripForVesselAtTerminal,
+    internal.functions.eventsScheduled.queries
+      .getNextScheduledDepartureSegmentForVesselAtTerminal,
     {
       vesselAbbrev: baseTrip.VesselAbbrev,
       departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
