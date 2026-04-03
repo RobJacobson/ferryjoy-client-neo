@@ -1,5 +1,5 @@
 import { api } from "convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext } from "react";
 import {
@@ -48,6 +48,7 @@ const ConvexVesselPingsContext = createContext<
  */
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   // Fetch the latest 20 VesselPingCollections from Convex
+  const connectionState = useConvexConnectionState();
   const rawPingCollections = useQuery(api.functions.vesselPings.queries.getLatest);
 
   // Flatten all pings from all collections and group by vessel ID
@@ -71,8 +72,14 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   Object.values(vesselPingsByVesselId).forEach((pings) => {
     pings.sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
   });
-  const isLoading = rawPingCollections === undefined;
-  const error: string | null = null;
+  const hasConnectionIssue =
+    rawPingCollections === undefined &&
+    !connectionState.isWebSocketConnected &&
+    connectionState.connectionRetries > 0;
+  const isLoading = rawPingCollections === undefined && !hasConnectionIssue;
+  const error = hasConnectionIssue
+    ? "Unable to connect to live vessel pings."
+    : null;
 
   const contextValue: ConvexVesselPingsContextType = {
     vesselPingsByVesselId,
