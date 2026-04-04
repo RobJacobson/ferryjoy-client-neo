@@ -69,4 +69,29 @@ describe("toDerivedRows", () => {
     expect(rows[0]?.placeholderReason).toBeUndefined();
     expect(rows[0]?.startEvent.Key).toBe("trip-0--arv-dock");
   });
+
+  it("ignores invalid non-adjacent seams instead of patching them into dock rows", () => {
+    const { rows } = toDerivedRows(
+      makePipelineInput({
+        events: [
+          makeEvent({
+            SegmentKey: "trip-0",
+            Key: "trip-0--arv-dock",
+            EventType: "arv-dock",
+            TerminalAbbrev: "BBI",
+            ScheduledDeparture: at(7, 15),
+            EventScheduledTime: at(7, 45),
+          }),
+          makeEvent({
+            SegmentKey: "trip-1",
+            Key: "trip-1--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "P52",
+          }),
+        ],
+      })
+    );
+
+    expect(rows).toEqual([]);
+  });
 });

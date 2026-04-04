@@ -37,29 +37,9 @@ const resolveActiveRow = (
     return null;
   }
 
-  const rowIndex = rows.findIndex((row) => {
-    if (activeInterval.kind === "at-sea") {
-      return (
-        row.kind === "at-sea" &&
-        row.startEvent.Key === activeInterval.startEventKey &&
-        row.endEvent.Key === activeInterval.endEventKey
-      );
-    }
-
-    if (activeInterval.endEventKey === null) {
-      return (
-        row.kind === "at-dock" &&
-        row.rowEdge === "terminal-tail" &&
-        row.startEvent.Key === activeInterval.startEventKey
-      );
-    }
-
-    return (
-      row.kind === "at-dock" &&
-      row.rowEdge === "normal" &&
-      row.endEvent.Key === activeInterval.endEventKey
-    );
-  });
+  const rowIndex = rows.findIndex((row) =>
+    matchesActiveInterval(row, activeInterval)
+  );
 
   if (rowIndex < 0) {
     return null;
@@ -69,4 +49,32 @@ const resolveActiveRow = (
     row: rows[rowIndex],
     rowIndex,
   };
+};
+
+/**
+ * Returns whether one derived row corresponds to the backend active interval.
+ *
+ * @param row - Derived feature row
+ * @param activeInterval - Backend active interval
+ * @returns Whether the row is the structural interval match
+ */
+const matchesActiveInterval = (
+  row: VesselTimelinePipelineWithRows["rows"][number],
+  activeInterval: Exclude<VesselTimelineActiveInterval, null>
+) => {
+  if (activeInterval.kind === "at-sea") {
+    return (
+      row.kind === "at-sea" &&
+      row.startEvent.Key === activeInterval.startEventKey &&
+      row.endEvent.Key === activeInterval.endEventKey
+    );
+  }
+
+  return (
+    row.kind === "at-dock" &&
+    (activeInterval.startEventKey === null ||
+      row.startEvent.Key === activeInterval.startEventKey) &&
+    (activeInterval.endEventKey === null ||
+      row.endEvent.Key === activeInterval.endEventKey)
+  );
 };

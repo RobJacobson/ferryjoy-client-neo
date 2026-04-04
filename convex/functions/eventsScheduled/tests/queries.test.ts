@@ -37,8 +37,7 @@ describe("findDockedDepartureEvent", () => {
           EventScheduledTime: ms("2026-03-13T12:30:00-07:00"),
         }),
       ],
-      "CLI",
-      ms("2026-03-13T11:08:00-07:00")
+      "CLI"
     );
 
     expect(departureEvent?.Key).toBe("trip-2--dep-dock");
@@ -55,8 +54,7 @@ describe("findDockedDepartureEvent", () => {
           EventScheduledTime: ms("2026-03-13T07:00:00-07:00"),
         }),
       ],
-      "ORI",
-      ms("2026-03-13T06:29:56-07:00")
+      "ORI"
     );
 
     expect(departureEvent?.Key).toBe("trip-1--dep-dock");
@@ -73,8 +71,52 @@ describe("findDockedDepartureEvent", () => {
           EventScheduledTime: ms("2026-03-13T19:30:00-07:00"),
         }),
       ],
-      "VAI",
-      ms("2026-03-13T19:58:00-07:00")
+      "VAI"
+    );
+
+    expect(departureEvent).toBeNull();
+  });
+
+  it("returns null when multiple same-terminal dock intervals exist", () => {
+    const departureEvent = findDockedDepartureEvent(
+      [
+        makeEvent({
+          Key: "trip-1--dep-dock",
+          TerminalAbbrev: "ORI",
+          EventType: "dep-dock",
+          ScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
+          EventScheduledTime: ms("2026-03-13T07:00:00-07:00"),
+        }),
+        makeEvent({
+          Key: "trip-1--arv-dock",
+          TerminalAbbrev: "LOP",
+          EventType: "arv-dock",
+          ScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
+          EventScheduledTime: ms("2026-03-13T07:25:00-07:00"),
+        }),
+        makeEvent({
+          Key: "trip-2--dep-dock",
+          TerminalAbbrev: "ANA",
+          EventType: "dep-dock",
+          ScheduledDeparture: ms("2026-03-13T08:00:00-07:00"),
+          EventScheduledTime: ms("2026-03-13T08:00:00-07:00"),
+        }),
+        makeEvent({
+          Key: "trip-2--arv-dock",
+          TerminalAbbrev: "ORI",
+          EventType: "arv-dock",
+          ScheduledDeparture: ms("2026-03-13T08:00:00-07:00"),
+          EventScheduledTime: ms("2026-03-13T08:25:00-07:00"),
+        }),
+        makeEvent({
+          Key: "trip-3--dep-dock",
+          TerminalAbbrev: "ORI",
+          EventType: "dep-dock",
+          ScheduledDeparture: ms("2026-03-13T09:00:00-07:00"),
+          EventScheduledTime: ms("2026-03-13T09:00:00-07:00"),
+        }),
+      ],
+      "ORI"
     );
 
     expect(departureEvent).toBeNull();

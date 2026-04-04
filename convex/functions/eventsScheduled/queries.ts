@@ -108,8 +108,7 @@ export const getDockedDepartureSegmentForVesselAtTerminal = internalQuery({
         args.vesselAbbrev,
         args.observedAt
       ),
-      args.departingTerminalAbbrev,
-      args.observedAt
+      args.departingTerminalAbbrev
     );
 
     return departureEvent ? inferScheduledSegment(ctx, departureEvent) : null;

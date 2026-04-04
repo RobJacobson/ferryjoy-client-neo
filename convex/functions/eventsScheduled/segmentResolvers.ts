@@ -6,6 +6,10 @@
  * clock time.
  */
 
+import {
+  type AdjacentDockInterval,
+  buildAdjacentTimelineIntervals,
+} from "../../shared/timelineIntervals";
 import type {
   ConvexInferredScheduledSegment,
   ConvexScheduledBoundaryEvent,
@@ -38,47 +42,30 @@ export const buildInferredScheduledSegment = (
 /**
  * Finds the departure that owns a vessel's current dock interval.
  *
- * The resolver first locates the latest arrival at the observed terminal that
- * is not in the future. That arrival defines the start of the dock interval,
- * and the owning departure is the first departure at the same terminal after
- * that arrival. If no arrival has happened yet, we fall back to the next
- * upcoming departure at the terminal.
+ * The resolver derives structural dock intervals from adjacent ordered events
+ * and only returns a departure when exactly one same-terminal dock interval is
+ * present in the candidate slice.
  *
  * @param events - Candidate scheduled boundary events across the dock window
  * @param terminalAbbrev - Terminal where the vessel is currently observed
- * @param observedAt - Observation timestamp in epoch ms
  * @returns Owning departure boundary, or `null`
  */
 export const findDockedDepartureEvent = (
   events: ConvexScheduledBoundaryEvent[],
-  terminalAbbrev: string,
-  observedAt: number
+  terminalAbbrev: string
 ) => {
-  const sortedEvents = [...events].sort(sortScheduledBoundaryEvents);
-  const latestArrival = [...sortedEvents]
-    .reverse()
-    .find(
-      (event) =>
-        event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === terminalAbbrev &&
-        getBoundaryTime(event) <= observedAt
-    );
+  const { eventByKey, intervals } = buildScheduledIntervalContext(events);
+  const interval = getUniqueMatch(
+    intervals.filter(
+      (candidate): candidate is AdjacentDockInterval =>
+        candidate.kind === "at-dock" &&
+        candidate.terminalAbbrev === terminalAbbrev
+    )
+  );
 
-  if (latestArrival) {
-    return (
-      sortedEvents.find(
-        (event) =>
-          event.EventType === "dep-dock" &&
-          event.TerminalAbbrev === terminalAbbrev &&
-          getBoundaryTime(event) >= getBoundaryTime(latestArrival)
-      ) ?? null
-    );
-  }
-
-  return findNextDepartureEvent(events, {
-    terminalAbbrev,
-    afterTime: observedAt,
-  });
+  return interval?.endEventKey
+    ? (eventByKey.get(interval.endEventKey) ?? null)
+    : null;
 };
 
 /**
@@ -94,14 +81,19 @@ export const findDockedDepartureEvent = (
  */
 export const findNextDepartureAfterBoundaryEvent = (
   events: ConvexScheduledBoundaryEvent[],
-  boundaryEvent: Pick<
-    ConvexScheduledBoundaryEvent,
-    "EventScheduledTime" | "ScheduledDeparture"
-  >
-) =>
-  findNextDepartureEvent(events, {
-    afterTime: getBoundaryTime(boundaryEvent),
-  });
+  boundaryEvent: Pick<ConvexScheduledBoundaryEvent, "Key">
+) => {
+  const { eventByKey, intervals } = buildScheduledIntervalContext(events);
+  const interval = intervals.find(
+    (candidate): candidate is AdjacentDockInterval =>
+      candidate.kind === "at-dock" &&
+      candidate.startEventKey === boundaryEvent.Key
+  );
+
+  return interval?.endEventKey
+    ? (eventByKey.get(interval.endEventKey) ?? null)
+    : null;
+};
 
 /**
  * Finds the earliest departure after a reference time, optionally scoped to a
@@ -164,6 +156,35 @@ export const sortScheduledBoundaryEvents = (
  */
 export const getSegmentKeyFromBoundaryKey = (boundaryKey: string) =>
   boundaryKey.replace(/--(?:dep|arv)-dock$/, "");
+
+/**
+ * Maps a scheduled boundary event into the generic adjacent-interval shape.
+ *
+ * @param event - Scheduled boundary event
+ * @returns Generic interval input event
+ */
+const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
+  Key: event.Key,
+  SegmentKey: getSegmentKeyFromBoundaryKey(event.Key),
+  TerminalAbbrev: event.TerminalAbbrev,
+  EventType: event.EventType,
+});
+
+const getUniqueMatch = <T>(matches: T[]) =>
+  matches.length === 1 ? matches[0] : null;
+
+const buildScheduledIntervalContext = (
+  events: ConvexScheduledBoundaryEvent[]
+) => {
+  const sortedEvents = [...events].sort(sortScheduledBoundaryEvents);
+
+  return {
+    eventByKey: new Map(sortedEvents.map((event) => [event.Key, event])),
+    intervals: buildAdjacentTimelineIntervals(
+      sortedEvents.map(toAdjacentBoundaryEvent)
+    ),
+  };
+};
 
 /**
  * Maps event types to their stable sort rank.

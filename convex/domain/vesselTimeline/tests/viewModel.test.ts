@@ -273,7 +273,60 @@ describe("resolveActiveInterval", () => {
     });
   });
 
-  it("ignores a stale docked location key when same-day terminal evidence proves a different dock interval", () => {
+  it("keeps delayed dock ownership structural even when actual arrival lands after the next departure's scheduled time", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(16, 15),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 45),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "trip-1--arv-dock",
+          ScheduledDeparture: at(15, 20),
+          TerminalAbbrev: "ORI",
+          EventActualTime: at(16, 40),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: undefined,
+          DepartingTerminalAbbrev: "ORI",
+          TimeStamp: at(16, 41),
+        }),
+      })
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-1--arv-dock",
+      endEventKey: "trip-2--dep-dock",
+    });
+  });
+
+  it("returns null when multiple dock intervals share the observed terminal and no key disambiguates them", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
         makeScheduledEvent({
@@ -328,7 +381,70 @@ describe("resolveActiveInterval", () => {
         events,
         location: makeLocation({
           AtDock: true,
-          Key: "trip-1",
+          Key: undefined,
+          DepartingTerminalAbbrev: "ORI",
+          TimeStamp: at(16, 20),
+        }),
+      })
+    ).toBeNull();
+  });
+
+  it("uses the live segment key as a structural tiebreak when one dock interval matches uniquely", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(13, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "LOP",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(13, 55),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ANA",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(15, 20),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(16, 15),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 35),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(16, 35),
+          EventScheduledTime: at(16, 45),
+        }),
+      ],
+      actualEvents: [],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: "trip-2",
           DepartingTerminalAbbrev: "ORI",
           TimeStamp: at(16, 20),
         }),

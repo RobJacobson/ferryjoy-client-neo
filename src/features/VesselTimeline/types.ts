@@ -48,7 +48,7 @@ export type VesselTimelineRenderState = VesselTimelineStaticRenderState & {
   activeIndicator: TimelineActiveIndicator | null;
 };
 
-export type VesselTimelineRowPlaceholderReason = "start-of-day" | "broken-seam";
+export type VesselTimelineRowPlaceholderReason = "start-of-day";
 
 export type VesselTimelineRowKind = "at-dock" | "at-sea";
 

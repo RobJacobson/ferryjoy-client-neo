@@ -3,6 +3,7 @@
  */
 
 import type { VesselTimelineEvent } from "convex/functions/vesselTimeline/schemas";
+import { buildAdjacentTimelineIntervals } from "shared/timelineIntervals";
 import type { VesselTimelineRow, VesselTimelineRowEvent } from "../types";
 import type {
   VesselTimelinePipelineInput,
@@ -29,47 +30,57 @@ export const toDerivedRows = (
  * @returns Derived rows used by later render-state stages
  */
 const deriveRows = (events: VesselTimelineEvent[]): VesselTimelineRow[] => {
-  const rows: VesselTimelineRow[] = [];
-  const arrivalsBySegmentKey = new Map(
-    events
-      .filter((event) => event.EventType === "arv-dock")
-      .map((event) => [event.SegmentKey, event] as const)
-  );
+  const eventByKey = new Map(events.map((event) => [event.Key, event]));
+  const intervals = buildAdjacentTimelineIntervals(events);
 
-  for (let index = 0; index < events.length; index++) {
-    const currentEvent = events[index];
-    if (!currentEvent || currentEvent.EventType !== "dep-dock") {
-      continue;
+  return intervals.flatMap((interval) => {
+    if (interval.kind === "at-sea") {
+      const departureEvent = eventByKey.get(interval.startEventKey);
+      const arrivalEvent = eventByKey.get(interval.endEventKey);
+
+      return departureEvent && arrivalEvent
+        ? [
+            buildSeaRow({
+              segmentKey: interval.segmentKey,
+              departureEvent,
+              arrivalEvent,
+            }),
+          ]
+        : [];
     }
 
-    const previousEvent = events[index - 1];
+    if (interval.endEventKey === null) {
+      const arrivalEvent = interval.startEventKey
+        ? eventByKey.get(interval.startEventKey)
+        : undefined;
 
-    rows.push(
+      return arrivalEvent
+        ? [
+            buildTerminalTailRow({
+              segmentKey: interval.previousSegmentKey,
+              arrivalEvent,
+            }),
+          ]
+        : [];
+    }
+
+    const departureEvent = eventByKey.get(interval.endEventKey);
+    if (!departureEvent) {
+      return [];
+    }
+
+    const arrivalEvent = interval.startEventKey
+      ? eventByKey.get(interval.startEventKey)
+      : undefined;
+
+    return [
       buildDockRow({
-        segmentKey: currentEvent.SegmentKey,
-        departureEvent: currentEvent,
-        previousEvent,
-      })
-    );
-
-    const arrivalEvent = arrivalsBySegmentKey.get(currentEvent.SegmentKey);
-    if (arrivalEvent) {
-      rows.push(
-        buildSeaRow({
-          segmentKey: currentEvent.SegmentKey,
-          departureEvent: currentEvent,
-          arrivalEvent,
-        })
-      );
-    }
-  }
-
-  const lastEvent = events[events.length - 1];
-  if (lastEvent?.EventType === "arv-dock") {
-    rows.push(buildTerminalTailRow({ arrivalEvent: lastEvent }));
-  }
-
-  return rows;
+        segmentKey: interval.nextSegmentKey,
+        departureEvent,
+        arrivalEvent,
+      }),
+    ];
+  });
 };
 
 /**
@@ -97,36 +108,28 @@ const buildTerminalTailRowId = (segmentKey: string) =>
  * @param args - Dock-row inputs
  * @param args.segmentKey - Segment identifier
  * @param args.departureEvent - Current departure event
- * @param args.previousEvent - Previous ordered event, if any
+ * @param args.arrivalEvent - Previous adjacent arrival event, if any
  * @returns Derived at-dock row
  */
 const buildDockRow = ({
   segmentKey,
   departureEvent,
-  previousEvent,
+  arrivalEvent,
 }: {
-  segmentKey: string;
+  segmentKey: string | null;
   departureEvent: VesselTimelineEvent;
-  previousEvent: VesselTimelineEvent | undefined;
+  arrivalEvent: VesselTimelineEvent | undefined;
 }): VesselTimelineRow => {
-  const matchedArrival =
-    previousEvent?.EventType === "arv-dock" &&
-    previousEvent.TerminalAbbrev === departureEvent.TerminalAbbrev
-      ? previousEvent
-      : undefined;
-  const placeholderReason = matchedArrival
-    ? undefined
-    : previousEvent
-      ? "broken-seam"
-      : "start-of-day";
-  const startEvent = matchedArrival
-    ? toRowEvent(matchedArrival)
+  const startEvent = arrivalEvent
+    ? toRowEvent(arrivalEvent)
     : buildPlaceholderStartEvent(departureEvent);
   const endEvent = toRowEvent(departureEvent);
+  const placeholderReason = arrivalEvent ? undefined : "start-of-day";
+  const resolvedSegmentKey = segmentKey ?? departureEvent.SegmentKey;
 
   return {
-    rowId: buildRowId(segmentKey, "at-dock"),
-    segmentKey,
+    rowId: buildRowId(resolvedSegmentKey, "at-dock"),
+    segmentKey: resolvedSegmentKey,
     kind: "at-dock",
     rowEdge: "normal",
     placeholderReason,
@@ -180,15 +183,18 @@ const buildSeaRow = ({
  * @returns Derived terminal-tail dock row
  */
 const buildTerminalTailRow = ({
+  segmentKey,
   arrivalEvent,
 }: {
+  segmentKey: string | null;
   arrivalEvent: VesselTimelineEvent;
 }): VesselTimelineRow => {
   const event = toRowEvent(arrivalEvent);
+  const resolvedSegmentKey = segmentKey ?? arrivalEvent.SegmentKey;
 
   return {
-    rowId: buildTerminalTailRowId(arrivalEvent.SegmentKey),
-    segmentKey: arrivalEvent.SegmentKey,
+    rowId: buildTerminalTailRowId(resolvedSegmentKey),
+    segmentKey: resolvedSegmentKey,
     kind: "at-dock",
     rowEdge: "terminal-tail",
     placeholderReason: undefined,
@@ -216,7 +222,7 @@ const toRowEvent = (event: VesselTimelineEvent): VesselTimelineRowEvent => ({
 });
 
 /**
- * Builds the placeholder arrival event used for start-of-day or broken seams.
+ * Builds the placeholder arrival event used for the opening dock interval.
  *
  * @param departureEvent - Departure event that owns the placeholder
  * @returns Placeholder arrival row event

@@ -7,6 +7,11 @@ import type {
   ConvexVesselTimelineActiveInterval,
   ConvexVesselTimelineEvent,
 } from "../../functions/vesselTimeline/schemas";
+import {
+  type AdjacentDockInterval,
+  type AdjacentTimelineInterval,
+  buildAdjacentTimelineIntervals,
+} from "../../shared/timelineIntervals";
 
 /**
  * Resolves the currently active timeline interval from live vessel state and
@@ -30,10 +35,26 @@ export const resolveActiveInterval = ({
     return null;
   }
 
+  const intervals = buildAdjacentTimelineIntervals(events);
+
   return location.AtDock
-    ? resolveDockInterval(events, location)
-    : resolveSeaInterval(events, location);
+    ? resolveDockInterval(intervals, location)
+    : resolveSeaInterval(intervals, location);
 };
+
+const getUniqueMatch = <T>(matches: T[]) =>
+  matches.length === 1 ? matches[0] : null;
+
+const toActiveInterval = (
+  interval: AdjacentTimelineInterval | null
+): ConvexVesselTimelineActiveInterval =>
+  interval
+    ? {
+        kind: interval.kind,
+        startEventKey: interval.startEventKey,
+        endEventKey: interval.endEventKey,
+      }
+    : null;
 
 /**
  * Resolves an active at-sea interval from the live segment key.
@@ -47,32 +68,19 @@ export const resolveActiveInterval = ({
  * @returns Active at-sea interval, or `null`
  */
 const resolveSeaInterval = (
-  events: ConvexVesselTimelineEvent[],
+  intervals: ReturnType<typeof buildAdjacentTimelineIntervals>,
   location: ConvexVesselLocation
-): ConvexVesselTimelineActiveInterval => {
-  if (!location.Key) {
-    return null;
-  }
-
-  const departureEvent = events.find(
-    (event) =>
-      event.SegmentKey === location.Key && event.EventType === "dep-dock"
+): ConvexVesselTimelineActiveInterval =>
+  toActiveInterval(
+    location.Key
+      ? getUniqueMatch(
+          intervals.filter(
+            (interval) =>
+              interval.kind === "at-sea" && interval.segmentKey === location.Key
+          )
+        )
+      : null
   );
-  const arrivalEvent = events.find(
-    (event) =>
-      event.SegmentKey === location.Key && event.EventType === "arv-dock"
-  );
-
-  if (!departureEvent || !arrivalEvent) {
-    return null;
-  }
-
-  return {
-    kind: "at-sea",
-    startEventKey: departureEvent.Key,
-    endEventKey: arrivalEvent.Key,
-  };
-};
 
 /**
  * Resolves an active at-dock interval directly from same-day event evidence.
@@ -86,7 +94,7 @@ const resolveSeaInterval = (
  * @returns Active at-dock interval, or `null`
  */
 const resolveDockInterval = (
-  events: ConvexVesselTimelineEvent[],
+  intervals: ReturnType<typeof buildAdjacentTimelineIntervals>,
   location: ConvexVesselLocation
 ): ConvexVesselTimelineActiveInterval => {
   const dockTerminal = location.DepartingTerminalAbbrev;
@@ -94,123 +102,21 @@ const resolveDockInterval = (
     return null;
   }
 
-  const latestArrival = findLatestArrivalAtTerminal(
-    events,
-    dockTerminal,
-    location.TimeStamp
+  const candidates = intervals.filter(
+    (interval): interval is AdjacentDockInterval =>
+      interval.kind === "at-dock" && interval.terminalAbbrev === dockTerminal
   );
+  const match =
+    getUniqueMatch(candidates) ??
+    (location.Key
+      ? getUniqueMatch(
+          candidates.filter(
+            (candidate) =>
+              candidate.previousSegmentKey === location.Key ||
+              candidate.nextSegmentKey === location.Key
+          )
+        )
+      : null);
 
-  if (latestArrival) {
-    const departureEvent = findNextDepartureAtTerminal(events, dockTerminal, {
-      afterTime: getComparableEventTime(latestArrival),
-      inclusive: true,
-    });
-
-    if (!departureEvent) {
-      return {
-        kind: "at-dock",
-        startEventKey: latestArrival.Key,
-        endEventKey: null,
-      };
-    }
-
-    return {
-      kind: "at-dock",
-      startEventKey: latestArrival.Key,
-      endEventKey: departureEvent.Key,
-    };
-  }
-
-  const departureEvent = findNextDepartureAtTerminal(events, dockTerminal, {
-    afterTime: location.TimeStamp,
-    inclusive: true,
-  });
-
-  if (!departureEvent) {
-    return null;
-  }
-
-  return {
-    kind: "at-dock",
-    startEventKey: null,
-    endEventKey: departureEvent.Key,
-  };
+  return toActiveInterval(match);
 };
-
-/**
- * Finds the latest same-terminal arrival not after the live observation.
- *
- * @param events - Ordered same-day events
- * @param terminalAbbrev - Observed dock terminal
- * @param observedAt - Observation timestamp in epoch ms
- * @returns Latest qualifying arrival, or `null`
- */
-const findLatestArrivalAtTerminal = (
-  events: ConvexVesselTimelineEvent[],
-  terminalAbbrev: string,
-  observedAt: number
-) =>
-  [...events]
-    .reverse()
-    .find(
-      (event) =>
-        event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === terminalAbbrev &&
-        getComparableEventTime(event) <= observedAt
-    ) ?? null;
-
-/**
- * Finds the next same-terminal departure after one reference time.
- *
- * @param events - Ordered same-day events
- * @param terminalAbbrev - Observed dock terminal
- * @param args - Lower-bound timestamp and inclusivity
- * @returns Earliest qualifying departure, or `null`
- */
-const findNextDepartureAtTerminal = (
-  events: ConvexVesselTimelineEvent[],
-  terminalAbbrev: string,
-  args: {
-    afterTime: number;
-    inclusive: boolean;
-  }
-) =>
-  events.find(
-    (event) =>
-      event.EventType === "dep-dock" &&
-      event.TerminalAbbrev === terminalAbbrev &&
-      compareTimes(
-        getComparableEventTime(event),
-        args.afterTime,
-        args.inclusive
-      )
-  ) ?? null;
-
-/**
- * Picks the timestamp used to compare events against the live observation.
- *
- * Display-time precedence keeps the active attachment aligned with how the
- * timeline already interprets boundary times in the UI.
- *
- * @param event - Timeline boundary event
- * @returns Comparable timestamp in epoch ms
- */
-const getComparableEventTime = (event: ConvexVesselTimelineEvent) =>
-  event.EventActualTime ??
-  event.EventPredictedTime ??
-  event.EventScheduledTime ??
-  event.ScheduledDeparture;
-
-/**
- * Compares one event time against a lower bound.
- *
- * @param eventTime - Event time in epoch ms
- * @param afterTime - Lower-bound timestamp
- * @param inclusive - Whether equality should pass
- * @returns Whether the event satisfies the bound
- */
-const compareTimes = (
-  eventTime: number,
-  afterTime: number,
-  inclusive: boolean
-) => (inclusive ? eventTime >= afterTime : eventTime > afterTime);
