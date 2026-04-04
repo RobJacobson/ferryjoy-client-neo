@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
+import type { ConvexActualBoundaryEvent } from "../../eventsActual/schemas";
+import type { ConvexPredictedBoundaryEvent } from "../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../vesselLocation/schemas";
 import { loadVesselTimelineViewModelInputs } from "../loaders";
@@ -66,6 +68,72 @@ describe("loadVesselTimelineViewModelInputs", () => {
       "trip-2--arv-dock",
     ]);
     expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("CLI");
+  });
+
+  it("prepends the prior sailing day's arrival that anchors the first departure", async () => {
+    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+      makeQueryCtx({
+        scheduledEvents: [
+          makeScheduledEvent({
+            Key: "trip-0--arv-dock",
+            SailingDay: "2026-03-24",
+            TerminalAbbrev: "P52",
+            EventType: "arv-dock",
+            ScheduledDeparture: at(22, 0, 24),
+            EventScheduledTime: at(22, 35, 24),
+            IsLastArrivalOfSailingDay: true,
+          }),
+          makeScheduledEvent({
+            Key: "trip-1--dep-dock",
+            TerminalAbbrev: "P52",
+            EventType: "dep-dock",
+            ScheduledDeparture: at(5, 0),
+            EventScheduledTime: at(5, 0),
+          }),
+          makeScheduledEvent({
+            Key: "trip-1--arv-dock",
+            TerminalAbbrev: "BBI",
+            EventType: "arv-dock",
+            ScheduledDeparture: at(5, 0),
+            EventScheduledTime: at(5, 35),
+          }),
+        ],
+        actualEvents: [
+          makeActualEvent({
+            Key: "trip-0--arv-dock",
+            SailingDay: "2026-03-24",
+            ScheduledDeparture: at(22, 0, 24),
+            TerminalAbbrev: "P52",
+            EventActualTime: at(22, 42, 24),
+          }),
+        ],
+        predictedEvents: [
+          makePredictedEvent({
+            Key: "trip-0--arv-dock",
+            SailingDay: "2026-03-24",
+            ScheduledDeparture: at(22, 0, 24),
+            TerminalAbbrev: "P52",
+            EventPredictedTime: at(22, 40, 24),
+          }),
+        ],
+      }),
+      {
+        VesselAbbrev: "WEN",
+        SailingDay: "2026-03-25",
+      }
+    );
+
+    expect(viewModelInputs.scheduledEvents.map((event) => event.Key)).toEqual([
+      "trip-0--arv-dock",
+      "trip-1--dep-dock",
+      "trip-1--arv-dock",
+    ]);
+    expect(viewModelInputs.actualEvents.map((event) => event.Key)).toEqual([
+      "trip-0--arv-dock",
+    ]);
+    expect(viewModelInputs.predictedEvents.map((event) => event.Key)).toEqual([
+      "trip-0--arv-dock",
+    ]);
   });
 
   it("keeps attachment inputs scoped to the requested day when continuity would require the next day", async () => {
@@ -174,6 +242,8 @@ describe("loadVesselTimelineViewModelInputs", () => {
 
 type MockQueryData = {
   scheduledEvents?: ConvexScheduledBoundaryEvent[];
+  actualEvents?: ConvexActualBoundaryEvent[];
+  predictedEvents?: ConvexPredictedBoundaryEvent[];
   location?: ConvexVesselLocation | null;
 };
 
@@ -230,8 +300,9 @@ const getRowsForTable = (tableName: string, data: MockQueryData) => {
     case "eventsScheduled":
       return data.scheduledEvents ?? [];
     case "eventsActual":
+      return data.actualEvents ?? [];
     case "eventsPredicted":
-      return [];
+      return data.predictedEvents ?? [];
     case "vesselLocations":
       return data.location ? [data.location] : [];
     default:
@@ -257,6 +328,7 @@ const makeScheduledEvent = (
   NextTerminalAbbrev: "BBI",
   EventType: "dep-dock",
   EventScheduledTime: at(8, 0),
+  IsLastArrivalOfSailingDay: false,
   ...overrides,
 });
 
@@ -293,5 +365,45 @@ const makeLocation = (
   Key: "trip-1",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
+  ...overrides,
+});
+
+/**
+ * Builds an actual boundary event for loader tests.
+ *
+ * @param overrides - Field overrides
+ * @returns Actual boundary event
+ */
+const makeActualEvent = (
+  overrides: Partial<ConvexActualBoundaryEvent>
+): ConvexActualBoundaryEvent => ({
+  Key: "trip-1--dep-dock",
+  VesselAbbrev: "WEN",
+  SailingDay: "2026-03-25",
+  UpdatedAt: at(6, 0),
+  ScheduledDeparture: at(8, 0),
+  TerminalAbbrev: "P52",
+  EventActualTime: at(8, 3),
+  ...overrides,
+});
+
+/**
+ * Builds a predicted boundary event for loader tests.
+ *
+ * @param overrides - Field overrides
+ * @returns Predicted boundary event
+ */
+const makePredictedEvent = (
+  overrides: Partial<ConvexPredictedBoundaryEvent>
+): ConvexPredictedBoundaryEvent => ({
+  Key: "trip-1--dep-dock",
+  VesselAbbrev: "WEN",
+  SailingDay: "2026-03-25",
+  UpdatedAt: at(6, 0),
+  ScheduledDeparture: at(8, 0),
+  TerminalAbbrev: "P52",
+  EventPredictedTime: at(8, 5),
+  PredictionType: "AtDockDepartCurr",
+  PredictionSource: "ml",
   ...overrides,
 });

@@ -13,6 +13,9 @@ persists only three normalized tables:
 The backend now composes a public event-first read model from those tables plus
 live vessel state. The frontend derives rows locally from backend events and
 uses one backend-owned `activeInterval` to ground the live indicator.
+When the visible day starts with a departure, the read path may also prepend
+the previous sailing day's final arrival event so the first dock interval can
+be rendered with its real arrival time.
 
 The implementation boundary is now explicit:
 
@@ -58,12 +61,14 @@ Responsibilities:
 - define `dep-dock` vs `arv-dock`
 - define scheduled timing and terminal identity
 - provide `NextTerminalAbbrev` for client composition and debugging
+- mark the final arrival of the sailing day for indexed carry-in lookup
 
 Important behavior:
 
 - replace-only during schedule sync
 - never mutated by live vessel-location updates
 - removed sailings disappear when the schedule feed removes them
+- the final arrival row is flagged with `IsLastArrivalOfSailingDay`
 
 ### `eventsActual`
 
@@ -181,10 +186,9 @@ Responsibilities:
 - use `vesselLocations` as the only live-state source for query-time
   attachment
 - use `vesselLocations.Key` only as a same-day at-sea identity hint
-- resolve docked attachment directly from same-day ordered events plus the
-  observed dock terminal
+- resolve docked attachment directly from ordered events plus the observed dock
+  terminal, including one carry-in arrival when the day starts at dock
 - return `null` when no live location row or no same-day event evidence exists
-- never guess across sailing-day boundaries
 - never guess between same-terminal trips by proximity
 
 ### `viewModel.ts`
@@ -240,7 +244,9 @@ Convex-specific loader for the public query.
 Responsibilities:
 
 - read normalized event tables plus `vesselLocations`
-- never widen the `eventsScheduled` slice beyond the requested sailing day
+- keep the primary event slice scoped to the requested sailing day
+- do one indexed previous-day lookup for the flagged final arrival when the
+  first visible interval needs an overnight carry-in anchor
 - keep `ctx.db` and index-specific orchestration out of the domain layer
 
 ## Data Flow

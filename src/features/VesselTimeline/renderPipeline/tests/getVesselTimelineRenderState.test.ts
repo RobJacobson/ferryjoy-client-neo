@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { getVesselTimelineRenderState } from "..";
 import {
   at,
   getTerminalNameByAbbrev,
   makeEventSlice,
   makeLiveState,
 } from "./fixtures";
-import { getVesselTimelineRenderState } from "..";
 
 describe("getVesselTimelineRenderState", () => {
   it("maps the backend active interval into a derived active sea row", () => {

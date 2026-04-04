@@ -297,7 +297,9 @@ const scheduledRowsEqual = (
   left.TerminalAbbrev === right.TerminalAbbrev &&
   left.NextTerminalAbbrev === right.NextTerminalAbbrev &&
   left.EventType === right.EventType &&
-  left.EventScheduledTime === right.EventScheduledTime;
+  left.EventScheduledTime === right.EventScheduledTime &&
+  (left.IsLastArrivalOfSailingDay ?? false) ===
+    (right.IsLastArrivalOfSailingDay ?? false);
 
 const actualRowsEqual = (
   left: Doc<"eventsActual">,

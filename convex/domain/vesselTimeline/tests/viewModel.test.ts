@@ -140,6 +140,61 @@ describe("resolveActiveInterval", () => {
     });
   });
 
+  it("anchors the first dock interval to a carry-in arrival from the prior sailing day", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-0--arv-dock",
+          SailingDay: "2026-03-24",
+          EventType: "arv-dock",
+          TerminalAbbrev: "CLI",
+          ScheduledDeparture: at(22, 0, 24),
+          EventScheduledTime: at(22, 35, 24),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "CLI",
+          ScheduledDeparture: at(11, 0),
+          EventScheduledTime: at(11, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "MUK",
+          ScheduledDeparture: at(11, 0),
+          EventScheduledTime: at(11, 35),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "trip-0--arv-dock",
+          SailingDay: "2026-03-24",
+          ScheduledDeparture: at(22, 0, 24),
+          TerminalAbbrev: "CLI",
+          EventActualTime: at(22, 42, 24),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: undefined,
+          DepartingTerminalAbbrev: "CLI",
+          TimeStamp: at(10, 55),
+        }),
+      })
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-0--arv-dock",
+      endEventKey: "trip-2--dep-dock",
+    });
+  });
+
   it("returns a post-arrival dock interval when the vessel is docked at the arrival terminal", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
@@ -325,6 +380,7 @@ const makeScheduledEvent = (
   NextTerminalAbbrev: "BBI",
   EventType: "dep-dock",
   EventScheduledTime: at(8, 0),
+  IsLastArrivalOfSailingDay: false,
   ...overrides,
 });
 

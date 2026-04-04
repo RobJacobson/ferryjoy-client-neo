@@ -7,6 +7,7 @@ import type { TimelineActiveIndicator } from "@/components/timeline";
 import { clamp } from "@/shared/utils";
 import { getDisplayTime } from "../rowEventTime";
 import type { VesselTimelineRow } from "../types";
+import { isCompressedStartDockRow } from "./isCompressedStartDockRow";
 import type {
   VesselTimelineActiveRow,
   VesselTimelinePipelineWithActiveIndicator,
@@ -25,7 +26,11 @@ export const toActiveIndicator = (
   input: VesselTimelinePipelineWithRenderRows
 ): VesselTimelinePipelineWithActiveIndicator => ({
   ...input,
-  activeIndicator: getActiveIndicator(input.activeRow, input.liveState, input.now),
+  activeIndicator: getActiveIndicator(
+    input.activeRow,
+    input.liveState,
+    input.now
+  ),
 });
 
 /**
@@ -49,7 +54,7 @@ const getActiveIndicator = (
 
   return {
     rowId: row.rowId,
-    positionPercent: getPositionPercent(row, liveState, now),
+    positionPercent: getPositionPercent(activeRow, liveState, now),
     label: getMinutesUntil(row, now),
     title: liveState?.VesselName,
     subtitle: getSubtitle(row, liveState),
@@ -79,13 +84,19 @@ const getDistanceProgress = (
  * @returns Position percent within the owning row
  */
 const getPositionPercent = (
-  row: VesselTimelineRow,
+  activeRow: VesselTimelineActiveRow,
   liveState: VesselTimelineLiveState | null,
   now: Date
-) =>
-  row.kind === "at-sea" &&
-  liveState?.DepartingDistance !== undefined &&
-  liveState?.ArrivingDistance !== undefined
+) => {
+  const row = activeRow.row;
+
+  if (isCompressedStartDockRow(row, activeRow.rowIndex)) {
+    return getCompressedStartDockPositionPercent(row, now);
+  }
+
+  return row.kind === "at-sea" &&
+    liveState?.DepartingDistance !== undefined &&
+    liveState?.ArrivingDistance !== undefined
     ? getDistanceProgress(
         liveState.DepartingDistance,
         liveState.ArrivingDistance
@@ -93,6 +104,19 @@ const getPositionPercent = (
     : row.kind === "at-dock"
       ? getDockPositionPercent(row, now)
       : getTimeProgress(row.startEvent, row.endEvent, now);
+};
+
+/**
+ * Calculates eased progress for the compressed overnight dock row.
+ *
+ * @param row - Start-of-day dock row anchored by a real arrival
+ * @param now - Current wall-clock time
+ * @returns Smoothly eased progress through the compressed visual row
+ */
+const getCompressedStartDockPositionPercent = (
+  row: VesselTimelineRow,
+  now: Date
+) => easeInSine(getTimeProgress(row.startEvent, row.endEvent, now));
 
 /**
  * Calculates row-local progress for at-dock rows.
@@ -153,6 +177,15 @@ const getClampedProgress = (
 
   return clamp((now.getTime() - startTime.getTime()) / totalMs, 0, 1);
 };
+
+/**
+ * Standard easing curve that starts slowly and approaches departure smoothly.
+ *
+ * @param progress - Clamped real interval progress
+ * @returns Eased visual progress
+ */
+const easeInSine = (progress: number) =>
+  1 - Math.cos((Math.PI / 2) * clamp(progress, 0, 1));
 
 /**
  * Produces the countdown label shown in the active indicator badge.

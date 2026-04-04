@@ -3,15 +3,66 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryEventsFromTrips,
   buildPredictedBoundaryProjectionEffect,
+  buildScheduledBoundaryEvents,
 } from "../normalizedEvents";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
+
+describe("buildScheduledBoundaryEvents", () => {
+  it("marks only the final arrival of the sailing day", () => {
+    const rows = buildScheduledBoundaryEvents(
+      [
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-1",
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "BBI",
+          EventScheduledTime: at(12, 20),
+        }),
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-1",
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          EventScheduledTime: at(12, 55),
+        }),
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-2",
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(13, 30),
+        }),
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-2",
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(13, 30),
+          EventScheduledTime: at(14, 5),
+        }),
+      ],
+      at(15, 0)
+    );
+
+    expect(
+      rows.map((row) => [row.Key, row.IsLastArrivalOfSailingDay ?? false])
+    ).toEqual([
+      ["trip-1--dep-dock", false],
+      ["trip-1--arv-dock", false],
+      ["trip-2--dep-dock", false],
+      ["trip-2--arv-dock", true],
+    ]);
+  });
+});
 
 describe("buildPredictedBoundaryEventsFromTrips", () => {
   it("prefers WSF ETA over ML arrival predictions", () => {
@@ -102,6 +153,22 @@ const makePrediction = (PredTime: number) => ({
   Actual: undefined,
   DeltaTotal: undefined,
   DeltaRange: undefined,
+});
+
+const makeBoundaryEventRecord = (
+  overrides: Partial<ConvexVesselTimelineEventRecord>
+): ConvexVesselTimelineEventRecord => ({
+  SegmentKey: "trip-1",
+  Key: "trip-1--dep-dock",
+  VesselAbbrev: "WEN",
+  SailingDay: "2026-03-25",
+  ScheduledDeparture: at(12, 20),
+  TerminalAbbrev: "BBI",
+  EventType: "dep-dock",
+  EventScheduledTime: at(12, 20),
+  EventPredictedTime: undefined,
+  EventActualTime: undefined,
+  ...overrides,
 });
 
 const makeTrip = (overrides: Partial<ConvexVesselTrip>): ConvexVesselTrip => ({

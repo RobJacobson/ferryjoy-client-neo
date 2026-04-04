@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { at, makeEvent, makePipelineInput } from "./fixtures";
 import { toDerivedRows } from "../toDerivedRows";
+import { at, makeEvent, makePipelineInput } from "./fixtures";
 
 describe("toDerivedRows", () => {
   it("derives dock, sea, and terminal-tail rows from ordered events", () => {

@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { toActiveIndicator } from "../toActiveIndicator";
 import {
   at,
   makeLiveState,
@@ -11,7 +12,6 @@ import {
   makeRowEvent,
   makeRows,
 } from "./fixtures";
-import { toActiveIndicator } from "../toActiveIndicator";
 
 describe("toActiveIndicator", () => {
   it("hides the indicator when no active row is selected", () => {
@@ -171,5 +171,51 @@ describe("toActiveIndicator", () => {
     expect(activeIndicator?.label).toBe("--");
     expect(activeIndicator?.subtitle).toBe("At dock VAI");
     expect(activeIndicator?.positionPercent).toBe(0);
+  });
+
+  it("uses eased progress for the compressed overnight first row", () => {
+    const overnightRow = makeRow({
+      rowId: "trip-1--at-dock",
+      segmentKey: "trip-1",
+      kind: "at-dock",
+      rowEdge: "normal",
+      startEvent: makeRowEvent({
+        Key: "trip-0--arv-dock",
+        EventType: "arv-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: new Date("2026-03-17T22:00:00-07:00"),
+        EventScheduledTime: new Date("2026-03-17T22:00:00-07:00"),
+        EventActualTime: undefined,
+        IsArrivalPlaceholder: false,
+      }),
+      endEvent: makeRowEvent({
+        Key: "trip-1--dep-dock",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: new Date("2026-03-18T06:00:00-07:00"),
+        EventScheduledTime: new Date("2026-03-18T06:00:00-07:00"),
+      }),
+      durationMinutes: 480,
+    });
+    const { activeIndicator } = toActiveIndicator(
+      makePipelineWithRenderRows({
+        rows: [overnightRow],
+        activeRow: {
+          row: overnightRow,
+          rowIndex: 0,
+        },
+        liveState: makeLiveState({
+          AtDock: true,
+          DepartingTerminalAbbrev: "P52",
+        }),
+        now: new Date("2026-03-18T02:00:00-07:00"),
+      })
+    );
+
+    expect(
+      Math.abs(
+        (activeIndicator?.positionPercent ?? 0) - (1 - Math.cos(Math.PI / 4))
+      )
+    ).toBeLessThan(0.00001);
   });
 });

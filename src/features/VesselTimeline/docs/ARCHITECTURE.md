@@ -61,7 +61,8 @@ Backend layering for that query is now:
   is a thin public Convex entrypoint
 - [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
   owns Convex table reads for the requested same-day event slice plus the live
-  vessel-location row
+  vessel-location row, with one indexed previous-day last-arrival lookup when
+  the first dock interval needs a carry-in anchor
 - [timelineEvents.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/timelineEvents.ts)
   owns event merging and stable ordering
 - [activeInterval.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeInterval.ts)
@@ -74,6 +75,9 @@ Backend layering for that query is now:
 
 The backend query now returns normalized timeline events plus live
 vessel-location state and one backend-owned `activeInterval`.
+That event list is still day-focused, but it may prepend one prior-sailing-day
+arrival when the first visible interval is an overnight dock stay leading into
+the first departure.
 
 The feature layer derives rows locally from ordered events:
 
@@ -98,10 +102,11 @@ ordered events.
 The frontend should not resolve same-terminal ambiguity or trip ownership on
 its own.
 For docked vessels, the backend resolves the active dock interval directly from
-same-day event order and the observed dock terminal. For at-sea vessels, it
-uses `vesselLocations.Key` only when that key matches a same-day segment with
-both boundaries present. It never looks across sailing-day boundaries and never
-consults `activeVesselTrips`.
+event order and the observed dock terminal. For at-sea vessels, it uses
+`vesselLocations.Key` only when that key matches a visible segment with both
+boundaries present. The only cross-day carry is one prepended arrival used to
+anchor the first dock interval; the query still never consults
+`activeVesselTrips`.
 When `activeInterval` is `null`, the frontend still renders rows but omits the
 active indicator.
 
@@ -115,6 +120,7 @@ The frontend render-state layer should continue to own:
 - terminal-name shortening
 - terminal card geometry
 - active-indicator position within the chosen row
+- compressed presentation of the overnight first dock interval
 - animation and scroll behavior
 - indicator subtitle / speed formatting
 - terminal-tail `"--"` label behavior
@@ -147,6 +153,8 @@ The render-state layer should not own:
   path
 - `eventsScheduled` is the only schedule backbone used by the timeline read
   path
+- `eventsScheduled.IsLastArrivalOfSailingDay` is the indexed carry-in hook used
+  to anchor overnight first-row arrivals without loading the whole prior day
 - `vesselLocations` is the only live-state source used by the timeline query
 - predictions can change displayed times but never event identity
 - row derivation is pure and local to the feature layer

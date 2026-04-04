@@ -179,7 +179,11 @@ const findNextDepartureAtTerminal = (
     (event) =>
       event.EventType === "dep-dock" &&
       event.TerminalAbbrev === terminalAbbrev &&
-      compareTimes(getComparableEventTime(event), args.afterTime, args.inclusive)
+      compareTimes(
+        getComparableEventTime(event),
+        args.afterTime,
+        args.inclusive
+      )
   ) ?? null;
 
 /**

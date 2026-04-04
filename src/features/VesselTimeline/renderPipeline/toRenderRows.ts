@@ -8,7 +8,9 @@ import type {
   TimelineRenderEvent,
   TimelineRenderRow,
 } from "@/components/timeline";
+import { START_OF_DAY_DOCK_VISUAL_CAP_MINUTES } from "../config";
 import type { VesselTimelineLayoutConfig, VesselTimelineRow } from "../types";
+import { isCompressedStartDockRow } from "./isCompressedStartDockRow";
 import type {
   VesselTimelinePipelineWithActiveRow,
   VesselTimelinePipelineWithRenderRows,
@@ -30,7 +32,7 @@ export const toRenderRows = (
   const activeRowIndex = input.activeRow?.rowIndex ?? -1;
 
   const renderRows = input.rows.map((row, rowIndex) => {
-    const displayHeightPx = getDisplayHeightPx(row, input.layout);
+    const displayHeightPx = getDisplayHeightPx(row, rowIndex, input.layout);
     const startEvent = toRenderEvent(
       row,
       "start",
@@ -83,13 +85,23 @@ export const toRenderRows = (
  */
 const getDisplayHeightPx = (
   row: VesselTimelineRow,
+  rowIndex: number,
   layout: VesselTimelineLayoutConfig
 ) =>
   Math.max(
     layout.minRowHeightPx,
     layout.rowHeightBasePx +
       layout.rowHeightScalePx *
-        Math.max(0, row.durationMinutes) ** layout.rowHeightExponent
+        Math.max(
+          0,
+          isCompressedStartDockRow(row, rowIndex)
+            ? Math.min(
+                row.durationMinutes,
+                START_OF_DAY_DOCK_VISUAL_CAP_MINUTES
+              )
+            : row.durationMinutes
+        ) **
+          layout.rowHeightExponent
   );
 
 /**
@@ -173,7 +185,12 @@ const getDisplayTerminalName = (
     return undefined;
   }
 
-  return getTerminalNameByAbbrev(terminalAbbrev) ?? undefined;
+  const terminalName = getTerminalNameByAbbrev(terminalAbbrev);
+  if (!terminalName) {
+    return terminalAbbrev;
+  }
+
+  return terminalName.replace(/Island\b/, "Is.").trim();
 };
 
 /**

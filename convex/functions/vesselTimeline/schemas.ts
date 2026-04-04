@@ -148,9 +148,10 @@ export const toDomainVesselTimelineViewModel = (
   live: viewModel.live ? toDomainVesselTimelineLiveState(viewModel.live) : null,
 });
 
-export type VesselTimelineEvent = ReturnType<typeof toDomainVesselTimelineEvent>;
-export type VesselTimelineActiveInterval =
-  ConvexVesselTimelineActiveInterval;
+export type VesselTimelineEvent = ReturnType<
+  typeof toDomainVesselTimelineEvent
+>;
+export type VesselTimelineActiveInterval = ConvexVesselTimelineActiveInterval;
 export type VesselTimelineViewModel = ReturnType<
   typeof toDomainVesselTimelineViewModel
 >;

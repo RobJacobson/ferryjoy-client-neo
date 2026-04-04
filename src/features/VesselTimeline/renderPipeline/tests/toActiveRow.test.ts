@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { at, makeEvent, makePipelineInput } from "./fixtures";
 import { toActiveRow } from "../toActiveRow";
 import { toDerivedRows } from "../toDerivedRows";
+import { at, makeEvent, makePipelineInput } from "./fixtures";
 
 describe("toActiveRow", () => {
   it("returns null when the backend provides no active interval", () => {

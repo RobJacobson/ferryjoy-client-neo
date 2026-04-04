@@ -9,10 +9,7 @@ import type {
 } from "convex/functions/vesselTimeline/schemas";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../../config";
-import type {
-  VesselTimelineRow,
-  VesselTimelineRowEvent,
-} from "../../types";
+import type { VesselTimelineRow, VesselTimelineRowEvent } from "../../types";
 import type {
   VesselTimelineActiveRow,
   VesselTimelinePipelineInput,
