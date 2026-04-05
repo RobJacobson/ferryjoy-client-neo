@@ -73,7 +73,9 @@ const computePredictions = async (
         trip.ArrivingTerminalAbbrev
       );
       const modelTypes = specsToAttempt.map((s) => s.modelType);
-      modelsMap = await loadModelsForPairBatch(ctx, pairKey, modelTypes);
+      modelsMap =
+        (await loadModelsForPairBatch(ctx, pairKey, modelTypes)) ??
+        ({} as Record<ModelType, ModelDoc | null>);
     }
 
     const results = await Promise.all(
