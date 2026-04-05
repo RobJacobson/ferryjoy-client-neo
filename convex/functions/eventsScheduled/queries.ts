@@ -33,16 +33,7 @@ export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    const event = await loadScheduledDepartureEventBySegmentKey(
-      ctx,
-      args.segmentKey
-    );
-
-    if (!event) {
-      return null;
-    }
-
-    return inferScheduledSegment(ctx, event);
+    return findScheduledDepartureSegmentBySegmentKey(ctx, args.segmentKey);
   },
 });
 
@@ -64,19 +55,7 @@ export const getNextDepartureSegmentAfterDeparture = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    const event = findNextDepartureEvent(
-      await loadScheduledBoundaryEventsAfterTime(
-        ctx,
-        args.vesselAbbrev,
-        args.previousScheduledDeparture
-      ),
-      {
-        terminalAbbrev: args.departingTerminalAbbrev,
-        afterTime: args.previousScheduledDeparture,
-      }
-    );
-
-    return event ? inferScheduledSegment(ctx, event) : null;
+    return findNextDepartureSegmentAfterDeparture(ctx, args);
   },
 });
 
@@ -99,21 +78,80 @@ export const getDockedDepartureSegmentForVesselAtTerminal = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    // Dock ownership needs a small cross-day window so the pure resolver can
-    // decide whether this vessel still belongs to the current dock interval or
-    // has already rolled into the next scheduled departure.
-    const departureEvent = findDockedDepartureEvent(
-      await loadScheduledBoundaryEventsAroundTime(
-        ctx,
-        args.vesselAbbrev,
-        args.observedAt
-      ),
-      args.departingTerminalAbbrev
-    );
-
-    return departureEvent ? inferScheduledSegment(ctx, departureEvent) : null;
+    return findDockedDepartureSegmentForVesselAtTerminal(ctx, args);
   },
 });
+
+/**
+ * Resolve one scheduled departure segment by its stable segment key.
+ *
+ * Exported for query-time consumers that need the same normalized segment
+ * lookup without going through an internal Convex function hop.
+ */
+export const findScheduledDepartureSegmentBySegmentKey = async (
+  ctx: QueryCtx,
+  segmentKey: string
+) => {
+  const event = await loadScheduledDepartureEventBySegmentKey(ctx, segmentKey);
+
+  if (!event) {
+    return null;
+  }
+
+  return inferScheduledSegment(ctx, event);
+};
+
+/**
+ * Resolve the next departure at the same terminal after a known prior trip.
+ */
+export const findNextDepartureSegmentAfterDeparture = async (
+  ctx: QueryCtx,
+  args: {
+    vesselAbbrev: string;
+    departingTerminalAbbrev: string;
+    previousScheduledDeparture: number;
+  }
+) => {
+  const event = findNextDepartureEvent(
+    await loadScheduledBoundaryEventsAfterTime(
+      ctx,
+      args.vesselAbbrev,
+      args.previousScheduledDeparture
+    ),
+    {
+      terminalAbbrev: args.departingTerminalAbbrev,
+      afterTime: args.previousScheduledDeparture,
+    }
+  );
+
+  return event ? inferScheduledSegment(ctx, event) : null;
+};
+
+/**
+ * Resolve the scheduled departure segment that owns the current dock interval.
+ */
+export const findDockedDepartureSegmentForVesselAtTerminal = async (
+  ctx: QueryCtx,
+  args: {
+    vesselAbbrev: string;
+    departingTerminalAbbrev: string;
+    observedAt: number;
+  }
+) => {
+  // Dock ownership needs a small cross-day window so the pure resolver can
+  // decide whether this vessel still belongs to the current dock interval or
+  // has already rolled into the next scheduled departure.
+  const departureEvent = findDockedDepartureEvent(
+    await loadScheduledBoundaryEventsAroundTime(
+      ctx,
+      args.vesselAbbrev,
+      args.observedAt
+    ),
+    args.departingTerminalAbbrev
+  );
+
+  return departureEvent ? inferScheduledSegment(ctx, departureEvent) : null;
+};
 
 /**
  * Builds the portable segment shape returned to callers from a departure event.

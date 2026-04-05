@@ -11,6 +11,7 @@ import {
 } from "./appendPredictions";
 import { appendFinalSchedule } from "./appendSchedule";
 import { baseTripFromLocation } from "./baseTripFromLocation";
+import { resolveEffectiveLocation } from "./effectiveLocation";
 import type { TripEvents } from "./eventDetection";
 
 /**
@@ -40,7 +41,16 @@ export const buildTrip = async (
   events: TripEvents,
   shouldRunPredictionFallback: boolean
 ): Promise<ConvexVesselTrip> => {
-  const baseTrip = baseTripFromLocation(currLocation, existingTrip, tripStart);
+  const effectiveLocation = await resolveEffectiveLocation(
+    ctx,
+    currLocation,
+    existingTrip
+  );
+  const baseTrip = baseTripFromLocation(
+    effectiveLocation,
+    existingTrip,
+    tripStart
+  );
   const withArriveDest = {
     ...baseTrip,
     // Same-trip arrivals are only stamped on continuing trips that were not
@@ -48,7 +58,7 @@ export const buildTrip = async (
     ArriveDest:
       baseTrip.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
-        ? currLocation.TimeStamp
+        ? effectiveLocation.TimeStamp
         : undefined),
   };
 

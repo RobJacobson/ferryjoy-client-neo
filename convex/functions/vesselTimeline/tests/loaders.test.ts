@@ -8,6 +8,7 @@ import type { ConvexActualBoundaryEvent } from "../../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../vesselLocation/schemas";
+import type { ConvexVesselTrip } from "../../vesselTrips/schemas";
 import { loadVesselTimelineViewModelInputs } from "../loaders";
 
 const at = (hours: number, minutes: number, day = 25) =>
@@ -238,6 +239,110 @@ describe("loadVesselTimelineViewModelInputs", () => {
 
     expect(viewModelInputs.location).toBeNull();
   });
+
+  it("prefers the active docked trip identity over a conflicting future live departure", async () => {
+    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+      makeQueryCtx({
+        scheduledEvents: [
+          makeScheduledEvent({
+            Key: "CAT--2026-03-04--16:20--VAI-SOU--arv-dock",
+            VesselAbbrev: "CAT",
+            SailingDay: "2026-03-04",
+            TerminalAbbrev: "SOU",
+            NextTerminalAbbrev: "SOU",
+            EventType: "arv-dock",
+            ScheduledDeparture: at(23, 20, 4),
+            EventScheduledTime: at(23, 30, 4),
+          }),
+          makeScheduledEvent({
+            Key: "CAT--2026-03-04--16:50--SOU-VAI--dep-dock",
+            VesselAbbrev: "CAT",
+            SailingDay: "2026-03-04",
+            TerminalAbbrev: "SOU",
+            NextTerminalAbbrev: "VAI",
+            EventType: "dep-dock",
+            ScheduledDeparture: at(23, 50, 4),
+            EventScheduledTime: at(23, 50, 4),
+          }),
+        ],
+        location: makeLocation({
+          VesselAbbrev: "CAT",
+          VesselName: "Cathlamet",
+          DepartingTerminalAbbrev: "SOU",
+          DepartingTerminalName: "Southworth",
+          ArrivingTerminalAbbrev: "VAI",
+          ArrivingTerminalName: "Vashon Island",
+          Key: "CAT--2026-04-04--18:45--SOU-VAI",
+          ScheduledDeparture: at(1, 45, 5),
+          TimeStamp: at(23, 56, 4),
+        }),
+        activeTrip: makeActiveTrip({
+          VesselAbbrev: "CAT",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: "VAI",
+          Key: "CAT--2026-03-04--16:50--SOU-VAI",
+          SailingDay: "2026-03-04",
+          ScheduledDeparture: at(23, 50, 4),
+        }),
+      }),
+      {
+        VesselAbbrev: "CAT",
+        SailingDay: "2026-03-04",
+      }
+    );
+
+    expect(viewModelInputs.location?.Key).toBe("CAT--2026-03-04--16:50--SOU-VAI");
+    expect(viewModelInputs.location?.ScheduledDeparture).toBe(at(23, 50, 4));
+    expect(viewModelInputs.location?.ArrivingTerminalAbbrev).toBe("VAI");
+  });
+
+  it("fills a docked live location from schedule when the feed has not confirmed the next trip yet", async () => {
+    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+      makeQueryCtx({
+        scheduledEvents: [
+          makeScheduledEvent({
+            Key: "CAT--2026-03-04--16:20--VAI-SOU--arv-dock",
+            VesselAbbrev: "CAT",
+            SailingDay: "2026-03-04",
+            TerminalAbbrev: "SOU",
+            NextTerminalAbbrev: "SOU",
+            EventType: "arv-dock",
+            ScheduledDeparture: at(23, 20, 4),
+            EventScheduledTime: at(23, 30, 4),
+          }),
+          makeScheduledEvent({
+            Key: "CAT--2026-03-04--16:50--SOU-VAI--dep-dock",
+            VesselAbbrev: "CAT",
+            SailingDay: "2026-03-04",
+            TerminalAbbrev: "SOU",
+            NextTerminalAbbrev: "VAI",
+            EventType: "dep-dock",
+            ScheduledDeparture: at(23, 50, 4),
+            EventScheduledTime: at(23, 50, 4),
+          }),
+        ],
+        location: makeLocation({
+          VesselAbbrev: "CAT",
+          VesselName: "Cathlamet",
+          DepartingTerminalAbbrev: "SOU",
+          DepartingTerminalName: "Southworth",
+          ArrivingTerminalAbbrev: undefined,
+          ArrivingTerminalName: undefined,
+          Key: undefined,
+          ScheduledDeparture: undefined,
+          TimeStamp: at(23, 54, 4),
+        }),
+      }),
+      {
+        VesselAbbrev: "CAT",
+        SailingDay: "2026-03-04",
+      }
+    );
+
+    expect(viewModelInputs.location?.Key).toBe("CAT--2026-03-04--16:50--SOU-VAI");
+    expect(viewModelInputs.location?.ScheduledDeparture).toBe(at(23, 50, 4));
+    expect(viewModelInputs.location?.ArrivingTerminalAbbrev).toBe("VAI");
+  });
 });
 
 type MockQueryData = {
@@ -245,6 +350,7 @@ type MockQueryData = {
   actualEvents?: ConvexActualBoundaryEvent[];
   predictedEvents?: ConvexPredictedBoundaryEvent[];
   location?: ConvexVesselLocation | null;
+  activeTrip?: ConvexVesselTrip | null;
 };
 
 /**
@@ -305,6 +411,8 @@ const getRowsForTable = (tableName: string, data: MockQueryData) => {
       return data.predictedEvents ?? [];
     case "vesselLocations":
       return data.location ? [data.location] : [];
+    case "activeVesselTrips":
+      return data.activeTrip ? [data.activeTrip] : [];
     default:
       return [];
   }
@@ -365,6 +473,41 @@ const makeLocation = (
   Key: "trip-1",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
+  ...overrides,
+});
+
+const makeActiveTrip = (
+  overrides: Partial<ConvexVesselTrip>
+): ConvexVesselTrip => ({
+  VesselAbbrev: "WEN",
+  DepartingTerminalAbbrev: "P52",
+  ArrivingTerminalAbbrev: "BBI",
+  RouteAbbrev: "SEA-BBI",
+  Key: "WEN--2026-03-25--08:00--P52-BBI",
+  SailingDay: "2026-03-25",
+  PrevTerminalAbbrev: "BBI",
+  ArriveDest: undefined,
+  TripStart: at(8, 0),
+  AtDock: true,
+  AtDockDuration: undefined,
+  ScheduledDeparture: at(8, 0),
+  LeftDock: undefined,
+  TripDelay: undefined,
+  Eta: undefined,
+  TripEnd: undefined,
+  AtSeaDuration: undefined,
+  TotalDuration: undefined,
+  InService: true,
+  TimeStamp: at(8, 8),
+  PrevScheduledDeparture: at(6, 30),
+  PrevLeftDock: at(6, 34),
+  NextKey: undefined,
+  NextScheduledDeparture: undefined,
+  AtDockDepartCurr: undefined,
+  AtDockArriveNext: undefined,
+  AtDockDepartNext: undefined,
+  AtSeaArriveNext: undefined,
+  AtSeaDepartNext: undefined,
   ...overrides,
 });
 
