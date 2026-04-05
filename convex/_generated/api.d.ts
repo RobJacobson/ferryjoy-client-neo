@@ -114,7 +114,6 @@ import type * as functions_vesselPings_mutations from "../functions/vesselPings/
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
 import type * as functions_vesselTimeline_actions from "../functions/vesselTimeline/actions.js";
-import type * as functions_vesselTimeline_effectiveLocation from "../functions/vesselTimeline/effectiveLocation.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
 import type * as functions_vesselTimeline_loaders from "../functions/vesselTimeline/loaders.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
@@ -269,7 +268,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
   "functions/vesselTimeline/actions": typeof functions_vesselTimeline_actions;
-  "functions/vesselTimeline/effectiveLocation": typeof functions_vesselTimeline_effectiveLocation;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
   "functions/vesselTimeline/loaders": typeof functions_vesselTimeline_loaders;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;

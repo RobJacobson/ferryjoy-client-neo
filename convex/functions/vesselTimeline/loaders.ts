@@ -15,7 +15,6 @@ import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../eventsScheduled/schemas";
 import { sortScheduledBoundaryEvents } from "../eventsScheduled/segmentResolvers";
 import type { ConvexVesselLocation } from "../vesselLocation/schemas";
-import { resolveEffectiveTimelineLocation } from "./effectiveLocation";
 
 export type LoadedVesselTimelineViewModelInputs = {
   scheduledEvents: ConvexScheduledBoundaryEvent[];
@@ -39,7 +38,7 @@ export const loadVesselTimelineViewModelInputs = async (
     SailingDay: string;
   }
 ): Promise<LoadedVesselTimelineViewModelInputs> => {
-  const [scheduledDocs, actualDocs, predictedDocs, locationDoc, activeTripDoc] =
+  const [scheduledDocs, actualDocs, predictedDocs, locationDoc] =
     await Promise.all([
       loadScheduledBoundaryEventsForSailingDay(
         ctx,
@@ -68,22 +67,12 @@ export const loadVesselTimelineViewModelInputs = async (
           q.eq("VesselAbbrev", args.VesselAbbrev)
         )
         .unique(),
-      ctx.db
-        .query("activeVesselTrips")
-        .withIndex("by_vessel_abbrev", (q) =>
-          q.eq("VesselAbbrev", args.VesselAbbrev)
-        )
-        .unique(),
     ]);
 
   const scheduledEvents = scheduledDocs.map(stripConvexMeta);
   const actualEvents = actualDocs.map(stripConvexMeta);
   const predictedEvents = predictedDocs.map(stripConvexMeta);
-  const rawLocation = locationDoc ? stripConvexMeta(locationDoc) : null;
-  const activeTrip = activeTripDoc ? stripConvexMeta(activeTripDoc) : null;
-  const location = rawLocation
-    ? await resolveEffectiveTimelineLocation(ctx, rawLocation, activeTrip)
-    : null;
+  const location = locationDoc ? stripConvexMeta(locationDoc) : null;
   const carryInArrival = await resolveCarryInArrival(
     ctx,
     args.VesselAbbrev,
