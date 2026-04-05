@@ -55,7 +55,9 @@ export const ConvexVesselLocationsProvider = ({
 }: PropsWithChildren) => {
   // Fetch all current vessel locations from Convex
   const connectionState = useConvexConnectionState();
-  const rawVesselLocations = useQuery(api.functions.vesselLocation.queries.getAll);
+  const rawVesselLocations = useQuery(
+    api.functions.vesselLocation.queries.getAll
+  );
   const currentVesselLocations =
     rawVesselLocations?.map(toDomainVesselLocation) ?? [];
   const hasConnectionIssue =

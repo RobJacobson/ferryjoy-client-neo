@@ -1,17 +1,14 @@
 /**
- * View-model hook for the VesselTimeline feature.
+ * Presentation-state hook for the VesselTimeline feature.
  */
 
 import type { TimelineVisualTheme } from "@/components/timeline";
 import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
-import {
-  getStaticVesselTimelineRenderState,
-  getVesselTimelineActiveIndicator,
-} from "../renderState";
+import { getVesselTimelineRenderState } from "../renderPipeline";
 import type { VesselTimelineRenderState } from "../types";
 
-export type UseVesselTimelineViewModelResult = {
+export type UseVesselTimelinePresentationStateResult = {
   isLoading: boolean;
   error: string | null;
   emptyMessage: string | null;
@@ -20,60 +17,60 @@ export type UseVesselTimelineViewModelResult = {
 };
 
 /**
- * Builds the screen-level VesselTimeline state from the backend-owned row
- * contract plus presentation-only render helpers.
+ * Builds the screen-level VesselTimeline presentation state from the backend
+ * event contract plus feature-owned render-state derivation.
  *
  * @param args - Hook inputs
  * @param args.now - Optional wall-clock override for deterministic rendering
  * @param args.theme - Resolved visual theme for timeline rendering
  * @returns Plain screen state for loading, error, empty, and ready branches
  */
-export const useVesselTimelineViewModel = ({
+export const useVesselTimelinePresentationState = ({
   now,
   theme,
 }: {
   now?: Date;
   theme: TimelineVisualTheme;
-}): UseVesselTimelineViewModelResult => {
+}): UseVesselTimelinePresentationStateResult => {
   const nowMs = useNowMs(1000);
   const terminalsData = useTerminalsData();
   const {
-    VesselAbbrev,
-    SailingDay,
-    rows,
-    activeRowId,
+    vesselAbbrev,
+    sailingDay,
+    events,
+    activeInterval,
     live,
-    IsLoading,
-    ErrorMessage,
-    Retry,
+    isLoading,
+    errorMessage,
+    retry,
   } = useConvexVesselTimeline();
 
-  if (IsLoading) {
+  if (isLoading) {
     return {
       isLoading: true,
       error: null,
       emptyMessage: null,
-      retry: Retry,
+      retry,
       renderState: null,
     };
   }
 
-  if (ErrorMessage) {
+  if (errorMessage) {
     return {
       isLoading: false,
-      error: ErrorMessage,
+      error: errorMessage,
       emptyMessage: null,
-      retry: Retry,
+      retry,
       renderState: null,
     };
   }
 
-  if (rows.length === 0) {
+  if (events.length === 0) {
     return {
       isLoading: false,
       error: null,
-      emptyMessage: `No vessel trip events were found for ${VesselAbbrev} on ${SailingDay}.`,
-      retry: Retry,
+      emptyMessage: `No vessel timeline events were found for ${vesselAbbrev} on ${sailingDay}.`,
+      retry,
       renderState: null,
     };
   }
@@ -81,27 +78,19 @@ export const useVesselTimelineViewModel = ({
   const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
     terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
       ?.TerminalName ?? null;
-  const staticRenderState = getStaticVesselTimelineRenderState(
-    rows,
-    activeRowId,
-    getTerminalNameByAbbrev,
-    undefined,
-    theme
-  );
 
   return {
     isLoading: false,
     error: null,
     emptyMessage: null,
-    retry: Retry,
-    renderState: {
-      ...staticRenderState,
-      activeIndicator: getVesselTimelineActiveIndicator({
-        rows,
-        activeRowId,
-        liveState: live,
-        now: now ?? new Date(nowMs),
-      }),
-    },
+    retry,
+    renderState: getVesselTimelineRenderState({
+      events,
+      activeInterval,
+      liveState: live,
+      now: now ?? new Date(nowMs),
+      getTerminalNameByAbbrev,
+      theme,
+    }),
   };
 };

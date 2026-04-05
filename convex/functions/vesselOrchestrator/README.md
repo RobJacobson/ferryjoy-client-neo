@@ -166,8 +166,8 @@ only the boundary fields needed to derive a day timeline:
 Those normalized rows are not the public query contract anymore. The backend
 now builds:
 
-- stable `at-dock` / `at-sea` rows keyed by trip identity
-- backend-owned `activeRowId`
+- ordered timeline events
+- backend-owned `activeInterval`
 - raw live vessel state consumed by frontend rendering logic
 
 Detailed `VesselTimeline` backend architecture now lives in:
@@ -210,7 +210,7 @@ WSF vessel location ticks
 
 Frontend VesselTimeline
   -> query backend-owned VesselTimeline view model
-  -> render backend-owned rows
+  -> derive presentation rows from backend events
 ```
 
 ## Error Isolation

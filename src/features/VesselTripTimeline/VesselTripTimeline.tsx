@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useTerminalsData } from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import { TimelineContent } from "./components/TimelineContent";
+import { getVesselTripTimelineRenderState } from "./renderPipeline";
 import type { TimelineItem } from "./types";
-import { getTimelineRenderState } from "./utils";
 import { VesselTripCardTitle } from "./VesselTripCardTitle";
 
 type VesselTripTimelineProps = TimelineItem;
@@ -33,7 +33,7 @@ export const VesselTripTimeline = ({
         ?.TerminalName ?? null,
     [terminalsData]
   );
-  const renderState = getTimelineRenderState(
+  const renderState = getVesselTripTimelineRenderState(
     item,
     getTerminalName,
     new Date(nowMs)

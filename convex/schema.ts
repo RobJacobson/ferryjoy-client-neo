@@ -99,7 +99,12 @@ export default defineSchema({
   eventsScheduled: defineTable(eventsScheduledSchema)
     .index("by_key", ["Key"])
     .index("by_sailing_day", ["SailingDay"])
-    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+    .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"])
+    .index("by_vessel_sailing_day_last_arrival", [
+      "VesselAbbrev",
+      "SailingDay",
+      "IsLastArrivalOfSailingDay",
+    ]),
 
   eventsActual: defineTable(eventsActualSchema)
     .index("by_key", ["Key"])

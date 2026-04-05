@@ -31,6 +31,7 @@ export const buildScheduledBoundaryEvents = (
   updatedAt: number
 ): ConvexScheduledBoundaryEvent[] => {
   const eventByKey = new Map(events.map((event) => [event.Key, event]));
+  const lastArrivalKey = getLastArrivalKey(events);
 
   return events.map((event) => ({
     Key: event.Key,
@@ -45,6 +46,8 @@ export const buildScheduledBoundaryEvents = (
         : getNextTerminalAbbrev(event, eventByKey),
     EventType: event.EventType,
     EventScheduledTime: event.EventScheduledTime,
+    IsLastArrivalOfSailingDay:
+      event.EventType === "arv-dock" && event.Key === lastArrivalKey,
   }));
 };
 
@@ -176,6 +179,16 @@ const getNextTerminalAbbrev = (
 
   return eventByKey.get(arrivalKey)?.TerminalAbbrev ?? event.TerminalAbbrev;
 };
+
+/**
+ * Finds the latest arrival boundary in one sailing-day event slice.
+ *
+ * @param events - Ordered boundary events for one sailing day
+ * @returns Boundary key for the last arrival, or `null`
+ */
+const getLastArrivalKey = (events: ConvexVesselTimelineEventRecord[]) =>
+  [...events].reverse().find((event) => event.EventType === "arv-dock")?.Key ??
+  null;
 
 const buildPredictedBoundaryEventsFromTrip = (trip: ConvexVesselTrip) => {
   const updatedAt = trip.TimeStamp;

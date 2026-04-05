@@ -1,5 +1,5 @@
 /**
- * Exposes the backend-owned VesselTimeline view-model query.
+ * Exposes the backend-owned VesselTimeline event-first view-model query.
  */
 
 import { query } from "_generated/server";
@@ -14,7 +14,7 @@ import { vesselTimelineViewModelSchema } from "./schemas";
  * @param ctx - Convex query context
  * @param args.VesselAbbrev - Vessel abbreviation
  * @param args.SailingDay - Sailing day in YYYY-MM-DD format
- * @returns Timeline rows, active row attachment, and live state
+ * @returns Ordered timeline events, active interval, and live state
  */
 export const getVesselTimelineViewModel = query({
   args: {

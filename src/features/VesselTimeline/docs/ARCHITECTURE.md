@@ -1,14 +1,20 @@
 # VesselTimeline Architecture
 
-`VesselTimeline` shows one vessel for one sailing day as a dock/sea timeline.
-The backend contract is now row-based:
+`VesselTimeline` shows one vessel for one sailing day as alternating dock and
+sea rows. The frontend does not infer trip ownership from clocks. It receives
+ordered backend events plus one backend-owned `activeInterval`, then projects
+that structural model into UI rows and indicator geometry.
 
-- backend owns row identity
-- backend owns active-row attachment
-- frontend should render backend-owned rows with minimal domain logic
+This document explains the current client model after the adjacent-interval
+refactor.
 
-This document reflects the current feature architecture after the backend
-hard-reset and frontend migration to backend-owned rows.
+## Product Boundaries
+
+- scope is one vessel and one sailing day
+- the timeline is a service-day view, not a full berth occupancy history
+- the service day follows Pacific rules: `3:00 AM` through `2:59 AM`
+- the visible structure is bounded by the backend event slice for that day,
+  plus one possible prepended carry-in arrival
 
 ## Public API
 
@@ -21,161 +27,324 @@ type VesselTimelineProps = {
 };
 ```
 
-- `vesselAbbrev` and `sailingDay` define the full query scope.
-- `now` is only for deterministic previews and tests.
-- `theme` changes presentation, not data interpretation.
+The feature asks the backend for one query result:
 
-## Product Boundaries
-
-- Scope is one vessel and one sailing day.
-- The timeline is a service-day view, not a full berth-occupancy history.
-- The service day follows Pacific rules: `3:00 AM` through `2:59 AM`.
-- The visible window is bounded by the backend-owned rows returned for that
-  day.
-
-## Target Data Flow
-
-### 1. Provider fetches one backend query result
-
-`ConvexVesselTimelineProvider` loads one query result:
-
-- `getVesselTimelineViewModel({ VesselAbbrev, SailingDay })`
-
-That payload includes:
-
-- ordered backend-owned rows
-- `activeRowId`
+- ordered `events`
+- `activeInterval`
 - `ObservedAt`
-- raw live state for title and position calculations
+- raw `live` state
 
-`ObservedAt` comes from `vesselLocations.TimeStamp`. The timeline no longer
-falls back to `activeVesselTrips.TimeStamp`.
+The client never asks for rows directly.
 
-Source:
+## The Client Mental Model
 
-- [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
+The frontend works in four layers:
 
-Backend layering for that query is now:
+1. backend events are the source data
+2. feature rows are a local presentation projection
+3. renderer rows are layout-ready UI objects
+4. the active indicator is positioned from the selected row plus live state
 
-- [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
-  is a thin public Convex entrypoint
-- [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-  owns Convex table reads and query-time live attachment helpers
-- shared schedule-backed dock inference is delegated from those loaders to
-  thin `eventsScheduled` queries backed by
-  [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
-- [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
-  owns row construction and row IDs
-- [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
-  owns active-row resolution
-- [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
-  owns final pure assembly from loaded inputs
+```text
+Backend payload
+  events + activeInterval + ObservedAt + live
+                     |
+                     v
+           derive feature-owned rows
+                     |
+                     v
+        map activeInterval to one derived row
+                     |
+                     v
+      build renderer rows + row layouts + terminal cards
+                     |
+                     v
+       place active indicator within the chosen row
+                     |
+                     v
+            final VesselTimeline render state
+```
 
-### 2. The backend owns row construction
+## End-To-End Data Flow
 
-The backend query now derives rows from normalized boundary events plus live
-trip/location state.
+This is the full flow from backend query to client rendering:
 
-Each row has:
+```text
+ConvexVesselTimelineProvider
+  |
+  |-- getVesselTimelineViewModel(VesselAbbrev, SailingDay)
+  |
+  v
+query result
+  |
+  |-- events
+  |-- activeInterval
+  |-- ObservedAt
+  |-- live
+  |
+  v
+getVesselTimelineRenderState(...)
+  |
+  |-- toDerivedRows
+  |-- toActiveRow
+  |-- toRenderRows
+  |-- toActiveIndicator
+  |-- toTimelineRenderState
+  |
+  v
+VesselTimelineContent
+```
 
-- stable `rowId`
-- `tripKey`
-- `kind`: `at-dock` or `at-sea`
-- `rowEdge`: `normal` or `terminal-tail`
-- optional `placeholderReason`
-- `startEvent`
-- `endEvent`
-- `durationMinutes`
+Key boundary:
 
-The frontend should not reconstruct dock/sea rows from raw boundary adjacency.
-Terminal-tail is represented as one final backend-owned `at-dock` row, not a
-synthetic extra row added by the client.
+- backend owns structural truth and active attachment
+- client owns row projection, layout, copy, and animation
 
-### 3. The backend owns active attachment
+## Why The Client Derives Rows
 
-The backend returns:
+The backend returns events because events are the stable product contract.
+Rows are a presentation concept:
 
-- `activeRowId`
-- raw live state
+- dock rows can be compressed visually
+- start-of-day rows can have placeholder arrivals
+- terminal-tail rows need special terminal stop rendering
+- row IDs and row heights are UI concerns
 
-Active attachment prefers `vesselLocations` for `AtDock` and `Key`, with only a
-narrow active-trip fallback when no live location row is present.
-The frontend should not resolve same-terminal ambiguity, nearest-row fallback,
-or terminal-tail fallback on its own.
-For keyless docked vessels, the backend resolves active attachment from the
-scheduled dock interval, so delayed sailings remain attached to the current
-dock row instead of hopping to the next future departure after now.
-When `activeRowId` is `null`, the frontend still renders rows but omits the
-active indicator.
+If the backend returned rows directly, the client would inherit presentation
+policy as data truth. Keeping rows local avoids that.
 
-### 4. The render-state layer stays presentation-focused
+## Structural Input On The Client
 
-The frontend render-state layer should continue to own:
+The client now uses the same adjacent-interval helper concept as the backend.
 
-- row layout sizing
-- labels and display copy
-- terminal-name shortening
-- terminal card geometry
-- active-indicator position within the chosen row
-- animation and scroll behavior
-- indicator subtitle / speed formatting
-- terminal-tail `"--"` label behavior
-- terminal-tail indicator alignment with the arrival marker line
+The shared helper:
 
-The render-state layer should not own:
+- `convex/shared/timelineIntervals.ts`
 
-- row identity
-- placeholder synthesis
-- terminal-tail identity
-- active-row selection
+The render pipeline uses it in:
 
-## Rendering Notes
+- `src/features/VesselTimeline/renderPipeline/toDerivedRows.ts`
 
-- `VesselTimelineContent` renders a fixed-height scrollable canvas.
-- Initial auto-scroll centers the active indicator when one exists.
-- Displayed event times are chosen in user-facing order:
-  - `EventActualTime`
-  - `EventPredictedTime`
-  - `EventScheduledTime`
-- Layout sizing remains schedule-first:
-  - `EventScheduledTime`
-  - fallback to `EventActualTime`
-  - fallback to `EventPredictedTime`
+That means backend and frontend agree on the same structural language:
 
-## Important Invariants
+- opening dock interval
+- normal dock interval
+- sea interval
+- terminal-tail dock interval
 
-- normalized boundary-event tables remain the persistence layer, not the public
-  feature contract
-- predictions can change displayed times but never row identity
-- dock and sea rows for one trip share the same trip key
-- placeholders are backend-emitted fallback only
-- terminal-tail is backend-owned row metadata
-- `activeRowId` is sufficient for the frontend to place the indicator
-- terminal-tail rows anchor the indicator to the arrival marker line, not the
-  vertical center of the full row box
-- no separate backend snapshot table exists for `VesselTimeline`
+## Row Derivation
 
-## Where To Look
+`toDerivedRows.ts` converts adjacent intervals into feature rows.
 
-- Public feature entry:
-  [VesselTimeline.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimeline.tsx)
-- Provider and data host:
-  [ConvexVesselTimelineContext.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
-- Backend read-model contract:
-  [schemas.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/schemas.ts)
-- Backend query loaders:
-  [loaders.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/loaders.ts)
-- Backend row builder:
-  [rows.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/rows.ts)
-- Backend active-row resolver:
-  [activeRow.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/activeRow.ts)
-- Backend view-model assembler:
-  [viewModel.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselTimeline/viewModel.ts)
-- Backend query:
-  [queries.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselTimeline/queries.ts)
-- Shared scheduled-segment resolver logic:
-  [segmentResolvers.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsScheduled/segmentResolvers.ts)
-- Render-state assembly:
-  [getVesselTimelineRenderState.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/renderState/getVesselTimelineRenderState.ts)
-- Final renderer:
-  [VesselTimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimelineContent.tsx)
+### Structural Interval To Row Mapping
+
+```text
+Interval kind                     Client row
+---------------------------------------------------------
+opening at-dock                   at-dock row with
+                                  placeholder arrival
+
+normal at-dock                    at-dock row
+
+at-sea                            at-sea row
+
+terminal-tail at-dock             at-dock row with
+                                  rowEdge = "terminal-tail"
+```
+
+### Examples
+
+```text
+Example A: opening dock interval
+
+  interval:
+    kind = at-dock
+    startEventKey = null
+    endEventKey   = trip-2--dep-dock
+
+  row:
+    kind = at-dock
+    startEvent = synthetic arrival placeholder
+    endEvent   = trip-2--dep-dock
+    placeholderReason = start-of-day
+```
+
+```text
+Example B: normal sea interval
+
+  interval:
+    kind = at-sea
+    startEventKey = trip-2--dep-dock
+    endEventKey   = trip-2--arv-dock
+
+  row:
+    kind = at-sea
+    startEvent = dep-dock event
+    endEvent   = arv-dock event
+```
+
+```text
+Example C: terminal tail
+
+  interval:
+    kind = at-dock
+    startEventKey = trip-9--arv-dock
+    endEventKey   = null
+
+  row:
+    kind = at-dock
+    rowEdge = terminal-tail
+    startEvent = arrival event
+    endEvent   = same arrival event
+```
+
+### Important Client Rule
+
+The client ignores invalid non-adjacent seams. It does not repair them into
+rows. That keeps presentation aligned with the backend structural model.
+
+## Active Row Mapping
+
+`toActiveRow.ts` maps the backend `activeInterval` onto a derived row.
+
+This is intentionally simple:
+
+- at sea: exact `startEventKey` and `endEventKey` match
+- at dock: start and end keys match when present; `null` acts as an open edge
+
+```text
+Backend activeInterval
+         |
+         v
+scan derived rows in order
+         |
+         +-- row matches structural keys -> choose it
+         |
+         +-- no match -> activeRow = null
+```
+
+Why this matters:
+
+- the client is not re-solving ambiguity
+- the backend has already chosen the structural interval
+- the client only finds the corresponding local row projection
+
+## Render-State Pipeline
+
+The pipeline is intentionally linear:
+
+```text
+events
+  |
+  v
+toDerivedRows
+  |
+  |-- build rows from adjacent intervals
+  |
+  v
+toActiveRow
+  |
+  |-- map activeInterval to one row
+  |
+  v
+toRenderRows
+  |
+  |-- compute row heights
+  |-- compute row layouts
+  |-- compute terminal cards
+  |-- convert feature rows to shared renderer rows
+  |
+  v
+toActiveIndicator
+  |
+  |-- compute indicator position and subtitle copy
+  |
+  v
+toTimelineRenderState
+```
+
+## Timing Semantics On The Client
+
+The client uses times in two different ways.
+
+### Display Time Precedence
+
+When showing times to the user:
+
+1. `EventActualTime`
+2. `EventPredictedTime`
+3. `EventScheduledTime`
+
+### Layout Time Precedence
+
+When sizing rows:
+
+1. `EventScheduledTime`
+2. `EventActualTime`
+3. `EventPredictedTime`
+4. `ScheduledDeparture`
+
+This split is deliberate:
+
+- display wants the best user-facing truth
+- layout wants stable geometry
+
+Neither one changes interval identity.
+
+## Backend / Client Responsibility Split
+
+### Backend Owns
+
+- loading the event slice
+- optional carry-in arrival lookup
+- merging actual and predicted overlays onto scheduled events
+- structural interval derivation rules
+- active attachment from live state
+- ambiguity handling
+
+### Client Owns
+
+- row derivation from intervals
+- placeholder arrival rendering for the opening dock interval
+- terminal-tail row presentation
+- row heights and card geometry
+- terminal name shortening
+- indicator position, copy, and animation
+- scroll behavior
+
+### Client Does Not Own
+
+- choosing which trip owns a dock stay
+- guessing across same-terminal ambiguity
+- cross-day schedule continuity beyond the event slice it was given
+- reconstructing structure from timestamp proximity
+
+## File Guide
+
+- `src/data/contexts/convex/ConvexVesselTimelineContext.tsx`
+  Loads the backend query result.
+- `src/features/VesselTimeline/renderPipeline/getVesselTimelineRenderState.ts`
+  Public render-pipeline entrypoint.
+- `src/features/VesselTimeline/renderPipeline/toDerivedRows.ts`
+  Converts structural intervals into feature rows.
+- `src/features/VesselTimeline/renderPipeline/toActiveRow.ts`
+  Maps the backend active interval to one row.
+- `src/features/VesselTimeline/renderPipeline/toRenderRows.ts`
+  Computes renderer rows, layouts, and terminal cards.
+- `src/features/VesselTimeline/renderPipeline/toActiveIndicator.ts`
+  Computes indicator placement and copy.
+- `src/features/VesselTimeline/VesselTimelineContent.tsx`
+  Renders the final scrollable UI.
+
+## Invariants
+
+- the client query contract remains event-first
+- rows are derived locally and are never persisted
+- interval identity comes from adjacency, not timestamps
+- `activeInterval` must identify one derived adjacent interval from the
+  returned event slice
+- `activeInterval` may be `null` when backend ownership is ambiguous or
+  unsupported by the visible slice
+- terminal-tail rows anchor the indicator to the arrival marker line
+- start-of-day dock rows are ordinary dock intervals with a placeholder start
+  event

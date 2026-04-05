@@ -2,7 +2,7 @@
  * Feature-local render configuration for VesselTimeline.
  *
  * Keeps the timeline's sizing and layout knobs in one place so visual tuning
- * stays separate from the render-state pipeline logic.
+ * stays separate from the render-pipeline logic.
  */
 
 import type { VesselTimelineLayoutConfig } from "./types";
@@ -23,3 +23,8 @@ export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   initialAutoScroll: "center-active-indicator",
   initialScrollAnchorPercent: 0.4,
 };
+
+/**
+ * Maximum visual duration for the compressed overnight dock row at day start.
+ */
+export const START_OF_DAY_DOCK_VISUAL_CAP_MINUTES = 60;

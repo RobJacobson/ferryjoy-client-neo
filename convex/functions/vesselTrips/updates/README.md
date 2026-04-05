@@ -68,10 +68,10 @@ processVesselTrips (entry point)
 
 `eventsScheduled`, `eventsActual`, and `eventsPredicted` are now the
 normalized persistence layer only. The public `VesselTimeline` read contract is
-built later in `convex/domain/vesselTimeline/rows.ts`,
-`convex/domain/vesselTimeline/activeRow.ts`, and
-`convex/domain/vesselTimeline/viewModel.ts` as backend-owned rows plus
-`activeRowId`.
+built later in `convex/domain/vesselTimeline/timelineEvents.ts`,
+`convex/domain/vesselTimeline/activeInterval.ts`, and
+`convex/domain/vesselTimeline/viewModel.ts` as ordered events plus
+`activeInterval`.
 
 ### File Structure
 
@@ -383,8 +383,8 @@ The `PredictionService` manages post-persist prediction side effects through an 
 - Previous trip's depart-next predictions are backfilled with actual departure time when current trip leaves dock
 - `eventsActual` and `eventsPredicted` are refreshed from finalized trip state
   after the trip write succeeds
-- the final public `VesselTimeline` contract is derived later as stable
-  `at-dock` / `at-sea` rows plus `activeRowId`
+- the final public `VesselTimeline` contract is derived later as ordered
+  events plus `activeInterval`
 
 **Separation of Concerns**:
 - Trip processor (`processVesselTrips/processVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries

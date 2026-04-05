@@ -1,16 +1,17 @@
 /**
  * Convex-backed vessel timeline context.
  *
- * This provider fetches the backend-owned row view model for one vessel/day
- * scope. The frontend consumes backend rows and active-row identity directly,
- * deriving only presentation details locally inside the feature layer.
+ * This provider fetches the backend-owned event-first timeline query result
+ * for one vessel/day scope. The feature layer derives rows locally for
+ * presentation.
  */
 
 import { api } from "convex/_generated/api";
 import {
   toDomainVesselTimelineViewModel,
+  type VesselTimelineActiveInterval,
+  type VesselTimelineEvent,
   type VesselTimelineLiveState,
-  type VesselTimelineRow,
   type VesselTimelineViewModel,
 } from "convex/functions/vesselTimeline/schemas";
 import { useQuery } from "convex/react";
@@ -18,21 +19,22 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
 
 export type {
+  VesselTimelineActiveInterval,
+  VesselTimelineEvent,
   VesselTimelineLiveState,
-  VesselTimelineRow,
   VesselTimelineViewModel,
 };
 
 type ConvexVesselTimelineContextType = {
-  VesselAbbrev: string;
-  SailingDay: string;
-  ObservedAt: Date | null;
-  rows: VesselTimelineRow[];
-  activeRowId: string | null;
+  vesselAbbrev: string;
+  sailingDay: string;
+  observedAt: Date | null;
+  events: VesselTimelineEvent[];
+  activeInterval: VesselTimelineActiveInterval;
   live: VesselTimelineLiveState | null;
-  IsLoading: boolean;
-  ErrorMessage: string | null;
-  Retry: () => void;
+  isLoading: boolean;
+  errorMessage: string | null;
+  retry: () => void;
 };
 
 type ConvexVesselTimelineProviderProps = PropsWithChildren<{
@@ -93,15 +95,15 @@ class ConvexVesselTimelineErrorBoundary extends ReactComponent<
 }
 
 /**
- * Query-backed provider body that exposes the backend-owned timeline view
- * model directly to the feature layer.
+ * Query-backed provider body that exposes the backend event contract and query
+ * state to the feature layer.
  *
  * @param props - Provider props
  * @param props.vesselAbbrev - Vessel abbreviation for the query scope
  * @param props.sailingDay - Sailing day for the query scope
  * @param props.onRetry - Callback used to remount the provider on retry
  * @param props.children - Descendant React tree consuming the context
- * @returns Context provider populated from the Convex row view model
+ * @returns Context provider populated from the Convex timeline query result
  */
 const ConvexVesselTimelineQueryProvider = ({
   vesselAbbrev,
@@ -126,15 +128,15 @@ const ConvexVesselTimelineQueryProvider = ({
   const isLoading = rawViewModel === undefined;
 
   const value: ConvexVesselTimelineContextType = {
-    VesselAbbrev: vesselAbbrev,
-    SailingDay: sailingDay,
-    ObservedAt: viewModel?.ObservedAt ?? null,
-    rows: viewModel?.rows ?? [],
-    activeRowId: viewModel?.activeRowId ?? null,
+    vesselAbbrev,
+    sailingDay,
+    observedAt: viewModel?.ObservedAt ?? null,
+    events: viewModel?.events ?? [],
+    activeInterval: viewModel?.activeInterval ?? null,
     live: viewModel?.live ?? null,
-    IsLoading: isLoading,
-    ErrorMessage: null,
-    Retry: onRetry,
+    isLoading,
+    errorMessage: null,
+    retry: onRetry,
   };
 
   return (
@@ -161,15 +163,15 @@ export const ConvexVesselTimelineProvider = ({
   children,
 }: ConvexVesselTimelineProviderProps) => {
   const errorValue: ConvexVesselTimelineContextType = {
-    VesselAbbrev: vesselAbbrev,
-    SailingDay: sailingDay,
-    ObservedAt: null,
-    rows: [],
-    activeRowId: null,
+    vesselAbbrev,
+    sailingDay,
+    observedAt: null,
+    events: [],
+    activeInterval: null,
     live: null,
-    IsLoading: false,
-    ErrorMessage: "Live timeline data is temporarily unavailable.",
-    Retry: onRetry,
+    isLoading: false,
+    errorMessage: "Live timeline data is temporarily unavailable.",
+    retry: onRetry,
   };
 
   return (
@@ -178,7 +180,7 @@ export const ConvexVesselTimelineProvider = ({
         <ConvexVesselTimelineContext.Provider
           value={{
             ...errorValue,
-            ErrorMessage: errorMessage,
+            errorMessage,
           }}
         >
           {children}
@@ -197,7 +199,7 @@ export const ConvexVesselTimelineProvider = ({
 };
 
 /**
- * Reads the backend-owned VesselTimeline view model from context.
+ * Reads the backend-owned VesselTimeline query state from context.
  *
  * @returns Timeline query state for the current provider scope
  */

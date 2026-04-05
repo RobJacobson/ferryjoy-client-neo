@@ -63,6 +63,8 @@ export const vesselTimelineEventRecordSchema = v.object({
 export type ConvexVesselTimelineEventRecord = Infer<
   typeof vesselTimelineEventRecordSchema
 >;
+export const vesselTimelineEventSchema = vesselTimelineEventRecordSchema;
+export type ConvexVesselTimelineEvent = Infer<typeof vesselTimelineEventSchema>;
 
 export const actualBoundaryEffectSchema = v.object({
   SegmentKey: v.string(),
@@ -103,63 +105,33 @@ export type ConvexPredictedBoundaryProjectionEffect = Infer<
   typeof predictedBoundaryProjectionEffectSchema
 >;
 
-const vesselTimelinePlaceholderReasonSchema = v.union(
-  v.literal("start-of-day"),
-  v.literal("broken-seam")
-);
-
-const vesselTimelineRowKindSchema = v.union(
+const vesselTimelineIntervalKindSchema = v.union(
   v.literal("at-dock"),
   v.literal("at-sea")
 );
 
-const vesselTimelineRowEdgeSchema = v.union(
-  v.literal("normal"),
-  v.literal("terminal-tail")
-);
-
-const vesselTimelineRowEventSchema = v.object({
-  Key: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-  EventType: boundaryEventTypeSchema,
-  IsArrivalPlaceholder: v.optional(v.boolean()),
-  EventScheduledTime: v.optional(v.number()),
-  EventPredictedTime: v.optional(v.number()),
-  EventActualTime: v.optional(v.number()),
-});
-
-const vesselTimelineRowSchema = v.object({
-  rowId: v.string(),
-  tripKey: v.string(),
-  kind: vesselTimelineRowKindSchema,
-  rowEdge: vesselTimelineRowEdgeSchema,
-  placeholderReason: v.optional(vesselTimelinePlaceholderReasonSchema),
-  startEvent: vesselTimelineRowEventSchema,
-  endEvent: vesselTimelineRowEventSchema,
-  durationMinutes: v.number(),
+const vesselTimelineActiveIntervalSchema = v.object({
+  kind: vesselTimelineIntervalKindSchema,
+  startEventKey: v.union(v.string(), v.null()),
+  endEventKey: v.union(v.string(), v.null()),
 });
 
 export const vesselTimelineViewModelSchema = v.object({
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   ObservedAt: v.union(v.number(), v.null()),
-  rows: v.array(vesselTimelineRowSchema),
-  activeRowId: v.union(v.string(), v.null()),
+  events: v.array(vesselTimelineEventSchema),
+  activeInterval: v.union(vesselTimelineActiveIntervalSchema, v.null()),
   live: v.union(vesselTimelineLiveStateSchema, v.null()),
 });
-
-export type ConvexVesselTimelineRowEvent = Infer<
-  typeof vesselTimelineRowEventSchema
->;
-export type ConvexVesselTimelineRow = Infer<typeof vesselTimelineRowSchema>;
+export type ConvexVesselTimelineActiveInterval = Infer<
+  typeof vesselTimelineActiveIntervalSchema
+> | null;
 export type ConvexVesselTimelineViewModel = Infer<
   typeof vesselTimelineViewModelSchema
 >;
 
-const toDomainVesselTimelineRowEvent = (
-  event: ConvexVesselTimelineRowEvent
-) => ({
+const toDomainVesselTimelineEvent = (event: ConvexVesselTimelineEvent) => ({
   ...event,
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
   EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
@@ -167,25 +139,19 @@ const toDomainVesselTimelineRowEvent = (
   EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
-const toDomainVesselTimelineRow = (row: ConvexVesselTimelineRow) => ({
-  ...row,
-  startEvent: toDomainVesselTimelineRowEvent(row.startEvent),
-  endEvent: toDomainVesselTimelineRowEvent(row.endEvent),
-});
-
 export const toDomainVesselTimelineViewModel = (
   viewModel: ConvexVesselTimelineViewModel
 ) => ({
   ...viewModel,
   ObservedAt: viewModel.ObservedAt ? new Date(viewModel.ObservedAt) : null,
-  rows: viewModel.rows.map(toDomainVesselTimelineRow),
+  events: viewModel.events.map(toDomainVesselTimelineEvent),
   live: viewModel.live ? toDomainVesselTimelineLiveState(viewModel.live) : null,
 });
 
-export type VesselTimelineRowEvent = ReturnType<
-  typeof toDomainVesselTimelineRowEvent
+export type VesselTimelineEvent = ReturnType<
+  typeof toDomainVesselTimelineEvent
 >;
-export type VesselTimelineRow = ReturnType<typeof toDomainVesselTimelineRow>;
+export type VesselTimelineActiveInterval = ConvexVesselTimelineActiveInterval;
 export type VesselTimelineViewModel = ReturnType<
   typeof toDomainVesselTimelineViewModel
 >;

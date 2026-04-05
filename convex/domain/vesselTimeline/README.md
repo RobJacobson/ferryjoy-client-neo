@@ -1,310 +1,424 @@
 ## VesselTimeline Backend Domain
 
-This folder contains the backend domain logic for the normalized
+This folder contains the backend domain logic for the normalized,
 boundary-event-based `VesselTimeline` system.
 
-There is no snapshot layer and no legacy vessel/day event table. The backend
-persists only three normalized tables:
+The core simplification is this:
+
+- persistence stores boundary events
+- structure is derived from adjacent ordered events
+- live attachment chooses one derived interval
+- displayed times are overlays and never decide ownership
+
+That last point is the architectural shift. The old failure mode was treating
+scheduled, predicted, or actual timestamps as if they identified which dock
+stay "belonged" to which trip. They do not. In real operations, those times
+can cross, drift, or arrive late. Structural adjacency is much more stable.
+
+## The Mental Model
+
+Think in three layers:
+
+1. Boundary events are persisted facts.
+2. Adjacent intervals are derived structural facts.
+3. `activeInterval` is the current live attachment to one interval.
+
+```text
+Persisted tables
+  eventsScheduled   eventsActual   eventsPredicted
+         |               |                |
+         +---------------+----------------+
+                         |
+                         v
+               merge into ordered events
+                         |
+                         v
+           build adjacent structural intervals
+                         |
+                         v
+          attach live vessel location to one interval
+                         |
+                         v
+      return event-first view model + activeInterval + live
+```
+
+## Why Adjacent Intervals
+
+The public timeline is still event-first, but interval identity is now derived
+once from event adjacency instead of repeatedly re-inferred from timestamps.
+
+The important distinction is:
+
+- timestamps answer "when should we display this boundary?"
+- adjacency answers "which interval exists between these boundaries?"
+
+That means delayed or stale predictions may change a displayed time without
+changing interval ownership.
+
+## Persisted Sources Of Truth
+
+There is no snapshot table and no legacy vessel/day timeline table. The
+timeline is assembled from normalized sources:
 
 - `eventsScheduled`
 - `eventsActual`
 - `eventsPredicted`
-
-The backend now composes the public timeline read model from those tables plus
-live vessel state. The frontend is expected to consume backend-owned rows and
-`activeRowId`, not reconstruct rows or guess active attachment itself.
-
-The implementation boundary is now explicit:
-
-- `convex/functions/vesselTimeline/*` owns Convex entrypoints, table reads, and
-  query-time data loading
-- `convex/domain/vesselTimeline/*` owns pure boundary-event, row, and
-  read-model logic over plain objects
-
-## Overview
-
-`VesselTimeline` is modeled as a sequence of dock-boundary events:
-
-- departure from dock
-- arrival at dock
-
-The backend persists those boundaries in normalized form, split by update
-cadence:
-
-- schedule backbone
-- actual overlay
-- prediction overlay
-
-Everything else is derived, including:
-
-- stable at-dock / at-sea row identity
-- placeholder dock rows when a dock start is missing
-- terminal-tail metadata when the slice ends on an arrival
-- active-row attachment
-- observed timestamp for the current live slice
-
-## Sources Of Truth
+- `vesselLocations`
 
 ### `eventsScheduled`
 
-Structural source of truth for the timeline.
-
-Source:
-
-- direct physical schedule segments from transformed WSF schedule data
+This is the structural backbone.
 
 Responsibilities:
 
-- define which boundary events exist for the vessel/day
-- keep the canonical segment identity shared with `vesselTrips`
-- define `dep-dock` vs `arv-dock`
-- define scheduled timing and terminal identity
-- provide `NextTerminalAbbrev` for client composition and debugging
+- define which boundary events exist
+- define event type: `dep-dock` or `arv-dock`
+- define canonical segment identity
+- define canonical terminal identity
+- define scheduled times
+- mark the final arrival of the sailing day for carry-in lookup
 
-Important behavior:
+This table answers:
 
-- replace-only during schedule sync
-- never mutated by live vessel-location updates
-- removed sailings disappear when the schedule feed removes them
+- what boundaries exist for the requested vessel/day?
+- in what order do they appear?
+- which departure and arrival belong to the same segment?
 
 ### `eventsActual`
 
-Sparse actual-time overlay.
-
-Sources:
-
-- WSF vessel history during schedule sync
-- trip lifecycle transitions during operation
+This is a sparse overlay of observed actual times.
 
 Responsibilities:
 
-- hold actual departure times
-- hold actual arrival times
+- store actual departure times
+- store actual arrival times
 
-Important behavior:
-
-- only rows with actuals exist
-- trip lifecycle transitions project into this table by boundary key
+This table never creates structure. It only annotates scheduled structure.
 
 ### `eventsPredicted`
 
-Sparse best-prediction overlay.
-
-Sources:
-
-- prediction model output attached to active trips
-- WSF ETA when available
+This is a sparse overlay of currently displayable predicted times.
 
 Responsibilities:
 
-- store the single best currently displayable predicted time for an event
-- retain `PredictionType` and `PredictionSource` for backend debugging
+- store the best predicted time for an event key
+- retain prediction metadata for backend debugging
 
-Important behavior:
+Like actuals, predictions do not create structure.
 
-- the client timeline query does not expose prediction provenance
-- precedence is backend-owned
-- `vesselTrips` emits prediction projection effects; timeline writes rows but
-  does not derive predictions independently
-- stale predicted rows are cleared by scoped boundary keys when a trip stops
-  emitting a prediction
+### `vesselLocations`
 
-Current precedence:
-
-- arrival:
-  - WSF ETA
-  - `AtSeaArriveNext`
-  - `AtDockArriveNext`
-- next departure:
-  - `AtSeaDepartNext`
-  - `AtDockDepartNext`
-- current departure:
-  - `AtDockDepartCurr`
-
-## Core Domain Files
-
-### `events/seed.ts`
-
-Builds in-memory boundary-event records from direct schedule segments.
+This is the live attachment input.
 
 Responsibilities:
 
-- classify direct physical segments
-- create paired `dep-dock` and `arv-dock` records
-- normalize identical dock seams
-- generate stable event keys
+- say whether the vessel is currently at dock or at sea
+- expose the observed terminal and live segment key hints
+- expose `TimeStamp` for `ObservedAt`
 
-### `events/history.ts`
+The timeline query uses `vesselLocations` as the only live-state source.
 
-Hydrates actuals from WSF vessel history into the in-memory schedule seed.
+## The Structural Model
 
-Responsibilities:
+The backend derives intervals from one ordered event list.
 
-- map history rows back onto stable boundary-event keys
-- backfill actual departures
-- backfill arrival proxy actuals
-- resolve minor timing disagreements with replacement thresholds
+The shared helper lives at:
 
-### `events/liveUpdates.ts`
+- `convex/shared/timelineIntervals.ts`
 
-Shared timeline ordering and seam-normalization helpers.
+It converts an ordered list of boundary events into two interval types:
 
-Responsibilities:
+- `at-dock`
+- `at-sea`
 
-- normalize dock seams
-- provide stable sort helpers
+### Interval Shapes
 
-### `normalizedEvents.ts`
+`at-dock`
 
-Converts in-memory ordered boundary-event records into normalized table rows.
+- `terminalAbbrev`
+- `startEventKey: string | null`
+- `endEventKey: string | null`
+- `previousSegmentKey: string | null`
+- `nextSegmentKey: string | null`
 
-Responsibilities:
+`at-sea`
 
-- build `eventsScheduled` rows
-- build `eventsActual` rows
-- build `eventsPredicted` rows from trip state
+- `segmentKey`
+- `startEventKey: string`
+- `endEventKey: string`
 
-### `rows.ts`
+The `previousSegmentKey` and `nextSegmentKey` fields are not persisted
+neighbors. They are just lightweight structural context used to break ties
+when more than one dock interval exists at the same terminal.
 
-Builds backend-owned `at-dock` / `at-sea` rows from merged boundary events.
+### Derivation Rules
 
-Responsibilities:
+Given adjacent ordered events:
 
-- build stable row IDs from trip identity
-- emit placeholder dock rows only when required
-- emit terminal-tail row metadata when the slice ends on an arrival
+```text
+null -> dep-dock        => opening dock interval
+arv-dock -> dep-dock    => dock interval
+dep-dock -> arv-dock    => sea interval
+arv-dock -> null        => terminal-tail dock interval
+invalid adjacent pair   => ignore
+```
 
-### `activeRow.ts`
+Examples:
 
-Resolves backend-owned row attachment from live vessel-location state with a
-narrow active-trip fallback.
+```text
+Example A: opening dock interval
 
-Responsibilities:
+  [null]
+     |
+     v
+  trip-2--dep-dock (CLI)
 
-- prefer `vesselLocations` for `AtDock` and `Key`
-- fall back to `activeVesselTrips` only when a live location row is missing
-- use inferred docked trip keys only when live state is docked and keyless
-- infer those docked trip keys from the scheduled dock interval, not from the
-  next future departure after the observation timestamp
-- never guess between same-terminal rows by proximity
+  => at-dock
+     startEventKey = null
+     endEventKey   = trip-2--dep-dock
+```
 
-### `viewModel.ts`
+```text
+Example B: normal dock interval
 
-Assembles the public backend-owned timeline view model from preloaded inputs.
+  trip-1--arv-dock (P52)
+           |
+           v
+  trip-2--dep-dock (P52)
 
-Responsibilities:
+  => at-dock
+     startEventKey = trip-1--arv-dock
+     endEventKey   = trip-2--dep-dock
+```
 
-- merge scheduled, actual, and predicted overlays by boundary key
-- call `rows.ts` for row construction
-- call `activeRow.ts` for active-row resolution
-- return raw live vessel state needed for frontend rendering decisions
-- set `ObservedAt` from `vesselLocations.TimeStamp`
+```text
+Example C: sea interval
 
-## Function Entrypoints
+  trip-2--dep-dock
+          |
+          v
+  trip-2--arv-dock
 
-### `convex/functions/vesselTimeline/actions.ts`
+  => at-sea
+     startEventKey = trip-2--dep-dock
+     endEventKey   = trip-2--arv-dock
+```
 
-Schedule sync entrypoints.
+```text
+Example D: terminal tail
 
-Responsibilities:
+  trip-9--arv-dock (BBI)
+           |
+           v
+         [null]
 
-- fetch and transform raw schedule data
-- build direct boundary-event records
-- merge WSF history actuals
-- replace normalized schedule/actual rows for one sailing day
-- support windowed and sailing-day-boundary sync
+  => at-dock
+     startEventKey = trip-9--arv-dock
+     endEventKey   = null
+```
 
-### `convex/functions/vesselTimeline/mutations.ts`
+Invalid seams are ignored on purpose. We no longer patch them into existence.
 
-Normalized write layer.
+## Backend Read Path
 
-Responsibilities:
+The public query is still one vessel and one sailing day. The loader may
+prepend one previous-day arrival if the visible day starts with a departure
+and that arrival is needed to anchor the first dock interval.
 
-- replace `eventsScheduled` and `eventsActual` for a sailing day
-- project actual boundary effects emitted by `vesselTrips`
-- project predicted boundary effects emitted by `vesselTrips`
+```text
+getVesselTimelineViewModel(VesselAbbrev, SailingDay)
+  |
+  v
+loaders.ts
+  |
+  |-- load same-day scheduled events
+  |-- load same-day actual overlays
+  |-- load same-day predicted overlays
+  |-- load vesselLocations row
+  |-- maybe load one previous-day final arrival
+  |
+  v
+viewModel.ts
+  |
+  |-- mergeTimelineEvents(...)
+  |-- resolveActiveInterval(...)
+  |-- map live state for UI
+  |
+  v
+{
+  VesselAbbrev,
+  SailingDay,
+  ObservedAt,
+  events,
+  activeInterval,
+  live,
+}
+```
 
-### `convex/functions/vesselTimeline/queries.ts`
+## Active Interval Resolution
 
-Thin public timeline-facing read layer.
+`activeInterval.ts` consumes:
 
-Responsibilities:
+- ordered merged events
+- current `vesselLocations` row
 
-- validate public query args
-- load query inputs through `loaders.ts`
-- hand plain inputs to the domain read-model builder
+It does not scan by time proximity.
 
-### `convex/functions/vesselTimeline/loaders.ts`
+### At-Sea Resolution
 
-Convex-specific loader and query-time inference layer for the public query.
+At sea is simple:
 
-Responsibilities:
+- build adjacent intervals
+- find the unique `at-sea` interval whose `segmentKey === location.Key`
+- if there is not exactly one match, return `null`
 
-- read normalized event tables and live trip/location state
-- derive docked and terminal-tail attachment from the loaded event slice plus
-  live state
-- delegate schedule-backed dock-interval resolution to shared
-  `eventsScheduled` query helpers, whose pure selection logic lives in
-  `convex/functions/eventsScheduled/segmentResolvers.ts`
-- keep `ctx.db` and index-specific orchestration out of the domain layer
+```text
+location.AtDock = false
+location.Key    = trip-7
+
+intervals:
+  at-dock CLI -> trip-7--dep
+  at-sea  trip-7--dep -> trip-7--arv   <- match
+  at-dock trip-7--arv -> trip-8--dep
+
+activeInterval = { kind: "at-sea", startEventKey, endEventKey }
+```
+
+### At-Dock Resolution
+
+At dock is still structural:
+
+1. Build adjacent intervals.
+2. Filter to `at-dock` intervals at `location.DepartingTerminalAbbrev`.
+3. If exactly one candidate exists, use it.
+4. If multiple candidates exist, use `location.Key` only as a structural
+   tiebreak against `previousSegmentKey` or `nextSegmentKey`.
+5. If still ambiguous, return `null`.
+
+```text
+location.AtDock = true
+location.DepartingTerminalAbbrev = P52
+location.Key = trip-4
+
+candidates at P52:
+
+  Dock A: previousSegmentKey = trip-3, nextSegmentKey = trip-4  <- match
+  Dock B: previousSegmentKey = trip-9, nextSegmentKey = trip-10
+
+activeInterval = Dock A
+```
+
+No scheduled, predicted, or actual timestamp is used to choose between dock
+intervals.
+
+## Carry-In Arrival Behavior
+
+The read path is same-day scoped, but a pure same-day slice can miss the
+arrival that structurally owns the first dock stay.
+
+To keep the first dock interval real without loading the entire previous day,
+the loader does one indexed lookup:
+
+```text
+requested sailing day starts with dep-dock at terminal CLI
+and no earlier same-day arv-dock exists at CLI
+  |
+  v
+lookup previous day's flagged final arrival
+  |
+  +-- same terminal => prepend it
+  |
+  +-- different terminal or missing => no carry-in
+```
+
+That is the only cross-day continuity rule in the public timeline read path.
+
+## Shared Structural Reuse Outside The Timeline Query
+
+The adjacent-interval model is not just for `VesselTimeline`.
+
+`convex/functions/eventsScheduled/segmentResolvers.ts` uses the same shared
+interval builder for schedule-side ownership lookups that support
+`vesselTrips`.
+
+That means the same structural rule now applies in both places:
+
+- derive dock ownership from adjacent ordered boundary events
+- never derive dock ownership from timestamp proximity
 
 ## Data Flow
 
 ```text
-WSF schedule sync
-  -> transform raw schedule data
-  -> keep direct physical segments only
-  -> build boundary-event records
-  -> merge WSF history actuals
-  -> replace eventsScheduled
-  -> replace eventsActual
+Schedule sync
+  |
+  |-- transform direct physical schedule segments
+  |-- build boundary-event records
+  |-- merge WSF history actuals
+  |-- replace eventsScheduled
+  |-- replace eventsActual
 
-WSF vessel location ticks
-  -> update vesselLocations
-  -> update active vessel trips
-  -> emit actual boundary effects
-  -> project affected eventsActual rows only
+Live location updates
+  |
+  |-- update vesselLocations
+  |-- update active vessel trips
+  |-- emit actual boundary effects
+  |-- project affected eventsActual rows
 
 Trip / prediction updates
-  -> compute best prediction per event key
-  -> emit prediction boundary effects
-  -> project affected eventsPredicted rows only
+  |
+  |-- compute best prediction per boundary key
+  |-- emit prediction boundary effects
+  |-- project affected eventsPredicted rows
 
-Frontend VesselTimeline
-  -> query getVesselTimelineViewModel
-  -> render backend-owned rows
-  -> place indicator using backend-owned activeRowId
-  -> keep layout / animation / presentation logic only
+Public timeline query
+  |
+  |-- load same-day events and live row
+  |-- optionally prepend one carry-in arrival
+  |-- merge overlays onto scheduled structure
+  |-- derive adjacent intervals
+  |-- resolve activeInterval structurally
+  |
+  v
+Frontend receives event-first payload
 ```
 
 ## Backend Guarantees
 
-- `eventsScheduled` is the structural truth for which boundary events exist
-- `eventsActual` and `eventsPredicted` are sparse overlays only
-- `eventsActual.Key` and `eventsPredicted.Key` are derived from the canonical
-  segment key plus boundary type
-- live ticks do not mutate the schedule backbone
-- prediction precedence is resolved on the server
-- public timeline reads expose stable rows, not raw boundary tables
-- dock and sea rows for a trip share the same trip key
-- placeholders are backend-emitted fallback only
-- terminal-tail is row metadata, not a separate row kind
-- `activeRowId` is backend-owned
-- delayed docked vessels stay attached to the current dock row when the
-  scheduled departure is overdue but still belongs to the active dock interval
+- `eventsScheduled` is the only structural source of truth
+- `eventsActual` and `eventsPredicted` are overlays only
+- event identity comes from stable boundary keys
+- interval identity comes from adjacency, not from timestamps
+- the public query stays scoped to one vessel and one sailing day
+- the only cross-day carry is one optional previous-day arrival
+- `vesselLocations` is the only live-state source for query-time attachment
+- dock ambiguity returns `null` instead of guessing
+- delayed arrivals do not steal ownership from their structural dock interval
+- invalid seams are ignored rather than patched into inferred intervals
+
+## Core Files
+
+- `timelineEvents.ts`
+  Merges scheduled, actual, and predicted rows into ordered public events.
+- `activeInterval.ts`
+  Resolves the backend-owned active interval from live state and intervals.
+- `viewModel.ts`
+  Assembles the final event-first query payload.
+- `convex/shared/timelineIntervals.ts`
+  Shared adjacent-interval derivation used by the timeline and schedule
+  ownership helpers.
+- `convex/functions/vesselTimeline/loaders.ts`
+  Loads query inputs and the optional carry-in arrival.
+- `convex/functions/eventsScheduled/segmentResolvers.ts`
+  Reuses the same interval model for scheduled dock ownership lookups.
 
 ## Suggested Reading Order
 
 1. this README
-2. `events/seed.ts`
-3. `events/history.ts`
-4. `events/liveUpdates.ts`
-5. `normalizedEvents.ts`
-6. `rows.ts`
-7. `activeRow.ts`
-8. `viewModel.ts`
-9. `convex/functions/vesselTimeline/actions.ts`
-10. `convex/functions/vesselTimeline/mutations.ts`
-11. `convex/functions/vesselTimeline/loaders.ts`
-12. `convex/functions/vesselTimeline/queries.ts`
+2. `convex/shared/timelineIntervals.ts`
+3. `timelineEvents.ts`
+4. `activeInterval.ts`
+5. `viewModel.ts`
+6. `convex/functions/vesselTimeline/loaders.ts`
+7. `convex/functions/vesselTimeline/queries.ts`
+8. `convex/functions/eventsScheduled/segmentResolvers.ts`
 9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

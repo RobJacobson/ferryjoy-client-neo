@@ -24,6 +24,7 @@ export const eventsScheduledSchema = v.object({
   NextTerminalAbbrev: v.string(),
   EventType: boundaryEventTypeSchema,
   EventScheduledTime: v.optional(v.number()),
+  IsLastArrivalOfSailingDay: v.optional(v.boolean()),
 });
 
 export const inferredScheduledSegmentSchema = v.object({

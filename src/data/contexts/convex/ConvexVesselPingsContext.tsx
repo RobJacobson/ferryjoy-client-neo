@@ -49,7 +49,9 @@ const ConvexVesselPingsContext = createContext<
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   // Fetch the latest 20 VesselPingCollections from Convex
   const connectionState = useConvexConnectionState();
-  const rawPingCollections = useQuery(api.functions.vesselPings.queries.getLatest);
+  const rawPingCollections = useQuery(
+    api.functions.vesselPings.queries.getLatest
+  );
 
   // Flatten all pings from all collections and group by vessel ID
   const vesselPingsByVesselId: VesselPingsByVesselId = (

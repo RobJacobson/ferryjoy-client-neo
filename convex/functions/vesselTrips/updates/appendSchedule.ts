@@ -25,6 +25,9 @@ export const appendFinalSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
+  // Keyless docked trips are the one place where `vesselTrips` still has to
+  // ask "which scheduled segment owns this vessel right now?" instead of
+  // simply reusing the trip key already carried by live state.
   const inferredScheduledSegment =
     baseTrip.AtDock && !baseTrip.LeftDock && !baseTrip.Key
       ? await inferDockedTripFromSchedule(ctx, baseTrip, existingTrip)
@@ -132,8 +135,8 @@ const inferDockedTripFromSchedule = async (
     }
   }
 
-  // First-seen docked vessels have no prior trip context, so fall back to the
-  // departure that owns the vessel's current dock interval.
+  // First-seen docked vessels have no prior trip continuity, so the final
+  // fallback is purely event-based dock-interval ownership.
   return ctx.runQuery(
     internal.functions.eventsScheduled.queries
       .getDockedDepartureSegmentForVesselAtTerminal,
