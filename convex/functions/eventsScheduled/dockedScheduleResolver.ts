@@ -21,7 +21,7 @@ export type ScheduledSegmentLookup = {
   getDockedDepartureSegmentForVesselAtTerminal: (args: {
     vesselAbbrev: string;
     departingTerminalAbbrev: string;
-    observedAt: number;
+    sailingDay: string;
   }) => Promise<ConvexInferredScheduledSegment | null>;
 };
 
@@ -33,7 +33,7 @@ type ExistingTripContinuity = {
 type ResolveDockedScheduledSegmentArgs = {
   vesselAbbrev: string;
   departingTerminalAbbrev: string;
-  observedAt: number;
+  sailingDay: string;
   existingTrip?: ExistingTripContinuity;
 };
 
@@ -88,7 +88,7 @@ export const resolveDockedScheduledSegment = async (
     await lookup.getDockedDepartureSegmentForVesselAtTerminal({
       vesselAbbrev: args.vesselAbbrev,
       departingTerminalAbbrev: args.departingTerminalAbbrev,
-      observedAt: args.observedAt,
+      sailingDay: args.sailingDay,
     });
 
   return dockIntervalSegment

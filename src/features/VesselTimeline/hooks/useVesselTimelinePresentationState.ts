@@ -2,8 +2,13 @@
  * Presentation-state hook for the VesselTimeline feature.
  */
 
+import { resolveActiveTimelineInterval } from "shared/activeTimelineInterval";
 import type { TimelineVisualTheme } from "@/components/timeline";
-import { useConvexVesselTimeline, useTerminalsData } from "@/data/contexts";
+import {
+  useConvexVesselLocations,
+  useConvexVesselTimeline,
+  useTerminalsData,
+} from "@/data/contexts";
 import { useNowMs } from "@/shared/hooks";
 import { getVesselTimelineRenderState } from "../renderPipeline";
 import type { VesselTimelineRenderState } from "../types";
@@ -34,12 +39,11 @@ export const useVesselTimelinePresentationState = ({
 }): UseVesselTimelinePresentationStateResult => {
   const nowMs = useNowMs(1000);
   const terminalsData = useTerminalsData();
+  const { vesselLocations } = useConvexVesselLocations();
   const {
     vesselAbbrev,
     sailingDay,
     events,
-    activeInterval,
-    live,
     isLoading,
     errorMessage,
     retry,
@@ -78,6 +82,9 @@ export const useVesselTimelinePresentationState = ({
   const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
     terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
       ?.TerminalName ?? null;
+  const currentVesselLocation =
+    vesselLocations.find((location) => location.VesselAbbrev === vesselAbbrev) ??
+    null;
 
   return {
     isLoading: false,
@@ -86,8 +93,8 @@ export const useVesselTimelinePresentationState = ({
     retry,
     renderState: getVesselTimelineRenderState({
       events,
-      activeInterval,
-      liveState: live,
+      activeInterval: resolveActiveTimelineInterval(events),
+      vesselLocation: currentVesselLocation,
       now: now ?? new Date(nowMs),
       getTerminalNameByAbbrev,
       theme,

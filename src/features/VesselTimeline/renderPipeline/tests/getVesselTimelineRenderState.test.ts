@@ -8,7 +8,7 @@ import {
   at,
   getTerminalNameByAbbrev,
   makeEventSlice,
-  makeLiveState,
+  makeVesselLocation,
 } from "./fixtures";
 
 describe("getVesselTimelineRenderState", () => {
@@ -20,7 +20,7 @@ describe("getVesselTimelineRenderState", () => {
         startEventKey: "trip-1--dep-dock",
         endEventKey: "trip-1--arv-dock",
       },
-      liveState: makeLiveState({
+      vesselLocation: makeVesselLocation({
         AtDock: false,
         InService: true,
         Speed: 12,
@@ -45,7 +45,7 @@ describe("getVesselTimelineRenderState", () => {
         startEventKey: "trip-1--arv-dock",
         endEventKey: null,
       },
-      liveState: makeLiveState({
+      vesselLocation: makeVesselLocation({
         AtDock: true,
         DepartingTerminalAbbrev: "VAI",
       }),

@@ -1,37 +1,27 @@
 /**
  * Convex-backed vessel timeline context.
  *
- * This provider fetches the backend-owned event-first timeline query result
- * for one vessel/day scope. The feature layer derives rows locally for
- * presentation.
+ * This provider fetches the backend-owned timeline backbone for one
+ * vessel/day scope. The feature layer derives the active interval and rows
+ * locally for presentation.
  */
 
 import { api } from "convex/_generated/api";
 import {
-  toDomainVesselTimelineViewModel,
-  type VesselTimelineActiveInterval,
+  toDomainVesselTimelineBackbone,
+  type VesselTimelineBackbone,
   type VesselTimelineEvent,
-  type VesselTimelineLiveState,
-  type VesselTimelineViewModel,
 } from "convex/functions/vesselTimeline/schemas";
 import { useQuery } from "convex/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createContext, Component as ReactComponent, useContext } from "react";
 
-export type {
-  VesselTimelineActiveInterval,
-  VesselTimelineEvent,
-  VesselTimelineLiveState,
-  VesselTimelineViewModel,
-};
+export type { VesselTimelineBackbone, VesselTimelineEvent };
 
 type ConvexVesselTimelineContextType = {
   vesselAbbrev: string;
   sailingDay: string;
-  observedAt: Date | null;
   events: VesselTimelineEvent[];
-  activeInterval: VesselTimelineActiveInterval;
-  live: VesselTimelineLiveState | null;
   isLoading: boolean;
   errorMessage: string | null;
   retry: () => void;
@@ -115,25 +105,22 @@ const ConvexVesselTimelineQueryProvider = ({
   sailingDay: string;
   onRetry: () => void;
 }>) => {
-  const rawViewModel = useQuery(
-    api.functions.vesselTimeline.queries.getVesselTimelineViewModel,
+  const rawBackbone = useQuery(
+    api.functions.vesselTimeline.queries.getVesselTimelineBackbone,
     {
       VesselAbbrev: vesselAbbrev,
       SailingDay: sailingDay,
     }
   );
-  const viewModel = rawViewModel
-    ? toDomainVesselTimelineViewModel(rawViewModel)
+  const backbone = rawBackbone
+    ? toDomainVesselTimelineBackbone(rawBackbone)
     : null;
-  const isLoading = rawViewModel === undefined;
+  const isLoading = rawBackbone === undefined;
 
   const value: ConvexVesselTimelineContextType = {
     vesselAbbrev,
     sailingDay,
-    observedAt: viewModel?.ObservedAt ?? null,
-    events: viewModel?.events ?? [],
-    activeInterval: viewModel?.activeInterval ?? null,
-    live: viewModel?.live ?? null,
+    events: backbone?.events ?? [],
     isLoading,
     errorMessage: null,
     retry: onRetry,
@@ -165,10 +152,7 @@ export const ConvexVesselTimelineProvider = ({
   const errorValue: ConvexVesselTimelineContextType = {
     vesselAbbrev,
     sailingDay,
-    observedAt: null,
     events: [],
-    activeInterval: null,
-    live: null,
     isLoading: false,
     errorMessage: "Live timeline data is temporarily unavailable.",
     retry: onRetry,
@@ -199,7 +183,7 @@ export const ConvexVesselTimelineProvider = ({
 };
 
 /**
- * Reads the backend-owned VesselTimeline query state from context.
+ * Reads the backend-owned VesselTimeline backbone state from context.
  *
  * @returns Timeline query state for the current provider scope
  */

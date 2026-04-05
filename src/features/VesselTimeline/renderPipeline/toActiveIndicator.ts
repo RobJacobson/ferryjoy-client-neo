@@ -2,7 +2,7 @@
  * Pipeline stage: derive the active indicator from the selected render row.
  */
 
-import type { VesselTimelineLiveState } from "convex/functions/vesselTimeline/schemas";
+import type { VesselLocation } from "@/types";
 import type { TimelineActiveIndicator } from "@/components/timeline";
 import { clamp } from "@/shared/utils";
 import { getDisplayTime } from "../rowEventTime";
@@ -19,7 +19,7 @@ const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
 /**
  * Adds the active indicator overlay payload to the VesselTimeline pipeline.
  *
- * @param input - Pipeline context containing active-row state and live data
+ * @param input - Pipeline context containing active-row state and vessel data
  * @returns Pipeline context enriched with the active indicator
  */
 export const toActiveIndicator = (
@@ -28,7 +28,7 @@ export const toActiveIndicator = (
   ...input,
   activeIndicator: getActiveIndicator(
     input.activeRow,
-    input.liveState,
+    input.vesselLocation,
     input.now
   ),
 });
@@ -37,13 +37,13 @@ export const toActiveIndicator = (
  * Builds the active indicator payload for the selected row.
  *
  * @param activeRow - Selected active row
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @param now - Current wall-clock time
  * @returns Indicator payload, or `null` when no row is active
  */
 const getActiveIndicator = (
   activeRow: VesselTimelineActiveRow | null,
-  liveState: VesselTimelineLiveState | null,
+  vesselLocation: VesselLocation | null,
   now: Date
 ): TimelineActiveIndicator | null => {
   if (!activeRow) {
@@ -54,12 +54,12 @@ const getActiveIndicator = (
 
   return {
     rowId: row.rowId,
-    positionPercent: getPositionPercent(activeRow, liveState, now),
+    positionPercent: getPositionPercent(activeRow, vesselLocation, now),
     label: getMinutesUntil(row, now),
-    title: liveState?.VesselName,
-    subtitle: getSubtitle(row, liveState),
-    animate: shouldAnimateIndicator(row, liveState),
-    speedKnots: liveState?.Speed ?? 0,
+    title: vesselLocation?.VesselName,
+    subtitle: getSubtitle(row, vesselLocation),
+    animate: shouldAnimateIndicator(row, vesselLocation),
+    speedKnots: vesselLocation?.Speed ?? 0,
   };
 };
 
@@ -79,13 +79,13 @@ const getDistanceProgress = (
  * Maps the active row to a row-local indicator position.
  *
  * @param row - Selected active row
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @param now - Current wall-clock time
  * @returns Position percent within the owning row
  */
 const getPositionPercent = (
   activeRow: VesselTimelineActiveRow,
-  liveState: VesselTimelineLiveState | null,
+  vesselLocation: VesselLocation | null,
   now: Date
 ) => {
   const row = activeRow.row;
@@ -95,11 +95,11 @@ const getPositionPercent = (
   }
 
   return row.kind === "at-sea" &&
-    liveState?.DepartingDistance !== undefined &&
-    liveState?.ArrivingDistance !== undefined
+    vesselLocation?.DepartingDistance !== undefined &&
+    vesselLocation?.ArrivingDistance !== undefined
     ? getDistanceProgress(
-        liveState.DepartingDistance,
-        liveState.ArrivingDistance
+        vesselLocation.DepartingDistance,
+        vesselLocation.ArrivingDistance
       )
     : row.kind === "at-dock"
       ? getDockPositionPercent(row, now)
@@ -216,30 +216,30 @@ const getMinutesUntil = (row: VesselTimelineRow, now: Date) => {
  * Builds the subtitle copy shown under the vessel name.
  *
  * @param row - Selected active row
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @returns Subtitle copy, or `undefined`
  */
 const getSubtitle = (
   row: VesselTimelineRow,
-  liveState: VesselTimelineLiveState | null
+  vesselLocation: VesselLocation | null
 ) =>
   row.kind === "at-dock"
-    ? getDockSubtitle(row, liveState)
-    : getSeaSubtitle(liveState);
+    ? getDockSubtitle(row, vesselLocation)
+    : getSeaSubtitle(vesselLocation);
 
 /**
  * Builds dock-state subtitle copy.
  *
  * @param row - Selected dock row
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @returns Dock subtitle, or `undefined`
  */
 const getDockSubtitle = (
   row: VesselTimelineRow,
-  liveState: VesselTimelineLiveState | null
+  vesselLocation: VesselLocation | null
 ) => {
   const terminalAbbrev =
-    liveState?.DepartingTerminalAbbrev ??
+    vesselLocation?.DepartingTerminalAbbrev ??
     row.endEvent.TerminalAbbrev ??
     row.startEvent.TerminalAbbrev;
 
@@ -249,24 +249,24 @@ const getDockSubtitle = (
 /**
  * Builds at-sea subtitle copy.
  *
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @returns Sea subtitle, or `undefined`
  */
-const getSeaSubtitle = (liveState: VesselTimelineLiveState | null) => {
-  if (!liveState) {
+const getSeaSubtitle = (vesselLocation: VesselLocation | null) => {
+  if (!vesselLocation) {
     return undefined;
   }
 
-  const speed = liveState.Speed ?? 0;
-  if (liveState.ArrivingDistance === undefined) {
+  const speed = vesselLocation.Speed ?? 0;
+  if (vesselLocation.ArrivingDistance === undefined) {
     return `${speed.toFixed(0)} kn`;
   }
 
-  const terminalPart = liveState.ArrivingTerminalAbbrev
-    ? ` to ${liveState.ArrivingTerminalAbbrev}`
+  const terminalPart = vesselLocation.ArrivingTerminalAbbrev
+    ? ` to ${vesselLocation.ArrivingTerminalAbbrev}`
     : "";
 
-  return `${speed.toFixed(0)} kn · ${liveState.ArrivingDistance.toFixed(
+  return `${speed.toFixed(0)} kn · ${vesselLocation.ArrivingDistance.toFixed(
     1
   )} mi${terminalPart}`;
 };
@@ -275,14 +275,14 @@ const getSeaSubtitle = (liveState: VesselTimelineLiveState | null) => {
  * Determines whether the active indicator should animate.
  *
  * @param row - Selected active row
- * @param liveState - Raw live vessel state
+ * @param vesselLocation - Raw live vessel location
  * @returns Whether indicator animation should run
  */
 const shouldAnimateIndicator = (
   row: VesselTimelineRow,
-  liveState: VesselTimelineLiveState | null
+  vesselLocation: VesselLocation | null
 ) =>
   row.kind === "at-sea" &&
-  liveState?.InService !== false &&
-  liveState?.AtDock !== true &&
-  (liveState?.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
+  vesselLocation?.InService !== false &&
+  vesselLocation?.AtDock !== true &&
+  (vesselLocation?.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;

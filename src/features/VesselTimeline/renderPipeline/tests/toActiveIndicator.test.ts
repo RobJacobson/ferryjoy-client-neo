@@ -6,11 +6,11 @@ import { describe, expect, it } from "bun:test";
 import { toActiveIndicator } from "../toActiveIndicator";
 import {
   at,
-  makeLiveState,
   makePipelineWithRenderRows,
   makeRow,
   makeRowEvent,
   makeRows,
+  makeVesselLocation,
 } from "./fixtures";
 
 describe("toActiveIndicator", () => {
@@ -18,7 +18,7 @@ describe("toActiveIndicator", () => {
     const { activeIndicator } = toActiveIndicator(
       makePipelineWithRenderRows({
         activeRow: null,
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: true,
           DepartingTerminalAbbrev: "VAI",
         }),
@@ -38,7 +38,7 @@ describe("toActiveIndicator", () => {
           row: rows[1],
           rowIndex: 1,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: false,
           InService: true,
           Speed: 12,
@@ -66,7 +66,7 @@ describe("toActiveIndicator", () => {
           row: rows[1],
           rowIndex: 1,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: false,
           InService: true,
           Speed: 12,
@@ -113,7 +113,7 @@ describe("toActiveIndicator", () => {
           row: dockRow,
           rowIndex: 0,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: true,
           DepartingTerminalAbbrev: "FAU",
         }),
@@ -138,7 +138,7 @@ describe("toActiveIndicator", () => {
           row: rows[0],
           rowIndex: 0,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: true,
           DepartingTerminalAbbrev: "P52",
         }),
@@ -159,7 +159,7 @@ describe("toActiveIndicator", () => {
           row: rows[2],
           rowIndex: 2,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: true,
           DepartingTerminalAbbrev: "VAI",
         }),
@@ -204,7 +204,7 @@ describe("toActiveIndicator", () => {
           row: overnightRow,
           rowIndex: 0,
         },
-        liveState: makeLiveState({
+        vesselLocation: makeVesselLocation({
           AtDock: true,
           DepartingTerminalAbbrev: "P52",
         }),

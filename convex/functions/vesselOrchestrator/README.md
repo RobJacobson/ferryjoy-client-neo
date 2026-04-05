@@ -37,8 +37,8 @@ Its purpose is:
 - provide the normalized persistence layer for timeline structure and overlays
 - separate timeline rendering needs from the heavier trip lifecycle tables
 - keep reconciliation and source-priority logic on the backend
-- support a backend-built row/view-model query instead of exposing raw event
-  tables as the public timeline contract
+- support a small backbone query instead of exposing raw event tables directly
+  or rebuilding structure from live vessel ticks on the client
 
 The timeline event tables are not intended to replace `activeVesselTrips` or
 `completedVesselTrips`. Those tables still support trip lifecycle logic and
@@ -148,7 +148,7 @@ only rows that resolve to passenger terminals participate in trip derivation.
 Purpose:
 
 - maintain the normalized boundary-event persistence layer used to build the
-  public `VesselTimeline` view model
+  public `VesselTimeline` backbone
 
 This remains intentionally smaller than the trip lifecycle pipeline. It stores
 only the boundary fields needed to derive a day timeline:
@@ -164,11 +164,9 @@ only the boundary fields needed to derive a day timeline:
 - `EventActualTime?`
 
 Those normalized rows are not the public query contract anymore. The backend
-now builds:
-
-- ordered timeline events
-- backend-owned `activeInterval`
-- raw live vessel state consumed by frontend rendering logic
+now builds one ordered same-day event list for the timeline backbone. The
+client derives `activeInterval` from that backbone and combines it with its
+existing real-time `VesselLocation` subscription for indicator placement.
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
@@ -209,8 +207,9 @@ WSF vessel location ticks
   -> project actual/predicted event updates
 
 Frontend VesselTimeline
-  -> query backend-owned VesselTimeline view model
-  -> derive presentation rows from backend events
+  -> query backend-owned VesselTimeline backbone
+  -> derive active interval locally from ordered events
+  -> combine with live VesselLocation for indicator placement
 ```
 
 ## Error Isolation
@@ -225,7 +224,7 @@ The orchestrator isolates failures at the branch level.
 
 This matters because timeline projection now rides on the trip pipeline’s
 transition logic instead of re-deriving actuals from raw location ticks, and
-the public timeline query now trusts that backend-owned model directly.
+the public timeline query no longer depends on `vesselLocations` reads.
 
 ## Performance Characteristics
 
@@ -245,7 +244,7 @@ possible (`upsertVesselTripsBatch` and batched predicted-event sync).
 The timeline projection path is designed to stay lightweight:
 
 - no extra external fetches
-- no frontend-side source merging in the target architecture
+- no live-location dependency in the timeline query
 - updates are keyed to stable event identities derived from the trip segment key
 - unchanged event rows are not rewritten
 
@@ -269,7 +268,7 @@ The timeline projection path is designed to stay lightweight:
 
 - normalized persistence layer for `VesselTimeline`
 - store ordered boundary events for one vessel/day
-- feed the backend-owned row/view-model query
+- feed the backend-owned backbone query
 - are fed by schedule seeding plus trip-driven actual/predicted projection
 
 ## Related Documentation

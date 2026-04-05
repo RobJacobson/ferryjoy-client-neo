@@ -34,7 +34,6 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
-import type * as domain_vesselTimeline_activeInterval from "../domain/vesselTimeline/activeInterval.js";
 import type * as domain_vesselTimeline_events_history from "../domain/vesselTimeline/events/history.js";
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
@@ -139,6 +138,7 @@ import type * as functions_vesselTrips_updates_tripDerivation from "../functions
 import type * as functions_vesselTrips_updates_tripEquality from "../functions/vesselTrips/updates/tripEquality.js";
 import type * as functions_vessels_actions from "../functions/vessels/actions.js";
 import type * as functions_vessels_schemas from "../functions/vessels/schemas.js";
+import type * as shared_activeTimelineInterval from "../shared/activeTimelineInterval.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
@@ -188,7 +188,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
-  "domain/vesselTimeline/activeInterval": typeof domain_vesselTimeline_activeInterval;
   "domain/vesselTimeline/events/history": typeof domain_vesselTimeline_events_history;
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;
@@ -293,6 +292,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/tripEquality": typeof functions_vesselTrips_updates_tripEquality;
   "functions/vessels/actions": typeof functions_vessels_actions;
   "functions/vessels/schemas": typeof functions_vessels_schemas;
+  "shared/activeTimelineInterval": typeof shared_activeTimelineInterval;
   "shared/convertDates": typeof shared_convertDates;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;

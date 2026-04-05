@@ -7,6 +7,7 @@ import type { ActionCtx } from "_generated/server";
 import { resolveDockedScheduledSegment } from "functions/eventsScheduled/dockedScheduleResolver";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { getSailingDay } from "shared/time";
 import {
   applyEffectiveTripIdentityToLocation,
   hasStableDockedTripIdentity,
@@ -57,7 +58,7 @@ export const resolveEffectiveLocation = async (
         {
           vesselAbbrev: location.VesselAbbrev,
           departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-          observedAt: location.TimeStamp,
+          sailingDay: getSailingDay(new Date(location.TimeStamp)),
           existingTrip,
         }
       );

@@ -23,10 +23,10 @@ export const toActiveRow = (
 });
 
 /**
- * Maps the backend-owned active interval to the local derived-row projection.
+ * Maps the derived active interval to the local row projection.
  *
  * @param rows - Derived feature rows
- * @param activeInterval - Backend-owned active interval
+ * @param activeInterval - Derived active interval
  * @returns Active derived row, or `null` when no match exists
  */
 const resolveActiveRow = (
@@ -52,10 +52,10 @@ const resolveActiveRow = (
 };
 
 /**
- * Returns whether one derived row corresponds to the backend active interval.
+ * Returns whether one derived row corresponds to the derived active interval.
  *
  * @param row - Derived feature row
- * @param activeInterval - Backend active interval
+ * @param activeInterval - Derived active interval
  * @returns Whether the row is the structural interval match
  */
 const matchesActiveInterval = (

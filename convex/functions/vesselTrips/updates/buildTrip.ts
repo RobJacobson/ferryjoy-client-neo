@@ -62,12 +62,9 @@ export const buildTrip = async (
         : undefined),
   };
 
-  const shouldInferScheduleAtDock =
-    withArriveDest.AtDock && !withArriveDest.LeftDock && !withArriveDest.Key;
-  // Only rerun enrichments when a boundary changed, schedule inference is
-  // still needed at dock, or fallback timing allows it.
-  const shouldAppendFinalSchedule =
-    tripStart || events.keyChanged || shouldInferScheduleAtDock;
+  // Schedule enrichment is key-based only. Docked identity bootstrap now
+  // happens once in `resolveEffectiveLocation`.
+  const shouldAppendFinalSchedule = tripStart || events.keyChanged;
   // At-dock predictions belong only to real dock occupancy for a started trip.
   // This avoids generating model output for first-seen placeholder rows that
   // have not yet observed a trustworthy trip start.

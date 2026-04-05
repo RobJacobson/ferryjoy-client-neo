@@ -1,5 +1,5 @@
 /**
- * Covers the single-sailing-day VesselTimeline loader orchestration.
+ * Covers the single-sailing-day VesselTimeline backbone loader orchestration.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -7,15 +7,14 @@ import type { QueryCtx } from "_generated/server";
 import type { ConvexActualBoundaryEvent } from "../../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../eventsScheduled/schemas";
-import type { ConvexVesselLocation } from "../../vesselLocation/schemas";
-import { loadVesselTimelineViewModelInputs } from "../loaders";
+import { loadVesselTimelineBackboneInputs } from "../loaders";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
-describe("loadVesselTimelineViewModelInputs", () => {
+describe("loadVesselTimelineBackboneInputs", () => {
   it("loads only the requested sailing day's scheduled rows", async () => {
-    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+    const backboneInputs = await loadVesselTimelineBackboneInputs(
       makeQueryCtx({
         scheduledEvents: [
           makeScheduledEvent({
@@ -48,13 +47,6 @@ describe("loadVesselTimelineViewModelInputs", () => {
             EventScheduledTime: at(6, 0, 26),
           }),
         ],
-        location: makeLocation({
-          VesselAbbrev: "WEN",
-          AtDock: true,
-          DepartingTerminalAbbrev: "CLI",
-          Key: undefined,
-          TimeStamp: at(11, 8),
-        }),
       }),
       {
         VesselAbbrev: "WEN",
@@ -62,116 +54,37 @@ describe("loadVesselTimelineViewModelInputs", () => {
       }
     );
 
-    expect(viewModelInputs.scheduledEvents.map((event) => event.Key)).toEqual([
+    expect(backboneInputs.scheduledEvents.map((event) => event.Key)).toEqual([
       "trip-1--arv-dock",
       "trip-2--dep-dock",
       "trip-2--arv-dock",
     ]);
-    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("CLI");
   });
 
-  it("prepends the prior sailing day's arrival that anchors the first departure", async () => {
-    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+  it("loads only same-day actual and predicted overlays", async () => {
+    const backboneInputs = await loadVesselTimelineBackboneInputs(
       makeQueryCtx({
-        scheduledEvents: [
-          makeScheduledEvent({
-            Key: "trip-0--arv-dock",
-            SailingDay: "2026-03-24",
-            TerminalAbbrev: "P52",
-            EventType: "arv-dock",
-            ScheduledDeparture: at(22, 0, 24),
-            EventScheduledTime: at(22, 35, 24),
-            IsLastArrivalOfSailingDay: true,
-          }),
-          makeScheduledEvent({
-            Key: "trip-1--dep-dock",
-            TerminalAbbrev: "P52",
-            EventType: "dep-dock",
-            ScheduledDeparture: at(5, 0),
-            EventScheduledTime: at(5, 0),
-          }),
-          makeScheduledEvent({
-            Key: "trip-1--arv-dock",
-            TerminalAbbrev: "BBI",
-            EventType: "arv-dock",
-            ScheduledDeparture: at(5, 0),
-            EventScheduledTime: at(5, 35),
-          }),
-        ],
+        scheduledEvents: [],
         actualEvents: [
           makeActualEvent({
-            Key: "trip-0--arv-dock",
-            SailingDay: "2026-03-24",
-            ScheduledDeparture: at(22, 0, 24),
-            TerminalAbbrev: "P52",
-            EventActualTime: at(22, 42, 24),
+            Key: "trip-1--dep-dock",
+            SailingDay: "2026-03-25",
+          }),
+          makeActualEvent({
+            Key: "trip-2--dep-dock",
+            SailingDay: "2026-03-26",
           }),
         ],
         predictedEvents: [
           makePredictedEvent({
-            Key: "trip-0--arv-dock",
-            SailingDay: "2026-03-24",
-            ScheduledDeparture: at(22, 0, 24),
-            TerminalAbbrev: "P52",
-            EventPredictedTime: at(22, 40, 24),
-          }),
-        ],
-      }),
-      {
-        VesselAbbrev: "WEN",
-        SailingDay: "2026-03-25",
-      }
-    );
-
-    expect(viewModelInputs.scheduledEvents.map((event) => event.Key)).toEqual([
-      "trip-0--arv-dock",
-      "trip-1--dep-dock",
-      "trip-1--arv-dock",
-    ]);
-    expect(viewModelInputs.actualEvents.map((event) => event.Key)).toEqual([
-      "trip-0--arv-dock",
-    ]);
-    expect(viewModelInputs.predictedEvents.map((event) => event.Key)).toEqual([
-      "trip-0--arv-dock",
-    ]);
-  });
-
-  it("keeps attachment inputs scoped to the requested day when continuity would require the next day", async () => {
-    const viewModelInputs = await loadVesselTimelineViewModelInputs(
-      makeQueryCtx({
-        scheduledEvents: [
-          makeScheduledEvent({
-            Key: "trip-1--dep-dock",
-            SailingDay: "2026-03-25",
-            TerminalAbbrev: "FAU",
-            EventType: "dep-dock",
-            ScheduledDeparture: at(19, 0),
-            EventScheduledTime: at(19, 0),
-          }),
-          makeScheduledEvent({
             Key: "trip-1--arv-dock",
             SailingDay: "2026-03-25",
-            TerminalAbbrev: "VAI",
-            EventType: "arv-dock",
-            ScheduledDeparture: at(19, 0),
-            EventScheduledTime: at(19, 30),
           }),
-          makeScheduledEvent({
-            Key: "trip-2--dep-dock",
+          makePredictedEvent({
+            Key: "trip-2--arv-dock",
             SailingDay: "2026-03-26",
-            TerminalAbbrev: "VAI",
-            EventType: "dep-dock",
-            ScheduledDeparture: at(6, 0, 26),
-            EventScheduledTime: at(6, 0, 26),
           }),
         ],
-        location: makeLocation({
-          VesselAbbrev: "WEN",
-          AtDock: true,
-          DepartingTerminalAbbrev: "VAI",
-          Key: undefined,
-          TimeStamp: at(19, 58),
-        }),
       }),
       {
         VesselAbbrev: "WEN",
@@ -179,54 +92,21 @@ describe("loadVesselTimelineViewModelInputs", () => {
       }
     );
 
-    expect(viewModelInputs.scheduledEvents.map((event) => event.Key)).toEqual([
+    expect(backboneInputs.actualEvents.map((event) => event.Key)).toEqual([
       "trip-1--dep-dock",
+    ]);
+    expect(backboneInputs.predictedEvents.map((event) => event.Key)).toEqual([
       "trip-1--arv-dock",
     ]);
-    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("VAI");
   });
 
-  it("returns an empty scheduled slice when the requested sailing day has no rows", async () => {
-    const viewModelInputs = await loadVesselTimelineViewModelInputs(
+  it("returns an empty same-day slice when the sailing day has no rows", async () => {
+    const backboneInputs = await loadVesselTimelineBackboneInputs(
       makeQueryCtx({
         scheduledEvents: [
           makeScheduledEvent({
             Key: "trip-1--arv-dock",
-            SailingDay: "2026-03-25",
-            TerminalAbbrev: "VAI",
-            EventType: "arv-dock",
-            ScheduledDeparture: at(20, 0),
-            EventScheduledTime: at(20, 30),
-          }),
-        ],
-        location: makeLocation({
-          VesselAbbrev: "WEN",
-          AtDock: true,
-          DepartingTerminalAbbrev: "VAI",
-          Key: undefined,
-          TimeStamp: at(0, 10, 26),
-        }),
-      }),
-      {
-        VesselAbbrev: "WEN",
-        SailingDay: "2026-03-26",
-      }
-    );
-
-    expect(viewModelInputs.scheduledEvents).toEqual([]);
-    expect(viewModelInputs.location?.DepartingTerminalAbbrev).toBe("VAI");
-  });
-
-  it("returns null when the live location row is missing", async () => {
-    const viewModelInputs = await loadVesselTimelineViewModelInputs(
-      makeQueryCtx({
-        scheduledEvents: [
-          makeScheduledEvent({
-            Key: "trip-1--dep-dock",
-            TerminalAbbrev: "P52",
-            EventType: "dep-dock",
-            ScheduledDeparture: at(8, 0),
-            EventScheduledTime: at(8, 0),
+            SailingDay: "2026-03-24",
           }),
         ],
       }),
@@ -236,7 +116,9 @@ describe("loadVesselTimelineViewModelInputs", () => {
       }
     );
 
-    expect(viewModelInputs.location).toBeNull();
+    expect(backboneInputs.scheduledEvents).toEqual([]);
+    expect(backboneInputs.actualEvents).toEqual([]);
+    expect(backboneInputs.predictedEvents).toEqual([]);
   });
 });
 
@@ -244,7 +126,6 @@ type MockQueryData = {
   scheduledEvents?: ConvexScheduledBoundaryEvent[];
   actualEvents?: ConvexActualBoundaryEvent[];
   predictedEvents?: ConvexPredictedBoundaryEvent[];
-  location?: ConvexVesselLocation | null;
 };
 
 /**
@@ -258,44 +139,35 @@ const makeQueryCtx = (data: MockQueryData): QueryCtx =>
     db: {
       query: (tableName: string) => ({
         withIndex: (
-          _indexName: string,
-          builder: (queryBuilder: {
-            eq: (field: string, value: unknown) => unknown;
+          indexName: string,
+          buildRange: (q: {
+            eq: (fieldName: string, value: string) => unknown;
           }) => unknown
         ) => {
-          const filters: Record<string, unknown> = {};
-          const queryBuilder = {
-            eq: (field: string, value: unknown) => {
-              filters[field] = value;
-              return queryBuilder;
+          const range = {
+            filters: [] as Array<{ fieldName: string; value: string }>,
+            eq(fieldName: string, value: string) {
+              this.filters.push({ fieldName, value });
+              return this;
             },
           };
-          builder(queryBuilder);
+          buildRange(range);
 
-          const rows = getRowsForTable(tableName, data).filter((row) =>
-            Object.entries(filters).every(
-              ([field, value]) => row[field] === value
+          const rows = getRowsForTable(data, tableName).filter((row) =>
+            range.filters.every(
+              ({ fieldName, value }) => String(row[fieldName]) === value
             )
           );
 
           return {
             collect: async () => rows,
-            unique: async () => rows[0] ?? null,
-            first: async () => rows[0] ?? null,
           };
         },
       }),
     },
   }) as unknown as QueryCtx;
 
-/**
- * Returns the mock rows for one queried table.
- *
- * @param tableName - Convex table name requested by the loader
- * @param data - Backing mock data
- * @returns Plain row objects for that table
- */
-const getRowsForTable = (tableName: string, data: MockQueryData) => {
+const getRowsForTable = (data: MockQueryData, tableName: string) => {
   switch (tableName) {
     case "eventsScheduled":
       return data.scheduledEvents ?? [];
@@ -303,19 +175,11 @@ const getRowsForTable = (tableName: string, data: MockQueryData) => {
       return data.actualEvents ?? [];
     case "eventsPredicted":
       return data.predictedEvents ?? [];
-    case "vesselLocations":
-      return data.location ? [data.location] : [];
     default:
       return [];
   }
 };
 
-/**
- * Builds a scheduled boundary event for loader tests.
- *
- * @param overrides - Field overrides
- * @returns Scheduled boundary event
- */
 const makeScheduledEvent = (
   overrides: Partial<ConvexScheduledBoundaryEvent>
 ): ConvexScheduledBoundaryEvent => ({
@@ -332,48 +196,6 @@ const makeScheduledEvent = (
   ...overrides,
 });
 
-/**
- * Builds a vessel-location row for loader tests.
- *
- * @param overrides - Field overrides
- * @returns Live vessel-location row
- */
-const makeLocation = (
-  overrides: Partial<ConvexVesselLocation>
-): ConvexVesselLocation => ({
-  VesselID: 1,
-  VesselName: "Wenatchee",
-  VesselAbbrev: "WEN",
-  DepartingTerminalID: 1,
-  DepartingTerminalName: "Seattle",
-  DepartingTerminalAbbrev: "P52",
-  ArrivingTerminalID: 2,
-  ArrivingTerminalName: "Bainbridge",
-  ArrivingTerminalAbbrev: "BBI",
-  Latitude: 47.6,
-  Longitude: -122.3,
-  Speed: 0,
-  Heading: 0,
-  InService: true,
-  AtDock: true,
-  LeftDock: undefined,
-  Eta: undefined,
-  ScheduledDeparture: at(8, 0),
-  RouteAbbrev: "SEA-BBI",
-  VesselPositionNum: 1,
-  TimeStamp: at(8, 0),
-  Key: "trip-1",
-  DepartingDistance: 0,
-  ArrivingDistance: undefined,
-  ...overrides,
-});
-
-/**
- * Builds an actual boundary event for loader tests.
- *
- * @param overrides - Field overrides
- * @returns Actual boundary event
- */
 const makeActualEvent = (
   overrides: Partial<ConvexActualBoundaryEvent>
 ): ConvexActualBoundaryEvent => ({
@@ -383,16 +205,10 @@ const makeActualEvent = (
   UpdatedAt: at(6, 0),
   ScheduledDeparture: at(8, 0),
   TerminalAbbrev: "P52",
-  EventActualTime: at(8, 3),
+  EventActualTime: at(8, 2),
   ...overrides,
 });
 
-/**
- * Builds a predicted boundary event for loader tests.
- *
- * @param overrides - Field overrides
- * @returns Predicted boundary event
- */
 const makePredictedEvent = (
   overrides: Partial<ConvexPredictedBoundaryEvent>
 ): ConvexPredictedBoundaryEvent => ({
