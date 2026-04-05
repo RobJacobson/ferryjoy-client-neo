@@ -7,24 +7,8 @@ import type { PropsWithChildren } from "react";
 import { useId, useMemo } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { View } from "@/components/ui";
+import { gradientBackgroundConfig } from "./config";
 import { GradientBackgroundLayer } from "./GradientBackgroundLayer";
-
-const GRADIENT_BACKGROUND_COLORS = [
-  "#6FA8FF",
-  "#FF8E72",
-  "#7BE0C3",
-  "#8D7DFF",
-] as const;
-
-const GRADIENT_BACKGROUND_RADIUS_RANGE = {
-  min: 0.4,
-  max: 0.8,
-} as const;
-
-const GRADIENT_BACKGROUND_DURATION_RANGE_MS = {
-  min: 20000,
-  max: 60000,
-} as const;
 
 type GradientBackgroundProps = PropsWithChildren<{
   backgroundColor: string;
@@ -55,22 +39,14 @@ export type GradientOrbConfig = {
 export const GradientBackground = ({
   backgroundColor,
   children,
-  colors = GRADIENT_BACKGROUND_COLORS,
+  colors = gradientBackgroundConfig.defaultColors,
 }: GradientBackgroundProps) => {
   const svgIdPrefix = useId().replace(/:/g, "");
   const { width, height } = useWindowDimensions();
-  const maxDimension = Math.max(width, height);
+  // Stable random layout until viewport or palette changes (not a perf memo).
   const resolvedOrbs = useMemo(
-    () =>
-      createRandomGradientOrbs({
-        // Random defaults are regenerated when the viewport changes size so
-        // the starting positions remain valid for the visible bounds.
-        width,
-        height,
-        maxDimension,
-        colors,
-      }),
-    [colors, height, maxDimension, width]
+    () => createRandomGradientOrbs({ width, height, colors }),
+    [colors, height, width]
   );
 
   return (
@@ -99,18 +75,14 @@ export const GradientBackground = ({
 const randomBetween = (min: number, max: number) =>
   min + Math.random() * (max - min);
 
-const shuffleColors = (colors: readonly string[]) => {
-  const shuffledColors = [...colors];
-
-  for (let index = shuffledColors.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(randomBetween(0, index + 1));
-    const currentColor = shuffledColors[index];
-    shuffledColors[index] = shuffledColors[randomIndex];
-    shuffledColors[randomIndex] = currentColor;
-  }
-
-  return shuffledColors;
-};
+/**
+ * Shallow copy of `colors` in arbitrary order (decorative shuffle only).
+ *
+ * @param colors - Palette entries
+ * @returns New array with the same elements in a pseudo-random order
+ */
+const shuffledColorOrder = (colors: readonly string[]) =>
+  [...colors].sort(() => Math.random() - 0.5);
 
 /**
  * Builds one orb config per palette color: radius, circular orbit, phase, and
@@ -119,32 +91,29 @@ const shuffleColors = (colors: readonly string[]) => {
  * @param params - Viewport and palette inputs
  * @param params.width - Viewport width in logical pixels
  * @param params.height - Viewport height in logical pixels
- * @param params.maxDimension - `max(width, height)` for sizing orb radii
  * @param params.colors - Orb fill colors; defaults to the feature palette
  * @returns Orb definitions for `GradientBackgroundLayer`
  */
 const createRandomGradientOrbs = ({
   width,
   height,
-  maxDimension,
-  colors = GRADIENT_BACKGROUND_COLORS,
+  colors = gradientBackgroundConfig.defaultColors,
 }: {
   width: number;
   height: number;
-  maxDimension: number;
   colors?: readonly string[];
-}): GradientOrbConfig[] =>
-  shuffleColors(colors).map((color, index) => {
+}): GradientOrbConfig[] => {
+  const maxDimension = Math.max(width, height);
+  return shuffledColorOrder(colors).map((color, index) => {
     const orbRadiusPx =
       maxDimension *
       randomBetween(
-        GRADIENT_BACKGROUND_RADIUS_RANGE.min,
-        GRADIENT_BACKGROUND_RADIUS_RANGE.max
+        gradientBackgroundConfig.orb.radiusRange.min,
+        gradientBackgroundConfig.orb.radiusRange.max
       );
     const orbitCenterX = randomBetween(0, width);
     const orbitCenterY = randomBetween(0, height);
     const orbitRadiusPx = randomBetween(0, orbRadiusPx);
-    const initialThetaRad = randomBetween(0, Math.PI * 2);
 
     return {
       id: `orb-${index}-${color.replace("#", "").toLowerCase()}`,
@@ -153,10 +122,11 @@ const createRandomGradientOrbs = ({
       orbitCenterX,
       orbitCenterY,
       orbitRadiusPx,
-      initialThetaDeg: (initialThetaRad * 180) / Math.PI,
+      initialThetaDeg: randomBetween(0, 360),
       durationMs: randomBetween(
-        GRADIENT_BACKGROUND_DURATION_RANGE_MS.min,
-        GRADIENT_BACKGROUND_DURATION_RANGE_MS.max
+        gradientBackgroundConfig.orb.durationRangeMs.min,
+        gradientBackgroundConfig.orb.durationRangeMs.max
       ),
     };
   });
+};

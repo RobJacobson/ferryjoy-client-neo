@@ -4,6 +4,7 @@
 
 import { StyleSheet } from "react-native";
 import Svg, { Defs, Pattern, Rect, Image as SvgImage } from "react-native-svg";
+import { gradientBackgroundConfig } from "../config";
 
 type GradientBackgroundNoiseSvgProps = {
   width: number;
@@ -11,19 +12,9 @@ type GradientBackgroundNoiseSvgProps = {
   svgIdPrefix: string;
 };
 
-const GRADIENT_BACKGROUND_NOISE_TEXTURE = require("../../../../assets/textures/gradient-background-noise.png");
-const GRADIENT_BACKGROUND_NOISE_TEXTURE_SIZE_PX = 512;
-const GRADIENT_BACKGROUND_NOISE_CONFIG = {
-  enabled: true,
-  opacity: 0.2,
-  scale: 1,
-  offsetXPx: 0,
-  offsetYPx: 0,
-} as const;
-
 /**
  * Full-viewport SVG rect filled with a repeating noise texture, or `null` when
- * disabled in `GRADIENT_BACKGROUND_NOISE_CONFIG`.
+ * disabled in `gradientBackgroundConfig.noise`.
  *
  * @param props - SVG dimensions
  * @param props.width - Viewport width in logical pixels
@@ -35,14 +26,14 @@ export const GradientBackgroundNoiseSvg = ({
   height,
   svgIdPrefix,
 }: GradientBackgroundNoiseSvgProps) => {
-  if (!GRADIENT_BACKGROUND_NOISE_CONFIG.enabled) {
+  const { noise } = gradientBackgroundConfig;
+
+  if (!noise.enabled) {
     return null;
   }
 
   const patternId = `${svgIdPrefix}-gradient-background-noise`;
-  const noisePatternSize =
-    GRADIENT_BACKGROUND_NOISE_TEXTURE_SIZE_PX *
-    GRADIENT_BACKGROUND_NOISE_CONFIG.scale;
+  const noisePatternSize = noise.textureSizePx * noise.scale;
 
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
@@ -52,11 +43,11 @@ export const GradientBackgroundNoiseSvg = ({
           patternUnits="userSpaceOnUse"
           width={noisePatternSize}
           height={noisePatternSize}
-          x={GRADIENT_BACKGROUND_NOISE_CONFIG.offsetXPx}
-          y={GRADIENT_BACKGROUND_NOISE_CONFIG.offsetYPx}
+          x={noise.offsetXPx}
+          y={noise.offsetYPx}
         >
           <SvgImage
-            href={GRADIENT_BACKGROUND_NOISE_TEXTURE}
+            href={noise.textureSource}
             width={noisePatternSize}
             height={noisePatternSize}
           />
@@ -66,7 +57,7 @@ export const GradientBackgroundNoiseSvg = ({
         width="100%"
         height="100%"
         fill={`url(#${patternId})`}
-        fillOpacity={GRADIENT_BACKGROUND_NOISE_CONFIG.opacity}
+        fillOpacity={noise.opacity}
       />
     </Svg>
   );

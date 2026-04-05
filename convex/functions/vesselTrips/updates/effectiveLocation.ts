@@ -28,7 +28,10 @@ export const resolveEffectiveLocation = async (
     return location;
   }
 
-  const scheduledResolution = hasStableDockedTripIdentity(location, existingTrip)
+  const scheduledResolution = hasStableDockedTripIdentity(
+    location,
+    existingTrip
+  )
     ? null
     : await resolveDockedScheduledSegment(
         {

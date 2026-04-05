@@ -91,21 +91,18 @@ export const deriveTripInputs = (
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
   const shouldPreserveDockedScheduleIdentity = Boolean(
-    existingTrip &&
-      existingTrip.AtDock &&
+    existingTrip?.AtDock &&
       existingTrip.LeftDock === undefined &&
       currLocation.AtDock &&
       currLocation.DepartingTerminalAbbrev ===
         existingTrip.DepartingTerminalAbbrev
   );
-  const continuingArrivingTerminalAbbrev =
-    shouldPreserveDockedScheduleIdentity
-      ? existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev
-      : currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
-  const continuingScheduledDeparture =
-    shouldPreserveDockedScheduleIdentity
-      ? existingTrip?.ScheduledDeparture ?? currentScheduledDeparture
-      : currentScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  const continuingArrivingTerminalAbbrev = shouldPreserveDockedScheduleIdentity
+    ? (existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev)
+    : (currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev);
+  const continuingScheduledDeparture = shouldPreserveDockedScheduleIdentity
+    ? (existingTrip?.ScheduledDeparture ?? currentScheduledDeparture)
+    : (currentScheduledDeparture ?? existingTrip?.ScheduledDeparture);
   const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
     existingTrip,
     currLocation

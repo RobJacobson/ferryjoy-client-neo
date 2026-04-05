@@ -170,6 +170,4 @@ const findLatestCompletedBoundaryEvent = (
     ) ?? null;
 
 const getBoundaryCompletionTime = (event: ConvexVesselTimelineEvent) =>
-  event.EventActualTime ??
-  event.EventScheduledTime ??
-  event.ScheduledDeparture;
+  event.EventActualTime ?? event.EventScheduledTime ?? event.ScheduledDeparture;
