@@ -326,7 +326,7 @@ describe("resolveActiveInterval", () => {
     });
   });
 
-  it("returns null when multiple dock intervals share the observed terminal and no key disambiguates them", () => {
+  it("uses the latest arrived boundary to recover the current dock interval when no live key is available", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
         makeScheduledEvent({
@@ -386,7 +386,11 @@ describe("resolveActiveInterval", () => {
           TimeStamp: at(16, 20),
         }),
       })
-    ).toBeNull();
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-2--arv-dock",
+      endEventKey: "trip-3--dep-dock",
+    });
   });
 
   it("uses the live segment key as a structural tiebreak when one dock interval matches uniquely", () => {
@@ -453,6 +457,89 @@ describe("resolveActiveInterval", () => {
       kind: "at-dock",
       startEventKey: "trip-2--arv-dock",
       endEventKey: "trip-3--dep-dock",
+    });
+  });
+
+  it("ignores a future docked live key when the vessel has already arrived into an earlier dock interval", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(16, 20),
+          EventScheduledTime: at(16, 20),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SOU",
+          ScheduledDeparture: at(16, 20),
+          EventScheduledTime: at(16, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "SOU",
+          ScheduledDeparture: at(16, 50),
+          EventScheduledTime: at(16, 50),
+        }),
+        makeScheduledEvent({
+          Key: "trip-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(16, 50),
+          EventScheduledTime: at(17, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(18, 20),
+          EventScheduledTime: at(18, 20),
+        }),
+        makeScheduledEvent({
+          Key: "trip-3--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SOU",
+          ScheduledDeparture: at(18, 20),
+          EventScheduledTime: at(18, 30),
+        }),
+        makeScheduledEvent({
+          Key: "trip-4--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "SOU",
+          ScheduledDeparture: at(18, 45),
+          EventScheduledTime: at(18, 45),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "trip-1--arv-dock",
+          ScheduledDeparture: at(16, 20),
+          TerminalAbbrev: "SOU",
+          EventActualTime: at(16, 53),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(
+      resolveActiveInterval({
+        events,
+        location: makeLocation({
+          AtDock: true,
+          Key: "trip-4",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: "VAI",
+          ScheduledDeparture: at(18, 45),
+          TimeStamp: at(16, 56),
+        }),
+      })
+    ).toEqual({
+      kind: "at-dock",
+      startEventKey: "trip-1--arv-dock",
+      endEventKey: "trip-2--dep-dock",
     });
   });
 

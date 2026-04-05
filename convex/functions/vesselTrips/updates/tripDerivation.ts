@@ -90,10 +90,22 @@ export const deriveTripInputs = (
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
+  const shouldPreserveDockedScheduleIdentity = Boolean(
+    existingTrip &&
+      existingTrip.AtDock &&
+      existingTrip.LeftDock === undefined &&
+      currLocation.AtDock &&
+      currLocation.DepartingTerminalAbbrev ===
+        existingTrip.DepartingTerminalAbbrev
+  );
   const continuingArrivingTerminalAbbrev =
-    currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+    shouldPreserveDockedScheduleIdentity
+      ? existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev
+      : currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
   const continuingScheduledDeparture =
-    currentScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+    shouldPreserveDockedScheduleIdentity
+      ? existingTrip?.ScheduledDeparture ?? currentScheduledDeparture
+      : currentScheduledDeparture ?? existingTrip?.ScheduledDeparture;
   const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
     existingTrip,
     currLocation
@@ -117,7 +129,10 @@ export const deriveTripInputs = (
     currentScheduledDeparture,
     continuingScheduledDeparture,
     startKey: currentIdentity.Key,
-    continuingKey: continuingIdentity.Key,
+    continuingKey:
+      shouldPreserveDockedScheduleIdentity && existingTrip?.Key
+        ? existingTrip.Key
+        : continuingIdentity.Key,
     startSailingDay: currentIdentity.SailingDay,
     continuingSailingDay: continuingIdentity.SailingDay,
     currentIsTripStartReady: currentIdentity.isTripStartReady,

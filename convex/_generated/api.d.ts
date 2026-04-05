@@ -41,7 +41,6 @@ import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vessel
 import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimeline/events/reseed.js";
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
-import type * as domain_vesselTimeline_ownership from "../domain/vesselTimeline/ownership.js";
 import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
@@ -149,6 +148,7 @@ import type * as shared_keys from "../shared/keys.js";
 import type * as shared_scheduleIdentity from "../shared/scheduleIdentity.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_time from "../shared/time.js";
+import type * as shared_timelineIntervals from "../shared/timelineIntervals.js";
 import type * as shared_tripIdentity from "../shared/tripIdentity.js";
 import type * as shared_vessels from "../shared/vessels.js";
 
@@ -192,7 +192,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/reseed": typeof domain_vesselTimeline_events_reseed;
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
-  "domain/vesselTimeline/ownership": typeof domain_vesselTimeline_ownership;
   "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
@@ -300,6 +299,7 @@ declare const fullApi: ApiFromModules<{
   "shared/scheduleIdentity": typeof shared_scheduleIdentity;
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/time": typeof shared_time;
+  "shared/timelineIntervals": typeof shared_timelineIntervals;
   "shared/tripIdentity": typeof shared_tripIdentity;
   "shared/vessels": typeof shared_vessels;
 }>;

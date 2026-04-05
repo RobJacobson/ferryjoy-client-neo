@@ -38,7 +38,7 @@ export const resolveActiveInterval = ({
   const intervals = buildAdjacentTimelineIntervals(events);
 
   return location.AtDock
-    ? resolveDockInterval(intervals, location)
+    ? resolveDockInterval(intervals, events, location)
     : resolveSeaInterval(intervals, location);
 };
 
@@ -95,6 +95,7 @@ const resolveSeaInterval = (
  */
 const resolveDockInterval = (
   intervals: ReturnType<typeof buildAdjacentTimelineIntervals>,
+  events: ConvexVesselTimelineEvent[],
   location: ConvexVesselLocation
 ): ConvexVesselTimelineActiveInterval => {
   const dockTerminal = location.DepartingTerminalAbbrev;
@@ -106,7 +107,37 @@ const resolveDockInterval = (
     (interval): interval is AdjacentDockInterval =>
       interval.kind === "at-dock" && interval.terminalAbbrev === dockTerminal
   );
+  const eventByKey = new Map(events.map((event) => [event.Key, event]));
+  const latestArrival = findLatestArrivalAtTerminal(
+    events,
+    dockTerminal,
+    location.TimeStamp
+  );
+  const latestArrivalMatch = latestArrival
+    ? getUniqueMatch(
+        candidates.filter(
+          (candidate) => candidate.startEventKey === latestArrival.Key
+        )
+      )
+    : getUniqueMatch(
+        candidates.filter((candidate) => {
+          if (candidate.startEventKey !== null) {
+            return false;
+          }
+
+          const endEvent = candidate.endEventKey
+            ? eventByKey.get(candidate.endEventKey)
+            : null;
+
+          return (
+            endEvent !== null &&
+            endEvent !== undefined &&
+            getComparableEventTime(endEvent) >= location.TimeStamp
+          );
+        })
+      );
   const match =
+    latestArrivalMatch ??
     getUniqueMatch(candidates) ??
     (location.Key
       ? getUniqueMatch(
@@ -120,3 +151,23 @@ const resolveDockInterval = (
 
   return toActiveInterval(match);
 };
+
+const findLatestArrivalAtTerminal = (
+  events: ConvexVesselTimelineEvent[],
+  terminalAbbrev: string,
+  observedAt: number
+) =>
+  [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.EventType === "arv-dock" &&
+        event.TerminalAbbrev === terminalAbbrev &&
+        getComparableEventTime(event) <= observedAt
+    ) ?? null;
+
+const getComparableEventTime = (event: ConvexVesselTimelineEvent) =>
+  event.EventActualTime ??
+  event.EventPredictedTime ??
+  event.EventScheduledTime ??
+  event.ScheduledDeparture;

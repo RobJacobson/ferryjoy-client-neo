@@ -100,6 +100,39 @@ describe("baseTripFromLocation", () => {
     expect(trip.PrevScheduledDeparture).toBeUndefined();
     expect(trip.PrevLeftDock).toBeUndefined();
   });
+
+  it("preserves docked schedule continuity when the live feed jumps ahead to a later departure", () => {
+    const existingTrip = makeTrip({
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      Key: "CAT--2026-04-04--16:50--SOU-VAI",
+      ScheduledDeparture: ms("2026-04-04T16:50:00-07:00"),
+      SailingDay: "2026-04-04",
+      NextKey: "CAT--2026-04-04--17:20--VAI-FAU",
+      NextScheduledDeparture: ms("2026-04-04T17:20:00-07:00"),
+      TimeStamp: ms("2026-04-04T16:53:06-07:00"),
+      TripStart: ms("2026-04-04T16:53:06-07:00"),
+    });
+    const currLocation = makeLocation({
+      VesselAbbrev: "CAT",
+      VesselName: "Cathlamet",
+      DepartingTerminalAbbrev: "SOU",
+      DepartingTerminalName: "Southworth",
+      DepartingTerminalID: 20,
+      ArrivingTerminalAbbrev: "VAI",
+      ArrivingTerminalName: "Vashon Island",
+      ArrivingTerminalID: 22,
+      ScheduledDeparture: ms("2026-04-04T18:45:00-07:00"),
+      TimeStamp: ms("2026-04-04T16:56:05-07:00"),
+    });
+
+    const trip = baseTripFromLocation(currLocation, existingTrip, false);
+
+    expect(trip.Key).toBe(existingTrip.Key);
+    expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
+    expect(trip.SailingDay).toBe(existingTrip.SailingDay);
+    expect(trip.ArrivingTerminalAbbrev).toBe(existingTrip.ArrivingTerminalAbbrev);
+  });
 });
 
 /**
