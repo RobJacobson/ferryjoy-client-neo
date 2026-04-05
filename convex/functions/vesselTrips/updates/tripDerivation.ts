@@ -90,17 +90,26 @@ export const deriveTripInputs = (
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
-  const shouldPreserveDockedScheduleIdentity = Boolean(
+  const shouldPreserveDockBoundaryOwner = Boolean(
     existingTrip?.AtDock &&
-      existingTrip.LeftDock === undefined &&
-      currLocation.AtDock &&
-      currLocation.DepartingTerminalAbbrev ===
-        existingTrip.DepartingTerminalAbbrev
+      existingTrip.DepartingTerminalAbbrev ===
+        currLocation.DepartingTerminalAbbrev &&
+      (
+        // While the vessel remains docked, preserve the boundary owner for the
+        // current dock interval so feed omissions do not churn the active trip.
+        (existingTrip.LeftDock === undefined && currLocation.AtDock) ||
+        // On the exact leave-dock tick, write the departure actual to the
+        // boundary that ended the dock interval and starts the sea interval.
+        // Raw feed identity fields can transiently jump ahead as LeftDock first
+        // appears, but that should not reassign ownership of the departure.
+        (existingTrip.LeftDock === undefined &&
+          currLocation.LeftDock !== undefined)
+      )
   );
-  const continuingArrivingTerminalAbbrev = shouldPreserveDockedScheduleIdentity
+  const continuingArrivingTerminalAbbrev = shouldPreserveDockBoundaryOwner
     ? (existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev)
     : (currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev);
-  const continuingScheduledDeparture = shouldPreserveDockedScheduleIdentity
+  const continuingScheduledDeparture = shouldPreserveDockBoundaryOwner
     ? (existingTrip?.ScheduledDeparture ?? currentScheduledDeparture)
     : (currentScheduledDeparture ?? existingTrip?.ScheduledDeparture);
   const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
@@ -127,7 +136,7 @@ export const deriveTripInputs = (
     continuingScheduledDeparture,
     startKey: currentIdentity.Key,
     continuingKey:
-      shouldPreserveDockedScheduleIdentity && existingTrip?.Key
+      shouldPreserveDockBoundaryOwner && existingTrip?.Key
         ? existingTrip.Key
         : continuingIdentity.Key,
     startSailingDay: currentIdentity.SailingDay,

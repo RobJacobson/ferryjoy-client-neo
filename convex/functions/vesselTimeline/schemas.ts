@@ -32,20 +32,6 @@ export type ConvexVesselTimelineEventRecord = Infer<
 export const vesselTimelineEventSchema = vesselTimelineEventRecordSchema;
 export type ConvexVesselTimelineEvent = Infer<typeof vesselTimelineEventSchema>;
 
-export const actualBoundaryEffectSchema = v.object({
-  SegmentKey: v.string(),
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-  EventType: boundaryEventTypeSchema,
-  EventActualTime: v.number(),
-});
-
-export type ConvexActualBoundaryEffect = Infer<
-  typeof actualBoundaryEffectSchema
->;
-
 const vesselTimelineIntervalKindSchema = v.union(
   v.literal("at-dock"),
   v.literal("at-sea")

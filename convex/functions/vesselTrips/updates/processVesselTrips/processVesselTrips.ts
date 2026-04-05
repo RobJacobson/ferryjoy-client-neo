@@ -196,7 +196,7 @@ export const processVesselTripsWithDeps = async (
   await Promise.all([
     actualEffects.length > 0
       ? ctx.runMutation(
-          internal.functions.vesselTimeline.mutations
+          internal.functions.eventsActual.mutations
             .projectActualBoundaryEffects,
           {
             Effects: actualEffects,

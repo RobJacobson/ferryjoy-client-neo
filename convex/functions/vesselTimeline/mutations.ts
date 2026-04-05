@@ -11,14 +11,11 @@ import {
   sortVesselTripEvents,
 } from "domain/vesselTimeline/events";
 import {
-  buildActualBoundaryEventFromEffect,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
-import {
-  actualBoundaryEffectSchema,
-  vesselTimelineEventRecordSchema,
-} from "./schemas";
+import { actualRowsEqual } from "functions/eventsActual/actualRowsEqual";
+import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
  * Replaces the structural scheduled backbone and hydrated actual rows for one
@@ -62,51 +59,6 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
       ActualCount: events.filter((event) => event.EventActualTime !== undefined)
         .length,
     };
-  },
-});
-
-/**
- * Applies sparse actual-time boundary effects emitted by `vesselTrips`.
- *
- * These are incremental overlays, not full-day replacements, so the mutation
- * upserts only the affected keys and skips no-op rewrites.
- *
- * @param args.Effects - Departure and arrival actual effects keyed by segment
- * @returns `null`
- */
-export const projectActualBoundaryEffects = internalMutation({
-  args: {
-    Effects: v.array(actualBoundaryEffectSchema),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const updatedAt = Date.now();
-    const nextRowsByKey = new Map(
-      args.Effects.map((effect) => {
-        const row = buildActualBoundaryEventFromEffect(effect, updatedAt);
-        return [row.Key, row] as const;
-      })
-    );
-
-    for (const [Key, nextRow] of nextRowsByKey) {
-      const existing = await ctx.db
-        .query("eventsActual")
-        .withIndex("by_key", (q) => q.eq("Key", Key))
-        .unique();
-
-      if (!existing) {
-        await ctx.db.insert("eventsActual", nextRow);
-        continue;
-      }
-
-      if (actualRowsEqual(existing, nextRow)) {
-        continue;
-      }
-
-      await ctx.db.replace(existing._id, nextRow);
-    }
-
-    return null;
   },
 });
 
@@ -192,14 +144,3 @@ const scheduledRowsEqual = (
   left.EventScheduledTime === right.EventScheduledTime &&
   (left.IsLastArrivalOfSailingDay ?? false) ===
     (right.IsLastArrivalOfSailingDay ?? false);
-
-const actualRowsEqual = (
-  left: Doc<"eventsActual">,
-  right: ReturnType<typeof buildActualBoundaryEvents>[number]
-) =>
-  left.Key === right.Key &&
-  left.VesselAbbrev === right.VesselAbbrev &&
-  left.SailingDay === right.SailingDay &&
-  left.ScheduledDeparture === right.ScheduledDeparture &&
-  left.TerminalAbbrev === right.TerminalAbbrev &&
-  left.EventActualTime === right.EventActualTime;

@@ -229,8 +229,8 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 | **VesselAbbrev** | currLocation | Direct copy every tick |
 | **DepartingTerminalAbbrev** | currLocation | Direct copy; trip boundary trigger |
 | **ArrivingTerminalAbbrev** | currLocation or existingTrip | `currLocation` when truthy; else `existingTrip` (regular updates only; never old trip at boundary) |
-| **Key** | Raw data | From shared trip identity derivation; start mode uses the current tick's `ScheduledDeparture`/`ArrivingTerminalAbbrev`, continuing mode uses carried-forward values when the feed omits them |
-| **SailingDay** | Raw data | Present if and only if `ScheduledDeparture` is known; derived by the same shared trip identity helper, using the same current-vs-carried-forward rule as `ScheduledDeparture` |
+| **Key** | Raw data + boundary ownership rules | From shared trip identity derivation; start mode uses the current tick's `ScheduledDeparture`/`ArrivingTerminalAbbrev`, continuing mode uses carried-forward values when the feed omits them, and the exact `didJustLeaveDock` tick keeps the departure boundary attached to the segment that owned the vessel during the preceding dock interval |
+| **SailingDay** | Raw data + boundary ownership rules | Present if and only if `ScheduledDeparture` is known; derived by the same shared trip identity helper, using the same current-vs-carried-forward rule as `ScheduledDeparture`, including preserving departure-boundary ownership on the leave-dock tick |
 | **PrevTerminalAbbrev, PrevScheduledDeparture, PrevLeftDock** | completedTrip (trip boundary) or undefined (first trip) | Set once at trip boundary from completed trip (via `tripStart=true`); undefined for first trips; not updated mid-trip |
 | **ArriveDest** | Arrival event | `currLocation.TimeStamp` only when the vessel has already left dock and is now docked at the destination terminal; carried until completion |
 | **TripStart** | Observed boundary event | Set only when the system observed a real trip boundary. At rollover this is the completed trip's `TripEnd`; first-seen trips keep `TripStart` undefined until such a boundary is observed. |
@@ -270,6 +270,18 @@ Centralized in `eventDetection.ts`, `detectTripEvents()` returns:
 
 Departure is recorded only when the feed provides `LeftDock`. `AtDock` may disagree transiently, but it does not create or clear `LeftDock`.
 
+### Leave-Dock Boundary Ownership
+
+The exact tick where `LeftDock` first appears writes the departure actual to the
+boundary that ends the current dock interval and starts the next sea interval.
+
+- Preserve the existing dock-interval owner on that boundary tick when the
+  vessel is departing from the same terminal
+- Do not let a transient future `ScheduledDeparture` / `ArrivingTerminalAbbrev`
+  jump from the raw feed steal ownership of the departure actual
+- Only after the departure boundary has been recorded may later ticks advance to
+  a new segment identity
+
 ### Base Trip Modes
 
 `baseTripFromLocation` now uses two explicit modes:
@@ -288,7 +300,8 @@ Departure is recorded only when the feed provides `LeftDock`. `AtDock` may disag
 - Same-trip actualization in `buildTrip()` before persistence
 - Prediction record insertion via `handlePredictionEvent` in PredictionService after a successful active-trip write
 - Backfill of depart-next actuals onto previous trip (handled by PredictionService internally)
-- `eventsActual` departure projection for the current trip
+- `eventsActual` departure projection for the current trip, anchored to the
+  pre-departure dock-owned segment
 - `eventsPredicted` refresh for the affected boundary-key scope
 
 The PredictionService now manages only post-persist prediction side effects:
@@ -401,7 +414,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs (batch when 2+ specs) |
 | Mutation | `completeAndStartNewTrip` | Per vessel, on trip boundary |
 | Mutation | `upsertVesselTripsBatch` | Once if has active upserts |
-| Mutation | `projectActualBoundaryEffects` | Once if any trip-driven actual effects were emitted |
+| Mutation | `functions/eventsActual/mutations.projectActualBoundaryEffects` | Once if any trip-driven actual effects were emitted |
 | Mutation | `projectPredictedBoundaryEffects` | Once if any trip-driven predicted effects were emitted |
 | Mutation | `setDepartNextActualsForMostRecentCompletedTrip` | Per vessel, when didJustLeaveDock |
 | Mutation | `bulkInsertPredictions` | Once if has completed prediction records |

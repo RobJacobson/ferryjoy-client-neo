@@ -2,6 +2,7 @@
  * Pure helpers for deriving normalized VesselTimeline boundary-event rows.
  */
 
+import type { ConvexActualBoundaryEffect } from "../../functions/eventsActual/projectionSchemas";
 import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
 import type {
   ConvexPredictedBoundaryProjectionEffect,
@@ -13,10 +14,7 @@ import type {
 } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { PredictionType } from "../../functions/predictions/schemas";
-import type {
-  ConvexActualBoundaryEffect,
-  ConvexVesselTimelineEventRecord,
-} from "../../functions/vesselTimeline/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";
 import { buildBoundaryKey } from "../../shared/keys";
 

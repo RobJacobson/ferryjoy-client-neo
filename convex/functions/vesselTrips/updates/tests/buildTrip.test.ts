@@ -66,6 +66,44 @@ describe("buildTrip", () => {
       scheduledSegment.NextDepartingTime
     );
   });
+
+  it("preserves the dock-owned identity on the leave-dock tick", async () => {
+    const existingTrip = makeTrip({
+      Key: "CHE--2026-03-13--09:30--ORI-LOP",
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      LeftDock: undefined,
+      AtDock: true,
+      TimeStamp: ms("2026-03-13T09:29:30-07:00"),
+    });
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "ANA",
+      ScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
+      LeftDock: ms("2026-03-13T09:34:00-07:00"),
+      AtDock: false,
+      Key: "CHE--2026-03-13--10:15--ORI-ANA",
+      TimeStamp: ms("2026-03-13T09:34:05-07:00"),
+    });
+
+    const built = await buildTrip(
+      createTestActionCtx({}) as never,
+      currLocation,
+      existingTrip,
+      false,
+      makeEvents({ didJustLeaveDock: true, keyChanged: false }),
+      false
+    );
+
+    expect(built.Key).toBe(existingTrip.Key);
+    expect(built.ArrivingTerminalAbbrev).toBe(
+      existingTrip.ArrivingTerminalAbbrev
+    );
+    expect(built.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
+    expect(built.LeftDock).toBe(currLocation.LeftDock);
+  });
 });
 
 type TestActionCtx = {
