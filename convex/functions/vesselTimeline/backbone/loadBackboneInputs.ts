@@ -1,12 +1,12 @@
 /**
- * Convex-specific VesselTimeline loaders for the public backbone query.
+ * Loads same-day normalized rows for the VesselTimeline backbone query.
  */
 
 import type { QueryCtx } from "_generated/server";
-import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../eventsScheduled/schemas";
+import { stripConvexMeta } from "../../../shared/stripConvexMeta";
+import type { ConvexActualBoundaryEvent } from "../../eventsActual/schemas";
+import type { ConvexPredictedBoundaryEvent } from "../../eventsPredicted/schemas";
+import type { ConvexScheduledBoundaryEvent } from "../../eventsScheduled/schemas";
 
 export type LoadedVesselTimelineBackboneInputs = {
   scheduledEvents: ConvexScheduledBoundaryEvent[];

@@ -4,8 +4,7 @@
 
 import { query } from "_generated/server";
 import { v } from "convex/values";
-import { buildVesselTimelineBackbone } from "../../domain/vesselTimeline/viewModel";
-import { loadVesselTimelineBackboneInputs } from "./loaders";
+import * as vesselTimelineBackbone from "./backbone/getVesselTimelineBackbone";
 import { vesselTimelineBackboneSchema } from "./schemas";
 
 /**
@@ -22,13 +21,6 @@ export const getVesselTimelineBackbone = query({
     SailingDay: v.string(),
   },
   returns: vesselTimelineBackboneSchema,
-  handler: async (ctx, args) => {
-    const inputs = await loadVesselTimelineBackboneInputs(ctx, args);
-
-    return buildVesselTimelineBackbone({
-      VesselAbbrev: args.VesselAbbrev,
-      SailingDay: args.SailingDay,
-      ...inputs,
-    });
-  },
+  handler: async (ctx, args) =>
+    vesselTimelineBackbone.getVesselTimelineBackbone(ctx, args),
 });

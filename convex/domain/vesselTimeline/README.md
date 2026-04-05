@@ -138,8 +138,10 @@ schedule lookups.
   Shared adjacent-interval derivation.
 - `convex/shared/activeTimelineInterval.ts`
   Pure active-interval resolver with actual-only ownership semantics.
-- `convex/functions/vesselTimeline/loaders.ts`
+- `convex/functions/vesselTimeline/backbone/loadBackboneInputs.ts`
   Loads same-day query inputs only.
+- `convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts`
+  Composes loads with `viewModel` for the query handler.
 - `convex/functions/vesselTimeline/queries.ts`
   Exposes `getVesselTimelineBackbone`.
 
@@ -150,6 +152,7 @@ schedule lookups.
 3. `convex/shared/timelineIntervals.ts`
 4. `convex/shared/activeTimelineInterval.ts`
 5. `viewModel.ts`
-6. `convex/functions/vesselTimeline/loaders.ts`
-7. `convex/functions/vesselTimeline/queries.ts`
-8. `src/features/VesselTimeline/docs/ARCHITECTURE.md`
+6. `convex/functions/vesselTimeline/backbone/loadBackboneInputs.ts`
+7. `convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts`
+8. `convex/functions/vesselTimeline/queries.ts`
+9. `src/features/VesselTimeline/docs/ARCHITECTURE.md`

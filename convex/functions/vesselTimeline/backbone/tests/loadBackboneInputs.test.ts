@@ -1,13 +1,13 @@
 /**
- * Covers the single-sailing-day VesselTimeline backbone loader orchestration.
+ * Covers the single-sailing-day VesselTimeline backbone input loading.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
-import type { ConvexActualBoundaryEvent } from "../../eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../eventsScheduled/schemas";
-import { loadVesselTimelineBackboneInputs } from "../loaders";
+import type { ConvexActualBoundaryEvent } from "../../../eventsActual/schemas";
+import type { ConvexPredictedBoundaryEvent } from "../../../eventsPredicted/schemas";
+import type { ConvexScheduledBoundaryEvent } from "../../../eventsScheduled/schemas";
+import { loadVesselTimelineBackboneInputs } from "../loadBackboneInputs";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
