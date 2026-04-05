@@ -32,19 +32,25 @@ export const loadVesselTimelineBackboneInputs = async (
     ctx.db
       .query("eventsScheduled")
       .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
+        q
+          .eq("VesselAbbrev", args.VesselAbbrev)
+          .eq("SailingDay", args.SailingDay)
       )
       .collect(),
     ctx.db
       .query("eventsActual")
       .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
+        q
+          .eq("VesselAbbrev", args.VesselAbbrev)
+          .eq("SailingDay", args.SailingDay)
       )
       .collect(),
     ctx.db
       .query("eventsPredicted")
       .withIndex("by_vessel_and_sailing_day", (q) =>
-        q.eq("VesselAbbrev", args.VesselAbbrev).eq("SailingDay", args.SailingDay)
+        q
+          .eq("VesselAbbrev", args.VesselAbbrev)
+          .eq("SailingDay", args.SailingDay)
       )
       .collect(),
   ]);

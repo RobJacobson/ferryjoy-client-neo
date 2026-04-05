@@ -40,14 +40,8 @@ export const useVesselTimelinePresentationState = ({
   const nowMs = useNowMs(1000);
   const terminalsData = useTerminalsData();
   const { vesselLocations } = useConvexVesselLocations();
-  const {
-    vesselAbbrev,
-    sailingDay,
-    events,
-    isLoading,
-    errorMessage,
-    retry,
-  } = useConvexVesselTimeline();
+  const { vesselAbbrev, sailingDay, events, isLoading, errorMessage, retry } =
+    useConvexVesselTimeline();
 
   if (isLoading) {
     return {
@@ -83,8 +77,9 @@ export const useVesselTimelinePresentationState = ({
     terminalsData.terminalsByAbbrev[terminalAbbrev.toUpperCase()]
       ?.TerminalName ?? null;
   const currentVesselLocation =
-    vesselLocations.find((location) => location.VesselAbbrev === vesselAbbrev) ??
-    null;
+    vesselLocations.find(
+      (location) => location.VesselAbbrev === vesselAbbrev
+    ) ?? null;
 
   return {
     isLoading: false,

@@ -85,7 +85,9 @@ export const buildTrip = async (
   const shouldAttemptAtSeaPredictions =
     !withKeyChangeClearedDerivedState.AtDock &&
     Boolean(withKeyChangeClearedDerivedState.LeftDock) &&
-    (events.didJustLeaveDock || events.keyChanged || shouldRunPredictionFallback) &&
+    (events.didJustLeaveDock ||
+      events.keyChanged ||
+      shouldRunPredictionFallback) &&
     (!withKeyChangeClearedDerivedState.AtSeaArriveNext ||
       !withKeyChangeClearedDerivedState.AtSeaDepartNext);
 

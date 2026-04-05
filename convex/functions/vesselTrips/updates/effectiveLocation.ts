@@ -7,12 +7,12 @@ import type { ActionCtx } from "_generated/server";
 import { resolveDockedScheduledSegment } from "functions/eventsScheduled/dockedScheduleResolver";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { getSailingDay } from "shared/time";
 import {
   applyEffectiveTripIdentityToLocation,
   hasStableDockedTripIdentity,
   resolveEffectiveDockedTripIdentity,
 } from "shared/effectiveTripIdentity";
+import { getSailingDay } from "shared/time";
 
 /**
  * Resolve the effective location that downstream trip building should use.

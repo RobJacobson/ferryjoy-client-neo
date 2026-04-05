@@ -3,10 +3,10 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
+import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { mergeTimelineEvents } from "../timelineEvents";
 
 const at = (hours: number, minutes: number, day = 25) =>

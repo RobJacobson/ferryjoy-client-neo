@@ -205,7 +205,7 @@ export const processVesselTripsWithDeps = async (
       : Promise.resolve(),
     predictedEffects.length > 0
       ? ctx.runMutation(
-          internal.functions.vesselTimeline.mutations
+          internal.functions.eventsPredicted.mutations
             .projectPredictedBoundaryEffects,
           {
             Effects: predictedEffects,

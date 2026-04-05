@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveEffectiveLocation } from "../effectiveLocation";
 
 describe("resolveEffectiveLocation", () => {
@@ -75,7 +75,9 @@ describe("resolveEffectiveLocation", () => {
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
     );
-    expect(effectiveLocation.ScheduledDeparture).toBe(nextSegment.DepartingTime);
+    expect(effectiveLocation.ScheduledDeparture).toBe(
+      nextSegment.DepartingTime
+    );
   });
 
   it("uses the same-day docked fallback once for a first-seen keyless trip", async () => {

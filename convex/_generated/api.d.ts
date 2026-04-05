@@ -43,6 +43,8 @@ import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTi
 import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
+import type * as functions_eventsPredicted_mutations from "../functions/eventsPredicted/mutations.js";
+import type * as functions_eventsPredicted_projectionSchemas from "../functions/eventsPredicted/projectionSchemas.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
 import type * as functions_eventsScheduled_dockedScheduleResolver from "../functions/eventsScheduled/dockedScheduleResolver.js";
 import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
@@ -197,6 +199,8 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
+  "functions/eventsPredicted/mutations": typeof functions_eventsPredicted_mutations;
+  "functions/eventsPredicted/projectionSchemas": typeof functions_eventsPredicted_projectionSchemas;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
   "functions/eventsScheduled/dockedScheduleResolver": typeof functions_eventsScheduled_dockedScheduleResolver;
   "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;

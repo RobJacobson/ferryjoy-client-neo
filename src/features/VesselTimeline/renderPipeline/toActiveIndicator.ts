@@ -2,9 +2,9 @@
  * Pipeline stage: derive the active indicator from the selected render row.
  */
 
-import type { VesselLocation } from "@/types";
 import type { TimelineActiveIndicator } from "@/components/timeline";
 import { clamp } from "@/shared/utils";
+import type { VesselLocation } from "@/types";
 import { getDisplayTime } from "../rowEventTime";
 import type { VesselTimelineRow } from "../types";
 import { isCompressedStartDockRow } from "./isCompressedStartDockRow";

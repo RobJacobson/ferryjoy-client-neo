@@ -16,13 +16,11 @@ export type ActiveTimelineBoundaryEvent = {
   EventActualTime?: unknown;
 };
 
-export type ActiveTimelineInterval =
-  | {
-      kind: "at-dock" | "at-sea";
-      startEventKey: string | null;
-      endEventKey: string | null;
-    }
-  | null;
+export type ActiveTimelineInterval = {
+  kind: "at-dock" | "at-sea";
+  startEventKey: string | null;
+  endEventKey: string | null;
+} | null;
 
 /**
  * Resolves the active interval from ordered timeline events using actual

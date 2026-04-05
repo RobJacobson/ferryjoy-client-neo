@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { TripEvents } from "../eventDetection";
 import { buildTrip } from "../buildTrip";
+import type { TripEvents } from "../eventDetection";
 
 describe("buildTrip", () => {
   it("clears carried prediction state when the trip key changes", async () => {
@@ -42,7 +42,9 @@ describe("buildTrip", () => {
 
     const built = await buildTrip(
       createTestActionCtx({
-        scheduledSegmentByKey: new Map([[scheduledSegment.Key, scheduledSegment]]),
+        scheduledSegmentByKey: new Map([
+          [scheduledSegment.Key, scheduledSegment],
+        ]),
       }) as never,
       currLocation,
       existingTrip,

@@ -8,8 +8,8 @@ import { v } from "convex/values";
 import { resolveActiveTimelineInterval } from "shared/activeTimelineInterval";
 import { buildBoundaryKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import { mergeTimelineEvents } from "../../domain/vesselTimeline/timelineEvents";
+import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import type { ConvexScheduledBoundaryEvent } from "./schemas";
 import { inferredScheduledSegmentSchema } from "./schemas";
 import {

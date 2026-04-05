@@ -4,6 +4,10 @@
 
 import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
 import type {
+  ConvexPredictedBoundaryProjectionEffect,
+  ConvexPredictedBoundaryProjectionRow,
+} from "../../functions/eventsPredicted/projectionSchemas";
+import type {
   ConvexPredictedBoundaryEvent,
   ConvexPredictionSource,
 } from "../../functions/eventsPredicted/schemas";
@@ -11,8 +15,6 @@ import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsSchedul
 import type { PredictionType } from "../../functions/predictions/schemas";
 import type {
   ConvexActualBoundaryEffect,
-  ConvexPredictedBoundaryProjectionEffect,
-  ConvexPredictedBoundaryProjectionRow,
   ConvexVesselTimelineEventRecord,
 } from "../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../functions/vesselTrips/schemas";

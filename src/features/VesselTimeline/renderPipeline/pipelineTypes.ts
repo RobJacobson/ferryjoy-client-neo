@@ -9,7 +9,6 @@ import type {
   VesselTimelineActiveInterval,
   VesselTimelineEvent,
 } from "convex/functions/vesselTimeline/schemas";
-import type { VesselLocation } from "@/types";
 import type {
   RowLayoutBounds,
   TerminalCardGeometry,
@@ -17,6 +16,7 @@ import type {
   TimelineRenderRow,
   TimelineVisualTheme,
 } from "@/components/timeline";
+import type { VesselLocation } from "@/types";
 import type { VesselTimelineLayoutConfig, VesselTimelineRow } from "../types";
 
 /**

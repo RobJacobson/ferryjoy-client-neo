@@ -141,7 +141,7 @@ const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
   EventType: event.EventType,
 });
 
-const getUniqueMatch = <T>(matches: T[]) =>
+const _getUniqueMatch = <T>(matches: T[]) =>
   matches.length === 1 ? matches[0] : null;
 
 const buildScheduledIntervalContext = (

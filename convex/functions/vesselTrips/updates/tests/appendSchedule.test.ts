@@ -41,7 +41,9 @@ describe("appendFinalSchedule", () => {
 
     const enriched = await appendFinalSchedule(
       createTestActionCtx({
-        scheduledSegmentByKey: new Map([[scheduledSegment.Key, scheduledSegment]]),
+        scheduledSegmentByKey: new Map([
+          [scheduledSegment.Key, scheduledSegment],
+        ]),
       }) as never,
       baseTrip,
       makeTrip({ Key: "CHE--2026-03-13--09:30--MUK-CLI" })

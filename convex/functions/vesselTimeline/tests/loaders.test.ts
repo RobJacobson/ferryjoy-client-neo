@@ -139,7 +139,7 @@ const makeQueryCtx = (data: MockQueryData): QueryCtx =>
     db: {
       query: (tableName: string) => ({
         withIndex: (
-          indexName: string,
+          _indexName: string,
           buildRange: (q: {
             eq: (fieldName: string, value: string) => unknown;
           }) => unknown
