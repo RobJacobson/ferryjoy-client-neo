@@ -393,7 +393,7 @@ describe("resolveActiveInterval", () => {
     });
   });
 
-  it("uses the live segment key as a structural tiebreak when one dock interval matches uniquely", () => {
+  it("uses the latest completed arrival to choose the current dock interval", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
         makeScheduledEvent({

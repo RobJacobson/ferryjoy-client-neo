@@ -6,6 +6,7 @@
  */
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import { resolveDockedScheduledSegment } from "functions/eventsScheduled/dockedScheduleResolver";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
@@ -100,50 +101,34 @@ const inferDockedTripFromSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ) => {
-  if (existingTrip?.NextKey) {
-    // Best case: the completed trip already knows its exact scheduled successor.
-    const exactNextSegment = await ctx.runQuery(
-      internal.functions.eventsScheduled.queries
-        .getScheduledDepartureSegmentBySegmentKey,
-      { segmentKey: existingTrip.NextKey }
-    );
-
-    if (
-      exactNextSegment &&
-      exactNextSegment.DepartingTerminalAbbrev ===
-        baseTrip.DepartingTerminalAbbrev
-    ) {
-      return exactNextSegment;
-    }
-  }
-
-  if (existingTrip?.ScheduledDeparture !== undefined) {
-    // Late-service fallback: stay on the next departure event after the
-    // completed trip's scheduled departure, even if that time is in the past.
-    const rolloverMatch = await ctx.runQuery(
-      internal.functions.eventsScheduled.queries
-        .getNextDepartureSegmentAfterDeparture,
-      {
-        vesselAbbrev: baseTrip.VesselAbbrev,
-        departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
-        previousScheduledDeparture: existingTrip.ScheduledDeparture,
-      }
-    );
-
-    if (rolloverMatch) {
-      return rolloverMatch;
-    }
-  }
-
-  // First-seen docked vessels have no prior trip continuity, so the final
-  // fallback is purely event-based dock-interval ownership.
-  return ctx.runQuery(
-    internal.functions.eventsScheduled.queries
-      .getDockedDepartureSegmentForVesselAtTerminal,
+  const resolution = await resolveDockedScheduledSegment(
+    {
+      getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
+        ctx.runQuery(
+          internal.functions.eventsScheduled.queries
+            .getScheduledDepartureSegmentBySegmentKey,
+          { segmentKey }
+        ),
+      getNextDepartureSegmentAfterDeparture: (args) =>
+        ctx.runQuery(
+          internal.functions.eventsScheduled.queries
+            .getNextDepartureSegmentAfterDeparture,
+          args
+        ),
+      getDockedDepartureSegmentForVesselAtTerminal: (args) =>
+        ctx.runQuery(
+          internal.functions.eventsScheduled.queries
+            .getDockedDepartureSegmentForVesselAtTerminal,
+          args
+        ),
+    },
     {
       vesselAbbrev: baseTrip.VesselAbbrev,
       departingTerminalAbbrev: baseTrip.DepartingTerminalAbbrev,
       observedAt: baseTrip.TimeStamp,
+      existingTrip,
     }
   );
+
+  return resolution?.segment ?? null;
 };

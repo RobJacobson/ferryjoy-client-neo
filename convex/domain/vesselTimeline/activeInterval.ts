@@ -39,7 +39,7 @@ export const resolveActiveInterval = ({
 
   return location.AtDock
     ? resolveDockInterval(intervals, events, location)
-    : resolveSeaInterval(intervals, location);
+    : resolveSeaInterval(intervals, events, location);
 };
 
 const getUniqueMatch = <T>(matches: T[]) =>
@@ -69,25 +69,47 @@ const toActiveInterval = (
  */
 const resolveSeaInterval = (
   intervals: ReturnType<typeof buildAdjacentTimelineIntervals>,
+  events: ConvexVesselTimelineEvent[],
   location: ConvexVesselLocation
-): ConvexVesselTimelineActiveInterval =>
-  toActiveInterval(
-    location.Key
+): ConvexVesselTimelineActiveInterval => {
+  const liveKeyMatch = location.Key
+    ? getUniqueMatch(
+        intervals.filter(
+          (interval) =>
+            interval.kind === "at-sea" && interval.segmentKey === location.Key
+        )
+      )
+    : null;
+
+  if (liveKeyMatch) {
+    return toActiveInterval(liveKeyMatch);
+  }
+
+  const latestDeparture = findLatestCompletedBoundaryEvent(
+    events,
+    location.TimeStamp,
+    {
+      eventType: "dep-dock",
+      terminalAbbrev: location.DepartingTerminalAbbrev,
+    }
+  );
+
+  return toActiveInterval(
+    latestDeparture
       ? getUniqueMatch(
           intervals.filter(
             (interval) =>
-              interval.kind === "at-sea" && interval.segmentKey === location.Key
+              interval.kind === "at-sea" &&
+              interval.startEventKey === latestDeparture.Key
           )
         )
       : null
   );
+};
 
 /**
- * Resolves an active at-dock interval directly from same-day event evidence.
- *
- * Docked attachment is interval-first: the live observation picks an arrival-
- * to-departure span at the observed terminal rather than first inferring a
- * segment key and then converting that key back into an interval.
+ * Resolves an active at-dock interval from the latest completed arrival at the
+ * observed terminal.
  *
  * @param events - Ordered same-day events
  * @param location - Current live vessel-location row
@@ -103,71 +125,51 @@ const resolveDockInterval = (
     return null;
   }
 
-  const candidates = intervals.filter(
+  const dockIntervals = intervals.filter(
     (interval): interval is AdjacentDockInterval =>
       interval.kind === "at-dock" && interval.terminalAbbrev === dockTerminal
   );
-  const eventByKey = new Map(events.map((event) => [event.Key, event]));
-  const latestArrival = findLatestArrivalAtTerminal(
+  const latestArrival = findLatestCompletedBoundaryEvent(
     events,
-    dockTerminal,
-    location.TimeStamp
+    location.TimeStamp,
+    {
+      eventType: "arv-dock",
+      terminalAbbrev: dockTerminal,
+    }
   );
-  const latestArrivalMatch = latestArrival
-    ? getUniqueMatch(
-        candidates.filter(
-          (candidate) => candidate.startEventKey === latestArrival.Key
-        )
-      )
-    : getUniqueMatch(
-        candidates.filter((candidate) => {
-          if (candidate.startEventKey !== null) {
-            return false;
-          }
 
-          const endEvent = candidate.endEventKey
-            ? eventByKey.get(candidate.endEventKey)
-            : null;
-
-          return (
-            endEvent !== null &&
-            endEvent !== undefined &&
-            getComparableEventTime(endEvent) >= location.TimeStamp
-          );
-        })
-      );
-  const match =
-    latestArrivalMatch ??
-    getUniqueMatch(candidates) ??
-    (location.Key
+  return toActiveInterval(
+    latestArrival
       ? getUniqueMatch(
-          candidates.filter(
-            (candidate) =>
-              candidate.previousSegmentKey === location.Key ||
-              candidate.nextSegmentKey === location.Key
+          dockIntervals.filter(
+            (interval) => interval.startEventKey === latestArrival.Key
           )
         )
-      : null);
-
-  return toActiveInterval(match);
+      : getUniqueMatch(
+          dockIntervals.filter((interval) => interval.startEventKey === null)
+        )
+  );
 };
 
-const findLatestArrivalAtTerminal = (
+const findLatestCompletedBoundaryEvent = (
   events: ConvexVesselTimelineEvent[],
-  terminalAbbrev: string,
-  observedAt: number
+  observedAt: number,
+  args: {
+    eventType: ConvexVesselTimelineEvent["EventType"];
+    terminalAbbrev?: string;
+  }
 ) =>
   [...events]
     .reverse()
     .find(
       (event) =>
-        event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === terminalAbbrev &&
-        getComparableEventTime(event) <= observedAt
+        event.EventType === args.eventType &&
+        (args.terminalAbbrev === undefined ||
+          event.TerminalAbbrev === args.terminalAbbrev) &&
+        getBoundaryCompletionTime(event) <= observedAt
     ) ?? null;
 
-const getComparableEventTime = (event: ConvexVesselTimelineEvent) =>
+const getBoundaryCompletionTime = (event: ConvexVesselTimelineEvent) =>
   event.EventActualTime ??
-  event.EventPredictedTime ??
   event.EventScheduledTime ??
   event.ScheduledDeparture;

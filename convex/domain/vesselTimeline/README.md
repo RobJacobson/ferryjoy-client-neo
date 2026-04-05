@@ -264,13 +264,22 @@ viewModel.ts
 
 It does not scan by time proximity.
 
+The simplifying rule is:
+
+- the active interval is the interval that follows the last completed boundary
+- `vesselLocations` only tells us whether the vessel is docked or at sea and
+  which terminal it is currently at
+- actual boundary times override schedule when present; otherwise schedule is
+  the happy-path backbone
+
 ### At-Sea Resolution
 
 At sea is simple:
 
 - build adjacent intervals
-- find the unique `at-sea` interval whose `segmentKey === location.Key`
-- if there is not exactly one match, return `null`
+- first try the live `location.Key`
+- otherwise find the latest completed `dep-dock` as of `ObservedAt`
+- choose the sea interval that starts at that departure
 
 ```text
 location.AtDock = false
@@ -286,30 +295,29 @@ activeInterval = { kind: "at-sea", startEventKey, endEventKey }
 
 ### At-Dock Resolution
 
-At dock is still structural:
+At dock is also structural:
 
 1. Build adjacent intervals.
-2. Filter to `at-dock` intervals at `location.DepartingTerminalAbbrev`.
-3. If exactly one candidate exists, use it.
-4. If multiple candidates exist, use `location.Key` only as a structural
-   tiebreak against `previousSegmentKey` or `nextSegmentKey`.
-5. If still ambiguous, return `null`.
+2. Find the latest completed `arv-dock` at
+   `location.DepartingTerminalAbbrev` as of `ObservedAt`.
+3. Choose the dock interval that begins at that arrival.
+4. If no arrival has completed yet, use the opening dock interval for that
+   terminal.
 
 ```text
 location.AtDock = true
 location.DepartingTerminalAbbrev = P52
-location.Key = trip-4
+ObservedAt = after trip-3--arv-dock
 
-candidates at P52:
+latest completed boundary = trip-3--arv-dock
 
-  Dock A: previousSegmentKey = trip-3, nextSegmentKey = trip-4  <- match
-  Dock B: previousSegmentKey = trip-9, nextSegmentKey = trip-10
-
-activeInterval = Dock A
+activeInterval = interval after trip-3--arv-dock
 ```
 
-No scheduled, predicted, or actual timestamp is used to choose between dock
-intervals.
+Predicted times do not complete boundaries. Completion uses:
+
+- actual boundary time when present
+- otherwise scheduled boundary time
 
 ## Carry-In Arrival Behavior
 
@@ -391,7 +399,7 @@ Frontend receives event-first payload
 - the public query stays scoped to one vessel and one sailing day
 - the only cross-day carry is one optional previous-day arrival
 - `vesselLocations` is the only live-state source for query-time attachment
-- dock ambiguity returns `null` instead of guessing
+- the active interval follows the last completed boundary
 - delayed arrivals do not steal ownership from their structural dock interval
 - invalid seams are ignored rather than patched into inferred intervals
 

@@ -299,7 +299,7 @@ Neither one changes interval identity.
 - optional carry-in arrival lookup
 - merging actual and predicted overlays onto scheduled events
 - structural interval derivation rules
-- active attachment from live state
+- active attachment from raw live state against the event backbone
 - ambiguity handling
 
 ### Client Owns

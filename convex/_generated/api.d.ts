@@ -45,6 +45,7 @@ import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTime
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
+import type * as functions_eventsScheduled_dockedScheduleResolver from "../functions/eventsScheduled/dockedScheduleResolver.js";
 import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
 import type * as functions_eventsScheduled_queries from "../functions/eventsScheduled/queries.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
@@ -127,6 +128,7 @@ import type * as functions_vesselTrips_updates_appendSchedule from "../functions
 import type * as functions_vesselTrips_updates_baseTripFromLocation from "../functions/vesselTrips/updates/baseTripFromLocation.js";
 import type * as functions_vesselTrips_updates_buildCompletedTrip from "../functions/vesselTrips/updates/buildCompletedTrip.js";
 import type * as functions_vesselTrips_updates_buildTrip from "../functions/vesselTrips/updates/buildTrip.js";
+import type * as functions_vesselTrips_updates_effectiveLocation from "../functions/vesselTrips/updates/effectiveLocation.js";
 import type * as functions_vesselTrips_updates_eventDetection from "../functions/vesselTrips/updates/eventDetection.js";
 import type * as functions_vesselTrips_updates_index from "../functions/vesselTrips/updates/index.js";
 import type * as functions_vesselTrips_updates_processVesselTrips_index from "../functions/vesselTrips/updates/processVesselTrips/index.js";
@@ -140,6 +142,7 @@ import type * as functions_vessels_schemas from "../functions/vessels/schemas.js
 import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
+import type * as shared_effectiveTripIdentity from "../shared/effectiveTripIdentity.js";
 import type * as shared_fetchWsfScheduleData from "../shared/fetchWsfScheduleData.js";
 import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLocations.js";
 import type * as shared_identity from "../shared/identity.js";
@@ -196,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
+  "functions/eventsScheduled/dockedScheduleResolver": typeof functions_eventsScheduled_dockedScheduleResolver;
   "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;
   "functions/eventsScheduled/queries": typeof functions_eventsScheduled_queries;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
@@ -278,6 +282,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/baseTripFromLocation": typeof functions_vesselTrips_updates_baseTripFromLocation;
   "functions/vesselTrips/updates/buildCompletedTrip": typeof functions_vesselTrips_updates_buildCompletedTrip;
   "functions/vesselTrips/updates/buildTrip": typeof functions_vesselTrips_updates_buildTrip;
+  "functions/vesselTrips/updates/effectiveLocation": typeof functions_vesselTrips_updates_effectiveLocation;
   "functions/vesselTrips/updates/eventDetection": typeof functions_vesselTrips_updates_eventDetection;
   "functions/vesselTrips/updates/index": typeof functions_vesselTrips_updates_index;
   "functions/vesselTrips/updates/processVesselTrips/index": typeof functions_vesselTrips_updates_processVesselTrips_index;
@@ -291,6 +296,7 @@ declare const fullApi: ApiFromModules<{
   "shared/convertDates": typeof shared_convertDates;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
+  "shared/effectiveTripIdentity": typeof shared_effectiveTripIdentity;
   "shared/fetchWsfScheduleData": typeof shared_fetchWsfScheduleData;
   "shared/fetchWsfVesselLocations": typeof shared_fetchWsfVesselLocations;
   "shared/identity": typeof shared_identity;
