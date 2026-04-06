@@ -22,4 +22,6 @@ export const actualRowsEqual = (
   left.SailingDay === right.SailingDay &&
   left.ScheduledDeparture === right.ScheduledDeparture &&
   left.TerminalAbbrev === right.TerminalAbbrev &&
+  (left.EventOccurred ?? (left.EventActualTime !== undefined)) ===
+    (right.EventOccurred ?? (right.EventActualTime !== undefined)) &&
   left.EventActualTime === right.EventActualTime;

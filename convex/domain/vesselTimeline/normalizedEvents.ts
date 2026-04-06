@@ -63,7 +63,10 @@ export const buildActualBoundaryEvents = (
   updatedAt: number
 ): ConvexActualBoundaryEvent[] =>
   events
-    .filter((event) => event.EventActualTime !== undefined)
+    .filter(
+      (event) =>
+        event.EventOccurred === true || event.EventActualTime !== undefined
+    )
     .map((event) => ({
       Key: event.Key,
       VesselAbbrev: event.VesselAbbrev,
@@ -71,7 +74,8 @@ export const buildActualBoundaryEvents = (
       UpdatedAt: updatedAt,
       ScheduledDeparture: event.ScheduledDeparture,
       TerminalAbbrev: event.TerminalAbbrev,
-      EventActualTime: event.EventActualTime as number,
+      EventOccurred: true,
+      EventActualTime: event.EventActualTime,
     }));
 
 /**
@@ -92,6 +96,7 @@ export const buildActualBoundaryEventFromEffect = (
   UpdatedAt: updatedAt,
   ScheduledDeparture: effect.ScheduledDeparture,
   TerminalAbbrev: effect.TerminalAbbrev,
+  EventOccurred: true,
   EventActualTime: effect.EventActualTime,
 });
 

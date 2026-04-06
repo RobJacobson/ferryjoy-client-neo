@@ -115,6 +115,7 @@ const buildSeedEventsForSegment = (
       EventType: "dep-dock",
       EventScheduledTime: segment.ScheduledDeparture,
       EventPredictedTime: undefined,
+      EventOccurred: undefined,
       EventActualTime: undefined,
     },
     {
@@ -127,6 +128,7 @@ const buildSeedEventsForSegment = (
       EventType: "arv-dock",
       EventScheduledTime: segment.ScheduledArrival,
       EventPredictedTime: undefined,
+      EventOccurred: undefined,
       EventActualTime: undefined,
     },
   ];

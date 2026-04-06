@@ -121,6 +121,14 @@ const syncVesselTimelineForDate = async (
     }
   );
 
+  await ctx.runMutation(
+    internal.functions.eventsActual.mutations
+      .reconcileActualBoundaryOccurrencesForSailingDay,
+    {
+      SailingDay: targetDate,
+    }
+  );
+
   console.log(
     `${logPrefix} replace sync completed for ${targetDate}: ${result.ScheduledCount} scheduled rows`
   );

@@ -54,6 +54,9 @@ export const mergeSeededVesselTripEvents = ({
     mergedEvents.push({
       ...seededEvent,
       EventPredictedTime: existingEvent.EventPredictedTime,
+      EventOccurred:
+        existingEvent.EventOccurred ??
+        (existingEvent.EventActualTime !== undefined ? true : undefined),
       EventActualTime: existingEvent.EventActualTime,
     });
   }
@@ -82,6 +85,10 @@ const isHistoryOwnedEvent = (
   nowTimestamp: number
 ) => {
   if (event.EventActualTime !== undefined) {
+    return true;
+  }
+
+  if (event.EventOccurred === true) {
     return true;
   }
 

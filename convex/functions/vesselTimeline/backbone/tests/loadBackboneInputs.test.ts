@@ -205,6 +205,7 @@ const makeActualEvent = (
   UpdatedAt: at(6, 0),
   ScheduledDeparture: at(8, 0),
   TerminalAbbrev: "P52",
+  EventOccurred: true,
   EventActualTime: at(8, 2),
   ...overrides,
 });

@@ -13,6 +13,7 @@ export type ActiveTimelineBoundaryEvent = {
   SegmentKey: string;
   TerminalAbbrev: string;
   EventType: "dep-dock" | "arv-dock";
+  EventOccurred?: true;
   EventActualTime?: unknown;
 };
 
@@ -27,8 +28,9 @@ export type ActiveTimelineInterval = {
  * boundary completion only.
  *
  * The active interval is the structural interval immediately after the latest
- * event that has `EventActualTime`. If no actual boundary exists yet, the
- * opening dock interval becomes active when present.
+ * event confirmed to have occurred. `EventActualTime` is display detail only;
+ * when it is present it also implies occurrence. If no boundary has been
+ * confirmed yet, the opening dock interval becomes active when present.
  *
  * @param events - Ordered timeline events for one sailing day
  * @returns Active interval, or `null` when no interval can be proven
@@ -37,11 +39,14 @@ export const resolveActiveTimelineInterval = (
   events: ActiveTimelineBoundaryEvent[]
 ): ActiveTimelineInterval => {
   const intervals = buildAdjacentTimelineIntervals(events);
-  const latestActualEvent = [...events]
+  const latestOccurredEvent = [...events]
     .reverse()
-    .find((event) => event.EventActualTime !== undefined);
+    .find(
+      (event) =>
+        event.EventOccurred === true || event.EventActualTime !== undefined
+    );
 
-  if (!latestActualEvent) {
+  if (!latestOccurredEvent) {
     return toActiveInterval(
       getUniqueMatch(
         intervals.filter(
@@ -52,13 +57,13 @@ export const resolveActiveTimelineInterval = (
     );
   }
 
-  if (latestActualEvent.EventType === "dep-dock") {
+  if (latestOccurredEvent.EventType === "dep-dock") {
     return toActiveInterval(
       getUniqueMatch(
         intervals.filter(
           (interval) =>
             interval.kind === "at-sea" &&
-            interval.startEventKey === latestActualEvent.Key
+            interval.startEventKey === latestOccurredEvent.Key
         )
       )
     );
@@ -69,7 +74,7 @@ export const resolveActiveTimelineInterval = (
       intervals.filter(
         (interval): interval is AdjacentDockInterval =>
           interval.kind === "at-dock" &&
-          interval.startEventKey === latestActualEvent.Key
+          interval.startEventKey === latestOccurredEvent.Key
       )
     )
   );

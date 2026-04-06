@@ -6,6 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
 import {
+  buildActualBoundaryEvents,
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryEventsFromTrips,
   buildPredictedBoundaryProjectionEffect,
@@ -61,6 +62,48 @@ describe("buildScheduledBoundaryEvents", () => {
       ["trip-2--dep-dock", false],
       ["trip-2--arv-dock", true],
     ]);
+  });
+});
+
+describe("buildActualBoundaryEvents", () => {
+  it("keeps occurrence-only rows without inventing an actual time", () => {
+    const rows = buildActualBoundaryEvents([
+      makeBoundaryEventRecord({
+        SegmentKey: "trip-1",
+        Key: "trip-1--dep-dock",
+        EventType: "dep-dock",
+        TerminalAbbrev: "BBI",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      }),
+    ]);
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        Key: "trip-1--dep-dock",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      }),
+    ]);
+  });
+
+  it("normalizes exact actual times as confirmed occurrence", () => {
+    const [row] = buildActualBoundaryEvents([
+      makeBoundaryEventRecord({
+        SegmentKey: "trip-1",
+        Key: "trip-1--dep-dock",
+        EventType: "dep-dock",
+        TerminalAbbrev: "BBI",
+        EventOccurred: undefined,
+        EventActualTime: at(12, 24),
+      }),
+    ]);
+
+    expect(row).toMatchObject({
+      Key: "trip-1--dep-dock",
+      EventOccurred: true,
+      EventActualTime: at(12, 24),
+    });
   });
 });
 
@@ -166,6 +209,7 @@ const makeBoundaryEventRecord = (
   TerminalAbbrev: "BBI",
   EventType: "dep-dock",
   EventScheduledTime: at(12, 20),
+  EventOccurred: undefined,
   EventPredictedTime: undefined,
   EventActualTime: undefined,
   ...overrides,

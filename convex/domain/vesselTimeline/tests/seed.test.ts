@@ -11,6 +11,7 @@ import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import type { VesselIdentity } from "../../../shared/vessels";
 import {
   applyLiveLocationToEvents,
+  buildOccurrenceEffectsFromLocation,
   getLocationSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
@@ -615,6 +616,123 @@ describe("applyLiveLocationToEvents", () => {
   });
 });
 
+describe("buildOccurrenceEffectsFromLocation", () => {
+  it("emits an occurrence-only departure effect when the vessel is already underway", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+    ]);
+
+    const effects = buildOccurrenceEffectsFromLocation(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 35),
+        TimeStamp: at(8, 50),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: undefined,
+      })
+    );
+
+    expect(effects).toEqual([
+      {
+        SegmentKey: seededEvents[0]!.SegmentKey,
+        VesselAbbrev: "TOK",
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: at(8, 35),
+        TerminalAbbrev: "P52",
+        EventType: "dep-dock",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      },
+    ]);
+  });
+
+  it("emits an occurrence-only arrival effect when the vessel is already docked at the next terminal", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        DepartingTime: at(9, 20),
+        SchedArriveNext: at(9, 55),
+      }),
+    ]);
+
+    const effects = buildOccurrenceEffectsFromLocation(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        ScheduledDeparture: at(9, 20),
+        TimeStamp: at(9, 18),
+        AtDock: true,
+        Speed: 0,
+      })
+    );
+
+    expect(effects).toEqual([
+      {
+        SegmentKey: seededEvents[1]!.SegmentKey,
+        VesselAbbrev: "TOK",
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: at(8, 35),
+        TerminalAbbrev: "BBI",
+        EventType: "arv-dock",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      },
+    ]);
+  });
+
+  it("does not emit duplicate effects for boundaries already marked occurred", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+    ]);
+    const occurredEvents = seededEvents.map((event, index) =>
+      index === 0 ? { ...event, EventOccurred: true } : event
+    );
+
+    const effects = buildOccurrenceEffectsFromLocation(
+      occurredEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 35),
+        TimeStamp: at(8, 50),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: undefined,
+      })
+    );
+
+    expect(effects).toEqual([]);
+  });
+});
+
 describe("getLocationSailingDay", () => {
   it("prefers ScheduledDeparture when present", () => {
     const location = makeLocation({
@@ -874,6 +992,7 @@ const makeEvent = (
   TerminalAbbrev: "P52",
   EventType: "dep-dock" as const,
   EventScheduledTime: at(8, 35),
+  EventOccurred: undefined,
   EventPredictedTime: undefined,
   EventActualTime: undefined,
   ...overrides,

@@ -23,6 +23,7 @@ export const vesselTimelineEventRecordSchema = v.object({
   EventType: boundaryEventTypeSchema,
   EventScheduledTime: v.optional(v.number()),
   EventPredictedTime: v.optional(v.number()),
+  EventOccurred: v.optional(v.literal(true)),
   EventActualTime: v.optional(v.number()),
 });
 
@@ -58,6 +59,9 @@ const toDomainVesselTimelineEvent = (event: ConvexVesselTimelineEvent) => ({
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
   EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
   EventPredictedTime: optionalEpochMsToDate(event.EventPredictedTime),
+  EventOccurred:
+    event.EventOccurred ??
+    (event.EventActualTime !== undefined ? true : undefined),
   EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 

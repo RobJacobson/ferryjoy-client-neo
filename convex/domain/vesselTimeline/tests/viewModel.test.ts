@@ -124,6 +124,41 @@ describe("resolveActiveTimelineInterval", () => {
     });
   });
 
+  it("advances to the sea interval when departure occurrence is known but time is unknown", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 0),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BBI",
+          ScheduledDeparture: at(8, 0),
+          EventScheduledTime: at(8, 35),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "trip-1--dep-dock",
+          EventOccurred: true,
+          EventActualTime: undefined,
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(resolveActiveTimelineInterval(events)).toEqual({
+      kind: "at-sea",
+      startEventKey: "trip-1--dep-dock",
+      endEventKey: "trip-1--arv-dock",
+    });
+  });
+
   it("returns the dock interval after the latest actual arrival", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
@@ -239,6 +274,41 @@ describe("resolveActiveTimelineInterval", () => {
     });
   });
 
+  it("treats legacy actual-time rows as occurred even without EventOccurred", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "ORI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(15, 20),
+        }),
+        makeScheduledEvent({
+          Key: "trip-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "SHI",
+          ScheduledDeparture: at(15, 20),
+          EventScheduledTime: at(15, 45),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "trip-1--dep-dock",
+          EventOccurred: undefined,
+          EventActualTime: at(15, 24),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(resolveActiveTimelineInterval(events)).toEqual({
+      kind: "at-sea",
+      startEventKey: "trip-1--dep-dock",
+      endEventKey: "trip-1--arv-dock",
+    });
+  });
+
   it("returns null when the latest actual boundary has no matching interval", () => {
     const events = mergeTimelineEvents({
       scheduledEvents: [
@@ -289,6 +359,7 @@ const makeActualEvent = (
   UpdatedAt: at(6, 0),
   ScheduledDeparture: at(8, 0),
   TerminalAbbrev: "P52",
+  EventOccurred: true,
   EventActualTime: at(8, 2),
   ...overrides,
 });

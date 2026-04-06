@@ -13,7 +13,8 @@ export const eventsActualSchema = v.object({
   UpdatedAt: v.number(),
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
-  EventActualTime: v.number(),
+  EventOccurred: v.optional(v.literal(true)),
+  EventActualTime: v.optional(v.number()),
 });
 
 export type ConvexActualBoundaryEvent = Infer<typeof eventsActualSchema>;
@@ -29,9 +30,13 @@ export const toDomainActualBoundaryEvent = (
   event: ConvexActualBoundaryEvent
 ) => ({
   ...event,
+  EventOccurred: event.EventOccurred ?? true,
   UpdatedAt: epochMsToDate(event.UpdatedAt),
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  EventActualTime: epochMsToDate(event.EventActualTime),
+  EventActualTime:
+    event.EventActualTime !== undefined
+      ? epochMsToDate(event.EventActualTime)
+      : undefined,
 });
 
 export type ActualBoundaryEvent = ReturnType<

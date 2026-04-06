@@ -13,7 +13,8 @@ export const actualBoundaryEffectSchema = v.object({
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
   EventType: boundaryEventTypeSchema,
-  EventActualTime: v.number(),
+  EventOccurred: v.literal(true),
+  EventActualTime: v.optional(v.number()),
 });
 
 export type ConvexActualBoundaryEffect = Infer<

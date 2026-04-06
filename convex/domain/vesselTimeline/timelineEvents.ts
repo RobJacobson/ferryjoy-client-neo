@@ -44,6 +44,11 @@ export const mergeTimelineEvents = ({
       EventType: event.EventType,
       EventScheduledTime: event.EventScheduledTime,
       EventPredictedTime: predictedByKey.get(event.Key)?.EventPredictedTime,
+      EventOccurred:
+        actualByKey.get(event.Key)?.EventOccurred ??
+        (actualByKey.get(event.Key)?.EventActualTime !== undefined
+          ? true
+          : undefined),
       EventActualTime: actualByKey.get(event.Key)?.EventActualTime,
     }));
 };

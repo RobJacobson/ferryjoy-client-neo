@@ -233,6 +233,7 @@ const buildDepartureActualEffect = (
     ScheduledDeparture: trip.ScheduledDeparture,
     TerminalAbbrev: trip.DepartingTerminalAbbrev,
     EventType: "dep-dock",
+    EventOccurred: true,
     EventActualTime: trip.LeftDock,
   };
 };
@@ -263,6 +264,7 @@ const buildArrivalActualEffect = (
     ScheduledDeparture: trip.ScheduledDeparture,
     TerminalAbbrev: trip.ArrivingTerminalAbbrev,
     EventType: "arv-dock",
+    EventOccurred: true,
     EventActualTime: trip.ArriveDest,
   };
 };
