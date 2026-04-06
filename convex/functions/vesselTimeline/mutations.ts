@@ -7,6 +7,7 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
+  buildActualBoundaryPatchesForSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "domain/vesselTimeline/events";
@@ -14,7 +15,8 @@ import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
-import { actualRowsEqual } from "functions/eventsActual/actualRowsEqual";
+import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
+import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
 import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
@@ -43,21 +45,31 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
       sortVesselTripEvents
     );
 
+    const nextScheduledRows = buildScheduledBoundaryEvents(events, updatedAt);
+    const baseActualRows = buildActualBoundaryEvents(events, updatedAt);
+    const vesselLocations = await ctx.db.query("vesselLocations").collect();
+    const liveLocationActualPatches = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: args.SailingDay,
+      scheduledEvents: nextScheduledRows,
+      actualEvents: baseActualRows,
+      vesselLocations,
+    });
+    const finalActualRows = mergeActualBoundaryPatchesIntoRows(
+      baseActualRows,
+      liveLocationActualPatches,
+      updatedAt
+    );
+
     await replaceScheduledRowsForSailingDay(
       ctx,
       args.SailingDay,
-      buildScheduledBoundaryEvents(events, updatedAt)
+      nextScheduledRows
     );
-    await replaceActualRowsForSailingDay(
-      ctx,
-      args.SailingDay,
-      buildActualBoundaryEvents(events, updatedAt)
-    );
+    await replaceActualRowsForSailingDay(ctx, args.SailingDay, finalActualRows);
 
     return {
       ScheduledCount: events.length,
-      ActualCount: events.filter((event) => event.EventActualTime !== undefined)
-        .length,
+      ActualCount: finalActualRows.length,
     };
   },
 });
@@ -122,7 +134,7 @@ const replaceActualRowsForSailingDay = async (
       continue;
     }
 
-    if (actualRowsEqual(existing, nextRow)) {
+    if (actualBoundaryRowsEqual(existing, nextRow)) {
       continue;
     }
 

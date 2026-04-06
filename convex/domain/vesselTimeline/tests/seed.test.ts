@@ -8,11 +8,11 @@ import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import { getSailingDay } from "../../../shared/time";
 import type { VesselIdentity } from "../../../shared/vessels";
 import {
   applyLiveLocationToEvents,
-  buildOccurrenceEffectsFromLocation,
-  getLocationSailingDay,
+  buildActualBoundaryPatchesFromLocation,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "../events/liveUpdates";
@@ -616,8 +616,8 @@ describe("applyLiveLocationToEvents", () => {
   });
 });
 
-describe("buildOccurrenceEffectsFromLocation", () => {
-  it("emits an occurrence-only departure effect when the vessel is already underway", () => {
+describe("buildActualBoundaryPatchesFromLocation", () => {
+  it("emits a sparse departure effect when the vessel is already underway", () => {
     const seededEvents = buildSeedVesselTripEvents([
       makeTrip({
         VesselAbbrev: "TOK",
@@ -628,7 +628,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
       }),
     ]);
 
-    const effects = buildOccurrenceEffectsFromLocation(
+    const effects = buildActualBoundaryPatchesFromLocation(
       seededEvents,
       makeLocation({
         VesselAbbrev: "TOK",
@@ -644,7 +644,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
 
     expect(effects).toEqual([
       {
-        SegmentKey: seededEvents[0]!.SegmentKey,
+        SegmentKey: seededEvents[0]?.SegmentKey,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         ScheduledDeparture: at(8, 35),
@@ -656,7 +656,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
     ]);
   });
 
-  it("emits an occurrence-only arrival effect when the vessel is already docked at the next terminal", () => {
+  it("emits a sparse arrival effect when the vessel is already docked at the next terminal", () => {
     const seededEvents = buildSeedVesselTripEvents([
       makeTrip({
         VesselAbbrev: "TOK",
@@ -674,7 +674,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
       }),
     ]);
 
-    const effects = buildOccurrenceEffectsFromLocation(
+    const effects = buildActualBoundaryPatchesFromLocation(
       seededEvents,
       makeLocation({
         VesselAbbrev: "TOK",
@@ -689,7 +689,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
 
     expect(effects).toEqual([
       {
-        SegmentKey: seededEvents[1]!.SegmentKey,
+        SegmentKey: seededEvents[1]?.SegmentKey,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         ScheduledDeparture: at(8, 35),
@@ -701,7 +701,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
     ]);
   });
 
-  it("does not emit duplicate effects for boundaries already marked occurred", () => {
+  it("does not emit duplicate effects for boundaries already marked in the timeline", () => {
     const seededEvents = buildSeedVesselTripEvents([
       makeTrip({
         VesselAbbrev: "TOK",
@@ -715,7 +715,7 @@ describe("buildOccurrenceEffectsFromLocation", () => {
       index === 0 ? { ...event, EventOccurred: true } : event
     );
 
-    const effects = buildOccurrenceEffectsFromLocation(
+    const effects = buildActualBoundaryPatchesFromLocation(
       occurredEvents,
       makeLocation({
         VesselAbbrev: "TOK",
@@ -733,14 +733,16 @@ describe("buildOccurrenceEffectsFromLocation", () => {
   });
 });
 
-describe("getLocationSailingDay", () => {
+describe("location sailing day (ScheduledDeparture vs TimeStamp)", () => {
   it("prefers ScheduledDeparture when present", () => {
     const location = makeLocation({
       ScheduledDeparture: at(8, 35),
       TimeStamp: Date.UTC(2026, 2, 14, 8, 30),
     });
 
-    expect(getLocationSailingDay(location)).toBe("2026-03-13");
+    expect(
+      getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp))
+    ).toBe("2026-03-13");
   });
 
   it("falls back to TimeStamp when ScheduledDeparture is missing", () => {
@@ -749,7 +751,9 @@ describe("getLocationSailingDay", () => {
       TimeStamp: Date.UTC(2026, 2, 14, 10, 30),
     });
 
-    expect(getLocationSailingDay(location)).toBe("2026-03-14");
+    expect(
+      getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp))
+    ).toBe("2026-03-14");
   });
 });
 

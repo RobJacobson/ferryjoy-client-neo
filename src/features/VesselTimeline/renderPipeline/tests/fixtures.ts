@@ -60,6 +60,7 @@ export const makeEvent = (
   EventType: "dep-dock",
   EventScheduledTime: at(8, 0),
   EventPredictedTime: undefined,
+  EventOccurred: undefined,
   EventActualTime: undefined,
   ...overrides,
 });

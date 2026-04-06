@@ -12,8 +12,8 @@ import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexActualBoundaryEffect } from "functions/eventsActual/projectionSchemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/projectionSchemas";
+import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
+import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildTrip } from "../buildTrip";
@@ -30,9 +30,9 @@ type CurrentTripBuildResult = CurrentTripTransition & {
   finalProposed: ConvexVesselTrip;
 };
 
-type TaggedActualEffect = {
+type TaggedActualPatch = {
   vesselAbbrev: string;
-  effect: ConvexActualBoundaryEffect;
+  patch: ConvexActualBoundaryPatch;
 };
 
 type TaggedPredictedEffect = {
@@ -47,7 +47,7 @@ type PendingLeaveDockEffect = {
 
 type CurrentTripArtifacts = {
   activeUpserts: ConvexVesselTrip[];
-  pendingActualEffects: TaggedActualEffect[];
+  pendingActualPatches: TaggedActualPatch[];
   pendingPredictedEffects: TaggedPredictedEffect[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
 };
@@ -73,7 +73,7 @@ type ProcessCurrentTripsCallbacks = {
 };
 
 type ProjectionResults = {
-  actualEffects: ConvexActualBoundaryEffect[];
+  actualPatches: ConvexActualBoundaryPatch[];
   predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
@@ -145,11 +145,11 @@ export const processCurrentTrips = async (
   );
 
   return {
-    actualEffects: filterEffectsForSuccessfulVessels(
-      collectedArtifacts.pendingActualEffects,
+    actualPatches: filterActualPatchesForSuccessfulVessels(
+      collectedArtifacts.pendingActualPatches,
       successfulVessels
     ),
-    predictedEffects: filterEffectsForSuccessfulVessels(
+    predictedEffects: filterPredictedEffectsForSuccessfulVessels(
       collectedArtifacts.pendingPredictedEffects,
       successfulVessels
     ),
@@ -212,30 +212,30 @@ const buildPredictedEffectsForCurrentTrip = (
     }));
 
 /**
- * Build actual projection effects for a current-trip write candidate.
+ * Build actual boundary patches for a current-trip write candidate.
  *
  * @param events - Detected events for the current tick
  * @param finalProposed - Newly built trip state for this tick
- * @param vesselAbbrev - Vessel abbreviation for effect tagging
- * @returns Tagged actual effects to queue after a successful upsert
+ * @param vesselAbbrev - Vessel abbreviation for patch tagging
+ * @returns Tagged actual patches to queue after a successful upsert
  */
-const buildActualEffectsForCurrentTrip = (
+const buildActualPatchesForCurrentTrip = (
   events: TripEvents,
   finalProposed: ConvexVesselTrip,
   vesselAbbrev: string
-): TaggedActualEffect[] =>
+): TaggedActualPatch[] =>
   [
     events.didJustLeaveDock && finalProposed.LeftDock !== undefined
-      ? buildDepartureActualEffect(finalProposed)
+      ? buildDepartureActualPatch(finalProposed)
       : null,
     events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined
-      ? buildArrivalActualEffect(finalProposed)
+      ? buildArrivalActualPatch(finalProposed)
       : null,
   ]
-    .filter((effect): effect is ConvexActualBoundaryEffect => Boolean(effect))
-    .map((effect) => ({
+    .filter((patch): patch is ConvexActualBoundaryPatch => Boolean(patch))
+    .map((patch) => ({
       vesselAbbrev,
-      effect,
+      patch,
     }));
 
 /**
@@ -281,7 +281,7 @@ const collectCurrentTripArtifacts = (
 
   return {
     activeUpserts: [finalProposed],
-    pendingActualEffects: buildActualEffectsForCurrentTrip(
+    pendingActualPatches: buildActualPatchesForCurrentTrip(
       events,
       finalProposed,
       currLocation.VesselAbbrev
@@ -320,19 +320,34 @@ const getSuccessfulVessels = (upsertResult: UpsertBatchResult): Set<string> =>
   );
 
 /**
- * Filter tagged effects down to only those whose upsert succeeded.
+ * Filter tagged actual patches down to only those whose upsert succeeded.
  *
- * @param effects - Tagged effects gathered during build processing
+ * @param tagged - Tagged patches gathered during build processing
+ * @param successfulVessels - Set of vessels with successful upserts
+ * @returns Untagged patches safe to project
+ */
+const filterActualPatchesForSuccessfulVessels = (
+  tagged: TaggedActualPatch[],
+  successfulVessels: Set<string>
+): ConvexActualBoundaryPatch[] =>
+  tagged
+    .filter((t) => successfulVessels.has(t.vesselAbbrev))
+    .map((t) => t.patch);
+
+/**
+ * Filter tagged predicted effects down to only those whose upsert succeeded.
+ *
+ * @param tagged - Tagged predicted effects gathered during build processing
  * @param successfulVessels - Set of vessels with successful upserts
  * @returns Untagged effects safe to project
  */
-const filterEffectsForSuccessfulVessels = <TEffect>(
-  effects: Array<{ vesselAbbrev: string; effect: TEffect }>,
+const filterPredictedEffectsForSuccessfulVessels = (
+  tagged: TaggedPredictedEffect[],
   successfulVessels: Set<string>
-): TEffect[] =>
-  effects
-    .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
-    .map((effect) => effect.effect);
+): ConvexPredictedBoundaryProjectionEffect[] =>
+  tagged
+    .filter((t) => successfulVessels.has(t.vesselAbbrev))
+    .map((t) => t.effect);
 
 /**
  * Run leave-dock post-persist side effects for successfully upserted vessels.
@@ -463,9 +478,9 @@ const mergeCurrentTripArtifacts = (
 
   return {
     activeUpserts: [...accumulated.activeUpserts, ...next.activeUpserts],
-    pendingActualEffects: [
-      ...accumulated.pendingActualEffects,
-      ...next.pendingActualEffects,
+    pendingActualPatches: [
+      ...accumulated.pendingActualPatches,
+      ...next.pendingActualPatches,
     ],
     pendingPredictedEffects: [
       ...accumulated.pendingPredictedEffects,
@@ -485,7 +500,7 @@ const mergeCurrentTripArtifacts = (
  */
 const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
   activeUpserts: [],
-  pendingActualEffects: [],
+  pendingActualPatches: [],
   pendingPredictedEffects: [],
   pendingLeaveDockEffects: [],
 });
@@ -496,19 +511,19 @@ const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
  * @returns Empty actual/predicted projection result object
  */
 const emptyProjectionResults = (): ProjectionResults => ({
-  actualEffects: [],
+  actualPatches: [],
   predictedEffects: [],
 });
 
 /**
- * Build the actual departure projection effect for a finalized trip state.
+ * Build the actual departure patch for a finalized trip state.
  *
  * @param trip - Finalized trip carrying a canonical segment key and departure time
- * @returns Departure effect, or null when the trip is not projection-ready
+ * @returns Departure patch, or null when the trip is not projection-ready
  */
-const buildDepartureActualEffect = (
+const buildDepartureActualPatch = (
   trip: ConvexVesselTrip
-): ConvexActualBoundaryEffect | null => {
+): ConvexActualBoundaryPatch | null => {
   if (
     !trip.Key ||
     !trip.SailingDay ||
@@ -531,14 +546,14 @@ const buildDepartureActualEffect = (
 };
 
 /**
- * Build the actual arrival projection effect for a finalized trip state.
+ * Build the actual arrival patch for a finalized trip state.
  *
  * @param trip - Finalized trip carrying a canonical segment key and arrival time
- * @returns Arrival effect, or null when the trip is not projection-ready
+ * @returns Arrival patch, or null when the trip is not projection-ready
  */
-const buildArrivalActualEffect = (
+const buildArrivalActualPatch = (
   trip: ConvexVesselTrip
-): ConvexActualBoundaryEffect | null => {
+): ConvexActualBoundaryPatch | null => {
   if (
     !trip.Key ||
     !trip.SailingDay ||

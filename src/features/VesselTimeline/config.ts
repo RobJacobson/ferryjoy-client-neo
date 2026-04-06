@@ -15,8 +15,8 @@ import type { VesselTimelineLayoutConfig } from "./types";
  */
 export const DEFAULT_VESSEL_TIMELINE_LAYOUT: VesselTimelineLayoutConfig = {
   rowHeightBasePx: 0,
-  rowHeightScalePx: 14,
-  rowHeightExponent: 0.75,
+  rowHeightScalePx: 10,
+  rowHeightExponent: 0.85,
   minRowHeightPx: 32,
   terminalCardTopHeightPx: 16,
   terminalCardBottomHeightPx: 16,

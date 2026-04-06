@@ -73,12 +73,12 @@ describe("processCompletedTrips", () => {
     );
     expect(getBoundaryMutationArgs(ctx)?.newTrip.Key).toBe(newTrip.Key);
     expect(predictionCalls[0]?.eventType).toBe("trip_complete");
-    expect(result.actualEffects).toHaveLength(2);
-    expect(result.actualEffects[0]?.EventType).toBe("dep-dock");
-    expect(result.actualEffects[0]?.EventActualTime).toBe(
+    expect(result.actualPatches).toHaveLength(2);
+    expect(result.actualPatches[0]?.EventType).toBe("dep-dock");
+    expect(result.actualPatches[0]?.EventActualTime).toBe(
       existingTrip.LeftDock
     );
-    expect(result.actualEffects[1]?.EventType).toBe("arv-dock");
+    expect(result.actualPatches[1]?.EventType).toBe("arv-dock");
     expect(result.predictedEffects).toHaveLength(2);
   });
 

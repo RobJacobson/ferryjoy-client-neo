@@ -414,7 +414,7 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs (batch when 2+ specs) |
 | Mutation | `completeAndStartNewTrip` | Per vessel, on trip boundary |
 | Mutation | `upsertVesselTripsBatch` | Once if has active upserts |
-| Mutation | `functions/eventsActual/mutations.projectActualBoundaryEffects` | Once if any trip-driven actual effects were emitted |
+| Mutation | `functions/eventsActual/mutations.projectActualBoundaryPatches` | Once if any trip-driven actual patches were emitted |
 | Mutation | `projectPredictedBoundaryEffects` | Once if any trip-driven predicted effects were emitted |
 | Mutation | `setDepartNextActualsForMostRecentCompletedTrip` | Per vessel, when didJustLeaveDock |
 | Mutation | `bulkInsertPredictions` | Once if has completed prediction records |

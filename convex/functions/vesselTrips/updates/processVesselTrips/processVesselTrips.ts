@@ -183,9 +183,9 @@ export const processVesselTripsWithDeps = async (
       handlePredictionEvent: deps.handlePredictionEvent,
     }
   );
-  const actualEffects = [
-    ...completedEffects.actualEffects,
-    ...currentEffects.actualEffects,
+  const actualPatches = [
+    ...completedEffects.actualPatches,
+    ...currentEffects.actualPatches,
   ];
   const predictedEffects = [
     ...completedEffects.predictedEffects,
@@ -194,12 +194,12 @@ export const processVesselTripsWithDeps = async (
 
   // Project only after trip writes succeed so downstream views stay in sync.
   await Promise.all([
-    actualEffects.length > 0
+    actualPatches.length > 0
       ? ctx.runMutation(
           internal.functions.eventsActual.mutations
-            .projectActualBoundaryEffects,
+            .projectActualBoundaryPatches,
           {
-            Effects: actualEffects,
+            Patches: actualPatches,
           }
         )
       : Promise.resolve(),

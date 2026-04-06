@@ -6,10 +6,10 @@ import type { Doc } from "_generated/dataModel";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
+  type ConvexPredictedBoundaryEvent,
   type ConvexPredictedBoundaryProjectionRow,
   predictedBoundaryProjectionEffectSchema,
-} from "./projectionSchemas";
-import type { ConvexPredictedBoundaryEvent } from "./schemas";
+} from "./schemas";
 
 /**
  * Applies sparse predicted-time boundary effects emitted by `vesselTrips`.

@@ -5,5 +5,6 @@
 
 export * from "./history";
 export * from "./liveUpdates";
+export * from "./reconcile";
 export * from "./reseed";
 export * from "./seed";

@@ -48,7 +48,7 @@ describe("processCurrentTrips", () => {
     );
 
     expect(ctx.mutationCalls).toHaveLength(0);
-    expect(result.actualEffects).toHaveLength(0);
+    expect(result.actualPatches).toHaveLength(0);
     expect(result.predictedEffects).toHaveLength(0);
   });
 
@@ -130,8 +130,8 @@ describe("processCurrentTrips", () => {
       })
     );
 
-    expect(result.actualEffects).toHaveLength(1);
-    expect(result.actualEffects[0]?.EventType).toBe("arv-dock");
+    expect(result.actualPatches).toHaveLength(1);
+    expect(result.actualPatches[0]?.EventType).toBe("arv-dock");
   });
 
   it("runs leave-dock post-persist work only when LeftDock is present", async () => {

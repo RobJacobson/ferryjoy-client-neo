@@ -94,17 +94,15 @@ export const deriveTripInputs = (
     existingTrip?.AtDock &&
       existingTrip.DepartingTerminalAbbrev ===
         currLocation.DepartingTerminalAbbrev &&
-      (
-        // While the vessel remains docked, preserve the boundary owner for the
-        // current dock interval so feed omissions do not churn the active trip.
-        (existingTrip.LeftDock === undefined && currLocation.AtDock) ||
+      // While the vessel remains docked, preserve the boundary owner for the
+      // current dock interval so feed omissions do not churn the active trip.
+      ((existingTrip.LeftDock === undefined && currLocation.AtDock) ||
         // On the exact leave-dock tick, write the departure actual to the
         // boundary that ended the dock interval and starts the sea interval.
         // Raw feed identity fields can transiently jump ahead as LeftDock first
         // appears, but that should not reassign ownership of the departure.
         (existingTrip.LeftDock === undefined &&
-          currLocation.LeftDock !== undefined)
-      )
+          currLocation.LeftDock !== undefined))
   );
   const continuingArrivingTerminalAbbrev = shouldPreserveDockBoundaryOwner
     ? (existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev)

@@ -12,7 +12,7 @@ import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
 
-const HISTORIC_RETENTION_SAILING_DAYS = 4;
+const HISTORIC_RETENTION_SAILING_DAYS = 2;
 const DELETE_BATCH_SIZE = 500;
 
 type HistoricSnapshotResult = {

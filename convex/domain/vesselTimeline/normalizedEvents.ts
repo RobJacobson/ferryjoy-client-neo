@@ -2,14 +2,14 @@
  * Pure helpers for deriving normalized VesselTimeline boundary-event rows.
  */
 
-import type { ConvexActualBoundaryEffect } from "../../functions/eventsActual/projectionSchemas";
-import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
 import type {
-  ConvexPredictedBoundaryProjectionEffect,
-  ConvexPredictedBoundaryProjectionRow,
-} from "../../functions/eventsPredicted/projectionSchemas";
+  ConvexActualBoundaryEvent,
+  ConvexActualBoundaryPatch,
+} from "../../functions/eventsActual/schemas";
 import type {
   ConvexPredictedBoundaryEvent,
+  ConvexPredictedBoundaryProjectionEffect,
+  ConvexPredictedBoundaryProjectionRow,
   ConvexPredictionSource,
 } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
@@ -79,25 +79,24 @@ export const buildActualBoundaryEvents = (
     }));
 
 /**
- * Builds one normalized actual boundary row from a trip-driven projection
- * effect.
+ * Builds one normalized actual boundary row from a sparse actual patch.
  *
- * @param effect - Actual boundary effect emitted by VesselTrips
+ * @param patch - Actual boundary patch (trip or live-location path)
  * @param updatedAt - Timestamp to stamp onto the normalized row
  * @returns Normalized actual boundary row
  */
-export const buildActualBoundaryEventFromEffect = (
-  effect: ConvexActualBoundaryEffect,
+export const buildActualBoundaryEventFromPatch = (
+  patch: ConvexActualBoundaryPatch,
   updatedAt: number
 ): ConvexActualBoundaryEvent => ({
-  Key: buildBoundaryKey(effect.SegmentKey, effect.EventType),
-  VesselAbbrev: effect.VesselAbbrev,
-  SailingDay: effect.SailingDay,
+  Key: buildBoundaryKey(patch.SegmentKey, patch.EventType),
+  VesselAbbrev: patch.VesselAbbrev,
+  SailingDay: patch.SailingDay,
   UpdatedAt: updatedAt,
-  ScheduledDeparture: effect.ScheduledDeparture,
-  TerminalAbbrev: effect.TerminalAbbrev,
+  ScheduledDeparture: patch.ScheduledDeparture,
+  TerminalAbbrev: patch.TerminalAbbrev,
   EventOccurred: true,
-  EventActualTime: effect.EventActualTime,
+  EventActualTime: patch.EventActualTime,
 });
 
 /**

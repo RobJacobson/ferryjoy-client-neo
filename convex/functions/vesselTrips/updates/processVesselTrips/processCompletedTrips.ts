@@ -13,8 +13,8 @@ import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexActualBoundaryEffect } from "functions/eventsActual/projectionSchemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/projectionSchemas";
+import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
+import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "../buildCompletedTrip";
@@ -28,7 +28,7 @@ type CompletedTripTransition = {
 };
 
 type ProjectionResults = {
-  actualEffects: ConvexActualBoundaryEffect[];
+  actualPatches: ConvexActualBoundaryPatch[];
   predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
@@ -52,7 +52,7 @@ const DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS: ProcessCompletedTripsDeps = {
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param logVesselProcessingError - Error logger owned by the top-level updater
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Projection effects derived from successfully processed boundaries
+ * @returns Projection payloads derived from successfully processed boundaries
  */
 export const processCompletedTrips = async (
   ctx: ActionCtx,
@@ -90,7 +90,7 @@ export const processCompletedTrips = async (
  * @param transition - Trip-boundary transition for one vessel
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Boundary projection effects derived from the persisted trips
+ * @returns Boundary projection payloads derived from the persisted trips
  */
 const processCompletedTripTransition = async (
   ctx: ActionCtx,
@@ -156,22 +156,22 @@ const normalizeCompletedTripResults = (
   });
 
 /**
- * Build boundary projection effects from the completed and replacement trips.
+ * Build boundary projection payloads from the completed and replacement trips.
  *
  * @param existingTrip - Previously persisted active trip being replaced
  * @param tripToComplete - Finalized completed trip
  * @param newTrip - Replacement active trip
- * @returns Actual and predicted effects for downstream projection
+ * @returns Actual patches and predicted effects for downstream projection
  */
 const buildCompletedTripEffects = (
   existingTrip: ConvexVesselTrip,
   tripToComplete: ConvexVesselTrip,
   newTrip: ConvexVesselTrip
 ): ProjectionResults => ({
-  actualEffects: [
-    buildDepartureActualEffect(tripToComplete),
-    buildArrivalActualEffect(tripToComplete),
-  ].filter((effect): effect is ConvexActualBoundaryEffect => Boolean(effect)),
+  actualPatches: [
+    buildDepartureActualPatch(tripToComplete),
+    buildArrivalActualPatch(tripToComplete),
+  ].filter((patch): patch is ConvexActualBoundaryPatch => Boolean(patch)),
   predictedEffects: [
     buildPredictedBoundaryClearEffect(existingTrip),
     buildPredictedBoundaryProjectionEffect(newTrip),
@@ -191,7 +191,7 @@ const mergeProjectionResults = (
   accumulated: ProjectionResults,
   next: ProjectionResults
 ): ProjectionResults => ({
-  actualEffects: [...accumulated.actualEffects, ...next.actualEffects],
+  actualPatches: [...accumulated.actualPatches, ...next.actualPatches],
   predictedEffects: [...accumulated.predictedEffects, ...next.predictedEffects],
 });
 
@@ -201,22 +201,22 @@ const mergeProjectionResults = (
  * @returns Empty projection result object
  */
 const createEmptyProjectionResults = (): ProjectionResults => ({
-  actualEffects: [],
+  actualPatches: [],
   predictedEffects: [],
 });
 
 /**
- * Build the actual departure projection effect for a finalized trip state.
+ * Build the actual departure patch for a finalized trip state.
  *
  * This re-projects departure actuals at trip completion so `eventsActual`
  * still recovers when the earlier leave-dock transition tick was missed.
  *
  * @param trip - Finalized trip carrying a canonical segment key and departure time
- * @returns Departure effect, or null when the trip is not projection-ready
+ * @returns Departure patch, or null when the trip is not projection-ready
  */
-const buildDepartureActualEffect = (
+const buildDepartureActualPatch = (
   trip: ConvexVesselTrip
-): ConvexActualBoundaryEffect | null => {
+): ConvexActualBoundaryPatch | null => {
   if (
     !trip.Key ||
     !trip.SailingDay ||
@@ -239,14 +239,14 @@ const buildDepartureActualEffect = (
 };
 
 /**
- * Build the actual arrival projection effect for a finalized trip state.
+ * Build the actual arrival patch for a finalized trip state.
  *
  * @param trip - Finalized trip carrying a canonical segment key and arrival time
- * @returns Arrival effect, or null when the trip is not projection-ready
+ * @returns Arrival patch, or null when the trip is not projection-ready
  */
-const buildArrivalActualEffect = (
+const buildArrivalActualPatch = (
   trip: ConvexVesselTrip
-): ConvexActualBoundaryEffect | null => {
+): ConvexActualBoundaryPatch | null => {
   if (
     !trip.Key ||
     !trip.SailingDay ||

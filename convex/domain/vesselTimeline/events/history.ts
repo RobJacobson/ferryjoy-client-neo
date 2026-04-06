@@ -73,9 +73,7 @@ export const mergeSeededEventsWithHistory = ({
     return {
       ...event,
       EventOccurred:
-        mergedActualTime !== undefined
-          ? true
-          : existingEvent?.EventOccurred,
+        mergedActualTime !== undefined ? true : existingEvent?.EventOccurred,
       EventActualTime: mergedActualTime,
       EventPredictedTime:
         mergedActualTime === undefined

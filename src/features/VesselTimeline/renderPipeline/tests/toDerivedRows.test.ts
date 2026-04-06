@@ -94,4 +94,44 @@ describe("toDerivedRows", () => {
 
     expect(rows).toEqual([]);
   });
+
+  it("keeps an at-sea row when another same-vessel dep appears before the matching arv", () => {
+    const { rows } = toDerivedRows(
+      makePipelineInput({
+        events: [
+          makeEvent({
+            SegmentKey: "trip-a",
+            Key: "trip-a--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+          }),
+          makeEvent({
+            SegmentKey: "trip-b",
+            Key: "trip-b--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "FAU",
+          }),
+          makeEvent({
+            SegmentKey: "trip-a",
+            Key: "trip-a--arv-dock",
+            EventType: "arv-dock",
+            TerminalAbbrev: "FAU",
+            EventScheduledTime: at(8, 10),
+          }),
+          makeEvent({
+            SegmentKey: "trip-b",
+            Key: "trip-b--arv-dock",
+            EventType: "arv-dock",
+            TerminalAbbrev: "SOU",
+            EventScheduledTime: at(8, 40),
+          }),
+        ],
+      })
+    );
+
+    const seaRows = rows.filter((row) => row.kind === "at-sea");
+    expect(seaRows.map((row) => row.segmentKey)).toEqual(["trip-a", "trip-b"]);
+    expect(seaRows[0]?.startEvent.Key).toBe("trip-a--dep-dock");
+    expect(seaRows[0]?.endEvent.Key).toBe("trip-a--arv-dock");
+  });
 });
