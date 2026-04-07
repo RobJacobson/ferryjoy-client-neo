@@ -56,20 +56,25 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- load backend vessel/terminal identity snapshots once per tick
-- convert raw WSF payloads into `ResolvedVesselLocation`, including
+- load backend vessel rows, terminal rows, and `activeVesselTrips` in **one**
+  internal query per tick (`getOrchestratorTickReadModelInternal` in
+  `queries.ts`), with identity-table bootstrap via `syncBackendVesselTable` /
+  `syncBackendTerminalTable` when either snapshot is empty
+- convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminals`
   table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
+- pass the same tick’s active-trip list into `processVesselTrips` so the trip
+  branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:
 
 ```text
 WSF VesselLocation
   -> toConvexVesselLocation(raw, vessels, terminals)
-  -> ResolvedVesselLocation[]
+  -> ConvexVesselLocation[]
 ```
 
 Notes:
@@ -231,8 +236,9 @@ the public timeline query no longer depends on `vesselLocations` reads.
 The orchestrator keeps external API usage efficient:
 
 - one WSF vessel-location fetch per tick
-- one backend vessel snapshot load per tick
-- one backend terminal snapshot load per tick
+- one internal query per tick for vessels, terminals, and active trips (see
+  `queries.ts`), instead of three separate `runQuery` round trips from the
+  action
 - one converted location batch reused by all downstream consumers
 - one conversion pass over the fetched payload before downstream fan-out
 - concurrent downstream execution instead of serial branch processing
@@ -270,6 +276,18 @@ The timeline projection path is designed to stay lightweight:
 - store ordered boundary events for one vessel/day
 - feed the backend-owned backbone query
 - are fed by schedule seeding plus trip-driven actual/predicted projection
+
+## Core files
+
+- `actions.ts` — `updateVesselOrchestrator` and passenger-terminal gating helpers
+- `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
+
+Canonical vessel and terminal table refreshes from WSF basics are implemented in
+`convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
+`runSyncBackendVessels` public action, `syncBackendVesselTable` helper) and
+`convex/functions/terminals/actions.ts` (`syncBackendTerminals`,
+`runSyncBackendTerminals`, `syncBackendTerminalTable`). Hourly cron entries for
+those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 
