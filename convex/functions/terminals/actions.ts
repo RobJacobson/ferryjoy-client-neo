@@ -5,6 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
+import { v } from "convex/values";
 import {
   fetchTerminalLocations,
   type TerminalLocation,
@@ -46,52 +47,75 @@ const KNOWN_MARINE_LOCATIONS: ReadonlyArray<ManualMarineLocation> = [
 ];
 
 /**
- * Refresh the backend terminal table from WSF basics and persist the snapshot.
- *
- * Failures are reported without mutating the existing table so prior data
- * remains available to the rest of the system.
- *
- * @param ctx - Convex internal action context
+ * Internal cron entry: fetch WSF terminal basics and replace the backend
+ * `terminals` snapshot.
  */
-export const refreshBackendTerminals = internalAction({
+export const syncBackendTerminals = internalAction({
   args: {},
-  handler: async (ctx) => refreshBackendTerminalsImpl(ctx),
+  returns: v.null(),
+  handler: async (ctx) => {
+    await syncBackendTerminalTable(ctx);
+    return null;
+  },
 });
 
 /**
- * Public entry point for `bunx convex run`, `convex:repopulate-terminals`, and
- * optional dev bootstrap scripts.
- *
- * @param ctx - Convex public action context
+ * Public entry for `bunx convex run`, `convex:repopulate-terminals`, and dev
+ * bootstrap. Internal actions are not runnable from the CLI.
  */
-export const runRefreshBackendTerminals = action({
+export const runSyncBackendTerminals = action({
   args: {},
-  handler: async (ctx) => refreshBackendTerminalsImpl(ctx),
+  returns: v.null(),
+  handler: async (ctx) => {
+    await syncBackendTerminalTable(ctx);
+    return null;
+  },
 });
 
 /**
- * Shared handler for internal cron and public `convex run` bootstrap.
+ * Load the backend terminal snapshot for one action tick.
  *
- * @param ctx - Convex action context
+ * If the table is empty, bootstrap it immediately from WSF basics so callers
+ * do not need to wait for the hourly refresh cron.
+ *
+ * @param ctx - Convex action context for database operations
+ * @returns Backend terminals for the current action
  */
-async function refreshBackendTerminalsImpl(ctx: ActionCtx): Promise<void> {
-  try {
-    await refreshBackendTerminalsOrThrow(ctx);
-  } catch (error) {
-    const normalized = normalizeUnknownError(error);
-    console.error("refreshBackendTerminals failed:", normalized);
-    throw normalized;
+export async function loadBackendTerminals(
+  ctx: ActionCtx
+): Promise<Array<Terminal>> {
+  let terminals: Array<Terminal> = await ctx.runQuery(
+    internal.functions.terminals.queries.getAllBackendTerminalsInternal
+  );
+
+  if (terminals.length > 0) {
+    return terminals;
   }
+
+  await syncBackendTerminalTable(ctx);
+
+  terminals = await ctx.runQuery(
+    internal.functions.terminals.queries.getAllBackendTerminalsInternal
+  );
+
+  if (terminals.length === 0) {
+    throw new Error(
+      "Backend terminals table is still empty after bootstrap refresh."
+    );
+  }
+
+  return terminals;
 }
 
 /**
- * Refresh the backend terminal table and throw on failure.
+ * Fetch WSF terminal basics and replace the backend `terminals` snapshot.
+ *
+ * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals},
+ * {@link loadBackendTerminals}, and orchestrator bootstrap.
  *
  * @param ctx - Convex action context
  */
-export async function refreshBackendTerminalsOrThrow(
-  ctx: ActionCtx
-): Promise<void> {
+export async function syncBackendTerminalTable(ctx: ActionCtx): Promise<void> {
   const fetchedTerminals = await fetchTerminalLocations();
   const updatedAt = Date.now();
   const terminals = mergeKnownMarineLocations(
@@ -114,53 +138,6 @@ export async function refreshBackendTerminalsOrThrow(
     }
   );
 }
-
-/**
- * Load the backend terminal snapshot for one action tick.
- *
- * If the table is empty, bootstrap it immediately from WSF basics so callers
- * do not need to wait for the hourly refresh cron.
- *
- * @param ctx - Convex action context for database operations
- * @returns Backend terminals for the current action
- */
-export async function loadBackendTerminalsOrThrow(
-  ctx: ActionCtx
-): Promise<Array<Terminal>> {
-  let terminals: Array<Terminal> = await ctx.runQuery(
-    internal.functions.terminals.queries.getAllBackendTerminalsInternal
-  );
-
-  if (terminals.length > 0) {
-    return terminals;
-  }
-
-  await refreshBackendTerminalsOrThrow(ctx);
-
-  terminals = await ctx.runQuery(
-    internal.functions.terminals.queries.getAllBackendTerminalsInternal
-  );
-
-  if (terminals.length === 0) {
-    throw new Error(
-      "Backend terminals table is still empty after bootstrap refresh."
-    );
-  }
-
-  return terminals;
-}
-
-/**
- * Narrow raw WSF terminal basics to rows that contain the identity fields
- * required by the backend terminal table.
- *
- * @param terminal - Raw WSF terminal basics row
- * @returns True when the row contains both terminal name and abbreviation
- */
-const hasTerminalIdentity = (
-  terminal: TerminalLocation
-): terminal is TerminalLocationWithIdentity =>
-  Boolean(terminal.TerminalName && terminal.TerminalAbbrev);
 
 /**
  * Append known WSF-referenced marine locations that are omitted from the
@@ -196,39 +173,16 @@ export const mergeKnownMarineLocations = (
 };
 
 /**
- * Normalize unknown thrown values into an Error with useful detail.
+ * Narrow raw WSF terminal basics to rows that contain the identity fields
+ * required by the backend terminal table.
  *
- * Convex can surface structured error payloads that stringify to
- * `[object Object]`, so prefer JSON serialization when possible.
- *
- * @param error - Unknown thrown value
- * @returns Normalized Error instance with a readable message
+ * @param terminal - Raw WSF terminal basics row
+ * @returns True when the row contains both terminal name and abbreviation
  */
-const normalizeUnknownError = (error: unknown) => {
-  if (error instanceof Error) {
-    return error;
-  }
-
-  return new Error(safeSerialize(error));
-};
-
-/**
- * Serialize unknown values for logging.
- *
- * @param value - Unknown value to stringify
- * @returns Readable string representation for logs
- */
-const safeSerialize = (value: unknown) => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
+const hasTerminalIdentity = (
+  terminal: TerminalLocation
+): terminal is TerminalLocationWithIdentity =>
+  Boolean(terminal.TerminalName && terminal.TerminalAbbrev);
 
 /**
  * Round terminal coordinates to the stored backend precision.
