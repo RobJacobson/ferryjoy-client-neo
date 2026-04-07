@@ -91,13 +91,13 @@ crons.cron(
 crons.cron(
   "refresh backend vessels",
   "0 * * * *", // every hour at minute 0 UTC
-  internal.functions.vessels.actions.refreshBackendVessels
+  internal.functions.vessels.actions.syncBackendVessels
 );
 
 crons.cron(
   "refresh backend terminals",
   "0 * * * *", // every hour at minute 0 UTC
-  internal.functions.terminals.actions.refreshBackendTerminals
+  internal.functions.terminals.actions.syncBackendTerminals
 );
 
 crons.cron(
