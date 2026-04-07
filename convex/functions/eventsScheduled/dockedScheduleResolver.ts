@@ -1,13 +1,16 @@
 /**
- * Shared schedule-backed dock resolution for live vessel identity.
+ * Schedule-backed dock resolution for live vessel identity using trip continuity.
+ *
+ * Uses persisted next-leg hints (`NextKey`) and same-terminal rollover after a
+ * known departure. Deliberately does not re-merge the full timeline backbone on
+ * every tick; UI labels and structure already come from `eventsScheduled`.
  */
 
 import type { ConvexInferredScheduledSegment } from "./schemas";
 
 export type DockedScheduledSegmentSource =
   | "completed_trip_next"
-  | "rollover_schedule"
-  | "dock_interval";
+  | "rollover_schedule";
 
 export type ScheduledSegmentLookup = {
   getScheduledDepartureSegmentBySegmentKey: (
@@ -17,11 +20,6 @@ export type ScheduledSegmentLookup = {
     vesselAbbrev: string;
     departingTerminalAbbrev: string;
     previousScheduledDeparture: number;
-  }) => Promise<ConvexInferredScheduledSegment | null>;
-  getDockedDepartureSegmentForVesselAtTerminal: (args: {
-    vesselAbbrev: string;
-    departingTerminalAbbrev: string;
-    sailingDay: string;
   }) => Promise<ConvexInferredScheduledSegment | null>;
 };
 
@@ -33,7 +31,6 @@ type ExistingTripContinuity = {
 type ResolveDockedScheduledSegmentArgs = {
   vesselAbbrev: string;
   departingTerminalAbbrev: string;
-  sailingDay: string;
   existingTrip?: ExistingTripContinuity;
 };
 
@@ -43,10 +40,15 @@ export type DockedScheduledSegmentResolution = {
 };
 
 /**
- * Resolve the scheduled departure segment that should own the current dock interval.
+ * Resolve the scheduled departure segment that should own the current dock
+ * interval when the live feed omits trip identity.
  *
- * The lookup order preserves trip continuity first and only falls back to pure
- * dock-interval ownership when no stronger prior-trip evidence exists.
+ * Prefers exact next-leg schedule (`NextKey`) and same-day rollover after a
+ * known departure; otherwise returns null so callers use raw feed fields.
+ *
+ * @param lookup - Internal schedule query adapters
+ * @param args - Vessel, terminal, and optional prior-trip hints
+ * @returns Segment plus provenance, or null when no continuity match exists
  */
 export const resolveDockedScheduledSegment = async (
   lookup: ScheduledSegmentLookup,
@@ -84,17 +86,5 @@ export const resolveDockedScheduledSegment = async (
     }
   }
 
-  const dockIntervalSegment =
-    await lookup.getDockedDepartureSegmentForVesselAtTerminal({
-      vesselAbbrev: args.vesselAbbrev,
-      departingTerminalAbbrev: args.departingTerminalAbbrev,
-      sailingDay: args.sailingDay,
-    });
-
-  return dockIntervalSegment
-    ? {
-        segment: dockIntervalSegment,
-        source: "dock_interval",
-      }
-    : null;
+  return null;
 };

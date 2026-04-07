@@ -5,11 +5,8 @@
 import type { QueryCtx } from "_generated/server";
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { resolveActiveTimelineInterval } from "shared/activeTimelineInterval";
 import { buildBoundaryKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import { mergeTimelineEvents } from "../../domain/vesselTimeline/timelineEvents";
-import type { ConvexActualBoundaryEvent } from "../eventsActual/schemas";
 import type { ConvexScheduledBoundaryEvent } from "./schemas";
 import { inferredScheduledSegmentSchema } from "./schemas";
 import {
@@ -74,42 +71,6 @@ export const getNextDepartureSegmentAfterDeparture = internalQuery({
 });
 
 /**
- * Resolves the departure that owns a vessel's current same-day dock interval.
- *
- * @param args - Vessel, terminal, and sailing day scope
- * @returns The scheduled segment owning the current dock interval, or `null`
- */
-export const getDockedDepartureSegmentForVesselAtTerminal = internalQuery({
-  args: {
-    vesselAbbrev: v.string(),
-    departingTerminalAbbrev: v.string(),
-    sailingDay: v.string(),
-  },
-  returns: v.union(inferredScheduledSegmentSchema, v.null()),
-  handler: async (ctx, args) => {
-    const [scheduledEvents, actualEvents] = await Promise.all([
-      loadScheduledBoundaryEventsForSailingDay(
-        ctx,
-        args.vesselAbbrev,
-        args.sailingDay
-      ),
-      loadActualBoundaryEventsForSailingDay(
-        ctx,
-        args.vesselAbbrev,
-        args.sailingDay
-      ),
-    ]);
-    const departureEvent = resolveDockedDepartureEventFromSameDayTimeline(
-      scheduledEvents,
-      actualEvents,
-      args.departingTerminalAbbrev
-    );
-
-    return departureEvent ? inferScheduledSegment(ctx, departureEvent) : null;
-  },
-});
-
-/**
  * Builds the portable segment shape returned to callers from a departure event.
  *
  * @param ctx - Convex query context
@@ -132,43 +93,6 @@ const inferScheduledSegment = async (
   );
 
   return buildInferredScheduledSegment(departureEvent, nextDepartureEvent);
-};
-
-/**
- * Resolves the departure event owning the current dock interval from same-day
- * scheduled and actual boundary tables.
- *
- * @param scheduledEvents - Same-day scheduled boundary rows
- * @param actualEvents - Same-day actual boundary rows
- * @param departingTerminalAbbrev - Terminal where the vessel is currently docked
- * @returns Owning departure boundary, or `null`
- */
-const resolveDockedDepartureEventFromSameDayTimeline = (
-  scheduledEvents: ConvexScheduledBoundaryEvent[],
-  actualEvents: ConvexActualBoundaryEvent[],
-  departingTerminalAbbrev: string
-) => {
-  const events = mergeTimelineEvents({
-    scheduledEvents,
-    actualEvents,
-    predictedEvents: [],
-  });
-  const activeInterval = resolveActiveTimelineInterval(events);
-
-  if (
-    activeInterval?.kind !== "at-dock" ||
-    activeInterval.endEventKey === null
-  ) {
-    return null;
-  }
-
-  const departureEvent =
-    scheduledEvents.find((event) => event.Key === activeInterval.endEventKey) ??
-    null;
-
-  return departureEvent?.TerminalAbbrev === departingTerminalAbbrev
-    ? departureEvent
-    : null;
 };
 
 /**
@@ -204,26 +128,6 @@ const loadScheduledBoundaryEventsForSailingDay = async (
 ) =>
   ctx.db
     .query("eventsScheduled")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", vesselAbbrev).eq("SailingDay", sailingDay)
-    )
-    .collect();
-
-/**
- * Loads actual boundary events for one vessel and sailing day.
- *
- * @param ctx - Convex query context
- * @param vesselAbbrev - Vessel abbreviation
- * @param sailingDay - Sailing day in YYYY-MM-DD format
- * @returns Matching same-day actual boundary events
- */
-const loadActualBoundaryEventsForSailingDay = async (
-  ctx: QueryCtx,
-  vesselAbbrev: string,
-  sailingDay: string
-) =>
-  ctx.db
-    .query("eventsActual")
     .withIndex("by_vessel_and_sailing_day", (q) =>
       q.eq("VesselAbbrev", vesselAbbrev).eq("SailingDay", sailingDay)
     )
