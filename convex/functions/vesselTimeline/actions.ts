@@ -15,8 +15,8 @@ import {
 } from "../../domain/vesselTimeline/events";
 import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
-import { loadBackendTerminalsOrThrow } from "../terminals/actions";
-import { loadBackendVesselsOrThrow } from "../vessels/actions";
+import { loadBackendTerminals } from "../terminals/actions";
+import { loadBackendVessels } from "../vessels/actions";
 
 const logPrefix = "[SYNC VESSEL TIMELINE]";
 
@@ -81,8 +81,8 @@ const syncVesselTimelineForDate = async (
 ): Promise<TimelineSyncResult> => {
   console.log(`${logPrefix} Starting replace sync for ${targetDate}`);
 
-  const vessels = await loadBackendVesselsOrThrow(ctx);
-  const terminals = await loadBackendTerminalsOrThrow(ctx);
+  const vessels = await loadBackendVessels(ctx);
+  const terminals = await loadBackendTerminals(ctx);
   const { routeData } = await fetchAndTransformScheduledTrips(
     targetDate,
     vessels,
@@ -103,7 +103,6 @@ const syncVesselTimelineForDate = async (
     targetDate
   );
   const hydratedEvents = mergeSeededEventsWithHistory({
-    sailingDay: targetDate,
     seededEvents: directEvents,
     existingEvents: [],
     scheduleSegments,
