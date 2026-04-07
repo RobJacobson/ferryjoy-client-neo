@@ -11,9 +11,8 @@ import {
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
-import type { VesselAbbrev } from "../../shared/identity";
 import { deriveTripIdentity } from "../../shared/tripIdentity";
-import { resolveVessel, type VesselIdentity } from "../../shared/vessels";
+import { resolveVesselName, type VesselIdentity } from "../../shared/vessels";
 import { resolveTerminal, type TerminalIdentity } from "../terminals/resolver";
 
 /**
@@ -69,19 +68,10 @@ export const vesselLocationValidationSchema = v.object(
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 
 /**
- * Vessel location whose vessel abbreviation has been resolved against the
- * backend vessel table.
- */
-export type ResolvedVesselLocation = Omit<
-  ConvexVesselLocation,
-  "VesselAbbrev"
-> & {
-  VesselAbbrev: VesselAbbrev;
-};
-
-/**
  * Convert a Dottie vessel location to a convex vessel location.
  * Manual conversion from Date objects to epoch milliseconds.
+ * `VesselAbbrev` is resolved against the backend vessel table.
+ *
  * @param dvl - Dottie vessel location with Date objects
  * @param vessels - Backend vessel rows used to resolve the vessel abbreviation
  * @returns Convex vessel location with numeric timestamps
@@ -90,14 +80,14 @@ export function toConvexVesselLocation(
   dvl: DottieVesselLocation,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): ResolvedVesselLocation {
+): ConvexVesselLocation {
   const VesselName = (dvl.VesselName ?? "").trim();
   const rawDepartingTerminalAbbrev = (dvl.DepartingTerminalAbbrev ?? "").trim();
   const rawDepartingTerminalName = (dvl.DepartingTerminalName ?? "").trim();
   const rawArrivingTerminalAbbrev =
     dvl.ArrivingTerminalAbbrev?.trim() ?? undefined;
   const rawArrivingTerminalName = dvl.ArrivingTerminalName?.trim() ?? undefined;
-  const resolvedVessel = resolveVessel({ VesselName }, vessels);
+  const resolvedAbbrev = resolveVesselName(VesselName, vessels);
   const resolvedDepartingTerminal = rawDepartingTerminalAbbrev
     ? resolveTerminal({ TerminalAbbrev: rawDepartingTerminalAbbrev }, terminals)
     : null;
@@ -105,7 +95,7 @@ export function toConvexVesselLocation(
     ? resolveTerminal({ TerminalAbbrev: rawArrivingTerminalAbbrev }, terminals)
     : null;
 
-  if (!resolvedVessel) {
+  if (!resolvedAbbrev) {
     throw new Error(`Unknown vessel in backend vessel lookup: ${VesselName}`);
   }
 
@@ -136,7 +126,7 @@ export function toConvexVesselLocation(
     rawArrivingTerminalName ??
     rawArrivingTerminalAbbrev;
   const tripIdentity = deriveTripIdentity({
-    vesselAbbrev: resolvedVessel.VesselAbbrev,
+    vesselAbbrev: resolvedAbbrev,
     departingTerminalAbbrev: DepartingTerminalAbbrev,
     arrivingTerminalAbbrev: ArrivingTerminalAbbrev,
     scheduledDepartureMs: optionalDateToEpochMs(dvl.ScheduledDeparture),
@@ -146,7 +136,7 @@ export function toConvexVesselLocation(
   return {
     VesselID: dvl.VesselID,
     VesselName,
-    VesselAbbrev: resolvedVessel.VesselAbbrev,
+    VesselAbbrev: resolvedAbbrev,
     DepartingTerminalID: dvl.DepartingTerminalID,
     DepartingTerminalName,
     DepartingTerminalAbbrev,
