@@ -109,7 +109,7 @@ export const resolveEffectiveDockedTripIdentity = ({
     };
   }
 
-  if (scheduledSegment) {
+  if (scheduledSegment && scheduledSegmentSource) {
     return {
       ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
       ScheduledDeparture: scheduledSegment.DepartingTime,
@@ -117,7 +117,7 @@ export const resolveEffectiveDockedTripIdentity = ({
       Key: scheduledSegment.Key,
       NextKey: scheduledSegment.NextKey,
       NextScheduledDeparture: scheduledSegment.NextDepartingTime,
-      source: scheduledSegmentSource ?? "dock_interval",
+      source: scheduledSegmentSource,
       conflictsLiveFeed: conflictsWithLiveIdentity(location, {
         ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
         ScheduledDeparture: scheduledSegment.DepartingTime,

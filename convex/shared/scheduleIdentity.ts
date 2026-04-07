@@ -3,13 +3,12 @@ import {
   type TerminalIdentity,
 } from "../functions/terminals/resolver";
 import type { RawWsfScheduleSegment } from "./fetchWsfScheduleData";
-import type { TerminalAbbrev, VesselAbbrev } from "./identity";
-import { resolveVesselAbbrev, type VesselIdentity } from "./vessels";
+import { resolveVesselName, type VesselIdentity } from "./vessels";
 
 type ResolvedScheduleSegmentIdentity = {
-  vesselAbbrev: VesselAbbrev;
-  departingTerminalAbbrev: TerminalAbbrev;
-  arrivingTerminalAbbrev: TerminalAbbrev;
+  vesselAbbrev: string;
+  departingTerminalAbbrev: string;
+  arrivingTerminalAbbrev: string;
 };
 
 const HISTORY_TERMINAL_ABBREV_ALIASES: Record<string, string> = {
@@ -37,7 +36,7 @@ export const resolveScheduleSegmentIdentity = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): ResolvedScheduleSegmentIdentity | null => {
-  const vesselAbbrev = resolveVesselAbbrev(segment.VesselName, vessels);
+  const vesselAbbrev = resolveVesselName(segment.VesselName, vessels);
   const departingTerminalAbbrev = resolveScheduleTerminalAbbrev(
     segment.DepartingTerminalName,
     terminals
@@ -71,7 +70,7 @@ export const resolveScheduleSegmentIdentity = (
 export const resolveScheduleTerminalAbbrev = (
   terminalName: string,
   terminals: ReadonlyArray<TerminalIdentity>
-): TerminalAbbrev | null =>
+): string | null =>
   resolveTerminalAbbrev({ TerminalName: terminalName }, terminals);
 
 /**
@@ -88,7 +87,7 @@ export const resolveScheduleTerminalAbbrev = (
 export const resolveHistoryTerminalAbbrev = (
   terminalName: string,
   terminals: ReadonlyArray<TerminalIdentity>
-): TerminalAbbrev | null => {
+): string | null => {
   const exactMatch = resolveTerminalAbbrev(
     { TerminalName: terminalName },
     terminals
@@ -118,7 +117,7 @@ export const resolveHistoryTerminalAbbrev = (
 export const resolveTerminalAbbrev = (
   input: TerminalLookupInput,
   terminals: ReadonlyArray<TerminalIdentity>
-): TerminalAbbrev | null => {
+): string | null => {
   const terminalAbbrev = input.TerminalAbbrev?.trim();
 
   if (terminalAbbrev) {

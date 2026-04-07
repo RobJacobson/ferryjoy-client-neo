@@ -39,6 +39,7 @@ import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeli
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
 import type * as domain_vesselTimeline_events_reconcile from "../domain/vesselTimeline/events/reconcile.js";
 import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimeline/events/reseed.js";
+import type * as domain_vesselTimeline_events_scheduleDepartureLookup from "../domain/vesselTimeline/events/scheduleDepartureLookup.js";
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
 import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
@@ -105,6 +106,7 @@ import type * as functions_vesselLocationsHistoric_queries from "../functions/ve
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
+import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselPing_actions from "../functions/vesselPing/actions.js";
 import type * as functions_vesselPing_index from "../functions/vesselPing/index.js";
 import type * as functions_vesselPing_mutations from "../functions/vesselPing/mutations.js";
@@ -127,6 +129,7 @@ import type * as functions_vesselTrips_index from "../functions/vesselTrips/inde
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
+import type * as functions_vesselTrips_updates_actualBoundaryPatchesFromTrip from "../functions/vesselTrips/updates/actualBoundaryPatchesFromTrip.js";
 import type * as functions_vesselTrips_updates_appendPredictions from "../functions/vesselTrips/updates/appendPredictions.js";
 import type * as functions_vesselTrips_updates_appendSchedule from "../functions/vesselTrips/updates/appendSchedule.js";
 import type * as functions_vesselTrips_updates_baseTripFromLocation from "../functions/vesselTrips/updates/baseTripFromLocation.js";
@@ -151,7 +154,7 @@ import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_effectiveTripIdentity from "../shared/effectiveTripIdentity.js";
 import type * as shared_fetchWsfScheduleData from "../shared/fetchWsfScheduleData.js";
 import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLocations.js";
-import type * as shared_identity from "../shared/identity.js";
+import type * as shared_groupBy from "../shared/groupBy.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
 import type * as shared_scheduleIdentity from "../shared/scheduleIdentity.js";
@@ -199,6 +202,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;
   "domain/vesselTimeline/events/reconcile": typeof domain_vesselTimeline_events_reconcile;
   "domain/vesselTimeline/events/reseed": typeof domain_vesselTimeline_events_reseed;
+  "domain/vesselTimeline/events/scheduleDepartureLookup": typeof domain_vesselTimeline_events_scheduleDepartureLookup;
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
   "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
@@ -265,6 +269,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
+  "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselPing/actions": typeof functions_vesselPing_actions;
   "functions/vesselPing/index": typeof functions_vesselPing_index;
   "functions/vesselPing/mutations": typeof functions_vesselPing_mutations;
@@ -287,6 +292,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
+  "functions/vesselTrips/updates/actualBoundaryPatchesFromTrip": typeof functions_vesselTrips_updates_actualBoundaryPatchesFromTrip;
   "functions/vesselTrips/updates/appendPredictions": typeof functions_vesselTrips_updates_appendPredictions;
   "functions/vesselTrips/updates/appendSchedule": typeof functions_vesselTrips_updates_appendSchedule;
   "functions/vesselTrips/updates/baseTripFromLocation": typeof functions_vesselTrips_updates_baseTripFromLocation;
@@ -311,7 +317,7 @@ declare const fullApi: ApiFromModules<{
   "shared/effectiveTripIdentity": typeof shared_effectiveTripIdentity;
   "shared/fetchWsfScheduleData": typeof shared_fetchWsfScheduleData;
   "shared/fetchWsfVesselLocations": typeof shared_fetchWsfVesselLocations;
-  "shared/identity": typeof shared_identity;
+  "shared/groupBy": typeof shared_groupBy;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;
   "shared/scheduleIdentity": typeof shared_scheduleIdentity;
