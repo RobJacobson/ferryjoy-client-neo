@@ -58,6 +58,70 @@ describe("mergeTimelineEvents", () => {
       EventPredictedTime: at(8, 40),
     });
   });
+
+  it("reattaches wrong-key arrival actuals using segment dep and next dep at arrival terminal", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "a--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(13, 55),
+          EventScheduledTime: at(13, 55),
+          NextTerminalAbbrev: "FAU",
+        }),
+        makeScheduledEvent({
+          Key: "a--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(13, 55),
+          EventScheduledTime: at(14, 10),
+          NextTerminalAbbrev: "FAU",
+        }),
+        makeScheduledEvent({
+          Key: "leg-b--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "FAU",
+          ScheduledDeparture: at(14, 20),
+          EventScheduledTime: at(14, 20),
+          NextTerminalAbbrev: "VAI",
+        }),
+        makeScheduledEvent({
+          Key: "leg-b--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(14, 20),
+          EventScheduledTime: at(16, 35),
+          NextTerminalAbbrev: "VAI",
+        }),
+        makeScheduledEvent({
+          Key: "c--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(15, 50),
+          EventScheduledTime: at(15, 50),
+          NextTerminalAbbrev: "FAU",
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "orphan--arv-dock",
+          TerminalAbbrev: "VAI",
+          ScheduledDeparture: at(14, 20),
+          EventActualTime: at(14, 41),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    const legBArv = events.find((event) => event.Key === "leg-b--arv-dock");
+    expect(legBArv?.EventActualTime).toBe(at(14, 41));
+    const cDepIndex = events.findIndex((event) => event.Key === "c--dep-dock");
+    const legBArvIndex = events.findIndex(
+      (event) => event.Key === "leg-b--arv-dock"
+    );
+    expect(legBArvIndex).toBeLessThan(cDepIndex);
+  });
 });
 
 describe("resolveActiveTimelineInterval", () => {

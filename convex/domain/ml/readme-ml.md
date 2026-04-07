@@ -417,9 +417,13 @@ to be stored while maintaining clear distinction for filtering purposes.
 
 Predictions are generated and stored as part of the vessel orchestrator action
 `updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`).
-The orchestrator fetches vessel locations once, deduplicates them, and delegates to
-both `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
-The trip update logic is implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
+The orchestrator fetches vessel locations once, loads vessels, terminals, and
+active trips in one internal query (`getOrchestratorTickReadModelInternal` in
+`convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
+`updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
+It passes that tick’s active trips into `processVesselTrips` so the trip branch
+does not issue a separate `getActiveTrips` query. The trip update logic is
+implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
 

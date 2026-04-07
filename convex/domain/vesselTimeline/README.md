@@ -115,21 +115,25 @@ That separation removes the main source of bandwidth churn from the old design.
 
 ## Relationship To `vesselTrips`
 
-`vesselTrips` still owns trip lifecycle state and may occasionally need a
-schedule-backed fallback when the feed is docked and keyless.
+`vesselTrips` still owns trip lifecycle state. When the live feed omits trip
+identity at dock, it may still resolve schedule context from **trip continuity**
+(`NextKey` or rollover after a known `ScheduledDeparture`) via targeted
+`eventsScheduled` queries — not by re-merging the full backbone on every tick.
 
-That fallback is no longer a public timeline concern. It is now:
-
-- same-day only
-- bootstrap-only for rare docked/keyless cases
-- derived from scheduled + actual backbone events using the same pure active
-  interval helper
-
-Steady-state docked ticks should reuse existing trip identity and avoid repeat
-schedule lookups.
+That path is not part of the public timeline query. Steady-state docked ticks
+should reuse persisted trip identity and avoid redundant schedule reads.
 
 ## Core Files
 
+- `events/history.ts`
+  During timeline sync, merges WSF vessel history into seeded events: strict
+  terminal-based segment keys first; if that misses, an in-memory fallback
+  matches `(vessel, scheduled departure)` to `dep-dock` seed rows via
+  `createSeededScheduleSegmentResolver` (see `scheduleDepartureLookup.ts`).
+- `events/scheduleDepartureLookup.ts`
+  Exports `createSeededScheduleSegmentResolver`: builds a per-merge resolver that
+  groups `dep-dock` seeds by vessel (`convex/shared/groupBy.ts`) and resolves
+  segment keys when history `ScheduledDepart` equals seeded `ScheduledDeparture`.
 - `timelineEvents.ts`
   Merges scheduled, actual, and predicted rows into ordered public events.
 - `viewModel.ts`
