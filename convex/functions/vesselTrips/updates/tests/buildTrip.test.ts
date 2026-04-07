@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildTrip } from "../buildTrip";
 import type { TripEvents } from "../eventDetection";
@@ -171,8 +171,8 @@ const makeModelDoc = () => ({
 });
 
 const makeLocation = (
-  overrides: Partial<ResolvedVesselLocation> = {}
-): ResolvedVesselLocation => ({
+  overrides: Partial<ConvexVesselLocation> = {}
+): ConvexVesselLocation => ({
   VesselID: 2,
   VesselName: "Chelan",
   VesselAbbrev: "CHE",

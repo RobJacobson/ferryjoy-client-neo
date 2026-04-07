@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveEffectiveLocation } from "../effectiveLocation";
 
@@ -41,7 +41,7 @@ describe("resolveEffectiveLocation", () => {
     );
   });
 
-  it("prefers the carried NextKey during rollover before same-day fallback", async () => {
+  it("prefers the carried NextKey when it matches the current departing terminal", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
       ArrivingTerminalAbbrev: "MUK",
@@ -80,20 +80,12 @@ describe("resolveEffectiveLocation", () => {
     );
   });
 
-  it("uses the same-day docked fallback once for a first-seen keyless trip", async () => {
-    const dockedSegment = makeScheduledSegment({
-      Key: "CHE--2026-03-13--11:00--CLI-MUK",
-      ArrivingTerminalAbbrev: "MUK",
-      DepartingTime: ms("2026-03-13T11:00:00-07:00"),
-    });
-    const queryArgs: Array<Record<string, unknown> | undefined> = [];
+  it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", async () => {
+    let queryCount = 0;
     const effectiveLocation = await resolveEffectiveLocation(
       {
-        runQuery: async (_ref: unknown, args?: Record<string, unknown>) => {
-          queryArgs.push(args);
-          if (args && "sailingDay" in args) {
-            return dockedSegment;
-          }
+        runQuery: async () => {
+          queryCount += 1;
           return null;
         },
       } as never,
@@ -105,27 +97,18 @@ describe("resolveEffectiveLocation", () => {
       undefined
     );
 
-    expect(queryArgs).toHaveLength(1);
-    expect(queryArgs[0]).toEqual({
-      vesselAbbrev: "CHE",
-      departingTerminalAbbrev: "CLI",
-      sailingDay: "2026-03-13",
-    });
-    expect(effectiveLocation.Key).toBe(dockedSegment.Key);
-    expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
-      dockedSegment.ArrivingTerminalAbbrev
-    );
-    expect(effectiveLocation.ScheduledDeparture).toBe(
-      dockedSegment.DepartingTime
-    );
+    expect(queryCount).toBe(0);
+    expect(effectiveLocation.Key).toBeUndefined();
+    expect(effectiveLocation.ArrivingTerminalAbbrev).toBeUndefined();
+    expect(effectiveLocation.ScheduledDeparture).toBeUndefined();
   });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();
 
 const makeLocation = (
-  overrides: Partial<ResolvedVesselLocation> = {}
-): ResolvedVesselLocation => ({
+  overrides: Partial<ConvexVesselLocation> = {}
+): ConvexVesselLocation => ({
   VesselID: 1,
   VesselName: "Chelan",
   VesselAbbrev: "CHE",

@@ -15,14 +15,18 @@ import {
 } from "domain/vesselTimeline/normalizedEvents";
 import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import {
+  buildArrivalActualPatchForTrip,
+  buildDepartureActualPatchForTrip,
+} from "../actualBoundaryPatchesFromTrip";
 import { buildCompletedTrip } from "../buildCompletedTrip";
 import { buildTrip } from "../buildTrip";
 import type { TripEvents } from "../eventDetection";
 
 type CompletedTripTransition = {
-  currLocation: ResolvedVesselLocation;
+  currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
   events: TripEvents;
 };
@@ -169,8 +173,8 @@ const buildCompletedTripEffects = (
   newTrip: ConvexVesselTrip
 ): ProjectionResults => ({
   actualPatches: [
-    buildDepartureActualPatch(tripToComplete),
-    buildArrivalActualPatch(tripToComplete),
+    buildDepartureActualPatchForTrip(tripToComplete),
+    buildArrivalActualPatchForTrip(tripToComplete),
   ].filter((patch): patch is ConvexActualBoundaryPatch => Boolean(patch)),
   predictedEffects: [
     buildPredictedBoundaryClearEffect(existingTrip),
@@ -204,67 +208,3 @@ const createEmptyProjectionResults = (): ProjectionResults => ({
   actualPatches: [],
   predictedEffects: [],
 });
-
-/**
- * Build the actual departure patch for a finalized trip state.
- *
- * This re-projects departure actuals at trip completion so `eventsActual`
- * still recovers when the earlier leave-dock transition tick was missed.
- *
- * @param trip - Finalized trip carrying a canonical segment key and departure time
- * @returns Departure patch, or null when the trip is not projection-ready
- */
-const buildDepartureActualPatch = (
-  trip: ConvexVesselTrip
-): ConvexActualBoundaryPatch | null => {
-  if (
-    !trip.Key ||
-    !trip.SailingDay ||
-    trip.ScheduledDeparture === undefined ||
-    trip.LeftDock === undefined
-  ) {
-    return null;
-  }
-
-  return {
-    SegmentKey: trip.Key,
-    VesselAbbrev: trip.VesselAbbrev,
-    SailingDay: trip.SailingDay,
-    ScheduledDeparture: trip.ScheduledDeparture,
-    TerminalAbbrev: trip.DepartingTerminalAbbrev,
-    EventType: "dep-dock",
-    EventOccurred: true,
-    EventActualTime: trip.LeftDock,
-  };
-};
-
-/**
- * Build the actual arrival patch for a finalized trip state.
- *
- * @param trip - Finalized trip carrying a canonical segment key and arrival time
- * @returns Arrival patch, or null when the trip is not projection-ready
- */
-const buildArrivalActualPatch = (
-  trip: ConvexVesselTrip
-): ConvexActualBoundaryPatch | null => {
-  if (
-    !trip.Key ||
-    !trip.SailingDay ||
-    trip.ScheduledDeparture === undefined ||
-    trip.ArriveDest === undefined ||
-    !trip.ArrivingTerminalAbbrev
-  ) {
-    return null;
-  }
-
-  return {
-    SegmentKey: trip.Key,
-    VesselAbbrev: trip.VesselAbbrev,
-    SailingDay: trip.SailingDay,
-    ScheduledDeparture: trip.ScheduledDeparture,
-    TerminalAbbrev: trip.ArrivingTerminalAbbrev,
-    EventType: "arv-dock",
-    EventOccurred: true,
-    EventActualTime: trip.ArriveDest,
-  };
-};

@@ -5,14 +5,13 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { resolveDockedScheduledSegment } from "functions/eventsScheduled/dockedScheduleResolver";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   applyEffectiveTripIdentityToLocation,
   hasStableDockedTripIdentity,
   resolveEffectiveDockedTripIdentity,
 } from "shared/effectiveTripIdentity";
-import { getSailingDay } from "shared/time";
 
 /**
  * Resolve the effective location that downstream trip building should use.
@@ -22,9 +21,9 @@ import { getSailingDay } from "shared/time";
  */
 export const resolveEffectiveLocation = async (
   ctx: ActionCtx,
-  location: ResolvedVesselLocation,
+  location: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined
-): Promise<ResolvedVesselLocation> => {
+): Promise<ConvexVesselLocation> => {
   if (!location.AtDock || location.LeftDock !== undefined) {
     return location;
   }
@@ -48,17 +47,10 @@ export const resolveEffectiveLocation = async (
                 .getNextDepartureSegmentAfterDeparture,
               args
             ),
-          getDockedDepartureSegmentForVesselAtTerminal: (args) =>
-            ctx.runQuery(
-              internal.functions.eventsScheduled.queries
-                .getDockedDepartureSegmentForVesselAtTerminal,
-              args
-            ),
         },
         {
           vesselAbbrev: location.VesselAbbrev,
           departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-          sailingDay: getSailingDay(new Date(location.TimeStamp)),
           existingTrip,
         }
       );

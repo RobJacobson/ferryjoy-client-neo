@@ -5,7 +5,7 @@
  * detection logic across multiple files.
  */
 
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 
@@ -36,7 +36,7 @@ export { getDockDepartureState } from "./tripDerivation";
  */
 export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
+  currLocation: ConvexVesselLocation
 ): TripEvents => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const isTripStartReady = tripInputs.currentIsTripStartReady;

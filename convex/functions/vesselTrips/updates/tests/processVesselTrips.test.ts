@@ -149,7 +149,7 @@ describe("processVesselTripsWithDeps", () => {
       })
     );
 
-    expect(getActualProjectionArgs(ctx)?.Effects[0]?.EventType).toBe(
+    expect(getActualProjectionArgs(ctx)?.Patches[0]?.EventType).toBe(
       "arv-dock"
     );
   });
@@ -405,7 +405,7 @@ const createTestActionCtx = (options: {
         return null;
       }
 
-      if (args && "Effects" in args) {
+      if (args && "Patches" in args) {
         options.callSequence?.push("mutation:projectActual");
         return null;
       }
@@ -617,15 +617,10 @@ const getUpsertMutationArgs = (ctx: TestActionCtx) =>
 const getActualProjectionArgs = (ctx: TestActionCtx) =>
   ctx.mutationCalls.find(
     (call) =>
-      call.args &&
-      "Effects" in call.args &&
-      Array.isArray(call.args.Effects) &&
-      call.args.Effects.every(
-        (effect) => !("Rows" in (effect as Record<string, unknown>))
-      )
+      call.args && "Patches" in call.args && Array.isArray(call.args.Patches)
   )?.args as
     | {
-        Effects: Array<{
+        Patches: Array<{
           EventType: string;
         }>;
       }

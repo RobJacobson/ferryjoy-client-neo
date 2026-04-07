@@ -5,7 +5,7 @@
  * base trip construction so the two paths stay in sync.
  */
 
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 
@@ -59,7 +59,7 @@ export const hasTripEvidence = (
  */
 export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
+  currLocation: ConvexVesselLocation
 ): DockDepartureState => {
   const leftDockTime = currLocation.LeftDock ?? existingTrip?.LeftDock;
 
@@ -86,7 +86,7 @@ export const getDockDepartureState = (
  */
 export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
+  currLocation: ConvexVesselLocation
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
@@ -158,7 +158,7 @@ export const deriveTripInputs = (
  */
 export const determineBaseTripMode = (
   _existingTrip: ConvexVesselTrip | undefined,
-  _currLocation: ResolvedVesselLocation,
+  _currLocation: ConvexVesselLocation,
   isTripStart: boolean
 ): BaseTripMode => {
   if (isTripStart) {
