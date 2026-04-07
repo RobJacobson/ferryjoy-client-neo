@@ -9,7 +9,7 @@ const REFRESH_RUN = [
   "bunx",
   "convex",
   "run",
-  "functions/vessels/actions:runRefreshBackendVessels",
+  "functions/vessels/actions:runSyncBackendVessels",
   "{}",
   "--typecheck=disable",
 ] as const;
@@ -47,7 +47,7 @@ const runRefreshWhenReady = async (): Promise<void> => {
     if (code === 0) {
       console.log(
         "[convex:dev:with-repopulate] Backend vessels refreshed " +
-          "(runRefreshBackendVessels)."
+          "(runSyncBackendVessels)."
       );
       return;
     }
