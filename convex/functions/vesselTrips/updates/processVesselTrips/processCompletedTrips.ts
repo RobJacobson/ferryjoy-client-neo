@@ -2,13 +2,11 @@
  * Completed-trip processing for vessel trip updates.
  *
  * Handles trip-boundary transitions outside the top-level orchestrator while
- * preserving atomic persistence, prediction lifecycle side effects, and
- * boundary projection behavior.
+ * preserving atomic persistence and boundary projection behavior.
  */
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { handlePredictionEvent } from "domain/ml/prediction";
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
@@ -39,13 +37,11 @@ type ProjectionResults = {
 export type ProcessCompletedTripsDeps = {
   buildCompletedTrip: typeof buildCompletedTrip;
   buildTrip: typeof buildTrip;
-  handlePredictionEvent: typeof handlePredictionEvent;
 };
 
 const DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS: ProcessCompletedTripsDeps = {
   buildCompletedTrip,
   buildTrip,
-  handlePredictionEvent,
 };
 
 /**
@@ -120,10 +116,6 @@ const processCompletedTripTransition = async (
       newTrip,
     }
   );
-  await deps.handlePredictionEvent(ctx, {
-    eventType: "trip_complete",
-    trip: tripToComplete,
-  });
 
   return buildCompletedTripEffects(existingTrip, tripToComplete, newTrip);
 };

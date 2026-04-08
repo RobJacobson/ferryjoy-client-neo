@@ -17,7 +17,7 @@ export const modelTypeValidator = v.union(
 export type { ModelType };
 
 /**
- * PascalCase prediction type for use in the predictions table
+ * PascalCase prediction type (vessel-trip ML fields and eventsPredicted rows).
  */
 export type PredictionType =
   | "AtDockDepartCurr"
@@ -27,7 +27,7 @@ export type PredictionType =
   | "AtSeaDepartNext";
 
 /**
- * Convex validator for PascalCase prediction types (used in predictions table)
+ * Convex validator for PascalCase prediction types (eventsPredicted, trips).
  */
 export const predictionTypeValidator = v.union(
   v.literal("AtDockDepartCurr"),
@@ -70,41 +70,6 @@ export const modelParametersSchema = v.object({
 });
 
 export type ConvexModelParameters = Infer<typeof modelParametersSchema>;
-
-/**
- * Convex validator for prediction records stored in the predictions table.
- * Stores one completed prediction per row when Actual becomes known.
- */
-export const predictionRecordSchema = v.object({
-  // Trip identification
-  Key: v.string(),
-  VesselAbbreviation: v.string(),
-  DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalAbbrev: v.string(),
-  PredictionType: predictionTypeValidator,
-  // Trip timing fields (optional, may not all be available)
-  TripStart: v.optional(v.number()),
-  ScheduledDeparture: v.optional(v.number()),
-  LeftDock: v.optional(v.number()),
-  TripEnd: v.optional(v.number()),
-  // Prediction times (epoch ms, rounded to seconds)
-  MinTime: v.number(),
-  PredTime: v.number(),
-  MaxTime: v.number(),
-  // Model performance metrics (from training, in minutes)
-  MAE: v.number(), // Mean Absolute Error
-  StdDev: v.number(), // Standard deviation of errors
-  // Actual time (epoch ms, rounded to seconds)
-  Actual: v.number(),
-  // Delta calculations (minutes, rounded to 1/10)
-  DeltaTotal: v.number(),
-  DeltaRange: v.number(),
-});
-
-/**
- * Type for prediction record in Convex storage
- */
-export type ConvexPredictionRecord = Infer<typeof predictionRecordSchema>;
 
 /**
  * Convex validator for ML configuration stored in the modelConfig table.

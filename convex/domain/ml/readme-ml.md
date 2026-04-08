@@ -698,10 +698,10 @@ convex/domain/ml/
 │   └── models/                       # Model training implementation
 │       ├── trainModels.ts            # Linear regression training
 │       └── storeModels.ts            # Model persistence
-└── convex/functions/predictions/     # Convex database integration
-    ├── schemas.ts                    # Database schema definitions
-    ├── mutations.ts                  # Data modification handlers
-    └── queries.ts                    # Data retrieval handlers
+└── convex/functions/predictions/     # Model parameters (Convex): schemas, CRUD, versioning queries
+    ├── schemas.ts                    # `modelParameters` + shared prediction type validators
+    ├── mutations.ts                  # Model storage and version-tag mutations
+    └── queries.ts                    # Production/dev model parameter reads
 ```
 
 ### Key Implementation Patterns

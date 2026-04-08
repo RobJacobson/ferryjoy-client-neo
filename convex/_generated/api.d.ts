@@ -15,7 +15,6 @@ import type * as domain_ml_prediction_applyModel from "../domain/ml/prediction/a
 import type * as domain_ml_prediction_index from "../domain/ml/prediction/index.js";
 import type * as domain_ml_prediction_metrics from "../domain/ml/prediction/metrics.js";
 import type * as domain_ml_prediction_predictTrip from "../domain/ml/prediction/predictTrip.js";
-import type * as domain_ml_prediction_predictionService from "../domain/ml/prediction/predictionService.js";
 import type * as domain_ml_prediction_vesselTripPredictions from "../domain/ml/prediction/vesselTripPredictions.js";
 import type * as domain_ml_shared_config from "../domain/ml/shared/config.js";
 import type * as domain_ml_shared_featureRecord from "../domain/ml/shared/featureRecord.js";
@@ -65,7 +64,6 @@ import type * as functions_predictions_index from "../functions/predictions/inde
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
-import type * as functions_predictions_utils from "../functions/predictions/utils.js";
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
@@ -178,7 +176,6 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/prediction/index": typeof domain_ml_prediction_index;
   "domain/ml/prediction/metrics": typeof domain_ml_prediction_metrics;
   "domain/ml/prediction/predictTrip": typeof domain_ml_prediction_predictTrip;
-  "domain/ml/prediction/predictionService": typeof domain_ml_prediction_predictionService;
   "domain/ml/prediction/vesselTripPredictions": typeof domain_ml_prediction_vesselTripPredictions;
   "domain/ml/shared/config": typeof domain_ml_shared_config;
   "domain/ml/shared/featureRecord": typeof domain_ml_shared_featureRecord;
@@ -228,7 +225,6 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
-  "functions/predictions/utils": typeof functions_predictions_utils;
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;

@@ -207,7 +207,6 @@ Call:
 - `keyValueStore`
 - `modelConfig`
 - `modelParameters`
-- `predictions`
 - `scheduledTrips`
 - `terminals`
 - `terminalsTopology`

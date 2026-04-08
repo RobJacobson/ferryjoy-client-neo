@@ -150,9 +150,6 @@ export const completeAndStartNewTrip = mutation({
  * Failures are isolated per vessel: the mutation does not throw for a single
  * vessel failure, and instead returns status entries.
  *
- * Note: Prediction record insertion is handled separately via a bulk predictions
- * mutation.
- *
  * @param ctx - Convex context
  * @param args.activeUpserts - Active trips to upsert (one per vessel)
  * @returns Status list per vessel

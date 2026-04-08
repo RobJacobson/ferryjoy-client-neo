@@ -15,8 +15,8 @@
  * 5. **Batch upsert** — `upsertVesselTripsBatch` persists every queued active
  *    trip in one mutation.
  * 6. **Success set** — Remember which vessels’ upserts succeeded.
- * 7. **Post-persist hooks** — Leave-dock prediction events run only after a
- *    successful upsert (and load the prior completed trip for context).
+ * 7. **Post-persist hooks** — Leave-dock depart-next backfill on the latest
+ *    completed trip runs only after a successful upsert.
  * 8. **Return projections** — Actual and predicted effects are returned only
  *    for successful vessels so timeline projection never races ahead of DB.
  *
@@ -25,7 +25,6 @@
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { handlePredictionEvent } from "domain/ml/prediction";
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
@@ -141,15 +140,13 @@ const logDockSignalDisagreement = (
  * @param currentTrips - Current-trip transitions for this tick
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param buildTripForTick - Trip builder (defaults to real `buildTrip`; tests may pass a stub)
- * @param handleLeaveDockPrediction - Leave-dock hook (defaults to real `handlePredictionEvent`)
  * @returns Projection payloads safe to merge after persistence
  */
 export const processCurrentTrips = async (
   ctx: ActionCtx,
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
-  buildTripForTick: typeof buildTrip = buildTrip,
-  handleLeaveDockPrediction: typeof handlePredictionEvent = handlePredictionEvent
+  buildTripForTick: typeof buildTrip = buildTrip
 ): Promise<ProjectionResults> => {
   // Parallel per-vessel buildTrip; one rejection does not cancel siblings.
   const buildResults = await Promise.allSettled(
@@ -202,12 +199,11 @@ export const processCurrentTrips = async (
   );
   const successfulVessels = getSuccessfulVessels(upsertResult);
 
-  // Prediction hooks only after durable write; skipped for failed upserts.
+  // Depart-next backfill only after durable write; skipped for failed upserts.
   await runLeaveDockPostPersistEffects(
     ctx,
     successfulVessels,
-    collectedArtifacts.pendingLeaveDockEffects,
-    handleLeaveDockPrediction
+    collectedArtifacts.pendingLeaveDockEffects
   );
 
   // Strip vesselAbbrev tags; omit effects tied to failed upserts.
@@ -325,19 +321,13 @@ const buildActualPatchesForCurrentTrip = (
   vesselAbbrev: string
 ): TaggedActualPatch[] => {
   const patches: ConvexActualBoundaryPatch[] = [];
-  if (
-    events.didJustLeaveDock &&
-    finalProposed.LeftDock !== undefined
-  ) {
+  if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
     const departure = buildDepartureActualPatchForTrip(finalProposed);
     if (departure !== null) {
       patches.push(departure);
     }
   }
-  if (
-    events.didJustArriveAtDock &&
-    finalProposed.ArriveDest !== undefined
-  ) {
+  if (events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined) {
     const arrival = buildArrivalActualPatchForTrip(finalProposed);
     if (arrival !== null) {
       patches.push(arrival);
@@ -479,44 +469,41 @@ const filterPredictedEffectsForSuccessfulVessels = (
     .map((t) => t.effect);
 
 /**
- * Runs leave-dock prediction hooks after durable writes.
+ * Backfills depart-next prediction actuals on the most recent completed trip
+ * after a successful active-trip upsert when the vessel just left dock.
  *
- * For each pending effect whose vessel upserted successfully:
- *
- * 1. Loads `getMostRecentCompletedTrip` so the model can see the prior leg.
- * 2. Calls `handlePredictionEvent` with `eventType: "leave_dock"`.
- *
- * Errors are logged with `console.error` per vessel so one failure does not
+ * Uses `setDepartNextActualsForMostRecentCompletedTrip` with the new trip's
+ * `LeftDock` timestamp. Errors are logged per vessel; one failure does not
  * block others (`Promise.allSettled`).
  *
  * @param ctx - Convex action context
  * @param successfulVessels - Set of vessels with successful upserts
  * @param pendingLeaveDockEffects - Leave-dock effects gathered during build processing
- * @param onLeaveDock - Prediction handler (`handlePredictionEvent` in production)
  * @returns Promise that resolves once all side effects settle
  */
 const runLeaveDockPostPersistEffects = async (
   ctx: ActionCtx,
   successfulVessels: Set<string>,
-  pendingLeaveDockEffects: PendingLeaveDockEffect[],
-  onLeaveDock: typeof handlePredictionEvent
+  pendingLeaveDockEffects: PendingLeaveDockEffect[]
 ): Promise<void> => {
   await Promise.allSettled(
     pendingLeaveDockEffects
       .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
       .map(async (effect) => {
         try {
-          const previousTripResult = await ctx.runQuery(
-            api.functions.vesselTrips.queries.getMostRecentCompletedTrip,
-            { vesselAbbrev: effect.vesselAbbrev }
-          );
-          const previousTrip = previousTripResult ?? undefined;
+          const leftDockMs = effect.trip.LeftDock;
+          if (leftDockMs === undefined) {
+            return;
+          }
 
-          await onLeaveDock(ctx, {
-            eventType: "leave_dock",
-            trip: effect.trip,
-            previousTrip,
-          });
+          await ctx.runMutation(
+            api.functions.vesselTrips.mutations
+              .setDepartNextActualsForMostRecentCompletedTrip,
+            {
+              vesselAbbrev: effect.vesselAbbrev,
+              actualDepartMs: leftDockMs,
+            }
+          );
         } catch (error) {
           console.error("[VesselTrips] leave-dock post-persist failed", {
             vesselAbbrev: effect.vesselAbbrev,

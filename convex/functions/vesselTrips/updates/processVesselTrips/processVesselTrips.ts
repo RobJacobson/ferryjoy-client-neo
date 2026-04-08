@@ -1,13 +1,12 @@
 /**
  * Vessel-trip processing entrypoint.
  *
- * Coordinates trip-boundary detection, active-trip persistence, prediction
- * lifecycle events, and downstream projection writes for each vessel tick.
+ * Coordinates trip-boundary detection, active-trip persistence, and
+ * VesselTimeline projection writes for each vessel tick.
  */
 
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { handlePredictionEvent } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "../buildCompletedTrip";
@@ -41,7 +40,6 @@ const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
   buildCompletedTrip,
   buildTrip,
   detectTripEvents,
-  handlePredictionEvent,
 };
 
 /**
@@ -123,15 +121,13 @@ export const processVesselTripsWithDeps = async (
     {
       buildCompletedTrip: deps.buildCompletedTrip,
       buildTrip: deps.buildTrip,
-      handlePredictionEvent: deps.handlePredictionEvent,
     }
   );
   const currentEffects = await processCurrentTrips(
     ctx,
     currentTrips,
     shouldRunPredictionFallback,
-    deps.buildTrip,
-    deps.handlePredictionEvent
+    deps.buildTrip
   );
   const actualPatches = [
     ...completedEffects.actualPatches,

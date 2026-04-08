@@ -125,11 +125,11 @@ This table can therefore contain both:
 
 Purpose:
 
-- maintain `activeVesselTrips`, `completedVesselTrips`, and their prediction
-  lifecycle
+- maintain `activeVesselTrips`, `completedVesselTrips`, including ML prediction
+  fields on those rows and post-upsert depart-next backfill on completed trips
 
 This remains the richer state machine responsible for trip lifecycle tracking,
-ML predictions, and event-driven trip transitions. Inside that module, event
+ML inference onto live trip documents, and event-driven trip transitions. Inside that module, event
 detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.

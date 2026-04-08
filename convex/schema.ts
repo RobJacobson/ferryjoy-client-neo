@@ -6,7 +6,6 @@ import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
   modelConfigSchema,
   modelParametersSchema,
-  predictionRecordSchema,
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { terminalSchema } from "functions/terminals/schemas";
@@ -122,11 +121,6 @@ export default defineSchema({
     .index("by_pair_and_type", ["pairKey", "modelType"])
     .index("by_pair_type_tag", ["pairKey", "modelType", "versionTag"])
     .index("by_version_tag", ["versionTag"]),
-
-  // Completed ML predictions - one row per completed prediction
-  predictions: defineTable(predictionRecordSchema)
-    .index("by_key", ["Key"])
-    .index("by_key_and_type", ["Key", "PredictionType"]),
 
   // ML configuration - DEPRECATED, use keyValueStore instead
   // Kept temporarily for migration - remove after running migration

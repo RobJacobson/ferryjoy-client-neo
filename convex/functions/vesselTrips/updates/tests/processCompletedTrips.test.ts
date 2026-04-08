@@ -39,7 +39,6 @@ describe("processCompletedTrips", () => {
       ScheduledDeparture: ms("2026-03-13T06:50:00-07:00"),
       AtDockDepartCurr: makePrediction("2026-03-13T06:52:00-07:00"),
     });
-    const predictionCalls: Array<Record<string, unknown>> = [];
     const loggedErrors: Array<{ vesselAbbrev: string; phase: string }> = [];
     const ctx = createTestActionCtx();
 
@@ -63,7 +62,6 @@ describe("processCompletedTrips", () => {
       createDeps({
         completedTripsByVessel: new Map([["CHE", completedTrip]]),
         newTripsByVessel: new Map([["CHE", newTrip]]),
-        predictionCalls,
       })
     );
 
@@ -72,7 +70,6 @@ describe("processCompletedTrips", () => {
       "CHE"
     );
     expect(getBoundaryMutationArgs(ctx)?.newTrip.Key).toBe(newTrip.Key);
-    expect(predictionCalls[0]?.eventType).toBe("trip_complete");
     expect(result.actualPatches).toHaveLength(2);
     expect(result.actualPatches[0]?.EventType).toBe("dep-dock");
     expect(result.actualPatches[0]?.EventActualTime).toBe(
@@ -151,7 +148,6 @@ describe("processCompletedTrips", () => {
           ],
         ]),
         buildFailuresByVessel: new Map([["TAC", new Error("boom")]]),
-        predictionCalls: [],
       })
     );
 
@@ -181,7 +177,6 @@ type TestDepsInput = {
   completedTripsByVessel: Map<string, ConvexVesselTrip>;
   newTripsByVessel: Map<string, ConvexVesselTrip>;
   buildFailuresByVessel?: Map<string, Error>;
-  predictionCalls: Array<Record<string, unknown>>;
 };
 
 /**
@@ -234,9 +229,6 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
     }
 
     return newTrip;
-  },
-  handlePredictionEvent: async (_ctx, payload) => {
-    input.predictionCalls.push(payload as Record<string, unknown>);
   },
 });
 

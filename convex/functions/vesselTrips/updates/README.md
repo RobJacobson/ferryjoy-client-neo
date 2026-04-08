@@ -44,7 +44,6 @@ processVesselTrips (entry point)
             with per-vessel error isolation):
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
-            │       → handlePredictionEvent (trip_complete) → PredictionService
             │       → emit actual/predicted boundary projection effects
             │       (internal: tripDerivation → baseTripFromLocation
             │                 → appendFinalSchedule
@@ -54,7 +53,7 @@ processVesselTrips (entry point)
             └─> processCurrentTrips (ongoing trips, including first appearances)
                     buildTrip (tripStart=false, events, shouldRunPredictionFallback)
                     → tripsAreEqual → upsertVesselTripsBatch (if changed)
-                    → handlePredictionEvent (leave_dock, post-persist only) → PredictionService
+                    → setDepartNextActualsForMostRecentCompletedTrip (leave_dock, post-upsert only)
                     → emit actual/predicted boundary projection effects
                     (internal: tripDerivation → baseTripFromLocation
                               → appendFinalSchedule
@@ -77,8 +76,8 @@ list. The client derives `activeInterval` locally from that backbone.
 | File | Purpose |
 |------|---------|
 | `processVesselTrips/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, and delegates to processing functions |
-| `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence, `trip_complete` prediction side effects, and boundary effect collection |
-| `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-persist `leave_dock` side effects, and boundary effect collection |
+| `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence and boundary effect collection |
+| `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and boundary effect collection |
 | `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, dock departure, and explicit base-trip mode selection |
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |
@@ -91,7 +90,6 @@ list. The client derives `activeInterval` locally from that backbone.
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
 **External dependencies**:
-- `convex/domain/ml/prediction/predictionService.ts` — Prediction side effects after persistence (`trip_complete`, `leave_dock` record insertion and backfill)
 - `convex/domain/ml/prediction/vesselTripPredictions.ts` — `PREDICTION_SPECS`, `predictFromSpec`, `actualizePredictionsOnTripComplete`, `actualizePredictionsOnLeaveDock`
 - `convex/domain/ml/prediction/predictTrip.ts` — `loadModelsForPairBatch`, `predictTripValue`
 - `convex/functions/eventsScheduled/queries.ts` — thin Convex query handlers for schedule-backed segment lookup
@@ -129,7 +127,6 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
    - the first surviving scheduled trip after the completed trip's `ScheduledDeparture`
 3. The replacement trip's `TripStart` equals the completed trip's `TripEnd`.
 4. Call `completeAndStartNewTrip` mutation (atomic: insert completed, replace active).
-5. Insert completed prediction records from the already-finalized completed trip via PredictionService.
 
 ### 3. Regular Update (Ongoing Trips)
 
@@ -143,7 +140,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
    - at-dock predictions only after a real trip start
    - Calls `appendLeaveDockPredictions` when physically depart dock
    - Applies `actualizePredictionsOnLeaveDock` before persistence when `didJustLeaveDock`
-2. When `didJustLeaveDock`: `processCurrentTrips()` queues a post-persist side effect. After `upsertVesselTripsBatch` succeeds for that vessel, PredictionService inserts completed prediction records from the finalized trip and backfills previous trip depart-next actuals.
+2. When `didJustLeaveDock`: `processCurrentTrips()` queues a post-upsert hook. After `upsertVesselTripsBatch` succeeds for that vessel, it calls `setDepartNextActualsForMostRecentCompletedTrip` to backfill the previous completed trip's depart-next actuals (using the new trip's `LeftDock` time).
 3. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
 4. Per-vessel failures are logged and do not abort processing for other vessels.
 
@@ -298,20 +295,16 @@ boundary that ends the current dock interval and starts the next sea interval.
 
 `didJustLeaveDock` drives:
 - Same-trip actualization in `buildTrip()` before persistence
-- Prediction record insertion via `handlePredictionEvent` in PredictionService after a successful active-trip write
-- Backfill of depart-next actuals onto previous trip (handled by PredictionService internally)
+- Backfill of depart-next actuals onto the most recent completed trip via
+  `setDepartNextActualsForMostRecentCompletedTrip` after a successful active-trip
+  upsert
 - `eventsActual` departure projection for the current trip, anchored to the
   pre-departure dock-owned segment
 - `eventsPredicted` refresh for the affected boundary-key scope
 
-The PredictionService now manages only post-persist prediction side effects:
-- Extraction and insertion of `completedPredictionRecords` for bulk insert
-- Backfill of previous trip's `AtDockDepartNext` and `AtSeaDepartNext` with actual departure time
-
-Trip orchestration code builds the fully-correct trip object first, then
-delegates post-persist prediction side effects to the PredictionService and
-separately emits timeline projection effects keyed to the canonical
-segment/boundary identities.
+Trip orchestration builds the fully-correct trip object first, runs the
+post-upsert depart-next mutation when applicable, and separately emits timeline
+projection effects keyed to the canonical segment/boundary identities.
 
 Those projected overlays no longer imply a public raw-event query surface. The
 timeline feature now treats them as backend inputs to the final row/view-model
@@ -367,7 +360,7 @@ Predictions use a **hybrid event and time-based approach**:
 **Actualization**:
 - `AtDockDepartCurr`: Actualized in `buildTrip()` via `actualizePredictionsOnLeaveDock` before persistence.
 - `AtSeaArriveNext`: Actualized in `buildCompletedTrip()` via `actualizePredictionsOnTripComplete` before persistence.
-- `AtDockDepartNext`, `AtSeaDepartNext`: Also actualized by `setDepartNextActualsForMostRecentCompletedTrip` when the *next* trip leaves dock (backfill via PredictionService).
+- `AtDockDepartNext`, `AtSeaDepartNext`: Also actualized by `setDepartNextActualsForMostRecentCompletedTrip` when the *next* trip leaves dock (post-upsert backfill on the completed trip).
 
 **Batch optimization**: When computing 2+ predictions for a vessel, `computePredictions` uses `loadModelsForPairBatch` for efficient model loading.
 
@@ -375,31 +368,22 @@ Predictions use a **hybrid event and time-based approach**:
 
 ---
 
-## Prediction Service Integration
+## Post-upsert depart-next backfill
 
-The `PredictionService` manages post-persist prediction side effects through an event-based API:
+When `didJustLeaveDock`, `processCurrentTrips` calls
+`setDepartNextActualsForMostRecentCompletedTrip` **only after**
+`upsertVesselTripsBatch` succeeds for that vessel, using the new active trip's
+`LeftDock` as `actualDepartMs`. There is no separate logging table for completed
+ML outcomes; prediction values live on trip rows and timeline projection
+tables.
 
-**Event Types**: The service accepts two lifecycle events:
-- `trip_complete` - Called when a trip completes to insert completed prediction records from the already-finalized completed trip
-- `leave_dock` - Called when vessel leaves dock to insert completed prediction records from the already-finalized active trip and backfill previous trip's depart-next predictions
-
-**Trip Orchestrator Delegation**:
-- `processCompletedTrips()` calls `handlePredictionEvent()` with `trip_complete` for the finalized completed trip
-- `processCurrentTrips()` calls `handlePredictionEvent()` with `leave_dock` only after `upsertVesselTripsBatch` succeeds for that vessel
-
-**Automatic Handling**:
-- Predictions are computed in the trip-building pipeline before persistence
+**Automatic handling**:
+- ML outputs are computed in the trip-building pipeline before persistence
 - Same-trip actuals are written onto trip objects before persistence
-- Prediction records are automatically extracted and inserted into database for completed predictions
-- Previous trip's depart-next predictions are backfilled with actual departure time when current trip leaves dock
-- `eventsActual` and `eventsPredicted` are refreshed from finalized trip state
-  after the trip write succeeds
-- the final public `VesselTimeline` contract is derived later as a backbone-only
-  ordered event list
-
-**Separation of Concerns**:
-- Trip processor (`processVesselTrips/processVesselTrips.ts`) manages trip state and calls prediction service at appropriate event boundaries
-- Prediction service (`convex/domain/ml/prediction/predictionService.ts`) handles post-persist prediction side effects independently
+- Depart-next fields on the latest completed trip are patched when the next leg
+  leaves dock
+- `eventsActual` and `eventsPredicted` refresh from finalized trip state after
+  writes succeed
 
 ---
 
@@ -417,7 +401,6 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | Mutation | `functions/eventsActual/mutations.projectActualBoundaryPatches` | Once if any trip-driven actual patches were emitted |
 | Mutation | `projectPredictedBoundaryEffects` | Once if any trip-driven predicted effects were emitted |
 | Mutation | `setDepartNextActualsForMostRecentCompletedTrip` | Per vessel, when didJustLeaveDock |
-| Mutation | `bulkInsertPredictions` | Once if has completed prediction records |
 
 **Call frequency**: Expensive lookups and predictions are event-gated. They run roughly once per 30–60 minutes per vessel (at trip start or when leaving dock), not every 5 seconds.
 
@@ -442,7 +425,6 @@ The `PredictionService` manages post-persist prediction side effects through an 
 | `completeAndStartNewTrip` | Atomic: insert completed trip into `completedVesselTrips`, replace active trip with new trip (used for trip boundaries in `processCompletedTrips`) |
 | `upsertVesselTripsBatch` | Batch upsert active trips (insert or replace); failures isolated per vessel (used for ongoing trips in `processCurrentTrips`) |
 | `setDepartNextActualsForMostRecentCompletedTrip` | Patch most recent completed trip with depart-next actuals when current trip leaves dock (used in `processCurrentTrips` when `didJustLeaveDock`) |
-| `bulkInsertPredictions` | Batch insert prediction records for completed predictions (used in both `processCompletedTrips` and `processCurrentTrips`) |
 
 ---
 
@@ -451,17 +433,17 @@ The `PredictionService` manages post-persist prediction side effects through an 
 1. **Renamed file**: `buildTripWithAllData.ts` → `buildTrip.ts` for consistency between file name and export
 2. **Transition-based orchestration**: `processVesselTrips()` now builds `TripTransition` objects so events are computed once and carried through the pipeline
 3. **Shared dock-departure inference**: `getDockDepartureState()` now centralizes `LeftDock` inference for both event detection and trip field derivation
-4. **Post-persist leave-dock side effects**: `PredictionService` leave-dock handlers now run only after `upsertVesselTripsBatch` succeeds for that vessel
+4. **Post-upsert leave-dock backfill**: `setDepartNextActualsForMostRecentCompletedTrip` runs only after `upsertVesselTripsBatch` succeeds for that vessel
 5. **Explicit fallback flag**: `processVesselTrips()` computes `shouldRunPredictionFallback` once per tick and passes it into `buildTrip()`
 6. **Cleaned up console logs**: Removed debug `console.log` statements from `buildTrip.ts`
-7. **Fixed documentation**: Removed outdated comment in `buildCompletedTrip.ts` about prediction actualization (handled separately by PredictionService)
+7. **Fixed documentation**: Clarified same-trip prediction actualization vs post-upsert depart-next backfill
 8. **Simplified naming**: Implemented clearer naming convention:
    - `buildTrip` - Main orchestrator (creates complete trip)
    - `baseTrip*` - Base construction from raw data
    - `append*` - Enrich existing trip with data
    - Comments use "enrich" for clarity
 9. **Finalize before persist**: `buildTrip()` and `buildCompletedTrip()` now apply same-trip prediction actuals before persistence.
-10. **PredictionService simplification**: PredictionService now handles post-persist side effects only (`trip_complete`, `leave_dock`).
+10. **Removed predictions logging table**: Post-upsert work is only depart-next backfill on `completedVesselTrips`; no `predictions` table inserts.
 11. **Per-vessel isolation**: Errors for one vessel no longer abort the full batch.
 12. **Carry-forward protection**: Continuing trips preserve durable fields such as `ScheduledDeparture` and `LeftDock` across feed glitches.
 13. **Key availability detection**: Schedule enrichment now runs when a key becomes newly available, not only when an existing key changes.
