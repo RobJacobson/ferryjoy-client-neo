@@ -125,11 +125,15 @@ This table can therefore contain both:
 
 Purpose:
 
-- maintain `activeVesselTrips`, `completedVesselTrips`, including ML prediction
-  fields on those rows and post-upsert depart-next backfill on completed trips
+- maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state;
+  ML boundary predictions live in `eventsPredicted`, and the orchestrator read
+  model **hydrates** active trips before `processVesselTrips` so builders see the
+  same joined prediction fields as public queries. Post-upsert depart-next
+  backfill writes **actuals** onto the prior leg’s `eventsPredicted` rows, not
+  onto stored trip rows.
 
 This remains the richer state machine responsible for trip lifecycle tracking,
-ML inference onto live trip documents, and event-driven trip transitions. Inside that module, event
+ML inference (in memory, then projected), and event-driven trip transitions. Inside that module, event
 detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.
@@ -169,8 +173,11 @@ only the boundary fields needed to derive a day timeline:
 - `EventActualTime?`
 
 Those normalized rows are not the public query contract anymore. The backend
-now builds one ordered same-day event list for the timeline backbone. The
-client derives `activeInterval` from that backbone and combines it with its
+now builds one ordered same-day event list for the timeline backbone. When more
+than one `eventsPredicted` row shares the same boundary `Key` (e.g. WSF ETA vs ML),
+`mergeTimelineEvents` picks a single backbone `EventPredictedTime` (WSF ETA row
+first). Trip-shaped queries still expose `Eta` plus ML-hydrated fields separately.
+The client derives `activeInterval` from that backbone and combines it with its
 existing real-time `VesselLocation` subscription for indicator placement.
 
 Detailed `VesselTimeline` backend architecture now lives in:

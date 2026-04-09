@@ -4,7 +4,10 @@
 import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import {
   appendArriveDockPredictions,
   appendLeaveDockPredictions,
@@ -40,7 +43,7 @@ export const buildTrip = async (
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean
-): Promise<ConvexVesselTrip> => {
+): Promise<ConvexVesselTripWithML> => {
   const effectiveLocation = await resolveEffectiveLocation(
     ctx,
     currLocation,

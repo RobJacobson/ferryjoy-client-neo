@@ -14,7 +14,10 @@ import {
 import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
@@ -161,8 +164,8 @@ const normalizeCompletedTripResults = (
  */
 const buildCompletedTripEffects = (
   existingTrip: ConvexVesselTrip,
-  tripToComplete: ConvexVesselTrip,
-  newTrip: ConvexVesselTrip
+  tripToComplete: ConvexVesselTripWithML,
+  newTrip: ConvexVesselTripWithML
 ): ProjectionResults => ({
   actualPatches: [
     buildDepartureActualPatchForTrip(tripToComplete),

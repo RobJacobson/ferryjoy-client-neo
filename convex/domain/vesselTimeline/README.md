@@ -69,6 +69,19 @@ The query is intentionally same-day only:
 That keeps timeline reads stable and ensures location ticks do not invalidate
 the timeline backbone.
 
+### Multiple `eventsPredicted` rows per boundary `Key`
+
+The backbone still exposes **one** `EventPredictedTime` per event `Key`. When
+projection stores more than one row for the same `Key` (for example WSF ETA vs
+ML on the current arrival boundary), `mergeTimelineEvents` in `timelineEvents.ts`
+applies fixed precedence: **prefer `PredictionSource: "wsf_eta"` over ML** when
+both exist, then fall back to the ML arrival types in the existing order.
+
+Trip-shaped `vesselTrips` queries are the place to combine **both** streams:
+`Eta` (feed / WSF) plus ML-hydrated `AtDockArriveNext` / `AtSeaArriveNext` from
+`ml` rows only. UIs that need ML when an official ETA exists should not rely on
+the timeline backbone alone for that split.
+
 ## Structural Derivation
 
 The shared interval builder still lives in:

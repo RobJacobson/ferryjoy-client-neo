@@ -42,7 +42,7 @@ import type { ActionCtx, MutationCtx } from "_generated/server";
 import { roundToPrecision } from "shared";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { getProductionVersionTagValue } from "../../../functions/keyValueStore/helpers";
-import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
 import { config, formatTerminalPairKey } from "../shared/config";
 import { createFeatureRecord } from "../shared/featureRecord";
 import { models } from "../shared/models";
@@ -190,7 +190,7 @@ const minutesBetween = (earlierMs: number, laterMs: number): number =>
  * @param trip - Vessel trip data from Convex database
  * @returns Structured training window for feature extraction
  */
-const toTrainingWindow = (trip: ConvexVesselTrip): TrainingWindow => {
+const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
   const A = requireTripField(
     trip.PrevTerminalAbbrev,
     "Missing PrevTerminalAbbrev"
@@ -278,7 +278,7 @@ const toTrainingWindow = (trip: ConvexVesselTrip): TrainingWindow => {
  */
 export const predictTripValue = async (
   ctx: ActionCtx | MutationCtx,
-  trip: ConvexVesselTrip,
+  trip: ConvexVesselTripWithML,
   modelType: ModelType,
   preloadedModel?: ModelDoc | null
 ): Promise<{
@@ -339,7 +339,7 @@ export const predictTripValue = async (
  */
 export const predictArriveEta = async (
   ctx: ActionCtx | MutationCtx,
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
   mae: number;
@@ -381,7 +381,7 @@ export const predictArriveEta = async (
  */
 export const predictDelayOnArrival = async (
   ctx: ActionCtx | MutationCtx,
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
   mae: number;
@@ -414,7 +414,7 @@ export const predictDelayOnArrival = async (
  */
 export const predictEtaOnDeparture = async (
   ctx: ActionCtx | MutationCtx,
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
   mae: number;

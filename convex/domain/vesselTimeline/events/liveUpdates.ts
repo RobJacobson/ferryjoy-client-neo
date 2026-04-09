@@ -9,7 +9,11 @@ import type {
   ConvexVesselTimelineEventRecord,
   VesselTimelineEventType,
 } from "../../../functions/vesselTimeline/schemas";
-import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import {
+  buildBoundaryKey,
+  buildSegmentKey,
+  buildVesselSailingDayScopeKey,
+} from "../../../shared/keys";
 
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
 const MOVING_SPEED_THRESHOLD = 0.2;
@@ -166,7 +170,10 @@ export const normalizeScheduledDockSeams = (
   >();
 
   for (const event of events) {
-    const vesselDayKey = `${event.VesselAbbrev}:${event.SailingDay}`;
+    const vesselDayKey = buildVesselSailingDayScopeKey(
+      event.VesselAbbrev,
+      event.SailingDay
+    );
     const scopedEvents = eventsByVesselDay.get(vesselDayKey);
 
     if (scopedEvents) {

@@ -123,10 +123,12 @@ import type * as functions_vesselTimeline_mergeActualBoundaryPatchesIntoRows fro
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
 import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
 import type * as functions_vesselTimeline_schemas from "../functions/vesselTimeline/schemas.js";
+import type * as functions_vesselTrips_hydrateTripPredictions from "../functions/vesselTrips/hydrateTripPredictions.js";
 import type * as functions_vesselTrips_index from "../functions/vesselTrips/index.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_schemas from "../functions/vesselTrips/schemas.js";
+import type * as functions_vesselTrips_stripTripForStorage from "../functions/vesselTrips/stripTripForStorage.js";
 import type * as functions_vesselTrips_updates_actualBoundaryPatchesFromTrip from "../functions/vesselTrips/updates/actualBoundaryPatchesFromTrip.js";
 import type * as functions_vesselTrips_updates_appendPredictions from "../functions/vesselTrips/updates/appendPredictions.js";
 import type * as functions_vesselTrips_updates_appendSchedule from "../functions/vesselTrips/updates/appendSchedule.js";
@@ -284,10 +286,12 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
   "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;
   "functions/vesselTimeline/schemas": typeof functions_vesselTimeline_schemas;
+  "functions/vesselTrips/hydrateTripPredictions": typeof functions_vesselTrips_hydrateTripPredictions;
   "functions/vesselTrips/index": typeof functions_vesselTrips_index;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/schemas": typeof functions_vesselTrips_schemas;
+  "functions/vesselTrips/stripTripForStorage": typeof functions_vesselTrips_stripTripForStorage;
   "functions/vesselTrips/updates/actualBoundaryPatchesFromTrip": typeof functions_vesselTrips_updates_actualBoundaryPatchesFromTrip;
   "functions/vesselTrips/updates/appendPredictions": typeof functions_vesselTrips_updates_appendPredictions;
   "functions/vesselTrips/updates/appendSchedule": typeof functions_vesselTrips_updates_appendSchedule;

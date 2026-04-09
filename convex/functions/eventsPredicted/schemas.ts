@@ -33,6 +33,10 @@ const predictedBoundarySharedFields = {
   EventPredictedTime: v.number(),
   PredictionType: predictionTypeValidator,
   PredictionSource: predictionSourceSchema,
+  /** Observed time when actualized (epoch ms). */
+  Actual: v.optional(v.number()),
+  /** Signed error vs PredTime in minutes when actualized. */
+  DeltaTotal: v.optional(v.number()),
 } as const;
 
 /**
@@ -77,6 +81,20 @@ export const predictedBoundaryProjectionEffectSchema = v.object({
 export type ConvexPredictedBoundaryProjectionEffect = Infer<
   typeof predictedBoundaryProjectionEffectSchema
 >;
+
+/**
+ * Map key / dedupe id for one `eventsPredicted` row: `Key`, prediction type,
+ * and source. Keep in sync with `projectPredictedBoundaryEffects` and timeline
+ * dedupe (`normalizedEvents`).
+ *
+ * @param row - Row identity fields only
+ * @returns Single string for `Map` lookups
+ */
+export const predictedBoundaryCompositeKey = (row: {
+  Key: string;
+  PredictionType: string;
+  PredictionSource: string;
+}): string => `${row.Key}|${row.PredictionType}|${row.PredictionSource}`;
 
 /**
  * Converts a predicted boundary event into the domain shape with `Date`

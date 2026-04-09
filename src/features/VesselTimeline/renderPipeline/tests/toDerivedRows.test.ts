@@ -95,7 +95,7 @@ describe("toDerivedRows", () => {
     expect(rows).toEqual([]);
   });
 
-  it("keeps an at-sea row when another same-vessel dep appears before the matching arv", () => {
+  it("derives one at-sea row per segment when each departure is adjacent to its arrival", () => {
     const { rows } = toDerivedRows(
       makePipelineInput({
         events: [
@@ -104,18 +104,23 @@ describe("toDerivedRows", () => {
             Key: "trip-a--dep-dock",
             EventType: "dep-dock",
             TerminalAbbrev: "VAI",
-          }),
-          makeEvent({
-            SegmentKey: "trip-b",
-            Key: "trip-b--dep-dock",
-            EventType: "dep-dock",
-            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 0),
           }),
           makeEvent({
             SegmentKey: "trip-a",
             Key: "trip-a--arv-dock",
             EventType: "arv-dock",
             TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 10),
+          }),
+          makeEvent({
+            SegmentKey: "trip-b",
+            Key: "trip-b--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(8, 10),
             EventScheduledTime: at(8, 10),
           }),
           makeEvent({
@@ -123,6 +128,7 @@ describe("toDerivedRows", () => {
             Key: "trip-b--arv-dock",
             EventType: "arv-dock",
             TerminalAbbrev: "SOU",
+            ScheduledDeparture: at(8, 10),
             EventScheduledTime: at(8, 40),
           }),
         ],

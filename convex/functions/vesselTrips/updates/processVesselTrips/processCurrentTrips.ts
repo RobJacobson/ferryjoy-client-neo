@@ -32,7 +32,10 @@ import {
 import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
@@ -48,7 +51,7 @@ type CurrentTripTransition = {
 };
 
 type CurrentTripBuildResult = CurrentTripTransition & {
-  finalProposed: ConvexVesselTrip;
+  finalProposed: ConvexVesselTripWithML;
 };
 
 type TaggedActualPatch = {
@@ -63,11 +66,11 @@ type TaggedPredictedEffect = {
 
 type PendingLeaveDockEffect = {
   vesselAbbrev: string;
-  trip: ConvexVesselTrip;
+  trip: ConvexVesselTripWithML;
 };
 
 type CurrentTripArtifacts = {
-  activeUpserts: ConvexVesselTrip[];
+  activeUpserts: ConvexVesselTripWithML[];
   pendingActualPatches: TaggedActualPatch[];
   pendingPredictedEffects: TaggedPredictedEffect[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
@@ -231,7 +234,7 @@ export const processCurrentTrips = async (
  */
 const shouldWriteCurrentTrip = (
   existingTrip: ConvexVesselTrip | undefined,
-  finalProposed: ConvexVesselTrip
+  finalProposed: ConvexVesselTripWithML
 ): boolean => !existingTrip || !tripsAreEqual(existingTrip, finalProposed);
 
 /**
@@ -250,7 +253,7 @@ const shouldWriteCurrentTrip = (
  */
 const shouldClearExistingPredictions = (
   existingTrip: ConvexVesselTrip | undefined,
-  finalProposed: ConvexVesselTrip
+  finalProposed: ConvexVesselTripWithML
 ): boolean =>
   existingTrip !== undefined &&
   (existingTrip.SailingDay !== finalProposed.SailingDay ||
@@ -276,7 +279,7 @@ const shouldClearExistingPredictions = (
  */
 const buildPredictedEffectsForCurrentTrip = (
   existingTrip: ConvexVesselTrip | undefined,
-  finalProposed: ConvexVesselTrip,
+  finalProposed: ConvexVesselTripWithML,
   vesselAbbrev: string
 ): TaggedPredictedEffect[] => {
   const effects: ConvexPredictedBoundaryProjectionEffect[] = [];
@@ -317,7 +320,7 @@ const buildPredictedEffectsForCurrentTrip = (
  */
 const buildActualPatchesForCurrentTrip = (
   events: TripEvents,
-  finalProposed: ConvexVesselTrip,
+  finalProposed: ConvexVesselTripWithML,
   vesselAbbrev: string
 ): TaggedActualPatch[] => {
   const patches: ConvexActualBoundaryPatch[] = [];
@@ -354,7 +357,7 @@ const buildActualPatchesForCurrentTrip = (
  */
 const buildLeaveDockPostPersistEffect = (
   events: TripEvents,
-  finalProposed: ConvexVesselTrip,
+  finalProposed: ConvexVesselTripWithML,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
   events.didJustLeaveDock && finalProposed.LeftDock !== undefined

@@ -415,14 +415,22 @@ to be stored while maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
-Predictions are generated and stored as part of the vessel orchestrator action
-`updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`).
+Predictions are computed in the vessel orchestrator action
+`updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`),
+then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
++ `PredictionSource`), not as the five optional prediction fields on
+`activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped
+before write; public queries and the orchestrator read model **hydrate** joins
+so clients still see `vesselTripSchema` with minimal prediction objects. WSF ETA
+from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
+`PredictionSource: "wsf_eta"` when projected.
+
 The orchestrator fetches vessel locations once, loads vessels, terminals, and
 active trips in one internal query (`getOrchestratorTickReadModelInternal` in
 `convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
 `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
-It passes that tick’s active trips into `processVesselTrips` so the trip branch
-does not issue a separate `getActiveTrips` query. The trip update logic is
+Active trips are hydrated for the tick so `buildTrip` compares against the same
+shape as API consumers. The trip update logic is
 implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
@@ -451,7 +459,9 @@ Note: `NextKey` is **not duplicated** on VesselTrips; it is read from the embedd
 
 #### 2) Prediction generation (once per trip, per timing context)
 
-When required features are present, we compute and persist:
+When required features are present, we compute in-memory patches (full `ConvexPrediction`
+blobs for ML) and project **`PredTime`** (plus optional `Actual` / `DeltaTotal` when
+actualizing) onto `eventsPredicted`. Joined trip fields mirror:
 
 - **At dock**:
   - `AtDockDepartCurr` (predict departure from Curr)
@@ -465,7 +475,7 @@ When required features are present, we compute and persist:
 
 Depart-next predictions are anchored on `ScheduledTrip.NextDepartingTime` so the
 model’s output (minutes vs Next scheduled departure) can be stored as an absolute
-epoch-ms `PredTime`.
+epoch-ms `PredTime` on the corresponding projected row.
 
 **Prediction Constraints**: Predictions are clamped to ensure they never fall below
 their corresponding scheduled departure times:
@@ -481,14 +491,16 @@ times are unavailable, predictions use the original ML model output without clam
 
 #### 3) Prediction actualization (backfill)
 
-We fill “Actual” values (and deltas) when the relevant real-world event is
-observed:
+We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms)
+when the relevant real-world event is observed—same logical boundaries as before,
+but storage is the `(Key, PredictionType, PredictionSource)` row, not nested fields
+on trip documents:
 
-- `AtSeaArriveNext.Actual`: set when the trip completes (`TripEnd` becomes known)
+- Arrival-complete actualization when `TripEnd` becomes known
   - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`actualizePredictionsOnTripComplete`)
-- `AtDockDepartNext.Actual` / `AtSeaDepartNext.Actual`: set when the _next_ trip
-  leaves dock (the next trip's `LeftDock` is the previous trip's "depart next"
-  actual), using `setDepartNextActualsForMostRecentCompletedTrip`.
+- Depart-next actualization when the _next_ trip leaves dock (previous leg’s
+  next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip`
+  patching the prior leg’s `eventsPredicted` rows.
   - Trigger: `convex/functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)

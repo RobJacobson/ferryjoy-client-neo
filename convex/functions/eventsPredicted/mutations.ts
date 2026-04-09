@@ -5,18 +5,19 @@
 import type { Doc } from "_generated/dataModel";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
+import { buildVesselSailingDayScopeKey } from "../../shared/keys";
 import {
   type ConvexPredictedBoundaryEvent,
   type ConvexPredictedBoundaryProjectionRow,
+  predictedBoundaryCompositeKey,
   predictedBoundaryProjectionEffectSchema,
 } from "./schemas";
 
 /**
  * Applies sparse predicted-time boundary effects emitted by `vesselTrips`.
  *
- * Each effect carries both the replacement rows and the key scope that should
- * exist afterwards, which lets the mutation delete stale predictions without
- * reloading unrelated vessels or sailing days.
+ * Rows are identified by `(Key, PredictionType, PredictionSource)`. Stale rows
+ * in the effect's target key set are deleted when not present in `Rows`.
  *
  * @param args.Effects - Prediction projection effects grouped by vessel/day scope
  * @returns `null`
@@ -34,15 +35,15 @@ export const projectPredictedBoundaryEffects = internalMutation({
         VesselAbbrev: string;
         SailingDay: string;
         TargetKeys: Set<string>;
-        RowsByKey: Map<string, ConvexPredictedBoundaryProjectionRow>;
+        RowsByComposite: Map<string, ConvexPredictedBoundaryProjectionRow>;
       }
     >();
 
     for (const effect of args.Effects) {
-      // Multiple vessels in the same tick may emit overlapping prediction
-      // effects for the same vessel/day scope. Merge them first so we only
-      // read and rewrite that scope once.
-      const scopeKey = `${effect.VesselAbbrev}:${effect.SailingDay}`;
+      const scopeKey = buildVesselSailingDayScopeKey(
+        effect.VesselAbbrev,
+        effect.SailingDay
+      );
       const existingScope = effectsByScope.get(scopeKey);
 
       if (existingScope) {
@@ -50,7 +51,10 @@ export const projectPredictedBoundaryEffects = internalMutation({
           existingScope.TargetKeys.add(targetKey);
         }
         for (const row of effect.Rows) {
-          existingScope.RowsByKey.set(row.Key, row);
+          existingScope.RowsByComposite.set(
+            predictedBoundaryCompositeKey(row),
+            row
+          );
         }
         continue;
       }
@@ -59,7 +63,9 @@ export const projectPredictedBoundaryEffects = internalMutation({
         VesselAbbrev: effect.VesselAbbrev,
         SailingDay: effect.SailingDay,
         TargetKeys: new Set(effect.TargetKeys),
-        RowsByKey: new Map(effect.Rows.map((row) => [row.Key, row])),
+        RowsByComposite: new Map(
+          effect.Rows.map((row) => [predictedBoundaryCompositeKey(row), row])
+        ),
       });
     }
 
@@ -77,27 +83,37 @@ export const projectPredictedBoundaryEffects = internalMutation({
         )
         .collect();
 
+      const incomingIds = new Set(effect.RowsByComposite.keys());
+
       for (const existing of existingRows) {
-        if (
-          effect.TargetKeys.has(existing.Key) &&
-          !effect.RowsByKey.has(existing.Key)
-        ) {
+        if (!effect.TargetKeys.has(existing.Key)) {
+          continue;
+        }
+        const id = predictedBoundaryCompositeKey(existing);
+        if (!incomingIds.has(id)) {
           await ctx.db.delete(existing._id);
         }
       }
 
-      for (const [Key, row] of effect.RowsByKey) {
-        if (!effect.TargetKeys.has(Key)) {
+      for (const row of effect.RowsByComposite.values()) {
+        if (!effect.TargetKeys.has(row.Key)) {
           continue;
         }
 
-        const nextRow = {
+        const nextRow: ConvexPredictedBoundaryEvent = {
           ...row,
           UpdatedAt: updatedAt,
         };
-        const existing = existingRows.find(
-          (existingRow) => existingRow.Key === Key
-        );
+
+        const existing = await ctx.db
+          .query("eventsPredicted")
+          .withIndex("by_key_type_and_source", (q) =>
+            q
+              .eq("Key", row.Key)
+              .eq("PredictionType", row.PredictionType)
+              .eq("PredictionSource", row.PredictionSource)
+          )
+          .unique();
 
         if (!existing) {
           await ctx.db.insert("eventsPredicted", nextRow);
@@ -135,4 +151,6 @@ const predictedRowsEqual = (
   left.TerminalAbbrev === right.TerminalAbbrev &&
   left.EventPredictedTime === right.EventPredictedTime &&
   left.PredictionType === right.PredictionType &&
-  left.PredictionSource === right.PredictionSource;
+  left.PredictionSource === right.PredictionSource &&
+  left.Actual === right.Actual &&
+  left.DeltaTotal === right.DeltaTotal;

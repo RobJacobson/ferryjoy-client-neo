@@ -108,8 +108,8 @@ describe("buildActualBoundaryEvents", () => {
 });
 
 describe("buildPredictedBoundaryEventsFromTrips", () => {
-  it("prefers WSF ETA over ML arrival predictions", () => {
-    const [row] = buildPredictedBoundaryEventsFromTrips([
+  it("emits WSF ETA as its own row alongside ML arrival rows", () => {
+    const rows = buildPredictedBoundaryEventsFromTrips([
       makeTrip({
         ScheduledDeparture: at(12, 20),
         DepartingTerminalAbbrev: "BBI",
@@ -120,9 +120,12 @@ describe("buildPredictedBoundaryEventsFromTrips", () => {
       }),
     ]);
 
-    expect(row?.EventPredictedTime).toBe(at(12, 57));
-    expect(row?.PredictionType).toBe("AtSeaArriveNext");
-    expect(row?.PredictionSource).toBe("wsf_eta");
+    const wsf = rows.find((r) => r.PredictionSource === "wsf_eta");
+    expect(wsf?.EventPredictedTime).toBe(at(12, 57));
+    expect(wsf?.PredictionType).toBe("AtSeaArriveNext");
+    expect(
+      rows.filter((r) => r.PredictionSource === "ml" && r.Key === wsf?.Key)
+    ).toHaveLength(2);
   });
 
   it("prefers at-sea depart-next over at-dock depart-next", () => {

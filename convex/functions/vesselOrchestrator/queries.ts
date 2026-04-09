@@ -9,6 +9,7 @@ import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { terminalSchema } from "functions/terminals/schemas";
 import { vesselSchema } from "functions/vessels/schemas";
+import { hydrateStoredTripsWithPredictions } from "functions/vesselTrips/hydrateTripPredictions";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
@@ -38,10 +39,15 @@ export const getOrchestratorTickReadModelInternal = internalQuery({
       ctx.db.query("activeVesselTrips").collect(),
     ]);
 
+    const activeTripsHydrated = await hydrateStoredTripsWithPredictions(
+      ctx,
+      trips
+    );
+
     return {
       vessels: vessels.map(stripConvexMeta),
       terminals: terminals.map(stripConvexMeta),
-      activeTrips: trips.map(stripConvexMeta),
+      activeTrips: activeTripsHydrated.map(stripConvexMeta),
     };
   },
 });

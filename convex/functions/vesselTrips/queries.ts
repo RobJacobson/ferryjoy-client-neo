@@ -5,9 +5,13 @@
  * optional schedule join used by trip display surfaces.
  */
 
+import type { Doc } from "_generated/dataModel";
+import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+import { hydrateStoredTripsWithPredictions } from "functions/vesselTrips/hydrateTripPredictions";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
@@ -17,6 +21,17 @@ import { stripConvexMeta } from "shared/stripConvexMeta";
 const vesselTripWithScheduledSchema = vesselTripSchema.extend({
   ScheduledTrip: v.optional(scheduledTripSchema),
 });
+
+/**
+ * Joins `eventsPredicted` ML fields, then strips Convex metadata from each trip.
+ */
+const stripHydratedTrips = async (
+  ctx: Pick<QueryCtx, "db">,
+  docs: Doc<"activeVesselTrips">[] | Doc<"completedVesselTrips">[]
+): Promise<ConvexVesselTrip[]> => {
+  const hydrated = await hydrateStoredTripsWithPredictions(ctx, docs);
+  return hydrated.map((h) => stripConvexMeta(h) as ConvexVesselTrip);
+};
 
 /**
  * Fetch active vessel trips for a specific route.
@@ -37,7 +52,7 @@ export const getActiveTripsByRoute = query({
           q.eq("RouteAbbrev", args.routeAbbrev)
         )
         .collect();
-      return trips.map(stripConvexMeta);
+      return stripHydratedTrips(ctx, trips);
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch active trips for route ${args.routeAbbrev}`,
@@ -63,7 +78,7 @@ export const getActiveTrips = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      return trips.map(stripConvexMeta);
+      return stripHydratedTrips(ctx, trips);
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch active vessel trips",
@@ -89,15 +104,15 @@ export const getActiveTripsWithScheduledTrip = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
+      const hydrated = await hydrateStoredTripsWithPredictions(ctx, trips);
       const result = await Promise.all(
-        trips.map(async (doc) => {
-          const trip = stripConvexMeta(doc);
-          const tripKey = trip.Key;
+        hydrated.map(async (trip) => {
+          const stripped = stripConvexMeta(trip);
+          const tripKey = stripped.Key;
           if (!tripKey) {
-            return trip;
+            return stripped;
           }
 
-          // Active trips can exist before a canonical schedule key is available.
           const scheduledDoc = await ctx.db
             .query("scheduledTrips")
             .withIndex("by_key", (q) => q.eq("Key", tripKey))
@@ -105,7 +120,7 @@ export const getActiveTripsWithScheduledTrip = query({
           const ScheduledTrip = scheduledDoc
             ? stripConvexMeta(scheduledDoc)
             : undefined;
-          return { ...trip, ScheduledTrip };
+          return { ...stripped, ScheduledTrip };
         })
       );
       return result;
@@ -143,7 +158,13 @@ export const getMostRecentCompletedTrip = query({
         .order("desc")
         .first();
 
-      return mostRecent ? stripConvexMeta(mostRecent) : null;
+      if (!mostRecent) {
+        return null;
+      }
+      const [hydrated] = await hydrateStoredTripsWithPredictions(ctx, [
+        mostRecent,
+      ]);
+      return stripConvexMeta(hydrated);
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch most recent completed trip for vessel ${args.vesselAbbrev}`,
@@ -183,7 +204,7 @@ export const getCompletedTripsByRouteAndTripDate = query({
       for (const doc of docs) {
         if (doc.Key) byKey.set(doc.Key, doc);
       }
-      return Array.from(byKey.values()).map(stripConvexMeta);
+      return stripHydratedTrips(ctx, Array.from(byKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for route ${args.routeAbbrev} on ${args.tripDate}`,
@@ -223,7 +244,7 @@ export const getActiveTripsByRoutes = query({
             .collect()
         )
       );
-      return batches.flat().map(stripConvexMeta);
+      return stripHydratedTrips(ctx, batches.flat());
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch active trips for routes`,
@@ -258,7 +279,7 @@ export const getActiveTripsByVessel = query({
         )
         .collect();
 
-      return trips.map(stripConvexMeta);
+      return stripHydratedTrips(ctx, trips);
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch active trips for vessel ${args.vesselAbbrev}`,
@@ -308,7 +329,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
           if (doc.Key) byKey.set(doc.Key, doc);
         }
       }
-      return Array.from(byKey.values()).map(stripConvexMeta);
+      return stripHydratedTrips(ctx, Array.from(byKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for routes on ${args.tripDate}`,
@@ -361,7 +382,7 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
           if (doc.Key) byKey.set(doc.Key, doc);
         }
       }
-      return Array.from(byKey.values()).map(stripConvexMeta);
+      return stripHydratedTrips(ctx, Array.from(byKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for sailing day ${args.sailingDay}`,
@@ -409,7 +430,7 @@ export const getCompletedTripsByVesselAndSailingDay = query({
         }
       }
 
-      return Array.from(byKey.values()).map(stripConvexMeta);
+      return stripHydratedTrips(ctx, Array.from(byKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for vessel ${args.vesselAbbrev} on ${args.sailingDay}`,

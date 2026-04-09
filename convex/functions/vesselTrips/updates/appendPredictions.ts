@@ -15,7 +15,7 @@ import {
 } from "domain/ml/prediction/vesselTripPredictions";
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 type ModelDoc = {
   featureKeys: string[];
@@ -40,9 +40,9 @@ type ModelDoc = {
  */
 const computePredictions = async (
   ctx: ActionCtx,
-  trip: ConvexVesselTrip,
+  trip: ConvexVesselTripWithML,
   specs: PredictionSpec[]
-): Promise<ConvexVesselTrip> => {
+): Promise<ConvexVesselTripWithML> => {
   try {
     const specsToAttempt = specs.filter(
       (spec) => trip[spec.field] === undefined
@@ -100,7 +100,7 @@ const computePredictions = async (
       {}
     );
 
-    return { ...trip, ...updates } as ConvexVesselTrip;
+    return { ...trip, ...updates } as ConvexVesselTripWithML;
   } catch (error) {
     console.error(
       `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
@@ -123,8 +123,8 @@ const computePredictions = async (
  */
 export const appendArriveDockPredictions = async (
   ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexVesselTrip> => {
+  trip: ConvexVesselTripWithML
+): Promise<ConvexVesselTripWithML> => {
   return computePredictions(ctx, trip, [
     PREDICTION_SPECS.AtDockDepartCurr,
     PREDICTION_SPECS.AtDockArriveNext,
@@ -145,8 +145,8 @@ export const appendArriveDockPredictions = async (
  */
 export const appendLeaveDockPredictions = async (
   ctx: ActionCtx,
-  trip: ConvexVesselTrip
-): Promise<ConvexVesselTrip> => {
+  trip: ConvexVesselTripWithML
+): Promise<ConvexVesselTripWithML> => {
   return computePredictions(ctx, trip, [
     PREDICTION_SPECS.AtSeaArriveNext,
     PREDICTION_SPECS.AtSeaDepartNext,

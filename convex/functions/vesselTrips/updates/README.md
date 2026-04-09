@@ -2,9 +2,11 @@
 
 This module synchronizes active vessel trips with live location data. It runs as part of the vessel orchestrator (every 5 seconds) and processes vessel location updates to determine whether database writes are needed.
 
-**Core pattern**: Build-then-compare. The pipeline always constructs the full intended `VesselTrip` state first, including same-trip prediction actualization when applicable, then persists that finalized object. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
+**Core pattern**: Build-then-compare. The pipeline constructs the full in-memory `VesselTrip` (including ML prediction blobs and same-trip actualization when applicable), compares to the hydrated `existingTrip`, then **strips** the five boundary prediction fields before persisting trip rows. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
 
 **Identity boundary**: This module now consumes `ConvexVesselLocation` from `vesselLocation/schemas.ts`. That means `VesselAbbrev` and the hot-path terminal fields were already validated against the backend vessel/terminal tables before trip logic runs. Persisted trip rows still use plain strings; the branding is a backend runtime guarantee, not a storage-schema migration.
+
+**Predictions (strip → project → hydrate)**: The tick pipeline still builds full in-memory ML blobs (`appendPredictions`, `vesselTripPredictions`) for comparison and timeline projection, but **trip table rows do not store** the five boundary prediction fields. Before `upsertVesselTripsBatch` / `completeAndStartNewTrip`, payloads go through `stripTripPredictionsForStorage`. `projectPredictedBoundaryEffects` persists overlays to `eventsPredicted` with composite identity `(Key, PredictionType, PredictionSource)`; WSF ETA (`PredictionSource: "wsf_eta"`) and ML rows are separate when both apply to the same arrival boundary. **Read paths** (`vesselTrips` queries, orchestrator read model) batch-load `eventsPredicted` and **hydrate** trips so API responses still expose the joined `vesselTripSchema` shape (minimal `PredTime` / optional `Actual` / `DeltaTotal` on those fields; WSF ship ETA remains `trip.Eta`). Same-trip actualization and `setDepartNextActualsForMostRecentCompletedTrip` patch `eventsPredicted`, not trip documents.
 
 **Current design**:
 1. `buildTrip` — main orchestrator calling all build functions with event detection and finalizing same-trip prediction actuals before persistence
@@ -85,7 +87,7 @@ list. The client derives `activeInterval` locally from that backbone.
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ConvexVesselLocation` using explicit `start` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key; `resolveEffectiveLocation` uses `NextKey`/rollover lookups only when continuity hints exist |
-| `tripEquality.ts` | `tripsAreEqual`, `deepEqual`, `compareTripFields` — equality utilities used to avoid unnecessary writes |
+| `tripEquality.ts` | `tripsAreEqual`, `deepEqual` — equality utilities used to avoid unnecessary writes |
 | `shared/tripIdentity.ts` | `deriveTripIdentity` — canonical `Key` / `SailingDay` / start-ready derivation shared by live locations and trip updates |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
