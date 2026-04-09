@@ -1,14 +1,14 @@
 # PRD: Vessel trips lifecycle & projection refactor
 
-**Status:** Draft — Stage 5 complete (revise after each stage)  
+**Status:** Complete — Stages 1–5 shipped  
 **Owner:** TBD  
-**Last updated:** 2026-04-08  
+**Last updated:** 2026-04-09  
 
 ## Purpose
 
-This document defines a **phased** refactor of `convex/functions/vesselTrips/updates` and related projection/read-model code. Stages are **sequential**: complete and sign off each stage before starting the next, unless a follow-up explicitly revises scope.
+This document defined a **phased** refactor of `convex/functions/vesselTrips/updates` and related projection/read-model code. Stages were **sequential**; **all planned stages are done.** Follow-up work lives under [Future](#future-out-of-scope-for-stages-15) or separate PRDs (e.g. WSF feed hardening).
 
-**Living document:** Update the **Revision log** at the bottom when a stage ships or requirements change.
+**Living document:** Append to the **Revision log** if you amend contracts or add follow-on refactors that supersede sections here.
 
 ---
 
@@ -34,7 +34,7 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | **Project code style (Cursor rule)** | [`.cursor/rules/code-style.mdc`](../.cursor/rules/code-style.mdc) — TypeScript strict, Biome, Bun, module layout, TSDoc, `bun run check:fix` / `bun run type-check` / `bun run convex:typecheck` |
 | **Convex MCP cheat sheet** | [`docs/convex-mcp-cheat-sheet.md`](./convex-mcp-cheat-sheet.md) — using Convex MCP against this repo, auth, project dir |
 | **VesselTrips updates architecture** | [`convex/functions/vesselTrips/updates/README.md`](../convex/functions/vesselTrips/updates/README.md) |
-| **VesselTrips updates boundaries** | [`convex/functions/vesselTrips/updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) — module checklist; Stage 2 lifecycle vs projection table; Stage 3 import rules next |
+| **VesselTrips updates boundaries** | [`convex/functions/vesselTrips/updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) — module checklist; lifecycle vs projection invariants; import rules for `tripLifecycle/` vs `projection/` vs barrel |
 | **Vessel orchestrator** | [`convex/functions/vesselOrchestrator/README.md`](../convex/functions/vesselOrchestrator/README.md) |
 | **VesselTimeline domain** | [`convex/domain/vesselTimeline/README.md`](../convex/domain/vesselTimeline/README.md) |
 | **Convex MCP (official)** | [Convex MCP server](https://docs.convex.dev/ai/convex-mcp-server) |
@@ -56,11 +56,13 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ## Stage 1 — Contracts & pipeline map (no behavior change)
 
+**Shipped.** See [`processTick/contracts.ts`](../convex/functions/vesselTrips/updates/processTick/contracts.ts) and pipeline sections in [`updates/README.md`](../convex/functions/vesselTrips/updates/README.md).
+
 ### Objectives
 
 - Introduce **explicit types** for tick inputs, lifecycle commands, and projection intents (even if initially **aliases** to existing shapes).
 - Document the **end-to-end tick** as a numbered pipeline (or diagram) aligned with code: `processVesselTrips` → `processCompletedTrips` / `processCurrentTrips` → mutations → `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects`.
-- Define **module boundary rules** (what may import what) as a checklist in [`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) (Stage 1); optional forward links to stricter Stage 3 enforcement.
+- Define **module boundary rules** (what may import what) as a checklist in [`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md); tightened in Stages 3–5 (projection vs lifecycle vs `processTick/`).
 
 ### Deliverables
 
@@ -104,16 +106,18 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ### Risks / notes
 
-- **Hydration:** storage comparison strips the five ML fields on **both** sides, so hydrated `existingTrip` rows align with strip-shaped persistence; projection path still uses full overlay equality for timeline semantics. Orchestrator/query hydration behavior is unchanged until Stage 4.
+- **Hydration:** storage comparison strips the five ML fields on **both** sides, so hydrated `existingTrip` rows align with strip-shaped persistence; projection uses overlay equality for timeline semantics. **Stage 4:** orchestrator tick path uses **storage-native** `TickActiveTrip` preloads; **public `getActiveTrips`** remains **hydrated** for subscribers (see `hydrateTripPredictions.ts`).
 
 ---
 
 ## Stage 3 — Projection builders out of lifecycle modules
 
+**Shipped.** Timeline overlay payloads are built in [`projection/timelineProjectionProjector.ts`](../convex/functions/vesselTrips/updates/projection/timelineProjectionProjector.ts) from DTOs in [`projection/projectionContracts.ts`](../convex/functions/vesselTrips/updates/projection/projectionContracts.ts); lifecycle branch files under [`tripLifecycle/`](../convex/functions/vesselTrips/updates/tripLifecycle/) do not import `domain/vesselTimeline` projection builders.
+
 ### Prerequisites (before starting)
 
 - Stage 2 merged; **current-trip** lifecycle no longer couples overlay emission to lifecycle upserts for prediction-only ticks.
-- Expect to **move** imports of `buildPredictedBoundaryProjectionEffect`, `buildPredictedBoundaryClearEffect`, and related patch builders out of `processCurrentTrips` / `processCompletedTrips` into a composition or `domain/` projector module; those files may still import them today.
+- **(Historical)** Move imports of `buildPredictedBoundaryProjectionEffect`, `buildPredictedBoundaryClearEffect`, and related patch builders out of `processCurrentTrips` / `processCompletedTrips` into the projector — **done** in Stage 3.
 
 ### Objectives
 
@@ -138,6 +142,8 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 ---
 
 ## Stage 4 — Orchestrator read model & hydration alignment
+
+**Shipped.** `getOrchestratorTickReadModelInternal` returns storage-native active trips (`vesselTripStoredSchema`); `processVesselTrips` accepts `ReadonlyArray<TickActiveTrip>` with optional transitional hydrated shape; see orchestrator and [`vesselTrips/queries.ts`](../convex/functions/vesselTrips/queries.ts) TSDoc.
 
 ### Objectives
 
@@ -194,6 +200,20 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 - **Outbox table + internal consumer** for projection retries and replay.
 - **Stronger idempotency keys** on `projectPredictedBoundaryEffects` / `projectActualBoundaryPatches` if split across more mutations.
+- **Golden tick fixtures** (optional regression snapshots for location + prior trip) — deferred from Stage 5.
+- **WSF feed** at-dock / at-sea transition cleanup — see [Non-goals](#non-goals-for-this-prd) above; not part of this PRD’s deliverables.
+
+---
+
+## Completion summary
+
+| Stage | Outcome |
+|-------|---------|
+| 1 | Tick contracts (`processTick/contracts.ts`), pipeline map, `ARCHITECTURE.md` checklist |
+| 2 | `tripsEqualForStorage` / `tripsEqualForOverlay`; projection-only ticks without upsert |
+| 3 | `projection/timelineProjectionProjector.ts`; lifecycle emits facts/intents only |
+| 4 | `TickActiveTrip`; orchestrator storage-native bundle; no duplicate hot-path `getActiveTrips` |
+| 5 | Folders `tripLifecycle/`, `projection/`, `processTick/`; barrel `updates/index.ts` |
 
 ---
 
@@ -210,4 +230,5 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | 2026-04-09 | 4 | Tick contract `TickActiveTrip` / storage-native preloads; orchestrator `getOrchestratorTickReadModelInternal` returns storage rows (no hydrate); `getActiveTrips` remains hydrated; tests for preload vs query fallback and storage vs hydrated parity; docs (`updates/ARCHITECTURE.md`, orchestrator README) |
 | 2026-04-08 | 5 | Module layout: `updates/tripLifecycle/`, `updates/projection/`, `updates/processTick/`; barrel `updates/index.ts`; `contracts.ts` → `processTick/contracts`; removed `processVesselTrips/` directory; docs (`README`, `ARCHITECTURE`, PRD) and `convex codegen` |
 | 2026-04-08 | — | Public trip equality API: `tripsEqualForStorage` / `tripsEqualForOverlay` replace `shouldPersistLifecycleTrip` / `shouldRefreshTimelineProjection`; internal comparators `lifecycleTripsEqual` / `overlayTripsEqual` |
+| 2026-04-09 | — | PRD closure: status **Complete**; refreshed references, Stage 2 hydration note, Stage 3–4 **Shipped** lines, path updates for `projection/` / `tripLifecycle/` / `processTick/`; completion summary table |
 
