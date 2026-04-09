@@ -1,18 +1,15 @@
 /**
  * Stage 1 tick contracts for vessel trip updates.
  *
- * Explicit types for the orchestrator tick plan, lifecycle branch metadata, and
- * merged projection payloads. These mirror current runtime shapes without
- * changing behavior; Stage 2+ refactors can narrow or split them further.
+ * Explicit types for the orchestrator tick plan and merged projection payloads.
+ * These mirror current runtime shapes without changing behavior; Stage 2+
+ * refactors can narrow or split them further.
  */
 
 import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  TickActiveTrip,
-} from "functions/vesselTrips/schemas";
+import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 
 /**
  * How active trips were resolved for this tick.
@@ -39,16 +36,6 @@ export type TripTickPlan = {
 };
 
 /**
- * Describes work scheduled for one lifecycle branch in order.
- *
- * Stage 1 uses this as documentation and ordering guardrails; processors are
- * still invoked explicitly (`processCompletedTrips` then `processCurrentTrips`).
- */
-export type LifecycleCommand =
-  | { kind: "completedTrips"; transitionCount: number }
-  | { kind: "currentTrips"; transitionCount: number };
-
-/**
  * Merged overlay payloads emitted after lifecycle persistence for one tick.
  *
  * Matches the combined `actualPatches` / `predictedEffects` passed to
@@ -65,8 +52,7 @@ export type ProjectionBatch = {
  * @param locations - Vessel locations for this orchestrator tick
  * @param tickStartedAt - Orchestrator-owned tick timestamp (ms)
  * @param activeTripsArg - When set, active trips came from the caller bundle
- *   (storage-native {@link TickActiveTrip} minimum; hydrated {@link ConvexVesselTrip}
- *   optional for transitional callers)
+ *   (storage-native {@link TickActiveTrip} minimum)
  * @param shouldRunPredictionFallback - First seconds-of-minute fallback window
  * @returns Tick plan record for downstream use
  */
@@ -99,36 +85,3 @@ export const mergeProjectionBatches = (
     ...current.predictedEffects,
   ],
 });
-
-/**
- * Builds lifecycle branch commands from transition counts.
- *
- * @param completedCount - Number of trip-boundary transitions this tick
- * @param currentCount - Number of non-boundary transitions this tick
- * @returns Tuple in execution order: completed branch, then current branch
- */
-export const buildLifecycleCommands = (
-  completedCount: number,
-  currentCount: number
-): readonly [LifecycleCommand, LifecycleCommand] => [
-  { kind: "completedTrips", transitionCount: completedCount },
-  { kind: "currentTrips", transitionCount: currentCount },
-];
-
-/**
- * Ensures lifecycle branch kinds match the sequential completed-then-current
- * contract. Throws only if ordering metadata is wrong (internal invariant).
- *
- * @param first - Must be `completedTrips`
- * @param second - Must be `currentTrips`
- */
-export const assertSequentialLifecycleOrder = (
-  first: LifecycleCommand,
-  second: LifecycleCommand
-): void => {
-  if (first.kind !== "completedTrips" || second.kind !== "currentTrips") {
-    throw new Error(
-      "VesselTrips: lifecycle branches must run completed then current"
-    );
-  }
-};

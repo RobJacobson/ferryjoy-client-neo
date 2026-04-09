@@ -26,8 +26,6 @@ import {
 import { processCurrentTrips } from "../tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 import {
-  assertSequentialLifecycleOrder,
-  buildLifecycleCommands,
   buildTripTickPlan,
   mergeProjectionBatches,
 } from "./contracts";
@@ -140,12 +138,7 @@ export const processVesselTripsWithDeps = async (
     (transition) => !transition.events.isCompletedTrip
   );
 
-  const [completedLifecycle, currentLifecycle] = buildLifecycleCommands(
-    completedTrips.length,
-    currentTrips.length
-  );
-  assertSequentialLifecycleOrder(completedLifecycle, currentLifecycle);
-
+  // Completed-trip boundaries must run before current-trip updates.
   const completedFacts = await processCompletedTrips(
     ctx,
     completedTrips,
