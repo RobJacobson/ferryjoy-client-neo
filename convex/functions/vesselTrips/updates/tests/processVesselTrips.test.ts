@@ -39,11 +39,35 @@ describe("processVesselTripsWithDeps", () => {
     expect(ctx.mutationCalls).toHaveLength(0);
   });
 
+  it("skips writes and side effects when only TimeStamp differs on the trip", async () => {
+    const existingTrip = makeTrip();
+    const currLocation = makeLocation();
+    const ctx = createTestActionCtx({
+      activeTrips: [existingTrip],
+    });
+    const newerStamp = makeTrip({
+      TimeStamp: ms("2026-03-13T06:00:00-07:00"),
+    });
+
+    await processVesselTripsWithDeps(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", newerStamp]]),
+      })
+    );
+
+    expect(ctx.mutationCalls).toHaveLength(0);
+  });
+
   it("upserts a changed current trip and projects predicted effects", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
     const changedTrip = makeTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+      TripDelay: 42,
     });
     const ctx = createTestActionCtx({
       activeTrips: [existingTrip],
@@ -63,6 +87,31 @@ describe("processVesselTripsWithDeps", () => {
     );
 
     expect(getUpsertMutationArgs(ctx)?.activeUpserts).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)?.Effects).toHaveLength(1);
+    expect(getActualProjectionArgs(ctx)).toBeUndefined();
+  });
+
+  it("projects predicted effects without an active upsert when only predictions change", async () => {
+    const existingTrip = makeTrip();
+    const currLocation = makeLocation();
+    const changedTrip = makeTrip({
+      AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+    });
+    const ctx = createTestActionCtx({
+      activeTrips: [existingTrip],
+    });
+
+    await processVesselTripsWithDeps(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", changedTrip]]),
+      })
+    );
+
+    expect(getUpsertMutationArgs(ctx)).toBeUndefined();
     expect(getPredictedProjectionArgs(ctx)?.Effects).toHaveLength(1);
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
@@ -211,6 +260,7 @@ describe("processVesselTripsWithDeps", () => {
     const cheTrip = makeTrip({
       VesselAbbrev: "CHE",
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+      TripDelay: 7,
     });
     const tacTrip = makeTrip({
       VesselAbbrev: "TAC",
@@ -267,6 +317,7 @@ describe("processVesselTripsWithDeps", () => {
     const cheTrip = makeTrip({
       VesselAbbrev: "CHE",
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+      TripDelay: 3,
     });
     const ctx = createTestActionCtx({
       activeTrips: [

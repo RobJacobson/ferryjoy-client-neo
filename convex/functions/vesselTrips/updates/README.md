@@ -2,7 +2,7 @@
 
 This module synchronizes active vessel trips with live location data. It runs as part of the vessel orchestrator (every 5 seconds) and processes vessel location updates to determine whether database writes are needed.
 
-**Core pattern**: Build-then-compare. The pipeline constructs the full in-memory `VesselTrip` (including ML prediction blobs and same-trip actualization when applicable), compares to the hydrated `existingTrip`, then **strips** the five boundary prediction fields before persisting trip rows. Regular updates deep-compare to existing and write only when different. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
+**Core pattern**: Build-then-compare. The pipeline constructs the full in-memory `VesselTrip` (including ML prediction blobs and same-trip actualization when applicable), compares to the hydrated `existingTrip`, then **strips** the five boundary prediction fields before persisting trip rows. **Stage 2** splits **lifecycle** persistence (`shouldPersistLifecycleTrip` / strip-shaped equality) from **projection** refresh (`shouldRefreshTimelineProjection` / `tripsAreEqual`). Prediction-only ticks can refresh `eventsPredicted` without an active upsert when stored columns are unchanged. Trip boundaries always produce writes, `leave_dock` side effects run only after the active trip upsert succeeds, and `VesselTimeline` actual/predicted overlays are projected from the finalized trip state rather than re-derived from raw location ticks.
 
 **Identity boundary**: This module now consumes `ConvexVesselLocation` from `vesselLocation/schemas.ts`. That means `VesselAbbrev` and the hot-path terminal fields were already validated against the backend vessel/terminal tables before trip logic runs. Persisted trip rows still use plain strings; the branding is a backend runtime guarantee, not a storage-schema migration.
 
@@ -67,9 +67,9 @@ processVesselTrips (entry point)
             │                 → actualizePredictionsOnTripComplete / OnLeaveDock)
             └─> processCurrentTrips (ongoing trips, including first appearances)
                     buildTrip (tripStart=false, events, shouldRunPredictionFallback)
-                    → tripsAreEqual → upsertVesselTripsBatch (if changed)
+                    → shouldPersistLifecycleTrip → upsertVesselTripsBatch (if strip-shaped row changed)
+                    → shouldRefreshTimelineProjection → actual/predicted boundary projection effects (may skip upsert)
                     → setDepartNextActualsForMostRecentCompletedTrip (leave_dock, post-upsert only)
-                    → emit actual/predicted boundary projection effects
                     (internal: tripDerivation → baseTripFromLocation
                               → appendFinalSchedule
                               → appendArriveDockPredictions
@@ -101,7 +101,7 @@ list. The client derives `activeInterval` locally from that backbone.
 | `baseTripFromLocation.ts` | `baseTripFromLocation` — location-derived base trip from `ConvexVesselLocation` using explicit `start` / `continue` modes |
 | `appendPredictions.ts` | `appendArriveDockPredictions`, `appendLeaveDockPredictions` — ML predictions for at-dock (AtDockDepartCurr, AtDockArriveNext, AtDockDepartNext) and at-sea (AtSeaArriveNext, AtSeaDepartNext) events |
 | `appendSchedule.ts` | `appendFinalSchedule` — deterministic schedule lookup by Key; `resolveEffectiveLocation` uses `NextKey`/rollover lookups only when continuity hints exist |
-| `tripEquality.ts` | `tripsAreEqual`, `deepEqual` — equality utilities used to avoid unnecessary writes |
+| `tripEquality.ts` | `lifecycleTripsEqual`, `shouldPersistLifecycleTrip`, `shouldRefreshTimelineProjection`, `tripsAreEqual`, `deepEqual` — lifecycle strip-shaped vs projection-normalized equality |
 | `shared/tripIdentity.ts` | `deriveTripIdentity` — canonical `Key` / `SailingDay` / start-ready derivation shared by live locations and trip updates |
 | `tests/*.test.ts` | Focused unit and sequencing coverage for builders, completed/current trip processing, event detection, and top-level update orchestration |
 
@@ -129,7 +129,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
 **Behavior**: Handled by `processCurrentTrips`.
 - `buildTrip(..., tripStart=false, ...)` creates the active trip record using feed identity when available; schedule lookups run only for `NextKey` or same-day rollover when the prior trip carried those hints
 - `TripStart` remains undefined unless the system observed the boundary from a prior completed trip
-- Compares via `tripsAreEqual` (always different for new trips) and writes via `upsertVesselTripsBatch`
+- Compares via `shouldPersistLifecycleTrip` / `shouldRefreshTimelineProjection` (always true for new trips) and writes via `upsertVesselTripsBatch` when the strip-shaped row is new or changed
 
 ### 2. Trip Boundary
 
@@ -157,7 +157,7 @@ All events are detected by `detectTripEvents(existingTrip, currLocation)`.
    - Calls `appendLeaveDockPredictions` when physically depart dock
    - Applies `actualizePredictionsOnLeaveDock` before persistence when `didJustLeaveDock`
 2. When `didJustLeaveDock`: `processCurrentTrips()` queues a post-upsert hook. After `upsertVesselTripsBatch` succeeds for that vessel, it calls `setDepartNextActualsForMostRecentCompletedTrip` to backfill the previous completed trip's depart-next actuals (using the new trip's `LeftDock` time).
-3. `tripsAreEqual(existingTrip, finalProposed)` → write only if different.
+3. `shouldPersistLifecycleTrip` → upsert only if strip-shaped row differs; `shouldRefreshTimelineProjection` → overlays when projection semantics differ (may run without upsert).
 4. Per-vessel failures are logged and do not abort processing for other vessels.
 
 ---
@@ -342,16 +342,16 @@ builder.
 
 1. Build `proposedTrip` via `buildTrip` (which internally calls `baseTripFromLocation` + `appendFinalSchedule` + `appendArriveDockPredictions` + `appendLeaveDockPredictions`, using provided events and `shouldRunPredictionFallback` to drive enrichments).
 2. Finalize same-trip actuals in the builder when applicable.
-3. Compare `tripsAreEqual(existingTrip, finalProposed)`.
-4. If equal: no write.
-5. If different: `activeUpsert = finalProposed` (batched via `upsertVesselTripsBatch`).
+3. **Lifecycle** — `lifecycleTripsEqual` / `shouldPersistLifecycleTrip` after stripping the five ML fields (`stripTripPredictionsForStorage` semantics). If equal: no `activeVesselTrips` upsert.
+4. **Projection** — `tripsAreEqual` / `shouldRefreshTimelineProjection` for overlay refresh (normalized prediction fields). If different from step 3: emit `eventsActual` / `eventsPredicted` work even when step 3 skipped the upsert.
+5. When step 3 says persist: `activeUpsert = finalProposed` (batched via `upsertVesselTripsBatch`).
 
-### tripsAreEqual
+### tripsAreEqual (projection) and lifecycleTripsEqual
 
-- Compares all fields from both `existing` and `proposed` trips.
-- **Excludes** `TimeStamp` only — it changes every tick; we care about semantic equality.
-- Uses `deepEqual` for nested objects (e.g. `ScheduledTrip`, prediction objects).
-- Automatically includes new schema fields (compares all fields in both directions).
+- **`lifecycleTripsEqual`** — Strip-shaped row equality: compares persisted columns only; `TimeStamp` excluded.
+- **`tripsAreEqual`** — Projection-relevant equality: all keys except `TimeStamp`; prediction fields normalize to `PredTime` / `Actual` / `DeltaTotal` so ML-only noise does not force refresh.
+- Uses `deepEqual` for nested objects (e.g. `ScheduledTrip`, non-prediction objects).
+- Walks the union of keys on both trips so adds/removes are detected.
 
 ---
 

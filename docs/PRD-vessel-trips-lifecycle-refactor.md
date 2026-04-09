@@ -1,6 +1,6 @@
 # PRD: Vessel trips lifecycle & projection refactor
 
-**Status:** Draft (revise after each stage)  
+**Status:** Draft — Stage 2 complete (revise after each stage)  
 **Owner:** TBD  
 **Last updated:** 2026-04-08  
 
@@ -34,6 +34,7 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | **Project code style (Cursor rule)** | [`.cursor/rules/code-style.mdc`](../.cursor/rules/code-style.mdc) — TypeScript strict, Biome, Bun, module layout, TSDoc, `bun run check:fix` / `bun run type-check` / `bun run convex:typecheck` |
 | **Convex MCP cheat sheet** | [`docs/convex-mcp-cheat-sheet.md`](./convex-mcp-cheat-sheet.md) — using Convex MCP against this repo, auth, project dir |
 | **VesselTrips updates architecture** | [`convex/functions/vesselTrips/updates/README.md`](../convex/functions/vesselTrips/updates/README.md) |
+| **VesselTrips updates boundaries (Stage 1)** | [`convex/functions/vesselTrips/updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) — module checklist; Stage 3 import rules TBD |
 | **Vessel orchestrator** | [`convex/functions/vesselOrchestrator/README.md`](../convex/functions/vesselOrchestrator/README.md) |
 | **VesselTimeline domain** | [`convex/domain/vesselTimeline/README.md`](../convex/domain/vesselTimeline/README.md) |
 | **Convex MCP (official)** | [Convex MCP server](https://docs.convex.dev/ai/convex-mcp-server) |
@@ -59,11 +60,11 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 - Introduce **explicit types** for tick inputs, lifecycle commands, and projection intents (even if initially **aliases** to existing shapes).
 - Document the **end-to-end tick** as a numbered pipeline (or diagram) aligned with code: `processVesselTrips` → `processCompletedTrips` / `processCurrentTrips` → mutations → `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects`.
-- Define **module boundary rules** (what may import what) as **comments + checklist** in this doc or a short `ARCHITECTURE.md` next to `updates/` (optional).
+- Define **module boundary rules** (what may import what) as a checklist in [`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) (Stage 1); optional forward links to stricter Stage 3 enforcement.
 
 ### Deliverables
 
-- New or extended TypeScript types (e.g. `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`) colocated with `updates/` or `convex/domain/` per style guide.
+- New or extended TypeScript types (e.g. `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`) colocated with `updates/` or `convex/domain/` per style guide (see [`updates/contracts.ts`](../convex/functions/vesselTrips/updates/contracts.ts)).
 - No user-visible behavior change; existing tests pass unchanged.
 
 ### Acceptance criteria
@@ -191,4 +192,7 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | Date | Stage | Change |
 |------|--------|--------|
 | 2026-04-08 | — | Initial draft |
-| 2026-04-08 | 1 | Added `updates/contracts.ts`, wired `processVesselTrips` to `TripTickPlan` / merged `ProjectionBatch`, documented numbered pipeline and `ARCHITECTURE.md` |
+| 2026-04-08 | 1 | Added `updates/contracts.ts`, wired `processVesselTrips` to `TripTickPlan` / merged `ProjectionBatch`, documented numbered pipeline and `ARCHITECTURE.md` ([`c9f5e140`](https://github.com/RobJacobson/ferryjoy-client-neo/commit/c9f5e140beb95a9e1b5f844d3049d3110cf5eacc)) |
+| 2026-04-08 | — | PRD: status set to Stage 1 complete; References + Stage 1 links to `ARCHITECTURE.md`; revision log traceability |
+| 2026-04-08 | 2 | Split lifecycle persistence vs projection refresh: `lifecycleTripsEqual` / `shouldPersistLifecycleTrip`, `shouldRefreshTimelineProjection`; `processCurrentTrips` projection-only path; tests and `updates/ARCHITECTURE.md` invariants |
+

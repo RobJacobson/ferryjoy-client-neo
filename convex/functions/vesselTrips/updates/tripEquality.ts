@@ -1,14 +1,21 @@
 /**
  * Shared utility helpers for vessel-trip updates.
  *
- * Provides the deep equality checks used to avoid rewriting active trips when
- * only the tick timestamp has changed.
+ * **Lifecycle** (`lifecycleTripsEqual`, `shouldPersistLifecycleTrip`) mirrors
+ * `stripTripPredictionsForStorage`: only persisted `activeVesselTrips` columns
+ * participate; `TimeStamp` is ignored.
+ *
+ * **Projection** (`tripsAreEqual`, `shouldRefreshTimelineProjection`) uses
+ * normalized prediction fields (`PredTime` / `Actual` / `DeltaTotal`) so
+ * overlay refresh can run when joined prediction semantics change without a
+ * stored-row write.
  */
 
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
+import { stripTripPredictionsForStorage } from "functions/vesselTrips/stripTripForStorage";
 
 const PREDICTION_FIELD_NAMES = [
   "AtDockDepartCurr",
@@ -48,6 +55,54 @@ const isPredictionFieldName = (key: string): boolean =>
 
 /** Top-level trip keys ignored when comparing for write suppression. */
 const IGNORED_TRIP_KEYS = new Set<string>(["TimeStamp"]);
+
+/**
+ * Deep equality on stored trip shape: ML prediction blobs stripped, `TimeStamp`
+ * ignored. Used to decide whether `activeVesselTrips` needs an upsert this tick.
+ *
+ * @param existing - Existing trip (possibly hydrated; stripped before compare)
+ * @param proposed - Built trip for this tick
+ * @returns true when persisted columns would be unchanged
+ */
+export const lifecycleTripsEqual = (
+  existing: ConvexVesselTrip,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean => {
+  const e = stripTripPredictionsForStorage(
+    existing as ConvexVesselTripWithML
+  ) as Record<string, unknown>;
+  const p = stripTripPredictionsForStorage(
+    proposed as ConvexVesselTripWithML
+  ) as Record<string, unknown>;
+  const keys = new Set([...Object.keys(e), ...Object.keys(p)]);
+
+  for (const key of keys) {
+    if (IGNORED_TRIP_KEYS.has(key)) {
+      continue;
+    }
+    if (!deepEqual(e[key], p[key])) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * Returns true when the active trip row should be upserted this tick.
+ *
+ * New vessels always persist; otherwise compares strip-equivalent stored fields
+ * (not the five ML prediction columns).
+ *
+ * @param existingTrip - Previously persisted active trip, if one exists
+ * @param proposed - Newly built trip state for this tick
+ */
+export const shouldPersistLifecycleTrip = (
+  existingTrip: ConvexVesselTrip | undefined,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean =>
+  existingTrip === undefined
+    ? true
+    : !lifecycleTripsEqual(existingTrip, proposed);
 
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
@@ -92,6 +147,22 @@ export const tripsAreEqual = (
   }
   return true;
 };
+
+/**
+ * Returns true when timeline overlays may need refresh this tick.
+ *
+ * Uses normalized prediction comparison (PredTime / Actual / DeltaTotal) so
+ * ML-only noise does not force projection; differs from lifecycle when only
+ * joined prediction semantics change without stored-column churn.
+ *
+ * @param existingTrip - Previously persisted active trip, if one exists
+ * @param proposed - Newly built trip state for this tick
+ */
+export const shouldRefreshTimelineProjection = (
+  existingTrip: ConvexVesselTrip | undefined,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean =>
+  existingTrip === undefined ? true : !tripsAreEqual(existingTrip, proposed);
 
 /**
  * Deep equality check for arbitrary values.
