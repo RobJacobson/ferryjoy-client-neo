@@ -10,10 +10,10 @@ import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip } from "../buildCompletedTrip";
-import { buildTrip } from "../buildTrip";
-import type { TripEvents } from "../eventDetection";
-import type { CompletedTripProjectionFact } from "../projectionContracts";
+import type { CompletedTripProjectionFact } from "../projection/projectionContracts";
+import { buildCompletedTrip } from "./buildCompletedTrip";
+import { buildTrip } from "./buildTrip";
+import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
   currLocation: ConvexVesselLocation;

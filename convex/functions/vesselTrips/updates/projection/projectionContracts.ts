@@ -8,7 +8,7 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import type { TripEvents } from "./eventDetection";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 /**
  * One successful completed-trip boundary: persisted trips ready for overlay

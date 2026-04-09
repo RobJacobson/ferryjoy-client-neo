@@ -5,12 +5,12 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { TripEvents } from "../eventDetection";
+import { buildProjectionBatchFromCompletedFacts } from "../projection/timelineProjectionProjector";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
-} from "../processVesselTrips/processCompletedTrips";
-import { buildProjectionBatchFromCompletedFacts } from "../timelineProjectionProjector";
+} from "../tripLifecycle/processCompletedTrips";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,

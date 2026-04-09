@@ -8,8 +8,8 @@ import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
-import type { TripEvents } from "../eventDetection";
-import { processVesselTripsWithDeps } from "../processVesselTrips/processVesselTrips";
+import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,

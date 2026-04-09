@@ -1,14 +1,11 @@
 /**
- * Shared utility helpers for vessel-trip updates.
+ * Lifecycle vs projection trip equality for write suppression.
  *
- * **Lifecycle** (`lifecycleTripsEqual`, `shouldPersistLifecycleTrip`) mirrors
- * `stripTripPredictionsForStorage`: only persisted `activeVesselTrips` columns
- * participate; `TimeStamp` is ignored.
- *
- * **Projection** (`tripsAreEqual`, `shouldRefreshTimelineProjection`) uses
- * normalized prediction fields (`PredTime` / `Actual` / `DeltaTotal`) so
- * overlay refresh can run when joined prediction semantics change without a
- * stored-row write.
+ * **Public:** `tripsEqualForStorage` (strip-shaped persisted columns) and
+ * `tripsEqualForOverlay` (normalized prediction fields for timeline overlays).
+ * When `existing` is undefined, both return false (no baseline row). Callers
+ * that need “should we upsert / refresh?” use `!tripsEqualForStorage` /
+ * `!tripsEqualForOverlay`.
  */
 
 import type {
@@ -64,7 +61,7 @@ const IGNORED_TRIP_KEYS = new Set<string>(["TimeStamp"]);
  * @param proposed - Built trip for this tick
  * @returns true when persisted columns would be unchanged
  */
-export const lifecycleTripsEqual = (
+const lifecycleTripsEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip | ConvexVesselTripWithML
 ): boolean => {
@@ -88,35 +85,28 @@ export const lifecycleTripsEqual = (
 };
 
 /**
- * Returns true when the active trip row should be upserted this tick.
+ * True when the persisted-row (strip-shaped) view of `proposed` matches `existing`.
  *
- * New vessels always persist; otherwise compares strip-equivalent stored fields
- * (not the five ML prediction columns).
+ * Returns false when `existing` is undefined (no stored row to match).
  *
- * @param existingTrip - Previously persisted active trip, if one exists
+ * @param existing - Previously persisted active trip, if any
  * @param proposed - Newly built trip state for this tick
  */
-export const shouldPersistLifecycleTrip = (
-  existingTrip: ConvexVesselTrip | undefined,
+export const tripsEqualForStorage = (
+  existing: ConvexVesselTrip | undefined,
   proposed: ConvexVesselTrip | ConvexVesselTripWithML
-): boolean =>
-  existingTrip === undefined
-    ? true
-    : !lifecycleTripsEqual(existingTrip, proposed);
+): boolean => existing !== undefined && lifecycleTripsEqual(existing, proposed);
 
 /**
- * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
- *
- * Walks the union of keys on both trips so adds/removes on either side are
- * detected. Skips keys in `IGNORED_TRIP_KEYS` (currently `TimeStamp`).
- * Prediction fields compare after normalizing to PredTime / Actual / DeltaTotal
- * so ML-only noise does not force writes.
+ * Deep equality for timeline overlay semantics (eventsActual / eventsPredicted),
+ * excluding `TimeStamp`. Prediction fields normalize to PredTime / Actual /
+ * DeltaTotal so ML-only noise does not force refresh.
  *
  * @param existing - Existing trip from database
  * @param proposed - Newly constructed trip
- * @returns true if all compared fields are deeply equal
+ * @returns true if overlay-relevant fields are deeply equal
  */
-export const tripsAreEqual = (
+const overlayTripsEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip | ConvexVesselTripWithML
 ): boolean => {
@@ -149,20 +139,18 @@ export const tripsAreEqual = (
 };
 
 /**
- * Returns true when timeline overlays may need refresh this tick.
+ * True when the overlay-relevant view of `proposed` matches `existing`
+ * (normalized prediction fields).
  *
- * Uses normalized prediction comparison (PredTime / Actual / DeltaTotal) so
- * ML-only noise does not force projection; differs from lifecycle when only
- * joined prediction semantics change without stored-column churn.
+ * Returns false when `existing` is undefined (no baseline for overlay diff).
  *
- * @param existingTrip - Previously persisted active trip, if one exists
+ * @param existing - Previously persisted active trip, if any
  * @param proposed - Newly built trip state for this tick
  */
-export const shouldRefreshTimelineProjection = (
-  existingTrip: ConvexVesselTrip | undefined,
+export const tripsEqualForOverlay = (
+  existing: ConvexVesselTrip | undefined,
   proposed: ConvexVesselTrip | ConvexVesselTripWithML
-): boolean =>
-  existingTrip === undefined ? true : !tripsAreEqual(existingTrip, proposed);
+): boolean => existing !== undefined && overlayTripsEqual(existing, proposed);
 
 /**
  * Deep equality check for arbitrary values.
@@ -174,7 +162,7 @@ export const shouldRefreshTimelineProjection = (
  * @param b - Second value to compare
  * @returns true if values are deeply equal
  */
-export const deepEqual = (a: unknown, b: unknown): boolean => {
+const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
 
   if (a == null || b == null) return false;

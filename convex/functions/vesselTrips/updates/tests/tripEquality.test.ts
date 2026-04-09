@@ -5,11 +5,9 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
-  lifecycleTripsEqual,
-  shouldPersistLifecycleTrip,
-  shouldRefreshTimelineProjection,
-  tripsAreEqual,
-} from "../tripEquality";
+  tripsEqualForOverlay,
+  tripsEqualForStorage,
+} from "../tripLifecycle/tripEquality";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -71,40 +69,40 @@ const makePrediction = (iso: string) => {
   };
 };
 
-describe("lifecycleTripsEqual", () => {
-  it("returns true when only ML prediction blobs differ on stored-equivalent rows", () => {
+describe("tripsEqualForStorage", () => {
+  it("is true when only ML prediction blobs differ on stored-equivalent rows", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
-    expect(lifecycleTripsEqual(existing, proposed)).toBe(true);
+    expect(tripsEqualForStorage(existing, proposed)).toBe(true);
   });
 
-  it("returns false when a non-prediction stored field differs", () => {
+  it("is false when a non-prediction stored field differs", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({ TripDelay: 99 });
-    expect(lifecycleTripsEqual(existing, proposed)).toBe(false);
+    expect(tripsEqualForStorage(existing, proposed)).toBe(false);
   });
 
-  it("ignores TimeStamp-only differences", () => {
+  it("is true when only TimeStamp differs", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       TimeStamp: ms("2026-03-13T05:00:00-07:00"),
     });
-    expect(lifecycleTripsEqual(existing, proposed)).toBe(true);
+    expect(tripsEqualForStorage(existing, proposed)).toBe(true);
   });
 });
 
-describe("tripsAreEqual (projection)", () => {
-  it("returns false when normalized PredTime differs on a prediction field", () => {
+describe("tripsEqualForOverlay", () => {
+  it("is false when normalized PredTime differs on a prediction field", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
-    expect(tripsAreEqual(existing, proposed)).toBe(false);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(false);
   });
 
-  it("returns true when only ML interval noise differs but PredTime matches", () => {
+  it("is true when only ML interval noise differs but PredTime matches", () => {
     const pred = makePrediction("2026-03-13T05:31:00-07:00");
     const existing = makeBaseTrip({
       AtDockDepartCurr: { ...pred, MAE: 1 },
@@ -112,24 +110,24 @@ describe("tripsAreEqual (projection)", () => {
     const proposed = makeBaseTrip({
       AtDockDepartCurr: { ...pred, MAE: 99, MinTime: pred.MinTime + 1 },
     });
-    expect(tripsAreEqual(existing, proposed)).toBe(true);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(true);
   });
 });
 
-describe("shouldPersistLifecycleTrip vs shouldRefreshTimelineProjection", () => {
-  it("skips persist but refreshes projection when only prediction semantics change", () => {
+describe("storage vs overlay", () => {
+  it("storage-equal but overlay-differing when only prediction semantics change", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
-    expect(shouldPersistLifecycleTrip(existing, proposed)).toBe(false);
-    expect(shouldRefreshTimelineProjection(existing, proposed)).toBe(true);
+    expect(tripsEqualForStorage(existing, proposed)).toBe(true);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(false);
   });
 
-  it("persists and refreshes when a stored column changes", () => {
+  it("both false when a stored column changes", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({ TripDelay: 3 });
-    expect(shouldPersistLifecycleTrip(existing, proposed)).toBe(true);
-    expect(shouldRefreshTimelineProjection(existing, proposed)).toBe(true);
+    expect(tripsEqualForStorage(existing, proposed)).toBe(false);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(false);
   });
 });

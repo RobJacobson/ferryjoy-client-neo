@@ -432,7 +432,7 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
-implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
+implemented in `convex/functions/vesselTrips/updates/processTick/processVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
 
@@ -502,7 +502,7 @@ on trip documents:
 - Depart-next actualization when the _next_ trip leaves dock (previous leg’s
   next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip`
   patching the prior leg’s `eventsPredicted` rows.
-  - Trigger: `convex/functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
+  - Trigger: `convex/functions/vesselTrips/updates/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 

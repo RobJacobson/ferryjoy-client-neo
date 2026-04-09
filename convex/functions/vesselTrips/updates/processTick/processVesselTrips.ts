@@ -12,25 +12,25 @@ import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip } from "../buildCompletedTrip";
-import { buildTrip } from "../buildTrip";
+import {
+  buildProjectionBatchFromCompletedFacts,
+  buildProjectionBatchFromCurrentIntents,
+} from "../projection/timelineProjectionProjector";
+import { buildCompletedTrip } from "../tripLifecycle/buildCompletedTrip";
+import { buildTrip } from "../tripLifecycle/buildTrip";
+import { detectTripEvents } from "../tripLifecycle/detectTripEvents";
+import {
+  type ProcessCompletedTripsDeps,
+  processCompletedTrips,
+} from "../tripLifecycle/processCompletedTrips";
+import { processCurrentTrips } from "../tripLifecycle/processCurrentTrips";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 import {
   assertSequentialLifecycleOrder,
   buildLifecycleCommands,
   buildTripTickPlan,
   mergeProjectionBatches,
-} from "../contracts";
-import type { TripEvents } from "../eventDetection";
-import { detectTripEvents } from "../eventDetection";
-import {
-  buildProjectionBatchFromCompletedFacts,
-  buildProjectionBatchFromCurrentIntents,
-} from "../timelineProjectionProjector";
-import {
-  type ProcessCompletedTripsDeps,
-  processCompletedTrips,
-} from "./processCompletedTrips";
-import { processCurrentTrips } from "./processCurrentTrips";
+} from "./contracts";
 
 // Restrict time-based retries to the first few seconds of each minute.
 const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;

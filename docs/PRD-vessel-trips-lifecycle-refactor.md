@@ -1,8 +1,8 @@
 # PRD: Vessel trips lifecycle & projection refactor
 
-**Status:** Draft — Stage 4 complete (revise after each stage)  
+**Status:** Draft — Stage 5 complete (revise after each stage)  
 **Owner:** TBD  
-**Last updated:** 2026-04-09  
+**Last updated:** 2026-04-08  
 
 ## Purpose
 
@@ -64,7 +64,7 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ### Deliverables
 
-- New or extended TypeScript types (e.g. `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`) colocated with `updates/` or `convex/domain/` per style guide (see [`updates/contracts.ts`](../convex/functions/vesselTrips/updates/contracts.ts)).
+- New or extended TypeScript types (e.g. `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`) colocated with `updates/` or `convex/domain/` per style guide (see [`processTick/contracts.ts`](../convex/functions/vesselTrips/updates/processTick/contracts.ts)).
 - No user-visible behavior change; existing tests pass unchanged.
 
 ### Acceptance criteria
@@ -82,13 +82,13 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ## Stage 2 — Split lifecycle persistence vs projection “dirty” checks
 
-**Shipped.** Active-trip path uses explicit predicates and tagged overlay payloads; see [`tripEquality.ts`](../convex/functions/vesselTrips/tripEquality.ts), [`processVesselTrips/processCurrentTrips.ts`](../convex/functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.ts), [`tests/tripEquality.test.ts`](../convex/functions/vesselTrips/updates/tests/tripEquality.test.ts).
+**Shipped.** Active-trip path uses explicit predicates and tagged overlay payloads; see [`tripLifecycle/tripEquality.ts`](../convex/functions/vesselTrips/updates/tripLifecycle/tripEquality.ts), [`tripLifecycle/processCurrentTrips.ts`](../convex/functions/vesselTrips/updates/tripLifecycle/processCurrentTrips.ts), [`tests/tripEquality.test.ts`](../convex/functions/vesselTrips/updates/tests/tripEquality.test.ts).
 
 ### Objectives
 
 - **Decouple** “should we persist active/completed trip rows?” from “should we emit / refresh `eventsActual` or `eventsPredicted` effects this tick?”
-- **Lifecycle:** `shouldPersistLifecycleTrip` → `lifecycleTripsEqual` (both sides passed through `stripTripPredictionsForStorage`; `TimeStamp` ignored) so persistence matches `activeVesselTrips` columns only.
-- **Projection:** `shouldRefreshTimelineProjection` → existing `tripsAreEqual` (normalized prediction fields) so overlay refresh matches prior behavior, including prediction-only ticks **without** an upsert when stored columns are unchanged.
+- **Lifecycle:** `tripsEqualForStorage` (module-private `lifecycleTripsEqual`; both sides passed through `stripTripPredictionsForStorage`; `TimeStamp` ignored) so persistence matches `activeVesselTrips` columns only. Upsert when `!tripsEqualForStorage`.
+- **Projection:** `tripsEqualForOverlay` (module-private `overlayTripsEqual`; normalized prediction fields) so overlay refresh matches prior behavior, including prediction-only ticks **without** an upsert when stored columns are unchanged. Refresh overlays when `!tripsEqualForOverlay`.
 - **Ordering:** Completed branch unchanged; current branch uses `requiresSuccessfulUpsert` so leave-dock backfill and upsert-gated overlays stay tied to successful `upsertVesselTripsBatch` rows.
 
 ### Deliverables
@@ -99,12 +99,12 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 ### Acceptance criteria
 
 - All Stage 1 acceptance criteria.
-- No regression in projection behavior for ticks that previously relied on `tripsAreEqual` including normalized prediction fields.
+- No regression in projection behavior for ticks that previously relied on overlay trip equality (`overlayTripsEqual`) including normalized prediction fields.
 - Documented invariant: **which fields** participate in lifecycle write suppression vs projection refresh ([`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) Stage 2 table).
 
 ### Risks / notes
 
-- **Hydration:** `lifecycleTripsEqual` strips the five ML fields on **both** sides, so hydrated `existingTrip` rows align with strip-shaped persistence; projection path still uses full `tripsAreEqual` for overlay semantics. Orchestrator/query hydration behavior is unchanged until Stage 4.
+- **Hydration:** storage comparison strips the five ML fields on **both** sides, so hydrated `existingTrip` rows align with strip-shaped persistence; projection path still uses full overlay equality for timeline semantics. Orchestrator/query hydration behavior is unchanged until Stage 4.
 
 ---
 
@@ -162,21 +162,23 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ## Stage 5 — Module layout cleanup & delete dead paths
 
+**Shipped.** `tripLifecycle/`, `projection/`, and `processTick/` under `updates/`; public barrel [`updates/index.ts`](../convex/functions/vesselTrips/updates/index.ts); removed `processVesselTrips/` shim folder.
+
 ### Objectives
 
 - Final **folder names** (`tripLifecycle`, `projection`, etc.) and `index.ts` exports per code-style module rules.
-- Remove obsolete helpers, duplicate README sections, and **finalize** architecture docs (updates README + this PRD).
-- Optional: add **golden tick** fixtures for regression (location + prior trip snapshots).
+- Remove obsolete helpers, duplicate README sections, and **finalize** architecture docs (updates README + `ARCHITECTURE.md` + this PRD).
+- Optional: add **golden tick** fixtures for regression (location + prior trip snapshots) — **deferred**.
 
 ### Deliverables
 
-- Clean tree; single obvious entrypoint for the tick pipeline.
-- Updated [`convex/functions/vesselTrips/updates/README.md`](../convex/functions/vesselTrips/updates/README.md) to match post-refactor reality.
+- Clean tree; single obvious entrypoint for the tick pipeline (`processVesselTrips` in `processTick/`).
+- Updated [`README.md`](../convex/functions/vesselTrips/updates/README.md) and [`ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) to match post-refactor reality.
 
 ### Acceptance criteria
 
 - Full test suite relevant to vessel trips + convex typecheck green.
-- README and this PRD updated; **Revision log** entry.
+- README, `ARCHITECTURE.md`, and this PRD updated; **Revision log** entry.
 
 ---
 
@@ -206,4 +208,6 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | 2026-04-09 | — | PRD: Stage 2 section finalized (shipped links, predicate names, hydration note); References + Stage 3 prerequisites |
 | 2026-04-09 | 3 | Projection builders moved to `updates/timelineProjectionProjector.ts`; `projectionContracts.ts` DTOs; lifecycle branch files no longer import `domain/vesselTimeline/normalizedEvents` or `actualBoundaryPatchesFromTrip`; `processVesselTrips` composes projector after lifecycle mutations |
 | 2026-04-09 | 4 | Tick contract `TickActiveTrip` / storage-native preloads; orchestrator `getOrchestratorTickReadModelInternal` returns storage rows (no hydrate); `getActiveTrips` remains hydrated; tests for preload vs query fallback and storage vs hydrated parity; docs (`updates/ARCHITECTURE.md`, orchestrator README) |
+| 2026-04-08 | 5 | Module layout: `updates/tripLifecycle/`, `updates/projection/`, `updates/processTick/`; barrel `updates/index.ts`; `contracts.ts` → `processTick/contracts`; removed `processVesselTrips/` directory; docs (`README`, `ARCHITECTURE`, PRD) and `convex codegen` |
+| 2026-04-08 | — | Public trip equality API: `tripsEqualForStorage` / `tripsEqualForOverlay` replace `shouldPersistLifecycleTrip` / `shouldRefreshTimelineProjection`; internal comparators `lifecycleTripsEqual` / `overlayTripsEqual` |
 

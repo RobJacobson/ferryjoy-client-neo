@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip } from "../buildCompletedTrip";
+import { buildCompletedTrip } from "../tripLifecycle/buildCompletedTrip";
 
 describe("buildCompletedTrip", () => {
   it("preserves a valid ArriveDest when it occurs after departure", () => {

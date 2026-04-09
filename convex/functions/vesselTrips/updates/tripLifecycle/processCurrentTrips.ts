@@ -30,17 +30,14 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import { buildTrip } from "../buildTrip";
-import type { TripEvents } from "../eventDetection";
 import type {
   CurrentTripActualProjectionIntent,
   CurrentTripBranchResult,
   CurrentTripPredictedProjectionIntent,
-} from "../projectionContracts";
-import {
-  shouldPersistLifecycleTrip,
-  shouldRefreshTimelineProjection,
-} from "../tripEquality";
+} from "../projection/projectionContracts";
+import { buildTrip } from "./buildTrip";
+import { tripsEqualForOverlay, tripsEqualForStorage } from "./tripEquality";
+import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
@@ -241,8 +238,8 @@ const collectCurrentTripArtifacts = (
 ): CurrentTripArtifacts => {
   const { existingTrip, currLocation, events, finalProposed } = buildResult;
 
-  const persist = shouldPersistLifecycleTrip(existingTrip, finalProposed);
-  const refresh = shouldRefreshTimelineProjection(existingTrip, finalProposed);
+  const persist = !tripsEqualForStorage(existingTrip, finalProposed);
+  const refresh = !tripsEqualForOverlay(existingTrip, finalProposed);
 
   if (!persist && !refresh) {
     return createEmptyCurrentTripArtifacts();

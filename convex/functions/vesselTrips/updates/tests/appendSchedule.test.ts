@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { appendFinalSchedule } from "../appendSchedule";
+import { appendFinalSchedule } from "../tripLifecycle/appendSchedule";
 
 describe("appendFinalSchedule", () => {
   it("reuses existing next-trip schedule fields when the trip key is unchanged", async () => {

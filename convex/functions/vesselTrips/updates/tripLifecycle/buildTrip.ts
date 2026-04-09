@@ -14,8 +14,8 @@ import {
 } from "./appendPredictions";
 import { appendFinalSchedule } from "./appendSchedule";
 import { baseTripFromLocation } from "./baseTripFromLocation";
-import { resolveEffectiveLocation } from "./effectiveLocation";
-import type { TripEvents } from "./eventDetection";
+import { resolveEffectiveLocation } from "./resolveEffectiveLocation";
+import type { TripEvents } from "./tripEventTypes";
 
 /**
  * Build complete vessel trip from raw location data with all enrichments.

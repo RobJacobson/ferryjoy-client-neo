@@ -5,8 +5,8 @@
  * actuals can recover if an earlier leave-dock tick was missed.
  */
 
-import type { ConvexActualBoundaryPatch } from "../../eventsActual/schemas";
-import type { ConvexVesselTrip } from "../schemas";
+import type { ConvexActualBoundaryPatch } from "../../../eventsActual/schemas";
+import type { ConvexVesselTrip } from "../../schemas";
 
 type ActualBoundaryTerminalRole = "departing" | "arriving";
 

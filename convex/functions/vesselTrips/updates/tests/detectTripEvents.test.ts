@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { detectTripEvents, getDockDepartureState } from "../eventDetection";
+import { detectTripEvents } from "../tripLifecycle/detectTripEvents";
+import { getDockDepartureState } from "../tripLifecycle/tripDerivation";
 
 describe("detectTripEvents", () => {
   it("does not treat an overnight destination-field change as arrival at dock", () => {

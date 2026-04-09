@@ -14,12 +14,12 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
+import type { ProjectionBatch } from "../processTick/contracts";
+import { mergeProjectionBatches } from "../processTick/contracts";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
 } from "./actualBoundaryPatchesFromTrip";
-import type { ProjectionBatch } from "./contracts";
-import { mergeProjectionBatches } from "./contracts";
 import type {
   CompletedTripProjectionFact,
   CurrentTripActualProjectionIntent,
