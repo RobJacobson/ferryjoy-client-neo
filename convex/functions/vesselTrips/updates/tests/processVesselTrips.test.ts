@@ -3,13 +3,44 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
+import { applyTickEventWrites } from "../../../vesselOrchestrator/applyTickEventWrites";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
+
+/**
+ * Runs lifecycle tick then applies timeline writes (matches orchestrator ordering).
+ *
+ * @param ctx - Test fake action context
+ * @param locations - Locations for this tick
+ * @param tickStartedAt - Tick time (ms)
+ * @param deps - Injected builder/detector deps
+ * @param activeTrips - Optional preloaded active trips
+ */
+const runVesselTripsTick = async (
+  ctx: TestActionCtx,
+  locations: ConvexVesselLocation[],
+  tickStartedAt: number,
+  deps: ReturnType<typeof createDeps>,
+  activeTrips?: ReadonlyArray<TickActiveTrip>
+): Promise<void> => {
+  const result = await processVesselTripsWithDeps(
+    ctx as unknown as ActionCtx,
+    locations,
+    tickStartedAt,
+    deps,
+    activeTrips
+  );
+  await applyTickEventWrites(
+    ctx as unknown as ActionCtx,
+    result.tickEventWrites
+  );
+};
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -27,7 +58,7 @@ describe("processVesselTripsWithDeps", () => {
     const currLocation = makeLocation();
     const ctx = createTestActionCtx({});
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -48,7 +79,7 @@ describe("processVesselTripsWithDeps", () => {
       tripsReturnedByQuery: [fromQuery],
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -73,7 +104,7 @@ describe("processVesselTripsWithDeps", () => {
     const ctxStorage = createTestActionCtx({});
     const ctxHydrated = createTestActionCtx({});
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctxStorage,
       [currLocation],
       tickMs(),
@@ -84,7 +115,7 @@ describe("processVesselTripsWithDeps", () => {
       [storageExisting]
     );
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctxHydrated,
       [currLocation],
       tickMs(),
@@ -111,7 +142,7 @@ describe("processVesselTripsWithDeps", () => {
     const currLocation = makeLocation();
     const ctx = createTestActionCtx({});
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -142,7 +173,7 @@ describe("processVesselTripsWithDeps", () => {
       activeTrips: [existingTrip],
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -165,7 +196,7 @@ describe("processVesselTripsWithDeps", () => {
       TimeStamp: ms("2026-03-13T06:00:00-07:00"),
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -192,7 +223,7 @@ describe("processVesselTripsWithDeps", () => {
       },
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -217,7 +248,7 @@ describe("processVesselTripsWithDeps", () => {
       activeTrips: [existingTrip],
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -250,7 +281,7 @@ describe("processVesselTripsWithDeps", () => {
       },
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -291,7 +322,7 @@ describe("processVesselTripsWithDeps", () => {
       },
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -335,7 +366,7 @@ describe("processVesselTripsWithDeps", () => {
       callSequence,
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [currLocation],
       tickMs(),
@@ -394,7 +425,7 @@ describe("processVesselTripsWithDeps", () => {
       },
     });
 
-    await processVesselTripsWithDeps(
+    await runVesselTripsTick(
       ctx,
       [cheLocation, tacLocation],
       tickMs(),
@@ -451,7 +482,7 @@ describe("processVesselTripsWithDeps", () => {
     };
 
     try {
-      await processVesselTripsWithDeps(
+      await runVesselTripsTick(
         ctx,
         [cheLocation, tacLocation],
         tickMs(),

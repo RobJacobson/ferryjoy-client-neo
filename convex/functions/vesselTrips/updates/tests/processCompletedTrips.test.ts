@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildProjectionBatchFromCompletedFacts } from "../projection/timelineProjectionProjector";
+import { buildTickEventWritesFromCompletedFacts } from "../projection/timelineEventAssembler";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
@@ -66,7 +66,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const result = buildProjectionBatchFromCompletedFacts(facts);
+    const result = buildTickEventWritesFromCompletedFacts(facts);
 
     expect(loggedErrors).toHaveLength(0);
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
@@ -154,7 +154,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const result = buildProjectionBatchFromCompletedFacts(facts);
+    const result = buildTickEventWritesFromCompletedFacts(facts);
 
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"

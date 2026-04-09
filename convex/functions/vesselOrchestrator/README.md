@@ -11,8 +11,8 @@ The orchestrator runs periodically, roughly every 5 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
-2. update trip lifecycle state in `vesselTrips/updates`, which also projects the
-   timeline overlays consumed by `VesselTimeline`
+2. update trip lifecycle state in `vesselTrips/updates`, then apply timeline
+   overlay writes (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.
@@ -69,6 +69,11 @@ Responsibilities:
 - execute two downstream branches in parallel with error isolation
 - pass the same tick’s active-trip list into `processVesselTrips` so the trip
   branch does not run a separate `getActiveTrips` query
+- compute `shouldRunPredictionFallback` once per tick via
+  `tickPredictionPolicy.computeShouldRunPredictionFallback` and pass it into
+  `processVesselTrips` options
+- after `processVesselTrips` returns, call `applyTickEventWrites` with
+  `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
 
 Transformation pipeline:
 
@@ -129,11 +134,12 @@ Purpose:
 - maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state;
   ML boundary predictions live in `eventsPredicted`. The orchestrator passes
   **storage-native** active trips into `processVesselTrips` (joined predictions are
-  not required for lifecycle strip/compare; projection uses normalized prediction
-  fields from the built trip vs existing when present). Public queries still
-  **hydrate** trips for API parity. Post-upsert depart-next backfill writes
+  not required for lifecycle strip/compare; overlay assembly uses normalized
+  prediction fields from the built trip vs existing when present). Public queries
+  still **hydrate** trips for API parity. Post-upsert depart-next backfill writes
   **actuals** onto the prior leg’s `eventsPredicted` rows, not onto stored trip
-  rows.
+  rows. Timeline table mutations run in `applyTickEventWrites` after lifecycle
+  completes for the tick.
 
 This remains the richer state machine responsible for trip lifecycle tracking,
 ML inference (in memory, then projected), and event-driven trip transitions. Inside that module, event
@@ -206,7 +212,7 @@ WSF API
   -> convert locations
   -> fan out in parallel:
        branch 1: vesselLocations bulkUpsert
-       branch 2: processVesselTrips
+       branch 2: processVesselTrips -> applyTickEventWrites(tickEventWrites)
 ```
 
 ### Timeline feed flow
@@ -237,9 +243,10 @@ The orchestrator isolates failures at the branch level.
 - the two downstream branches run concurrently via `Promise.allSettled`, while
   preserving branch-specific success flags and error reporting
 
-This matters because timeline projection now rides on the trip pipeline’s
-transition logic instead of re-deriving actuals from raw location ticks, and
-the public timeline query no longer depends on `vesselLocations` reads.
+This matters because timeline overlays are applied after the trip pipeline’s
+lifecycle mutations (`applyTickEventWrites`), instead of re-deriving actuals
+from raw location ticks alone, and the public timeline query no longer depends on
+`vesselLocations` reads.
 
 ## Performance Characteristics
 
@@ -255,9 +262,10 @@ The orchestrator keeps external API usage efficient:
 
 Within `processVesselTrips`, per-vessel trip build/enrichment work is also
 parallelized before persistence, while database writes remain batched where
-possible (`upsertVesselTripsBatch` and batched predicted-event sync).
+possible (`upsertVesselTripsBatch`). `applyTickEventWrites` applies batched
+timeline mutations from the returned `tickEventWrites`.
 
-The timeline projection path is designed to stay lightweight:
+The timeline overlay path is designed to stay lightweight:
 
 - no extra external fetches
 - no live-location dependency in the timeline query
@@ -289,7 +297,10 @@ The timeline projection path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator` and passenger-terminal gating helpers
+- `actions.ts` — `updateVesselOrchestrator`, `processVesselTrips` +
+  `applyTickEventWrites`, passenger-terminal gating helpers
+- `applyTickEventWrites.ts` — runs `projectActualBoundaryPatches` /
+  `projectPredictedBoundaryEffects` from `tickEventWrites`
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in
@@ -312,8 +323,8 @@ The current orchestrator coordinates one shared vessel-location fetch across
 two backend consumers:
 
 1. `vesselLocations` for current live state
-2. `vesselTrips/updates` for full trip lifecycle management plus timeline
-   projection
+2. `vesselTrips/updates` for trip lifecycle management, then `applyTickEventWrites`
+   for timeline overlays
 
 That split keeps the timeline contract simple without removing the richer trip
 pipeline that other parts of the system still depend on.

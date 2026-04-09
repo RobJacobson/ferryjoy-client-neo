@@ -2,15 +2,15 @@
  * Completed-trip processing for vessel trip updates.
  *
  * Handles trip-boundary transitions outside the top-level orchestrator while
- * preserving atomic persistence. Overlay payloads are built in
- * `timelineProjectionProjector` from returned facts.
+ * preserving atomic persistence. Timeline writes are assembled in
+ * `timelineEventAssembler` from returned facts.
  */
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { CompletedTripProjectionFact } from "../projection/projectionContracts";
+import type { CompletedTripBoundaryFact } from "../projection/lifecycleEventTypes";
 import { buildCompletedTrip } from "./buildCompletedTrip";
 import { buildTrip } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
@@ -39,7 +39,7 @@ const DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS: ProcessCompletedTripsDeps = {
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param logVesselProcessingError - Error logger owned by the top-level updater
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Projection facts for successful boundaries (empty for failures)
+ * @returns Boundary facts for successful transitions (empty for failures)
  */
 export const processCompletedTrips = async (
   ctx: ActionCtx,
@@ -51,7 +51,7 @@ export const processCompletedTrips = async (
     error: unknown
   ) => void,
   deps: ProcessCompletedTripsDeps = DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS
-): Promise<CompletedTripProjectionFact[]> => {
+): Promise<CompletedTripBoundaryFact[]> => {
   const settledResults = await Promise.allSettled(
     completedTrips.map((transition) =>
       processCompletedTripTransition(
@@ -77,14 +77,14 @@ export const processCompletedTrips = async (
  * @param transition - Trip-boundary transition for one vessel
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Single fact for overlay projection after persistence
+ * @returns Single fact for timeline assembly after persistence
  */
 const processCompletedTripTransition = async (
   ctx: ActionCtx,
   transition: CompletedTripTransition,
   shouldRunPredictionFallback: boolean,
   deps: ProcessCompletedTripsDeps
-): Promise<CompletedTripProjectionFact> => {
+): Promise<CompletedTripBoundaryFact> => {
   const { existingTrip, currLocation, events } = transition;
   const tripToComplete = deps.buildCompletedTrip(existingTrip, currLocation);
   const newTrip = await deps.buildTrip(
@@ -112,7 +112,7 @@ const processCompletedTripTransition = async (
 };
 
 /**
- * Convert settled per-vessel results into successful projection facts.
+ * Convert settled per-vessel results into successful boundary facts.
  *
  * @param completedTrips - Original transition list
  * @param settledResults - Settled results in input order
@@ -121,13 +121,13 @@ const processCompletedTripTransition = async (
  */
 const normalizeCompletedTripResults = (
   completedTrips: CompletedTripTransition[],
-  settledResults: PromiseSettledResult<CompletedTripProjectionFact>[],
+  settledResults: PromiseSettledResult<CompletedTripBoundaryFact>[],
   logVesselProcessingError: (
     vesselAbbrev: string,
     phase: string,
     error: unknown
   ) => void
-): CompletedTripProjectionFact[] =>
+): CompletedTripBoundaryFact[] =>
   settledResults.flatMap((result, index) => {
     if (result.status === "fulfilled") {
       return [result.value];

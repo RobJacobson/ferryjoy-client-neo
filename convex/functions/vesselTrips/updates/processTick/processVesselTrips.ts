@@ -1,11 +1,11 @@
 /**
  * Vessel-trip processing entrypoint.
  *
- * Coordinates trip-boundary detection, active-trip persistence, and
- * VesselTimeline projection writes for each vessel tick.
+ * Runs lifecycle state transitions and persistence, then returns tick event
+ * writes for the orchestrator to apply (`applyTickEventWrites`).
  */
 
-import { api, internal } from "_generated/api";
+import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -13,9 +13,9 @@ import type {
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import {
-  buildProjectionBatchFromCompletedFacts,
-  buildProjectionBatchFromCurrentIntents,
-} from "../projection/timelineProjectionProjector";
+  buildTickEventWritesFromCompletedFacts,
+  buildTickEventWritesFromCurrentMessages,
+} from "../projection/timelineEventAssembler";
 import { buildCompletedTrip } from "../tripLifecycle/buildCompletedTrip";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import { detectTripEvents } from "../tripLifecycle/detectTripEvents";
@@ -25,15 +25,14 @@ import {
 } from "../tripLifecycle/processCompletedTrips";
 import { processCurrentTrips } from "../tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
-import {
-  assertSequentialLifecycleOrder,
-  buildLifecycleCommands,
-  buildTripTickPlan,
-  mergeProjectionBatches,
-} from "./contracts";
+import type { VesselTripsTickResult } from "./tickEnvelope";
+import { mergeTickEventWrites } from "./tickEventWrites";
+import { computeShouldRunPredictionFallback } from "./tickPredictionPolicy";
 
-// Restrict time-based retries to the first few seconds of each minute.
-const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
+/** Optional tick inputs; prediction fallback may be supplied by orchestrator. */
+export type ProcessVesselTripsOptions = {
+  shouldRunPredictionFallback?: boolean;
+};
 
 /** Existing active trip row for one vessel: persisted columns and/or hydrated ML fields. */
 type ExistingTripForTick = ConvexVesselTrip | TickActiveTrip;
@@ -61,9 +60,6 @@ const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
 /**
  * Process vessel trips for one orchestrator tick.
  *
- * Builds a per-vessel transition object once, categorizes transitions by trip
- * boundary, then delegates to processing functions that handle persistence.
- *
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to process after orchestrator conversion
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
@@ -73,22 +69,24 @@ const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
  *   `getActiveTrips` (hydrated). Minimum element shape is storage-native
  *   {@link TickActiveTrip}; {@link ConvexVesselTrip} (hydrated) remains accepted
  *   for transitional callers.
- * @returns Promise that resolves once the update pass completes
+ * @param options - Optional; `shouldRunPredictionFallback` defaults from tick time
+ * @returns Lifecycle result plus tick event writes for `applyTickEventWrites`
  */
 export const processVesselTrips = async (
   ctx: ActionCtx,
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
-  activeTrips?: ReadonlyArray<TickActiveTrip>
-): Promise<void> => {
-  await processVesselTripsWithDeps(
+  activeTrips?: ReadonlyArray<TickActiveTrip>,
+  options?: ProcessVesselTripsOptions
+): Promise<VesselTripsTickResult> =>
+  processVesselTripsWithDeps(
     ctx,
     locations,
     tickStartedAt,
     DEFAULT_PROCESS_VESSEL_TRIPS_DEPS,
-    activeTrips
+    activeTrips,
+    options
   );
-};
 
 /**
  * Process vessel trips with injectable dependencies.
@@ -100,15 +98,17 @@ export const processVesselTrips = async (
  * @param activeTrips - When **defined** (including `[]`), used instead of
  *   `getActiveTrips` (see `processVesselTrips`). Prefer {@link TickActiveTrip}
  *   rows; hydrated trips optional.
- * @returns Promise that resolves after all trip updates and projections complete
+ * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
+ * @returns Lifecycle result plus tick event writes for orchestrator peers
  */
 export const processVesselTripsWithDeps = async (
   ctx: ActionCtx,
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips?: ReadonlyArray<TickActiveTrip>
-): Promise<void> => {
+  activeTrips?: ReadonlyArray<TickActiveTrip>,
+  options?: ProcessVesselTripsOptions
+): Promise<VesselTripsTickResult> => {
   const existingTripsList =
     activeTrips ??
     (await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips));
@@ -118,19 +118,12 @@ export const processVesselTripsWithDeps = async (
     (existingTripsList ?? []).map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;
 
-  // Use the orchestrator-owned tick time so all vessels share the same window.
   const shouldRunPredictionFallback =
-    new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS;
-
-  const tripTickPlan = buildTripTickPlan(
-    locations,
-    tickStartedAt,
-    activeTrips,
-    shouldRunPredictionFallback
-  );
+    options?.shouldRunPredictionFallback ??
+    computeShouldRunPredictionFallback(tickStartedAt);
 
   const transitions = buildTripTransitions(
-    tripTickPlan.locations,
+    locations,
     existingTripsDict,
     deps.detectTripEvents
   );
@@ -140,16 +133,11 @@ export const processVesselTripsWithDeps = async (
     (transition) => !transition.events.isCompletedTrip
   );
 
-  const [completedLifecycle, currentLifecycle] = buildLifecycleCommands(
-    completedTrips.length,
-    currentTrips.length
-  );
-  assertSequentialLifecycleOrder(completedLifecycle, currentLifecycle);
-
+  // Completed-trip boundaries must run before current-trip updates.
   const completedFacts = await processCompletedTrips(
     ctx,
     completedTrips,
-    tripTickPlan.shouldRunPredictionFallback,
+    shouldRunPredictionFallback,
     logVesselProcessingError,
     {
       buildCompletedTrip: deps.buildCompletedTrip,
@@ -159,39 +147,23 @@ export const processVesselTripsWithDeps = async (
   const currentBranch = await processCurrentTrips(
     ctx,
     currentTrips,
-    tripTickPlan.shouldRunPredictionFallback,
+    shouldRunPredictionFallback,
     deps.buildTrip
   );
-  const projectionBatch = mergeProjectionBatches(
-    buildProjectionBatchFromCompletedFacts(completedFacts),
-    buildProjectionBatchFromCurrentIntents(
+  const tickEventWrites = mergeTickEventWrites(
+    buildTickEventWritesFromCompletedFacts(completedFacts),
+    buildTickEventWritesFromCurrentMessages(
       currentBranch.successfulVessels,
-      currentBranch.pendingActualIntents,
-      currentBranch.pendingPredictedIntents
+      currentBranch.pendingActualMessages,
+      currentBranch.pendingPredictedMessages
     )
   );
 
-  // Project only after trip writes succeed so downstream views stay in sync.
-  await Promise.all([
-    projectionBatch.actualPatches.length > 0
-      ? ctx.runMutation(
-          internal.functions.eventsActual.mutations
-            .projectActualBoundaryPatches,
-          {
-            Patches: projectionBatch.actualPatches,
-          }
-        )
-      : Promise.resolve(),
-    projectionBatch.predictedEffects.length > 0
-      ? ctx.runMutation(
-          internal.functions.eventsPredicted.mutations
-            .projectPredictedBoundaryEffects,
-          {
-            Effects: projectionBatch.predictedEffects,
-          }
-        )
-      : Promise.resolve(),
-  ]);
+  return {
+    tickStartedAt,
+    activeTripsSource: activeTrips !== undefined ? "preloaded" : "query",
+    tickEventWrites,
+  };
 };
 
 /**
