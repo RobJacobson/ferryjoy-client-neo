@@ -17,8 +17,10 @@ import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
+import { computeShouldRunPredictionFallback } from "functions/vesselTrips/updates/processTick/tickPredictionPolicy";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
+import { applyTickEventWrites } from "./applyTickEventWrites";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -35,7 +37,7 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  * 3. Convert each WSF payload to `ConvexVesselLocation`
  * 4. Capture one tick timestamp for downstream consumers
  * 5. Call updateVesselLocations() with error isolation
- * 6. Call processVesselTrips() with error isolation
+ * 6. Call processVesselTrips() then applyTickEventWrites() with error isolation
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -105,17 +107,26 @@ export const updateVesselOrchestrator = internalAction({
       isTripEligibleLocation(location, passengerTerminalAbbrevs)
     );
 
+    const runTripLifecycleAndTimeline = async () => {
+      const tripResult = await processVesselTrips(
+        ctx,
+        tripEligibleLocations,
+        tickStartedAt,
+        activeTripsForTick,
+        {
+          shouldRunPredictionFallback:
+            computeShouldRunPredictionFallback(tickStartedAt),
+        }
+      );
+      await applyTickEventWrites(ctx, tripResult.tickEventWrites);
+    };
+
     const branchResults: [
       PromiseSettledResult<void>,
       PromiseSettledResult<void>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      processVesselTrips(
-        ctx,
-        tripEligibleLocations,
-        tickStartedAt,
-        activeTripsForTick
-      ),
+      runTripLifecycleAndTimeline(),
     ]);
 
     const [locationsResult, tripsResult] = branchResults;

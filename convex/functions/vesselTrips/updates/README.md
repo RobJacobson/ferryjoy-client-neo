@@ -34,15 +34,14 @@ This module synchronizes active vessel trips with live location data. It runs as
 ### Numbered tick pipeline (code order)
 
 1. **Resolve active trips** — Preloaded `activeTrips` from the orchestrator read model, or `getActiveTrips` when omitted.
-2. **Derive `shouldRunPredictionFallback`** — First seconds of each minute, from orchestrator-owned `tickStartedAt`.
-3. **Build `TripTickPlan`** — Stage 1 contract: `locations`, `tickStartedAt`, `activeTripsSource`, `shouldRunPredictionFallback` (see `processTick/contracts.ts`).
-4. **Build `TripTransition` per vessel** — `{ currLocation, existingTrip?, events }`; events computed once.
-5. **Split transitions** — `completedTrips` (boundary) vs `currentTrips` (ongoing / first appearance).
-6. **Lifecycle branches (sequential `await`)** — `processCompletedTrips` **first**, then `processCurrentTrips` (mutations run inside each branch; not parallel). Each branch returns projection **facts/intents** (DTOs), not built overlay payloads.
-7. **Merge projection batch** — `buildProjectionBatchFromCompletedFacts` + `buildProjectionBatchFromCurrentIntents` in [`projection/timelineProjectionProjector.ts`](./projection/timelineProjectionProjector.ts), then `mergeProjectionBatches` (completed first, current second).
-8. **Project overlays** — `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` **after** all lifecycle mutations for the tick (same ordering as before Stage 3; only builder placement moved).
+2. **Derive `shouldRunPredictionFallback`** — Orchestrator-owned (`tickPredictionPolicy.ts`); passed into `processVesselTrips` options (first seconds of each minute).
+3. **Build `TripTransition` per vessel** — `{ currLocation, existingTrip?, events }`; events computed once.
+4. **Split transitions** — `completedTrips` (boundary) vs `currentTrips` (ongoing / first appearance).
+5. **Lifecycle branches (sequential `await`)** — `processCompletedTrips` **first**, then `processCurrentTrips` (mutations run inside each branch; not parallel). Branches emit boundary facts and per-vessel messages for the event assembler.
+6. **Assemble `TickEventWrites`** — `buildTickEventWritesFromCompletedFacts` + `buildTickEventWritesFromCurrentMessages` in [`projection/timelineEventAssembler.ts`](./projection/timelineEventAssembler.ts), then `mergeTickEventWrites` (completed first, current second).
+7. **Return `VesselTripsTickResult`** — Includes `tickEventWrites`; the orchestrator calls [`applyTickEventWrites`](../vesselOrchestrator/applyTickEventWrites.ts) to run `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` **after** lifecycle mutations for the tick.
 
-**Read path (not synchronous with step 8):** Queries load stored trips (no ML blobs on rows), then `hydrateStoredTripsWithPredictions` merges `eventsPredicted` for API shape. That happens on subscription/query, not in the same atomic tick as step 8.
+**Read path (not synchronous with timeline writes):** Queries load stored trips (no ML blobs on rows), then `hydrateStoredTripsWithPredictions` merges `eventsPredicted` for API shape. That happens on subscription/query, not in the same action step as `applyTickEventWrites`.
 
 ### Pipeline Overview
 
@@ -59,7 +58,7 @@ processVesselTrips (entry point)
             with per-vessel error isolation):
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
-            │       → return completed-trip projection facts (DTOs)
+            │       → return completed-trip boundary facts (DTOs)
             │       (internal: tripDerivation → baseTripFromLocation
             │                 → appendFinalSchedule
             │                 → appendArriveDockPredictions
@@ -68,16 +67,15 @@ processVesselTrips (entry point)
             └─> processCurrentTrips (ongoing trips, including first appearances)
                     buildTrip (tripStart=false, events, shouldRunPredictionFallback)
                     → !tripsEqualForStorage → upsertVesselTripsBatch (if strip-shaped row changed)
-                    → !tripsEqualForOverlay → queue actual/predicted projection intents (may skip upsert)
+                    → !tripsEqualForOverlay → queue actual/predicted event messages (may skip upsert)
                     → setDepartNextActualsForMostRecentCompletedTrip (leave_dock, post-upsert only)
                     (internal: tripDerivation → baseTripFromLocation
                               → appendFinalSchedule
                               → appendArriveDockPredictions
                               → appendLeaveDockPredictions
                               → actualizePredictionsOnLeaveDock)
-    └─> timelineProjectionProjector → batch-project VesselTimeline overlays after lifecycle mutations
-            ├─> eventsActual
-            └─> eventsPredicted
+    └─> timelineEventAssembler → TickEventWrites
+            └─> (orchestrator) applyTickEventWrites → eventsActual / eventsPredicted
 ```
 
 `eventsScheduled`, `eventsActual`, and `eventsPredicted` are now the
@@ -88,17 +86,19 @@ list. The client derives `activeInterval` locally from that backbone.
 
 ### File structure (Stage 5)
 
-**Public entry:** [`index.ts`](./index.ts) re-exports `processVesselTrips` for orchestrator and other external callers. Underlying modules live in subfolders; Convex registers each file separately.
+**Public entry:** [`index.ts`](./index.ts) re-exports `processVesselTrips` and types (`VesselTripsTickResult`, `ProcessVesselTripsOptions`). Underlying modules live in subfolders; Convex registers each file separately.
 
 | Path | Purpose |
 |------|---------|
-| `processTick/contracts.ts` | Stage 1 tick contracts: `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`, and merge helpers used by `processVesselTrips` |
-| `processTick/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, merges projection batch, runs overlay mutations |
-| `projection/projectionContracts.ts` | Stage 3 DTOs: `CompletedTripProjectionFact`, current-trip projection intents, `CurrentTripBranchResult` |
-| `projection/timelineProjectionProjector.ts` | Builds `ProjectionBatch` from facts/intents; owns `domain/vesselTimeline/normalizedEvents` and `actualBoundaryPatchesFromTrip` imports |
+| `processTick/tickEventWrites.ts` | `TickEventWrites` type and `mergeTickEventWrites` |
+| `processTick/tickEnvelope.ts` | `VesselTripsTickResult` returned from `processVesselTrips` |
+| `processTick/tickPredictionPolicy.ts` | `computeShouldRunPredictionFallback` (orchestrator-owned policy) |
+| `processTick/processVesselTrips.ts` | Main per-tick processor: lifecycle mutations, assembles `TickEventWrites`, returns `VesselTripsTickResult` (no timeline mutations) |
+| `projection/lifecycleEventMessages.ts` | DTOs: `CompletedTripBoundaryFact`, current-trip event messages, `CurrentTripLifecycleBranchResult` |
+| `projection/timelineEventAssembler.ts` | Builds `TickEventWrites` from facts/messages; owns `domain/vesselTimeline` row builders and `actualBoundaryPatchesFromTrip` |
 | `projection/actualBoundaryPatchesFromTrip.ts` | Sparse `eventsActual` patches from finalized trips |
-| `tripLifecycle/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence; returns projection facts for the projector |
-| `tripLifecycle/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and projection intents for the projector |
+| `tripLifecycle/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence; returns boundary facts for the assembler |
+| `tripLifecycle/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and event messages for the assembler |
 | `tripLifecycle/tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, dock departure, and explicit base-trip mode selection |
 | `tripLifecycle/tripEventTypes.ts` | `TripEvents` — shared type for event bundles (used by detector, branches, projection DTOs) |
 | `tripLifecycle/detectTripEvents.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
@@ -457,7 +457,7 @@ tables.
 2. **Transition-based orchestration**: `processVesselTrips()` now builds `TripTransition` objects so events are computed once and carried through the pipeline
 3. **Shared dock-departure inference**: `getDockDepartureState()` now centralizes `LeftDock` inference for both event detection and trip field derivation
 4. **Post-upsert leave-dock backfill**: `setDepartNextActualsForMostRecentCompletedTrip` runs only after `upsertVesselTripsBatch` succeeds for that vessel
-5. **Explicit fallback flag**: `processVesselTrips()` computes `shouldRunPredictionFallback` once per tick and passes it into `buildTrip()`
+5. **Explicit fallback flag**: Orchestrator computes `shouldRunPredictionFallback` via `tickPredictionPolicy` and passes it into `processVesselTrips` options; `buildTrip()` receives the same flag
 6. **Cleaned up console logs**: Removed debug `console.log` statements from `buildTrip.ts`
 7. **Fixed documentation**: Clarified same-trip prediction actualization vs post-upsert depart-next backfill
 8. **Simplified naming**: Implemented clearer naming convention:

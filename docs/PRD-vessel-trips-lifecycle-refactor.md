@@ -56,17 +56,17 @@ This document defined a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ## Stage 1 — Contracts & pipeline map (no behavior change)
 
-**Shipped.** See [`processTick/contracts.ts`](../convex/functions/vesselTrips/updates/processTick/contracts.ts) and pipeline sections in [`updates/README.md`](../convex/functions/vesselTrips/updates/README.md).
+**Shipped.** See tick types in [`processTick/tickEnvelope.ts`](../convex/functions/vesselTrips/updates/processTick/tickEnvelope.ts), [`processTick/tickEventWrites.ts`](../convex/functions/vesselTrips/updates/processTick/tickEventWrites.ts), and pipeline sections in [`updates/README.md`](../convex/functions/vesselTrips/updates/README.md). Orchestrator applies writes via [`applyTickEventWrites.ts`](../convex/functions/vesselOrchestrator/applyTickEventWrites.ts).
 
 ### Objectives
 
 - Introduce **explicit types** for tick inputs, lifecycle commands, and projection intents (even if initially **aliases** to existing shapes).
-- Document the **end-to-end tick** as a numbered pipeline (or diagram) aligned with code: `processVesselTrips` → `processCompletedTrips` / `processCurrentTrips` → mutations → `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects`.
+- Document the **end-to-end tick** as a numbered pipeline (or diagram) aligned with code: `processVesselTrips` → `processCompletedTrips` / `processCurrentTrips` → lifecycle mutations → `TickEventWrites` → orchestrator `applyTickEventWrites` → `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects`.
 - Define **module boundary rules** (what may import what) as a checklist in [`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md); tightened in Stages 3–5 (projection vs lifecycle vs `processTick/`).
 
 ### Deliverables
 
-- New or extended TypeScript types (e.g. `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`) colocated with `updates/` or `convex/domain/` per style guide (see [`processTick/contracts.ts`](../convex/functions/vesselTrips/updates/processTick/contracts.ts)).
+- New or extended TypeScript types (e.g. `VesselTripsTickResult`, `TickEventWrites`, lifecycle event messages) colocated with `updates/` or `convex/domain/` per style guide (see [`processTick/tickEnvelope.ts`](../convex/functions/vesselTrips/updates/processTick/tickEnvelope.ts)).
 - No user-visible behavior change; existing tests pass unchanged.
 
 ### Acceptance criteria
@@ -112,7 +112,7 @@ This document defined a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ## Stage 3 — Projection builders out of lifecycle modules
 
-**Shipped.** Timeline overlay payloads are built in [`projection/timelineProjectionProjector.ts`](../convex/functions/vesselTrips/updates/projection/timelineProjectionProjector.ts) from DTOs in [`projection/projectionContracts.ts`](../convex/functions/vesselTrips/updates/projection/projectionContracts.ts); lifecycle branch files under [`tripLifecycle/`](../convex/functions/vesselTrips/updates/tripLifecycle/) do not import `domain/vesselTimeline` projection builders.
+**Shipped.** Timeline overlay payloads are assembled in [`projection/timelineEventAssembler.ts`](../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts) from DTOs in [`projection/lifecycleEventMessages.ts`](../convex/functions/vesselTrips/updates/projection/lifecycleEventMessages.ts); lifecycle branch files under [`tripLifecycle/`](../convex/functions/vesselTrips/updates/tripLifecycle/) do not import `domain/vesselTimeline` projection builders. **Peer follow-on:** orchestrator calls `applyTickEventWrites` after `processVesselTrips` returns.
 
 ### Prerequisites (before starting)
 
@@ -209,9 +209,9 @@ This document defined a **phased** refactor of `convex/functions/vesselTrips/upd
 
 | Stage | Outcome |
 |-------|---------|
-| 1 | Tick contracts (`processTick/contracts.ts`), pipeline map, `ARCHITECTURE.md` checklist |
-| 2 | `tripsEqualForStorage` / `tripsEqualForOverlay`; projection-only ticks without upsert |
-| 3 | `projection/timelineProjectionProjector.ts`; lifecycle emits facts/intents only |
+| 1 | Tick contracts (`tickEnvelope.ts` / `tickEventWrites.ts`), pipeline map, `ARCHITECTURE.md` checklist |
+| 2 | `tripsEqualForStorage` / `tripsEqualForOverlay`; overlay-only ticks without upsert |
+| 3 | `projection/timelineEventAssembler.ts`; lifecycle emits facts/messages only; `applyTickEventWrites` at orchestrator |
 | 4 | `TickActiveTrip`; orchestrator storage-native bundle; no duplicate hot-path `getActiveTrips` |
 | 5 | Folders `tripLifecycle/`, `projection/`, `processTick/`; barrel `updates/index.ts` |
 
@@ -231,4 +231,5 @@ This document defined a **phased** refactor of `convex/functions/vesselTrips/upd
 | 2026-04-08 | 5 | Module layout: `updates/tripLifecycle/`, `updates/projection/`, `updates/processTick/`; barrel `updates/index.ts`; `contracts.ts` → `processTick/contracts`; removed `processVesselTrips/` directory; docs (`README`, `ARCHITECTURE`, PRD) and `convex codegen` |
 | 2026-04-08 | — | Public trip equality API: `tripsEqualForStorage` / `tripsEqualForOverlay` replace `shouldPersistLifecycleTrip` / `shouldRefreshTimelineProjection`; internal comparators `lifecycleTripsEqual` / `overlayTripsEqual` |
 | 2026-04-09 | — | PRD closure: status **Complete**; refreshed references, Stage 2 hydration note, Stage 3–4 **Shipped** lines, path updates for `projection/` / `tripLifecycle/` / `processTick/`; completion summary table |
+| 2026-04-09 | — | Peer event refactor: `TickEventWrites` + `VesselTripsTickResult`; `timelineEventAssembler` / `lifecycleEventMessages`; orchestrator `applyTickEventWrites`; `tickPredictionPolicy` owned at orchestrator with optional override in `processVesselTrips`; docs/tests updated |
 

@@ -1,7 +1,8 @@
 /**
- * Builds `eventsActual` / `eventsPredicted` overlay payloads from lifecycle
- * facts and intents. Owns imports of `domain/vesselTimeline` projection
- * builders and `actualBoundaryPatchesFromTrip`; branch processors emit DTOs only.
+ * Assembles `TickEventWrites` from lifecycle facts and per-vessel messages.
+ *
+ * Owns imports of `domain/vesselTimeline` row builders and
+ * `actualBoundaryPatchesFromTrip`; lifecycle branches emit DTOs only.
  */
 
 import {
@@ -14,17 +15,17 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import type { ProjectionBatch } from "../processTick/contracts";
-import { mergeProjectionBatches } from "../processTick/contracts";
+import type { TickEventWrites } from "../processTick/tickEventWrites";
+import { mergeTickEventWrites } from "../processTick/tickEventWrites";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
 } from "./actualBoundaryPatchesFromTrip";
 import type {
-  CompletedTripProjectionFact,
-  CurrentTripActualProjectionIntent,
-  CurrentTripPredictedProjectionIntent,
-} from "./projectionContracts";
+  CompletedTripBoundaryFact,
+  CurrentTripActualEventMessage,
+  CurrentTripPredictedEventMessage,
+} from "./lifecycleEventTypes";
 
 type TaggedActualPatch = {
   vesselAbbrev: string;
@@ -39,38 +40,38 @@ type TaggedPredictedEffect = {
 };
 
 /**
- * Converts completed-trip facts into one merged projection batch.
+ * Converts completed-trip facts into merged tick event writes.
  *
  * @param facts - One entry per successful `completeAndStartNewTrip` boundary
- * @returns Patches and effects for timeline projection mutations
+ * @returns Patches and effects for timeline mutations
  */
-export const buildProjectionBatchFromCompletedFacts = (
-  facts: CompletedTripProjectionFact[]
-): ProjectionBatch =>
+export const buildTickEventWritesFromCompletedFacts = (
+  facts: CompletedTripBoundaryFact[]
+): TickEventWrites =>
   facts.reduce(
     (acc, fact) =>
-      mergeProjectionBatches(acc, projectionBatchFromCompletedTripFact(fact)),
-    emptyProjectionBatch()
+      mergeTickEventWrites(acc, tickEventWritesFromCompletedFact(fact)),
+    emptyTickEventWrites()
   );
 
 /**
- * Builds overlay payloads for the current-trip branch after lifecycle writes.
+ * Builds tick event writes for the current-trip branch after lifecycle writes.
  *
  * @param successfulVessels - Vessels whose batch upsert succeeded (empty if none ran)
- * @param pendingActualIntents - Per-vessel actual patch intents
- * @param pendingPredictedIntents - Per-vessel predicted effect intents
+ * @param pendingActualMessages - Per-vessel actual patch messages
+ * @param pendingPredictedMessages - Per-vessel predicted-effect messages
  * @returns Patches and effects after upsert-gated filtering
  */
-export const buildProjectionBatchFromCurrentIntents = (
+export const buildTickEventWritesFromCurrentMessages = (
   successfulVessels: Set<string>,
-  pendingActualIntents: CurrentTripActualProjectionIntent[],
-  pendingPredictedIntents: CurrentTripPredictedProjectionIntent[]
-): ProjectionBatch => {
-  const taggedActual = pendingActualIntents.flatMap(
-    buildTaggedActualPatchesFromIntent
+  pendingActualMessages: CurrentTripActualEventMessage[],
+  pendingPredictedMessages: CurrentTripPredictedEventMessage[]
+): TickEventWrites => {
+  const taggedActual = pendingActualMessages.flatMap(
+    buildTaggedActualPatchesFromMessage
   );
-  const taggedPredicted = pendingPredictedIntents.flatMap(
-    buildTaggedPredictedEffectsFromIntent
+  const taggedPredicted = pendingPredictedMessages.flatMap(
+    buildTaggedPredictedEffectsFromMessage
   );
 
   return {
@@ -82,16 +83,9 @@ export const buildProjectionBatchFromCurrentIntents = (
   };
 };
 
-/**
- * Builds one completed-boundary overlay batch (departure + arrival actuals;
- * clear + project predicted).
- *
- * @param fact - Trips involved in one completed boundary transition
- * @returns Single-vessel projection batch
- */
-const projectionBatchFromCompletedTripFact = (
-  fact: CompletedTripProjectionFact
-): ProjectionBatch => ({
+const tickEventWritesFromCompletedFact = (
+  fact: CompletedTripBoundaryFact
+): TickEventWrites => ({
   actualPatches: [
     buildDepartureActualPatchForTrip(fact.tripToComplete),
     buildArrivalActualPatchForTrip(fact.tripToComplete),
@@ -104,23 +98,11 @@ const projectionBatchFromCompletedTripFact = (
   ),
 });
 
-/**
- * Empty reducer seed for folding multiple completed-trip facts.
- *
- * @returns Empty projection batch
- */
-const emptyProjectionBatch = (): ProjectionBatch => ({
+const emptyTickEventWrites = (): TickEventWrites => ({
   actualPatches: [],
   predictedEffects: [],
 });
 
-/**
- * Detects when the prior trip no longer owns the prediction overlay scope.
- *
- * @param existingTrip - Previously persisted active trip, if any
- * @param finalProposed - Newly built trip state for this tick
- * @returns True when sailing day, segment key, or next-leg key changed
- */
 const shouldClearExistingPredictions = (
   existingTrip: ConvexVesselTrip | undefined,
   finalProposed: ConvexVesselTripWithML
@@ -130,18 +112,12 @@ const shouldClearExistingPredictions = (
     existingTrip.Key !== finalProposed.Key ||
     existingTrip.NextKey !== finalProposed.NextKey);
 
-/**
- * Expands one actual intent into zero or more sparse boundary patches.
- *
- * @param intent - Raw actual-patch inputs for one vessel refresh
- * @returns Zero or more tagged patches (departure and/or arrival)
- */
-const buildTaggedActualPatchesFromIntent = (
-  intent: CurrentTripActualProjectionIntent
+const buildTaggedActualPatchesFromMessage = (
+  message: CurrentTripActualEventMessage
 ): TaggedActualPatch[] => {
   const patches: ConvexActualBoundaryPatch[] = [];
   const { events, finalProposed, vesselAbbrev, requiresSuccessfulUpsert } =
-    intent;
+    message;
 
   if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
     const departure = buildDepartureActualPatchForTrip(finalProposed);
@@ -163,14 +139,8 @@ const buildTaggedActualPatchesFromIntent = (
   }));
 };
 
-/**
- * Expands one predicted intent into project and optional clear effects.
- *
- * @param intent - Raw predicted-effect inputs for one vessel refresh
- * @returns Zero or more tagged effects (project + optional clear)
- */
-const buildTaggedPredictedEffectsFromIntent = (
-  intent: CurrentTripPredictedProjectionIntent
+const buildTaggedPredictedEffectsFromMessage = (
+  message: CurrentTripPredictedEventMessage
 ): TaggedPredictedEffect[] => {
   const effects: ConvexPredictedBoundaryProjectionEffect[] = [];
   const {
@@ -178,7 +148,7 @@ const buildTaggedPredictedEffectsFromIntent = (
     finalProposed,
     vesselAbbrev,
     requiresSuccessfulUpsert,
-  } = intent;
+  } = message;
 
   const projection = buildPredictedBoundaryProjectionEffect(finalProposed);
   if (projection !== null) {
@@ -202,11 +172,6 @@ const buildTaggedPredictedEffectsFromIntent = (
   }));
 };
 
-/**
- * @param tagged - Patches gathered from intents
- * @param successfulVessels - Vessels with successful active upserts this tick
- * @returns Patches that pass the upsert gate
- */
 const filterTaggedActualPatches = (
   tagged: TaggedActualPatch[],
   successfulVessels: Set<string>
@@ -218,11 +183,6 @@ const filterTaggedActualPatches = (
     )
     .map((t) => t.patch);
 
-/**
- * @param tagged - Effects gathered from intents
- * @param successfulVessels - Vessels with successful active upserts this tick
- * @returns Effects that pass the upsert gate
- */
 const filterTaggedPredictedEffects = (
   tagged: TaggedPredictedEffect[],
   successfulVessels: Set<string>
