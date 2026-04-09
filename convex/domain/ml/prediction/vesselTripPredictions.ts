@@ -5,8 +5,10 @@
 
 import type { ActionCtx } from "_generated/server";
 import type {
+  ConvexJoinedTripPrediction,
   ConvexPrediction,
   ConvexVesselTrip,
+  ConvexVesselTripWithML,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
 import type { ModelType } from "../shared/types";
@@ -31,7 +33,7 @@ export type PredictionSpec = {
   field: PredictionField;
   modelType: ModelType;
   requiresLeftDock: boolean;
-  getAnchorMs: (trip: ConvexVesselTrip) => number | null;
+  getAnchorMs: (trip: ConvexVesselTripWithML) => number | null;
 };
 
 /**
@@ -103,7 +105,7 @@ export const isPredictionReadyTrip = (
  */
 export const getMinimumScheduledTime = (
   spec: PredictionSpec,
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithML
 ): number | null => {
   if (spec.field === "AtDockDepartCurr") {
     return trip.ScheduledDeparture ?? null;
@@ -146,25 +148,40 @@ export const createPredictionResult = (
 /**
  * Apply an observed timestamp to a prediction and compute error deltas.
  *
- * @param prediction - Existing prediction to actualize
+ * @param prediction - Existing prediction to actualize (full ML or joined minimal)
  * @param actualMs - Observed timestamp in milliseconds
- * @returns Prediction with Actual, DeltaTotal, and DeltaRange filled in
+ * @returns Same shape as input: full ML includes optional `DeltaRange` when an
+ * interval exists; joined minimal rows stay minimal (no synthetic MAE/StdDev).
  */
 export const applyActualToPrediction = (
-  prediction: ConvexPrediction,
+  prediction: ConvexPrediction | ConvexJoinedTripPrediction,
   actualMs: number
-): ConvexPrediction => {
+): ConvexPrediction | ConvexJoinedTripPrediction => {
   const actual = Math.floor(actualMs / 1000) * 1000;
+  const deltaTotal = calculateDeltaTotal(actual, prediction.PredTime);
+
+  const isFullMl = "MinTime" in prediction && prediction.MinTime !== undefined;
+
+  if (!isFullMl) {
+    return {
+      PredTime: prediction.PredTime,
+      Actual: actual,
+      DeltaTotal: deltaTotal,
+    };
+  }
+
+  const full = prediction as ConvexPrediction;
+  const hasInterval = full.MinTime !== undefined && full.MaxTime !== undefined;
 
   return {
-    ...prediction,
+    ...full,
     Actual: actual,
-    DeltaTotal: calculateDeltaTotal(actual, prediction.PredTime),
-    DeltaRange: calculateDeltaRange(
-      actual,
-      prediction.MinTime,
-      prediction.MaxTime
-    ),
+    DeltaTotal: deltaTotal,
+    ...(hasInterval
+      ? {
+          DeltaRange: calculateDeltaRange(actual, full.MinTime, full.MaxTime),
+        }
+      : {}),
   };
 };
 
@@ -175,8 +192,8 @@ export const applyActualToPrediction = (
  * @returns Trip with leave-dock actuals applied
  */
 export const actualizePredictionsOnLeaveDock = (
-  trip: ConvexVesselTrip
-): ConvexVesselTrip => {
+  trip: ConvexVesselTripWithML
+): ConvexVesselTripWithML => {
   if (!trip.LeftDock || !trip.AtDockDepartCurr) {
     return trip;
   }
@@ -197,8 +214,8 @@ export const actualizePredictionsOnLeaveDock = (
  * @returns Trip with trip-complete actuals applied
  */
 export const actualizePredictionsOnTripComplete = (
-  trip: ConvexVesselTrip
-): ConvexVesselTrip => {
+  trip: ConvexVesselTripWithML
+): ConvexVesselTripWithML => {
   const arrivalActual = trip.ArriveDest ?? trip.TripEnd;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
@@ -228,7 +245,7 @@ export const actualizePredictionsOnTripComplete = (
  */
 export const predictFromSpec = async (
   ctx: ActionCtx,
-  trip: ConvexVesselTrip,
+  trip: ConvexVesselTripWithML,
   spec: PredictionSpec,
   preloadedModel?: {
     featureKeys: string[];
@@ -306,13 +323,16 @@ const calculateDeltaRange = (
 };
 
 /**
- * Calculate total delta between actual and predicted times
+ * Delta in minutes between actual and predicted instants (rounded to 0.1).
  *
  * @param actual - Actual time in milliseconds
  * @param predicted - Predicted time in milliseconds
- * @returns Delta in minutes, rounded to 1 decimal place
+ * @returns Delta in minutes
  */
-const calculateDeltaTotal = (actual: number, predicted: number): number => {
+export const calculateDeltaTotal = (
+  actual: number,
+  predicted: number
+): number => {
   const MS_PER_MINUTE = 60 * 1000;
   return Math.round(((actual - predicted) / MS_PER_MINUTE) * 10) / 10;
 };

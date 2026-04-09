@@ -13,14 +13,6 @@ export { predictWithModel } from "./applyModel";
  */
 export { calculateMAE, calculateR2, calculateRMSE } from "./metrics";
 /**
- * Prediction lifecycle service - manages predictions end-to-end
- */
-export {
-  handlePredictionEvent,
-  type PredictionEventType,
-  type PredictionLifecycleEvent,
-} from "./predictionService";
-/**
  * Core prediction functions for vessel trip timing
  */
 export {

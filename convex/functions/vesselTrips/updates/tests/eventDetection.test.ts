@@ -148,6 +148,30 @@ describe("detectTripEvents", () => {
     expect(departureState.leftDockTime).toBe(ms("2026-03-13T05:29:38-07:00"));
     expect(events.didJustLeaveDock).toBe(true);
   });
+
+  it("does not treat a leave-dock future identity jump as a key change", () => {
+    const existingTrip = makeTrip({
+      Key: "CHE--2026-03-13--05:30--ANA-ORI",
+      ArrivingTerminalAbbrev: "ORI",
+      ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-03-13T05:29:30-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      ArrivingTerminalAbbrev: "SHI",
+      ScheduledDeparture: ms("2026-03-13T06:05:00-07:00"),
+      TimeStamp: ms("2026-03-13T05:29:40-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(true);
+    expect(events.keyChanged).toBe(false);
+  });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();

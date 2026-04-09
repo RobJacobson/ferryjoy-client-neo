@@ -94,4 +94,50 @@ describe("toDerivedRows", () => {
 
     expect(rows).toEqual([]);
   });
+
+  it("derives one at-sea row per segment when each departure is adjacent to its arrival", () => {
+    const { rows } = toDerivedRows(
+      makePipelineInput({
+        events: [
+          makeEvent({
+            SegmentKey: "trip-a",
+            Key: "trip-a--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "VAI",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 0),
+          }),
+          makeEvent({
+            SegmentKey: "trip-a",
+            Key: "trip-a--arv-dock",
+            EventType: "arv-dock",
+            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(8, 0),
+            EventScheduledTime: at(8, 10),
+          }),
+          makeEvent({
+            SegmentKey: "trip-b",
+            Key: "trip-b--dep-dock",
+            EventType: "dep-dock",
+            TerminalAbbrev: "FAU",
+            ScheduledDeparture: at(8, 10),
+            EventScheduledTime: at(8, 10),
+          }),
+          makeEvent({
+            SegmentKey: "trip-b",
+            Key: "trip-b--arv-dock",
+            EventType: "arv-dock",
+            TerminalAbbrev: "SOU",
+            ScheduledDeparture: at(8, 10),
+            EventScheduledTime: at(8, 40),
+          }),
+        ],
+      })
+    );
+
+    const seaRows = rows.filter((row) => row.kind === "at-sea");
+    expect(seaRows.map((row) => row.segmentKey)).toEqual(["trip-a", "trip-b"]);
+    expect(seaRows[0]?.startEvent.Key).toBe("trip-a--dep-dock");
+    expect(seaRows[0]?.endEvent.Key).toBe("trip-a--arv-dock");
+  });
 });

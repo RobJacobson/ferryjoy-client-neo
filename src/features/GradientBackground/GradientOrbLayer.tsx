@@ -15,7 +15,9 @@ type GradientOrbLayerProps = {
 };
 
 /**
- * Builds a repeating linear rotation animation from initial phase and duration.
+ * Builds a repeating linear full turn from initial phase and duration.
+ * With linear timing, start and end rotation fully determine the motion; a
+ * midpoint keyframe is redundant (same idea as Reanimated keyframe endpoints).
  *
  * @param orb - Orb geometry and animation inputs
  * @returns Reanimated-compatible style object with `animationName` keyframes
@@ -26,9 +28,6 @@ const createGradientOrbAnimationStyle = (
   animationName: {
     "0%": {
       transform: [{ rotate: `${orb.initialThetaDeg}deg` }],
-    },
-    "50%": {
-      transform: [{ rotate: `${orb.initialThetaDeg + 180}deg` }],
     },
     "100%": {
       transform: [{ rotate: `${orb.initialThetaDeg + 360}deg` }],

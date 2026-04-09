@@ -13,8 +13,8 @@ import {
 } from "ws-dottie/wsf-schedule/core";
 import { getSailingDay } from "../../shared/time";
 import {
-  loadBackendTerminalsOrThrow,
-  refreshBackendTerminalsOrThrow,
+  loadBackendTerminals,
+  syncBackendTerminalTable,
 } from "../terminals/actions";
 import type { Terminal } from "../terminals/schemas";
 import type { TerminalTopology } from "./schemas";
@@ -119,14 +119,14 @@ const refreshBackendTerminalsTopologyImpl = async (
 const ensureBackendTerminals = async (
   ctx: ActionCtx
 ): Promise<Array<Terminal>> => {
-  const terminals = await loadBackendTerminalsOrThrow(ctx);
+  const terminals = await loadBackendTerminals(ctx);
 
   if (terminals.length > 0) {
     return terminals;
   }
 
-  await refreshBackendTerminalsOrThrow(ctx);
-  return await loadBackendTerminalsOrThrow(ctx);
+  await syncBackendTerminalTable(ctx);
+  return await loadBackendTerminals(ctx);
 };
 
 /**

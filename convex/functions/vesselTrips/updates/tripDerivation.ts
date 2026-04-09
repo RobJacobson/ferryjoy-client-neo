@@ -5,7 +5,7 @@
  * base trip construction so the two paths stay in sync.
  */
 
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 
@@ -59,7 +59,7 @@ export const hasTripEvidence = (
  */
 export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
+  currLocation: ConvexVesselLocation
 ): DockDepartureState => {
   const leftDockTime = currLocation.LeftDock ?? existingTrip?.LeftDock;
 
@@ -86,26 +86,30 @@ export const getDockDepartureState = (
  */
 export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ResolvedVesselLocation
+  currLocation: ConvexVesselLocation
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
-  const shouldPreserveDockedScheduleIdentity = Boolean(
-    existingTrip &&
-      existingTrip.AtDock &&
-      existingTrip.LeftDock === undefined &&
-      currLocation.AtDock &&
-      currLocation.DepartingTerminalAbbrev ===
-        existingTrip.DepartingTerminalAbbrev
+  const shouldPreserveDockBoundaryOwner = Boolean(
+    existingTrip?.AtDock &&
+      existingTrip.DepartingTerminalAbbrev ===
+        currLocation.DepartingTerminalAbbrev &&
+      // While the vessel remains docked, preserve the boundary owner for the
+      // current dock interval so feed omissions do not churn the active trip.
+      ((existingTrip.LeftDock === undefined && currLocation.AtDock) ||
+        // On the exact leave-dock tick, write the departure actual to the
+        // boundary that ended the dock interval and starts the sea interval.
+        // Raw feed identity fields can transiently jump ahead as LeftDock first
+        // appears, but that should not reassign ownership of the departure.
+        (existingTrip.LeftDock === undefined &&
+          currLocation.LeftDock !== undefined))
   );
-  const continuingArrivingTerminalAbbrev =
-    shouldPreserveDockedScheduleIdentity
-      ? existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev
-      : currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
-  const continuingScheduledDeparture =
-    shouldPreserveDockedScheduleIdentity
-      ? existingTrip?.ScheduledDeparture ?? currentScheduledDeparture
-      : currentScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  const continuingArrivingTerminalAbbrev = shouldPreserveDockBoundaryOwner
+    ? (existingTrip?.ArrivingTerminalAbbrev ?? currentArrivingTerminalAbbrev)
+    : (currentArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev);
+  const continuingScheduledDeparture = shouldPreserveDockBoundaryOwner
+    ? (existingTrip?.ScheduledDeparture ?? currentScheduledDeparture)
+    : (currentScheduledDeparture ?? existingTrip?.ScheduledDeparture);
   const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
     existingTrip,
     currLocation
@@ -130,7 +134,7 @@ export const deriveTripInputs = (
     continuingScheduledDeparture,
     startKey: currentIdentity.Key,
     continuingKey:
-      shouldPreserveDockedScheduleIdentity && existingTrip?.Key
+      shouldPreserveDockBoundaryOwner && existingTrip?.Key
         ? existingTrip.Key
         : continuingIdentity.Key,
     startSailingDay: currentIdentity.SailingDay,
@@ -154,7 +158,7 @@ export const deriveTripInputs = (
  */
 export const determineBaseTripMode = (
   _existingTrip: ConvexVesselTrip | undefined,
-  _currLocation: ResolvedVesselLocation,
+  _currLocation: ConvexVesselLocation,
   isTripStart: boolean
 ): BaseTripMode => {
   if (isTripStart) {

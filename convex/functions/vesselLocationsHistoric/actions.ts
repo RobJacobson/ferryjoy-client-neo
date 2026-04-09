@@ -4,15 +4,15 @@
 import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { loadBackendTerminalsOrThrow } from "functions/terminals/actions";
+import { loadBackendTerminals } from "functions/terminals/actions";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
-import { loadBackendVesselsOrThrow } from "functions/vessels/actions";
+import { loadBackendVessels } from "functions/vessels/actions";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
 
-const HISTORIC_RETENTION_SAILING_DAYS = 4;
+const HISTORIC_RETENTION_SAILING_DAYS = 2;
 const DELETE_BATCH_SIZE = 500;
 
 type HistoricSnapshotResult = {
@@ -36,8 +36,8 @@ export const captureHistoricVesselLocations = internalAction({
     inserted: v.number(),
   }),
   handler: async (ctx): Promise<HistoricSnapshotResult> => {
-    const vessels = await loadBackendVesselsOrThrow(ctx);
-    const terminals = await loadBackendTerminalsOrThrow(ctx);
+    const vessels = await loadBackendVessels(ctx);
+    const terminals = await loadBackendTerminals(ctx);
     const rawLocations = await fetchWsfVesselLocations();
     const convexLocations: Array<ConvexVesselLocation> = [];
 

@@ -40,35 +40,6 @@ export const buildInferredScheduledSegment = (
 });
 
 /**
- * Finds the departure that owns a vessel's current dock interval.
- *
- * The resolver derives structural dock intervals from adjacent ordered events
- * and only returns a departure when exactly one same-terminal dock interval is
- * present in the candidate slice.
- *
- * @param events - Candidate scheduled boundary events across the dock window
- * @param terminalAbbrev - Terminal where the vessel is currently observed
- * @returns Owning departure boundary, or `null`
- */
-export const findDockedDepartureEvent = (
-  events: ConvexScheduledBoundaryEvent[],
-  terminalAbbrev: string
-) => {
-  const { eventByKey, intervals } = buildScheduledIntervalContext(events);
-  const interval = getUniqueMatch(
-    intervals.filter(
-      (candidate): candidate is AdjacentDockInterval =>
-        candidate.kind === "at-dock" &&
-        candidate.terminalAbbrev === terminalAbbrev
-    )
-  );
-
-  return interval?.endEventKey
-    ? (eventByKey.get(interval.endEventKey) ?? null)
-    : null;
-};
-
-/**
  * Finds the earliest departure that follows a specific boundary event.
  *
  * This is the event-only adjacency primitive used by the timeline loader to
@@ -170,7 +141,7 @@ const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
   EventType: event.EventType,
 });
 
-const getUniqueMatch = <T>(matches: T[]) =>
+const _getUniqueMatch = <T>(matches: T[]) =>
   matches.length === 1 ? matches[0] : null;
 
 const buildScheduledIntervalContext = (

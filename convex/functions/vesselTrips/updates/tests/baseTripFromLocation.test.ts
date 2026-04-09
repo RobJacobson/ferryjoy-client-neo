@@ -131,7 +131,9 @@ describe("baseTripFromLocation", () => {
     expect(trip.Key).toBe(existingTrip.Key);
     expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.SailingDay).toBe(existingTrip.SailingDay);
-    expect(trip.ArrivingTerminalAbbrev).toBe(existingTrip.ArrivingTerminalAbbrev);
+    expect(trip.ArrivingTerminalAbbrev).toBe(
+      existingTrip.ArrivingTerminalAbbrev
+    );
   });
 });
 

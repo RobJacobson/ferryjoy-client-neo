@@ -6,10 +6,7 @@ import {
   upsertByKey,
 } from "functions/keyValueStore/helpers";
 import { KEY_PRODUCTION_VERSION_TAG } from "functions/keyValueStore/schemas";
-import {
-  modelParametersSchema,
-  predictionRecordSchema,
-} from "functions/predictions/schemas";
+import { modelParametersSchema } from "functions/predictions/schemas";
 
 /**
  * Store trained ML model parameters in the database.
@@ -77,90 +74,6 @@ export const deleteAllModelParametersMutation = mutation({
       await ctx.db.delete(doc._id);
     }
     return { deleted: all.length };
-  },
-});
-
-/**
- * Insert a completed prediction record into the predictions table.
- * Handles deduplication by checking for existing predictions with the same Key + PredictionType.
- * Used to store completed predictions for performance monitoring and analysis.
- *
- * @param ctx - Convex mutation context
- * @param args.prediction - The prediction record to insert with all required fields
- * @returns The ID of the inserted prediction, or the existing prediction ID if duplicate found
- */
-export const insertPrediction = mutation({
-  args: {
-    prediction: predictionRecordSchema,
-  },
-  handler: async (ctx, args) => {
-    // Check for existing prediction with same Key + PredictionType
-    const existing = await ctx.db
-      .query("predictions")
-      .withIndex("by_key_and_type", (q) =>
-        q
-          .eq("Key", args.prediction.Key)
-          .eq("PredictionType", args.prediction.PredictionType)
-      )
-      .first();
-
-    if (existing) {
-      // Prediction already exists, return existing ID
-      return existing._id;
-    }
-
-    // Insert new prediction
-    return await ctx.db.insert("predictions", args.prediction);
-  },
-});
-
-/**
- * Bulk insert completed prediction records into the predictions table.
- *
- * Performs per-record deduplication by Key + PredictionType using an index, and
- * continues on errors to support best-effort batch processing.
- *
- * @param ctx - Convex mutation context
- * @param args.predictions - Array of completed prediction records
- * @returns Counts of inserted and skipped records
- */
-export const bulkInsertPredictions = mutation({
-  args: {
-    predictions: v.array(predictionRecordSchema),
-  },
-  handler: async (ctx, args) => {
-    // Deduplicate within the batch first (last write wins, though they should match).
-    const uniqueByKey = new Map<string, (typeof args.predictions)[number]>();
-    for (const record of args.predictions) {
-      uniqueByKey.set(`${record.Key}:${record.PredictionType}`, record);
-    }
-
-    let inserted = 0;
-    let skipped = 0;
-
-    for (const record of uniqueByKey.values()) {
-      try {
-        const existing = await ctx.db
-          .query("predictions")
-          .withIndex("by_key_and_type", (q) =>
-            q.eq("Key", record.Key).eq("PredictionType", record.PredictionType)
-          )
-          .first();
-
-        if (existing) {
-          skipped += 1;
-          continue;
-        }
-
-        await ctx.db.insert("predictions", record);
-        inserted += 1;
-      } catch {
-        // Best-effort: skip record on error.
-        skipped += 1;
-      }
-    }
-
-    return { inserted, skipped };
   },
 });
 

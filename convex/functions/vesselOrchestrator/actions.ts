@@ -6,16 +6,16 @@
  * processing.
  */
 
-import { api } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
-import { loadBackendTerminalsOrThrow } from "functions/terminals/actions";
-import type {
-  ConvexVesselLocation,
-  ResolvedVesselLocation,
-} from "functions/vesselLocation/schemas";
+import { syncBackendTerminalTable } from "functions/terminals/actions";
+import type { Terminal } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { loadBackendVesselsOrThrow } from "functions/vessels/actions";
+import { syncBackendVesselTable } from "functions/vessels/actions";
+import type { Vessel } from "functions/vessels/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
@@ -30,7 +30,8 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  *
  * Flow:
  * 1. Fetch vessel locations via fetchVesselLocations()
- * 2. Load the backend vessel snapshot once for this tick
+ * 2. Load vessels, terminals, and active trips in one internal query (with
+ *    bootstrap refreshes when identity tables are empty)
  * 3. Convert each WSF payload to `ConvexVesselLocation`
  * 4. Capture one tick timestamp for downstream consumers
  * 5. Call updateVesselLocations() with error isolation
@@ -60,12 +61,15 @@ export const updateVesselOrchestrator = internalAction({
     } = {};
 
     // Step 1: Fetch and convert vessel locations
-    let convexLocations: ResolvedVesselLocation[] = [];
+    let convexLocations: ConvexVesselLocation[] = [];
     let passengerTerminalAbbrevs = new Set<string>();
 
+    let activeTripsForTick: ConvexVesselTrip[] = [];
+
     try {
-      const vessels = await loadBackendVesselsOrThrow(ctx);
-      const terminals = await loadBackendTerminalsOrThrow(ctx);
+      const { vessels, terminals, activeTrips } =
+        await loadOrchestratorTickReadModelOrThrow(ctx);
+      activeTripsForTick = activeTrips;
       passengerTerminalAbbrevs = getPassengerTerminalAbbrevs(terminals);
       const rawLocations =
         (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
@@ -74,7 +78,7 @@ export const updateVesselOrchestrator = internalAction({
         try {
           return [toConvexVesselLocation(rawLocation, vessels, terminals)];
         } catch (error) {
-          const err = normalizeError(error);
+          const err = toError(error);
           console.error("Skipping vessel location due to unresolved vessel:", {
             VesselID: rawLocation.VesselID,
             VesselName: rawLocation.VesselName,
@@ -85,7 +89,7 @@ export const updateVesselOrchestrator = internalAction({
         }
       });
     } catch (error) {
-      const err = normalizeError(error);
+      const err = toError(error);
       errors.fetch = { message: err.message, stack: err.stack };
       console.error("Failed to fetch or process vessel locations:", err);
 
@@ -106,19 +110,24 @@ export const updateVesselOrchestrator = internalAction({
       PromiseSettledResult<void>,
     ] = await Promise.allSettled([
       updateVesselLocations(ctx, convexLocations),
-      processVesselTrips(ctx, tripEligibleLocations, tickStartedAt),
+      processVesselTrips(
+        ctx,
+        tripEligibleLocations,
+        tickStartedAt,
+        activeTripsForTick
+      ),
     ]);
 
     const [locationsResult, tripsResult] = branchResults;
 
     if (locationsResult.status === "rejected") {
-      const err = normalizeError(locationsResult.reason);
+      const err = toError(locationsResult.reason);
       errors.locations = { message: err.message, stack: err.stack };
       console.error("updateVesselLocations failed:", err);
     }
 
     if (tripsResult.status === "rejected") {
-      const err = normalizeError(tripsResult.reason);
+      const err = toError(tripsResult.reason);
       errors.trips = { message: err.message, stack: err.stack };
       console.error("processVesselTrips failed:", err);
     }
@@ -212,28 +221,60 @@ export const isTripEligibleLocation = (
     ));
 
 /**
- * Convert unknown thrown values into an `Error` for consistent branch-level
- * reporting.
+ * Load orchestrator DB snapshots in one query, refreshing identity tables when
+ * they are empty (same behavior as the former split loaders).
  *
- * @param error - Unknown thrown value
- * @returns Error instance with a stable message and optional stack
+ * @param ctx - Convex action context
+ * @returns Vessels, terminals, and active trips for this tick
  */
-const normalizeError = (error: unknown) => {
-  if (error instanceof Error) {
-    return error;
+async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
+  vessels: Vessel[];
+  terminals: Terminal[];
+  activeTrips: ConvexVesselTrip[];
+}> {
+  const readModelRef =
+    internal.functions.vesselOrchestrator.queries
+      .getOrchestratorTickReadModelInternal;
+
+  let snapshot = await ctx.runQuery(readModelRef);
+  let refreshedIdentity = false;
+
+  if (snapshot.vessels.length === 0) {
+    await syncBackendVesselTable(ctx);
+    refreshedIdentity = true;
   }
 
-  return new Error(safeSerialize(error));
-};
-
-const safeSerialize = (value: unknown) => {
-  if (typeof value === "string") {
-    return value;
+  if (snapshot.terminals.length === 0) {
+    await syncBackendTerminalTable(ctx);
+    refreshedIdentity = true;
   }
 
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
+  if (refreshedIdentity) {
+    snapshot = await ctx.runQuery(readModelRef);
   }
-};
+
+  if (snapshot.vessels.length === 0) {
+    throw new Error(
+      "Backend vessels table is still empty after bootstrap refresh."
+    );
+  }
+
+  if (snapshot.terminals.length === 0) {
+    throw new Error(
+      "Backend terminals table is still empty after bootstrap refresh."
+    );
+  }
+
+  return snapshot;
+}
+
+/**
+ * Coerce a `catch` binding or `PromiseSettledResult.reason` to `Error` so
+ * branch-level logging and the orchestrator result shape stay consistent.
+ *
+ * @param value - Unknown rejection or throw value
+ * @returns Original `Error` when applicable; otherwise `Error` with
+ *   `String(value)` as the message
+ */
+const toError = (value: unknown): Error =>
+  value instanceof Error ? value : new Error(String(value));

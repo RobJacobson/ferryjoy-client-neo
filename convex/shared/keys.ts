@@ -108,3 +108,53 @@ export const buildBoundaryKey = (
   segmentKey: string,
   eventType: BoundaryEventType
 ) => `${segmentKey}--${eventType}`;
+
+/**
+ * Groups rows by vessel and sailing day (matches `events*` table index scopes).
+ * Inverse: {@link parseVesselSailingDayScopeKey}.
+ *
+ * @param vesselAbbrev - Vessel abbreviation
+ * @param sailingDay - Sailing day string (YYYY-MM-DD)
+ * @returns Stable scope key; vessel abbrev must not contain `:`
+ */
+export const buildVesselSailingDayScopeKey = (
+  vesselAbbrev: string,
+  sailingDay: string
+): string => `${vesselAbbrev}:${sailingDay}`;
+
+/**
+ * Splits a {@link buildVesselSailingDayScopeKey} string back into parts.
+ *
+ * @param scopeKey - String from {@link buildVesselSailingDayScopeKey}
+ * @returns Vessel abbrev and sailing day
+ */
+export const parseVesselSailingDayScopeKey = (
+  scopeKey: string
+): { vesselAbbrev: string; sailingDay: string } => {
+  const i = scopeKey.indexOf(":");
+  if (i === -1) {
+    throw new Error(`Invalid vessel/sailing-day scope key: ${scopeKey}`);
+  }
+  return {
+    vesselAbbrev: scopeKey.slice(0, i),
+    sailingDay: scopeKey.slice(i + 1),
+  };
+};
+
+/**
+ * Boundary keys for ML / predicted overlays: current segment dep + arv, next
+ * leg departure. Used by trip hydration and `getPredictedBoundaryTargetKeys`.
+ *
+ * @param trip - Trip row with optional `Key` and `NextKey`
+ * @returns Dep-dock, arv-dock, and next dep-dock boundary keys
+ */
+export const buildTripPredictionBoundaryKeys = (trip: {
+  Key?: string;
+  NextKey?: string;
+}) => ({
+  depDockKey: trip.Key ? buildBoundaryKey(trip.Key, "dep-dock") : undefined,
+  arvDockKey: trip.Key ? buildBoundaryKey(trip.Key, "arv-dock") : undefined,
+  nextDepDockKey: trip.NextKey
+    ? buildBoundaryKey(trip.NextKey, "dep-dock")
+    : undefined,
+});

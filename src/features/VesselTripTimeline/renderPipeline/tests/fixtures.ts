@@ -5,6 +5,18 @@ import type {
 } from "@/types";
 import type { TimelineItem, TimelinePipelineInput } from "../../types";
 
+/** Full ML-shaped prediction for test fixtures (domain may also use minimal joins). */
+type TestTripPrediction = {
+  PredTime: Date;
+  MinTime: Date;
+  MaxTime: Date;
+  MAE: number;
+  StdDev: number;
+  Actual?: Date;
+  DeltaTotal?: number;
+  DeltaRange?: number;
+};
+
 type TripPrediction = NonNullable<
   VesselTripWithScheduledTrip["AtDockDepartCurr"]
 >;
@@ -13,11 +25,11 @@ export const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
 
 export const makePrediction = (
-  overrides: Partial<TripPrediction> = {}
+  overrides: Partial<TestTripPrediction> = {}
 ): TripPrediction => {
   const predTime = overrides.PredTime ?? at(8, 5);
 
-  return {
+  const full: TestTripPrediction = {
     PredTime: predTime,
     MinTime: overrides.MinTime ?? new Date(predTime.getTime() - 2 * 60_000),
     MaxTime: overrides.MaxTime ?? new Date(predTime.getTime() + 2 * 60_000),
@@ -27,6 +39,7 @@ export const makePrediction = (
     DeltaTotal: overrides.DeltaTotal,
     DeltaRange: overrides.DeltaRange,
   };
+  return full as TripPrediction;
 };
 
 export const makeScheduledTrip = (

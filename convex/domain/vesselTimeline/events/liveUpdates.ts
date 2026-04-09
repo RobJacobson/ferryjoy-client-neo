@@ -2,13 +2,18 @@
  * Applies live vessel-location data to merged boundary events and
  * exposes shared event identity and sorting helpers.
  */
+
+import type { ConvexActualBoundaryPatch } from "../../../functions/eventsActual/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type {
   ConvexVesselTimelineEventRecord,
   VesselTimelineEventType,
 } from "../../../functions/vesselTimeline/schemas";
-import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import { getSailingDay } from "../../../shared/time";
+import {
+  buildBoundaryKey,
+  buildSegmentKey,
+  buildVesselSailingDayScopeKey,
+} from "../../../shared/keys";
 
 const FALSE_DEPARTURE_UNWIND_WINDOW_MS = 2 * 60 * 1000;
 const MOVING_SPEED_THRESHOLD = 0.2;
@@ -52,16 +57,6 @@ export const buildEventKey = (
   ].join("--");
 
 /**
- * Resolves the sailing day for a live location using scheduled departure when
- * available and the observation timestamp otherwise.
- *
- * @param location - Live vessel location payload from the orchestrator
- * @returns Sailing day used to match location updates to vessel trip events
- */
-export const getLocationSailingDay = (location: ConvexVesselLocation) =>
-  getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp));
-
-/**
  * Applies one live vessel location update to an ordered set of vessel/day
  * boundary events.
  *
@@ -77,53 +72,69 @@ export const applyLiveLocationToEvents = (
     return events;
   }
 
-  const nextEvents = events.map((event) => ({ ...event }));
-  const departureEvent = getLocationAnchoredEvent(
-    nextEvents,
-    location,
-    "dep-dock"
-  );
-  const arrivalEvent = getLocationAnchoredEvent(
-    nextEvents,
-    location,
-    "arv-dock"
-  );
+  const { departureEvent, anchoredArrivalEvent, resolvedArrivalEvent } =
+    resolveLocationBoundaryEvents(events, location);
+  const departureUpdate =
+    departureEvent &&
+    canWriteDepartureActualFromLocation(location, departureEvent)
+      ? withOccurredBoundary(
+          departureEvent,
+          location.LeftDock ?? location.TimeStamp
+        )
+      : undefined;
 
   if (
-    canWriteLiveActuals(location) &&
-    isStrongDeparture(location) &&
-    departureEvent
+    isFalseDeparture(
+      location,
+      departureUpdate ?? departureEvent,
+      anchoredArrivalEvent
+    )
   ) {
-    departureEvent.EventActualTime = location.LeftDock ?? location.TimeStamp;
-  }
-
-  if (isFalseDeparture(location, departureEvent, arrivalEvent)) {
     if (!departureEvent) {
-      return nextEvents;
+      return events;
     }
 
     // Undo a noisy departure signal if the vessel is seen docked again at the
     // same terminal before the paired arrival resolves.
-    departureEvent.EventActualTime = undefined;
-    return nextEvents;
+    return applyEventUpdates(events, [
+      withClearedOccurredBoundary(departureEvent),
+    ]);
   }
 
-  if (canWriteLiveActuals(location) && isStrongArrival(location)) {
-    const resolvedArrivalEvent = findArrivalEventForLocation(
-      nextEvents,
-      location,
-      departureEvent
-    );
+  const arrivalUpdate =
+    resolvedArrivalEvent &&
+    canConfirmArrivalFromLocation(location, resolvedArrivalEvent)
+      ? withOccurredBoundary(resolvedArrivalEvent, location.TimeStamp)
+      : undefined;
 
-    if (
-      resolvedArrivalEvent &&
-      resolvedArrivalEvent.EventActualTime === undefined
-    ) {
-      resolvedArrivalEvent.EventActualTime = location.TimeStamp;
-    }
+  return applyEventUpdates(events, [departureUpdate, arrivalUpdate]);
+};
+
+/**
+ * Builds sparse `ConvexActualBoundaryPatch` payloads from one live location
+ * tick against an ordered vessel/day timeline (same patch shape as trip
+ * projection). Used when telemetry proves a boundary without necessarily
+ * supplying `EventActualTime`.
+ *
+ * @param events - Ordered vessel/day timeline events
+ * @param location - Current live vessel location
+ * @returns Zero or more patches to merge into `eventsActual`
+ */
+export const buildActualBoundaryPatchesFromLocation = (
+  events: ConvexVesselTimelineEventRecord[],
+  location: ConvexVesselLocation
+): ConvexActualBoundaryPatch[] => {
+  if (events.length === 0 || location.InService !== true) {
+    return [];
   }
 
-  return nextEvents;
+  const { departureEvent, resolvedArrivalEvent } =
+    resolveLocationBoundaryEvents(events, location);
+
+  return [
+    buildDepartureActualPatchFromLocation(location, departureEvent),
+    buildArrivalActualPatchFromLocation(location, resolvedArrivalEvent),
+  ].filter((patch): patch is ConvexActualBoundaryPatch => patch !== undefined);
 };
 
 /**
@@ -159,7 +170,10 @@ export const normalizeScheduledDockSeams = (
   >();
 
   for (const event of events) {
-    const vesselDayKey = `${event.VesselAbbrev}:${event.SailingDay}`;
+    const vesselDayKey = buildVesselSailingDayScopeKey(
+      event.VesselAbbrev,
+      event.SailingDay
+    );
     const scopedEvents = eventsByVesselDay.get(vesselDayKey);
 
     if (scopedEvents) {
@@ -239,6 +253,120 @@ const getEventByKey = (
   Key: string
 ) => events.find((event) => event.Key === Key);
 
+const withOccurredBoundary = (
+  event: ConvexVesselTimelineEventRecord,
+  EventActualTime: number | undefined
+) => ({
+  ...event,
+  EventOccurred: true as const,
+  ...(EventActualTime !== undefined ? { EventActualTime } : {}),
+});
+
+const withClearedOccurredBoundary = (
+  event: ConvexVesselTimelineEventRecord
+) => ({
+  ...event,
+  EventOccurred: undefined,
+  EventActualTime: undefined,
+});
+
+const applyEventUpdates = (
+  events: ConvexVesselTimelineEventRecord[],
+  updates: Array<ConvexVesselTimelineEventRecord | undefined>
+) => {
+  const updatesByKey = new Map(
+    updates
+      .filter(
+        (event): event is ConvexVesselTimelineEventRecord => event !== undefined
+      )
+      .map((event) => [event.Key, event] as const)
+  );
+
+  if (updatesByKey.size === 0) {
+    return events;
+  }
+
+  return events.map((event) => updatesByKey.get(event.Key) ?? event);
+};
+
+const canConfirmDepartureFromLocation = (
+  location: ConvexVesselLocation,
+  event: ConvexVesselTimelineEventRecord | undefined
+) =>
+  location.InService === true &&
+  event !== undefined &&
+  event.EventOccurred !== true &&
+  (location.LeftDock !== undefined || isStrongDeparture(location));
+
+const canConfirmArrivalFromLocation = (
+  location: ConvexVesselLocation,
+  event: ConvexVesselTimelineEventRecord | undefined
+) =>
+  location.InService === true &&
+  event !== undefined &&
+  event.EventOccurred !== true &&
+  isStrongArrival(location);
+
+const canWriteDepartureActualFromLocation = (
+  location: ConvexVesselLocation,
+  event: ConvexVesselTimelineEventRecord | undefined
+) =>
+  location.InService === true &&
+  event !== undefined &&
+  isStrongDeparture(location);
+
+const buildDepartureActualPatchFromLocation = (
+  location: ConvexVesselLocation,
+  event: ConvexVesselTimelineEventRecord | undefined
+) =>
+  event && canConfirmDepartureFromLocation(location, event)
+    ? sparseActualBoundaryPatchFromEvent(event, location.LeftDock)
+    : undefined;
+
+const buildArrivalActualPatchFromLocation = (
+  location: ConvexVesselLocation,
+  event: ConvexVesselTimelineEventRecord | undefined
+) =>
+  event && canConfirmArrivalFromLocation(location, event)
+    ? sparseActualBoundaryPatchFromEvent(event, undefined)
+    : undefined;
+
+const sparseActualBoundaryPatchFromEvent = (
+  event: ConvexVesselTimelineEventRecord,
+  EventActualTime: number | undefined
+): ConvexActualBoundaryPatch => ({
+  SegmentKey: event.SegmentKey,
+  VesselAbbrev: event.VesselAbbrev,
+  SailingDay: event.SailingDay,
+  ScheduledDeparture: event.ScheduledDeparture,
+  TerminalAbbrev: event.TerminalAbbrev,
+  EventType: event.EventType,
+  EventOccurred: true,
+  EventActualTime,
+});
+
+const resolveLocationBoundaryEvents = (
+  events: ConvexVesselTimelineEventRecord[],
+  location: ConvexVesselLocation
+) => {
+  const departureEvent = getLocationAnchoredEvent(events, location, "dep-dock");
+  const anchoredArrivalEvent = getLocationAnchoredEvent(
+    events,
+    location,
+    "arv-dock"
+  );
+
+  return {
+    departureEvent,
+    anchoredArrivalEvent,
+    resolvedArrivalEvent: findArrivalEventForLocation(
+      events,
+      location,
+      departureEvent
+    ),
+  };
+};
+
 /**
  * Resolves the anchored boundary event for a live location using the canonical
  * segment key when available, with a field-based fallback for partial fixtures.
@@ -306,14 +434,6 @@ export const isStrongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
 
 /**
- * Live actuals should only be written when the feed still claims the vessel is
- * operating in service. Out-of-service ticks can still inform presence in
- * other systems, but they should not rewrite timeline truth.
- */
-export const canWriteLiveActuals = (location: ConvexVesselLocation) =>
-  location.InService === true;
-
-/**
  * Detects a transient false departure that should be unwound.
  *
  * @param location - Current live vessel location payload
@@ -367,14 +487,14 @@ const findArrivalEventForLocation = (
 
   if (location.ScheduledDeparture !== undefined) {
     return anchoredArrivalEvent &&
-      anchoredArrivalEvent.EventActualTime === undefined &&
+      anchoredArrivalEvent.EventOccurred !== true &&
       getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
       ? anchoredArrivalEvent
       : undefined;
   }
 
   if (anchoredArrivalEvent) {
-    return anchoredArrivalEvent.EventActualTime === undefined &&
+    return anchoredArrivalEvent.EventOccurred !== true &&
       getArrivalEligibilityTime(anchoredArrivalEvent) <= location.TimeStamp
       ? anchoredArrivalEvent
       : undefined;
@@ -385,7 +505,7 @@ const findArrivalEventForLocation = (
       (event) =>
         event.EventType === "arv-dock" &&
         event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-        event.EventActualTime === undefined &&
+        event.EventOccurred !== true &&
         getArrivalEligibilityTime(event) <= location.TimeStamp
     )
     .sort(

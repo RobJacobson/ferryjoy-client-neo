@@ -22,7 +22,6 @@ describe("processVesselTripsWithDeps", () => {
   it("skips writes and side effects when the current trip is unchanged", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
-    const predictionCalls: Array<Record<string, unknown>> = [];
     const ctx = createTestActionCtx({
       activeTrips: [existingTrip],
     });
@@ -34,12 +33,10 @@ describe("processVesselTripsWithDeps", () => {
       createDeps({
         eventsByVessel: new Map([["CHE", defaultEvents]]),
         builtTripsByVessel: new Map([["CHE", existingTrip]]),
-        predictionCalls,
       })
     );
 
     expect(ctx.mutationCalls).toHaveLength(0);
-    expect(predictionCalls).toHaveLength(0);
   });
 
   it("upserts a changed current trip and projects predicted effects", async () => {
@@ -62,7 +59,6 @@ describe("processVesselTripsWithDeps", () => {
       createDeps({
         eventsByVessel: new Map([["CHE", defaultEvents]]),
         builtTripsByVessel: new Map([["CHE", changedTrip]]),
-        predictionCalls: [],
       })
     );
 
@@ -96,7 +92,6 @@ describe("processVesselTripsWithDeps", () => {
       createDeps({
         eventsByVessel: new Map([["CHE", defaultEvents]]),
         builtTripsByVessel: new Map([["CHE", changedTrip]]),
-        predictionCalls: [],
       })
     );
 
@@ -145,11 +140,10 @@ describe("processVesselTripsWithDeps", () => {
           ],
         ]),
         builtTripsByVessel: new Map([["CHE", arrivedTrip]]),
-        predictionCalls: [],
       })
     );
 
-    expect(getActualProjectionArgs(ctx)?.Effects[0]?.EventType).toBe(
+    expect(getActualProjectionArgs(ctx)?.Patches[0]?.EventType).toBe(
       "arv-dock"
     );
   });
@@ -167,14 +161,12 @@ describe("processVesselTripsWithDeps", () => {
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
     });
-    const predictionCalls: Array<Record<string, unknown>> = [];
     const callSequence: string[] = [];
     const ctx = createTestActionCtx({
       activeTrips: [existingTrip],
       upsertResult: {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
-      previousTrips: new Map([["CHE", makeCompletedTrip()]]),
       callSequence,
     });
 
@@ -192,20 +184,14 @@ describe("processVesselTripsWithDeps", () => {
           ],
         ]),
         builtTripsByVessel: new Map([["CHE", departedTrip]]),
-        predictionCalls,
         callSequence,
       })
     );
 
     expect(
       callSequence.indexOf("mutation:upsert") <
-        callSequence.indexOf("query:previous:CHE")
+        callSequence.indexOf("mutation:departNextBackfill:CHE")
     ).toBe(true);
-    expect(
-      callSequence.indexOf("query:previous:CHE") <
-        callSequence.indexOf("prediction:leave_dock:CHE")
-    ).toBe(true);
-    expect(predictionCalls[0]?.eventType).toBe("leave_dock");
   });
 
   it("filters projections and leave-dock side effects to successful vessels only", async () => {
@@ -232,7 +218,6 @@ describe("processVesselTripsWithDeps", () => {
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
     });
-    const predictionCalls: Array<Record<string, unknown>> = [];
     const ctx = createTestActionCtx({
       activeTrips: [cheExisting, tacExisting],
       upsertResult: {
@@ -241,9 +226,6 @@ describe("processVesselTripsWithDeps", () => {
           { vesselAbbrev: "TAC", ok: false, reason: "db fail" },
         ],
       },
-      previousTrips: new Map([
-        ["TAC", makeCompletedTrip({ VesselAbbrev: "TAC" })],
-      ]),
     });
 
     await processVesselTripsWithDeps(
@@ -264,7 +246,6 @@ describe("processVesselTripsWithDeps", () => {
           ["CHE", cheTrip],
           ["TAC", tacTrip],
         ]),
-        predictionCalls,
       })
     );
 
@@ -272,7 +253,7 @@ describe("processVesselTripsWithDeps", () => {
     expect(getPredictedProjectionArgs(ctx)?.Effects[0]?.VesselAbbrev).toBe(
       "CHE"
     );
-    expect(predictionCalls).toHaveLength(0);
+    expect(getDepartNextBackfillCalls(ctx)).toHaveLength(0);
   });
 
   it("logs build failures and continues processing other vessels", async () => {
@@ -314,7 +295,6 @@ describe("processVesselTripsWithDeps", () => {
           ]),
           builtTripsByVessel: new Map([["CHE", cheTrip]]),
           buildFailuresByVessel: new Map([["TAC", new Error("boom")]]),
-          predictionCalls: [],
         })
       );
     } finally {
@@ -340,7 +320,6 @@ type TestDepsInput = {
   eventsByVessel: Map<string, TripEvents>;
   builtTripsByVessel: Map<string, ConvexVesselTrip>;
   buildFailuresByVessel?: Map<string, Error>;
-  predictionCalls: Array<Record<string, unknown>>;
   callSequence?: string[];
 };
 
@@ -353,7 +332,6 @@ type TestDepsInput = {
 const createTestActionCtx = (options: {
   activeTrips: ConvexVesselTrip[];
   upsertResult?: Record<string, unknown>;
-  previousTrips?: Map<string, ConvexVesselTrip>;
   callSequence?: string[];
 }): TestActionCtx => {
   const queryCalls: Array<{ ref: unknown; args?: Record<string, unknown> }> =
@@ -366,13 +344,6 @@ const createTestActionCtx = (options: {
     mutationCalls,
     runQuery: async (ref, args) => {
       queryCalls.push({ ref, args });
-      if (args?.vesselAbbrev) {
-        options.callSequence?.push(
-          `query:previous:${String(args.vesselAbbrev)}`
-        );
-        return options.previousTrips?.get(String(args.vesselAbbrev)) ?? null;
-      }
-
       options.callSequence?.push("query:activeTrips");
       return options.activeTrips;
     },
@@ -395,6 +366,19 @@ const createTestActionCtx = (options: {
 
       if (
         args &&
+        typeof args === "object" &&
+        "vesselAbbrev" in args &&
+        "actualDepartMs" in args &&
+        !("activeUpserts" in args)
+      ) {
+        options.callSequence?.push(
+          `mutation:departNextBackfill:${String(args.vesselAbbrev)}`
+        );
+        return { updated: false as const };
+      }
+
+      if (
+        args &&
         "Effects" in args &&
         Array.isArray(args.Effects) &&
         args.Effects.some(
@@ -405,7 +389,7 @@ const createTestActionCtx = (options: {
         return null;
       }
 
-      if (args && "Effects" in args) {
+      if (args && "Patches" in args) {
         options.callSequence?.push("mutation:projectActual");
         return null;
       }
@@ -444,17 +428,6 @@ const createDeps = (input: TestDepsInput) => ({
     _existingTrip: ConvexVesselTrip | undefined,
     currLocation: ConvexVesselLocation
   ) => input.eventsByVessel.get(currLocation.VesselAbbrev) ?? defaultEvents,
-  handlePredictionEvent: async (
-    _ctx: unknown,
-    payload: Record<string, unknown>
-  ) => {
-    input.predictionCalls.push(payload);
-    input.callSequence?.push(
-      `prediction:${String(payload.eventType)}:${String(
-        (payload.trip as ConvexVesselTrip).VesselAbbrev
-      )}`
-    );
-  },
 });
 
 /**
@@ -578,21 +551,20 @@ const makeTrip = (
 });
 
 /**
- * Build a test completed trip for leave-dock post-persist lookups.
+ * Mutation calls matching `setDepartNextActualsForMostRecentCompletedTrip` args.
  *
- * @param overrides - Scenario-specific field overrides
- * @returns Concrete completed trip payload for tests
+ * @param ctx - Fake action context
+ * @returns Recorded depart-next backfill calls
  */
-const makeCompletedTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
-  ...makeTrip({
-    LeftDock: ms("2026-03-12T19:34:26-07:00"),
-    TripEnd: ms("2026-03-12T20:45:00-07:00"),
-    ArriveDest: ms("2026-03-12T20:40:00-07:00"),
-  }),
-  ...overrides,
-});
+const getDepartNextBackfillCalls = (ctx: TestActionCtx) =>
+  ctx.mutationCalls.filter(
+    (call) =>
+      call.args &&
+      typeof call.args === "object" &&
+      "vesselAbbrev" in call.args &&
+      "actualDepartMs" in call.args &&
+      !("activeUpserts" in call.args)
+  );
 
 /**
  * Read the active-upsert mutation arguments from the fake context.
@@ -617,15 +589,10 @@ const getUpsertMutationArgs = (ctx: TestActionCtx) =>
 const getActualProjectionArgs = (ctx: TestActionCtx) =>
   ctx.mutationCalls.find(
     (call) =>
-      call.args &&
-      "Effects" in call.args &&
-      Array.isArray(call.args.Effects) &&
-      call.args.Effects.every(
-        (effect) => !("Rows" in (effect as Record<string, unknown>))
-      )
+      call.args && "Patches" in call.args && Array.isArray(call.args.Patches)
   )?.args as
     | {
-        Effects: Array<{
+        Patches: Array<{
           EventType: string;
         }>;
       }

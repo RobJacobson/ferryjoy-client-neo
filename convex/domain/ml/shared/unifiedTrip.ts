@@ -3,7 +3,10 @@
 // Single source of truth for ML training and prediction
 // ============================================================================
 
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 // import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 
 // import { config } from "./core/config";
@@ -31,7 +34,9 @@ export type UnifiedTrip = {
  * @param trip - Convex vessel trip record
  * @returns Unified trip structure ready for feature extraction
  */
-export const fromVesselTrip = (trip: ConvexVesselTrip): UnifiedTrip => {
+export const fromVesselTrip = (
+  trip: ConvexVesselTrip | ConvexVesselTripWithML
+): UnifiedTrip => {
   if (
     !trip.TripStart ||
     !trip.PrevTerminalAbbrev ||

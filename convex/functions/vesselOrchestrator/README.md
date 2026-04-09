@@ -37,8 +37,8 @@ Its purpose is:
 - provide the normalized persistence layer for timeline structure and overlays
 - separate timeline rendering needs from the heavier trip lifecycle tables
 - keep reconciliation and source-priority logic on the backend
-- support a backend-built row/view-model query instead of exposing raw event
-  tables as the public timeline contract
+- support a small backbone query instead of exposing raw event tables directly
+  or rebuilding structure from live vessel ticks on the client
 
 The timeline event tables are not intended to replace `activeVesselTrips` or
 `completedVesselTrips`. Those tables still support trip lifecycle logic and
@@ -56,20 +56,25 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- load backend vessel/terminal identity snapshots once per tick
-- convert raw WSF payloads into `ResolvedVesselLocation`, including
+- load backend vessel rows, terminal rows, and `activeVesselTrips` in **one**
+  internal query per tick (`getOrchestratorTickReadModelInternal` in
+  `queries.ts`), with identity-table bootstrap via `syncBackendVesselTable` /
+  `syncBackendTerminalTable` when either snapshot is empty
+- convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminals`
   table
 - capture one tick timestamp shared by downstream consumers
 - execute two downstream branches in parallel with error isolation
+- pass the same tick’s active-trip list into `processVesselTrips` so the trip
+  branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:
 
 ```text
 WSF VesselLocation
   -> toConvexVesselLocation(raw, vessels, terminals)
-  -> ResolvedVesselLocation[]
+  -> ConvexVesselLocation[]
 ```
 
 Notes:
@@ -120,11 +125,15 @@ This table can therefore contain both:
 
 Purpose:
 
-- maintain `activeVesselTrips`, `completedVesselTrips`, and their prediction
-  lifecycle
+- maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state;
+  ML boundary predictions live in `eventsPredicted`, and the orchestrator read
+  model **hydrates** active trips before `processVesselTrips` so builders see the
+  same joined prediction fields as public queries. Post-upsert depart-next
+  backfill writes **actuals** onto the prior leg’s `eventsPredicted` rows, not
+  onto stored trip rows.
 
 This remains the richer state machine responsible for trip lifecycle tracking,
-ML predictions, and event-driven trip transitions. Inside that module, event
+ML inference (in memory, then projected), and event-driven trip transitions. Inside that module, event
 detection and base-trip construction now share one normalized derivation layer
 so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
 pipeline.
@@ -148,7 +157,7 @@ only rows that resolve to passenger terminals participate in trip derivation.
 Purpose:
 
 - maintain the normalized boundary-event persistence layer used to build the
-  public `VesselTimeline` view model
+  public `VesselTimeline` backbone
 
 This remains intentionally smaller than the trip lifecycle pipeline. It stores
 only the boundary fields needed to derive a day timeline:
@@ -164,11 +173,12 @@ only the boundary fields needed to derive a day timeline:
 - `EventActualTime?`
 
 Those normalized rows are not the public query contract anymore. The backend
-now builds:
-
-- ordered timeline events
-- backend-owned `activeInterval`
-- raw live vessel state consumed by frontend rendering logic
+now builds one ordered same-day event list for the timeline backbone. When more
+than one `eventsPredicted` row shares the same boundary `Key` (e.g. WSF ETA vs ML),
+`mergeTimelineEvents` picks a single backbone `EventPredictedTime` (WSF ETA row
+first). Trip-shaped queries still expose `Eta` plus ML-hydrated fields separately.
+The client derives `activeInterval` from that backbone and combines it with its
+existing real-time `VesselLocation` subscription for indicator placement.
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
@@ -209,8 +219,9 @@ WSF vessel location ticks
   -> project actual/predicted event updates
 
 Frontend VesselTimeline
-  -> query backend-owned VesselTimeline view model
-  -> derive presentation rows from backend events
+  -> query backend-owned VesselTimeline backbone
+  -> derive active interval locally from ordered events
+  -> combine with live VesselLocation for indicator placement
 ```
 
 ## Error Isolation
@@ -225,15 +236,16 @@ The orchestrator isolates failures at the branch level.
 
 This matters because timeline projection now rides on the trip pipeline’s
 transition logic instead of re-deriving actuals from raw location ticks, and
-the public timeline query now trusts that backend-owned model directly.
+the public timeline query no longer depends on `vesselLocations` reads.
 
 ## Performance Characteristics
 
 The orchestrator keeps external API usage efficient:
 
 - one WSF vessel-location fetch per tick
-- one backend vessel snapshot load per tick
-- one backend terminal snapshot load per tick
+- one internal query per tick for vessels, terminals, and active trips (see
+  `queries.ts`), instead of three separate `runQuery` round trips from the
+  action
 - one converted location batch reused by all downstream consumers
 - one conversion pass over the fetched payload before downstream fan-out
 - concurrent downstream execution instead of serial branch processing
@@ -245,7 +257,7 @@ possible (`upsertVesselTripsBatch` and batched predicted-event sync).
 The timeline projection path is designed to stay lightweight:
 
 - no extra external fetches
-- no frontend-side source merging in the target architecture
+- no live-location dependency in the timeline query
 - updates are keyed to stable event identities derived from the trip segment key
 - unchanged event rows are not rewritten
 
@@ -269,8 +281,20 @@ The timeline projection path is designed to stay lightweight:
 
 - normalized persistence layer for `VesselTimeline`
 - store ordered boundary events for one vessel/day
-- feed the backend-owned row/view-model query
+- feed the backend-owned backbone query
 - are fed by schedule seeding plus trip-driven actual/predicted projection
+
+## Core files
+
+- `actions.ts` — `updateVesselOrchestrator` and passenger-terminal gating helpers
+- `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
+
+Canonical vessel and terminal table refreshes from WSF basics are implemented in
+`convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
+`runSyncBackendVessels` public action, `syncBackendVesselTable` helper) and
+`convex/functions/terminals/actions.ts` (`syncBackendTerminals`,
+`runSyncBackendTerminals`, `syncBackendTerminalTable`). Hourly cron entries for
+those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 

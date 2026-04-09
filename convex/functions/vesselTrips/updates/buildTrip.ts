@@ -3,8 +3,11 @@
  */
 import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import {
   appendArriveDockPredictions,
   appendLeaveDockPredictions,
@@ -35,12 +38,12 @@ import type { TripEvents } from "./eventDetection";
  */
 export const buildTrip = async (
   ctx: ActionCtx,
-  currLocation: ResolvedVesselLocation,
+  currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean
-): Promise<ConvexVesselTrip> => {
+): Promise<ConvexVesselTripWithML> => {
   const effectiveLocation = await resolveEffectiveLocation(
     ctx,
     currLocation,
@@ -61,36 +64,43 @@ export const buildTrip = async (
         ? effectiveLocation.TimeStamp
         : undefined),
   };
+  const withKeyChangeClearedDerivedState = events.keyChanged
+    ? clearDerivedStateOnKeyChange(withArriveDest)
+    : withArriveDest;
 
-  const shouldInferScheduleAtDock =
-    withArriveDest.AtDock && !withArriveDest.LeftDock && !withArriveDest.Key;
-  // Only rerun enrichments when a boundary changed, schedule inference is
-  // still needed at dock, or fallback timing allows it.
-  const shouldAppendFinalSchedule =
-    tripStart || events.keyChanged || shouldInferScheduleAtDock;
+  // Schedule enrichment is key-based only. Docked identity bootstrap now
+  // happens once in `resolveEffectiveLocation`.
+  const shouldAppendFinalSchedule = tripStart || events.keyChanged;
   // At-dock predictions belong only to real dock occupancy for a started trip.
   // This avoids generating model output for first-seen placeholder rows that
   // have not yet observed a trustworthy trip start.
   const shouldAttemptAtDockPredictions =
-    withArriveDest.AtDock &&
-    !withArriveDest.LeftDock &&
-    Boolean(withArriveDest.TripStart) &&
-    (tripStart || shouldRunPredictionFallback) &&
-    (!withArriveDest.AtDockDepartCurr ||
-      !withArriveDest.AtDockArriveNext ||
-      !withArriveDest.AtDockDepartNext);
+    withKeyChangeClearedDerivedState.AtDock &&
+    !withKeyChangeClearedDerivedState.LeftDock &&
+    Boolean(withKeyChangeClearedDerivedState.TripStart) &&
+    (tripStart || events.keyChanged || shouldRunPredictionFallback) &&
+    (!withKeyChangeClearedDerivedState.AtDockDepartCurr ||
+      !withKeyChangeClearedDerivedState.AtDockArriveNext ||
+      !withKeyChangeClearedDerivedState.AtDockDepartNext);
   // At-sea predictions are allowed once a real departure exists. Event ticks
   // trigger them immediately, and the short fallback window gives the system a
   // bounded retry path if that first prediction attempt fails.
   const shouldAttemptAtSeaPredictions =
-    !withArriveDest.AtDock &&
-    Boolean(withArriveDest.LeftDock) &&
-    (events.didJustLeaveDock || shouldRunPredictionFallback) &&
-    (!withArriveDest.AtSeaArriveNext || !withArriveDest.AtSeaDepartNext);
+    !withKeyChangeClearedDerivedState.AtDock &&
+    Boolean(withKeyChangeClearedDerivedState.LeftDock) &&
+    (events.didJustLeaveDock ||
+      events.keyChanged ||
+      shouldRunPredictionFallback) &&
+    (!withKeyChangeClearedDerivedState.AtSeaArriveNext ||
+      !withKeyChangeClearedDerivedState.AtSeaDepartNext);
 
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(ctx, withArriveDest, existingTrip)
-    : withArriveDest;
+    ? await appendFinalSchedule(
+        ctx,
+        withKeyChangeClearedDerivedState,
+        existingTrip
+      )
+    : withKeyChangeClearedDerivedState;
   const withAtDockPredictions = shouldAttemptAtDockPredictions
     ? await appendArriveDockPredictions(ctx, withFinalSchedule)
     : withFinalSchedule;
@@ -102,3 +112,18 @@ export const buildTrip = async (
     ? actualizePredictionsOnLeaveDock(withAtSeaPredictions)
     : withAtSeaPredictions;
 };
+
+const clearDerivedStateOnKeyChange = (
+  trip: ConvexVesselTrip
+): ConvexVesselTrip => ({
+  ...trip,
+  // Key changes represent a new schedule identity, so any carried next-leg
+  // snapshot or prediction state belongs to the previous identity.
+  NextKey: undefined,
+  NextScheduledDeparture: undefined,
+  AtDockDepartCurr: undefined,
+  AtDockArriveNext: undefined,
+  AtDockDepartNext: undefined,
+  AtSeaArriveNext: undefined,
+  AtSeaDepartNext: undefined,
+});

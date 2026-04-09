@@ -9,6 +9,7 @@ import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData
 import type { VesselIdentity } from "../../../shared/vessels";
 import {
   buildSeedVesselTripEventsFromRawSegments,
+  createSeededScheduleSegmentResolver,
   mergeSeededEventsWithHistory,
 } from "../events";
 
@@ -72,7 +73,6 @@ describe("mergeSeededEventsWithHistory", () => {
     ];
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,
@@ -114,7 +114,6 @@ describe("mergeSeededEventsWithHistory", () => {
     );
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -151,7 +150,6 @@ describe("mergeSeededEventsWithHistory", () => {
     );
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -188,7 +186,6 @@ describe("mergeSeededEventsWithHistory", () => {
     );
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -226,7 +223,6 @@ describe("mergeSeededEventsWithHistory", () => {
     );
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -251,7 +247,6 @@ describe("mergeSeededEventsWithHistory", () => {
     const scheduleSegments = [makeRoute14Segment()];
 
     const mergedEvents = mergeSeededEventsWithHistory({
-      sailingDay: "2026-03-18",
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,
@@ -275,6 +270,129 @@ describe("mergeSeededEventsWithHistory", () => {
 
     expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
     expect(mergedEvents[1]?.EventActualTime).toBeUndefined();
+  });
+
+  it("fallback-matches departure when history omits Arriving (CAT-style row)", () => {
+    const scheduleSegments = [makeRoute14Segment()];
+
+    const mergedEvents = mergeSeededEventsWithHistory({
+      seededEvents: buildSeedVesselTripEventsFromRawSegments(
+        scheduleSegments,
+        backendVessels,
+        backendTerminals
+      ),
+      existingEvents: [],
+      scheduleSegments,
+      historyRecords: [
+        makeHistory({
+          Vessel: "Cathlamet",
+          Departing: "Vashon",
+          Arriving: null,
+          ScheduledDepart: at(14, 5),
+          ActualDepart: at(14, 10),
+          EstArrival: undefined,
+        }),
+      ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
+    });
+
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBeUndefined();
+  });
+
+  it("fallback-matches both boundaries when Arriving is null but EstArrival is set", () => {
+    const scheduleSegments = [makeRoute14Segment()];
+
+    const mergedEvents = mergeSeededEventsWithHistory({
+      seededEvents: buildSeedVesselTripEventsFromRawSegments(
+        scheduleSegments,
+        backendVessels,
+        backendTerminals
+      ),
+      existingEvents: [],
+      scheduleSegments,
+      historyRecords: [
+        makeHistory({
+          Vessel: "Cathlamet",
+          Departing: "Vashon",
+          Arriving: null,
+          ScheduledDepart: at(14, 5),
+          ActualDepart: at(14, 10),
+          EstArrival: at(14, 24),
+        }),
+      ],
+      vessels: backendVessels,
+      terminals: backendTerminals,
+    });
+
+    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
+    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
+  });
+});
+
+describe("createSeededScheduleSegmentResolver", () => {
+  const sailingDay = "2026-03-18";
+  const segKeyA = "CAT--2026-03-18--07:05--VAI-FAU";
+
+  /**
+   * Builds minimal dep-dock rows for lookup tests.
+   *
+   * @param rows - Departure rows to include in the seed
+   * @returns Convex timeline event fixtures
+   */
+  const seedDeps = (
+    rows: Array<{
+      segmentKey: string;
+      scheduledMs: number;
+      vessel?: string;
+    }>
+  ): ConvexVesselTimelineEventRecord[] =>
+    rows.flatMap((row) => [
+      {
+        SegmentKey: row.segmentKey,
+        Key: `${row.segmentKey}--dep-dock`,
+        VesselAbbrev: row.vessel ?? "CAT",
+        SailingDay: sailingDay,
+        ScheduledDeparture: row.scheduledMs,
+        TerminalAbbrev: "VAI",
+        EventType: "dep-dock" as const,
+        EventScheduledTime: row.scheduledMs,
+        EventPredictedTime: undefined,
+        EventOccurred: undefined,
+        EventActualTime: undefined,
+      },
+      {
+        SegmentKey: row.segmentKey,
+        Key: `${row.segmentKey}--arv-dock`,
+        VesselAbbrev: row.vessel ?? "CAT",
+        SailingDay: sailingDay,
+        ScheduledDeparture: row.scheduledMs,
+        TerminalAbbrev: "FAU",
+        EventType: "arv-dock" as const,
+        EventScheduledTime: row.scheduledMs,
+        EventPredictedTime: undefined,
+        EventOccurred: undefined,
+        EventActualTime: undefined,
+      },
+    ]);
+
+  it("resolves exact scheduled departure match", () => {
+    const ms = at(14, 5).getTime();
+    const resolve = createSeededScheduleSegmentResolver(
+      seedDeps([{ segmentKey: segKeyA, scheduledMs: ms }])
+    );
+
+    expect(resolve("CAT", at(14, 5))).toBe(segKeyA);
+  });
+
+  it("returns undefined when scheduled departure does not match exactly", () => {
+    const ms = at(14, 5).getTime();
+    const resolve = createSeededScheduleSegmentResolver(
+      seedDeps([{ segmentKey: segKeyA, scheduledMs: ms }])
+    );
+
+    expect(resolve("CAT", at(14, 6))).toBeUndefined();
   });
 });
 

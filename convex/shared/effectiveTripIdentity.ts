@@ -2,8 +2,8 @@
  * Shared effective trip-identity normalization for docked live locations.
  */
 
-import type { ConvexInferredScheduledSegment } from "../functions/eventsScheduled/schemas";
 import type { DockedScheduledSegmentSource } from "../functions/eventsScheduled/dockedScheduleResolver";
+import type { ConvexInferredScheduledSegment } from "../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "../functions/vesselTrips/schemas";
 
@@ -61,8 +61,7 @@ export const hasStableDockedTripIdentity = (
   activeTrip?: TripLike | null
 ) =>
   Boolean(
-    activeTrip &&
-      activeTrip.AtDock &&
+    activeTrip?.AtDock &&
       activeTrip.LeftDock === undefined &&
       location.AtDock &&
       location.LeftDock === undefined &&
@@ -110,7 +109,7 @@ export const resolveEffectiveDockedTripIdentity = ({
     };
   }
 
-  if (scheduledSegment) {
+  if (scheduledSegment && scheduledSegmentSource) {
     return {
       ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
       ScheduledDeparture: scheduledSegment.DepartingTime,
@@ -118,7 +117,7 @@ export const resolveEffectiveDockedTripIdentity = ({
       Key: scheduledSegment.Key,
       NextKey: scheduledSegment.NextKey,
       NextScheduledDeparture: scheduledSegment.NextDepartingTime,
-      source: scheduledSegmentSource ?? "dock_interval",
+      source: scheduledSegmentSource,
       conflictsLiveFeed: conflictsWithLiveIdentity(location, {
         ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
         ScheduledDeparture: scheduledSegment.DepartingTime,

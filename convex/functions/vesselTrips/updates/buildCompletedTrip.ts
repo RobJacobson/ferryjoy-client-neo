@@ -6,8 +6,11 @@
  */
 
 import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 
 /**
@@ -22,8 +25,8 @@ import { calculateTimeDelta } from "shared/durationUtils";
  */
 export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
-  currLocation: ResolvedVesselLocation
-): ConvexVesselTrip => {
+  currLocation: ConvexVesselLocation
+): ConvexVesselTripWithML => {
   const effectiveArrivalTime = getEffectiveArrivalTime(
     existingTrip,
     currLocation.TimeStamp

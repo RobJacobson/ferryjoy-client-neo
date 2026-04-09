@@ -1,13 +1,6 @@
 /**
- * Shared vessel selector and resolver utilities.
+ * Shared vessel resolver utilities against a backend vessel identity snapshot.
  */
-
-import {
-  toVesselAbbrev,
-  toVesselName,
-  type VesselAbbrev,
-  type VesselName,
-} from "./identity";
 
 export type VesselIdentity = {
   VesselID: number;
@@ -15,83 +8,44 @@ export type VesselIdentity = {
   VesselAbbrev: string;
 };
 
-export type ResolvedVessel = {
-  VesselID: number;
-  VesselName: VesselName;
-  VesselAbbrev: VesselAbbrev;
-};
-
-export type VesselSelector =
-  | { VesselAbbrev: string }
-  | { VesselID: number }
-  | { VesselName: string };
-
 /**
- * Resolve a vessel from the backend vessel identity snapshot.
+ * Resolve a vessel by its backend abbreviation (exact match after trim).
  *
- * @param selector - Exactly one vessel identifier field to match
+ * @param abbrev - Known abbreviation string (e.g. from `VesselAbbrev` fields)
  * @param vessels - Backend vessel rows to search
- * @returns Matching vessel row, or `null` when not found
- */
-export const resolveVessel = (
-  selector: VesselSelector,
-  vessels: ReadonlyArray<VesselIdentity>
-): ResolvedVessel | null => {
-  if ("VesselAbbrev" in selector) {
-    return toResolvedVessel(
-      vessels.find((vessel) => vessel.VesselAbbrev === selector.VesselAbbrev) ??
-        null
-    );
-  }
-
-  if ("VesselID" in selector) {
-    return toResolvedVessel(
-      vessels.find((vessel) => vessel.VesselID === selector.VesselID) ?? null
-    );
-  }
-
-  return toResolvedVessel(
-    vessels.find((vessel) => vessel.VesselName === selector.VesselName) ?? null
-  );
-};
-
-/**
- * Resolve a vessel abbreviation from a raw vessel name or abbreviation.
- *
- * @param value - Raw vessel identifier from WSF
- * @param vessels - Backend vessel rows to search
- * @returns Resolved vessel abbreviation, or `null` when not found
+ * @returns Matching vessel abbreviation, or `null` when not found
  */
 export const resolveVesselAbbrev = (
-  value: string,
+  abbrev: string,
   vessels: ReadonlyArray<VesselIdentity>
-): VesselAbbrev | null => {
-  const normalized = value.trim();
+): string | null => {
+  const normalized = abbrev.trim();
 
   if (!normalized) {
     return null;
   }
 
-  return (
-    resolveVessel({ VesselAbbrev: normalized }, vessels)?.VesselAbbrev ??
-    resolveVessel({ VesselName: normalized }, vessels)?.VesselAbbrev ??
-    null
-  );
+  const row = vessels.find((vessel) => vessel.VesselAbbrev === normalized);
+  return row ? row.VesselAbbrev : null;
 };
 
 /**
- * Convert a raw backend vessel row into the branded resolved form.
+ * Resolve a vessel by its backend vessel name (exact match after trim).
  *
- * @param vessel - Raw backend vessel row
- * @returns Branded resolved vessel, or `null` when no row was provided
+ * @param name - Known vessel name string (e.g. WSF `Vessel` / schedule `VesselName`)
+ * @param vessels - Backend vessel rows to search
+ * @returns Matching vessel abbreviation for downstream keys, or `null` when not found
  */
-const toResolvedVessel = (
-  vessel: VesselIdentity | null
-): ResolvedVessel | null =>
-  vessel
-    ? {
-        VesselID: vessel.VesselID,
-        VesselName: toVesselName(vessel.VesselName),
-        VesselAbbrev: toVesselAbbrev(vessel.VesselAbbrev),
-      }
-    : null;
+export const resolveVesselName = (
+  name: string,
+  vessels: ReadonlyArray<VesselIdentity>
+): string | null => {
+  const normalized = name.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const row = vessels.find((vessel) => vessel.VesselName === normalized);
+  return row ? row.VesselAbbrev : null;
+};

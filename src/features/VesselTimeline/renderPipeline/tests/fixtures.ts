@@ -5,9 +5,9 @@
 import type {
   VesselTimelineActiveInterval,
   VesselTimelineEvent,
-  VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/schemas";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
+import type { VesselLocation } from "@/types";
 import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../../config";
 import type { VesselTimelineRow, VesselTimelineRowEvent } from "../../types";
 import type {
@@ -60,6 +60,7 @@ export const makeEvent = (
   EventType: "dep-dock",
   EventScheduledTime: at(8, 0),
   EventPredictedTime: undefined,
+  EventOccurred: undefined,
   EventActualTime: undefined,
   ...overrides,
 });
@@ -212,20 +213,32 @@ export const makeRows = (): VesselTimelineRow[] => [
  * @param overrides - Field overrides for the live-state fixture
  * @returns Live-state fixture
  */
-export const makeLiveState = (
-  overrides: Partial<VesselTimelineLiveState>
-): VesselTimelineLiveState => ({
+export const makeVesselLocation = (
+  overrides: Partial<VesselLocation>
+): VesselLocation => ({
+  VesselID: 1,
   VesselName: "Wenatchee",
   AtDock: false,
   InService: true,
   Speed: 0,
+  Heading: 0,
   DepartingTerminalAbbrev: "P52",
+  DepartingTerminalID: 1,
+  DepartingTerminalName: "Seattle",
   ArrivingTerminalAbbrev: "VAI",
+  ArrivingTerminalID: 2,
+  ArrivingTerminalName: "Vashon Is.",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
   LeftDock: undefined,
   Eta: undefined,
   ScheduledDeparture: at(8, 0),
+  RouteAbbrev: "sea-vai",
+  Latitude: 47.6,
+  Longitude: -122.3,
+  Key: "trip-1",
+  VesselAbbrev: "WEN",
+  VesselPositionNum: 1,
   TimeStamp: at(8, 10),
   ...overrides,
 });
@@ -241,7 +254,7 @@ export const makePipelineInput = (
 ): VesselTimelinePipelineInput => ({
   events: makeEventSlice(),
   activeInterval: null,
-  liveState: null,
+  vesselLocation: null,
   getTerminalNameByAbbrev,
   layout: DEFAULT_VESSEL_TIMELINE_LAYOUT,
   now: at(8, 20),
@@ -264,7 +277,7 @@ export const makePipelineWithRenderRows = ({
   contentHeightPx = 0,
   activeRowIndex = activeRow?.rowIndex ?? -1,
   activeInterval = null,
-  liveState = null,
+  vesselLocation = null,
   now = at(8, 20),
 }: {
   rows?: VesselTimelineRow[];
@@ -275,12 +288,12 @@ export const makePipelineWithRenderRows = ({
   contentHeightPx?: number;
   activeRowIndex?: number;
   activeInterval?: VesselTimelineActiveInterval;
-  liveState?: VesselTimelineLiveState | null;
+  vesselLocation?: VesselLocation | null;
   now?: Date;
 } = {}): VesselTimelinePipelineWithRenderRows => ({
   ...makePipelineInput({
     activeInterval,
-    liveState,
+    vesselLocation,
     now,
   }),
   rows,

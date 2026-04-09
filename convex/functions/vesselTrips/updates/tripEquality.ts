@@ -5,53 +5,93 @@
  * only the tick timestamp has changed.
  */
 
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
+
+const PREDICTION_FIELD_NAMES = [
+  "AtDockDepartCurr",
+  "AtDockArriveNext",
+  "AtDockDepartNext",
+  "AtSeaArriveNext",
+  "AtSeaDepartNext",
+] as const;
+
+/**
+ * Compares only persisted/joined semantics: PredTime, Actual, DeltaTotal.
+ * Ignores ML-only fields (MAE, intervals) on in-memory proposals.
+ */
+const normalizePredictionForEquality = (value: unknown): unknown => {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+  const o = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  if (o.PredTime !== undefined) {
+    out.PredTime = o.PredTime;
+  }
+  if (o.Actual !== undefined) {
+    out.Actual = o.Actual;
+  }
+  if (o.DeltaTotal !== undefined) {
+    out.DeltaTotal = o.DeltaTotal;
+  }
+  return Object.keys(out).length === 0 ? undefined : out;
+};
+
+const isPredictionFieldName = (key: string): boolean =>
+  (PREDICTION_FIELD_NAMES as readonly string[]).includes(key);
+
+/** Top-level trip keys ignored when comparing for write suppression. */
+const IGNORED_TRIP_KEYS = new Set<string>(["TimeStamp"]);
 
 /**
  * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
  *
- * Compares all fields in both directions to detect added/removed fields.
- * Excludes TimeStamp (which changes every tick and is not semantically
- * significant). Deep equality handles nested objects and arrays.
- *
- * Bidirectional comparison ensures new fields in proposed are detected.
+ * Walks the union of keys on both trips so adds/removes on either side are
+ * detected. Skips keys in `IGNORED_TRIP_KEYS` (currently `TimeStamp`).
+ * Prediction fields compare after normalizing to PredTime / Actual / DeltaTotal
+ * so ML-only noise does not force writes.
  *
  * @param existing - Existing trip from database
  * @param proposed - Newly constructed trip
- * @returns true if all non-TimeStamp fields are deeply equal
+ * @returns true if all compared fields are deeply equal
  */
 export const tripsAreEqual = (
   existing: ConvexVesselTrip,
-  proposed: ConvexVesselTrip
-): boolean =>
-  // Compare in both directions to detect added/removed fields
-  compareTripFields(existing, existing, proposed) &&
-  compareTripFields(proposed, existing, proposed);
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean => {
+  const e = existing as Record<string, unknown>;
+  const p = proposed as Record<string, unknown>;
+  const keys = new Set([...Object.keys(e), ...Object.keys(p)]);
 
-/**
- * Compare trip fields between existing and proposed trips, excluding TimeStamp.
- *
- * Checks all keys in the source trip and compares values between
- * existing and proposed trips. Skips TimeStamp field which changes every tick.
- *
- * @param source - Trip whose keys to iterate over
- * @param existing - Existing trip from database
- * @param proposed - Newly constructed trip
- * @returns true if all non-TimeStamp fields match
- */
-const compareTripFields = (
-  source: ConvexVesselTrip,
-  existing: ConvexVesselTrip,
-  proposed: ConvexVesselTrip
-): boolean =>
-  Object.keys(source).every((key) =>
-    key === "TimeStamp"
-      ? true
-      : deepEqual(
-          existing[key as keyof ConvexVesselTrip],
-          proposed[key as keyof ConvexVesselTrip]
+  for (const key of keys) {
+    if (IGNORED_TRIP_KEYS.has(key)) {
+      continue;
+    }
+    const ev = e[key];
+    const pv = p[key];
+    if (isPredictionFieldName(key)) {
+      if (
+        !deepEqual(
+          normalizePredictionForEquality(ev),
+          normalizePredictionForEquality(pv)
         )
-  );
+      ) {
+        return false;
+      }
+      continue;
+    }
+    if (!deepEqual(ev, pv)) {
+      return false;
+    }
+  }
+  return true;
+};
 
 /**
  * Deep equality check for arbitrary values.

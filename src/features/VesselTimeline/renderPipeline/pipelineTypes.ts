@@ -8,7 +8,6 @@
 import type {
   VesselTimelineActiveInterval,
   VesselTimelineEvent,
-  VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/schemas";
 import type {
   RowLayoutBounds,
@@ -17,6 +16,7 @@ import type {
   TimelineRenderRow,
   TimelineVisualTheme,
 } from "@/components/timeline";
+import type { VesselLocation } from "@/types";
 import type { VesselTimelineLayoutConfig, VesselTimelineRow } from "../types";
 
 /**
@@ -25,7 +25,7 @@ import type { VesselTimelineLayoutConfig, VesselTimelineRow } from "../types";
 export type VesselTimelinePipelineInput = {
   events: VesselTimelineEvent[];
   activeInterval: VesselTimelineActiveInterval;
-  liveState: VesselTimelineLiveState | null;
+  vesselLocation: VesselLocation | null;
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
   layout: VesselTimelineLayoutConfig;
   now: Date;

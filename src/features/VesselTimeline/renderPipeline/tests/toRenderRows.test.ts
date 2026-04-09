@@ -59,6 +59,7 @@ describe("toRenderRows", () => {
             EventType: "arv-dock",
             EventScheduledTime: new Date("2026-03-17T22:35:00-07:00"),
             EventPredictedTime: undefined,
+            EventOccurred: undefined,
             EventActualTime: undefined,
           },
           {
@@ -71,6 +72,7 @@ describe("toRenderRows", () => {
             EventType: "dep-dock",
             EventScheduledTime: new Date("2026-03-18T05:00:00-07:00"),
             EventPredictedTime: undefined,
+            EventOccurred: undefined,
             EventActualTime: undefined,
           },
         ],

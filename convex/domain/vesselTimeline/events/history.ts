@@ -7,18 +7,17 @@ import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselT
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { resolveHistoryTerminalAbbrev } from "../../../shared/scheduleIdentity";
-import { getSailingDay } from "../../../shared/time";
 import {
-  resolveVesselAbbrev,
+  resolveVesselName,
   type VesselIdentity,
 } from "../../../shared/vessels";
+import { createSeededScheduleSegmentResolver } from "./scheduleDepartureLookup";
 import { getDirectRawSeedSegments } from "./seed";
 
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
 const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 
 type MergeSeededEventsWithHistoryArgs = {
-  sailingDay: string;
   seededEvents: ConvexVesselTimelineEventRecord[];
   existingEvents: ConvexVesselTimelineEventRecord[];
   scheduleSegments: RawWsfScheduleSegment[];
@@ -38,11 +37,10 @@ type HistoryActualSource = "departure-actual" | "arrival-proxy";
 /**
  * Merges schedule-seeded rows with stored/live state and WSF history actuals.
  *
- * @param args - Sailing day inputs used to enrich the seeded event set
+ * @param args - Seeded events for one sailing day plus history and segment context
  * @returns Seeded events with historical actuals folded in
  */
 export const mergeSeededEventsWithHistory = ({
-  sailingDay,
   seededEvents,
   existingEvents,
   scheduleSegments,
@@ -54,7 +52,7 @@ export const mergeSeededEventsWithHistory = ({
     existingEvents.map((event) => [event.Key, event])
   );
   const historyActualsByEventKey = getHistoryActualsByEventKey({
-    sailingDay,
+    seededEvents,
     scheduleSegments,
     historyRecords,
     vessels,
@@ -72,6 +70,8 @@ export const mergeSeededEventsWithHistory = ({
 
     return {
       ...event,
+      EventOccurred:
+        mergedActualTime !== undefined ? true : existingEvent?.EventOccurred,
       EventActualTime: mergedActualTime,
       EventPredictedTime:
         mergedActualTime === undefined
@@ -84,17 +84,17 @@ export const mergeSeededEventsWithHistory = ({
 /**
  * Builds a lookup of historical actual timestamps by stable event key.
  *
- * @param args - Sailing day inputs required to align history rows to events
+ * @param args - Seeded events and context required to align history rows to events
  * @returns Event-keyed map of actual timestamps from vessel history
  */
 const getHistoryActualsByEventKey = ({
-  sailingDay,
+  seededEvents,
   scheduleSegments,
   historyRecords,
   vessels,
   terminals,
 }: {
-  sailingDay: string;
+  seededEvents: ConvexVesselTimelineEventRecord[];
   scheduleSegments: RawWsfScheduleSegment[];
   historyRecords: VesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
@@ -105,34 +105,60 @@ const getHistoryActualsByEventKey = ({
       (segment) => [segment.Key, segment]
     )
   );
+  const resolveSegmentFromSeededSchedule =
+    createSeededScheduleSegmentResolver(seededEvents);
+
   return historyRecords.reduce((actualsByEventKey, record) => {
-    const normalizedRecord = normalizeHistoryRecord(
+    const actualDeparture = record.ActualDepart?.getTime();
+    const arrivalProxy = record.EstArrival?.getTime();
+    const vesselRaw = record.Vessel ? String(record.Vessel).trim() : "";
+    const vesselAbbrev = resolveVesselName(vesselRaw, vessels);
+
+    const strictRecord = normalizeHistoryRecordStrict(
       record,
-      sailingDay,
       vessels,
       terminals
     );
-    if (!normalizedRecord) {
+
+    let tripKey: string | undefined;
+
+    if (strictRecord && directSegmentsByTripKey.has(strictRecord.tripKey)) {
+      tripKey = strictRecord.tripKey;
+    }
+
+    if (tripKey === undefined) {
+      const scheduledDepartRaw = record.ScheduledDepart ?? undefined;
+      if (
+        scheduledDepartRaw &&
+        vesselAbbrev !== null &&
+        (actualDeparture !== undefined || arrivalProxy !== undefined)
+      ) {
+        const fallbackKey = resolveSegmentFromSeededSchedule(
+          vesselAbbrev,
+          scheduledDepartRaw
+        );
+        if (
+          fallbackKey !== undefined &&
+          directSegmentsByTripKey.has(fallbackKey)
+        ) {
+          tripKey = fallbackKey;
+        }
+      }
+    }
+
+    if (tripKey === undefined) {
       return actualsByEventKey;
     }
 
-    const directSegment = directSegmentsByTripKey.get(normalizedRecord.tripKey);
-    if (!directSegment) {
-      return actualsByEventKey;
+    const departureEventKey = buildBoundaryKey(tripKey, "dep-dock");
+    const arrivalEventKey = buildBoundaryKey(tripKey, "arv-dock");
+
+    if (actualDeparture !== undefined) {
+      actualsByEventKey.set(departureEventKey, actualDeparture);
     }
 
-    const departureEventKey = buildBoundaryKey(directSegment.Key, "dep-dock");
-    const arrivalEventKey = buildBoundaryKey(directSegment.Key, "arv-dock");
-
-    if (normalizedRecord.actualDeparture !== undefined) {
-      actualsByEventKey.set(
-        departureEventKey,
-        normalizedRecord.actualDeparture
-      );
-    }
-
-    if (normalizedRecord.arrivalProxy !== undefined) {
-      actualsByEventKey.set(arrivalEventKey, normalizedRecord.arrivalProxy);
+    if (arrivalProxy !== undefined) {
+      actualsByEventKey.set(arrivalEventKey, arrivalProxy);
     }
 
     return actualsByEventKey;
@@ -140,15 +166,16 @@ const getHistoryActualsByEventKey = ({
 };
 
 /**
- * Normalizes one WSF vessel history row into the trip-keyed merge shape.
+ * Strict normalization: full terminal resolution and segment key from history.
+ * Rows are assumed to belong to the merge’s sailing day (API date filter).
  *
  * @param record - Raw vessel history row from WSF
- * @param sailingDay - Sailing day currently being enriched
- * @returns Normalized history record or `null` when it cannot be matched
+ * @param vessels - Backend vessel identities
+ * @param terminals - Backend terminal identities
+ * @returns Trip key and timestamps, or `null` when history cannot form a key
  */
-const normalizeHistoryRecord = (
+const normalizeHistoryRecordStrict = (
   record: VesselHistory,
-  sailingDay: string,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): NormalizedHistoryRecord | null => {
@@ -156,12 +183,12 @@ const normalizeHistoryRecord = (
   const actualDeparture = record.ActualDepart?.getTime();
   const arrivalProxy = record.EstArrival?.getTime();
   const vesselRaw = record.Vessel ? String(record.Vessel).trim() : "";
-  const vesselAbbrev = normalizeVesselAbbrev(vesselRaw, vessels);
-  const departingTerminalAbbrev = normalizeTerminalAbbrev(
+  const vesselAbbrev = resolveVesselName(vesselRaw, vessels);
+  const departingTerminalAbbrev = resolveHistoryTerminalAbbrev(
     record.Departing ?? "",
     terminals
   );
-  const arrivingTerminalAbbrev = normalizeTerminalAbbrev(
+  const arrivingTerminalAbbrev = resolveHistoryTerminalAbbrev(
     record.Arriving ?? "",
     terminals
   );
@@ -169,10 +196,9 @@ const normalizeHistoryRecord = (
   if (
     !scheduledDepart ||
     (actualDeparture === undefined && arrivalProxy === undefined) ||
-    !vesselAbbrev ||
-    !departingTerminalAbbrev ||
-    !arrivingTerminalAbbrev ||
-    getSailingDay(scheduledDepart) !== sailingDay
+    vesselAbbrev === null ||
+    departingTerminalAbbrev === null ||
+    arrivingTerminalAbbrev === null
   ) {
     return null;
   }
@@ -194,23 +220,6 @@ const normalizeHistoryRecord = (
     arrivalProxy,
   };
 };
-
-const normalizeVesselAbbrev = (
-  vesselRaw: string,
-  vessels: ReadonlyArray<VesselIdentity>
-) => resolveVesselAbbrev(vesselRaw, vessels) || "";
-
-/**
- * Normalizes a terminal name into the abbreviation used by schedule data.
- *
- * @param terminalName - Raw terminal name from WSF history
- * @param terminals - Backend terminal identity rows
- * @returns Terminal abbreviation or an empty string when unresolved
- */
-const normalizeTerminalAbbrev = (
-  terminalName: string,
-  terminals: ReadonlyArray<TerminalIdentity>
-) => resolveHistoryTerminalAbbrev(terminalName, terminals) || "";
 
 /**
  * Chooses between an existing stored actual and a history-derived actual.

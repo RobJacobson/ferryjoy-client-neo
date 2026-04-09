@@ -8,10 +8,11 @@ import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import { getSailingDay } from "../../../shared/time";
 import type { VesselIdentity } from "../../../shared/vessels";
 import {
   applyLiveLocationToEvents,
-  getLocationSailingDay,
+  buildActualBoundaryPatchesFromLocation,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "../events/liveUpdates";
@@ -615,14 +616,133 @@ describe("applyLiveLocationToEvents", () => {
   });
 });
 
-describe("getLocationSailingDay", () => {
+describe("buildActualBoundaryPatchesFromLocation", () => {
+  it("emits a sparse departure effect when the vessel is already underway", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+    ]);
+
+    const effects = buildActualBoundaryPatchesFromLocation(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 35),
+        TimeStamp: at(8, 50),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: undefined,
+      })
+    );
+
+    expect(effects).toEqual([
+      {
+        SegmentKey: seededEvents[0]?.SegmentKey,
+        VesselAbbrev: "TOK",
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: at(8, 35),
+        TerminalAbbrev: "P52",
+        EventType: "dep-dock",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      },
+    ]);
+  });
+
+  it("emits a sparse arrival effect when the vessel is already docked at the next terminal", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        DepartingTime: at(9, 20),
+        SchedArriveNext: at(9, 55),
+      }),
+    ]);
+
+    const effects = buildActualBoundaryPatchesFromLocation(
+      seededEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        ScheduledDeparture: at(9, 20),
+        TimeStamp: at(9, 18),
+        AtDock: true,
+        Speed: 0,
+      })
+    );
+
+    expect(effects).toEqual([
+      {
+        SegmentKey: seededEvents[1]?.SegmentKey,
+        VesselAbbrev: "TOK",
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: at(8, 35),
+        TerminalAbbrev: "BBI",
+        EventType: "arv-dock",
+        EventOccurred: true,
+        EventActualTime: undefined,
+      },
+    ]);
+  });
+
+  it("does not emit duplicate effects for boundaries already marked in the timeline", () => {
+    const seededEvents = buildSeedVesselTripEvents([
+      makeTrip({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      }),
+    ]);
+    const occurredEvents = seededEvents.map((event, index) =>
+      index === 0 ? { ...event, EventOccurred: true } : event
+    );
+
+    const effects = buildActualBoundaryPatchesFromLocation(
+      occurredEvents,
+      makeLocation({
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        ScheduledDeparture: at(8, 35),
+        TimeStamp: at(8, 50),
+        AtDock: false,
+        Speed: 12,
+        LeftDock: undefined,
+      })
+    );
+
+    expect(effects).toEqual([]);
+  });
+});
+
+describe("location sailing day (ScheduledDeparture vs TimeStamp)", () => {
   it("prefers ScheduledDeparture when present", () => {
     const location = makeLocation({
       ScheduledDeparture: at(8, 35),
       TimeStamp: Date.UTC(2026, 2, 14, 8, 30),
     });
 
-    expect(getLocationSailingDay(location)).toBe("2026-03-13");
+    expect(
+      getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp))
+    ).toBe("2026-03-13");
   });
 
   it("falls back to TimeStamp when ScheduledDeparture is missing", () => {
@@ -631,7 +751,9 @@ describe("getLocationSailingDay", () => {
       TimeStamp: Date.UTC(2026, 2, 14, 10, 30),
     });
 
-    expect(getLocationSailingDay(location)).toBe("2026-03-14");
+    expect(
+      getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp))
+    ).toBe("2026-03-14");
   });
 });
 
@@ -874,6 +996,7 @@ const makeEvent = (
   TerminalAbbrev: "P52",
   EventType: "dep-dock" as const,
   EventScheduledTime: at(8, 35),
+  EventOccurred: undefined,
   EventPredictedTime: undefined,
   EventActualTime: undefined,
   ...overrides,

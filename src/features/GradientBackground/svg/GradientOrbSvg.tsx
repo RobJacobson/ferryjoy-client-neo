@@ -3,11 +3,7 @@
  */
 
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
-
-type GradientStop = {
-  position: number;
-  alpha: number;
-};
+import { gradientBackgroundConfig } from "../config";
 
 type GradientOrbSvgProps = {
   color: string;
@@ -15,14 +11,6 @@ type GradientOrbSvgProps = {
   orbRadiusPx: number;
   orbitRadiusPx: number;
 };
-
-const GRADIENT_ORB_STOPS: readonly GradientStop[] = [
-  { position: 0, alpha: 1 },
-  { position: 0.25, alpha: 0.9 },
-  { position: 0.5, alpha: 0.6 },
-  { position: 0.75, alpha: 0.2 },
-  { position: 1, alpha: 0 },
-];
 
 /**
  * Draws one soft orb using `RadialGradient` stops, a circular shape, and
@@ -40,29 +28,28 @@ export const GradientOrbSvg = ({
   orbRadiusPx,
   orbitRadiusPx,
 }: GradientOrbSvgProps) => {
-  const renderRadiusPx = orbRadiusPx;
-  const renderSizePx = renderRadiusPx * 2;
+  const sizePx = orbRadiusPx * 2;
 
   return (
     <Svg
-      width={renderSizePx}
-      height={renderSizePx}
+      width={sizePx}
+      height={sizePx}
       style={{
-        left: -renderRadiusPx,
+        left: -orbRadiusPx,
         position: "absolute",
-        top: -renderRadiusPx,
+        top: -orbRadiusPx,
         transform: [{ translateX: orbitRadiusPx }],
       }}
     >
       <Defs>
         <RadialGradient
           id={gradientId}
-          cx={renderRadiusPx}
-          cy={renderRadiusPx}
+          cx={orbRadiusPx}
+          cy={orbRadiusPx}
           r={orbRadiusPx}
           gradientUnits="userSpaceOnUse"
         >
-          {GRADIENT_ORB_STOPS.map((stop) => (
+          {gradientBackgroundConfig.orb.gradientStops.map((stop) => (
             <Stop
               key={`${gradientId}-${stop.position}-${stop.alpha}`}
               offset={`${stop.position * 100}%`}
@@ -73,8 +60,8 @@ export const GradientOrbSvg = ({
         </RadialGradient>
       </Defs>
       <Circle
-        cx={renderRadiusPx}
-        cy={renderRadiusPx}
+        cx={orbRadiusPx}
+        cy={orbRadiusPx}
         r={orbRadiusPx}
         fill={`url(#${gradientId})`}
       />

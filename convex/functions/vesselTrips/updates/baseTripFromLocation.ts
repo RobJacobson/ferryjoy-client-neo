@@ -7,8 +7,11 @@
  * updates.
  */
 
-import type { ResolvedVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import {
   type DerivedTripInputs,
@@ -25,10 +28,10 @@ import {
  * @returns Location-derived trip state before schedule and prediction enrichments
  */
 export const baseTripFromLocation = (
-  currLocation: ResolvedVesselLocation,
+  currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
-): ConvexVesselTrip => {
+): ConvexVesselTripWithML => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const tripMode = determineBaseTripMode(
     existingTrip,
@@ -53,10 +56,10 @@ export const baseTripFromLocation = (
  * @returns Base trip for a newly started trip
  */
 const baseTripForStart = (
-  currLocation: ResolvedVesselLocation,
+  currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
-): ConvexVesselTrip => {
+): ConvexVesselTripWithML => {
   // The next trip begins at the same observed boundary where the previous trip ended.
   const tripStartTime = existingTrip?.TripEnd;
 
@@ -104,10 +107,10 @@ const baseTripForStart = (
  * @returns Base trip for a continuing or first-seen trip
  */
 const baseTripForContinuing = (
-  currLocation: ResolvedVesselLocation,
+  currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
-): ConvexVesselTrip => {
+): ConvexVesselTripWithML => {
   // Preserve the first recorded arrival/start timestamps across later ticks.
   const arriveDestTime = existingTrip?.ArriveDest;
   const tripStartTime = existingTrip?.TripStart;

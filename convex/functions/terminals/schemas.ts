@@ -4,7 +4,6 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import type { TerminalAbbrev, TerminalName } from "../../shared/identity";
 
 export const terminalSchema = v.object({
   TerminalID: v.number(),
@@ -17,11 +16,3 @@ export const terminalSchema = v.object({
 });
 
 export type Terminal = Infer<typeof terminalSchema>;
-
-export type ResolvedTerminalRecord = Omit<
-  Terminal,
-  "TerminalName" | "TerminalAbbrev"
-> & {
-  TerminalName: TerminalName;
-  TerminalAbbrev: TerminalAbbrev;
-};

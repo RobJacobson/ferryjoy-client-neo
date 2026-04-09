@@ -5,9 +5,9 @@
 import type {
   VesselTimelineActiveInterval,
   VesselTimelineEvent,
-  VesselTimelineLiveState,
 } from "convex/functions/vesselTimeline/schemas";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
+import type { VesselLocation } from "@/types";
 import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../config";
 import type {
   VesselTimelineLayoutConfig,
@@ -28,8 +28,8 @@ import { toTimelineRenderState } from "./toTimelineRenderState";
  *
  * @param args - Event-first render inputs
  * @param args.events - Ordered backend timeline events for one vessel/day
- * @param args.activeInterval - Backend-owned active interval
- * @param args.liveState - Raw live vessel state for indicator copy and motion
+ * @param args.activeInterval - Client-derived active interval
+ * @param args.vesselLocation - Raw live vessel location for indicator copy and motion
  * @param args.getTerminalNameByAbbrev - Terminal-name lookup for display copy
  * @param args.layout - Optional feature layout override
  * @param args.now - Optional wall clock override
@@ -39,7 +39,7 @@ import { toTimelineRenderState } from "./toTimelineRenderState";
 export const getVesselTimelineRenderState = ({
   events,
   activeInterval,
-  liveState,
+  vesselLocation,
   getTerminalNameByAbbrev,
   layout = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   now = new Date(),
@@ -47,7 +47,7 @@ export const getVesselTimelineRenderState = ({
 }: {
   events: VesselTimelineEvent[];
   activeInterval: VesselTimelineActiveInterval;
-  liveState: VesselTimelineLiveState | null;
+  vesselLocation: VesselLocation | null;
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
   layout?: VesselTimelineLayoutConfig;
   now?: Date;
@@ -56,7 +56,7 @@ export const getVesselTimelineRenderState = ({
   const input = {
     events,
     activeInterval,
-    liveState,
+    vesselLocation,
     getTerminalNameByAbbrev,
     layout,
     now,

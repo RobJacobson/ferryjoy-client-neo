@@ -6,7 +6,6 @@ import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
   modelConfigSchema,
   modelParametersSchema,
-  predictionRecordSchema,
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { terminalSchema } from "functions/terminals/schemas";
@@ -18,7 +17,7 @@ import {
   vesselPingValidationSchema,
 } from "functions/vesselPings/schemas";
 import { vesselSchema } from "functions/vessels/schemas";
-import { vesselTripSchema } from "functions/vesselTrips/schemas";
+import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
   vessels: defineTable(vesselSchema)
@@ -37,12 +36,12 @@ export default defineSchema({
   ),
 
   // Active vessel trips - currently in progress, one per vessel
-  activeVesselTrips: defineTable(vesselTripSchema)
+  activeVesselTrips: defineTable(vesselTripStoredSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_route_abbrev", ["RouteAbbrev"]),
 
   // Completed vessel trips - finished trips with full trip data
-  completedVesselTrips: defineTable(vesselTripSchema)
+  completedVesselTrips: defineTable(vesselTripStoredSchema)
     .index("by_vessel_and_trip_end", ["VesselAbbrev", "TripEnd"])
     .index("by_vessel_abbrev_and_sailing_day", ["VesselAbbrev", "SailingDay"])
     .index("by_sailing_day_and_departing_terminal", [
@@ -114,6 +113,11 @@ export default defineSchema({
   eventsPredicted: defineTable(eventsPredictedSchema)
     .index("by_key", ["Key"])
     .index("by_key_and_prediction_type", ["Key", "PredictionType"])
+    .index("by_key_type_and_source", [
+      "Key",
+      "PredictionType",
+      "PredictionSource",
+    ])
     .index("by_sailing_day", ["SailingDay"])
     .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 
@@ -122,11 +126,6 @@ export default defineSchema({
     .index("by_pair_and_type", ["pairKey", "modelType"])
     .index("by_pair_type_tag", ["pairKey", "modelType", "versionTag"])
     .index("by_version_tag", ["versionTag"]),
-
-  // Completed ML predictions - one row per completed prediction
-  predictions: defineTable(predictionRecordSchema)
-    .index("by_key", ["Key"])
-    .index("by_key_and_type", ["Key", "PredictionType"]),
 
   // ML configuration - DEPRECATED, use keyValueStore instead
   // Kept temporarily for migration - remove after running migration
