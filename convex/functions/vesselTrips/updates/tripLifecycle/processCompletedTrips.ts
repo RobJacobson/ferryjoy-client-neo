@@ -2,39 +2,23 @@
  * Completed-trip processing for vessel trip updates.
  *
  * Handles trip-boundary transitions outside the top-level orchestrator while
- * preserving atomic persistence and boundary projection behavior.
+ * preserving atomic persistence. Overlay payloads are built in
+ * `timelineProjectionProjector` from returned facts.
  */
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
-} from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithML,
-} from "functions/vesselTrips/schemas";
-import {
-  buildArrivalActualPatchForTrip,
-  buildDepartureActualPatchForTrip,
-} from "../actualBoundaryPatchesFromTrip";
-import { buildCompletedTrip } from "../buildCompletedTrip";
-import { buildTrip } from "../buildTrip";
-import type { TripEvents } from "../eventDetection";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { CompletedTripProjectionFact } from "../projection/projectionContracts";
+import { buildCompletedTrip } from "./buildCompletedTrip";
+import { buildTrip } from "./buildTrip";
+import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip;
   events: TripEvents;
-};
-
-type ProjectionResults = {
-  actualPatches: ConvexActualBoundaryPatch[];
-  predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
 export type ProcessCompletedTripsDeps = {
@@ -55,7 +39,7 @@ const DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS: ProcessCompletedTripsDeps = {
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param logVesselProcessingError - Error logger owned by the top-level updater
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Projection payloads derived from successfully processed boundaries
+ * @returns Projection facts for successful boundaries (empty for failures)
  */
 export const processCompletedTrips = async (
   ctx: ActionCtx,
@@ -67,7 +51,7 @@ export const processCompletedTrips = async (
     error: unknown
   ) => void,
   deps: ProcessCompletedTripsDeps = DEFAULT_PROCESS_COMPLETED_TRIPS_DEPS
-): Promise<ProjectionResults> => {
+): Promise<CompletedTripProjectionFact[]> => {
   const settledResults = await Promise.allSettled(
     completedTrips.map((transition) =>
       processCompletedTripTransition(
@@ -83,7 +67,7 @@ export const processCompletedTrips = async (
     completedTrips,
     settledResults,
     logVesselProcessingError
-  ).reduce(mergeProjectionResults, createEmptyProjectionResults());
+  );
 };
 
 /**
@@ -93,14 +77,14 @@ export const processCompletedTrips = async (
  * @param transition - Trip-boundary transition for one vessel
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Boundary projection payloads derived from the persisted trips
+ * @returns Single fact for overlay projection after persistence
  */
 const processCompletedTripTransition = async (
   ctx: ActionCtx,
   transition: CompletedTripTransition,
   shouldRunPredictionFallback: boolean,
   deps: ProcessCompletedTripsDeps
-): Promise<ProjectionResults> => {
+): Promise<CompletedTripProjectionFact> => {
   const { existingTrip, currLocation, events } = transition;
   const tripToComplete = deps.buildCompletedTrip(existingTrip, currLocation);
   const newTrip = await deps.buildTrip(
@@ -120,26 +104,30 @@ const processCompletedTripTransition = async (
     }
   );
 
-  return buildCompletedTripEffects(existingTrip, tripToComplete, newTrip);
+  return {
+    existingTrip,
+    tripToComplete,
+    newTrip,
+  };
 };
 
 /**
- * Convert settled per-vessel results into successful projection payloads.
+ * Convert settled per-vessel results into successful projection facts.
  *
  * @param completedTrips - Original transition list
  * @param settledResults - Settled results in input order
  * @param logVesselProcessingError - Error logger owned by the top-level updater
- * @returns Successful projection results only
+ * @returns Successful facts only
  */
 const normalizeCompletedTripResults = (
   completedTrips: CompletedTripTransition[],
-  settledResults: PromiseSettledResult<ProjectionResults>[],
+  settledResults: PromiseSettledResult<CompletedTripProjectionFact>[],
   logVesselProcessingError: (
     vesselAbbrev: string,
     phase: string,
     error: unknown
   ) => void
-): ProjectionResults[] =>
+): CompletedTripProjectionFact[] =>
   settledResults.flatMap((result, index) => {
     if (result.status === "fulfilled") {
       return [result.value];
@@ -153,53 +141,3 @@ const normalizeCompletedTripResults = (
     );
     return [];
   });
-
-/**
- * Build boundary projection payloads from the completed and replacement trips.
- *
- * @param existingTrip - Previously persisted active trip being replaced
- * @param tripToComplete - Finalized completed trip
- * @param newTrip - Replacement active trip
- * @returns Actual patches and predicted effects for downstream projection
- */
-const buildCompletedTripEffects = (
-  existingTrip: ConvexVesselTrip,
-  tripToComplete: ConvexVesselTripWithML,
-  newTrip: ConvexVesselTripWithML
-): ProjectionResults => ({
-  actualPatches: [
-    buildDepartureActualPatchForTrip(tripToComplete),
-    buildArrivalActualPatchForTrip(tripToComplete),
-  ].filter((patch): patch is ConvexActualBoundaryPatch => Boolean(patch)),
-  predictedEffects: [
-    buildPredictedBoundaryClearEffect(existingTrip),
-    buildPredictedBoundaryProjectionEffect(newTrip),
-  ].filter((effect): effect is ConvexPredictedBoundaryProjectionEffect =>
-    Boolean(effect)
-  ),
-});
-
-/**
- * Merge one projection result into the accumulator.
- *
- * @param accumulated - Running projection accumulator
- * @param next - One successful per-vessel projection result
- * @returns Merged projection result
- */
-const mergeProjectionResults = (
-  accumulated: ProjectionResults,
-  next: ProjectionResults
-): ProjectionResults => ({
-  actualPatches: [...accumulated.actualPatches, ...next.actualPatches],
-  predictedEffects: [...accumulated.predictedEffects, ...next.predictedEffects],
-});
-
-/**
- * Create an empty projection accumulator.
- *
- * @returns Empty projection result object
- */
-const createEmptyProjectionResults = (): ProjectionResults => ({
-  actualPatches: [],
-  predictedEffects: [],
-});

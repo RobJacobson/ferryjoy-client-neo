@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { resolveEffectiveLocation } from "../effectiveLocation";
+import { resolveEffectiveLocation } from "../tripLifecycle/resolveEffectiveLocation";
 
 describe("resolveEffectiveLocation", () => {
   it("reuses the active trip identity without schedule lookups on steady-state docked ticks", async () => {

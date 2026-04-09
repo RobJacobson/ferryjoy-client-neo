@@ -69,6 +69,11 @@ export const getActiveTripsByRoute = query({
  * Small dataset, frequently updated, perfect for real-time subscriptions
  * Optimized with proper indexing for performance
  *
+ * Returns **hydrated** trips (`hydrateStoredTripsWithPredictions`) for API
+ * parity with joined `eventsPredicted` fields. `processVesselTrips` loads this
+ * query only when the caller does not pass a preloaded list (orchestrator uses
+ * storage-native rows from `getOrchestratorTickReadModelInternal` instead).
+ *
  * @param ctx - Convex context
  * @returns Array of active vessel trips (schema shape, no _id/_creationTime)
  */

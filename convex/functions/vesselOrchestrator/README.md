@@ -56,9 +56,10 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- load backend vessel rows, terminal rows, and `activeVesselTrips` in **one**
-  internal query per tick (`getOrchestratorTickReadModelInternal` in
-  `queries.ts`), with identity-table bootstrap via `syncBackendVesselTable` /
+- load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips`
+  in **one** internal query per tick (`getOrchestratorTickReadModelInternal` in
+  `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still hydrates
+  for API subscribers), with identity-table bootstrap via `syncBackendVesselTable` /
   `syncBackendTerminalTable` when either snapshot is empty
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
@@ -126,11 +127,13 @@ This table can therefore contain both:
 Purpose:
 
 - maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state;
-  ML boundary predictions live in `eventsPredicted`, and the orchestrator read
-  model **hydrates** active trips before `processVesselTrips` so builders see the
-  same joined prediction fields as public queries. Post-upsert depart-next
-  backfill writes **actuals** onto the prior leg’s `eventsPredicted` rows, not
-  onto stored trip rows.
+  ML boundary predictions live in `eventsPredicted`. The orchestrator passes
+  **storage-native** active trips into `processVesselTrips` (joined predictions are
+  not required for lifecycle strip/compare; projection uses normalized prediction
+  fields from the built trip vs existing when present). Public queries still
+  **hydrate** trips for API parity. Post-upsert depart-next backfill writes
+  **actuals** onto the prior leg’s `eventsPredicted` rows, not onto stored trip
+  rows.
 
 This remains the richer state machine responsible for trip lifecycle tracking,
 ML inference (in memory, then projected), and event-driven trip transitions. Inside that module, event

@@ -1,14 +1,18 @@
 /**
- * Shared utility helpers for vessel-trip updates.
+ * Lifecycle vs projection trip equality for write suppression.
  *
- * Provides the deep equality checks used to avoid rewriting active trips when
- * only the tick timestamp has changed.
+ * **Public:** `tripsEqualForStorage` (strip-shaped persisted columns) and
+ * `tripsEqualForOverlay` (normalized prediction fields for timeline overlays).
+ * When `existing` is undefined, both return false (no baseline row). Callers
+ * that need “should we upsert / refresh?” use `!tripsEqualForStorage` /
+ * `!tripsEqualForOverlay`.
  */
 
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
+import { stripTripPredictionsForStorage } from "functions/vesselTrips/stripTripForStorage";
 
 const PREDICTION_FIELD_NAMES = [
   "AtDockDepartCurr",
@@ -50,18 +54,59 @@ const isPredictionFieldName = (key: string): boolean =>
 const IGNORED_TRIP_KEYS = new Set<string>(["TimeStamp"]);
 
 /**
- * Deep equality for ConvexVesselTrip objects, excluding TimeStamp.
+ * Deep equality on stored trip shape: ML prediction blobs stripped, `TimeStamp`
+ * ignored. Used to decide whether `activeVesselTrips` needs an upsert this tick.
  *
- * Walks the union of keys on both trips so adds/removes on either side are
- * detected. Skips keys in `IGNORED_TRIP_KEYS` (currently `TimeStamp`).
- * Prediction fields compare after normalizing to PredTime / Actual / DeltaTotal
- * so ML-only noise does not force writes.
+ * @param existing - Existing trip (possibly hydrated; stripped before compare)
+ * @param proposed - Built trip for this tick
+ * @returns true when persisted columns would be unchanged
+ */
+const lifecycleTripsEqual = (
+  existing: ConvexVesselTrip,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean => {
+  const e = stripTripPredictionsForStorage(
+    existing as ConvexVesselTripWithML
+  ) as Record<string, unknown>;
+  const p = stripTripPredictionsForStorage(
+    proposed as ConvexVesselTripWithML
+  ) as Record<string, unknown>;
+  const keys = new Set([...Object.keys(e), ...Object.keys(p)]);
+
+  for (const key of keys) {
+    if (IGNORED_TRIP_KEYS.has(key)) {
+      continue;
+    }
+    if (!deepEqual(e[key], p[key])) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * True when the persisted-row (strip-shaped) view of `proposed` matches `existing`.
+ *
+ * Returns false when `existing` is undefined (no stored row to match).
+ *
+ * @param existing - Previously persisted active trip, if any
+ * @param proposed - Newly built trip state for this tick
+ */
+export const tripsEqualForStorage = (
+  existing: ConvexVesselTrip | undefined,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean => existing !== undefined && lifecycleTripsEqual(existing, proposed);
+
+/**
+ * Deep equality for timeline overlay semantics (eventsActual / eventsPredicted),
+ * excluding `TimeStamp`. Prediction fields normalize to PredTime / Actual /
+ * DeltaTotal so ML-only noise does not force refresh.
  *
  * @param existing - Existing trip from database
  * @param proposed - Newly constructed trip
- * @returns true if all compared fields are deeply equal
+ * @returns true if overlay-relevant fields are deeply equal
  */
-export const tripsAreEqual = (
+const overlayTripsEqual = (
   existing: ConvexVesselTrip,
   proposed: ConvexVesselTrip | ConvexVesselTripWithML
 ): boolean => {
@@ -94,6 +139,20 @@ export const tripsAreEqual = (
 };
 
 /**
+ * True when the overlay-relevant view of `proposed` matches `existing`
+ * (normalized prediction fields).
+ *
+ * Returns false when `existing` is undefined (no baseline for overlay diff).
+ *
+ * @param existing - Previously persisted active trip, if any
+ * @param proposed - Newly built trip state for this tick
+ */
+export const tripsEqualForOverlay = (
+  existing: ConvexVesselTrip | undefined,
+  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+): boolean => existing !== undefined && overlayTripsEqual(existing, proposed);
+
+/**
  * Deep equality check for arbitrary values.
  *
  * Handles primitives, arrays, objects, undefined, and null. undefined === undefined
@@ -103,7 +162,7 @@ export const tripsAreEqual = (
  * @param b - Second value to compare
  * @returns true if values are deeply equal
  */
-export const deepEqual = (a: unknown, b: unknown): boolean => {
+const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
 
   if (a == null || b == null) return false;

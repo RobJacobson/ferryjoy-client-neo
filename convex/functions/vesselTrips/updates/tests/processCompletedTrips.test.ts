@@ -5,11 +5,12 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { TripEvents } from "../eventDetection";
+import { buildProjectionBatchFromCompletedFacts } from "../projection/timelineProjectionProjector";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
-} from "../processVesselTrips/processCompletedTrips";
+} from "../tripLifecycle/processCompletedTrips";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -42,7 +43,7 @@ describe("processCompletedTrips", () => {
     const loggedErrors: Array<{ vesselAbbrev: string; phase: string }> = [];
     const ctx = createTestActionCtx();
 
-    const result = await processCompletedTrips(
+    const facts = await processCompletedTrips(
       ctx as never,
       [
         {
@@ -64,6 +65,8 @@ describe("processCompletedTrips", () => {
         newTripsByVessel: new Map([["CHE", newTrip]]),
       })
     );
+
+    const result = buildProjectionBatchFromCompletedFacts(facts);
 
     expect(loggedErrors).toHaveLength(0);
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
@@ -91,7 +94,7 @@ describe("processCompletedTrips", () => {
     const ctx = createTestActionCtx();
     const loggedErrors: Array<{ vesselAbbrev: string; phase: string }> = [];
 
-    const result = await processCompletedTrips(
+    const facts = await processCompletedTrips(
       ctx as never,
       [
         {
@@ -150,6 +153,8 @@ describe("processCompletedTrips", () => {
         buildFailuresByVessel: new Map([["TAC", new Error("boom")]]),
       })
     );
+
+    const result = buildProjectionBatchFromCompletedFacts(facts);
 
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"

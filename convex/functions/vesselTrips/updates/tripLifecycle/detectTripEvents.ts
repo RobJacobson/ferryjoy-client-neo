@@ -1,28 +1,11 @@
 /**
- * Event detection module for vessel trips.
- *
- * Centralizes all trip event detection logic to avoid scattering
- * detection logic across multiple files.
+ * Centralized trip event detection for vessel updates.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
-
-/**
- * Result of trip event detection for a vessel update.
- */
-export type TripEvents = {
-  isFirstTrip: boolean;
-  isTripStartReady: boolean;
-  shouldStartTrip: boolean;
-  isCompletedTrip: boolean;
-  didJustArriveAtDock: boolean;
-  didJustLeaveDock: boolean;
-  keyChanged: boolean;
-};
-
-export { getDockDepartureState } from "./tripDerivation";
+import type { TripEvents } from "./tripEventTypes";
 
 /**
  * Detect all trip events for a vessel update.

@@ -163,6 +163,17 @@ export const vesselTripStoredSchema = v.object({
 export type ConvexVesselTripStored = Infer<typeof vesselTripStoredSchema>;
 
 /**
+ * Active trip rows as persisted on `activeVesselTrips` (no joined ML columns).
+ *
+ * Canonical minimum shape for preloaded `activeTrips` passed into
+ * `processVesselTrips` (e.g. orchestrator bundled read). Callers may still pass
+ * {@link ConvexVesselTrip} (hydrated) for transitional compatibility; lifecycle
+ * compares strip predictions; projection uses normalized prediction fields when
+ * present.
+ */
+export type TickActiveTrip = ConvexVesselTripStored;
+
+/**
  * Full API / action shape: stored trip fields plus optional joined predictions.
  */
 export const vesselTripSchema = v.object({
@@ -192,7 +203,9 @@ export const vesselTripMlPayloadSchema = vesselTripStoredSchema.extend({
 });
 
 /**
- * Hydrated vessel trip (query / orchestrator read model after join).
+ * Hydrated vessel trip: public queries and subscriber read paths after joining
+ * `eventsPredicted` (not the orchestrator tick bundle, which uses storage-native
+ * {@link TickActiveTrip} rows).
  */
 export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
 

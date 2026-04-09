@@ -3,31 +3,32 @@
  *
  * Bundles DB snapshots that the orchestrator needs each tick so one query
  * replaces separate vessel, terminal, and active-trip round trips from actions.
+ * Active trips are **storage-native** (no `eventsPredicted` join); public
+ * queries use `hydrateStoredTripsWithPredictions` for API parity instead.
  */
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { terminalSchema } from "functions/terminals/schemas";
 import { vesselSchema } from "functions/vessels/schemas";
-import { hydrateStoredTripsWithPredictions } from "functions/vesselTrips/hydrateTripPredictions";
-import { vesselTripSchema } from "functions/vesselTrips/schemas";
+import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 const orchestratorTickReadModelSchema = v.object({
   vessels: v.array(vesselSchema),
   terminals: v.array(terminalSchema),
-  activeTrips: v.array(vesselTripSchema),
+  activeTrips: v.array(vesselTripStoredSchema),
 });
 
 /**
  * Load vessels, terminals, and active trips in one transaction for one tick.
  *
- * Matches the data shapes of `getAllBackendVesselsInternal`,
- * `getAllBackendTerminalsInternal`, and `getActiveTrips` without three separate
- * `ctx.runQuery` calls from the orchestrator action.
+ * Matches vessel/terminal shapes used elsewhere; active trips match persisted
+ * `activeVesselTrips` rows (not `getActiveTrips`, which hydrates predictions
+ * for subscribers).
  *
  * @param ctx - Convex query context
- * @returns Stripped vessel rows, terminal rows, and active trip rows
+ * @returns Stripped vessel rows, terminal rows, and storage-native active trips
  */
 export const getOrchestratorTickReadModelInternal = internalQuery({
   args: {},
@@ -39,15 +40,10 @@ export const getOrchestratorTickReadModelInternal = internalQuery({
       ctx.db.query("activeVesselTrips").collect(),
     ]);
 
-    const activeTripsHydrated = await hydrateStoredTripsWithPredictions(
-      ctx,
-      trips
-    );
-
     return {
       vessels: vessels.map(stripConvexMeta),
       terminals: terminals.map(stripConvexMeta),
-      activeTrips: activeTripsHydrated.map(stripConvexMeta),
+      activeTrips: trips.map(stripConvexMeta),
     };
   },
 });

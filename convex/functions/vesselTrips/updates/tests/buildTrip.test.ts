@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildTrip } from "../buildTrip";
-import type { TripEvents } from "../eventDetection";
+import { buildTrip } from "../tripLifecycle/buildTrip";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 describe("buildTrip", () => {
   it("clears carried prediction state when the trip key changes", async () => {

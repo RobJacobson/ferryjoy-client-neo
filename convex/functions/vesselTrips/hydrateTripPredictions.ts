@@ -1,5 +1,11 @@
 /**
  * Joins `eventsPredicted` rows onto stored trip documents for query responses.
+ *
+ * Used by public `vesselTrips` queries (e.g. `getActiveTrips`) so subscribers
+ * receive the same {@link ConvexVesselTrip} shape with optional ML boundary
+ * fields. The vessel orchestrator tick bundles **storage-native** trips
+ * instead and passes them to `processVesselTrips` without this join, so the tick
+ * path does not pay hydration cost or duplicate `getActiveTrips`.
  */
 
 import type { DataModel, Doc } from "_generated/dataModel";

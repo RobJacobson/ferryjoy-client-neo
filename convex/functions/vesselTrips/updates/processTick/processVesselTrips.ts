@@ -8,28 +8,44 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildCompletedTrip } from "../buildCompletedTrip";
-import { buildTrip } from "../buildTrip";
-import type { TripEvents } from "../eventDetection";
-import { detectTripEvents } from "../eventDetection";
+import type {
+  ConvexVesselTrip,
+  TickActiveTrip,
+} from "functions/vesselTrips/schemas";
+import {
+  buildProjectionBatchFromCompletedFacts,
+  buildProjectionBatchFromCurrentIntents,
+} from "../projection/timelineProjectionProjector";
+import { buildCompletedTrip } from "../tripLifecycle/buildCompletedTrip";
+import { buildTrip } from "../tripLifecycle/buildTrip";
+import { detectTripEvents } from "../tripLifecycle/detectTripEvents";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
-} from "./processCompletedTrips";
-import { processCurrentTrips } from "./processCurrentTrips";
+} from "../tripLifecycle/processCompletedTrips";
+import { processCurrentTrips } from "../tripLifecycle/processCurrentTrips";
+import type { TripEvents } from "../tripLifecycle/tripEventTypes";
+import {
+  assertSequentialLifecycleOrder,
+  buildLifecycleCommands,
+  buildTripTickPlan,
+  mergeProjectionBatches,
+} from "./contracts";
 
 // Restrict time-based retries to the first few seconds of each minute.
 const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
 
+/** Existing active trip row for one vessel: persisted columns and/or hydrated ML fields. */
+type ExistingTripForTick = ConvexVesselTrip | TickActiveTrip;
+
 type TripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip?: ConvexVesselTrip;
+  existingTrip?: ExistingTripForTick;
   events: TripEvents;
 };
 
 type CompletedTripTransition = TripTransition & {
-  existingTrip: ConvexVesselTrip;
+  existingTrip: ExistingTripForTick;
 };
 
 type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
@@ -51,15 +67,19 @@ const DEFAULT_PROCESS_VESSEL_TRIPS_DEPS: ProcessVesselTripsDeps = {
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to process after orchestrator conversion
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
- * @param activeTrips - When set (e.g. from orchestrator bundled read), skips a
- *   separate `getActiveTrips` query for this tick
+ * @param activeTrips - When **defined** (including an empty array), skips
+ *   `getActiveTrips` and uses that snapshot—`[]` means “no active trips loaded
+ *   this tick,” not “fall back to the query.” When `undefined`, loads via
+ *   `getActiveTrips` (hydrated). Minimum element shape is storage-native
+ *   {@link TickActiveTrip}; {@link ConvexVesselTrip} (hydrated) remains accepted
+ *   for transitional callers.
  * @returns Promise that resolves once the update pass completes
  */
 export const processVesselTrips = async (
   ctx: ActionCtx,
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
-  activeTrips?: ConvexVesselTrip[]
+  activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
   await processVesselTripsWithDeps(
     ctx,
@@ -77,8 +97,9 @@ export const processVesselTrips = async (
  * @param locations - Array of vessel locations to process after orchestrator conversion
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
  * @param deps - Internal dependency bag used for testability
- * @param activeTrips - When set, used instead of loading active trips via
- *   `getActiveTrips`
+ * @param activeTrips - When **defined** (including `[]`), used instead of
+ *   `getActiveTrips` (see `processVesselTrips`). Prefer {@link TickActiveTrip}
+ *   rows; hydrated trips optional.
  * @returns Promise that resolves after all trip updates and projections complete
  */
 export const processVesselTripsWithDeps = async (
@@ -86,75 +107,87 @@ export const processVesselTripsWithDeps = async (
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips?: ConvexVesselTrip[]
+  activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
   const existingTripsList =
     activeTrips ??
     (await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips));
 
+  // Values are storage-native and/or query-hydrated rows; lifecycle strips ML for persist checks.
   const existingTripsDict = Object.fromEntries(
-    (existingTripsList ?? []).map(
-      (trip: ConvexVesselTrip) => [trip.VesselAbbrev, trip] as const
-    )
-  ) as Record<string, ConvexVesselTrip>;
-
-  const transitions = buildTripTransitions(
-    locations,
-    existingTripsDict,
-    deps.detectTripEvents
-  );
+    (existingTripsList ?? []).map((trip) => [trip.VesselAbbrev, trip] as const)
+  ) as Record<string, ExistingTripForTick>;
 
   // Use the orchestrator-owned tick time so all vessels share the same window.
   const shouldRunPredictionFallback =
     new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS;
+
+  const tripTickPlan = buildTripTickPlan(
+    locations,
+    tickStartedAt,
+    activeTrips,
+    shouldRunPredictionFallback
+  );
+
+  const transitions = buildTripTransitions(
+    tripTickPlan.locations,
+    existingTripsDict,
+    deps.detectTripEvents
+  );
 
   const completedTrips = transitions.filter(isCompletedTripTransition);
   const currentTrips = transitions.filter(
     (transition) => !transition.events.isCompletedTrip
   );
 
-  const completedEffects = await processCompletedTrips(
+  const [completedLifecycle, currentLifecycle] = buildLifecycleCommands(
+    completedTrips.length,
+    currentTrips.length
+  );
+  assertSequentialLifecycleOrder(completedLifecycle, currentLifecycle);
+
+  const completedFacts = await processCompletedTrips(
     ctx,
     completedTrips,
-    shouldRunPredictionFallback,
+    tripTickPlan.shouldRunPredictionFallback,
     logVesselProcessingError,
     {
       buildCompletedTrip: deps.buildCompletedTrip,
       buildTrip: deps.buildTrip,
     }
   );
-  const currentEffects = await processCurrentTrips(
+  const currentBranch = await processCurrentTrips(
     ctx,
     currentTrips,
-    shouldRunPredictionFallback,
+    tripTickPlan.shouldRunPredictionFallback,
     deps.buildTrip
   );
-  const actualPatches = [
-    ...completedEffects.actualPatches,
-    ...currentEffects.actualPatches,
-  ];
-  const predictedEffects = [
-    ...completedEffects.predictedEffects,
-    ...currentEffects.predictedEffects,
-  ];
+  const projectionBatch = mergeProjectionBatches(
+    buildProjectionBatchFromCompletedFacts(completedFacts),
+    buildProjectionBatchFromCurrentIntents(
+      currentBranch.successfulVessels,
+      currentBranch.pendingActualIntents,
+      currentBranch.pendingPredictedIntents
+    )
+  );
 
   // Project only after trip writes succeed so downstream views stay in sync.
   await Promise.all([
-    actualPatches.length > 0
+    projectionBatch.actualPatches.length > 0
       ? ctx.runMutation(
           internal.functions.eventsActual.mutations
             .projectActualBoundaryPatches,
           {
-            Patches: actualPatches,
+            Patches: projectionBatch.actualPatches,
           }
         )
       : Promise.resolve(),
-    predictedEffects.length > 0
+    projectionBatch.predictedEffects.length > 0
       ? ctx.runMutation(
           internal.functions.eventsPredicted.mutations
             .projectPredictedBoundaryEffects,
           {
-            Effects: predictedEffects,
+            Effects: projectionBatch.predictedEffects,
           }
         )
       : Promise.resolve(),
@@ -171,7 +204,7 @@ export const processVesselTripsWithDeps = async (
  */
 const buildTripTransitions = (
   locations: ConvexVesselLocation[],
-  existingTripsDict: Record<string, ConvexVesselTrip>,
+  existingTripsDict: Record<string, ExistingTripForTick>,
   detectTripEventsFn: typeof detectTripEvents
 ): TripTransition[] =>
   locations.map((currLocation) => {
