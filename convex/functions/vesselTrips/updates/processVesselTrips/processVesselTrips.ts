@@ -20,6 +20,10 @@ import {
 import type { TripEvents } from "../eventDetection";
 import { detectTripEvents } from "../eventDetection";
 import {
+  buildProjectionBatchFromCompletedFacts,
+  buildProjectionBatchFromCurrentIntents,
+} from "../timelineProjectionProjector";
+import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
 } from "./processCompletedTrips";
@@ -132,7 +136,7 @@ export const processVesselTripsWithDeps = async (
   );
   assertSequentialLifecycleOrder(completedLifecycle, currentLifecycle);
 
-  const completedEffects = await processCompletedTrips(
+  const completedFacts = await processCompletedTrips(
     ctx,
     completedTrips,
     tripTickPlan.shouldRunPredictionFallback,
@@ -142,15 +146,19 @@ export const processVesselTripsWithDeps = async (
       buildTrip: deps.buildTrip,
     }
   );
-  const currentEffects = await processCurrentTrips(
+  const currentBranch = await processCurrentTrips(
     ctx,
     currentTrips,
     tripTickPlan.shouldRunPredictionFallback,
     deps.buildTrip
   );
   const projectionBatch = mergeProjectionBatches(
-    completedEffects,
-    currentEffects
+    buildProjectionBatchFromCompletedFacts(completedFacts),
+    buildProjectionBatchFromCurrentIntents(
+      currentBranch.successfulVessels,
+      currentBranch.pendingActualIntents,
+      currentBranch.pendingPredictedIntents
+    )
   );
 
   // Project only after trip writes succeed so downstream views stay in sync.

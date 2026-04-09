@@ -143,6 +143,8 @@ import type * as functions_vesselTrips_updates_processVesselTrips_index from "..
 import type * as functions_vesselTrips_updates_processVesselTrips_processCompletedTrips from "../functions/vesselTrips/updates/processVesselTrips/processCompletedTrips.js";
 import type * as functions_vesselTrips_updates_processVesselTrips_processCurrentTrips from "../functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.js";
 import type * as functions_vesselTrips_updates_processVesselTrips_processVesselTrips from "../functions/vesselTrips/updates/processVesselTrips/processVesselTrips.js";
+import type * as functions_vesselTrips_updates_projectionContracts from "../functions/vesselTrips/updates/projectionContracts.js";
+import type * as functions_vesselTrips_updates_timelineProjectionProjector from "../functions/vesselTrips/updates/timelineProjectionProjector.js";
 import type * as functions_vesselTrips_updates_tripDerivation from "../functions/vesselTrips/updates/tripDerivation.js";
 import type * as functions_vesselTrips_updates_tripEquality from "../functions/vesselTrips/updates/tripEquality.js";
 import type * as functions_vessels_actions from "../functions/vessels/actions.js";
@@ -307,6 +309,8 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/processVesselTrips/processCompletedTrips": typeof functions_vesselTrips_updates_processVesselTrips_processCompletedTrips;
   "functions/vesselTrips/updates/processVesselTrips/processCurrentTrips": typeof functions_vesselTrips_updates_processVesselTrips_processCurrentTrips;
   "functions/vesselTrips/updates/processVesselTrips/processVesselTrips": typeof functions_vesselTrips_updates_processVesselTrips_processVesselTrips;
+  "functions/vesselTrips/updates/projectionContracts": typeof functions_vesselTrips_updates_projectionContracts;
+  "functions/vesselTrips/updates/timelineProjectionProjector": typeof functions_vesselTrips_updates_timelineProjectionProjector;
   "functions/vesselTrips/updates/tripDerivation": typeof functions_vesselTrips_updates_tripDerivation;
   "functions/vesselTrips/updates/tripEquality": typeof functions_vesselTrips_updates_tripEquality;
   "functions/vessels/actions": typeof functions_vessels_actions;

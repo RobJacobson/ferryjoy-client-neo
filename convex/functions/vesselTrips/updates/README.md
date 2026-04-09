@@ -38,9 +38,9 @@ This module synchronizes active vessel trips with live location data. It runs as
 3. **Build `TripTickPlan`** — Stage 1 contract: `locations`, `tickStartedAt`, `activeTripsSource`, `shouldRunPredictionFallback` (see `contracts.ts`).
 4. **Build `TripTransition` per vessel** — `{ currLocation, existingTrip?, events }`; events computed once.
 5. **Split transitions** — `completedTrips` (boundary) vs `currentTrips` (ongoing / first appearance).
-6. **Lifecycle branches (sequential `await`)** — `processCompletedTrips` **first**, then `processCurrentTrips` (mutations run inside each branch; not parallel).
-7. **Merge projection batch** — Completed-branch patches/effects, then current-branch patches/effects (`mergeProjectionBatches`).
-8. **Project overlays** — `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` after lifecycle writes succeed.
+6. **Lifecycle branches (sequential `await`)** — `processCompletedTrips` **first**, then `processCurrentTrips` (mutations run inside each branch; not parallel). Each branch returns projection **facts/intents** (DTOs), not built overlay payloads.
+7. **Merge projection batch** — `buildProjectionBatchFromCompletedFacts` + `buildProjectionBatchFromCurrentIntents` in [`timelineProjectionProjector.ts`](./timelineProjectionProjector.ts), then `mergeProjectionBatches` (completed first, current second).
+8. **Project overlays** — `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` **after** all lifecycle mutations for the tick (same ordering as before Stage 3; only builder placement moved).
 
 **Read path (not synchronous with step 8):** Queries load stored trips (no ML blobs on rows), then `hydrateStoredTripsWithPredictions` merges `eventsPredicted` for API shape. That happens on subscription/query, not in the same atomic tick as step 8.
 
@@ -59,7 +59,7 @@ processVesselTrips (entry point)
             with per-vessel error isolation):
             ├─> processCompletedTrips (trip boundary)
             │       buildCompletedTrip → buildTrip (tripStart=true, events, shouldRunPredictionFallback)
-            │       → emit actual/predicted boundary projection effects
+            │       → return completed-trip projection facts (DTOs)
             │       (internal: tripDerivation → baseTripFromLocation
             │                 → appendFinalSchedule
             │                 → appendArriveDockPredictions
@@ -68,14 +68,14 @@ processVesselTrips (entry point)
             └─> processCurrentTrips (ongoing trips, including first appearances)
                     buildTrip (tripStart=false, events, shouldRunPredictionFallback)
                     → shouldPersistLifecycleTrip → upsertVesselTripsBatch (if strip-shaped row changed)
-                    → shouldRefreshTimelineProjection → actual/predicted boundary projection effects (may skip upsert)
+                    → shouldRefreshTimelineProjection → queue actual/predicted projection intents (may skip upsert)
                     → setDepartNextActualsForMostRecentCompletedTrip (leave_dock, post-upsert only)
                     (internal: tripDerivation → baseTripFromLocation
                               → appendFinalSchedule
                               → appendArriveDockPredictions
                               → appendLeaveDockPredictions
                               → actualizePredictionsOnLeaveDock)
-    └─> Batch-project VesselTimeline overlays after successful trip persistence
+    └─> timelineProjectionProjector → batch-project VesselTimeline overlays after lifecycle mutations
             ├─> eventsActual
             └─> eventsPredicted
 ```
@@ -91,9 +91,11 @@ list. The client derives `activeInterval` locally from that backbone.
 | File | Purpose |
 |------|---------|
 | `contracts.ts` | Stage 1 tick contracts: `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`, and merge helpers used by `processVesselTrips` |
+| `projectionContracts.ts` | Stage 3 DTOs: `CompletedTripProjectionFact`, current-trip projection intents, `CurrentTripBranchResult` |
+| `timelineProjectionProjector.ts` | Builds `ProjectionBatch` from facts/intents; owns `domain/vesselTimeline/normalizedEvents` and `actualBoundaryPatchesFromTrip` imports |
 | `processVesselTrips/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, and delegates to processing functions |
-| `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence and boundary effect collection |
-| `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and boundary effect collection |
+| `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence; returns projection facts for the projector |
+| `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and projection intents for the projector |
 | `tripDerivation.ts` | Shared normalized trip derivation: carry-forward fields, dock departure, and explicit base-trip mode selection |
 | `eventDetection.ts` | `detectTripEvents` — centralized event detection driven by shared trip-derivation helpers |
 | `buildCompletedTrip.ts` | `buildCompletedTrip` — builds completed trip with TripEnd, durations, same-trip actualization, and a guard against impossible arrival timestamps before persistence |

@@ -2,7 +2,7 @@
 
 **Status:** Draft — Stage 2 complete (revise after each stage)  
 **Owner:** TBD  
-**Last updated:** 2026-04-08  
+**Last updated:** 2026-04-09  
 
 ## Purpose
 
@@ -34,7 +34,7 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | **Project code style (Cursor rule)** | [`.cursor/rules/code-style.mdc`](../.cursor/rules/code-style.mdc) — TypeScript strict, Biome, Bun, module layout, TSDoc, `bun run check:fix` / `bun run type-check` / `bun run convex:typecheck` |
 | **Convex MCP cheat sheet** | [`docs/convex-mcp-cheat-sheet.md`](./convex-mcp-cheat-sheet.md) — using Convex MCP against this repo, auth, project dir |
 | **VesselTrips updates architecture** | [`convex/functions/vesselTrips/updates/README.md`](../convex/functions/vesselTrips/updates/README.md) |
-| **VesselTrips updates boundaries (Stage 1)** | [`convex/functions/vesselTrips/updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) — module checklist; Stage 3 import rules TBD |
+| **VesselTrips updates boundaries** | [`convex/functions/vesselTrips/updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) — module checklist; Stage 2 lifecycle vs projection table; Stage 3 import rules next |
 | **Vessel orchestrator** | [`convex/functions/vesselOrchestrator/README.md`](../convex/functions/vesselOrchestrator/README.md) |
 | **VesselTimeline domain** | [`convex/domain/vesselTimeline/README.md`](../convex/domain/vesselTimeline/README.md) |
 | **Convex MCP (official)** | [Convex MCP server](https://docs.convex.dev/ai/convex-mcp-server) |
@@ -76,17 +76,20 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 ### Risks / notes
 
-- Avoid “types-only” drift: types should mirror real data flow within one release cycle of Stage 2.
+- **Resolved (post–Stage 2):** `contracts.ts` is wired in `processVesselTrips`; drift risk was the original Stage 1 concern.
 
 ---
 
 ## Stage 2 — Split lifecycle persistence vs projection “dirty” checks
 
+**Shipped.** Active-trip path uses explicit predicates and tagged overlay payloads; see [`tripEquality.ts`](../convex/functions/vesselTrips/tripEquality.ts), [`processVesselTrips/processCurrentTrips.ts`](../convex/functions/vesselTrips/updates/processVesselTrips/processCurrentTrips.ts), [`tests/tripEquality.test.ts`](../convex/functions/vesselTrips/updates/tests/tripEquality.test.ts).
+
 ### Objectives
 
 - **Decouple** “should we persist active/completed trip rows?” from “should we emit / refresh `eventsActual` or `eventsPredicted` effects this tick?”
-- Today `tripsAreEqual` + `shouldWriteCurrentTrip` can gate **both**; projection-only updates must still run when lifecycle storage is unchanged (see analysis of prediction-only ticks).
-- Introduce parallel predicates (names TBD), e.g. storage fingerprint vs projection fingerprint, while preserving **observable behavior** (including prediction-only refresh paths).
+- **Lifecycle:** `shouldPersistLifecycleTrip` → `lifecycleTripsEqual` (both sides passed through `stripTripPredictionsForStorage`; `TimeStamp` ignored) so persistence matches `activeVesselTrips` columns only.
+- **Projection:** `shouldRefreshTimelineProjection` → existing `tripsAreEqual` (normalized prediction fields) so overlay refresh matches prior behavior, including prediction-only ticks **without** an upsert when stored columns are unchanged.
+- **Ordering:** Completed branch unchanged; current branch uses `requiresSuccessfulUpsert` so leave-dock backfill and upsert-gated overlays stay tied to successful `upsertVesselTripsBatch` rows.
 
 ### Deliverables
 
@@ -97,15 +100,20 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 
 - All Stage 1 acceptance criteria.
 - No regression in projection behavior for ticks that previously relied on `tripsAreEqual` including normalized prediction fields.
-- Documented invariant: **which fields** participate in lifecycle write suppression vs projection refresh.
+- Documented invariant: **which fields** participate in lifecycle write suppression vs projection refresh ([`updates/ARCHITECTURE.md`](../convex/functions/vesselTrips/updates/ARCHITECTURE.md) Stage 2 table).
 
 ### Risks / notes
 
-- **Hydration:** If `existing` trip is loaded with or without `eventsPredicted` join, document how the new predicates stay consistent with [`hydrateTripPredictions.ts`](../convex/functions/vesselTrips/hydrateTripPredictions.ts) and orchestrator read model.
+- **Hydration:** `lifecycleTripsEqual` strips the five ML fields on **both** sides, so hydrated `existingTrip` rows align with strip-shaped persistence; projection path still uses full `tripsAreEqual` for overlay semantics. Orchestrator/query hydration behavior is unchanged until Stage 4.
 
 ---
 
 ## Stage 3 — Projection builders out of lifecycle modules
+
+### Prerequisites (before starting)
+
+- Stage 2 merged; **current-trip** lifecycle no longer couples overlay emission to lifecycle upserts for prediction-only ticks.
+- Expect to **move** imports of `buildPredictedBoundaryProjectionEffect`, `buildPredictedBoundaryClearEffect`, and related patch builders out of `processCurrentTrips` / `processCompletedTrips` into a composition or `domain/` projector module; those files may still import them today.
 
 ### Objectives
 
@@ -195,4 +203,6 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | 2026-04-08 | 1 | Added `updates/contracts.ts`, wired `processVesselTrips` to `TripTickPlan` / merged `ProjectionBatch`, documented numbered pipeline and `ARCHITECTURE.md` ([`c9f5e140`](https://github.com/RobJacobson/ferryjoy-client-neo/commit/c9f5e140beb95a9e1b5f844d3049d3110cf5eacc)) |
 | 2026-04-08 | — | PRD: status set to Stage 1 complete; References + Stage 1 links to `ARCHITECTURE.md`; revision log traceability |
 | 2026-04-08 | 2 | Split lifecycle persistence vs projection refresh: `lifecycleTripsEqual` / `shouldPersistLifecycleTrip`, `shouldRefreshTimelineProjection`; `processCurrentTrips` projection-only path; tests and `updates/ARCHITECTURE.md` invariants |
+| 2026-04-09 | — | PRD: Stage 2 section finalized (shipped links, predicate names, hydration note); References + Stage 3 prerequisites |
+| 2026-04-09 | 3 | Projection builders moved to `updates/timelineProjectionProjector.ts`; `projectionContracts.ts` DTOs; lifecycle branch files no longer import `domain/vesselTimeline/normalizedEvents` or `actualBoundaryPatchesFromTrip`; `processVesselTrips` composes projector after lifecycle mutations |
 

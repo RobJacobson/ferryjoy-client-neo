@@ -8,39 +8,35 @@
  *    `Promise.allSettled` so one failure does not block the rest.
  * 2. **Keep successes** — Rejected builds are logged and discarded.
  * 3. **Collect artifacts** — Lifecycle upsert when strip-shaped row differs;
- *    timeline patches/effects when projection-relevant fields differ (can run
- *    without an upsert for prediction-only ticks).
+ *    projection intents when projection-relevant fields differ (can run
+ *    without an upsert for prediction-only ticks). Overlay payloads are built
+ *    in `timelineProjectionProjector` after this branch returns.
  * 4. **Early exit** — If nothing to upsert and no overlay work, return empty.
  * 5. **Batch upsert** — When needed, `upsertVesselTripsBatch` persists queued
  *    active trips in one mutation.
  * 6. **Success set** — Remember which vessels’ upserts succeeded.
  * 7. **Post-persist hooks** — Leave-dock depart-next backfill runs only after a
  *    successful upsert (never for projection-only ticks).
- * 8. **Return projections** — Effects tied to an upsert are filtered by
- *    success; projection-only effects are emitted without an upsert gate.
+ * 8. **Return intents** — Facts for the projector; effects tied to an upsert
+ *    carry `requiresSuccessfulUpsert` for filtering after step 5.
  *
- * Patches and effects carry `vesselAbbrev` so step 8 can filter after step 5.
+ * Intents carry `vesselAbbrev` so the projector can filter after step 5.
  */
 
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
-} from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import {
-  buildArrivalActualPatchForTrip,
-  buildDepartureActualPatchForTrip,
-} from "../actualBoundaryPatchesFromTrip";
 import { buildTrip } from "../buildTrip";
 import type { TripEvents } from "../eventDetection";
+import type {
+  CurrentTripActualProjectionIntent,
+  CurrentTripBranchResult,
+  CurrentTripPredictedProjectionIntent,
+} from "../projectionContracts";
 import {
   shouldPersistLifecycleTrip,
   shouldRefreshTimelineProjection,
@@ -56,20 +52,6 @@ type CurrentTripBuildResult = CurrentTripTransition & {
   finalProposed: ConvexVesselTripWithML;
 };
 
-type TaggedActualPatch = {
-  vesselAbbrev: string;
-  patch: ConvexActualBoundaryPatch;
-  /** When true, drop if this vessel’s upsert failed or never ran. */
-  requiresSuccessfulUpsert: boolean;
-};
-
-type TaggedPredictedEffect = {
-  vesselAbbrev: string;
-  effect: ConvexPredictedBoundaryProjectionEffect;
-  /** When true, drop if this vessel’s upsert failed or never ran. */
-  requiresSuccessfulUpsert: boolean;
-};
-
 type PendingLeaveDockEffect = {
   vesselAbbrev: string;
   trip: ConvexVesselTripWithML;
@@ -77,8 +59,8 @@ type PendingLeaveDockEffect = {
 
 type CurrentTripArtifacts = {
   activeUpserts: ConvexVesselTripWithML[];
-  pendingActualPatches: TaggedActualPatch[];
-  pendingPredictedEffects: TaggedPredictedEffect[];
+  pendingActualIntents: CurrentTripActualProjectionIntent[];
+  pendingPredictedIntents: CurrentTripPredictedProjectionIntent[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
 };
 
@@ -88,11 +70,6 @@ type UpsertBatchResult = {
     ok: boolean;
     reason?: string;
   }>;
-};
-
-type ProjectionResults = {
-  actualPatches: ConvexActualBoundaryPatch[];
-  predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 
 /**
@@ -149,15 +126,14 @@ const logDockSignalDisagreement = (
  * @param currentTrips - Current-trip transitions for this tick
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param buildTripForTick - Trip builder (defaults to real `buildTrip`; tests may pass a stub)
- * @returns Projection payloads safe to merge after persistence
+ * @returns Upsert outcomes and projection intents for `timelineProjectionProjector`
  */
 export const processCurrentTrips = async (
   ctx: ActionCtx,
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
   buildTripForTick: typeof buildTrip = buildTrip
-): Promise<ProjectionResults> => {
-  // Parallel per-vessel buildTrip; one rejection does not cancel siblings.
+): Promise<CurrentTripBranchResult> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map(async (transition) => {
       logDockSignalDisagreement(
@@ -178,7 +154,6 @@ export const processCurrentTrips = async (
     })
   );
 
-  // Fulfilled builds only; log each rejection and drop that vessel from the batch.
   const successfulBuildResults = buildResults.flatMap((result, index) => {
     if (result.status === "fulfilled") {
       return [result.value];
@@ -190,18 +165,17 @@ export const processCurrentTrips = async (
     return [];
   });
 
-  // One batch payload: upserts plus tagged patches, effects, leave-dock queue.
   const collectedArtifacts = successfulBuildResults.reduce(
     mergeCurrentTripArtifacts,
     createEmptyCurrentTripArtifacts()
   );
 
   const hasProjectionWork =
-    collectedArtifacts.pendingActualPatches.length > 0 ||
-    collectedArtifacts.pendingPredictedEffects.length > 0;
+    collectedArtifacts.pendingActualIntents.length > 0 ||
+    collectedArtifacts.pendingPredictedIntents.length > 0;
 
   if (collectedArtifacts.activeUpserts.length === 0 && !hasProjectionWork) {
-    return emptyProjectionResults();
+    return emptyCurrentTripBranchResult();
   }
 
   const successfulVessels =
@@ -214,7 +188,6 @@ export const processCurrentTrips = async (
         )
       : new Set<string>();
 
-  // Depart-next backfill only after durable write; skipped for failed upserts.
   await runLeaveDockPostPersistEffects(
     ctx,
     successfulVessels,
@@ -222,126 +195,10 @@ export const processCurrentTrips = async (
   );
 
   return {
-    actualPatches: filterTaggedActualPatches(
-      collectedArtifacts.pendingActualPatches,
-      successfulVessels
-    ),
-    predictedEffects: filterTaggedPredictedEffects(
-      collectedArtifacts.pendingPredictedEffects,
-      successfulVessels
-    ),
+    successfulVessels,
+    pendingActualIntents: collectedArtifacts.pendingActualIntents,
+    pendingPredictedIntents: collectedArtifacts.pendingPredictedIntents,
   };
-};
-
-/**
- * Returns whether stale predicted boundary rows should be cleared.
- *
- * When any of these differ, the prior trip identity no longer owns the
- * prediction scope:
- *
- * 1. `SailingDay`
- * 2. Segment `Key`
- * 3. `NextKey` (next-leg hint)
- *
- * @param existingTrip - Previously persisted active trip, if one exists
- * @param finalProposed - Newly built trip state for this tick
- * @returns True when the trip identity scope changed
- */
-const shouldClearExistingPredictions = (
-  existingTrip: ConvexVesselTrip | undefined,
-  finalProposed: ConvexVesselTripWithML
-): boolean =>
-  existingTrip !== undefined &&
-  (existingTrip.SailingDay !== finalProposed.SailingDay ||
-    existingTrip.Key !== finalProposed.Key ||
-    existingTrip.NextKey !== finalProposed.NextKey);
-
-/**
- * Builds tagged predicted boundary effects for one vessel’s write candidate.
- *
- * Produces up to two effects (each builder may return `null` if the trip cannot
- * be scoped), tagged with whether upsert success is required:
- *
- * 1. **Project** — `buildPredictedBoundaryProjectionEffect(finalProposed)` for
- *    the new trip state.
- * 2. **Clear** — `buildPredictedBoundaryClearEffect(existingTrip)` when
- *    `shouldClearExistingPredictions` is true (old sailing day, segment key, or
- *    next-leg key).
- *
- * @param existingTrip - Previously persisted active trip, if one exists
- * @param finalProposed - Newly built trip state for this tick
- * @param vesselAbbrev - Vessel abbreviation for effect tagging
- * @param requiresSuccessfulUpsert - When true, omit if upsert failed or skipped
- * @returns Tagged predicted effects for this tick
- */
-const buildPredictedEffectsForCurrentTrip = (
-  existingTrip: ConvexVesselTrip | undefined,
-  finalProposed: ConvexVesselTripWithML,
-  vesselAbbrev: string,
-  requiresSuccessfulUpsert: boolean
-): TaggedPredictedEffect[] => {
-  const effects: ConvexPredictedBoundaryProjectionEffect[] = [];
-
-  const projection = buildPredictedBoundaryProjectionEffect(finalProposed);
-  if (projection !== null) {
-    effects.push(projection);
-  }
-
-  if (
-    existingTrip !== undefined &&
-    shouldClearExistingPredictions(existingTrip, finalProposed)
-  ) {
-    const clear = buildPredictedBoundaryClearEffect(existingTrip);
-    if (clear !== null) {
-      effects.push(clear);
-    }
-  }
-
-  return effects.map((effect) => ({
-    vesselAbbrev,
-    effect,
-    requiresSuccessfulUpsert,
-  }));
-};
-
-/**
- * Builds tagged sparse actual boundary patches for `eventsActual`.
- *
- * 1. **Departure** when `didJustLeaveDock` and `LeftDock` are set: may emit a
- *    `dep-dock` patch if `buildDepartureActualPatchForTrip` has enough fields.
- * 2. **Arrival** when `didJustArriveAtDock` and `ArriveDest` are set: may emit an
- *    `arv-dock` patch if `buildArrivalActualPatchForTrip` has enough fields.
- *
- * @param events - Detected events for the current tick
- * @param finalProposed - Newly built trip state for this tick
- * @param vesselAbbrev - Vessel abbreviation for patch tagging
- * @param requiresSuccessfulUpsert - When true, omit if upsert failed or skipped
- * @returns Tagged actual patches for this tick
- */
-const buildActualPatchesForCurrentTrip = (
-  events: TripEvents,
-  finalProposed: ConvexVesselTripWithML,
-  vesselAbbrev: string,
-  requiresSuccessfulUpsert: boolean
-): TaggedActualPatch[] => {
-  const patches: ConvexActualBoundaryPatch[] = [];
-  if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
-    const departure = buildDepartureActualPatchForTrip(finalProposed);
-    if (departure !== null) {
-      patches.push(departure);
-    }
-  }
-  if (events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined) {
-    const arrival = buildArrivalActualPatchForTrip(finalProposed);
-    if (arrival !== null) {
-      patches.push(arrival);
-    }
-  }
-  return patches.map((patch) => ({
-    vesselAbbrev,
-    patch,
-    requiresSuccessfulUpsert,
-  }));
 };
 
 /**
@@ -374,7 +231,7 @@ const buildLeaveDockPostPersistEffect = (
  *
  * When neither lifecycle persistence nor timeline refresh applies, returns empty
  * lists. Otherwise queues upserts only when the strip-shaped row differs;
- * overlays when projection-relevant fields differ (independent of upsert).
+ * intents when projection-relevant fields differ (independent of upsert).
  *
  * @param buildResult - Successful current-trip build result
  * @returns Array-backed artifacts suitable for reducer-based accumulation
@@ -403,21 +260,25 @@ const collectCurrentTripArtifacts = (
 
   return {
     activeUpserts: persist ? [finalProposed] : [],
-    pendingActualPatches: refresh
-      ? buildActualPatchesForCurrentTrip(
-          events,
-          finalProposed,
-          currLocation.VesselAbbrev,
-          upsertGate
-        )
+    pendingActualIntents: refresh
+      ? [
+          {
+            events,
+            finalProposed,
+            vesselAbbrev: currLocation.VesselAbbrev,
+            requiresSuccessfulUpsert: upsertGate,
+          },
+        ]
       : [],
-    pendingPredictedEffects: refresh
-      ? buildPredictedEffectsForCurrentTrip(
-          existingTrip,
-          finalProposed,
-          currLocation.VesselAbbrev,
-          upsertGate
-        )
+    pendingPredictedIntents: refresh
+      ? [
+          {
+            existingTrip,
+            finalProposed,
+            vesselAbbrev: currLocation.VesselAbbrev,
+            requiresSuccessfulUpsert: upsertGate,
+          },
+        ]
       : [],
     pendingLeaveDockEffects: leaveDockEffect !== null ? [leaveDockEffect] : [],
   };
@@ -449,42 +310,6 @@ const getSuccessfulVessels = (upsertResult: UpsertBatchResult): Set<string> =>
       })
       .map((result) => result.vesselAbbrev)
   );
-
-/**
- * Keeps patches that either do not require an upsert or passed upsert success.
- *
- * @param tagged - Tagged patches gathered during build processing
- * @param successfulVessels - Set of vessels with successful upserts
- * @returns Untagged patches safe to project
- */
-const filterTaggedActualPatches = (
-  tagged: TaggedActualPatch[],
-  successfulVessels: Set<string>
-): ConvexActualBoundaryPatch[] =>
-  tagged
-    .filter(
-      (t) =>
-        !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
-    )
-    .map((t) => t.patch);
-
-/**
- * Keeps effects that either do not require an upsert or passed upsert success.
- *
- * @param tagged - Tagged predicted effects gathered during build processing
- * @param successfulVessels - Set of vessels with successful upserts
- * @returns Untagged effects safe to project
- */
-const filterTaggedPredictedEffects = (
-  tagged: TaggedPredictedEffect[],
-  successfulVessels: Set<string>
-): ConvexPredictedBoundaryProjectionEffect[] =>
-  tagged
-    .filter(
-      (t) =>
-        !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
-    )
-    .map((t) => t.effect);
 
 /**
  * Backfills depart-next prediction actuals on the most recent completed trip
@@ -552,13 +377,13 @@ const mergeCurrentTripArtifacts = (
 
   return {
     activeUpserts: [...accumulated.activeUpserts, ...next.activeUpserts],
-    pendingActualPatches: [
-      ...accumulated.pendingActualPatches,
-      ...next.pendingActualPatches,
+    pendingActualIntents: [
+      ...accumulated.pendingActualIntents,
+      ...next.pendingActualIntents,
     ],
-    pendingPredictedEffects: [
-      ...accumulated.pendingPredictedEffects,
-      ...next.pendingPredictedEffects,
+    pendingPredictedIntents: [
+      ...accumulated.pendingPredictedIntents,
+      ...next.pendingPredictedIntents,
     ],
     pendingLeaveDockEffects: [
       ...accumulated.pendingLeaveDockEffects,
@@ -574,17 +399,18 @@ const mergeCurrentTripArtifacts = (
  */
 const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
   activeUpserts: [],
-  pendingActualPatches: [],
-  pendingPredictedEffects: [],
+  pendingActualIntents: [],
+  pendingPredictedIntents: [],
   pendingLeaveDockEffects: [],
 });
 
 /**
- * Projection payload when no overlay work was queued for the current branch.
+ * Branch result when no upsert and no overlay work was queued.
  *
- * @returns Empty actual/predicted projection result object
+ * @returns Empty intents and no successful upserts
  */
-const emptyProjectionResults = (): ProjectionResults => ({
-  actualPatches: [],
-  predictedEffects: [],
+const emptyCurrentTripBranchResult = (): CurrentTripBranchResult => ({
+  successfulVessels: new Set(),
+  pendingActualIntents: [],
+  pendingPredictedIntents: [],
 });

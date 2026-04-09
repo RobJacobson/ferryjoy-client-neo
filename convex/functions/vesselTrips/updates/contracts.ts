@@ -76,10 +76,10 @@ export const buildTripTickPlan = (
 });
 
 /**
- * Merges completed- and current-branch projection results in documented order.
+ * Merges completed- and current-branch projection batches in documented order.
  *
- * @param completed - Artifacts from `processCompletedTrips` (first)
- * @param current - Artifacts from `processCurrentTrips` (second)
+ * @param completed - Overlay batch from the completed-trip branch (first)
+ * @param current - Overlay batch from the current-trip branch (second)
  * @returns Single batch for timeline projection mutations
  */
 export const mergeProjectionBatches = (
