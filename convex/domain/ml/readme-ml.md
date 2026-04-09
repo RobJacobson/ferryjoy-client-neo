@@ -420,17 +420,18 @@ Predictions are computed in the vessel orchestrator action
 then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
 + `PredictionSource`), not as the five optional prediction fields on
 `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped
-before write; public queries and the orchestrator read model **hydrate** joins
-so clients still see `vesselTripSchema` with minimal prediction objects. WSF ETA
+before write; public `vesselTrips` queries **hydrate** joins from `eventsPredicted`
+so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA
 from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
 `PredictionSource: "wsf_eta"` when projected.
 
 The orchestrator fetches vessel locations once, loads vessels, terminals, and
-active trips in one internal query (`getOrchestratorTickReadModelInternal` in
+**storage-native** active trips in one internal query (`getOrchestratorTickReadModelInternal` in
 `convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
 `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
-Active trips are hydrated for the tick so `buildTrip` compares against the same
-shape as API consumers. The trip update logic is
+Those bundled rows omit joined predictions (Stage 4); timeline projection still
+compares built trips to existing state using Stage 2 lifecycle vs projection
+predicates. The trip update logic is
 implemented in `convex/functions/vesselTrips/updates/processVesselTrips/processVesselTrips.ts`.
 
 #### 1) ScheduledTrip snapshot enrichment (lazy + keyed)

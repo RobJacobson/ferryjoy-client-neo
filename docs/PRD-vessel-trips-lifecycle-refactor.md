@@ -1,6 +1,6 @@
 # PRD: Vessel trips lifecycle & projection refactor
 
-**Status:** Draft — Stage 2 complete (revise after each stage)  
+**Status:** Draft — Stage 4 complete (revise after each stage)  
 **Owner:** TBD  
 **Last updated:** 2026-04-09  
 
@@ -205,4 +205,5 @@ This document defines a **phased** refactor of `convex/functions/vesselTrips/upd
 | 2026-04-08 | 2 | Split lifecycle persistence vs projection refresh: `lifecycleTripsEqual` / `shouldPersistLifecycleTrip`, `shouldRefreshTimelineProjection`; `processCurrentTrips` projection-only path; tests and `updates/ARCHITECTURE.md` invariants |
 | 2026-04-09 | — | PRD: Stage 2 section finalized (shipped links, predicate names, hydration note); References + Stage 3 prerequisites |
 | 2026-04-09 | 3 | Projection builders moved to `updates/timelineProjectionProjector.ts`; `projectionContracts.ts` DTOs; lifecycle branch files no longer import `domain/vesselTimeline/normalizedEvents` or `actualBoundaryPatchesFromTrip`; `processVesselTrips` composes projector after lifecycle mutations |
+| 2026-04-09 | 4 | Tick contract `TickActiveTrip` / storage-native preloads; orchestrator `getOrchestratorTickReadModelInternal` returns storage rows (no hydrate); `getActiveTrips` remains hydrated; tests for preload vs query fallback and storage vs hydrated parity; docs (`updates/ARCHITECTURE.md`, orchestrator README) |
 

@@ -411,7 +411,7 @@ tables.
 
 | Call Type | Function | When |
 |-----------|----------|------|
-| Query | `getActiveTrips` | Once at start when `processVesselTrips` is called **without** a preloaded trip list; the vessel orchestrator passes active trips from `getOrchestratorTickReadModelInternal` instead |
+| Query | `getActiveTrips` | Once at start when `processVesselTrips` is called **without** a preloaded trip list (returns **hydrated** rows). The orchestrator passes **storage-native** trips from `getOrchestratorTickReadModelInternal` instead so this query is skipped on the hot path |
 | Query | `getScheduledDepartureSegmentBySegmentKey` / `getNextDepartureSegmentAfterDeparture` (internal) | Per vessel tick only when `resolveEffectiveLocation` needs `NextKey` or rollover resolution; `appendFinalSchedule` on trip start / key change |
 | Query | `getModelParametersForProduction` / `getModelParametersForProductionBatch` | Per vessel, when prediction runs (batch when 2+ specs) |
 | Mutation | `completeAndStartNewTrip` | Per vessel, on trip boundary |

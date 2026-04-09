@@ -9,13 +9,18 @@
 import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  TickActiveTrip,
+} from "functions/vesselTrips/schemas";
 
 /**
  * How active trips were resolved for this tick.
  *
- * - `preloaded` — caller passed `activeTrips` (e.g. orchestrator bundled read).
- * - `query` — loaded via `getActiveTrips` inside `processVesselTripsWithDeps`.
+ * - `preloaded` — caller passed `activeTrips` (e.g. orchestrator bundled read;
+ *   minimum shape is {@link TickActiveTrip} / storage-native rows).
+ * - `query` — loaded via `getActiveTrips` inside `processVesselTripsWithDeps`
+ *   (hydrated for API parity with public queries).
  */
 export type ActiveTripsSourceKind = "preloaded" | "query";
 
@@ -60,13 +65,15 @@ export type ProjectionBatch = {
  * @param locations - Vessel locations for this orchestrator tick
  * @param tickStartedAt - Orchestrator-owned tick timestamp (ms)
  * @param activeTripsArg - When set, active trips came from the caller bundle
+ *   (storage-native {@link TickActiveTrip} minimum; hydrated {@link ConvexVesselTrip}
+ *   optional for transitional callers)
  * @param shouldRunPredictionFallback - First seconds-of-minute fallback window
  * @returns Tick plan record for downstream use
  */
 export const buildTripTickPlan = (
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
-  activeTripsArg: ConvexVesselTrip[] | undefined,
+  activeTripsArg: ReadonlyArray<TickActiveTrip> | undefined,
   shouldRunPredictionFallback: boolean
 ): TripTickPlan => ({
   locations,

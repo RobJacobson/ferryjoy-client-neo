@@ -4,7 +4,10 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  TickActiveTrip,
+} from "functions/vesselTrips/schemas";
 import type { TripEvents } from "../eventDetection";
 import { processVesselTripsWithDeps } from "../processVesselTrips/processVesselTrips";
 
@@ -19,6 +22,119 @@ const defaultEvents: TripEvents = {
 };
 
 describe("processVesselTripsWithDeps", () => {
+  it("does not call getActiveTrips when preloaded active trips are provided", async () => {
+    const existingTrip = makeTrip();
+    const currLocation = makeLocation();
+    const ctx = createTestActionCtx({});
+
+    await processVesselTripsWithDeps(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", existingTrip]]),
+      }),
+      [existingTrip]
+    );
+
+    expect(ctx.queryCalls).toHaveLength(0);
+  });
+
+  it("calls getActiveTrips once when active trips are not preloaded", async () => {
+    const fromQuery = makeTrip();
+    const currLocation = makeLocation();
+    const ctx = createTestActionCtx({
+      tripsReturnedByQuery: [fromQuery],
+    });
+
+    await processVesselTripsWithDeps(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", fromQuery]]),
+      }),
+      undefined
+    );
+
+    expect(ctx.queryCalls).toHaveLength(1);
+  });
+
+  it("matches prediction-only projection for storage-native vs hydrated preloaded existing trips", async () => {
+    const storageExisting = makeStorageTrip();
+    const hydratedExisting = makeTrip();
+    const currLocation = makeLocation();
+    const changedTrip = makeTrip({
+      AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+    });
+
+    const ctxStorage = createTestActionCtx({});
+    const ctxHydrated = createTestActionCtx({});
+
+    await processVesselTripsWithDeps(
+      ctxStorage,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", changedTrip]]),
+      }),
+      [storageExisting]
+    );
+
+    await processVesselTripsWithDeps(
+      ctxHydrated,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", changedTrip]]),
+      }),
+      [hydratedExisting]
+    );
+
+    const effectsStorage = getPredictedProjectionArgs(ctxStorage)?.Effects;
+    const effectsHydrated = getPredictedProjectionArgs(ctxHydrated)?.Effects;
+    expect(effectsStorage?.length).toBe(effectsHydrated?.length);
+    expect(getUpsertMutationArgs(ctxStorage)).toBeUndefined();
+    expect(getUpsertMutationArgs(ctxHydrated)).toBeUndefined();
+
+    const firstS = effectsStorage?.[0];
+    const firstH = effectsHydrated?.[0];
+    expect(firstS?.VesselAbbrev).toBe(firstH?.VesselAbbrev);
+    expect(firstS?.Rows?.length).toBe(firstH?.Rows?.length);
+  });
+
+  it("treats an empty preloaded activeTrips array as a snapshot (no getActiveTrips call)", async () => {
+    const currLocation = makeLocation();
+    const ctx = createTestActionCtx({});
+
+    await processVesselTripsWithDeps(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([
+          [
+            "CHE",
+            {
+              ...defaultEvents,
+              isFirstTrip: true,
+              shouldStartTrip: true,
+              isTripStartReady: true,
+            },
+          ],
+        ]),
+        builtTripsByVessel: new Map([["CHE", makeTrip()]]),
+      }),
+      []
+    );
+
+    expect(ctx.queryCalls).toHaveLength(0);
+  });
+
   it("skips writes and side effects when the current trip is unchanged", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
@@ -381,7 +497,10 @@ type TestDepsInput = {
  * @returns Minimal action context plus recorded calls
  */
 const createTestActionCtx = (options: {
-  activeTrips: ConvexVesselTrip[];
+  /** When `processVesselTrips` runs without preloads, this is returned from `getActiveTrips` */
+  tripsReturnedByQuery?: ConvexVesselTrip[];
+  /** Legacy default payload if `tripsReturnedByQuery` is unset and runQuery runs */
+  activeTrips?: ConvexVesselTrip[];
   upsertResult?: Record<string, unknown>;
   callSequence?: string[];
 }): TestActionCtx => {
@@ -396,7 +515,7 @@ const createTestActionCtx = (options: {
     runQuery: async (ref, args) => {
       queryCalls.push({ ref, args });
       options.callSequence?.push("query:activeTrips");
-      return options.activeTrips;
+      return options.tripsReturnedByQuery ?? options.activeTrips ?? [];
     },
     runMutation: async (ref, args) => {
       mutationCalls.push({ ref, args });
@@ -566,6 +685,26 @@ const makeLocation = (
  * @param overrides - Scenario-specific field overrides
  * @returns Concrete trip payload for tests
  */
+/**
+ * Storage-native active trip (no joined ML fields) for Stage 4 tick contract tests.
+ *
+ * @param overrides - Stored-column overrides only
+ * @returns {@link TickActiveTrip} row shape
+ */
+const makeStorageTrip = (
+  overrides: Partial<TickActiveTrip> = {}
+): TickActiveTrip =>
+  ({
+    ...makeTrip({
+      AtDockDepartCurr: undefined,
+      AtDockArriveNext: undefined,
+      AtDockDepartNext: undefined,
+      AtSeaArriveNext: undefined,
+      AtSeaDepartNext: undefined,
+      ...overrides,
+    }),
+  }) as TickActiveTrip;
+
 const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
 ): ConvexVesselTrip => ({

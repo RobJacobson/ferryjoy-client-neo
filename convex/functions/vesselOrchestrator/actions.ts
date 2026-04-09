@@ -15,7 +15,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
@@ -64,7 +64,7 @@ export const updateVesselOrchestrator = internalAction({
     let convexLocations: ConvexVesselLocation[] = [];
     let passengerTerminalAbbrevs = new Set<string>();
 
-    let activeTripsForTick: ConvexVesselTrip[] = [];
+    let activeTripsForTick: TickActiveTrip[] = [];
 
     try {
       const { vessels, terminals, activeTrips } =
@@ -230,7 +230,7 @@ export const isTripEligibleLocation = (
 async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
   vessels: Vessel[];
   terminals: Terminal[];
-  activeTrips: ConvexVesselTrip[];
+  activeTrips: TickActiveTrip[];
 }> {
   const readModelRef =
     internal.functions.vesselOrchestrator.queries
