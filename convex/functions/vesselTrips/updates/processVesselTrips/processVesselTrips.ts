@@ -11,6 +11,12 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildCompletedTrip } from "../buildCompletedTrip";
 import { buildTrip } from "../buildTrip";
+import {
+  assertSequentialLifecycleOrder,
+  buildLifecycleCommands,
+  buildTripTickPlan,
+  mergeProjectionBatches,
+} from "../contracts";
 import type { TripEvents } from "../eventDetection";
 import { detectTripEvents } from "../eventDetection";
 import {
@@ -98,25 +104,38 @@ export const processVesselTripsWithDeps = async (
     )
   ) as Record<string, ConvexVesselTrip>;
 
-  const transitions = buildTripTransitions(
-    locations,
-    existingTripsDict,
-    deps.detectTripEvents
-  );
-
   // Use the orchestrator-owned tick time so all vessels share the same window.
   const shouldRunPredictionFallback =
     new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS;
+
+  const tripTickPlan = buildTripTickPlan(
+    locations,
+    tickStartedAt,
+    activeTrips,
+    shouldRunPredictionFallback
+  );
+
+  const transitions = buildTripTransitions(
+    tripTickPlan.locations,
+    existingTripsDict,
+    deps.detectTripEvents
+  );
 
   const completedTrips = transitions.filter(isCompletedTripTransition);
   const currentTrips = transitions.filter(
     (transition) => !transition.events.isCompletedTrip
   );
 
+  const [completedLifecycle, currentLifecycle] = buildLifecycleCommands(
+    completedTrips.length,
+    currentTrips.length
+  );
+  assertSequentialLifecycleOrder(completedLifecycle, currentLifecycle);
+
   const completedEffects = await processCompletedTrips(
     ctx,
     completedTrips,
-    shouldRunPredictionFallback,
+    tripTickPlan.shouldRunPredictionFallback,
     logVesselProcessingError,
     {
       buildCompletedTrip: deps.buildCompletedTrip,
@@ -126,35 +145,31 @@ export const processVesselTripsWithDeps = async (
   const currentEffects = await processCurrentTrips(
     ctx,
     currentTrips,
-    shouldRunPredictionFallback,
+    tripTickPlan.shouldRunPredictionFallback,
     deps.buildTrip
   );
-  const actualPatches = [
-    ...completedEffects.actualPatches,
-    ...currentEffects.actualPatches,
-  ];
-  const predictedEffects = [
-    ...completedEffects.predictedEffects,
-    ...currentEffects.predictedEffects,
-  ];
+  const projectionBatch = mergeProjectionBatches(
+    completedEffects,
+    currentEffects
+  );
 
   // Project only after trip writes succeed so downstream views stay in sync.
   await Promise.all([
-    actualPatches.length > 0
+    projectionBatch.actualPatches.length > 0
       ? ctx.runMutation(
           internal.functions.eventsActual.mutations
             .projectActualBoundaryPatches,
           {
-            Patches: actualPatches,
+            Patches: projectionBatch.actualPatches,
           }
         )
       : Promise.resolve(),
-    predictedEffects.length > 0
+    projectionBatch.predictedEffects.length > 0
       ? ctx.runMutation(
           internal.functions.eventsPredicted.mutations
             .projectPredictedBoundaryEffects,
           {
-            Effects: predictedEffects,
+            Effects: projectionBatch.predictedEffects,
           }
         )
       : Promise.resolve(),

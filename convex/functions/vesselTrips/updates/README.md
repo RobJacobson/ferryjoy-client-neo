@@ -31,6 +31,19 @@ This module synchronizes active vessel trips with live location data. It runs as
 
 ## Architecture
 
+### Numbered tick pipeline (code order)
+
+1. **Resolve active trips** — Preloaded `activeTrips` from the orchestrator read model, or `getActiveTrips` when omitted.
+2. **Derive `shouldRunPredictionFallback`** — First seconds of each minute, from orchestrator-owned `tickStartedAt`.
+3. **Build `TripTickPlan`** — Stage 1 contract: `locations`, `tickStartedAt`, `activeTripsSource`, `shouldRunPredictionFallback` (see `contracts.ts`).
+4. **Build `TripTransition` per vessel** — `{ currLocation, existingTrip?, events }`; events computed once.
+5. **Split transitions** — `completedTrips` (boundary) vs `currentTrips` (ongoing / first appearance).
+6. **Lifecycle branches (sequential `await`)** — `processCompletedTrips` **first**, then `processCurrentTrips` (mutations run inside each branch; not parallel).
+7. **Merge projection batch** — Completed-branch patches/effects, then current-branch patches/effects (`mergeProjectionBatches`).
+8. **Project overlays** — `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` after lifecycle writes succeed.
+
+**Read path (not synchronous with step 8):** Queries load stored trips (no ML blobs on rows), then `hydrateStoredTripsWithPredictions` merges `eventsPredicted` for API shape. That happens on subscription/query, not in the same atomic tick as step 8.
+
 ### Pipeline Overview
 
 ```
@@ -77,6 +90,7 @@ list. The client derives `activeInterval` locally from that backbone.
 
 | File | Purpose |
 |------|---------|
+| `contracts.ts` | Stage 1 tick contracts: `TripTickPlan`, `LifecycleCommand`, `ProjectionBatch`, and merge helpers used by `processVesselTrips` |
 | `processVesselTrips/processVesselTrips.ts` | Main per-tick trip processor: builds `TripTransition` objects, categorizes them into completed/current, and delegates to processing functions |
 | `processVesselTrips/processCompletedTrips.ts` | `processCompletedTrips` — trip-boundary persistence and boundary effect collection |
 | `processVesselTrips/processCurrentTrips.ts` | `processCurrentTrips` — same-trip persistence, post-upsert depart-next backfill on leave-dock, and boundary effect collection |
