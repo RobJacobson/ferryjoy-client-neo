@@ -160,8 +160,7 @@ export const applyActualToPrediction = (
   const actual = Math.floor(actualMs / 1000) * 1000;
   const deltaTotal = calculateDeltaTotal(actual, prediction.PredTime);
 
-  const isFullMl =
-    "MinTime" in prediction && prediction.MinTime !== undefined;
+  const isFullMl = "MinTime" in prediction && prediction.MinTime !== undefined;
 
   if (!isFullMl) {
     return {
@@ -172,8 +171,7 @@ export const applyActualToPrediction = (
   }
 
   const full = prediction as ConvexPrediction;
-  const hasInterval =
-    full.MinTime !== undefined && full.MaxTime !== undefined;
+  const hasInterval = full.MinTime !== undefined && full.MaxTime !== undefined;
 
   return {
     ...full,

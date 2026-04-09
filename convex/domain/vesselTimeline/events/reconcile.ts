@@ -12,6 +12,7 @@ import type {
 } from "../../../functions/eventsActual/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
+import { groupBy } from "../../../shared/groupBy";
 import { getSailingDay } from "../../../shared/time";
 import { mergeTimelineEvents } from "../timelineEvents";
 import { buildActualBoundaryPatchesFromLocation } from "./liveUpdates";
@@ -50,8 +51,8 @@ export const buildActualBoundaryPatchesForSailingDay = ({
   actualEvents,
   vesselLocations,
 }: BuildActualBoundaryPatchesForSailingDayArgs): ConvexActualBoundaryPatch[] => {
-  const scheduledByVessel = groupByVesselAbbrev(scheduledEvents);
-  const actualByVessel = groupByVesselAbbrev(actualEvents);
+  const scheduledByVessel = groupBy(scheduledEvents, (e) => e.VesselAbbrev);
+  const actualByVessel = groupBy(actualEvents, (e) => e.VesselAbbrev);
 
   return vesselLocations
     .map(attachScheduledEventsByVessel(scheduledByVessel))
@@ -59,25 +60,6 @@ export const buildActualBoundaryPatchesForSailingDay = ({
     .filter(hasScheduledEvents)
     .flatMap(actualBoundaryPatchesFromLocationBundle(actualByVessel));
 };
-
-/**
- * Groups rows by `VesselAbbrev`, preserving input order within each group.
- *
- * @param events - Scheduled or actual boundary rows keyed by vessel
- * @returns Map from vessel abbreviation to that vessel's rows
- */
-const groupByVesselAbbrev = <T extends { VesselAbbrev: string }>(
-  events: T[]
-): VesselEventsByAbbrev<T> =>
-  events.reduce((map, event) => {
-    const scoped = map.get(event.VesselAbbrev);
-    if (scoped) {
-      scoped.push(event);
-    } else {
-      map.set(event.VesselAbbrev, [event]);
-    }
-    return map;
-  }, new Map<string, T[]>());
 
 /**
  * Builds a mapper that pairs each vessel location with scheduled events.

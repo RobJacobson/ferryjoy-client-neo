@@ -22,20 +22,22 @@ describe("buildTrip", () => {
       AtSeaArriveNext: makePrediction(ms("2026-03-13T10:04:00-07:00")),
       AtSeaDepartNext: makePrediction(ms("2026-03-13T10:20:00-07:00")),
     });
+    const segmentKey = "CHE--2026-03-13--09:45--ORI-ANA";
+    const segmentScheduledDeparture = ms("2026-03-13T09:45:00-07:00");
     const currLocation = makeLocation({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "ANA",
-      ScheduledDeparture: ms("2026-03-13T09:45:00-07:00"),
+      ScheduledDeparture: segmentScheduledDeparture,
       LeftDock: existingTrip.LeftDock,
-      Key: "CHE--2026-03-13--09:45--ORI-ANA",
+      Key: segmentKey,
       TimeStamp: ms("2026-03-13T09:40:00-07:00"),
     });
     const scheduledSegment = {
-      Key: currLocation.Key!,
+      Key: segmentKey,
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "ANA",
-      DepartingTime: currLocation.ScheduledDeparture!,
+      DepartingTime: segmentScheduledDeparture,
       NextKey: "CHE--2026-03-13--11:00--ANA-SHI",
       NextDepartingTime: ms("2026-03-13T11:00:00-07:00"),
     };
