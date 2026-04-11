@@ -68,7 +68,7 @@ export const TimelineIndicatorBanner = ({
         style={{
           maxWidth: maxWidthPx,
           borderWidth: borderWidthPx,
-          borderColor: theme.indicator.borderColor,
+          borderColor: theme.indicatorColor,
         }}
       >
         <TimelineGlassSurface
