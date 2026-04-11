@@ -49,7 +49,7 @@ export const TimelineIndicatorCircle = ({
         width: sizePx,
         height: sizePx,
         borderWidth: TIMELINE_INDICATOR_CONFIG.circle.borderWidthPx,
-        borderColor: theme.indicator.borderColor,
+        borderColor: theme.indicatorColor,
       }}
     >
       <TimelineGlassSurface
