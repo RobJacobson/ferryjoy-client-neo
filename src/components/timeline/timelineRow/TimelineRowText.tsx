@@ -19,7 +19,7 @@ type TimelineRowTextProps = PropsWithChildren<{
  */
 const TimelineRowText = ({ children, theme }: TimelineRowTextProps) => (
   <Text
-    className="font-victor-mono-400"
+    className="font-victor-mono-500 tracking-tight"
     style={{
       color: theme.text.bodyColor,
     }}

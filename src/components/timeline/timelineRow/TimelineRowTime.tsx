@@ -11,14 +11,14 @@ import { TimelineRowText } from "./TimelineRowText";
 
 /** Icon and icon–text gap differ slightly per kind for visual balance. */
 const eventIcons = {
-  scheduled: { Icon: CalendarClock, gapPx: 3 },
-  actual: { Icon: Timer, gapPx: 2 },
-  estimated: { Icon: EqualApproximately, gapPx: 2 },
+  scheduled: { Icon: CalendarClock, gapPx: 4 },
+  actual: { Icon: Timer, gapPx: 1 },
+  estimated: { Icon: EqualApproximately, gapPx: 1 },
 } as const;
 
 type TimelineTimeIconKind = keyof typeof eventIcons;
 
-type TimelineRowEventTimeProps = {
+type TimelineRowTimeProps = {
   kind: TimelineTimeIconKind;
   at: Date | undefined;
   theme: TimelineVisualTheme;
@@ -32,11 +32,7 @@ type TimelineRowEventTimeProps = {
  * @param theme - Body text and icon colors
  * @returns A single time row view
  */
-const TimelineRowEventTime = ({
-  kind,
-  at,
-  theme,
-}: TimelineRowEventTimeProps) => {
+const TimelineRowTime = ({ kind, at, theme }: TimelineRowTimeProps) => {
   const { Icon, gapPx } = eventIcons[kind];
 
   return (
@@ -45,7 +41,7 @@ const TimelineRowEventTime = ({
         className="translate-y-[-1px]"
         color={theme.text.iconColor}
         size={TIMELINE_ROW_CONFIG.times.iconSizePx}
-        strokeWidth={TIMELINE_ROW_CONFIG.times.iconStrokeWidth}
+        strokeWidth={1.25}
       />
       {at ? (
         <TimelineRowSpacedTime at={at} theme={theme} />
@@ -57,4 +53,4 @@ const TimelineRowEventTime = ({
 };
 
 export type { TimelineTimeIconKind };
-export { TimelineRowEventTime };
+export { TimelineRowTime };

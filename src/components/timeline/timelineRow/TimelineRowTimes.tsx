@@ -7,17 +7,14 @@
 import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineTimePoint } from "../types";
-import {
-  TimelineRowEventTime,
-  type TimelineTimeIconKind,
-} from "./TimelineRowEventTime";
+import { TimelineRowTime, type TimelineTimeIconKind } from "./TimelineRowTime";
 
 type TimelineTimeEntry = {
   kind: TimelineTimeIconKind;
   time: Date | undefined;
 };
 
-type TimelineRowEventTimesProps = {
+type TimelineRowTimesProps = {
   point: TimelineTimePoint;
   showPlaceholder?: boolean;
   theme: TimelineVisualTheme;
@@ -31,23 +28,33 @@ type TimelineRowEventTimesProps = {
  * @param theme - Text and icon colors for the time rows
  * @returns Horizontal group of up to two time rows
  */
-const TimelineRowEventTimes = ({
+const TimelineRowTimes = ({
   point,
   showPlaceholder = false,
   theme,
-}: TimelineRowEventTimesProps) => {
+}: TimelineRowTimesProps) => {
   const { scheduled, actual, estimated } = point;
+  const scheduledEntry = scheduledTimeEntry(scheduled);
+  const secondaryEntry = secondaryTimeEntry(actual, estimated, showPlaceholder);
 
   return (
     <View className="w-full flex-row items-start">
-      <TimelineRowTimeSlot
-        entry={scheduledTimeEntry(scheduled)}
-        theme={theme}
-      />
-      <TimelineRowTimeSlot
-        entry={secondaryTimeEntry(actual, estimated, showPlaceholder)}
-        theme={theme}
-      />
+      <View className="w-1/2 items-start">
+        <TimelineRowTime
+          kind={scheduledEntry.kind}
+          at={scheduledEntry.time}
+          theme={theme}
+        />
+      </View>
+      <View className="w-1/2 items-start">
+        {secondaryEntry ? (
+          <TimelineRowTime
+            kind={secondaryEntry.kind}
+            at={secondaryEntry.time}
+            theme={theme}
+          />
+        ) : null}
+      </View>
     </View>
   );
 };
@@ -87,25 +94,4 @@ const secondaryTimeEntry = (
         ? { kind: "actual", time: undefined }
         : undefined;
 
-/**
- * One half-width column: renders a time row when `entry` is defined.
- *
- * @param entry - Icon kind and time for this slot
- * @param theme - Text and icon colors
- * @returns Half column, optionally empty
- */
-const TimelineRowTimeSlot = ({
-  entry,
-  theme,
-}: {
-  entry?: TimelineTimeEntry;
-  theme: TimelineVisualTheme;
-}) => (
-  <View className="w-1/2 items-start">
-    {entry ? (
-      <TimelineRowEventTime kind={entry.kind} at={entry.time} theme={theme} />
-    ) : null}
-  </View>
-);
-
-export { TimelineRowEventTimes };
+export { TimelineRowTimes };

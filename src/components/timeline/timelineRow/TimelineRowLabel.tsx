@@ -7,7 +7,7 @@ import { TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import { TimelineRowText } from "./TimelineRowText";
 
-type TimelineRowEventLabelProps = {
+type TimelineRowLabelProps = {
   label: string;
   theme: TimelineVisualTheme;
 };
@@ -20,10 +20,7 @@ type TimelineRowEventLabelProps = {
  * @param theme - Body text color for the label
  * @returns End-aligned label row with side gutter
  */
-const TimelineRowEventLabel = ({
-  label,
-  theme,
-}: TimelineRowEventLabelProps) => (
+const TimelineRowLabel = ({ label, theme }: TimelineRowLabelProps) => (
   <View
     className="flex-row justify-end pr-2"
     style={{
@@ -34,4 +31,4 @@ const TimelineRowEventLabel = ({
   </View>
 );
 
-export { TimelineRowEventLabel };
+export { TimelineRowLabel };

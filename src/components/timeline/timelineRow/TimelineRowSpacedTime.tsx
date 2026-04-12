@@ -2,7 +2,7 @@
  * 12h clock and AM/PM as sibling `Text` nodes so Victor Mono tracks cleanly.
  */
 
-import { Text, View } from "@/components/ui";
+import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
 import { TimelineRowText } from "./TimelineRowText";
 

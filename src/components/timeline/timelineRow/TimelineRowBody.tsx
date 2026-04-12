@@ -6,9 +6,9 @@ import { View } from "@/components/ui";
 import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
-import { TimelineRowEventLabel } from "./TimelineRowEventLabel";
-import { TimelineRowEventTimes } from "./TimelineRowEventTimes";
+import { TimelineRowLabel } from "./TimelineRowLabel";
 import { TimelineRowMarker } from "./TimelineRowMarker";
+import { TimelineRowTimes } from "./TimelineRowTimes";
 
 type TimelineRowBodyProps = {
   row: TimelineRenderRow;
@@ -31,7 +31,7 @@ const TimelineRowBody = ({ row, theme }: TimelineRowBodyProps) => (
         width: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
       }}
     >
-      <TimelineRowEventLabel label={row.startLabel} theme={theme} />
+      <TimelineRowLabel label={row.startLabel} theme={theme} />
     </View>
     {/* Center: disc on the shared vertical track (negative margin centers on line) */}
     <View
@@ -45,7 +45,7 @@ const TimelineRowBody = ({ row, theme }: TimelineRowBodyProps) => (
     </View>
     {/* Right: scheduled + secondary times with per-kind icons */}
     <View className="flex-1 -translate-y-[11px] pl-2">
-      <TimelineRowEventTimes
+      <TimelineRowTimes
         point={row.startEvent.timePoint}
         showPlaceholder={row.showStartTimePlaceholder}
         theme={theme}
