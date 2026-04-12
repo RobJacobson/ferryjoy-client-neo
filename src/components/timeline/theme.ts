@@ -65,14 +65,7 @@ export const TIMELINE_RENDER_CONSTANTS = {
     coreWidthPx: 3,
     glowWidthPx: 8,
   },
-  cards: {
-    blurIntensity: 20,
-    /** Fixed card blur material; not per-theme (see `TimelineTerminalCardBackgrounds`). */
-    blurTint: "light" as const,
-  },
-  indicator: {
-    glassBlurIntensity: 20,
-  },
+  glassBlurIntensity: 14,
 } as const;
 
 export const DEFAULT_TIMELINE_OUTLINE_COLOR = "hsla(0, 0%, 100%, 0.8)";

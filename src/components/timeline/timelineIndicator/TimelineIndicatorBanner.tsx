@@ -73,7 +73,7 @@ export const TimelineIndicatorBanner = ({
       >
         <TimelineGlassSurface
           blurTargetRef={blurTargetRef}
-          blurIntensity={TIMELINE_RENDER_CONSTANTS.indicator.glassBlurIntensity}
+          blurIntensity={TIMELINE_RENDER_CONSTANTS.glassBlurIntensity}
           theme={theme}
           className="rounded-full"
         >
