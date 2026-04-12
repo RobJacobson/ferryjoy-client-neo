@@ -53,7 +53,11 @@ export const toRenderRows = (
       segmentIndex: rowIndex,
       displayHeightPx,
       startLabel: getStartEventLabel(startEvent),
-      showStartTimePlaceholder: startEvent.isArrivalPlaceholder === true,
+      showStartTimePlaceholder: shouldShowStartTimePlaceholder(
+        startEvent,
+        rowIndex,
+        activeRowIndex
+      ),
       terminalHeadline: getTerminalHeadline(startEvent),
       startEvent,
       endEvent: toRenderEvent(row, "end", input.getTerminalNameByAbbrev),
@@ -103,6 +107,34 @@ const getDisplayHeightPx = (
         ) **
           layout.rowHeightExponent
   );
+
+/**
+ * Whether to show `--` in the secondary time column when actual and estimated
+ * are missing.
+ *
+ * @param startEvent - Start boundary for the row
+ * @param rowIndex - Index in render order
+ * @param activeRowIndex - Current active row, or -1 when none
+ * @returns True when the UI should reserve placeholder secondary content
+ */
+const shouldShowStartTimePlaceholder = (
+  startEvent: TimelineRenderEvent,
+  rowIndex: number,
+  activeRowIndex: number
+): boolean => {
+  if (startEvent.isArrivalPlaceholder === true) {
+    return true;
+  }
+  if (startEvent.timePoint.scheduled !== undefined) {
+    return true;
+  }
+  return (
+    activeRowIndex >= 0 &&
+    rowIndex < activeRowIndex &&
+    startEvent.eventType === "depart" &&
+    startEvent.timePoint.actual !== undefined
+  );
+};
 
 /**
  * Converts one side of a derived row into the shared renderer event shape.

@@ -46,7 +46,7 @@ const TimelineRowTime = ({ kind, at, theme }: TimelineRowTimeProps) => {
       {at ? (
         <TimelineRowSpacedTime at={at} theme={theme} />
       ) : (
-        <TimelineRowText theme={theme}>--</TimelineRowText>
+        <TimelineRowText theme={theme}>{"  --"}</TimelineRowText>
       )}
     </View>
   );
