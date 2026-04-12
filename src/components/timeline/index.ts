@@ -29,7 +29,11 @@ export {
   type TimelineVisualThemeOverrides,
 } from "./theme";
 export { TimelineIndicatorOverlay } from "./timelineIndicator";
-export { TimelineRow, TimelineRowContent } from "./timelineRow";
+export {
+  TimelineRowContent,
+  TimelineRowFixed,
+  TimelineRowFlex,
+} from "./timelineRow";
 export type {
   RowLayoutBounds,
   TerminalCardGeometry,

@@ -1,10 +1,11 @@
 /**
- * Left column: short arrive/depart label with outline treatment.
+ * End-aligned direction label (e.g. to/from) with shared side gutter.
  */
 
-import { StrokeText } from "@/components/StrokeText";
 import { View } from "@/components/ui";
+import { TIMELINE_SHARED_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
+import { TimelineRowText } from "./TimelineRowText";
 
 type TimelineRowEventLabelProps = {
   label: string;
@@ -12,26 +13,25 @@ type TimelineRowEventLabelProps = {
 };
 
 /**
- * Outlined single-line label using the body text color from the theme.
+ * Flex row aligned to the track edge: Victor Mono label and shared margin
+ * offset for the marker column.
  *
- * @param label - Preformatted string (e.g. `Arv: XX` or `To: YY`)
- * @param theme - Body text color token
- * @returns Relative wrapper around outlined text
+ * @param label - Short direction string (e.g. to/from)
+ * @param theme - Body text color for the label
+ * @returns End-aligned label row with side gutter
  */
-export const TimelineRowEventLabel = ({
+const TimelineRowEventLabel = ({
   label,
   theme,
 }: TimelineRowEventLabelProps) => (
-  <View className="relative">
-    <StrokeText
-      outlineColor={theme.outlines.color}
-      style={{
-        color: theme.text.bodyColor,
-        // fontFamily: "BitcountPropSingle-500",
-        fontSize: 18,
-      }}
-    >
-      {label}
-    </StrokeText>
+  <View
+    className="flex-row justify-end pr-2"
+    style={{
+      marginRight: TIMELINE_SHARED_CONFIG.sideColumnOffsetPx,
+    }}
+  >
+    <TimelineRowText theme={theme}>{label}</TimelineRowText>
   </View>
 );
+
+export { TimelineRowEventLabel };

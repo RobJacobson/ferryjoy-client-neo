@@ -1,13 +1,15 @@
 /**
- * Timeline row shell using flex growth for proportional segments and layout measurement.
+ * Timeline row shell using flex growth for proportional segments and layout
+ * measurement (bounds feed track overlays elsewhere).
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import type { LayoutChangeEvent } from "react-native";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { RowLayoutBounds } from "../types";
 
-export type TimelineRowFlexProps = {
+type TimelineRowFlexProps = {
   id: string;
   flexGrow: number;
   minHeight?: number;
@@ -27,7 +29,7 @@ export type TimelineRowFlexProps = {
  * @param children - Row contents (typically `TimelineRowContent`)
  * @returns Row container with flex-based vertical sizing
  */
-export const TimelineRowFlex = ({
+const TimelineRowFlex = ({
   id,
   flexGrow,
   minHeight,
@@ -35,9 +37,13 @@ export const TimelineRowFlex = ({
   rowClassName,
   children,
 }: TimelineRowFlexProps) => {
-  const handleLayout = (event: {
-    nativeEvent: { layout: RowLayoutBounds };
-  }) => {
+  /**
+   * Reports this row's `y` and `height` to the parent so the shared track and
+   * overlays align with row geometry after native layout.
+   *
+   * @param event - React Native `onLayout` event for this row container
+   */
+  const handleLayout = (event: LayoutChangeEvent) => {
     const { y, height } = event.nativeEvent.layout;
     onRowLayout(id, { y, height });
   };
@@ -46,7 +52,8 @@ export const TimelineRowFlex = ({
     <View
       className={cn("w-full", rowClassName)}
       style={{
-        // `minHeight === 0` lets the final row collapse instead of forcing flex space.
+        // Final segment uses `minHeight === 0` so it can collapse instead of
+        // absorbing leftover flex space.
         flexGrow: minHeight === 0 ? 0 : flexGrow,
         flexBasis: "auto",
         minHeight,
@@ -57,3 +64,6 @@ export const TimelineRowFlex = ({
     </View>
   );
 };
+
+export type { TimelineRowFlexProps };
+export { TimelineRowFlex };

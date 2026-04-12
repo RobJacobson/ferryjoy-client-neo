@@ -3,10 +3,10 @@
  */
 
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-export type TimelineRowFixedProps = {
+type TimelineRowFixedProps = {
   heightPx: number;
   rowClassName?: string;
   children: ReactNode;
@@ -20,7 +20,7 @@ export type TimelineRowFixedProps = {
  * @param children - Row contents (typically `TimelineRowContent`)
  * @returns Row container with fixed vertical size
  */
-export const TimelineRowFixed = ({
+const TimelineRowFixed = ({
   heightPx,
   rowClassName,
   children,
@@ -29,3 +29,6 @@ export const TimelineRowFixed = ({
     {children}
   </View>
 );
+
+export type { TimelineRowFixedProps };
+export { TimelineRowFixed };

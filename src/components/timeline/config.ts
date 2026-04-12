@@ -37,20 +37,7 @@ export const TIMELINE_INDICATOR_CONFIG = {
     zIndex: 10,
     elevation: 10,
   },
-  radarPing: {
-    durationMs: 10000,
-    borderWidthPx: 2,
-    fillOpacity: 0.5,
-    maxScale: 2.5,
-    keyframes: {
-      hiddenStartPercent: "0%",
-      hiddenEndPercent: "49.99%",
-      visibleStartPercent: "50%",
-      endPercent: "100%",
-    },
-  },
   motion: {
-    progressDurationMs: 5000,
     rocking: {
       minSpeedKnots: 0,
       maxSpeedKnots: 20,
@@ -67,25 +54,13 @@ export const TIMELINE_INDICATOR_CONFIG = {
  * Typography and marker sizing shared by row-level timeline components.
  */
 export const TIMELINE_ROW_CONFIG = {
-  label: {
-    fontSizePx: 18,
-  },
   marker: {
-    sizePx: 28,
-    borderWidthPx: 2,
-    iconSizePx: 20,
-  },
-  terminalName: {
-    zIndex: 2,
-    elevation: 2,
-    outlineWidthPx: 2,
-    fontSizePx: 30,
-    rotationDeg: -9,
+    sizePx: 32,
+    iconSizePx: 22,
   },
   times: {
     iconSizePx: 22,
     iconStrokeWidth: 1.5,
-    iconOutlineWidth: 1.5,
     textFontSizePx: 18,
   },
 } as const;

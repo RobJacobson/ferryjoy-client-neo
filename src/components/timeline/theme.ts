@@ -34,6 +34,8 @@ export type TimelineVisualTheme = {
     terminalNameColor: string;
     indicatorHeadlineColor: string;
     bodyColor: string;
+    /** Lucide / small row icons (time kind glyphs, etc.). */
+    iconColor: string;
   };
   outlines: {
     /**
@@ -49,10 +51,7 @@ export type TimelineVisualTheme = {
     accentColor: string;
     contrastColor: string;
   };
-  indicator: {
-    borderColor: string;
-    pingColor: string;
-  };
+  indicatorColor: string;
 };
 
 export type TimelineVisualThemeOverrides = {
@@ -94,6 +93,7 @@ export const SEA_GLASS_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(194, 69%, 65%, 1)",
     indicatorHeadlineColor: "hsla(207, 37%, 28%, 1)",
     bodyColor: "hsla(207, 37%, 28%, 1)",
+    iconColor: "hsla(207, 37%, 28%, 1)",
   },
   outlines: {
     color: DEFAULT_TIMELINE_OUTLINE_COLOR,
@@ -102,10 +102,7 @@ export const SEA_GLASS_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(190, 74%, 42%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.92)",
   },
-  indicator: {
-    borderColor: "hsla(189, 70%, 73%, 1)",
-    pingColor: "hsla(189, 70%, 73%, 0.52)",
-  },
+  indicatorColor: "hsl(189, 70%, 73%)",
 };
 
 export const HARBOR_DAWN_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -122,6 +119,7 @@ export const HARBOR_DAWN_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(14, 88%, 71%, 1)",
     indicatorHeadlineColor: "hsla(24, 34%, 30%, 1)",
     bodyColor: "hsla(24, 34%, 30%, 1)",
+    iconColor: "hsla(24, 34%, 30%, 1)",
   },
   outlines: {
     color: DEFAULT_TIMELINE_OUTLINE_COLOR,
@@ -130,10 +128,7 @@ export const HARBOR_DAWN_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(14, 80%, 59%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.92)",
   },
-  indicator: {
-    borderColor: "hsla(22, 88%, 76%, 1)",
-    pingColor: "hsla(22, 88%, 76%, 0.48)",
-  },
+  indicatorColor: "hsl(22, 88%, 76%)",
 };
 
 export const CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -150,6 +145,7 @@ export const CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(21, 94%, 63%, 1)",
     indicatorHeadlineColor: "hsla(205, 34%, 29%, 1)",
     bodyColor: "hsla(205, 34%, 29%, 1)",
+    iconColor: "hsla(205, 34%, 29%, 1)",
   },
   outlines: {
     color: DEFAULT_TIMELINE_OUTLINE_COLOR,
@@ -158,10 +154,7 @@ export const CARNIVAL_FIZZ_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(24, 96%, 62%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.94)",
   },
-  indicator: {
-    borderColor: "hsla(33, 100%, 74%, 0.9)",
-    pingColor: "hsla(33, 100%, 74%, 0.48)",
-  },
+  indicatorColor: "hsl(33, 100%, 74%)",
 };
 
 export const TAFFY_HARBOR_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -178,6 +171,7 @@ export const TAFFY_HARBOR_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(322, 73%, 66%, 1)",
     indicatorHeadlineColor: "hsla(229, 24%, 32%, 1)",
     bodyColor: "hsla(229, 24%, 32%, 1)",
+    iconColor: "hsla(229, 24%, 32%, 1)",
   },
   outlines: {
     color: "hsla(0, 0%, 100%, 0.7)",
@@ -186,10 +180,7 @@ export const TAFFY_HARBOR_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(330, 79%, 68%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.94)",
   },
-  indicator: {
-    borderColor: "hsla(327, 82%, 77%, 1)",
-    pingColor: "hsla(327, 82%, 77%, 0.44)",
-  },
+  indicatorColor: "hsl(327, 82%, 77%)",
 };
 
 export const CONFETTI_TIDE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -206,6 +197,7 @@ export const CONFETTI_TIDE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(198, 80%, 57%, 1)",
     indicatorHeadlineColor: "hsla(223, 28%, 29%, 1)",
     bodyColor: "hsla(223, 28%, 29%, 1)",
+    iconColor: "hsla(223, 28%, 29%, 1)",
   },
   outlines: {
     color: DEFAULT_TIMELINE_OUTLINE_COLOR,
@@ -214,10 +206,7 @@ export const CONFETTI_TIDE_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(11, 86%, 65%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.94)",
   },
-  indicator: {
-    borderColor: "hsla(198, 83%, 70%, 0.9)",
-    pingColor: "hsla(198, 83%, 70%, 0.44)",
-  },
+  indicatorColor: "hsl(198, 83%, 70%)",
 };
 
 export const MOON_JELLY_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -234,6 +223,7 @@ export const MOON_JELLY_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(271, 78%, 72%, 1)",
     indicatorHeadlineColor: "hsla(226, 24%, 31%, 1)",
     bodyColor: "hsla(226, 24%, 31%, 1)",
+    iconColor: "hsla(226, 24%, 31%, 1)",
   },
   outlines: {
     color: "hsla(0, 0%, 100%, 0.72)",
@@ -242,10 +232,7 @@ export const MOON_JELLY_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(267, 79%, 70%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.94)",
   },
-  indicator: {
-    borderColor: "hsla(266, 83%, 79%, 0.9)",
-    pingColor: "hsla(266, 83%, 79%, 0.42)",
-  },
+  indicatorColor: "hsl(266, 83%, 79%)",
 };
 
 export const PICNIC_POSTCARD_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
@@ -262,6 +249,7 @@ export const PICNIC_POSTCARD_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     terminalNameColor: "hsla(356, 79%, 64%, 1)",
     indicatorHeadlineColor: "hsla(29, 24%, 29%, 1)",
     bodyColor: "hsla(29, 24%, 29%, 1)",
+    iconColor: "hsla(29, 24%, 29%, 1)",
   },
   outlines: {
     color: DEFAULT_TIMELINE_OUTLINE_COLOR,
@@ -270,10 +258,7 @@ export const PICNIC_POSTCARD_TIMELINE_VISUAL_THEME: TimelineVisualTheme = {
     accentColor: "hsla(356, 86%, 64%, 1)",
     contrastColor: "hsla(0, 0%, 100%, 0.94)",
   },
-  indicator: {
-    borderColor: "hsla(356, 84%, 76%, 0.9)",
-    pingColor: "hsla(356, 84%, 76%, 0.42)",
-  },
+  indicatorColor: "hsl(356, 84%, 76%)",
 };
 
 export const BASE_TIMELINE_VISUAL_THEME = SEA_GLASS_TIMELINE_VISUAL_THEME;
@@ -317,8 +302,6 @@ export const createTimelineVisualTheme = (
     ...BASE_TIMELINE_VISUAL_THEME.marker,
     ...overrides.marker,
   },
-  indicator: {
-    ...BASE_TIMELINE_VISUAL_THEME.indicator,
-    ...overrides.indicator,
-  },
+  indicatorColor:
+    overrides.indicatorColor ?? BASE_TIMELINE_VISUAL_THEME.indicatorColor,
 });

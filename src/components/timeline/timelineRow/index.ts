@@ -1,8 +1,8 @@
 /**
- * Row-level timeline UI: measurable shell, marker, labels, and times.
+ * Public timeline row API: shells (`Flex`/`Fixed`) and row content composite.
+ * Subcomponents (marker, times, text) stay module-private to this folder.
  */
 
-export type { TimelineRowProps } from "./TimelineRow";
-export { TimelineRow } from "./TimelineRow";
 export { TimelineRowContent } from "./TimelineRowContent";
-export { TimelineRowTerminalName } from "./TimelineRowTerminalName";
+export { TimelineRowFixed } from "./TimelineRowFixed";
+export { TimelineRowFlex } from "./TimelineRowFlex";

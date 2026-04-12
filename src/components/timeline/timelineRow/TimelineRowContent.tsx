@@ -1,13 +1,12 @@
 /**
- * One timeline row: terminal headline, label/times columns, and center marker.
+ * One timeline row interior: terminal headline plus label/marker/times body.
  */
 
 import { View } from "@/components/ui";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 import { TimelineRowBody } from "./TimelineRowBody";
-import { TimelineRowMarker } from "./TimelineRowMarker";
-import { TimelineRowTerminalName } from "./TimelineRowTerminalName";
+import { TimelineRowHeading } from "./TimelineRowHeading";
 
 type TimelineRowContentProps = {
   row: TimelineRenderRow;
@@ -15,25 +14,17 @@ type TimelineRowContentProps = {
 };
 
 /**
- * Renders pipeline row data around the shared vertical track column.
+ * Places heading and body inside the row shell (`TimelineRowFlex` or fixed height).
  *
  * @param row - Render row with events, marker state, and segment kind
  * @param theme - Label, time, and marker colors
  * @returns Row interior positioned relative to the track
  */
-export const TimelineRowContent = ({ row, theme }: TimelineRowContentProps) => {
-  return (
-    <View className="relative h-full w-full">
-      {row.terminalHeadline && (
-        <TimelineRowTerminalName text={row.terminalHeadline} theme={theme} />
-      )}
-      <TimelineRowBody
-        label={row.startLabel}
-        point={row.startEvent.timePoint}
-        showPlaceholder={row.showStartTimePlaceholder}
-        theme={theme}
-      />
-      <TimelineRowMarker row={row} theme={theme} />
-    </View>
-  );
-};
+const TimelineRowContent = ({ row, theme }: TimelineRowContentProps) => (
+  <View className="relative h-full w-full">
+    <TimelineRowHeading text={row.terminalHeadline} theme={theme} />
+    <TimelineRowBody row={row} theme={theme} />
+  </View>
+);
+
+export { TimelineRowContent };
