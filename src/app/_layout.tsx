@@ -8,6 +8,22 @@
 import "../../global.css";
 import "@/shared/polyfills/object-group-by";
 
+import {
+  VictorMono_100Thin,
+  VictorMono_100Thin_Italic,
+  VictorMono_200ExtraLight,
+  VictorMono_200ExtraLight_Italic,
+  VictorMono_300Light,
+  VictorMono_300Light_Italic,
+  VictorMono_400Regular,
+  VictorMono_400Regular_Italic,
+  VictorMono_500Medium,
+  VictorMono_500Medium_Italic,
+  VictorMono_600SemiBold,
+  VictorMono_600SemiBold_Italic,
+  VictorMono_700Bold,
+  VictorMono_700Bold_Italic,
+} from "@expo-google-fonts/victor-mono";
 import Mapbox from "@rnmapbox/maps";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
@@ -37,6 +53,20 @@ Mapbox.setAccessToken(accessToken);
 export default function Layout() {
   const [textureReady, setTextureReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
+    VictorMono_100Thin,
+    VictorMono_100Thin_Italic,
+    VictorMono_200ExtraLight,
+    VictorMono_200ExtraLight_Italic,
+    VictorMono_300Light,
+    VictorMono_300Light_Italic,
+    VictorMono_400Regular,
+    VictorMono_400Regular_Italic,
+    VictorMono_500Medium,
+    VictorMono_500Medium_Italic,
+    VictorMono_600SemiBold,
+    VictorMono_600SemiBold_Italic,
+    VictorMono_700Bold,
+    VictorMono_700Bold_Italic,
     Puffberry: require("../../assets/fonts/puffberry/Puffberry.ttf"),
     "PlaypenSans-Thin": require("../../assets/fonts/playpen-sans/PlaypenSans-Thin.ttf"),
     "PlaypenSans-ExtraLight": require("../../assets/fonts/playpen-sans/PlaypenSans-ExtraLight.ttf"),

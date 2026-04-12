@@ -61,6 +61,7 @@
   },
   "dependencies": {
     "@convex-dev/crons": "^0.2.0",
+    "@expo-google-fonts/victor-mono": "^0.4.2",
     "@expo/ui": "~55.0.5",
     "@expo/vector-icons": "^15.1.1",
     "@faker-js/faker": "^10.3.0",
