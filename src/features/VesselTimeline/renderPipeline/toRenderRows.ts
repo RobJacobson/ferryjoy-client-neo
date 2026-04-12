@@ -250,25 +250,23 @@ const computeTerminalCards = (
       continue;
     }
 
-    const position = getCardPosition(rows, renderRows, rowIndex);
-    if (!position) {
+    const cardRole = getCardRole(rows, renderRows, rowIndex);
+    if (!cardRole || cardRole === "pair-bottom") {
       continue;
     }
 
     const topPx =
-      position === "bottom"
-        ? rowTopPx
-        : rowTopPx - layout.terminalCardTopHeightPx;
+      cardRole === "merged-top"
+        ? rowTopPx - layout.terminalCardCapHeightPx
+        : rowTopPx - layout.terminalCardCapHeightPx;
     const heightPx =
-      position === "bottom"
-        ? layout.terminalCardBottomHeightPx
-        : position === "single"
-          ? renderRow.displayHeightPx
-          : renderRow.displayHeightPx + layout.terminalCardTopHeightPx;
+      cardRole === "merged-top"
+        ? renderRow.displayHeightPx + layout.terminalCardCapHeightPx * 2
+        : renderRow.displayHeightPx;
 
     terminalCards.push({
       id: renderRow.id,
-      position,
+      position: "single",
       topPx,
       heightPx,
     });
@@ -278,18 +276,18 @@ const computeTerminalCards = (
 };
 
 /**
- * Classifies the terminal-card shape for one row.
+ * Classifies terminal-card rendering responsibility for one row.
  *
  * @param rows - Derived rows in render order
  * @param renderRows - Renderer rows in render order
  * @param rowIndex - Row index to classify
- * @returns Terminal-card position token, or `null`
+ * @returns Card role token, or `null`
  */
-const getCardPosition = (
+const getCardRole = (
   rows: VesselTimelineRow[],
   renderRows: TimelineRenderRow[],
   rowIndex: number
-): TerminalCardGeometry["position"] | null => {
+): "merged-top" | "pair-bottom" | "single" | null => {
   const renderRow = renderRows[rowIndex];
   const row = rows[rowIndex];
   if (!renderRow || !row) {
@@ -315,11 +313,11 @@ const getCardPosition = (
     previousRow.startEvent.TerminalAbbrev === terminalAbbrev;
 
   if (matchesNext) {
-    return "top";
+    return "merged-top";
   }
 
   if (matchesPrevious) {
-    return "bottom";
+    return "pair-bottom";
   }
 
   return renderRow.kind === "at-dock" && terminalAbbrev ? "single" : null;

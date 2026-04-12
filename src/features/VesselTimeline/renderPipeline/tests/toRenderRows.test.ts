@@ -46,9 +46,10 @@ describe("toRenderRows", () => {
     );
     expect(renderState.renderRows[2]?.isFinalRow).toBeTrue();
     expect(renderState.renderRows[2]?.terminalHeadline).toBe("Vashon Is.");
+    expect(renderState.terminalCards).toHaveLength(2);
+    expect(renderState.terminalCards[0]?.id).toBe("trip-1--at-dock");
     expect(renderState.terminalCards.map((card) => card.position)).toEqual([
-      "top",
-      "bottom",
+      "single",
       "single",
     ]);
     expect(renderState.rowLayouts["trip-1--at-sea"]?.height).toBeGreaterThan(0);
@@ -91,8 +92,7 @@ describe("toRenderRows", () => {
           rowHeightScalePx: 1,
           rowHeightExponent: 1,
           minRowHeightPx: 0,
-          terminalCardTopHeightPx: 16,
-          terminalCardBottomHeightPx: 16,
+          terminalCardCapHeightPx: 16,
           initialAutoScroll: "center-active-indicator",
           initialScrollAnchorPercent: 0.4,
         },

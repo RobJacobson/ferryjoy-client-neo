@@ -68,6 +68,16 @@ backbone events
   -> compute indicator from VesselLocation
 ```
 
+Terminal card geometry is derived alongside render rows:
+
+- a dock row followed by a matching sea row renders as one merged glass card
+- the merged card is anchored by the dock row and spans both rows
+- the sea row renders no separate card background, only foreground content
+- standalone dock rows still render a single card with a top cap only
+
+This avoids split-card seams while keeping the row timestamps and marker-centered
+row boundaries unchanged.
+
 This makes the render pipeline deterministic and easy to reason about. The
 timeline structure only changes when the backbone changes:
 

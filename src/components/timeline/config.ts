@@ -17,7 +17,7 @@ export const TIMELINE_SHARED_CONFIG = {
  * Shared geometry for the blurred terminal card treatment.
  */
 export const TIMELINE_CARD_CONFIG = {
-  cornerRadiusPx: 20,
+  cornerRadiusPx: 16,
 } as const;
 
 /**
