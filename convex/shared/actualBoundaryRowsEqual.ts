@@ -18,6 +18,9 @@ export const actualBoundaryRowsEqual = (
   right: ConvexActualBoundaryEvent
 ): boolean =>
   left.Key === right.Key &&
+  left.EventKey === right.EventKey &&
+  left.TripKey === right.TripKey &&
+  left.ScheduleKey === right.ScheduleKey &&
   left.VesselAbbrev === right.VesselAbbrev &&
   left.SailingDay === right.SailingDay &&
   left.ScheduledDeparture === right.ScheduledDeparture &&

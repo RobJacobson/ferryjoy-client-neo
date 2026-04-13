@@ -429,8 +429,9 @@ Format:
 
 Where:
 
-- `DateTime` is `Date.now()` rounded to seconds
+- `DateTime` comes from the triggering `VesselLocation.TimeStamp` field
 - encoded in ISO format
+- truncated to whole seconds if needed
 - with `T` replaced by a space
 
 Example:
@@ -440,6 +441,8 @@ CAT 2026-04-12 18:21:55Z
 ```
 
 This value must be assigned once when the trip instance is created and never recomputed.
+
+It should be tied to the vessel-location tick that caused the lifecycle transition, not the backend wall-clock time when the server happened to process that tick.
 
 ### Optional schedule identity: `ScheduleKey`
 
@@ -466,7 +469,8 @@ A physical trip is defined as:
 This is consistent with the user's intended simplification:
 
 - there is one current trip instance
-- if `LeftDockActual` is null, the vessel is still in the dock portion of that trip
+- `AtDockActual` marks when the vessel entered the dock portion of the current trip
+- if `LeftDockActual` is null, the vessel has not yet left the dock portion of the current trip
 - arrival at the next dock ends the current trip and begins a new one
 
 ### Trip fields in end state
@@ -479,6 +483,7 @@ Desired end-state core fields for `activeVesselTrips` and `completedVesselTrips`
 - `DepartingTerminalAbbrev`
 - `ArrivingTerminalAbbrev?`
 - `TripStart`
+- `AtDockActual`
 - `LeftDockActual?`
 - `TripEnd?`
 - `InService`
@@ -494,10 +499,17 @@ Existing optional prediction and helper fields may remain if still needed.
 - practically: when the vessel enters the docked phase at the terminal where this trip starts
 - for a replacement trip created immediately after an arrival, this is the arrival/start boundary of the new dock interval
 
+#### `AtDockActual`
+
+- the observed timestamp when the vessel entered the dock portion of the current trip
+- this is the positive physical marker that the vessel is at dock for the current trip
+- preferred field for testing whether the current trip is in its dock phase
+- unlike `LeftDockActual`, this does not rely on checking for undefined as the primary at-dock signal
+
 #### `LeftDockActual?`
 
 - the observed departure timestamp from the starting terminal
-- null means the vessel is still in the dock portion of the current trip
+- null means the vessel has not yet left the dock portion of the current trip
 
 #### `TripEnd?`
 
@@ -757,6 +769,7 @@ This stage intentionally does not require timeline changes yet.
 
 - introduce `TripKey`
 - introduce `ScheduleKey?`
+- introduce `AtDockActual`
 - introduce `LeftDockActual?`
 - stop using the composite key as the durable trip identity
 - make trip transitions physical-first
@@ -767,6 +780,7 @@ Additive changes to `activeVesselTrips` and `completedVesselTrips`:
 
 - `TripKey: string`
 - `ScheduleKey?: string`
+- `AtDockActual: number`
 - `LeftDockActual?: number`
 
 Existing legacy fields may temporarily remain:
@@ -797,6 +811,7 @@ When a new trip starts:
 - assign immutable `TripKey`
 - set `DepartingTerminalAbbrev` from physical location
 - set `TripStart`
+- set `AtDockActual`
 - set `LeftDockActual` to undefined
 - attach `ScheduleKey` only if safely resolvable
 
@@ -805,6 +820,7 @@ When a new trip starts:
 - if vessel remains in the dock phase, keep the same `TripKey`
 - update `ArrivingTerminalAbbrev?` only when better information becomes available
 - do not churn trip identity because of raw schedule-field changes
+- determine dock-phase status from `AtDockActual` / `LeftDockActual` semantics rather than treating `LeftDockActual === undefined` as the sole source of truth
 
 #### On departure
 
@@ -1061,9 +1077,10 @@ Goal:
 
 1. Add `TripKey` to stored trip schemas.
 2. Add `ScheduleKey?` to stored trip schemas.
-3. Add `LeftDockActual?` to stored trip schemas.
-4. Keep legacy fields such as `Key` and `ScheduledDeparture` for compatibility during migration.
-5. Update query/domain conversion helpers so the new fields are available to the rest of the codebase.
+3. Add `AtDockActual` to stored trip schemas.
+4. Add `LeftDockActual?` to stored trip schemas.
+5. Keep legacy fields such as `Key` and `ScheduledDeparture` for compatibility during migration.
+6. Update query/domain conversion helpers so the new fields are available to the rest of the codebase.
 
 ### Files to update
 
@@ -1076,6 +1093,7 @@ Goal:
 - `TripKey` should be required on newly written rows
 - existing rows may need transitional optional handling until backfilled or naturally replaced
 - `ScheduleKey` should stay optional
+- `AtDockActual` should become the preferred positive physical marker for "this trip is at dock"
 - `LeftDockActual` should become the preferred physical departure field; legacy `LeftDock` can remain during migration
 
 ### Acceptance criteria
@@ -1167,6 +1185,7 @@ Goal:
 2. On arrival:
    - complete current trip
    - create next trip immediately
+   - stamp the new trip's `AtDockActual`
 3. On departure:
    - set `LeftDockActual`
    - do not create a new trip
@@ -1403,7 +1422,7 @@ It should make later PRs safer and easier to review.
 ### PR 1 goals
 
 1. Add regression tests for the incident classes motivating the redesign.
-2. Additive-only schema changes for `TripKey`, `ScheduleKey`, and `LeftDockActual` on trip tables.
+2. Additive-only schema changes for `TripKey`, `ScheduleKey`, `AtDockActual`, and `LeftDockActual` on trip tables.
 3. Additive-only schema changes for `EventKey`, `TripKey`, and `ScheduleKey` on `eventsActual`.
 4. Add helper scaffolding where needed, but do not switch write paths to use it yet.
 5. Preserve all existing read and write behavior by default.
@@ -1453,6 +1472,7 @@ Add to trip schemas:
 
 - `TripKey`
 - `ScheduleKey?`
+- `AtDockActual`
 - `LeftDockActual?`
 
 Suggested files:
@@ -1464,6 +1484,7 @@ Implementation guidance:
 - `TripKey` may need to be optional temporarily if old rows still exist in dev data and queries would otherwise fail
 - if made optional in schema for migration safety, document that new writes are expected to populate it once PR 2 lands
 - `ScheduleKey` should be optional
+- `AtDockActual` may need to be optional in PR 1 for migration safety, even though the target design expects it on new writes
 - `LeftDockActual` should be optional
 
 Expected output of this step:
@@ -1579,6 +1600,7 @@ PR 1 is successful if all of the following are true:
 2. Trip schemas support:
    - `TripKey`
    - `ScheduleKey?`
+   - `AtDockActual`
    - `LeftDockActual?`
 3. `eventsActual` schemas support:
    - `EventKey`

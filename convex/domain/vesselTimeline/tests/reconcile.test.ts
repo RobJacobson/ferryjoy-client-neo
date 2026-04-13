@@ -149,7 +149,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     expect(effects).toEqual([]);
   });
 
-  it("ignores vessels with no scheduled rows", () => {
+  it("SAL dock window with no scheduled identity produces no reconciliation effects", () => {
     const events = buildSeedVesselTripEvents([
       makeTrip({
         VesselAbbrev: "TOK",
@@ -169,13 +169,14 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       actualEvents,
       vesselLocations: [
         makeLocation({
-          VesselAbbrev: "ISS",
-          DepartingTerminalAbbrev: "P52",
-          ArrivingTerminalAbbrev: "BBI",
-          ScheduledDeparture: at(8, 35),
-          TimeStamp: at(8, 50),
-          AtDock: false,
-          Speed: 12,
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          AtDock: true,
+          Speed: 0,
         }),
       ],
     });

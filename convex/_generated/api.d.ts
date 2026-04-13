@@ -163,6 +163,7 @@ import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLo
 import type * as shared_groupBy from "../shared/groupBy.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
+import type * as shared_physicalTripIdentity from "../shared/physicalTripIdentity.js";
 import type * as shared_scheduleIdentity from "../shared/scheduleIdentity.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_time from "../shared/time.js";
@@ -332,6 +333,7 @@ declare const fullApi: ApiFromModules<{
   "shared/groupBy": typeof shared_groupBy;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;
+  "shared/physicalTripIdentity": typeof shared_physicalTripIdentity;
   "shared/scheduleIdentity": typeof shared_scheduleIdentity;
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/time": typeof shared_time;

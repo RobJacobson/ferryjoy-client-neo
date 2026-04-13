@@ -94,6 +94,9 @@ export const buildActualBoundaryEventFromPatch = (
   updatedAt: number
 ): ConvexActualBoundaryEvent => ({
   Key: buildBoundaryKey(patch.SegmentKey, patch.EventType),
+  EventKey: patch.EventKey,
+  TripKey: patch.TripKey,
+  ScheduleKey: patch.ScheduleKey,
   VesselAbbrev: patch.VesselAbbrev,
   SailingDay: patch.SailingDay,
   UpdatedAt: updatedAt,

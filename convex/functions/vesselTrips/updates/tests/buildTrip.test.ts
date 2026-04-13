@@ -69,25 +69,29 @@ describe("buildTrip", () => {
     );
   });
 
-  it("preserves the dock-owned identity on the leave-dock tick", async () => {
+  it("CAT continuity preserves the dock-owned identity through the leave-dock tick", async () => {
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--09:30--ORI-LOP",
+      VesselAbbrev: "CAT",
+      Key: "CAT--2026-04-12--16:50--SOU-VAI",
       SailingDay: "2026-03-13",
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "LOP",
-      ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
       LeftDock: undefined,
+      LeftDockActual: undefined,
+      AtDockActual: ms("2026-04-12T16:32:00-07:00"),
       AtDock: true,
-      TimeStamp: ms("2026-03-13T09:29:30-07:00"),
+      TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
     const currLocation = makeLocation({
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "ANA",
-      ScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
-      LeftDock: ms("2026-03-13T09:34:00-07:00"),
+      VesselAbbrev: "CAT",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T18:45:00-07:00"),
+      LeftDock: ms("2026-04-12T16:53:14-07:00"),
       AtDock: false,
-      Key: "CHE--2026-03-13--10:15--ORI-ANA",
-      TimeStamp: ms("2026-03-13T09:34:05-07:00"),
+      Key: "CAT--2026-04-12--18:45--SOU-VAI",
+      TimeStamp: ms("2026-04-12T16:53:15-07:00"),
     });
 
     const built = await buildTrip(
@@ -210,14 +214,18 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "LOP",
   RouteAbbrev: "ana-sj",
   Key: "CHE--2026-03-13--09:30--ORI-LOP",
+  TripKey: undefined,
+  ScheduleKey: undefined,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "SHI",
   ArriveDest: undefined,
+  AtDockActual: ms("2026-03-13T09:00:00-07:00"),
   TripStart: ms("2026-03-13T09:00:00-07:00"),
   AtDock: false,
   AtDockDuration: 10,
   ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
   LeftDock: ms("2026-03-13T09:34:00-07:00"),
+  LeftDockActual: ms("2026-03-13T09:34:00-07:00"),
   TripDelay: 4,
   Eta: undefined,
   TripEnd: undefined,

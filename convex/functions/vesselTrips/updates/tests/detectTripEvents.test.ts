@@ -173,6 +173,41 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(true);
     expect(events.keyChanged).toBe(false);
   });
+
+  it("SAL dock window with missing schedule identity stays representable without false departure or completion", () => {
+    const existingTrip = makeTrip({
+      VesselAbbrev: "SAL",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      Key: undefined,
+      TripKey: "SAL 2026-04-12 00:21:00Z",
+      ScheduleKey: undefined,
+      AtDockActual: ms("2026-04-12T17:21:00-07:00"),
+      LeftDockActual: undefined,
+      ScheduledDeparture: undefined,
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-04-12T17:31:00-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      VesselAbbrev: "SAL",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      Key: undefined,
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-04-12T17:31:30-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(false);
+    expect(events.isCompletedTrip).toBe(false);
+    expect(events.keyChanged).toBe(false);
+  });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -214,14 +249,18 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
   Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: undefined,
+  ScheduleKey: undefined,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
+  AtDockActual: undefined,
   TripStart: undefined,
   AtDock: true,
   AtDockDuration: undefined,
   ScheduledDeparture: undefined,
   LeftDock: undefined,
+  LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
   TripEnd: undefined,

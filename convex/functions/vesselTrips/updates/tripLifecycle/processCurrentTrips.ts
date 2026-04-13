@@ -460,19 +460,21 @@ const summarizeLocationTick = (
 });
 
 const summarizeTripTick = (
-  trip: Pick<
-    ConvexVesselTrip,
-    | "AtDock"
-    | "LeftDock"
-    | "ArriveDest"
-    | "DepartingTerminalAbbrev"
-    | "ArrivingTerminalAbbrev"
-    | "ScheduledDeparture"
-    | "Key"
-    | "NextKey"
-    | "NextScheduledDeparture"
-    | "TimeStamp"
-  > | undefined
+  trip:
+    | Pick<
+        ConvexVesselTrip,
+        | "AtDock"
+        | "LeftDock"
+        | "ArriveDest"
+        | "DepartingTerminalAbbrev"
+        | "ArrivingTerminalAbbrev"
+        | "ScheduledDeparture"
+        | "Key"
+        | "NextKey"
+        | "NextScheduledDeparture"
+        | "TimeStamp"
+      >
+    | undefined
 ) =>
   trip
     ? {

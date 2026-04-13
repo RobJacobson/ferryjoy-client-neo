@@ -65,11 +65,17 @@ const upsertActualBoundaryPatches = async (
 
 const mergeWithExistingActualRow = (
   existing: {
+    EventKey?: string;
+    TripKey?: string;
+    ScheduleKey?: string;
     EventActualTime?: number;
   } | null,
   nextRow: ReturnType<typeof buildActualBoundaryEventFromPatch>
 ) => ({
   ...nextRow,
+  EventKey: nextRow.EventKey ?? existing?.EventKey,
+  TripKey: nextRow.TripKey ?? existing?.TripKey,
+  ScheduleKey: nextRow.ScheduleKey ?? existing?.ScheduleKey,
   EventOccurred: true as const,
   EventActualTime: nextRow.EventActualTime ?? existing?.EventActualTime,
 });

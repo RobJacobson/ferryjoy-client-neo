@@ -29,10 +29,14 @@ export const mergeTimelineEvents = ({
   predictedEvents: ConvexPredictedBoundaryEvent[];
 }): ConvexVesselTimelineEvent[] => {
   const actualByKey = new Map(actualEvents.map((event) => [event.Key, event]));
-  const sortedScheduledEvents = [...scheduledEvents].sort(sortScheduledBoundaryEvents);
+  const sortedScheduledEvents = [...scheduledEvents].sort(
+    sortScheduledBoundaryEvents
+  );
   const actualArrivalEvents = actualEvents
     .filter(
-      (event): event is ConvexActualBoundaryEvent & { EventActualTime: number } =>
+      (
+        event
+      ): event is ConvexActualBoundaryEvent & { EventActualTime: number } =>
         event.Key.endsWith("--arv-dock") && event.EventActualTime !== undefined
     )
     .sort(
@@ -105,7 +109,10 @@ export const mergeTimelineEvents = ({
     scheduledArrivalEventsByTerminal.set(event.TerminalAbbrev, terminalEvents);
   }
 
-  for (const [terminalAbbrev, terminalArrivalEvents] of scheduledArrivalEventsByTerminal) {
+  for (const [
+    terminalAbbrev,
+    terminalArrivalEvents,
+  ] of scheduledArrivalEventsByTerminal) {
     let previousAssignedArrivalActualTime: number | undefined;
 
     for (let index = 0; index < terminalArrivalEvents.length; index += 1) {

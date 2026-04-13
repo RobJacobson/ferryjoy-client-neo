@@ -4,20 +4,29 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveEffectiveLocation } from "../tripLifecycle/resolveEffectiveLocation";
 
 describe("resolveEffectiveLocation", () => {
-  it("reuses the active trip identity without schedule lookups on steady-state docked ticks", async () => {
+  it("CAT later scheduled departure while docked reuses the active trip identity", async () => {
     let queryCount = 0;
     const location = makeLocation({
+      VesselAbbrev: "CAT",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
       Key: undefined,
-      ArrivingTerminalAbbrev: undefined,
-      ScheduledDeparture: undefined,
+      ScheduledDeparture: ms("2026-04-12T18:45:00-07:00"),
+      TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
     const existingTrip = makeTrip({
+      VesselAbbrev: "CAT",
       AtDock: true,
       LeftDock: undefined,
-      DepartingTerminalAbbrev: "CLI",
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-      Key: "CHE--2026-03-13--11:00--CLI-MUK",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
+      Key: "CAT--2026-04-12--16:50--SOU-VAI",
+      TripKey: "CAT 2026-04-12 23:21:55Z",
+      ScheduleKey: "CAT--2026-04-12--16:50--SOU-VAI",
+      AtDockActual: ms("2026-04-12T16:34:00-07:00"),
+      LeftDockActual: undefined,
+      TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
 
     const effectiveLocation = await resolveEffectiveLocation(
@@ -144,14 +153,18 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "MUK",
   RouteAbbrev: "muk-cl",
   Key: "CHE--2026-03-13--11:00--CLI-MUK",
+  TripKey: undefined,
+  ScheduleKey: undefined,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
   ArriveDest: undefined,
+  AtDockActual: ms("2026-03-13T10:30:00-07:00"),
   TripStart: ms("2026-03-13T10:30:00-07:00"),
   AtDock: true,
   AtDockDuration: undefined,
   ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
   LeftDock: undefined,
+  LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
   NextKey: undefined,

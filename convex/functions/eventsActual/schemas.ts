@@ -19,6 +19,9 @@ import { boundaryEventTypeSchema } from "../eventsScheduled/schemas";
  * validators, same runtime values when set).
  */
 const actualBoundarySharedFields = {
+  EventKey: v.optional(v.string()),
+  TripKey: v.optional(v.string()),
+  ScheduleKey: v.optional(v.string()),
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
