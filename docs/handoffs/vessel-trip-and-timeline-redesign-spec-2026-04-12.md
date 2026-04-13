@@ -640,8 +640,13 @@ Proposed end-state fields:
 - `TerminalAbbrev`
 - `EventType`
 - `EventActualTime`
+- `SailingDay`
+- `ScheduledDeparture`
 
-Optional compatibility fields may remain temporarily during migration.
+Notably absent in the desired end state:
+
+- no separate persisted legacy boundary `Key` on `eventsActual`
+- no schedule-shaped compatibility identifier whose only purpose is to support old merge code
 
 ### Semantics
 
@@ -673,6 +678,8 @@ This is the crucial change that lets physical actuals exist even when the vessel
 - a real departure without a safe schedule match
 - a real arrival without a safe schedule match
 - a docked/off-service state that invalidates prior schedule continuity
+
+It must do so without inventing or persisting a schedule-boundary compatibility key.
 
 ### Why this still preserves compartmentalization
 
@@ -713,11 +720,16 @@ The backend query will remain the official caller, but the function should be pu
 
 The merge should attach actuals to scheduled rows in this order:
 
-1. exact `ScheduleKey` match
+1. exact `ScheduleKey + EventType` match
 2. carefully bounded fallback rules
 3. no match if no safe rule applies
 
 Fallback rules should be much more conservative than current key-based assumptions.
+
+Important:
+
+- the merge should not rely on a persisted `eventsActual.Key`
+- if a schedule-boundary string is needed transiently inside read code, derive it from `ScheduleKey` and `EventType` instead of storing it on the row
 
 ### What unmatched physical actuals mean
 
@@ -875,14 +887,12 @@ Additive first:
 - `EventKey`
 - `TripKey`
 - `ScheduleKey?`
-
-Retain legacy fields temporarily:
-
-- `Key`
+- `EventType`
 - `ScheduledDeparture`
 - `TerminalAbbrev`
-- `EventType`
 - `EventActualTime`
+
+Do not add or preserve a separate persisted compatibility boundary key on `eventsActual` just to support old merge code.
 
 ### Stage 2 writer changes
 
@@ -903,18 +913,7 @@ When a departure or arrival is observed:
    - `EventActualTime`
 2. attach `ScheduleKey` only if a safe alignment exists
 3. do not force a schedule key just to keep old joins working
-
-### Stage 2 compatibility behavior
-
-During this stage, it may be useful to dual-write:
-
-- legacy schedule-keyed identity fields
-- new physical-event identity fields
-
-This allows comparison between:
-
-- old actual attribution
-- new physical actual storage
+4. do not persist a legacy boundary key for compatibility
 
 ## Stage 3: Timeline Merge Refactor
 
@@ -924,7 +923,7 @@ This stage consumes the new `eventsActual` semantics.
 
 - keep `getVesselTimelineBackbone`
 - extract a pure shared merge function
-- switch actual-attachment logic to prefer `ScheduleKey`
+- switch actual-attachment logic to use `ScheduleKey + EventType` as the primary attachment rule
 
 ### Stage 3 code areas
 
@@ -940,10 +939,12 @@ Likely file areas:
 `createTimeline(eventsActual, eventsScheduled, eventsPredicted)` should:
 
 1. sort scheduled rows into backbone order
-2. attach actuals by exact `ScheduleKey`
+2. attach actuals by exact `ScheduleKey + EventType`
 3. optionally use bounded fallback matching for known-safe cases
 4. leave scheduled rows without actuals if no safe match exists
 5. preserve the current predicted overlay rules unless specifically changed
+
+The merge should not require a persisted schedule-boundary compatibility key on `eventsActual`.
 
 ### Stage 3 client impact
 
@@ -962,6 +963,161 @@ Only after Stages 1 through 3 are stable:
 3. simplify fallback logic that was only necessary because of composite-key coupling
 
 This stage should be done conservatively and only after behavior is validated.
+
+## PR 3 Clean-Slate Implementation Guide
+
+This section is the implementation source of truth for a fresh PR 3 that starts from completed PR 2 lifecycle work.
+
+It does not assume any partial PR 3 branch, and it should be sufficient on its own for a new agent.
+
+### Purpose
+
+PR 3 should complete the `eventsActual` redesign in one coherent step.
+
+Because the final model does not want a persisted compatibility boundary key on `eventsActual`, PR 3 must include both:
+
+1. physical-first `eventsActual` storage and writer behavior
+2. timeline actual-attachment cutover away from persisted actual-row boundary-key matching
+
+Do not split those into separate implementation phases for this clean-slate PR 3.
+
+### In scope
+
+- finalize `eventsActual` as physical actual-event rows
+- use `EventKey` as the durable `eventsActual` row identity
+- persist optional `ScheduleKey`
+- persist `EventType` as first-class data on actual rows
+- update trip-driven actual writers so they do not require `trip.Key`
+- update upsert logic to resolve rows by `EventKey`
+- update same-day replace/reseed flows so physical-only actuals are preserved
+- update timeline merge so actual overlays attach by `ScheduleKey + EventType`
+- keep fallback attachment logic narrow and explicitly bounded
+
+### Out of scope
+
+- changing PR 2 trip-lifecycle semantics
+- redesigning predictions
+- adding audit/discrepancy infrastructure
+- introducing any persisted compatibility boundary key on `eventsActual`
+
+### Final `eventsActual` row model for PR 3
+
+Persist these fields on `eventsActual` rows:
+
+- `EventKey`
+- `TripKey`
+- `ScheduleKey?`
+- `EventType`
+- `VesselAbbrev`
+- `TerminalAbbrev`
+- `SailingDay`
+- `ScheduledDeparture`
+- `EventActualTime`
+- `UpdatedAt`
+- `EventOccurred`
+
+Important constraints:
+
+- `EventKey` is the durable row identity
+- `TripKey` links the row to the physical trip instance
+- `ScheduleKey` is optional schedule alignment
+- `EventType` must be present on the row
+- do not persist a separate legacy boundary key for compatibility
+
+### Identity rules
+
+#### `EventKey`
+
+`EventKey` must be deterministic from:
+
+- `TripKey`
+- `EventType`
+
+Example:
+
+```text
+[TripKey]--dep-dock
+[TripKey]--arv-dock
+```
+
+#### Trip-driven actual writers
+
+Trip-driven actual writers must be able to emit physical actuals with this minimal fact set:
+
+- `TripKey`
+- `TerminalAbbrev`
+- `EventType`
+- `EventActualTime`
+
+They must not require:
+
+- `trip.Key`
+- `ScheduleKey`
+
+If `ScheduleKey` is safely known, attach it. Otherwise leave it blank.
+
+If `SailingDay` or `ScheduledDeparture` is missing on the trip row, derive them conservatively from the actual event time instead of dropping the physical actual.
+
+### Mutation and storage rules
+
+`eventsActual` upserts should resolve rows by:
+
+1. `EventKey`
+
+Do not build new persistence behavior around a schedule-boundary compatibility key.
+
+If a read helper needs a schedule-boundary string transiently, derive it from `ScheduleKey` and `EventType` at read time rather than persisting it on the row.
+
+### Same-day reseed / replace rules
+
+This is a required PR 3 behavior.
+
+Schedule rebuilds and same-day replace flows must preserve physical-only actual rows.
+
+In particular:
+
+- absence from a scheduled-boundary-derived replacement set is not proof that a physical actual should be deleted
+- if an actual row has `EventKey` and `TripKey` but no `ScheduleKey`, it is still valid
+- schedule reseed logic must not strip `EventKey`, `TripKey`, or `ScheduleKey` from persisted rows
+
+### Timeline merge rules
+
+PR 3 should update actual attachment so the merge attaches actual rows to scheduled rows by:
+
+1. exact `ScheduleKey + EventType`
+2. optional, tightly bounded fallback rules only when truly necessary
+3. otherwise no attachment
+
+Important constraints:
+
+- the merge must not depend on a persisted actual-row boundary key
+- unmatched physical actuals should remain in storage even if they do not appear on a scheduled row
+- fallback logic, if retained, should be clearly narrower than the old key-based heuristics
+
+### Files a clean-slate PR 3 is expected to touch
+
+- [convex/functions/eventsActual/schemas.ts](../../convex/functions/eventsActual/schemas.ts)
+- [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
+- [convex/domain/vesselTimeline/normalizedEvents.ts](../../convex/domain/vesselTimeline/normalizedEvents.ts)
+- [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
+- [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
+- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
+- [convex/functions/vesselTimeline/mutations.ts](../../convex/functions/vesselTimeline/mutations.ts)
+- [convex/functions/vesselTimeline/mergeActualBoundaryPatchesIntoRows.ts](../../convex/functions/vesselTimeline/mergeActualBoundaryPatchesIntoRows.ts)
+- tests that assert `eventsActual` identity, storage, reseed, and actual-attachment behavior
+
+### Acceptance criteria
+
+PR 3 is complete when all of the following are true:
+
+- `eventsActual` rows are keyed by `EventKey`
+- `eventsActual` rows do not persist a compatibility boundary key
+- trip-driven actuals can be written when `ScheduleKey` is blank
+- wrong schedule identity can no longer rewrite physical event identity
+- same-day reseeds preserve physical-only actuals
+- timeline actual overlays attach by `ScheduleKey + EventType`
+- unmatched physical actuals remain stored even when not attached to a scheduled row
+- backend tests and typechecks pass
 
 ## Migration Notes
 
@@ -1244,7 +1400,8 @@ Goal:
 1. Add `EventKey`.
 2. Add `TripKey`.
 3. Add `ScheduleKey?`.
-4. Keep legacy fields temporarily so existing timeline readers do not break immediately.
+4. Ensure persisted rows carry `EventType` as first-class data.
+5. Do not introduce or preserve a compatibility boundary key on `eventsActual`.
 
 ### Files to update
 
@@ -1256,7 +1413,7 @@ Goal:
 ### Acceptance criteria
 
 - `eventsActual` can store a physical boundary even when no `ScheduleKey` is present
-- backend types compile with both legacy and new fields
+- backend types compile with the new physical-first row shape
 
 ## Stage G: Redefine `eventsActual` Writers
 
@@ -1275,7 +1432,8 @@ Goal:
    as the minimal physical fact set.
 3. Attach `ScheduleKey` only when safe.
 4. Do not force schedule alignment to keep old joins alive.
-5. Keep dual-write compatibility fields only as long as needed for cutover.
+5. Do not persist a legacy boundary compatibility key.
+6. If read code needs schedule-boundary strings, derive them transiently from `ScheduleKey` and `EventType`.
 
 ### Files to update
 
@@ -1302,6 +1460,7 @@ Example:
 
 - `eventsActual` can represent real movement even when schedule alignment is blank
 - wrong schedule identity can no longer directly rewrite physical event identity
+- no `eventsActual` write path depends on or emits a persisted compatibility boundary key
 
 ## Stage H: Extract Shared Pure Timeline Merge
 
@@ -1314,8 +1473,9 @@ Goal:
 1. Extract current merge logic into a pure helper, conceptually:
    - `createTimeline(eventsActual, eventsScheduled, eventsPredicted)`
 2. Keep backend query ownership unchanged.
-3. Update tests to target the pure function directly.
-4. Ensure no query-time reads of live `vesselLocations` are introduced.
+3. Update actual attachment to use `ScheduleKey + EventType` instead of stored actual-row `Key`.
+4. Update tests to target the pure function directly.
+5. Ensure no query-time reads of live `vesselLocations` are introduced.
 
 ### Files to update
 
@@ -1417,9 +1577,8 @@ If this work is split across agents or PRs, the cleanest partition is:
 
 1. PR 1: tests and additive schemas
 2. PR 2: `TripKey` + debounce + lifecycle refactor
-3. PR 3: `eventsActual` schema and writer refactor
-4. PR 4: timeline merge extraction and attachment updates
-5. PR 5: cleanup and legacy removal
+3. PR 3: `eventsActual` schema/writer refactor plus timeline actual-attachment cutover to `ScheduleKey + EventType`
+4. PR 4: cleanup and legacy removal
 
 This keeps the trip-lifecycle work mostly independent from the timeline merge work, which matches the design intent of this spec.
 
