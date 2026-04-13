@@ -68,50 +68,6 @@ type UpsertBatchResult = {
 };
 
 /**
- * Warn when live `AtDock` / `LeftDock` signals look inconsistent (feed quality).
- *
- * @param existingTrip - Previously persisted trip for the vessel, if any
- * @param currLocation - Current location payload being processed
- */
-const logDockSignalDisagreement = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
-): void => {
-  const hasLeftDockSignal =
-    currLocation.LeftDock !== undefined || existingTrip?.LeftDock !== undefined;
-
-  if (!currLocation.AtDock && currLocation.LeftDock === undefined) {
-    console.warn(
-      `[VesselTrips] AtDock false without LeftDock for ${currLocation.VesselAbbrev} at ${new Date(
-        currLocation.TimeStamp
-      ).toISOString()}`
-    );
-  }
-
-  if (currLocation.AtDock && hasLeftDockSignal) {
-    console.warn(
-      `[VesselTrips] AtDock true while LeftDock is present for ${currLocation.VesselAbbrev} at ${new Date(
-        currLocation.TimeStamp
-      ).toISOString()}`
-    );
-  }
-
-  if (
-    existingTrip &&
-    existingTrip.AtDock === false &&
-    existingTrip.LeftDock === undefined &&
-    currLocation.AtDock &&
-    currLocation.LeftDock === undefined
-  ) {
-    console.warn(
-      `[VesselTrips] AtDock reset before LeftDock appeared for ${currLocation.VesselAbbrev} between ${new Date(
-        existingTrip.TimeStamp
-      ).toISOString()} and ${new Date(currLocation.TimeStamp).toISOString()}`
-    );
-  }
-};
-
-/**
  * Runs the active-trip pipeline for one orchestrator tick.
  *
  * Step-by-step flow is documented inline below; see the module header for
@@ -131,11 +87,7 @@ export const processCurrentTrips = async (
 ): Promise<CurrentTripLifecycleBranchResult> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map(async (transition) => {
-      logDockSignalDisagreement(
-        transition.existingTrip,
-        transition.currLocation
-      );
-      return {
+      const buildResult = {
         ...transition,
         finalProposed: await buildTripForTick(
           ctx,
@@ -146,6 +98,8 @@ export const processCurrentTrips = async (
           shouldRunPredictionFallback
         ),
       };
+      logTripTickDiagnostics(buildResult);
+      return buildResult;
     })
   );
 
@@ -245,6 +199,8 @@ const collectCurrentTripArtifacts = (
   if (!persist && !refresh) {
     return createEmptyCurrentTripArtifacts();
   }
+
+  logActualProjectionTick(buildResult, persist, refresh);
 
   const leaveDockEffect = persist
     ? buildLeaveDockPostPersistEffect(
@@ -412,3 +368,123 @@ const emptyCurrentTripBranchResult = (): CurrentTripLifecycleBranchResult => ({
   pendingActualMessages: [],
   pendingPredictedMessages: [],
 });
+
+const logTripTickDiagnostics = ({
+  existingTrip,
+  currLocation,
+  events,
+  finalProposed,
+}: CurrentTripBuildResult) => {
+  const keyChanged = existingTrip?.Key !== finalProposed.Key;
+  const scheduledDepartureChanged =
+    existingTrip?.ScheduledDeparture !== finalProposed.ScheduledDeparture;
+
+  if (!keyChanged && !scheduledDepartureChanged) {
+    return;
+  }
+
+  console.warn(
+    `[VesselTrips][KeyTransition] ${JSON.stringify({
+      vesselAbbrev: currLocation.VesselAbbrev,
+      timestamp: new Date(currLocation.TimeStamp).toISOString(),
+      events,
+      liveTick: summarizeLocationTick(currLocation),
+      existingTrip: summarizeTripTick(existingTrip),
+      finalProposed: summarizeTripTick(finalProposed),
+    })}`
+  );
+};
+
+const logActualProjectionTick = (
+  { existingTrip, currLocation, events, finalProposed }: CurrentTripBuildResult,
+  persist: boolean,
+  refresh: boolean
+) => {
+  if (!events.didJustLeaveDock && !events.didJustArriveAtDock) {
+    return;
+  }
+
+  console.warn(
+    `[VesselTrips][BoundaryProjection] ${JSON.stringify({
+      vesselAbbrev: currLocation.VesselAbbrev,
+      timestamp: new Date(currLocation.TimeStamp).toISOString(),
+      persist,
+      refresh,
+      events,
+      liveTick: summarizeLocationTick(currLocation),
+      existingTrip: summarizeTripTick(existingTrip),
+      finalProposed: summarizeTripTick(finalProposed),
+      projectedDeparture:
+        events.didJustLeaveDock && finalProposed.LeftDock !== undefined
+          ? {
+              segmentKey: finalProposed.Key,
+              actualTime: finalProposed.LeftDock,
+            }
+          : null,
+      projectedArrival:
+        events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined
+          ? {
+              segmentKey: finalProposed.Key,
+              actualTime: finalProposed.ArriveDest,
+            }
+          : null,
+    })}`
+  );
+};
+
+const summarizeLocationTick = (
+  location: Pick<
+    ConvexVesselLocation,
+    | "AtDock"
+    | "LeftDock"
+    | "DepartingTerminalAbbrev"
+    | "ArrivingTerminalAbbrev"
+    | "ScheduledDeparture"
+    | "Key"
+    | "TimeStamp"
+    | "Speed"
+    | "DepartingDistance"
+    | "ArrivingDistance"
+  >
+) => ({
+  atDock: location.AtDock,
+  leftDock: location.LeftDock,
+  departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+  arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+  scheduledDeparture: location.ScheduledDeparture,
+  key: location.Key,
+  timeStamp: location.TimeStamp,
+  speed: location.Speed,
+  departingDistance: location.DepartingDistance,
+  arrivingDistance: location.ArrivingDistance,
+});
+
+const summarizeTripTick = (
+  trip: Pick<
+    ConvexVesselTrip,
+    | "AtDock"
+    | "LeftDock"
+    | "ArriveDest"
+    | "DepartingTerminalAbbrev"
+    | "ArrivingTerminalAbbrev"
+    | "ScheduledDeparture"
+    | "Key"
+    | "NextKey"
+    | "NextScheduledDeparture"
+    | "TimeStamp"
+  > | undefined
+) =>
+  trip
+    ? {
+        atDock: trip.AtDock,
+        leftDock: trip.LeftDock,
+        arriveDest: trip.ArriveDest,
+        departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+        arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+        scheduledDeparture: trip.ScheduledDeparture,
+        key: trip.Key,
+        nextKey: trip.NextKey,
+        nextScheduledDeparture: trip.NextScheduledDeparture,
+        timeStamp: trip.TimeStamp,
+      }
+    : null;
