@@ -224,7 +224,7 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "LOP",
   RouteAbbrev: "ana-sj",
   Key: "CHE--2026-03-13--09:30--ORI-LOP",
-  TripKey: undefined,
+  TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
   ScheduleKey: undefined,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "SHI",

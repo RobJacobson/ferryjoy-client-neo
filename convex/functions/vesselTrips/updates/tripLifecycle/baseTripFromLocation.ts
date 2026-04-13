@@ -13,10 +13,7 @@ import type {
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
-import {
-  backfillTripKeyFromLegacyRow,
-  generateTripKey,
-} from "shared/physicalTripIdentity";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { getPhysicalDepartureStamp } from "./physicalDockSeaDebounce";
 import {
   type DerivedTripInputs,
@@ -111,6 +108,33 @@ const baseTripForStart = (
 };
 
 /**
+ * Resolves the immutable physical trip key for a continuing tick.
+ *
+ * First-seen trips (no prior row) get a new key from the current tick. Rows
+ * left over from before the clean-slate cutover without `TripKey` are invalid
+ * and must not be silently repaired.
+ *
+ * @param existingTrip - Prior active trip row, if any
+ * @param currLocation - Latest vessel location for this tick
+ * @returns Physical trip key for this instance
+ */
+const tripKeyForContinuing = (
+  existingTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): string => {
+  if (existingTrip === undefined) {
+    return generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp);
+  }
+  if (existingTrip.TripKey === undefined) {
+    throw new Error(
+      "Continuing vessel trip is missing TripKey. Post-cutover data must " +
+        "include TripKey on every active trip row."
+    );
+  }
+  return existingTrip.TripKey;
+};
+
+/**
  * Build the base trip for a continuing or first-seen trip.
  *
  * @param currLocation - Latest vessel location from the live feed
@@ -126,14 +150,7 @@ const baseTripForContinuing = (
   // Preserve the first recorded arrival/start timestamps across later ticks.
   const arriveDestTime = existingTrip?.ArriveDest;
   const tripStartTime = existingTrip?.TripStart;
-  const tripKey = existingTrip
-    ? (existingTrip.TripKey ??
-      backfillTripKeyFromLegacyRow(
-        currLocation.VesselAbbrev,
-        existingTrip.TripStart,
-        existingTrip.TimeStamp ?? currLocation.TimeStamp
-      ))
-    : generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp);
+  const tripKey = tripKeyForContinuing(existingTrip, currLocation);
 
   const atDockActual = (() => {
     if (existingTrip?.AtDockActual !== undefined) {

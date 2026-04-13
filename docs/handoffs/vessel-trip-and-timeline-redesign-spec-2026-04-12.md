@@ -5,6 +5,22 @@ Status: proposed design, not yet implemented
 Primary audience: a new agent or engineer who has not previously worked on this backend  
 Scope: `activeVesselTrips`, `completedVesselTrips`, `eventsActual`, and the `VesselTimeline` backbone merge
 
+## Cutover Assumption
+
+This spec now assumes a clean-slate data cutover before the lifecycle redesign is considered complete.
+
+Specifically:
+
+- existing Convex vessel-trip data may be wiped before the `TripKey` lifecycle cutover is finalized
+- runtime support for pre-`TripKey` rows is therefore not a design requirement
+- legacy `Key` dual-write still remains necessary during the compatibility window because downstream projection code continues to depend on schedule-shaped identity until PR 3
+
+Practical consequence:
+
+- additive schema optionality from PR 1 is still acceptable
+- post-PR-2 runtime code should assume newly written trip rows have `TripKey`
+- migration-only helpers or tests that exist solely to rescue old rows without `TripKey` should be treated as temporary and removable
+
 ## Purpose
 
 This document proposes a backend redesign for vessel-trip identity and timeline actuals.
@@ -1091,7 +1107,7 @@ Goal:
 ### Suggested implementation notes
 
 - `TripKey` should be required on newly written rows
-- existing rows may need transitional optional handling until backfilled or naturally replaced
+- PR 1 may keep schema optionality for additive rollout, but clean-slate cutover means post-PR-2 runtime should not rely on backfilling old rows
 - `ScheduleKey` should stay optional
 - `AtDockActual` should become the preferred positive physical marker for "this trip is at dock"
 - `LeftDockActual` should become the preferred physical departure field; legacy `LeftDock` can remain during migration
@@ -1112,11 +1128,13 @@ Goal:
 
 1. Create a helper to generate `TripKey` in the required format:
    - `[VesselAbbrev] [DateTime]`
-   - ISO timestamp rounded to seconds
+   - ISO timestamp from `VesselLocation.TimeStamp`
+   - truncated to whole seconds if needed
    - `T` replaced by a space
 2. Ensure this helper is called only when a new trip instance is created.
 3. Ensure trip continuation never regenerates `TripKey`.
 4. Add tests proving retries and continuing ticks preserve the same `TripKey`.
+5. Do not design permanent runtime backfill logic for old rows without `TripKey`; after the clean-slate cutover, those rows are invalid state.
 
 ### Files to create or update
 
@@ -1481,10 +1499,10 @@ Suggested files:
 
 Implementation guidance:
 
-- `TripKey` may need to be optional temporarily if old rows still exist in dev data and queries would otherwise fail
-- if made optional in schema for migration safety, document that new writes are expected to populate it once PR 2 lands
+- `TripKey` may remain optional in PR 1 schema for additive rollout, but PR 2+ runtime code should assume all newly written rows have it
+- if temporary compatibility code is introduced for old rows without `TripKey`, treat it as cleanup debt to remove after the data wipe
 - `ScheduleKey` should be optional
-- `AtDockActual` may need to be optional in PR 1 for migration safety, even though the target design expects it on new writes
+- `AtDockActual` may need to be optional in PR 1 for additive rollout, even though the target design expects it on new writes
 - `LeftDockActual` should be optional
 
 Expected output of this step:

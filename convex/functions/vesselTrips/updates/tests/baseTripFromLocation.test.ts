@@ -8,8 +8,11 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { getSailingDay } from "shared/time";
 import { baseTripFromLocation } from "../tripLifecycle/baseTripFromLocation";
+
+const ms = (iso: string) => new Date(iso).getTime();
 
 describe("baseTripFromLocation", () => {
   it("uses the current scheduled departure to set SailingDay on trip start", () => {
@@ -102,16 +105,19 @@ describe("baseTripFromLocation", () => {
   });
 
   it("preserves docked schedule continuity when the live feed jumps ahead to a later departure", () => {
+    const tripStartMs = ms("2026-04-04T16:53:06-07:00");
     const existingTrip = makeTrip({
+      VesselAbbrev: "CAT",
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
       Key: "CAT--2026-04-04--16:50--SOU-VAI",
+      TripKey: generateTripKey("CAT", tripStartMs),
       ScheduledDeparture: ms("2026-04-04T16:50:00-07:00"),
       SailingDay: "2026-04-04",
       NextKey: "CAT--2026-04-04--17:20--VAI-FAU",
       NextScheduledDeparture: ms("2026-04-04T17:20:00-07:00"),
-      TimeStamp: ms("2026-04-04T16:53:06-07:00"),
-      TripStart: ms("2026-04-04T16:53:06-07:00"),
+      TimeStamp: tripStartMs,
+      TripStart: tripStartMs,
     });
     const currLocation = makeLocation({
       VesselAbbrev: "CAT",
@@ -135,15 +141,18 @@ describe("baseTripFromLocation", () => {
       existingTrip.ArrivingTerminalAbbrev
     );
   });
-});
 
-/**
- * Convert an ISO timestamp into epoch milliseconds.
- *
- * @param iso - ISO-8601 timestamp string
- * @returns Epoch milliseconds for the provided timestamp
- */
-const ms = (iso: string) => new Date(iso).getTime();
+  it("throws when a continuing trip row is missing TripKey", () => {
+    const existingTrip = makeTrip({ TripKey: undefined });
+    const currLocation = makeLocation({
+      TimeStamp: ms("2026-03-13T05:00:00-07:00"),
+    });
+
+    expect(() =>
+      baseTripFromLocation(currLocation, existingTrip, false)
+    ).toThrow("Continuing vessel trip is missing TripKey");
+  });
+});
 
 /**
  * Build a test vessel location with sensible defaults.
@@ -194,6 +203,7 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
   Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,

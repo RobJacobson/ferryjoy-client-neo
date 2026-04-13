@@ -43,22 +43,3 @@ export const buildPhysicalActualEventKey = (
   tripKey: string,
   eventType: BoundaryEventType
 ) => `${tripKey}--${eventType}`;
-
-/**
- * Assigns a stable `TripKey` for legacy active rows that predate physical
- * identity, using trip start semantics when possible.
- *
- * @param vesselAbbrev - Vessel abbreviation
- * @param tripStartMs - Persisted trip start epoch ms, when known
- * @param fallbackTickMs - Current or row timestamp when trip start is unknown
- * @returns One-time physical trip key to persist
- */
-export const backfillTripKeyFromLegacyRow = (
-  vesselAbbrev: string,
-  tripStartMs: number | undefined,
-  fallbackTickMs: number
-): string =>
-  generateTripKey(
-    vesselAbbrev,
-    tripStartMs !== undefined ? tripStartMs : fallbackTickMs
-  );
