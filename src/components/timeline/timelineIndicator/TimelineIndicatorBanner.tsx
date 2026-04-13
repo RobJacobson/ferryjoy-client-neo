@@ -80,7 +80,7 @@ export const TimelineIndicatorBanner = ({
           <View className="items-center px-4 py-1">
             {title && (
               <Text
-                className="text-center font-playpen-600 leading-tight"
+                className="text-center font-puffberry text-lg leading-tight"
                 style={{ color: theme.text.indicatorHeadlineColor }}
               >
                 {title}
@@ -88,7 +88,7 @@ export const TimelineIndicatorBanner = ({
             )}
             {subtitle && (
               <Text
-                className="text-center font-playpen-300 text-sm leading-tight"
+                className="text-center font-victor-mono-400 text-sm leading-tight"
                 style={{ color: theme.text.bodyColor }}
               >
                 {subtitle}

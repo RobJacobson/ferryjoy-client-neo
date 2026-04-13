@@ -13,7 +13,7 @@ const RADAR_PING_CONFIG = {
   durationMs: 5000,
   borderWidthPx: 3,
   fillOpacity: 0.5,
-  opacityStart: 0.25,
+  opacityStart: 0.5,
   maxScale: 3,
 } as const;
 
