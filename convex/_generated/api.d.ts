@@ -144,6 +144,7 @@ import type * as functions_vesselTrips_updates_tripLifecycle_baseTripFromLocatio
 import type * as functions_vesselTrips_updates_tripLifecycle_buildCompletedTrip from "../functions/vesselTrips/updates/tripLifecycle/buildCompletedTrip.js";
 import type * as functions_vesselTrips_updates_tripLifecycle_buildTrip from "../functions/vesselTrips/updates/tripLifecycle/buildTrip.js";
 import type * as functions_vesselTrips_updates_tripLifecycle_detectTripEvents from "../functions/vesselTrips/updates/tripLifecycle/detectTripEvents.js";
+import type * as functions_vesselTrips_updates_tripLifecycle_physicalDockSeaDebounce from "../functions/vesselTrips/updates/tripLifecycle/physicalDockSeaDebounce.js";
 import type * as functions_vesselTrips_updates_tripLifecycle_processCompletedTrips from "../functions/vesselTrips/updates/tripLifecycle/processCompletedTrips.js";
 import type * as functions_vesselTrips_updates_tripLifecycle_processCurrentTrips from "../functions/vesselTrips/updates/tripLifecycle/processCurrentTrips.js";
 import type * as functions_vesselTrips_updates_tripLifecycle_resolveEffectiveLocation from "../functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation.js";
@@ -314,6 +315,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTrips/updates/tripLifecycle/buildCompletedTrip": typeof functions_vesselTrips_updates_tripLifecycle_buildCompletedTrip;
   "functions/vesselTrips/updates/tripLifecycle/buildTrip": typeof functions_vesselTrips_updates_tripLifecycle_buildTrip;
   "functions/vesselTrips/updates/tripLifecycle/detectTripEvents": typeof functions_vesselTrips_updates_tripLifecycle_detectTripEvents;
+  "functions/vesselTrips/updates/tripLifecycle/physicalDockSeaDebounce": typeof functions_vesselTrips_updates_tripLifecycle_physicalDockSeaDebounce;
   "functions/vesselTrips/updates/tripLifecycle/processCompletedTrips": typeof functions_vesselTrips_updates_tripLifecycle_processCompletedTrips;
   "functions/vesselTrips/updates/tripLifecycle/processCurrentTrips": typeof functions_vesselTrips_updates_tripLifecycle_processCurrentTrips;
   "functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation": typeof functions_vesselTrips_updates_tripLifecycle_resolveEffectiveLocation;

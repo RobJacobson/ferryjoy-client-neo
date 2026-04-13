@@ -130,6 +130,26 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
+  it("suppresses departure when LeftDock appears but the tick still looks physically docked", () => {
+    const existingTrip = makeTrip({
+      AtDock: true,
+      LeftDock: undefined,
+      LeftDockActual: undefined,
+      TimeStamp: ms("2026-03-13T05:29:30-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      AtDock: true,
+      Speed: 0,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      TimeStamp: ms("2026-03-13T05:29:40-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+  });
+
   it("detects departure only when LeftDock is provided by the feed", () => {
     const existingTrip = makeTrip({
       AtDock: true,

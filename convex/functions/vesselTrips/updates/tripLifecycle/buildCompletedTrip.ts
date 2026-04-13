@@ -36,10 +36,13 @@ export const buildCompletedTrip = (
     ArriveDest: effectiveArrivalTime,
     TripEnd: currLocation.TimeStamp,
   };
+  const departureForDurations =
+    withTripEnd.LeftDockActual ?? withTripEnd.LeftDock;
+
   const withDurations = {
     ...withTripEnd,
     AtSeaDuration: calculateTimeDelta(
-      withTripEnd.LeftDock,
+      departureForDurations,
       effectiveArrivalTime
     ),
     TotalDuration: calculateTimeDelta(
@@ -71,9 +74,10 @@ const getEffectiveArrivalTime = (
     return fallbackArrivalTime;
   }
 
+  const departureMs = existingTrip.LeftDockActual ?? existingTrip.LeftDock;
+
   if (
-    (existingTrip.LeftDock !== undefined &&
-      candidateArrivalTime < existingTrip.LeftDock) ||
+    (departureMs !== undefined && candidateArrivalTime < departureMs) ||
     (existingTrip.TripStart !== undefined &&
       candidateArrivalTime < existingTrip.TripStart)
   ) {

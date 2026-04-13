@@ -64,9 +64,15 @@ export const buildTrip = async (
         ? effectiveLocation.TimeStamp
         : undefined),
   };
-  const withKeyChangeClearedDerivedState = events.keyChanged
-    ? clearDerivedStateOnKeyChange(withArriveDest)
-    : withArriveDest;
+  const physicalIdentityReplaced =
+    existingTrip?.TripKey !== undefined &&
+    withArriveDest.TripKey !== undefined &&
+    existingTrip.TripKey !== withArriveDest.TripKey;
+
+  const withKeyChangeClearedDerivedState =
+    events.keyChanged && physicalIdentityReplaced
+      ? clearDerivedStateOnKeyChange(withArriveDest)
+      : withArriveDest;
 
   // Schedule enrichment is key-based only. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.

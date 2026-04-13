@@ -1,17 +1,22 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 describe("buildTrip", () => {
-  it("clears carried prediction state when the trip key changes", async () => {
+  it("preserves carried prediction state when legacy Key changes but TripKey is stable", async () => {
+    const tripStartMs = ms("2026-03-13T09:00:00-07:00");
+    const stableTripKey = generateTripKey("CHE", tripStartMs);
     const existingTrip = makeTrip({
       Key: "CHE--2026-03-13--09:30--ORI-LOP",
+      TripKey: stableTripKey,
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "LOP",
       ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      TripStart: tripStartMs,
       NextKey: "CHE--2026-03-13--10:15--LOP-ANA",
       NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
       LeftDock: ms("2026-03-13T09:34:00-07:00"),
@@ -56,30 +61,34 @@ describe("buildTrip", () => {
     );
 
     expect(built.Key).toBe(currLocation.Key);
+    expect(built.TripKey).toBe(stableTripKey);
+    expect(built.ScheduleKey).toBe(scheduledSegment.Key);
     expect(built.NextKey).toBe(scheduledSegment.NextKey);
     expect(built.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime
     );
-    expect(built.AtDockDepartCurr).toBeUndefined();
-    expect(built.AtDockArriveNext).toBeUndefined();
-    expect(built.AtDockDepartNext).toBeUndefined();
-    expect(built.AtSeaArriveNext?.PredTime).toBe(existingTrip.LeftDock);
-    expect(built.AtSeaDepartNext?.PredTime).toBe(
-      scheduledSegment.NextDepartingTime
-    );
+    expect(built.AtDockDepartCurr).toEqual(existingTrip.AtDockDepartCurr);
+    expect(built.AtDockArriveNext).toEqual(existingTrip.AtDockArriveNext);
+    expect(built.AtDockDepartNext).toEqual(existingTrip.AtDockDepartNext);
+    expect(built.AtSeaArriveNext).toBeDefined();
+    expect(built.AtSeaDepartNext).toBeDefined();
   });
 
   it("CAT continuity preserves the dock-owned identity through the leave-dock tick", async () => {
+    const dockStart = ms("2026-04-12T16:32:00-07:00");
+    const catTripKey = generateTripKey("CAT", dockStart);
     const existingTrip = makeTrip({
       VesselAbbrev: "CAT",
       Key: "CAT--2026-04-12--16:50--SOU-VAI",
+      TripKey: catTripKey,
+      TripStart: dockStart,
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
       ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
       LeftDock: undefined,
       LeftDockActual: undefined,
-      AtDockActual: ms("2026-04-12T16:32:00-07:00"),
+      AtDockActual: dockStart,
       AtDock: true,
       TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
@@ -104,6 +113,7 @@ describe("buildTrip", () => {
     );
 
     expect(built.Key).toBe(existingTrip.Key);
+    expect(built.TripKey).toBe(catTripKey);
     expect(built.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
     );

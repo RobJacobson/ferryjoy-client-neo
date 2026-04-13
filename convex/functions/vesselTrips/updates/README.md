@@ -94,6 +94,7 @@ approval:
 | `processTick/tickEnvelope.ts` | Tick result types |
 | `processTick/tickEventWrites.ts` | Tick write-intent types and merge helper |
 | `processTick/tickPredictionPolicy.ts` | Fallback-window policy (`seconds < 5`) |
+| `tripLifecycle/physicalDockSeaDebounce.ts` | Dock/sea debounce for physical boundaries |
 | `tripLifecycle/detectTripEvents.ts` | Centralized event detection |
 | `tripLifecycle/tripEventTypes.ts` | Shared `TripEvents` shape |
 | `tripLifecycle/tripDerivation.ts` | Shared normalized per-tick derivation and dock-departure state |
@@ -140,14 +141,32 @@ Current event bundle:
 - `didJustLeaveDock`
 - `keyChanged`
 
-### Boundary detection rules
+### Boundary detection rules (PR 2 physical lifecycle)
 
+- **Physical identity** is `TripKey` (immutable per trip instance). Legacy `Key`
+  remains a schedule-shaped compatibility field and may change without ending a
+  physical trip.
+- **Schedule attachment** is optional `ScheduleKey`. `resolveEffectiveLocation`
+  proposes schedule alignment; `appendFinalSchedule` commits `ScheduleKey` and
+  next-leg fields when a segment key exists.
+- **Lifecycle timestamps**: `AtDockActual` marks the dock-phase start;
+  `LeftDockActual` marks departure on the **same** trip row (no replacement on
+  leave-dock). Legacy `LeftDock` is dual-written.
+- **Dock/sea debounce** (`physicalDockSeaDebounce.ts`) uses only `AtDock`,
+  `LeftDock`, and `Speed > 1`, combined with the persisted trip row, to tolerate
+  one contradictory sample. At most **one** physical boundary (departure or
+  arrival completion) is emitted per tick; impossible pairs are suppressed.
 - Completed boundary requires:
-  - existing trip evidence (`LeftDock` or `ArriveDest`), and
-  - docked arrival at a new departing terminal context
-    (`didJustArriveAtDock` rule).
-- `didJustLeaveDock` is true only on the first tick where `LeftDock` appears
-  after being absent on the existing trip.
+  - existing trip evidence (`LeftDock` / `LeftDockActual` or `ArriveDest`), and
+  - debounced `didJustArriveAtDock` (docked at a new departing terminal after a
+    sea leg).
+- `didJustLeaveDock` is true on the first debounced tick where `LeftDock`
+  appears for a trip that has not yet recorded departure, unless the tick is
+  physically contradictory (e.g. `LeftDock` present while still reading
+  docked with low speed).
+- `keyChanged` compares legacy keys for enrichment only; it is **not** a primary
+  physical boundary trigger. Derived prediction state clears on `keyChanged`
+  only when `TripKey` changes (new physical instance).
 
 ### Three runtime situations
 
@@ -172,8 +191,9 @@ Per vessel, `buildTrip` composes state in this order:
 1. `resolveEffectiveLocation`
 2. `baseTripFromLocation`
 3. same-trip `ArriveDest` stamping when eligible
-4. derived-state clear on `keyChanged`
-5. `appendFinalSchedule` when `tripStart || keyChanged`
+4. derived-state clear on `keyChanged` **only if** `TripKey` changes (physical
+   replacement)
+5. `appendFinalSchedule` when `tripStart || keyChanged` (schedule enrichment)
 6. at-dock prediction append when gated
 7. at-sea prediction append when gated
 8. `actualizePredictionsOnLeaveDock` on leave-dock events

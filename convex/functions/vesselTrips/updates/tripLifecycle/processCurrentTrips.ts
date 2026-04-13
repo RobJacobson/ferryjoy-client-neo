@@ -288,7 +288,7 @@ const runLeaveDockPostPersistEffects = async (
       .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
       .map(async (effect) => {
         try {
-          const leftDockMs = effect.trip.LeftDock;
+          const leftDockMs = effect.trip.LeftDockActual ?? effect.trip.LeftDock;
           if (leftDockMs === undefined) {
             return;
           }

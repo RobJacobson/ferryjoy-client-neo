@@ -49,6 +49,7 @@ describe("appendFinalSchedule", () => {
       makeTrip({ Key: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
 
+    expect(enriched.ScheduleKey).toBe(scheduledSegment.Key);
     expect(enriched.NextKey).toBe(scheduledSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime

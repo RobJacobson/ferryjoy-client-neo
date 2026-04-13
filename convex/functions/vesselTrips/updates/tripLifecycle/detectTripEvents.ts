@@ -4,6 +4,7 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { resolveDebouncedPhysicalBoundaries } from "./physicalDockSeaDebounce";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 import type { TripEvents } from "./tripEventTypes";
 
@@ -23,15 +24,8 @@ export const detectTripEvents = (
 ): TripEvents => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const isTripStartReady = tripInputs.currentIsTripStartReady;
-  // Arrival is only credible after a recorded departure and a terminal change.
-  const didJustArriveAtDock = Boolean(
-    existingTrip &&
-      existingTrip.LeftDock !== undefined &&
-      existingTrip.ArriveDest === undefined &&
-      currLocation.AtDock &&
-      currLocation.DepartingTerminalAbbrev !==
-        existingTrip.DepartingTerminalAbbrev
-  );
+  const { didJustLeaveDock, didJustArriveAtDock } =
+    resolveDebouncedPhysicalBoundaries(existingTrip, currLocation);
 
   return {
     isFirstTrip: !existingTrip,
@@ -41,7 +35,7 @@ export const detectTripEvents = (
       hasTripEvidence(existingTrip) && didJustArriveAtDock
     ),
     didJustArriveAtDock,
-    didJustLeaveDock: tripInputs.didJustLeaveDock,
+    didJustLeaveDock,
     keyChanged: Boolean(
       tripInputs.continuingKey && existingTrip?.Key !== tripInputs.continuingKey
     ),
