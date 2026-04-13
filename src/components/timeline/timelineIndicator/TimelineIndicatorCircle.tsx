@@ -49,12 +49,12 @@ export const TimelineIndicatorCircle = ({
         width: sizePx,
         height: sizePx,
         borderWidth: TIMELINE_INDICATOR_CONFIG.circle.borderWidthPx,
-        borderColor: theme.indicator.borderColor,
+        borderColor: theme.indicatorColor,
       }}
     >
       <TimelineGlassSurface
         blurTargetRef={blurTargetRef}
-        blurIntensity={TIMELINE_RENDER_CONSTANTS.indicator.glassBlurIntensity}
+        blurIntensity={TIMELINE_RENDER_CONSTANTS.glassBlurIntensity}
         theme={theme}
         className="h-full w-full rounded-full"
       >

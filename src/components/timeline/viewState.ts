@@ -36,7 +36,7 @@ export const getIndicatorTopPx = (
  * Resolves the active indicator boundary top, or null if unavailable.
  *
  * @param activeIndicator - Current indicator descriptor, if any
- * @param rowLayouts - Row id to measured bounds from `TimelineRow` layouts
+ * @param rowLayouts - Row id to measured bounds from `TimelineRowFlex` layouts
  * @returns Pixel top of the indicator, or null when layout is missing
  */
 export const getBoundaryTopPx = (

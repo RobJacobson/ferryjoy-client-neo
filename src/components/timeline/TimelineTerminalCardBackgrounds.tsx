@@ -70,7 +70,7 @@ export const TimelineTerminalCardBackgrounds = ({
         <TimelineGlassSurface
           key={card.id}
           blurTargetRef={blurTargetRef}
-          blurIntensity={TIMELINE_RENDER_CONSTANTS.cards.blurIntensity}
+          blurIntensity={TIMELINE_RENDER_CONSTANTS.glassBlurIntensity}
           theme={theme}
           className="absolute"
           style={{

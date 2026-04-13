@@ -1,5 +1,5 @@
 /**
- * Center track disc with dock vs sea icon and past vs future styling.
+ * Circular track marker: dock vs sea asset and past vs future color swap.
  */
 
 import anchorIcon from "assets/icons/anchor.png";
@@ -7,8 +7,7 @@ import vesselIcon from "assets/icons/vessel.png";
 import { Image } from "expo-image";
 import { View } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { getAbsoluteCenteredBoxStyle } from "@/shared/utils";
-import { TIMELINE_ROW_CONFIG, TIMELINE_SHARED_CONFIG } from "../config";
+import { TIMELINE_ROW_CONFIG } from "../config";
 import type { TimelineVisualTheme } from "../theme";
 import type { TimelineRenderRow } from "../types";
 
@@ -29,22 +28,17 @@ const markerIconSource = {
  * @param theme - Marker accent/contrast tokens
  * @returns Centered marker container with icon
  */
-export const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
+const TimelineRowMarker = ({ row, theme }: TimelineRowMarkerProps) => {
   const markerColors = getMarkerColors(row.markerAppearance, theme);
 
   return (
     <View
       className={cn(
-        "absolute items-center justify-center overflow-hidden rounded-full"
+        "items-center justify-center overflow-hidden rounded-full border-2"
       )}
       style={{
-        left: `${TIMELINE_SHARED_CONFIG.trackXPositionPercent}%`,
-        top: 0,
-        ...getAbsoluteCenteredBoxStyle({
-          width: TIMELINE_ROW_CONFIG.marker.sizePx,
-          height: TIMELINE_ROW_CONFIG.marker.sizePx,
-        }),
-        borderWidth: TIMELINE_ROW_CONFIG.marker.borderWidthPx,
+        width: TIMELINE_ROW_CONFIG.marker.sizePx,
+        height: TIMELINE_ROW_CONFIG.marker.sizePx,
         borderColor: markerColors.borderColor,
         backgroundColor: markerColors.fillColor,
       }}
@@ -88,3 +82,5 @@ const getMarkerColors = (
         fillColor: theme.marker.accentColor,
         iconTintColor: theme.marker.contrastColor,
       };
+
+export { TimelineRowMarker };

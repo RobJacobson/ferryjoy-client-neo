@@ -122,6 +122,223 @@ describe("mergeTimelineEvents", () => {
     );
     expect(legBArvIndex).toBeLessThan(cDepIndex);
   });
+
+  it("keeps exact-match arrivals ahead of heuristic reassignment", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "sea-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(17, 30),
+          EventScheduledTime: at(18, 30),
+        }),
+        makeScheduledEvent({
+          Key: "sea-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(19, 55),
+          EventScheduledTime: at(20, 55),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "sea-2--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(19, 55),
+          EventActualTime: at(20, 57),
+        }),
+        makeActualEvent({
+          Key: "orphan-early--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(18, 40),
+          EventActualTime: at(19, 49),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(events.find((event) => event.Key === "sea-1--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(19, 49),
+      }
+    );
+    expect(events.find((event) => event.Key === "sea-2--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(20, 57),
+      }
+    );
+  });
+
+  it("reattaches a missing arrival from the next unused same-terminal actual before the next equivalent row", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "leg-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(17, 30),
+          EventScheduledTime: at(18, 30),
+        }),
+        makeScheduledEvent({
+          Key: "leg-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(19, 55),
+          EventScheduledTime: at(20, 55),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "replacement-1--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(18, 40),
+          EventActualTime: at(19, 49),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(events.find((event) => event.Key === "leg-1--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(19, 49),
+      }
+    );
+    expect(
+      events.find((event) => event.Key === "leg-2--arv-dock")?.EventActualTime
+    ).toBeUndefined();
+  });
+
+  it("leaves an arrival blank when the candidate actual crosses the next equivalent arrival slot", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "leg-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(17, 30),
+          EventScheduledTime: at(18, 30),
+        }),
+        makeScheduledEvent({
+          Key: "leg-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(19, 55),
+          EventScheduledTime: at(20, 55),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "replacement-late--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(18, 40),
+          EventActualTime: at(21, 23),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(
+      events.find((event) => event.Key === "leg-1--arv-dock")?.EventActualTime
+    ).toBeUndefined();
+    expect(events.find((event) => event.Key === "leg-2--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(21, 23),
+      }
+    );
+  });
+
+  it("consumes multiple same-terminal arrival actuals in order without reuse", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "leg-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BRE",
+          ScheduledDeparture: at(18, 45),
+          EventScheduledTime: at(19, 45),
+        }),
+        makeScheduledEvent({
+          Key: "leg-2--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BRE",
+          ScheduledDeparture: at(21, 5),
+          EventScheduledTime: at(22, 5),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "replacement-1--arv-dock",
+          TerminalAbbrev: "BRE",
+          ScheduledDeparture: at(19, 50),
+          EventActualTime: at(21, 5),
+        }),
+        makeActualEvent({
+          Key: "replacement-2--arv-dock",
+          TerminalAbbrev: "BRE",
+          ScheduledDeparture: at(22, 30),
+          EventActualTime: at(23, 49),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(events.find((event) => event.Key === "leg-1--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(21, 5),
+      }
+    );
+    expect(events.find((event) => event.Key === "leg-2--arv-dock")).toMatchObject(
+      {
+        EventActualTime: at(23, 49),
+      }
+    );
+  });
+
+  it("ignores arrival actuals from different terminals and leaves departure behavior unchanged", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "leg-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(18, 45),
+          EventScheduledTime: at(18, 45),
+        }),
+        makeScheduledEvent({
+          Key: "leg-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "BRE",
+          ScheduledDeparture: at(18, 45),
+          EventScheduledTime: at(19, 45),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "leg-1--dep-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(18, 45),
+          EventActualTime: at(20, 6),
+        }),
+        makeActualEvent({
+          Key: "replacement-sea--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(19, 50),
+          EventActualTime: at(21, 5),
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(events.find((event) => event.Key === "leg-1--dep-dock")).toMatchObject(
+      {
+        EventActualTime: at(20, 6),
+      }
+    );
+    expect(
+      events.find((event) => event.Key === "leg-1--arv-dock")?.EventActualTime
+    ).toBeUndefined();
+  });
 });
 
 describe("resolveActiveTimelineInterval", () => {

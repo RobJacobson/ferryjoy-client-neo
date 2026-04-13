@@ -28,10 +28,8 @@ export const resolveEffectiveLocation = async (
     return location;
   }
 
-  const scheduledResolution = hasStableDockedTripIdentity(
-    location,
-    existingTrip
-  )
+  const stableDockedIdentity = hasStableDockedTripIdentity(location, existingTrip);
+  const scheduledResolution = stableDockedIdentity
     ? null
     : await resolveDockedScheduledSegment(
         {
@@ -55,13 +53,126 @@ export const resolveEffectiveLocation = async (
         }
       );
 
-  return applyEffectiveTripIdentityToLocation(
+  const effectiveIdentity = resolveEffectiveDockedTripIdentity({
     location,
-    resolveEffectiveDockedTripIdentity({
-      location,
-      activeTrip: existingTrip,
-      scheduledSegment: scheduledResolution?.segment,
-      scheduledSegmentSource: scheduledResolution?.source,
-    })
+    activeTrip: existingTrip,
+    scheduledSegment: scheduledResolution?.segment,
+    scheduledSegmentSource: scheduledResolution?.source,
+  });
+  const effectiveLocation = applyEffectiveTripIdentityToLocation(
+    location,
+    effectiveIdentity
+  );
+
+  logDockedIdentityResolution({
+    location,
+    existingTrip,
+    stableDockedIdentity,
+    scheduledResolution,
+    effectiveIdentity,
+    effectiveLocation,
+  });
+
+  return effectiveLocation;
+};
+
+const logDockedIdentityResolution = ({
+  location,
+  existingTrip,
+  stableDockedIdentity,
+  scheduledResolution,
+  effectiveIdentity,
+  effectiveLocation,
+}: {
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
+  stableDockedIdentity: boolean;
+  scheduledResolution:
+    | Awaited<ReturnType<typeof resolveDockedScheduledSegment>>
+    | null;
+  effectiveIdentity: ReturnType<typeof resolveEffectiveDockedTripIdentity>;
+  effectiveLocation: ConvexVesselLocation;
+}) => {
+  const changedFromExisting =
+    existingTrip?.Key !== effectiveLocation.Key ||
+    existingTrip?.ScheduledDeparture !== effectiveLocation.ScheduledDeparture ||
+    existingTrip?.ArrivingTerminalAbbrev !==
+      effectiveLocation.ArrivingTerminalAbbrev;
+  const changedFromLive =
+    location.Key !== effectiveLocation.Key ||
+    location.ScheduledDeparture !== effectiveLocation.ScheduledDeparture ||
+    location.ArrivingTerminalAbbrev !== effectiveLocation.ArrivingTerminalAbbrev;
+  const suspiciousState =
+    effectiveIdentity.source === "rollover_schedule" ||
+    effectiveIdentity.conflictsLiveFeed;
+
+  if (!changedFromExisting && !changedFromLive && !suspiciousState) {
+    return;
+  }
+
+  console.warn(
+    `[VesselTrips][DockedIdentity] ${JSON.stringify({
+      vesselAbbrev: location.VesselAbbrev,
+      timestamp: new Date(location.TimeStamp).toISOString(),
+      stableDockedIdentity,
+      effectiveIdentitySource: effectiveIdentity.source,
+      conflictsLiveFeed: effectiveIdentity.conflictsLiveFeed,
+      live: summarizeLocationIdentity(location),
+      existingTrip: summarizeTripIdentity(existingTrip),
+      scheduledResolution: scheduledResolution
+        ? {
+            source: scheduledResolution.source,
+            segment: {
+              key: scheduledResolution.segment.Key,
+              scheduledDeparture: scheduledResolution.segment.DepartingTime,
+              arrivingTerminalAbbrev:
+                scheduledResolution.segment.ArrivingTerminalAbbrev,
+              nextKey: scheduledResolution.segment.NextKey,
+              nextScheduledDeparture:
+                scheduledResolution.segment.NextDepartingTime,
+            },
+          }
+        : null,
+      effectiveLocation: summarizeLocationIdentity(effectiveLocation),
+    })}`
   );
 };
+
+const summarizeLocationIdentity = (
+  location: Pick<
+    ConvexVesselLocation,
+    | "AtDock"
+    | "LeftDock"
+    | "DepartingTerminalAbbrev"
+    | "ArrivingTerminalAbbrev"
+    | "ScheduledDeparture"
+    | "Key"
+    | "Speed"
+    | "DepartingDistance"
+    | "ArrivingDistance"
+  >
+) => ({
+  atDock: location.AtDock,
+  leftDock: location.LeftDock,
+  departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+  arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+  scheduledDeparture: location.ScheduledDeparture,
+  key: location.Key,
+  speed: location.Speed,
+  departingDistance: location.DepartingDistance,
+  arrivingDistance: location.ArrivingDistance,
+});
+
+const summarizeTripIdentity = (trip: ConvexVesselTrip | undefined) =>
+  trip
+    ? {
+        atDock: trip.AtDock,
+        leftDock: trip.LeftDock,
+        departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
+        arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+        scheduledDeparture: trip.ScheduledDeparture,
+        key: trip.Key,
+        nextKey: trip.NextKey,
+        nextScheduledDeparture: trip.NextScheduledDeparture,
+      }
+    : null;

@@ -42,6 +42,16 @@ crons.cron(
   { daysToSync: 7 } // Maintain a 14-day rolling window
 );
 
+// Conservative same-day refresh for operational schedule changes such as
+// cancellations or vessel reassignments that can stale the seeded day
+// skeleton after the overnight sync.
+crons.interval(
+  "refresh current sailing day scheduled trips",
+  { minutes: 15 },
+  internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
+  { daysToSync: 1 }
+);
+
 // Daily VesselTimeline boundary-event sync at the sailing-day boundary (~3:00 AM Pacific).
 // Convex crons are UTC-only, so schedule both DST candidates and let the
 // action itself run only during the Pacific 3 AM hour.

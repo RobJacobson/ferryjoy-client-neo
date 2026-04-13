@@ -12,8 +12,8 @@ import type { View as RNView } from "react-native";
 import { ScrollView } from "react-native";
 import {
   TimelineIndicatorOverlay,
-  TimelineRow,
   TimelineRowContent,
+  TimelineRowFixed,
   TimelineTerminalCardBackgrounds,
   TimelineTrack,
   useAnimatedProgress,
@@ -114,13 +114,9 @@ export const VesselTimelineContent = ({
               theme={theme}
             />
             {rows.map((row, _rowIndex) => (
-              <TimelineRow
-                key={row.id}
-                layoutMode="fixed"
-                size={row.displayHeightPx}
-              >
+              <TimelineRowFixed key={row.id} heightPx={row.displayHeightPx}>
                 <TimelineRowContent row={row} theme={theme} />
-              </TimelineRow>
+              </TimelineRowFixed>
             ))}
             <TimelineIndicatorOverlay
               overlayIndicator={activeIndicator}

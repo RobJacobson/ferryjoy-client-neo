@@ -22,8 +22,7 @@ export type VesselTimelineLayoutConfig = {
   rowHeightScalePx: number;
   rowHeightExponent: number;
   minRowHeightPx: number;
-  terminalCardTopHeightPx: number;
-  terminalCardBottomHeightPx: number;
+  terminalCardCapHeightPx: number;
   initialAutoScroll: "center-active-indicator" | "center-active-row" | "none";
   initialScrollAnchorPercent: number;
 };

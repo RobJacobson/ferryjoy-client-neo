@@ -1,8 +1,8 @@
 /**
  * Timeline content area: base track plus rows plus a single absolute overlay.
- * This feature intentionally renders the shared TimelineRowComponent directly
- * instead of the higher-level VerticalTimeline because the full-surface blur
- * overlay needs feature-local measurement and overlay control.
+ * This feature intentionally renders `TimelineRowFlex` / `TimelineRowContent`
+ * directly instead of the higher-level VerticalTimeline because the
+ * full-surface blur overlay needs feature-local measurement and overlay control.
  */
 
 import { BlurTargetView } from "expo-blur";
@@ -11,8 +11,8 @@ import type { TimelineRenderRow as SharedTimelineRenderRow } from "@/components/
 import {
   BASE_TIMELINE_VISUAL_THEME,
   TimelineIndicatorOverlay,
-  TimelineRow,
   TimelineRowContent,
+  TimelineRowFlex,
   TimelineTrack,
   useAnimatedProgress,
 } from "@/components/timeline";
@@ -70,11 +70,10 @@ export const TimelineContent = ({
           theme={theme}
         />
         {renderRows.map((row: TimelineRenderRow) => (
-          <TimelineRow
+          <TimelineRowFlex
             key={row.id}
             id={row.id}
-            layoutMode="flex"
-            size={row.geometryMinutes}
+            flexGrow={row.geometryMinutes}
             minHeight={row.isFinalRow ? 0 : undefined}
             onRowLayout={onRowLayout}
           >
@@ -82,7 +81,7 @@ export const TimelineContent = ({
               row={toSharedTimelineRenderRow(row)}
               theme={theme}
             />
-          </TimelineRow>
+          </TimelineRowFlex>
         ))}
         <TimelineIndicatorOverlay
           overlayIndicator={activeIndicator}

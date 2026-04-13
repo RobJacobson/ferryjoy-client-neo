@@ -3,6 +3,11 @@
 This folder only keeps the decisions that are still useful while working on
 `VesselTimeline`.
 
+Current card-layout rule of thumb:
+
+- `VesselTimelineLayoutConfig.terminalCardCapHeightPx` controls the cap above and
+  below merged dock/sea terminal cards.
+
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
   Current feature shape: public API, data flow, and ownership boundaries.
 - [ARRIVAL_PLACEHOLDER_MEMO.md](./ARRIVAL_PLACEHOLDER_MEMO.md)
