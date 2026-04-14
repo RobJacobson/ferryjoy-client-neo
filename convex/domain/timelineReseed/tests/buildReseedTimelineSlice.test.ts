@@ -7,7 +7,10 @@ import type { ConvexVesselLocation } from "../../../functions/vesselLocation/sch
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
-import type { TripContextForActualRow } from "../../timelineRows";
+import type {
+  ActiveTripForPhysicalActualReconcile,
+  TripContextForActualRow,
+} from "../../timelineRows";
 import { buildReseedTimelineSlice } from "../buildReseedTimelineSlice";
 
 const at = (hours: number, minutes: number) =>
@@ -129,6 +132,8 @@ describe("buildReseedTimelineSlice", () => {
         events,
         updatedAt,
         tripBySegmentKey: tripIdx,
+        activeTripsByVesselAbbrev: new Map(),
+        physicalOnlyTrips: [],
         vesselLocations: [],
       });
 
@@ -153,10 +158,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-      events,
-      updatedAt,
-      tripBySegmentKey: tripIdx,
-      vesselLocations: [
+        events,
+        updatedAt,
+        tripBySegmentKey: tripIdx,
+        activeTripsByVesselAbbrev: new Map(),
+        physicalOnlyTrips: [],
+        vesselLocations: [
         makeLocation({
           VesselAbbrev: "TOK",
           DepartingTerminalAbbrev: "P52",
@@ -189,10 +196,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows: withWrongDay } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-      events,
-      updatedAt,
-      tripBySegmentKey: tripIdx,
-      vesselLocations: [
+        events,
+        updatedAt,
+        tripBySegmentKey: tripIdx,
+        activeTripsByVesselAbbrev: new Map(),
+        physicalOnlyTrips: [],
+        vesselLocations: [
         makeLocation({
           VesselAbbrev: "SAL",
           DepartingTerminalAbbrev: "SOU",
@@ -237,10 +246,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-      events: withOccurred,
-      updatedAt,
-      tripBySegmentKey: tripIdx,
-      vesselLocations: [
+        events: withOccurred,
+        updatedAt,
+        tripBySegmentKey: tripIdx,
+        activeTripsByVesselAbbrev: new Map(),
+        physicalOnlyTrips: [],
+        vesselLocations: [
         makeLocation({
           VesselAbbrev: "TOK",
           DepartingTerminalAbbrev: "P52",
@@ -257,4 +268,199 @@ describe("buildReseedTimelineSlice", () => {
     const depRows = actualRows.filter((r) => r.EventType === "dep-dock");
     expect(depRows.length).toBe(1);
   });
+
+  it("recreates a physical-only dep row from a no-schedule trip plus live location", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: SAILING_DAY,
+      ScheduledDeparture: at(17, 20),
+    });
+
+    const { actualRows } = buildReseedTimelineSlice({
+      sailingDay: SAILING_DAY,
+      events: [],
+      updatedAt: 0,
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+      physicalOnlyTrips: [trip],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          LeftDock: at(17, 29),
+          TimeStamp: at(17, 31),
+          AtDock: false,
+          Speed: 12,
+        }),
+      ],
+    });
+
+    expect(actualRows).toContainEqual(
+      expect.objectContaining({
+        EventKey: "SAL 2026-03-13 17:20:00Z--dep-dock",
+        TripKey: trip.TripKey,
+        ScheduleKey: undefined,
+        TerminalAbbrev: "SOU",
+        EventType: "dep-dock",
+        EventActualTime: at(17, 29),
+      })
+    );
+  });
+
+  it("recreates a physical-only arv row from a no-schedule trip plus live location", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: SAILING_DAY,
+      ScheduledDeparture: at(17, 20),
+    });
+
+    const { actualRows } = buildReseedTimelineSlice({
+      sailingDay: SAILING_DAY,
+      events: [],
+      updatedAt: 0,
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+      physicalOnlyTrips: [trip],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "VAI",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          AtDock: true,
+          Speed: 0,
+        }),
+      ],
+    });
+
+    expect(actualRows).toContainEqual(
+      expect.objectContaining({
+        EventKey: "SAL 2026-03-13 17:20:00Z--arv-dock",
+        TripKey: trip.TripKey,
+        ScheduleKey: undefined,
+        TerminalAbbrev: "VAI",
+        EventType: "arv-dock",
+        EventActualTime: at(17, 31),
+      })
+    );
+  });
+
+  it("reconstructs physical-only rows from trip state even without live locations", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: SAILING_DAY,
+      ScheduledDeparture: at(17, 20),
+      LeftDockActual: at(17, 29),
+      ArriveDest: at(17, 55),
+    });
+
+    const { actualRows } = buildReseedTimelineSlice({
+      sailingDay: SAILING_DAY,
+      events: [],
+      updatedAt: 0,
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+      physicalOnlyTrips: [trip],
+      vesselLocations: [],
+    });
+
+    expect(actualRows.map((row) => row.EventKey).sort()).toEqual([
+      "SAL 2026-03-13 17:20:00Z--arv-dock",
+      "SAL 2026-03-13 17:20:00Z--dep-dock",
+    ]);
+  });
+
+  it("handles a mixed slice with scheduled and physical-only vessels", () => {
+    const events = makeSeedEvents([
+      {
+        VesselAbbrev: "TOK",
+        DepartingTerminalAbbrev: "P52",
+        ArrivingTerminalAbbrev: "BBI",
+        DepartingTime: at(8, 35),
+        SchedArriveNext: at(9, 10),
+      },
+    ]);
+    const tripIdx = tripIndexFromSeedEvents(events);
+    const salTrip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: SAILING_DAY,
+      ScheduledDeparture: at(17, 20),
+    });
+
+    const { actualRows } = buildReseedTimelineSlice({
+      sailingDay: SAILING_DAY,
+      events,
+      updatedAt: 0,
+      tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map([["SAL", salTrip]]),
+      physicalOnlyTrips: [salTrip],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "TOK",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(8, 35),
+          TimeStamp: at(8, 50),
+          AtDock: false,
+          Speed: 12,
+        }),
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          LeftDock: at(17, 29),
+          TimeStamp: at(17, 31),
+          AtDock: false,
+          Speed: 12,
+        }),
+      ],
+    });
+
+    expect(actualRows.some((row) => row.VesselAbbrev === "TOK")).toBe(true);
+    expect(
+      actualRows.some(
+        (row) =>
+          row.VesselAbbrev === "SAL" && row.ScheduleKey === undefined
+      )
+    ).toBe(true);
+  });
 });
+
+const makeActivePhysicalTrip = (
+  overrides: Partial<ActiveTripForPhysicalActualReconcile> & {
+    VesselAbbrev: string;
+    DepartingTerminalAbbrev: string;
+  }
+): ActiveTripForPhysicalActualReconcile & { TripKey: string } => ({
+  TripKey: "TOK 2026-03-13 15:35:00Z",
+  ScheduleKey: undefined,
+  VesselAbbrev: overrides.VesselAbbrev,
+  SailingDay: SAILING_DAY,
+  DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+  ArrivingTerminalAbbrev: "BBI",
+  ScheduledDeparture: at(17, 20),
+  LeftDock: undefined,
+  LeftDockActual: undefined,
+  ArriveDest: undefined,
+  AtDockActual: undefined,
+  ...overrides,
+}) as ActiveTripForPhysicalActualReconcile & { TripKey: string };

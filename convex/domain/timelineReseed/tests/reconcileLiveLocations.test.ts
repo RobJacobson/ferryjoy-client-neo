@@ -9,6 +9,7 @@ import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselT
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
 import {
+  type ActiveTripForPhysicalActualReconcile,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
   type TripContextForActualRow,
@@ -74,6 +75,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
         }),
       ],
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
     });
 
     const seg0 = events[0]?.SegmentKey;
@@ -133,6 +135,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
         }),
       ],
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
     });
 
     const seg1 = events[1]?.SegmentKey;
@@ -185,12 +188,210 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
         }),
       ],
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
     });
 
     expect(effects).toEqual([]);
   });
 
-  it("SAL dock window with no scheduled identity produces no reconciliation effects", () => {
+  it("emits a physical-only departure patch for an active no-schedule trip", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: "2026-03-13",
+    });
+
+    const effects = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: "2026-03-13",
+      scheduledEvents: [],
+      actualEvents: [],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          LeftDock: at(17, 29),
+          AtDock: false,
+          Speed: 12,
+        }),
+      ],
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+    });
+
+    expect(effects).toHaveLength(1);
+    expect(effects[0]).toMatchObject({
+      TripKey: trip.TripKey,
+      ScheduleKey: undefined,
+      VesselAbbrev: "SAL",
+      SailingDay: "2026-03-13",
+      TerminalAbbrev: "SOU",
+      EventType: "dep-dock",
+      EventOccurred: true,
+      EventActualTime: at(17, 29),
+    });
+  });
+
+  it("falls back to the proving tick time for a no-schedule departure", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: "2026-03-13",
+    });
+
+    const effects = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: "2026-03-13",
+      scheduledEvents: [],
+      actualEvents: [],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          LeftDock: undefined,
+          AtDock: false,
+          Speed: 12,
+        }),
+      ],
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+    });
+
+    expect(effects[0]?.EventActualTime).toBe(at(17, 31));
+  });
+
+  it("emits a physical-only arrival patch for an active no-schedule trip", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: "2026-03-13",
+    });
+
+    const effects = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: "2026-03-13",
+      scheduledEvents: [],
+      actualEvents: [],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "VAI",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          AtDock: true,
+          Speed: 0,
+        }),
+      ],
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+    });
+
+    expect(effects).toHaveLength(1);
+    expect(effects[0]).toMatchObject({
+      TripKey: trip.TripKey,
+      ScheduleKey: undefined,
+      VesselAbbrev: "SAL",
+      SailingDay: "2026-03-13",
+      TerminalAbbrev: "VAI",
+      EventType: "arv-dock",
+      EventOccurred: true,
+      EventActualTime: at(17, 31),
+    });
+  });
+
+  it("skips a physical-only arrival patch when the trip has no usable arrival terminal", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      SailingDay: "2026-03-13",
+    });
+
+    const effects = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: "2026-03-13",
+      scheduledEvents: [],
+      actualEvents: [],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "VAI",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          AtDock: true,
+          Speed: 0,
+        }),
+      ],
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+    });
+
+    expect(effects).toEqual([]);
+  });
+
+  it("does not emit a physical-only patch when the boundary already exists for that TripKey", () => {
+    const trip = makeActivePhysicalTrip({
+      VesselAbbrev: "SAL",
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      SailingDay: "2026-03-13",
+    });
+
+    const effects = buildActualBoundaryPatchesForSailingDay({
+      sailingDay: "2026-03-13",
+      scheduledEvents: [],
+      actualEvents: [
+        {
+          EventKey: "SAL 2026-03-13 17:20:00Z--dep-dock",
+          TripKey: trip.TripKey,
+          ScheduleKey: undefined,
+          EventType: "dep-dock",
+          VesselAbbrev: "SAL",
+          SailingDay: "2026-03-13",
+          UpdatedAt: 0,
+          ScheduledDeparture: at(17, 20),
+          TerminalAbbrev: "SOU",
+          EventOccurred: true,
+          EventActualTime: at(17, 29),
+        },
+      ],
+      vesselLocations: [
+        makeLocation({
+          VesselAbbrev: "SAL",
+          DepartingTerminalAbbrev: "SOU",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          RouteAbbrev: "f-v-s",
+          TimeStamp: at(17, 31),
+          LeftDock: undefined,
+          AtDock: false,
+          Speed: 12,
+        }),
+      ],
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map([["SAL", trip]]),
+    });
+
+    expect(effects).toEqual([]);
+  });
+
+  it("replaces the old SAL no-op characterization with physical-only reconstruction", () => {
     const events = makeSeedEvents([
       {
         VesselAbbrev: "TOK",
@@ -222,9 +423,28 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
         }),
       ],
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map([
+        [
+          "SAL",
+          makeActivePhysicalTrip({
+            VesselAbbrev: "SAL",
+            TripKey: "SAL 2026-03-13 17:20:00Z",
+            DepartingTerminalAbbrev: "SOU",
+            ArrivingTerminalAbbrev: "VAI",
+            SailingDay: "2026-03-13",
+          }),
+        ],
+      ]),
     });
 
-    expect(effects).toEqual([]);
+    expect(effects).toHaveLength(1);
+    expect(effects[0]).toMatchObject({
+      TripKey: "SAL 2026-03-13 17:20:00Z",
+      ScheduleKey: undefined,
+      VesselAbbrev: "SAL",
+      TerminalAbbrev: "VAI",
+      EventType: "arv-dock",
+    });
   });
 
   it("does not emit duplicate effects when actual rows already mark the boundary", () => {
@@ -269,11 +489,32 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
         }),
       ],
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
     });
 
     expect(effects).toEqual([]);
   });
 });
+
+const makeActivePhysicalTrip = (
+  overrides: Partial<ActiveTripForPhysicalActualReconcile> & {
+    VesselAbbrev: string;
+    DepartingTerminalAbbrev: string;
+  }
+): ActiveTripForPhysicalActualReconcile & { TripKey: string } => ({
+  TripKey: "TOK 2026-03-13 15:35:00Z",
+  ScheduleKey: undefined,
+  VesselAbbrev: overrides.VesselAbbrev,
+  SailingDay: "2026-03-13",
+  DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+  ArrivingTerminalAbbrev: "BBI",
+  ScheduledDeparture: at(17, 20),
+  LeftDock: undefined,
+  LeftDockActual: undefined,
+  ArriveDest: undefined,
+  AtDockActual: undefined,
+  ...overrides,
+}) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
 
 type SeedSegment = {
   VesselAbbrev: string;

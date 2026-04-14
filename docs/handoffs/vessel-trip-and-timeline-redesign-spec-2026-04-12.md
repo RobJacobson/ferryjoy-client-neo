@@ -1,7 +1,7 @@
 # Design Spec: Vessel Trip Identity and Timeline Actuals Redesign
 
 Date prepared: 2026-04-12  
-Status: proposed design, not yet implemented  
+Status: implemented and updated through 2026-04-14  
 Primary audience: a new agent or engineer who has not previously worked on this backend  
 Scope: `activeVesselTrips`, `completedVesselTrips`, `eventsActual`, and the `VesselTimeline` backbone merge
 
@@ -45,16 +45,44 @@ The main change is to decouple:
 from
 - optional schedule alignment
 
+## Implementation Status
+
+This redesign is now substantially implemented in the current backend.
+
+The landed backend state is:
+
+- `TripKey` is the durable physical identity for vessel trips
+- `ScheduleKey` is optional schedule attachment only
+- `eventsActual` rows are keyed by physical `EventKey`
+- timeline actual attachment uses `ScheduleKey + EventType`
+- same-day reseed preserves physical-only actual rows
+- same-day reseed can also recreate physical-only actual rows when no safe
+  scheduled row exists
+
+Two final implementation decisions are important:
+
+1. departure actual projection prefers `LeftDockActual` and falls back to raw
+   WSF `LeftDock`
+2. same-day reseed uses the stronger physical-first Option B behavior:
+   physical-only actuals may be recreated from both:
+   - physical trip rows
+   - live vessel-location reconciliation
+
+The staged rollout sections later in this document are now historical context,
+not a list of pending work.
+
 ## Read First
 
 This design builds directly on the current backend architecture and recent incident reports. A new agent should read these documents first:
 
 - [README.md](../../README.md)
+- [convex/domain/README.md](../../convex/domain/README.md)
 - [convex/functions/vesselOrchestrator/README.md](../../convex/functions/vesselOrchestrator/README.md)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
-- [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
 - [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md)
 - [docs/convex-mcp-cheat-sheet.md](../convex-mcp-cheat-sheet.md)
+- [docs/handoffs/vesseltimeline-reconciliation-memo-2026-04-14.md](./vesseltimeline-reconciliation-memo-2026-04-14.md)
+- [docs/handoffs/vessel-timeline-module-boundary-handoff-2026-04-13.md](./vessel-timeline-module-boundary-handoff-2026-04-13.md)
 
 Recent incident and forensic context:
 
@@ -119,24 +147,25 @@ Why it matters here:
 - the redesign should change trip identity semantics without discarding the existing write-side lifecycle pipeline
 - `eventsActual` should remain a projection table, but with better semantics
 
-### VesselTimeline backend README
+### Timeline domain README
 
-Source: [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
+Source: [convex/domain/README.md](../../convex/domain/README.md)
 
 Important takeaways:
 
-- timeline backbone is intentionally same-day only
-- backend timeline query reads:
-  - `eventsScheduled`
-  - `eventsActual`
-  - `eventsPredicted`
-- client derives active interval from the merged backbone
-- backend no longer reads `vesselLocations` at query time
+- vessel sailing-day timeline logic is now split by pipeline:
+  - `timelineBackbone/`
+  - `timelineReseed/`
+  - `timelineRows/`
+- query-time backbone remains same-day only
+- read-time merge is separate from reseed/write-side assembly
+- shared row builders and merge helpers live in `timelineRows/`
 
 Why it matters here:
 
 - this split is good and should be preserved
-- the redesign should improve event semantics, not re-centralize live vessel state into the timeline query
+- the redesign improved event semantics without re-centralizing live vessel
+  state into the timeline query
 
 ### VesselTimeline client architecture doc
 
@@ -218,7 +247,7 @@ Per [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vess
 
 ### Current timeline responsibilities
 
-Per [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md) and [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md):
+Per [convex/domain/README.md](../../convex/domain/README.md) and [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md):
 
 - the backend timeline query is same-day only
 - it reads:
@@ -229,6 +258,27 @@ Per [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/
 - the client derives the active interval from that backbone
 
 This split is good and should be preserved.
+
+## Current Code Map
+
+The legacy `convex/domain/vesselTimeline/` surface has been removed. Current
+backend ownership is:
+
+- `convex/domain/timelineBackbone/`
+  - read-time same-day merge and final backbone assembly
+- `convex/domain/timelineRows/`
+  - shared row builders, trip-context binding, and `mergeTimelineRows(...)`
+- `convex/domain/timelineReseed/`
+  - schedule seeding, history hydration, live reconciliation, and
+    `buildReseedTimelineSlice(...)`
+
+Primary current entrypoints:
+
+- [convex/domain/timelineBackbone/index.ts](../../convex/domain/timelineBackbone/index.ts)
+- [convex/domain/timelineRows/index.ts](../../convex/domain/timelineRows/index.ts)
+- [convex/domain/timelineReseed/index.ts](../../convex/domain/timelineReseed/index.ts)
+- [convex/functions/vesselTimeline/actions.ts](../../convex/functions/vesselTimeline/actions.ts)
+- [convex/functions/vesselTimeline/mutations.ts](../../convex/functions/vesselTimeline/mutations.ts)
 
 ## Problem Statement
 
@@ -763,6 +813,89 @@ At the end of all stages:
 - the backend remains authoritative for the public timeline backbone
 - missing or unsafe schedule alignment no longer forces false identity
 
+## Final Implemented Decisions
+
+This section supersedes any ambiguity in the original proposal.
+
+### 1. Physical departure source
+
+Departure actual projection now uses:
+
+1. `LeftDockActual`
+2. fallback `LeftDock`
+
+This preserves raw WSF input while preferring the debounced physical lifecycle
+boundary for `dep-dock` actual projection.
+
+### 2. Timeline merge attachment
+
+The official read-time merge now uses:
+
+1. exact `ScheduleKey + EventType`
+2. bounded fallback attachment rules for known-safe arrival cases
+3. otherwise no attachment
+
+The merge helper is now `mergeTimelineRows(...)` in
+[convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts).
+
+### 3. Same-day reseed uses physical-only reconstruction
+
+The backend chose the stronger Option B behavior for same-day reseed.
+
+Reseed keeps the original schedule-aligned path, but it also recreates
+physical-only `eventsActual` rows from:
+
+- physical trip rows with `ScheduleKey === undefined`
+- active-trip-aware live vessel-location reconciliation when no scheduled row
+  exists
+
+These reconstructed rows:
+
+- use `EventKey = buildPhysicalActualEventKey(TripKey, EventType)`
+- persist `TripKey`
+- leave `ScheduleKey` undefined
+- do not fabricate schedule-boundary identity
+
+### 4. Boundary-start timestamp rule for scheduleless live reconstruction
+
+When no scheduled row exists, same-day live reconciliation uses the start of
+the proven physical boundary:
+
+- departure:
+  - `LeftDock` if present on the proving live tick
+  - otherwise the proving `TimeStamp`
+- arrival:
+  - the proving docked `TimeStamp`
+
+### 5. Duplicate suppression rule
+
+Before scheduleless live reconciliation emits a physical-only dep/arv patch, it
+must check whether the slice already contains that physical boundary for the
+same `TripKey + EventType`.
+
+That duplicate check considers:
+
+- base actual rows from hydrated schedule/history facts
+- schedule-aligned live patches
+- physical-only rows reconstructed from trip state
+
+### 6. Accepted module boundary
+
+The domain layer is now intentionally split into:
+
+- `timelineBackbone`
+- `timelineRows`
+- `timelineReseed`
+
+For practical function-layer use, `timelineReseed/index.ts` currently exports:
+
+- `buildReseedTimelineSlice`
+- `hydrateSeededEventsWithHistory`
+- `buildSeedVesselTripEventsFromRawSegments`
+- `getDirectRawSeedSegments`
+
+That broader surface is part of the current accepted architecture.
+
 ## Implementation Strategy
 
 The changes naturally split into two mostly independent workstreams:
@@ -787,7 +920,9 @@ Before code changes:
 Recommended test areas:
 
 - `convex/functions/vesselTrips/updates/tests/`
-- `convex/domain/vesselTimeline/tests/`
+- `convex/domain/timelineBackbone/tests/`
+- `convex/domain/timelineRows/tests/`
+- `convex/domain/timelineReseed/tests/`
 
 ## Stage 1: VesselTrips Identity Redesign
 
@@ -929,8 +1064,8 @@ This stage consumes the new `eventsActual` semantics.
 
 Likely file areas:
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/viewModel.ts](../../convex/domain/vesselTimeline/viewModel.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineBackbone/buildTimelineBackbone.ts](../../convex/domain/timelineBackbone/buildTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts](../../convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/queries.ts](../../convex/functions/vesselTimeline/queries.ts)
 
@@ -956,6 +1091,9 @@ Client-facing impact should be minimal:
 
 ## Stage 4: Cutover and Cleanup
 
+Completed. The legacy `convex/domain/vesselTimeline/` barrels and shims have
+been removed, and tests now live under the owning modules.
+
 Only after Stages 1 through 3 are stable:
 
 1. remove old assumptions that `trip.Key` is the physical trip identity
@@ -963,6 +1101,13 @@ Only after Stages 1 through 3 are stable:
 3. simplify fallback logic that was only necessary because of composite-key coupling
 
 This stage should be done conservatively and only after behavior is validated.
+
+## Historical Implementation Guide
+
+The sections below document the staged rollout plan that was used to get from
+the original design to the landed implementation. They are retained for
+historical context, but they are no longer the current source of truth for repo
+structure or open work.
 
 ## PR 3 Clean-Slate Implementation Guide
 
@@ -1094,16 +1239,16 @@ Important constraints:
 - unmatched physical actuals should remain in storage even if they do not appear on a scheduled row
 - fallback logic, if retained, should be clearly narrower than the old key-based heuristics
 
-### Files a clean-slate PR 3 is expected to touch
+### Files a clean-slate PR 3 was expected to touch
 
 - [convex/functions/eventsActual/schemas.ts](../../convex/functions/eventsActual/schemas.ts)
 - [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
-- [convex/domain/vesselTimeline/normalizedEvents.ts](../../convex/domain/vesselTimeline/normalizedEvents.ts)
+- [convex/domain/timelineRows/buildActualRows.ts](../../convex/domain/timelineRows/buildActualRows.ts)
 - [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
 - [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
 - [convex/functions/vesselTimeline/mutations.ts](../../convex/functions/vesselTimeline/mutations.ts)
-- [convex/functions/vesselTimeline/mergeActualBoundaryPatchesIntoRows.ts](../../convex/functions/vesselTimeline/mergeActualBoundaryPatchesIntoRows.ts)
+- [convex/domain/timelineReseed/mergeActualBoundaryPatchesIntoRows.ts](../../convex/domain/timelineReseed/mergeActualBoundaryPatchesIntoRows.ts)
 - tests that assert `eventsActual` identity, storage, reseed, and actual-attachment behavior
 
 ### Acceptance criteria
@@ -1226,9 +1371,9 @@ Goal:
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
 - [convex/functions/vesselTrips/updates/tests/processVesselTrips.test.ts](../../convex/functions/vesselTrips/updates/tests/processVesselTrips.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/history.test.ts](../../convex/domain/vesselTimeline/tests/history.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts](../../convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts)
 
 ### Acceptance criteria
 
@@ -1479,11 +1624,11 @@ Goal:
 
 ### Files to update
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/viewModel.ts](../../convex/domain/vesselTimeline/viewModel.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineBackbone/buildTimelineBackbone.ts](../../convex/domain/timelineBackbone/buildTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts](../../convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/queries.ts](../../convex/functions/vesselTimeline/queries.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
 
 ### Acceptance criteria
 
@@ -1506,9 +1651,9 @@ Goal:
 
 ### Files to update
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
-- [convex/domain/vesselTimeline/tests/history.test.ts](../../convex/domain/vesselTimeline/tests/history.test.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
+- [convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts](../../convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts)
 
 ### Acceptance criteria
 
@@ -1561,7 +1706,7 @@ Goal:
 - [convex/functions/eventsScheduled/dockedScheduleResolver.ts](../../convex/functions/eventsScheduled/dockedScheduleResolver.ts)
 - [convex/functions/eventsScheduled/queries.ts](../../convex/functions/eventsScheduled/queries.ts)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
-- [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
+- [convex/domain/README.md](../../convex/domain/README.md)
 
 ### Acceptance criteria
 
@@ -1633,8 +1778,8 @@ Suggested files:
 - [convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts](../../convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts)
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
 
 Expected output of this step:
 
@@ -1752,8 +1897,8 @@ This is the most likely minimal file set for the first PR.
 - [convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts](../../convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts)
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
 
 ### Schema and types
 

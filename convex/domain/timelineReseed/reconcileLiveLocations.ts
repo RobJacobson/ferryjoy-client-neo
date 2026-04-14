@@ -17,6 +17,7 @@ import { groupBy } from "../../shared/groupBy";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
 import { getSailingDay } from "../../shared/time";
 import {
+  type ActiveTripForPhysicalActualReconcile,
   enrichActualBoundaryPatchesWithTripContext,
   type TripContextForActualRow,
 } from "../timelineRows";
@@ -41,6 +42,10 @@ export type BuildActualBoundaryPatchesForSailingDayArgs = {
   actualEvents: ConvexActualBoundaryEvent[];
   vesselLocations: ConvexVesselLocation[];
   tripBySegmentKey?: Map<string, TripContextForActualRow>;
+  activeTripsByVesselAbbrev?: Map<
+    string,
+    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+  >;
 };
 
 /**
@@ -74,17 +79,42 @@ export const buildActualBoundaryPatchesForSailingDay = ({
   actualEvents,
   vesselLocations,
   tripBySegmentKey = new Map(),
+  activeTripsByVesselAbbrev = new Map(),
 }: BuildActualBoundaryPatchesForSailingDayArgs): ConvexActualBoundaryPatchPersistable[] => {
   const scheduledByVessel = groupBy(scheduledEvents, (e) => e.VesselAbbrev);
   const actualByVessel = groupBy(actualEvents, (e) => e.VesselAbbrev);
 
-  const raw = vesselLocations
+  const scheduleAligned = vesselLocations
     .map(attachScheduledEventsByVessel(scheduledByVessel))
     .filter(locationBundleMatchesSailingDay(sailingDay))
     .filter(hasScheduledEvents)
     .flatMap(actualBoundaryPatchesFromLocationBundle(actualByVessel));
 
-  return enrichActualBoundaryPatchesWithTripContext(raw, tripBySegmentKey);
+  const scheduleAlignedWithTripContext = enrichActualBoundaryPatchesWithTripContext(
+    scheduleAligned,
+    tripBySegmentKey
+  );
+  const representedTripBoundaryKeys = new Set(
+    [
+      ...actualEvents,
+      ...scheduleAlignedWithTripContext.map((patch) => ({
+        TripKey: patch.TripKey,
+        EventType: patch.EventType,
+      })),
+    ].map((row) => `${row.TripKey}|${row.EventType}`)
+  );
+
+  const scheduleless = vesselLocations
+    .filter(locationMatchesSailingDay(sailingDay))
+    .flatMap((location) =>
+      buildPhysicalOnlyPatchesFromLocation(
+        location,
+        activeTripsByVesselAbbrev,
+        representedTripBoundaryKeys
+      )
+    );
+
+  return [...scheduleAlignedWithTripContext, ...scheduleless];
 };
 
 const attachScheduledEventsByVessel =
@@ -97,9 +127,12 @@ const attachScheduledEventsByVessel =
 const locationBundleMatchesSailingDay =
   (sailingDay: string) =>
   ({ location }: VesselLocationScheduledEventsBundle) =>
-    getSailingDay(
-      new Date(location.ScheduledDeparture ?? location.TimeStamp)
-    ) === sailingDay;
+    locationMatchesSailingDay(sailingDay)(location);
+
+const locationMatchesSailingDay =
+  (sailingDay: string) => (location: ConvexVesselLocation) =>
+    getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp)) ===
+    sailingDay;
 
 const hasScheduledEvents = ({
   vesselScheduledEvents,
@@ -236,6 +269,64 @@ const strongDeparture = (location: ConvexVesselLocation) =>
 
 const strongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
+
+const buildPhysicalOnlyPatchesFromLocation = (
+  location: ConvexVesselLocation,
+  activeTripsByVesselAbbrev: Map<
+    string,
+    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+  >,
+  representedTripBoundaryKeys: Set<string>
+): ConvexActualBoundaryPatchPersistable[] => {
+  if (location.InService !== true) {
+    return [];
+  }
+
+  const trip = activeTripsByVesselAbbrev.get(location.VesselAbbrev);
+  if (!trip || trip.ScheduleKey !== undefined) {
+    return [];
+  }
+
+  const patches: ConvexActualBoundaryPatchPersistable[] = [];
+
+  if (!representedTripBoundaryKeys.has(`${trip.TripKey}|dep-dock`) && strongDeparture(location)) {
+    patches.push({
+      TripKey: trip.TripKey,
+      ScheduleKey: undefined,
+      VesselAbbrev: trip.VesselAbbrev,
+      ...(trip.SailingDay !== undefined ? { SailingDay: trip.SailingDay } : {}),
+      ...(trip.ScheduledDeparture !== undefined
+        ? { ScheduledDeparture: trip.ScheduledDeparture }
+        : {}),
+      TerminalAbbrev: trip.DepartingTerminalAbbrev,
+      EventType: "dep-dock",
+      EventOccurred: true,
+      EventActualTime: location.LeftDock ?? location.TimeStamp,
+    });
+  }
+
+  if (
+    !representedTripBoundaryKeys.has(`${trip.TripKey}|arv-dock`) &&
+    strongArrival(location) &&
+    trip.ArrivingTerminalAbbrev !== undefined
+  ) {
+    patches.push({
+      TripKey: trip.TripKey,
+      ScheduleKey: undefined,
+      VesselAbbrev: trip.VesselAbbrev,
+      ...(trip.SailingDay !== undefined ? { SailingDay: trip.SailingDay } : {}),
+      ...(trip.ScheduledDeparture !== undefined
+        ? { ScheduledDeparture: trip.ScheduledDeparture }
+        : {}),
+      TerminalAbbrev: trip.ArrivingTerminalAbbrev,
+      EventType: "arv-dock",
+      EventOccurred: true,
+      EventActualTime: location.TimeStamp,
+    });
+  }
+
+  return patches;
+};
 
 const findArrivalEventForLocation = (
   events: ConvexVesselTimelineEventRecord[],

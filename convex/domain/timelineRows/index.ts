@@ -1,6 +1,10 @@
-export type { TripContextForActualRow } from "./bindActualRowsToTrips";
+export type {
+  ActiveTripForPhysicalActualReconcile,
+  TripContextForActualRow,
+} from "./bindActualRowsToTrips";
 export {
   enrichActualBoundaryPatchesWithTripContext,
+  indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "./bindActualRowsToTrips";
 export {

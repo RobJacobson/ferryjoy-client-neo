@@ -8,6 +8,7 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { buildReseedTimelineSlice } from "domain/timelineReseed";
 import {
+  indexActiveTripsByVesselAbbrev,
   type buildScheduledBoundaryEvents,
   indexTripsBySegmentKey,
 } from "domain/timelineRows";
@@ -38,7 +39,8 @@ export const reseedBoundaryEventsForSailingDay = internalMutation({
   }),
   handler: async (ctx, args) => {
     const updatedAt = Date.now();
-    const tripIndex = await loadTripIndexForSailingDay(ctx, args.SailingDay);
+    const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
+      await loadTripIndexesForSailingDay(ctx, args.SailingDay);
     const vesselLocations = await ctx.db.query("vesselLocations").collect();
 
     const { scheduledRows, actualRows, scheduledCount, actualCount } =
@@ -46,7 +48,9 @@ export const reseedBoundaryEventsForSailingDay = internalMutation({
         sailingDay: args.SailingDay,
         events: args.Events,
         updatedAt,
-        tripBySegmentKey: tripIndex,
+        tripBySegmentKey,
+        activeTripsByVesselAbbrev,
+        physicalOnlyTrips,
         vesselLocations,
       });
 
@@ -72,7 +76,7 @@ export const reseedBoundaryEventsForSailingDay = internalMutation({
  * @param sailingDay - Target sailing day
  * @returns Map from segment key to trip context
  */
-const loadTripIndexForSailingDay = async (
+const loadTripIndexesForSailingDay = async (
   ctx: MutationCtx,
   sailingDay: string
 ) => {
@@ -83,7 +87,13 @@ const loadTripIndexForSailingDay = async (
     await ctx.db.query("completedVesselTrips").collect()
   ).filter((t) => t.SailingDay === sailingDay);
 
-  return indexTripsBySegmentKey([...activeTrips, ...completedTrips]);
+  return {
+    tripBySegmentKey: indexTripsBySegmentKey([...activeTrips, ...completedTrips]),
+    activeTripsByVesselAbbrev: indexActiveTripsByVesselAbbrev(activeTrips),
+    physicalOnlyTrips: [...activeTrips, ...completedTrips].filter(
+      (trip) => trip.ScheduleKey === undefined
+    ),
+  };
 };
 
 const replaceScheduledRowsForSailingDay = async (

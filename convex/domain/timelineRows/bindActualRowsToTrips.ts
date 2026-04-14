@@ -29,6 +29,24 @@ export type TripRowForActualContext = {
 };
 
 /**
+ * Active-trip fields needed for scheduleless live reconciliation and physical
+ * actual reconstruction during same-day reseed.
+ */
+export type ActiveTripForPhysicalActualReconcile = {
+  TripKey?: string;
+  ScheduleKey?: string;
+  VesselAbbrev: string;
+  SailingDay?: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev?: string;
+  ScheduledDeparture?: number;
+  LeftDock?: number;
+  LeftDockActual?: number;
+  ArriveDest?: number;
+  AtDockActual?: number;
+};
+
+/**
  * Builds a map from schedule segment key (`ScheduleKey`) to physical trip
  * context for one sailing day.
  *
@@ -50,6 +68,32 @@ export const indexTripsBySegmentKey = (
     if (trip.ScheduleKey) {
       map.set(trip.ScheduleKey, row);
     }
+  }
+
+  return map;
+};
+
+/**
+ * Builds a map from vessel abbreviation to the current active trip used for
+ * scheduleless physical-only reconciliation.
+ */
+export const indexActiveTripsByVesselAbbrev = (
+  trips: ActiveTripForPhysicalActualReconcile[]
+): Map<string, ActiveTripForPhysicalActualReconcile & { TripKey: string }> => {
+  const map = new Map<
+    string,
+    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+  >();
+
+  for (const trip of trips) {
+    if (!trip.TripKey) {
+      continue;
+    }
+
+    map.set(trip.VesselAbbrev, {
+      ...trip,
+      TripKey: trip.TripKey,
+    });
   }
 
   return map;
