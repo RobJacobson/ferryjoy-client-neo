@@ -1,22 +1,23 @@
 /**
- * Covers the event-first VesselTimeline backbone helpers.
+ * Covers merge of scheduled, actual, and predicted boundary rows for timeline
+ * display.
  */
 
 import { describe, expect, it } from "bun:test";
+import { mergeTimelineRows } from "domain/timelineRows";
 import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
 import { getSegmentKeyFromBoundaryKey } from "../../../functions/eventsScheduled/segmentResolvers";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
-import { mergeTimelineEvents } from "../";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
-describe("mergeTimelineEvents", () => {
+describe("mergeTimelineRows", () => {
   it("merges sparse actual and predicted overlays onto ordered events", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -62,7 +63,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("reattaches wrong-key arrival actuals using segment dep and next dep at arrival terminal", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "a--dep-dock",
@@ -126,7 +127,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("keeps exact-match arrivals ahead of heuristic reassignment", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "sea-1--arv-dock",
@@ -173,7 +174,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("does not heuristic-attach physical-only arrival actuals (no ScheduleKey)", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "leg-1--arv-dock",
@@ -201,7 +202,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("reattaches a missing arrival from the next unused same-terminal actual before the next equivalent row", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "leg-1--arv-dock",
@@ -240,7 +241,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("leaves an arrival blank when the candidate actual crosses the next equivalent arrival slot", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "leg-1--arv-dock",
@@ -279,7 +280,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("consumes multiple same-terminal arrival actuals in order without reuse", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "leg-1--arv-dock",
@@ -326,7 +327,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("ignores arrival actuals from different terminals and leaves departure behavior unchanged", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "leg-1--dep-dock",
@@ -371,7 +372,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("KIT characterization: poisoned future dep actual advances backbone ownership", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "kit-1110--dep-dock",
@@ -432,7 +433,7 @@ describe("mergeTimelineEvents", () => {
   });
 
   it("ISS characterization: cancelled departure slot remains blank while replacement arrival reattaches", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "iss-1830--arv-dock",
@@ -481,7 +482,7 @@ describe("mergeTimelineEvents", () => {
 
 describe("resolveActiveTimelineInterval", () => {
   it("uses the opening dock interval when no actual events exist", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-2--dep-dock",
@@ -510,7 +511,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("returns the sea interval after the latest actual departure", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -544,7 +545,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("advances to the sea interval when departure occurrence is known but time is unknown", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -579,7 +580,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("returns the dock interval after the latest actual arrival", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -622,7 +623,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("returns the terminal-tail dock interval after the day's last actual arrival", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -658,7 +659,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("ignores predicted times when determining ownership", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -694,7 +695,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("treats legacy actual-time rows as occurred even without EventOccurred", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",
@@ -729,7 +730,7 @@ describe("resolveActiveTimelineInterval", () => {
   });
 
   it("returns null when the latest actual boundary has no matching interval", () => {
-    const events = mergeTimelineEvents({
+    const events = mergeTimelineRows({
       scheduledEvents: [
         makeScheduledEvent({
           Key: "trip-1--dep-dock",

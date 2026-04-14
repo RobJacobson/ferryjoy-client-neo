@@ -184,14 +184,14 @@ only the boundary fields needed to derive a day timeline:
 Those normalized rows are not the public query contract anymore. The backend
 now builds one ordered same-day event list for the timeline backbone. When more
 than one `eventsPredicted` row shares the same boundary `Key` (e.g. WSF ETA vs ML),
-`mergeTimelineEvents` picks a single backbone `EventPredictedTime` (WSF ETA row
+`mergeTimelineRows` picks a single backbone `EventPredictedTime` (WSF ETA row
 first). Trip-shaped queries still expose `Eta` plus ML-hydrated fields separately.
 The client derives `activeInterval` from that backbone and combines it with its
 existing real-time `VesselLocation` subscription for indicator placement.
 
 Detailed `VesselTimeline` backend architecture now lives in:
 
-- `convex/domain/vesselTimeline/README.md`
+- `convex/domain/README.md`
 
 That document covers:
 

@@ -117,7 +117,7 @@ approval:
 Lifecycle branch files (`processCompletedTrips` / `processCurrentTrips`) should:
 
 - emit lifecycle facts/messages only,
-- avoid direct imports of timeline row builders (`domain/vesselTimeline/*`),
+- avoid direct imports of timeline row builders (`domain/timelineRows/*`),
 - avoid assembling final `TickEventWrites` directly.
 
 `projection/timelineEventAssembler.ts` owns:

@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { mergeActualBoundaryPatchesIntoRows } from "../../../domain/timelineReseed/mergeActualBoundaryPatchesIntoRows";
-import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import type {
   ConvexActualBoundaryEvent,
   ConvexActualBoundaryPatchPersistable,
   ConvexActualBoundaryPatchWithTripKey,
-} from "../../eventsActual/schemas";
+} from "../../../functions/eventsActual/schemas";
+import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
+import { mergeActualBoundaryPatchesIntoRows } from "../mergeActualBoundaryPatchesIntoRows";
 
 const updatedAt = 1_700_000_000_000;
 
