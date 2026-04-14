@@ -33,6 +33,9 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
+import type * as domain_timelineBackbone_buildTimelineBackbone from "../domain/timelineBackbone/buildTimelineBackbone.js";
+import type * as domain_timelineBackbone_index from "../domain/timelineBackbone/index.js";
+import type * as domain_timelineBackbone_mergeTimelineRows from "../domain/timelineBackbone/mergeTimelineRows.js";
 import type * as domain_vesselTimeline_events_history from "../domain/vesselTimeline/events/history.js";
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
@@ -205,6 +208,9 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
+  "domain/timelineBackbone/buildTimelineBackbone": typeof domain_timelineBackbone_buildTimelineBackbone;
+  "domain/timelineBackbone/index": typeof domain_timelineBackbone_index;
+  "domain/timelineBackbone/mergeTimelineRows": typeof domain_timelineBackbone_mergeTimelineRows;
   "domain/vesselTimeline/events/history": typeof domain_vesselTimeline_events_history;
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;

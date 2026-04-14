@@ -3,7 +3,7 @@
  */
 
 import type { QueryCtx } from "_generated/server";
-import { buildVesselTimelineBackbone } from "../../../domain/vesselTimeline";
+import { buildTimelineBackbone } from "../../../domain/timelineBackbone";
 import { loadVesselTimelineBackboneInputs } from "./loadBackboneInputs";
 
 /**
@@ -19,7 +19,7 @@ export const getVesselTimelineBackbone = async (
 ) => {
   const inputs = await loadVesselTimelineBackboneInputs(ctx, args);
 
-  return buildVesselTimelineBackbone({
+  return buildTimelineBackbone({
     VesselAbbrev: args.VesselAbbrev,
     SailingDay: args.SailingDay,
     ...inputs,
