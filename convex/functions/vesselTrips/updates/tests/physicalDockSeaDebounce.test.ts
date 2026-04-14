@@ -5,6 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   rawDepartureIsContradictory,
   resolveDebouncedPhysicalBoundaries,
@@ -90,7 +91,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -108,7 +110,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T04:33:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

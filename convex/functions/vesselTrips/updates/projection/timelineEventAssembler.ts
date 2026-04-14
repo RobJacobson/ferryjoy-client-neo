@@ -111,8 +111,8 @@ const shouldClearExistingPredictions = (
 ): boolean =>
   existingTrip !== undefined &&
   (existingTrip.SailingDay !== finalProposed.SailingDay ||
-    existingTrip.Key !== finalProposed.Key ||
-    existingTrip.NextKey !== finalProposed.NextKey);
+    existingTrip.ScheduleKey !== finalProposed.ScheduleKey ||
+    existingTrip.NextScheduleKey !== finalProposed.NextScheduleKey);
 
 const buildTaggedActualPatchesFromMessage = (
   message: CurrentTripActualEventMessage

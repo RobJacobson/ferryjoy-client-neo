@@ -98,7 +98,7 @@ export const getActiveTrips = query({
 /**
  * Fetch active vessel trips with joined ScheduledTrip for display.
  *
- * Resolves ScheduledTrip lazily by the trip's stable composite Key.
+ * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
  *
  * @param ctx - Convex context
  * @returns Array of active vessel trips with optional ScheduledTrip appended
@@ -113,14 +113,14 @@ export const getActiveTripsWithScheduledTrip = query({
       const result = await Promise.all(
         hydrated.map(async (trip) => {
           const stripped = stripConvexMeta(trip);
-          const tripKey = stripped.Key;
-          if (!tripKey) {
+          const scheduleKey = stripped.ScheduleKey;
+          if (!scheduleKey) {
             return stripped;
           }
 
           const scheduledDoc = await ctx.db
             .query("scheduledTrips")
-            .withIndex("by_key", (q) => q.eq("Key", tripKey))
+            .withIndex("by_key", (q) => q.eq("Key", scheduleKey))
             .first();
           const ScheduledTrip = scheduledDoc
             ? stripConvexMeta(scheduledDoc)
@@ -188,7 +188,7 @@ export const getMostRecentCompletedTrip = query({
  * @param ctx - Convex context
  * @param args.routeAbbrev - Route abbreviation (e.g. "sea-bi")
  * @param args.tripDate - Sailing day in YYYY-MM-DD format
- * @returns Array of completed vessel trips (schema shape), deduped by Key
+ * @returns Array of completed vessel trips (schema shape), deduped by TripKey
  */
 export const getCompletedTripsByRouteAndTripDate = query({
   args: {
@@ -204,12 +204,12 @@ export const getCompletedTripsByRouteAndTripDate = query({
           q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
         )
         .collect();
-      // Multiple writes for the same logical trip can exist, so collapse by Key.
-      const byKey = new Map<string, (typeof docs)[number]>();
+      // Multiple writes for the same physical trip can exist, so collapse by TripKey.
+      const byTripKey = new Map<string, (typeof docs)[number]>();
       for (const doc of docs) {
-        if (doc.Key) byKey.set(doc.Key, doc);
+        if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
       }
-      return stripHydratedTrips(ctx, Array.from(byKey.values()));
+      return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for route ${args.routeAbbrev} on ${args.tripDate}`,
@@ -306,7 +306,7 @@ export const getActiveTripsByVessel = query({
  * @param ctx - Convex context
  * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
  * @param args.tripDate - Sailing day in YYYY-MM-DD format
- * @returns Array of completed vessel trips (schema shape), deduped by Key
+ * @returns Array of completed vessel trips (schema shape), deduped by TripKey
  */
 export const getCompletedTripsByRoutesAndTripDate = query({
   args: {
@@ -327,14 +327,14 @@ export const getCompletedTripsByRoutesAndTripDate = query({
             .collect()
         )
       );
-      // Different route batches can still resolve to the same logical trip.
-      const byKey = new Map<string, (typeof batches)[0][number]>();
+      // Different route batches can still resolve to the same physical trip.
+      const byTripKey = new Map<string, (typeof batches)[0][number]>();
       for (const batch of batches) {
         for (const doc of batch) {
-          if (doc.Key) byKey.set(doc.Key, doc);
+          if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
         }
       }
-      return stripHydratedTrips(ctx, Array.from(byKey.values()));
+      return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for routes on ${args.tripDate}`,
@@ -357,7 +357,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
  * @param ctx - Convex context
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
  * @param args.departingTerminalAbbrevs - Terminal abbreviations to include
- * @returns Array of completed vessel trips (schema shape), deduped by Key
+ * @returns Array of completed vessel trips (schema shape), deduped by TripKey
  */
 export const getCompletedTripsForSailingDayAndTerminals = query({
   args: {
@@ -380,14 +380,14 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
             .collect()
         )
       );
-      // Terminal-scoped queries can overlap, so dedupe by canonical trip key.
-      const byKey = new Map<string, (typeof results)[0][number]>();
+      // Terminal-scoped queries can overlap, so dedupe by physical TripKey.
+      const byTripKey = new Map<string, (typeof results)[0][number]>();
       for (const batch of results) {
         for (const doc of batch) {
-          if (doc.Key) byKey.set(doc.Key, doc);
+          if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
         }
       }
-      return stripHydratedTrips(ctx, Array.from(byKey.values()));
+      return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for sailing day ${args.sailingDay}`,
@@ -409,7 +409,7 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
  * @param ctx - Convex context
  * @param args.vesselAbbrev - Vessel abbreviation to fetch
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
- * @returns Array of completed vessel trips for the vessel/day, deduped by Key
+ * @returns Array of completed vessel trips for the vessel/day, deduped by TripKey
  */
 export const getCompletedTripsByVesselAndSailingDay = query({
   args: {
@@ -428,14 +428,14 @@ export const getCompletedTripsByVesselAndSailingDay = query({
         )
         .collect();
 
-      const byKey = new Map<string, (typeof docs)[number]>();
+      const byTripKey = new Map<string, (typeof docs)[number]>();
       for (const doc of docs) {
-        if (doc.Key) {
-          byKey.set(doc.Key, doc);
+        if (doc.TripKey) {
+          byTripKey.set(doc.TripKey, doc);
         }
       }
 
-      return stripHydratedTrips(ctx, Array.from(byKey.values()));
+      return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for vessel ${args.vesselAbbrev} on ${args.sailingDay}`,

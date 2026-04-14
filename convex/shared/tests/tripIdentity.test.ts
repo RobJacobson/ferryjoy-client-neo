@@ -11,7 +11,7 @@ describe("deriveTripIdentity", () => {
     });
 
     expect(identity).toEqual({
-      Key: "CHE--2026-03-13--05:30--ANA-ORI",
+      ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
       SailingDay: "2026-03-13",
       isTripStartReady: true,
     });
@@ -25,7 +25,7 @@ describe("deriveTripIdentity", () => {
       scheduledDepartureMs: ms("2026-03-13T05:30:00-07:00"),
     });
 
-    expect(identity.Key).toBeUndefined();
+    expect(identity.ScheduleKey).toBeUndefined();
     expect(identity.SailingDay).toBe("2026-03-13");
     expect(identity.isTripStartReady).toBe(false);
   });
@@ -39,7 +39,7 @@ describe("deriveTripIdentity", () => {
     });
 
     expect(identity).toEqual({
-      Key: undefined,
+      ScheduleKey: undefined,
       SailingDay: undefined,
       isTripStartReady: false,
     });
@@ -53,7 +53,7 @@ describe("deriveTripIdentity", () => {
       scheduledDepartureMs: ms("2026-03-14T02:30:00-07:00"),
     });
 
-    expect(identity.Key).toBe("CHE--2026-03-14--02:30--ANA-ORI");
+    expect(identity.ScheduleKey).toBe("CHE--2026-03-14--02:30--ANA-ORI");
     expect(identity.SailingDay).toBe("2026-03-13");
     expect(identity.isTripStartReady).toBe(true);
   });

@@ -48,7 +48,8 @@ const vesselLocationBaseValidationFields = {
  */
 export const vesselLocationValidationFields = {
   ...vesselLocationBaseValidationFields,
-  Key: v.optional(v.string()),
+  /** Feed-derived schedule segment composite (not physical trip identity). */
+  ScheduleKey: v.optional(v.string()),
   DepartingDistance: v.optional(v.number()),
   ArrivingDistance: v.optional(v.number()),
 } as const;
@@ -155,7 +156,7 @@ export function toConvexVesselLocation(
     RouteAbbrev: dvl.OpRouteAbbrev?.[0] ?? undefined,
     VesselPositionNum: dvl.VesselPositionNum ?? undefined,
     TimeStamp: dateToEpochMs(dvl.TimeStamp),
-    Key: tripIdentity.Key,
+    ScheduleKey: tripIdentity.ScheduleKey,
     DepartingDistance: getDistanceToTerminal(
       dvl.Latitude,
       dvl.Longitude,

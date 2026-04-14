@@ -15,5 +15,5 @@ export type TripEvents = {
   isCompletedTrip: boolean;
   didJustArriveAtDock: boolean;
   didJustLeaveDock: boolean;
-  keyChanged: boolean;
+  scheduleKeyChanged: boolean;
 };

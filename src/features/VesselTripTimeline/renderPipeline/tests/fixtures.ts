@@ -73,9 +73,8 @@ export const makeTrip = (
   DepartingTerminalAbbrev: "P52",
   ArrivingTerminalAbbrev: "BBI",
   RouteAbbrev: "SEA-BBI",
-  Key: "trip-1",
   TripKey: undefined,
-  ScheduleKey: undefined,
+  ScheduleKey: "trip-1",
   SailingDay: "2026-03-18",
   PrevTerminalAbbrev: "BBI",
   ArriveDest: undefined,
@@ -93,7 +92,7 @@ export const makeTrip = (
   TimeStamp: at(7, 50),
   PrevScheduledDeparture: at(7, 0).getTime(),
   PrevLeftDock: at(7, 5).getTime(),
-  NextKey: "WEN--2026-03-18--09:00--BBI-P52",
+  NextScheduleKey: "WEN--2026-03-18--09:00--BBI-P52",
   NextScheduledDeparture: at(9, 0),
   AtDockDepartCurr: makePrediction({ PredTime: at(8, 5) }),
   AtDockArriveNext: makePrediction({ PredTime: at(8, 38) }),
@@ -128,7 +127,7 @@ export const makeVesselLocation = (
   RouteAbbrev: "SEA-BBI",
   VesselPositionNum: 1,
   TimeStamp: at(7, 50),
-  Key: "trip-1",
+  ScheduleKey: "trip-1",
   ...overrides,
 });
 

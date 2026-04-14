@@ -36,8 +36,9 @@ export const detectTripEvents = (
     ),
     didJustArriveAtDock,
     didJustLeaveDock,
-    keyChanged: Boolean(
-      tripInputs.continuingKey && existingTrip?.Key !== tripInputs.continuingKey
+    scheduleKeyChanged: Boolean(
+      tripInputs.continuingScheduleKey &&
+        existingTrip?.ScheduleKey !== tripInputs.continuingScheduleKey
     ),
   };
 };

@@ -77,7 +77,7 @@ const buildActualBoundaryPatchFromTrip = (
   }
 
   return {
-    SegmentKey: trip.Key ?? trip.ScheduleKey,
+    SegmentKey: trip.ScheduleKey,
     TripKey: trip.TripKey,
     ScheduleKey: trip.ScheduleKey,
     VesselAbbrev: trip.VesselAbbrev,

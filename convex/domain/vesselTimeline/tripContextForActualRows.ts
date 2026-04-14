@@ -25,13 +25,12 @@ export type TripContextForActualRow = {
  */
 export type TripRowForActualContext = {
   TripKey?: string;
-  Key?: string;
   ScheduleKey?: string;
   SailingDay?: string;
 };
 
 /**
- * Builds a map from segment key (`trip.Key` / `ScheduleKey`) to physical trip
+ * Builds a map from schedule segment key (`ScheduleKey`) to physical trip
  * context for one sailing day.
  *
  * @param trips - Active and/or completed trips (caller filters by sailing day)
@@ -49,10 +48,7 @@ export const indexTripsBySegmentKey = (
 
     const row = { TripKey: trip.TripKey, ScheduleKey: trip.ScheduleKey };
 
-    if (trip.Key) {
-      map.set(trip.Key, row);
-    }
-    if (trip.ScheduleKey && trip.ScheduleKey !== trip.Key) {
+    if (trip.ScheduleKey) {
       map.set(trip.ScheduleKey, row);
     }
   }

@@ -26,8 +26,8 @@ export type DerivedTripInputs = {
   continuingArrivingTerminalAbbrev: string | undefined;
   currentScheduledDeparture: number | undefined;
   continuingScheduledDeparture: number | undefined;
-  startKey: string | undefined;
-  continuingKey: string | undefined;
+  startScheduleKey: string | undefined;
+  continuingScheduleKey: string | undefined;
   startSailingDay: string | undefined;
   continuingSailingDay: string | undefined;
   currentIsTripStartReady: boolean;
@@ -142,11 +142,11 @@ export const deriveTripInputs = (
     continuingArrivingTerminalAbbrev,
     currentScheduledDeparture,
     continuingScheduledDeparture,
-    startKey: currentIdentity.Key,
-    continuingKey:
-      shouldPreserveDockBoundaryOwner && existingTrip?.Key
-        ? existingTrip.Key
-        : continuingIdentity.Key,
+    startScheduleKey: currentIdentity.ScheduleKey,
+    continuingScheduleKey:
+      shouldPreserveDockBoundaryOwner && existingTrip?.ScheduleKey
+        ? existingTrip.ScheduleKey
+        : continuingIdentity.ScheduleKey,
     startSailingDay: currentIdentity.SailingDay,
     continuingSailingDay: continuingIdentity.SailingDay,
     currentIsTripStartReady: currentIdentity.isTripStartReady,

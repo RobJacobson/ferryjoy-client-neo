@@ -130,8 +130,9 @@ That separation removes the main source of bandwidth churn from the old design.
 
 `vesselTrips` still owns trip lifecycle state. When the live feed omits trip
 identity at dock, it may still resolve schedule context from **trip continuity**
-(`NextKey` or rollover after a known `ScheduledDeparture`) via targeted
-`eventsScheduled` queries — not by re-merging the full backbone on every tick.
+(`NextScheduleKey` on the active trip, scheduled `NextKey` on `scheduledTrips`,
+or rollover after a known `ScheduledDeparture`) via targeted `eventsScheduled`
+queries — not by re-merging the full backbone on every tick.
 
 That path is not part of the public timeline query. Steady-state docked ticks
 should reuse persisted trip identity and avoid redundant schedule reads.

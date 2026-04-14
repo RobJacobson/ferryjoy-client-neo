@@ -21,7 +21,7 @@ const SCHEDULED_DEPARTURE_TOLERANCE_MS = 60_000;
  * Synthesizes a list of raw segments into TripSegment View Models.
  *
  * @param params.segments - Raw scheduled segments
- * @param params.vesselTripByKeys - Map of segment Key to VesselTrip (actuals/predictions)
+ * @param params.vesselTripByKeys - Map of schedule segment key to VesselTrip
  * @param params.vesselLocation - Real-time vessel location
  * @param params.heldTrip - The trip currently being held (if any)
  * @returns Array of synthesized TripSegment objects
@@ -35,10 +35,10 @@ export const synthesizeTripSegments = (params: {
   const { segments, vesselTripByKeys, vesselLocation, heldTrip } = params;
 
   // 1. Identify the active segment key for the vessel.
-  // Priority: Held Trip Key -> VesselLocation ScheduledDeparture (tolerant match) -> AtDock terminal fallback.
+  // Priority: Held trip ScheduleKey -> VesselLocation ScheduledDeparture (tolerant match) -> AtDock terminal fallback.
   const schedDepartureMs = vesselLocation?.ScheduledDeparture?.getTime();
   const activeKey =
-    heldTrip?.Key ??
+    heldTrip?.ScheduleKey ??
     (schedDepartureMs !== undefined
       ? segments.find((s) => {
           const segMs = s.DepartingTime.getTime();

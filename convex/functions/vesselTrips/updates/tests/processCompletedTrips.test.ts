@@ -20,7 +20,7 @@ const defaultEvents: TripEvents = {
   isCompletedTrip: true,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
-  keyChanged: false,
+  scheduleKeyChanged: false,
 };
 
 describe("processCompletedTrips", () => {
@@ -36,7 +36,7 @@ describe("processCompletedTrips", () => {
     const newTrip = makeTrip({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "LOP",
-      Key: "CHE--2026-03-13--06:50--ORI-LOP",
+      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
       SailingDay: "2026-03-13",
       ScheduledDeparture: ms("2026-03-13T06:50:00-07:00"),
       AtDockDepartCurr: makePrediction("2026-03-13T06:52:00-07:00"),
@@ -73,7 +73,9 @@ describe("processCompletedTrips", () => {
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"
     );
-    expect(getBoundaryMutationArgs(ctx)?.newTrip.Key).toBe(newTrip.Key);
+    expect(getBoundaryMutationArgs(ctx)?.newTrip.ScheduleKey).toBe(
+      newTrip.ScheduleKey
+    );
     expect(result.actualPatches).toHaveLength(2);
     expect(result.actualPatches[0]?.EventType).toBe("dep-dock");
     expect(result.actualPatches[0]?.EventActualTime).toBe(
@@ -147,7 +149,7 @@ describe("processCompletedTrips", () => {
               VesselAbbrev: "CHE",
               DepartingTerminalAbbrev: "ORI",
               ArrivingTerminalAbbrev: "LOP",
-              Key: "CHE--2026-03-13--06:50--ORI-LOP",
+              ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
             }),
           ],
         ]),
@@ -312,8 +314,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
   TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -331,7 +333,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T06:28:45-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: "CHE--2026-03-13--07:00--ORI-LOP",
+  NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
   NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

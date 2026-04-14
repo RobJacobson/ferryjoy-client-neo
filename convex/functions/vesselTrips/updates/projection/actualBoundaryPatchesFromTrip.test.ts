@@ -15,7 +15,6 @@ describe("buildDepartureActualPatchForTrip", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
-      Key: "trip-key",
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
       LeftDock: at(12, 22),

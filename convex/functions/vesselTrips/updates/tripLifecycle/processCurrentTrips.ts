@@ -375,16 +375,17 @@ const logTripTickDiagnostics = ({
   events,
   finalProposed,
 }: CurrentTripBuildResult) => {
-  const keyChanged = existingTrip?.Key !== finalProposed.Key;
+  const scheduleKeyChanged =
+    existingTrip?.ScheduleKey !== finalProposed.ScheduleKey;
   const scheduledDepartureChanged =
     existingTrip?.ScheduledDeparture !== finalProposed.ScheduledDeparture;
 
-  if (!keyChanged && !scheduledDepartureChanged) {
+  if (!scheduleKeyChanged && !scheduledDepartureChanged) {
     return;
   }
 
   console.warn(
-    `[VesselTrips][KeyTransition] ${JSON.stringify({
+    `[VesselTrips][ScheduleKeyTransition] ${JSON.stringify({
       vesselAbbrev: currLocation.VesselAbbrev,
       timestamp: new Date(currLocation.TimeStamp).toISOString(),
       events,
@@ -417,14 +418,14 @@ const logActualProjectionTick = (
       projectedDeparture:
         events.didJustLeaveDock && finalProposed.LeftDock !== undefined
           ? {
-              segmentKey: finalProposed.Key,
+              segmentKey: finalProposed.ScheduleKey,
               actualTime: finalProposed.LeftDock,
             }
           : null,
       projectedArrival:
         events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined
           ? {
-              segmentKey: finalProposed.Key,
+              segmentKey: finalProposed.ScheduleKey,
               actualTime: finalProposed.ArriveDest,
             }
           : null,
@@ -440,7 +441,7 @@ const summarizeLocationTick = (
     | "DepartingTerminalAbbrev"
     | "ArrivingTerminalAbbrev"
     | "ScheduledDeparture"
-    | "Key"
+    | "ScheduleKey"
     | "TimeStamp"
     | "Speed"
     | "DepartingDistance"
@@ -452,7 +453,7 @@ const summarizeLocationTick = (
   departingTerminalAbbrev: location.DepartingTerminalAbbrev,
   arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
   scheduledDeparture: location.ScheduledDeparture,
-  key: location.Key,
+  scheduleKey: location.ScheduleKey,
   timeStamp: location.TimeStamp,
   speed: location.Speed,
   departingDistance: location.DepartingDistance,
@@ -469,8 +470,8 @@ const summarizeTripTick = (
         | "DepartingTerminalAbbrev"
         | "ArrivingTerminalAbbrev"
         | "ScheduledDeparture"
-        | "Key"
-        | "NextKey"
+        | "ScheduleKey"
+        | "NextScheduleKey"
         | "NextScheduledDeparture"
         | "TimeStamp"
       >
@@ -484,8 +485,8 @@ const summarizeTripTick = (
         departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
         arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
         scheduledDeparture: trip.ScheduledDeparture,
-        key: trip.Key,
-        nextKey: trip.NextKey,
+        scheduleKey: trip.ScheduleKey,
+        nextScheduleKey: trip.NextScheduleKey,
         nextScheduledDeparture: trip.NextScheduledDeparture,
         timeStamp: trip.TimeStamp,
       }

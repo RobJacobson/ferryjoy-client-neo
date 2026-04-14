@@ -34,7 +34,7 @@ describe("toConvexVesselLocation", () => {
       ]
     );
 
-    expect(location.Key).toBe("CHE--2026-03-13--05:30--ANA-ORI");
+    expect(location.ScheduleKey).toBe("CHE--2026-03-13--05:30--ANA-ORI");
   });
 
   it("omits key when arriving terminal is missing", () => {
@@ -55,7 +55,7 @@ describe("toConvexVesselLocation", () => {
       [makeTerminal({ TerminalID: 1, TerminalAbbrev: "ANA" })]
     );
 
-    expect(location.Key).toBeUndefined();
+    expect(location.ScheduleKey).toBeUndefined();
   });
 
   it("omits key when scheduled departure is missing", () => {
@@ -84,7 +84,7 @@ describe("toConvexVesselLocation", () => {
       ]
     );
 
-    expect(location.Key).toBeUndefined();
+    expect(location.ScheduleKey).toBeUndefined();
   });
 
   it("falls back to raw marine-location values when the terminal abbrev is unknown", () => {
@@ -121,7 +121,7 @@ describe("toConvexVesselLocation", () => {
     expect(location.DepartingDistance).toBeUndefined();
     expect(location.ArrivingTerminalAbbrev).toBe("ORI");
     expect(location.ArrivingTerminalName).toBe("Orcas Island");
-    expect(location.Key).toBeUndefined();
+    expect(location.ScheduleKey).toBeUndefined();
   });
 });
 

@@ -10,7 +10,7 @@ describe("resolveEffectiveLocation", () => {
       VesselAbbrev: "CAT",
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
-      Key: undefined,
+      ScheduleKey: undefined,
       ScheduledDeparture: ms("2026-04-12T18:45:00-07:00"),
       TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
@@ -21,7 +21,6 @@ describe("resolveEffectiveLocation", () => {
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
       ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
-      Key: "CAT--2026-04-12--16:50--SOU-VAI",
       TripKey: "CAT 2026-04-12 23:21:55Z",
       ScheduleKey: "CAT--2026-04-12--16:50--SOU-VAI",
       AtDockActual: ms("2026-04-12T16:34:00-07:00"),
@@ -41,7 +40,7 @@ describe("resolveEffectiveLocation", () => {
     );
 
     expect(queryCount).toBe(0);
-    expect(effectiveLocation.Key).toBe(existingTrip.Key);
+    expect(effectiveLocation.ScheduleKey).toBe(existingTrip.ScheduleKey);
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
     );
@@ -50,7 +49,7 @@ describe("resolveEffectiveLocation", () => {
     );
   });
 
-  it("prefers the carried NextKey when it matches the current departing terminal", async () => {
+  it("prefers the carried NextScheduleKey when it matches the current departing terminal", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
       ArrivingTerminalAbbrev: "MUK",
@@ -68,19 +67,19 @@ describe("resolveEffectiveLocation", () => {
         },
       } as never,
       makeLocation({
-        Key: undefined,
+        ScheduleKey: undefined,
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
       makeTrip({
         DepartingTerminalAbbrev: "MUK",
-        NextKey: nextSegment.Key,
+        NextScheduleKey: nextSegment.Key,
       })
     );
 
     expect(queryArgs).toHaveLength(1);
     expect(queryArgs[0]).toEqual({ segmentKey: nextSegment.Key });
-    expect(effectiveLocation.Key).toBe(nextSegment.Key);
+    expect(effectiveLocation.ScheduleKey).toBe(nextSegment.Key);
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
     );
@@ -99,7 +98,7 @@ describe("resolveEffectiveLocation", () => {
         },
       } as never,
       makeLocation({
-        Key: undefined,
+        ScheduleKey: undefined,
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
@@ -107,7 +106,7 @@ describe("resolveEffectiveLocation", () => {
     );
 
     expect(queryCount).toBe(0);
-    expect(effectiveLocation.Key).toBeUndefined();
+    expect(effectiveLocation.ScheduleKey).toBeUndefined();
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBeUndefined();
     expect(effectiveLocation.ScheduledDeparture).toBeUndefined();
   });
@@ -139,7 +138,7 @@ const makeLocation = (
   RouteAbbrev: "muk-cl",
   VesselPositionNum: 1,
   TimeStamp: ms("2026-03-13T11:08:00-07:00"),
-  Key: "CHE--2026-03-13--11:00--CLI-MUK",
+  ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,
@@ -152,9 +151,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",
   RouteAbbrev: "muk-cl",
-  Key: "CHE--2026-03-13--11:00--CLI-MUK",
-  TripKey: undefined,
-  ScheduleKey: undefined,
+  TripKey: "CHE 2026-03-13 11:08:00Z",
+  ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
   ArriveDest: undefined,
@@ -167,7 +165,7 @@ const makeTrip = (
   LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
-  NextKey: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   TripEnd: undefined,
   AtSeaDuration: undefined,

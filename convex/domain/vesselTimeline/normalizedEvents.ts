@@ -65,7 +65,7 @@ export const buildScheduledBoundaryEvents = (
  *
  * @param events - Boundary event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
- * @param tripBySegmentKey - Segment key (`trip.Key` / `ScheduleKey`) to physical trip
+ * @param tripBySegmentKey - Schedule segment key to physical trip context
  * @returns Actual boundary rows for events that have an actual time and trip context
  */
 export const buildActualBoundaryEvents = (
@@ -301,7 +301,7 @@ const getCurrentDeparturePrediction = (
   updatedAt: number
 ) => {
   if (
-    !trip.Key ||
+    !trip.ScheduleKey ||
     trip.ScheduledDeparture === undefined ||
     !trip.AtDockDepartCurr
   ) {
@@ -309,7 +309,7 @@ const getCurrentDeparturePrediction = (
   }
 
   return buildPredictedBoundaryEvent({
-    Key: buildBoundaryKey(trip.Key, "dep-dock"),
+    Key: buildBoundaryKey(trip.ScheduleKey, "dep-dock"),
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay ?? "",
     UpdatedAt: updatedAt,
@@ -335,14 +335,14 @@ const getCurrentArrivalPredictions = (
   updatedAt: number
 ): ConvexPredictedBoundaryEvent[] => {
   if (
-    !trip.Key ||
+    !trip.ScheduleKey ||
     trip.ScheduledDeparture === undefined ||
     !trip.ArrivingTerminalAbbrev
   ) {
     return [];
   }
 
-  const arvKey = buildBoundaryKey(trip.Key, "arv-dock");
+  const arvKey = buildBoundaryKey(trip.ScheduleKey, "arv-dock");
   const base = {
     Key: arvKey,
     VesselAbbrev: trip.VesselAbbrev,
@@ -405,7 +405,7 @@ const getNextDeparturePrediction = (
   updatedAt: number
 ) => {
   if (
-    !trip.NextKey ||
+    !trip.NextScheduleKey ||
     trip.NextScheduledDeparture === undefined ||
     !trip.ArrivingTerminalAbbrev
   ) {
@@ -438,7 +438,7 @@ const getNextDeparturePrediction = (
       : trip.AtDockDepartNext;
 
   return buildPredictedBoundaryEvent({
-    Key: buildBoundaryKey(trip.NextKey, "dep-dock"),
+    Key: buildBoundaryKey(trip.NextScheduleKey, "dep-dock"),
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay ?? "",
     UpdatedAt: updatedAt,

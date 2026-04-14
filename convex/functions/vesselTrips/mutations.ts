@@ -222,7 +222,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    const nextLegKey = mostRecent.NextKey;
+    const nextLegKey = mostRecent.NextScheduleKey;
     if (!nextLegKey || !mostRecent.SailingDay) {
       return {
         updated: false as const,

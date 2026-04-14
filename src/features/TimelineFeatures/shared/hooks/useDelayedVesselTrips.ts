@@ -109,7 +109,7 @@ export const useDelayedVesselTrips = (
         const endedAtMs = ended.TripEnd?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? ended : null;
-      } else if (prevTrip.Key === activeTrip.Key) {
+      } else if (prevTrip.TripKey === activeTrip.TripKey) {
         // Same trip: allow updates from active
         resolvedTrip = activeTrip;
       } else {

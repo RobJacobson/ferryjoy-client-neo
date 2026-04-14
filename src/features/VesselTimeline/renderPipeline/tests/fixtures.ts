@@ -236,7 +236,7 @@ export const makeVesselLocation = (
   RouteAbbrev: "sea-vai",
   Latitude: 47.6,
   Longitude: -122.3,
-  Key: "trip-1",
+  ScheduleKey: "trip-1",
   VesselAbbrev: "WEN",
   VesselPositionNum: 1,
   TimeStamp: at(8, 10),

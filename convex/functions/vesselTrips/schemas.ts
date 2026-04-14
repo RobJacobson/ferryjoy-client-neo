@@ -130,7 +130,6 @@ const tripIdentityFields = {
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
   RouteAbbrev: v.optional(v.string()),
-  Key: v.optional(v.string()),
   TripKey: v.optional(v.string()),
   ScheduleKey: v.optional(v.string()),
   SailingDay: v.optional(v.string()),
@@ -152,7 +151,7 @@ const tripIdentityFields = {
   TimeStamp: v.number(),
   PrevScheduledDeparture: v.optional(v.number()),
   PrevLeftDock: v.optional(v.number()),
-  NextKey: v.optional(v.string()),
+  NextScheduleKey: v.optional(v.string()),
   NextScheduledDeparture: v.optional(v.number()),
 } as const;
 

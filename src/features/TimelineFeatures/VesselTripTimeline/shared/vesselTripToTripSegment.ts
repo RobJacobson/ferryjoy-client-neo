@@ -66,7 +66,10 @@ export const vesselTripToTripSegment = (
   };
 
   return {
-    id: trip.Key ?? `${trip.VesselAbbrev}-${schedDeparture.getTime()}`,
+    id:
+      trip.TripKey ??
+      trip.ScheduleKey ??
+      `${trip.VesselAbbrev}-${schedDeparture.getTime()}`,
     vesselAbbrev: trip.VesselAbbrev,
     vesselName: vesselLocation.VesselName,
     currTerminal: { abbrev: trip.DepartingTerminalAbbrev },

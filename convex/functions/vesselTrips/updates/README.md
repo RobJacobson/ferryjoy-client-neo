@@ -139,13 +139,13 @@ Current event bundle:
 - `isCompletedTrip`
 - `didJustArriveAtDock`
 - `didJustLeaveDock`
-- `keyChanged`
+- `scheduleKeyChanged`
 
 ### Boundary detection rules (PR 2 physical lifecycle)
 
-- **Physical identity** is `TripKey` (immutable per trip instance). Legacy `Key`
-  remains a schedule-shaped compatibility field and may change without ending a
-  physical trip.
+- **Physical identity** is `TripKey` (immutable per trip instance). Vessel-trip
+  rows do **not** persist a separate composite `Key`; schedule alignment uses
+  `ScheduleKey` / `NextScheduleKey` only.
 - **Schedule attachment** is optional `ScheduleKey`. `resolveEffectiveLocation`
   proposes schedule alignment; `appendFinalSchedule` commits `ScheduleKey` and
   next-leg fields when a segment key exists.
@@ -164,9 +164,14 @@ Current event bundle:
   appears for a trip that has not yet recorded departure, unless the tick is
   physically contradictory (e.g. `LeftDock` present while still reading
   docked with low speed).
-- `keyChanged` compares legacy keys for enrichment only; it is **not** a primary
-  physical boundary trigger. Derived prediction state clears on `keyChanged`
-  only when `TripKey` changes (new physical instance).
+- `scheduleKeyChanged` compares proposed `continuingScheduleKey` from
+  `deriveTripInputs` to `existingTrip.ScheduleKey`. It drives schedule enrichment
+  and (with other gates) prediction retries; it is **not** a primary physical
+  boundary trigger. Carried next-leg / prediction fields clear in `buildTrip`
+  only when **`scheduleKeyChanged && physicalIdentityReplaced`** (see
+  `buildTrip.ts`); when `TripKey` is stable, schedule segment updates preserve
+  existing prediction snapshots while `appendFinalSchedule` refreshes segment
+  fields.
 
 ### Three runtime situations
 
@@ -191,9 +196,9 @@ Per vessel, `buildTrip` composes state in this order:
 1. `resolveEffectiveLocation`
 2. `baseTripFromLocation`
 3. same-trip `ArriveDest` stamping when eligible
-4. derived-state clear on `keyChanged` **only if** `TripKey` changes (physical
-   replacement)
-5. `appendFinalSchedule` when `tripStart || keyChanged` (schedule enrichment)
+4. derived-state clear when `scheduleKeyChanged && physicalIdentityReplaced`
+   (see `clearDerivedStateOnScheduleKeyChange` in `buildTrip.ts`)
+5. `appendFinalSchedule` when `tripStart || scheduleKeyChanged` (schedule enrichment)
 6. at-dock prediction append when gated
 7. at-sea prediction append when gated
 8. `actualizePredictionsOnLeaveDock` on leave-dock events

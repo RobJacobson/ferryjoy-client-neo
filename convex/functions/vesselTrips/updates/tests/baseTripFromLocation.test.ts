@@ -110,11 +110,11 @@ describe("baseTripFromLocation", () => {
       VesselAbbrev: "CAT",
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
-      Key: "CAT--2026-04-04--16:50--SOU-VAI",
+      ScheduleKey: "CAT--2026-04-04--16:50--SOU-VAI",
       TripKey: generateTripKey("CAT", tripStartMs),
       ScheduledDeparture: ms("2026-04-04T16:50:00-07:00"),
       SailingDay: "2026-04-04",
-      NextKey: "CAT--2026-04-04--17:20--VAI-FAU",
+      NextScheduleKey: "CAT--2026-04-04--17:20--VAI-FAU",
       NextScheduledDeparture: ms("2026-04-04T17:20:00-07:00"),
       TimeStamp: tripStartMs,
       TripStart: tripStartMs,
@@ -134,7 +134,7 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, existingTrip, false);
 
-    expect(trip.Key).toBe(existingTrip.Key);
+    expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
     expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.SailingDay).toBe(existingTrip.SailingDay);
     expect(trip.ArrivingTerminalAbbrev).toBe(
@@ -202,8 +202,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
   TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -221,7 +221,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T04:33:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

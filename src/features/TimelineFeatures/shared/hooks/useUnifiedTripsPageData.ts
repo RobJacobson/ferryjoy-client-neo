@@ -29,7 +29,7 @@ type UseUnifiedTripsPageDataResult = {
   status: "loading" | "empty" | "ready";
   journeys: ScheduledTripJourney[] | undefined;
   /**
-   * Map of segment Key to VesselTrip for O(1) lookup. Used with PrevKey/NextKey for prev/next trips.
+   * Map of schedule segment key (`ScheduleKey`) to VesselTrip for O(1) lookup.
    */
   vesselTripByKeys: Map<string, VesselTrip>;
   /**
@@ -86,14 +86,14 @@ const buildPageMaps = (
   vesselLocations: VesselLocation[],
   displayData: DisplayDataItem[]
 ) => {
-  const tripsWithKey = [
+  const tripsWithScheduleKey = [
     ...completedTrips,
     ...activeVesselTrips,
     ...displayData.map((d) => d.trip),
   ]
-    .filter((t): t is VesselTrip & { Key: string } => !!t.Key)
-    .map((t) => [t.Key, t] as const);
-  const vesselTripByKeys = new Map<string, VesselTrip>(tripsWithKey);
+    .filter((t): t is VesselTrip & { ScheduleKey: string } => !!t.ScheduleKey)
+    .map((t) => [t.ScheduleKey, t] as const);
+  const vesselTripByKeys = new Map<string, VesselTrip>(tripsWithScheduleKey);
 
   const synced = new Map<string, VesselLocation>();
   for (const d of displayData) {
