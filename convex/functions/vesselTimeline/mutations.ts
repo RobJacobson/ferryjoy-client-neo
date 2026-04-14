@@ -10,19 +10,17 @@ import {
   buildActualBoundaryPatchesForSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
-} from "domain/vesselTimeline/events";
-import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
-} from "domain/vesselTimeline/normalizedEvents";
-import { indexTripsBySegmentKey } from "domain/vesselTimeline/tripContextForActualRows";
+  indexTripsBySegmentKey,
+} from "domain/vesselTimeline";
 import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
 import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
 import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
 import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
- * Replaces the structural scheduled backbone and hydrated actual rows for one
+ * Reseeds the structural scheduled backbone and hydrated actual rows for one
  * sailing day.
  *
  * Schedule sync owns this mutation. It treats the supplied day slice as the
@@ -33,7 +31,7 @@ import { vesselTimelineEventRecordSchema } from "./schemas";
  * @param args.Events - Boundary events already normalized in memory
  * @returns Counts for the rows represented by that replaced slice
  */
-export const replaceBoundaryEventsForSailingDay = internalMutation({
+export const reseedBoundaryEventsForSailingDay = internalMutation({
   args: {
     SailingDay: v.string(),
     Events: v.array(vesselTimelineEventRecordSchema),

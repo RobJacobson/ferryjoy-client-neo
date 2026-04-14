@@ -4,16 +4,16 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
+import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
+import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
-import { buildActualBoundaryPatchesForSailingDay } from "../events/reconcile";
-import { buildSeedVesselTripEvents } from "../events/seed";
 import {
+  buildActualBoundaryPatchesForSailingDay,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
-} from "../normalizedEvents";
-import type { TripContextForActualRow } from "../tripContextForActualRows";
+  type TripContextForActualRow,
+} from "../";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
@@ -43,14 +43,14 @@ const tripIndexFromSeedEvents = (
 
 describe("buildActualBoundaryPatchesForSailingDay", () => {
   it("emits a departure actual-boundary patch when underway location proves departure", () => {
-    const events = buildSeedVesselTripEvents([
-      makeTrip({
+    const events = makeSeedEvents([
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "P52",
         ArrivingTerminalAbbrev: "BBI",
         DepartingTime: at(8, 35),
         SchedArriveNext: at(9, 10),
-      }),
+      },
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
@@ -96,21 +96,21 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
   });
 
   it("emits an arrival actual-boundary patch when docked location proves arrival", () => {
-    const events = buildSeedVesselTripEvents([
-      makeTrip({
+    const events = makeSeedEvents([
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "P52",
         ArrivingTerminalAbbrev: "BBI",
         DepartingTime: at(8, 35),
         SchedArriveNext: at(9, 10),
-      }),
-      makeTrip({
+      },
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "BBI",
         ArrivingTerminalAbbrev: "P52",
         DepartingTime: at(9, 20),
         SchedArriveNext: at(9, 55),
-      }),
+      },
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
@@ -155,14 +155,14 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
   });
 
   it("ignores locations whose effective sailing day is different", () => {
-    const events = buildSeedVesselTripEvents([
-      makeTrip({
+    const events = makeSeedEvents([
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "P52",
         ArrivingTerminalAbbrev: "BBI",
         DepartingTime: at(8, 35),
         SchedArriveNext: at(9, 10),
-      }),
+      },
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
@@ -191,14 +191,14 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
   });
 
   it("SAL dock window with no scheduled identity produces no reconciliation effects", () => {
-    const events = buildSeedVesselTripEvents([
-      makeTrip({
+    const events = makeSeedEvents([
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "P52",
         ArrivingTerminalAbbrev: "BBI",
         DepartingTime: at(8, 35),
         SchedArriveNext: at(9, 10),
-      }),
+      },
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
@@ -228,14 +228,14 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
   });
 
   it("does not emit duplicate effects when actual rows already mark the boundary", () => {
-    const events = buildSeedVesselTripEvents([
-      makeTrip({
+    const events = makeSeedEvents([
+      {
         VesselAbbrev: "TOK",
         DepartingTerminalAbbrev: "P52",
         ArrivingTerminalAbbrev: "BBI",
         DepartingTime: at(8, 35),
         SchedArriveNext: at(9, 10),
-      }),
+      },
     ]);
     const withOccurred = events.map((event, index) =>
       index === 0 ? { ...event, EventOccurred: true as const } : event
@@ -275,30 +275,61 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
   });
 });
 
-const makeTrip = (
-  overrides: Partial<ConvexScheduledTrip>
-): ConvexScheduledTrip => ({
-  VesselAbbrev: "TOK",
-  DepartingTerminalAbbrev: "P52",
-  ArrivingTerminalAbbrev: "BBI",
-  DepartingTime: at(8, 35),
-  ArrivingTime: undefined,
-  SailingNotes: "",
-  Annotations: [],
-  RouteID: 1,
-  RouteAbbrev: "sea-bi",
-  Key: "TOK-P52-BBI-0835",
-  SailingDay: "2026-03-13",
-  TripType: "direct",
-  ...overrides,
-});
+type SeedSegment = {
+  VesselAbbrev: string;
+  DepartingTerminalAbbrev: string;
+  ArrivingTerminalAbbrev: string;
+  DepartingTime: number;
+  SchedArriveNext?: number;
+};
+
+const makeSeedEvents = (
+  segments: SeedSegment[]
+): ConvexVesselTimelineEventRecord[] =>
+  segments.flatMap((segment) => {
+    const segmentKey = buildSegmentKey(
+      segment.VesselAbbrev,
+      segment.DepartingTerminalAbbrev,
+      segment.ArrivingTerminalAbbrev,
+      new Date(segment.DepartingTime)
+    ) as string;
+
+    return [
+      {
+        SegmentKey: segmentKey,
+        Key: buildBoundaryKey(segmentKey, "dep-dock"),
+        VesselAbbrev: segment.VesselAbbrev,
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: segment.DepartingTime,
+        TerminalAbbrev: segment.DepartingTerminalAbbrev,
+        EventType: "dep-dock" as const,
+        EventScheduledTime: segment.DepartingTime,
+        EventPredictedTime: undefined,
+        EventOccurred: undefined,
+        EventActualTime: undefined,
+      },
+      {
+        SegmentKey: segmentKey,
+        Key: buildBoundaryKey(segmentKey, "arv-dock"),
+        VesselAbbrev: segment.VesselAbbrev,
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: segment.DepartingTime,
+        TerminalAbbrev: segment.ArrivingTerminalAbbrev,
+        EventType: "arv-dock" as const,
+        EventScheduledTime: segment.SchedArriveNext,
+        EventPredictedTime: undefined,
+        EventOccurred: undefined,
+        EventActualTime: undefined,
+      },
+    ];
+  });
 
 const makeLocation = (
   overrides: Partial<ConvexVesselLocation>
 ): ConvexVesselLocation => ({
+  VesselAbbrev: "TOK",
   VesselID: 1,
   VesselName: "Tokitae",
-  VesselAbbrev: "TOK",
   DepartingTerminalID: 1,
   DepartingTerminalName: "Seattle",
   DepartingTerminalAbbrev: "P52",

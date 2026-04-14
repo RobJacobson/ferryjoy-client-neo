@@ -1,10 +1,3 @@
-/**
- * Build completed trip with TripEnd, durations, and actualized predictions.
- *
- * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
- * to the persisted completed trip object.
- */
-
 import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -17,7 +10,11 @@ import { calculateTimeDelta } from "shared/durationUtils";
  * Build completed trip with TripEnd, AtSeaDuration, and TotalDuration.
  *
  * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
- * to the final completed trip.
+ * to the final completed trip. Completion is also the last safe chance to
+ * backfill the physical arrival terminal from the current docked location
+ * when the trip never had a trustworthy scheduled destination. That backfill
+ * keeps downstream `arv-dock` actual projection from silently dropping a real
+ * arrival event.
  *
  * @param existingTrip - Trip being completed
  * @param currLocation - Current location with TripEnd timestamp
@@ -33,6 +30,12 @@ export const buildCompletedTrip = (
   );
   const withTripEnd = {
     ...existingTrip,
+    // Preserve the trusted destination when we have one, but fall back to the
+    // dock the vessel is physically occupying on completion so unknown-
+    // destination arrivals still persist an `arv-dock` actual.
+    ArrivingTerminalAbbrev:
+      existingTrip.ArrivingTerminalAbbrev ??
+      currLocation.DepartingTerminalAbbrev,
     ArriveDest: effectiveArrivalTime,
     TripEnd: currLocation.TimeStamp,
   };

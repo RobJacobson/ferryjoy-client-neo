@@ -2,7 +2,6 @@
  * Builds schedule-derived boundary-event records for VesselTimeline.
  */
 
-import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import { classifyDirectSegments } from "../../../functions/scheduledTrips/sync/transform/directSegments";
 import { getOfficialCrossingTimeMinutes } from "../../../functions/scheduledTrips/sync/transform/officialCrossingTimes";
 import type { TerminalIdentity } from "../../../functions/terminals/resolver";
@@ -17,35 +16,6 @@ import {
 } from "./liveUpdates";
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
-
-/**
- * Builds the persistent dock-boundary event skeleton used by
- * `VesselTimeline`.
- *
- * @param trips - Scheduled trips for one sailing day before read-model merge
- * @returns Sorted departure and arrival boundary rows for direct trips only
- */
-export const buildSeedVesselTripEvents = (
-  trips: ConvexScheduledTrip[]
-): ConvexVesselTimelineEventRecord[] =>
-  normalizeScheduledDockSeams(
-    trips
-      .filter((trip) => trip.TripType === "direct")
-      .flatMap((trip) =>
-        buildSeedEventsForSegment({
-          SailingDay: trip.SailingDay,
-          VesselAbbrev: trip.VesselAbbrev,
-          ScheduledDeparture: trip.DepartingTime,
-          DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
-          ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-          ScheduledArrival: normalizeScheduledArrivalTime(
-            trip.ArrivingTime ?? trip.SchedArriveNext,
-            trip.DepartingTime
-          ),
-        })
-      )
-      .sort(sortVesselTripEvents)
-  );
 
 /**
  * Builds vessel trip event rows directly from raw WSF schedule segments,

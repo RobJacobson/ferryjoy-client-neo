@@ -10,8 +10,8 @@ import type { VesselIdentity } from "../../../shared/vessels";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   createSeededScheduleSegmentResolver,
-  mergeSeededEventsWithHistory,
-} from "../events";
+  hydrateSeededEventsWithHistory,
+} from "../";
 
 /**
  * Creates a UTC fixture timestamp for history-merge tests.
@@ -59,7 +59,7 @@ const backendTerminals: TerminalIdentity[] = [
   },
 ];
 
-describe("mergeSeededEventsWithHistory", () => {
+describe("hydrateSeededEventsWithHistory", () => {
   it("backfills actuals from exact-matched vessel history", () => {
     const scheduleSegments = [
       makeRawSegment({
@@ -72,7 +72,7 @@ describe("mergeSeededEventsWithHistory", () => {
       }),
     ];
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,
@@ -113,7 +113,7 @@ describe("mergeSeededEventsWithHistory", () => {
       })
     );
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -149,7 +149,7 @@ describe("mergeSeededEventsWithHistory", () => {
       })
     );
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -185,7 +185,7 @@ describe("mergeSeededEventsWithHistory", () => {
       })
     );
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -222,7 +222,7 @@ describe("mergeSeededEventsWithHistory", () => {
       })
     );
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents,
       existingEvents,
       scheduleSegments,
@@ -246,7 +246,7 @@ describe("mergeSeededEventsWithHistory", () => {
   it("backfills departure actuals even when the arrival proxy is missing", () => {
     const scheduleSegments = [makeRoute14Segment()];
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,
@@ -275,7 +275,7 @@ describe("mergeSeededEventsWithHistory", () => {
   it("fallback-matches departure when history omits Arriving (CAT-style row)", () => {
     const scheduleSegments = [makeRoute14Segment()];
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,
@@ -304,7 +304,7 @@ describe("mergeSeededEventsWithHistory", () => {
   it("fallback-matches both boundaries when Arriving is null but EstArrival is set", () => {
     const scheduleSegments = [makeRoute14Segment()];
 
-    const mergedEvents = mergeSeededEventsWithHistory({
+    const mergedEvents = hydrateSeededEventsWithHistory({
       seededEvents: buildSeedVesselTripEventsFromRawSegments(
         scheduleSegments,
         backendVessels,

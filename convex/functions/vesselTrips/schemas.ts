@@ -130,7 +130,9 @@ const tripIdentityFields = {
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
   RouteAbbrev: v.optional(v.string()),
-  TripKey: v.optional(v.string()),
+  // Physical trip identity is required post-cutover. Schedule alignment may be
+  // absent, but every persisted trip row must still carry its stable TripKey.
+  TripKey: v.string(),
   ScheduleKey: v.optional(v.string()),
   SailingDay: v.optional(v.string()),
   PrevTerminalAbbrev: v.optional(v.string()),

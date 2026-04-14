@@ -9,7 +9,7 @@ import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsSche
 import { getSegmentKeyFromBoundaryKey } from "../../../functions/eventsScheduled/segmentResolvers";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
-import { mergeTimelineEvents } from "../timelineEvents";
+import { mergeTimelineEvents } from "../";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);

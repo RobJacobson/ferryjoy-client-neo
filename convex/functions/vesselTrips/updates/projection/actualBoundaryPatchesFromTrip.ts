@@ -31,6 +31,10 @@ export const buildDepartureActualPatchForTrip = (
  * Build an arrival (`arv-dock`) actual patch when the trip has `TripKey` and
  * `ArriveDest` timestamp.
  *
+ * Completed-trip projection expects trip lifecycle code to have already
+ * backfilled `ArrivingTerminalAbbrev` from the physical arrival dock when the
+ * voyage finished without a safe schedule match.
+ *
  * @param trip - Trip row with physical identity and arrival time
  * @returns Patch for projection, or `null` when required fields are missing
  */

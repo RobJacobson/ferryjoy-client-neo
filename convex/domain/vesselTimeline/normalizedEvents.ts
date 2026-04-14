@@ -153,24 +153,6 @@ export const buildActualBoundaryEventFromPatch = (
 };
 
 /**
- * Builds best-prediction overlay rows from finalized active trip state.
- *
- * @param trips - Active trips that were just persisted
- * @returns Best-prediction rows keyed by the stable boundary event key
- */
-export const buildPredictedBoundaryEventsFromTrips = (
-  trips: ConvexVesselTripWithML[]
-): ConvexPredictedBoundaryEvent[] => {
-  const rows: ConvexPredictedBoundaryEvent[] = [];
-
-  for (const trip of trips) {
-    rows.push(...buildPredictedBoundaryEventsFromTrip(trip));
-  }
-
-  return dedupePredictedBoundaryEvents(rows);
-};
-
-/**
  * Builds the prediction projection effect for one active trip.
  *
  * The effect carries both the rows to upsert and the full key scope to clear
@@ -267,7 +249,7 @@ const buildPredictedBoundaryEventsFromTrip = (trip: ConvexVesselTripWithML) => {
 };
 
 /** Boundary event keys touched by trip-driven prediction projection. */
-export const getPredictedBoundaryTargetKeys = (
+const getPredictedBoundaryTargetKeys = (
   trip: ConvexVesselTripWithML
 ) => {
   const { depDockKey, arvDockKey, nextDepDockKey } =

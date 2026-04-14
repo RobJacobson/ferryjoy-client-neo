@@ -119,6 +119,64 @@ describe("buildTrip", () => {
     expect(built.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(built.LeftDock).toBe(currLocation.LeftDock);
   });
+
+  it("clears stale schedule-derived fields when the same physical trip loses schedule attachment", async () => {
+    const tripStartMs = ms("2026-04-12T17:21:00-07:00");
+    const stableTripKey = generateTripKey("SAL", tripStartMs);
+    const departureMs = ms("2026-04-12T17:24:00-07:00");
+    const existingTrip = makeTrip({
+      VesselAbbrev: "SAL",
+      TripKey: stableTripKey,
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduleKey: "SAL--2026-04-12--17:45--SOU-VAI",
+      SailingDay: "2026-04-12",
+      ScheduledDeparture: undefined,
+      AtDock: false,
+      LeftDock: departureMs,
+      LeftDockActual: departureMs,
+      TripStart: tripStartMs,
+      AtDockActual: tripStartMs,
+      NextScheduleKey: "SAL--2026-04-12--18:20--VAI-FAU",
+      NextScheduledDeparture: ms("2026-04-12T18:20:00-07:00"),
+      AtDockArriveNext: makePrediction(ms("2026-04-12T18:05:00-07:00")),
+      AtDockDepartNext: makePrediction(ms("2026-04-12T18:22:00-07:00")),
+      AtSeaArriveNext: makePrediction(ms("2026-04-12T18:04:00-07:00")),
+      AtSeaDepartNext: makePrediction(ms("2026-04-12T18:20:00-07:00")),
+    });
+
+    const currLocation = makeLocation({
+      VesselAbbrev: "SAL",
+      VesselName: "Salish",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: false,
+      // This stays on the same physical trip after departure, but without any
+      // trusted schedule attachment. The stale next-leg context should clear.
+      LeftDock: departureMs,
+      TimeStamp: ms("2026-04-12T17:31:30-07:00"),
+    });
+
+    const built = await buildTrip(
+      createTestActionCtx({}) as never,
+      currLocation,
+      existingTrip,
+      false,
+      makeEvents({ scheduleKeyChanged: true }),
+      false
+    );
+
+    expect(built.TripKey).toBe(stableTripKey);
+    expect(built.ScheduleKey).toBeUndefined();
+    expect(built.NextScheduleKey).toBeUndefined();
+    expect(built.NextScheduledDeparture).toBeUndefined();
+    expect(built.AtDockArriveNext).toBeUndefined();
+    expect(built.AtDockDepartNext).toBeUndefined();
+    expect(built.AtSeaArriveNext).toBeUndefined();
+    expect(built.AtSeaDepartNext).toBeUndefined();
+  });
 });
 
 type TestActionCtx = {

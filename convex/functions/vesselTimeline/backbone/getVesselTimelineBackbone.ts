@@ -3,7 +3,7 @@
  */
 
 import type { QueryCtx } from "_generated/server";
-import { buildVesselTimelineBackbone } from "../../../domain/vesselTimeline/viewModel";
+import { buildVesselTimelineBackbone } from "../../../domain/vesselTimeline";
 import { loadVesselTimelineBackboneInputs } from "./loadBackboneInputs";
 
 /**

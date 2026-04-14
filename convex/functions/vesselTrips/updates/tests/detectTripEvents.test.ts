@@ -228,6 +228,36 @@ describe("detectTripEvents", () => {
     expect(events.isCompletedTrip).toBe(false);
     expect(events.scheduleKeyChanged).toBe(false);
   });
+
+  it("treats losing schedule attachment as a schedule change", () => {
+    const existingTrip = makeTrip({
+      ScheduleKey: "SAL--2026-04-12--17:45--SOU-VAI",
+      NextScheduleKey: "SAL--2026-04-12--18:20--VAI-FAU",
+      AtDock: false,
+      LeftDock: ms("2026-04-12T17:46:30-07:00"),
+      LeftDockActual: ms("2026-04-12T17:46:30-07:00"),
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: undefined,
+    });
+
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: false,
+      // Keep the same in-flight physical trip while dropping schedule
+      // alignment, which should count as a meaningful schedule transition.
+      LeftDock: existingTrip.LeftDock,
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(false);
+    expect(events.scheduleKeyChanged).toBe(true);
+  });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();

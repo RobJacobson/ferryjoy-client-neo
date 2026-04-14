@@ -36,9 +36,10 @@ export const detectTripEvents = (
     ),
     didJustArriveAtDock,
     didJustLeaveDock,
-    scheduleKeyChanged: Boolean(
-      tripInputs.continuingScheduleKey &&
-        existingTrip?.ScheduleKey !== tripInputs.continuingScheduleKey
-    ),
+    // Treat detachment from schedule identity (`some-key -> undefined`) as a
+    // real transition. Otherwise stale next-leg context can linger on a trip
+    // that should now be physical-only.
+    scheduleKeyChanged:
+      existingTrip?.ScheduleKey !== tripInputs.continuingScheduleKey,
   };
 };

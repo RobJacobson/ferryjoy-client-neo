@@ -17,7 +17,7 @@ import { getDirectRawSeedSegments } from "./seed";
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
 const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 
-type MergeSeededEventsWithHistoryArgs = {
+type HydrateSeededEventsWithHistoryArgs = {
   seededEvents: ConvexVesselTimelineEventRecord[];
   existingEvents: ConvexVesselTimelineEventRecord[];
   scheduleSegments: RawWsfScheduleSegment[];
@@ -35,19 +35,19 @@ type NormalizedHistoryRecord = {
 type HistoryActualSource = "departure-actual" | "arrival-proxy";
 
 /**
- * Merges schedule-seeded rows with stored/live state and WSF history actuals.
+ * Hydrates schedule-seeded rows with stored/live state and WSF history actuals.
  *
  * @param args - Seeded events for one sailing day plus history and segment context
  * @returns Seeded events with historical actuals folded in
  */
-export const mergeSeededEventsWithHistory = ({
+export const hydrateSeededEventsWithHistory = ({
   seededEvents,
   existingEvents,
   scheduleSegments,
   historyRecords,
   vessels,
   terminals,
-}: MergeSeededEventsWithHistoryArgs): ConvexVesselTimelineEventRecord[] => {
+}: HydrateSeededEventsWithHistoryArgs): ConvexVesselTimelineEventRecord[] => {
   const existingByKey = new Map(
     existingEvents.map((event) => [event.Key, event])
   );

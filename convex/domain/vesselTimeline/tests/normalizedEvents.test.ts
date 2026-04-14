@@ -10,11 +10,10 @@ import {
   buildActualBoundaryEventFromPatch,
   buildActualBoundaryEvents,
   buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryEventsFromTrips,
   buildPredictedBoundaryProjectionEffect,
   buildScheduledBoundaryEvents,
-} from "../normalizedEvents";
-import type { TripContextForActualRow } from "../tripContextForActualRows";
+  type TripContextForActualRow,
+} from "../";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -147,44 +146,6 @@ describe("buildActualBoundaryEventFromPatch", () => {
   });
 });
 
-describe("buildPredictedBoundaryEventsFromTrips", () => {
-  it("emits WSF ETA as its own row alongside ML arrival rows", () => {
-    const rows = buildPredictedBoundaryEventsFromTrips([
-      makeTrip({
-        ScheduledDeparture: at(12, 20),
-        DepartingTerminalAbbrev: "BBI",
-        ArrivingTerminalAbbrev: "P52",
-        Eta: at(12, 57),
-        AtDockArriveNext: makePrediction(at(12, 59)),
-        AtSeaArriveNext: makePrediction(at(12, 58)),
-      }),
-    ]);
-
-    const wsf = rows.find((r) => r.PredictionSource === "wsf_eta");
-    expect(wsf?.EventPredictedTime).toBe(at(12, 57));
-    expect(wsf?.PredictionType).toBe("AtSeaArriveNext");
-    expect(
-      rows.filter((r) => r.PredictionSource === "ml" && r.Key === wsf?.Key)
-    ).toHaveLength(2);
-  });
-
-  it("prefers at-sea depart-next over at-dock depart-next", () => {
-    const rows = buildPredictedBoundaryEventsFromTrips([
-      makeTrip({
-        ScheduledDeparture: at(12, 20),
-        DepartingTerminalAbbrev: "BBI",
-        ArrivingTerminalAbbrev: "P52",
-        NextScheduledDeparture: at(13, 10),
-        AtDockDepartNext: makePrediction(at(13, 18)),
-        AtSeaDepartNext: makePrediction(at(13, 15)),
-      }),
-    ]);
-
-    expect(rows[0]?.EventPredictedTime).toBe(at(13, 15));
-    expect(rows[0]?.PredictionType).toBe("AtSeaDepartNext");
-  });
-});
-
 describe("buildPredictedBoundaryProjectionEffect", () => {
   it("carries the full prediction key scope even when only one row is emitted", () => {
     const effect = buildPredictedBoundaryProjectionEffect(
@@ -199,6 +160,32 @@ describe("buildPredictedBoundaryProjectionEffect", () => {
       "next-trip-key--dep-dock",
     ]);
     expect(effect?.Rows.map((row) => row.Key)).toEqual(["trip-key--dep-dock"]);
+  });
+
+  it("emits WSF ETA and ML arrival rows together on the current arrival boundary", () => {
+    const effect = buildPredictedBoundaryProjectionEffect(
+      makeTrip({
+        ScheduledDeparture: at(12, 20),
+        DepartingTerminalAbbrev: "BBI",
+        ArrivingTerminalAbbrev: "P52",
+        Eta: at(12, 57),
+        AtDockArriveNext: makePrediction(at(12, 59)),
+        AtSeaArriveNext: makePrediction(at(12, 58)),
+      })
+    );
+
+    const arrivalRows = effect?.Rows.filter(
+      (row) => row.Key === "trip-key--arv-dock"
+    );
+
+    expect(arrivalRows).toHaveLength(3);
+    expect(
+      arrivalRows?.find((row) => row.PredictionSource === "wsf_eta")
+        ?.EventPredictedTime
+    ).toBe(at(12, 57));
+    expect(
+      arrivalRows?.filter((row) => row.PredictionSource === "ml")
+    ).toHaveLength(2);
   });
 
   it("emits an empty row set when a trip still owns prediction keys but has no predictions", () => {

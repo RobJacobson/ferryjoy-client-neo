@@ -37,9 +37,9 @@ import type * as domain_vesselTimeline_events_history from "../domain/vesselTime
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
 import type * as domain_vesselTimeline_events_reconcile from "../domain/vesselTimeline/events/reconcile.js";
-import type * as domain_vesselTimeline_events_reseed from "../domain/vesselTimeline/events/reseed.js";
 import type * as domain_vesselTimeline_events_scheduleDepartureLookup from "../domain/vesselTimeline/events/scheduleDepartureLookup.js";
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
+import type * as domain_vesselTimeline_index from "../domain/vesselTimeline/index.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
 import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
 import type * as domain_vesselTimeline_tripContextForActualRows from "../domain/vesselTimeline/tripContextForActualRows.js";
@@ -209,9 +209,9 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;
   "domain/vesselTimeline/events/reconcile": typeof domain_vesselTimeline_events_reconcile;
-  "domain/vesselTimeline/events/reseed": typeof domain_vesselTimeline_events_reseed;
   "domain/vesselTimeline/events/scheduleDepartureLookup": typeof domain_vesselTimeline_events_scheduleDepartureLookup;
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
+  "domain/vesselTimeline/index": typeof domain_vesselTimeline_index;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
   "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
   "domain/vesselTimeline/tripContextForActualRows": typeof domain_vesselTimeline_tripContextForActualRows;

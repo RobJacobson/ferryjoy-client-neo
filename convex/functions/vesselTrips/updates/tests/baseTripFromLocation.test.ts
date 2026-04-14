@@ -99,9 +99,28 @@ describe("baseTripFromLocation", () => {
     const trip = baseTripFromLocation(currLocation, undefined, false);
 
     expect(trip.TripStart).toBeUndefined();
+    expect(trip.TripKey).toBe(
+      generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
+    );
     expect(trip.PrevTerminalAbbrev).toBeUndefined();
     expect(trip.PrevScheduledDeparture).toBeUndefined();
     expect(trip.PrevLeftDock).toBeUndefined();
+  });
+
+  it("mints TripKey for a first-seen in-progress sailing without fabricating TripStart", () => {
+    const currLocation = makeLocation({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      TimeStamp: ms("2026-03-13T05:41:00-07:00"),
+    });
+
+    const trip = baseTripFromLocation(currLocation, undefined, false);
+
+    expect(trip.TripKey).toBe(
+      generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
+    );
+    expect(trip.TripStart).toBeUndefined();
+    expect(trip.LeftDock).toBe(currLocation.LeftDock);
   });
 
   it("preserves docked schedule continuity when the live feed jumps ahead to a later departure", () => {

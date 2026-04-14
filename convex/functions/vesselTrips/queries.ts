@@ -204,10 +204,11 @@ export const getCompletedTripsByRouteAndTripDate = query({
           q.eq("RouteAbbrev", args.routeAbbrev).eq("SailingDay", args.tripDate)
         )
         .collect();
-      // Multiple writes for the same physical trip can exist, so collapse by TripKey.
+      // Multiple writes for the same physical trip can exist, so collapse by
+      // the required physical TripKey before hydrating predictions.
       const byTripKey = new Map<string, (typeof docs)[number]>();
       for (const doc of docs) {
-        if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
+        byTripKey.set(doc.TripKey, doc);
       }
       return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
     } catch (error) {
@@ -331,7 +332,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
       const byTripKey = new Map<string, (typeof batches)[0][number]>();
       for (const batch of batches) {
         for (const doc of batch) {
-          if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
+          byTripKey.set(doc.TripKey, doc);
         }
       }
       return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
@@ -380,11 +381,12 @@ export const getCompletedTripsForSailingDayAndTerminals = query({
             .collect()
         )
       );
-      // Terminal-scoped queries can overlap, so dedupe by physical TripKey.
+      // Terminal-scoped queries can overlap, so dedupe by the required
+      // physical TripKey.
       const byTripKey = new Map<string, (typeof results)[0][number]>();
       for (const batch of results) {
         for (const doc of batch) {
-          if (doc.TripKey) byTripKey.set(doc.TripKey, doc);
+          byTripKey.set(doc.TripKey, doc);
         }
       }
       return stripHydratedTrips(ctx, Array.from(byTripKey.values()));
@@ -430,9 +432,7 @@ export const getCompletedTripsByVesselAndSailingDay = query({
 
       const byTripKey = new Map<string, (typeof docs)[number]>();
       for (const doc of docs) {
-        if (doc.TripKey) {
-          byTripKey.set(doc.TripKey, doc);
-        }
+        byTripKey.set(doc.TripKey, doc);
       }
 
       return stripHydratedTrips(ctx, Array.from(byTripKey.values()));

@@ -42,6 +42,24 @@ describe("buildCompletedTrip", () => {
     expect(completed.AtSeaDuration).toBe(60.3);
     expect(completed.TotalDuration).toBe(597);
   });
+
+  it("backfills the physical arrival terminal from the completion tick when the trip destination is unknown", () => {
+    const existingTrip = makeTrip({
+      ArrivingTerminalAbbrev: undefined,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+    });
+
+    const completed = buildCompletedTrip(
+      existingTrip,
+      makeLocation({
+        DepartingTerminalAbbrev: "ORI",
+        TimeStamp: ms("2026-03-13T06:29:56-07:00"),
+      })
+    );
+
+    expect(completed.ArrivingTerminalAbbrev).toBe("ORI");
+    expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
+  });
 });
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -82,7 +100,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: "CHE 2026-03-13 12:28:45Z",
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -100,6 +119,9 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T06:28:45-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
+  LeftDockActual: undefined,
+  AtDockActual: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

@@ -8,7 +8,7 @@
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
-} from "domain/vesselTimeline/normalizedEvents";
+} from "domain/vesselTimeline";
 import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type {

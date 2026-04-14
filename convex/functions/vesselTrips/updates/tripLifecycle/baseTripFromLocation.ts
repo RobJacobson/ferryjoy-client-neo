@@ -109,9 +109,12 @@ const baseTripForStart = (
 /**
  * Resolves the immutable physical trip key for a continuing tick.
  *
- * First-seen trips (no prior row) get a new key from the current tick. Rows
- * left over from before the clean-slate cutover without `TripKey` are invalid
- * and must not be silently repaired.
+ * First-seen trips (no prior row) get a new key from the current tick even if
+ * the vessel is already mid-voyage. That synthetic anchor is only for physical
+ * identity; it must not be interpreted as an observed departure boundary.
+ *
+ * Rows left over from before the clean-slate cutover without `TripKey` are
+ * invalid and must not be silently repaired.
  *
  * @param existingTrip - Prior active trip row, if any
  * @param currLocation - Latest vessel location for this tick
