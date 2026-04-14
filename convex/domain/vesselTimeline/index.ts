@@ -1,11 +1,11 @@
 export {
-  hydrateSeededEventsWithHistory,
-  createSeededScheduleSegmentResolver,
-  buildSeedVesselTripEventsFromRawSegments,
+  buildActualBoundaryPatchesForSailingDay,
   buildActualBoundaryPatchesFromLocation,
+  buildSeedVesselTripEventsFromRawSegments,
+  createSeededScheduleSegmentResolver,
+  hydrateSeededEventsWithHistory,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
-  buildActualBoundaryPatchesForSailingDay,
 } from "./events";
 
 export { mergeTimelineEvents } from "./timelineEvents";

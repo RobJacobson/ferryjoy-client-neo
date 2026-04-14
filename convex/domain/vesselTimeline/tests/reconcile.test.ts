@@ -8,14 +8,12 @@ import type { ConvexVesselLocation } from "../../../functions/vesselLocation/sch
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
+import { buildActualBoundaryPatchesForSailingDay } from "../../timelineReseed/reconcileLiveLocations";
 import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
   type TripContextForActualRow,
 } from "../../timelineRows";
-import {
-  buildActualBoundaryPatchesForSailingDay,
-} from "../";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);

@@ -1,14 +1,15 @@
-export { buildScheduledBoundaryEvents } from "./buildScheduledRows";
+export type { TripContextForActualRow } from "./bindActualRowsToTrips";
 export {
-  buildActualBoundaryEvents,
+  enrichActualBoundaryPatchesWithTripContext,
+  indexTripsBySegmentKey,
+} from "./bindActualRowsToTrips";
+export {
   buildActualBoundaryEventFromPatch,
+  buildActualBoundaryEvents,
 } from "./buildActualRows";
 export {
-  buildPredictedBoundaryProjectionEffect,
   buildPredictedBoundaryClearEffect,
+  buildPredictedBoundaryProjectionEffect,
 } from "./buildPredictedProjectionEffects";
-export {
-  indexTripsBySegmentKey,
-  enrichActualBoundaryPatchesWithTripContext,
-} from "./bindActualRowsToTrips";
-export type { TripContextForActualRow } from "./bindActualRowsToTrips";
+export { buildScheduledBoundaryEvents } from "./buildScheduledRows";
+export { mergeTimelineRows } from "./mergeTimelineRows";

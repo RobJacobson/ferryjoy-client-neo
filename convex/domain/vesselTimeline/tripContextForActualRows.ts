@@ -1,6 +1,6 @@
 export {
-  indexTripsBySegmentKey,
   enrichActualBoundaryPatchesWithTripContext,
+  indexTripsBySegmentKey,
 } from "../timelineRows";
 export type {
   TripContextForActualRow,

@@ -7,11 +7,9 @@ import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import type { VesselIdentity } from "../../../shared/vessels";
-import {
-  buildSeedVesselTripEventsFromRawSegments,
-  createSeededScheduleSegmentResolver,
-  hydrateSeededEventsWithHistory,
-} from "../";
+import { hydrateSeededEventsWithHistory } from "../../timelineReseed/hydrateWithHistory";
+import { createSeededScheduleSegmentResolver } from "../../timelineReseed/scheduleDepartureLookup";
+import { buildSeedVesselTripEventsFromRawSegments } from "../../timelineReseed/seedScheduledEvents";
 
 /**
  * Creates a UTC fixture timestamp for history-merge tests.

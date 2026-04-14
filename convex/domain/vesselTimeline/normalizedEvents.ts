@@ -1,7 +1,7 @@
 export {
-  buildScheduledBoundaryEvents,
-  buildActualBoundaryEvents,
   buildActualBoundaryEventFromPatch,
-  buildPredictedBoundaryProjectionEffect,
+  buildActualBoundaryEvents,
   buildPredictedBoundaryClearEffect,
+  buildPredictedBoundaryProjectionEffect,
+  buildScheduledBoundaryEvents,
 } from "../timelineRows";

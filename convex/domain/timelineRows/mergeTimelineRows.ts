@@ -1,5 +1,7 @@
 /**
- * Builds the event-first VesselTimeline read backbone from normalized tables.
+ * Merges scheduled, actual, and predicted boundary rows into the ordered
+ * event-first timeline slice used by read-time backbone assembly and by
+ * reseed live-location reconciliation.
  */
 
 import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";

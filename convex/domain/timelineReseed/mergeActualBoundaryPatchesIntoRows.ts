@@ -1,28 +1,18 @@
 /**
- * Merges sparse `ConvexActualBoundaryPatch` payloads into base `eventsActual`
- * row shapes for same-day replace flows (hydration + live-location deltas).
+ * Merges sparse actual-boundary patches into base actual rows for reseed.
  */
 
-import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
-import { buildPhysicalActualEventKey } from "../../shared/physicalTripIdentity";
 import {
   type ConvexActualBoundaryEvent,
   type ConvexActualBoundaryPatchWithTripKey,
   isPersistableActualBoundaryPatch,
   mergeActualBoundaryPatchWithExistingRow,
-} from "../eventsActual/schemas";
+} from "../../functions/eventsActual/schemas";
+import { buildPhysicalActualEventKey } from "../../shared/physicalTripIdentity";
+import { buildActualBoundaryEventFromPatch } from "../timelineRows";
 
 /**
- * Merges sparse actual-boundary patches into base rows: each patch becomes a
- * candidate row keyed by `EventKey`. Patches must carry `TripKey` (after
- * enrichment). A merged patch must have an anchor timestamp (`EventActualTime`
- * or `ScheduledDeparture`); missing values may be inherited from the matching
- * base row before normalization.
- *
- * @param baseRows - Actual rows derived from hydrated boundary events
- * @param patches - Enriched patches with `TripKey`
- * @param updatedAt - `UpdatedAt` stamp for rows produced from patches
- * @returns Deduplicated final rows keyed by `EventKey`
+ * Merges sparse actual-boundary patches into base rows keyed by `EventKey`.
  */
 export const mergeActualBoundaryPatchesIntoRows = (
   baseRows: ConvexActualBoundaryEvent[],

@@ -6,7 +6,7 @@ import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/sch
 import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
 import type { ConvexVesselTimelineBackbone } from "../../functions/vesselTimeline/schemas";
-import { mergeTimelineRows } from "./mergeTimelineRows";
+import { mergeTimelineRows } from "../timelineRows/mergeTimelineRows";
 
 type BuildTimelineBackboneArgs = {
   VesselAbbrev: string;

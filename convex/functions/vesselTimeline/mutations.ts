@@ -6,19 +6,13 @@ import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
+import { buildReseedTimelineSlice } from "domain/timelineReseed";
 import {
-  buildActualBoundaryPatchesForSailingDay,
-  normalizeScheduledDockSeams,
-  sortVesselTripEvents,
-} from "domain/vesselTimeline";
-import {
-  buildActualBoundaryEvents,
-  buildScheduledBoundaryEvents,
+  type buildScheduledBoundaryEvents,
   indexTripsBySegmentKey,
 } from "domain/timelineRows";
 import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
 import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
-import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
 import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
@@ -44,42 +38,28 @@ export const reseedBoundaryEventsForSailingDay = internalMutation({
   }),
   handler: async (ctx, args) => {
     const updatedAt = Date.now();
-    const events = normalizeScheduledDockSeams(args.Events).sort(
-      sortVesselTripEvents
-    );
-
     const tripIndex = await loadTripIndexForSailingDay(ctx, args.SailingDay);
-
-    const nextScheduledRows = buildScheduledBoundaryEvents(events, updatedAt);
-    const baseActualRows = buildActualBoundaryEvents(
-      events,
-      updatedAt,
-      tripIndex
-    );
     const vesselLocations = await ctx.db.query("vesselLocations").collect();
-    const liveLocationActualPatches = buildActualBoundaryPatchesForSailingDay({
-      sailingDay: args.SailingDay,
-      scheduledEvents: nextScheduledRows,
-      actualEvents: baseActualRows,
-      vesselLocations,
-      tripBySegmentKey: tripIndex,
-    });
-    const finalActualRows = mergeActualBoundaryPatchesIntoRows(
-      baseActualRows,
-      liveLocationActualPatches,
-      updatedAt
-    );
+
+    const { scheduledRows, actualRows, scheduledCount, actualCount } =
+      buildReseedTimelineSlice({
+        sailingDay: args.SailingDay,
+        events: args.Events,
+        updatedAt,
+        tripBySegmentKey: tripIndex,
+        vesselLocations,
+      });
 
     await replaceScheduledRowsForSailingDay(
       ctx,
       args.SailingDay,
-      nextScheduledRows
+      scheduledRows
     );
-    await replaceActualRowsForSailingDay(ctx, args.SailingDay, finalActualRows);
+    await replaceActualRowsForSailingDay(ctx, args.SailingDay, actualRows);
 
     return {
-      ScheduledCount: events.length,
-      ActualCount: finalActualRows.length,
+      ScheduledCount: scheduledCount,
+      ActualCount: actualCount,
     };
   },
 });

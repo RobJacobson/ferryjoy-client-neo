@@ -73,7 +73,7 @@ export const makeTrip = (
   DepartingTerminalAbbrev: "P52",
   ArrivingTerminalAbbrev: "BBI",
   RouteAbbrev: "SEA-BBI",
-  TripKey: undefined,
+  TripKey: "fixture-trip-key",
   ScheduleKey: "trip-1",
   SailingDay: "2026-03-18",
   PrevTerminalAbbrev: "BBI",

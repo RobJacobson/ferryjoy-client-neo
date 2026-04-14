@@ -5,11 +5,9 @@ import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselT
 import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import type { VesselIdentity } from "../../../shared/vessels";
-import {
-  buildActualBoundaryPatchesFromLocation,
-  buildSeedVesselTripEventsFromRawSegments,
-  normalizeScheduledDockSeams,
-} from "../";
+import { normalizeScheduledDockSeams } from "../../timelineReseed/normalizeEventRecords";
+import { buildActualBoundaryPatchesFromLocation } from "../../timelineReseed/reconcileLiveLocations";
+import { buildSeedVesselTripEventsFromRawSegments } from "../../timelineReseed/seedScheduledEvents";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
