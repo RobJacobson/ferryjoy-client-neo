@@ -6,7 +6,9 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
+import { getSegmentKeyFromBoundaryKey } from "../../../functions/eventsScheduled/segmentResolvers";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
+import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { mergeTimelineEvents } from "../timelineEvents";
 
 const at = (hours: number, minutes: number, day = 25) =>
@@ -168,6 +170,34 @@ describe("mergeTimelineEvents", () => {
     ).toMatchObject({
       EventActualTime: at(20, 57),
     });
+  });
+
+  it("does not heuristic-attach physical-only arrival actuals (no ScheduleKey)", () => {
+    const events = mergeTimelineEvents({
+      scheduledEvents: [
+        makeScheduledEvent({
+          Key: "leg-1--arv-dock",
+          EventType: "arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(17, 30),
+          EventScheduledTime: at(18, 30),
+        }),
+      ],
+      actualEvents: [
+        makeActualEvent({
+          Key: "physical-only--arv-dock",
+          TerminalAbbrev: "P52",
+          ScheduledDeparture: at(17, 30),
+          EventActualTime: at(18, 40),
+          ScheduleKey: undefined,
+        }),
+      ],
+      predictedEvents: [],
+    });
+
+    expect(
+      events.find((event) => event.Key === "leg-1--arv-dock")?.EventActualTime
+    ).toBeUndefined();
   });
 
   it("reattaches a missing arrival from the next unused same-terminal actual before the next equivalent row", () => {
@@ -740,21 +770,39 @@ const makeScheduledEvent = (
 });
 
 const makeActualEvent = (
-  overrides: Partial<ConvexActualBoundaryEvent>
-): ConvexActualBoundaryEvent => ({
-  Key: "trip-1--dep-dock",
-  EventKey: undefined,
-  TripKey: undefined,
-  ScheduleKey: undefined,
-  VesselAbbrev: "WEN",
-  SailingDay: "2026-03-25",
-  UpdatedAt: at(6, 0),
-  ScheduledDeparture: at(8, 0),
-  TerminalAbbrev: "P52",
-  EventOccurred: true,
-  EventActualTime: at(8, 2),
-  ...overrides,
-});
+  overrides: Partial<ConvexActualBoundaryEvent> & { Key?: string }
+): ConvexActualBoundaryEvent => {
+  const legacyBoundary = overrides.Key ?? "trip-1--dep-dock";
+  const merged = {
+    VesselAbbrev: "WEN" as const,
+    SailingDay: "2026-03-25" as const,
+    UpdatedAt: at(6, 0),
+    ScheduledDeparture: at(8, 0),
+    TerminalAbbrev: "P52",
+    EventOccurred: true as const,
+    EventActualTime: at(8, 2) as number | undefined,
+    ...overrides,
+  };
+  const eventType =
+    merged.EventType ??
+    (legacyBoundary.includes("arv-dock") ? "arv-dock" : "dep-dock");
+  const segment =
+    "ScheduleKey" in overrides
+      ? overrides.ScheduleKey
+      : getSegmentKeyFromBoundaryKey(legacyBoundary);
+  const tripKey =
+    merged.TripKey ?? `TST 2026-03-25 12:00:00Z ${segment ?? "trip-1"}`;
+  const EventKey =
+    merged.EventKey ?? buildPhysicalActualEventKey(tripKey, eventType);
+
+  return {
+    ...merged,
+    EventKey,
+    TripKey: tripKey,
+    ScheduleKey: segment,
+    EventType: eventType,
+  };
+};
 
 const makePredictedEvent = (
   overrides: Partial<ConvexPredictedBoundaryEvent>

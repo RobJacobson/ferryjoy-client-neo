@@ -5,13 +5,16 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
+import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import {
+  buildActualBoundaryEventFromPatch,
   buildActualBoundaryEvents,
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryEventsFromTrips,
   buildPredictedBoundaryProjectionEffect,
   buildScheduledBoundaryEvents,
 } from "../normalizedEvents";
+import type { TripContextForActualRow } from "../tripContextForActualRows";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -66,21 +69,34 @@ describe("buildScheduledBoundaryEvents", () => {
 });
 
 describe("buildActualBoundaryEvents", () => {
+  const tripMap = (): Map<string, TripContextForActualRow> => {
+    const tripKey = "WEN 2026-03-25 19:20:00Z";
+    return new Map([["trip-1", { TripKey: tripKey, ScheduleKey: "trip-1" }]]);
+  };
+
   it("keeps occurrence-only rows without inventing an actual time", () => {
-    const rows = buildActualBoundaryEvents([
-      makeBoundaryEventRecord({
-        SegmentKey: "trip-1",
-        Key: "trip-1--dep-dock",
-        EventType: "dep-dock",
-        TerminalAbbrev: "BBI",
-        EventOccurred: true,
-        EventActualTime: undefined,
-      }),
-    ]);
+    const tk = "WEN 2026-03-25 19:20:00Z";
+    const rows = buildActualBoundaryEvents(
+      [
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-1",
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "BBI",
+          EventOccurred: true,
+          EventActualTime: undefined,
+        }),
+      ],
+      at(15, 0),
+      tripMap()
+    );
 
     expect(rows).toEqual([
       expect.objectContaining({
-        Key: "trip-1--dep-dock",
+        EventKey: buildPhysicalActualEventKey(tk, "dep-dock"),
+        TripKey: tk,
+        ScheduleKey: "trip-1",
+        EventType: "dep-dock",
         EventOccurred: true,
         EventActualTime: undefined,
       }),
@@ -88,22 +104,46 @@ describe("buildActualBoundaryEvents", () => {
   });
 
   it("normalizes exact actual times as confirmed occurrence", () => {
-    const [row] = buildActualBoundaryEvents([
-      makeBoundaryEventRecord({
-        SegmentKey: "trip-1",
-        Key: "trip-1--dep-dock",
-        EventType: "dep-dock",
-        TerminalAbbrev: "BBI",
-        EventOccurred: undefined,
-        EventActualTime: at(12, 24),
-      }),
-    ]);
+    const tk = "WEN 2026-03-25 19:20:00Z";
+    const [row] = buildActualBoundaryEvents(
+      [
+        makeBoundaryEventRecord({
+          SegmentKey: "trip-1",
+          Key: "trip-1--dep-dock",
+          EventType: "dep-dock",
+          TerminalAbbrev: "BBI",
+          EventOccurred: undefined,
+          EventActualTime: at(12, 24),
+        }),
+      ],
+      at(15, 0),
+      tripMap()
+    );
 
     expect(row).toMatchObject({
-      Key: "trip-1--dep-dock",
+      EventKey: buildPhysicalActualEventKey(tk, "dep-dock"),
       EventOccurred: true,
       EventActualTime: at(12, 24),
     });
+  });
+});
+
+describe("buildActualBoundaryEventFromPatch", () => {
+  it("derives SailingDay and ScheduledDeparture from EventActualTime when omitted", () => {
+    const row = buildActualBoundaryEventFromPatch(
+      {
+        TripKey: "WEN 2026-03-25 19:20:00Z",
+        VesselAbbrev: "WEN",
+        TerminalAbbrev: "BBI",
+        EventType: "dep-dock",
+        EventOccurred: true,
+        EventActualTime: at(12, 22),
+      },
+      at(15, 0)
+    );
+
+    expect(row.SailingDay).toBe("2026-03-25");
+    expect(row.ScheduledDeparture).toBe(at(12, 22));
   });
 });
 

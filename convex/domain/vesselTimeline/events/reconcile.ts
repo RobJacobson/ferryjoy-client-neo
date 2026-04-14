@@ -1,20 +1,24 @@
 /**
  * Pure derivation of sparse actual-boundary patches for one sailing day from
  * already-loaded scheduled rows, base actual rows, and live `vesselLocations`
- * (reseed / replace path only). Returns `ConvexActualBoundaryPatch[]` for
+ * (reseed / replace path only). Returns persistable patches for
  * `mergeActualBoundaryPatchesIntoRows` in `functions/vesselTimeline`, not a
  * merged timeline event list.
  */
 
 import type {
   ConvexActualBoundaryEvent,
-  ConvexActualBoundaryPatch,
+  ConvexActualBoundaryPatchPersistable,
 } from "../../../functions/eventsActual/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import { groupBy } from "../../../shared/groupBy";
 import { getSailingDay } from "../../../shared/time";
 import { mergeTimelineEvents } from "../timelineEvents";
+import {
+  enrichActualBoundaryPatchesWithTripContext,
+  type TripContextForActualRow,
+} from "../tripContextForActualRows";
 import { buildActualBoundaryPatchesFromLocation } from "./liveUpdates";
 
 type VesselEventsByAbbrev<T extends { VesselAbbrev: string }> = Map<
@@ -32,6 +36,8 @@ export type BuildActualBoundaryPatchesForSailingDayArgs = {
   scheduledEvents: ConvexScheduledBoundaryEvent[];
   actualEvents: ConvexActualBoundaryEvent[];
   vesselLocations: ConvexVesselLocation[];
+  /** When set, patches are enriched with `TripKey` / `ScheduleKey` for PR3. */
+  tripBySegmentKey?: Map<string, TripContextForActualRow>;
 };
 
 /**
@@ -50,15 +56,18 @@ export const buildActualBoundaryPatchesForSailingDay = ({
   scheduledEvents,
   actualEvents,
   vesselLocations,
-}: BuildActualBoundaryPatchesForSailingDayArgs): ConvexActualBoundaryPatch[] => {
+  tripBySegmentKey = new Map(),
+}: BuildActualBoundaryPatchesForSailingDayArgs): ConvexActualBoundaryPatchPersistable[] => {
   const scheduledByVessel = groupBy(scheduledEvents, (e) => e.VesselAbbrev);
   const actualByVessel = groupBy(actualEvents, (e) => e.VesselAbbrev);
 
-  return vesselLocations
+  const raw = vesselLocations
     .map(attachScheduledEventsByVessel(scheduledByVessel))
     .filter(locationBundleMatchesSailingDay(sailingDay))
     .filter(hasScheduledEvents)
     .flatMap(actualBoundaryPatchesFromLocationBundle(actualByVessel));
+
+  return enrichActualBoundaryPatchesWithTripContext(raw, tripBySegmentKey);
 };
 
 /**

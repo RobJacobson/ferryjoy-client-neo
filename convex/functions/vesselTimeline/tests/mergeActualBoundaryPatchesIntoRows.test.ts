@@ -3,19 +3,25 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildBoundaryKey } from "../../../shared/keys";
+import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import type {
   ConvexActualBoundaryEvent,
-  ConvexActualBoundaryPatch,
+  ConvexActualBoundaryPatchPersistable,
+  ConvexActualBoundaryPatchWithTripKey,
 } from "../../eventsActual/schemas";
 import { mergeActualBoundaryPatchesIntoRows } from "../mergeActualBoundaryPatchesIntoRows";
 
 const updatedAt = 1_700_000_000_000;
 
+const tripKey = "TOK 2026-03-13 15:35:00Z";
+const segment = "TOK--2026-03-13--08:35--P52-BBI";
+const eventKeyDep = buildPhysicalActualEventKey(tripKey, "dep-dock");
+
 describe("mergeActualBoundaryPatchesIntoRows", () => {
-  it("creates a row when no base row exists for the patch key", () => {
-    const patch: ConvexActualBoundaryPatch = {
-      SegmentKey: "TOK--2026-03-13--08:35--P52-BBI",
+  it("creates a row when no base row exists for the patch EventKey", () => {
+    const patch: ConvexActualBoundaryPatchPersistable = {
+      TripKey: tripKey,
+      SegmentKey: segment,
       VesselAbbrev: "TOK",
       SailingDay: "2026-03-13",
       ScheduledDeparture: 1000,
@@ -29,7 +35,9 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
 
     expect(result).toEqual([
       {
-        Key: buildBoundaryKey(patch.SegmentKey, patch.EventType),
+        EventKey: eventKeyDep,
+        TripKey: tripKey,
+        EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         UpdatedAt: updatedAt,
@@ -42,10 +50,12 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
   });
 
   it("preserves base EventActualTime when the patch omits a timestamp", () => {
-    const key = buildBoundaryKey("TOK--2026-03-13--08:35--P52-BBI", "dep-dock");
     const base: ConvexActualBoundaryEvent[] = [
       {
-        Key: key,
+        EventKey: eventKeyDep,
+        TripKey: tripKey,
+        ScheduleKey: segment,
+        EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         UpdatedAt: updatedAt - 1,
@@ -55,8 +65,9 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
         EventActualTime: 2222,
       },
     ];
-    const patch: ConvexActualBoundaryPatch = {
-      SegmentKey: "TOK--2026-03-13--08:35--P52-BBI",
+    const patch: ConvexActualBoundaryPatchPersistable = {
+      TripKey: tripKey,
+      SegmentKey: segment,
       VesselAbbrev: "TOK",
       SailingDay: "2026-03-13",
       ScheduledDeparture: 1000,
@@ -73,10 +84,12 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
   });
 
   it("keeps EventActualTime from the patch when present", () => {
-    const key = buildBoundaryKey("TOK--2026-03-13--08:35--P52-BBI", "dep-dock");
     const base: ConvexActualBoundaryEvent[] = [
       {
-        Key: key,
+        EventKey: eventKeyDep,
+        TripKey: tripKey,
+        ScheduleKey: segment,
+        EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         UpdatedAt: updatedAt - 1,
@@ -86,8 +99,9 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
         EventActualTime: 2222,
       },
     ];
-    const patch: ConvexActualBoundaryPatch = {
-      SegmentKey: "TOK--2026-03-13--08:35--P52-BBI",
+    const patch: ConvexActualBoundaryPatchPersistable = {
+      TripKey: tripKey,
+      SegmentKey: segment,
       VesselAbbrev: "TOK",
       SailingDay: "2026-03-13",
       ScheduledDeparture: 1000,
@@ -105,7 +119,10 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
   it("returns base rows unchanged when there are no patches", () => {
     const base: ConvexActualBoundaryEvent[] = [
       {
-        Key: "a",
+        EventKey: eventKeyDep,
+        TripKey: tripKey,
+        ScheduleKey: segment,
+        EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         UpdatedAt: updatedAt,
@@ -121,10 +138,10 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
     expect(result).toEqual(base);
   });
 
-  it("dedupes by Key; later patches overwrite earlier ones for the same key", () => {
-    const segmentKey = "TOK--2026-03-13--08:35--P52-BBI";
-    const first: ConvexActualBoundaryPatch = {
-      SegmentKey: segmentKey,
+  it("dedupes by EventKey; later patches overwrite earlier ones for the same key", () => {
+    const first: ConvexActualBoundaryPatchPersistable = {
+      TripKey: tripKey,
+      SegmentKey: segment,
       VesselAbbrev: "TOK",
       SailingDay: "2026-03-13",
       ScheduledDeparture: 1000,
@@ -133,7 +150,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventOccurred: true,
       EventActualTime: 111,
     };
-    const second: ConvexActualBoundaryPatch = {
+    const second: ConvexActualBoundaryPatchPersistable = {
       ...first,
       EventActualTime: 222,
     };
@@ -146,5 +163,20 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.EventActualTime).toBe(222);
+  });
+
+  it("skips a patch with no anchor when the base row cannot supply one", () => {
+    const patch: ConvexActualBoundaryPatchWithTripKey = {
+      TripKey: tripKey,
+      SegmentKey: segment,
+      VesselAbbrev: "TOK",
+      TerminalAbbrev: "P52",
+      EventType: "dep-dock",
+      EventOccurred: true,
+    };
+
+    const result = mergeActualBoundaryPatchesIntoRows([], [patch], updatedAt);
+
+    expect(result).toEqual([]);
   });
 });

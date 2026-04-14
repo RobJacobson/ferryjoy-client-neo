@@ -15,6 +15,8 @@ import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
 } from "domain/vesselTimeline/normalizedEvents";
+import { indexTripsBySegmentKey } from "domain/vesselTimeline/tripContextForActualRows";
+import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
 import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
 import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
 import { vesselTimelineEventRecordSchema } from "./schemas";
@@ -24,7 +26,8 @@ import { vesselTimelineEventRecordSchema } from "./schemas";
  * sailing day.
  *
  * Schedule sync owns this mutation. It treats the supplied day slice as the
- * complete truth and makes the normalized tables match it exactly.
+ * complete truth for scheduled rows; `eventsActual` uses supersession by
+ * `EventKey` and retains physical-only rows not in the new slice.
  *
  * @param args.SailingDay - Service day being fully replaced
  * @param args.Events - Boundary events already normalized in memory
@@ -45,14 +48,21 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
       sortVesselTripEvents
     );
 
+    const tripIndex = await loadTripIndexForSailingDay(ctx, args.SailingDay);
+
     const nextScheduledRows = buildScheduledBoundaryEvents(events, updatedAt);
-    const baseActualRows = buildActualBoundaryEvents(events, updatedAt);
+    const baseActualRows = buildActualBoundaryEvents(
+      events,
+      updatedAt,
+      tripIndex
+    );
     const vesselLocations = await ctx.db.query("vesselLocations").collect();
     const liveLocationActualPatches = buildActualBoundaryPatchesForSailingDay({
       sailingDay: args.SailingDay,
       scheduledEvents: nextScheduledRows,
       actualEvents: baseActualRows,
       vesselLocations,
+      tripBySegmentKey: tripIndex,
     });
     const finalActualRows = mergeActualBoundaryPatchesIntoRows(
       baseActualRows,
@@ -73,6 +83,28 @@ export const replaceBoundaryEventsForSailingDay = internalMutation({
     };
   },
 });
+
+/**
+ * Loads active and completed trips for a sailing day and indexes them by
+ * segment key for `TripKey` resolution.
+ *
+ * @param ctx - Mutation context
+ * @param sailingDay - Target sailing day
+ * @returns Map from segment key to trip context
+ */
+const loadTripIndexForSailingDay = async (
+  ctx: MutationCtx,
+  sailingDay: string
+) => {
+  const activeTrips = (
+    await ctx.db.query("activeVesselTrips").collect()
+  ).filter((t) => t.SailingDay === sailingDay);
+  const completedTrips = (
+    await ctx.db.query("completedVesselTrips").collect()
+  ).filter((t) => t.SailingDay === sailingDay);
+
+  return indexTripsBySegmentKey([...activeTrips, ...completedTrips]);
+};
 
 const replaceScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -108,26 +140,47 @@ const replaceScheduledRowsForSailingDay = async (
   }
 };
 
+/**
+ * Replaces `eventsActual` for one sailing day: supersede by `EventKey` from
+ * `finalRows`, retain existing **physical-only** rows (`ScheduleKey` absent)
+ * whose `EventKey` is absent from the new slice, delete stale schedule-aligned
+ * rows and everything else on that day outside the survive set.
+ *
+ * @param ctx - Convex mutation context
+ * @param SailingDay - Service day
+ * @param finalRows - Candidate rows from schedule hydration + live patches
+ */
 const replaceActualRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
-  nextRows: ReturnType<typeof buildActualBoundaryEvents>
+  finalRows: ConvexActualBoundaryEvent[]
 ) => {
   const existingRows = await ctx.db
     .query("eventsActual")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
-  const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
-  const nextKeys = new Set(nextRows.map((row) => row.Key));
+
+  const nextByEventKey = new Map(finalRows.map((row) => [row.EventKey, row]));
+
+  const surviveEventKeys = new Set(nextByEventKey.keys());
+
+  for (const row of existingRows) {
+    if (!nextByEventKey.has(row.EventKey) && row.ScheduleKey === undefined) {
+      surviveEventKeys.add(row.EventKey);
+    }
+  }
 
   for (const existing of existingRows) {
-    if (!nextKeys.has(existing.Key)) {
+    if (!surviveEventKeys.has(existing.EventKey)) {
       await ctx.db.delete(existing._id);
     }
   }
 
-  for (const nextRow of nextRows) {
-    const existing = existingByKey.get(nextRow.Key);
+  for (const nextRow of nextByEventKey.values()) {
+    const existing = await ctx.db
+      .query("eventsActual")
+      .withIndex("by_event_key", (q) => q.eq("EventKey", nextRow.EventKey))
+      .unique();
 
     if (!existing) {
       await ctx.db.insert("eventsActual", nextRow);

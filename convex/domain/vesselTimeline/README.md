@@ -149,6 +149,9 @@ should reuse persisted trip identity and avoid redundant schedule reads.
   segment keys when history `ScheduledDepart` equals seeded `ScheduledDeparture`.
 - `timelineEvents.ts`
   Merges scheduled, actual, and predicted rows into ordered public events.
+  Actual overlays attach by optional `ScheduleKey` + `EventType` (aligned segment),
+  with bounded arrival fallbacks; persisted `eventsActual` rows use physical
+  `EventKey` / `TripKey` (no legacy boundary `Key` column).
 - `viewModel.ts`
   Builds the backbone-only query payload.
 - `convex/shared/timelineIntervals.ts`

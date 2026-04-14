@@ -13,6 +13,18 @@ import {
 import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 
 /**
+ * Composite lookup for attaching actuals to scheduled rows (PR3): aligned
+ * schedule segment plus boundary type.
+ *
+ * @param scheduleSegment - Canonical segment key (without `--dep-dock` / `--arv-dock`)
+ * @param eventType - Boundary type on the scheduled row
+ */
+const scheduleAttachmentKey = (
+  scheduleSegment: string,
+  eventType: ConvexScheduledBoundaryEvent["EventType"]
+) => `${scheduleSegment}|${eventType}`;
+
+/**
  * Merges sparse actual and predicted overlays onto the scheduled event
  * backbone for one vessel/day.
  *
@@ -28,48 +40,74 @@ export const mergeTimelineEvents = ({
   actualEvents: ConvexActualBoundaryEvent[];
   predictedEvents: ConvexPredictedBoundaryEvent[];
 }): ConvexVesselTimelineEvent[] => {
-  const actualByKey = new Map(actualEvents.map((event) => [event.Key, event]));
+  const actualByScheduleKeyAndType = new Map<
+    string,
+    ConvexActualBoundaryEvent
+  >();
+
+  for (const actual of actualEvents) {
+    if (!actual.ScheduleKey) {
+      continue;
+    }
+
+    const k = scheduleAttachmentKey(actual.ScheduleKey, actual.EventType);
+    if (!actualByScheduleKeyAndType.has(k)) {
+      actualByScheduleKeyAndType.set(k, actual);
+    }
+  }
+
   const sortedScheduledEvents = [...scheduledEvents].sort(
     sortScheduledBoundaryEvents
   );
-  const actualArrivalEvents = actualEvents
+
+  // Heuristic arrival attachment (fallback passes) is only for schedule-aligned
+  // actuals (`ScheduleKey` set). Physical-only arrivals stay off the backbone.
+  const scheduleKeyedArrivalActuals = actualEvents
     .filter(
       (
         event
       ): event is ConvexActualBoundaryEvent & { EventActualTime: number } =>
-        event.Key.endsWith("--arv-dock") && event.EventActualTime !== undefined
+        event.EventType === "arv-dock" &&
+        event.EventActualTime !== undefined &&
+        event.ScheduleKey !== undefined
     )
     .sort(
       (left, right) =>
         left.EventActualTime - right.EventActualTime ||
         left.ScheduledDeparture - right.ScheduledDeparture ||
-        left.Key.localeCompare(right.Key)
+        left.EventKey.localeCompare(right.EventKey)
     );
+
   const assignedArrivalActualByScheduledKey = new Map<
     string,
     ConvexActualBoundaryEvent
   >();
-  const usedActualArrivalKeys = new Set<string>();
+  const usedActualArrivalEventKeys = new Set<string>();
 
   /**
-   * Preserve exact-key arrival overlays first so heuristic matching never steals
-   * a fact from its canonical row.
+   * Exact `ScheduleKey + EventType` for arrivals before heuristics.
    */
   for (const event of sortedScheduledEvents) {
     if (event.EventType !== "arv-dock") {
       continue;
     }
-    const direct = actualByKey.get(event.Key);
+
+    const segment = getSegmentKeyFromBoundaryKey(event.Key);
+    const direct = actualByScheduleKeyAndType.get(
+      scheduleAttachmentKey(segment, "arv-dock")
+    );
+
     if (!direct) {
       continue;
     }
+
     assignedArrivalActualByScheduledKey.set(event.Key, direct);
-    usedActualArrivalKeys.add(direct.Key);
+    usedActualArrivalEventKeys.add(direct.EventKey);
   }
 
   /**
-   * Preserve the legacy stale-key arrival lookup before broader terminal-order
-   * matching.
+   * Terminal + scheduled departure alignment for unmatched arrival rows
+   * (bounded fallback).
    */
   for (const event of sortedScheduledEvents) {
     if (
@@ -78,31 +116,32 @@ export const mergeTimelineEvents = ({
     ) {
       continue;
     }
-    const anchored = actualArrivalEvents.find(
+
+    const anchored = scheduleKeyedArrivalActuals.find(
       (actual) =>
-        !usedActualArrivalKeys.has(actual.Key) &&
+        !usedActualArrivalEventKeys.has(actual.EventKey) &&
         actual.TerminalAbbrev === event.TerminalAbbrev &&
         actual.ScheduledDeparture === event.ScheduledDeparture
     );
+
     if (!anchored) {
       continue;
     }
+
     assignedArrivalActualByScheduledKey.set(event.Key, anchored);
-    usedActualArrivalKeys.add(anchored.Key);
+    usedActualArrivalEventKeys.add(anchored.EventKey);
   }
 
-  /**
-   * For stale schedule skeletons, fill blank arrival rows by terminal-order
-   * matching without crossing the next scheduled arrival at that terminal.
-   */
   const scheduledArrivalEventsByTerminal = new Map<
     string,
     ConvexScheduledBoundaryEvent[]
   >();
+
   for (const event of sortedScheduledEvents) {
     if (event.EventType !== "arv-dock") {
       continue;
     }
+
     const terminalEvents =
       scheduledArrivalEventsByTerminal.get(event.TerminalAbbrev) ?? [];
     terminalEvents.push(event);
@@ -118,23 +157,26 @@ export const mergeTimelineEvents = ({
     for (let index = 0; index < terminalArrivalEvents.length; index += 1) {
       const event = terminalArrivalEvents[index];
       const existing = assignedArrivalActualByScheduledKey.get(event.Key);
+
       if (existing?.EventActualTime !== undefined) {
         previousAssignedArrivalActualTime = existing.EventActualTime;
         continue;
       }
 
-      const candidate = actualArrivalEvents.find(
+      const candidate = scheduleKeyedArrivalActuals.find(
         (actual) =>
-          !usedActualArrivalKeys.has(actual.Key) &&
+          !usedActualArrivalEventKeys.has(actual.EventKey) &&
           actual.TerminalAbbrev === terminalAbbrev &&
           (previousAssignedArrivalActualTime === undefined ||
             actual.EventActualTime > previousAssignedArrivalActualTime)
       );
+
       if (!candidate) {
         continue;
       }
 
       const nextEquivalentArrival = terminalArrivalEvents[index + 1];
+
       if (
         nextEquivalentArrival &&
         candidate.EventActualTime > getBoundaryTime(nextEquivalentArrival)
@@ -143,25 +185,34 @@ export const mergeTimelineEvents = ({
       }
 
       assignedArrivalActualByScheduledKey.set(event.Key, candidate);
-      usedActualArrivalKeys.add(candidate.Key);
+      usedActualArrivalEventKeys.add(candidate.EventKey);
       previousAssignedArrivalActualTime = candidate.EventActualTime;
     }
   }
 
   /**
-   * When an actual row was stored under a stale/orphan boundary `Key`, match it
-   * to the scheduled arrival using the arrival assignment pass above.
+   * Resolves the actual row for one scheduled boundary: exact `ScheduleKey`
+   * + `EventType` first, then arrival heuristic map.
+   *
+   * @param event - Scheduled boundary row
+   * @returns Matching actual row when found
    */
   const resolveActualForScheduledEvent = (
     event: ConvexScheduledBoundaryEvent
   ) => {
-    const direct = actualByKey.get(event.Key);
-    if (direct) {
-      return direct;
+    const segment = getSegmentKeyFromBoundaryKey(event.Key);
+    const exact = actualByScheduleKeyAndType.get(
+      scheduleAttachmentKey(segment, event.EventType)
+    );
+
+    if (exact) {
+      return exact;
     }
+
     if (event.EventType !== "arv-dock") {
       return undefined;
     }
+
     return assignedArrivalActualByScheduledKey.get(event.Key);
   };
 
@@ -169,32 +220,43 @@ export const mergeTimelineEvents = ({
    * Multiple `eventsPredicted` rows may share one boundary `Key` (WSF vs ML).
    * Backbone uses WSF when present, else ML with legacy precedence
    * (AtSeaArriveNext before AtDockArriveNext).
+   *
+   * @param key - Scheduled boundary key
+   * @returns Best predicted time for display
    */
   const pickPredictedTimeForKey = (key: string) => {
     const candidates = predictedEvents.filter((e) => e.Key === key);
+
     if (candidates.length === 0) {
       return undefined;
     }
+
     const wsf = candidates.find((e) => e.PredictionSource === "wsf_eta");
+
     if (wsf) {
       return wsf.EventPredictedTime;
     }
+
     const seaMl = candidates.find(
       (e) =>
         e.PredictionSource === "ml" && e.PredictionType === "AtSeaArriveNext"
     );
+
     if (seaMl) {
       return seaMl.EventPredictedTime;
     }
+
     const dockMl = candidates.find(
       (e) =>
         e.PredictionSource === "ml" && e.PredictionType === "AtDockArriveNext"
     );
+
     return dockMl?.EventPredictedTime ?? candidates[0]?.EventPredictedTime;
   };
 
   return sortedScheduledEvents.map((event) => {
     const actualRow = resolveActualForScheduledEvent(event);
+
     return {
       SegmentKey: getSegmentKeyFromBoundaryKey(event.Key),
       Key: event.Key,

@@ -6,15 +6,40 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledTrip } from "../../../functions/scheduledTrips/schemas";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
+import { generateTripKey } from "../../../shared/physicalTripIdentity";
 import { buildActualBoundaryPatchesForSailingDay } from "../events/reconcile";
 import { buildSeedVesselTripEvents } from "../events/seed";
 import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
 } from "../normalizedEvents";
+import type { TripContextForActualRow } from "../tripContextForActualRows";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
+
+/**
+ * Builds a segment-key → trip context map for seed events (unique TripKey per
+ * segment) so PR3 patches and hydrated actuals resolve `TripKey`.
+ *
+ * @param events - Seed boundary events
+ * @returns Map for `buildActualBoundaryEvents` / `tripBySegmentKey`
+ */
+const tripIndexFromSeedEvents = (
+  events: { SegmentKey: string }[]
+): Map<string, TripContextForActualRow> => {
+  const map = new Map<string, TripContextForActualRow>();
+  const segments = [...new Set(events.map((e) => e.SegmentKey))];
+
+  for (const [i, seg] of segments.entries()) {
+    map.set(seg, {
+      TripKey: generateTripKey("TOK", Date.UTC(2026, 2, 13, 8 + i, 35)),
+      ScheduleKey: seg,
+    });
+  }
+
+  return map;
+};
 
 describe("buildActualBoundaryPatchesForSailingDay", () => {
   it("emits a departure actual-boundary patch when underway location proves departure", () => {
@@ -28,8 +53,9 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       }),
     ]);
     const updatedAt = 0;
+    const tripIdx = tripIndexFromSeedEvents(events);
     const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt);
+    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
 
     const effects = buildActualBoundaryPatchesForSailingDay({
       sailingDay: "2026-03-13",
@@ -47,11 +73,17 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
           LeftDock: undefined,
         }),
       ],
+      tripBySegmentKey: tripIdx,
     });
+
+    const seg0 = events[0]?.SegmentKey;
+    const ctx0 = seg0 ? tripIdx.get(seg0) : undefined;
 
     expect(effects).toEqual([
       {
-        SegmentKey: events[0]?.SegmentKey,
+        TripKey: ctx0?.TripKey,
+        ScheduleKey: seg0,
+        SegmentKey: seg0,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         ScheduledDeparture: at(8, 35),
@@ -81,8 +113,9 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       }),
     ]);
     const updatedAt = 0;
+    const tripIdx = tripIndexFromSeedEvents(events);
     const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt);
+    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
 
     const effects = buildActualBoundaryPatchesForSailingDay({
       sailingDay: "2026-03-13",
@@ -99,11 +132,17 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
           Speed: 0,
         }),
       ],
+      tripBySegmentKey: tripIdx,
     });
+
+    const seg1 = events[1]?.SegmentKey;
+    const ctx1 = seg1 ? tripIdx.get(seg1) : undefined;
 
     expect(effects).toEqual([
       {
-        SegmentKey: events[1]?.SegmentKey,
+        TripKey: ctx1?.TripKey,
+        ScheduleKey: seg1,
+        SegmentKey: seg1,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
         ScheduledDeparture: at(8, 35),
@@ -126,8 +165,9 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       }),
     ]);
     const updatedAt = 0;
+    const tripIdx = tripIndexFromSeedEvents(events);
     const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt);
+    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
 
     const effects = buildActualBoundaryPatchesForSailingDay({
       sailingDay: "2026-03-13",
@@ -144,6 +184,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
           Speed: 12,
         }),
       ],
+      tripBySegmentKey: tripIdx,
     });
 
     expect(effects).toEqual([]);
@@ -160,8 +201,9 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       }),
     ]);
     const updatedAt = 0;
+    const tripIdx = tripIndexFromSeedEvents(events);
     const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt);
+    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
 
     const effects = buildActualBoundaryPatchesForSailingDay({
       sailingDay: "2026-03-13",
@@ -179,6 +221,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
           Speed: 0,
         }),
       ],
+      tripBySegmentKey: tripIdx,
     });
 
     expect(effects).toEqual([]);
@@ -198,11 +241,16 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       index === 0 ? { ...event, EventOccurred: true as const } : event
     );
     const updatedAt = 0;
+    const tripIdx = tripIndexFromSeedEvents(withOccurred);
     const scheduledEvents = buildScheduledBoundaryEvents(
       withOccurred,
       updatedAt
     );
-    const actualEvents = buildActualBoundaryEvents(withOccurred, updatedAt);
+    const actualEvents = buildActualBoundaryEvents(
+      withOccurred,
+      updatedAt,
+      tripIdx
+    );
 
     const effects = buildActualBoundaryPatchesForSailingDay({
       sailingDay: "2026-03-13",
@@ -220,6 +268,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
           LeftDock: undefined,
         }),
       ],
+      tripBySegmentKey: tripIdx,
     });
 
     expect(effects).toEqual([]);

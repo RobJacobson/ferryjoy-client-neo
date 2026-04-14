@@ -42,6 +42,7 @@ import type * as domain_vesselTimeline_events_scheduleDepartureLookup from "../d
 import type * as domain_vesselTimeline_events_seed from "../domain/vesselTimeline/events/seed.js";
 import type * as domain_vesselTimeline_normalizedEvents from "../domain/vesselTimeline/normalizedEvents.js";
 import type * as domain_vesselTimeline_timelineEvents from "../domain/vesselTimeline/timelineEvents.js";
+import type * as domain_vesselTimeline_tripContextForActualRows from "../domain/vesselTimeline/tripContextForActualRows.js";
 import type * as domain_vesselTimeline_viewModel from "../domain/vesselTimeline/viewModel.js";
 import type * as functions_eventsActual_mutations from "../functions/eventsActual/mutations.js";
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
@@ -213,6 +214,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTimeline/events/seed": typeof domain_vesselTimeline_events_seed;
   "domain/vesselTimeline/normalizedEvents": typeof domain_vesselTimeline_normalizedEvents;
   "domain/vesselTimeline/timelineEvents": typeof domain_vesselTimeline_timelineEvents;
+  "domain/vesselTimeline/tripContextForActualRows": typeof domain_vesselTimeline_tripContextForActualRows;
   "domain/vesselTimeline/viewModel": typeof domain_vesselTimeline_viewModel;
   "functions/eventsActual/mutations": typeof functions_eventsActual_mutations;
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;

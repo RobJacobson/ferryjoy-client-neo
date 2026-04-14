@@ -9,6 +9,7 @@ import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { applyTickEventWrites } from "../../../vesselOrchestrator/applyTickEventWrites";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
@@ -744,6 +745,7 @@ const makeTrip = (
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
   Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,

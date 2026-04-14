@@ -4,9 +4,11 @@
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
+import { buildPhysicalActualEventKey } from "../../../../shared/physicalTripIdentity";
 import type { ConvexActualBoundaryEvent } from "../../../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../eventsScheduled/schemas";
+import { getSegmentKeyFromBoundaryKey } from "../../../eventsScheduled/segmentResolvers";
 import { loadVesselTimelineBackboneInputs } from "../loadBackboneInputs";
 
 const at = (hours: number, minutes: number, day = 25) =>
@@ -197,18 +199,36 @@ const makeScheduledEvent = (
 });
 
 const makeActualEvent = (
-  overrides: Partial<ConvexActualBoundaryEvent>
-): ConvexActualBoundaryEvent => ({
-  Key: "trip-1--dep-dock",
-  VesselAbbrev: "WEN",
-  SailingDay: "2026-03-25",
-  UpdatedAt: at(6, 0),
-  ScheduledDeparture: at(8, 0),
-  TerminalAbbrev: "P52",
-  EventOccurred: true,
-  EventActualTime: at(8, 2),
-  ...overrides,
-});
+  overrides: Partial<ConvexActualBoundaryEvent> & { Key?: string }
+): ConvexActualBoundaryEvent => {
+  const legacyBoundary = overrides.Key ?? "trip-1--dep-dock";
+  const merged = {
+    VesselAbbrev: "WEN" as const,
+    SailingDay: "2026-03-25" as const,
+    UpdatedAt: at(6, 0),
+    ScheduledDeparture: at(8, 0),
+    TerminalAbbrev: "P52",
+    EventOccurred: true as const,
+    EventActualTime: at(8, 2) as number | undefined,
+    ...overrides,
+  };
+  const eventType =
+    merged.EventType ??
+    (legacyBoundary.includes("arv-dock") ? "arv-dock" : "dep-dock");
+  const segment =
+    merged.ScheduleKey ?? getSegmentKeyFromBoundaryKey(legacyBoundary);
+  const tripKey = merged.TripKey ?? `TST 2026-03-25 12:00:00Z ${segment}`;
+  const EventKey =
+    merged.EventKey ?? buildPhysicalActualEventKey(tripKey, eventType);
+
+  return {
+    ...merged,
+    EventKey,
+    TripKey: tripKey,
+    ScheduleKey: segment,
+    EventType: eventType,
+  };
+};
 
 const makePredictedEvent = (
   overrides: Partial<ConvexPredictedBoundaryEvent>

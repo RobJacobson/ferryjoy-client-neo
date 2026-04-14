@@ -9,7 +9,7 @@ import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
 } from "domain/vesselTimeline/normalizedEvents";
-import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
+import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type {
   ConvexVesselTrip,
@@ -29,7 +29,7 @@ import type {
 
 type TaggedActualPatch = {
   vesselAbbrev: string;
-  patch: ConvexActualBoundaryPatch;
+  patch: ConvexActualBoundaryPatchPersistable;
   requiresSuccessfulUpsert: boolean;
 };
 
@@ -89,7 +89,9 @@ const tickEventWritesFromCompletedFact = (
   actualPatches: [
     buildDepartureActualPatchForTrip(fact.tripToComplete),
     buildArrivalActualPatchForTrip(fact.tripToComplete),
-  ].filter((patch): patch is ConvexActualBoundaryPatch => Boolean(patch)),
+  ].filter(
+    (patch): patch is ConvexActualBoundaryPatchPersistable => patch !== null
+  ),
   predictedEffects: [
     buildPredictedBoundaryClearEffect(fact.existingTrip),
     buildPredictedBoundaryProjectionEffect(fact.newTrip),
@@ -115,7 +117,7 @@ const shouldClearExistingPredictions = (
 const buildTaggedActualPatchesFromMessage = (
   message: CurrentTripActualEventMessage
 ): TaggedActualPatch[] => {
-  const patches: ConvexActualBoundaryPatch[] = [];
+  const patches: ConvexActualBoundaryPatchPersistable[] = [];
   const { events, finalProposed, vesselAbbrev, requiresSuccessfulUpsert } =
     message;
 
@@ -175,7 +177,7 @@ const buildTaggedPredictedEffectsFromMessage = (
 const filterTaggedActualPatches = (
   tagged: TaggedActualPatch[],
   successfulVessels: Set<string>
-): ConvexActualBoundaryPatch[] =>
+): ConvexActualBoundaryPatchPersistable[] =>
   tagged
     .filter(
       (t) =>
