@@ -36,6 +36,11 @@ import type * as domain_ml_training_pipeline from "../domain/ml/training/pipelin
 import type * as domain_timelineBackbone_buildTimelineBackbone from "../domain/timelineBackbone/buildTimelineBackbone.js";
 import type * as domain_timelineBackbone_index from "../domain/timelineBackbone/index.js";
 import type * as domain_timelineBackbone_mergeTimelineRows from "../domain/timelineBackbone/mergeTimelineRows.js";
+import type * as domain_timelineRows_bindActualRowsToTrips from "../domain/timelineRows/bindActualRowsToTrips.js";
+import type * as domain_timelineRows_buildActualRows from "../domain/timelineRows/buildActualRows.js";
+import type * as domain_timelineRows_buildPredictedProjectionEffects from "../domain/timelineRows/buildPredictedProjectionEffects.js";
+import type * as domain_timelineRows_buildScheduledRows from "../domain/timelineRows/buildScheduledRows.js";
+import type * as domain_timelineRows_index from "../domain/timelineRows/index.js";
 import type * as domain_vesselTimeline_events_history from "../domain/vesselTimeline/events/history.js";
 import type * as domain_vesselTimeline_events_index from "../domain/vesselTimeline/events/index.js";
 import type * as domain_vesselTimeline_events_liveUpdates from "../domain/vesselTimeline/events/liveUpdates.js";
@@ -211,6 +216,11 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineBackbone/buildTimelineBackbone": typeof domain_timelineBackbone_buildTimelineBackbone;
   "domain/timelineBackbone/index": typeof domain_timelineBackbone_index;
   "domain/timelineBackbone/mergeTimelineRows": typeof domain_timelineBackbone_mergeTimelineRows;
+  "domain/timelineRows/bindActualRowsToTrips": typeof domain_timelineRows_bindActualRowsToTrips;
+  "domain/timelineRows/buildActualRows": typeof domain_timelineRows_buildActualRows;
+  "domain/timelineRows/buildPredictedProjectionEffects": typeof domain_timelineRows_buildPredictedProjectionEffects;
+  "domain/timelineRows/buildScheduledRows": typeof domain_timelineRows_buildScheduledRows;
+  "domain/timelineRows/index": typeof domain_timelineRows_index;
   "domain/vesselTimeline/events/history": typeof domain_vesselTimeline_events_history;
   "domain/vesselTimeline/events/index": typeof domain_vesselTimeline_events_index;
   "domain/vesselTimeline/events/liveUpdates": typeof domain_vesselTimeline_events_liveUpdates;

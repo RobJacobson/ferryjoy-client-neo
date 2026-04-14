@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildActualBoundaryEventFromPatch } from "domain/vesselTimeline";
+import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
 import type { ConvexVesselTrip } from "../../schemas";
 import {
   buildArrivalActualPatchForTrip,

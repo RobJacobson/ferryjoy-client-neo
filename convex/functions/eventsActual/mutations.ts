@@ -5,7 +5,7 @@
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { buildActualBoundaryEventFromPatch } from "domain/vesselTimeline";
+import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
 import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import {

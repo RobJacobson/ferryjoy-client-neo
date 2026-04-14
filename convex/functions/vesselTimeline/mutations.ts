@@ -10,10 +10,12 @@ import {
   buildActualBoundaryPatchesForSailingDay,
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
+} from "domain/vesselTimeline";
+import {
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
   indexTripsBySegmentKey,
-} from "domain/vesselTimeline";
+} from "domain/timelineRows";
 import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
 import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
 import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";

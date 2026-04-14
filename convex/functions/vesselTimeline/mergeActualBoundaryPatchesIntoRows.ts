@@ -3,7 +3,7 @@
  * row shapes for same-day replace flows (hydration + live-location deltas).
  */
 
-import { buildActualBoundaryEventFromPatch } from "domain/vesselTimeline";
+import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
 import { buildPhysicalActualEventKey } from "../../shared/physicalTripIdentity";
 import {
   type ConvexActualBoundaryEvent,

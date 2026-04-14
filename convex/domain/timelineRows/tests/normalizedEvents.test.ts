@@ -13,7 +13,7 @@ import {
   buildPredictedBoundaryProjectionEffect,
   buildScheduledBoundaryEvents,
   type TripContextForActualRow,
-} from "../";
+} from "..";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);

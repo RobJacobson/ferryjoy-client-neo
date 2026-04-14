@@ -1,14 +1,14 @@
 /**
  * Assembles `TickEventWrites` from lifecycle facts and per-vessel messages.
  *
- * Owns imports of `domain/vesselTimeline` row builders and
+ * Owns imports of `domain/timelineRows` projection builders and
  * `actualBoundaryPatchesFromTrip`; lifecycle branches emit DTOs only.
  */
 
 import {
   buildPredictedBoundaryClearEffect,
   buildPredictedBoundaryProjectionEffect,
-} from "domain/vesselTimeline";
+} from "domain/timelineRows";
 import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type {

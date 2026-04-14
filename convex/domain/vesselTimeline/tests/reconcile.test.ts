@@ -9,10 +9,12 @@ import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselT
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
 import {
-  buildActualBoundaryPatchesForSailingDay,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
   type TripContextForActualRow,
+} from "../../timelineRows";
+import {
+  buildActualBoundaryPatchesForSailingDay,
 } from "../";
 
 const at = (hours: number, minutes: number) =>

@@ -18,7 +18,7 @@ import { mergeTimelineEvents } from "../timelineEvents";
 import {
   enrichActualBoundaryPatchesWithTripContext,
   type TripContextForActualRow,
-} from "../tripContextForActualRows";
+} from "../../timelineRows";
 import { buildActualBoundaryPatchesFromLocation } from "./liveUpdates";
 
 type VesselEventsByAbbrev<T extends { VesselAbbrev: string }> = Map<
