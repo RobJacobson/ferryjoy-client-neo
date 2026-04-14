@@ -12,7 +12,10 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
 
 /**
  * Build a departure (`dep-dock`) actual patch when the trip has `TripKey` and
- * `LeftDock` timestamp.
+ * a departure timestamp.
+ *
+ * Prefers the physical lifecycle boundary (`LeftDockActual`) and falls back to
+ * raw WSF `LeftDock` when needed.
  *
  * @param trip - Trip row with physical identity and departure time
  * @returns Patch for projection, or `null` when required fields are missing
@@ -23,7 +26,7 @@ export const buildDepartureActualPatchForTrip = (
   buildActualBoundaryPatchFromTrip(
     trip,
     "dep-dock",
-    trip.LeftDock,
+    trip.LeftDockActual ?? trip.LeftDock,
     "departing"
   );
 
