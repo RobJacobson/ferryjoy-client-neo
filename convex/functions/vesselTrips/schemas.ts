@@ -302,8 +302,7 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
-  StartTime: number;
-  ArriveOriginDockActual: number;
+  TripStart: number;
   PrevScheduledDeparture: number;
   PrevLeftDock: number;
 };

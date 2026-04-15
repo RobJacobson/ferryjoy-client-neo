@@ -51,11 +51,6 @@ import type {
   TerminalPairKey,
   TrainingWindow,
 } from "../shared/types";
-import {
-  getCoverageStartMs,
-  getDepartureMs,
-  getOriginArrivalMs,
-} from "../shared/unifiedTrip";
 import { predictWithModel } from "./applyModel";
 
 type ModelDoc = {
@@ -209,11 +204,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
     "Missing ArrivingTerminalAbbrev"
   );
 
-  requireTripField(getCoverageStartMs(trip), "Missing StartTime/TripStart");
-  const originArrivalMs = requireTripField(
-    getOriginArrivalMs(trip),
-    "Missing ArriveOriginDockActual/StartTime"
-  );
+  const tripStartMs = requireTripField(trip.TripStart, "Missing TripStart");
   const prevScheduledMs = requireTripField(
     trip.PrevScheduledDeparture,
     "Missing PrevScheduledDeparture"
@@ -226,10 +217,6 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
     trip.ScheduledDeparture,
     "Missing ScheduledDeparture"
   );
-  const currentDepartureMs = requireTripField(
-    getDepartureMs(trip),
-    "Missing DepartOriginActual/LeftDock"
-  );
 
   const currPairKey = formatTerminalPairKey(B, C) as TerminalPairKey;
   const meanAtDockMinutesForCurrPair =
@@ -237,7 +224,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
 
   const slackBeforeCurrScheduledDepartMinutes = Math.max(
     0,
-    minutesBetween(originArrivalMs, scheduledDepartMs)
+    minutesBetween(tripStartMs, scheduledDepartMs)
   );
 
   return {
@@ -251,14 +238,14 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
       toTerminalAbbrev: B,
       scheduledDepartMs: prevScheduledMs,
       actualDepartMs: prevLeftDockMs,
-      arrivalProxyMs: originArrivalMs,
+      arrivalProxyMs: tripStartMs,
       arrivalProxySource: "wsf_est_arrival",
     },
     currLeg: {
       fromTerminalAbbrev: B,
       toTerminalAbbrev: C,
       scheduledDepartMs,
-      actualDepartMs: currentDepartureMs ?? scheduledDepartMs,
+      actualDepartMs: trip.LeftDock ?? scheduledDepartMs,
     },
     currPairKey,
     slackBeforeCurrScheduledDepartMinutes,
@@ -346,7 +333,7 @@ export const predictTripValue = async (
  * then calculates the predicted arrival time as departure time + predicted duration.
  *
  * @param ctx - Convex action/mutation context
- * @param trip - Vessel trip data (must have a departure boundary)
+ * @param trip - Vessel trip data (must have LeftDock set)
  * @returns Object containing predicted arrival time and model MAE
  * @throws Error if LeftDock is missing or prediction fails
  */
@@ -358,10 +345,9 @@ export const predictArriveEta = async (
   mae: number;
   stdDev: number;
 }> => {
-  const departureMs = getDepartureMs(trip);
-  if (!departureMs) {
+  if (!trip.LeftDock) {
     throw new Error(
-      "Cannot predict ETA: vessel has not departed (DepartOriginActual/LeftDock is missing)"
+      "Cannot predict ETA: vessel has not departed (LeftDock is missing)"
     );
   }
 
@@ -373,7 +359,7 @@ export const predictArriveEta = async (
   } = await predictTripValue(ctx, trip, "at-sea-arrive-next");
 
   // Calculate predicted arrival time (departure time + predicted duration)
-  const predictedArrivalTime = departureMs + predictedDuration * 60000; // Convert minutes to milliseconds
+  const predictedArrivalTime = trip.LeftDock + predictedDuration * 60000; // Convert minutes to milliseconds
 
   return {
     predictedTime: predictedArrivalTime,
