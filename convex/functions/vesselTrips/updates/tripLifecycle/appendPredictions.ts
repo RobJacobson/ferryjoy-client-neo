@@ -30,7 +30,7 @@ type ModelDoc = {
  * Core prediction logic that:
  * - Skips specs where predictions already exist (avoid redundant work)
  * - Validates trip readiness via isPredictionReadyTrip
- * - Checks required fields (e.g., LeftDock for certain predictions)
+ * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
  * - Batches model loading when multiple predictions needed for efficiency
  *
  * @param ctx - Convex action context for running ML predictions
@@ -52,10 +52,13 @@ const computePredictions = async (
 
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    const departureMs =
-      trip.DepartOriginActual ?? trip.LeftDockActual ?? trip.LeftDock;
+    const departureMs = trip.DepartOriginActual;
 
-    if (specsToAttempt.some((spec) => spec.requiresLeftDock && !departureMs)) {
+    if (
+      specsToAttempt.some(
+        (spec) => spec.requiresDepartureActual && !departureMs
+      )
+    ) {
       return trip;
     }
 

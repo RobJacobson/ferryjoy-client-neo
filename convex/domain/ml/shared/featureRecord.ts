@@ -80,7 +80,7 @@ const getTimeContext = (scheduledDepartMs: number) => {
 const getPrevContext = (window: TrainingWindow) => {
   const prevTripDelayMinutes = minutesBetween(
     window.prevLeg.scheduledDepartMs,
-    window.prevLeg.actualDepartMs
+    window.prevLeg.actualDepartMs ?? window.prevLeg.scheduledDepartMs
   );
 
   return {
@@ -133,14 +133,15 @@ const getCurrContext = (window: TrainingWindow) => {
  */
 const getCurrSeaActuals = (window: TrainingWindow) => {
   const arrivalAtCurrMs = window.prevLeg.arrivalProxyMs;
+  const actualDepartMs = window.currLeg.actualDepartMs;
 
-  const currTripDelayMinutes = minutesBetween(
-    window.currLeg.scheduledDepartMs,
-    window.currLeg.actualDepartMs
-  );
+  const currTripDelayMinutes =
+    actualDepartMs !== undefined
+      ? minutesBetween(window.currLeg.scheduledDepartMs, actualDepartMs)
+      : 0;
   const currAtDockDurationMinutes =
-    arrivalAtCurrMs !== undefined
-      ? minutesBetween(arrivalAtCurrMs, window.currLeg.actualDepartMs)
+    arrivalAtCurrMs !== undefined && actualDepartMs !== undefined
+      ? minutesBetween(arrivalAtCurrMs, actualDepartMs)
       : 0;
 
   return {
@@ -227,6 +228,10 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
 
   // Extract arrival timestamp for target calculations
   const arrivalAtNextMs = window.currLeg.arrivalProxyMs;
+  const currActualDepartMs = window.currLeg.actualDepartMs;
+  const nextActualDepartMs = requireDepartNextWindow(window)
+    ? window.nextLeg.actualDepartMs
+    : undefined;
 
   // Return complete feature record with metadata, feature sets, and targets
   return {
@@ -241,10 +246,10 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
     // Prediction targets (what each model type aims to predict)
     targets: {
       // Current terminal departure delay (primary prediction target)
-      departCurrMinutes: minutesBetween(
-        window.currLeg.scheduledDepartMs,
-        window.currLeg.actualDepartMs
-      ),
+      departCurrMinutes:
+        currActualDepartMs !== undefined
+          ? minutesBetween(window.currLeg.scheduledDepartMs, currActualDepartMs)
+          : 0,
 
       // Arrival at next terminal from current scheduled departure
       // Used for "arrive-next" models in at-dock prediction context
@@ -256,17 +261,16 @@ export const createFeatureRecord = (window: TrainingWindow): FeatureRecord => {
       // Arrival at next terminal from current actual departure
       // Used for "arrive-next" models in at-sea prediction context
       arriveNextFromCurrActualMinutes:
-        arrivalAtNextMs !== undefined
-          ? minutesBetween(window.currLeg.actualDepartMs, arrivalAtNextMs)
+        arrivalAtNextMs !== undefined && currActualDepartMs !== undefined
+          ? minutesBetween(currActualDepartMs, arrivalAtNextMs)
           : null,
 
       // Next terminal departure delay (requires 3-leg context)
       // Only available when next leg data is present and eligible
       departNextFromNextScheduledMinutes: requireDepartNextWindow(window)
-        ? minutesBetween(
-            window.nextLeg.scheduledDepartMs,
-            window.nextLeg.actualDepartMs
-          )
+        ? nextActualDepartMs !== undefined
+          ? minutesBetween(window.nextLeg.scheduledDepartMs, nextActualDepartMs)
+          : null
         : null,
     },
 
