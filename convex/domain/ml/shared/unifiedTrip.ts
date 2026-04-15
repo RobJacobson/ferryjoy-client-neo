@@ -16,7 +16,15 @@ export type UnifiedTrip = {
   PrevTerminalAbbrev: string;
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
-  TripStart: number;
+  // Physical-boundary semantics.
+  ArriveOriginDockActual?: number;
+  ArriveDestDockActual?: number;
+  DepartOriginActual?: number;
+  // Coverage semantics.
+  StartTime?: number;
+  EndTime?: number;
+  // Legacy compatibility inputs carried through until the reader cleanup is complete.
+  TripStart?: number;
   ScheduledDeparture: number;
   LeftDock?: number;
   TripEnd?: number;
@@ -31,6 +39,9 @@ export type UnifiedTrip = {
  * Normalizes `ConvexVesselTrip` data for ML feature extraction and enforces
  * the minimum fields needed by the shared feature pipeline.
  *
+ * Canonical timestamp fields are carried through when present so downstream
+ * readers can observe the new contract without changing feature behavior yet.
+ *
  * @param trip - Convex vessel trip record
  * @returns Unified trip structure ready for feature extraction
  */
@@ -38,7 +49,7 @@ export const fromVesselTrip = (
   trip: ConvexVesselTrip | ConvexVesselTripWithML
 ): UnifiedTrip => {
   if (
-    !trip.TripStart ||
+    !trip.ArriveOriginDockActual ||
     !trip.PrevTerminalAbbrev ||
     !trip.DepartingTerminalAbbrev ||
     !trip.ArrivingTerminalAbbrev ||
@@ -54,6 +65,11 @@ export const fromVesselTrip = (
     PrevTerminalAbbrev: trip.PrevTerminalAbbrev,
     DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
+    ArriveOriginDockActual: trip.ArriveOriginDockActual,
+    ArriveDestDockActual: trip.ArriveDestDockActual,
+    DepartOriginActual: trip.DepartOriginActual,
+    StartTime: trip.StartTime,
+    EndTime: trip.EndTime,
     TripStart: trip.TripStart,
     ScheduledDeparture: trip.ScheduledDeparture,
     LeftDock: trip.LeftDock,

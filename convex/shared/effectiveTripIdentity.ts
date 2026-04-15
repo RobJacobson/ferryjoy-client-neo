@@ -14,7 +14,7 @@ type LocationLike = Pick<
   | "DepartingTerminalAbbrev"
   | "ArrivingTerminalAbbrev"
   | "ScheduledDeparture"
-  | "Key"
+  | "ScheduleKey"
 >;
 
 type TripLike = Pick<
@@ -25,8 +25,8 @@ type TripLike = Pick<
   | "ArrivingTerminalAbbrev"
   | "ScheduledDeparture"
   | "SailingDay"
-  | "Key"
-  | "NextKey"
+  | "ScheduleKey"
+  | "NextScheduleKey"
   | "NextScheduledDeparture"
 >;
 
@@ -39,9 +39,10 @@ export type EffectiveTripIdentity = {
   ArrivingTerminalAbbrev?: string;
   ScheduledDeparture?: number;
   SailingDay?: string;
-  Key?: string;
-  NextKey?: string;
+  ScheduleKey?: string;
+  NextScheduleKey?: string;
   NextScheduledDeparture?: number;
+  /** Schedule/live identity selection only; not a physical boundary signal. */
   source: EffectiveTripIdentitySource;
   conflictsLiveFeed: boolean;
 };
@@ -66,7 +67,7 @@ export const hasStableDockedTripIdentity = (
       location.AtDock &&
       location.LeftDock === undefined &&
       activeTrip.DepartingTerminalAbbrev === location.DepartingTerminalAbbrev &&
-      (activeTrip.Key ||
+      (activeTrip.ScheduleKey ||
         activeTrip.ScheduledDeparture !== undefined ||
         activeTrip.ArrivingTerminalAbbrev !== undefined)
   );
@@ -84,7 +85,7 @@ export const resolveEffectiveDockedTripIdentity = ({
     return {
       ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
       ScheduledDeparture: location.ScheduledDeparture,
-      Key: location.Key,
+      ScheduleKey: location.ScheduleKey,
       source: "live",
       conflictsLiveFeed: false,
     };
@@ -97,14 +98,14 @@ export const resolveEffectiveDockedTripIdentity = ({
       ScheduledDeparture:
         activeTrip?.ScheduledDeparture ?? location.ScheduledDeparture,
       SailingDay: activeTrip?.SailingDay,
-      Key: activeTrip?.Key ?? location.Key,
-      NextKey: activeTrip?.NextKey,
+      ScheduleKey: activeTrip?.ScheduleKey ?? location.ScheduleKey,
+      NextScheduleKey: activeTrip?.NextScheduleKey,
       NextScheduledDeparture: activeTrip?.NextScheduledDeparture,
       source: "active_trip",
       conflictsLiveFeed: conflictsWithLiveIdentity(location, {
         ArrivingTerminalAbbrev: activeTrip?.ArrivingTerminalAbbrev,
         ScheduledDeparture: activeTrip?.ScheduledDeparture,
-        Key: activeTrip?.Key,
+        ScheduleKey: activeTrip?.ScheduleKey,
       }),
     };
   }
@@ -114,14 +115,14 @@ export const resolveEffectiveDockedTripIdentity = ({
       ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
       ScheduledDeparture: scheduledSegment.DepartingTime,
       SailingDay: scheduledSegment.SailingDay,
-      Key: scheduledSegment.Key,
-      NextKey: scheduledSegment.NextKey,
+      ScheduleKey: scheduledSegment.Key,
+      NextScheduleKey: scheduledSegment.NextKey,
       NextScheduledDeparture: scheduledSegment.NextDepartingTime,
       source: scheduledSegmentSource,
       conflictsLiveFeed: conflictsWithLiveIdentity(location, {
         ArrivingTerminalAbbrev: scheduledSegment.ArrivingTerminalAbbrev,
         ScheduledDeparture: scheduledSegment.DepartingTime,
-        Key: scheduledSegment.Key,
+        ScheduleKey: scheduledSegment.Key,
       }),
     };
   }
@@ -129,7 +130,7 @@ export const resolveEffectiveDockedTripIdentity = ({
   return {
     ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
     ScheduledDeparture: location.ScheduledDeparture,
-    Key: location.Key,
+    ScheduleKey: location.ScheduleKey,
     source: "live",
     conflictsLiveFeed: false,
   };
@@ -149,18 +150,20 @@ export const applyEffectiveTripIdentityToLocation = <
     identity.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev,
   ScheduledDeparture:
     identity.ScheduledDeparture ?? location.ScheduledDeparture,
-  Key: identity.Key ?? location.Key,
+  ScheduleKey: identity.ScheduleKey ?? location.ScheduleKey,
 });
 
 const conflictsWithLiveIdentity = (
   location: LocationLike,
   identity: Pick<
     EffectiveTripIdentity,
-    "ArrivingTerminalAbbrev" | "ScheduledDeparture" | "Key"
+    "ArrivingTerminalAbbrev" | "ScheduledDeparture" | "ScheduleKey"
   >
 ) =>
   Boolean(
-    (location.Key && identity.Key && location.Key !== identity.Key) ||
+    (location.ScheduleKey &&
+      identity.ScheduleKey &&
+      location.ScheduleKey !== identity.ScheduleKey) ||
       (location.ScheduledDeparture !== undefined &&
         identity.ScheduledDeparture !== undefined &&
         location.ScheduledDeparture !== identity.ScheduledDeparture) ||

@@ -16,7 +16,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  * immediately without depending on `scheduledTrips`.
  *
  * @param ctx - Convex action context for database queries
- * @param baseTrip - Trip from baseTripFromLocation (has Key when derivable)
+ * @param baseTrip - Trip from baseTripFromLocation (has `ScheduleKey` when derivable)
  * @param existingTrip - Previous trip (for field reuse), undefined for first trip
  * @returns Trip enriched with schedule-derived fields if lookup succeeds
  */
@@ -25,18 +25,19 @@ export const appendFinalSchedule = async (
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): Promise<ConvexVesselTrip> => {
-  // If the trip key is not present, we cannot perform the lookup
-  const tripKey = baseTrip.Key ?? null;
-  if (!tripKey) {
+  // If we have no schedule segment string, we cannot perform the lookup
+  const segmentKey = baseTrip.ScheduleKey ?? null;
+  if (!segmentKey) {
     return baseTrip;
   }
 
-  // Reuse already-enriched schedule fields if the trip key is unchanged.
+  // Reuse already-enriched schedule fields if the segment is unchanged.
   // baseTrip may carry NextScheduledDeparture; preserve it to avoid redundant lookup.
-  if (existingTrip?.Key === tripKey) {
+  if (existingTrip?.ScheduleKey === segmentKey) {
     return {
       ...baseTrip,
-      NextKey: baseTrip.NextKey ?? existingTrip.NextKey,
+      ScheduleKey: baseTrip.ScheduleKey ?? existingTrip.ScheduleKey,
+      NextScheduleKey: baseTrip.NextScheduleKey ?? existingTrip.NextScheduleKey,
       NextScheduledDeparture:
         baseTrip.NextScheduledDeparture ?? existingTrip.NextScheduledDeparture,
     };
@@ -46,13 +47,14 @@ export const appendFinalSchedule = async (
   const scheduledSegment = await ctx.runQuery(
     internal.functions.eventsScheduled.queries
       .getScheduledDepartureSegmentBySegmentKey,
-    { segmentKey: tripKey }
+    { segmentKey }
   );
 
   // Prefer fresh lookup (new normalized events); fall back to carried values.
   return {
     ...baseTrip,
-    NextKey: scheduledSegment?.NextKey ?? baseTrip.NextKey,
+    ScheduleKey: scheduledSegment?.Key ?? baseTrip.ScheduleKey,
+    NextScheduleKey: scheduledSegment?.NextKey ?? baseTrip.NextScheduleKey,
     NextScheduledDeparture:
       scheduledSegment?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };

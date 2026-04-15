@@ -78,7 +78,7 @@ const makeLocation = (
   RouteAbbrev: "ana-sj",
   VesselPositionNum: 1,
   TimeStamp: new Date("2026-03-13T03:08:47-07:00").getTime(),
-  Key: undefined,
+  ScheduleKey: undefined,
   DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,

@@ -4,6 +4,7 @@
 
 import { ScrollView } from "react-native";
 import { Text, View } from "@/components/ui";
+import { getTripListKeyTimeMs } from "../TimelineFeatures/shared/utils";
 import type { TimelineItem } from "./types";
 import { VesselTripTimeline } from "./VesselTripTimeline";
 
@@ -28,9 +29,7 @@ export const VesselTripTimelineList = ({
       {items.map(({ trip, vesselLocation }) => (
         <VesselTripTimeline
           key={`${trip.VesselAbbrev}-${
-            trip.TripStart?.getTime() ??
-            trip.ArriveDest?.getTime() ??
-            "no-start"
+            getTripListKeyTimeMs(trip) ?? "no-start"
           }`}
           trip={trip}
           vesselLocation={vesselLocation}

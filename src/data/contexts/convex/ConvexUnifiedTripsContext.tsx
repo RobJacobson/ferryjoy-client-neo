@@ -228,33 +228,42 @@ export const useUnifiedTrips = () => {
 // ============================================================================
 
 /**
- * Build a record mapping composite Key to unified trip data with denormalized fields.
- * Only includes trips that have a Key.
+ * Build a record mapping schedule segment key to unified trip data with denormalized fields.
+ * Scheduled rows use `Key`; vessel trips use `ScheduleKey` when aligned.
  *
  * @param scheduledTrips - Direct scheduled trips (all have Key)
- * @param activeVesselTrips - Active vessel trips (Key optional)
- * @param completedVesselTrips - Completed vessel trips (Key optional)
- * @returns Record mapping Key to UnifiedTrip
+ * @param activeVesselTrips - Active vessel trips (ScheduleKey optional)
+ * @param completedVesselTrips - Completed vessel trips (ScheduleKey optional)
+ * @returns Record mapping segment key to UnifiedTrip
  */
 const buildUnifiedTripRecord = (
   scheduledTrips: ScheduledTrip[],
   activeVesselTrips: VesselTrip[],
   completedVesselTrips: VesselTrip[]
 ): UnifiedTripRecord => {
-  const keys = new Set(
-    [scheduledTrips, activeVesselTrips, completedVesselTrips].flatMap((trips) =>
-      trips.map((t) => t.Key).filter((k): k is string => k != null)
-    )
-  );
+  const keys = new Set<string>();
+  for (const t of scheduledTrips) {
+    keys.add(t.Key);
+  }
+  for (const t of activeVesselTrips) {
+    if (t.ScheduleKey) keys.add(t.ScheduleKey);
+  }
+  for (const t of completedVesselTrips) {
+    if (t.ScheduleKey) keys.add(t.ScheduleKey);
+  }
 
   const scheduledByKey = new Map(
     scheduledTrips.map((t) => [t.Key, t] as const)
   );
   const activeByKey = new Map(
-    activeVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : []))
+    activeVesselTrips.flatMap((t) =>
+      t.ScheduleKey ? [[t.ScheduleKey, t] as const] : []
+    )
   );
   const completedByKey = new Map(
-    completedVesselTrips.flatMap((t) => (t.Key ? [[t.Key, t] as const] : []))
+    completedVesselTrips.flatMap((t) =>
+      t.ScheduleKey ? [[t.ScheduleKey, t] as const] : []
+    )
   );
 
   return Object.fromEntries(

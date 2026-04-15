@@ -1,0 +1,11 @@
+{
+  /* Secondary project: Convex test files import bun:test; main tsconfig uses
+   * types: [] and excludes *.test.ts, so this config adds @types/bun for tests.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["./**/*.test.ts", "./**/*.test.tsx"],
+  "exclude": ["./_generated", "./**/__tests__/**"]
+}

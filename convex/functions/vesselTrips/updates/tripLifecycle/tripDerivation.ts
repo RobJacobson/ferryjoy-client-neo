@@ -8,6 +8,11 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
+import {
+  getPhysicalDepartureStamp,
+  rawDepartureIsContradictory,
+  resolveDebouncedPhysicalBoundaries,
+} from "./physicalDockSeaDebounce";
 
 export type BaseTripMode = "start" | "continue";
 
@@ -21,8 +26,8 @@ export type DerivedTripInputs = {
   continuingArrivingTerminalAbbrev: string | undefined;
   currentScheduledDeparture: number | undefined;
   continuingScheduledDeparture: number | undefined;
-  startKey: string | undefined;
-  continuingKey: string | undefined;
+  startScheduleKey: string | undefined;
+  continuingScheduleKey: string | undefined;
   startSailingDay: string | undefined;
   continuingSailingDay: string | undefined;
   currentIsTripStartReady: boolean;
@@ -43,7 +48,10 @@ export const hasTripEvidence = (
 ): existingTrip is ConvexVesselTrip =>
   Boolean(
     existingTrip &&
-      (existingTrip.LeftDock !== undefined ||
+      (existingTrip.DepartOriginActual !== undefined ||
+        existingTrip.ArriveDestDockActual !== undefined ||
+        existingTrip.LeftDock !== undefined ||
+        existingTrip.LeftDockActual !== undefined ||
         existingTrip.ArriveDest !== undefined)
   );
 
@@ -61,15 +69,18 @@ export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DockDepartureState => {
-  const leftDockTime = currLocation.LeftDock ?? existingTrip?.LeftDock;
+  const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
+  const { didJustLeaveDock } = resolveDebouncedPhysicalBoundaries(
+    existingTrip,
+    currLocation
+  );
+  const leftDockTime = rawDepartureIsContradictory(existingTrip, currLocation)
+    ? persistedDeparture
+    : (currLocation.LeftDock ?? persistedDeparture);
 
   return {
     leftDockTime,
-    didJustLeaveDock: Boolean(
-      existingTrip &&
-        existingTrip.LeftDock === undefined &&
-        currLocation.LeftDock !== undefined
-    ),
+    didJustLeaveDock,
   };
 };
 
@@ -90,18 +101,19 @@ export const deriveTripInputs = (
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
+  const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
   const shouldPreserveDockBoundaryOwner = Boolean(
     existingTrip?.AtDock &&
       existingTrip.DepartingTerminalAbbrev ===
         currLocation.DepartingTerminalAbbrev &&
       // While the vessel remains docked, preserve the boundary owner for the
       // current dock interval so feed omissions do not churn the active trip.
-      ((existingTrip.LeftDock === undefined && currLocation.AtDock) ||
+      ((persistedDeparture === undefined && currLocation.AtDock) ||
         // On the exact leave-dock tick, write the departure actual to the
         // boundary that ended the dock interval and starts the sea interval.
         // Raw feed identity fields can transiently jump ahead as LeftDock first
         // appears, but that should not reassign ownership of the departure.
-        (existingTrip.LeftDock === undefined &&
+        (persistedDeparture === undefined &&
           currLocation.LeftDock !== undefined))
   );
   const continuingArrivingTerminalAbbrev = shouldPreserveDockBoundaryOwner
@@ -132,11 +144,11 @@ export const deriveTripInputs = (
     continuingArrivingTerminalAbbrev,
     currentScheduledDeparture,
     continuingScheduledDeparture,
-    startKey: currentIdentity.Key,
-    continuingKey:
-      shouldPreserveDockBoundaryOwner && existingTrip?.Key
-        ? existingTrip.Key
-        : continuingIdentity.Key,
+    startScheduleKey: currentIdentity.ScheduleKey,
+    continuingScheduleKey:
+      shouldPreserveDockBoundaryOwner && existingTrip?.ScheduleKey
+        ? existingTrip.ScheduleKey
+        : continuingIdentity.ScheduleKey,
     startSailingDay: currentIdentity.SailingDay,
     continuingSailingDay: continuingIdentity.SailingDay,
     currentIsTripStartReady: currentIdentity.isTripStartReady,

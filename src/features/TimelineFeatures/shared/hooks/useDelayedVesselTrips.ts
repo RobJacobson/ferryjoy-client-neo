@@ -9,6 +9,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterval } from "@/shared/hooks";
 import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
+import {
+  getCoverageEndTime,
+  hasTripCoverageEnded,
+} from "../utils/tripTimeHelpers";
 
 const HOLD_DURATION_MS = 30 * 1000; // 30 seconds
 
@@ -40,7 +44,7 @@ export type DelayedVesselTripsResult = {
  *
  * Tracks current trips for each vessel and ensures that when a trip completes
  * (disappears from activeTrips), it remains in the display list for 30 seconds
- * with an injected TripEnd timestamp.
+ * with an injected {@link VesselTrip.EndTime} (coverage close).
  *
  * Handles preemption: if a new trip starts while the previous is in its hold
  * period, the old trip continues to be shown until the hold expires.
@@ -102,22 +106,22 @@ export const useDelayedVesselTrips = (
         // No previous: show active or nothing
         resolvedTrip = activeTrip ?? null;
       } else if (!activeTrip) {
-        // Trip disappeared: inject TripEnd, hold for 30s, then clear
-        const ended = prevTrip.TripEnd
+        // Trip disappeared: inject EndTime, hold for 30s, then clear
+        const ended = hasTripCoverageEnded(prevTrip)
           ? prevTrip
-          : { ...prevTrip, TripEnd: new Date(nowMs) };
-        const endedAtMs = ended.TripEnd?.getTime() ?? nowMs;
+          : { ...prevTrip, EndTime: new Date(nowMs) };
+        const endedAtMs = getCoverageEndTime(ended)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? ended : null;
-      } else if (prevTrip.Key === activeTrip.Key) {
+      } else if (prevTrip.TripKey === activeTrip.TripKey) {
         // Same trip: allow updates from active
         resolvedTrip = activeTrip;
       } else {
         // Different trip (new one started): hold previous for 30s, then show new
-        const endedPrev = prevTrip.TripEnd
+        const endedPrev = hasTripCoverageEnded(prevTrip)
           ? prevTrip
-          : { ...prevTrip, TripEnd: new Date(nowMs) };
-        const endedAtMs = endedPrev.TripEnd?.getTime() ?? nowMs;
+          : { ...prevTrip, EndTime: new Date(nowMs) };
+        const endedAtMs = getCoverageEndTime(endedPrev)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? endedPrev : activeTrip;
       }
@@ -126,7 +130,11 @@ export const useDelayedVesselTrips = (
         nextTrips[abbrev] = resolvedTrip;
 
         // When holding a completed trip, freeze location; otherwise use current
-        if (resolvedTrip.TripEnd && prevTrip && locationsByAbbrev[abbrev]) {
+        if (
+          hasTripCoverageEnded(resolvedTrip) &&
+          prevTrip &&
+          locationsByAbbrev[abbrev]
+        ) {
           nextLocations[abbrev] = locationsByAbbrev[abbrev];
         } else if (currentLocation) {
           nextLocations[abbrev] = currentLocation;
@@ -134,11 +142,11 @@ export const useDelayedVesselTrips = (
 
         // On first entering hold: capture actual arrival from location (rounded to minute)
         if (
-          resolvedTrip.TripEnd &&
-          !prevTrip?.TripEnd &&
+          hasTripCoverageEnded(resolvedTrip) &&
+          !hasTripCoverageEnded(prevTrip) &&
           currentLocation?.TimeStamp
         ) {
-          resolvedTrip.TripEnd = roundToMinute(
+          resolvedTrip.EndTime = roundToMinute(
             currentLocation.TimeStamp.getTime()
           );
         }

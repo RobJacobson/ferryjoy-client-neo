@@ -1,10 +1,3 @@
-/**
- * Build completed trip with TripEnd, durations, and actualized predictions.
- *
- * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
- * to the persisted completed trip object.
- */
-
 import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -14,72 +7,58 @@ import type {
 import { calculateTimeDelta } from "shared/durationUtils";
 
 /**
- * Build completed trip with TripEnd, AtSeaDuration, and TotalDuration.
+ * Build completed trip with canonical end-time, arrival, and duration fields.
  *
- * Adds TripEnd, AtSeaDuration, TotalDuration, and same-trip prediction actuals
- * to the final completed trip.
+ * Completion is the last safe chance to write the canonical destination
+ * arrival when the lifecycle path has a trusted arrival fact. When the caller
+ * indicates the close is synthetic, the row still closes at `currLocation.TimeStamp`
+ * but `ArriveDestDockActual` stays undefined.
  *
  * @param existingTrip - Trip being completed
  * @param currLocation - Current location with TripEnd timestamp
+ * @param hasTrustedArrival - Whether this completion represents a real arrival
  * @returns Completed trip with all completion fields set
  */
 export const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
-  currLocation: ConvexVesselLocation
+  currLocation: ConvexVesselLocation,
+  hasTrustedArrival: boolean
 ): ConvexVesselTripWithML => {
-  const effectiveArrivalTime = getEffectiveArrivalTime(
-    existingTrip,
-    currLocation.TimeStamp
-  );
+  const completionTime = currLocation.TimeStamp;
+  const trustedArrivalTime = hasTrustedArrival ? completionTime : undefined;
   const withTripEnd = {
     ...existingTrip,
-    ArriveDest: effectiveArrivalTime,
-    TripEnd: currLocation.TimeStamp,
+    ArrivingTerminalAbbrev:
+      existingTrip.ArrivingTerminalAbbrev ??
+      currLocation.DepartingTerminalAbbrev,
+    ArriveOriginDockActual: existingTrip.ArriveOriginDockActual,
+    ArriveDestDockActual: trustedArrivalTime,
+    DepartOriginActual: existingTrip.DepartOriginActual,
+    StartTime: existingTrip.StartTime,
+    EndTime: completionTime,
+    ArriveDest: trustedArrivalTime,
+    TripEnd: completionTime,
   };
+  const departureForDurations =
+    withTripEnd.DepartOriginActual ??
+    withTripEnd.LeftDockActual ??
+    withTripEnd.LeftDock;
+  const tripStartForDurations = withTripEnd.StartTime ?? withTripEnd.TripStart;
+  const arrivalForDurations = trustedArrivalTime ?? completionTime;
+
   const withDurations = {
     ...withTripEnd,
     AtSeaDuration: calculateTimeDelta(
-      withTripEnd.LeftDock,
-      effectiveArrivalTime
+      departureForDurations,
+      arrivalForDurations
     ),
-    TotalDuration: calculateTimeDelta(
-      withTripEnd.TripStart,
-      effectiveArrivalTime
-    ),
+    TotalDuration: calculateTimeDelta(tripStartForDurations, completionTime),
+    // Keep compatibility mirrors aligned with the canonical fields.
+    AtDockActual:
+      withTripEnd.ArriveOriginDockActual ?? withTripEnd.AtDockActual,
+    LeftDockActual:
+      withTripEnd.DepartOriginActual ?? withTripEnd.LeftDockActual,
   };
 
   return actualizePredictionsOnTripComplete(withDurations);
-};
-
-/**
- * Choose a safe arrival timestamp for trip completion.
- *
- * Falls back to the current tick when the carried `ArriveDest` is missing or
- * would place arrival before the trip started or left dock.
- *
- * @param existingTrip - Trip being completed
- * @param fallbackArrivalTime - Current tick timestamp in epoch milliseconds
- * @returns Arrival timestamp safe to persist on the completed trip
- */
-const getEffectiveArrivalTime = (
-  existingTrip: ConvexVesselTrip,
-  fallbackArrivalTime: number
-): number => {
-  const candidateArrivalTime = existingTrip.ArriveDest;
-
-  if (candidateArrivalTime === undefined) {
-    return fallbackArrivalTime;
-  }
-
-  if (
-    (existingTrip.LeftDock !== undefined &&
-      candidateArrivalTime < existingTrip.LeftDock) ||
-    (existingTrip.TripStart !== undefined &&
-      candidateArrivalTime < existingTrip.TripStart)
-  ) {
-    // Guard against stale feed values that would make the trip go backward.
-    return fallbackArrivalTime;
-  }
-
-  return candidateArrivalTime;
 };

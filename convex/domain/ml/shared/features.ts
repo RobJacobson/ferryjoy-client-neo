@@ -50,12 +50,14 @@ export type Features = ReturnType<typeof extractFeatures>;
  * @returns Comprehensive feature object for ML models
  */
 export function extractFeatures(trip: UnifiedTrip) {
-  // Extract time-of-day features using radial basis functions
+  // Coverage / schedule semantics: time-of-day still comes from the scheduled
+  // departure clock because it describes the trip's planned service window.
   const schedDepartDate = new Date(trip.ScheduledDeparture);
   const pacific = getPacificTimeComponents(schedDepartDate);
   const timeFeatures = extractTimeFeatures(pacific);
 
-  // Calculate previous leg context for arrival time estimation
+  // Physical-boundary semantics: compare the prior sailing's trusted arrival at
+  // the current dock against the historical expectation for that route.
   const prevLegPairKey = formatTerminalPairKey(
     trip.PrevTerminalAbbrev,
     trip.DepartingTerminalAbbrev
@@ -69,20 +71,25 @@ export function extractFeatures(trip: UnifiedTrip) {
   // Measure how actual arrival deviated from the expected schedule-based arrival
   const arrivalVsEstimatedScheduleMinutes = getMinutesDelta(
     estimatedArrivalAtDepartingTerminal,
-    trip.TripStart
+    trip.ArriveOriginDockActual
   );
 
+  // Coverage / physical split: slack is schedule-based, but it is anchored to
+  // the canonical origin-arrival actual rather than the legacy TripStart alias.
+  const arriveOriginMs = trip.ArriveOriginDockActual;
+  const departOriginMs = trip.DepartOriginActual;
+  const arriveDestMs = trip.ArriveDestDockActual;
+
   // Calculate slack time: available time between arrival and scheduled departure
-  // Key "mode" signals available at arrival time (TripStart) even before LeftDock
   // - slackBeforeDepartureMinutes: how many minutes between dock arrival and sched depart (>= 0)
   // - arrivalAfterScheduledDepartureMinutes: how many minutes late the vessel arrived relative to sched depart (>= 0)
   const slackBeforeDepartureMinutes = Math.max(
     0,
-    getMinutesDelta(trip.TripStart, trip.ScheduledDeparture)
+    getMinutesDelta(arriveOriginMs, trip.ScheduledDeparture)
   );
   const arrivalAfterScheduledDepartureMinutes = Math.max(
     0,
-    getMinutesDelta(trip.ScheduledDeparture, trip.TripStart)
+    getMinutesDelta(trip.ScheduledDeparture, arriveOriginMs)
   );
 
   // Split arrival deviation into positive (late) and negative (early) components
@@ -98,10 +105,10 @@ export function extractFeatures(trip: UnifiedTrip) {
   return {
     timeFeatures, // Time-of-day features (12 radial basis functions)
     isWeekend: pacific.dayOfWeek === 0 || pacific.dayOfWeek === 6 ? 1 : 0, // Binary weekend indicator
-    tripDelay: getMinutesDelta(trip.ScheduledDeparture, trip.LeftDock), // Actual delay from scheduled departure
-    atDockDuration: getMinutesDelta(trip.TripStart, trip.LeftDock), // Time spent at dock
-    atSeaDuration: getMinutesDelta(trip.LeftDock, trip.TripEnd), // Time spent at sea
-    totalDuration: getMinutesDelta(trip.TripStart, trip.TripEnd), // Total trip duration
+    tripDelay: getMinutesDelta(trip.ScheduledDeparture, departOriginMs), // Actual delay from scheduled departure
+    atDockDuration: getMinutesDelta(arriveOriginMs, departOriginMs), // Time spent at dock
+    atSeaDuration: getMinutesDelta(departOriginMs, arriveDestMs), // Time spent at sea
+    totalDuration: getMinutesDelta(arriveOriginMs, arriveDestMs), // Total trip duration
     prevLegMeanAtSeaMinutes, // Historical average duration for previous leg
     arrivalVsEstimatedScheduleMinutes, // Signed deviation from expected arrival time
     arrivalAfterEstimatedScheduleMinutes, // Minutes late vs expected (≥ 0)
@@ -113,7 +120,7 @@ export function extractFeatures(trip: UnifiedTrip) {
       trip.PrevScheduledDeparture,
       trip.PrevLeftDock
     ),
-    prevAtSeaDuration: getMinutesDelta(trip.PrevLeftDock, trip.TripStart), // Previous leg actual duration
+    prevAtSeaDuration: getMinutesDelta(trip.PrevLeftDock, arriveOriginMs), // Previous leg actual duration
     // FEATURE_GROUP: MeanAtDockDerived (DISABLED)
     // lateArrival: lateArrival(trip, slackBeforeDepartureMinutes), // Schedule pressure feature (clamped at 1.5x mean)
   };
@@ -144,8 +151,8 @@ export function extractFeatures(trip: UnifiedTrip) {
 //   slackBeforeDepartureMinutes: number
 // ): number => {
 //   // This calculation uses only arrival time + schedule, so it's available at prediction
-//   // time when actual departure (LeftDock) isn't known yet
-//   if (!trip.TripStart || !trip.ScheduledDeparture) {
+//   // time when actual departure is not known yet.
+//   if (!trip.ArriveOriginDockActual || !trip.ScheduledDeparture) {
 //     return 0;
 //   }
 //

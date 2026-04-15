@@ -1,9 +1,25 @@
 # Design Spec: Vessel Trip Identity and Timeline Actuals Redesign
 
 Date prepared: 2026-04-12  
-Status: proposed design, not yet implemented  
+Status: implemented and updated through 2026-04-14  
 Primary audience: a new agent or engineer who has not previously worked on this backend  
 Scope: `activeVesselTrips`, `completedVesselTrips`, `eventsActual`, and the `VesselTimeline` backbone merge
+
+## Cutover Assumption
+
+This spec now assumes a clean-slate data cutover before the lifecycle redesign is considered complete.
+
+Specifically:
+
+- existing Convex vessel-trip data may be wiped before the `TripKey` lifecycle cutover is finalized
+- runtime support for pre-`TripKey` rows is therefore not a design requirement
+- legacy `Key` dual-write still remains necessary during the compatibility window because downstream projection code continues to depend on schedule-shaped identity until PR 3
+
+Practical consequence:
+
+- additive schema optionality from PR 1 is still acceptable
+- post-PR-2 runtime code should assume newly written trip rows have `TripKey`
+- migration-only helpers or tests that exist solely to rescue old rows without `TripKey` should be treated as temporary and removable
 
 ## Purpose
 
@@ -29,16 +45,44 @@ The main change is to decouple:
 from
 - optional schedule alignment
 
+## Implementation Status
+
+This redesign is now substantially implemented in the current backend.
+
+The landed backend state is:
+
+- `TripKey` is the durable physical identity for vessel trips
+- `ScheduleKey` is optional schedule attachment only
+- `eventsActual` rows are keyed by physical `EventKey`
+- timeline actual attachment uses `ScheduleKey + EventType`
+- same-day reseed preserves physical-only actual rows
+- same-day reseed can also recreate physical-only actual rows when no safe
+  scheduled row exists
+
+Two final implementation decisions are important:
+
+1. departure actual projection prefers `LeftDockActual` and falls back to raw
+   WSF `LeftDock`
+2. same-day reseed uses the stronger physical-first Option B behavior:
+   physical-only actuals may be recreated from both:
+   - physical trip rows
+   - live vessel-location reconciliation
+
+The staged rollout sections later in this document are now historical context,
+not a list of pending work.
+
 ## Read First
 
 This design builds directly on the current backend architecture and recent incident reports. A new agent should read these documents first:
 
 - [README.md](../../README.md)
+- [convex/domain/README.md](../../convex/domain/README.md)
 - [convex/functions/vesselOrchestrator/README.md](../../convex/functions/vesselOrchestrator/README.md)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
-- [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
 - [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md)
 - [docs/convex-mcp-cheat-sheet.md](../convex-mcp-cheat-sheet.md)
+- [docs/handoffs/vesseltimeline-reconciliation-memo-2026-04-14.md](./vesseltimeline-reconciliation-memo-2026-04-14.md)
+- [docs/handoffs/vessel-timeline-module-boundary-handoff-2026-04-13.md](./vessel-timeline-module-boundary-handoff-2026-04-13.md)
 
 Recent incident and forensic context:
 
@@ -103,24 +147,25 @@ Why it matters here:
 - the redesign should change trip identity semantics without discarding the existing write-side lifecycle pipeline
 - `eventsActual` should remain a projection table, but with better semantics
 
-### VesselTimeline backend README
+### Timeline domain README
 
-Source: [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
+Source: [convex/domain/README.md](../../convex/domain/README.md)
 
 Important takeaways:
 
-- timeline backbone is intentionally same-day only
-- backend timeline query reads:
-  - `eventsScheduled`
-  - `eventsActual`
-  - `eventsPredicted`
-- client derives active interval from the merged backbone
-- backend no longer reads `vesselLocations` at query time
+- vessel sailing-day timeline logic is now split by pipeline:
+  - `timelineBackbone/`
+  - `timelineReseed/`
+  - `timelineRows/`
+- query-time backbone remains same-day only
+- read-time merge is separate from reseed/write-side assembly
+- shared row builders and merge helpers live in `timelineRows/`
 
 Why it matters here:
 
 - this split is good and should be preserved
-- the redesign should improve event semantics, not re-centralize live vessel state into the timeline query
+- the redesign improved event semantics without re-centralizing live vessel
+  state into the timeline query
 
 ### VesselTimeline client architecture doc
 
@@ -202,7 +247,7 @@ Per [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vess
 
 ### Current timeline responsibilities
 
-Per [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md) and [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md):
+Per [convex/domain/README.md](../../convex/domain/README.md) and [src/features/VesselTimeline/docs/ARCHITECTURE.md](../../src/features/VesselTimeline/docs/ARCHITECTURE.md):
 
 - the backend timeline query is same-day only
 - it reads:
@@ -213,6 +258,27 @@ Per [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/
 - the client derives the active interval from that backbone
 
 This split is good and should be preserved.
+
+## Current Code Map
+
+The legacy `convex/domain/vesselTimeline/` surface has been removed. Current
+backend ownership is:
+
+- `convex/domain/timelineBackbone/`
+  - read-time same-day merge and final backbone assembly
+- `convex/domain/timelineRows/`
+  - shared row builders, trip-context binding, and `mergeTimelineRows(...)`
+- `convex/domain/timelineReseed/`
+  - schedule seeding, history hydration, live reconciliation, and
+    `buildReseedTimelineSlice(...)`
+
+Primary current entrypoints:
+
+- [convex/domain/timelineBackbone/index.ts](../../convex/domain/timelineBackbone/index.ts)
+- [convex/domain/timelineRows/index.ts](../../convex/domain/timelineRows/index.ts)
+- [convex/domain/timelineReseed/index.ts](../../convex/domain/timelineReseed/index.ts)
+- [convex/functions/vesselTimeline/actions.ts](../../convex/functions/vesselTimeline/actions.ts)
+- [convex/functions/vesselTimeline/mutations.ts](../../convex/functions/vesselTimeline/mutations.ts)
 
 ## Problem Statement
 
@@ -429,8 +495,9 @@ Format:
 
 Where:
 
-- `DateTime` is `Date.now()` rounded to seconds
+- `DateTime` comes from the triggering `VesselLocation.TimeStamp` field
 - encoded in ISO format
+- truncated to whole seconds if needed
 - with `T` replaced by a space
 
 Example:
@@ -440,6 +507,8 @@ CAT 2026-04-12 18:21:55Z
 ```
 
 This value must be assigned once when the trip instance is created and never recomputed.
+
+It should be tied to the vessel-location tick that caused the lifecycle transition, not the backend wall-clock time when the server happened to process that tick.
 
 ### Optional schedule identity: `ScheduleKey`
 
@@ -466,7 +535,8 @@ A physical trip is defined as:
 This is consistent with the user's intended simplification:
 
 - there is one current trip instance
-- if `LeftDockActual` is null, the vessel is still in the dock portion of that trip
+- `AtDockActual` marks when the vessel entered the dock portion of the current trip
+- if `LeftDockActual` is null, the vessel has not yet left the dock portion of the current trip
 - arrival at the next dock ends the current trip and begins a new one
 
 ### Trip fields in end state
@@ -479,6 +549,7 @@ Desired end-state core fields for `activeVesselTrips` and `completedVesselTrips`
 - `DepartingTerminalAbbrev`
 - `ArrivingTerminalAbbrev?`
 - `TripStart`
+- `AtDockActual`
 - `LeftDockActual?`
 - `TripEnd?`
 - `InService`
@@ -494,10 +565,17 @@ Existing optional prediction and helper fields may remain if still needed.
 - practically: when the vessel enters the docked phase at the terminal where this trip starts
 - for a replacement trip created immediately after an arrival, this is the arrival/start boundary of the new dock interval
 
+#### `AtDockActual`
+
+- the observed timestamp when the vessel entered the dock portion of the current trip
+- this is the positive physical marker that the vessel is at dock for the current trip
+- preferred field for testing whether the current trip is in its dock phase
+- unlike `LeftDockActual`, this does not rely on checking for undefined as the primary at-dock signal
+
 #### `LeftDockActual?`
 
 - the observed departure timestamp from the starting terminal
-- null means the vessel is still in the dock portion of the current trip
+- null means the vessel has not yet left the dock portion of the current trip
 
 #### `TripEnd?`
 
@@ -612,8 +690,13 @@ Proposed end-state fields:
 - `TerminalAbbrev`
 - `EventType`
 - `EventActualTime`
+- `SailingDay`
+- `ScheduledDeparture`
 
-Optional compatibility fields may remain temporarily during migration.
+Notably absent in the desired end state:
+
+- no separate persisted legacy boundary `Key` on `eventsActual`
+- no schedule-shaped compatibility identifier whose only purpose is to support old merge code
 
 ### Semantics
 
@@ -645,6 +728,8 @@ This is the crucial change that lets physical actuals exist even when the vessel
 - a real departure without a safe schedule match
 - a real arrival without a safe schedule match
 - a docked/off-service state that invalidates prior schedule continuity
+
+It must do so without inventing or persisting a schedule-boundary compatibility key.
 
 ### Why this still preserves compartmentalization
 
@@ -685,11 +770,16 @@ The backend query will remain the official caller, but the function should be pu
 
 The merge should attach actuals to scheduled rows in this order:
 
-1. exact `ScheduleKey` match
+1. exact `ScheduleKey + EventType` match
 2. carefully bounded fallback rules
 3. no match if no safe rule applies
 
 Fallback rules should be much more conservative than current key-based assumptions.
+
+Important:
+
+- the merge should not rely on a persisted `eventsActual.Key`
+- if a schedule-boundary string is needed transiently inside read code, derive it from `ScheduleKey` and `EventType` instead of storing it on the row
 
 ### What unmatched physical actuals mean
 
@@ -723,6 +813,89 @@ At the end of all stages:
 - the backend remains authoritative for the public timeline backbone
 - missing or unsafe schedule alignment no longer forces false identity
 
+## Final Implemented Decisions
+
+This section supersedes any ambiguity in the original proposal.
+
+### 1. Physical departure source
+
+Departure actual projection now uses:
+
+1. `LeftDockActual`
+2. fallback `LeftDock`
+
+This preserves raw WSF input while preferring the debounced physical lifecycle
+boundary for `dep-dock` actual projection.
+
+### 2. Timeline merge attachment
+
+The official read-time merge now uses:
+
+1. exact `ScheduleKey + EventType`
+2. bounded fallback attachment rules for known-safe arrival cases
+3. otherwise no attachment
+
+The merge helper is now `mergeTimelineRows(...)` in
+[convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts).
+
+### 3. Same-day reseed uses physical-only reconstruction
+
+The backend chose the stronger Option B behavior for same-day reseed.
+
+Reseed keeps the original schedule-aligned path, but it also recreates
+physical-only `eventsActual` rows from:
+
+- physical trip rows with `ScheduleKey === undefined`
+- active-trip-aware live vessel-location reconciliation when no scheduled row
+  exists
+
+These reconstructed rows:
+
+- use `EventKey = buildPhysicalActualEventKey(TripKey, EventType)`
+- persist `TripKey`
+- leave `ScheduleKey` undefined
+- do not fabricate schedule-boundary identity
+
+### 4. Boundary-start timestamp rule for scheduleless live reconstruction
+
+When no scheduled row exists, same-day live reconciliation uses the start of
+the proven physical boundary:
+
+- departure:
+  - `LeftDock` if present on the proving live tick
+  - otherwise the proving `TimeStamp`
+- arrival:
+  - the proving docked `TimeStamp`
+
+### 5. Duplicate suppression rule
+
+Before scheduleless live reconciliation emits a physical-only dep/arv patch, it
+must check whether the slice already contains that physical boundary for the
+same `TripKey + EventType`.
+
+That duplicate check considers:
+
+- base actual rows from hydrated schedule/history facts
+- schedule-aligned live patches
+- physical-only rows reconstructed from trip state
+
+### 6. Accepted module boundary
+
+The domain layer is now intentionally split into:
+
+- `timelineBackbone`
+- `timelineRows`
+- `timelineReseed`
+
+For practical function-layer use, `timelineReseed/index.ts` currently exports:
+
+- `buildReseedTimelineSlice`
+- `hydrateSeededEventsWithHistory`
+- `buildSeedVesselTripEventsFromRawSegments`
+- `getDirectRawSeedSegments`
+
+That broader surface is part of the current accepted architecture.
+
 ## Implementation Strategy
 
 The changes naturally split into two mostly independent workstreams:
@@ -747,7 +920,9 @@ Before code changes:
 Recommended test areas:
 
 - `convex/functions/vesselTrips/updates/tests/`
-- `convex/domain/vesselTimeline/tests/`
+- `convex/domain/timelineBackbone/tests/`
+- `convex/domain/timelineRows/tests/`
+- `convex/domain/timelineReseed/tests/`
 
 ## Stage 1: VesselTrips Identity Redesign
 
@@ -757,6 +932,7 @@ This stage intentionally does not require timeline changes yet.
 
 - introduce `TripKey`
 - introduce `ScheduleKey?`
+- introduce `AtDockActual`
 - introduce `LeftDockActual?`
 - stop using the composite key as the durable trip identity
 - make trip transitions physical-first
@@ -767,6 +943,7 @@ Additive changes to `activeVesselTrips` and `completedVesselTrips`:
 
 - `TripKey: string`
 - `ScheduleKey?: string`
+- `AtDockActual: number`
 - `LeftDockActual?: number`
 
 Existing legacy fields may temporarily remain:
@@ -797,6 +974,7 @@ When a new trip starts:
 - assign immutable `TripKey`
 - set `DepartingTerminalAbbrev` from physical location
 - set `TripStart`
+- set `AtDockActual`
 - set `LeftDockActual` to undefined
 - attach `ScheduleKey` only if safely resolvable
 
@@ -805,6 +983,7 @@ When a new trip starts:
 - if vessel remains in the dock phase, keep the same `TripKey`
 - update `ArrivingTerminalAbbrev?` only when better information becomes available
 - do not churn trip identity because of raw schedule-field changes
+- determine dock-phase status from `AtDockActual` / `LeftDockActual` semantics rather than treating `LeftDockActual === undefined` as the sole source of truth
 
 #### On departure
 
@@ -843,14 +1022,12 @@ Additive first:
 - `EventKey`
 - `TripKey`
 - `ScheduleKey?`
-
-Retain legacy fields temporarily:
-
-- `Key`
+- `EventType`
 - `ScheduledDeparture`
 - `TerminalAbbrev`
-- `EventType`
 - `EventActualTime`
+
+Do not add or preserve a separate persisted compatibility boundary key on `eventsActual` just to support old merge code.
 
 ### Stage 2 writer changes
 
@@ -871,18 +1048,7 @@ When a departure or arrival is observed:
    - `EventActualTime`
 2. attach `ScheduleKey` only if a safe alignment exists
 3. do not force a schedule key just to keep old joins working
-
-### Stage 2 compatibility behavior
-
-During this stage, it may be useful to dual-write:
-
-- legacy schedule-keyed identity fields
-- new physical-event identity fields
-
-This allows comparison between:
-
-- old actual attribution
-- new physical actual storage
+4. do not persist a legacy boundary key for compatibility
 
 ## Stage 3: Timeline Merge Refactor
 
@@ -892,14 +1058,14 @@ This stage consumes the new `eventsActual` semantics.
 
 - keep `getVesselTimelineBackbone`
 - extract a pure shared merge function
-- switch actual-attachment logic to prefer `ScheduleKey`
+- switch actual-attachment logic to use `ScheduleKey + EventType` as the primary attachment rule
 
 ### Stage 3 code areas
 
 Likely file areas:
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/viewModel.ts](../../convex/domain/vesselTimeline/viewModel.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineBackbone/buildTimelineBackbone.ts](../../convex/domain/timelineBackbone/buildTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts](../../convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/queries.ts](../../convex/functions/vesselTimeline/queries.ts)
 
@@ -908,10 +1074,12 @@ Likely file areas:
 `createTimeline(eventsActual, eventsScheduled, eventsPredicted)` should:
 
 1. sort scheduled rows into backbone order
-2. attach actuals by exact `ScheduleKey`
+2. attach actuals by exact `ScheduleKey + EventType`
 3. optionally use bounded fallback matching for known-safe cases
 4. leave scheduled rows without actuals if no safe match exists
 5. preserve the current predicted overlay rules unless specifically changed
+
+The merge should not require a persisted schedule-boundary compatibility key on `eventsActual`.
 
 ### Stage 3 client impact
 
@@ -923,6 +1091,9 @@ Client-facing impact should be minimal:
 
 ## Stage 4: Cutover and Cleanup
 
+Completed. The legacy `convex/domain/vesselTimeline/` barrels and shims have
+been removed, and tests now live under the owning modules.
+
 Only after Stages 1 through 3 are stable:
 
 1. remove old assumptions that `trip.Key` is the physical trip identity
@@ -930,6 +1101,168 @@ Only after Stages 1 through 3 are stable:
 3. simplify fallback logic that was only necessary because of composite-key coupling
 
 This stage should be done conservatively and only after behavior is validated.
+
+## Historical Implementation Guide
+
+The sections below document the staged rollout plan that was used to get from
+the original design to the landed implementation. They are retained for
+historical context, but they are no longer the current source of truth for repo
+structure or open work.
+
+## PR 3 Clean-Slate Implementation Guide
+
+This section is the implementation source of truth for a fresh PR 3 that starts from completed PR 2 lifecycle work.
+
+It does not assume any partial PR 3 branch, and it should be sufficient on its own for a new agent.
+
+### Purpose
+
+PR 3 should complete the `eventsActual` redesign in one coherent step.
+
+Because the final model does not want a persisted compatibility boundary key on `eventsActual`, PR 3 must include both:
+
+1. physical-first `eventsActual` storage and writer behavior
+2. timeline actual-attachment cutover away from persisted actual-row boundary-key matching
+
+Do not split those into separate implementation phases for this clean-slate PR 3.
+
+### In scope
+
+- finalize `eventsActual` as physical actual-event rows
+- use `EventKey` as the durable `eventsActual` row identity
+- persist optional `ScheduleKey`
+- persist `EventType` as first-class data on actual rows
+- update trip-driven actual writers so they do not require `trip.Key`
+- update upsert logic to resolve rows by `EventKey`
+- update same-day replace/reseed flows so physical-only actuals are preserved
+- update timeline merge so actual overlays attach by `ScheduleKey + EventType`
+- keep fallback attachment logic narrow and explicitly bounded
+
+### Out of scope
+
+- changing PR 2 trip-lifecycle semantics
+- redesigning predictions
+- adding audit/discrepancy infrastructure
+- introducing any persisted compatibility boundary key on `eventsActual`
+
+### Final `eventsActual` row model for PR 3
+
+Persist these fields on `eventsActual` rows:
+
+- `EventKey`
+- `TripKey`
+- `ScheduleKey?`
+- `EventType`
+- `VesselAbbrev`
+- `TerminalAbbrev`
+- `SailingDay`
+- `ScheduledDeparture`
+- `EventActualTime`
+- `UpdatedAt`
+- `EventOccurred`
+
+Important constraints:
+
+- `EventKey` is the durable row identity
+- `TripKey` links the row to the physical trip instance
+- `ScheduleKey` is optional schedule alignment
+- `EventType` must be present on the row
+- do not persist a separate legacy boundary key for compatibility
+
+### Identity rules
+
+#### `EventKey`
+
+`EventKey` must be deterministic from:
+
+- `TripKey`
+- `EventType`
+
+Example:
+
+```text
+[TripKey]--dep-dock
+[TripKey]--arv-dock
+```
+
+#### Trip-driven actual writers
+
+Trip-driven actual writers must be able to emit physical actuals with this minimal fact set:
+
+- `TripKey`
+- `TerminalAbbrev`
+- `EventType`
+- `EventActualTime`
+
+They must not require:
+
+- `trip.Key`
+- `ScheduleKey`
+
+If `ScheduleKey` is safely known, attach it. Otherwise leave it blank.
+
+If `SailingDay` or `ScheduledDeparture` is missing on the trip row, derive them conservatively from the actual event time instead of dropping the physical actual.
+
+### Mutation and storage rules
+
+`eventsActual` upserts should resolve rows by:
+
+1. `EventKey`
+
+Do not build new persistence behavior around a schedule-boundary compatibility key.
+
+If a read helper needs a schedule-boundary string transiently, derive it from `ScheduleKey` and `EventType` at read time rather than persisting it on the row.
+
+### Same-day reseed / replace rules
+
+This is a required PR 3 behavior.
+
+Schedule rebuilds and same-day replace flows must preserve physical-only actual rows.
+
+In particular:
+
+- absence from a scheduled-boundary-derived replacement set is not proof that a physical actual should be deleted
+- if an actual row has `EventKey` and `TripKey` but no `ScheduleKey`, it is still valid
+- schedule reseed logic must not strip `EventKey`, `TripKey`, or `ScheduleKey` from persisted rows
+
+### Timeline merge rules
+
+PR 3 should update actual attachment so the merge attaches actual rows to scheduled rows by:
+
+1. exact `ScheduleKey + EventType`
+2. optional, tightly bounded fallback rules only when truly necessary
+3. otherwise no attachment
+
+Important constraints:
+
+- the merge must not depend on a persisted actual-row boundary key
+- unmatched physical actuals should remain in storage even if they do not appear on a scheduled row
+- fallback logic, if retained, should be clearly narrower than the old key-based heuristics
+
+### Files a clean-slate PR 3 was expected to touch
+
+- [convex/functions/eventsActual/schemas.ts](../../convex/functions/eventsActual/schemas.ts)
+- [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
+- [convex/domain/timelineRows/buildActualRows.ts](../../convex/domain/timelineRows/buildActualRows.ts)
+- [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
+- [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/functions/vesselTimeline/mutations.ts](../../convex/functions/vesselTimeline/mutations.ts)
+- [convex/domain/timelineReseed/mergeActualBoundaryPatchesIntoRows.ts](../../convex/domain/timelineReseed/mergeActualBoundaryPatchesIntoRows.ts)
+- tests that assert `eventsActual` identity, storage, reseed, and actual-attachment behavior
+
+### Acceptance criteria
+
+PR 3 is complete when all of the following are true:
+
+- `eventsActual` rows are keyed by `EventKey`
+- `eventsActual` rows do not persist a compatibility boundary key
+- trip-driven actuals can be written when `ScheduleKey` is blank
+- wrong schedule identity can no longer rewrite physical event identity
+- same-day reseeds preserve physical-only actuals
+- timeline actual overlays attach by `ScheduleKey + EventType`
+- unmatched physical actuals remain stored even when not attached to a scheduled row
+- backend tests and typechecks pass
 
 ## Migration Notes
 
@@ -1038,9 +1371,9 @@ Goal:
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
 - [convex/functions/vesselTrips/updates/tests/processVesselTrips.test.ts](../../convex/functions/vesselTrips/updates/tests/processVesselTrips.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/history.test.ts](../../convex/domain/vesselTimeline/tests/history.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts](../../convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts)
 
 ### Acceptance criteria
 
@@ -1061,9 +1394,10 @@ Goal:
 
 1. Add `TripKey` to stored trip schemas.
 2. Add `ScheduleKey?` to stored trip schemas.
-3. Add `LeftDockActual?` to stored trip schemas.
-4. Keep legacy fields such as `Key` and `ScheduledDeparture` for compatibility during migration.
-5. Update query/domain conversion helpers so the new fields are available to the rest of the codebase.
+3. Add `AtDockActual` to stored trip schemas.
+4. Add `LeftDockActual?` to stored trip schemas.
+5. Keep legacy fields such as `Key` and `ScheduledDeparture` for compatibility during migration.
+6. Update query/domain conversion helpers so the new fields are available to the rest of the codebase.
 
 ### Files to update
 
@@ -1074,8 +1408,9 @@ Goal:
 ### Suggested implementation notes
 
 - `TripKey` should be required on newly written rows
-- existing rows may need transitional optional handling until backfilled or naturally replaced
+- PR 1 may keep schema optionality for additive rollout, but clean-slate cutover means post-PR-2 runtime should not rely on backfilling old rows
 - `ScheduleKey` should stay optional
+- `AtDockActual` should become the preferred positive physical marker for "this trip is at dock"
 - `LeftDockActual` should become the preferred physical departure field; legacy `LeftDock` can remain during migration
 
 ### Acceptance criteria
@@ -1094,11 +1429,13 @@ Goal:
 
 1. Create a helper to generate `TripKey` in the required format:
    - `[VesselAbbrev] [DateTime]`
-   - ISO timestamp rounded to seconds
+   - ISO timestamp from `VesselLocation.TimeStamp`
+   - truncated to whole seconds if needed
    - `T` replaced by a space
 2. Ensure this helper is called only when a new trip instance is created.
 3. Ensure trip continuation never regenerates `TripKey`.
 4. Add tests proving retries and continuing ticks preserve the same `TripKey`.
+5. Do not design permanent runtime backfill logic for old rows without `TripKey`; after the clean-slate cutover, those rows are invalid state.
 
 ### Files to create or update
 
@@ -1167,6 +1504,7 @@ Goal:
 2. On arrival:
    - complete current trip
    - create next trip immediately
+   - stamp the new trip's `AtDockActual`
 3. On departure:
    - set `LeftDockActual`
    - do not create a new trip
@@ -1207,7 +1545,8 @@ Goal:
 1. Add `EventKey`.
 2. Add `TripKey`.
 3. Add `ScheduleKey?`.
-4. Keep legacy fields temporarily so existing timeline readers do not break immediately.
+4. Ensure persisted rows carry `EventType` as first-class data.
+5. Do not introduce or preserve a compatibility boundary key on `eventsActual`.
 
 ### Files to update
 
@@ -1219,7 +1558,7 @@ Goal:
 ### Acceptance criteria
 
 - `eventsActual` can store a physical boundary even when no `ScheduleKey` is present
-- backend types compile with both legacy and new fields
+- backend types compile with the new physical-first row shape
 
 ## Stage G: Redefine `eventsActual` Writers
 
@@ -1238,7 +1577,8 @@ Goal:
    as the minimal physical fact set.
 3. Attach `ScheduleKey` only when safe.
 4. Do not force schedule alignment to keep old joins alive.
-5. Keep dual-write compatibility fields only as long as needed for cutover.
+5. Do not persist a legacy boundary compatibility key.
+6. If read code needs schedule-boundary strings, derive them transiently from `ScheduleKey` and `EventType`.
 
 ### Files to update
 
@@ -1265,6 +1605,7 @@ Example:
 
 - `eventsActual` can represent real movement even when schedule alignment is blank
 - wrong schedule identity can no longer directly rewrite physical event identity
+- no `eventsActual` write path depends on or emits a persisted compatibility boundary key
 
 ## Stage H: Extract Shared Pure Timeline Merge
 
@@ -1277,16 +1618,17 @@ Goal:
 1. Extract current merge logic into a pure helper, conceptually:
    - `createTimeline(eventsActual, eventsScheduled, eventsPredicted)`
 2. Keep backend query ownership unchanged.
-3. Update tests to target the pure function directly.
-4. Ensure no query-time reads of live `vesselLocations` are introduced.
+3. Update actual attachment to use `ScheduleKey + EventType` instead of stored actual-row `Key`.
+4. Update tests to target the pure function directly.
+5. Ensure no query-time reads of live `vesselLocations` are introduced.
 
 ### Files to update
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/viewModel.ts](../../convex/domain/vesselTimeline/viewModel.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineBackbone/buildTimelineBackbone.ts](../../convex/domain/timelineBackbone/buildTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts](../../convex/functions/vesselTimeline/backbone/getVesselTimelineBackbone.ts)
 - [convex/functions/vesselTimeline/queries.ts](../../convex/functions/vesselTimeline/queries.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
 
 ### Acceptance criteria
 
@@ -1309,9 +1651,9 @@ Goal:
 
 ### Files to update
 
-- [convex/domain/vesselTimeline/timelineEvents.ts](../../convex/domain/vesselTimeline/timelineEvents.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
-- [convex/domain/vesselTimeline/tests/history.test.ts](../../convex/domain/vesselTimeline/tests/history.test.ts)
+- [convex/domain/timelineRows/mergeTimelineRows.ts](../../convex/domain/timelineRows/mergeTimelineRows.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
+- [convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts](../../convex/domain/timelineReseed/tests/hydrateWithHistory.test.ts)
 
 ### Acceptance criteria
 
@@ -1364,7 +1706,7 @@ Goal:
 - [convex/functions/eventsScheduled/dockedScheduleResolver.ts](../../convex/functions/eventsScheduled/dockedScheduleResolver.ts)
 - [convex/functions/eventsScheduled/queries.ts](../../convex/functions/eventsScheduled/queries.ts)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
-- [convex/domain/vesselTimeline/README.md](../../convex/domain/vesselTimeline/README.md)
+- [convex/domain/README.md](../../convex/domain/README.md)
 
 ### Acceptance criteria
 
@@ -1380,9 +1722,8 @@ If this work is split across agents or PRs, the cleanest partition is:
 
 1. PR 1: tests and additive schemas
 2. PR 2: `TripKey` + debounce + lifecycle refactor
-3. PR 3: `eventsActual` schema and writer refactor
-4. PR 4: timeline merge extraction and attachment updates
-5. PR 5: cleanup and legacy removal
+3. PR 3: `eventsActual` schema/writer refactor plus timeline actual-attachment cutover to `ScheduleKey + EventType`
+4. PR 4: cleanup and legacy removal
 
 This keeps the trip-lifecycle work mostly independent from the timeline merge work, which matches the design intent of this spec.
 
@@ -1403,7 +1744,7 @@ It should make later PRs safer and easier to review.
 ### PR 1 goals
 
 1. Add regression tests for the incident classes motivating the redesign.
-2. Additive-only schema changes for `TripKey`, `ScheduleKey`, and `LeftDockActual` on trip tables.
+2. Additive-only schema changes for `TripKey`, `ScheduleKey`, `AtDockActual`, and `LeftDockActual` on trip tables.
 3. Additive-only schema changes for `EventKey`, `TripKey`, and `ScheduleKey` on `eventsActual`.
 4. Add helper scaffolding where needed, but do not switch write paths to use it yet.
 5. Preserve all existing read and write behavior by default.
@@ -1437,8 +1778,8 @@ Suggested files:
 - [convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts](../../convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts)
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
 
 Expected output of this step:
 
@@ -1453,6 +1794,7 @@ Add to trip schemas:
 
 - `TripKey`
 - `ScheduleKey?`
+- `AtDockActual`
 - `LeftDockActual?`
 
 Suggested files:
@@ -1461,9 +1803,10 @@ Suggested files:
 
 Implementation guidance:
 
-- `TripKey` may need to be optional temporarily if old rows still exist in dev data and queries would otherwise fail
-- if made optional in schema for migration safety, document that new writes are expected to populate it once PR 2 lands
+- `TripKey` may remain optional in PR 1 schema for additive rollout, but PR 2+ runtime code should assume all newly written rows have it
+- if temporary compatibility code is introduced for old rows without `TripKey`, treat it as cleanup debt to remove after the data wipe
 - `ScheduleKey` should be optional
+- `AtDockActual` may need to be optional in PR 1 for additive rollout, even though the target design expects it on new writes
 - `LeftDockActual` should be optional
 
 Expected output of this step:
@@ -1554,8 +1897,8 @@ This is the most likely minimal file set for the first PR.
 - [convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts](../../convex/functions/vesselTrips/updates/tests/resolveEffectiveLocation.test.ts)
 - [convex/functions/vesselTrips/updates/tests/buildTrip.test.ts](../../convex/functions/vesselTrips/updates/tests/buildTrip.test.ts)
 - [convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts](../../convex/functions/vesselTrips/updates/tests/detectTripEvents.test.ts)
-- [convex/domain/vesselTimeline/tests/viewModel.test.ts](../../convex/domain/vesselTimeline/tests/viewModel.test.ts)
-- [convex/domain/vesselTimeline/tests/reconcile.test.ts](../../convex/domain/vesselTimeline/tests/reconcile.test.ts)
+- [convex/domain/timelineRows/tests/mergeTimelineRows.test.ts](../../convex/domain/timelineRows/tests/mergeTimelineRows.test.ts)
+- [convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts](../../convex/domain/timelineReseed/tests/reconcileLiveLocations.test.ts)
 
 ### Schema and types
 
@@ -1579,6 +1922,7 @@ PR 1 is successful if all of the following are true:
 2. Trip schemas support:
    - `TripKey`
    - `ScheduleKey?`
+   - `AtDockActual`
    - `LeftDockActual?`
 3. `eventsActual` schemas support:
    - `EventKey`

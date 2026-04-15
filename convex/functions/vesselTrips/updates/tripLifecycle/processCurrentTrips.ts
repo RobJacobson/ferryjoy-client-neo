@@ -16,7 +16,8 @@
  *    active trips in one mutation.
  * 6. **Success set** — Remember which vessels’ upserts succeeded.
  * 7. **Post-persist hooks** — Leave-dock depart-next backfill runs only after a
- *    successful upsert (never for projection-only ticks).
+ *    successful upsert and uses the canonical departure boundary when present
+ *    (never for projection-only ticks).
  * 8. **Return messages** — For the event assembler; items tied to an upsert
  *    carry `requiresSuccessfulUpsert` for filtering after step 5.
  */
@@ -156,7 +157,8 @@ export const processCurrentTrips = async (
 /**
  * Queues leave-dock work that must run only after the active trip upsert.
  *
- * When the tick confirms leave-dock (`didJustLeaveDock` and `LeftDock`),
+ * When the tick confirms leave-dock (`didJustLeaveDock` and canonical
+ * departure),
  * returns `{ vesselAbbrev, trip }` for `runLeaveDockPostPersistEffects`. The
  * prediction pipeline expects the trip row to exist in Convex first, so this is
  * never invoked inline during the build phase.
@@ -171,7 +173,7 @@ const buildLeaveDockPostPersistEffect = (
   finalProposed: ConvexVesselTripWithML,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
-  events.didJustLeaveDock && finalProposed.LeftDock !== undefined
+  events.didJustLeaveDock && finalProposed.DepartOriginActual !== undefined
     ? {
         vesselAbbrev,
         trip: finalProposed,
@@ -288,7 +290,10 @@ const runLeaveDockPostPersistEffects = async (
       .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
       .map(async (effect) => {
         try {
-          const leftDockMs = effect.trip.LeftDock;
+          const leftDockMs =
+            effect.trip.DepartOriginActual ??
+            effect.trip.LeftDockActual ??
+            effect.trip.LeftDock;
           if (leftDockMs === undefined) {
             return;
           }
@@ -375,16 +380,17 @@ const logTripTickDiagnostics = ({
   events,
   finalProposed,
 }: CurrentTripBuildResult) => {
-  const keyChanged = existingTrip?.Key !== finalProposed.Key;
+  const scheduleKeyChanged =
+    existingTrip?.ScheduleKey !== finalProposed.ScheduleKey;
   const scheduledDepartureChanged =
     existingTrip?.ScheduledDeparture !== finalProposed.ScheduledDeparture;
 
-  if (!keyChanged && !scheduledDepartureChanged) {
+  if (!scheduleKeyChanged && !scheduledDepartureChanged) {
     return;
   }
 
   console.warn(
-    `[VesselTrips][KeyTransition] ${JSON.stringify({
+    `[VesselTrips][ScheduleKeyTransition] ${JSON.stringify({
       vesselAbbrev: currLocation.VesselAbbrev,
       timestamp: new Date(currLocation.TimeStamp).toISOString(),
       events,
@@ -415,17 +421,19 @@ const logActualProjectionTick = (
       existingTrip: summarizeTripTick(existingTrip),
       finalProposed: summarizeTripTick(finalProposed),
       projectedDeparture:
-        events.didJustLeaveDock && finalProposed.LeftDock !== undefined
+        events.didJustLeaveDock &&
+        finalProposed.DepartOriginActual !== undefined
           ? {
-              segmentKey: finalProposed.Key,
-              actualTime: finalProposed.LeftDock,
+              segmentKey: finalProposed.ScheduleKey,
+              actualTime: finalProposed.DepartOriginActual,
             }
           : null,
       projectedArrival:
-        events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined
+        events.didJustArriveAtDock &&
+        finalProposed.ArriveDestDockActual !== undefined
           ? {
-              segmentKey: finalProposed.Key,
-              actualTime: finalProposed.ArriveDest,
+              segmentKey: finalProposed.ScheduleKey,
+              actualTime: finalProposed.ArriveDestDockActual,
             }
           : null,
     })}`
@@ -440,7 +448,7 @@ const summarizeLocationTick = (
     | "DepartingTerminalAbbrev"
     | "ArrivingTerminalAbbrev"
     | "ScheduledDeparture"
-    | "Key"
+    | "ScheduleKey"
     | "TimeStamp"
     | "Speed"
     | "DepartingDistance"
@@ -452,7 +460,7 @@ const summarizeLocationTick = (
   departingTerminalAbbrev: location.DepartingTerminalAbbrev,
   arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
   scheduledDeparture: location.ScheduledDeparture,
-  key: location.Key,
+  scheduleKey: location.ScheduleKey,
   timeStamp: location.TimeStamp,
   speed: location.Speed,
   departingDistance: location.DepartingDistance,
@@ -460,30 +468,34 @@ const summarizeLocationTick = (
 });
 
 const summarizeTripTick = (
-  trip: Pick<
-    ConvexVesselTrip,
-    | "AtDock"
-    | "LeftDock"
-    | "ArriveDest"
-    | "DepartingTerminalAbbrev"
-    | "ArrivingTerminalAbbrev"
-    | "ScheduledDeparture"
-    | "Key"
-    | "NextKey"
-    | "NextScheduledDeparture"
-    | "TimeStamp"
-  > | undefined
+  trip:
+    | Pick<
+        ConvexVesselTrip,
+        | "AtDock"
+        | "LeftDock"
+        | "ArriveDest"
+        | "DepartOriginActual"
+        | "ArriveDestDockActual"
+        | "DepartingTerminalAbbrev"
+        | "ArrivingTerminalAbbrev"
+        | "ScheduledDeparture"
+        | "ScheduleKey"
+        | "NextScheduleKey"
+        | "NextScheduledDeparture"
+        | "TimeStamp"
+      >
+    | undefined
 ) =>
   trip
     ? {
         atDock: trip.AtDock,
         leftDock: trip.LeftDock,
-        arriveDest: trip.ArriveDest,
+        arriveDest: trip.ArriveDestDockActual ?? trip.ArriveDest,
         departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
         arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
         scheduledDeparture: trip.ScheduledDeparture,
-        key: trip.Key,
-        nextKey: trip.NextKey,
+        scheduleKey: trip.ScheduleKey,
+        nextScheduleKey: trip.NextScheduleKey,
         nextScheduledDeparture: trip.NextScheduledDeparture,
         timeStamp: trip.TimeStamp,
       }

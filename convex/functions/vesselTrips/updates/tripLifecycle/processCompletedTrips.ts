@@ -86,7 +86,11 @@ const processCompletedTripTransition = async (
   deps: ProcessCompletedTripsDeps
 ): Promise<CompletedTripBoundaryFact> => {
   const { existingTrip, currLocation, events } = transition;
-  const tripToComplete = deps.buildCompletedTrip(existingTrip, currLocation);
+  const tripToComplete = deps.buildCompletedTrip(
+    existingTrip,
+    currLocation,
+    events.didJustArriveAtDock
+  );
   const newTrip = await deps.buildTrip(
     ctx,
     currLocation,

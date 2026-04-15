@@ -1,7 +1,8 @@
 /**
  * Schedule-backed dock resolution for live vessel identity using trip continuity.
  *
- * Uses persisted next-leg hints (`NextKey`) and same-terminal rollover after a
+ * Uses persisted next-leg hints (`NextScheduleKey` on vessel trips) and
+ * same-terminal rollover after a
  * known departure. Deliberately does not re-merge the full timeline backbone on
  * every tick; UI labels and structure already come from `eventsScheduled`.
  */
@@ -24,7 +25,7 @@ export type ScheduledSegmentLookup = {
 };
 
 type ExistingTripContinuity = {
-  NextKey?: string;
+  NextScheduleKey?: string;
   ScheduledDeparture?: number;
 } | null;
 
@@ -43,7 +44,7 @@ export type DockedScheduledSegmentResolution = {
  * Resolve the scheduled departure segment that should own the current dock
  * interval when the live feed omits trip identity.
  *
- * Prefers exact next-leg schedule (`NextKey`) and same-day rollover after a
+ * Prefers exact next-leg schedule (`NextScheduleKey`) and same-day rollover after a
  * known departure; otherwise returns null so callers use raw feed fields.
  *
  * @param lookup - Internal schedule query adapters
@@ -54,10 +55,10 @@ export const resolveDockedScheduledSegment = async (
   lookup: ScheduledSegmentLookup,
   args: ResolveDockedScheduledSegmentArgs
 ): Promise<DockedScheduledSegmentResolution | null> => {
-  if (args.existingTrip?.NextKey) {
+  if (args.existingTrip?.NextScheduleKey) {
     const exactNextSegment =
       await lookup.getScheduledDepartureSegmentBySegmentKey(
-        args.existingTrip.NextKey
+        args.existingTrip.NextScheduleKey
       );
 
     if (

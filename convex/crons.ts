@@ -5,7 +5,7 @@ const crons = cronJobs();
 
 crons.interval(
   "update vessel orchestrator",
-  { seconds: 5 }, // every 5 seconds
+  { seconds: 15 }, // every 15 seconds
   internal.functions.vesselOrchestrator.actions.updateVesselOrchestrator
 );
 

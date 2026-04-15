@@ -52,7 +52,13 @@ export type TripLeg = {
   toTerminalAbbrev: TerminalAbbrev;
 
   scheduledDepartMs: EpochMs;
-  actualDepartMs: EpochMs;
+  /**
+   * Physical departure actual for the leg.
+   *
+   * Inference paths may omit this before departure; at-sea readers must gate on
+   * the canonical departure actual before they rely on it.
+   */
+  actualDepartMs?: EpochMs;
 
   /**
    * WSF historical data does not expose true arrival-at-dock. We treat EstArrival

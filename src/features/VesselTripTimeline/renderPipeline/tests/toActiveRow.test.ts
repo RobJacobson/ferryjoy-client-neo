@@ -19,7 +19,7 @@ describe("toActiveRow", () => {
   it("selects the sea row after departure evidence", () => {
     const result = getActiveRow({
       trip: {
-        LeftDock: at(8, 5),
+        DepartOriginActual: at(8, 5),
       },
       vesselLocation: {
         LeftDock: at(8, 5),
@@ -35,12 +35,12 @@ describe("toActiveRow", () => {
   it("selects the final dock row after arrival or trip end", () => {
     const arrived = getActiveRow({
       trip: {
-        ArriveDest: at(8, 36),
+        ArriveDestDockActual: at(8, 36),
       },
     });
     const tripEnded = getActiveRow({
       trip: {
-        TripEnd: at(8, 37),
+        EndTime: at(8, 37),
       },
     });
 

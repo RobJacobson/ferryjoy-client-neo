@@ -2,6 +2,7 @@
  * Pipeline stage: resolve the currently active derived row.
  */
 
+import { getDestinationArrivalOrCoverageClose } from "@/features/TimelineFeatures/shared/utils";
 import type {
   TimelinePipelineWithActiveRow,
   TimelinePipelineWithRows,
@@ -27,11 +28,12 @@ export const toActiveRow = (
   const lastRowIndex = input.rows.length - 1;
   const atSeaRowIndex = input.rows.findIndex((row) => row.kind === "at-sea");
   const isComplete = trip.AtDockDepartNext?.Actual !== undefined;
+  const atDestinationOrClosed = getDestinationArrivalOrCoverageClose(trip);
   const rowIndex = isComplete
     ? lastRowIndex
-    : trip.ArriveDest || trip.TripEnd
+    : atDestinationOrClosed
       ? lastRowIndex
-      : trip.LeftDock || vesselLocation.LeftDock
+      : trip.DepartOriginActual || trip.LeftDock || vesselLocation.LeftDock
         ? atSeaRowIndex >= 0
           ? atSeaRowIndex
           : Math.min(1, lastRowIndex)

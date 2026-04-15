@@ -2,6 +2,9 @@
   /* This TypeScript project config describes the environment that
    * Convex functions run in and is used to typecheck them.
    * You can modify it, but some settings are required to use Convex.
+   *
+   * Bun test files (*.test.ts) are excluded here; use tsconfig.tests.json
+   * so the editor and `tsc -p convex/tsconfig.tests.json` resolve bun:test.
    */
   "compilerOptions": {
     /* These settings are not required by Convex and can be modified. */

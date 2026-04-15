@@ -79,9 +79,9 @@ export const completeAndStartNewTrip = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      if (!args.completedTrip.TripEnd) {
+      if (!args.completedTrip.EndTime) {
         throw new ConvexError({
-          message: "Completed trip must have TripEnd set",
+          message: "Completed trip must have EndTime set",
           code: "INVALID_COMPLETED_TRIP",
           severity: "error",
         });
@@ -222,7 +222,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    const nextLegKey = mostRecent.NextKey;
+    const nextLegKey = mostRecent.NextScheduleKey;
     if (!nextLegKey || !mostRecent.SailingDay) {
       return {
         updated: false as const,

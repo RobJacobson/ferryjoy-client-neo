@@ -8,8 +8,11 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { getSailingDay } from "shared/time";
 import { baseTripFromLocation } from "../tripLifecycle/baseTripFromLocation";
+
+const ms = (iso: string) => new Date(iso).getTime();
 
 describe("baseTripFromLocation", () => {
   it("uses the current scheduled departure to set SailingDay on trip start", () => {
@@ -60,7 +63,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.SailingDay).toBeUndefined();
   });
 
-  it("uses the completed trip end as TripStart when the next trip is created", () => {
+  it("uses the current tick as the new coverage start and keeps origin arrival separate", () => {
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",
@@ -79,13 +82,15 @@ describe("baseTripFromLocation", () => {
     expect(trip.DepartingTerminalAbbrev).toBe(
       currLocation.DepartingTerminalAbbrev
     );
-    expect(trip.TripStart).toBe(existingTrip.TripEnd);
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBe(currLocation.TimeStamp);
     expect(trip.PrevTerminalAbbrev).toBe(existingTrip.DepartingTerminalAbbrev);
     expect(trip.PrevScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.PrevLeftDock).toBe(existingTrip.LeftDock);
   });
 
-  it("keeps TripStart undefined for first-seen docked trips", () => {
+  it("sets coverage start but leaves origin arrival undefined for first-seen docked bootstrap rows", () => {
     const currLocation = makeLocation({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: undefined,
@@ -95,23 +100,49 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, undefined, false);
 
-    expect(trip.TripStart).toBeUndefined();
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBeUndefined();
+    expect(trip.TripKey).toBe(
+      generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
+    );
     expect(trip.PrevTerminalAbbrev).toBeUndefined();
     expect(trip.PrevScheduledDeparture).toBeUndefined();
     expect(trip.PrevLeftDock).toBeUndefined();
   });
 
+  it("mints TripKey for a first-seen in-progress sailing without fabricating an origin boundary", () => {
+    const currLocation = makeLocation({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      TimeStamp: ms("2026-03-13T05:41:00-07:00"),
+    });
+
+    const trip = baseTripFromLocation(currLocation, undefined, false);
+
+    expect(trip.TripKey).toBe(
+      generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
+    );
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBeUndefined();
+    expect(trip.LeftDock).toBe(currLocation.LeftDock);
+  });
+
   it("preserves docked schedule continuity when the live feed jumps ahead to a later departure", () => {
+    const tripStartMs = ms("2026-04-04T16:53:06-07:00");
     const existingTrip = makeTrip({
+      VesselAbbrev: "CAT",
       DepartingTerminalAbbrev: "SOU",
       ArrivingTerminalAbbrev: "VAI",
-      Key: "CAT--2026-04-04--16:50--SOU-VAI",
+      ScheduleKey: "CAT--2026-04-04--16:50--SOU-VAI",
+      TripKey: generateTripKey("CAT", tripStartMs),
       ScheduledDeparture: ms("2026-04-04T16:50:00-07:00"),
       SailingDay: "2026-04-04",
-      NextKey: "CAT--2026-04-04--17:20--VAI-FAU",
+      NextScheduleKey: "CAT--2026-04-04--17:20--VAI-FAU",
       NextScheduledDeparture: ms("2026-04-04T17:20:00-07:00"),
-      TimeStamp: ms("2026-04-04T16:53:06-07:00"),
-      TripStart: ms("2026-04-04T16:53:06-07:00"),
+      TimeStamp: tripStartMs,
+      TripStart: tripStartMs,
     });
     const currLocation = makeLocation({
       VesselAbbrev: "CAT",
@@ -128,22 +159,25 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, existingTrip, false);
 
-    expect(trip.Key).toBe(existingTrip.Key);
+    expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
     expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.SailingDay).toBe(existingTrip.SailingDay);
     expect(trip.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
     );
   });
-});
 
-/**
- * Convert an ISO timestamp into epoch milliseconds.
- *
- * @param iso - ISO-8601 timestamp string
- * @returns Epoch milliseconds for the provided timestamp
- */
-const ms = (iso: string) => new Date(iso).getTime();
+  it("throws when a continuing trip row is missing TripKey", () => {
+    const existingTrip = makeTrip({ TripKey: undefined });
+    const currLocation = makeLocation({
+      TimeStamp: ms("2026-03-13T05:00:00-07:00"),
+    });
+
+    expect(() =>
+      baseTripFromLocation(currLocation, existingTrip, false)
+    ).toThrow("Continuing vessel trip is missing TripKey");
+  });
+});
 
 /**
  * Build a test vessel location with sensible defaults.
@@ -193,7 +227,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -211,7 +246,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T04:33:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

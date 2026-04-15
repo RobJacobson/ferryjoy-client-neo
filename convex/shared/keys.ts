@@ -76,7 +76,8 @@ export const buildSegmentKey = (
 };
 
 /**
- * Backwards-compatible alias for the canonical segment key helper.
+ * Builds the canonical **schedule segment** key (composite sailing identity).
+ * For physical trip instance identity see `physicalTripIdentity.generateTripKey`.
  *
  * @param vesselAbbrev - Vessel abbreviation
  * @param departingTerminalAbbrev - Departing terminal abbreviation
@@ -84,7 +85,7 @@ export const buildSegmentKey = (
  * @param departingTime - Departure time as Date object
  * @returns Segment key string, or undefined if required fields are missing
  */
-export const generateTripKey = (
+export const buildScheduleSegmentKey = (
   vesselAbbrev: string,
   departingTerminalAbbrev: string,
   arrivingTerminalAbbrev: string | undefined,
@@ -145,16 +146,21 @@ export const parseVesselSailingDayScopeKey = (
  * Boundary keys for ML / predicted overlays: current segment dep + arv, next
  * leg departure. Used by trip hydration and `getPredictedBoundaryTargetKeys`.
  *
- * @param trip - Trip row with optional `Key` and `NextKey`
+ * @param trip - Trip row with optional schedule alignment (`ScheduleKey`) and
+ *   next schedule segment (`NextScheduleKey`)
  * @returns Dep-dock, arv-dock, and next dep-dock boundary keys
  */
 export const buildTripPredictionBoundaryKeys = (trip: {
-  Key?: string;
-  NextKey?: string;
+  ScheduleKey?: string;
+  NextScheduleKey?: string;
 }) => ({
-  depDockKey: trip.Key ? buildBoundaryKey(trip.Key, "dep-dock") : undefined,
-  arvDockKey: trip.Key ? buildBoundaryKey(trip.Key, "arv-dock") : undefined,
-  nextDepDockKey: trip.NextKey
-    ? buildBoundaryKey(trip.NextKey, "dep-dock")
+  depDockKey: trip.ScheduleKey
+    ? buildBoundaryKey(trip.ScheduleKey, "dep-dock")
+    : undefined,
+  arvDockKey: trip.ScheduleKey
+    ? buildBoundaryKey(trip.ScheduleKey, "arv-dock")
+    : undefined,
+  nextDepDockKey: trip.NextScheduleKey
+    ? buildBoundaryKey(trip.NextScheduleKey, "dep-dock")
     : undefined,
 });

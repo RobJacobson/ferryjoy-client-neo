@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { detectTripEvents } from "../tripLifecycle/detectTripEvents";
 import { getDockDepartureState } from "../tripLifecycle/tripDerivation";
 
@@ -130,6 +131,26 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
+  it("suppresses departure when LeftDock appears but the tick still looks physically docked", () => {
+    const existingTrip = makeTrip({
+      AtDock: true,
+      LeftDock: undefined,
+      LeftDockActual: undefined,
+      TimeStamp: ms("2026-03-13T05:29:30-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      AtDock: true,
+      Speed: 0,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      TimeStamp: ms("2026-03-13T05:29:40-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+  });
+
   it("detects departure only when LeftDock is provided by the feed", () => {
     const existingTrip = makeTrip({
       AtDock: true,
@@ -152,7 +173,7 @@ describe("detectTripEvents", () => {
 
   it("does not treat a leave-dock future identity jump as a key change", () => {
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--05:30--ANA-ORI",
+      ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
       ArrivingTerminalAbbrev: "ORI",
       ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
       AtDock: true,
@@ -171,7 +192,71 @@ describe("detectTripEvents", () => {
     const events = detectTripEvents(existingTrip, currLocation);
 
     expect(events.didJustLeaveDock).toBe(true);
-    expect(events.keyChanged).toBe(false);
+    expect(events.scheduleKeyChanged).toBe(false);
+  });
+
+  it("SAL dock window with missing schedule identity stays representable without false departure or completion", () => {
+    const existingTrip = makeTrip({
+      VesselAbbrev: "SAL",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      TripKey: "SAL 2026-04-12 00:21:00Z",
+      ScheduleKey: undefined,
+      AtDockActual: ms("2026-04-12T17:21:00-07:00"),
+      LeftDockActual: undefined,
+      ScheduledDeparture: undefined,
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-04-12T17:31:00-07:00"),
+    });
+
+    const currLocation = makeLocation({
+      VesselAbbrev: "SAL",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: true,
+      LeftDock: undefined,
+      TimeStamp: ms("2026-04-12T17:31:30-07:00"),
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(false);
+    expect(events.isCompletedTrip).toBe(false);
+    expect(events.scheduleKeyChanged).toBe(false);
+  });
+
+  it("treats losing schedule attachment as a schedule change", () => {
+    const existingTrip = makeTrip({
+      ScheduleKey: "SAL--2026-04-12--17:45--SOU-VAI",
+      NextScheduleKey: "SAL--2026-04-12--18:20--VAI-FAU",
+      AtDock: false,
+      LeftDock: ms("2026-04-12T17:46:30-07:00"),
+      LeftDockActual: ms("2026-04-12T17:46:30-07:00"),
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: undefined,
+    });
+
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: false,
+      // Keep the same in-flight physical trip while dropping schedule
+      // alignment, which should count as a meaningful schedule transition.
+      LeftDock: existingTrip.LeftDock,
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(false);
+    expect(events.scheduleKeyChanged).toBe(true);
   });
 });
 
@@ -213,15 +298,18 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T03:08:47-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
+  AtDockActual: undefined,
   TripStart: undefined,
   AtDock: true,
   AtDockDuration: undefined,
   ScheduledDeparture: undefined,
   LeftDock: undefined,
+  LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
   TripEnd: undefined,

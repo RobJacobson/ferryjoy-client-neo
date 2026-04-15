@@ -28,7 +28,10 @@ export const resolveEffectiveLocation = async (
     return location;
   }
 
-  const stableDockedIdentity = hasStableDockedTripIdentity(location, existingTrip);
+  const stableDockedIdentity = hasStableDockedTripIdentity(
+    location,
+    existingTrip
+  );
   const scheduledResolution = stableDockedIdentity
     ? null
     : await resolveDockedScheduledSegment(
@@ -87,21 +90,22 @@ const logDockedIdentityResolution = ({
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   stableDockedIdentity: boolean;
-  scheduledResolution:
-    | Awaited<ReturnType<typeof resolveDockedScheduledSegment>>
-    | null;
+  scheduledResolution: Awaited<
+    ReturnType<typeof resolveDockedScheduledSegment>
+  > | null;
   effectiveIdentity: ReturnType<typeof resolveEffectiveDockedTripIdentity>;
   effectiveLocation: ConvexVesselLocation;
 }) => {
   const changedFromExisting =
-    existingTrip?.Key !== effectiveLocation.Key ||
+    existingTrip?.ScheduleKey !== effectiveLocation.ScheduleKey ||
     existingTrip?.ScheduledDeparture !== effectiveLocation.ScheduledDeparture ||
     existingTrip?.ArrivingTerminalAbbrev !==
       effectiveLocation.ArrivingTerminalAbbrev;
   const changedFromLive =
-    location.Key !== effectiveLocation.Key ||
+    location.ScheduleKey !== effectiveLocation.ScheduleKey ||
     location.ScheduledDeparture !== effectiveLocation.ScheduledDeparture ||
-    location.ArrivingTerminalAbbrev !== effectiveLocation.ArrivingTerminalAbbrev;
+    location.ArrivingTerminalAbbrev !==
+      effectiveLocation.ArrivingTerminalAbbrev;
   const suspiciousState =
     effectiveIdentity.source === "rollover_schedule" ||
     effectiveIdentity.conflictsLiveFeed;
@@ -146,7 +150,7 @@ const summarizeLocationIdentity = (
     | "DepartingTerminalAbbrev"
     | "ArrivingTerminalAbbrev"
     | "ScheduledDeparture"
-    | "Key"
+    | "ScheduleKey"
     | "Speed"
     | "DepartingDistance"
     | "ArrivingDistance"
@@ -157,7 +161,7 @@ const summarizeLocationIdentity = (
   departingTerminalAbbrev: location.DepartingTerminalAbbrev,
   arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
   scheduledDeparture: location.ScheduledDeparture,
-  key: location.Key,
+  scheduleKey: location.ScheduleKey,
   speed: location.Speed,
   departingDistance: location.DepartingDistance,
   arrivingDistance: location.ArrivingDistance,
@@ -171,8 +175,8 @@ const summarizeTripIdentity = (trip: ConvexVesselTrip | undefined) =>
         departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
         arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
         scheduledDeparture: trip.ScheduledDeparture,
-        key: trip.Key,
-        nextKey: trip.NextKey,
+        scheduleKey: trip.ScheduleKey,
+        nextScheduleKey: trip.NextScheduleKey,
         nextScheduledDeparture: trip.NextScheduledDeparture,
       }
     : null;

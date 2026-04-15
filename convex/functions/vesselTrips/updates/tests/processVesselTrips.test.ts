@@ -9,6 +9,7 @@ import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { applyTickEventWrites } from "../../../vesselOrchestrator/applyTickEventWrites";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
@@ -49,7 +50,7 @@ const defaultEvents: TripEvents = {
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
-  keyChanged: false,
+  scheduleKeyChanged: false,
 };
 
 describe("processVesselTripsWithDeps", () => {
@@ -265,13 +266,13 @@ describe("processVesselTripsWithDeps", () => {
 
   it("clears previous predicted scope when trip identity changes", async () => {
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--05:30--ANA-ORI",
-      NextKey: "CHE--2026-03-13--07:00--ORI-LOP",
+      ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
+      NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
     });
     const currLocation = makeLocation();
     const changedTrip = makeTrip({
-      Key: "CHE--2026-03-13--05:40--ANA-ORI",
-      NextKey: "CHE--2026-03-13--07:10--ORI-LOP",
+      ScheduleKey: "CHE--2026-03-13--05:40--ANA-ORI",
+      NextScheduleKey: "CHE--2026-03-13--07:10--ORI-LOP",
       AtDockDepartCurr: makePrediction("2026-03-13T05:41:00-07:00"),
     });
     const ctx = createTestActionCtx({
@@ -307,6 +308,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
       ArriveDest: undefined,
+      DepartOriginActual: ms("2026-03-13T05:29:38-07:00"),
     });
     const currLocation = makeLocation({
       AtDock: true,
@@ -314,6 +316,7 @@ describe("processVesselTripsWithDeps", () => {
     const arrivedTrip = makeTrip({
       ArriveDest: ms("2026-03-13T06:29:56-07:00"),
       LeftDock: existingTrip.LeftDock,
+      ArriveDestDockActual: ms("2026-03-13T06:29:56-07:00"),
     });
     const ctx = createTestActionCtx({
       activeTrips: [existingTrip],
@@ -356,6 +359,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: currLocation.LeftDock,
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
+      DepartOriginActual: currLocation.LeftDock,
     });
     const callSequence: string[] = [];
     const ctx = createTestActionCtx({
@@ -414,6 +418,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
+      DepartOriginActual: ms("2026-03-13T05:29:38-07:00"),
     });
     const ctx = createTestActionCtx({
       activeTrips: [cheExisting, tacExisting],
@@ -743,7 +748,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -761,7 +767,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T04:33:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: "CHE--2026-03-13--07:00--ORI-LOP",
+  NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
   NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

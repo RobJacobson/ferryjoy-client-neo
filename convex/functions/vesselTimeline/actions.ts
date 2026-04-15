@@ -6,13 +6,13 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
+import {
+  buildSeedVesselTripEventsFromRawSegments,
+  hydrateSeededEventsWithHistory,
+} from "domain/timelineReseed";
 import { fetchAndTransformScheduledTrips } from "functions/scheduledTrips/sync/fetchAndTransform";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import {
-  buildSeedVesselTripEventsFromRawSegments,
-  mergeSeededEventsWithHistory,
-} from "../../domain/vesselTimeline/events";
 import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
 import { loadBackendTerminals } from "../terminals/actions";
@@ -35,7 +35,7 @@ export const syncVesselTimelineManual = action({
   args: {},
   handler: async (ctx): Promise<TimelineSyncResult> => {
     const sailingDay = getSailingDay(new Date());
-    return await syncVesselTimelineForDate(ctx, sailingDay);
+    return await reseedVesselTimelineForDate(ctx, sailingDay);
   },
 });
 
@@ -44,7 +44,7 @@ export const syncVesselTimelineForDateManual = action({
     targetDate: v.string(),
   },
   handler: async (ctx, args): Promise<TimelineSyncResult> =>
-    await syncVesselTimelineForDate(ctx, args.targetDate),
+    await reseedVesselTimelineForDate(ctx, args.targetDate),
 });
 
 export const syncVesselTimelineWindowed = internalAction({
@@ -75,11 +75,11 @@ export const syncVesselTimelineAtSailingDayBoundary = internalAction({
   },
 });
 
-const syncVesselTimelineForDate = async (
+const reseedVesselTimelineForDate = async (
   ctx: ActionCtx,
   targetDate: string
 ): Promise<TimelineSyncResult> => {
-  console.log(`${logPrefix} Starting replace sync for ${targetDate}`);
+  console.log(`${logPrefix} Starting reseed for ${targetDate}`);
 
   const vessels = await loadBackendVessels(ctx);
   const terminals = await loadBackendTerminals(ctx);
@@ -93,7 +93,7 @@ const syncVesselTimelineForDate = async (
     `${logPrefix} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
   );
 
-  const directEvents = buildSeedVesselTripEventsFromRawSegments(
+  const seededEvents = buildSeedVesselTripEventsFromRawSegments(
     scheduleSegments,
     vessels,
     terminals
@@ -102,8 +102,8 @@ const syncVesselTimelineForDate = async (
     scheduleSegments,
     targetDate
   );
-  const hydratedEvents = mergeSeededEventsWithHistory({
-    seededEvents: directEvents,
+  const hydratedEvents = hydrateSeededEventsWithHistory({
+    seededEvents,
     existingEvents: [],
     scheduleSegments,
     historyRecords,
@@ -113,7 +113,7 @@ const syncVesselTimelineForDate = async (
 
   const result = await ctx.runMutation(
     internal.functions.vesselTimeline.mutations
-      .replaceBoundaryEventsForSailingDay,
+      .reseedBoundaryEventsForSailingDay,
     {
       SailingDay: targetDate,
       Events: hydratedEvents,
@@ -121,7 +121,7 @@ const syncVesselTimelineForDate = async (
   );
 
   console.log(
-    `${logPrefix} replace sync completed for ${targetDate}: ${result.ScheduledCount} scheduled rows`
+    `${logPrefix} reseed completed for ${targetDate}: ${result.ScheduledCount} scheduled rows`
   );
 
   return result;
@@ -139,7 +139,7 @@ const syncWindowedVesselTimeline = async (
 
   for (let i = 0; i < daysToSync; i++) {
     const sailingDay = addDays(startDate, i);
-    const result = await syncVesselTimelineForDate(ctx, sailingDay);
+    const result = await reseedVesselTimelineForDate(ctx, sailingDay);
 
     totalScheduled += result.ScheduledCount;
     totalActual += result.ActualCount;

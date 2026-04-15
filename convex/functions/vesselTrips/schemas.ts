@@ -130,15 +130,28 @@ const tripIdentityFields = {
   DepartingTerminalAbbrev: v.string(),
   ArrivingTerminalAbbrev: v.optional(v.string()),
   RouteAbbrev: v.optional(v.string()),
-  Key: v.optional(v.string()),
+  // Physical trip identity is required post-cutover. Schedule alignment may be
+  // absent, but every persisted trip row must still carry its stable TripKey.
+  TripKey: v.string(),
+  ScheduleKey: v.optional(v.string()),
   SailingDay: v.optional(v.string()),
   PrevTerminalAbbrev: v.optional(v.string()),
+  // Canonical timestamp contract. These fields are the long-term semantic
+  // names; legacy rows may still carry the older overlapping fields until the
+  // later lifecycle refactor is complete.
+  ArriveOriginDockActual: v.optional(v.number()),
+  ArriveDestDockActual: v.optional(v.number()),
+  DepartOriginActual: v.optional(v.number()),
+  StartTime: v.optional(v.number()),
+  EndTime: v.optional(v.number()),
   ArriveDest: v.optional(v.number()),
+  AtDockActual: v.optional(v.number()),
   TripStart: v.optional(v.number()),
   AtDock: v.boolean(),
   AtDockDuration: v.optional(v.number()),
   ScheduledDeparture: v.optional(v.number()),
   LeftDock: v.optional(v.number()),
+  LeftDockActual: v.optional(v.number()),
   TripDelay: v.optional(v.number()),
   Eta: v.optional(v.number()),
   TripEnd: v.optional(v.number()),
@@ -148,7 +161,7 @@ const tripIdentityFields = {
   TimeStamp: v.number(),
   PrevScheduledDeparture: v.optional(v.number()),
   PrevLeftDock: v.optional(v.number()),
-  NextKey: v.optional(v.string()),
+  NextScheduleKey: v.optional(v.string()),
   NextScheduledDeparture: v.optional(v.number()),
 } as const;
 
@@ -233,10 +246,17 @@ export const toDomainVesselTrip = (
 ) => {
   const domainTrip = {
     ...trip,
+    ArriveOriginDockActual: optionalEpochMsToDate(trip.ArriveOriginDockActual),
+    ArriveDestDockActual: optionalEpochMsToDate(trip.ArriveDestDockActual),
+    DepartOriginActual: optionalEpochMsToDate(trip.DepartOriginActual),
+    StartTime: optionalEpochMsToDate(trip.StartTime),
+    EndTime: optionalEpochMsToDate(trip.EndTime),
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
     NextScheduledDeparture: optionalEpochMsToDate(trip.NextScheduledDeparture),
     Eta: optionalEpochMsToDate(trip.Eta),
+    AtDockActual: optionalEpochMsToDate(trip.AtDockActual),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
+    LeftDockActual: optionalEpochMsToDate(trip.LeftDockActual),
     TimeStamp: epochMsToDate(trip.TimeStamp),
     ArriveDest: optionalEpochMsToDate(trip.ArriveDest),
     TripStart: optionalEpochMsToDate(trip.TripStart),
@@ -270,7 +290,7 @@ const mapPredictionField = (
  */
 export const toDomainVesselTripWithScheduledTrip = (
   trip: ConvexVesselTrip & { ScheduledTrip?: ConvexScheduledTrip }
-) => {
+): VesselTripWithScheduledTrip => {
   const domainTrip = toDomainVesselTrip(trip);
   const ScheduledTrip = trip.ScheduledTrip
     ? toDomainScheduledTrip(trip.ScheduledTrip)
@@ -282,7 +302,7 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
-  TripStart: number;
+  ArriveOriginDockActual: number;
   PrevScheduledDeparture: number;
   PrevLeftDock: number;
 };
@@ -290,11 +310,30 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
 /**
  * Domain-layer vessel trip shape with `Date` instances.
  */
-export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
+type CanonicalTimestampFieldName =
+  | "ArriveOriginDockActual"
+  | "ArriveDestDockActual"
+  | "DepartOriginActual"
+  | "StartTime"
+  | "EndTime";
+
+type CanonicalTimestampFields = {
+  ArriveOriginDockActual?: Date;
+  ArriveDestDockActual?: Date;
+  DepartOriginActual?: Date;
+  StartTime?: Date;
+  EndTime?: Date;
+};
+
+export type VesselTrip = Omit<
+  ReturnType<typeof toDomainVesselTrip>,
+  CanonicalTimestampFieldName
+> &
+  CanonicalTimestampFields;
 
 /**
  * Vessel trip with optional joined ScheduledTrip (from getActiveTripsWithScheduled).
  */
-export type VesselTripWithScheduledTrip = ReturnType<
-  typeof toDomainVesselTripWithScheduledTrip
->;
+export type VesselTripWithScheduledTrip = VesselTrip & {
+  ScheduledTrip?: ReturnType<typeof toDomainScheduledTrip>;
+};

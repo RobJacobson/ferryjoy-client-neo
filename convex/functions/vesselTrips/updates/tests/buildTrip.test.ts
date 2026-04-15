@@ -1,18 +1,23 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
 describe("buildTrip", () => {
-  it("clears carried prediction state when the trip key changes", async () => {
+  it("preserves carried prediction state when schedule segment changes but TripKey is stable", async () => {
+    const tripStartMs = ms("2026-03-13T09:00:00-07:00");
+    const stableTripKey = generateTripKey("CHE", tripStartMs);
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--09:30--ORI-LOP",
+      ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
+      TripKey: stableTripKey,
       SailingDay: "2026-03-13",
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "LOP",
       ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
-      NextKey: "CHE--2026-03-13--10:15--LOP-ANA",
+      TripStart: tripStartMs,
+      NextScheduleKey: "CHE--2026-03-13--10:15--LOP-ANA",
       NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
       LeftDock: ms("2026-03-13T09:34:00-07:00"),
       AtDock: false,
@@ -29,7 +34,7 @@ describe("buildTrip", () => {
       ArrivingTerminalAbbrev: "ANA",
       ScheduledDeparture: segmentScheduledDeparture,
       LeftDock: existingTrip.LeftDock,
-      Key: segmentKey,
+      ScheduleKey: segmentKey,
       TimeStamp: ms("2026-03-13T09:40:00-07:00"),
     });
     const scheduledSegment = {
@@ -51,43 +56,50 @@ describe("buildTrip", () => {
       currLocation,
       existingTrip,
       false,
-      makeEvents({ keyChanged: true }),
+      makeEvents({ scheduleKeyChanged: true }),
       false
     );
 
-    expect(built.Key).toBe(currLocation.Key);
-    expect(built.NextKey).toBe(scheduledSegment.NextKey);
+    expect(built.TripKey).toBe(stableTripKey);
+    expect(built.ScheduleKey).toBe(scheduledSegment.Key);
+    expect(built.NextScheduleKey).toBe(scheduledSegment.NextKey);
     expect(built.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime
     );
-    expect(built.AtDockDepartCurr).toBeUndefined();
-    expect(built.AtDockArriveNext).toBeUndefined();
-    expect(built.AtDockDepartNext).toBeUndefined();
-    expect(built.AtSeaArriveNext?.PredTime).toBe(existingTrip.LeftDock);
-    expect(built.AtSeaDepartNext?.PredTime).toBe(
-      scheduledSegment.NextDepartingTime
-    );
+    expect(built.AtDockDepartCurr).toEqual(existingTrip.AtDockDepartCurr);
+    expect(built.AtDockArriveNext).toEqual(existingTrip.AtDockArriveNext);
+    expect(built.AtDockDepartNext).toEqual(existingTrip.AtDockDepartNext);
+    expect(built.AtSeaArriveNext).toBeDefined();
+    expect(built.AtSeaDepartNext).toBeDefined();
   });
 
-  it("preserves the dock-owned identity on the leave-dock tick", async () => {
+  it("CAT continuity preserves the dock-owned identity through the leave-dock tick", async () => {
+    const dockStart = ms("2026-04-12T16:32:00-07:00");
+    const catTripKey = generateTripKey("CAT", dockStart);
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--09:30--ORI-LOP",
+      VesselAbbrev: "CAT",
+      ScheduleKey: "CAT--2026-04-12--16:50--SOU-VAI",
+      TripKey: catTripKey,
+      TripStart: dockStart,
       SailingDay: "2026-03-13",
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "LOP",
-      ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
       LeftDock: undefined,
+      LeftDockActual: undefined,
+      AtDockActual: dockStart,
       AtDock: true,
-      TimeStamp: ms("2026-03-13T09:29:30-07:00"),
+      TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
     const currLocation = makeLocation({
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "ANA",
-      ScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
-      LeftDock: ms("2026-03-13T09:34:00-07:00"),
+      VesselAbbrev: "CAT",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T18:45:00-07:00"),
+      LeftDock: ms("2026-04-12T16:53:14-07:00"),
       AtDock: false,
-      Key: "CHE--2026-03-13--10:15--ORI-ANA",
-      TimeStamp: ms("2026-03-13T09:34:05-07:00"),
+      ScheduleKey: "CAT--2026-04-12--18:45--SOU-VAI",
+      TimeStamp: ms("2026-04-12T16:53:15-07:00"),
     });
 
     const built = await buildTrip(
@@ -95,16 +107,75 @@ describe("buildTrip", () => {
       currLocation,
       existingTrip,
       false,
-      makeEvents({ didJustLeaveDock: true, keyChanged: false }),
+      makeEvents({ didJustLeaveDock: true, scheduleKeyChanged: false }),
       false
     );
 
-    expect(built.Key).toBe(existingTrip.Key);
+    expect(built.ScheduleKey).toBe(existingTrip.ScheduleKey);
+    expect(built.TripKey).toBe(catTripKey);
     expect(built.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
     );
     expect(built.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(built.LeftDock).toBe(currLocation.LeftDock);
+  });
+
+  it("clears stale schedule-derived fields when the same physical trip loses schedule attachment", async () => {
+    const tripStartMs = ms("2026-04-12T17:21:00-07:00");
+    const stableTripKey = generateTripKey("SAL", tripStartMs);
+    const departureMs = ms("2026-04-12T17:24:00-07:00");
+    const existingTrip = makeTrip({
+      VesselAbbrev: "SAL",
+      TripKey: stableTripKey,
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduleKey: "SAL--2026-04-12--17:45--SOU-VAI",
+      SailingDay: "2026-04-12",
+      ScheduledDeparture: undefined,
+      AtDock: false,
+      LeftDock: departureMs,
+      LeftDockActual: departureMs,
+      TripStart: tripStartMs,
+      AtDockActual: tripStartMs,
+      NextScheduleKey: "SAL--2026-04-12--18:20--VAI-FAU",
+      NextScheduledDeparture: ms("2026-04-12T18:20:00-07:00"),
+      AtDockArriveNext: makePrediction(ms("2026-04-12T18:05:00-07:00")),
+      AtDockDepartNext: makePrediction(ms("2026-04-12T18:22:00-07:00")),
+      AtSeaArriveNext: makePrediction(ms("2026-04-12T18:04:00-07:00")),
+      AtSeaDepartNext: makePrediction(ms("2026-04-12T18:20:00-07:00")),
+    });
+
+    const currLocation = makeLocation({
+      VesselAbbrev: "SAL",
+      VesselName: "Salish",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: false,
+      // This stays on the same physical trip after departure, but without any
+      // trusted schedule attachment. The stale next-leg context should clear.
+      LeftDock: departureMs,
+      TimeStamp: ms("2026-04-12T17:31:30-07:00"),
+    });
+
+    const built = await buildTrip(
+      createTestActionCtx({}) as never,
+      currLocation,
+      existingTrip,
+      false,
+      makeEvents({ scheduleKeyChanged: true }),
+      false
+    );
+
+    expect(built.TripKey).toBe(stableTripKey);
+    expect(built.ScheduleKey).toBeUndefined();
+    expect(built.NextScheduleKey).toBeUndefined();
+    expect(built.NextScheduledDeparture).toBeUndefined();
+    expect(built.AtDockArriveNext).toBeUndefined();
+    expect(built.AtDockDepartNext).toBeUndefined();
+    expect(built.AtSeaArriveNext).toBeUndefined();
+    expect(built.AtSeaDepartNext).toBeUndefined();
   });
 });
 
@@ -145,7 +216,7 @@ const makeEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
-  keyChanged: false,
+  scheduleKeyChanged: false,
   ...overrides,
 });
 
@@ -196,7 +267,7 @@ const makeLocation = (
   RouteAbbrev: "ana-sj",
   VesselPositionNum: 1,
   TimeStamp: ms("2026-03-13T09:40:00-07:00"),
-  Key: "CHE--2026-03-13--09:45--ORI-ANA",
+  ScheduleKey: "CHE--2026-03-13--09:45--ORI-ANA",
   DepartingDistance: 0.5,
   ArrivingDistance: 5,
   ...overrides,
@@ -209,15 +280,18 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ORI",
   ArrivingTerminalAbbrev: "LOP",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--09:30--ORI-LOP",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "SHI",
   ArriveDest: undefined,
+  AtDockActual: ms("2026-03-13T09:00:00-07:00"),
   TripStart: ms("2026-03-13T09:00:00-07:00"),
   AtDock: false,
   AtDockDuration: 10,
   ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
   LeftDock: ms("2026-03-13T09:34:00-07:00"),
+  LeftDockActual: ms("2026-03-13T09:34:00-07:00"),
   TripDelay: 4,
   Eta: undefined,
   TripEnd: undefined,
@@ -227,7 +301,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T09:39:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-13T08:10:00-07:00"),
   PrevLeftDock: ms("2026-03-13T08:12:00-07:00"),
-  NextKey: "CHE--2026-03-13--10:15--LOP-ANA",
+  NextScheduleKey: "CHE--2026-03-13--10:15--LOP-ANA",
   NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

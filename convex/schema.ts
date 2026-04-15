@@ -87,7 +87,7 @@ export default defineSchema({
   // Vessel locations combining vessel location data
   vesselLocations: defineTable(vesselLocationValidationSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_key", ["Key"]),
+    .index("by_schedule_key", ["ScheduleKey"]),
 
   vesselLocationsHistoric: defineTable(historicVesselLocationValidationSchema)
     .index("by_sailing_day", ["SailingDay"])
@@ -106,7 +106,7 @@ export default defineSchema({
     ]),
 
   eventsActual: defineTable(eventsActualSchema)
-    .index("by_key", ["Key"])
+    .index("by_event_key", ["EventKey"])
     .index("by_sailing_day", ["SailingDay"])
     .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
 

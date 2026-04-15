@@ -32,7 +32,7 @@ export type PredictionField =
 export type PredictionSpec = {
   field: PredictionField;
   modelType: ModelType;
-  requiresLeftDock: boolean;
+  requiresDepartureActual: boolean;
   getAnchorMs: (trip: ConvexVesselTripWithML) => number | null;
 };
 
@@ -43,31 +43,31 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
   AtDockDepartCurr: {
     field: "AtDockDepartCurr",
     modelType: "at-dock-depart-curr",
-    requiresLeftDock: false,
+    requiresDepartureActual: false,
     getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
   },
   AtDockArriveNext: {
     field: "AtDockArriveNext",
     modelType: "at-dock-arrive-next",
-    requiresLeftDock: false,
+    requiresDepartureActual: false,
     getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
   },
   AtDockDepartNext: {
     field: "AtDockDepartNext",
     modelType: "at-dock-depart-next",
-    requiresLeftDock: false,
+    requiresDepartureActual: false,
     getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
   },
   AtSeaArriveNext: {
     field: "AtSeaArriveNext",
     modelType: "at-sea-arrive-next",
-    requiresLeftDock: true,
-    getAnchorMs: (trip) => trip.LeftDock ?? null,
+    requiresDepartureActual: true,
+    getAnchorMs: (trip) => trip.DepartOriginActual ?? null,
   },
   AtSeaDepartNext: {
     field: "AtSeaDepartNext",
     modelType: "at-sea-depart-next",
-    requiresLeftDock: true,
+    requiresDepartureActual: true,
     getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
   },
 };
@@ -76,7 +76,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
  * Type guard for trips that are ready for predictions.
  *
  * A trip is prediction-ready when it has all required context fields:
- * TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
+ * ArriveOriginDockActual, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
  * PrevTerminalAbbrev, InService, ScheduledDeparture,
  * PrevScheduledDeparture, and PrevLeftDock.
  *
@@ -86,7 +86,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 export const isPredictionReadyTrip = (
   trip: ConvexVesselTrip
 ): trip is PredictionReadyTrip =>
-  Boolean(trip.TripStart) &&
+  Boolean(trip.ArriveOriginDockActual) &&
   Boolean(trip.DepartingTerminalAbbrev) &&
   Boolean(trip.ArrivingTerminalAbbrev) &&
   Boolean(trip.PrevTerminalAbbrev) &&
@@ -188,13 +188,14 @@ export const applyActualToPrediction = (
 /**
  * Actualize same-trip predictions when a vessel leaves dock.
  *
- * @param trip - Active trip with LeftDock populated
+ * @param trip - Active trip with canonical departure actual populated
  * @returns Trip with leave-dock actuals applied
  */
 export const actualizePredictionsOnLeaveDock = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  if (!trip.LeftDock || !trip.AtDockDepartCurr) {
+  const departureMs = trip.DepartOriginActual;
+  if (!departureMs || !trip.AtDockDepartCurr) {
     return trip;
   }
 
@@ -202,7 +203,7 @@ export const actualizePredictionsOnLeaveDock = (
     ...trip,
     AtDockDepartCurr: applyActualToPrediction(
       trip.AtDockDepartCurr,
-      trip.LeftDock
+      departureMs
     ),
   };
 };
@@ -210,13 +211,13 @@ export const actualizePredictionsOnLeaveDock = (
 /**
  * Actualize same-trip predictions when a trip completes.
  *
- * @param trip - Completed trip with TripEnd populated
+ * @param trip - Completed trip with canonical destination arrival populated
  * @returns Trip with trip-complete actuals applied
  */
 export const actualizePredictionsOnTripComplete = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  const arrivalActual = trip.ArriveDest ?? trip.TripEnd;
+  const arrivalActual = trip.ArriveDestDockActual;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
   }
@@ -233,9 +234,9 @@ export const actualizePredictionsOnTripComplete = (
 /**
  * Predict a single vessel trip prediction field from its specification.
  *
- * Validates trip readiness, checks for required fields (LeftDock), computes
- * anchor time, and runs ML model. Returns null if prediction cannot be
- * computed.
+ * Validates trip readiness, checks for canonical departure actuals where the
+ * model needs them, computes anchor time, and runs ML model. Returns null if
+ * prediction cannot be computed.
  *
  * @param ctx - Convex action context for running ML predictions
  * @param trip - Vessel trip data
@@ -258,11 +259,11 @@ export const predictFromSpec = async (
     return null;
   }
 
-  if (spec.requiresLeftDock && !trip.LeftDock) {
+  if (spec.requiresDepartureActual && !trip.DepartOriginActual) {
     return null;
   }
 
-  // AtDockDepartNext and AtSeaDepartNext require NextScheduledDeparture to compute anchor time
+  // AtDockDepartNext and AtSeaDepartNext require NextScheduledDeparture to compute anchor time.
   if (
     (spec.field === "AtDockDepartNext" || spec.field === "AtSeaDepartNext") &&
     !trip.NextScheduledDeparture

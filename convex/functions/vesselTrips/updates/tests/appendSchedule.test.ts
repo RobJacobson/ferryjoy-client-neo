@@ -1,17 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 import { appendFinalSchedule } from "../tripLifecycle/appendSchedule";
 
 describe("appendFinalSchedule", () => {
-  it("reuses existing next-trip schedule fields when the trip key is unchanged", async () => {
+  it("reuses existing next-trip schedule fields when the schedule segment is unchanged", async () => {
     const existingTrip = makeTrip({
-      Key: "CHE--2026-03-13--09:30--MUK-CLI",
-      NextKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI",
+      NextScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
       NextScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
     });
     const baseTrip = makeTrip({
-      Key: existingTrip.Key,
-      NextKey: undefined,
+      ScheduleKey: existingTrip.ScheduleKey,
+      NextScheduleKey: undefined,
       NextScheduledDeparture: undefined,
     });
 
@@ -21,21 +22,21 @@ describe("appendFinalSchedule", () => {
       existingTrip
     );
 
-    expect(enriched.NextKey).toBe(existingTrip.NextKey);
+    expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
       existingTrip.NextScheduledDeparture
     );
   });
 
-  it("loads the next-trip schedule fields when the trip key changed", async () => {
+  it("loads the next-trip schedule fields when the schedule segment changed", async () => {
     const scheduledSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
       NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
       NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
     const baseTrip = makeTrip({
-      Key: scheduledSegment.Key,
-      NextKey: undefined,
+      ScheduleKey: scheduledSegment.Key,
+      NextScheduleKey: undefined,
       NextScheduledDeparture: undefined,
     });
 
@@ -46,20 +47,21 @@ describe("appendFinalSchedule", () => {
         ]),
       }) as never,
       baseTrip,
-      makeTrip({ Key: "CHE--2026-03-13--09:30--MUK-CLI" })
+      makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
 
-    expect(enriched.NextKey).toBe(scheduledSegment.NextKey);
+    expect(enriched.ScheduleKey).toBe(scheduledSegment.Key);
+    expect(enriched.NextScheduleKey).toBe(scheduledSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime
     );
   });
 
-  it("keeps keyless docked trips unchanged when no key is available", async () => {
+  it("keeps keyless docked trips unchanged when no schedule segment is available", async () => {
     const baseTrip = makeTrip({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: undefined,
-      Key: undefined,
+      ScheduleKey: undefined,
       SailingDay: undefined,
       ScheduledDeparture: undefined,
       TripStart: undefined,
@@ -72,10 +74,10 @@ describe("appendFinalSchedule", () => {
       undefined
     );
 
-    expect(enriched.Key).toBeUndefined();
+    expect(enriched.ScheduleKey).toBeUndefined();
     expect(enriched.ScheduledDeparture).toBeUndefined();
     expect(enriched.ArrivingTerminalAbbrev).toBeUndefined();
-    expect(enriched.NextKey).toBeUndefined();
+    expect(enriched.NextScheduleKey).toBeUndefined();
     expect(enriched.NextScheduledDeparture).toBeUndefined();
   });
 });
@@ -107,7 +109,8 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
   ArriveDest: undefined,
@@ -125,7 +128,7 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T04:33:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextKey: undefined,
+  NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   AtDockDepartCurr: undefined,
   AtDockArriveNext: undefined,

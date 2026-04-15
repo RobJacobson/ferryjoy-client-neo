@@ -30,7 +30,7 @@ type ModelDoc = {
  * Core prediction logic that:
  * - Skips specs where predictions already exist (avoid redundant work)
  * - Validates trip readiness via isPredictionReadyTrip
- * - Checks required fields (e.g., LeftDock for certain predictions)
+ * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
  * - Batches model loading when multiple predictions needed for efficiency
  *
  * @param ctx - Convex action context for running ML predictions
@@ -52,8 +52,12 @@ const computePredictions = async (
 
     if (!isPredictionReadyTrip(trip)) return trip;
 
+    const departureMs = trip.DepartOriginActual;
+
     if (
-      specsToAttempt.some((spec) => spec.requiresLeftDock && !trip.LeftDock)
+      specsToAttempt.some(
+        (spec) => spec.requiresDepartureActual && !departureMs
+      )
     ) {
       return trip;
     }
@@ -114,7 +118,8 @@ const computePredictions = async (
  * Enrich trip with at-dock predictions when vessel is at dock.
  *
  * Predicts AtDockDepartCurr, AtDockArriveNext, and AtDockDepartNext when
- * vessel is at dock and trip has required context (isPredictionReadyTrip).
+ * vessel is at dock and trip has required canonical origin-arrival context
+ * (isPredictionReadyTrip).
  * Runs on event-driven (arrive at dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions
@@ -136,7 +141,8 @@ export const appendArriveDockPredictions = async (
  * Enrich trip with at-sea predictions when vessel is at sea.
  *
  * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
- * (has LeftDock set) and trip has required context (isPredictionReadyTrip).
+ * (has canonical departure state) and trip has required context
+ * (isPredictionReadyTrip).
  * Runs on event-driven (leave dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions

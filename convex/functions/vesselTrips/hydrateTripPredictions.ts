@@ -1,11 +1,13 @@
 /**
- * Joins `eventsPredicted` rows onto stored trip documents for query responses.
+ * Temporary query hydration adapter for `vesselTrips` reads.
  *
- * Used by public `vesselTrips` queries (e.g. `getActiveTrips`) so subscribers
- * receive the same {@link ConvexVesselTrip} shape with optional ML boundary
- * fields. The vessel orchestrator tick bundles **storage-native** trips
- * instead and passes them to `processVesselTrips` without this join, so the tick
- * path does not pay hydration cost or duplicate `getActiveTrips`.
+ * This layer joins `eventsPredicted` onto stored trip documents so existing
+ * query/UI callers keep their current shape while Stage 4 and Stage 5 semantics
+ * remain separated from the ML reader core.
+ *
+ * The vessel orchestrator tick bundles **storage-native** trips instead and
+ * passes them to `processVesselTrips` without this join, so the tick path does
+ * not pay hydration cost or duplicate `getActiveTrips`.
  */
 
 import type { DataModel, Doc } from "_generated/dataModel";
@@ -40,7 +42,8 @@ const rowToJoined = (row: {
 
 /**
  * Batch-loads `eventsPredicted` for the given trips and merges ML prediction
- * fields onto copies (WSF ETA remains on `trip.Eta` only).
+ * fields onto copies while preserving the canonical trip timestamps. WSF ETA
+ * remains on `trip.Eta` only.
  *
  * @param ctx - Query context
  * @param trips - Stored trip documents
@@ -137,9 +140,15 @@ const mergeTripPredictions = (
     DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
     RouteAbbrev: trip.RouteAbbrev,
-    Key: trip.Key,
+    TripKey: trip.TripKey,
+    ScheduleKey: trip.ScheduleKey,
     SailingDay: trip.SailingDay,
     PrevTerminalAbbrev: trip.PrevTerminalAbbrev,
+    ArriveOriginDockActual: trip.ArriveOriginDockActual,
+    ArriveDestDockActual: trip.ArriveDestDockActual,
+    DepartOriginActual: trip.DepartOriginActual,
+    StartTime: trip.StartTime,
+    EndTime: trip.EndTime,
     ArriveDest: trip.ArriveDest,
     TripStart: trip.TripStart,
     AtDock: trip.AtDock,
@@ -155,7 +164,7 @@ const mergeTripPredictions = (
     TimeStamp: trip.TimeStamp,
     PrevScheduledDeparture: trip.PrevScheduledDeparture,
     PrevLeftDock: trip.PrevLeftDock,
-    NextKey: trip.NextKey,
+    NextScheduleKey: trip.NextScheduleKey,
     NextScheduledDeparture: trip.NextScheduledDeparture,
     ...(AtDockDepartCurr !== undefined ? { AtDockDepartCurr } : {}),
     ...(AtDockArriveNext !== undefined ? { AtDockArriveNext } : {}),

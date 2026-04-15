@@ -3,7 +3,7 @@
  * after lifecycle persistence. Peers apply these via orchestrator mutations.
  */
 
-import type { ConvexActualBoundaryPatch } from "functions/eventsActual/schemas";
+import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 
 /**
@@ -12,7 +12,7 @@ import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPr
  * Matches `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` args.
  */
 export type TickEventWrites = {
-  actualPatches: ConvexActualBoundaryPatch[];
+  actualPatches: ConvexActualBoundaryPatchPersistable[];
   predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
 };
 

@@ -1,5 +1,5 @@
 import type { RawWsfScheduleSegment } from "shared/fetchWsfScheduleData";
-import { generateTripKey } from "shared/keys";
+import { buildScheduleSegmentKey } from "shared/keys";
 import { resolveScheduleSegmentIdentity } from "../../../../shared/scheduleIdentity";
 import type { VesselIdentity } from "../../../../shared/vessels";
 import type { TerminalIdentity } from "../../../terminals/resolver";
@@ -55,7 +55,7 @@ export const createScheduledTripFromRawSegment = (
     abbreviations;
 
   // Generate the composite key that uniquely identifies this trip
-  const key = generateTripKey(
+  const key = buildScheduleSegmentKey(
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,
