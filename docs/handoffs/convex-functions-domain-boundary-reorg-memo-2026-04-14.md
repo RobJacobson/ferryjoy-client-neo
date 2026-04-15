@@ -3,7 +3,7 @@
 Date prepared: 2026-04-14  
 Audience: future backend engineer(s) reorganizing `convex/functions` and
 `convex/domain`  
-Status: proposed reorganization plan  
+Status: active phased reorganization plan  
 Scope: backend code organization for vessel lifecycle, timeline, scheduled-trip
 sync, and orchestrator flow
 
@@ -47,6 +47,27 @@ The desired end state is:
 - fewer, more valuable tests concentrated around real business logic rather than
   thin wrappers
 
+## Progress Status
+
+Current status as of 2026-04-14:
+
+- Phase 1 is complete:
+  - `convex/domain/scheduledTrips/` now owns scheduled-trip transformation logic
+  - `convex/functions/scheduledTrips/sync/transform/` has been removed
+  - `timelineReseed` no longer imports scheduled-trip transform logic from the
+    functions layer
+- Phase 2 is complete:
+  - `convex/domain/vesselTrips/` owns the vessel-trip lifecycle pipeline and
+    projection assembly; `convex/functions/vesselTrips/updates/` is a thin
+    compatibility layer (default `buildTripAdapters` wiring + re-exports)
+  - handoff checklist:
+    `docs/handoffs/phase-2-vesseltrips-domain-migration-checklist-2026-04-14.md`
+- one minor carryover remains from Phase 1:
+  - some documentation still references pre-move implementation paths,
+    especially in `convex/domain/ml/readme-ml.md`
+  - this is not a blocker for Phase 2, but it should be cleaned up as the
+    vesselTrips move progresses
+
 ## Read First
 
 Any implementation agent should read these documents before making changes:
@@ -68,6 +89,7 @@ These documents provide the key context for:
 - same-day reseed and reconciliation behavior
 - orchestrator flow and tick ordering
 - current domain module boundaries already accepted for `VesselTimeline`
+- current phase-by-phase implementation state
 
 ## Problem Statement
 
@@ -395,6 +417,14 @@ Goal:
 
 - separate schedule transformation logic from the schedule persistence layer
 
+Implementation status:
+
+- complete
+
+Implementation handoff used:
+
+- `docs/handoffs/phase-1-scheduled-trips-domain-migration-checklist-2026-04-14.md`
+
 Tasks:
 
 - move direct/indirect classification logic from
@@ -430,6 +460,14 @@ Goal:
 
 - move the vessel lifecycle state machine into the domain layer
 
+Implementation status:
+
+- next phase
+
+Implementation handoff:
+
+- `docs/handoffs/phase-2-vesseltrips-domain-migration-checklist-2026-04-14.md`
+
 Tasks:
 
 - move pure lifecycle logic from `convex/functions/vesselTrips/updates/` into a
@@ -438,6 +476,8 @@ Tasks:
   into the domain layer
 - move projection assembly logic that is really workflow/domain logic as well
 - keep only narrow Convex-facing entrypoints in `convex/functions/vesselTrips/`
+- introduce explicit adapter seams for any deferred function-layer behaviors so
+  the moved domain code does not import back into `convex/functions/`
 
 Likely current source areas:
 
@@ -449,6 +489,14 @@ Recommended public domain entrypoint:
 
 - one top-level function for one vessel tick, returning a clear result envelope
   that the functions layer can persist and project
+
+Important phase boundary:
+
+- do not fully solve `resolveEffectiveLocation` / docked schedule continuity in
+  this phase
+- Phase 2 should move the lifecycle state machine first, using injected adapters
+  where needed
+- the deeper continuity split remains Phase 3 work
 
 Success criteria:
 

@@ -11,8 +11,9 @@ The orchestrator runs periodically, roughly every 5 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
-2. update trip lifecycle state in `vesselTrips/updates`, then apply timeline
-   overlay writes (`applyTickEventWrites`) for `VesselTimeline`
+2. update trip lifecycle state via `vesselTrips/updates` (domain implementation
+   in `convex/domain/vesselTrips/`), then apply timeline overlay writes
+   (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.

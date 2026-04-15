@@ -1,9 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { appendFinalSchedule } from "functions/vesselTrips/updates/tripLifecycle/appendSchedule";
+import { resolveEffectiveLocation } from "functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
+
+const TEST_BUILD_TRIP_ADAPTERS = {
+  resolveEffectiveLocation,
+  appendFinalSchedule,
+};
 
 describe("buildTrip", () => {
   it("preserves carried prediction state when schedule segment changes but TripKey is stable", async () => {
@@ -57,7 +64,8 @@ describe("buildTrip", () => {
       existingTrip,
       false,
       makeEvents({ scheduleKeyChanged: true }),
-      false
+      false,
+      TEST_BUILD_TRIP_ADAPTERS
     );
 
     expect(built.TripKey).toBe(stableTripKey);
@@ -108,7 +116,8 @@ describe("buildTrip", () => {
       existingTrip,
       false,
       makeEvents({ didJustLeaveDock: true, scheduleKeyChanged: false }),
-      false
+      false,
+      TEST_BUILD_TRIP_ADAPTERS
     );
 
     expect(built.ScheduleKey).toBe(existingTrip.ScheduleKey);
@@ -165,7 +174,8 @@ describe("buildTrip", () => {
       existingTrip,
       false,
       makeEvents({ scheduleKeyChanged: true }),
-      false
+      false,
+      TEST_BUILD_TRIP_ADAPTERS
     );
 
     expect(built.TripKey).toBe(stableTripKey);

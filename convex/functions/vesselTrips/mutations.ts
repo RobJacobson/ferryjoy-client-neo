@@ -9,13 +9,13 @@ import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { calculateDeltaTotal } from "domain/ml/prediction/vesselTripPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselTrips/tripLifecycle/stripTripPredictionsForStorage";
 import { hydrateStoredTripsWithPredictions } from "functions/vesselTrips/hydrateTripPredictions";
 import {
   type ConvexVesselTrip,
   vesselTripMlPayloadSchema,
   vesselTripSchema,
 } from "functions/vesselTrips/schemas";
-import { stripTripPredictionsForStorage } from "functions/vesselTrips/stripTripForStorage";
 import { buildBoundaryKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 

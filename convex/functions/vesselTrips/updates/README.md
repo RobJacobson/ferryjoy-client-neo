@@ -1,5 +1,13 @@
 # VesselTrips `updates/`
 
+**Implementation note:** Substantive lifecycle, projection assembly, and tick
+orchestration live in `convex/domain/vesselTrips/`. This folder keeps Convex
+registration paths stable: most files under `tripLifecycle/`, `projection/`,
+and `processTick/` re-export the domain module; `processTick/processVesselTrips.ts`
+wires default `buildTripAdapters` (`resolveEffectiveLocation`, `appendFinalSchedule`
+from `tripLifecycle/`). Deferred Phase 3 modules (`resolveEffectiveLocation.ts`,
+`appendSchedule.ts`) remain implemented here.
+
 This module is the canonical write pipeline for vessel-trip lifecycle updates.
 It runs once per orchestrator tick and converts feed snapshots into:
 

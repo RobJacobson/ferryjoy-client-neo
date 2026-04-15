@@ -4,11 +4,11 @@
 
 import { describe, expect, it } from "bun:test";
 import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
-import type { ConvexVesselTrip } from "../../schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
-} from "./actualBoundaryPatchesFromTrip";
+} from "../projection/actualBoundaryPatchesFromTrip";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);

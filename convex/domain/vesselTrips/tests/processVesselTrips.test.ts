@@ -5,12 +5,12 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { applyTickEventWrites } from "functions/vesselOrchestrator/applyTickEventWrites";
 import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { applyTickEventWrites } from "../../../vesselOrchestrator/applyTickEventWrites";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 
@@ -615,7 +615,12 @@ const createDeps = (input: TestDepsInput) => ({
   buildCompletedTrip: (existingTrip: ConvexVesselTrip) => existingTrip,
   buildTrip: async (
     _ctx: unknown,
-    currLocation: ConvexVesselLocation
+    currLocation: ConvexVesselLocation,
+    _existingTrip: ConvexVesselTrip | undefined,
+    _tripStart: boolean,
+    _events: TripEvents,
+    _shouldRunPredictionFallback: boolean,
+    _adapters: unknown
   ): Promise<ConvexVesselTrip> => {
     input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
@@ -629,6 +634,14 @@ const createDeps = (input: TestDepsInput) => ({
     }
 
     return builtTrip;
+  },
+  buildTripAdapters: {
+    resolveEffectiveLocation: async (
+      _ctx: unknown,
+      location: ConvexVesselLocation
+    ) => location,
+    appendFinalSchedule: async (_ctx: unknown, baseTrip: ConvexVesselTrip) =>
+      baseTrip,
   },
   detectTripEvents: (
     _existingTrip: ConvexVesselTrip | undefined,

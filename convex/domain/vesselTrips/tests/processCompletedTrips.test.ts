@@ -30,7 +30,9 @@ describe("processCompletedTrips", () => {
     });
     const completedTrip = makeTrip({
       LeftDock: existingTrip.LeftDock,
+      DepartOriginActual: existingTrip.LeftDock,
       ArriveDest: ms("2026-03-13T06:29:56-07:00"),
+      ArriveDestDockActual: ms("2026-03-13T06:29:56-07:00"),
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
     });
     const newTrip = makeTrip({
@@ -225,7 +227,15 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
 
     return completedTrip;
   },
-  buildTrip: async (_ctx, currLocation): Promise<ConvexVesselTrip> => {
+  buildTrip: async (
+    _ctx,
+    currLocation,
+    _existingTrip,
+    _tripStart,
+    _events,
+    _shouldRunPredictionFallback,
+    _adapters
+  ): Promise<ConvexVesselTrip> => {
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
       throw failure;
@@ -237,6 +247,10 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
     }
 
     return newTrip;
+  },
+  buildTripAdapters: {
+    resolveEffectiveLocation: async (_ctx, location) => location,
+    appendFinalSchedule: async (_ctx, baseTrip) => baseTrip,
   },
 });
 
