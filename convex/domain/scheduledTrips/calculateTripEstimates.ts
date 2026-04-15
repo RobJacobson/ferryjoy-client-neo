@@ -4,12 +4,9 @@
  * @module
  */
 
-import {
-  config,
-  formatTerminalPairKey,
-} from "../../../../domain/ml/shared/config";
-import { roundUpToNextMinute } from "../../../../shared/durationUtils";
-import type { ConvexScheduledTrip } from "../../schemas";
+import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import { roundUpToNextMinute } from "../../shared/durationUtils";
+import { config, formatTerminalPairKey } from "../ml/shared/config";
 import {
   groupTripsByPhysicalDeparture,
   groupTripsByVessel,

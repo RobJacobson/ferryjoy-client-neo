@@ -5,9 +5,9 @@
  * then enrich them with arrival estimates plus chain-link metadata.
  */
 
-import type { ConvexScheduledTrip } from "../../schemas";
-import { classifyDirectSegments } from "./directSegments";
-import { calculateTripEstimates } from "./estimates";
+import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
+import { calculateTripEstimates } from "./calculateTripEstimates";
+import { classifyDirectSegments } from "./classifyDirectSegments";
 
 /**
  * The core transformation pipeline for scheduled trips.
@@ -16,7 +16,7 @@ import { calculateTripEstimates } from "./estimates";
  * @param trips - Array of raw scheduled trips
  * @returns Array of classified trips with estimates and connections
  */
-export const runTransformationPipeline = (
+export const runScheduleTransformPipeline = (
   trips: ConvexScheduledTrip[]
 ): ConvexScheduledTrip[] => {
   const classified = classifyDirectSegments(trips);

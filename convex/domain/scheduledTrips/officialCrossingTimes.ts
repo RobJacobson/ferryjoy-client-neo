@@ -14,7 +14,7 @@
  *   via-Vashon sailings). For those, we key by route abbrev + pair.
  */
 
-import { formatTerminalPairKey } from "../../../../domain/ml/shared/config";
+import { formatTerminalPairKey } from "../ml/shared/config";
 
 export type OfficialCrossingTimeRouteAbbrev =
   | "ed-king"

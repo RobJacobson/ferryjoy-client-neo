@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { ConvexScheduledTrip } from "../../schemas";
+import type { ConvexScheduledTrip } from "../../functions/scheduledTrips/schemas";
 
 export type PhysicalDepartureInput = {
   VesselAbbrev: string;
