@@ -63,7 +63,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.SailingDay).toBeUndefined();
   });
 
-  it("uses the completed trip end as TripStart when the next trip is created", () => {
+  it("uses the current tick as the new coverage start and keeps origin arrival separate", () => {
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",
@@ -82,13 +82,15 @@ describe("baseTripFromLocation", () => {
     expect(trip.DepartingTerminalAbbrev).toBe(
       currLocation.DepartingTerminalAbbrev
     );
-    expect(trip.TripStart).toBe(existingTrip.TripEnd);
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBe(currLocation.TimeStamp);
     expect(trip.PrevTerminalAbbrev).toBe(existingTrip.DepartingTerminalAbbrev);
     expect(trip.PrevScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.PrevLeftDock).toBe(existingTrip.LeftDock);
   });
 
-  it("keeps TripStart undefined for first-seen docked trips", () => {
+  it("sets coverage start but leaves origin arrival undefined for first-seen docked bootstrap rows", () => {
     const currLocation = makeLocation({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: undefined,
@@ -98,7 +100,9 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, undefined, false);
 
-    expect(trip.TripStart).toBeUndefined();
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBeUndefined();
     expect(trip.TripKey).toBe(
       generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
     );
@@ -107,7 +111,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.PrevLeftDock).toBeUndefined();
   });
 
-  it("mints TripKey for a first-seen in-progress sailing without fabricating TripStart", () => {
+  it("mints TripKey for a first-seen in-progress sailing without fabricating an origin boundary", () => {
     const currLocation = makeLocation({
       AtDock: false,
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
@@ -119,7 +123,9 @@ describe("baseTripFromLocation", () => {
     expect(trip.TripKey).toBe(
       generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
     );
-    expect(trip.TripStart).toBeUndefined();
+    expect(trip.StartTime).toBe(currLocation.TimeStamp);
+    expect(trip.TripStart).toBe(currLocation.TimeStamp);
+    expect(trip.ArriveOriginDockActual).toBeUndefined();
     expect(trip.LeftDock).toBe(currLocation.LeftDock);
   });
 

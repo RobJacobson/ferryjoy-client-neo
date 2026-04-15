@@ -86,13 +86,22 @@ export const buildTrip = async (
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
+  const canonicalStartAndOriginReady =
+    Boolean(
+      withScheduleKeyChangeClearedDerivedState.StartTime ??
+        withScheduleKeyChangeClearedDerivedState.TripStart
+    ) &&
+    Boolean(
+      withScheduleKeyChangeClearedDerivedState.ArriveOriginDockActual ??
+        withScheduleKeyChangeClearedDerivedState.AtDockActual
+    );
   // At-dock predictions belong only to real dock occupancy for a started trip.
   // This avoids generating model output for first-seen placeholder rows that
-  // have not yet observed a trustworthy trip start.
+  // have not yet observed a trustworthy origin-arrival boundary.
   const shouldAttemptAtDockPredictions =
     withScheduleKeyChangeClearedDerivedState.AtDock &&
     !withScheduleKeyChangeClearedDerivedState.LeftDock &&
-    Boolean(withScheduleKeyChangeClearedDerivedState.TripStart) &&
+    canonicalStartAndOriginReady &&
     (tripStart || events.scheduleKeyChanged || shouldRunPredictionFallback) &&
     (!withScheduleKeyChangeClearedDerivedState.AtDockDepartCurr ||
       !withScheduleKeyChangeClearedDerivedState.AtDockArriveNext ||
@@ -102,7 +111,11 @@ export const buildTrip = async (
   // bounded retry path if that first prediction attempt fails.
   const shouldAttemptAtSeaPredictions =
     !withScheduleKeyChangeClearedDerivedState.AtDock &&
-    Boolean(withScheduleKeyChangeClearedDerivedState.LeftDock) &&
+    Boolean(
+      withScheduleKeyChangeClearedDerivedState.DepartOriginActual ??
+        withScheduleKeyChangeClearedDerivedState.LeftDockActual ??
+        withScheduleKeyChangeClearedDerivedState.LeftDock
+    ) &&
     (events.didJustLeaveDock ||
       events.scheduleKeyChanged ||
       shouldRunPredictionFallback) &&

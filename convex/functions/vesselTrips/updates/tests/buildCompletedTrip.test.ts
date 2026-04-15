@@ -6,6 +6,7 @@ import { buildCompletedTrip } from "../tripLifecycle/buildCompletedTrip";
 describe("buildCompletedTrip", () => {
   it("preserves a valid ArriveDest when it occurs after departure", () => {
     const existingTrip = makeTrip({
+      StartTime: ms("2026-03-13T04:33:00-07:00"),
       TripStart: ms("2026-03-13T04:33:00-07:00"),
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       ArriveDest: ms("2026-03-13T06:29:45-07:00"),
@@ -15,12 +16,37 @@ describe("buildCompletedTrip", () => {
       existingTrip,
       makeLocation({
         TimeStamp: ms("2026-03-13T06:29:56-07:00"),
-      })
+      }),
+      true
     );
 
-    expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:45-07:00"));
+    expect(completed.StartTime).toBe(existingTrip.StartTime);
+    expect(completed.ArriveDestDockActual).toBe(
+      ms("2026-03-13T06:29:56-07:00")
+    );
+    expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
+    expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.TripEnd).toBe(ms("2026-03-13T06:29:56-07:00"));
-    expect(completed.AtSeaDuration).toBe(60.1);
+    expect(completed.AtSeaDuration).toBe(60.3);
+  });
+
+  it("keeps ArriveDestDockActual undefined when a close is synthetic", () => {
+    const existingTrip = makeTrip({
+      TripStart: ms("2026-03-13T04:33:00-07:00"),
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+    });
+
+    const completed = buildCompletedTrip(
+      existingTrip,
+      makeLocation({
+        TimeStamp: ms("2026-03-13T06:29:56-07:00"),
+      }),
+      false
+    );
+
+    expect(completed.ArriveDestDockActual).toBeUndefined();
+    expect(completed.ArriveDest).toBeUndefined();
+    expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
   });
 
   it("falls back to TripEnd when ArriveDest predates LeftDock", () => {
@@ -34,10 +60,15 @@ describe("buildCompletedTrip", () => {
       existingTrip,
       makeLocation({
         TimeStamp: ms("2026-03-13T06:29:56-07:00"),
-      })
+      }),
+      true
     );
 
+    expect(completed.ArriveDestDockActual).toBe(
+      ms("2026-03-13T06:29:56-07:00")
+    );
     expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
+    expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.TripEnd).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.AtSeaDuration).toBe(60.3);
     expect(completed.TotalDuration).toBe(597);
@@ -54,10 +85,14 @@ describe("buildCompletedTrip", () => {
       makeLocation({
         DepartingTerminalAbbrev: "ORI",
         TimeStamp: ms("2026-03-13T06:29:56-07:00"),
-      })
+      }),
+      true
     );
 
     expect(completed.ArrivingTerminalAbbrev).toBe("ORI");
+    expect(completed.ArriveDestDockActual).toBe(
+      ms("2026-03-13T06:29:56-07:00")
+    );
     expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
   });
 });

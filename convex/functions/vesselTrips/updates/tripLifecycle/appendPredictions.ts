@@ -52,9 +52,10 @@ const computePredictions = async (
 
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    if (
-      specsToAttempt.some((spec) => spec.requiresLeftDock && !trip.LeftDock)
-    ) {
+    const departureMs =
+      trip.DepartOriginActual ?? trip.LeftDockActual ?? trip.LeftDock;
+
+    if (specsToAttempt.some((spec) => spec.requiresLeftDock && !departureMs)) {
       return trip;
     }
 
@@ -114,7 +115,8 @@ const computePredictions = async (
  * Enrich trip with at-dock predictions when vessel is at dock.
  *
  * Predicts AtDockDepartCurr, AtDockArriveNext, and AtDockDepartNext when
- * vessel is at dock and trip has required context (isPredictionReadyTrip).
+ * vessel is at dock and trip has required canonical origin-arrival context
+ * (isPredictionReadyTrip).
  * Runs on event-driven (arrive at dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions
@@ -136,7 +138,8 @@ export const appendArriveDockPredictions = async (
  * Enrich trip with at-sea predictions when vessel is at sea.
  *
  * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
- * (has LeftDock set) and trip has required context (isPredictionReadyTrip).
+ * (has canonical departure state) and trip has required context
+ * (isPredictionReadyTrip).
  * Runs on event-driven (leave dock) and time-based fallback (once per minute).
  *
  * @param ctx - Convex action context for running ML predictions

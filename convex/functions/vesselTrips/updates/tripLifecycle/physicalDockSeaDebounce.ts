@@ -11,14 +11,15 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Returns the persisted departure timestamp for lifecycle, preferring
- * {@link ConvexVesselTrip.LeftDockActual} over legacy {@link ConvexVesselTrip.LeftDock}.
+ * {@link ConvexVesselTrip.DepartOriginActual} over legacy departure mirrors.
  *
  * @param trip - Active trip row, if any
  * @returns Epoch ms when the vessel has physically departed, else undefined
  */
 export const getPhysicalDepartureStamp = (
   trip: ConvexVesselTrip | undefined
-): number | undefined => trip?.LeftDockActual ?? trip?.LeftDock;
+): number | undefined =>
+  trip?.DepartOriginActual ?? trip?.LeftDockActual ?? trip?.LeftDock;
 
 /**
  * Raw tick suggests the vessel is still in a dock interval (low speed, docked).
@@ -92,7 +93,11 @@ export const rawDidJustArriveAtDock = (
   }
 
   const departed = getPhysicalDepartureStamp(existingTrip);
-  if (departed === undefined || existingTrip.ArriveDest !== undefined) {
+  if (
+    departed === undefined ||
+    existingTrip.ArriveDestDockActual !== undefined ||
+    existingTrip.ArriveDest !== undefined
+  ) {
     return false;
   }
 

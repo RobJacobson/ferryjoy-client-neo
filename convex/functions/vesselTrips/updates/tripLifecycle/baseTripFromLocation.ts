@@ -14,7 +14,6 @@ import type {
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { getPhysicalDepartureStamp } from "./physicalDockSeaDebounce";
 import {
   type DerivedTripInputs,
   deriveTripInputs,
@@ -59,11 +58,10 @@ export const baseTripFromLocation = (
  */
 const baseTripForStart = (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined,
+  _existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTripWithML => {
-  // The next trip begins at the same observed boundary where the previous trip ended.
-  const tripStartTime = existingTrip?.TripEnd;
+  const startTime = currLocation.TimeStamp;
   const tripKey = generateTripKey(
     currLocation.VesselAbbrev,
     currLocation.TimeStamp
@@ -80,10 +78,18 @@ const baseTripForStart = (
     SailingDay: tripInputs.startSailingDay,
     PrevTerminalAbbrev: prevCompleted?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: prevCompleted?.ScheduledDeparture,
-    PrevLeftDock: prevCompleted?.LeftDockActual ?? prevCompleted?.LeftDock,
+    PrevLeftDock:
+      prevCompleted?.DepartOriginActual ??
+      prevCompleted?.LeftDockActual ??
+      prevCompleted?.LeftDock,
+    ArriveOriginDockActual: startTime,
+    ArriveDestDockActual: undefined,
+    DepartOriginActual: undefined,
+    StartTime: startTime,
+    EndTime: undefined,
     ArriveDest: undefined,
-    AtDockActual: currLocation.TimeStamp,
-    TripStart: tripStartTime,
+    AtDockActual: startTime,
+    TripStart: startTime,
     AtDock: currLocation.AtDock,
     AtDockDuration: undefined,
     ScheduledDeparture: tripInputs.currentScheduledDeparture,
@@ -149,36 +155,17 @@ const baseTripForContinuing = (
   existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTripWithML => {
-  // Preserve the first recorded arrival/start timestamps across later ticks.
-  const arriveDestTime = existingTrip?.ArriveDest;
-  const tripStartTime = existingTrip?.TripStart;
+  const isBootstrapTrip = existingTrip === undefined;
+  const startTime = isBootstrapTrip
+    ? currLocation.TimeStamp
+    : existingTrip?.StartTime;
+  const arriveOriginTime = existingTrip?.ArriveOriginDockActual;
+  const arriveDestTime = existingTrip?.ArriveDestDockActual;
+  const departOriginTime =
+    existingTrip?.DepartOriginActual ??
+    (tripInputs.didJustLeaveDock ? currLocation.TimeStamp : undefined);
+  const endTime = existingTrip?.EndTime;
   const tripKey = tripKeyForContinuing(existingTrip, currLocation);
-
-  const atDockActual = (() => {
-    if (existingTrip?.AtDockActual !== undefined) {
-      return existingTrip.AtDockActual;
-    }
-    if (getPhysicalDepartureStamp(existingTrip) !== undefined) {
-      return existingTrip?.TripStart;
-    }
-    if (!existingTrip) {
-      return currLocation.AtDock ? currLocation.TimeStamp : undefined;
-    }
-    return existingTrip.TripStart ?? currLocation.TimeStamp;
-  })();
-
-  const leftDockActual = (() => {
-    if (existingTrip?.LeftDockActual !== undefined) {
-      return existingTrip.LeftDockActual;
-    }
-    if (existingTrip?.LeftDock !== undefined) {
-      return existingTrip.LeftDock;
-    }
-    if (tripInputs.leftDockTime !== undefined) {
-      return tripInputs.leftDockTime;
-    }
-    return undefined;
-  })();
 
   return {
     VesselAbbrev: currLocation.VesselAbbrev,
@@ -191,17 +178,22 @@ const baseTripForContinuing = (
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: existingTrip?.PrevLeftDock,
+    ArriveOriginDockActual: arriveOriginTime,
+    ArriveDestDockActual: arriveDestTime,
+    DepartOriginActual: departOriginTime,
+    StartTime: startTime,
+    EndTime: endTime,
     ArriveDest: arriveDestTime,
-    AtDockActual: atDockActual,
-    TripStart: tripStartTime,
+    AtDockActual: arriveOriginTime,
+    TripStart: startTime,
     AtDock: currLocation.AtDock,
     AtDockDuration: calculateTimeDelta(
-      arriveDestTime ?? tripStartTime,
+      arriveDestTime ?? endTime ?? startTime,
       tripInputs.leftDockTime
     ),
     ScheduledDeparture: tripInputs.continuingScheduledDeparture,
     LeftDock: tripInputs.leftDockTime,
-    LeftDockActual: leftDockActual,
+    LeftDockActual: departOriginTime,
     TripDelay: calculateTimeDelta(
       tripInputs.continuingScheduledDeparture,
       tripInputs.leftDockTime
@@ -209,7 +201,7 @@ const baseTripForContinuing = (
     Eta: currLocation.Eta ?? existingTrip?.Eta,
     NextScheduleKey: existingTrip?.NextScheduleKey,
     NextScheduledDeparture: existingTrip?.NextScheduledDeparture,
-    TripEnd: undefined,
+    TripEnd: endTime,
     AtSeaDuration: existingTrip?.AtSeaDuration,
     TotalDuration: existingTrip?.TotalDuration,
     InService: currLocation.InService,

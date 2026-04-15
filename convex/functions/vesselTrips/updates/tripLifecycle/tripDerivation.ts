@@ -48,7 +48,9 @@ export const hasTripEvidence = (
 ): existingTrip is ConvexVesselTrip =>
   Boolean(
     existingTrip &&
-      (existingTrip.LeftDock !== undefined ||
+      (existingTrip.DepartOriginActual !== undefined ||
+        existingTrip.ArriveDestDockActual !== undefined ||
+        existingTrip.LeftDock !== undefined ||
         existingTrip.LeftDockActual !== undefined ||
         existingTrip.ArriveDest !== undefined)
   );

@@ -62,7 +62,8 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtSeaArriveNext",
     modelType: "at-sea-arrive-next",
     requiresLeftDock: true,
-    getAnchorMs: (trip) => trip.LeftDock ?? null,
+    getAnchorMs: (trip) =>
+      trip.DepartOriginActual ?? trip.LeftDockActual ?? trip.LeftDock ?? null,
   },
   AtSeaDepartNext: {
     field: "AtSeaDepartNext",
@@ -86,7 +87,8 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 export const isPredictionReadyTrip = (
   trip: ConvexVesselTrip
 ): trip is PredictionReadyTrip =>
-  Boolean(trip.TripStart) &&
+  Boolean(trip.StartTime ?? trip.TripStart) &&
+  Boolean(trip.ArriveOriginDockActual ?? trip.AtDockActual) &&
   Boolean(trip.DepartingTerminalAbbrev) &&
   Boolean(trip.ArrivingTerminalAbbrev) &&
   Boolean(trip.PrevTerminalAbbrev) &&
@@ -194,7 +196,9 @@ export const applyActualToPrediction = (
 export const actualizePredictionsOnLeaveDock = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  if (!trip.LeftDock || !trip.AtDockDepartCurr) {
+  const departureMs =
+    trip.DepartOriginActual ?? trip.LeftDockActual ?? trip.LeftDock;
+  if (!departureMs || !trip.AtDockDepartCurr) {
     return trip;
   }
 
@@ -202,7 +206,7 @@ export const actualizePredictionsOnLeaveDock = (
     ...trip,
     AtDockDepartCurr: applyActualToPrediction(
       trip.AtDockDepartCurr,
-      trip.LeftDock
+      departureMs
     ),
   };
 };
@@ -216,7 +220,11 @@ export const actualizePredictionsOnLeaveDock = (
 export const actualizePredictionsOnTripComplete = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  const arrivalActual = trip.ArriveDest ?? trip.TripEnd;
+  const arrivalActual =
+    trip.ArriveDestDockActual ??
+    trip.EndTime ??
+    trip.ArriveDest ??
+    trip.TripEnd;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
   }
