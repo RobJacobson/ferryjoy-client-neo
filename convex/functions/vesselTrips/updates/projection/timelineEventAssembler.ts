@@ -121,19 +121,13 @@ const buildTaggedActualPatchesFromMessage = (
   const { events, finalProposed, vesselAbbrev, requiresSuccessfulUpsert } =
     message;
 
-  if (
-    events.didJustLeaveDock &&
-    finalProposed.DepartOriginActual !== undefined
-  ) {
+  if (events.didJustLeaveDock && finalProposed.LeftDock !== undefined) {
     const departure = buildDepartureActualPatchForTrip(finalProposed);
     if (departure !== null) {
       patches.push(departure);
     }
   }
-  if (
-    events.didJustArriveAtDock &&
-    finalProposed.ArriveDestDockActual !== undefined
-  ) {
+  if (events.didJustArriveAtDock && finalProposed.ArriveDest !== undefined) {
     const arrival = buildArrivalActualPatchForTrip(finalProposed);
     if (arrival !== null) {
       patches.push(arrival);
