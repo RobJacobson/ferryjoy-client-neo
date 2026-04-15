@@ -15,6 +15,7 @@ import {
 } from "domain/ml/prediction/vesselTripPredictions";
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
+import { getDepartureMs } from "domain/ml/shared/unifiedTrip";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 type ModelDoc = {
@@ -52,8 +53,7 @@ const computePredictions = async (
 
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    const departureMs =
-      trip.DepartOriginActual ?? trip.LeftDockActual ?? trip.LeftDock;
+    const departureMs = getDepartureMs(trip);
 
     if (specsToAttempt.some((spec) => spec.requiresLeftDock && !departureMs)) {
       return trip;
