@@ -22,11 +22,12 @@ Use the post-refactor layout as the pattern:
 
 **Domain (transform / business rules)** — [`convex/domain/scheduledTrips/`](../../convex/domain/scheduledTrips/)
 
-- Pipeline entry: `runScheduleTransformPipeline`, `classifyDirectSegments`, `calculateTripEstimates`, `officialCrossingTimes`, `grouping`, etc.
+- Pipeline entry: `runScheduleTransformPipeline`, `classifyDirectSegments`, `calculateTripEstimates`, `officialCrossingTimes`, `grouping`, prefetch row helpers (`applyPrefetchSchedulePolicies`, `buildInitialScheduledTripRow`), etc.
 - Described in domain README: [`convex/domain/README.md`](../../convex/domain/README.md) (bullet `scheduledTrips/`)
 
 **Functions (Convex + WSF I/O)** — [`convex/functions/scheduledTrips/`](../../convex/functions/scheduledTrips/)
 
+- Module overview: [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
 - Top-level: `actions.ts`, `mutations.ts`, `queries.ts`, `schemas.ts`, `index.ts`
 - Sync pipeline: [`sync/`](../../convex/functions/scheduledTrips/sync/) — `fetchAndTransform.ts`, `persistence.ts`, `sync.ts`, `fetching/*`
 - Architecture note for this folder: [`convex/functions/scheduledTrips/sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md)
@@ -56,6 +57,7 @@ Use the post-refactor layout as the pattern:
 
 ### Convex backend — scheduled trips (functions)
 
+- [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
 - [`convex/functions/scheduledTrips/sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md)
 
 ### Convex backend — related modules
@@ -101,6 +103,6 @@ If the next agent needs code anchors beyond Markdown:
 
 ## Checklist before closing the task
 
-- [ ] Domain vs functions boundary matches [`convex/domain/README.md`](../../convex/domain/README.md).
-- [ ] Tests: substantive logic under `convex/domain/**/tests/`; functions tests limited to validators/wiring where appropriate (same convention as domain README).
-- [ ] Docs updated if paths or ownership changed (at minimum `sync/README.md` and this handoff’s “relevant md” list if new READMEs appear).
+- [x] Domain vs functions boundary matches [`convex/domain/README.md`](../../convex/domain/README.md).
+- [x] Tests: substantive logic under `convex/domain/**/tests/`; functions tests limited to validators/wiring where appropriate (same convention as domain README).
+- [x] Docs updated if paths or ownership changed (at minimum `sync/README.md` and this handoff’s “relevant md” list if new READMEs appear).

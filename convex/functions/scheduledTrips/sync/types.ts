@@ -1,27 +1,9 @@
 /**
- * Internal type representing a scheduled vessel sailing from WSF API terminal combinations.
- * Contains vessel details and timing information for a specific departure/arrival.
+ * Shared sync result types for scheduled-trips actions. `VesselSailing` is
+ * defined alongside raw schedule download in `convex/shared/fetchWsfScheduleData`.
  */
-export type VesselSailing = {
-  /** Scheduled departure time as Date object */
-  DepartingTime: Date;
-  /** Scheduled arrival time, null for one-way trips */
-  ArrivingTime: Date | null;
-  /** WSF loading rule classification (1-3) */
-  LoadingRule: 1 | 2 | 3;
-  /** Unique vessel identifier */
-  VesselID: number;
-  /** Full vessel name for abbreviation lookup */
-  VesselName: string;
-  /** Whether vessel is handicap accessible */
-  VesselHandicapAccessible: boolean;
-  /** Vessel position number in terminal */
-  VesselPositionNum: number;
-  /** Array of route IDs this vessel serves */
-  Routes: number[];
-  /** Indexes into terminal combo annotations array, null if no annotations */
-  AnnotationIndexes: number[] | null;
-};
+
+export type { VesselSailing } from "../../../shared/fetchWsfScheduleData";
 
 /**
  * Result type for tracking individual day synchronization operations.

@@ -33,6 +33,8 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
+import type * as domain_scheduledTrips_applyPrefetchSchedulePolicies from "../domain/scheduledTrips/applyPrefetchSchedulePolicies.js";
+import type * as domain_scheduledTrips_buildInitialScheduledTripRow from "../domain/scheduledTrips/buildInitialScheduledTripRow.js";
 import type * as domain_scheduledTrips_calculateTripEstimates from "../domain/scheduledTrips/calculateTripEstimates.js";
 import type * as domain_scheduledTrips_classifyDirectSegments from "../domain/scheduledTrips/classifyDirectSegments.js";
 import type * as domain_scheduledTrips_grouping from "../domain/scheduledTrips/grouping.js";
@@ -213,6 +215,8 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
+  "domain/scheduledTrips/applyPrefetchSchedulePolicies": typeof domain_scheduledTrips_applyPrefetchSchedulePolicies;
+  "domain/scheduledTrips/buildInitialScheduledTripRow": typeof domain_scheduledTrips_buildInitialScheduledTripRow;
   "domain/scheduledTrips/calculateTripEstimates": typeof domain_scheduledTrips_calculateTripEstimates;
   "domain/scheduledTrips/classifyDirectSegments": typeof domain_scheduledTrips_classifyDirectSegments;
   "domain/scheduledTrips/grouping": typeof domain_scheduledTrips_grouping;

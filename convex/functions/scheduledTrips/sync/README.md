@@ -49,7 +49,10 @@ To keep FerryJoy aligned with physical vessel movement, the sync pipeline:
 
 ### `fetching/`
 
-WSF API download and raw segment mapping.
+WSF API download and raw segment mapping. Segment rows are turned into initial
+`ConvexScheduledTrip` shapes via `buildInitialScheduledTripRow` in
+[`convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts`](/convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts)
+(prefetch policies such as Route 9 `SchedArriveCurr` live there).
 
 ### `fetchAndTransform.ts`
 

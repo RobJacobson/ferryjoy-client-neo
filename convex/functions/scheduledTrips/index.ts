@@ -1,6 +1,7 @@
 /**
- * ScheduledTrips module exports
- * Contains functions for managing WSF scheduled trip data and synchronization
+ * ScheduledTrips Convex module — re-exports entrypoints and the internal `sync/`
+ * adapter. Prefer importing `actions`, `mutations`, `queries`, or `schemas`
+ * directly for new code; see `README.md`.
  */
 
 export * from "./actions";
