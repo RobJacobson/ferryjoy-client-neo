@@ -84,8 +84,9 @@ Current status as of 2026-04-14:
     injected functions-layer adapters
   - `convex/functions/vesselOrchestrator/actions.ts` handles fetch, read-model load /
     bootstrap, conversion, and adapter wiring only
-  - `convex/functions/vesselOrchestrator/applyTickEventWrites.ts` remains a thin
-    persistence helper
+  - timeline write application (`applyTickEventWrites`) is implemented in
+    `convex/functions/vesselOrchestrator/actions.ts` (no separate
+    `applyTickEventWrites.ts` module)
   - handoff checklist:
     `docs/handoffs/phase-4-vesselorchestrator-functional-pipeline-checklist-2026-04-14.md`
 - Phase 5 is complete:
@@ -94,15 +95,18 @@ Current status as of 2026-04-14:
     `ctx.runMutation`) where effects are the contract
   - `appendSchedule.test.ts` (schedule enrichment adapter) and
     `resolveEffectiveLocation.adapter.test.ts` (early-return wiring) remain minimal;
-    `applyTickEventWrites.test.ts` covers timeline mutation batching
+    orchestrator sequencing and branch behavior live in
+    `convex/domain/vesselOrchestration/tests/` (there is no
+    `convex/functions/vesselOrchestrator/tests/` directory)
   - domain `buildTrip` / `processVesselTrips` tests use domain-local adapter fakes
     matching production contracts (no imports of functions implementation modules)
   - handoff checklist:
     `docs/handoffs/phase-5-test-cleanup-and-boundary-enforcement-checklist-2026-04-14.md`
 - review note:
-  - the earlier hypothesis about stale scheduledTrips path references in
-    `convex/domain/ml/readme-ml.md` did not hold up in code review; that doc
-    already points at `convex/domain/scheduledTrips/`
+  - `convex/domain/ml/readme-ml.md` is maintained as live architecture guidance;
+    keep implementation pointers aligned with `convex/domain/scheduledTrips/` and
+    the current vessel-trip schedule enrichment adapters (see quality review
+    `docs/handoffs/convex-domain-boundary-reorg-quality-review-2026-04-14.md`)
 
 ## Read First
 
@@ -283,8 +287,8 @@ Nuance:
 Conclusion:
 
 - preserve `convex/functions/vesselOrchestrator/actions.ts` as an entrypoint
-- keep small persistence/application helpers like `applyTickEventWrites.ts`
-  only if they remain thin
+- keep timeline mutation batching next to the action (`applyTickEventWrites` in
+  `actions.ts`) or other small persistence helpers only if they remain thin
 - move substantive tick workflow composition into the domain layer
 
 ### 5. Tests
@@ -362,9 +366,8 @@ convex/
       mutations.ts
       schemas.ts
     vesselOrchestrator/
-      actions.ts
+      actions.ts                # includes applyTickEventWrites helper + updateVesselOrchestrator
       queries.ts
-      applyTickEventWrites.ts   # only if still thin enough
 
   domain/
     scheduledTrips/
@@ -589,8 +592,8 @@ Tasks (done):
 - extracted `runVesselOrchestratorTick` in `convex/domain/vesselOrchestration/`
   with injected adapters for location persistence, `processVesselTrips`, and
   `applyTickEventWrites`
-- `actions.ts` handles fetch, bundled read-model load, conversion, and invokes the
-  domain pipeline; `applyTickEventWrites.ts` kept as a thin persistence helper
+- `actions.ts` handles fetch, bundled read-model load, conversion, invokes the
+  domain pipeline, and defines `applyTickEventWrites` for injected adapters
 
 Important note:
 

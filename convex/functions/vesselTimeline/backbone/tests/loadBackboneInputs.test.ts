@@ -4,11 +4,11 @@
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
+import { getSegmentKeyFromBoundaryKey } from "../../../../domain/timelineRows/scheduledSegmentResolvers";
 import { buildPhysicalActualEventKey } from "../../../../shared/physicalTripIdentity";
 import type { ConvexActualBoundaryEvent } from "../../../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../eventsScheduled/schemas";
-import { getSegmentKeyFromBoundaryKey } from "../../../../domain/timelineRows/scheduledSegmentResolvers";
 import { loadVesselTimelineBackbone } from "../../queries";
 
 const at = (hours: number, minutes: number, day = 25) =>

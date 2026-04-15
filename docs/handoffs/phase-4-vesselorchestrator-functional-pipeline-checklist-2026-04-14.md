@@ -8,6 +8,13 @@ Scope: move substantive tick orchestration out of
 `convex/functions/vesselOrchestrator/` and into a small domain pipeline while
 preserving current runtime behavior
 
+**Landed layout (2026-04-14):** `runVesselOrchestratorTick` lives under
+`convex/domain/vesselOrchestration/`. Timeline writes are applied by
+`applyTickEventWrites`, **defined in** `convex/functions/vesselOrchestrator/actions.ts`
+(there is no sibling `applyTickEventWrites.ts`). Orchestrator workflow tests live in
+`convex/domain/vesselOrchestration/tests/`; there is no
+`convex/functions/vesselOrchestrator/tests/` directory.
+
 ## Purpose
 
 This document turns Phase 4 of
@@ -31,7 +38,7 @@ product behavior change.
 Before implementing, read:
 
 - `docs/handoffs/convex-functions-domain-boundary-reorg-memo-2026-04-14.md`
-- `docs/handoffs/orchestrator-oversight-handoff-2026-04-14.md`
+- `docs/handoffs/convex-domain-boundary-reorg-quality-review-2026-04-14.md`
 - `convex/domain/README.md`
 - `convex/functions/vesselOrchestrator/README.md`
 - `convex/functions/vesselTrips/updates/README.md`
@@ -55,8 +62,8 @@ At the end of this phase:
   - branch fanout
   - branch-level error isolation and result aggregation
   - lifecycle-before-timeline ordering within the trip branch
-- `applyTickEventWrites.ts` remains thin, unless inlining it is obviously
-  simpler and still keeps persistence concerns out of domain logic
+- `applyTickEventWrites` remains a thin functions-layer helper (currently defined
+  in `actions.ts`), unless splitting it back out is obviously simpler
 
 Important boundary for this phase:
 
@@ -91,19 +98,18 @@ function-layer code still owns substantive workflow composition.
 
 ### Supporting files that should stay thin or be reevaluated carefully
 
-- `convex/functions/vesselOrchestrator/applyTickEventWrites.ts`
+- `convex/functions/vesselOrchestrator/actions.ts` (includes `applyTickEventWrites`)
 - `convex/functions/vesselOrchestrator/queries.ts`
 
-### Current tests tied to the orchestrator layer
+### Current tests tied to the orchestrator pipeline
 
-- `convex/functions/vesselOrchestrator/tests/actions.test.ts`
-- `convex/functions/vesselOrchestrator/tests/applyTickEventWrites.test.ts`
+- `convex/domain/vesselOrchestration/tests/runVesselOrchestratorTick.test.ts`
+- `convex/domain/vesselOrchestration/tests/passengerTerminalEligibility.test.ts`
 
 ### Existing downstream stable entrypoints
 
 - `convex/functions/vesselTrips/updates/processTick/processVesselTrips.ts`
 - `convex/functions/vesselTrips/updates/index.ts`
-- `convex/functions/vesselOrchestrator/applyTickEventWrites.ts`
 
 ## What The Current Action Still Owns
 
@@ -141,8 +147,7 @@ convex/domain/
 
 convex/functions/
   vesselOrchestrator/
-    actions.ts
-    applyTickEventWrites.ts
+    actions.ts              # updateVesselOrchestrator + applyTickEventWrites
     queries.ts
 ```
 
@@ -270,17 +275,16 @@ Recommendation:
   it becomes an obviously better fit as a thin helper beside `queries.ts`
 - do not move WSF fetch or Convex bootstrap logic into domain
 
-### Step 5: Reevaluate `applyTickEventWrites.ts`
+### Step 5: Reevaluate `applyTickEventWrites` placement
 
-Decide whether `applyTickEventWrites.ts` should:
+Decide whether `applyTickEventWrites` should:
 
-- remain as a tiny persistence helper, or
-- be inlined into the functions-layer adapter bag if that is simpler
+- remain colocated with `actions.ts` (current), or
+- be split into a sibling module if that improves readability
 
 Recommendation:
 
-- keep it as a standalone helper if it remains this small and improves
-  readability
+- keep it as a small exported helper beside the action if it stays narrow
 - do not move mutation calls into domain
 
 ### Step 6: Add domain-level orchestration tests
@@ -300,8 +304,7 @@ Tests worth adding or moving:
 Keep functions-layer tests only for:
 
 - thin action wrappers if they still verify real fetch/bootstrap wiring
-- `applyTickEventWrites` mutation no-op behavior if that helper remains in
-  functions
+- rare cases where a Convex adapter’s effect wiring is the contract under test
 
 ### Step 7: Refresh docs made misleading by the extraction
 
@@ -324,7 +327,7 @@ Recommended order:
 2. move passenger-terminal eligibility helpers
 3. extract the main tick coordination pipeline with injected adapters
 4. trim `actions.ts` down to fetch/load/convert/invoke/return
-5. decide whether `applyTickEventWrites.ts` stays as-is
+5. decide whether `applyTickEventWrites` stays in `actions.ts` or is split out
 6. move/add orchestration tests
 7. refresh the minimum necessary docs
 
@@ -356,11 +359,9 @@ bun run convex:typecheck
 Then run focused suites, at minimum:
 
 ```bash
-bun test ./convex/functions/vesselOrchestrator/tests/*.test.ts
+bun test ./convex/domain/vesselOrchestration/tests/*.test.ts
 bun test ./convex/domain/vesselTrips/tests/processVesselTrips.test.ts
 ```
-
-If orchestration tests move into domain, add the new domain path as well.
 
 ## Risks
 

@@ -74,8 +74,8 @@ Verified in the landed code:
 - Stage 4 is complete:
   - orchestrator coordination logic moved into `convex/domain/vesselOrchestration/`
   - passenger-terminal helper tests moved into domain
-  - only `applyTickEventWrites.test.ts` remains under
-    `convex/functions/vesselOrchestrator/tests/`
+  - orchestrator workflow tests live under `convex/domain/vesselOrchestration/tests/`
+    (there is no `convex/functions/vesselOrchestrator/tests/` directory)
 
 That leaves mostly cleanup work rather than another structural phase.
 
@@ -86,9 +86,10 @@ That leaves mostly cleanup work rather than another structural phase.
 - `convex/functions/eventsScheduled/tests/queries.test.ts`
 - `convex/functions/vesselLocation/tests/schemas.test.ts`
 - `convex/functions/vesselTrips/tests/schemas.test.ts`
-- `convex/functions/vesselOrchestrator/tests/applyTickEventWrites.test.ts`
 
 These look like query/schema/mutation wiring tests and are likely still valid.
+Orchestrator tick sequencing is covered in `convex/domain/vesselOrchestration/tests/`
+instead of under `convex/functions/vesselOrchestrator/`.
 
 ### Functions-layer tests that should be reassessed explicitly
 
@@ -106,7 +107,9 @@ Current examples worth reviewing:
   - imports `appendFinalSchedule`
   - imports `resolveEffectiveLocation`
 - `convex/domain/vesselTrips/tests/processVesselTrips.test.ts`
-  - imports `applyTickEventWrites`
+  - uses a local `applyTickEventWritesLikeOrchestrator` fake to mirror the
+    sequencing of `applyTickEventWrites` from `vesselOrchestrator/actions.ts`
+    (it does not import the production helper)
 
 These may be acceptable integration-shaped tests, but Phase 5 should decide
 whether that coupling is intentional and worth keeping.

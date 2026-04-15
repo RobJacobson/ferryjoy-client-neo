@@ -3,7 +3,10 @@
  * timeline writes, with branch-level error isolation.
  */
 
-import { computeShouldRunPredictionFallback } from "domain/vesselTrips";
+import {
+  computeShouldRunPredictionFallback,
+  type VesselTripsTickResult,
+} from "domain/vesselTrips";
 import { isTripEligibleLocation } from "./passengerTerminalEligibility";
 import type {
   VesselOrchestratorTickDeps,
@@ -43,13 +46,24 @@ export const runVesselOrchestratorTick = async (
   };
 
   const runTripLifecycleAndTimeline = async () => {
-    const tripResult = await deps.processVesselTrips(
-      tripEligibleLocations,
-      tickStartedAt,
-      activeTrips,
-      processOptions
-    );
-    await deps.applyTickEventWrites(tripResult.tickEventWrites);
+    let tripResult: VesselTripsTickResult;
+    try {
+      tripResult = await deps.processVesselTrips(
+        tripEligibleLocations,
+        tickStartedAt,
+        activeTrips,
+        processOptions
+      );
+    } catch (e) {
+      console.error("processVesselTrips failed:", toError(e));
+      throw e;
+    }
+    try {
+      await deps.applyTickEventWrites(tripResult.tickEventWrites);
+    } catch (e) {
+      console.error("applyTickEventWrites failed:", toError(e));
+      throw e;
+    }
   };
 
   const branchResults: [
@@ -71,7 +85,6 @@ export const runVesselOrchestratorTick = async (
   if (tripsResult.status === "rejected") {
     const err = toError(tripsResult.reason);
     errors.trips = { message: err.message, stack: err.stack };
-    console.error("processVesselTrips failed:", err);
   }
 
   return {

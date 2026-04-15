@@ -7,14 +7,14 @@
  * clock time.
  */
 
-import {
-  type AdjacentDockInterval,
-  buildAdjacentTimelineIntervals,
-} from "../../shared/timelineIntervals";
 import type {
   ConvexInferredScheduledSegment,
   ConvexScheduledBoundaryEvent,
 } from "../../functions/eventsScheduled/schemas";
+import {
+  type AdjacentDockInterval,
+  buildAdjacentTimelineIntervals,
+} from "../../shared/timelineIntervals";
 
 /**
  * Builds the small inferred-segment contract shared by timeline and trip code.

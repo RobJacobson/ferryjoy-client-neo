@@ -81,7 +81,9 @@ Models use the full temporal context (previous leg A→B) and are bucketed by 2-
 **Purpose**: Predict turnaround delay at next terminal in multi-leg journeys
 **Use Case**: Complex itinerary planning across multiple ferry segments
 **Features**: At-dock feature set for the current leg. Training requires a next leg
-(Next→After) to label targets; inference additionally needs `ScheduledTrip.NextDepartingTime`
+(Next→After) to label targets; inference additionally needs the next leg’s scheduled
+departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on
+`ConvexScheduledTrip` training rows)
 to anchor predictions.
 **Target**: Minutes from next terminal scheduled departure to actual departure
 **Business Value**: End-to-end journey time predictions
@@ -99,7 +101,9 @@ to anchor predictions.
 **Purpose**: Update next terminal departure predictions using transit observations
 **Use Case**: Refined multi-leg predictions with real-time transit data
 **Features**: At-sea feature set for the current leg. Training requires a next leg
-(Next→After) to label targets; inference additionally needs `ScheduledTrip.NextDepartingTime`
+(Next→After) to label targets; inference additionally needs the next leg’s scheduled
+departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on
+`ConvexScheduledTrip` training rows)
 to anchor predictions.
 **Target**: Minutes from next terminal scheduled departure to actual departure
 **Business Value**: Improves connection reliability with live transit data
@@ -395,23 +399,25 @@ During sync, we compute (per ScheduledTrip):
   - Implementation: `convex/domain/scheduledTrips/classifyDirectSegments.ts` (`classifyDirectSegments`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `PrevKey`: the previous trip’s `Key` for this vessel (chronological chain)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`calculateTripEstimates`, `linkVesselSegments`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `NextKey`: the next trip’s `Key` for this vessel (chronological chain)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`calculateTripEstimates`, `linkVesselSegments`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `NextDepartingTime`: the next trip’s scheduled departure timestamp (epoch ms)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`calculateTripEstimates`, `linkVesselSegments`)
   - Schema: `convex/functions/scheduledTrips/schemas.ts` (`scheduledTripSchema`)
 - `EstArriveNext`: estimated arrival at the next terminal (epoch ms, proxy)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateEstArriveNext`)
+  - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (internal `calculateEstArrive` on direct segments; indirect completion via `findCompletionArrival`)
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
-  - Implementation: `convex/functions/scheduledTrips/sync/businessLogic.ts` (`calculateVesselTripEstimates`)
+  - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
-These are computed only after vessel-level classification resolves overlapping/ambiguous
-route options (see `convex/functions/scheduledTrips/sync/businessLogic.ts`). The classification
-process marks trips as direct or indirect instead of filtering them out, allowing both types
-to be stored while maintaining clear distinction for filtering purposes.
+Sync applies the full transform pipeline after downloads: `runScheduleTransformPipeline` in
+`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs `classifyDirectSegments`
+then `calculateTripEstimates`. Classification resolves overlapping/ambiguous route options
+before linking and estimates run. The classification process marks trips as direct or
+indirect instead of filtering them out, allowing both types to be stored while maintaining
+clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
@@ -434,29 +440,29 @@ compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
 implemented in `convex/functions/vesselTrips/updates/processTick/processVesselTrips.ts`.
 
-#### 1) ScheduledTrip snapshot enrichment (lazy + keyed)
+#### 1) Schedule segment enrichment (tick path + optional query joins)
 
-For each active vessel trip update:
+On each orchestrator tick, trip build attaches schedule-backed fields using **segment
+keys** and the normalized `eventsScheduled` read model (not the old lazy
+`scheduledTrips`-row snapshot helper):
 
-- We derive `Key` once `ScheduledDeparture`, `DepartingTerminalAbbrev`, and
-  `ArrivingTerminalAbbrev` are present.
-  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`deriveTripKey`)
-- We lazily fetch the matching ScheduledTrip by `Key` and snapshot it onto the
-  VesselTrip as `ScheduledTrip` (with light throttling to avoid DB churn).
-  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`enrichTripStartUpdates`, `fetchScheduledTripFieldsByKey`)
-  - Query: `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
-- **Safety**: Only direct trips match VesselTrips. Indirect trips have different
-  terminal pairs (A→C vs A→B), so their composite keys are inherently different.
-  An explicit check ensures `TripType === "direct"` (defensive programming).
-  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`fetchScheduledTripFieldsByKey`)
-- If `Key` changes, we clear derived data (scheduled snapshot + predictions) to
-  prevent mixing identities.
-  - Implementation: `convex/functions/vesselTrips/updates/scheduledTripEnrichment.ts` (`CLEAR_DERIVED_TRIP_DATA_ON_KEY_CHANGE`)
+- `buildTrip` (`convex/domain/vesselTrips/tripLifecycle/buildTrip.ts`) calls
+  `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
+  `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
+  - Functions adapter: `convex/functions/vesselTrips/updates/tripLifecycle/appendSchedule.ts` (`appendFinalSchedule`)
+  - Lookup: `internal.functions.eventsScheduled.queries.getScheduledDepartureSegmentBySegmentKey`
+- **Safety / clearing**: Physical trip change, loss of schedule attachment, or
+  `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
+  (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
+- **Display / API**: Public vessel-trip queries may still **hydrate** a full
+  `ScheduledTrip` via `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
+  for subscribers; inference uses the schedule fields merged on the trip during build.
 
-Note: `NextKey` is **not duplicated** on VesselTrips; it is read from the embedded
-`ScheduledTrip` snapshot.
+Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
+`NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every
+tick write.
 
-- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduledTrip: v.optional(scheduledTripSchema)`)
+- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for hydrated queries)
 
 #### 2) Prediction generation (once per trip, per timing context)
 
@@ -468,21 +474,21 @@ actualizing) onto `eventsPredicted`. Joined trip fields mirror:
   - `AtDockDepartCurr` (predict departure from Curr)
   - `AtDockArriveNext` (predict arrival at Next)
   - `AtDockDepartNext` (predict departure from Next)
-    - Anchor: `ScheduledTrip.NextDepartingTime`
+    - Anchor: `NextScheduledDeparture` on the vessel trip (from schedule segment enrichment)
 - **At sea** (requires `LeftDock`):
   - `AtSeaArriveNext` (refined ETA while underway)
   - `AtSeaDepartNext` (refined Next-departure while underway)
-    - Anchor: `ScheduledTrip.NextDepartingTime`
+    - Anchor: `NextScheduledDeparture` on the vessel trip
 
-Depart-next predictions are anchored on `ScheduledTrip.NextDepartingTime` so the
-model’s output (minutes vs Next scheduled departure) can be stored as an absolute
-epoch-ms `PredTime` on the corresponding projected row.
+Depart-next predictions are anchored on `NextScheduledDeparture` so the model’s output
+(minutes vs Next scheduled departure) can be stored as an absolute epoch-ms
+`PredTime` on the corresponding projected row.
 
 **Prediction Constraints**: Predictions are clamped to ensure they never fall below
 their corresponding scheduled departure times:
 - `AtDockDepartCurr`: Clamped to `ScheduledDeparture` (never earlier than scheduled)
-- `AtDockDepartNext`: Clamped to `ScheduledTrip.NextDepartingTime` (never earlier than next scheduled)
-- `AtSeaDepartNext`: Clamped to `ScheduledTrip.NextDepartingTime` (never earlier than next scheduled)
+- `AtDockDepartNext`: Clamped to `NextScheduledDeparture` (never earlier than next scheduled)
+- `AtSeaDepartNext`: Clamped to `NextScheduledDeparture` (never earlier than next scheduled)
 
 When clamping occurs, the uncertainty bounds (`MinTime`/`MaxTime`) are recalculated
 based on the clamped `PredTime` to maintain proper statistical properties. If scheduled
@@ -711,10 +717,15 @@ convex/domain/ml/
 │   └── models/                       # Model training implementation
 │       ├── trainModels.ts            # Linear regression training
 │       └── storeModels.ts            # Model persistence
-└── convex/functions/predictions/     # Model parameters (Convex): schemas, CRUD, versioning queries
-    ├── schemas.ts                    # `modelParameters` + shared prediction type validators
-    ├── mutations.ts                  # Model storage and version-tag mutations
-    └── queries.ts                    # Production/dev model parameter reads
+```
+
+Convex persistence for trained parameters (outside `domain/ml/`):
+
+```text
+convex/functions/predictions/
+├── schemas.ts                        # `modelParameters` + shared prediction type validators
+├── mutations.ts                      # Model storage and version-tag mutations
+└── queries.ts                        # Production/dev model parameter reads
 ```
 
 ### Key Implementation Patterns
@@ -931,7 +942,7 @@ All models explicitly use Prev→Curr context and bucket by the **B→C pair key
 
 3. **`at-dock-depart-next`**
 
-- **Use when**: at dock at Curr and `ScheduledTrip.NextDepartingTime` is available
+- **Use when**: at dock at Curr and `NextScheduledDeparture` is available
   (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
@@ -946,7 +957,7 @@ All models explicitly use Prev→Curr context and bucket by the **B→C pair key
 
 5. **`at-sea-depart-next`**
 
-- **Use when**: at sea between Curr and Next and `ScheduledTrip.NextDepartingTime`
+- **Use when**: at sea between Curr and Next and `NextScheduledDeparture`
   is available (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
@@ -1084,7 +1095,7 @@ Anchors:
 - For “depart-curr” / “arrive-next” models: time features are anchored to **B scheduled departure** (`curr.ScheduledDepart`).
 - For “depart-next” models: time features are still anchored to **B scheduled departure**
   (the current leg). The “depart-next” target is defined relative to **C scheduled
-  departure**, which is supplied at inference time via `ScheduledTrip.NextDepartingTime`.
+  departure**, which is supplied at inference time via `NextScheduledDeparture` on the vessel trip.
 
 ### Slack feature at Curr (both regimes)
 
