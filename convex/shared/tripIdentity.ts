@@ -16,11 +16,15 @@ export type TripIdentity = {
   /** Schedule composite segment id (not physical trip instance identity). */
   ScheduleKey: string | undefined;
   SailingDay: string | undefined;
+  /** Legacy schedule-alignment readiness for trip-start gating. */
   isTripStartReady: boolean;
 };
 
 /**
  * Derive schedule-facing identity fields from the minimum component set.
+ *
+ * This helper remains schedule-oriented during Stage 1. Physical boundary
+ * timestamps live on the trip row contract and are not interpreted here.
  *
  * `ScheduleKey` uses Pacific local calendar date semantics through
  * `buildSegmentKey`, while `SailingDay` uses the 3:00 AM service-day grouping

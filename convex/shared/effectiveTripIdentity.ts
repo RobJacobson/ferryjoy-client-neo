@@ -42,6 +42,7 @@ export type EffectiveTripIdentity = {
   ScheduleKey?: string;
   NextScheduleKey?: string;
   NextScheduledDeparture?: number;
+  /** Schedule/live identity selection only; not a physical boundary signal. */
   source: EffectiveTripIdentitySource;
   conflictsLiveFeed: boolean;
 };
