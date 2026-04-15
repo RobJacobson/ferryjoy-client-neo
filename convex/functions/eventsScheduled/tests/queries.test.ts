@@ -8,7 +8,7 @@ import {
   findNextDepartureAfterBoundaryEvent,
   findNextDepartureEvent,
   getSegmentKeyFromBoundaryKey,
-} from "../segmentResolvers";
+} from "../../../domain/timelineRows/scheduledSegmentResolvers";
 
 describe("findNextDepartureAfterBoundaryEvent", () => {
   it("returns the next trip's departure after an arrival boundary", () => {

@@ -1,5 +1,6 @@
 /**
- * Pure scheduled-segment selection helpers for dock ownership lookups.
+ * Pure scheduled-segment selection helpers shared by timeline and
+ * schedule-backed query code.
  *
  * The key idea is that "which trip owns the vessel right now?" is answered
  * from the ordered boundary-event sequence, not from proximity to the current
@@ -13,7 +14,7 @@ import {
 import type {
   ConvexInferredScheduledSegment,
   ConvexScheduledBoundaryEvent,
-} from "./schemas";
+} from "../../functions/eventsScheduled/schemas";
 
 /**
  * Builds the small inferred-segment contract shared by timeline and trip code.
@@ -140,9 +141,6 @@ const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
   TerminalAbbrev: event.TerminalAbbrev,
   EventType: event.EventType,
 });
-
-const _getUniqueMatch = <T>(matches: T[]) =>
-  matches.length === 1 ? matches[0] : null;
 
 const buildScheduledIntervalContext = (
   events: ConvexScheduledBoundaryEvent[]

@@ -55,6 +55,7 @@ import type * as domain_timelineRows_buildPredictedProjectionEffects from "../do
 import type * as domain_timelineRows_buildScheduledRows from "../domain/timelineRows/buildScheduledRows.js";
 import type * as domain_timelineRows_index from "../domain/timelineRows/index.js";
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
+import type * as domain_timelineRows_scheduledSegmentResolvers from "../domain/timelineRows/scheduledSegmentResolvers.js";
 import type * as domain_vesselOrchestration_index from "../domain/vesselOrchestration/index.js";
 import type * as domain_vesselOrchestration_passengerTerminalEligibility from "../domain/vesselOrchestration/passengerTerminalEligibility.js";
 import type * as domain_vesselOrchestration_runVesselOrchestratorTick from "../domain/vesselOrchestration/runVesselOrchestratorTick.js";
@@ -90,7 +91,6 @@ import type * as functions_eventsPredicted_schemas from "../functions/eventsPred
 import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
 import type * as functions_eventsScheduled_queries from "../functions/eventsScheduled/queries.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
-import type * as functions_eventsScheduled_segmentResolvers from "../functions/eventsScheduled/segmentResolvers.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_keyValueStore_actions from "../functions/keyValueStore/actions.js";
 import type * as functions_keyValueStore_helpers from "../functions/keyValueStore/helpers.js";
@@ -136,7 +136,6 @@ import type * as functions_vesselLocationsHistoric_mutations from "../functions/
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
-import type * as functions_vesselOrchestrator_applyTickEventWrites from "../functions/vesselOrchestrator/applyTickEventWrites.js";
 import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselPing_actions from "../functions/vesselPing/actions.js";
@@ -150,8 +149,6 @@ import type * as functions_vesselPings_mutations from "../functions/vesselPings/
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
 import type * as functions_vesselTimeline_actions from "../functions/vesselTimeline/actions.js";
-import type * as functions_vesselTimeline_backbone_getVesselTimelineBackbone from "../functions/vesselTimeline/backbone/getVesselTimelineBackbone.js";
-import type * as functions_vesselTimeline_backbone_loadBackboneInputs from "../functions/vesselTimeline/backbone/loadBackboneInputs.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
 import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
@@ -258,6 +255,7 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/buildScheduledRows": typeof domain_timelineRows_buildScheduledRows;
   "domain/timelineRows/index": typeof domain_timelineRows_index;
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
+  "domain/timelineRows/scheduledSegmentResolvers": typeof domain_timelineRows_scheduledSegmentResolvers;
   "domain/vesselOrchestration/index": typeof domain_vesselOrchestration_index;
   "domain/vesselOrchestration/passengerTerminalEligibility": typeof domain_vesselOrchestration_passengerTerminalEligibility;
   "domain/vesselOrchestration/runVesselOrchestratorTick": typeof domain_vesselOrchestration_runVesselOrchestratorTick;
@@ -293,7 +291,6 @@ declare const fullApi: ApiFromModules<{
   "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;
   "functions/eventsScheduled/queries": typeof functions_eventsScheduled_queries;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;
-  "functions/eventsScheduled/segmentResolvers": typeof functions_eventsScheduled_segmentResolvers;
   "functions/index": typeof functions_index;
   "functions/keyValueStore/actions": typeof functions_keyValueStore_actions;
   "functions/keyValueStore/helpers": typeof functions_keyValueStore_helpers;
@@ -339,7 +336,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
-  "functions/vesselOrchestrator/applyTickEventWrites": typeof functions_vesselOrchestrator_applyTickEventWrites;
   "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselPing/actions": typeof functions_vesselPing_actions;
@@ -353,8 +349,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
   "functions/vesselTimeline/actions": typeof functions_vesselTimeline_actions;
-  "functions/vesselTimeline/backbone/getVesselTimelineBackbone": typeof functions_vesselTimeline_backbone_getVesselTimelineBackbone;
-  "functions/vesselTimeline/backbone/loadBackboneInputs": typeof functions_vesselTimeline_backbone_loadBackboneInputs;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
   "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;

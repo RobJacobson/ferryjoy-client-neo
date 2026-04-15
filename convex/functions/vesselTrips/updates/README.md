@@ -436,8 +436,6 @@ The **`convex/functions/vesselTrips/updates/tests/`** folder keeps **adapter**
 coverage only:
 
 - `appendSchedule.test.ts` — `appendFinalSchedule` schedule lookup merge
-- `resolveEffectiveLocation.adapter.test.ts` — early-return wiring (no queries
-  when not docked)
 
 Run domain tests (typical):
 

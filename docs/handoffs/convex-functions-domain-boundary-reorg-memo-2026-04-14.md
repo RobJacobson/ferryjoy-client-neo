@@ -3,7 +3,7 @@
 Date prepared: 2026-04-14  
 Audience: future backend engineer(s) reorganizing `convex/functions` and
 `convex/domain`  
-Status: active phased reorganization plan  
+Status: implemented phased reorganization reference  
 Scope: backend code organization for vessel lifecycle, timeline, scheduled-trip
 sync, and orchestrator flow
 
@@ -11,6 +11,10 @@ sync, and orchestrator flow
 
 This memo documents the architectural concerns with the current backend
 organization and proposes a phased reorganization plan.
+
+All planned phases in this memo are now complete. The document remains useful
+as a record of the intended boundary, move order, and the rationale for the
+final module split.
 
 The primary goal is to make the backend easier to reason about by enforcing a
 clear boundary:

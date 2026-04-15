@@ -11,7 +11,7 @@ import {
   getBoundaryTime,
   getSegmentKeyFromBoundaryKey,
   sortScheduledBoundaryEvents,
-} from "../../functions/eventsScheduled/segmentResolvers";
+} from "./scheduledSegmentResolvers";
 import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 
 /**

@@ -21,9 +21,9 @@ import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
+import type { TickEventWrites } from "functions/vesselTrips/updates/processTick/tickEventWrites";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { applyTickEventWrites } from "./applyTickEventWrites";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -144,6 +144,42 @@ async function updateVesselLocations(
     locations: [...locations],
   });
 }
+
+/**
+ * Applies per-tick timeline table writes after lifecycle persistence.
+ *
+ * This helper stays local to the orchestrator action module because it is only
+ * used by the trip branch that `updateVesselOrchestrator` wires into the
+ * domain pipeline.
+ *
+ * @param ctx - Convex action context
+ * @param writes - Combined actual and predicted timeline writes for one tick
+ */
+export const applyTickEventWrites = async (
+  ctx: ActionCtx,
+  writes: TickEventWrites
+): Promise<void> => {
+  await Promise.all([
+    writes.actualPatches.length > 0
+      ? ctx.runMutation(
+          internal.functions.eventsActual.mutations
+            .projectActualBoundaryPatches,
+          {
+            Patches: writes.actualPatches,
+          }
+        )
+      : Promise.resolve(),
+    writes.predictedEffects.length > 0
+      ? ctx.runMutation(
+          internal.functions.eventsPredicted.mutations
+            .projectPredictedBoundaryEffects,
+          {
+            Effects: writes.predictedEffects,
+          }
+        )
+      : Promise.resolve(),
+  ]);
+};
 
 /**
  * Load orchestrator DB snapshots in one query, refreshing identity tables when

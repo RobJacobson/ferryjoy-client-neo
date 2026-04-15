@@ -68,8 +68,8 @@ Responsibilities:
   table
 - capture one tick timestamp shared by downstream consumers
 - invoke `runVesselOrchestratorTick` from `convex/domain/vesselOrchestration/` with
-  injected adapters: location bulk upsert, `processVesselTrips`, and
-  `applyTickEventWrites`
+  injected adapters: location bulk upsert, `processVesselTrips`, and the local
+  `applyTickEventWrites(...)` helper in `actions.ts`
 
 Domain pipeline (same tick semantics as before):
 
@@ -305,16 +305,14 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `actions.ts` — `updateVesselOrchestrator`; delegates tick orchestration to
-  `domain/vesselOrchestration/runVesselOrchestratorTick`
-- `applyTickEventWrites.ts` — runs `projectActualBoundaryPatches` /
-  `projectPredictedBoundaryEffects` from `tickEventWrites`
+  `domain/vesselOrchestration/runVesselOrchestratorTick` and includes the local
+  `applyTickEventWrites(...)` helper used by the trip branch
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
 
 ## Tests
 
-- `tests/applyTickEventWrites.test.ts` — asserts timeline mutations are skipped
-  when both write lists are empty (thin `ctx.runMutation` wiring). Orchestrator
-  tick flow is covered in `convex/domain/vesselOrchestration/tests/`.
+Orchestrator tick flow and branch coordination are covered in
+`convex/domain/vesselOrchestration/tests/`.
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in
 `convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
