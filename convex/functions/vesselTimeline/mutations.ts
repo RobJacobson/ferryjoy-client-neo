@@ -8,8 +8,8 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { buildReseedTimelineSlice } from "domain/timelineReseed";
 import {
-  indexActiveTripsByVesselAbbrev,
   type buildScheduledBoundaryEvents,
+  indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "domain/timelineRows";
 import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
@@ -88,7 +88,10 @@ const loadTripIndexesForSailingDay = async (
   ).filter((t) => t.SailingDay === sailingDay);
 
   return {
-    tripBySegmentKey: indexTripsBySegmentKey([...activeTrips, ...completedTrips]),
+    tripBySegmentKey: indexTripsBySegmentKey([
+      ...activeTrips,
+      ...completedTrips,
+    ]),
     activeTripsByVesselAbbrev: indexActiveTripsByVesselAbbrev(activeTrips),
     physicalOnlyTrips: [...activeTrips, ...completedTrips].filter(
       (trip) => trip.ScheduleKey === undefined

@@ -13,6 +13,11 @@ import type {
   TimePoint,
   TripSegment,
 } from "../types";
+import {
+  getDestinationArrivalOrCoverageClose,
+  getOriginArrivalActual,
+  hasTripCoverageEnded,
+} from "./tripTimeHelpers";
 
 /** Max ms difference for matching ScheduledDeparture to segment.DepartingTime. */
 const SCHEDULED_DEPARTURE_TOLERANCE_MS = 60_000;
@@ -53,7 +58,7 @@ export const synthesizeTripSegments = (params: {
           (s) =>
             s.DepartingTerminalAbbrev ===
               vesselLocation.DepartingTerminalAbbrev &&
-            !vesselTripByKeys.get(s.Key)?.TripEnd
+            !hasTripCoverageEnded(vesselTripByKeys.get(s.Key))
         )?.Key
       : undefined);
 
@@ -73,12 +78,12 @@ export const synthesizeTripSegments = (params: {
 
     // Self-resolving status:
     // - Active segment is always ongoing (so we never show "Arrived" on the bar while en route).
-    // - If we have TripEnd and this segment is not active, it's past.
+    // - If we have EndTime (coverage end) and this segment is not active, it's past.
     // - Otherwise, it's future.
     let status: "past" | "ongoing" | "future" = "future";
     if (isActive) {
       status = "ongoing";
-    } else if (actualTrip?.TripEnd) {
+    } else if (hasTripCoverageEnded(actualTrip)) {
       status = "past";
     }
 
@@ -114,7 +119,7 @@ export const synthesizeTripSegments = (params: {
     // 1. ArriveCurr TimePoint (Arrival at origin terminal)
     const arriveCurr: TimePoint = {
       scheduled: segment.SchedArriveCurr ?? segment.DepartingTime,
-      actual: actualTrip?.TripStart ?? undefined,
+      actual: getOriginArrivalActual(actualTrip),
       estimated: arriveCurrEstimated,
     };
 
@@ -123,7 +128,7 @@ export const synthesizeTripSegments = (params: {
     // For future segments, use previous leg's AtDockDepartNext/AtSeaDepartNext.
     const leaveCurr: TimePoint = {
       scheduled: segment.DepartingTime,
-      actual: actualTrip?.LeftDock ?? undefined,
+      actual: actualTrip?.DepartOriginActual ?? actualTrip?.LeftDock,
       estimated:
         isActive && activePhase === "AtDock"
           ? actualTrip?.AtDockDepartCurr?.PredTime
@@ -136,10 +141,10 @@ export const synthesizeTripSegments = (params: {
         segment.SchedArriveNext ??
         segment.ArrivingTime ??
         segment.DepartingTime,
-      actual: actualTrip?.ArriveDest ?? actualTrip?.TripEnd ?? undefined,
+      actual: getDestinationArrivalOrCoverageClose(actualTrip),
       estimated:
         ((isActive && activePhase === "AtSea") || isHeld) &&
-        !actualTrip?.ArriveDest
+        !getDestinationArrivalOrCoverageClose(actualTrip)
           ? (vesselLocation?.Eta ??
             actualTrip?.AtSeaArriveNext?.PredTime ??
             actualTrip?.AtDockArriveNext?.PredTime)
@@ -147,12 +152,14 @@ export const synthesizeTripSegments = (params: {
     };
 
     // Refinement: If status is ongoing but we are AtDock and have already arrived
-    // (TripStart exists), but haven't left yet (LeftDock is missing), the indicator
+    // (origin arrival actual exists), but haven't left yet (no departure actual), the indicator
     // should be in the at-dock segment.
     // If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
     // The current phase logic handles this via `activePhase`.
-    const isArrivedAtDock = !!actualTrip?.TripStart;
-    const isLeftDock = !!actualTrip?.LeftDock;
+    const isArrivedAtDock = !!getOriginArrivalActual(actualTrip);
+    const isLeftDock = !!(
+      actualTrip?.DepartOriginActual ?? actualTrip?.LeftDock
+    );
 
     return {
       id: segment.Key,

@@ -158,12 +158,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-        events,
-        updatedAt,
-        tripBySegmentKey: tripIdx,
-        activeTripsByVesselAbbrev: new Map(),
-        physicalOnlyTrips: [],
-        vesselLocations: [
+      events,
+      updatedAt,
+      tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
+      physicalOnlyTrips: [],
+      vesselLocations: [
         makeLocation({
           VesselAbbrev: "TOK",
           DepartingTerminalAbbrev: "P52",
@@ -196,12 +196,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows: withWrongDay } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-        events,
-        updatedAt,
-        tripBySegmentKey: tripIdx,
-        activeTripsByVesselAbbrev: new Map(),
-        physicalOnlyTrips: [],
-        vesselLocations: [
+      events,
+      updatedAt,
+      tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
+      physicalOnlyTrips: [],
+      vesselLocations: [
         makeLocation({
           VesselAbbrev: "SAL",
           DepartingTerminalAbbrev: "SOU",
@@ -246,12 +246,12 @@ describe("buildReseedTimelineSlice", () => {
 
     const { actualRows } = buildReseedTimelineSlice({
       sailingDay: SAILING_DAY,
-        events: withOccurred,
-        updatedAt,
-        tripBySegmentKey: tripIdx,
-        activeTripsByVesselAbbrev: new Map(),
-        physicalOnlyTrips: [],
-        vesselLocations: [
+      events: withOccurred,
+      updatedAt,
+      tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
+      physicalOnlyTrips: [],
+      vesselLocations: [
         makeLocation({
           VesselAbbrev: "TOK",
           DepartingTerminalAbbrev: "P52",
@@ -467,8 +467,7 @@ describe("buildReseedTimelineSlice", () => {
     expect(actualRows.some((row) => row.VesselAbbrev === "TOK")).toBe(true);
     expect(
       actualRows.some(
-        (row) =>
-          row.VesselAbbrev === "SAL" && row.ScheduleKey === undefined
+        (row) => row.VesselAbbrev === "SAL" && row.ScheduleKey === undefined
       )
     ).toBe(true);
   });
@@ -479,19 +478,20 @@ const makeActivePhysicalTrip = (
     VesselAbbrev: string;
     DepartingTerminalAbbrev: string;
   }
-): ActiveTripForPhysicalActualReconcile & { TripKey: string } => ({
-  TripKey: "TOK 2026-03-13 15:35:00Z",
-  ScheduleKey: undefined,
-  VesselAbbrev: overrides.VesselAbbrev,
-  SailingDay: SAILING_DAY,
-  DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
-  ArrivingTerminalAbbrev: "BBI",
-  ScheduledDeparture: at(17, 20),
-  DepartOriginActual: undefined,
-  ArriveDestDockActual: undefined,
-  LeftDock: undefined,
-  LeftDockActual: undefined,
-  ArriveDest: undefined,
-  AtDockActual: undefined,
-  ...overrides,
-}) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
+): ActiveTripForPhysicalActualReconcile & { TripKey: string } =>
+  ({
+    TripKey: "TOK 2026-03-13 15:35:00Z",
+    ScheduleKey: undefined,
+    VesselAbbrev: overrides.VesselAbbrev,
+    SailingDay: SAILING_DAY,
+    DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+    ArrivingTerminalAbbrev: "BBI",
+    ScheduledDeparture: at(17, 20),
+    DepartOriginActual: undefined,
+    ArriveDestDockActual: undefined,
+    LeftDock: undefined,
+    LeftDockActual: undefined,
+    ArriveDest: undefined,
+    AtDockActual: undefined,
+    ...overrides,
+  }) as ActiveTripForPhysicalActualReconcile & { TripKey: string };

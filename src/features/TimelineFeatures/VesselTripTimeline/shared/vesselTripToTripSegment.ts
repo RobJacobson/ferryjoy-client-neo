@@ -5,7 +5,13 @@
 
 import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
 import type { TimePoint, TripSegment } from "../../shared/types";
-import { getBestArrivalTime, getBestDepartureTime } from "../../shared/utils";
+import {
+  getBestArrivalTime,
+  getBestDepartureTime,
+  getDestinationArrivalOrCoverageClose,
+  getOriginArrivalActual,
+  hasTripCoverageEnded,
+} from "../../shared/utils";
 
 /**
  * Converts a single-leg vessel trip to a TripSegment for timeline rendering.
@@ -18,14 +24,15 @@ export const vesselTripToTripSegment = (
   trip: VesselTripWithScheduledTrip,
   vesselLocation: VesselLocation
 ): TripSegment => {
-  const isHeld = !!trip.TripEnd;
-  const isAtDock = vesselLocation.AtDock && !trip.TripEnd;
-  const status: TripSegment["status"] = trip.TripEnd
+  const coverageEnded = hasTripCoverageEnded(trip);
+  const isHeld = coverageEnded;
+  const isAtDock = vesselLocation.AtDock && !coverageEnded;
+  const status: TripSegment["status"] = coverageEnded
     ? "past"
     : isAtDock || !vesselLocation.AtDock
       ? "ongoing"
       : "future";
-  const phase: TripSegment["phase"] = trip.TripEnd
+  const phase: TripSegment["phase"] = coverageEnded
     ? "completed"
     : isAtDock
       ? "at-dock"
@@ -41,28 +48,30 @@ export const vesselTripToTripSegment = (
   const departurePrediction = getBestDepartureTime(vesselLocation, trip);
   const arrivalPrediction = getBestArrivalTime(vesselLocation, trip);
 
+  const destinationArrivalOrCoverageClose =
+    getDestinationArrivalOrCoverageClose(trip);
+
   const arriveCurr: TimePoint = {
     scheduled: schedArriveCurr,
-    actual: trip.TripStart,
+    actual: getOriginArrivalActual(trip),
     estimated: undefined,
   };
 
   const leaveCurr: TimePoint = {
     scheduled: schedDeparture,
-    actual: trip.LeftDock,
+    actual: trip.DepartOriginActual ?? trip.LeftDock,
     estimated: vesselLocation.AtDock ? departurePrediction : undefined,
   };
 
   const arriveNext: TimePoint = {
     scheduled: schedArriveNext,
-    actual: trip.ArriveDest ?? trip.TripEnd,
-    estimated:
-      !trip.ArriveDest && !trip.TripEnd
-        ? (vesselLocation.Eta ??
-          trip.AtSeaArriveNext?.PredTime ??
-          trip.AtDockArriveNext?.PredTime ??
-          arrivalPrediction)
-        : undefined,
+    actual: destinationArrivalOrCoverageClose,
+    estimated: !destinationArrivalOrCoverageClose
+      ? (vesselLocation.Eta ??
+        trip.AtSeaArriveNext?.PredTime ??
+        trip.AtDockArriveNext?.PredTime ??
+        arrivalPrediction)
+      : undefined,
   };
 
   return {
@@ -82,7 +91,7 @@ export const vesselTripToTripSegment = (
     status,
     phase,
     isHeld,
-    isArrived: !!trip.TripStart,
-    isLeft: !!trip.LeftDock,
+    isArrived: !!getOriginArrivalActual(trip),
+    isLeft: !!(trip.DepartOriginActual ?? trip.LeftDock),
   };
 };

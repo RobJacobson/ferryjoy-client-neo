@@ -1,16 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
-import {
-  predictArriveEta,
-  predictEtaOnDeparture,
-} from "./predictTrip";
 import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
+import { predictArriveEta, predictEtaOnDeparture } from "./predictTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const makeCtx = (
-  modelDoc: Record<string, unknown>
-) =>
+const makeCtx = (modelDoc: Record<string, unknown>) =>
   ({
     runQuery: async () => modelDoc,
   }) as unknown as ActionCtx;
@@ -74,9 +69,7 @@ describe("predictEtaOnDeparture", () => {
 
     const result = await predictEtaOnDeparture(ctx, trip);
 
-    expect(result.predictedTime).toBe(
-      ms("2026-03-13T10:30:00-07:00")
-    );
+    expect(result.predictedTime).toBe(ms("2026-03-13T10:30:00-07:00"));
   });
 });
 
@@ -98,8 +91,6 @@ describe("predictArriveEta", () => {
 
     const result = await predictArriveEta(ctx, trip);
 
-    expect(result.predictedTime).toBe(
-      ms("2026-03-13T05:50:00-07:00")
-    );
+    expect(result.predictedTime).toBe(ms("2026-03-13T05:50:00-07:00"));
   });
 });

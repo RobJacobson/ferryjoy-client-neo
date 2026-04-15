@@ -2,6 +2,10 @@
  * Pipeline stage: convert the current trip item into ordered boundary events.
  */
 
+import {
+  getDestinationArrivalOrCoverageClose,
+  getOriginArrivalActual,
+} from "@/features/TimelineFeatures/shared/utils";
 import type {
   TimelineEvent,
   TimelinePipelineInput,
@@ -20,6 +24,9 @@ export const toTimelineEvents = (
 ): TimelinePipelineWithEvents => {
   const { trip, vesselLocation } = input.item;
 
+  const destinationArrivalOrCoverageClose =
+    getDestinationArrivalOrCoverageClose(trip);
+
   return {
     ...input,
     events: [
@@ -28,14 +35,15 @@ export const toTimelineEvents = (
         terminalAbbrev: trip.DepartingTerminalAbbrev,
         timePoint: {
           scheduled: trip.ScheduledTrip?.SchedArriveCurr,
-          actual: trip.TripStart,
+          actual: getOriginArrivalActual(trip),
         } satisfies TimePoint,
       },
       {
         eventType: "depart",
         terminalAbbrev: trip.DepartingTerminalAbbrev,
         timePoint: {
-          actual: vesselLocation.LeftDock ?? trip.LeftDock,
+          actual:
+            trip.DepartOriginActual ?? vesselLocation.LeftDock ?? trip.LeftDock,
           estimated: trip.AtDockDepartCurr?.PredTime,
           scheduled:
             trip.ScheduledTrip?.DepartingTime ??
@@ -47,7 +55,7 @@ export const toTimelineEvents = (
         eventType: "arrive",
         terminalAbbrev: trip.ArrivingTerminalAbbrev,
         timePoint: {
-          actual: trip.ArriveDest ?? trip.TripEnd,
+          actual: destinationArrivalOrCoverageClose,
           estimated:
             vesselLocation.Eta ??
             trip.AtSeaArriveNext?.PredTime ??

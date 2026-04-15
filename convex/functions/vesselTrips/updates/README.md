@@ -103,7 +103,7 @@ approval:
 | `tripLifecycle/appendSchedule.ts` | Schedule enrichment for key transitions |
 | `tripLifecycle/appendPredictions.ts` | ML prediction enrichment helpers |
 | `tripLifecycle/buildTrip.ts` | Main trip builder orchestration |
-| `tripLifecycle/buildCompletedTrip.ts` | Completion finalization (TripEnd, durations, arrival guardrails) |
+| `tripLifecycle/buildCompletedTrip.ts` | Completion finalization (`EndTime`, durations, arrival guardrails) |
 | `tripLifecycle/tripEquality.ts` | Storage vs overlay equality checks |
 | `tripLifecycle/processCompletedTrips.ts` | Boundary branch persistence and facts |
 | `tripLifecycle/processCurrentTrips.ts` | Current branch persistence and messages |
@@ -149,9 +149,10 @@ Current event bundle:
 - **Schedule attachment** is optional `ScheduleKey`. `resolveEffectiveLocation`
   proposes schedule alignment; `appendFinalSchedule` commits `ScheduleKey` and
   next-leg fields when a segment key exists.
-- **Lifecycle timestamps**: `AtDockActual` marks the dock-phase start;
-  `LeftDockActual` marks departure on the **same** trip row (no replacement on
-  leave-dock). Legacy `LeftDock` is dual-written.
+- **Lifecycle timestamps**: coverage uses `StartTime` / `EndTime`. Physical
+  boundaries use `ArriveOriginDockActual`, `DepartOriginActual` (stored as
+  `LeftDockActual` until rename), and `ArriveDestDockActual`. Legacy `LeftDock`
+  remains feed-shaped input.
 - **Dock/sea debounce** (`physicalDockSeaDebounce.ts`) uses only `AtDock`,
   `LeftDock`, and `Speed > 1`, combined with the persisted trip row, to tolerate
   one contradictory sample. At most **one** physical boundary (departure or
@@ -177,7 +178,8 @@ Current event bundle:
 
 1. **First-seen vessel (`!existingTrip`)**
    - processed on current path
-   - `TripStart` can remain undefined until a real observed boundary occurs
+   - `ArriveOriginDockActual` / `StartTime` can remain unset until the pipeline
+     asserts boundaries (cold start)
 2. **Completed boundary**
    - complete old trip first (`buildCompletedTrip`)
    - create replacement trip (`buildTrip` with `tripStart=true`)
@@ -195,7 +197,7 @@ Per vessel, `buildTrip` composes state in this order:
 
 1. `resolveEffectiveLocation`
 2. `baseTripFromLocation`
-3. same-trip `ArriveDest` stamping when eligible
+3. same-trip `ArriveDestDockActual` stamping when eligible
 4. derived-state clear when `scheduleKeyChanged && physicalIdentityReplaced`
    (see `clearDerivedStateOnScheduleKeyChange` in `buildTrip.ts`)
 5. `appendFinalSchedule` when `tripStart || scheduleKeyChanged` (schedule enrichment)
@@ -207,7 +209,8 @@ Per vessel, `buildTrip` composes state in this order:
 
 - `start`: used for explicit trip replacement creation
   - carries `Prev*` from evidence-bearing completed trip
-  - sets `TripStart` from completed trip boundary (`existingTrip?.TripEnd`)
+  - sets `StartTime` / `ArriveOriginDockActual` from the complete-and-start chain
+    (`existingTrip?.EndTime` tick)
   - clears predictions and next-leg schedule context
 - `continue`: used for ongoing/first-seen active trip updates
   - carry-forward protection for feed omissions
@@ -293,19 +296,21 @@ On the exact tick where `LeftDock` first appears:
 This is handled in shared derivation (`tripDerivation.ts`) and is critical for
 correct `eventsActual`/`eventsPredicted` boundary projection.
 
-### ArriveDest guardrails
+### ArriveDestDockActual guardrails
 
-- Same-trip arrival stamping requires real departure evidence plus docking
-  behavior, not destination field churn alone.
-- Completion uses guarded arrival selection:
-  if carried `ArriveDest` is missing or chronologically invalid
-  (`< LeftDock` or `< TripStart`), completion falls back to `TripEnd` tick time.
+- Same-trip destination arrival stamping requires real departure evidence plus
+  docking behavior, not destination field churn alone.
+- Completion uses guarded arrival selection: if carried `ArriveDestDockActual`
+  is missing or chronologically invalid relative to departure / origin arrival,
+  completion may close coverage with `EndTime` without asserting destination
+  physical arrival.
 
-### TripStart semantics
+### Coverage vs physical (client-facing summary)
 
-`TripStart` represents observed boundary ownership, not a synthetic fallback.
-First-seen active trips may remain with undefined `TripStart` until boundary
-observation is available.
+`StartTime` / `EndTime` are the recording window only. `ArriveOriginDockActual`,
+`DepartOriginActual`, and `ArriveDestDockActual` are optional physical
+boundaries. Legacy `TripStart` / `TripEnd` mirror coverage during transition;
+readers should prefer canonical fields.
 
 ### SailingDay semantics
 

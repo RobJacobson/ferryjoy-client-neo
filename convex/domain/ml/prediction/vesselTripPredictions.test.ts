@@ -1,14 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "../../../functions/vesselTrips/schemas";
 import {
   actualizePredictionsOnLeaveDock,
   actualizePredictionsOnTripComplete,
   createPredictionResult,
   isPredictionReadyTrip,
-  predictFromSpec,
   PREDICTION_SPECS,
+  predictFromSpec,
 } from "./vesselTripPredictions";
-import type { ConvexVesselTrip, ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

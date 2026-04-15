@@ -3,6 +3,7 @@ import { Text, View } from "@/components/ui";
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useConvexVesselTrips } from "@/data/contexts/convex/ConvexVesselTripsContext";
 import { useDelayedVesselTrips } from "../shared";
+import { getTripListKeyTimeMs } from "../shared/utils";
 import { VesselTripCardHorizontal } from "./horizontal";
 
 export type TripProgressListProps = {
@@ -20,8 +21,8 @@ export type TripProgressListProps = {
  * This prevents UI flicker and provides a smooth transition for users.
  *
  * The hold window logic is implemented in useDelayedVesselTrips hook,
- * which uses the trip's own arrival/start timestamps to determine if it's
- * within the hold window.
+ * which uses coverage end (`EndTime`) and trip identity to determine if a
+ * completed trip is still within the hold window.
  */
 export const TripProgressList = ({
   contentInsetTop: _contentInsetTop = 0,
@@ -87,9 +88,7 @@ export const TripProgressList = ({
         {inServiceTrips.map(({ trip, vesselLocation }) => (
           <TripCard
             key={`${trip.VesselAbbrev}-${
-              trip.TripStart?.getTime() ??
-              trip.ArriveDest?.getTime() ??
-              "no-start"
+              getTripListKeyTimeMs(trip) ?? "no-start"
             }`}
             trip={trip}
             vesselLocation={vesselLocation}

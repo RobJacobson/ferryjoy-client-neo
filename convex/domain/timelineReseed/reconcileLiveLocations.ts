@@ -90,10 +90,11 @@ export const buildActualBoundaryPatchesForSailingDay = ({
     .filter(hasScheduledEvents)
     .flatMap(actualBoundaryPatchesFromLocationBundle(actualByVessel));
 
-  const scheduleAlignedWithTripContext = enrichActualBoundaryPatchesWithTripContext(
-    scheduleAligned,
-    tripBySegmentKey
-  );
+  const scheduleAlignedWithTripContext =
+    enrichActualBoundaryPatchesWithTripContext(
+      scheduleAligned,
+      tripBySegmentKey
+    );
   const representedTripBoundaryKeys = new Set(
     [
       ...actualEvents,
@@ -131,8 +132,9 @@ const locationBundleMatchesSailingDay =
 
 const locationMatchesSailingDay =
   (sailingDay: string) => (location: ConvexVesselLocation) =>
-    getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp)) ===
-    sailingDay;
+    getSailingDay(
+      new Date(location.ScheduledDeparture ?? location.TimeStamp)
+    ) === sailingDay;
 
 const hasScheduledEvents = ({
   vesselScheduledEvents,
@@ -289,7 +291,10 @@ const buildPhysicalOnlyPatchesFromLocation = (
 
   const patches: ConvexActualBoundaryPatchPersistable[] = [];
 
-  if (!representedTripBoundaryKeys.has(`${trip.TripKey}|dep-dock`) && strongDeparture(location)) {
+  if (
+    !representedTripBoundaryKeys.has(`${trip.TripKey}|dep-dock`) &&
+    strongDeparture(location)
+  ) {
     patches.push({
       TripKey: trip.TripKey,
       ScheduleKey: undefined,

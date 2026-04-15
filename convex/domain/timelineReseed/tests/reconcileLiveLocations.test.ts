@@ -501,20 +501,21 @@ const makeActivePhysicalTrip = (
     VesselAbbrev: string;
     DepartingTerminalAbbrev: string;
   }
-): ActiveTripForPhysicalActualReconcile & { TripKey: string } => ({
-  TripKey: "TOK 2026-03-13 15:35:00Z",
-  ScheduleKey: undefined,
-  VesselAbbrev: overrides.VesselAbbrev,
-  SailingDay: "2026-03-13",
-  DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
-  ArrivingTerminalAbbrev: "BBI",
-  ScheduledDeparture: at(17, 20),
-  LeftDock: undefined,
-  LeftDockActual: undefined,
-  ArriveDest: undefined,
-  AtDockActual: undefined,
-  ...overrides,
-}) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
+): ActiveTripForPhysicalActualReconcile & { TripKey: string } =>
+  ({
+    TripKey: "TOK 2026-03-13 15:35:00Z",
+    ScheduleKey: undefined,
+    VesselAbbrev: overrides.VesselAbbrev,
+    SailingDay: "2026-03-13",
+    DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+    ArrivingTerminalAbbrev: "BBI",
+    ScheduledDeparture: at(17, 20),
+    LeftDock: undefined,
+    LeftDockActual: undefined,
+    ArriveDest: undefined,
+    AtDockActual: undefined,
+    ...overrides,
+  }) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
 
 type SeedSegment = {
   VesselAbbrev: string;

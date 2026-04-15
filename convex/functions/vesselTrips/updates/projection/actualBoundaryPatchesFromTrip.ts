@@ -22,7 +22,12 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
 export const buildDepartureActualPatchForTrip = (
   trip: ConvexVesselTrip
 ): ConvexActualBoundaryPatchPersistable | null =>
-  buildActualBoundaryPatchFromTrip(trip, "dep-dock", trip.DepartOriginActual, "departing");
+  buildActualBoundaryPatchFromTrip(
+    trip,
+    "dep-dock",
+    trip.DepartOriginActual,
+    "departing"
+  );
 
 /**
  * Build an arrival (`arv-dock`) actual patch when the trip has `TripKey` and
@@ -38,7 +43,12 @@ export const buildDepartureActualPatchForTrip = (
 export const buildArrivalActualPatchForTrip = (
   trip: ConvexVesselTrip
 ): ConvexActualBoundaryPatchPersistable | null =>
-  buildActualBoundaryPatchFromTrip(trip, "arv-dock", trip.ArriveDestDockActual, "arriving");
+  buildActualBoundaryPatchFromTrip(
+    trip,
+    "arv-dock",
+    trip.ArriveDestDockActual,
+    "arriving"
+  );
 
 /**
  * Shared guard + patch shape for trip-driven actual boundary patches.
