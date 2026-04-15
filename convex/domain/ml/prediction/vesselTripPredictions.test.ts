@@ -26,9 +26,8 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--05:30--SOU-VAI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "FAU",
-  ArriveOriginDockActual: ms("2026-03-13T09:30:00-07:00"),
-  ArriveDestDockActual: undefined,
-  DepartOriginActual: undefined,
+  ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
+  ArrivedNextActual: undefined,
   StartTime: ms("2026-03-13T09:00:00-07:00"),
   EndTime: undefined,
   ArriveDest: undefined,
@@ -61,14 +60,14 @@ const makeTrip = (
 describe("isPredictionReadyTrip", () => {
   it("requires canonical origin-arrival actuals rather than TripStart or AtDockActual aliases", () => {
     const readyTrip = makeTrip({
-      ArriveOriginDockActual: ms("2026-03-13T09:30:00-07:00"),
+      ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
       TripStart: ms("2026-03-13T09:55:00-07:00"),
       AtDockActual: ms("2026-03-13T09:55:00-07:00"),
     });
 
     const legacyOnlyTrip = {
       ...readyTrip,
-      ArriveOriginDockActual: undefined,
+      ArrivedCurrActual: undefined,
       TripStart: ms("2026-03-13T09:55:00-07:00"),
       AtDockActual: ms("2026-03-13T09:55:00-07:00"),
     } as ConvexVesselTrip;
@@ -81,8 +80,7 @@ describe("isPredictionReadyTrip", () => {
 describe("prediction actualization", () => {
   it("uses canonical departure actuals when actualizing leave-dock predictions", () => {
     const trip = makeTrip({
-      DepartOriginActual: ms("2026-03-13T10:05:00-07:00"),
-      LeftDockActual: ms("2026-03-13T10:15:00-07:00"),
+      LeftDockActual: ms("2026-03-13T10:05:00-07:00"),
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
       AtDockDepartCurr: createPredictionResult(
         ms("2026-03-13T10:10:00-07:00"),
@@ -100,7 +98,6 @@ describe("prediction actualization", () => {
 
   it("does not backfill leave-dock actuals from legacy mirrors alone", () => {
     const trip = makeTrip({
-      DepartOriginActual: undefined,
       LeftDockActual: ms("2026-03-13T10:15:00-07:00"),
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
       AtDockDepartCurr: createPredictionResult(
@@ -117,7 +114,7 @@ describe("prediction actualization", () => {
 
   it("uses canonical destination-arrival actuals when actualizing completion predictions", () => {
     const trip = makeTrip({
-      ArriveDestDockActual: ms("2026-03-13T11:05:00-07:00"),
+      ArrivedNextActual: ms("2026-03-13T11:05:00-07:00"),
       ArriveDest: ms("2026-03-13T11:15:00-07:00"),
       TripEnd: ms("2026-03-13T11:25:00-07:00"),
       AtSeaArriveNext: createPredictionResult(
@@ -136,7 +133,7 @@ describe("prediction actualization", () => {
 
   it("does not backfill completion actuals from legacy mirrors alone", () => {
     const trip = makeTrip({
-      ArriveDestDockActual: undefined,
+      ArrivedNextActual: undefined,
       ArriveDest: ms("2026-03-13T11:15:00-07:00"),
       TripEnd: ms("2026-03-13T11:25:00-07:00"),
       AtSeaArriveNext: createPredictionResult(
@@ -155,7 +152,7 @@ describe("prediction actualization", () => {
 describe("predictFromSpec", () => {
   it("skips at-sea predictions until the canonical departure actual exists", async () => {
     const trip = makeTrip({
-      DepartOriginActual: undefined,
+      LeftDockActual: undefined,
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
     });
 

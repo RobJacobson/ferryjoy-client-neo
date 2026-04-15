@@ -85,7 +85,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       (trip) => trip.TripKey !== undefined && trip.ScheduleKey === undefined
     )
     .flatMap((trip) => {
-      const departureActualTime = trip.DepartOriginActual;
+      const departureActualTime = trip.LeftDockActual;
       const rows = [];
 
       if (departureActualTime !== undefined) {
@@ -112,7 +112,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       }
 
       if (
-        trip.ArriveDestDockActual !== undefined &&
+        trip.ArrivedNextActual !== undefined &&
         trip.ArrivingTerminalAbbrev !== undefined
       ) {
         rows.push(
@@ -130,7 +130,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
               TerminalAbbrev: trip.ArrivingTerminalAbbrev,
               EventType: "arv-dock" as const,
               EventOccurred: true,
-              EventActualTime: trip.ArriveDestDockActual,
+              EventActualTime: trip.ArrivedNextActual,
             },
             updatedAt
           )

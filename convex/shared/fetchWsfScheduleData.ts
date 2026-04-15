@@ -1,9 +1,38 @@
+/**
+ * WSF schedule API fetch helpers and neutral raw segment types shared by sync
+ * pipelines and timeline reseed.
+ */
+
 import type { Route, Schedule, TerminalCombo } from "ws-dottie/wsf-schedule";
 import {
   fetchRoutesByTripDate,
   fetchScheduleByTripDateAndRouteId,
 } from "ws-dottie/wsf-schedule";
-import type { VesselSailing } from "../functions/scheduledTrips/sync/types";
+
+/**
+ * WSF API vessel sailing row embedded under terminal combo `Times`.
+ * Shared by download helpers and scheduled-trips sync types.
+ */
+export type VesselSailing = {
+  /** Scheduled departure time as Date object */
+  DepartingTime: Date;
+  /** Scheduled arrival time, null for one-way trips */
+  ArrivingTime: Date | null;
+  /** WSF loading rule classification (1-3) */
+  LoadingRule: 1 | 2 | 3;
+  /** Unique vessel identifier */
+  VesselID: number;
+  /** Full vessel name for abbreviation lookup */
+  VesselName: string;
+  /** Whether vessel is handicap accessible */
+  VesselHandicapAccessible: boolean;
+  /** Vessel position number in terminal */
+  VesselPositionNum: number;
+  /** Array of route IDs this vessel serves */
+  Routes: number[];
+  /** Indexes into terminal combo annotations array, null if no annotations */
+  AnnotationIndexes: number[] | null;
+};
 
 /**
  * Neutral raw schedule segment derived directly from the WSF schedule API.

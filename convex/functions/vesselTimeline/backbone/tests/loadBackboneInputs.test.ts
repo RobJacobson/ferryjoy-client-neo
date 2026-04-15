@@ -1,22 +1,22 @@
 /**
- * Covers the single-sailing-day VesselTimeline backbone input loading.
+ * Covers same-day row loading inside `loadVesselTimelineBackbone`.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
+import { getSegmentKeyFromBoundaryKey } from "../../../../domain/timelineRows/scheduledSegmentResolvers";
 import { buildPhysicalActualEventKey } from "../../../../shared/physicalTripIdentity";
 import type { ConvexActualBoundaryEvent } from "../../../eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../eventsScheduled/schemas";
-import { getSegmentKeyFromBoundaryKey } from "../../../eventsScheduled/segmentResolvers";
-import { loadVesselTimelineBackboneInputs } from "../loadBackboneInputs";
+import { loadVesselTimelineBackbone } from "../../queries";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
-describe("loadVesselTimelineBackboneInputs", () => {
+describe("loadVesselTimelineBackbone", () => {
   it("loads only the requested sailing day's scheduled rows", async () => {
-    const backboneInputs = await loadVesselTimelineBackboneInputs(
+    const backbone = await loadVesselTimelineBackbone(
       makeQueryCtx({
         scheduledEvents: [
           makeScheduledEvent({
@@ -56,15 +56,15 @@ describe("loadVesselTimelineBackboneInputs", () => {
       }
     );
 
-    expect(backboneInputs.scheduledEvents.map((event) => event.Key)).toEqual([
+    expect(backbone.events.map((event) => event.Key)).toEqual([
       "trip-1--arv-dock",
       "trip-2--dep-dock",
       "trip-2--arv-dock",
     ]);
   });
 
-  it("loads only same-day actual and predicted overlays", async () => {
-    const backboneInputs = await loadVesselTimelineBackboneInputs(
+  it("does not synthesize backbone rows from same-day overlays without scheduled structure", async () => {
+    const backbone = await loadVesselTimelineBackbone(
       makeQueryCtx({
         scheduledEvents: [],
         actualEvents: [
@@ -94,16 +94,11 @@ describe("loadVesselTimelineBackboneInputs", () => {
       }
     );
 
-    expect(backboneInputs.actualEvents.map((event) => event.Key)).toEqual([
-      "trip-1--dep-dock",
-    ]);
-    expect(backboneInputs.predictedEvents.map((event) => event.Key)).toEqual([
-      "trip-1--arv-dock",
-    ]);
+    expect(backbone.events).toEqual([]);
   });
 
   it("returns an empty same-day slice when the sailing day has no rows", async () => {
-    const backboneInputs = await loadVesselTimelineBackboneInputs(
+    const backbone = await loadVesselTimelineBackbone(
       makeQueryCtx({
         scheduledEvents: [
           makeScheduledEvent({
@@ -118,9 +113,7 @@ describe("loadVesselTimelineBackboneInputs", () => {
       }
     );
 
-    expect(backboneInputs.scheduledEvents).toEqual([]);
-    expect(backboneInputs.actualEvents).toEqual([]);
-    expect(backboneInputs.predictedEvents).toEqual([]);
+    expect(backbone.events).toEqual([]);
   });
 });
 
@@ -133,8 +126,8 @@ type MockQueryData = {
 /**
  * Builds a minimal in-memory QueryCtx for loader tests.
  *
- * @param data - Mock table contents used by the loader
- * @returns QueryCtx-compatible object for the tested queries
+ * @param data - Mock table contents used by the backbone query
+ * @returns QueryCtx-compatible object for the tested query
  */
 const makeQueryCtx = (data: MockQueryData): QueryCtx =>
   ({

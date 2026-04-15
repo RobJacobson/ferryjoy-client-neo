@@ -193,7 +193,7 @@ Expensive operations (ML predictions, schedule lookups) only run when events occ
 
 ## Important Documentation
 
-- **[VesselTrips Updates](convex/functions/vesselTrips/updates/README.md)** - Detailed trip update pipeline documentation
+- **[VesselTrips](convex/functions/vesselTrips/README.md)** - Functions layer + pointers to domain lifecycle
 - **[Map Navigation & Animation](docs/MAP_NAVIGATION_AND_ANIMATION.md)** - Map camera and animation architecture
 - **[ML Pipeline](convex/domain/ml/README.md)** - ML model training and prediction pipeline
 - **[Convex Functions](convex/README.md)** - Convex backend overview

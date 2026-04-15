@@ -79,7 +79,7 @@ export const makeTrip = (
     SailingDay: "2026-03-18",
     PrevTerminalAbbrev: "BBI",
     ArriveDest: undefined,
-    ArriveOriginDockActual: at(7, 42),
+    ArrivedCurrActual: at(7, 42),
     StartTime: at(7, 42),
     AtDockActual: at(7, 42),
     AtDock: true,

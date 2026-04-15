@@ -136,12 +136,10 @@ const tripIdentityFields = {
   ScheduleKey: v.optional(v.string()),
   SailingDay: v.optional(v.string()),
   PrevTerminalAbbrev: v.optional(v.string()),
-  // Canonical timestamp contract. These fields are the long-term semantic
-  // names; legacy rows may still carry the older overlapping fields until the
-  // later lifecycle refactor is complete.
-  ArriveOriginDockActual: v.optional(v.number()),
-  ArriveDestDockActual: v.optional(v.number()),
-  DepartOriginActual: v.optional(v.number()),
+  // Canonical timestamp contract. Physical boundary actuals use past-tense
+  // names (`ArrivedCurrActual`, `ArrivedNextActual`, `LeftDockActual`).
+  ArrivedCurrActual: v.optional(v.number()),
+  ArrivedNextActual: v.optional(v.number()),
   StartTime: v.optional(v.number()),
   EndTime: v.optional(v.number()),
   ArriveDest: v.optional(v.number()),
@@ -246,9 +244,8 @@ export const toDomainVesselTrip = (
 ) => {
   const domainTrip = {
     ...trip,
-    ArriveOriginDockActual: optionalEpochMsToDate(trip.ArriveOriginDockActual),
-    ArriveDestDockActual: optionalEpochMsToDate(trip.ArriveDestDockActual),
-    DepartOriginActual: optionalEpochMsToDate(trip.DepartOriginActual),
+    ArrivedCurrActual: optionalEpochMsToDate(trip.ArrivedCurrActual),
+    ArrivedNextActual: optionalEpochMsToDate(trip.ArrivedNextActual),
     StartTime: optionalEpochMsToDate(trip.StartTime),
     EndTime: optionalEpochMsToDate(trip.EndTime),
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
@@ -302,7 +299,7 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
-  ArriveOriginDockActual: number;
+  ArrivedCurrActual: number;
   PrevScheduledDeparture: number;
   PrevLeftDock: number;
 };
@@ -311,16 +308,16 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
  * Domain-layer vessel trip shape with `Date` instances.
  */
 type CanonicalTimestampFieldName =
-  | "ArriveOriginDockActual"
-  | "ArriveDestDockActual"
-  | "DepartOriginActual"
+  | "ArrivedCurrActual"
+  | "ArrivedNextActual"
+  | "LeftDockActual"
   | "StartTime"
   | "EndTime";
 
 type CanonicalTimestampFields = {
-  ArriveOriginDockActual?: Date;
-  ArriveDestDockActual?: Date;
-  DepartOriginActual?: Date;
+  ArrivedCurrActual?: Date;
+  ArrivedNextActual?: Date;
+  LeftDockActual?: Date;
   StartTime?: Date;
   EndTime?: Date;
 };

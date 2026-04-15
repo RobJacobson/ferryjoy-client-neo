@@ -207,8 +207,8 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
   // Physical-boundary semantics: the arrival proxy for the current terminal is
   // the canonical origin-arrival actual, not the legacy TripStart alias.
   const tripStartMs = requireTripField(
-    trip.ArriveOriginDockActual,
-    "Missing ArriveOriginDockActual"
+    trip.ArrivedCurrActual,
+    "Missing ArrivedCurrActual"
   );
   const prevScheduledMs = requireTripField(
     trip.PrevScheduledDeparture,
@@ -252,7 +252,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
       scheduledDepartMs,
       // The current leg's departure actual is optional in pre-departure
       // inference; at-sea readers gate on it before relying on this field.
-      actualDepartMs: trip.DepartOriginActual,
+      actualDepartMs: trip.LeftDockActual,
     },
     currPairKey,
     slackBeforeCurrScheduledDepartMinutes,
@@ -340,9 +340,9 @@ export const predictTripValue = async (
  * then calculates the predicted arrival time as departure time + predicted duration.
  *
  * @param ctx - Convex action/mutation context
- * @param trip - Vessel trip data (must have DepartOriginActual set)
+ * @param trip - Vessel trip data (must have LeftDockActual set)
  * @returns Object containing predicted arrival time and model MAE
- * @throws Error if DepartOriginActual is missing or prediction fails
+ * @throws Error if LeftDockActual is missing or prediction fails
  */
 export const predictArriveEta = async (
   ctx: ActionCtx | MutationCtx,
@@ -352,9 +352,9 @@ export const predictArriveEta = async (
   mae: number;
   stdDev: number;
 }> => {
-  if (!trip.DepartOriginActual) {
+  if (!trip.LeftDockActual) {
     throw new Error(
-      "Cannot predict ETA: vessel has not departed (DepartOriginActual is missing)"
+      "Cannot predict ETA: vessel has not departed (LeftDockActual is missing)"
     );
   }
 
@@ -366,8 +366,7 @@ export const predictArriveEta = async (
   } = await predictTripValue(ctx, trip, "at-sea-arrive-next");
 
   // Calculate predicted arrival time (departure time + predicted duration)
-  const predictedArrivalTime =
-    trip.DepartOriginActual + predictedDuration * 60000; // Convert minutes to milliseconds
+  const predictedArrivalTime = trip.LeftDockActual + predictedDuration * 60000; // Convert minutes to milliseconds
 
   return {
     predictedTime: predictedArrivalTime,

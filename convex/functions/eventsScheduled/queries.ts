@@ -7,12 +7,12 @@ import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { buildBoundaryKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
-import type { ConvexScheduledBoundaryEvent } from "./schemas";
-import { inferredScheduledSegmentSchema } from "./schemas";
 import {
   buildInferredScheduledSegment,
   findNextDepartureEvent,
-} from "./segmentResolvers";
+} from "../../domain/timelineRows/scheduledSegmentResolvers";
+import type { ConvexScheduledBoundaryEvent } from "./schemas";
+import { inferredScheduledSegmentSchema } from "./schemas";
 
 /**
  * Resolves one scheduled departure segment by its stable segment key.

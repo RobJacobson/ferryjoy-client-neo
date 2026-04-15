@@ -4,6 +4,7 @@
  */
 
 import type { Route } from "ws-dottie/wsf-schedule";
+import { runScheduleTransformPipeline } from "../../../domain/scheduledTrips";
 import type { TerminalIdentity } from "../../../functions/terminals/resolver";
 import type { RawWsfRouteScheduleData } from "../../../shared/fetchWsfScheduleData";
 import {
@@ -13,7 +14,6 @@ import {
 import type { VesselIdentity } from "../../../shared/vessels";
 import type { ConvexScheduledTrip } from "../schemas";
 import { createScheduledTripFromRawSegment } from "./fetching/mapping";
-import { runTransformationPipeline } from "./transform";
 
 export type FetchAndTransformScheduledTripsResult = {
   routes: Route[];
@@ -55,7 +55,7 @@ export const fetchAndTransformScheduledTrips = async (
     )
     .filter((trip): trip is ConvexScheduledTrip => trip !== null);
 
-  const finalTrips = runTransformationPipeline(rawTrips);
+  const finalTrips = runScheduleTransformPipeline(rawTrips);
   const totalIndirect = finalTrips.filter(
     (trip) => trip.TripType === "indirect"
   ).length;

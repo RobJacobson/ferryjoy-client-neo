@@ -218,7 +218,7 @@ height.
 - destination-side closure (see `getDestinationArrivalOrCoverageClose` in
   `TimelineFeatures/shared/utils/tripTimeHelpers.ts`) moves the active row to
   the final dock row
-- departure evidence (`trip.DepartOriginActual`, `trip.LeftDock`, or
+- departure evidence (`trip.LeftDockActual`, `trip.LeftDock`, or
   `vesselLocation.LeftDock`) moves the active row to the sea row
 - otherwise the first dock row remains active
 

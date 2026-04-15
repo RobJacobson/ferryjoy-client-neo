@@ -5,20 +5,21 @@ This module owns the backend pipeline that turns raw Washington State Ferries
 
 ## Why This Lives Under `functions/scheduledTrips`
 
-The schedule transform is backend-owned logic, not a standalone top-level
-domain. `scheduledTrips/sync` controls:
+`scheduledTrips/sync` controls:
 
 1. when schedule downloads run
 2. how raw WSF data is mapped into backend records
-3. how trips are transformed into physical sailings
-4. how the final rows are persisted
+3. orchestration of fetch, domain transformation, and persistence
 
-That makes `functions/scheduledTrips/sync` the natural home for the full
-fetch-transform-persist pipeline.
+**Schedule transformation rules** (direct/indirect classification, estimates,
+official crossing-time policy, `PrevKey`/`NextKey` linking) live in
+[`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/). This folder
+holds Convex actions, mutations, queries, schemas, WSF download/mapping, and the
+thin `fetchAndTransform` adapter that delegates transformation to the domain
+module.
 
-`vesselTimeline` may still reuse parts of this pipeline, but it does so by
-importing from the ScheduledTrips-owned module rather than from a separate
-top-level `domain/scheduledTrips` layer.
+`vesselTimeline` and timeline reseed reuse `fetchAndTransform` or domain helpers
+without duplicating business rules.
 
 ## WSF Data Model vs. Physical Reality
 
@@ -48,7 +49,10 @@ To keep FerryJoy aligned with physical vessel movement, the sync pipeline:
 
 ### `fetching/`
 
-WSF API download and raw segment mapping.
+WSF API download and raw segment mapping. Segment rows are turned into initial
+`ConvexScheduledTrip` shapes via `buildInitialScheduledTripRow` in
+[`convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts`](/convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts)
+(prefetch policies such as Route 9 `SchedArriveCurr` live there).
 
 ### `fetchAndTransform.ts`
 
@@ -57,17 +61,7 @@ Shared orchestration used by ScheduledTrips sync and VesselTimeline sync:
 - fetch active routes
 - download raw route schedule data
 - map raw segments into `ConvexScheduledTrip` rows
-- run the transform pipeline
-
-### `transform/`
-
-Pure scheduled-trips transformation steps:
-
-- `grouping.ts`: physical-departure grouping helpers
-- `directSegments.ts`: direct vs indirect classification helpers
-- `estimates.ts`: arrival estimation and `PrevKey`/`NextKey` linking
-- `officialCrossingTimes.ts`: curated scheduled-arrival fallback durations
-- `pipeline.ts`: top-level transform coordinator
+- run `runScheduleTransformPipeline` from `convex/domain/scheduledTrips`
 
 ### `persistence.ts`
 
@@ -79,9 +73,6 @@ High-level date and date-range sync entrypoints.
 
 ## Architecture Rule
 
-Top-level `convex/domain/*` should be reserved for logic that is not owned by a
-single backend module and is not tightly coupled to backend persistence-shaped
-records.
-
-This schedule pipeline is owned by `functions/scheduledTrips`, so it stays
-there end to end.
+Domain modules under `convex/domain/` own reusable business logic. The
+`functions/scheduledTrips` layer owns Convex registration, persistence, and
+schedule fetch/mapping to `ConvexScheduledTrip` rows.

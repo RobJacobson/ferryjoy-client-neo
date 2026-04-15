@@ -9,14 +9,17 @@ import type { Id } from "_generated/dataModel";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { calculateDeltaTotal } from "domain/ml/prediction/vesselTripPredictions";
-import { hydrateStoredTripsWithPredictions } from "functions/vesselTrips/hydrateTripPredictions";
+import {
+  DEPART_NEXT_ML_PREDICTION_TYPES,
+  resolveDepartNextLegContext,
+} from "domain/vesselTrips/mutations/departNextActualization";
+import { hydrateStoredTripsWithPredictions } from "domain/vesselTrips/read/hydrateStoredTripsWithPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselTrips/tripLifecycle/stripTripPredictionsForStorage";
 import {
   type ConvexVesselTrip,
   vesselTripMlPayloadSchema,
   vesselTripSchema,
 } from "functions/vesselTrips/schemas";
-import { stripTripPredictionsForStorage } from "functions/vesselTrips/stripTripForStorage";
-import { buildBoundaryKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
@@ -222,22 +225,19 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
       };
     }
 
-    const nextLegKey = mostRecent.NextScheduleKey;
-    if (!nextLegKey || !mostRecent.SailingDay) {
+    const leg = resolveDepartNextLegContext(mostRecent, args.actualDepartMs);
+    if (!leg.ok) {
       return {
         updated: false as const,
-        reason: "no_next_leg_context" as const,
+        reason: leg.reason,
         updatedTrip: undefined,
       };
     }
 
-    const depKey = buildBoundaryKey(nextLegKey, "dep-dock");
-    const actualMs = Math.floor(args.actualDepartMs / 1000) * 1000;
-
-    const types = ["AtDockDepartNext", "AtSeaDepartNext"] as const;
+    const { depKey, actualMs } = leg;
     let anyUpdated = false;
 
-    for (const predictionType of types) {
+    for (const predictionType of DEPART_NEXT_ML_PREDICTION_TYPES) {
       const existing = await ctx.db
         .query("eventsPredicted")
         .withIndex("by_key_type_and_source", (q) =>

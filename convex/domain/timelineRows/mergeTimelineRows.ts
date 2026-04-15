@@ -7,12 +7,12 @@
 import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 import {
   getBoundaryTime,
   getSegmentKeyFromBoundaryKey,
   sortScheduledBoundaryEvents,
-} from "../../functions/eventsScheduled/segmentResolvers";
-import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
+} from "./scheduledSegmentResolvers";
 
 /**
  * Composite lookup for attaching actuals to scheduled rows (PR3): aligned

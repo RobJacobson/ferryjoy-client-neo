@@ -11,8 +11,9 @@ The orchestrator runs periodically, roughly every 5 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
-2. update trip lifecycle state in `vesselTrips/updates`, then apply timeline
-   overlay writes (`applyTickEventWrites`) for `VesselTimeline`
+2. update trip lifecycle state via `vesselTrips/actions` (`processVesselTrips`;
+   domain implementation in `convex/domain/vesselTrips/`), then apply timeline overlay writes
+   (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.
@@ -21,7 +22,7 @@ allowing each downstream subsystem to evolve independently.
 WSF VesselLocations API
   -> VesselOrchestrator fetch + conversion
   -> vesselLocations table
-  -> vesselTrips/updates
+  -> vesselTrips/actions (processVesselTrips)
 ```
 
 ## Why The Timeline Event Tables Exist
@@ -66,14 +67,20 @@ Responsibilities:
   terminal-or-marine-location fields derived from the backend `terminals`
   table
 - capture one tick timestamp shared by downstream consumers
-- execute two downstream branches in parallel with error isolation
+- invoke `runVesselOrchestratorTick` from `convex/domain/vesselOrchestration/` with
+  injected adapters: location bulk upsert, `processVesselTrips`, and the local
+  `applyTickEventWrites(...)` helper in `actions.ts`
+
+Domain pipeline (same tick semantics as before):
+
+- passenger-terminal allow-list and trip-eligible location filtering
+- parallel branches with branch-level error isolation
+- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselTrips`)
+  applied inside the domain orchestrator when building `processVesselTrips` options
+- trip branch runs `processVesselTrips` then `applyTickEventWrites` with
+  `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
 - pass the same tick’s active-trip list into `processVesselTrips` so the trip
   branch does not run a separate `getActiveTrips` query
-- compute `shouldRunPredictionFallback` once per tick via
-  `tickPredictionPolicy.computeShouldRunPredictionFallback` and pass it into
-  `processVesselTrips` options
-- after `processVesselTrips` returns, call `applyTickEventWrites` with
-  `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
 
 Transformation pipeline:
 
@@ -127,7 +134,7 @@ This table can therefore contain both:
 - non-passenger marine locations reported by WSF, when needed to keep live
   vessel state visible
 
-### 3. Trip Lifecycle Updates (`vesselTrips/updates/`)
+### 3. Trip Lifecycle (`vesselTrips/actions.ts`)
 
 Purpose:
 
@@ -297,11 +304,16 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`, `processVesselTrips` +
-  `applyTickEventWrites`, passenger-terminal gating helpers
-- `applyTickEventWrites.ts` — runs `projectActualBoundaryPatches` /
-  `projectPredictedBoundaryEffects` from `tickEventWrites`
+- `actions.ts` — `updateVesselOrchestrator`; delegates tick orchestration to
+  `domain/vesselOrchestration/runVesselOrchestratorTick` and defines
+  `applyTickEventWrites(...)` (timeline mutations for the trip branch). There is
+  **no** separate `applyTickEventWrites.ts` file in this folder.
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
+
+## Tests
+
+Orchestrator tick flow and branch coordination are covered in
+`convex/domain/vesselOrchestration/tests/`.
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in
 `convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
@@ -312,7 +324,7 @@ those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 
-- `convex/functions/vesselTrips/updates/README.md`
+- `convex/functions/vesselTrips/README.md`
 - `convex/functions/scheduledTrips/sync/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
@@ -323,7 +335,7 @@ The current orchestrator coordinates one shared vessel-location fetch across
 two backend consumers:
 
 1. `vesselLocations` for current live state
-2. `vesselTrips/updates` for trip lifecycle management, then `applyTickEventWrites`
+2. `vesselTrips/actions` (`processVesselTrips`) for trip lifecycle management, then `applyTickEventWrites`
    for timeline overlays
 
 That split keeps the timeline contract simple without removing the richer trip

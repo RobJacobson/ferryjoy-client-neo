@@ -8,9 +8,9 @@ import { mergeTimelineRows } from "domain/timelineRows";
 import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
 import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
-import { getSegmentKeyFromBoundaryKey } from "../../../functions/eventsScheduled/segmentResolvers";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
+import { getSegmentKeyFromBoundaryKey } from "../scheduledSegmentResolvers";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);

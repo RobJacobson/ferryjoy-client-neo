@@ -1,5 +1,6 @@
 import type { RawWsfScheduleSegment } from "shared/fetchWsfScheduleData";
 import { buildScheduleSegmentKey } from "shared/keys";
+import { buildInitialScheduledTripRow } from "../../../../domain/scheduledTrips/buildInitialScheduledTripRow";
 import { resolveScheduleSegmentIdentity } from "../../../../shared/scheduleIdentity";
 import type { VesselIdentity } from "../../../../shared/vessels";
 import type { TerminalIdentity } from "../../../terminals/resolver";
@@ -68,7 +69,8 @@ export const createScheduledTripFromRawSegment = (
     );
   }
 
-  const trip: ConvexScheduledTrip = {
+  return buildInitialScheduledTripRow({
+    Key: key,
     VesselAbbrev: vesselAbbrev,
     DepartingTerminalAbbrev: departingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
@@ -80,18 +82,6 @@ export const createScheduledTripFromRawSegment = (
     Annotations: segment.Annotations,
     RouteID: segment.RouteID,
     RouteAbbrev: segment.RouteAbbrev,
-    Key: key,
     SailingDay: segment.SailingDay,
-    // TripType will be set correctly by direct-segment classification during sync
-    // Default to "direct" as most trips are direct; classification will correct this
-    TripType: "direct",
-  };
-
-  // Route 9 (Anacortes Island) has WSF-provided arrival times that we use as official times.
-  // For other routes, SchedArriveCurr/SchedArriveNext are backfilled during sync.
-  if (trip.RouteID === 9 && trip.ArrivingTime) {
-    trip.SchedArriveCurr = trip.ArrivingTime;
-  }
-
-  return trip;
+  });
 };

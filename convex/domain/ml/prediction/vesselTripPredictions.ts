@@ -62,7 +62,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
     field: "AtSeaArriveNext",
     modelType: "at-sea-arrive-next",
     requiresDepartureActual: true,
-    getAnchorMs: (trip) => trip.DepartOriginActual ?? null,
+    getAnchorMs: (trip) => trip.LeftDockActual ?? null,
   },
   AtSeaDepartNext: {
     field: "AtSeaDepartNext",
@@ -76,7 +76,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
  * Type guard for trips that are ready for predictions.
  *
  * A trip is prediction-ready when it has all required context fields:
- * ArriveOriginDockActual, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
+ * ArrivedCurrActual, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
  * PrevTerminalAbbrev, InService, ScheduledDeparture,
  * PrevScheduledDeparture, and PrevLeftDock.
  *
@@ -86,7 +86,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 export const isPredictionReadyTrip = (
   trip: ConvexVesselTrip
 ): trip is PredictionReadyTrip =>
-  Boolean(trip.ArriveOriginDockActual) &&
+  Boolean(trip.ArrivedCurrActual) &&
   Boolean(trip.DepartingTerminalAbbrev) &&
   Boolean(trip.ArrivingTerminalAbbrev) &&
   Boolean(trip.PrevTerminalAbbrev) &&
@@ -194,7 +194,7 @@ export const applyActualToPrediction = (
 export const actualizePredictionsOnLeaveDock = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  const departureMs = trip.DepartOriginActual;
+  const departureMs = trip.LeftDockActual;
   if (!departureMs || !trip.AtDockDepartCurr) {
     return trip;
   }
@@ -217,7 +217,7 @@ export const actualizePredictionsOnLeaveDock = (
 export const actualizePredictionsOnTripComplete = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  const arrivalActual = trip.ArriveDestDockActual;
+  const arrivalActual = trip.ArrivedNextActual;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
   }
@@ -259,7 +259,7 @@ export const predictFromSpec = async (
     return null;
   }
 
-  if (spec.requiresDepartureActual && !trip.DepartOriginActual) {
+  if (spec.requiresDepartureActual && !trip.LeftDockActual) {
     return null;
   }
 

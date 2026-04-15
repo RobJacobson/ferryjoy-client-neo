@@ -59,7 +59,7 @@ export const vesselTripToTripSegment = (
 
   const leaveCurr: TimePoint = {
     scheduled: schedDeparture,
-    actual: trip.DepartOriginActual ?? trip.LeftDock,
+    actual: trip.LeftDockActual ?? trip.LeftDock,
     estimated: vesselLocation.AtDock ? departurePrediction : undefined,
   };
 
@@ -92,6 +92,6 @@ export const vesselTripToTripSegment = (
     phase,
     isHeld,
     isArrived: !!getOriginArrivalActual(trip),
-    isLeft: !!(trip.DepartOriginActual ?? trip.LeftDock),
+    isLeft: !!(trip.LeftDockActual ?? trip.LeftDock),
   };
 };
