@@ -372,8 +372,14 @@ Instead, we apply strict eligibility rules during window creation:
 
 ### ScheduledTrips enrichment used by inference
 
-Real-time inference depends on **schedule-chain fields** computed during ScheduledTrips
-sync and then **snapshotted onto active VesselTrips**.
+Real-time inference depends on **schedule-chain fields** computed during
+ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
+
+Current layering:
+
+- WSF schedule ingress: `convex/adapters/wsf/scheduledTrips/`
+- schedule business rules: `convex/domain/scheduledTrips/`
+- Convex sync/persistence shell: `convex/functions/scheduledTrips/`
 
 #### Composite trip key format
 
@@ -412,12 +418,15 @@ During sync, we compute (per ScheduledTrip):
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
   - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
-Sync applies the full transform pipeline after downloads: `runScheduleTransformPipeline` in
-`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs `classifyDirectSegments`
-then `calculateTripEstimates`. Classification resolves overlapping/ambiguous route options
-before linking and estimates run. The classification process marks trips as direct or
-indirect instead of filtering them out, allowing both types to be stored while maintaining
-clear distinction for filtering purposes.
+Sync applies the full transform pipeline after adapter ingress:
+`convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts`
+downloads and maps the raw WSF data, then
+`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs
+`classifyDirectSegments` followed by `calculateTripEstimates`.
+Classification resolves overlapping or ambiguous route options before linking
+and estimates run. The classification process marks trips as direct or indirect
+instead of filtering them out, allowing both types to be stored while
+maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 

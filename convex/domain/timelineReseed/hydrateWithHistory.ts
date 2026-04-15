@@ -2,13 +2,13 @@
  * History-backed enrichment for schedule-seeded boundary events.
  */
 
+import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
+import { resolveVessel, type VesselIdentity } from "adapters/wsf/resolveVessel";
+import { resolveVesselHistory } from "adapters/wsf/resolveVesselHistory";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { TerminalIdentity } from "../../functions/terminals/resolver";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
-import { resolveHistoryTerminalAbbrev } from "../../shared/scheduleIdentity";
-import { resolveVesselName, type VesselIdentity } from "../../shared/vessels";
 import { createSeededScheduleSegmentResolver } from "./scheduleDepartureLookup";
 import { getDirectRawSeedSegments } from "./seedScheduledEvents";
 
@@ -103,8 +103,10 @@ const getHistoryActualsByEventKey = ({
   return historyRecords.reduce((actualsByEventKey, record) => {
     const actualDeparture = record.ActualDepart?.getTime();
     const arrivalProxy = record.EstArrival?.getTime();
-    const vesselRaw = record.Vessel ? String(record.Vessel).trim() : "";
-    const vesselAbbrev = resolveVesselName(vesselRaw, vessels);
+    const vessel = resolveVessel(
+      record.Vessel ? String(record.Vessel) : "",
+      vessels
+    );
 
     const strictRecord = normalizeHistoryRecordStrict(
       record,
@@ -122,11 +124,11 @@ const getHistoryActualsByEventKey = ({
       const scheduledDepartRaw = record.ScheduledDepart ?? undefined;
       if (
         scheduledDepartRaw &&
-        vesselAbbrev !== null &&
+        vessel !== null &&
         (actualDeparture !== undefined || arrivalProxy !== undefined)
       ) {
         const fallbackKey = resolveSegmentFromSeededSchedule(
-          vesselAbbrev,
+          vessel.VesselAbbrev,
           scheduledDepartRaw
         );
         if (
@@ -165,26 +167,21 @@ const normalizeHistoryRecordStrict = (
   const scheduledDepart = record.ScheduledDepart;
   const actualDeparture = record.ActualDepart?.getTime();
   const arrivalProxy = record.EstArrival?.getTime();
-  const vesselRaw = record.Vessel ? String(record.Vessel).trim() : "";
-  const vesselAbbrev = resolveVesselName(vesselRaw, vessels);
-  const departingTerminalAbbrev = resolveHistoryTerminalAbbrev(
-    record.Departing ?? "",
-    terminals
-  );
-  const arrivingTerminalAbbrev = resolveHistoryTerminalAbbrev(
-    record.Arriving ?? "",
-    terminals
-  );
+  const resolvedHistory = resolveVesselHistory(record, vessels, terminals);
 
   if (
     !scheduledDepart ||
     (actualDeparture === undefined && arrivalProxy === undefined) ||
-    vesselAbbrev === null ||
-    departingTerminalAbbrev === null ||
-    arrivingTerminalAbbrev === null
+    resolvedHistory === null
   ) {
     return null;
   }
+
+  const vesselAbbrev = resolvedHistory.vessel.VesselAbbrev;
+  const departingTerminalAbbrev =
+    resolvedHistory.departingTerminal.TerminalAbbrev;
+  const arrivingTerminalAbbrev =
+    resolvedHistory.arrivingTerminal.TerminalAbbrev;
 
   const tripKey = buildSegmentKey(
     vesselAbbrev,

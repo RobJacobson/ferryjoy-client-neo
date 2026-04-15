@@ -5,15 +5,15 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
+import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
 import { v } from "convex/values";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   hydrateSeededEventsWithHistory,
 } from "domain/timelineReseed";
-import { fetchAndTransformScheduledTrips } from "functions/scheduledTrips/sync/fetchAndTransform";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
 import { loadBackendTerminals } from "../terminals/actions";
 import { loadBackendVessels } from "../vessels/actions";

@@ -1,25 +1,27 @@
 # Scheduled Trips Sync Module
 
-This module owns the backend pipeline that turns raw Washington State Ferries
-(WSF) schedule data into persistence-ready `scheduledTrips` rows.
+This module owns the thin Convex-facing shell for scheduled-trips sync.
+
+WSF download, raw schedule types, and raw-segment mapping now live in
+`convex/adapters/wsf/scheduledTrips/`. This folder remains responsible for
+when sync runs, loading backend identity snapshots for the adapter layer, and
+persisting the final `scheduledTrips` rows.
 
 ## Why This Lives Under `functions/scheduledTrips`
 
 `scheduledTrips/sync` controls:
 
 1. when schedule downloads run
-2. how raw WSF data is mapped into backend records
-3. orchestration of fetch, domain transformation, and persistence
+2. how backend identity rows are loaded for adapter translation
+3. orchestration of adapter ingress, domain transformation, and persistence
 
 **Schedule transformation rules** (direct/indirect classification, estimates,
 official crossing-time policy, `PrevKey`/`NextKey` linking) live in
-[`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/). This folder
-holds Convex actions, mutations, queries, schemas, WSF download/mapping, and the
-thin `fetchAndTransform` adapter that delegates transformation to the domain
-module.
+[`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/). WSF-specific
+boundary translation lives in `convex/adapters/wsf/scheduledTrips/`.
 
-`vesselTimeline` and timeline reseed reuse `fetchAndTransform` or domain helpers
-without duplicating business rules.
+`vesselTimeline` and timeline reseed reuse the adapter ingress modules or
+domain helpers without duplicating business rules.
 
 ## WSF Data Model vs. Physical Reality
 
@@ -47,32 +49,33 @@ To keep FerryJoy aligned with physical vessel movement, the sync pipeline:
 
 ## Pipeline Structure
 
-### `fetching/`
+### `sync.ts`
 
-WSF API download and raw segment mapping. Segment rows are turned into initial
-`ConvexScheduledTrip` shapes via `buildInitialScheduledTripRow` in
-[`convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts`](/convex/domain/scheduledTrips/buildInitialScheduledTripRow.ts)
-(prefetch policies such as Route 9 `SchedArriveCurr` live there).
+High-level date and date-range sync entrypoints.
 
-### `fetchAndTransform.ts`
+This file:
 
-Shared orchestration used by ScheduledTrips sync and VesselTimeline sync:
+- loads backend vessel and terminal identity rows
+- calls the shared WSF adapter ingress pipeline
+- persists the transformed rows atomically for one sailing day
 
-- fetch active routes
-- download raw route schedule data
-- map raw segments into `ConvexScheduledTrip` rows
-- run `runScheduleTransformPipeline` from `convex/domain/scheduledTrips`
+### Adapter ingress
+
+`convex/adapters/wsf/scheduledTrips/` now owns:
+
+- WSF API fetch wrappers
+- raw WSF schedule types
+- raw route-download normalization
+- raw-segment-to-`ConvexScheduledTrip` mapping
+- the shared `fetchAndTransformScheduledTrips` flow used by sync and timeline reseed
 
 ### `persistence.ts`
 
 Atomic replacement of one sailing day's `scheduledTrips` rows.
 
-### `sync.ts`
-
-High-level date and date-range sync entrypoints.
-
 ## Architecture Rule
 
 Domain modules under `convex/domain/` own reusable business logic. The
-`functions/scheduledTrips` layer owns Convex registration, persistence, and
-schedule fetch/mapping to `ConvexScheduledTrip` rows.
+`functions/scheduledTrips` layer owns Convex registration and persistence.
+`convex/adapters/wsf/scheduledTrips/` owns WSF-boundary translation into
+backend rows.

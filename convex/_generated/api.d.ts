@@ -8,6 +8,18 @@
  * @module
  */
 
+import type * as adapters_wsf_fetchVesselLocations from "../adapters/wsf/fetchVesselLocations.js";
+import type * as adapters_wsf_resolveScheduleSegment from "../adapters/wsf/resolveScheduleSegment.js";
+import type * as adapters_wsf_resolveTerminal from "../adapters/wsf/resolveTerminal.js";
+import type * as adapters_wsf_resolveVessel from "../adapters/wsf/resolveVessel.js";
+import type * as adapters_wsf_resolveVesselHistory from "../adapters/wsf/resolveVesselHistory.js";
+import type * as adapters_wsf_scheduledTrips_createScheduledTripFromRawSegment from "../adapters/wsf/scheduledTrips/createScheduledTripFromRawSegment.js";
+import type * as adapters_wsf_scheduledTrips_downloadRawWsfScheduleData from "../adapters/wsf/scheduledTrips/downloadRawWsfScheduleData.js";
+import type * as adapters_wsf_scheduledTrips_fetchActiveRoutes from "../adapters/wsf/scheduledTrips/fetchActiveRoutes.js";
+import type * as adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips from "../adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.js";
+import type * as adapters_wsf_scheduledTrips_fetchRouteSchedule from "../adapters/wsf/scheduledTrips/fetchRouteSchedule.js";
+import type * as adapters_wsf_scheduledTrips_retryOnce from "../adapters/wsf/scheduledTrips/retryOnce.js";
+import type * as adapters_wsf_scheduledTrips_types from "../adapters/wsf/scheduledTrips/types.js";
 import type * as crons from "../crons.js";
 import type * as domain_index from "../domain/index.js";
 import type * as domain_ml_index from "../domain/ml/index.js";
@@ -113,11 +125,6 @@ import type * as functions_scheduledTrips_index from "../functions/scheduledTrip
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
 import type * as functions_scheduledTrips_queries from "../functions/scheduledTrips/queries.js";
 import type * as functions_scheduledTrips_schemas from "../functions/scheduledTrips/schemas.js";
-import type * as functions_scheduledTrips_sync_fetchAndTransform from "../functions/scheduledTrips/sync/fetchAndTransform.js";
-import type * as functions_scheduledTrips_sync_fetching_download from "../functions/scheduledTrips/sync/fetching/download.js";
-import type * as functions_scheduledTrips_sync_fetching_index from "../functions/scheduledTrips/sync/fetching/index.js";
-import type * as functions_scheduledTrips_sync_fetching_mapping from "../functions/scheduledTrips/sync/fetching/mapping.js";
-import type * as functions_scheduledTrips_sync_fetching_wsfApi from "../functions/scheduledTrips/sync/fetching/wsfApi.js";
 import type * as functions_scheduledTrips_sync_index from "../functions/scheduledTrips/sync/index.js";
 import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
 import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
@@ -125,7 +132,6 @@ import type * as functions_scheduledTrips_sync_types from "../functions/schedule
 import type * as functions_terminals_actions from "../functions/terminals/actions.js";
 import type * as functions_terminals_mutations from "../functions/terminals/mutations.js";
 import type * as functions_terminals_queries from "../functions/terminals/queries.js";
-import type * as functions_terminals_resolver from "../functions/terminals/resolver.js";
 import type * as functions_terminals_schemas from "../functions/terminals/schemas.js";
 import type * as functions_terminalsTopology_actions from "../functions/terminalsTopology/actions.js";
 import type * as functions_terminalsTopology_mutations from "../functions/terminalsTopology/mutations.js";
@@ -170,18 +176,14 @@ import type * as shared_convertDates from "../shared/convertDates.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_effectiveTripIdentity from "../shared/effectiveTripIdentity.js";
-import type * as shared_fetchWsfScheduleData from "../shared/fetchWsfScheduleData.js";
-import type * as shared_fetchWsfVesselLocations from "../shared/fetchWsfVesselLocations.js";
 import type * as shared_groupBy from "../shared/groupBy.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_keys from "../shared/keys.js";
 import type * as shared_physicalTripIdentity from "../shared/physicalTripIdentity.js";
-import type * as shared_scheduleIdentity from "../shared/scheduleIdentity.js";
 import type * as shared_stripConvexMeta from "../shared/stripConvexMeta.js";
 import type * as shared_time from "../shared/time.js";
 import type * as shared_timelineIntervals from "../shared/timelineIntervals.js";
 import type * as shared_tripIdentity from "../shared/tripIdentity.js";
-import type * as shared_vessels from "../shared/vessels.js";
 
 import type {
   ApiFromModules,
@@ -190,6 +192,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "adapters/wsf/fetchVesselLocations": typeof adapters_wsf_fetchVesselLocations;
+  "adapters/wsf/resolveScheduleSegment": typeof adapters_wsf_resolveScheduleSegment;
+  "adapters/wsf/resolveTerminal": typeof adapters_wsf_resolveTerminal;
+  "adapters/wsf/resolveVessel": typeof adapters_wsf_resolveVessel;
+  "adapters/wsf/resolveVesselHistory": typeof adapters_wsf_resolveVesselHistory;
+  "adapters/wsf/scheduledTrips/createScheduledTripFromRawSegment": typeof adapters_wsf_scheduledTrips_createScheduledTripFromRawSegment;
+  "adapters/wsf/scheduledTrips/downloadRawWsfScheduleData": typeof adapters_wsf_scheduledTrips_downloadRawWsfScheduleData;
+  "adapters/wsf/scheduledTrips/fetchActiveRoutes": typeof adapters_wsf_scheduledTrips_fetchActiveRoutes;
+  "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips": typeof adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips;
+  "adapters/wsf/scheduledTrips/fetchRouteSchedule": typeof adapters_wsf_scheduledTrips_fetchRouteSchedule;
+  "adapters/wsf/scheduledTrips/retryOnce": typeof adapters_wsf_scheduledTrips_retryOnce;
+  "adapters/wsf/scheduledTrips/types": typeof adapters_wsf_scheduledTrips_types;
   crons: typeof crons;
   "domain/index": typeof domain_index;
   "domain/ml/index": typeof domain_ml_index;
@@ -295,11 +309,6 @@ declare const fullApi: ApiFromModules<{
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
   "functions/scheduledTrips/queries": typeof functions_scheduledTrips_queries;
   "functions/scheduledTrips/schemas": typeof functions_scheduledTrips_schemas;
-  "functions/scheduledTrips/sync/fetchAndTransform": typeof functions_scheduledTrips_sync_fetchAndTransform;
-  "functions/scheduledTrips/sync/fetching/download": typeof functions_scheduledTrips_sync_fetching_download;
-  "functions/scheduledTrips/sync/fetching/index": typeof functions_scheduledTrips_sync_fetching_index;
-  "functions/scheduledTrips/sync/fetching/mapping": typeof functions_scheduledTrips_sync_fetching_mapping;
-  "functions/scheduledTrips/sync/fetching/wsfApi": typeof functions_scheduledTrips_sync_fetching_wsfApi;
   "functions/scheduledTrips/sync/index": typeof functions_scheduledTrips_sync_index;
   "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
   "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
@@ -307,7 +316,6 @@ declare const fullApi: ApiFromModules<{
   "functions/terminals/actions": typeof functions_terminals_actions;
   "functions/terminals/mutations": typeof functions_terminals_mutations;
   "functions/terminals/queries": typeof functions_terminals_queries;
-  "functions/terminals/resolver": typeof functions_terminals_resolver;
   "functions/terminals/schemas": typeof functions_terminals_schemas;
   "functions/terminalsTopology/actions": typeof functions_terminalsTopology_actions;
   "functions/terminalsTopology/mutations": typeof functions_terminalsTopology_mutations;
@@ -352,18 +360,14 @@ declare const fullApi: ApiFromModules<{
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/effectiveTripIdentity": typeof shared_effectiveTripIdentity;
-  "shared/fetchWsfScheduleData": typeof shared_fetchWsfScheduleData;
-  "shared/fetchWsfVesselLocations": typeof shared_fetchWsfVesselLocations;
   "shared/groupBy": typeof shared_groupBy;
   "shared/index": typeof shared_index;
   "shared/keys": typeof shared_keys;
   "shared/physicalTripIdentity": typeof shared_physicalTripIdentity;
-  "shared/scheduleIdentity": typeof shared_scheduleIdentity;
   "shared/stripConvexMeta": typeof shared_stripConvexMeta;
   "shared/time": typeof shared_time;
   "shared/timelineIntervals": typeof shared_timelineIntervals;
   "shared/tripIdentity": typeof shared_tripIdentity;
-  "shared/vessels": typeof shared_vessels;
 }>;
 
 /**

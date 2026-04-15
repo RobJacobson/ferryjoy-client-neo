@@ -91,12 +91,7 @@ export async function syncBackendVesselTable(ctx: ActionCtx): Promise<void> {
   const updatedAt = Date.now();
   const vessels: Array<Vessel> = fetchedVessels
     .filter(hasVesselIdentity)
-    .map((vessel) => ({
-      VesselID: vessel.VesselID,
-      VesselName: vessel.VesselName.trim(),
-      VesselAbbrev: vessel.VesselAbbrev.trim(),
-      UpdatedAt: updatedAt,
-    }));
+    .map((vessel) => toBackendVessel(vessel, updatedAt));
 
   await ctx.runMutation(
     internal.functions.vesselLocation.mutations.replaceBackendVessels,
@@ -117,3 +112,20 @@ const hasVesselIdentity = (
   vessel: VesselBasic
 ): vessel is VesselBasicWithIdentity =>
   Boolean(vessel.VesselName && vessel.VesselAbbrev);
+
+/**
+ * Maps one WSF vessel basics row into the backend vessel snapshot shape.
+ *
+ * @param vessel - WSF vessel basics row with required identity fields
+ * @param updatedAt - Shared snapshot refresh timestamp
+ * @returns Backend vessel snapshot row ready for persistence
+ */
+const toBackendVessel = (
+  vessel: VesselBasicWithIdentity,
+  updatedAt: number
+): Vessel => ({
+  VesselID: vessel.VesselID,
+  VesselName: vessel.VesselName.trim(),
+  VesselAbbrev: vessel.VesselAbbrev.trim(),
+  UpdatedAt: updatedAt,
+});

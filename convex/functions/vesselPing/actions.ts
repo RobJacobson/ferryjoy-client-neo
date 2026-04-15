@@ -1,7 +1,11 @@
+/**
+ * Convex actions for ingesting and cleaning up vessel ping rows.
+ */
+
 import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
+import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
 import { toConvexVesselPing } from "functions/vesselPing/schemas";
-import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 
 /**
  * Internal action for fetching and storing vessel locations from WSF API

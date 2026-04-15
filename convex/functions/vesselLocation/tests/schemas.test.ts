@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { TerminalIdentity } from "functions/terminals/resolver";
+import type { TerminalIdentity } from "../../../adapters/wsf/resolveTerminal";
 import { toConvexVesselLocation } from "../schemas";
 
 describe("toConvexVesselLocation", () => {
@@ -160,4 +160,4 @@ const makeRawLocation = (overrides: Record<string, unknown>) =>
     VesselPositionNum: 1,
     TimeStamp: new Date("2026-03-31T12:00:00-07:00"),
     ...overrides,
-  }) as Parameters<typeof toConvexVesselLocation>[0];
+  }) as unknown as Parameters<typeof toConvexVesselLocation>[0];

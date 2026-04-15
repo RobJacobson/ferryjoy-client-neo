@@ -1,8 +1,10 @@
 # ScheduledTrips (Convex functions)
 
-Thin Convex entrypoints and WSF I/O for the `scheduledTrips` table. Schedule
-**business rules** (classification, estimates, linking, prefetch policies) live
-under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
+Thin Convex entrypoints and persistence wiring for the `scheduledTrips` table.
+Schedule **business rules** (classification, estimates, linking, prefetch
+policies) live under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/),
+while WSF fetch and mapping live under
+[`convex/adapters/wsf/scheduledTrips/`](/convex/adapters/wsf/scheduledTrips/).
 
 ## Public surface (intended)
 
@@ -17,10 +19,16 @@ under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
 
 ## Internal adapters
 
-The **`sync/`** subtree is the fetch → map → domain pipeline → persist adapter
-(WSF download, raw-segment mapping, `runScheduleTransformPipeline`, atomic day
-replace). Other modules may import from `sync/` paths; prefer the files above
-for new Convex-facing code.
+The **`sync/`** subtree now stays thin and owns:
+
+- when scheduled-trips sync runs
+- loading backend identity rows needed for the adapter layer
+- atomic replacement of one sailing day's persisted `scheduledTrips` rows
+
+WSF download, raw schedule types, raw-segment mapping, and the shared
+fetch-and-transform flow now live in `convex/adapters/wsf/scheduledTrips/`.
+Other modules should import the adapter layer directly instead of deep
+`functions/scheduledTrips/sync/*` paths.
 
 For the pipeline narrative, see
 [`sync/README.md`](./sync/README.md).

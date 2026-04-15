@@ -1,9 +1,9 @@
 /**
- * Shared sync result types for scheduled-trips actions. `VesselSailing` is
- * defined alongside raw schedule download in `convex/shared/fetchWsfScheduleData`.
+ * Shared sync result types for scheduled-trips actions. Raw WSF vessel-sailing
+ * rows are defined in the WSF adapter layer.
  */
 
-export type { VesselSailing } from "../../../shared/fetchWsfScheduleData";
+export type { VesselSailing } from "adapters/wsf/scheduledTrips/types";
 
 /**
  * Result type for tracking individual day synchronization operations.

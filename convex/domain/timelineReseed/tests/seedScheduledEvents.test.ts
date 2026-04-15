@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { TerminalIdentity } from "../../../functions/terminals/resolver";
+import type { TerminalIdentity } from "../../../adapters/wsf/resolveTerminal";
+import type { VesselIdentity } from "../../../adapters/wsf/resolveVessel";
+import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips/types";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
-import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import type { VesselIdentity } from "../../../shared/vessels";
 import { normalizeScheduledDockSeams } from "../normalizeEventRecords";
 import { buildActualBoundaryPatchesFromLocation } from "../reconcileLiveLocations";
 import { buildSeedVesselTripEventsFromRawSegments } from "../seedScheduledEvents";
@@ -285,7 +285,9 @@ const makeRawSegment = (
   DepartingTerminalName: "Seattle",
   ArrivingTerminalName: "Bainbridge Island",
   DepartingTime: new Date(at(8, 35)),
-  ArrivingTime: undefined,
+  ArrivingTime: null,
+  SailingNotes: "",
+  Annotations: [],
   RouteID: 7,
   RouteAbbrev: "sea-bi",
   SailingDay: "2026-03-13",

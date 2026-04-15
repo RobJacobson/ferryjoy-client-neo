@@ -9,6 +9,7 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
+import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
 import {
   getPassengerTerminalAbbrevs,
   runVesselOrchestratorTick,
@@ -24,7 +25,6 @@ import {
   type TickEventWrites,
 } from "functions/vesselTrips/actions";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
-import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**

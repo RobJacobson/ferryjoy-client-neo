@@ -2,12 +2,12 @@
  * Builds schedule-derived boundary-event records for VesselTimeline reseed.
  */
 
-import type { TerminalIdentity } from "../../functions/terminals/resolver";
+import { resolveScheduleSegment } from "adapters/wsf/resolveScheduleSegment";
+import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
+import type { VesselIdentity } from "adapters/wsf/resolveVessel";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
-import { resolveScheduleSegmentIdentity } from "../../shared/scheduleIdentity";
-import type { VesselIdentity } from "../../shared/vessels";
 import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
@@ -157,18 +157,17 @@ const toRawSeedSegment = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): RawSeedSegment | null => {
-  const resolvedIdentity = resolveScheduleSegmentIdentity(
-    segment,
-    vessels,
-    terminals
-  );
+  const resolvedSegment = resolveScheduleSegment(segment, vessels, terminals);
 
-  if (!resolvedIdentity) {
+  if (!resolvedSegment) {
     return null;
   }
 
-  const { vesselAbbrev, departingTerminalAbbrev, arrivingTerminalAbbrev } =
-    resolvedIdentity;
+  const vesselAbbrev = resolvedSegment.vessel.VesselAbbrev;
+  const departingTerminalAbbrev =
+    resolvedSegment.departingTerminal.TerminalAbbrev;
+  const arrivingTerminalAbbrev =
+    resolvedSegment.arrivingTerminal.TerminalAbbrev;
 
   const key = buildSegmentKey(
     vesselAbbrev,

@@ -1,8 +1,8 @@
 import type { ActionCtx } from "_generated/server";
+import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips";
 import { getSailingDay } from "../../../shared/time";
 import { loadBackendTerminals } from "../../terminals/actions";
 import { loadBackendVessels } from "../../vessels/actions";
-import { fetchAndTransformScheduledTrips } from "./fetchAndTransform";
 import { saveFinalTrips } from "./persistence";
 import type { DaySyncResult } from "./types";
 

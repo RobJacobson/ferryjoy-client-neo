@@ -1,21 +1,18 @@
 /**
- * Shared schedule download and transformation helpers for schedule-backed
- * consumers owned by the ScheduledTrips sync module.
+ * Shared WSF schedule ingress pipeline for schedule-backed backend consumers.
  */
 
+import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
+import type { VesselIdentity } from "adapters/wsf/resolveVessel";
+import { runScheduleTransformPipeline } from "domain/scheduledTrips";
+import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { Route } from "ws-dottie/wsf-schedule";
-import { runScheduleTransformPipeline } from "../../../domain/scheduledTrips";
-import type { TerminalIdentity } from "../../../functions/terminals/resolver";
-import type { RawWsfRouteScheduleData } from "../../../shared/fetchWsfScheduleData";
-import {
-  downloadRawWsfScheduleData,
-  fetchActiveRoutes,
-} from "../../../shared/fetchWsfScheduleData";
-import type { VesselIdentity } from "../../../shared/vessels";
-import type { ConvexScheduledTrip } from "../schemas";
-import { createScheduledTripFromRawSegment } from "./fetching/mapping";
+import { createScheduledTripFromRawSegment } from "./createScheduledTripFromRawSegment";
+import { downloadRawWsfScheduleData } from "./downloadRawWsfScheduleData";
+import { fetchActiveRoutes } from "./fetchActiveRoutes";
+import type { RawWsfRouteScheduleData } from "./types";
 
-export type FetchAndTransformScheduledTripsResult = {
+type FetchAndTransformScheduledTripsResult = {
   routes: Route[];
   routeData: RawWsfRouteScheduleData[];
   rawTrips: ConvexScheduledTrip[];
@@ -24,11 +21,13 @@ export type FetchAndTransformScheduledTripsResult = {
 };
 
 /**
- * Shared schedule fetch + transformation flow used by ScheduledTrips sync and
- * VesselTimeline boundary-event sync.
+ * Fetches WSF schedule data, maps it into backend rows, and runs the domain
+ * schedule transform pipeline.
  *
- * @param targetDate - Service date to fetch in `YYYY-MM-DD` format
- * @returns Raw route payloads plus the mapped and transformed trip rows
+ * @param targetDate - Sailing day in `YYYY-MM-DD` format
+ * @param vessels - Backend vessel identity rows
+ * @param terminals - Backend terminal identity rows
+ * @returns Raw route payloads plus mapped and transformed scheduled trips
  */
 export const fetchAndTransformScheduledTrips = async (
   targetDate: string,
@@ -54,7 +53,6 @@ export const fetchAndTransformScheduledTrips = async (
       createScheduledTripFromRawSegment(segment, vessels, terminals)
     )
     .filter((trip): trip is ConvexScheduledTrip => trip !== null);
-
   const finalTrips = runScheduleTransformPipeline(rawTrips);
   const totalIndirect = finalTrips.filter(
     (trip) => trip.TripType === "indirect"

@@ -1,3 +1,10 @@
+/**
+ * WSF vessel-location boundary adapter.
+ *
+ * Fetches raw vessel locations from the WSDOT-backed WSF API and centralizes
+ * runtime token setup for all backend consumers.
+ */
+
 import { configManager } from "ws-dottie";
 import {
   fetchVesselLocations,
@@ -6,6 +13,11 @@ import {
 
 type ProcessEnvLike = Record<string, string | undefined>;
 
+/**
+ * Reads the current runtime environment if one exists.
+ *
+ * @returns Process environment-like object when available
+ */
 const getRuntimeEnv = (): ProcessEnvLike | undefined => {
   const runtime = globalThis as {
     process?: { env?: ProcessEnvLike };
@@ -14,22 +26,22 @@ const getRuntimeEnv = (): ProcessEnvLike | undefined => {
   return runtime.process?.env;
 };
 
+/**
+ * Resolves the configured WSDOT access token from supported environment names.
+ *
+ * @returns Trimmed access token or `undefined` when none is configured
+ */
 const getConfiguredWsdotAccessToken = (): string | undefined => {
   const env = getRuntimeEnv();
-
-  const directToken = env?.WSDOT_ACCESS_TOKEN?.trim();
-  if (directToken) {
-    return directToken;
-  }
-
-  const expoPublicToken = env?.EXPO_PUBLIC_WSDOT_ACCESS_TOKEN?.trim();
-  if (expoPublicToken) {
-    return expoPublicToken;
-  }
-
-  return undefined;
+  return (
+    env?.WSDOT_ACCESS_TOKEN?.trim() ||
+    env?.EXPO_PUBLIC_WSDOT_ACCESS_TOKEN?.trim()
+  );
 };
 
+/**
+ * Validates and applies the WSDOT access token for ws-dottie.
+ */
 const ensureWsdotAccessToken = (): void => {
   const token = getConfiguredWsdotAccessToken();
   if (!token) {
@@ -41,6 +53,11 @@ const ensureWsdotAccessToken = (): void => {
   configManager.setApiKey(token);
 };
 
+/**
+ * Fetches the latest raw WSF vessel locations.
+ *
+ * @returns Raw WSF vessel-location payloads from `ws-dottie`
+ */
 export const fetchWsfVesselLocations = async (): Promise<VesselLocation[]> => {
   ensureWsdotAccessToken();
 

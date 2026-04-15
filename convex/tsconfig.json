@@ -18,6 +18,11 @@
     "typeRoots": ["../node_modules/@types"],
     "types": [],
     "paths": {
+      "adapters/*": ["./adapters/*"],
+      "domain/*": ["./domain/*"],
+      "functions/*": ["./functions/*"],
+      "shared": ["./shared/index.ts"],
+      "shared/*": ["./shared/*"],
       "src/*": ["../src/*"]
     },
 

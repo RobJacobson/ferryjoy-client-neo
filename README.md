@@ -67,14 +67,16 @@ ferryjoy-client-neo/
 │   ├── shared/               # Shared utilities and types
 │   └── data/                 # Data hooks and queries
 ├── convex/                   # Convex backend
+│   ├── adapters/             # WSF/external boundary translation
 │   ├── functions/            # Serverless functions
 │   │   ├── vesselTrips/     # Trip management logic
 │   │   │   └── updates/      # Real-time trip updates
 │   │   ├── vesselLocation/  # Location data processing
-│   │   ├── scheduledTrips/  # Schedule sync + transform pipeline
+│   │   ├── scheduledTrips/  # Schedule sync entrypoints + persistence
 │   │   └── vesselOrchestrator/  # Main orchestrator
 │   ├── domain/              # Business logic
 │   │   └── ml/             # ML prediction pipeline
+│   ├── shared/              # Generic backend helpers (non-vendor-specific)
 │   └── _generated/         # Auto-generated Convex types
 ├── scripts/                # Utility scripts
 │   └── ml/                 # ML training and management
@@ -156,15 +158,29 @@ bun run sync:scheduled-trips:date    # Sync specific date
 
 ## Architecture Overview
 
+### Backend Layering
+
+The Convex backend follows this separation of concerns:
+
+```text
+convex/functions -> convex/adapters -> convex/domain -> convex/functions/persistence
+```
+
+- `convex/functions/` owns Convex registration, `ctx`, reads, writes, and thin orchestration
+- `convex/adapters/` owns WSF fetch wrappers, raw payload types, and boundary translation
+- `convex/domain/` owns business rules, lifecycle decisions, and reusable pipelines
+- `convex/shared/` owns generic helpers with no vendor-specific boundary story
+
 ### Vessel Update Pipeline
 
 The vessel orchestrator runs every 5 seconds to process location updates:
 
-1. **Fetch** vessel locations from WSF REST API
-2. **Categorize** vessels into completed trips and current trips
-3. **Build** complete trip state with enrichments
-4. **Compare** to existing state (build-then-compare pattern)
-5. **Persist** only when different (efficient database writes)
+1. **Fetch** vessel locations from WSF through `convex/adapters/wsf/`
+2. **Translate** raw payloads into backend-owned location inputs
+3. **Categorize** vessels into completed trips and current trips
+4. **Build** complete trip state with enrichments
+5. **Compare** to existing state (build-then-compare pattern)
+6. **Persist** only when different (efficient database writes)
 
 ### Trip Enrichment Pipeline
 
@@ -194,6 +210,7 @@ Expensive operations (ML predictions, schedule lookups) only run when events occ
 ## Important Documentation
 
 - **[VesselTrips](convex/functions/vesselTrips/README.md)** - Functions layer + pointers to domain lifecycle
+- **[Convex Adapters](convex/adapters/README.md)** - Boundary translation layer for WSF/external inputs
 - **[Map Navigation & Animation](docs/MAP_NAVIGATION_AND_ANIMATION.md)** - Map camera and animation architecture
 - **[ML Pipeline](convex/domain/ml/README.md)** - ML model training and prediction pipeline
 - **[Convex Functions](convex/README.md)** - Convex backend overview
