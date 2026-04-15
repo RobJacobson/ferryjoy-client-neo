@@ -55,6 +55,10 @@ import type * as domain_timelineRows_buildPredictedProjectionEffects from "../do
 import type * as domain_timelineRows_buildScheduledRows from "../domain/timelineRows/buildScheduledRows.js";
 import type * as domain_timelineRows_index from "../domain/timelineRows/index.js";
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
+import type * as domain_vesselOrchestration_index from "../domain/vesselOrchestration/index.js";
+import type * as domain_vesselOrchestration_passengerTerminalEligibility from "../domain/vesselOrchestration/passengerTerminalEligibility.js";
+import type * as domain_vesselOrchestration_runVesselOrchestratorTick from "../domain/vesselOrchestration/runVesselOrchestratorTick.js";
+import type * as domain_vesselOrchestration_types from "../domain/vesselOrchestration/types.js";
 import type * as domain_vesselTrips_continuity_resolveDockedScheduledSegment from "../domain/vesselTrips/continuity/resolveDockedScheduledSegment.js";
 import type * as domain_vesselTrips_continuity_resolveEffectiveDockedLocation from "../domain/vesselTrips/continuity/resolveEffectiveDockedLocation.js";
 import type * as domain_vesselTrips_continuity_types from "../domain/vesselTrips/continuity/types.js";
@@ -254,6 +258,10 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/buildScheduledRows": typeof domain_timelineRows_buildScheduledRows;
   "domain/timelineRows/index": typeof domain_timelineRows_index;
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
+  "domain/vesselOrchestration/index": typeof domain_vesselOrchestration_index;
+  "domain/vesselOrchestration/passengerTerminalEligibility": typeof domain_vesselOrchestration_passengerTerminalEligibility;
+  "domain/vesselOrchestration/runVesselOrchestratorTick": typeof domain_vesselOrchestration_runVesselOrchestratorTick;
+  "domain/vesselOrchestration/types": typeof domain_vesselOrchestration_types;
   "domain/vesselTrips/continuity/resolveDockedScheduledSegment": typeof domain_vesselTrips_continuity_resolveDockedScheduledSegment;
   "domain/vesselTrips/continuity/resolveEffectiveDockedLocation": typeof domain_vesselTrips_continuity_resolveEffectiveDockedLocation;
   "domain/vesselTrips/continuity/types": typeof domain_vesselTrips_continuity_types;

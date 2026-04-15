@@ -4,9 +4,9 @@ import {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
-} from "../actions";
+} from "../passengerTerminalEligibility";
 
-describe("vesselOrchestrator passenger terminal helpers", () => {
+describe("vesselOrchestration passenger terminal helpers", () => {
   it("treats passenger terminal membership as simple set membership", () => {
     const passengerTerminalAbbrevs = getPassengerTerminalAbbrevs([
       { TerminalAbbrev: "ANA", IsPassengerTerminal: true },

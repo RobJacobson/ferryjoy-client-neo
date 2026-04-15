@@ -67,14 +67,20 @@ Responsibilities:
   terminal-or-marine-location fields derived from the backend `terminals`
   table
 - capture one tick timestamp shared by downstream consumers
-- execute two downstream branches in parallel with error isolation
+- invoke `runVesselOrchestratorTick` from `convex/domain/vesselOrchestration/` with
+  injected adapters: location bulk upsert, `processVesselTrips`, and
+  `applyTickEventWrites`
+
+Domain pipeline (same tick semantics as before):
+
+- passenger-terminal allow-list and trip-eligible location filtering
+- parallel branches with branch-level error isolation
+- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselTrips`)
+  applied inside the domain orchestrator when building `processVesselTrips` options
+- trip branch runs `processVesselTrips` then `applyTickEventWrites` with
+  `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
 - pass the same tick’s active-trip list into `processVesselTrips` so the trip
   branch does not run a separate `getActiveTrips` query
-- compute `shouldRunPredictionFallback` once per tick via
-  `tickPredictionPolicy.computeShouldRunPredictionFallback` and pass it into
-  `processVesselTrips` options
-- after `processVesselTrips` returns, call `applyTickEventWrites` with
-  `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
 
 Transformation pipeline:
 
@@ -298,8 +304,8 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`, `processVesselTrips` +
-  `applyTickEventWrites`, passenger-terminal gating helpers
+- `actions.ts` — `updateVesselOrchestrator`; delegates tick orchestration to
+  `domain/vesselOrchestration/runVesselOrchestratorTick`
 - `applyTickEventWrites.ts` — runs `projectActualBoundaryPatches` /
   `projectPredictedBoundaryEffects` from `tickEventWrites`
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)

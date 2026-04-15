@@ -9,6 +9,10 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
+import {
+  getPassengerTerminalAbbrevs,
+  runVesselOrchestratorTick,
+} from "domain/vesselOrchestration";
 import { syncBackendTerminalTable } from "functions/terminals/actions";
 import type { Terminal } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -17,7 +21,6 @@ import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 import { processVesselTrips } from "functions/vesselTrips/updates";
-import { computeShouldRunPredictionFallback } from "functions/vesselTrips/updates/processTick/tickPredictionPolicy";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { applyTickEventWrites } from "./applyTickEventWrites";
@@ -36,8 +39,8 @@ import { applyTickEventWrites } from "./applyTickEventWrites";
  *    bootstrap refreshes when identity tables are empty)
  * 3. Convert each WSF payload to `ConvexVesselLocation`
  * 4. Capture one tick timestamp for downstream consumers
- * 5. Call updateVesselLocations() with error isolation
- * 6. Call processVesselTrips() then applyTickEventWrites() with error isolation
+ * 5. Run domain tick pipeline with injected adapters (locations branch vs trip
+ *    branch with lifecycle then timeline writes)
  *
  * @param ctx - Convex action context
  * @returns Result object indicating success/failure of each subroutine
@@ -55,17 +58,14 @@ export const updateVesselOrchestrator = internalAction({
       trips?: { message: string; stack?: string };
     };
   }> => {
-    // Track errors from each processing branch
     const errors: {
       fetch?: { message: string; stack?: string };
       locations?: { message: string; stack?: string };
       trips?: { message: string; stack?: string };
     } = {};
 
-    // Step 1: Fetch and convert vessel locations
     let convexLocations: ConvexVesselLocation[] = [];
     let passengerTerminalAbbrevs = new Set<string>();
-
     let activeTripsForTick: TickActiveTrip[] = [];
 
     try {
@@ -103,51 +103,27 @@ export const updateVesselOrchestrator = internalAction({
     }
 
     const tickStartedAt = Date.now();
-    const tripEligibleLocations = convexLocations.filter((location) =>
-      isTripEligibleLocation(location, passengerTerminalAbbrevs)
-    );
 
-    const runTripLifecycleAndTimeline = async () => {
-      const tripResult = await processVesselTrips(
-        ctx,
-        tripEligibleLocations,
+    return runVesselOrchestratorTick(
+      {
+        convexLocations,
+        passengerTerminalAbbrevs,
         tickStartedAt,
-        activeTripsForTick,
-        {
-          shouldRunPredictionFallback:
-            computeShouldRunPredictionFallback(tickStartedAt),
-        }
-      );
-      await applyTickEventWrites(ctx, tripResult.tickEventWrites);
-    };
-
-    const branchResults: [
-      PromiseSettledResult<void>,
-      PromiseSettledResult<void>,
-    ] = await Promise.allSettled([
-      updateVesselLocations(ctx, convexLocations),
-      runTripLifecycleAndTimeline(),
-    ]);
-
-    const [locationsResult, tripsResult] = branchResults;
-
-    if (locationsResult.status === "rejected") {
-      const err = toError(locationsResult.reason);
-      errors.locations = { message: err.message, stack: err.stack };
-      console.error("updateVesselLocations failed:", err);
-    }
-
-    if (tripsResult.status === "rejected") {
-      const err = toError(tripsResult.reason);
-      errors.trips = { message: err.message, stack: err.stack };
-      console.error("processVesselTrips failed:", err);
-    }
-
-    return {
-      locationsSuccess: locationsResult.status === "fulfilled",
-      tripsSuccess: tripsResult.status === "fulfilled",
-      ...(Object.keys(errors).length > 0 ? { errors } : {}),
-    };
+        activeTrips: activeTripsForTick,
+      },
+      {
+        persistLocations: (locations) => updateVesselLocations(ctx, locations),
+        processVesselTrips: (locations, tick, activeTrips, options) =>
+          processVesselTrips(
+            ctx,
+            [...locations],
+            tick,
+            [...activeTrips],
+            options
+          ),
+        applyTickEventWrites: (writes) => applyTickEventWrites(ctx, writes),
+      }
+    );
   },
 });
 
@@ -168,68 +144,6 @@ async function updateVesselLocations(
     locations: [...locations],
   });
 }
-
-/**
- * Collect the passenger-terminal abbreviations that are eligible for trip
- * processing.
- *
- * Non-passenger marine locations can still be stored in `vesselLocations`,
- * but they are intentionally excluded from trip lifecycle derivation.
- *
- * @param terminals - Backend terminal snapshot
- * @returns Set of terminal abbreviations eligible for trip processing
- */
-export const getPassengerTerminalAbbrevs = (
-  terminals: ReadonlyArray<{
-    TerminalAbbrev: string;
-    IsPassengerTerminal?: boolean;
-  }>
-) =>
-  new Set(
-    terminals
-      .filter((terminal) => terminal.IsPassengerTerminal !== false)
-      .map((terminal) => terminal.TerminalAbbrev)
-  );
-
-/**
- * Test whether a terminal abbreviation participates in passenger trip logic.
- *
- * @param terminalAbbrev - Candidate terminal abbreviation
- * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
- * @returns True when the abbreviation is trip-eligible
- */
-export const isPassengerTerminalAbbrev = (
-  terminalAbbrev: string | undefined,
-  passengerTerminalAbbrevs: ReadonlySet<string>
-) =>
-  terminalAbbrev !== undefined && passengerTerminalAbbrevs.has(terminalAbbrev);
-
-/**
- * Decide whether a resolved vessel location should enter the trip pipeline.
- *
- * The location branch stores more raw fidelity than the trip branch. This gate
- * keeps trip derivation constrained to passenger-terminal movements only.
- *
- * @param location - Converted vessel location for the current tick
- * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
- * @returns True when the location should be processed by `vesselTrips`
- */
-export const isTripEligibleLocation = (
-  location: Pick<
-    ConvexVesselLocation,
-    "DepartingTerminalAbbrev" | "ArrivingTerminalAbbrev"
-  >,
-  passengerTerminalAbbrevs: ReadonlySet<string>
-) =>
-  isPassengerTerminalAbbrev(
-    location.DepartingTerminalAbbrev,
-    passengerTerminalAbbrevs
-  ) &&
-  (location.ArrivingTerminalAbbrev === undefined ||
-    isPassengerTerminalAbbrev(
-      location.ArrivingTerminalAbbrev,
-      passengerTerminalAbbrevs
-    ));
 
 /**
  * Load orchestrator DB snapshots in one query, refreshing identity tables when

@@ -28,10 +28,9 @@ preserved unless a later phase explicitly changes them.
 The current backend contains too much substantive business logic under
 `convex/functions/`, especially in:
 
-- `convex/functions/vesselTrips/updates/`
-- `convex/functions/scheduledTrips/sync/transform/`
-- `convex/domain/vesselTrips/continuity/` (schedule-backed docked continuity; was
-  under `convex/functions/eventsScheduled/` before Phase 3)
+- `convex/functions/vesselOrchestrator/`
+- historically, `convex/functions/vesselTrips/updates/`
+- historically, `convex/functions/scheduledTrips/sync/transform/`
 
 By contrast, the newer `convex/domain/timelineBackbone`,
 `convex/domain/timelineRows`, and `convex/domain/timelineReseed` split is
@@ -74,6 +73,17 @@ Current status as of 2026-04-14:
     remains a narrow query-backed enrichment adapter documented as such
   - handoff checklist:
     `docs/handoffs/phase-3-docked-continuity-domain-boundary-checklist-2026-04-14.md`
+- Phase 4 is complete:
+  - `convex/domain/vesselOrchestration/` owns `runVesselOrchestratorTick`
+    (passenger-terminal gating, parallel branches, prediction-fallback policy via
+    `computeShouldRunPredictionFallback`, lifecycle-then-timeline sequencing) with
+    injected functions-layer adapters
+  - `convex/functions/vesselOrchestrator/actions.ts` handles fetch, read-model load /
+    bootstrap, conversion, and adapter wiring only
+  - `convex/functions/vesselOrchestrator/applyTickEventWrites.ts` remains a thin
+    persistence helper
+  - handoff checklist:
+    `docs/handoffs/phase-4-vesselorchestrator-functional-pipeline-checklist-2026-04-14.md`
 - review note:
   - the earlier hypothesis about stale scheduledTrips path references in
     `convex/domain/ml/readme-ml.md` did not hold up in code review; that doc
@@ -550,31 +560,30 @@ Success criteria (met):
 
 ### Phase 4: Simplify VesselOrchestrator as a Functional Pipeline
 
+Implementation status:
+
+- complete (see **Progress Status** and
+  `docs/handoffs/phase-4-vesselorchestrator-functional-pipeline-checklist-2026-04-14.md`)
+
 Goal:
 
 - make the top-level tick flow easier to read and reason about
 
-Tasks:
+Tasks (done):
 
-- extract a domain-level orchestrator pipeline function that takes:
-  - raw or normalized vessel inputs
-  - current persisted state snapshots
-  - injected persistence/effect adapters as needed
-- keep `actions.ts` focused on:
-  - fetching
-  - loading snapshots
-  - invoking the domain pipeline
-  - persisting results
-  - returning operational status
-- decide whether `applyTickEventWrites.ts` remains as a tiny persistence helper
-  or is inlined if that is simpler
+- extracted `runVesselOrchestratorTick` in `convex/domain/vesselOrchestration/`
+  with injected adapters for location persistence, `processVesselTrips`, and
+  `applyTickEventWrites`
+- `actions.ts` handles fetch, bundled read-model load, conversion, and invokes the
+  domain pipeline; `applyTickEventWrites.ts` kept as a thin persistence helper
 
 Important note:
 
-- this phase should preserve the current tick ordering invariant:
-  lifecycle persistence first, timeline projection second
+- tick ordering invariant preserved: lifecycle persistence first, timeline
+  projection second; `computeShouldRunPredictionFallback` runs inside the domain
+  orchestrator when building trip options
 
-Success criteria:
+Success criteria (met):
 
 - orchestrator flow is readable as an explicit pipeline
 - most tick decision logic is no longer hidden in function-layer subtrees
