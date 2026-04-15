@@ -1,8 +1,10 @@
 /**
- * Scheduled-boundary lookup - enriches trips from normalized `eventsScheduled`.
+ * Functions-layer query adapter: scheduled-boundary lookup from `eventsScheduled`.
  *
- * Takes a base trip and resolves schedule-derived context from the backend's
- * canonical boundary-event table rather than from `scheduledTrips`.
+ * Enriches a base trip with next-leg schedule fields via
+ * `getScheduledDepartureSegmentBySegmentKey`. Stays in `convex/functions/` as
+ * narrow persistence wiring; docked continuity resolution lives under
+ * `domain/vesselTrips/continuity/`.
  */
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";

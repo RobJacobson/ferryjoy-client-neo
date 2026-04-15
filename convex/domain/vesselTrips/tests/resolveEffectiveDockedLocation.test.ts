@@ -1,11 +1,17 @@
+/**
+ * Tests for docked effective-location continuity (schedule next-leg and rollover).
+ */
+
 import { describe, expect, it } from "bun:test";
+import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { resolveEffectiveLocation } from "../tripLifecycle/resolveEffectiveLocation";
+import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
+import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
-describe("resolveEffectiveLocation", () => {
+describe("resolveEffectiveDockedLocation", () => {
   it("CAT later scheduled departure while docked reuses the active trip identity", async () => {
-    let queryCount = 0;
+    let lookupCount = 0;
     const location = makeLocation({
       VesselAbbrev: "CAT",
       DepartingTerminalAbbrev: "SOU",
@@ -28,18 +34,21 @@ describe("resolveEffectiveLocation", () => {
       TimeStamp: ms("2026-04-12T16:47:08-07:00"),
     });
 
-    const effectiveLocation = await resolveEffectiveLocation(
-      {
-        runQuery: async () => {
-          queryCount += 1;
-          return null;
-        },
-      } as never,
+    const lookup: ScheduledSegmentLookup = {
+      getScheduledDepartureSegmentBySegmentKey: async () => {
+        lookupCount += 1;
+        return null;
+      },
+      getNextDepartureSegmentAfterDeparture: async () => null,
+    };
+
+    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+      lookup,
       location,
       existingTrip
     );
 
-    expect(queryCount).toBe(0);
+    expect(lookupCount).toBe(0);
     expect(effectiveLocation.ScheduleKey).toBe(existingTrip.ScheduleKey);
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
@@ -55,17 +64,17 @@ describe("resolveEffectiveLocation", () => {
       ArrivingTerminalAbbrev: "MUK",
       DepartingTime: ms("2026-03-13T11:00:00-07:00"),
     });
-    const queryArgs: Array<Record<string, unknown> | undefined> = [];
-    const effectiveLocation = await resolveEffectiveLocation(
-      {
-        runQuery: async (_ref: unknown, args?: Record<string, unknown>) => {
-          queryArgs.push(args);
-          if (args && "segmentKey" in args) {
-            return nextSegment;
-          }
-          return null;
-        },
-      } as never,
+    const lookupArgs: Array<Record<string, unknown> | undefined> = [];
+    const lookup: ScheduledSegmentLookup = {
+      getScheduledDepartureSegmentBySegmentKey: async (segmentKey) => {
+        lookupArgs.push({ segmentKey });
+        return nextSegment;
+      },
+      getNextDepartureSegmentAfterDeparture: async () => null,
+    };
+
+    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+      lookup,
       makeLocation({
         ScheduleKey: undefined,
         ArrivingTerminalAbbrev: undefined,
@@ -77,8 +86,8 @@ describe("resolveEffectiveLocation", () => {
       })
     );
 
-    expect(queryArgs).toHaveLength(1);
-    expect(queryArgs[0]).toEqual({ segmentKey: nextSegment.Key });
+    expect(lookupArgs).toHaveLength(1);
+    expect(lookupArgs[0]).toEqual({ segmentKey: nextSegment.Key });
     expect(effectiveLocation.ScheduleKey).toBe(nextSegment.Key);
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
@@ -89,14 +98,17 @@ describe("resolveEffectiveLocation", () => {
   });
 
   it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", async () => {
-    let queryCount = 0;
-    const effectiveLocation = await resolveEffectiveLocation(
-      {
-        runQuery: async () => {
-          queryCount += 1;
-          return null;
-        },
-      } as never,
+    let lookupCount = 0;
+    const lookup: ScheduledSegmentLookup = {
+      getScheduledDepartureSegmentBySegmentKey: async () => {
+        lookupCount += 1;
+        return null;
+      },
+      getNextDepartureSegmentAfterDeparture: async () => null,
+    };
+
+    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+      lookup,
       makeLocation({
         ScheduleKey: undefined,
         ArrivingTerminalAbbrev: undefined,
@@ -105,7 +117,7 @@ describe("resolveEffectiveLocation", () => {
       undefined
     );
 
-    expect(queryCount).toBe(0);
+    expect(lookupCount).toBe(0);
     expect(effectiveLocation.ScheduleKey).toBeUndefined();
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBeUndefined();
     expect(effectiveLocation.ScheduledDeparture).toBeUndefined();
@@ -182,19 +194,9 @@ const makeTrip = (
   ...overrides,
 });
 
-type InferredScheduledSegment = {
-  Key: string;
-  SailingDay: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-  DepartingTime: number;
-  NextKey?: string;
-  NextDepartingTime?: number;
-};
-
 const makeScheduledSegment = (
-  overrides: Partial<InferredScheduledSegment> = {}
-): InferredScheduledSegment => ({
+  overrides: Partial<ConvexInferredScheduledSegment> = {}
+): ConvexInferredScheduledSegment => ({
   Key: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   DepartingTerminalAbbrev: "CLI",

@@ -1,9 +1,9 @@
 /**
  * Injected function-layer behaviors for {@link buildTrip}.
  *
- * `resolveEffectiveLocation` and `appendFinalSchedule` stay under
- * `convex/functions/` until Phase 3; domain lifecycle code receives them via
- * {@link ProcessVesselTripsDeps.buildTripAdapters}.
+ * Schedule continuity decisions live in `domain/vesselTrips/continuity/`; these
+ * hooks remain narrow Convex adapters (`ctx.runQuery` / internal queries) wired
+ * by {@link ProcessVesselTripsDeps.buildTripAdapters}.
  */
 
 import type { ActionCtx } from "_generated/server";

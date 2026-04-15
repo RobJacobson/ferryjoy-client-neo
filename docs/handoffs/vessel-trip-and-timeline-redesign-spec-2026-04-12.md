@@ -1703,7 +1703,7 @@ Goal:
 
 - [convex/shared/tripIdentity.ts](../../convex/shared/tripIdentity.ts)
 - [convex/shared/effectiveTripIdentity.ts](../../convex/shared/effectiveTripIdentity.ts)
-- [convex/functions/eventsScheduled/dockedScheduleResolver.ts](../../convex/functions/eventsScheduled/dockedScheduleResolver.ts)
+- [convex/domain/vesselTrips/continuity/resolveDockedScheduledSegment.ts](../../convex/domain/vesselTrips/continuity/resolveDockedScheduledSegment.ts)
 - [convex/functions/eventsScheduled/queries.ts](../../convex/functions/eventsScheduled/queries.ts)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
 - [convex/domain/README.md](../../convex/domain/README.md)

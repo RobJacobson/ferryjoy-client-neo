@@ -4,20 +4,22 @@
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { resolveDockedScheduledSegment } from "functions/eventsScheduled/dockedScheduleResolver";
+import type { resolveDockedScheduledSegment } from "domain/vesselTrips/continuity/resolveDockedScheduledSegment";
+import { resolveEffectiveDockedLocation } from "domain/vesselTrips/continuity/resolveEffectiveDockedLocation";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import {
-  applyEffectiveTripIdentityToLocation,
-  hasStableDockedTripIdentity,
-  resolveEffectiveDockedTripIdentity,
-} from "shared/effectiveTripIdentity";
+import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 
 /**
  * Resolve the effective location that downstream trip building should use.
  *
  * Raw `vesselLocations` stay feed-shaped, but the write pipeline can complete
  * transiently missing docked identity from the scheduled backbone.
+ *
+ * @param ctx - Convex action context for schedule lookups
+ * @param location - Latest vessel location for this vessel
+ * @param existingTrip - Active trip row when known
+ * @returns Location with effective schedule identity applied when applicable
  */
 export const resolveEffectiveLocation = async (
   ctx: ActionCtx,
@@ -28,55 +30,35 @@ export const resolveEffectiveLocation = async (
     return location;
   }
 
-  const stableDockedIdentity = hasStableDockedTripIdentity(
+  const result = await resolveEffectiveDockedLocation(
+    {
+      getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
+        ctx.runQuery(
+          internal.functions.eventsScheduled.queries
+            .getScheduledDepartureSegmentBySegmentKey,
+          { segmentKey }
+        ),
+      getNextDepartureSegmentAfterDeparture: (args) =>
+        ctx.runQuery(
+          internal.functions.eventsScheduled.queries
+            .getNextDepartureSegmentAfterDeparture,
+          args
+        ),
+    },
     location,
     existingTrip
-  );
-  const scheduledResolution = stableDockedIdentity
-    ? null
-    : await resolveDockedScheduledSegment(
-        {
-          getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
-            ctx.runQuery(
-              internal.functions.eventsScheduled.queries
-                .getScheduledDepartureSegmentBySegmentKey,
-              { segmentKey }
-            ),
-          getNextDepartureSegmentAfterDeparture: (args) =>
-            ctx.runQuery(
-              internal.functions.eventsScheduled.queries
-                .getNextDepartureSegmentAfterDeparture,
-              args
-            ),
-        },
-        {
-          vesselAbbrev: location.VesselAbbrev,
-          departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-          existingTrip,
-        }
-      );
-
-  const effectiveIdentity = resolveEffectiveDockedTripIdentity({
-    location,
-    activeTrip: existingTrip,
-    scheduledSegment: scheduledResolution?.segment,
-    scheduledSegmentSource: scheduledResolution?.source,
-  });
-  const effectiveLocation = applyEffectiveTripIdentityToLocation(
-    location,
-    effectiveIdentity
   );
 
   logDockedIdentityResolution({
     location,
     existingTrip,
-    stableDockedIdentity,
-    scheduledResolution,
-    effectiveIdentity,
-    effectiveLocation,
+    stableDockedIdentity: result.stableDockedIdentity,
+    scheduledResolution: result.scheduledResolution,
+    effectiveIdentity: result.effectiveIdentity,
+    effectiveLocation: result.effectiveLocation,
   });
 
-  return effectiveLocation;
+  return result.effectiveLocation;
 };
 
 const logDockedIdentityResolution = ({
@@ -93,7 +75,7 @@ const logDockedIdentityResolution = ({
   scheduledResolution: Awaited<
     ReturnType<typeof resolveDockedScheduledSegment>
   > | null;
-  effectiveIdentity: ReturnType<typeof resolveEffectiveDockedTripIdentity>;
+  effectiveIdentity: EffectiveTripIdentity;
   effectiveLocation: ConvexVesselLocation;
 }) => {
   const changedFromExisting =

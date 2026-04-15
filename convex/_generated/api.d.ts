@@ -55,6 +55,9 @@ import type * as domain_timelineRows_buildPredictedProjectionEffects from "../do
 import type * as domain_timelineRows_buildScheduledRows from "../domain/timelineRows/buildScheduledRows.js";
 import type * as domain_timelineRows_index from "../domain/timelineRows/index.js";
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
+import type * as domain_vesselTrips_continuity_resolveDockedScheduledSegment from "../domain/vesselTrips/continuity/resolveDockedScheduledSegment.js";
+import type * as domain_vesselTrips_continuity_resolveEffectiveDockedLocation from "../domain/vesselTrips/continuity/resolveEffectiveDockedLocation.js";
+import type * as domain_vesselTrips_continuity_types from "../domain/vesselTrips/continuity/types.js";
 import type * as domain_vesselTrips_index from "../domain/vesselTrips/index.js";
 import type * as domain_vesselTrips_processTick_processVesselTrips from "../domain/vesselTrips/processTick/processVesselTrips.js";
 import type * as domain_vesselTrips_processTick_tickEnvelope from "../domain/vesselTrips/processTick/tickEnvelope.js";
@@ -80,7 +83,6 @@ import type * as functions_eventsActual_mutations from "../functions/eventsActua
 import type * as functions_eventsActual_schemas from "../functions/eventsActual/schemas.js";
 import type * as functions_eventsPredicted_mutations from "../functions/eventsPredicted/mutations.js";
 import type * as functions_eventsPredicted_schemas from "../functions/eventsPredicted/schemas.js";
-import type * as functions_eventsScheduled_dockedScheduleResolver from "../functions/eventsScheduled/dockedScheduleResolver.js";
 import type * as functions_eventsScheduled_index from "../functions/eventsScheduled/index.js";
 import type * as functions_eventsScheduled_queries from "../functions/eventsScheduled/queries.js";
 import type * as functions_eventsScheduled_schemas from "../functions/eventsScheduled/schemas.js";
@@ -252,6 +254,9 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/buildScheduledRows": typeof domain_timelineRows_buildScheduledRows;
   "domain/timelineRows/index": typeof domain_timelineRows_index;
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
+  "domain/vesselTrips/continuity/resolveDockedScheduledSegment": typeof domain_vesselTrips_continuity_resolveDockedScheduledSegment;
+  "domain/vesselTrips/continuity/resolveEffectiveDockedLocation": typeof domain_vesselTrips_continuity_resolveEffectiveDockedLocation;
+  "domain/vesselTrips/continuity/types": typeof domain_vesselTrips_continuity_types;
   "domain/vesselTrips/index": typeof domain_vesselTrips_index;
   "domain/vesselTrips/processTick/processVesselTrips": typeof domain_vesselTrips_processTick_processVesselTrips;
   "domain/vesselTrips/processTick/tickEnvelope": typeof domain_vesselTrips_processTick_tickEnvelope;
@@ -277,7 +282,6 @@ declare const fullApi: ApiFromModules<{
   "functions/eventsActual/schemas": typeof functions_eventsActual_schemas;
   "functions/eventsPredicted/mutations": typeof functions_eventsPredicted_mutations;
   "functions/eventsPredicted/schemas": typeof functions_eventsPredicted_schemas;
-  "functions/eventsScheduled/dockedScheduleResolver": typeof functions_eventsScheduled_dockedScheduleResolver;
   "functions/eventsScheduled/index": typeof functions_eventsScheduled_index;
   "functions/eventsScheduled/queries": typeof functions_eventsScheduled_queries;
   "functions/eventsScheduled/schemas": typeof functions_eventsScheduled_schemas;

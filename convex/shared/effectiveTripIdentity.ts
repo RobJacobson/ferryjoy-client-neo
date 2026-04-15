@@ -2,7 +2,7 @@
  * Shared effective trip-identity normalization for docked live locations.
  */
 
-import type { DockedScheduledSegmentSource } from "../functions/eventsScheduled/dockedScheduleResolver";
+import type { DockedScheduledSegmentSource } from "../domain/vesselTrips/continuity/types";
 import type { ConvexInferredScheduledSegment } from "../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "../functions/vesselTrips/schemas";

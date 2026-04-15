@@ -2,16 +2,14 @@
  * Schedule-backed dock resolution for live vessel identity using trip continuity.
  *
  * Uses persisted next-leg hints (`NextScheduleKey` on vessel trips) and
- * same-terminal rollover after a
- * known departure. Deliberately does not re-merge the full timeline backbone on
- * every tick; UI labels and structure already come from `eventsScheduled`.
+ * same-terminal rollover after a known departure. Does not re-merge the full
+ * timeline backbone on every tick; UI labels and structure come from
+ * `eventsScheduled`.
  */
 
-import type { ConvexInferredScheduledSegment } from "./schemas";
+import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
 
-export type DockedScheduledSegmentSource =
-  | "completed_trip_next"
-  | "rollover_schedule";
+import type { DockedScheduledSegmentSource } from "./types";
 
 export type ScheduledSegmentLookup = {
   getScheduledDepartureSegmentBySegmentKey: (
@@ -44,8 +42,9 @@ export type DockedScheduledSegmentResolution = {
  * Resolve the scheduled departure segment that should own the current dock
  * interval when the live feed omits trip identity.
  *
- * Prefers exact next-leg schedule (`NextScheduleKey`) and same-day rollover after a
- * known departure; otherwise returns null so callers use raw feed fields.
+ * Prefers exact next-leg schedule (`NextScheduleKey`) and same-day rollover
+ * after a known departure; otherwise returns null so callers use raw feed
+ * fields.
  *
  * @param lookup - Internal schedule query adapters
  * @param args - Vessel, terminal, and optional prior-trip hints

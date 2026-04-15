@@ -30,7 +30,8 @@ The current backend contains too much substantive business logic under
 
 - `convex/functions/vesselTrips/updates/`
 - `convex/functions/scheduledTrips/sync/transform/`
-- `convex/functions/eventsScheduled/dockedScheduleResolver.ts`
+- `convex/domain/vesselTrips/continuity/` (schedule-backed docked continuity; was
+  under `convex/functions/eventsScheduled/` before Phase 3)
 
 By contrast, the newer `convex/domain/timelineBackbone`,
 `convex/domain/timelineRows`, and `convex/domain/timelineReseed` split is
@@ -62,11 +63,21 @@ Current status as of 2026-04-14:
     compatibility layer (default `buildTripAdapters` wiring + re-exports)
   - handoff checklist:
     `docs/handoffs/phase-2-vesseltrips-domain-migration-checklist-2026-04-14.md`
-- one minor carryover remains from Phase 1:
-  - some documentation still references pre-move implementation paths,
-    especially in `convex/domain/ml/readme-ml.md`
-  - this is not a blocker for Phase 2, but it should be cleaned up as the
-    vesselTrips move progresses
+- Phase 3 is complete:
+  - `convex/domain/vesselTrips/continuity/` owns `resolveDockedScheduledSegment`
+    and `resolveEffectiveDockedLocation`; `DockedScheduledSegmentSource` lives in
+    `continuity/types.ts` for `shared/effectiveTripIdentity`
+  - `convex/functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation.ts`
+    is a thin adapter (`ctx.runQuery` + preserved `[VesselTrips][DockedIdentity]`
+    logging)
+  - `convex/functions/vesselTrips/updates/tripLifecycle/appendSchedule.ts`
+    remains a narrow query-backed enrichment adapter documented as such
+  - handoff checklist:
+    `docs/handoffs/phase-3-docked-continuity-domain-boundary-checklist-2026-04-14.md`
+- review note:
+  - the earlier hypothesis about stale scheduledTrips path references in
+    `convex/domain/ml/readme-ml.md` did not hold up in code review; that doc
+    already points at `convex/domain/scheduledTrips/`
 
 ## Read First
 
@@ -218,22 +229,17 @@ Conclusion:
 - `convex/functions/vesselTrips/` should become a much thinner Convex adapter
   surface around queries, mutations, schemas, and narrow entrypoints
 
-### 3. `eventsScheduled/dockedScheduleResolver.ts`
+### 3. `eventsScheduled/dockedScheduleResolver.ts` (resolved in Phase 3)
 
-Problem:
+Previously:
 
-- `dockedScheduleResolver.ts` is pure schedule-backed continuity logic with
-  injected lookup functions, but it lives under `convex/functions/`
+- schedule-backed continuity lived under `convex/functions/` though it was pure
+  lookup-injected domain logic
 
-Why it matters:
+Resolution:
 
-- it is exactly the kind of functional domain helper that should not be in the
-  functions layer
-
-Conclusion:
-
-- move it into a domain module and keep only the Convex query adapters in the
-  functions layer
+- logic now lives in `convex/domain/vesselTrips/continuity/`; functions-layer
+  `resolveEffectiveLocation` wires queries and logging only
 
 ### 4. `vesselOrchestrator`
 
@@ -462,7 +468,7 @@ Goal:
 
 Implementation status:
 
-- next phase
+- complete
 
 Implementation handoff:
 
@@ -506,26 +512,41 @@ Success criteria:
 - function-layer code reads primarily as data loading, persistence, and Convex
   registration
 
+Review outcome:
+
+- achieved as implemented
+- `convex/domain/vesselTrips/` now owns the substantive lifecycle pipeline,
+  projection assembly, moved tests, and
+  `stripTripPredictionsForStorage`
+- `convex/functions/vesselTrips/updates/` is now predominantly re-exports plus
+  one default-wiring wrapper for `processVesselTrips`
+- the deferred docked-continuity boundary was completed in Phase 3 (see
+  **Progress Status**): continuity algorithms in `domain/vesselTrips/continuity/`,
+  thin adapters (`resolveEffectiveLocation`, `appendSchedule`) in functions
+
 ### Phase 3: Normalize Docked Identity and Schedule Continuity Boundaries
 
-Goal:
+Implementation status:
+
+- complete (see **Progress Status** and
+  `docs/handoffs/phase-3-docked-continuity-domain-boundary-checklist-2026-04-14.md`)
+
+Goal (met):
 
 - remove the obvious remaining pure-domain logic from the functions layer
 
-Tasks:
+Tasks (done):
 
-- move `convex/functions/eventsScheduled/dockedScheduleResolver.ts` into a
-  domain module
-- reevaluate `resolveEffectiveLocation` and split it into:
-  - Convex query adapters
-  - domain continuity resolution logic
-- keep lookup wiring in the functions layer, but keep the actual decision-making
-  in the domain layer
+- moved schedule continuity into `convex/domain/vesselTrips/continuity/`
+- split `resolveEffectiveLocation` into domain resolution + functions adapter
+- lookup wiring remains in the functions layer; decision-making is in the domain
+  layer
 
-Success criteria:
+Success criteria (met):
 
 - no pure continuity-resolution logic remains under `convex/functions/`
 - schedule-backed docked identity normalization has a clean domain boundary
+- default vessel-trip adapter wiring remains a narrow query/effect seam
 
 ### Phase 4: Simplify VesselOrchestrator as a Functional Pipeline
 
@@ -599,17 +620,18 @@ Success criteria:
 The recommended move order is:
 
 1. scheduled-trip transformation logic
-2. docked schedule continuity logic
-3. vessel-trip lifecycle logic
+2. vessel-trip lifecycle logic
+3. docked schedule continuity logic
 4. orchestrator simplification
 5. test cleanup and documentation sweep
 
 Why this order:
 
 - it fixes the clearest `domain -> functions` dependency inversion early
-- it reduces shared import ambiguity before moving the larger vessel-trip module
-- it keeps the heaviest semantic area, `vesselTrips`, for a later, better-scoped
-  migration
+- it moves the heaviest lifecycle logic into `convex/domain/` before the
+  narrower continuity cleanup
+- it leaves the docked continuity seam as an explicit, reviewable follow-up
+  instead of hiding it inside the larger vesselTrips migration
 
 ## Guidance for Future Agents
 
