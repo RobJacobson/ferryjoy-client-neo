@@ -94,7 +94,7 @@ export const buildTrip = async (
         withScheduleKeyChangeClearedDerivedState.TripStart
     ) &&
     Boolean(
-      withScheduleKeyChangeClearedDerivedState.ArriveOriginDockActual ??
+      withScheduleKeyChangeClearedDerivedState.ArrivedCurrActual ??
         withScheduleKeyChangeClearedDerivedState.AtDockActual
     );
   // At-dock predictions belong only to real dock occupancy for a started trip.
@@ -114,8 +114,7 @@ export const buildTrip = async (
   const shouldAttemptAtSeaPredictions =
     !withScheduleKeyChangeClearedDerivedState.AtDock &&
     Boolean(
-      withScheduleKeyChangeClearedDerivedState.DepartOriginActual ??
-        withScheduleKeyChangeClearedDerivedState.LeftDockActual ??
+      withScheduleKeyChangeClearedDerivedState.LeftDockActual ??
         withScheduleKeyChangeClearedDerivedState.LeftDock
     ) &&
     (events.didJustLeaveDock ||

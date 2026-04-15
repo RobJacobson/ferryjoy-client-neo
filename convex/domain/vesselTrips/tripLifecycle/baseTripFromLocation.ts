@@ -78,13 +78,9 @@ const baseTripForStart = (
     SailingDay: tripInputs.startSailingDay,
     PrevTerminalAbbrev: prevCompleted?.DepartingTerminalAbbrev,
     PrevScheduledDeparture: prevCompleted?.ScheduledDeparture,
-    PrevLeftDock:
-      prevCompleted?.DepartOriginActual ??
-      prevCompleted?.LeftDockActual ??
-      prevCompleted?.LeftDock,
-    ArriveOriginDockActual: startTime,
-    ArriveDestDockActual: undefined,
-    DepartOriginActual: undefined,
+    PrevLeftDock: prevCompleted?.LeftDockActual ?? prevCompleted?.LeftDock,
+    ArrivedCurrActual: startTime,
+    ArrivedNextActual: undefined,
     StartTime: startTime,
     EndTime: undefined,
     ArriveDest: undefined,
@@ -94,7 +90,6 @@ const baseTripForStart = (
     AtDockDuration: undefined,
     ScheduledDeparture: tripInputs.currentScheduledDeparture,
     LeftDock: undefined,
-    LeftDockActual: undefined,
     TripDelay: undefined,
     Eta: undefined,
     NextScheduleKey: undefined,
@@ -159,10 +154,10 @@ const baseTripForContinuing = (
   const startTime = isBootstrapTrip
     ? currLocation.TimeStamp
     : existingTrip?.StartTime;
-  const arriveOriginTime = existingTrip?.ArriveOriginDockActual;
-  const arriveDestTime = existingTrip?.ArriveDestDockActual;
+  const arriveOriginTime = existingTrip?.ArrivedCurrActual;
+  const arriveDestTime = existingTrip?.ArrivedNextActual;
   const departOriginTime =
-    existingTrip?.DepartOriginActual ??
+    existingTrip?.LeftDockActual ??
     (tripInputs.didJustLeaveDock ? currLocation.TimeStamp : undefined);
   const endTime = existingTrip?.EndTime;
   const tripKey = tripKeyForContinuing(existingTrip, currLocation);
@@ -178,9 +173,9 @@ const baseTripForContinuing = (
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
     PrevLeftDock: existingTrip?.PrevLeftDock,
-    ArriveOriginDockActual: arriveOriginTime,
-    ArriveDestDockActual: arriveDestTime,
-    DepartOriginActual: departOriginTime,
+    ArrivedCurrActual: arriveOriginTime,
+    ArrivedNextActual: arriveDestTime,
+    LeftDockActual: departOriginTime,
     StartTime: startTime,
     EndTime: endTime,
     ArriveDest: arriveDestTime,
@@ -193,7 +188,6 @@ const baseTripForContinuing = (
     ),
     ScheduledDeparture: tripInputs.continuingScheduledDeparture,
     LeftDock: tripInputs.leftDockTime,
-    LeftDockActual: departOriginTime,
     TripDelay: calculateTimeDelta(
       tripInputs.continuingScheduledDeparture,
       tripInputs.leftDockTime

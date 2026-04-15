@@ -52,7 +52,7 @@ const computePredictions = async (
 
     if (!isPredictionReadyTrip(trip)) return trip;
 
-    const departureMs = trip.DepartOriginActual;
+    const departureMs = trip.LeftDockActual;
 
     if (
       specsToAttempt.some(

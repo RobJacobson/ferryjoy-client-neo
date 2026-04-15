@@ -53,9 +53,9 @@ describe("getTripListKeyTimeMs", () => {
 });
 
 describe("getBestDepartureTime", () => {
-  it("prefers DepartOriginActual over raw LeftDock", () => {
+  it("prefers LeftDockActual over raw LeftDock", () => {
     const t = {
-      DepartOriginActual: d(300),
+      LeftDockActual: d(300),
       LeftDock: d(400),
     } as VesselTrip;
     expect(getBestDepartureTime(undefined, t)).toEqual(d(300));
@@ -63,9 +63,9 @@ describe("getBestDepartureTime", () => {
 });
 
 describe("getDestinationArrivalOrCoverageClose", () => {
-  it("prefers ArriveDestDockActual over EndTime", () => {
+  it("prefers ArrivedNextActual over EndTime", () => {
     const t = {
-      ArriveDestDockActual: d(500),
+      ArrivedNextActual: d(500),
       EndTime: d(600),
     } as VesselTrip;
     expect(getDestinationArrivalOrCoverageClose(t)).toEqual(d(500));
@@ -81,9 +81,9 @@ describe("getOriginArrivalActual", () => {
 });
 
 describe("getBestArrivalTime", () => {
-  it("prefers ArriveDestDockActual over EndTime", () => {
+  it("prefers ArrivedNextActual over EndTime", () => {
     const t = {
-      ArriveDestDockActual: d(500),
+      ArrivedNextActual: d(500),
       EndTime: d(600),
     } as VesselTrip;
     expect(getBestArrivalTime(undefined, t)).toEqual(d(500));

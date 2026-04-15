@@ -174,7 +174,7 @@ const buildLeaveDockPostPersistEffect = (
   finalProposed: ConvexVesselTripWithML,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
-  events.didJustLeaveDock && finalProposed.DepartOriginActual !== undefined
+  events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined
     ? {
         vesselAbbrev,
         trip: finalProposed,
@@ -291,10 +291,7 @@ const runLeaveDockPostPersistEffects = async (
       .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
       .map(async (effect) => {
         try {
-          const leftDockMs =
-            effect.trip.DepartOriginActual ??
-            effect.trip.LeftDockActual ??
-            effect.trip.LeftDock;
+          const leftDockMs = effect.trip.LeftDockActual ?? effect.trip.LeftDock;
           if (leftDockMs === undefined) {
             return;
           }
@@ -422,19 +419,18 @@ const logActualProjectionTick = (
       existingTrip: summarizeTripTick(existingTrip),
       finalProposed: summarizeTripTick(finalProposed),
       projectedDeparture:
-        events.didJustLeaveDock &&
-        finalProposed.DepartOriginActual !== undefined
+        events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined
           ? {
               segmentKey: finalProposed.ScheduleKey,
-              actualTime: finalProposed.DepartOriginActual,
+              actualTime: finalProposed.LeftDockActual,
             }
           : null,
       projectedArrival:
         events.didJustArriveAtDock &&
-        finalProposed.ArriveDestDockActual !== undefined
+        finalProposed.ArrivedNextActual !== undefined
           ? {
               segmentKey: finalProposed.ScheduleKey,
-              actualTime: finalProposed.ArriveDestDockActual,
+              actualTime: finalProposed.ArrivedNextActual,
             }
           : null,
     })}`
@@ -475,8 +471,8 @@ const summarizeTripTick = (
         | "AtDock"
         | "LeftDock"
         | "ArriveDest"
-        | "DepartOriginActual"
-        | "ArriveDestDockActual"
+        | "LeftDockActual"
+        | "ArrivedNextActual"
         | "DepartingTerminalAbbrev"
         | "ArrivingTerminalAbbrev"
         | "ScheduledDeparture"
@@ -491,7 +487,7 @@ const summarizeTripTick = (
     ? {
         atDock: trip.AtDock,
         leftDock: trip.LeftDock,
-        arriveDest: trip.ArriveDestDockActual ?? trip.ArriveDest,
+        arriveDest: trip.ArrivedNextActual ?? trip.ArriveDest,
         departingTerminalAbbrev: trip.DepartingTerminalAbbrev,
         arrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
         scheduledDeparture: trip.ScheduledDeparture,

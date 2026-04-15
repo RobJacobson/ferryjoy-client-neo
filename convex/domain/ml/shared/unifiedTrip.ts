@@ -17,9 +17,9 @@ export type UnifiedTrip = {
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
   // Physical-boundary semantics.
-  ArriveOriginDockActual?: number;
-  ArriveDestDockActual?: number;
-  DepartOriginActual?: number;
+  ArrivedCurrActual?: number;
+  ArrivedNextActual?: number;
+  LeftDockActual?: number;
   // Coverage semantics.
   StartTime?: number;
   EndTime?: number;
@@ -49,7 +49,7 @@ export const fromVesselTrip = (
   trip: ConvexVesselTrip | ConvexVesselTripWithML
 ): UnifiedTrip => {
   if (
-    !trip.ArriveOriginDockActual ||
+    !trip.ArrivedCurrActual ||
     !trip.PrevTerminalAbbrev ||
     !trip.DepartingTerminalAbbrev ||
     !trip.ArrivingTerminalAbbrev ||
@@ -65,9 +65,9 @@ export const fromVesselTrip = (
     PrevTerminalAbbrev: trip.PrevTerminalAbbrev,
     DepartingTerminalAbbrev: trip.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: trip.ArrivingTerminalAbbrev,
-    ArriveOriginDockActual: trip.ArriveOriginDockActual,
-    ArriveDestDockActual: trip.ArriveDestDockActual,
-    DepartOriginActual: trip.DepartOriginActual,
+    ArrivedCurrActual: trip.ArrivedCurrActual,
+    ArrivedNextActual: trip.ArrivedNextActual,
+    LeftDockActual: trip.LeftDockActual,
     StartTime: trip.StartTime,
     EndTime: trip.EndTime,
     TripStart: trip.TripStart,

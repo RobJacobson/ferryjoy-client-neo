@@ -36,10 +36,10 @@ export const hasTripCoverageEnded = (trip: VesselTrip | undefined): boolean =>
 export const getDestinationArrivalOrCoverageClose = (
   trip: VesselTrip | undefined
 ): Date | undefined =>
-  trip?.ArriveDestDockActual ?? trip?.ArriveDest ?? getCoverageEndTime(trip);
+  trip?.ArrivedNextActual ?? trip?.ArriveDest ?? getCoverageEndTime(trip);
 
 /**
- * Origin-dock arrival: {@link VesselTrip.ArriveOriginDockActual}, else legacy
+ * Origin-dock arrival: {@link VesselTrip.ArrivedCurrActual}, else legacy
  * {@link VesselTrip.TripStart}.
  *
  * @param trip - Vessel trip or undefined
@@ -47,7 +47,7 @@ export const getDestinationArrivalOrCoverageClose = (
  */
 export const getOriginArrivalActual = (
   trip: VesselTrip | undefined
-): Date | undefined => trip?.ArriveOriginDockActual ?? trip?.TripStart;
+): Date | undefined => trip?.ArrivedCurrActual ?? trip?.TripStart;
 
 /**
  * Stable list key from coverage and physical timestamps (ms); legacy mirrors last.
@@ -57,9 +57,9 @@ export const getOriginArrivalActual = (
  */
 export const getTripListKeyTimeMs = (trip: VesselTrip): number | undefined =>
   trip.StartTime?.getTime() ??
-  trip.ArriveOriginDockActual?.getTime() ??
+  trip.ArrivedCurrActual?.getTime() ??
   trip.TripStart?.getTime() ??
-  trip.ArriveDestDockActual?.getTime() ??
+  trip.ArrivedNextActual?.getTime() ??
   trip.ArriveDest?.getTime() ??
   trip.EndTime?.getTime() ??
   trip.TripEnd?.getTime();
@@ -68,7 +68,7 @@ export const getTripListKeyTimeMs = (trip: VesselTrip): number | undefined =>
  * Gets the best available departure time for a trip (display / estimates).
  *
  * Priority:
- * 1. {@link VesselTrip.DepartOriginActual} (canonical physical departure)
+ * 1. {@link VesselTrip.LeftDockActual} (canonical physical departure)
  * 2. VesselLocation.LeftDock (WSF feed)
  * 3. VesselTrip.LeftDock (legacy mirror)
  * 4. VesselTrip.AtDockDepartCurr (ML prediction at dock)
@@ -81,7 +81,7 @@ export const getBestDepartureTime = (
   vesselLocation: VesselLocation | undefined,
   trip: VesselTrip | undefined
 ): Date | undefined =>
-  trip?.DepartOriginActual ??
+  trip?.LeftDockActual ??
   vesselLocation?.LeftDock ??
   trip?.LeftDock ??
   trip?.AtDockDepartCurr?.PredTime;
@@ -99,7 +99,7 @@ export const getBestArrivalTime = (
   vesselLocation: VesselLocation | undefined,
   trip: VesselTrip | undefined
 ): Date | undefined =>
-  trip?.ArriveDestDockActual ??
+  trip?.ArrivedNextActual ??
   trip?.ArriveDest ??
   vesselLocation?.Eta ??
   trip?.AtSeaArriveNext?.PredTime ??

@@ -21,16 +21,14 @@ describe("buildCompletedTrip", () => {
     );
 
     expect(completed.StartTime).toBe(existingTrip.StartTime);
-    expect(completed.ArriveDestDockActual).toBe(
-      ms("2026-03-13T06:29:56-07:00")
-    );
+    expect(completed.ArrivedNextActual).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.TripEnd).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.AtSeaDuration).toBe(60.3);
   });
 
-  it("keeps ArriveDestDockActual undefined when a close is synthetic", () => {
+  it("keeps ArrivedNextActual undefined when a close is synthetic", () => {
     const existingTrip = makeTrip({
       TripStart: ms("2026-03-13T04:33:00-07:00"),
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
@@ -44,7 +42,7 @@ describe("buildCompletedTrip", () => {
       false
     );
 
-    expect(completed.ArriveDestDockActual).toBeUndefined();
+    expect(completed.ArrivedNextActual).toBeUndefined();
     expect(completed.ArriveDest).toBeUndefined();
     expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
   });
@@ -64,9 +62,7 @@ describe("buildCompletedTrip", () => {
       true
     );
 
-    expect(completed.ArriveDestDockActual).toBe(
-      ms("2026-03-13T06:29:56-07:00")
-    );
+    expect(completed.ArrivedNextActual).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.TripEnd).toBe(ms("2026-03-13T06:29:56-07:00"));
@@ -90,9 +86,7 @@ describe("buildCompletedTrip", () => {
     );
 
     expect(completed.ArrivingTerminalAbbrev).toBe("ORI");
-    expect(completed.ArriveDestDockActual).toBe(
-      ms("2026-03-13T06:29:56-07:00")
-    );
+    expect(completed.ArrivedNextActual).toBe(ms("2026-03-13T06:29:56-07:00"));
     expect(completed.ArriveDest).toBe(ms("2026-03-13T06:29:56-07:00"));
   });
 });

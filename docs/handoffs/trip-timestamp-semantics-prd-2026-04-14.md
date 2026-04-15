@@ -20,11 +20,9 @@ This document assumes the semantic baseline in:
 The implementation agent must follow the project style guide in
 [code-style.mdc](../../.cursor/rules/code-style.mdc).
 
-Canonical names and aliases should match the semantic memo exactly:
-`ArriveOriginDockActual` / `ArriveDestDockActual` / `DepartOriginActual`, with
-`ArriveCurrActual` / `ArriveNextActual` acceptable as code aliases where the
-glossary is nearby. Legacy storage for departure may remain `LeftDockActual`
-until a later rename, but no third naming scheme should be introduced.
+Field names match the semantic memo — **one name per concept**:
+`ArrivedCurrActual`, `ArrivedNextActual`, and `LeftDockActual` (physical
+departure). No parallel aliases.
 
 ## Cutover Assumption
 
@@ -100,17 +98,14 @@ The system should expose two timestamp layers.
 These are optional and only populated when the pipeline can stand behind the
 physical event:
 
-| Canonical field | Meaning |
+| Field | Meaning |
 | --- | --- |
-| `ArriveOriginDockActual` | Actual arrival at the origin dock for this sailing |
-| `DepartOriginActual` | Actual departure from the origin dock for this sailing |
-| `ArriveDestDockActual` | Actual arrival at the destination dock for this sailing |
+| `ArrivedCurrActual` | Actual arrival at the origin dock for this sailing |
+| `ArrivedNextActual` | Actual arrival at the destination dock for this sailing |
+| `LeftDockActual` | Actual departure from the origin dock for this sailing |
 
 Notes:
 
-- `DepartOriginActual` may continue to be stored as `LeftDockActual` during the
-  refactor if that keeps the branch tractable, but the semantic owner must be
-  the new meaning.
 - No coverage timestamp may be used as a substitute for these fields.
 
 ### Layer B: coverage timestamps
@@ -132,10 +127,10 @@ Hard rule:
 
 1. All lifecycle timestamps use feed time, not server wall clock.
 2. In the happy path, completion and next-trip start happen on the same tick.
-3. `previous.ArriveDestDockActual === next.ArriveOriginDockActual` when the
-   boundary is known for both adjacent trips.
+3. `previous.ArrivedNextActual === next.ArrivedCurrActual` when the boundary is
+   known for both adjacent trips.
 4. Synthetic coverage close is allowed for `EndTime`.
-5. Synthetic coverage close must not imply `ArriveDestDockActual`.
+5. Synthetic coverage close must not imply `ArrivedNextActual`.
 6. `eventsActual` and ML features must read physical boundary actuals, not
    coverage timestamps, when representing `dep-dock` and `arv-dock`.
 
@@ -152,8 +147,8 @@ The implementation should retire these meanings:
 - `TripStart` must stop acting as both coverage start and physical arrival.
 - `TripEnd` must stop acting as both coverage end and physical destination
   arrival.
-- `ArriveDest` must be treated as the legacy predecessor to
-  `ArriveDestDockActual`, not as a separate long-term concept.
+- `ArriveDest` must be treated as the legacy predecessor to `ArrivedNextActual`,
+  not as a separate long-term concept.
 
 ## Execution Model
 
@@ -223,8 +218,8 @@ refactor will follow.
 ### Requirements
 
 - The storage model must distinguish physical boundary actuals from coverage.
-- If temporary aliases are used during the branch, they must be one-way
-  translation helpers rather than a new permanent compatibility layer.
+- Avoid temporary alias layers; prefer the final field names in schema and
+  types from the start of the refactor branch.
 - The schema, validators, and types must strongly prevent future readers from
   mistaking coverage for dock-boundary truth.
 
@@ -409,10 +404,8 @@ Why:
 
 ## Open Decisions to Resolve During Implementation
 
-- whether canonical field names become stored field names immediately or are
-  introduced through a short-lived adapter layer first
 - which query boundary should temporarily shield the frontend while backend
-  semantics change
+  semantics change (if any)
 
-The answer to those questions should optimize for correctness and reviewability,
-not backward compatibility with old stored rows.
+Optimize for correctness and reviewability, not backward compatibility with old
+stored rows.

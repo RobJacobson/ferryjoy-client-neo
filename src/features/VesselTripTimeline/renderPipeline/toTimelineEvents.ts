@@ -43,7 +43,7 @@ export const toTimelineEvents = (
         terminalAbbrev: trip.DepartingTerminalAbbrev,
         timePoint: {
           actual:
-            trip.DepartOriginActual ?? vesselLocation.LeftDock ?? trip.LeftDock,
+            trip.LeftDockActual ?? vesselLocation.LeftDock ?? trip.LeftDock,
           estimated: trip.AtDockDepartCurr?.PredTime,
           scheduled:
             trip.ScheduledTrip?.DepartingTime ??

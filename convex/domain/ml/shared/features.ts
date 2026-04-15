@@ -71,14 +71,14 @@ export function extractFeatures(trip: UnifiedTrip) {
   // Measure how actual arrival deviated from the expected schedule-based arrival
   const arrivalVsEstimatedScheduleMinutes = getMinutesDelta(
     estimatedArrivalAtDepartingTerminal,
-    trip.ArriveOriginDockActual
+    trip.ArrivedCurrActual
   );
 
   // Coverage / physical split: slack is schedule-based, but it is anchored to
   // the canonical origin-arrival actual rather than the legacy TripStart alias.
-  const arriveOriginMs = trip.ArriveOriginDockActual;
-  const departOriginMs = trip.DepartOriginActual;
-  const arriveDestMs = trip.ArriveDestDockActual;
+  const arriveOriginMs = trip.ArrivedCurrActual;
+  const departOriginMs = trip.LeftDockActual;
+  const arriveDestMs = trip.ArrivedNextActual;
 
   // Calculate slack time: available time between arrival and scheduled departure
   // - slackBeforeDepartureMinutes: how many minutes between dock arrival and sched depart (>= 0)
@@ -152,7 +152,7 @@ export function extractFeatures(trip: UnifiedTrip) {
 // ): number => {
 //   // This calculation uses only arrival time + schedule, so it's available at prediction
 //   // time when actual departure is not known yet.
-//   if (!trip.ArriveOriginDockActual || !trip.ScheduledDeparture) {
+//   if (!trip.ArrivedCurrActual || !trip.ScheduledDeparture) {
 //     return 0;
 //   }
 //

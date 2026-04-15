@@ -24,9 +24,8 @@ const makeTrip = (): ConvexVesselTripStored => ({
   ScheduleKey: "CHE--2026-03-13--05:30--SOU-VAI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "FAU",
-  ArriveOriginDockActual: ms("2026-03-13T09:30:00-07:00"),
-  ArriveDestDockActual: ms("2026-03-13T11:05:00-07:00"),
-  DepartOriginActual: ms("2026-03-13T10:05:00-07:00"),
+  ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
+  ArrivedNextActual: ms("2026-03-13T11:05:00-07:00"),
   StartTime: ms("2026-03-13T07:00:00-07:00"),
   EndTime: ms("2026-03-13T13:00:00-07:00"),
   ArriveDest: ms("2026-03-13T11:10:00-07:00"),
@@ -57,9 +56,9 @@ describe("hydrateStoredTripsWithPredictions", () => {
       trip,
     ]);
 
-    expect(hydrated.ArriveOriginDockActual).toBe(trip.ArriveOriginDockActual);
-    expect(hydrated.ArriveDestDockActual).toBe(trip.ArriveDestDockActual);
-    expect(hydrated.DepartOriginActual).toBe(trip.DepartOriginActual);
+    expect(hydrated.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
+    expect(hydrated.ArrivedNextActual).toBe(trip.ArrivedNextActual);
+    expect(hydrated.LeftDockActual).toBe(trip.LeftDockActual);
     expect(hydrated.StartTime).toBe(trip.StartTime);
     expect(hydrated.EndTime).toBe(trip.EndTime);
   });

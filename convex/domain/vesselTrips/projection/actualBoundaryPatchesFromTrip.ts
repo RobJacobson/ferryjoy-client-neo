@@ -14,7 +14,7 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
  * Build a departure (`dep-dock`) actual patch when the trip has `TripKey` and
  * a departure timestamp.
  *
- * Reads the canonical physical departure boundary (`DepartOriginActual`).
+ * Reads the canonical physical departure boundary (`LeftDockActual`).
  *
  * @param trip - Trip row with physical identity and departure time
  * @returns Patch for projection, or `null` when required fields are missing
@@ -25,13 +25,13 @@ export const buildDepartureActualPatchForTrip = (
   buildActualBoundaryPatchFromTrip(
     trip,
     "dep-dock",
-    trip.DepartOriginActual,
+    trip.LeftDockActual,
     "departing"
   );
 
 /**
  * Build an arrival (`arv-dock`) actual patch when the trip has `TripKey` and
- * `ArriveDestDockActual` timestamp.
+ * `ArrivedNextActual` timestamp.
  *
  * Completed-trip projection expects trip lifecycle code to have already
  * backfilled `ArrivingTerminalAbbrev` from the physical arrival dock when the
@@ -46,7 +46,7 @@ export const buildArrivalActualPatchForTrip = (
   buildActualBoundaryPatchFromTrip(
     trip,
     "arv-dock",
-    trip.ArriveDestDockActual,
+    trip.ArrivedNextActual,
     "arriving"
   );
 
@@ -59,7 +59,7 @@ export const buildArrivalActualPatchForTrip = (
  *
  * @param trip - Trip row supplying physical identity and terminal fields
  * @param eventType - Boundary kind for projection
- * @param actualTime - Epoch ms for the boundary (`DepartOriginActual` or `ArriveDestDockActual`)
+ * @param actualTime - Epoch ms for the boundary (`LeftDockActual` or `ArrivedNextActual`)
  * @param terminalRole - Which terminal field to use and how strictly to validate
  * @returns Patch for projection, or `null` when required fields are missing
  */

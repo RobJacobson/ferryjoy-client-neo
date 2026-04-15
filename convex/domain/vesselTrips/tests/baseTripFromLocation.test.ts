@@ -84,7 +84,7 @@ describe("baseTripFromLocation", () => {
     );
     expect(trip.StartTime).toBe(currLocation.TimeStamp);
     expect(trip.TripStart).toBe(currLocation.TimeStamp);
-    expect(trip.ArriveOriginDockActual).toBe(currLocation.TimeStamp);
+    expect(trip.ArrivedCurrActual).toBe(currLocation.TimeStamp);
     expect(trip.PrevTerminalAbbrev).toBe(existingTrip.DepartingTerminalAbbrev);
     expect(trip.PrevScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.PrevLeftDock).toBe(existingTrip.LeftDock);
@@ -102,7 +102,7 @@ describe("baseTripFromLocation", () => {
 
     expect(trip.StartTime).toBe(currLocation.TimeStamp);
     expect(trip.TripStart).toBe(currLocation.TimeStamp);
-    expect(trip.ArriveOriginDockActual).toBeUndefined();
+    expect(trip.ArrivedCurrActual).toBeUndefined();
     expect(trip.TripKey).toBe(
       generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
     );
@@ -125,7 +125,7 @@ describe("baseTripFromLocation", () => {
     );
     expect(trip.StartTime).toBe(currLocation.TimeStamp);
     expect(trip.TripStart).toBe(currLocation.TimeStamp);
-    expect(trip.ArriveOriginDockActual).toBeUndefined();
+    expect(trip.ArrivedCurrActual).toBeUndefined();
     expect(trip.LeftDock).toBe(currLocation.LeftDock);
   });
 

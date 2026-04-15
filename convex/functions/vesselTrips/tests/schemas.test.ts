@@ -8,9 +8,9 @@ import {
 } from "../schemas";
 
 const canonicalTimestampFields = [
-  "ArriveOriginDockActual",
-  "ArriveDestDockActual",
-  "DepartOriginActual",
+  "ArrivedCurrActual",
+  "ArrivedNextActual",
+  "LeftDockActual",
   "StartTime",
   "EndTime",
 ] as const;
@@ -83,9 +83,9 @@ describe("vessel trip schemas", () => {
       ScheduleKey: "CAT--2026-04-14--12:00--SDN-VAI",
       SailingDay: "2026-04-14",
       PrevTerminalAbbrev: "VAI",
-      ArriveOriginDockActual: 1_712_000_000_000,
-      ArriveDestDockActual: 1_712_000_600_000,
-      DepartOriginActual: 1_712_000_300_000,
+      ArrivedCurrActual: 1_712_000_000_000,
+      ArrivedNextActual: 1_712_000_600_000,
+      LeftDockActual: 1_712_000_300_000,
       StartTime: 1_712_000_100_000,
       EndTime: 1_712_000_900_000,
       ArriveDest: 1_712_000_600_000,
@@ -95,7 +95,6 @@ describe("vessel trip schemas", () => {
       AtDockDuration: undefined,
       ScheduledDeparture: 1_712_000_050_000,
       LeftDock: 1_712_000_300_000,
-      LeftDockActual: 1_712_000_300_000,
       TripDelay: undefined,
       Eta: undefined,
       TripEnd: 1_712_000_900_000,
@@ -116,9 +115,9 @@ describe("vessel trip schemas", () => {
 
     const domainTrip = toDomainVesselTrip(trip);
 
-    expect(domainTrip.ArriveOriginDockActual).toBeInstanceOf(Date);
-    expect(domainTrip.ArriveDestDockActual).toBeInstanceOf(Date);
-    expect(domainTrip.DepartOriginActual).toBeInstanceOf(Date);
+    expect(domainTrip.ArrivedCurrActual).toBeInstanceOf(Date);
+    expect(domainTrip.ArrivedNextActual).toBeInstanceOf(Date);
+    expect(domainTrip.LeftDockActual).toBeInstanceOf(Date);
     expect(domainTrip.StartTime).toBeInstanceOf(Date);
     expect(domainTrip.EndTime).toBeInstanceOf(Date);
     expect(domainTrip.ArriveDest).toBeInstanceOf(Date);

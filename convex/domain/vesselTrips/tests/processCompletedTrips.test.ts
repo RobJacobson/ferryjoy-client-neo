@@ -30,9 +30,9 @@ describe("processCompletedTrips", () => {
     });
     const completedTrip = makeTrip({
       LeftDock: existingTrip.LeftDock,
-      DepartOriginActual: existingTrip.LeftDock,
+      LeftDockActual: existingTrip.LeftDock,
       ArriveDest: ms("2026-03-13T06:29:56-07:00"),
-      ArriveDestDockActual: ms("2026-03-13T06:29:56-07:00"),
+      ArrivedNextActual: ms("2026-03-13T06:29:56-07:00"),
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
     });
     const newTrip = makeTrip({

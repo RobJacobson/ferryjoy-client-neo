@@ -33,7 +33,7 @@ export const toActiveRow = (
     ? lastRowIndex
     : atDestinationOrClosed
       ? lastRowIndex
-      : trip.DepartOriginActual || trip.LeftDock || vesselLocation.LeftDock
+      : trip.LeftDockActual || trip.LeftDock || vesselLocation.LeftDock
         ? atSeaRowIndex >= 0
           ? atSeaRowIndex
           : Math.min(1, lastRowIndex)

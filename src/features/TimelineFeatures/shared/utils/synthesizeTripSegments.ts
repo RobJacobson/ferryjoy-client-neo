@@ -128,7 +128,7 @@ export const synthesizeTripSegments = (params: {
     // For future segments, use previous leg's AtDockDepartNext/AtSeaDepartNext.
     const leaveCurr: TimePoint = {
       scheduled: segment.DepartingTime,
-      actual: actualTrip?.DepartOriginActual ?? actualTrip?.LeftDock,
+      actual: actualTrip?.LeftDockActual ?? actualTrip?.LeftDock,
       estimated:
         isActive && activePhase === "AtDock"
           ? actualTrip?.AtDockDepartCurr?.PredTime
@@ -157,9 +157,7 @@ export const synthesizeTripSegments = (params: {
     // If status is ongoing but we are AtSea, the indicator should be in the at-sea segment.
     // The current phase logic handles this via `activePhase`.
     const isArrivedAtDock = !!getOriginArrivalActual(actualTrip);
-    const isLeftDock = !!(
-      actualTrip?.DepartOriginActual ?? actualTrip?.LeftDock
-    );
+    const isLeftDock = !!(actualTrip?.LeftDockActual ?? actualTrip?.LeftDock);
 
     return {
       id: segment.Key,

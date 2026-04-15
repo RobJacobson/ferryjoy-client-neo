@@ -12,7 +12,7 @@ import { calculateTimeDelta } from "shared/durationUtils";
  * Completion is the last safe chance to write the canonical destination
  * arrival when the lifecycle path has a trusted arrival fact. When the caller
  * indicates the close is synthetic, the row still closes at `currLocation.TimeStamp`
- * but `ArriveDestDockActual` stays undefined.
+ * but `ArrivedNextActual` stays undefined.
  *
  * @param existingTrip - Trip being completed
  * @param currLocation - Current location with TripEnd timestamp
@@ -31,18 +31,16 @@ export const buildCompletedTrip = (
     ArrivingTerminalAbbrev:
       existingTrip.ArrivingTerminalAbbrev ??
       currLocation.DepartingTerminalAbbrev,
-    ArriveOriginDockActual: existingTrip.ArriveOriginDockActual,
-    ArriveDestDockActual: trustedArrivalTime,
-    DepartOriginActual: existingTrip.DepartOriginActual,
+    ArrivedCurrActual: existingTrip.ArrivedCurrActual,
+    ArrivedNextActual: trustedArrivalTime,
+    LeftDockActual: existingTrip.LeftDockActual,
     StartTime: existingTrip.StartTime,
     EndTime: completionTime,
     ArriveDest: trustedArrivalTime,
     TripEnd: completionTime,
   };
   const departureForDurations =
-    withTripEnd.DepartOriginActual ??
-    withTripEnd.LeftDockActual ??
-    withTripEnd.LeftDock;
+    withTripEnd.LeftDockActual ?? withTripEnd.LeftDock;
   const tripStartForDurations = withTripEnd.StartTime ?? withTripEnd.TripStart;
   const arrivalForDurations = trustedArrivalTime ?? completionTime;
 
@@ -54,10 +52,8 @@ export const buildCompletedTrip = (
     ),
     TotalDuration: calculateTimeDelta(tripStartForDurations, completionTime),
     // Keep compatibility mirrors aligned with the canonical fields.
-    AtDockActual:
-      withTripEnd.ArriveOriginDockActual ?? withTripEnd.AtDockActual,
-    LeftDockActual:
-      withTripEnd.DepartOriginActual ?? withTripEnd.LeftDockActual,
+    AtDockActual: withTripEnd.ArrivedCurrActual ?? withTripEnd.AtDockActual,
+    LeftDockActual: withTripEnd.LeftDockActual ?? withTripEnd.LeftDock,
   };
 
   return actualizePredictionsOnTripComplete(withDurations);
