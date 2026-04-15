@@ -14,8 +14,7 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
  * Build a departure (`dep-dock`) actual patch when the trip has `TripKey` and
  * a departure timestamp.
  *
- * Prefers the physical lifecycle boundary (`LeftDockActual`) and falls back to
- * raw WSF `LeftDock` when needed.
+ * Reads the canonical physical departure boundary (`DepartOriginActual`).
  *
  * @param trip - Trip row with physical identity and departure time
  * @returns Patch for projection, or `null` when required fields are missing
@@ -23,16 +22,11 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
 export const buildDepartureActualPatchForTrip = (
   trip: ConvexVesselTrip
 ): ConvexActualBoundaryPatchPersistable | null =>
-  buildActualBoundaryPatchFromTrip(
-    trip,
-    "dep-dock",
-    trip.LeftDockActual ?? trip.LeftDock,
-    "departing"
-  );
+  buildActualBoundaryPatchFromTrip(trip, "dep-dock", trip.DepartOriginActual, "departing");
 
 /**
  * Build an arrival (`arv-dock`) actual patch when the trip has `TripKey` and
- * `ArriveDest` timestamp.
+ * `ArriveDestDockActual` timestamp.
  *
  * Completed-trip projection expects trip lifecycle code to have already
  * backfilled `ArrivingTerminalAbbrev` from the physical arrival dock when the
@@ -44,12 +38,7 @@ export const buildDepartureActualPatchForTrip = (
 export const buildArrivalActualPatchForTrip = (
   trip: ConvexVesselTrip
 ): ConvexActualBoundaryPatchPersistable | null =>
-  buildActualBoundaryPatchFromTrip(
-    trip,
-    "arv-dock",
-    trip.ArriveDest,
-    "arriving"
-  );
+  buildActualBoundaryPatchFromTrip(trip, "arv-dock", trip.ArriveDestDockActual, "arriving");
 
 /**
  * Shared guard + patch shape for trip-driven actual boundary patches.
@@ -60,7 +49,7 @@ export const buildArrivalActualPatchForTrip = (
  *
  * @param trip - Trip row supplying physical identity and terminal fields
  * @param eventType - Boundary kind for projection
- * @param actualTime - Epoch ms for the boundary (`LeftDock` or `ArriveDest`)
+ * @param actualTime - Epoch ms for the boundary (`DepartOriginActual` or `ArriveDestDockActual`)
  * @param terminalRole - Which terminal field to use and how strictly to validate
  * @returns Patch for projection, or `null` when required fields are missing
  */

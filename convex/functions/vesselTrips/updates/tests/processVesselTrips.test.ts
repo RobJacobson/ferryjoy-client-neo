@@ -308,6 +308,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
       ArriveDest: undefined,
+      DepartOriginActual: ms("2026-03-13T05:29:38-07:00"),
     });
     const currLocation = makeLocation({
       AtDock: true,
@@ -315,6 +316,7 @@ describe("processVesselTripsWithDeps", () => {
     const arrivedTrip = makeTrip({
       ArriveDest: ms("2026-03-13T06:29:56-07:00"),
       LeftDock: existingTrip.LeftDock,
+      ArriveDestDockActual: ms("2026-03-13T06:29:56-07:00"),
     });
     const ctx = createTestActionCtx({
       activeTrips: [existingTrip],
@@ -357,6 +359,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: currLocation.LeftDock,
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
+      DepartOriginActual: currLocation.LeftDock,
     });
     const callSequence: string[] = [];
     const ctx = createTestActionCtx({
@@ -415,6 +418,7 @@ describe("processVesselTripsWithDeps", () => {
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
       AtSeaArriveNext: makePrediction("2026-03-13T06:25:00-07:00"),
+      DepartOriginActual: ms("2026-03-13T05:29:38-07:00"),
     });
     const ctx = createTestActionCtx({
       activeTrips: [cheExisting, tacExisting],

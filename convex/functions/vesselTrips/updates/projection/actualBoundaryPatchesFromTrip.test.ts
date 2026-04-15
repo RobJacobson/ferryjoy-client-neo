@@ -14,13 +14,15 @@ const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
 
 describe("buildDepartureActualPatchForTrip", () => {
-  it("returns a patch when the trip omits SailingDay and ScheduledDeparture", () => {
+  it("returns a patch from DepartOriginActual when SailingDay and ScheduledDeparture are omitted", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
-      LeftDock: at(12, 22),
+      DepartOriginActual: at(12, 22),
+      LeftDockActual: at(12, 23),
+      LeftDock: at(12, 24),
     } as ConvexVesselTrip;
 
     const patch = buildDepartureActualPatchForTrip(trip);
@@ -37,31 +39,31 @@ describe("buildDepartureActualPatchForTrip", () => {
     expect(row.ScheduledDeparture).toBe(at(12, 22));
   });
 
-  it("prefers LeftDockActual and falls back to LeftDock only when needed", () => {
+  it("does not fall back to legacy departure mirrors when the canonical field is absent", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
-      LeftDock: undefined,
       LeftDockActual: at(12, 23),
+      LeftDock: at(12, 24),
     } as ConvexVesselTrip;
 
     const patch = buildDepartureActualPatchForTrip(trip);
 
-    expect(patch).not.toBeNull();
-    expect(patch?.EventActualTime).toBe(at(12, 23));
+    expect(patch).toBeNull();
   });
 });
 
 describe("buildArrivalActualPatchForTrip", () => {
-  it("returns a patch when completion has backfilled the physical arrival terminal", () => {
+  it("returns a patch from ArriveDestDockActual when completion has backfilled the physical arrival terminal", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: undefined,
       ArrivingTerminalAbbrev: "P52",
-      ArriveDest: at(12, 59),
+      ArriveDestDockActual: at(12, 59),
+      ArriveDest: at(12, 58),
     } as ConvexVesselTrip;
 
     const patch = buildArrivalActualPatchForTrip(trip);
@@ -77,5 +79,18 @@ describe("buildArrivalActualPatchForTrip", () => {
     expect(row.TerminalAbbrev).toBe("P52");
     expect(row.ScheduleKey).toBeUndefined();
     expect(row.ScheduledDeparture).toBe(at(12, 59));
+  });
+
+  it("does not fall back to legacy arrival mirrors when the canonical field is absent", () => {
+    const trip = {
+      VesselAbbrev: "WEN",
+      TripKey: "WEN 2026-03-25 19:20:00Z",
+      ScheduleKey: undefined,
+      ArrivingTerminalAbbrev: "P52",
+      ArriveDestDockActual: undefined,
+      ArriveDest: at(12, 58),
+    } as ConvexVesselTrip;
+
+    expect(buildArrivalActualPatchForTrip(trip)).toBeNull();
   });
 });

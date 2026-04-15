@@ -56,15 +56,29 @@ The checked-in reviewed state now includes:
 
 Resume with Stage 3 using the same workflow:
 
-1. draft a detailed Stage 3 implementation spec
-2. review and revise that spec
-3. implement Stage 3 against the approved spec
+1. use the already-written Stage 3 implementation spec as the starting point
+2. have a worker subagent own any needed spec revisions
+3. have a worker subagent implement Stage 3 against the approved spec
 4. review implementation before moving to Stage 4
 
 ## Orchestration Process
 
 The new orchestrator agent should act as the reviewer/supervisor and delegate
 bounded work to subagents.
+
+Required workflow going forward:
+
+- the supervisor does not write specs
+- the supervisor does not implement stage code
+- worker subagents write specs
+- worker subagents implement code
+- the supervisor reviews both specs and implementation
+
+Stage 3 exception:
+
+- the Stage 3 spec already exists and can be treated as "water over the dam"
+- if that spec needs changes, a worker subagent should own those revisions
+- after Stage 3, return fully to the standard supervised subagent loop
 
 Use this loop for each stage:
 
@@ -83,6 +97,8 @@ Use this loop for each stage:
 Supervisor responsibilities:
 
 - keep the PRD and semantic memo as the source of truth
+- enforce the worker-subagent / supervisor split even if a direct implementation
+  path feels faster
 - prevent scope creep into later stages
 - independently spot-check tests and key diffs rather than relying only on
   subagent summaries
