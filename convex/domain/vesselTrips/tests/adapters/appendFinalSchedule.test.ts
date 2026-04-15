@@ -1,7 +1,11 @@
+/**
+ * Tests for the functions-layer `appendFinalSchedule` adapter (schedule lookup wiring).
+ */
+
 import { describe, expect, it } from "bun:test";
+import { appendFinalSchedule } from "functions/vesselTrips/actions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { appendFinalSchedule } from "../tripLifecycle/appendSchedule";
 
 describe("appendFinalSchedule", () => {
   it("reuses existing next-trip schedule fields when the schedule segment is unchanged", async () => {

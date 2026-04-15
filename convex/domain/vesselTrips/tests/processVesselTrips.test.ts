@@ -634,6 +634,8 @@ const createTestActionCtx = (options: {
  * @returns Dependency bag for `processVesselTripsWithDeps`
  */
 const createDeps = (input: TestDepsInput) => ({
+  loadActiveTrips: async (ctx: ActionCtx) =>
+    (await ctx.runQuery({} as never, {})) as ConvexVesselTrip[],
   buildCompletedTrip: (existingTrip: ConvexVesselTrip) => existingTrip,
   buildTrip: async (
     _ctx: unknown,

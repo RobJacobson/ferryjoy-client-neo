@@ -5,7 +5,6 @@
  * writes for the orchestrator to apply (`applyTickEventWrites`).
  */
 
-import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -47,6 +46,13 @@ type CompletedTripTransition = TripTransition & {
 
 export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
   detectTripEvents: typeof detectTripEvents;
+  /**
+   * Loads hydrated active trips when `activeTrips` is not preloaded (e.g.
+   * `ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips)`).
+   */
+  loadActiveTrips: (
+    ctx: ActionCtx
+  ) => Promise<ReadonlyArray<ConvexVesselTrip | TickActiveTrip>>;
 };
 
 /**
@@ -57,7 +63,7 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
  * @param deps - Internal dependency bag used for testability (includes `buildTripAdapters`)
  * @param activeTrips - When **defined** (including `[]`), used instead of
- *   `getActiveTrips` (see `processVesselTrips` from the functions shim). Prefer {@link TickActiveTrip}
+ *   `deps.loadActiveTrips` (see `processVesselTrips` in `functions/vesselTrips/actions.ts`). Prefer {@link TickActiveTrip}
  *   rows; hydrated trips optional.
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
  * @returns Lifecycle result plus tick event writes for orchestrator peers
@@ -70,9 +76,7 @@ export const processVesselTripsWithDeps = async (
   activeTrips?: ReadonlyArray<TickActiveTrip>,
   options?: ProcessVesselTripsOptions
 ): Promise<VesselTripsTickResult> => {
-  const existingTripsList =
-    activeTrips ??
-    (await ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips));
+  const existingTripsList = activeTrips ?? (await deps.loadActiveTrips(ctx));
 
   // Values are storage-native and/or query-hydrated rows; lifecycle strips ML for persist checks.
   const existingTripsDict = Object.fromEntries(

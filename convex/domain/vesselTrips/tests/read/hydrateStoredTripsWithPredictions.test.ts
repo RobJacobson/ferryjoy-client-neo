@@ -1,10 +1,16 @@
+/**
+ * Tests for query hydration of stored trips with `eventsPredicted` joins.
+ */
+
 import { describe, expect, it } from "bun:test";
-import { hydrateStoredTripsWithPredictions } from "./hydrateTripPredictions";
-import type { ConvexVesselTripStored } from "./schemas";
+import type { DataModel } from "_generated/dataModel";
+import type { GenericQueryCtx } from "convex/server";
+import { hydrateStoredTripsWithPredictions } from "domain/vesselTrips/read/hydrateStoredTripsWithPredictions";
+import type { ConvexVesselTripStored } from "functions/vesselTrips/schemas";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const makeCtx = () =>
+const makeCtx = (): Pick<GenericQueryCtx<DataModel>, "db"> =>
   ({
     db: {
       query: () => ({
@@ -13,7 +19,7 @@ const makeCtx = () =>
         }),
       }),
     },
-  }) as any;
+  }) as Pick<GenericQueryCtx<DataModel>, "db">;
 
 const makeTrip = (): ConvexVesselTripStored => ({
   VesselAbbrev: "CHE",

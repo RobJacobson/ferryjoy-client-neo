@@ -438,7 +438,7 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
-implemented in `convex/functions/vesselTrips/updates/processTick/processVesselTrips.ts`.
+implemented in `convex/domain/vesselTrips/processTick/processVesselTrips.ts` (default wiring: `convex/functions/vesselTrips/actions.ts`).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -449,7 +449,7 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
 - `buildTrip` (`convex/domain/vesselTrips/tripLifecycle/buildTrip.ts`) calls
   `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Functions adapter: `convex/functions/vesselTrips/updates/tripLifecycle/appendSchedule.ts` (`appendFinalSchedule`)
+  - Functions adapter: `convex/functions/vesselTrips/actions.ts` (`appendFinalSchedule`)
   - Lookup: `internal.functions.eventsScheduled.queries.getScheduledDepartureSegmentBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
@@ -508,7 +508,7 @@ on trip documents:
 - Depart-next actualization when the _next_ trip leaves dock (previous leg’s
   next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip`
   patching the prior leg’s `eventsPredicted` rows.
-  - Trigger: `convex/functions/vesselTrips/updates/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
+  - Trigger: `convex/domain/vesselTrips/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 

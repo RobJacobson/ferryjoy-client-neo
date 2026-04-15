@@ -1,7 +1,7 @@
 /**
  * Vessel-trip lifecycle domain: tick orchestration, trip building, and projection.
  *
- * Prefer `functions/vesselTrips/updates` for the default-wired `processVesselTrips`
+ * Prefer `functions/vesselTrips/actions` for the default-wired `processVesselTrips`
  * entrypoint. Use `processVesselTripsWithDeps` from `./processTick/processVesselTrips`
  * in tests when injecting dependencies.
  */

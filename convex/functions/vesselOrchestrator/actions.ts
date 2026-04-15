@@ -19,9 +19,11 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
+import {
+  processVesselTrips,
+  type TickEventWrites,
+} from "functions/vesselTrips/actions";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
-import { processVesselTrips } from "functions/vesselTrips/updates";
-import type { TickEventWrites } from "functions/vesselTrips/updates/processTick/tickEventWrites";
 import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 

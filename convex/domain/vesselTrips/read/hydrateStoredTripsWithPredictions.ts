@@ -1,32 +1,26 @@
 /**
- * Temporary query hydration adapter for `vesselTrips` reads.
+ * Query hydration: joins `eventsPredicted` onto stored trip documents for API reads.
  *
- * This layer joins `eventsPredicted` onto stored trip documents so existing
- * query/UI callers keep their current shape while Stage 4 and Stage 5 semantics
- * remain separated from the ML reader core.
- *
- * The vessel orchestrator tick bundles **storage-native** trips instead and
- * passes them to `processVesselTrips` without this join, so the tick path does
- * not pay hydration cost or duplicate `getActiveTrips`.
+ * The vessel orchestrator tick uses storage-native trips and skips this join.
  */
 
 import type { DataModel, Doc } from "_generated/dataModel";
 import type { GenericQueryCtx } from "convex/server";
 import {
-  buildTripPredictionBoundaryKeys,
-  buildVesselSailingDayScopeKey,
-  parseVesselSailingDayScopeKey,
-} from "../../shared/keys";
-import {
   type ConvexPredictionSource,
   predictedBoundaryCompositeKey,
-} from "../eventsPredicted/schemas";
-import type { PredictionType } from "../predictions/schemas";
+} from "functions/eventsPredicted/schemas";
+import type { PredictionType } from "functions/predictions/schemas";
 import type {
   ConvexJoinedTripPrediction,
   ConvexVesselTrip,
   ConvexVesselTripStored,
-} from "./schemas";
+} from "functions/vesselTrips/schemas";
+import {
+  buildTripPredictionBoundaryKeys,
+  buildVesselSailingDayScopeKey,
+  parseVesselSailingDayScopeKey,
+} from "shared/keys";
 
 type Ctx = Pick<GenericQueryCtx<DataModel>, "db">;
 

@@ -11,8 +11,8 @@ The orchestrator runs periodically, roughly every 5 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
-2. update trip lifecycle state via `vesselTrips/updates` (domain implementation
-   in `convex/domain/vesselTrips/`), then apply timeline overlay writes
+2. update trip lifecycle state via `vesselTrips/actions` (`processVesselTrips`;
+   domain implementation in `convex/domain/vesselTrips/`), then apply timeline overlay writes
    (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
@@ -22,7 +22,7 @@ allowing each downstream subsystem to evolve independently.
 WSF VesselLocations API
   -> VesselOrchestrator fetch + conversion
   -> vesselLocations table
-  -> vesselTrips/updates
+  -> vesselTrips/actions (processVesselTrips)
 ```
 
 ## Why The Timeline Event Tables Exist
@@ -134,7 +134,7 @@ This table can therefore contain both:
 - non-passenger marine locations reported by WSF, when needed to keep live
   vessel state visible
 
-### 3. Trip Lifecycle Updates (`vesselTrips/updates/`)
+### 3. Trip Lifecycle (`vesselTrips/actions.ts`)
 
 Purpose:
 
@@ -324,7 +324,7 @@ those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 
-- `convex/functions/vesselTrips/updates/README.md`
+- `convex/functions/vesselTrips/README.md`
 - `convex/functions/scheduledTrips/sync/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
@@ -335,7 +335,7 @@ The current orchestrator coordinates one shared vessel-location fetch across
 two backend consumers:
 
 1. `vesselLocations` for current live state
-2. `vesselTrips/updates` for trip lifecycle management, then `applyTickEventWrites`
+2. `vesselTrips/actions` (`processVesselTrips`) for trip lifecycle management, then `applyTickEventWrites`
    for timeline overlays
 
 That split keeps the timeline contract simple without removing the richer trip
