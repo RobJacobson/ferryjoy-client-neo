@@ -56,30 +56,6 @@ describe("appendFinalSchedule", () => {
       scheduledSegment.NextDepartingTime
     );
   });
-
-  it("keeps keyless docked trips unchanged when no schedule segment is available", async () => {
-    const baseTrip = makeTrip({
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: undefined,
-      ScheduleKey: undefined,
-      SailingDay: undefined,
-      ScheduledDeparture: undefined,
-      TripStart: undefined,
-      LeftDock: undefined,
-    });
-
-    const enriched = await appendFinalSchedule(
-      createTestActionCtx({}) as never,
-      baseTrip,
-      undefined
-    );
-
-    expect(enriched.ScheduleKey).toBeUndefined();
-    expect(enriched.ScheduledDeparture).toBeUndefined();
-    expect(enriched.ArrivingTerminalAbbrev).toBeUndefined();
-    expect(enriched.NextScheduleKey).toBeUndefined();
-    expect(enriched.NextScheduledDeparture).toBeUndefined();
-  });
 });
 
 type TestActionCtx = {

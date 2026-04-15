@@ -84,6 +84,17 @@ Current status as of 2026-04-14:
     persistence helper
   - handoff checklist:
     `docs/handoffs/phase-4-vesselorchestrator-functional-pipeline-checklist-2026-04-14.md`
+- Phase 5 is complete:
+  - business-rule tests live under `convex/domain/**/tests/`; functions-layer
+    tests cover schemas, query wiring, and thin Convex adapters (`ctx.runQuery` /
+    `ctx.runMutation`) where effects are the contract
+  - `appendSchedule.test.ts` (schedule enrichment adapter) and
+    `resolveEffectiveLocation.adapter.test.ts` (early-return wiring) remain minimal;
+    `applyTickEventWrites.test.ts` covers timeline mutation batching
+  - domain `buildTrip` / `processVesselTrips` tests use domain-local adapter fakes
+    matching production contracts (no imports of functions implementation modules)
+  - handoff checklist:
+    `docs/handoffs/phase-5-test-cleanup-and-boundary-enforcement-checklist-2026-04-14.md`
 - review note:
   - the earlier hypothesis about stale scheduledTrips path references in
     `convex/domain/ml/readme-ml.md` did not hold up in code review; that doc
@@ -591,38 +602,28 @@ Success criteria (met):
 
 ### Phase 5: Test Cleanup and Boundary Enforcement
 
+Implementation status: **complete** (2026-04-14).
+
 Goal:
 
 - keep high-value tests and remove low-value wrapper tests
 
-Tasks:
+Tasks (done):
 
-- move tests that protect real domain rules into the new domain folders
-- remove or consolidate tests that only verify trivial wrappers
-- ensure README-level docs and import conventions reflect the new boundaries
-- optionally add light lint/import-boundary guidance if the team wants stronger
-  enforcement
+- tests that protect real domain rules are colocated under `convex/domain/**/tests/`
+- trivial wrapper-only tests pruned or consolidated; adapter tests trimmed where
+  domain coverage duplicated behavior
+- README-level docs and import conventions updated (`convex/domain/README.md`,
+  `convex/functions/vesselTrips/updates/README.md`, orchestrator README)
+- lightweight import guidance added in `convex/domain/README.md` (docs-first;
+  no new lint rules)
 
-Tests likely worth keeping:
+Success criteria (met):
 
-- event detection
-- debounce logic
-- trip builders
-- completed/current branch processing
-- schedule classification
-- timeline row and backbone assembly
-- reseed reconciliation behavior
-
-Tests likely worth deleting or collapsing:
-
-- one-line helper tests for thin wrappers
-- tiny adapter-only tests with no meaningful business rules
-- tests whose only purpose was to justify helper exports
-
-Success criteria:
-
-- the test suite better reflects architecture
-- the remaining tests protect logic, not file placement
+- the test suite reflects the functions vs domain split
+- remaining functions-layer tests justify real Convex wiring or schemas
+- domain tests avoid importing functions implementation modules except shared
+  schema types from `functions/*/schemas.ts`
 
 ## Recommended Move Order
 

@@ -5,14 +5,36 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { applyTickEventWrites } from "functions/vesselOrchestrator/applyTickEventWrites";
 import type {
   ConvexVesselTrip,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
+import type { TickEventWrites } from "../processTick/tickEventWrites";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
+
+/**
+ * Applies timeline writes after lifecycle (same branching as
+ * `functions/vesselOrchestrator/applyTickEventWrites`) using the test fake’s
+ * `runMutation` so sequencing assertions stay domain-local.
+ *
+ * @param ctx - Test fake action context
+ * @param writes - Patches and predicted effects from the tick
+ */
+const applyTickEventWritesLikeOrchestrator = async (
+  ctx: ActionCtx,
+  writes: TickEventWrites
+): Promise<void> => {
+  await Promise.all([
+    writes.actualPatches.length > 0
+      ? ctx.runMutation({} as never, { Patches: writes.actualPatches })
+      : Promise.resolve(),
+    writes.predictedEffects.length > 0
+      ? ctx.runMutation({} as never, { Effects: writes.predictedEffects })
+      : Promise.resolve(),
+  ]);
+};
 
 /**
  * Runs lifecycle tick then applies timeline writes (matches orchestrator ordering).
@@ -37,7 +59,7 @@ const runVesselTripsTick = async (
     deps,
     activeTrips
   );
-  await applyTickEventWrites(
+  await applyTickEventWritesLikeOrchestrator(
     ctx as unknown as ActionCtx,
     result.tickEventWrites
   );
@@ -735,7 +757,7 @@ const makeLocation = (
  * @returns Concrete trip payload for tests
  */
 /**
- * Storage-native active trip (no joined ML fields) for Stage 4 tick contract tests.
+ * Storage-native active trip (no joined ML fields) for tick contract tests.
  *
  * @param overrides - Stored-column overrides only
  * @returns {@link TickActiveTrip} row shape

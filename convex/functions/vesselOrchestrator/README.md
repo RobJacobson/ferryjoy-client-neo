@@ -310,6 +310,12 @@ The timeline overlay path is designed to stay lightweight:
   `projectPredictedBoundaryEffects` from `tickEventWrites`
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
 
+## Tests
+
+- `tests/applyTickEventWrites.test.ts` — asserts timeline mutations are skipped
+  when both write lists are empty (thin `ctx.runMutation` wiring). Orchestrator
+  tick flow is covered in `convex/domain/vesselOrchestration/tests/`.
+
 Canonical vessel and terminal table refreshes from WSF basics are implemented in
 `convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
 `runSyncBackendVessels` public action, `syncBackendVesselTable` helper) and

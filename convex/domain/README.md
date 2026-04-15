@@ -10,3 +10,16 @@ Vessel sailing-day timeline logic is split by pipeline:
 - **`vesselOrchestration/`** — Per-tick orchestration after fetch/conversion: `runVesselOrchestratorTick` (parallel location vs trip branches, passenger-terminal filtering, `computeShouldRunPredictionFallback` for trip options, lifecycle then `applyTickEventWrites` sequencing), plus `passengerTerminalEligibility` helpers. `convex/functions/vesselOrchestrator/actions.ts` injects Convex adapters.
 
 Import these modules directly; there is no `vesselTimeline` domain barrel.
+
+## Tests and import conventions
+
+- **Tests**: substantive behavior (pipelines, builders, branching, continuity,
+  orchestration) belongs in `convex/domain/**/tests/`. Keep
+  `convex/functions/**/tests/` for schema validators, query/mutation wiring, and
+  adapter smoke tests where `ctx.runQuery` / `ctx.runMutation` behavior is what
+  you are protecting.
+- **Imports**: domain code must not depend on functions-layer **implementation**
+  modules (adapters, actions, internal wiring). Import **types** from
+  `convex/functions/*/schemas.ts` where they describe persisted or API shapes.
+  Convex entrypoints in `convex/functions/` call into `convex/domain/` and pass
+  injected adapters—never the reverse.

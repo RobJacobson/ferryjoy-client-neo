@@ -1,15 +1,80 @@
+/**
+ * Domain-owned `buildTrip` tests using the same adapter contracts as production
+ * (`VesselTripsBuildTripAdapters`) without importing functions-layer modules.
+ */
+
 import { describe, expect, it } from "bun:test";
+import type { ActionCtx } from "_generated/server";
+import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { appendFinalSchedule } from "functions/vesselTrips/updates/tripLifecycle/appendSchedule";
-import { resolveEffectiveLocation } from "functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
+import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
-const TEST_BUILD_TRIP_ADAPTERS = {
-  resolveEffectiveLocation,
-  appendFinalSchedule,
+/**
+ * Test adapters: docked identity via {@link resolveEffectiveDockedLocation};
+ * schedule enrichment mirrors `appendFinalSchedule` query merge semantics.
+ */
+const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
+  resolveEffectiveLocation: async (
+    ctx: ActionCtx,
+    location: ConvexVesselLocation,
+    existingTrip: ConvexVesselTrip | undefined
+  ): Promise<ConvexVesselLocation> => {
+    if (!location.AtDock || location.LeftDock !== undefined) {
+      return location;
+    }
+    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+      {
+        getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
+          ctx.runQuery({} as never, {
+            segmentKey,
+          }) as Promise<ConvexInferredScheduledSegment | null>,
+        getNextDepartureSegmentAfterDeparture: (args) =>
+          ctx.runQuery(
+            {} as never,
+            args
+          ) as Promise<ConvexInferredScheduledSegment | null>,
+      },
+      location,
+      existingTrip
+    );
+    return effectiveLocation;
+  },
+  appendFinalSchedule: async (
+    ctx: ActionCtx,
+    baseTrip: ConvexVesselTrip,
+    existingTrip: ConvexVesselTrip | undefined
+  ): Promise<ConvexVesselTrip> => {
+    const segmentKey = baseTrip.ScheduleKey ?? null;
+    if (!segmentKey) {
+      return baseTrip;
+    }
+    if (existingTrip?.ScheduleKey === segmentKey) {
+      return {
+        ...baseTrip,
+        ScheduleKey: baseTrip.ScheduleKey ?? existingTrip.ScheduleKey,
+        NextScheduleKey:
+          baseTrip.NextScheduleKey ?? existingTrip.NextScheduleKey,
+        NextScheduledDeparture:
+          baseTrip.NextScheduledDeparture ??
+          existingTrip.NextScheduledDeparture,
+      };
+    }
+    const scheduledSegment = (await ctx.runQuery({} as never, {
+      segmentKey,
+    })) as ConvexInferredScheduledSegment | null;
+    return {
+      ...baseTrip,
+      ScheduleKey: scheduledSegment?.Key ?? baseTrip.ScheduleKey,
+      NextScheduleKey: scheduledSegment?.NextKey ?? baseTrip.NextScheduleKey,
+      NextScheduledDeparture:
+        scheduledSegment?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+    };
+  },
 };
 
 describe("buildTrip", () => {
@@ -65,7 +130,7 @@ describe("buildTrip", () => {
       false,
       makeEvents({ scheduleKeyChanged: true }),
       false,
-      TEST_BUILD_TRIP_ADAPTERS
+      testBuildTripAdapters
     );
 
     expect(built.TripKey).toBe(stableTripKey);
@@ -117,7 +182,7 @@ describe("buildTrip", () => {
       false,
       makeEvents({ didJustLeaveDock: true, scheduleKeyChanged: false }),
       false,
-      TEST_BUILD_TRIP_ADAPTERS
+      testBuildTripAdapters
     );
 
     expect(built.ScheduleKey).toBe(existingTrip.ScheduleKey);
@@ -175,7 +240,7 @@ describe("buildTrip", () => {
       false,
       makeEvents({ scheduleKeyChanged: true }),
       false,
-      TEST_BUILD_TRIP_ADAPTERS
+      testBuildTripAdapters
     );
 
     expect(built.TripKey).toBe(stableTripKey);

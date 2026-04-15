@@ -119,7 +119,7 @@ approval:
 | `projection/lifecycleEventTypes.ts` | Lifecycle DTOs emitted by branches |
 | `projection/actualBoundaryPatchesFromTrip.ts` | `eventsActual` patch builders |
 | `projection/timelineEventAssembler.ts` | Assembles `TickEventWrites` from branch outputs |
-| `tests/*.test.ts` | Unit tests for eventing, builders, branches, and orchestration |
+| `tests/*.test.ts` | Adapter smoke tests only; substantive tests in `convex/domain/vesselTrips/tests/` |
 
 ### Import boundaries
 
@@ -428,21 +428,24 @@ on every 5-second tick for every vessel.
 
 ## Testing map
 
-Primary tests are colocated in:
+Business-rule and pipeline coverage lives in **`convex/domain/vesselTrips/tests/`**
+(and related domain folders): event detection, trip builders, branch sequencing,
+`processVesselTripsWithDeps`, orchestration tests, etc.
 
-- `convex/functions/vesselTrips/updates/tests/`
+The **`convex/functions/vesselTrips/updates/tests/`** folder keeps **adapter**
+coverage only:
 
-Common command:
+- `appendSchedule.test.ts` — `appendFinalSchedule` schedule lookup merge
+- `resolveEffectiveLocation.adapter.test.ts` — early-return wiring (no queries
+  when not docked)
+
+Run domain tests (typical):
+
+- `bun test ./convex/domain/vesselTrips/**/*.test.ts`
+
+Run functions adapter tests:
 
 - `bun test convex/functions/vesselTrips/updates/tests/*.test.ts`
-
-Focus areas covered by tests:
-
-- event detection and derivation logic
-- base/build/completed trip builders
-- storage vs overlay equality behavior
-- current/completed branch sequencing and gating
-- end-to-end `processVesselTrips` orchestration behavior
 
 ---
 
