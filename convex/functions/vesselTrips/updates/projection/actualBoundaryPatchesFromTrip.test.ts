@@ -20,7 +20,7 @@ describe("buildDepartureActualPatchForTrip", () => {
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
-      LeftDock: at(12, 22),
+      DepartOriginActual: at(12, 22),
     } as ConvexVesselTrip;
 
     const patch = buildDepartureActualPatchForTrip(trip);
@@ -37,14 +37,13 @@ describe("buildDepartureActualPatchForTrip", () => {
     expect(row.ScheduledDeparture).toBe(at(12, 22));
   });
 
-  it("prefers LeftDockActual and falls back to LeftDock only when needed", () => {
+  it("reads DepartOriginActual for departure projection", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
-      LeftDock: undefined,
-      LeftDockActual: at(12, 23),
+      DepartOriginActual: at(12, 23),
     } as ConvexVesselTrip;
 
     const patch = buildDepartureActualPatchForTrip(trip);
@@ -61,7 +60,7 @@ describe("buildArrivalActualPatchForTrip", () => {
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: undefined,
       ArrivingTerminalAbbrev: "P52",
-      ArriveDest: at(12, 59),
+      ArriveDestDockActual: at(12, 59),
     } as ConvexVesselTrip;
 
     const patch = buildArrivalActualPatchForTrip(trip);

@@ -5,10 +5,10 @@
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import {
+  type ActiveTripForPhysicalActualReconcile,
   buildActualBoundaryEventFromPatch,
   buildActualBoundaryEvents,
   buildScheduledBoundaryEvents,
-  type ActiveTripForPhysicalActualReconcile,
   type TripContextForActualRow,
 } from "../timelineRows";
 import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
@@ -81,9 +81,11 @@ const buildPhysicalOnlyActualRowsFromTrips = (
   updatedAt: number
 ) =>
   trips
-    .filter((trip) => trip.TripKey !== undefined && trip.ScheduleKey === undefined)
+    .filter(
+      (trip) => trip.TripKey !== undefined && trip.ScheduleKey === undefined
+    )
     .flatMap((trip) => {
-      const departureActualTime = trip.LeftDockActual ?? trip.LeftDock;
+      const departureActualTime = trip.DepartOriginActual;
       const rows = [];
 
       if (departureActualTime !== undefined) {
@@ -110,7 +112,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       }
 
       if (
-        trip.ArriveDest !== undefined &&
+        trip.ArriveDestDockActual !== undefined &&
         trip.ArrivingTerminalAbbrev !== undefined
       ) {
         rows.push(
@@ -128,7 +130,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
               TerminalAbbrev: trip.ArrivingTerminalAbbrev,
               EventType: "arv-dock" as const,
               EventOccurred: true,
-              EventActualTime: trip.ArriveDest,
+              EventActualTime: trip.ArriveDestDockActual,
             },
             updatedAt
           )
@@ -138,5 +140,6 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       return rows;
     });
 
-const dedupeActualRowsByEventKey = <T extends { EventKey: string }>(rows: T[]) =>
-  [...new Map(rows.map((row) => [row.EventKey, row])).values()];
+const dedupeActualRowsByEventKey = <T extends { EventKey: string }>(
+  rows: T[]
+) => [...new Map(rows.map((row) => [row.EventKey, row])).values()];

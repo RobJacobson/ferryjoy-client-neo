@@ -40,6 +40,8 @@ export type ActiveTripForPhysicalActualReconcile = {
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev?: string;
   ScheduledDeparture?: number;
+  DepartOriginActual?: number;
+  ArriveDestDockActual?: number;
   LeftDock?: number;
   LeftDockActual?: number;
   ArriveDest?: number;
