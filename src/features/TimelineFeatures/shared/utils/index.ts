@@ -8,6 +8,7 @@ export { getTimelineLayout } from "./timelineLayout";
 export {
   getBestArrivalTime,
   getBestDepartureTime,
+  getCoverageEndTime,
   getDestinationArrivalOrCoverageClose,
   getOriginArrivalActual,
   getTripListKeyTimeMs,

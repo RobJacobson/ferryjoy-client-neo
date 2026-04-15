@@ -1,50 +1,56 @@
 /**
- * Trip time helpers: best-available departure/arrival resolution and coverage
- * queries. Prefers canonical physical boundary fields (see trip-timestamp PRD)
- * over legacy TripStart / TripEnd / ArriveDest mirrors.
+ * Client-side trip timestamp helpers. Elsewhere under `src/`, prefer canonical
+ * fields from the trip-timestamp PRD; this module is the only place that should
+ * read legacy `TripStart` / `TripEnd` / `ArriveDest` for UI compatibility
+ * (besides tests).
  */
 
 import type { VesselLocation, VesselTrip } from "@/types";
 
 /**
- * Returns true when the trip row has a coverage end (completed or synthetic
- * close). Checks {@link VesselTrip.EndTime} first, then legacy {@link VesselTrip.TripEnd}.
+ * Coverage window end: {@link VesselTrip.EndTime}, else legacy {@link VesselTrip.TripEnd}.
  *
  * @param trip - Vessel trip or undefined
- * @returns Whether coverage has ended
+ * @returns Coverage end time, if any
  */
-export const hasTripCoverageEnded = (trip: VesselTrip | undefined): boolean =>
-  Boolean(trip?.EndTime ?? trip?.TripEnd);
+export const getCoverageEndTime = (
+  trip: VesselTrip | undefined
+): Date | undefined => trip?.EndTime ?? trip?.TripEnd;
 
 /**
- * Physical destination arrival if asserted, else legacy {@link VesselTrip.ArriveDest},
- * else coverage end ({@link VesselTrip.EndTime} / legacy {@link VesselTrip.TripEnd}).
- * Used for timeline “arrive next” actuals; do not treat coverage end as physical proof.
+ * Whether the trip row has ended its coverage window (completed or synthetic close).
  *
  * @param trip - Vessel trip or undefined
- * @returns Best display time for destination-side closure, if any
+ * @returns True if {@link getCoverageEndTime} is defined
+ */
+export const hasTripCoverageEnded = (trip: VesselTrip | undefined): boolean =>
+  Boolean(getCoverageEndTime(trip));
+
+/**
+ * Destination-side display time: physical arrival, then legacy `ArriveDest`, then
+ * coverage end. Coverage end is not asserted destination arrival.
+ *
+ * @param trip - Vessel trip or undefined
+ * @returns Time to show for “arrive next” actual column, if any
  */
 export const getDestinationArrivalOrCoverageClose = (
   trip: VesselTrip | undefined
 ): Date | undefined =>
-  trip?.ArriveDestDockActual ??
-  trip?.ArriveDest ??
-  trip?.EndTime ??
-  trip?.TripEnd;
+  trip?.ArriveDestDockActual ?? trip?.ArriveDest ?? getCoverageEndTime(trip);
 
 /**
- * Origin-dock arrival actual, with legacy {@link VesselTrip.TripStart} fallback.
+ * Origin-dock arrival: {@link VesselTrip.ArriveOriginDockActual}, else legacy
+ * {@link VesselTrip.TripStart}.
  *
  * @param trip - Vessel trip or undefined
- * @returns Asserted origin arrival time, if any
+ * @returns Origin arrival time, if any
  */
 export const getOriginArrivalActual = (
   trip: VesselTrip | undefined
 ): Date | undefined => trip?.ArriveOriginDockActual ?? trip?.TripStart;
 
 /**
- * Stable list key fragment from coverage / identity timestamps (ms).
- * Prefer {@link VesselTrip.StartTime} and physical actuals over legacy fields.
+ * Stable list key from coverage and physical timestamps (ms); legacy mirrors last.
  *
  * @param trip - Vessel trip
  * @returns Milliseconds for keying, or undefined if no stable time
@@ -81,22 +87,13 @@ export const getBestDepartureTime = (
   trip?.AtDockDepartCurr?.PredTime;
 
 /**
- * Gets the best available arrival-at-destination time for a trip.
- *
- * Physical destination arrival ({@link VesselTrip.ArriveDestDockActual}) comes
- * first; {@link VesselTrip.EndTime} / legacy {@link VesselTrip.TripEnd} are
- * coverage-only closes and appear only after predictions and ETA fallbacks.
- *
- * Priority:
- * 1. ArriveDestDockActual
- * 2. ArriveDest (legacy)
- * 3. VesselLocation.Eta
- * 4. AtSeaArriveNext / AtDockArriveNext predictions
- * 5. EndTime / TripEnd (coverage window close — not asserted destination arrival)
+ * Best arrival-related time for estimates: physical and legacy actuals first, then
+ * ETA and ML preds, then {@link getCoverageEndTime} (coverage only, not guaranteed
+ * destination arrival).
  *
  * @param vesselLocation - VesselLocation with WSF data
  * @param trip - VesselTrip with ML predictions
- * @returns Best available arrival-related time
+ * @returns Best arrival-related time for fallback chains
  */
 export const getBestArrivalTime = (
   vesselLocation: VesselLocation | undefined,
@@ -107,5 +104,4 @@ export const getBestArrivalTime = (
   vesselLocation?.Eta ??
   trip?.AtSeaArriveNext?.PredTime ??
   trip?.AtDockArriveNext?.PredTime ??
-  trip?.EndTime ??
-  trip?.TripEnd;
+  getCoverageEndTime(trip);

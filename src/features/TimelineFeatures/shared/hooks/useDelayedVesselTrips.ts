@@ -9,7 +9,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterval } from "@/shared/hooks";
 import type { VesselLocation, VesselTripWithScheduledTrip } from "@/types";
-import { hasTripCoverageEnded } from "../utils/tripTimeHelpers";
+import {
+  getCoverageEndTime,
+  hasTripCoverageEnded,
+} from "../utils/tripTimeHelpers";
 
 const HOLD_DURATION_MS = 30 * 1000; // 30 seconds
 
@@ -23,17 +26,6 @@ function roundToMinute(ts: number): Date {
   const d = new Date(ts);
   d.setSeconds(0, 0);
   return d;
-}
-
-/**
- * Coverage window end time (canonical {@link VesselTrip.EndTime}, else legacy
- * {@link VesselTrip.TripEnd}).
- *
- * @param trip - Vessel trip
- * @returns End time if present
- */
-function coverageEnd(t: VesselTripWithScheduledTrip): Date | undefined {
-  return t.EndTime ?? t.TripEnd;
 }
 
 /**
@@ -118,7 +110,7 @@ export const useDelayedVesselTrips = (
         const ended = hasTripCoverageEnded(prevTrip)
           ? prevTrip
           : { ...prevTrip, EndTime: new Date(nowMs) };
-        const endedAtMs = coverageEnd(ended)?.getTime() ?? nowMs;
+        const endedAtMs = getCoverageEndTime(ended)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? ended : null;
       } else if (prevTrip.TripKey === activeTrip.TripKey) {
@@ -129,7 +121,7 @@ export const useDelayedVesselTrips = (
         const endedPrev = hasTripCoverageEnded(prevTrip)
           ? prevTrip
           : { ...prevTrip, EndTime: new Date(nowMs) };
-        const endedAtMs = coverageEnd(endedPrev)?.getTime() ?? nowMs;
+        const endedAtMs = getCoverageEndTime(endedPrev)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? endedPrev : activeTrip;
       }

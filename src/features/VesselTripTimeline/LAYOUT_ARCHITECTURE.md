@@ -215,9 +215,9 @@ height.
 `toActiveRow.ts` owns row-selection rules:
 
 - `trip.AtDockDepartNext?.Actual` means the timeline is complete
-- `trip.ArriveDestDockActual`, legacy `trip.ArriveDest`, or coverage
-  `trip.EndTime` / legacy `trip.TripEnd` moves the active row to the final dock
-  row
+- destination-side closure (see `getDestinationArrivalOrCoverageClose` in
+  `TimelineFeatures/shared/utils/tripTimeHelpers.ts`) moves the active row to
+  the final dock row
 - departure evidence (`trip.DepartOriginActual`, `trip.LeftDock`, or
   `vesselLocation.LeftDock`) moves the active row to the sea row
 - otherwise the first dock row remains active

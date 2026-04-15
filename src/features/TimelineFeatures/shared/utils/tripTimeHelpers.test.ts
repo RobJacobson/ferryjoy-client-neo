@@ -7,6 +7,7 @@ import type { VesselTrip } from "@/types";
 import {
   getBestArrivalTime,
   getBestDepartureTime,
+  getCoverageEndTime,
   getDestinationArrivalOrCoverageClose,
   getOriginArrivalActual,
   getTripListKeyTimeMs,
@@ -15,12 +16,23 @@ import {
 
 const d = (ms: number) => new Date(ms);
 
+describe("getCoverageEndTime", () => {
+  it("prefers EndTime over TripEnd", () => {
+    expect(
+      getCoverageEndTime({
+        EndTime: d(100),
+        TripEnd: d(200),
+      } as VesselTrip)
+    ).toEqual(d(100));
+  });
+});
+
 describe("hasTripCoverageEnded", () => {
   it("is true when EndTime is set", () => {
     expect(hasTripCoverageEnded({ EndTime: d(1) } as VesselTrip)).toBeTrue();
   });
 
-  it("is true when only legacy TripEnd is set", () => {
+  it("is true when only TripEnd is set", () => {
     expect(hasTripCoverageEnded({ TripEnd: d(1) } as VesselTrip)).toBeTrue();
   });
 
