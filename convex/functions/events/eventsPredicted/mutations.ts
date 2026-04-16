@@ -3,13 +3,16 @@
  */
 
 import type { Doc } from "_generated/dataModel";
+import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { buildVesselSailingDayScopeKey } from "../../shared/keys";
+import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/vesselTrips/mutations/departNextActualization";
+import { buildVesselSailingDayScopeKey } from "shared/keys";
+import { getRoundedMinutesDelta } from "shared/time";
+import { predictedDockCompositeKey } from "./identity";
 import {
   type ConvexPredictedDockEvent,
   type ConvexPredictedDockWriteRow,
-  predictedDockCompositeKey,
   predictedDockWriteBatchSchema,
 } from "./schemas";
 
@@ -153,3 +156,44 @@ const predictedRowsEqual = (
   left.PredictionSource === right.PredictionSource &&
   left.Actual === right.Actual &&
   left.DeltaTotal === right.DeltaTotal;
+
+/**
+ * Patches depart-next ML predictions for one departure boundary when rows
+ * exist and have not yet been actualized.
+ *
+ * @param ctx - Mutation context
+ * @param depKey - Departure boundary key
+ * @param actualMs - Observed departure timestamp (epoch ms)
+ * @returns True when at least one prediction row was updated
+ */
+export const actualizeDepartNextMlPredictions = async (
+  ctx: MutationCtx,
+  depKey: string,
+  actualMs: number
+): Promise<boolean> => {
+  let anyUpdated = false;
+
+  for (const predictionType of DEPART_NEXT_ML_PREDICTION_TYPES) {
+    const existing = await ctx.db
+      .query("eventsPredicted")
+      .withIndex("by_key_type_and_source", (q) =>
+        q
+          .eq("Key", depKey)
+          .eq("PredictionType", predictionType)
+          .eq("PredictionSource", "ml")
+      )
+      .first();
+
+    if (!existing || existing.Actual !== undefined) {
+      continue;
+    }
+
+    await ctx.db.patch(existing._id, {
+      Actual: actualMs,
+      DeltaTotal: getRoundedMinutesDelta(existing.EventPredictedTime, actualMs),
+    });
+    anyUpdated = true;
+  }
+
+  return anyUpdated;
+};

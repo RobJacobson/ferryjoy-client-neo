@@ -9,7 +9,7 @@ import {
   epochMsToDate,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
-import { dockEventTypeSchema } from "../eventsScheduled/schemas";
+import { dockEventTypeSchema } from "../events/eventsScheduled/schemas";
 
 export type VesselTimelineEventType = Infer<typeof dockEventTypeSchema>;
 

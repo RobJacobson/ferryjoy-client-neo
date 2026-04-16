@@ -3,7 +3,7 @@
  */
 
 import type { Doc } from "_generated/dataModel";
-import type { ConvexActualDockEvent } from "../functions/eventsActual/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 
 /**
  * Returns whether a stored row matches the candidate for all user-visible

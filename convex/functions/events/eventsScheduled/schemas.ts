@@ -23,17 +23,4 @@ export const eventsScheduledSchema = v.object({
   IsLastArrivalOfSailingDay: v.optional(v.boolean()),
 });
 
-export const inferredScheduledSegmentSchema = v.object({
-  Key: v.string(),
-  SailingDay: v.string(),
-  DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalAbbrev: v.string(),
-  DepartingTime: v.number(),
-  NextKey: v.optional(v.string()),
-  NextDepartingTime: v.optional(v.number()),
-});
-
 export type ConvexScheduledDockEvent = Infer<typeof eventsScheduledSchema>;
-export type ConvexInferredScheduledSegment = Infer<
-  typeof inferredScheduledSegmentSchema
->;

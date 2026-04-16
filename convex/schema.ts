@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
-import { eventsActualSchema } from "functions/eventsActual/schemas";
-import { eventsPredictedSchema } from "functions/eventsPredicted/schemas";
-import { eventsScheduledSchema } from "functions/eventsScheduled/schemas";
+import { eventsActualSchema } from "functions/events/eventsActual/schemas";
+import { eventsPredictedSchema } from "functions/events/eventsPredicted/schemas";
+import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
   modelConfigSchema,
@@ -38,7 +38,8 @@ export default defineSchema({
   // Active vessel trips - currently in progress, one per vessel
   activeVesselTrips: defineTable(vesselTripStoredSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_route_abbrev", ["RouteAbbrev"]),
+    .index("by_route_abbrev", ["RouteAbbrev"])
+    .index("by_sailing_day", ["SailingDay"]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripStoredSchema)

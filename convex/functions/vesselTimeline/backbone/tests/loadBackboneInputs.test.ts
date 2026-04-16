@@ -5,10 +5,10 @@
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ConvexActualDockEvent } from "functions/eventsActual/schemas";
-import type { ConvexPredictedDockEvent } from "functions/eventsPredicted/schemas";
-import type { ConvexScheduledDockEvent } from "functions/eventsScheduled/schemas";
-import { loadVesselTimelineBackbone } from "functions/vesselTimeline/queries";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexPredictedDockEvent } from "functions/events/eventsPredicted/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
+import { loadVesselTimelineBackbone } from "functions/vesselTimeline/backbone";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 
 const at = (hours: number, minutes: number, day = 25) =>

@@ -5,7 +5,7 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { predictionTypeValidator } from "../predictions/schemas";
+import { predictionTypeValidator } from "../../predictions/schemas";
 
 export const predictionSourceSchema = v.union(
   v.literal("ml"),
@@ -62,17 +62,3 @@ export const predictedDockWriteBatchSchema = v.object({
 export type ConvexPredictedDockWriteBatch = Infer<
   typeof predictedDockWriteBatchSchema
 >;
-
-/**
- * Map key / dedupe id for one `eventsPredicted` row: `Key`, prediction type,
- * and source. Keep in sync with `projectPredictedDockWriteBatches` and timeline
- * dedupe (`normalizedEvents`).
- *
- * @param row - Row identity fields only
- * @returns Single string for `Map` lookups
- */
-export const predictedDockCompositeKey = (row: {
-  Key: string;
-  PredictionType: string;
-  PredictionSource: string;
-}): string => `${row.Key}|${row.PredictionType}|${row.PredictionSource}`;

@@ -166,7 +166,8 @@ export const applyTickEventWrites = async (
   await Promise.all([
     writes.actualDockWrites.length > 0
       ? ctx.runMutation(
-          internal.functions.events.eventsActual.mutations.projectActualDockWrites,
+          internal.functions.events.eventsActual.mutations
+            .projectActualDockWrites,
           {
             Writes: writes.actualDockWrites,
           }

@@ -4,7 +4,8 @@
  * Bundles DB snapshots that the orchestrator needs each tick so one query
  * replaces separate vessel, terminal, and active-trip round trips from actions.
  * Active trips are **storage-native** (no `eventsPredicted` join); public
- * queries use `enrichTripsWithPredictions` for API parity instead.
+ * queries load predicted rows via `eventsPredicted` queries and merge with
+ * `mergeTripsWithPredictions` for API parity instead.
  */
 
 import { internalQuery } from "_generated/server";
