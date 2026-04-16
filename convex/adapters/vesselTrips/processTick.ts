@@ -13,7 +13,7 @@ import { buildCompletedTrip } from "domain/vesselTrips/tripLifecycle/buildComple
 import { buildTrip } from "domain/vesselTrips/tripLifecycle/buildTrip";
 import { detectTripEvents } from "domain/vesselTrips/tripLifecycle/detectTripEvents";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 
 /**
@@ -31,9 +31,9 @@ import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
  */
 export const appendFinalSchedule = async (
   ctx: ActionCtx,
-  baseTrip: ConvexVesselTrip,
-  existingTrip: ConvexVesselTrip | undefined
-): Promise<ConvexVesselTrip> => {
+  baseTrip: ConvexVesselTripWithPredictions,
+  existingTrip: ConvexVesselTripWithPredictions | undefined
+): Promise<ConvexVesselTripWithPredictions> => {
   const segmentKey = baseTrip.ScheduleKey;
   if (!segmentKey) {
     return baseTrip;
@@ -83,7 +83,7 @@ const logDockedIdentityResolution = ({
   effectiveLocation,
 }: {
   location: ConvexVesselLocation;
-  existingTrip: ConvexVesselTrip | undefined;
+  existingTrip: ConvexVesselTripWithPredictions | undefined;
   stableDockedIdentity: boolean;
   scheduledSegmentKey: string | undefined;
   effectiveIdentity: EffectiveTripIdentity;
@@ -132,7 +132,7 @@ const logDockedIdentityResolution = ({
 const resolveEffectiveLocation = async (
   ctx: ActionCtx,
   location: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined
+  existingTrip: ConvexVesselTripWithPredictions | undefined
 ): Promise<ConvexVesselLocation> => {
   if (!location.AtDock || location.LeftDock !== undefined) {
     return location;

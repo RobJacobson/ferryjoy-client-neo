@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
-import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "../../../functions/vesselTrips/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import {
   buildActualBoundaryEventFromPatch,
@@ -245,7 +245,7 @@ const makeBoundaryEventRecord = (
   ...overrides,
 });
 
-const makeTrip = (overrides: Partial<ConvexVesselTrip>): ConvexVesselTrip => ({
+const makeTrip = (overrides: Partial<ConvexVesselTripWithPredictions>): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "WEN",
   DepartingTerminalAbbrev: "BBI",
   ArrivingTerminalAbbrev: "P52",

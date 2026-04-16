@@ -9,7 +9,7 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import type { CompletedTripBoundaryFact } from "../projection/lifecycleEventTypes";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
@@ -19,7 +19,7 @@ import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTrip;
+  existingTrip: ConvexVesselTripWithPredictions;
   events: TripEvents;
 };
 

@@ -5,7 +5,7 @@ import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
@@ -39,7 +39,7 @@ import type { TripEvents } from "./tripEventTypes";
 export const buildTrip = async (
   ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean,
@@ -155,8 +155,8 @@ export const buildTrip = async (
  * @returns True when schedule attachment was present and is now absent
  */
 const didLoseScheduleAttachment = (
-  existingTrip: ConvexVesselTrip | undefined,
-  nextTrip: ConvexVesselTrip
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  nextTrip: ConvexVesselTripWithPredictions
 ): boolean =>
   existingTrip?.ScheduleKey !== undefined && nextTrip.ScheduleKey === undefined;
 
@@ -197,8 +197,8 @@ const shouldClearDerivedStateOnScheduleTransition = (
  * @returns Trip with carried schedule-derived fields removed
  */
 const clearDerivedStateOnScheduleKeyChange = (
-  trip: ConvexVesselTrip
-): ConvexVesselTrip => ({
+  trip: ConvexVesselTripWithPredictions
+): ConvexVesselTripWithPredictions => ({
   ...trip,
   // Any carried next-leg snapshot or schedule-bound prediction state belongs
   // to the previous schedule attachment and must not survive detachment.

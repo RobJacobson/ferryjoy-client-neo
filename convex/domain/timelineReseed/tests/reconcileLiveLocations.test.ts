@@ -80,10 +80,11 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
 
     const seg0 = events[0]?.SegmentKey;
     const ctx0 = seg0 ? tripIdx.get(seg0) : undefined;
+    expect(ctx0?.TripKey).toBeDefined();
 
     expect(effects).toEqual([
       {
-        TripKey: ctx0?.TripKey,
+        TripKey: ctx0!.TripKey,
         ScheduleKey: seg0,
         SegmentKey: seg0,
         VesselAbbrev: "TOK",
@@ -140,10 +141,11 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
 
     const seg1 = events[1]?.SegmentKey;
     const ctx1 = seg1 ? tripIdx.get(seg1) : undefined;
+    expect(ctx1?.TripKey).toBeDefined();
 
     expect(effects).toEqual([
       {
-        TripKey: ctx1?.TripKey,
+        TripKey: ctx1!.TripKey,
         ScheduleKey: seg1,
         SegmentKey: seg1,
         VesselAbbrev: "TOK",
@@ -502,20 +504,27 @@ const makeActivePhysicalTrip = (
     DepartingTerminalAbbrev: string;
   }
 ): ActiveTripForPhysicalActualReconcile & { TripKey: string } =>
-  ({
+  (({
+    VesselAbbrev,
+    DepartingTerminalAbbrev,
+    ...rest
+  }: Partial<ActiveTripForPhysicalActualReconcile> & {
+    VesselAbbrev: string;
+    DepartingTerminalAbbrev: string;
+  }) => ({
     TripKey: "TOK 2026-03-13 15:35:00Z",
     ScheduleKey: undefined,
-    VesselAbbrev: overrides.VesselAbbrev,
+    VesselAbbrev,
     SailingDay: "2026-03-13",
-    DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+    DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: "BBI",
     ScheduledDeparture: at(17, 20),
     LeftDock: undefined,
     LeftDockActual: undefined,
     ArriveDest: undefined,
     AtDockActual: undefined,
-    ...overrides,
-  }) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
+    ...rest,
+  }))(overrides) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
 
 type SeedSegment = {
   VesselAbbrev: string;

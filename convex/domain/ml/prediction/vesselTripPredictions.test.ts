@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "../../../functions/vesselTrips/schemas";
 import {
@@ -70,9 +70,9 @@ describe("isPredictionReadyTrip", () => {
       ArrivedCurrActual: undefined,
       TripStart: ms("2026-03-13T09:55:00-07:00"),
       AtDockActual: ms("2026-03-13T09:55:00-07:00"),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
-    expect(isPredictionReadyTrip(readyTrip as ConvexVesselTrip)).toBe(true);
+    expect(isPredictionReadyTrip(readyTrip as ConvexVesselTripWithPredictions)).toBe(true);
     expect(isPredictionReadyTrip(legacyOnlyTrip)).toBe(false);
   });
 });
@@ -98,7 +98,7 @@ describe("prediction actualization", () => {
 
   it("does not backfill leave-dock actuals from legacy mirrors alone", () => {
     const trip = makeTrip({
-      LeftDockActual: ms("2026-03-13T10:15:00-07:00"),
+      LeftDockActual: undefined,
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
       AtDockDepartCurr: createPredictionResult(
         ms("2026-03-13T10:10:00-07:00"),

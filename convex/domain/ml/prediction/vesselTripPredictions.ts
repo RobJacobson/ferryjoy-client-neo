@@ -7,7 +7,7 @@ import type { ActionCtx } from "_generated/server";
 import type {
   ConvexJoinedTripPrediction,
   ConvexPrediction,
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
@@ -88,7 +88,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
  * @returns True if trip has all required fields for predictions
  */
 export const isPredictionReadyTrip = (
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithPredictions
 ): trip is PredictionReadyTrip =>
   Boolean(trip.ArrivedCurrActual) &&
   Boolean(trip.DepartingTerminalAbbrev) &&

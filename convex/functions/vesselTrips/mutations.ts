@@ -13,7 +13,7 @@ import {
   DEPART_NEXT_ML_PREDICTION_TYPES,
   resolveDepartNextLegContext,
 } from "domain/vesselTrips/mutations/departNextActualization";
-import type { ConvexVesselTripStored } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { getRoundedMinutesDelta } from "shared/time";
 
@@ -187,7 +187,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
  */
 const replaceOrInsertActiveTripForVessel = async (
   ctx: MutationCtx,
-  stored: ConvexVesselTripStored,
+  stored: ConvexVesselTrip,
   vesselAbbrev: string,
   activeByVessel: Map<string, { _id: Id<"activeVesselTrips"> }>
 ): Promise<void> => {
@@ -207,7 +207,7 @@ const replaceOrInsertActiveTripForVessel = async (
  * @returns Nothing; throws when `EndTime` is missing
  */
 const assertCompletedTripHasEndTime = (
-  completedTrip: ConvexVesselTripStored
+  completedTrip: ConvexVesselTrip
 ): void => {
   if (completedTrip.EndTime) {
     return;

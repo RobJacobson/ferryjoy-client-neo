@@ -6,7 +6,7 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import {
   getPhysicalDepartureStamp,
@@ -33,7 +33,7 @@ export type DerivedTripInputs = {
   currentIsTripStartReady: boolean;
   leftDockTime: number | undefined;
   didJustLeaveDock: boolean;
-  previousCompletedTrip: ConvexVesselTrip | undefined;
+  previousCompletedTrip: ConvexVesselTripWithPredictions | undefined;
 };
 
 /**
@@ -44,8 +44,8 @@ export type DerivedTripInputs = {
  * @returns True when the trip has departure or arrival evidence
  */
 export const hasTripEvidence = (
-  existingTrip: ConvexVesselTrip | undefined
-): existingTrip is ConvexVesselTrip =>
+  existingTrip: ConvexVesselTripWithPredictions | undefined
+): existingTrip is ConvexVesselTripWithPredictions =>
   Boolean(
     existingTrip &&
       (existingTrip.LeftDockActual !== undefined ||
@@ -66,7 +66,7 @@ export const hasTripEvidence = (
  * @returns Normalized departure timestamp and whether this tick is the departure tick
  */
 export const getDockDepartureState = (
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   currLocation: ConvexVesselLocation
 ): DockDepartureState => {
   const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
@@ -96,7 +96,7 @@ export const getDockDepartureState = (
  * @returns Normalized trip inputs for this tick
  */
 export const deriveTripInputs = (
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   currLocation: ConvexVesselLocation
 ): DerivedTripInputs => {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
@@ -169,7 +169,7 @@ export const deriveTripInputs = (
  * @returns Explicit base-trip mode for this tick
  */
 export const determineBaseTripMode = (
-  _existingTrip: ConvexVesselTrip | undefined,
+  _existingTrip: ConvexVesselTripWithPredictions | undefined,
   _currLocation: ConvexVesselLocation,
   isTripStart: boolean
 ): BaseTripMode => {

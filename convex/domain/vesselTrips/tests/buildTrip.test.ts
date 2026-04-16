@@ -7,7 +7,7 @@ import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import { buildTrip } from "../tripLifecycle/buildTrip";
@@ -22,7 +22,7 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: async (
     ctx: ActionCtx,
     location: ConvexVesselLocation,
-    existingTrip: ConvexVesselTrip | undefined
+    existingTrip: ConvexVesselTripWithPredictions | undefined
   ): Promise<ConvexVesselLocation> => {
     if (!location.AtDock || location.LeftDock !== undefined) {
       return location;
@@ -32,11 +32,11 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
         getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
           ctx.runQuery({} as never, {
             segmentKey,
-          }) as Promise<ConvexInferredScheduledSegment | null>,
+          } as never) as Promise<ConvexInferredScheduledSegment | null>,
         getNextDepartureSegmentAfterDeparture: (args) =>
           ctx.runQuery(
             {} as never,
-            args
+            args as never
           ) as Promise<ConvexInferredScheduledSegment | null>,
       },
       location,
@@ -46,9 +46,9 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
   },
   appendFinalSchedule: async (
     ctx: ActionCtx,
-    baseTrip: ConvexVesselTrip,
-    existingTrip: ConvexVesselTrip | undefined
-  ): Promise<ConvexVesselTrip> => {
+    baseTrip: ConvexVesselTripWithPredictions,
+    existingTrip: ConvexVesselTripWithPredictions | undefined
+  ): Promise<ConvexVesselTripWithPredictions> => {
     const segmentKey = baseTrip.ScheduleKey ?? null;
     if (!segmentKey) {
       return baseTrip;
@@ -64,9 +64,12 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
           existingTrip.NextScheduledDeparture,
       };
     }
-    const scheduledSegment = (await ctx.runQuery({} as never, {
-      segmentKey,
-    })) as ConvexInferredScheduledSegment | null;
+    const scheduledSegment = (await ctx.runQuery(
+      {} as never,
+      {
+        segmentKey,
+      } as never
+    )) as ConvexInferredScheduledSegment | null;
     return {
       ...baseTrip,
       ScheduleKey: scheduledSegment?.Key ?? baseTrip.ScheduleKey,
@@ -349,8 +352,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ORI",
   ArrivingTerminalAbbrev: "LOP",

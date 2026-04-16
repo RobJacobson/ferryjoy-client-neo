@@ -26,7 +26,7 @@ import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import type {
@@ -41,7 +41,7 @@ import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip?: ConvexVesselTrip;
+  existingTrip?: ConvexVesselTripWithPredictions;
   events: TripEvents;
 };
 
@@ -500,7 +500,7 @@ const summarizeLocationTick = (
 const summarizeTripTick = (
   trip:
     | Pick<
-        ConvexVesselTrip,
+        ConvexVesselTripWithPredictions,
         | "AtDock"
         | "LeftDock"
         | "ArriveDest"

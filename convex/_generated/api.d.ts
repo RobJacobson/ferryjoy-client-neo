@@ -90,7 +90,7 @@ import type * as domain_vesselTrips_projection_actualBoundaryPatchesFromTrip fro
 import type * as domain_vesselTrips_projection_lifecycleEventTypes from "../domain/vesselTrips/projection/lifecycleEventTypes.js";
 import type * as domain_vesselTrips_projection_timelineEventAssembler from "../domain/vesselTrips/projection/timelineEventAssembler.js";
 import type * as domain_vesselTrips_read_dedupeTripDocsByTripKey from "../domain/vesselTrips/read/dedupeTripDocsByTripKey.js";
-import type * as domain_vesselTrips_read_hydrateStoredTripsWithPredictions from "../domain/vesselTrips/read/hydrateStoredTripsWithPredictions.js";
+import type * as domain_vesselTrips_read_enrichTripsWithPredictions from "../domain/vesselTrips/read/enrichTripsWithPredictions.js";
 import type * as domain_vesselTrips_tripLifecycle_appendPredictions from "../domain/vesselTrips/tripLifecycle/appendPredictions.js";
 import type * as domain_vesselTrips_tripLifecycle_baseTripFromLocation from "../domain/vesselTrips/tripLifecycle/baseTripFromLocation.js";
 import type * as domain_vesselTrips_tripLifecycle_buildCompletedTrip from "../domain/vesselTrips/tripLifecycle/buildCompletedTrip.js";
@@ -273,7 +273,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselTrips/projection/lifecycleEventTypes": typeof domain_vesselTrips_projection_lifecycleEventTypes;
   "domain/vesselTrips/projection/timelineEventAssembler": typeof domain_vesselTrips_projection_timelineEventAssembler;
   "domain/vesselTrips/read/dedupeTripDocsByTripKey": typeof domain_vesselTrips_read_dedupeTripDocsByTripKey;
-  "domain/vesselTrips/read/hydrateStoredTripsWithPredictions": typeof domain_vesselTrips_read_hydrateStoredTripsWithPredictions;
+  "domain/vesselTrips/read/enrichTripsWithPredictions": typeof domain_vesselTrips_read_enrichTripsWithPredictions;
   "domain/vesselTrips/tripLifecycle/appendPredictions": typeof domain_vesselTrips_tripLifecycle_appendPredictions;
   "domain/vesselTrips/tripLifecycle/baseTripFromLocation": typeof domain_vesselTrips_tripLifecycle_baseTripFromLocation;
   "domain/vesselTrips/tripLifecycle/buildCompletedTrip": typeof domain_vesselTrips_tripLifecycle_buildCompletedTrip;

@@ -435,8 +435,9 @@ Predictions are computed in the vessel orchestrator action
 then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
 + `PredictionSource`), not as the five optional prediction fields on
 `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped
-before write; public `vesselTrips` queries **hydrate** joins from `eventsPredicted`
-so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA
+before write; public `vesselTrips` queries **enrich** stored rows with joins
+from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal
+prediction objects. WSF ETA
 from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
 `PredictionSource: "wsf_eta"` when projected.
 
@@ -463,7 +464,7 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
   (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
-- **Display / API**: Public vessel-trip queries may still **hydrate** a full
+- **Display / API**: Public vessel-trip queries may still **enrich** a full
   `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
   `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
   inference uses the schedule fields merged on the trip during build.
@@ -472,7 +473,7 @@ Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
 `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every
 tick write.
 
-- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for hydrated queries)
+- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for prediction-enriched queries)
 
 #### 2) Prediction generation (once per trip, per timing context)
 

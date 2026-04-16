@@ -8,7 +8,7 @@
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import {
@@ -31,8 +31,8 @@ export type ProcessVesselTripsOptions = {
   shouldRunPredictionFallback?: boolean;
 };
 
-/** Existing active trip row for one vessel: persisted columns and/or hydrated ML fields. */
-type ExistingTripForTick = ConvexVesselTrip | TickActiveTrip;
+/** Existing active trip row for one vessel: stored columns and/or enriched prediction fields. */
+type ExistingTripForTick = ConvexVesselTripWithPredictions | TickActiveTrip;
 
 type TripTransition = {
   currLocation: ConvexVesselLocation;
@@ -56,7 +56,8 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
  * @param deps - Internal dependency bag used for testability (includes `buildTripAdapters`)
  * @param activeTrips - Preloaded active trips for this tick. Prefer
- *   {@link TickActiveTrip} rows; hydrated trips remain accepted for tests.
+ *   {@link TickActiveTrip} rows; trips enriched with predictions remain
+ *   accepted for tests.
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
  * @returns Lifecycle result plus tick event writes for orchestrator peers
  */
@@ -65,10 +66,11 @@ export const processVesselTripsWithDeps = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTrip>,
+  activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTripWithPredictions>,
   options?: ProcessVesselTripsOptions
 ): Promise<VesselTripsTickResult> => {
-  // Values are storage-native and/or query-hydrated rows; lifecycle strips ML for persist checks.
+  // Values are storage-native and/or query-enriched rows; lifecycle strips ML
+  // for persist checks.
   const existingTripsDict = Object.fromEntries(
     activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;

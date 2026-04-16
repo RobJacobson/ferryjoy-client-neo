@@ -3,7 +3,7 @@
  */
 
 import type {
-  ConvexVesselTripStored,
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 
@@ -16,7 +16,7 @@ import type {
  */
 export const stripTripPredictionsForStorage = (
   trip: ConvexVesselTripWithML
-): ConvexVesselTripStored => {
+): ConvexVesselTrip => {
   const {
     AtDockDepartCurr: _adc,
     AtDockArriveNext: _aan,

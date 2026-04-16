@@ -7,7 +7,7 @@ live in `convex/adapters/vesselTrips/`).
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app
   (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,
   `getActiveTripsWithScheduledTrip`) plus `getActiveTrips` for subscriber reads.
-  Delegates prediction hydration to
+  Delegates prediction enrichment to
   `domain/vesselTrips/read/`.
 - **`mutations.ts`** — Persistence (`upsertVesselTripsBatch`, `completeAndStartNewTrip`)
   and depart-next backfill on `eventsPredicted`; policy helpers in

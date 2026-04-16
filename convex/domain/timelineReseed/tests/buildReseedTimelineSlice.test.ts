@@ -220,6 +220,8 @@ describe("buildReseedTimelineSlice", () => {
       events,
       updatedAt,
       tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
+      physicalOnlyTrips: [],
       vesselLocations: [],
     });
 
@@ -385,7 +387,7 @@ describe("buildReseedTimelineSlice", () => {
     ]);
   });
 
-  it("does not reconstruct physical-only rows from legacy mirrors alone", () => {
+  it("reconstructs only the departure physical-only row when canonical departure exists but arrival is legacy-only", () => {
     const trip = makeActivePhysicalTrip({
       VesselAbbrev: "SAL",
       TripKey: "SAL 2026-03-13 17:20:00Z",
@@ -408,7 +410,8 @@ describe("buildReseedTimelineSlice", () => {
       vesselLocations: [],
     });
 
-    expect(actualRows).toHaveLength(0);
+    expect(actualRows).toHaveLength(1);
+    expect(actualRows[0]?.EventType).toBe("dep-dock");
   });
 
   it("handles a mixed slice with scheduled and physical-only vessels", () => {
@@ -477,12 +480,19 @@ const makeActivePhysicalTrip = (
     DepartingTerminalAbbrev: string;
   }
 ): ActiveTripForPhysicalActualReconcile & { TripKey: string } =>
-  ({
+  (({
+    VesselAbbrev,
+    DepartingTerminalAbbrev,
+    ...rest
+  }: Partial<ActiveTripForPhysicalActualReconcile> & {
+    VesselAbbrev: string;
+    DepartingTerminalAbbrev: string;
+  }) => ({
     TripKey: "TOK 2026-03-13 15:35:00Z",
     ScheduleKey: undefined,
-    VesselAbbrev: overrides.VesselAbbrev,
+    VesselAbbrev,
     SailingDay: SAILING_DAY,
-    DepartingTerminalAbbrev: overrides.DepartingTerminalAbbrev,
+    DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: "BBI",
     ScheduledDeparture: at(17, 20),
     ArrivedNextActual: undefined,
@@ -490,5 +500,5 @@ const makeActivePhysicalTrip = (
     LeftDockActual: undefined,
     ArriveDest: undefined,
     AtDockActual: undefined,
-    ...overrides,
-  }) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
+    ...rest,
+  }))(overrides) as ActiveTripForPhysicalActualReconcile & { TripKey: string };

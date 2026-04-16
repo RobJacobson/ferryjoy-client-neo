@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { appendFinalSchedule } from "adapters/vesselTrips/processTick";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("appendFinalSchedule", () => {
@@ -83,8 +83,8 @@ const createTestActionCtx = (options: {
 const ms = (iso: string) => new Date(iso).getTime();
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",

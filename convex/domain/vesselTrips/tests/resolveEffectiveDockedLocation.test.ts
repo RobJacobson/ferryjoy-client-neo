@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
@@ -157,8 +157,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",

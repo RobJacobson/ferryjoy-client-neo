@@ -1,5 +1,6 @@
 /**
- * Query hydration: joins `eventsPredicted` onto stored trip documents for API reads.
+ * Query enrichment: joins `eventsPredicted` onto stored trip documents for API
+ * reads.
  *
  * The vessel orchestrator tick uses storage-native trips and skips this join.
  */
@@ -13,8 +14,8 @@ import {
 import type { PredictionType } from "functions/predictions/schemas";
 import type {
   ConvexJoinedTripPrediction,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTrip,
-  ConvexVesselTripStored,
 } from "functions/vesselTrips/schemas";
 import {
   buildTripPredictionBoundaryKeys,
@@ -35,19 +36,20 @@ const rowToJoined = (row: {
 });
 
 /**
- * Batch-loads `eventsPredicted` for the given trips and merges ML prediction
- * fields onto copies while preserving the canonical trip timestamps. WSF ETA
- * remains on `trip.Eta` only.
+ * Batch-loads `eventsPredicted` for the given trips and enriches copies with
+ * minimal prediction fields while preserving the canonical trip timestamps. WSF
+ * ETA remains on `trip.Eta` only.
  *
  * @param ctx - Query context
  * @param trips - Stored trip documents
- * @returns Hydrated trips matching {@link ConvexVesselTrip}
+ * @returns Trips enriched with prediction fields matching
+ *   {@link ConvexVesselTripWithPredictions}
  */
-export const hydrateStoredTripsWithPredictions = async (
+export const enrichTripsWithPredictions = async (
   ctx: Ctx,
-  trips: ConvexVesselTripStored[]
-): Promise<ConvexVesselTrip[]> => {
-  type TripDoc = ConvexVesselTripStored;
+  trips: ConvexVesselTrip[]
+): Promise<ConvexVesselTripWithPredictions[]> => {
+  type TripDoc = ConvexVesselTrip;
 
   const groups = trips
     .filter((trip): trip is TripDoc & { SailingDay: string } =>
@@ -90,11 +92,11 @@ export const hydrateStoredTripsWithPredictions = async (
 };
 
 const mergeTripPredictions = (
-  trip: ConvexVesselTripStored,
+  trip: ConvexVesselTrip,
   predictedByGroup: Map<string, Map<string, Doc<"eventsPredicted">>>
-): ConvexVesselTrip => {
+): ConvexVesselTripWithPredictions => {
   if (!trip.SailingDay) {
-    return { ...trip } as ConvexVesselTrip;
+    return { ...trip } as ConvexVesselTripWithPredictions;
   }
 
   const g = buildVesselSailingDayScopeKey(trip.VesselAbbrev, trip.SailingDay);

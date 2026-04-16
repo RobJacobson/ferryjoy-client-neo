@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { getSailingDay } from "shared/time";
 import { baseTripFromLocation } from "../tripLifecycle/baseTripFromLocation";
@@ -221,8 +221,8 @@ const makeLocation = (
  * @returns Concrete trip payload for tests
  */
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",

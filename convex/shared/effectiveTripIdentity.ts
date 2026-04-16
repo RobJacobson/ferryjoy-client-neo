@@ -5,7 +5,7 @@
 import type { DockedScheduledSegmentSource } from "../domain/vesselTrips/continuity/types";
 import type { ConvexInferredScheduledSegment } from "../functions/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "../functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "../functions/vesselTrips/schemas";
 
 type LocationLike = Pick<
   ConvexVesselLocation,
@@ -18,7 +18,7 @@ type LocationLike = Pick<
 >;
 
 type TripLike = Pick<
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   | "AtDock"
   | "LeftDock"
   | "DepartingTerminalAbbrev"

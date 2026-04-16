@@ -1,7 +1,7 @@
 /**
  * Base vessel trip from raw location data.
  *
- * Builds the location-derived base `ConvexVesselTrip` for a single vessel tick.
+ * Builds the location-derived base `ConvexVesselTripWithPredictions` for a single vessel tick.
  * The builder uses an explicit mode and shared derived inputs so the same
  * carry-forward rules apply consistently across newly created and continuing
  * updates.
@@ -9,7 +9,7 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
@@ -30,7 +30,7 @@ import {
  */
 export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTrip,
+  existingTrip?: ConvexVesselTripWithPredictions,
   isTripStart = false
 ): ConvexVesselTripWithML => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
@@ -58,7 +58,7 @@ export const baseTripFromLocation = (
  */
 const baseTripForStart = (
   currLocation: ConvexVesselLocation,
-  _existingTrip: ConvexVesselTrip | undefined,
+  _existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTripWithML => {
   const startTime = currLocation.TimeStamp;
@@ -122,7 +122,7 @@ const baseTripForStart = (
  * @returns Physical trip key for this instance
  */
 const tripKeyForContinuing = (
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   currLocation: ConvexVesselLocation
 ): string => {
   if (existingTrip === undefined) {
@@ -147,7 +147,7 @@ const tripKeyForContinuing = (
  */
 const baseTripForContinuing = (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripInputs: DerivedTripInputs
 ): ConvexVesselTripWithML => {
   const isBootstrapTrip = existingTrip === undefined;

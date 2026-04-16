@@ -8,7 +8,7 @@
 
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 /**
  * Boundary hooks required to assemble one enriched trip proposal.
@@ -17,11 +17,11 @@ export type VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: (
     ctx: ActionCtx,
     location: ConvexVesselLocation,
-    existingTrip: ConvexVesselTrip | undefined
+    existingTrip: ConvexVesselTripWithPredictions | undefined
   ) => Promise<ConvexVesselLocation>;
   appendFinalSchedule: (
     ctx: ActionCtx,
-    baseTrip: ConvexVesselTrip,
-    existingTrip: ConvexVesselTrip | undefined
-  ) => Promise<ConvexVesselTrip>;
+    baseTrip: ConvexVesselTripWithPredictions,
+    existingTrip: ConvexVesselTripWithPredictions | undefined
+  ) => Promise<ConvexVesselTripWithPredictions>;
 };

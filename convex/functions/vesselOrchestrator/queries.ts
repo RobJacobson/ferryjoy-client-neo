@@ -4,7 +4,7 @@
  * Bundles DB snapshots that the orchestrator needs each tick so one query
  * replaces separate vessel, terminal, and active-trip round trips from actions.
  * Active trips are **storage-native** (no `eventsPredicted` join); public
- * queries use `hydrateStoredTripsWithPredictions` for API parity instead.
+ * queries use `enrichTripsWithPredictions` for API parity instead.
  */
 
 import { internalQuery } from "_generated/server";
@@ -24,8 +24,8 @@ const orchestratorTickReadModelSchema = v.object({
  * Load vessels, terminals, and active trips in one transaction for one tick.
  *
  * Matches vessel/terminal shapes used elsewhere; active trips match persisted
- * `activeVesselTrips` rows (not `getActiveTrips`, which hydrates predictions
- * for subscribers).
+ * `activeVesselTrips` rows (not `getActiveTrips`, which enriches them with
+ * predictions for subscribers).
  *
  * @param ctx - Convex query context
  * @returns Stripped vessel rows, terminal rows, and storage-native active trips

@@ -114,6 +114,7 @@ const makeEvent = (
     Key: string;
     VesselAbbrev: string;
     SailingDay: string;
+    UpdatedAt: number;
     TerminalAbbrev: string;
     NextTerminalAbbrev: string;
     ScheduledDeparture: number;
@@ -124,6 +125,7 @@ const makeEvent = (
   Key: "trip-1--dep-dock",
   VesselAbbrev: "CHE",
   SailingDay: "2026-03-13",
+  UpdatedAt: ms("2026-03-13T00:00:00-07:00"),
   TerminalAbbrev: "ANA",
   NextTerminalAbbrev: "ORI",
   ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),

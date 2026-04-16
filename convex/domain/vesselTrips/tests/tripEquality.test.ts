@@ -3,7 +3,10 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
+} from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   tripsEqualForOverlay,
@@ -19,8 +22,8 @@ const ms = (iso: string) => new Date(iso).getTime();
  * @returns Trip fixture
  */
 const makeBaseTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -106,12 +109,14 @@ describe("tripsEqualForOverlay", () => {
 
   it("is true when only ML interval noise differs but PredTime matches", () => {
     const pred = makePrediction("2026-03-13T05:31:00-07:00");
-    const existing = makeBaseTrip({
+    const existing = {
+      ...makeBaseTrip(),
       AtDockDepartCurr: { ...pred, MAE: 1 },
-    });
-    const proposed = makeBaseTrip({
+    } as ConvexVesselTripWithML;
+    const proposed = {
+      ...makeBaseTrip(),
       AtDockDepartCurr: { ...pred, MAE: 99, MinTime: pred.MinTime + 1 },
-    });
+    } as ConvexVesselTripWithML;
     expect(tripsEqualForOverlay(existing, proposed)).toBe(true);
   });
 });

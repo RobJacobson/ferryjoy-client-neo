@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import {
   buildArrivalActualPatchForTrip,
   buildDepartureActualPatchForTrip,
@@ -22,7 +22,7 @@ describe("buildDepartureActualPatchForTrip", () => {
       DepartingTerminalAbbrev: "BBI",
       LeftDockActual: at(12, 23),
       LeftDock: at(12, 24),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
     const patch = buildDepartureActualPatchForTrip(trip);
 
@@ -45,7 +45,7 @@ describe("buildDepartureActualPatchForTrip", () => {
       ScheduleKey: "trip-key",
       DepartingTerminalAbbrev: "BBI",
       LeftDock: at(12, 24),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
     const patch = buildDepartureActualPatchForTrip(trip);
 
@@ -62,7 +62,7 @@ describe("buildArrivalActualPatchForTrip", () => {
       ArrivingTerminalAbbrev: "P52",
       ArrivedNextActual: at(12, 59),
       ArriveDest: at(12, 58),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
     const patch = buildArrivalActualPatchForTrip(trip);
 
@@ -87,7 +87,7 @@ describe("buildArrivalActualPatchForTrip", () => {
       ArrivingTerminalAbbrev: "P52",
       ArrivedNextActual: undefined,
       ArriveDest: at(12, 58),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
     expect(buildArrivalActualPatchForTrip(trip)).toBeNull();
   });

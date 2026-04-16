@@ -1,12 +1,12 @@
 /**
  * Builds sparse `eventsActual` boundary patches from a finalized active or
- * completed {@link ConvexVesselTrip}. Used on steady-state current-trip ticks
+ * completed {@link ConvexVesselTripWithPredictions}. Used on steady-state current-trip ticks
  * (leave-dock / arrive-dock events) and again at trip completion so departure
  * actuals can recover if an earlier leave-dock tick was missed.
  */
 
 import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 type ActualBoundaryTerminalRole = "departing" | "arriving";
 
@@ -20,7 +20,7 @@ type ActualBoundaryTerminalRole = "departing" | "arriving";
  * @returns Patch for projection, or `null` when required fields are missing
  */
 export const buildDepartureActualPatchForTrip = (
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithPredictions
 ): ConvexActualBoundaryPatchPersistable | null =>
   buildActualBoundaryPatchFromTrip(
     trip,
@@ -41,7 +41,7 @@ export const buildDepartureActualPatchForTrip = (
  * @returns Patch for projection, or `null` when required fields are missing
  */
 export const buildArrivalActualPatchForTrip = (
-  trip: ConvexVesselTrip
+  trip: ConvexVesselTripWithPredictions
 ): ConvexActualBoundaryPatchPersistable | null =>
   buildActualBoundaryPatchFromTrip(
     trip,
@@ -64,7 +64,7 @@ export const buildArrivalActualPatchForTrip = (
  * @returns Patch for projection, or `null` when required fields are missing
  */
 const buildActualBoundaryPatchFromTrip = (
-  trip: ConvexVesselTrip,
+  trip: ConvexVesselTripWithPredictions,
   eventType: ConvexActualBoundaryPatchPersistable["EventType"],
   actualTime: number | undefined,
   terminalRole: ActualBoundaryTerminalRole

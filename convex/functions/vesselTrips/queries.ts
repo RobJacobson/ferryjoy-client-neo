@@ -10,9 +10,9 @@ import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { dedupeTripDocBatchesByTripKey } from "domain/vesselTrips/read/dedupeTripDocsByTripKey";
-import { hydrateStoredTripsWithPredictions } from "domain/vesselTrips/read/hydrateStoredTripsWithPredictions";
+import { enrichTripsWithPredictions } from "domain/vesselTrips/read/enrichTripsWithPredictions";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
@@ -24,18 +24,20 @@ const vesselTripWithScheduledSchema = vesselTripSchema.extend({
 });
 
 /**
- * Hydrates stored trips for API reads, then strips Convex metadata.
+ * Enriches stored trips for API reads, then strips Convex metadata.
  *
- * @param ctx - Query context with database access for prediction hydration
+ * @param ctx - Query context with database access for prediction enrichment
  * @param docs - Active or completed trip documents read from storage
- * @returns Hydrated trip rows without Convex metadata
+ * @returns Enriched trip rows without Convex metadata
  */
-const hydrateTripsForApi = async (
+const enrichTripsForApi = async (
   ctx: Pick<QueryCtx, "db">,
   docs: Doc<"activeVesselTrips">[] | Doc<"completedVesselTrips">[]
-): Promise<ConvexVesselTrip[]> => {
-  const hydrated = await hydrateStoredTripsWithPredictions(ctx, docs);
-  return hydrated.map((h) => stripConvexMeta(h) as ConvexVesselTrip);
+): Promise<ConvexVesselTripWithPredictions[]> => {
+  const enriched = await enrichTripsWithPredictions(ctx, docs);
+  return enriched.map(
+    (trip) => stripConvexMeta(trip) as ConvexVesselTripWithPredictions
+  );
 };
 
 /**
@@ -43,8 +45,7 @@ const hydrateTripsForApi = async (
  * Small dataset, frequently updated, perfect for real-time subscriptions
  * Optimized with proper indexing for performance
  *
- * Returns **hydrated** trips (`hydrateStoredTripsWithPredictions`) for API
- * parity with joined `eventsPredicted` fields.
+ * Returns trips enriched with joined `eventsPredicted` fields for API parity.
  *
  * @param ctx - Convex context
  * @returns Array of active vessel trips (schema shape, no _id/_creationTime)
@@ -55,7 +56,7 @@ export const getActiveTrips = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      return hydrateTripsForApi(ctx, trips);
+      return enrichTripsForApi(ctx, trips);
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch active vessel trips",
@@ -85,9 +86,9 @@ export const getActiveTripsWithScheduledTrip = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      const hydrated = await hydrateTripsForApi(ctx, trips);
+      const enriched = await enrichTripsForApi(ctx, trips);
       const result = await Promise.all(
-        hydrated.map(async (trip) => {
+        enriched.map(async (trip) => {
           const scheduleKey = trip.ScheduleKey;
           if (!scheduleKey) {
             return trip;
@@ -139,7 +140,7 @@ export const getActiveTripsByRoutes = query({
             .collect()
         )
       );
-      return hydrateTripsForApi(ctx, batches.flat());
+      return enrichTripsForApi(ctx, batches.flat());
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch active trips for routes`,
@@ -182,7 +183,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
             .collect()
         )
       );
-      return hydrateTripsForApi(ctx, dedupeTripDocBatchesByTripKey(batches));
+      return enrichTripsForApi(ctx, dedupeTripDocBatchesByTripKey(batches));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for routes on ${args.tripDate}`,

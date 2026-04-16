@@ -6,7 +6,7 @@
  */
 
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
@@ -15,7 +15,7 @@ import type { TripEvents } from "../tripLifecycle/tripEventTypes";
  * One successful trip-boundary transition: trips ready for timeline writes.
  */
 export type CompletedTripBoundaryFact = {
-  existingTrip: ConvexVesselTrip;
+  existingTrip: ConvexVesselTripWithPredictions;
   tripToComplete: ConvexVesselTripWithML;
   newTrip: ConvexVesselTripWithML;
 };
@@ -34,7 +34,7 @@ export type CurrentTripActualEventMessage = {
  * Per-vessel message to build `eventsPredicted` effects on the current path.
  */
 export type CurrentTripPredictedEventMessage = {
-  existingTrip: ConvexVesselTrip | undefined;
+  existingTrip: ConvexVesselTripWithPredictions | undefined;
   finalProposed: ConvexVesselTripWithML;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;

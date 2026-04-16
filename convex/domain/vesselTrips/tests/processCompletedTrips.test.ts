@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildTickEventWritesFromCompletedFacts } from "../projection/timelineEventAssembler";
 import {
@@ -184,8 +184,8 @@ type TestActionCtx = {
 };
 
 type TestDepsInput = {
-  completedTripsByVessel: Map<string, ConvexVesselTrip>;
-  newTripsByVessel: Map<string, ConvexVesselTrip>;
+  completedTripsByVessel: Map<string, ConvexVesselTripWithPredictions>;
+  newTripsByVessel: Map<string, ConvexVesselTripWithPredictions>;
   buildFailuresByVessel?: Map<string, Error>;
 };
 
@@ -235,7 +235,7 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
     _events,
     _shouldRunPredictionFallback,
     _adapters
-  ): Promise<ConvexVesselTrip> => {
+  ): Promise<ConvexVesselTripWithPredictions> => {
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
       throw failure;
@@ -322,8 +322,8 @@ const makeLocation = (
  * @returns Concrete trip payload for tests
  */
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -369,7 +369,7 @@ const getBoundaryMutationArgs = (ctx: TestActionCtx) =>
       call.args && "completedTrip" in call.args && "newTrip" in call.args
   )?.args as
     | {
-        completedTrip: ConvexVesselTrip;
-        newTrip: ConvexVesselTrip;
+        completedTrip: ConvexVesselTripWithPredictions;
+        newTrip: ConvexVesselTripWithPredictions;
       }
     | undefined;

@@ -12,7 +12,7 @@ import {
 import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
 import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import type { TickEventWrites } from "../processTick/tickEventWrites";
@@ -125,7 +125,7 @@ const emptyTickEventWrites = (): TickEventWrites => ({
  * @returns `true` when the proposal changes sailing-day or schedule identity
  */
 const shouldClearExistingPredictions = (
-  existingTrip: ConvexVesselTrip | undefined,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
   finalProposed: ConvexVesselTripWithML
 ): boolean =>
   existingTrip !== undefined &&

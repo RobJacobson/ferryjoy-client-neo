@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -28,10 +28,13 @@ const applyTickEventWritesLikeOrchestrator = async (
 ): Promise<void> => {
   await Promise.all([
     writes.actualPatches.length > 0
-      ? ctx.runMutation({} as never, { Patches: writes.actualPatches })
+      ? ctx.runMutation({} as never, { Patches: writes.actualPatches } as never)
       : Promise.resolve(),
     writes.predictedEffects.length > 0
-      ? ctx.runMutation({} as never, { Effects: writes.predictedEffects })
+      ? ctx.runMutation(
+          {} as never,
+          { Effects: writes.predictedEffects } as never
+        )
       : Promise.resolve(),
   ]);
 };
@@ -114,16 +117,16 @@ describe("processVesselTripsWithDeps", () => {
     expect(ctx.queryCalls).toHaveLength(0);
   });
 
-  it("matches prediction-only projection for storage-native vs hydrated preloaded existing trips", async () => {
+  it("matches prediction-only projection for storage-native vs prediction-enriched preloaded existing trips", async () => {
     const storageExisting = makeStorageTrip();
-    const hydratedExisting = makeTrip();
+    const enrichedExisting = makeTrip();
     const currLocation = makeLocation();
     const changedTrip = makeTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
 
     const ctxStorage = createTestActionCtx({});
-    const ctxHydrated = createTestActionCtx({});
+    const ctxEnriched = createTestActionCtx({});
 
     await runVesselTripsTick(
       ctxStorage,
@@ -137,26 +140,26 @@ describe("processVesselTripsWithDeps", () => {
     );
 
     await runVesselTripsTick(
-      ctxHydrated,
+      ctxEnriched,
       [currLocation],
       tickMs(),
       createDeps({
         eventsByVessel: new Map([["CHE", defaultEvents]]),
         builtTripsByVessel: new Map([["CHE", changedTrip]]),
       }),
-      [hydratedExisting]
+      [enrichedExisting]
     );
 
     const effectsStorage = getPredictedProjectionArgs(ctxStorage)?.Effects;
-    const effectsHydrated = getPredictedProjectionArgs(ctxHydrated)?.Effects;
-    expect(effectsStorage?.length).toBe(effectsHydrated?.length);
+    const effectsEnriched = getPredictedProjectionArgs(ctxEnriched)?.Effects;
+    expect(effectsStorage?.length).toBe(effectsEnriched?.length);
     expect(getUpsertMutationArgs(ctxStorage)).toBeUndefined();
-    expect(getUpsertMutationArgs(ctxHydrated)).toBeUndefined();
+    expect(getUpsertMutationArgs(ctxEnriched)).toBeUndefined();
 
     const firstS = effectsStorage?.[0];
-    const firstH = effectsHydrated?.[0];
-    expect(firstS?.VesselAbbrev).toBe(firstH?.VesselAbbrev);
-    expect(firstS?.Rows?.length).toBe(firstH?.Rows?.length);
+    const firstE = effectsEnriched?.[0];
+    expect(firstS?.VesselAbbrev).toBe(firstE?.VesselAbbrev);
+    expect(firstS?.Rows?.length).toBe(firstE?.Rows?.length);
   });
 
   it("treats an empty preloaded activeTrips array as a snapshot", async () => {
@@ -542,7 +545,7 @@ type TestActionCtx = {
 
 type TestDepsInput = {
   eventsByVessel: Map<string, TripEvents>;
-  builtTripsByVessel: Map<string, ConvexVesselTrip>;
+  builtTripsByVessel: Map<string, ConvexVesselTripWithPredictions>;
   buildFailuresByVessel?: Map<string, Error>;
   callSequence?: string[];
 };
@@ -555,9 +558,9 @@ type TestDepsInput = {
  */
 const createTestActionCtx = (options: {
   /** Generic query payload for tests that still invoke `runQuery` */
-  tripsReturnedByQuery?: ConvexVesselTrip[];
+  tripsReturnedByQuery?: ConvexVesselTripWithPredictions[];
   /** Fallback query payload when `tripsReturnedByQuery` is unset */
-  activeTrips?: ConvexVesselTrip[];
+  activeTrips?: ConvexVesselTripWithPredictions[];
   upsertResult?: Record<string, unknown>;
   callSequence?: string[];
 }): TestActionCtx => {
@@ -582,7 +585,7 @@ const createTestActionCtx = (options: {
         options.callSequence?.push("mutation:upsert");
         return (
           options.upsertResult ?? {
-            perVessel: (args.activeUpserts as ConvexVesselTrip[]).map(
+            perVessel: (args.activeUpserts as ConvexVesselTripWithPredictions[]).map(
               (trip) => ({
                 vesselAbbrev: trip.VesselAbbrev,
                 ok: true,
@@ -634,16 +637,16 @@ const createTestActionCtx = (options: {
  * @returns Dependency bag for `processVesselTripsWithDeps`
  */
 const createDeps = (input: TestDepsInput) => ({
-  buildCompletedTrip: (existingTrip: ConvexVesselTrip) => existingTrip,
+  buildCompletedTrip: (existingTrip: ConvexVesselTripWithPredictions) => existingTrip,
   buildTrip: async (
     _ctx: unknown,
     currLocation: ConvexVesselLocation,
-    _existingTrip: ConvexVesselTrip | undefined,
+    _existingTrip: ConvexVesselTripWithPredictions | undefined,
     _tripStart: boolean,
     _events: TripEvents,
     _shouldRunPredictionFallback: boolean,
     _adapters: unknown
-  ): Promise<ConvexVesselTrip> => {
+  ): Promise<ConvexVesselTripWithPredictions> => {
     input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
@@ -662,11 +665,11 @@ const createDeps = (input: TestDepsInput) => ({
       _ctx: unknown,
       location: ConvexVesselLocation
     ) => location,
-    appendFinalSchedule: async (_ctx: unknown, baseTrip: ConvexVesselTrip) =>
+    appendFinalSchedule: async (_ctx: unknown, baseTrip: ConvexVesselTripWithPredictions) =>
       baseTrip,
   },
   detectTripEvents: (
-    _existingTrip: ConvexVesselTrip | undefined,
+    _existingTrip: ConvexVesselTripWithPredictions | undefined,
     currLocation: ConvexVesselLocation
   ) => input.eventsByVessel.get(currLocation.VesselAbbrev) ?? defaultEvents,
 });
@@ -777,8 +780,8 @@ const makeStorageTrip = (
   }) as TickActiveTrip;
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTrip> = {}
-): ConvexVesselTrip => ({
+  overrides: Partial<ConvexVesselTripWithPredictions> = {}
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -838,7 +841,7 @@ const getUpsertMutationArgs = (ctx: TestActionCtx) =>
   ctx.mutationCalls.find((call) => call.args && "activeUpserts" in call.args)
     ?.args as
     | {
-        activeUpserts: ConvexVesselTrip[];
+        activeUpserts: ConvexVesselTripWithPredictions[];
       }
     | undefined;
 

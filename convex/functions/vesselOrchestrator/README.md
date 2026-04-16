@@ -72,7 +72,7 @@ Responsibilities:
 - do that external fetch through `convex/adapters/wsf/fetchVesselLocations.ts`
 - load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips`
   in **one** internal query per tick (`getOrchestratorTickReadModelInternal` in
-  `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still hydrates
+  `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches
   for API subscribers), with identity-table bootstrap via `syncBackendVesselTable` /
   `syncBackendTerminalTable` when either snapshot is empty
 - convert raw WSF payloads into `ConvexVesselLocation`, including
@@ -158,7 +158,7 @@ Purpose:
   **storage-native** active trips into `processVesselTrips` (joined predictions are
   not required for lifecycle strip/compare; overlay assembly uses normalized
   prediction fields from the built trip vs existing when present). Public queries
-  still **hydrate** trips for API parity. Post-upsert depart-next backfill writes
+  still **enrich** trips with predictions for API parity. Post-upsert depart-next backfill writes
   **actuals** onto the prior leg’s `eventsPredicted` rows, not onto stored trip
   rows. Timeline table mutations run in `applyTickEventWrites` after lifecycle
   completes for the tick.
@@ -207,7 +207,7 @@ Those normalized rows are not the public query contract anymore. The backend
 now builds one ordered same-day event list for the timeline backbone. When more
 than one `eventsPredicted` row shares the same boundary `Key` (e.g. WSF ETA vs ML),
 `mergeTimelineRows` picks a single backbone `EventPredictedTime` (WSF ETA row
-first). Trip-shaped queries still expose `Eta` plus ML-hydrated fields separately.
+first). Trip-shaped queries still expose `Eta` plus prediction-enriched fields separately.
 The client derives `activeInterval` from that backbone and combines it with its
 existing real-time `VesselLocation` subscription for indicator placement.
 

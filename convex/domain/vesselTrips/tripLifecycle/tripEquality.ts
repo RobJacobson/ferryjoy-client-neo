@@ -9,7 +9,7 @@
  */
 
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
@@ -57,13 +57,14 @@ const IGNORED_TRIP_KEYS = new Set<string>(["TimeStamp"]);
  * Deep equality on stored trip shape: ML prediction blobs stripped, `TimeStamp`
  * ignored. Used to decide whether `activeVesselTrips` needs an upsert this tick.
  *
- * @param existing - Existing trip (possibly hydrated; stripped before compare)
+ * @param existing - Existing trip (possibly enriched with predictions; stripped
+ *   before compare)
  * @param proposed - Built trip for this tick
  * @returns true when persisted columns would be unchanged
  */
 const lifecycleTripsEqual = (
-  existing: ConvexVesselTrip,
-  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+  existing: ConvexVesselTripWithPredictions,
+  proposed: ConvexVesselTripWithPredictions | ConvexVesselTripWithML
 ): boolean => {
   const e = stripTripPredictionsForStorage(
     existing as ConvexVesselTripWithML
@@ -93,8 +94,8 @@ const lifecycleTripsEqual = (
  * @param proposed - Newly built trip state for this tick
  */
 export const tripsEqualForStorage = (
-  existing: ConvexVesselTrip | undefined,
-  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+  existing: ConvexVesselTripWithPredictions | undefined,
+  proposed: ConvexVesselTripWithPredictions | ConvexVesselTripWithML
 ): boolean => existing !== undefined && lifecycleTripsEqual(existing, proposed);
 
 /**
@@ -107,8 +108,8 @@ export const tripsEqualForStorage = (
  * @returns true if overlay-relevant fields are deeply equal
  */
 const overlayTripsEqual = (
-  existing: ConvexVesselTrip,
-  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+  existing: ConvexVesselTripWithPredictions,
+  proposed: ConvexVesselTripWithPredictions | ConvexVesselTripWithML
 ): boolean => {
   const e = existing as Record<string, unknown>;
   const p = proposed as Record<string, unknown>;
@@ -148,8 +149,8 @@ const overlayTripsEqual = (
  * @param proposed - Newly built trip state for this tick
  */
 export const tripsEqualForOverlay = (
-  existing: ConvexVesselTrip | undefined,
-  proposed: ConvexVesselTrip | ConvexVesselTripWithML
+  existing: ConvexVesselTripWithPredictions | undefined,
+  proposed: ConvexVesselTripWithPredictions | ConvexVesselTripWithML
 ): boolean => existing !== undefined && overlayTripsEqual(existing, proposed);
 
 /**

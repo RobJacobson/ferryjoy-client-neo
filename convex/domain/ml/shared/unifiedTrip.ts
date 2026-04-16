@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type {
-  ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 // import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
@@ -36,7 +36,7 @@ export type UnifiedTrip = {
  * Creates a `UnifiedTrip` from the persisted vessel-trip shape used in
  * prediction flows.
  *
- * Normalizes `ConvexVesselTrip` data for ML feature extraction and enforces
+ * Normalizes `ConvexVesselTripWithPredictions` data for ML feature extraction and enforces
  * the minimum fields needed by the shared feature pipeline.
  *
  * Canonical timestamp fields are carried through when present so downstream
@@ -46,7 +46,7 @@ export type UnifiedTrip = {
  * @returns Unified trip structure ready for feature extraction
  */
 export const fromVesselTrip = (
-  trip: ConvexVesselTrip | ConvexVesselTripWithML
+  trip: ConvexVesselTripWithPredictions | ConvexVesselTripWithML
 ): UnifiedTrip => {
   if (
     !trip.ArrivedCurrActual ||

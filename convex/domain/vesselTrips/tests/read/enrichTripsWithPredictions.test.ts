@@ -1,12 +1,12 @@
 /**
- * Tests for query hydration of stored trips with `eventsPredicted` joins.
+ * Tests for query enrichment of stored trips with `eventsPredicted` joins.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { DataModel } from "_generated/dataModel";
 import type { GenericQueryCtx } from "convex/server";
-import { hydrateStoredTripsWithPredictions } from "domain/vesselTrips/read/hydrateStoredTripsWithPredictions";
-import type { ConvexVesselTripStored } from "functions/vesselTrips/schemas";
+import { enrichTripsWithPredictions } from "domain/vesselTrips/read/enrichTripsWithPredictions";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -19,9 +19,9 @@ const makeCtx = (): Pick<GenericQueryCtx<DataModel>, "db"> =>
         }),
       }),
     },
-  }) as Pick<GenericQueryCtx<DataModel>, "db">;
+  }) as unknown as Pick<GenericQueryCtx<DataModel>, "db">;
 
-const makeTrip = (): ConvexVesselTripStored => ({
+const makeTrip = (): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "SOU",
   ArrivingTerminalAbbrev: "VAI",
@@ -55,17 +55,17 @@ const makeTrip = (): ConvexVesselTripStored => ({
   NextScheduledDeparture: ms("2026-03-13T11:15:00-07:00"),
 });
 
-describe("hydrateStoredTripsWithPredictions", () => {
-  it("preserves canonical timestamp fields when hydrating query trips", async () => {
+describe("enrichTripsWithPredictions", () => {
+  it("preserves canonical timestamp fields when enriching query trips", async () => {
     const trip = makeTrip();
-    const [hydrated] = await hydrateStoredTripsWithPredictions(makeCtx(), [
+    const [enriched] = await enrichTripsWithPredictions(makeCtx(), [
       trip,
     ]);
 
-    expect(hydrated.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
-    expect(hydrated.ArrivedNextActual).toBe(trip.ArrivedNextActual);
-    expect(hydrated.LeftDockActual).toBe(trip.LeftDockActual);
-    expect(hydrated.StartTime).toBe(trip.StartTime);
-    expect(hydrated.EndTime).toBe(trip.EndTime);
+    expect(enriched.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
+    expect(enriched.ArrivedNextActual).toBe(trip.ArrivedNextActual);
+    expect(enriched.LeftDockActual).toBe(trip.LeftDockActual);
+    expect(enriched.StartTime).toBe(trip.StartTime);
+    expect(enriched.EndTime).toBe(trip.EndTime);
   });
 });
