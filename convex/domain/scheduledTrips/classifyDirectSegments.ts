@@ -27,6 +27,9 @@ type DirectSegmentResult<TTrip extends DirectSegmentInput> = TTrip & {
 /**
  * Classifies trip-like rows into direct and indirect physical segments using
  * only physical-departure grouping and next-terminal lookahead.
+ *
+ * @param trips - Schedule-derived rows to classify by physical departure
+ * @returns Input rows annotated with direct or indirect trip type metadata
  */
 export const classifyDirectSegments = <TTrip extends DirectSegmentInput>(
   trips: TTrip[]

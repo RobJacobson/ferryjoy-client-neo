@@ -334,10 +334,11 @@ export const predictTripValue = async (
 };
 
 /**
- * Predicts arrival ETA using the arrive-arrive-total-duration model
+ * Predicts arrival ETA using the at-sea arrival-duration model.
  *
- * Uses the arrive-arrive-total-duration model to predict total duration from departure to arrival,
- * then calculates the predicted arrival time as departure time + predicted duration.
+ * Uses the `at-sea-arrive-next` model to predict minutes from actual departure
+ * at the current terminal to arrival at the next terminal, then converts that
+ * duration into an absolute arrival timestamp.
  *
  * @param ctx - Convex action/mutation context
  * @param trip - Vessel trip data (must have LeftDockActual set)
@@ -376,9 +377,9 @@ export const predictArriveEta = async (
 };
 
 /**
- * Predicts departure delay when vessel arrives at terminal
+ * Predicts departure delay when a vessel is at the terminal.
  *
- * Uses the arrive-depart-delay model to predict how much delay there will be
+ * Uses the `at-dock-depart-curr` model to predict how much delay there will be
  * before the vessel departs from the current terminal.
  *
  * @param ctx - Convex action/mutation context
@@ -409,10 +410,10 @@ export const predictDelayOnArrival = async (
 };
 
 /**
- * Predicts departure ETA for a vessel at dock
+ * Predicts departure ETA for a vessel at dock.
  *
- * Uses the arrive-depart-delay model to predict delay, then calculates the
- * predicted departure time as scheduled departure + predicted delay.
+ * Uses the `at-dock-depart-curr` model to predict delay, then calculates the
+ * predicted departure time as scheduled departure plus predicted delay.
  *
  * @param ctx - Convex action/mutation context
  * @param trip - Vessel trip data (must have ScheduledDeparture set)

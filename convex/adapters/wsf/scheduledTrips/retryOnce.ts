@@ -8,7 +8,7 @@ const RETRY_DELAY_MS = 15_000;
  * Runs an async operation and retries once after a delay when it fails.
  *
  * @param fn - External API call to execute
- * @returns Result from the first successful attempt
+ * @returns Result from the initial call or the single retry attempt
  */
 export const retryOnce = async <T>(fn: () => Promise<T>): Promise<T> => {
   try {

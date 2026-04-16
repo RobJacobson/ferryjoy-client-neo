@@ -13,7 +13,7 @@
  * - **At-dock**: Predictions made when vessel is at terminal (know arrival time)
  * - **At-sea**: Predictions made after vessel departs (know departure time)
  *
- * ### 3. Prediction Target
+ * ### 2. Prediction Target
  * - **Depart-curr**: Delay before departing current terminal
  * - **Arrive-next**: Time to arrival at next terminal
  * - **Depart-next**: Delay before departing next terminal

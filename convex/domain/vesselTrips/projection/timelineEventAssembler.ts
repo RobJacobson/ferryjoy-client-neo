@@ -83,6 +83,12 @@ export const buildTickEventWritesFromCurrentMessages = (
   };
 };
 
+/**
+ * Converts one completed-trip fact into actual and predicted timeline writes.
+ *
+ * @param fact - Completed-trip boundary fact from lifecycle processing
+ * @returns Event-write payload for the completed trip
+ */
 const tickEventWritesFromCompletedFact = (
   fact: CompletedTripBoundaryFact
 ): TickEventWrites => ({
@@ -100,11 +106,24 @@ const tickEventWritesFromCompletedFact = (
   ),
 });
 
+/**
+ * Creates an empty tick-event accumulator.
+ *
+ * @returns Tick-event writes with no patches or effects
+ */
 const emptyTickEventWrites = (): TickEventWrites => ({
   actualPatches: [],
   predictedEffects: [],
 });
 
+/**
+ * Determines whether an old trip's predicted overlays should be cleared before
+ * projecting the new proposal.
+ *
+ * @param existingTrip - Previously persisted trip, when one exists
+ * @param finalProposed - Newly built trip proposal for the current tick
+ * @returns `true` when the proposal changes sailing-day or schedule identity
+ */
 const shouldClearExistingPredictions = (
   existingTrip: ConvexVesselTrip | undefined,
   finalProposed: ConvexVesselTripWithML
@@ -114,6 +133,12 @@ const shouldClearExistingPredictions = (
     existingTrip.ScheduleKey !== finalProposed.ScheduleKey ||
     existingTrip.NextScheduleKey !== finalProposed.NextScheduleKey);
 
+/**
+ * Builds actual boundary patches for one current-trip message.
+ *
+ * @param message - Actual-message payload emitted by the lifecycle branch
+ * @returns Vessel-tagged patches gated by upsert success rules
+ */
 const buildTaggedActualPatchesFromMessage = (
   message: CurrentTripActualEventMessage
 ): TaggedActualPatch[] => {
@@ -144,6 +169,12 @@ const buildTaggedActualPatchesFromMessage = (
   }));
 };
 
+/**
+ * Builds predicted projection effects for one current-trip message.
+ *
+ * @param message - Predicted-message payload emitted by the lifecycle branch
+ * @returns Vessel-tagged effects gated by upsert success rules
+ */
 const buildTaggedPredictedEffectsFromMessage = (
   message: CurrentTripPredictedEventMessage
 ): TaggedPredictedEffect[] => {
@@ -177,6 +208,13 @@ const buildTaggedPredictedEffectsFromMessage = (
   }));
 };
 
+/**
+ * Filters actual patches by whether their required upsert succeeded.
+ *
+ * @param tagged - Tagged actual patches emitted during current-trip processing
+ * @param successfulVessels - Vessels whose lifecycle upsert completed
+ * @returns Persistable actual patches that should be written this tick
+ */
 const filterTaggedActualPatches = (
   tagged: TaggedActualPatch[],
   successfulVessels: Set<string>
@@ -188,6 +226,14 @@ const filterTaggedActualPatches = (
     )
     .map((t) => t.patch);
 
+/**
+ * Filters predicted effects by whether their required upsert succeeded.
+ *
+ * @param tagged - Tagged predicted effects emitted during current-trip
+ * processing
+ * @param successfulVessels - Vessels whose lifecycle upsert completed
+ * @returns Predicted effects that should be written this tick
+ */
 const filterTaggedPredictedEffects = (
   tagged: TaggedPredictedEffect[],
   successfulVessels: Set<string>

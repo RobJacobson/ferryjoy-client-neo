@@ -28,6 +28,7 @@ type FetchAndTransformScheduledTripsResult = {
  * @param vessels - Backend vessel identity rows
  * @param terminals - Backend terminal identity rows
  * @returns Raw route payloads plus mapped and transformed scheduled trips
+ * @throws Error when a resolved segment cannot produce a stable schedule key
  */
 export const fetchAndTransformScheduledTrips = async (
   targetDate: string,

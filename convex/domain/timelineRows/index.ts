@@ -1,3 +1,8 @@
+/**
+ * Public timeline-row domain exports for schedule, actual, and prediction
+ * assembly helpers.
+ */
+
 export type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,

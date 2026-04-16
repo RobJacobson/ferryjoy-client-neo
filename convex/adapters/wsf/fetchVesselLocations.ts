@@ -39,6 +39,7 @@ const getConfiguredWsdotAccessToken = (): string | undefined => {
  * Validates and applies the WSDOT access token for ws-dottie.
  *
  * @param configManager - ws-dottie config manager runtime
+ * @returns Nothing; throws when no supported token is configured
  */
 const ensureWsdotAccessToken = (configManager: {
   setApiKey: (token: string) => void;
@@ -57,6 +58,7 @@ const ensureWsdotAccessToken = (configManager: {
  * Fetches the latest raw WSF vessel locations.
  *
  * @returns Raw WSF vessel-location payloads from `ws-dottie`
+ * @throws Error when no supported WSDOT access token is configured
  */
 export const fetchWsfVesselLocations = async (): Promise<VesselLocation[]> => {
   const [{ configManager }, { fetchVesselLocations }] = await Promise.all([
@@ -66,6 +68,6 @@ export const fetchWsfVesselLocations = async (): Promise<VesselLocation[]> => {
 
   ensureWsdotAccessToken(configManager);
 
-  // ws-dottie 1.6.0 only injects apiaccesscode when params is present.
+  // Keep the request shape explicit for the ws-dottie fetch wrapper.
   return await fetchVesselLocations({ params: {} });
 };

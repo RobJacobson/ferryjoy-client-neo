@@ -17,6 +17,7 @@ import type { RawWsfScheduleSegment } from "./types";
  * @param vessels - Backend vessel identity rows
  * @param terminals - Backend terminal identity rows
  * @returns Persistence-ready scheduled trip row, or `null` when identity resolution fails
+ * @throws Error when the segment resolves but cannot produce a stable schedule key
  */
 export const createScheduledTripFromRawSegment = (
   segment: RawWsfScheduleSegment,
@@ -26,7 +27,7 @@ export const createScheduledTripFromRawSegment = (
   const resolvedSegment = resolveScheduleSegment(segment, vessels, terminals);
 
   if (!resolvedSegment) {
-    console.warn("Skipping trip due to missing abbreviations:", {
+    console.warn("Skipping trip because segment identity could not resolve:", {
       vessel: segment.VesselName,
       departing: segment.DepartingTerminalName,
       arriving: segment.ArrivingTerminalName,
