@@ -460,7 +460,7 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
   `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
   - Boundary adapter: `convex/adapters/vesselTrips/processTick.ts` (`appendFinalSchedule`)
-  - Lookup: `internal.functions.eventsScheduled.queries.getScheduledDepartureSegmentBySegmentKey`
+  - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
   (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.

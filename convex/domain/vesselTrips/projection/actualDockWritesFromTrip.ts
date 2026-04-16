@@ -5,7 +5,7 @@
  * actuals can recover if an earlier leave-dock tick was missed.
  */
 
-import type { ConvexActualDockWritePersistable } from "functions/eventsActual/schemas";
+import type { ConvexActualDockWritePersistable } from "domain/events/actual/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 type DockTerminalRole = "departing" | "arriving";

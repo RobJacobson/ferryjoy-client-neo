@@ -1,25 +1,12 @@
 /**
- * Tests for query enrichment of stored trips with `eventsPredicted` joins.
+ * Tests for merging stored trips with preloaded `eventsPredicted` rows.
  */
 
 import { describe, expect, it } from "bun:test";
-import type { DataModel } from "_generated/dataModel";
-import type { GenericQueryCtx } from "convex/server";
-import { enrichTripsWithPredictions } from "domain/vesselTrips/read/enrichTripsWithPredictions";
+import { mergeTripsWithPredictions } from "domain/vesselTrips/read/mergeTripsWithPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 const ms = (iso: string) => new Date(iso).getTime();
-
-const makeCtx = (): Pick<GenericQueryCtx<DataModel>, "db"> =>
-  ({
-    db: {
-      query: () => ({
-        withIndex: () => ({
-          collect: async () => [],
-        }),
-      }),
-    },
-  }) as unknown as Pick<GenericQueryCtx<DataModel>, "db">;
 
 const makeTrip = (): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
@@ -55,10 +42,10 @@ const makeTrip = (): ConvexVesselTrip => ({
   NextScheduledDeparture: ms("2026-03-13T11:15:00-07:00"),
 });
 
-describe("enrichTripsWithPredictions", () => {
-  it("preserves canonical timestamp fields when enriching query trips", async () => {
+describe("mergeTripsWithPredictions", () => {
+  it("preserves canonical timestamp fields when no predicted rows are present", () => {
     const trip = makeTrip();
-    const [enriched] = await enrichTripsWithPredictions(makeCtx(), [trip]);
+    const [enriched] = mergeTripsWithPredictions([trip], new Map());
 
     expect(enriched.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
     expect(enriched.ArrivedNextActual).toBe(trip.ArrivedNextActual);

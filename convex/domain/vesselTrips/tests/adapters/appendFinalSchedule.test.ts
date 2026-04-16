@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from "bun:test";
 import { appendFinalSchedule } from "adapters/vesselTrips/processTick";
+import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
+import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -33,31 +35,41 @@ describe("appendFinalSchedule", () => {
   });
 
   it("loads the next-trip schedule fields when the schedule segment changed", async () => {
-    const scheduledSegment = makeScheduledSegment({
+    const scheduledEvent = makeScheduledEvent({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
-      NextKey: "CHE--2026-03-13--12:30--MUK-CLI",
-      NextDepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
+    const nextScheduledEvent = makeScheduledEvent({
+      Key: "CHE--2026-03-13--12:30--MUK-CLI",
+      TerminalAbbrev: "MUK",
+      NextTerminalAbbrev: "CLI",
+      ScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+      EventScheduledTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const expectedSegment = inferScheduledSegmentFromDepartureEvent(
+      scheduledEvent,
+      [scheduledEvent, nextScheduledEvent]
+    );
     const baseTrip = makeTrip({
-      ScheduleKey: scheduledSegment.Key,
+      ScheduleKey: scheduledEvent.Key,
       NextScheduleKey: undefined,
       NextScheduledDeparture: undefined,
     });
 
     const enriched = await appendFinalSchedule(
       createTestActionCtx({
-        scheduledSegmentByKey: new Map([
-          [scheduledSegment.Key, scheduledSegment],
+        scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+        scheduledEventsByScope: new Map([
+          ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
         ]),
       }) as never,
       baseTrip,
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
 
-    expect(enriched.ScheduleKey).toBe(scheduledSegment.Key);
-    expect(enriched.NextScheduleKey).toBe(scheduledSegment.NextKey);
+    expect(enriched.ScheduleKey).toBe(expectedSegment.Key);
+    expect(enriched.NextScheduleKey).toBe(expectedSegment.NextKey);
     expect(enriched.NextScheduledDeparture).toBe(
-      scheduledSegment.NextDepartingTime
+      expectedSegment.NextDepartingTime
     );
   });
 });
@@ -67,13 +79,22 @@ type TestActionCtx = {
 };
 
 const createTestActionCtx = (options: {
-  scheduledSegmentByKey?: Map<string, InferredScheduledSegment>;
+  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
+  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
 }): TestActionCtx => ({
   runQuery: async (_ref, args) => {
     if (args && "segmentKey" in args) {
-      return args.segmentKey && options.scheduledSegmentByKey
-        ? (options.scheduledSegmentByKey.get(String(args.segmentKey)) ?? null)
+      return args.segmentKey && options.scheduledEventByKey
+        ? (options.scheduledEventByKey.get(String(args.segmentKey)) ?? null)
         : null;
+    }
+
+    if (args && "vesselAbbrev" in args && "sailingDay" in args) {
+      return (
+        options.scheduledEventsByScope?.get(
+          `${String(args.vesselAbbrev)}|${String(args.sailingDay)}`
+        ) ?? []
+      );
     }
 
     return null;
@@ -118,25 +139,18 @@ const makeTrip = (
   ...overrides,
 });
 
-type InferredScheduledSegment = {
-  Key: string;
-  SailingDay: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-  DepartingTime: number;
-  NextKey?: string;
-  NextDepartingTime?: number;
-};
-
-const makeScheduledSegment = (
-  overrides: Partial<InferredScheduledSegment> = {}
-): InferredScheduledSegment => ({
+const makeScheduledEvent = (
+  overrides: Partial<ConvexScheduledDockEvent> = {}
+): ConvexScheduledDockEvent => ({
   Key: "CHE--2026-03-13--05:30--ANA-ORI",
+  VesselAbbrev: "CHE",
   SailingDay: "2026-03-13",
-  DepartingTerminalAbbrev: "ANA",
-  ArrivingTerminalAbbrev: "ORI",
-  DepartingTime: ms("2026-03-13T05:30:00-07:00"),
-  NextKey: undefined,
-  NextDepartingTime: undefined,
+  UpdatedAt: ms("2026-03-13T04:33:00-07:00"),
+  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+  TerminalAbbrev: "ANA",
+  NextTerminalAbbrev: "ORI",
+  EventType: "dep-dock",
+  EventScheduledTime: ms("2026-03-13T05:30:00-07:00"),
+  IsLastArrivalOfSailingDay: false,
   ...overrides,
 });

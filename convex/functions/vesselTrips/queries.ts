@@ -10,7 +10,8 @@ import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { dedupeTripDocBatchesByTripKey } from "domain/vesselTrips/read/dedupeTripDocsByTripKey";
-import { enrichTripsWithPredictions } from "domain/vesselTrips/read/enrichTripsWithPredictions";
+import { mergeTripsWithPredictions } from "domain/vesselTrips/read/mergeTripsWithPredictions";
+import { loadPredictedRowsGroupedForTrips } from "functions/events/eventsPredicted/queries";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
@@ -34,7 +35,8 @@ const enrichTripsForApi = async (
   ctx: Pick<QueryCtx, "db">,
   docs: Doc<"activeVesselTrips">[] | Doc<"completedVesselTrips">[]
 ): Promise<ConvexVesselTripWithPredictions[]> => {
-  const enriched = await enrichTripsWithPredictions(ctx, docs);
+  const predictedByGroup = await loadPredictedRowsGroupedForTrips(ctx, docs);
+  const enriched = mergeTripsWithPredictions(docs, predictedByGroup);
   return enriched.map(
     (trip) => stripConvexMeta(trip) as ConvexVesselTripWithPredictions
   );

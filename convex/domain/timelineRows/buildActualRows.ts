@@ -5,7 +5,7 @@
 import type {
   ConvexActualDockEvent,
   ConvexActualDockWritePersistable,
-} from "../../functions/eventsActual/schemas";
+} from "../../domain/events/actual/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildPhysicalActualEventKey } from "../../shared/physicalTripIdentity";
 import { getSailingDay } from "../../shared/time";

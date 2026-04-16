@@ -69,7 +69,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const result = buildTickEventWritesFromCompletedFacts(facts);
+    const result = buildTickEventWritesFromCompletedFacts(facts, 0);
 
     expect(loggedErrors).toHaveLength(0);
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
@@ -159,7 +159,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const result = buildTickEventWritesFromCompletedFacts(facts);
+    const result = buildTickEventWritesFromCompletedFacts(facts, 0);
 
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"

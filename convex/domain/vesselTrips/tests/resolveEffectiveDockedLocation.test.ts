@@ -3,9 +3,10 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
+import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import { inferScheduledSegmentFromDepartureEvent } from "../../timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
@@ -35,11 +36,11 @@ describe("resolveEffectiveDockedLocation", () => {
     });
 
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureSegmentBySegmentKey: async () => {
+      getScheduledDepartureEventBySegmentKey: async () => {
         lookupCount += 1;
         return null;
       },
-      getNextDepartureSegmentAfterDeparture: async () => null,
+      getScheduledDockEventsForSailingDay: async () => [],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
@@ -59,18 +60,20 @@ describe("resolveEffectiveDockedLocation", () => {
   });
 
   it("prefers the carried NextScheduleKey when it matches the current departing terminal", async () => {
-    const nextSegment = makeScheduledSegment({
+    const nextScheduledEvent = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
-      ArrivingTerminalAbbrev: "MUK",
-      DepartingTime: ms("2026-03-13T11:00:00-07:00"),
     });
+    const nextSegment = inferScheduledSegmentFromDepartureEvent(
+      nextScheduledEvent,
+      [nextScheduledEvent]
+    );
     const lookupArgs: Array<Record<string, unknown> | undefined> = [];
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureSegmentBySegmentKey: async (segmentKey) => {
+      getScheduledDepartureEventBySegmentKey: async (segmentKey) => {
         lookupArgs.push({ segmentKey });
-        return nextSegment;
+        return nextScheduledEvent;
       },
-      getNextDepartureSegmentAfterDeparture: async () => null,
+      getScheduledDockEventsForSailingDay: async () => [nextScheduledEvent],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
@@ -87,7 +90,7 @@ describe("resolveEffectiveDockedLocation", () => {
     );
 
     expect(lookupArgs).toHaveLength(1);
-    expect(lookupArgs[0]).toEqual({ segmentKey: nextSegment.Key });
+    expect(lookupArgs[0]).toEqual({ segmentKey: nextScheduledEvent.Key });
     expect(effectiveLocation.ScheduleKey).toBe(nextSegment.Key);
     expect(effectiveLocation.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
@@ -100,11 +103,11 @@ describe("resolveEffectiveDockedLocation", () => {
   it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", async () => {
     let lookupCount = 0;
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureSegmentBySegmentKey: async () => {
+      getScheduledDepartureEventBySegmentKey: async () => {
         lookupCount += 1;
         return null;
       },
-      getNextDepartureSegmentAfterDeparture: async () => null,
+      getScheduledDockEventsForSailingDay: async () => [],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
@@ -195,14 +198,17 @@ const makeTrip = (
 });
 
 const makeScheduledSegment = (
-  overrides: Partial<ConvexInferredScheduledSegment> = {}
-): ConvexInferredScheduledSegment => ({
+  overrides: Partial<ConvexScheduledDockEvent> = {}
+): ConvexScheduledDockEvent => ({
   Key: "CHE--2026-03-13--11:00--CLI-MUK",
+  VesselAbbrev: "CHE",
   SailingDay: "2026-03-13",
-  DepartingTerminalAbbrev: "CLI",
-  ArrivingTerminalAbbrev: "MUK",
-  DepartingTime: ms("2026-03-13T11:00:00-07:00"),
-  NextKey: undefined,
-  NextDepartingTime: undefined,
+  UpdatedAt: ms("2026-03-13T11:08:00-07:00"),
+  ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+  TerminalAbbrev: "CLI",
+  NextTerminalAbbrev: "MUK",
+  EventType: "dep-dock",
+  EventScheduledTime: ms("2026-03-13T11:00:00-07:00"),
+  IsLastArrivalOfSailingDay: false,
   ...overrides,
 });

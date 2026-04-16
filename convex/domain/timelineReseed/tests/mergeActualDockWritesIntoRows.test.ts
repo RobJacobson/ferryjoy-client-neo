@@ -7,7 +7,7 @@ import type {
   ConvexActualDockEvent,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "../../../functions/eventsActual/schemas";
+} from "../../../domain/events/actual/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { mergeActualDockWritesIntoRows } from "../mergeActualDockWritesIntoRows";
 

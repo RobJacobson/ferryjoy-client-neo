@@ -5,9 +5,9 @@
 
 import { describe, expect, it } from "bun:test";
 import { mergeTimelineRows } from "domain/timelineRows";
-import type { ConvexActualDockEvent } from "../../../functions/eventsActual/schemas";
-import type { ConvexPredictedDockEvent } from "../../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledDockEvent } from "../../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../../domain/events/actual/schemas";
+import type { ConvexPredictedDockEvent } from "../../../domain/events/predicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../../domain/events/scheduled/schemas";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { getSegmentKeyFromBoundaryKey } from "../scheduledSegmentResolvers";

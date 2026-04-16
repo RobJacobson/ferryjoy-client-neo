@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexActualDockEvent } from "../../../functions/eventsActual/schemas";
-import type { ConvexPredictedDockEvent } from "../../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledDockEvent } from "../../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../../domain/events/actual/schemas";
+import type { ConvexPredictedDockEvent } from "../../../domain/events/predicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../../domain/events/scheduled/schemas";
 import { buildTimelineBackbone } from "..";
 
 const at = (hours: number, minutes: number, day = 25) =>

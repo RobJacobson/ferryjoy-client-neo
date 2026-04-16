@@ -7,6 +7,7 @@
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import { resolveEffectiveDockedLocation } from "domain/vesselTrips/continuity/resolveEffectiveDockedLocation";
 import type { ProcessVesselTripsDeps } from "domain/vesselTrips/processTick/processVesselTrips";
 import { buildCompletedTrip } from "domain/vesselTrips/tripLifecycle/buildCompletedTrip";
@@ -57,14 +58,32 @@ export const appendFinalSchedule = async (
     };
   }
 
-  const scheduledSegment = await getScheduledSegmentByKey(ctx, segmentKey);
+  const scheduledEvent = await getScheduledSegmentByKey(ctx, segmentKey);
+  if (!scheduledEvent) {
+    return {
+      ...baseTrip,
+      ScheduleKey: baseTrip.ScheduleKey,
+      NextScheduleKey: baseTrip.NextScheduleKey,
+      NextScheduledDeparture: baseTrip.NextScheduledDeparture,
+    };
+  }
+
+  const sameDayEvents = await getScheduledEventsForVesselAndSailingDay(
+    ctx,
+    scheduledEvent.VesselAbbrev,
+    scheduledEvent.SailingDay
+  );
+  const scheduledSegment = inferScheduledSegmentFromDepartureEvent(
+    scheduledEvent,
+    sameDayEvents
+  );
 
   return {
     ...baseTrip,
-    ScheduleKey: scheduledSegment?.Key ?? baseTrip.ScheduleKey,
-    NextScheduleKey: scheduledSegment?.NextKey ?? baseTrip.NextScheduleKey,
+    ScheduleKey: scheduledSegment.Key ?? baseTrip.ScheduleKey,
+    NextScheduleKey: scheduledSegment.NextKey ?? baseTrip.NextScheduleKey,
     NextScheduledDeparture:
-      scheduledSegment?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+      scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };
 };
 
@@ -163,16 +182,15 @@ const resolveEffectiveLocation = async (
  * @returns Lookup functions backed by internal queries
  */
 const createScheduledSegmentLookup = (ctx: ActionCtx) => ({
-  getScheduledDepartureSegmentBySegmentKey: (segmentKey: string) =>
+  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
     getScheduledSegmentByKey(ctx, segmentKey),
-  getNextDepartureSegmentAfterDeparture: (args: {
+  getScheduledDockEventsForSailingDay: (args: {
     vesselAbbrev: string;
-    departingTerminalAbbrev: string;
-    previousScheduledDeparture: number;
+    sailingDay: string;
   }) =>
     ctx.runQuery(
-      internal.functions.eventsScheduled.queries
-        .getNextDepartureSegmentAfterDeparture,
+      internal.functions.events.eventsScheduled.queries
+        .getScheduledDockEventsForSailingDay,
       args
     ),
 });
@@ -186,9 +204,20 @@ const createScheduledSegmentLookup = (ctx: ActionCtx) => ({
  */
 const getScheduledSegmentByKey = (ctx: ActionCtx, segmentKey: string) =>
   ctx.runQuery(
-    internal.functions.eventsScheduled.queries
-      .getScheduledDepartureSegmentBySegmentKey,
+    internal.functions.events.eventsScheduled.queries
+      .getScheduledDepartureEventBySegmentKey,
     { segmentKey }
+  );
+
+const getScheduledEventsForVesselAndSailingDay = (
+  ctx: ActionCtx,
+  vesselAbbrev: string,
+  sailingDay: string
+) =>
+  ctx.runQuery(
+    internal.functions.events.eventsScheduled.queries
+      .getScheduledDockEventsForSailingDay,
+    { vesselAbbrev, sailingDay }
   );
 
 /**

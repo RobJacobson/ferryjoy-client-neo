@@ -3,8 +3,8 @@
  * after lifecycle persistence. Peers apply these via orchestrator mutations.
  */
 
-import type { ConvexActualDockWritePersistable } from "functions/eventsActual/schemas";
-import type { ConvexPredictedDockWriteBatch } from "functions/eventsPredicted/schemas";
+import type { ConvexActualDockEvent } from "domain/events/actual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted/schemas";
 
 /**
  * Sparse timeline table updates for one orchestrator tick.
@@ -12,7 +12,7 @@ import type { ConvexPredictedDockWriteBatch } from "functions/eventsPredicted/sc
  * Matches `projectActualDockWrites` / `projectPredictedDockWriteBatches` args.
  */
 export type TickEventWrites = {
-  actualDockWrites: ConvexActualDockWritePersistable[];
+  actualDockWrites: ConvexActualDockEvent[];
   predictedDockWriteBatches: ConvexPredictedDockWriteBatch[];
 };
 

@@ -5,10 +5,14 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
-import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { inferScheduledSegmentFromDepartureEvent } from "../../timelineRows/scheduledSegmentResolvers";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import { buildTrip } from "../tripLifecycle/buildTrip";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
@@ -29,18 +33,17 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
     }
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
       {
-        getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
+        getScheduledDepartureEventBySegmentKey: (segmentKey) =>
           ctx.runQuery(
             {} as never,
             {
               segmentKey,
             } as never
-          ) as Promise<ConvexInferredScheduledSegment | null>,
-        getNextDepartureSegmentAfterDeparture: (args) =>
-          ctx.runQuery(
-            {} as never,
-            args as never
-          ) as Promise<ConvexInferredScheduledSegment | null>,
+          ) as Promise<ConvexScheduledDockEvent | null>,
+        getScheduledDockEventsForSailingDay: (args) =>
+          ctx.runQuery({} as never, args as never) as Promise<
+            ConvexScheduledDockEvent[]
+          >,
       },
       location,
       existingTrip
@@ -67,18 +70,32 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
           existingTrip.NextScheduledDeparture,
       };
     }
-    const scheduledSegment = (await ctx.runQuery(
+    const scheduledEvent = (await ctx.runQuery(
       {} as never,
       {
         segmentKey,
       } as never
-    )) as ConvexInferredScheduledSegment | null;
+    )) as ConvexScheduledDockEvent | null;
+    if (!scheduledEvent) {
+      return baseTrip;
+    }
+    const sameDayEvents = (await ctx.runQuery(
+      {} as never,
+      {
+        vesselAbbrev: scheduledEvent.VesselAbbrev,
+        sailingDay: scheduledEvent.SailingDay,
+      } as never
+    )) as ConvexScheduledDockEvent[];
+    const scheduledSegment = inferScheduledSegmentFromDepartureEvent(
+      scheduledEvent,
+      sameDayEvents
+    );
     return {
       ...baseTrip,
-      ScheduleKey: scheduledSegment?.Key ?? baseTrip.ScheduleKey,
-      NextScheduleKey: scheduledSegment?.NextKey ?? baseTrip.NextScheduleKey,
+      ScheduleKey: scheduledSegment.Key ?? baseTrip.ScheduleKey,
+      NextScheduleKey: scheduledSegment.NextKey ?? baseTrip.NextScheduleKey,
       NextScheduledDeparture:
-        scheduledSegment?.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+        scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
     };
   },
 };
@@ -115,20 +132,41 @@ describe("buildTrip", () => {
       ScheduleKey: segmentKey,
       TimeStamp: ms("2026-03-13T09:40:00-07:00"),
     });
-    const scheduledSegment = {
+    const scheduledEvent: ConvexScheduledDockEvent = {
       Key: segmentKey,
       SailingDay: "2026-03-13",
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "ANA",
-      DepartingTime: segmentScheduledDeparture,
-      NextKey: "CHE--2026-03-13--11:00--ANA-SHI",
-      NextDepartingTime: ms("2026-03-13T11:00:00-07:00"),
+      VesselAbbrev: "CHE",
+      UpdatedAt: ms("2026-03-13T09:40:00-07:00"),
+      ScheduledDeparture: segmentScheduledDeparture,
+      TerminalAbbrev: "ORI",
+      NextTerminalAbbrev: "ANA",
+      EventType: "dep-dock" as const,
+      EventScheduledTime: segmentScheduledDeparture,
+      IsLastArrivalOfSailingDay: false,
     };
+    const nextScheduledSegment: ConvexScheduledDockEvent = {
+      Key: "CHE--2026-03-13--11:00--ANA-SHI",
+      SailingDay: "2026-03-13",
+      VesselAbbrev: "CHE",
+      UpdatedAt: ms("2026-03-13T09:40:00-07:00"),
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      TerminalAbbrev: "ANA",
+      NextTerminalAbbrev: "SHI",
+      EventType: "dep-dock",
+      EventScheduledTime: ms("2026-03-13T11:00:00-07:00"),
+      IsLastArrivalOfSailingDay: false,
+    };
+    const scheduledSegment: ConvexInferredScheduledSegment =
+      inferScheduledSegmentFromDepartureEvent(scheduledEvent, [
+        scheduledEvent,
+        nextScheduledSegment,
+      ]);
 
     const built = await buildTrip(
       createTestActionCtx({
-        scheduledSegmentByKey: new Map([
-          [scheduledSegment.Key, scheduledSegment],
+        scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+        scheduledEventsByScope: new Map([
+          ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
         ]),
       }) as never,
       currLocation,
@@ -265,13 +303,22 @@ type TestActionCtx = {
 };
 
 const createTestActionCtx = (options: {
-  scheduledSegmentByKey?: Map<string, InferredScheduledSegment>;
+  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
+  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
 }): TestActionCtx => ({
   runQuery: async (_ref, args) => {
     if (args && "segmentKey" in args) {
-      return args.segmentKey && options.scheduledSegmentByKey
-        ? (options.scheduledSegmentByKey.get(String(args.segmentKey)) ?? null)
+      return args.segmentKey && options.scheduledEventByKey
+        ? (options.scheduledEventByKey.get(String(args.segmentKey)) ?? null)
         : null;
+    }
+
+    if (args && "vesselAbbrev" in args && "sailingDay" in args) {
+      return (
+        options.scheduledEventsByScope?.get(
+          `${String(args.vesselAbbrev)}|${String(args.sailingDay)}`
+        ) ?? []
+      );
     }
 
     if (args && "pairKey" in args && "modelTypes" in args) {
@@ -391,13 +438,3 @@ const makeTrip = (
   AtSeaDepartNext: undefined,
   ...overrides,
 });
-
-type InferredScheduledSegment = {
-  Key: string;
-  SailingDay: string;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-  DepartingTime: number;
-  NextKey?: string;
-  NextDepartingTime?: number;
-};

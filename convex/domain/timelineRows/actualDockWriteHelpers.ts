@@ -8,7 +8,7 @@ import type {
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "../../functions/eventsActual/schemas";
+} from "../../domain/events/actual/schemas";
 
 /**
  * Narrows a write after `TripKey` enrichment (ingestion / mutation entry).

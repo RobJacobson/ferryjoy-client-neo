@@ -81,10 +81,13 @@ describe("buildActualDockWritesForSailingDay", () => {
     const seg0 = events[0]?.SegmentKey;
     const ctx0 = seg0 ? tripIdx.get(seg0) : undefined;
     expect(ctx0?.TripKey).toBeDefined();
+    if (!ctx0?.TripKey) {
+      throw new Error("expected TripKey for dep-dock actual write");
+    }
 
     expect(effects).toEqual([
       {
-        TripKey: ctx0?.TripKey,
+        TripKey: ctx0.TripKey,
         ScheduleKey: seg0,
         SegmentKey: seg0,
         VesselAbbrev: "TOK",
@@ -142,10 +145,13 @@ describe("buildActualDockWritesForSailingDay", () => {
     const seg1 = events[1]?.SegmentKey;
     const ctx1 = seg1 ? tripIdx.get(seg1) : undefined;
     expect(ctx1?.TripKey).toBeDefined();
+    if (!ctx1?.TripKey) {
+      throw new Error("expected TripKey for arv-dock actual write");
+    }
 
     expect(effects).toEqual([
       {
-        TripKey: ctx1?.TripKey,
+        TripKey: ctx1.TripKey,
         ScheduleKey: seg1,
         SegmentKey: seg1,
         VesselAbbrev: "TOK",

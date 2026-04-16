@@ -7,9 +7,9 @@ import type {
   ConvexPredictedDockWriteBatch,
   ConvexPredictedDockWriteRow,
   ConvexPredictionSource,
-} from "../../functions/eventsPredicted/schemas";
-import { predictedDockCompositeKey } from "../../functions/eventsPredicted/schemas";
-import type { PredictionType } from "../../functions/predictions/schemas";
+  PredictionType,
+} from "../../domain/events/predicted/schemas";
+import { predictedDockCompositeKey } from "../../domain/events/predicted/schemas";
 import type { ConvexVesselTripWithML } from "../../functions/vesselTrips/schemas";
 import {
   buildBoundaryKey,

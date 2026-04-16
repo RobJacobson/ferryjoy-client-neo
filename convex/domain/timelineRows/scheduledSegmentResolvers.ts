@@ -7,14 +7,14 @@
  * clock time.
  */
 
-import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-} from "../../functions/eventsScheduled/schemas";
 import {
   type AdjacentDockInterval,
   buildAdjacentTimelineIntervals,
 } from "../../shared/timelineIntervals";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "../events";
 
 /**
  * Builds the small inferred-segment contract shared by timeline and trip code.
@@ -39,6 +39,25 @@ export const buildInferredScheduledSegment = (
     ? getBoundaryTime(nextDepartureEvent)
     : undefined,
 });
+
+/**
+ * Infers the portable segment contract from one departure event and its
+ * already-loaded same-day boundary rows.
+ *
+ * @param departureEvent - Departure boundary that anchors the segment
+ * @param sameDayEvents - Candidate same-day boundary rows
+ * @returns Portable schedule segment lookup result
+ */
+export const inferScheduledSegmentFromDepartureEvent = (
+  departureEvent: ConvexScheduledDockEvent,
+  sameDayEvents: ConvexScheduledDockEvent[]
+): ConvexInferredScheduledSegment =>
+  buildInferredScheduledSegment(
+    departureEvent,
+    findNextDepartureEvent(sameDayEvents, {
+      afterTime: departureEvent.ScheduledDeparture,
+    })
+  );
 
 /**
  * Finds the earliest departure that follows a specific boundary event.

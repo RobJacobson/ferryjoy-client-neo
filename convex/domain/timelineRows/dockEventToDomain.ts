@@ -3,8 +3,8 @@
  * `Date` fields for client-facing or test use.
  */
 
-import type { ConvexActualDockEvent } from "../../functions/eventsActual/schemas";
-import type { ConvexScheduledDockEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../domain/events/actual/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import {
   epochMsToDate,
   optionalEpochMsToDate,

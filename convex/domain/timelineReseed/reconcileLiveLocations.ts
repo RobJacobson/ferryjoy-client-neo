@@ -6,8 +6,8 @@ import type {
   ConvexActualDockEvent,
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
-} from "../../functions/eventsActual/schemas";
-import type { ConvexScheduledDockEvent } from "../../functions/eventsScheduled/schemas";
+} from "../../domain/events/actual/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
 import type {
   ConvexVesselTimelineEventRecord,

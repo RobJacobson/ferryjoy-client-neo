@@ -112,11 +112,12 @@ export const processVesselTripsWithDeps = async (
     }
   );
   const tickEventWrites = mergeTickEventWrites(
-    buildTickEventWritesFromCompletedFacts(completedFacts),
+    buildTickEventWritesFromCompletedFacts(completedFacts, tickStartedAt),
     buildTickEventWritesFromCurrentMessages(
       currentBranch.successfulVessels,
       currentBranch.pendingActualMessages,
-      currentBranch.pendingPredictedMessages
+      currentBranch.pendingPredictedMessages,
+      tickStartedAt
     )
   );
 

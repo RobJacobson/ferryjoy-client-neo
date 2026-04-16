@@ -4,9 +4,9 @@
  * reseed live-location reconciliation.
  */
 
-import type { ConvexActualDockEvent } from "../../functions/eventsActual/schemas";
-import type { ConvexPredictedDockEvent } from "../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledDockEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../domain/events/actual/schemas";
+import type { ConvexPredictedDockEvent } from "../../domain/events/predicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 import {
   getBoundaryTime,

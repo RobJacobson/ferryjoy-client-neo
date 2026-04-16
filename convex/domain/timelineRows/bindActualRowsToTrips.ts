@@ -7,7 +7,7 @@ import type {
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "../../functions/eventsActual/schemas";
+} from "../../domain/events/actual/schemas";
 import {
   hasTripKeyOnActualDockWrite,
   isPersistableActualDockWrite,

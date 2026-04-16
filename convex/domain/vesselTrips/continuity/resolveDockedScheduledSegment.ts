@@ -7,19 +7,26 @@
  * `eventsScheduled`.
  */
 
-import type { ConvexInferredScheduledSegment } from "functions/eventsScheduled/schemas";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "domain/events/scheduled/schemas";
+import {
+  findNextDepartureEvent,
+  inferScheduledSegmentFromDepartureEvent,
+} from "domain/timelineRows/scheduledSegmentResolvers";
+import { getSailingDay } from "shared/time";
 
 import type { DockedScheduledSegmentSource } from "./types";
 
 export type ScheduledSegmentLookup = {
-  getScheduledDepartureSegmentBySegmentKey: (
+  getScheduledDepartureEventBySegmentKey: (
     segmentKey: string
-  ) => Promise<ConvexInferredScheduledSegment | null>;
-  getNextDepartureSegmentAfterDeparture: (args: {
+  ) => Promise<ConvexScheduledDockEvent | null>;
+  getScheduledDockEventsForSailingDay: (args: {
     vesselAbbrev: string;
-    departingTerminalAbbrev: string;
-    previousScheduledDeparture: number;
-  }) => Promise<ConvexInferredScheduledSegment | null>;
+    sailingDay: string;
+  }) => Promise<ConvexScheduledDockEvent[]>;
 };
 
 type ExistingTripContinuity = {
@@ -55,32 +62,51 @@ export const resolveDockedScheduledSegment = async (
   args: ResolveDockedScheduledSegmentArgs
 ): Promise<DockedScheduledSegmentResolution | null> => {
   if (args.existingTrip?.NextScheduleKey) {
-    const exactNextSegment =
-      await lookup.getScheduledDepartureSegmentBySegmentKey(
-        args.existingTrip.NextScheduleKey
+    const exactNextEvent = await lookup.getScheduledDepartureEventBySegmentKey(
+      args.existingTrip.NextScheduleKey
+    );
+
+    if (exactNextEvent) {
+      const sameDayEvents = await lookup.getScheduledDockEventsForSailingDay({
+        vesselAbbrev: exactNextEvent.VesselAbbrev,
+        sailingDay: exactNextEvent.SailingDay,
+      });
+      const exactNextSegment = inferScheduledSegmentFromDepartureEvent(
+        exactNextEvent,
+        sameDayEvents
       );
 
-    if (
-      exactNextSegment &&
-      exactNextSegment.DepartingTerminalAbbrev === args.departingTerminalAbbrev
-    ) {
-      return {
-        segment: exactNextSegment,
-        source: "completed_trip_next",
-      };
+      if (
+        exactNextSegment.DepartingTerminalAbbrev ===
+        args.departingTerminalAbbrev
+      ) {
+        return {
+          segment: exactNextSegment,
+          source: "completed_trip_next",
+        };
+      }
     }
   }
 
   if (args.existingTrip?.ScheduledDeparture !== undefined) {
-    const rolloverSegment = await lookup.getNextDepartureSegmentAfterDeparture({
+    const sailingDay = getSailingDay(
+      new Date(args.existingTrip.ScheduledDeparture)
+    );
+    const sameDayEvents = await lookup.getScheduledDockEventsForSailingDay({
       vesselAbbrev: args.vesselAbbrev,
-      departingTerminalAbbrev: args.departingTerminalAbbrev,
-      previousScheduledDeparture: args.existingTrip.ScheduledDeparture,
+      sailingDay,
+    });
+    const rolloverEvent = findNextDepartureEvent(sameDayEvents, {
+      terminalAbbrev: args.departingTerminalAbbrev,
+      afterTime: args.existingTrip.ScheduledDeparture,
     });
 
-    if (rolloverSegment) {
+    if (rolloverEvent) {
       return {
-        segment: rolloverSegment,
+        segment: inferScheduledSegmentFromDepartureEvent(
+          rolloverEvent,
+          sameDayEvents
+        ),
         source: "rollover_schedule",
       };
     }

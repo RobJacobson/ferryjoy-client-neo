@@ -2,7 +2,7 @@
  * Pure helpers for deriving normalized VesselTimeline scheduled boundary rows.
  */
 
-import type { ConvexScheduledDockEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey } from "../../shared/keys";
 
