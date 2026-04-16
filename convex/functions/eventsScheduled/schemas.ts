@@ -1,15 +1,11 @@
 /**
- * Defines the Convex schema and conversion helpers for `eventsScheduled`.
+ * Defines the Convex schema for `eventsScheduled` and inferred segment shapes.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  epochMsToDate,
-  optionalEpochMsToDate,
-} from "../../shared/convertDates";
 
-export const boundaryEventTypeSchema = v.union(
+export const dockEventTypeSchema = v.union(
   v.literal("dep-dock"),
   v.literal("arv-dock")
 );
@@ -22,7 +18,7 @@ export const eventsScheduledSchema = v.object({
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
   NextTerminalAbbrev: v.string(),
-  EventType: boundaryEventTypeSchema,
+  EventType: dockEventTypeSchema,
   EventScheduledTime: v.optional(v.number()),
   IsLastArrivalOfSailingDay: v.optional(v.boolean()),
 });
@@ -37,27 +33,7 @@ export const inferredScheduledSegmentSchema = v.object({
   NextDepartingTime: v.optional(v.number()),
 });
 
-export type ConvexScheduledBoundaryEvent = Infer<typeof eventsScheduledSchema>;
+export type ConvexScheduledDockEvent = Infer<typeof eventsScheduledSchema>;
 export type ConvexInferredScheduledSegment = Infer<
   typeof inferredScheduledSegmentSchema
->;
-
-/**
- * Converts a scheduled boundary event into the domain shape with `Date`
- * instances.
- *
- * @param event - Scheduled boundary event using epoch milliseconds
- * @returns Scheduled boundary event with `Date` instances
- */
-export const toDomainScheduledBoundaryEvent = (
-  event: ConvexScheduledBoundaryEvent
-) => ({
-  ...event,
-  UpdatedAt: epochMsToDate(event.UpdatedAt),
-  ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  EventScheduledTime: optionalEpochMsToDate(event.EventScheduledTime),
-});
-
-export type ScheduledBoundaryEvent = ReturnType<
-  typeof toDomainScheduledBoundaryEvent
 >;

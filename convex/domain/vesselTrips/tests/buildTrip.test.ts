@@ -30,9 +30,12 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
       {
         getScheduledDepartureSegmentBySegmentKey: (segmentKey) =>
-          ctx.runQuery({} as never, {
-            segmentKey,
-          } as never) as Promise<ConvexInferredScheduledSegment | null>,
+          ctx.runQuery(
+            {} as never,
+            {
+              segmentKey,
+            } as never
+          ) as Promise<ConvexInferredScheduledSegment | null>,
         getNextDepartureSegmentAfterDeparture: (args) =>
           ctx.runQuery(
             {} as never,

@@ -8,12 +8,12 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { buildReseedTimelineSlice } from "domain/timelineReseed";
 import {
-  type buildScheduledBoundaryEvents,
+  type buildScheduledDockEvents,
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "domain/timelineRows";
-import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
-import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
+import type { ConvexActualDockEvent } from "functions/eventsActual/schemas";
+import { actualDockRowsEqual } from "shared/actualDockRowsEqual";
 import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
@@ -111,7 +111,7 @@ const loadTripIndexesForSailingDay = async (
 const replaceScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
-  nextRows: ReturnType<typeof buildScheduledBoundaryEvents>
+  nextRows: ReturnType<typeof buildScheduledDockEvents>
 ) => {
   const existingRows = await ctx.db
     .query("eventsScheduled")
@@ -156,7 +156,7 @@ const replaceScheduledRowsForSailingDay = async (
 const replaceActualRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
-  finalRows: ConvexActualBoundaryEvent[]
+  finalRows: ConvexActualDockEvent[]
 ) => {
   const existingRows = await ctx.db
     .query("eventsActual")
@@ -190,7 +190,7 @@ const replaceActualRowsForSailingDay = async (
       continue;
     }
 
-    if (actualBoundaryRowsEqual(existing, nextRow)) {
+    if (actualDockRowsEqual(existing, nextRow)) {
       continue;
     }
 
@@ -207,7 +207,7 @@ const replaceActualRowsForSailingDay = async (
  */
 const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,
-  right: ReturnType<typeof buildScheduledBoundaryEvents>[number]
+  right: ReturnType<typeof buildScheduledDockEvents>[number]
 ) =>
   left.Key === right.Key &&
   left.VesselAbbrev === right.VesselAbbrev &&

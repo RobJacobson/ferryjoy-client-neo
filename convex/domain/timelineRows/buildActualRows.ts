@@ -1,10 +1,10 @@
 /**
- * Pure helpers for deriving normalized VesselTimeline actual boundary rows.
+ * Pure helpers for deriving normalized VesselTimeline actual dock-event rows.
  */
 
 import type {
-  ConvexActualBoundaryEvent,
-  ConvexActualBoundaryPatchPersistable,
+  ConvexActualDockEvent,
+  ConvexActualDockWritePersistable,
 } from "../../functions/eventsActual/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildPhysicalActualEventKey } from "../../shared/physicalTripIdentity";
@@ -12,20 +12,20 @@ import { getSailingDay } from "../../shared/time";
 import type { TripContextForActualRow } from "./bindActualRowsToTrips";
 
 /**
- * Builds normalized actual rows from in-memory boundary event records.
+ * Builds normalized actual dock rows from in-memory event records.
  * PR3: emits a row only when `tripBySegmentKey` resolves a `TripKey` for
  * `event.SegmentKey`; otherwise skips (no persisted schedule-shaped identity).
  *
- * @param events - Boundary event records for one vessel/day slice
+ * @param events - Event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
  * @param tripBySegmentKey - Schedule segment key to physical trip context
- * @returns Actual boundary rows for events that have an actual time and trip context
+ * @returns Actual dock rows for events that have an actual time and trip context
  */
-export const buildActualBoundaryEvents = (
+export const buildActualDockEvents = (
   events: ConvexVesselTimelineEventRecord[],
   updatedAt: number,
   tripBySegmentKey: Map<string, TripContextForActualRow>
-): ConvexActualBoundaryEvent[] =>
+): ConvexActualDockEvent[] =>
   events
     .filter(
       (event) =>
@@ -60,45 +60,45 @@ export const buildActualBoundaryEvents = (
     });
 
 /**
- * Builds one normalized actual boundary row from a sparse actual patch.
+ * Builds one normalized actual dock row from a sparse write.
  * When `SailingDay` or `ScheduledDeparture` are omitted (weak schedule
  * metadata), they are filled conservatively from `EventActualTime` or
  * `ScheduledDeparture` (whichever is present).
  *
- * @param patch - {@link ConvexActualBoundaryPatchPersistable}: `TripKey` plus
- *   at least one of `EventActualTime` or `ScheduledDeparture` (ms)
+ * @param write - {@link ConvexActualDockWritePersistable}: `TripKey` plus at
+ *   least one of `EventActualTime` or `ScheduledDeparture` (ms)
  * @param updatedAt - Timestamp to stamp onto the normalized row
- * @returns Persisted-shape actual boundary row
+ * @returns Persisted-shape actual dock row
  */
-export const buildActualBoundaryEventFromPatch = (
-  patch: ConvexActualBoundaryPatchPersistable,
+export const buildActualDockEventFromWrite = (
+  write: ConvexActualDockWritePersistable,
   updatedAt: number
-): ConvexActualBoundaryEvent => {
+): ConvexActualDockEvent => {
   const anchorMs: number =
-    patch.EventActualTime !== undefined
-      ? patch.EventActualTime
-      : (patch.ScheduledDeparture as number);
+    write.EventActualTime !== undefined
+      ? write.EventActualTime
+      : (write.ScheduledDeparture as number);
 
   const eventKey =
-    patch.EventKey ??
-    buildPhysicalActualEventKey(patch.TripKey, patch.EventType);
+    write.EventKey ??
+    buildPhysicalActualEventKey(write.TripKey, write.EventType);
 
-  const sailingDay = patch.SailingDay ?? getSailingDay(new Date(anchorMs));
+  const sailingDay = write.SailingDay ?? getSailingDay(new Date(anchorMs));
 
   const scheduledDeparture: number =
-    patch.ScheduledDeparture ?? patch.EventActualTime ?? anchorMs;
+    write.ScheduledDeparture ?? write.EventActualTime ?? anchorMs;
 
   return {
     EventKey: eventKey,
-    TripKey: patch.TripKey,
-    ScheduleKey: patch.ScheduleKey,
-    EventType: patch.EventType,
-    VesselAbbrev: patch.VesselAbbrev,
+    TripKey: write.TripKey,
+    ScheduleKey: write.ScheduleKey,
+    EventType: write.EventType,
+    VesselAbbrev: write.VesselAbbrev,
     SailingDay: sailingDay,
     UpdatedAt: updatedAt,
     ScheduledDeparture: scheduledDeparture,
-    TerminalAbbrev: patch.TerminalAbbrev,
+    TerminalAbbrev: write.TerminalAbbrev,
     EventOccurred: true,
-    EventActualTime: patch.EventActualTime,
+    EventActualTime: write.EventActualTime,
   };
 };

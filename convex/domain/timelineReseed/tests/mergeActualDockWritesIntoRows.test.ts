@@ -4,12 +4,12 @@
 
 import { describe, expect, it } from "bun:test";
 import type {
-  ConvexActualBoundaryEvent,
-  ConvexActualBoundaryPatchPersistable,
-  ConvexActualBoundaryPatchWithTripKey,
+  ConvexActualDockEvent,
+  ConvexActualDockWritePersistable,
+  ConvexActualDockWriteWithTripKey,
 } from "../../../functions/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
-import { mergeActualBoundaryPatchesIntoRows } from "../mergeActualBoundaryPatchesIntoRows";
+import { mergeActualDockWritesIntoRows } from "../mergeActualDockWritesIntoRows";
 
 const updatedAt = 1_700_000_000_000;
 
@@ -17,9 +17,9 @@ const tripKey = "TOK 2026-03-13 15:35:00Z";
 const segment = "TOK--2026-03-13--08:35--P52-BBI";
 const eventKeyDep = buildPhysicalActualEventKey(tripKey, "dep-dock");
 
-describe("mergeActualBoundaryPatchesIntoRows", () => {
+describe("mergeActualDockWritesIntoRows", () => {
   it("creates a row when no base row exists for the patch EventKey", () => {
-    const patch: ConvexActualBoundaryPatchPersistable = {
+    const patch: ConvexActualDockWritePersistable = {
       TripKey: tripKey,
       SegmentKey: segment,
       VesselAbbrev: "TOK",
@@ -31,7 +31,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventActualTime: undefined,
     };
 
-    const result = mergeActualBoundaryPatchesIntoRows([], [patch], updatedAt);
+    const result = mergeActualDockWritesIntoRows([], [patch], updatedAt);
 
     expect(result).toEqual([
       {
@@ -50,7 +50,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
   });
 
   it("preserves base EventActualTime when the patch omits a timestamp", () => {
-    const base: ConvexActualBoundaryEvent[] = [
+    const base: ConvexActualDockEvent[] = [
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
@@ -65,7 +65,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
         EventActualTime: 2222,
       },
     ];
-    const patch: ConvexActualBoundaryPatchPersistable = {
+    const patch: ConvexActualDockWritePersistable = {
       TripKey: tripKey,
       SegmentKey: segment,
       VesselAbbrev: "TOK",
@@ -77,14 +77,14 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventActualTime: undefined,
     };
 
-    const result = mergeActualBoundaryPatchesIntoRows(base, [patch], updatedAt);
+    const result = mergeActualDockWritesIntoRows(base, [patch], updatedAt);
 
     expect(result[0]?.EventActualTime).toBe(2222);
     expect(result[0]?.UpdatedAt).toBe(updatedAt);
   });
 
   it("keeps EventActualTime from the patch when present", () => {
-    const base: ConvexActualBoundaryEvent[] = [
+    const base: ConvexActualDockEvent[] = [
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
@@ -99,7 +99,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
         EventActualTime: 2222,
       },
     ];
-    const patch: ConvexActualBoundaryPatchPersistable = {
+    const patch: ConvexActualDockWritePersistable = {
       TripKey: tripKey,
       SegmentKey: segment,
       VesselAbbrev: "TOK",
@@ -111,13 +111,13 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventActualTime: 9999,
     };
 
-    const result = mergeActualBoundaryPatchesIntoRows(base, [patch], updatedAt);
+    const result = mergeActualDockWritesIntoRows(base, [patch], updatedAt);
 
     expect(result[0]?.EventActualTime).toBe(9999);
   });
 
   it("returns base rows unchanged when there are no patches", () => {
-    const base: ConvexActualBoundaryEvent[] = [
+    const base: ConvexActualDockEvent[] = [
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
@@ -133,13 +133,13 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       },
     ];
 
-    const result = mergeActualBoundaryPatchesIntoRows(base, [], updatedAt);
+    const result = mergeActualDockWritesIntoRows(base, [], updatedAt);
 
     expect(result).toEqual(base);
   });
 
   it("dedupes by EventKey; later patches overwrite earlier ones for the same key", () => {
-    const first: ConvexActualBoundaryPatchPersistable = {
+    const first: ConvexActualDockWritePersistable = {
       TripKey: tripKey,
       SegmentKey: segment,
       VesselAbbrev: "TOK",
@@ -150,12 +150,12 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventOccurred: true,
       EventActualTime: 111,
     };
-    const second: ConvexActualBoundaryPatchPersistable = {
+    const second: ConvexActualDockWritePersistable = {
       ...first,
       EventActualTime: 222,
     };
 
-    const result = mergeActualBoundaryPatchesIntoRows(
+    const result = mergeActualDockWritesIntoRows(
       [],
       [first, second],
       updatedAt
@@ -166,7 +166,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
   });
 
   it("skips a patch with no anchor when the base row cannot supply one", () => {
-    const patch: ConvexActualBoundaryPatchWithTripKey = {
+    const patch: ConvexActualDockWriteWithTripKey = {
       TripKey: tripKey,
       SegmentKey: segment,
       VesselAbbrev: "TOK",
@@ -175,7 +175,7 @@ describe("mergeActualBoundaryPatchesIntoRows", () => {
       EventOccurred: true,
     };
 
-    const result = mergeActualBoundaryPatchesIntoRows([], [patch], updatedAt);
+    const result = mergeActualDockWritesIntoRows([], [patch], updatedAt);
 
     expect(result).toEqual([]);
   });

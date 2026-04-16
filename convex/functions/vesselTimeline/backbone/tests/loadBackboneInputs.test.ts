@@ -5,9 +5,9 @@
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "functions/eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "functions/eventsActual/schemas";
+import type { ConvexPredictedDockEvent } from "functions/eventsPredicted/schemas";
+import type { ConvexScheduledDockEvent } from "functions/eventsScheduled/schemas";
 import { loadVesselTimelineBackbone } from "functions/vesselTimeline/queries";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 
@@ -118,9 +118,9 @@ describe("loadVesselTimelineBackbone", () => {
 });
 
 type MockQueryData = {
-  scheduledEvents?: ConvexScheduledBoundaryEvent[];
-  actualEvents?: ConvexActualBoundaryEvent[];
-  predictedEvents?: ConvexPredictedBoundaryEvent[];
+  scheduledEvents?: ConvexScheduledDockEvent[];
+  actualEvents?: ConvexActualDockEvent[];
+  predictedEvents?: ConvexPredictedDockEvent[];
 };
 
 /**
@@ -177,8 +177,8 @@ const getRowsForTable = (data: MockQueryData, tableName: string) => {
 };
 
 const makeScheduledEvent = (
-  overrides: Partial<ConvexScheduledBoundaryEvent>
-): ConvexScheduledBoundaryEvent => ({
+  overrides: Partial<ConvexScheduledDockEvent>
+): ConvexScheduledDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",
@@ -193,8 +193,8 @@ const makeScheduledEvent = (
 });
 
 const makeActualEvent = (
-  overrides: Partial<ConvexActualBoundaryEvent> & { Key?: string }
-): ConvexActualBoundaryEvent => {
+  overrides: Partial<ConvexActualDockEvent> & { Key?: string }
+): ConvexActualDockEvent => {
   const legacyBoundary = overrides.Key ?? "trip-1--dep-dock";
   const merged = {
     VesselAbbrev: "WEN" as const,
@@ -225,8 +225,8 @@ const makeActualEvent = (
 };
 
 const makePredictedEvent = (
-  overrides: Partial<ConvexPredictedBoundaryEvent>
-): ConvexPredictedBoundaryEvent => ({
+  overrides: Partial<ConvexPredictedDockEvent>
+): ConvexPredictedDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",

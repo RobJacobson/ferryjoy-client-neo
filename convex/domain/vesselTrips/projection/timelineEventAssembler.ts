@@ -2,40 +2,40 @@
  * Assembles `TickEventWrites` from lifecycle facts and per-vessel messages.
  *
  * Owns imports of `domain/timelineRows` projection builders and
- * `actualBoundaryPatchesFromTrip`; lifecycle branches emit DTOs only.
+ * `actualDockWritesFromTrip`; lifecycle branches emit DTOs only.
  */
 
 import {
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
+  buildPredictedDockClearBatch,
+  buildPredictedDockWriteBatch,
 } from "domain/timelineRows";
-import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
+import type { ConvexActualDockWritePersistable } from "functions/eventsActual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "functions/eventsPredicted/schemas";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import type { TickEventWrites } from "../processTick/tickEventWrites";
 import { mergeTickEventWrites } from "../processTick/tickEventWrites";
 import {
-  buildArrivalActualPatchForTrip,
-  buildDepartureActualPatchForTrip,
-} from "./actualBoundaryPatchesFromTrip";
+  buildArrivalActualDockWriteForTrip,
+  buildDepartureActualDockWriteForTrip,
+} from "./actualDockWritesFromTrip";
 import type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
-} from "./lifecycleEventTypes";
+} from "./types";
 
-type TaggedActualPatch = {
+type TaggedActualDockWrite = {
   vesselAbbrev: string;
-  patch: ConvexActualBoundaryPatchPersistable;
+  write: ConvexActualDockWritePersistable;
   requiresSuccessfulUpsert: boolean;
 };
 
-type TaggedPredictedEffect = {
+type TaggedPredictedDockBatch = {
   vesselAbbrev: string;
-  effect: ConvexPredictedBoundaryProjectionEffect;
+  batch: ConvexPredictedDockWriteBatch;
   requiresSuccessfulUpsert: boolean;
 };
 
@@ -43,7 +43,7 @@ type TaggedPredictedEffect = {
  * Converts completed-trip facts into merged tick event writes.
  *
  * @param facts - One entry per successful `completeAndStartNewTrip` boundary
- * @returns Patches and effects for timeline mutations
+ * @returns Actual and predicted dock writes for timeline mutations
  */
 export const buildTickEventWritesFromCompletedFacts = (
   facts: CompletedTripBoundaryFact[]
@@ -58,9 +58,9 @@ export const buildTickEventWritesFromCompletedFacts = (
  * Builds tick event writes for the current-trip branch after lifecycle writes.
  *
  * @param successfulVessels - Vessels whose batch upsert succeeded (empty if none ran)
- * @param pendingActualMessages - Per-vessel actual patch messages
- * @param pendingPredictedMessages - Per-vessel predicted-effect messages
- * @returns Patches and effects after upsert-gated filtering
+ * @param pendingActualMessages - Per-vessel actual write messages
+ * @param pendingPredictedMessages - Per-vessel predicted-batch messages
+ * @returns Dock writes after upsert-gated filtering
  */
 export const buildTickEventWritesFromCurrentMessages = (
   successfulVessels: Set<string>,
@@ -68,15 +68,18 @@ export const buildTickEventWritesFromCurrentMessages = (
   pendingPredictedMessages: CurrentTripPredictedEventMessage[]
 ): TickEventWrites => {
   const taggedActual = pendingActualMessages.flatMap(
-    buildTaggedActualPatchesFromMessage
+    buildTaggedActualDockWritesFromMessage
   );
   const taggedPredicted = pendingPredictedMessages.flatMap(
-    buildTaggedPredictedEffectsFromMessage
+    buildTaggedPredictedBatchesFromMessage
   );
 
   return {
-    actualPatches: filterTaggedActualPatches(taggedActual, successfulVessels),
-    predictedEffects: filterTaggedPredictedEffects(
+    actualDockWrites: filterTaggedActualDockWrites(
+      taggedActual,
+      successfulVessels
+    ),
+    predictedDockWriteBatches: filterTaggedPredictedDockBatches(
       taggedPredicted,
       successfulVessels
     ),
@@ -92,28 +95,26 @@ export const buildTickEventWritesFromCurrentMessages = (
 const tickEventWritesFromCompletedFact = (
   fact: CompletedTripBoundaryFact
 ): TickEventWrites => ({
-  actualPatches: [
-    buildDepartureActualPatchForTrip(fact.tripToComplete),
-    buildArrivalActualPatchForTrip(fact.tripToComplete),
+  actualDockWrites: [
+    buildDepartureActualDockWriteForTrip(fact.tripToComplete),
+    buildArrivalActualDockWriteForTrip(fact.tripToComplete),
   ].filter(
-    (patch): patch is ConvexActualBoundaryPatchPersistable => patch !== null
+    (write): write is ConvexActualDockWritePersistable => write !== null
   ),
-  predictedEffects: [
-    buildPredictedBoundaryClearEffect(fact.existingTrip),
-    buildPredictedBoundaryProjectionEffect(fact.newTrip),
-  ].filter((effect): effect is ConvexPredictedBoundaryProjectionEffect =>
-    Boolean(effect)
-  ),
+  predictedDockWriteBatches: [
+    buildPredictedDockClearBatch(fact.existingTrip),
+    buildPredictedDockWriteBatch(fact.newTrip),
+  ].filter((batch): batch is ConvexPredictedDockWriteBatch => Boolean(batch)),
 });
 
 /**
  * Creates an empty tick-event accumulator.
  *
- * @returns Tick-event writes with no patches or effects
+ * @returns Tick-event writes with no actual or predicted payloads
  */
 const emptyTickEventWrites = (): TickEventWrites => ({
-  actualPatches: [],
-  predictedEffects: [],
+  actualDockWrites: [],
+  predictedDockWriteBatches: [],
 });
 
 /**
@@ -134,51 +135,51 @@ const shouldClearExistingPredictions = (
     existingTrip.NextScheduleKey !== finalProposed.NextScheduleKey);
 
 /**
- * Builds actual boundary patches for one current-trip message.
+ * Builds actual dock writes for one current-trip message.
  *
  * @param message - Actual-message payload emitted by the lifecycle branch
- * @returns Vessel-tagged patches gated by upsert success rules
+ * @returns Vessel-tagged writes gated by upsert success rules
  */
-const buildTaggedActualPatchesFromMessage = (
+const buildTaggedActualDockWritesFromMessage = (
   message: CurrentTripActualEventMessage
-): TaggedActualPatch[] => {
-  const patches: ConvexActualBoundaryPatchPersistable[] = [];
+): TaggedActualDockWrite[] => {
+  const writes: ConvexActualDockWritePersistable[] = [];
   const { events, finalProposed, vesselAbbrev, requiresSuccessfulUpsert } =
     message;
 
   if (events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined) {
-    const departure = buildDepartureActualPatchForTrip(finalProposed);
+    const departure = buildDepartureActualDockWriteForTrip(finalProposed);
     if (departure !== null) {
-      patches.push(departure);
+      writes.push(departure);
     }
   }
   if (
     events.didJustArriveAtDock &&
     finalProposed.ArrivedNextActual !== undefined
   ) {
-    const arrival = buildArrivalActualPatchForTrip(finalProposed);
+    const arrival = buildArrivalActualDockWriteForTrip(finalProposed);
     if (arrival !== null) {
-      patches.push(arrival);
+      writes.push(arrival);
     }
   }
 
-  return patches.map((patch) => ({
+  return writes.map((write) => ({
     vesselAbbrev,
-    patch,
+    write,
     requiresSuccessfulUpsert,
   }));
 };
 
 /**
- * Builds predicted projection effects for one current-trip message.
+ * Builds predicted dock write batches for one current-trip message.
  *
  * @param message - Predicted-message payload emitted by the lifecycle branch
- * @returns Vessel-tagged effects gated by upsert success rules
+ * @returns Vessel-tagged batches gated by upsert success rules
  */
-const buildTaggedPredictedEffectsFromMessage = (
+const buildTaggedPredictedBatchesFromMessage = (
   message: CurrentTripPredictedEventMessage
-): TaggedPredictedEffect[] => {
-  const effects: ConvexPredictedBoundaryProjectionEffect[] = [];
+): TaggedPredictedDockBatch[] => {
+  const batches: ConvexPredictedDockWriteBatch[] = [];
   const {
     existingTrip,
     finalProposed,
@@ -186,61 +187,61 @@ const buildTaggedPredictedEffectsFromMessage = (
     requiresSuccessfulUpsert,
   } = message;
 
-  const projection = buildPredictedBoundaryProjectionEffect(finalProposed);
+  const projection = buildPredictedDockWriteBatch(finalProposed);
   if (projection !== null) {
-    effects.push(projection);
+    batches.push(projection);
   }
 
   if (
     existingTrip !== undefined &&
     shouldClearExistingPredictions(existingTrip, finalProposed)
   ) {
-    const clear = buildPredictedBoundaryClearEffect(existingTrip);
+    const clear = buildPredictedDockClearBatch(existingTrip);
     if (clear !== null) {
-      effects.push(clear);
+      batches.push(clear);
     }
   }
 
-  return effects.map((effect) => ({
+  return batches.map((batch) => ({
     vesselAbbrev,
-    effect,
+    batch,
     requiresSuccessfulUpsert,
   }));
 };
 
 /**
- * Filters actual patches by whether their required upsert succeeded.
+ * Filters actual dock writes by whether their required upsert succeeded.
  *
- * @param tagged - Tagged actual patches emitted during current-trip processing
+ * @param tagged - Tagged actual writes emitted during current-trip processing
  * @param successfulVessels - Vessels whose lifecycle upsert completed
- * @returns Persistable actual patches that should be written this tick
+ * @returns Persistable actual writes that should be written this tick
  */
-const filterTaggedActualPatches = (
-  tagged: TaggedActualPatch[],
+const filterTaggedActualDockWrites = (
+  tagged: TaggedActualDockWrite[],
   successfulVessels: Set<string>
-): ConvexActualBoundaryPatchPersistable[] =>
+): ConvexActualDockWritePersistable[] =>
   tagged
     .filter(
       (t) =>
         !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
     )
-    .map((t) => t.patch);
+    .map((t) => t.write);
 
 /**
- * Filters predicted effects by whether their required upsert succeeded.
+ * Filters predicted batches by whether their required upsert succeeded.
  *
- * @param tagged - Tagged predicted effects emitted during current-trip
+ * @param tagged - Tagged predicted batches emitted during current-trip
  * processing
  * @param successfulVessels - Vessels whose lifecycle upsert completed
- * @returns Predicted effects that should be written this tick
+ * @returns Predicted batches that should be written this tick
  */
-const filterTaggedPredictedEffects = (
-  tagged: TaggedPredictedEffect[],
+const filterTaggedPredictedDockBatches = (
+  tagged: TaggedPredictedDockBatch[],
   successfulVessels: Set<string>
-): ConvexPredictedBoundaryProjectionEffect[] =>
+): ConvexPredictedDockWriteBatch[] =>
   tagged
     .filter(
       (t) =>
         !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
     )
-    .map((t) => t.effect);
+    .map((t) => t.batch);

@@ -1,11 +1,10 @@
 /**
- * Validators and types for `eventsPredicted`: persisted table rows, trip-driven
- * projection payloads, and domain conversion helpers.
+ * Validators and types for `eventsPredicted`: persisted rows and trip-driven
+ * dock write batches.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { epochMsToDate } from "../../shared/convertDates";
 import { predictionTypeValidator } from "../predictions/schemas";
 
 export const predictionSourceSchema = v.union(
@@ -16,15 +15,10 @@ export const predictionSourceSchema = v.union(
 export type ConvexPredictionSource = Infer<typeof predictionSourceSchema>;
 
 /**
- * Shared field validators for **persisted** prediction rows and for **each row**
- * inside a {@link predictedBoundaryProjectionEffectSchema}. Same pattern as
- * `actualBoundarySharedFields` in [`eventsActual/schemas.ts`](../eventsActual/schemas.ts).
- *
- * Unlike actual boundary patches, prediction projection already targets a
- * specific boundary, so rows carry the full `Key` (no separate segment key +
- * event type).
+ * Shared field validators for **persisted** prediction rows and for each row
+ * inside a {@link predictedDockWriteBatchSchema}.
  */
-const predictedBoundarySharedFields = {
+const predictedDockSharedFields = {
   Key: v.string(),
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
@@ -41,77 +35,44 @@ const predictedBoundarySharedFields = {
 
 /**
  * Convex validator for one **persisted** `eventsPredicted` document.
- *
- * Spreads {@link predictedBoundarySharedFields}, then adds `UpdatedAt` (set at
- * insert/replace). Compared to each row in a projection effect: same payload
- * columns, plus stamping.
  */
 export const eventsPredictedSchema = v.object({
-  ...predictedBoundarySharedFields,
+  ...predictedDockSharedFields,
   UpdatedAt: v.number(),
 });
 
-export type ConvexPredictedBoundaryEvent = Infer<typeof eventsPredictedSchema>;
+export type ConvexPredictedDockEvent = Infer<typeof eventsPredictedSchema>;
 
-/**
- * One prediction row inside a trip-driven projection batch (before persistence).
- * Same columns as {@link predictedBoundarySharedFields}; **no** `UpdatedAt`
- * (the mutation applies a single stamp when writing).
- */
-const predictedBoundaryProjectionRowSchema = v.object(
-  predictedBoundarySharedFields
-);
+const predictedDockWriteRowSchema = v.object(predictedDockSharedFields);
 
-export type ConvexPredictedBoundaryProjectionRow = Infer<
-  typeof predictedBoundaryProjectionRowSchema
+export type ConvexPredictedDockWriteRow = Infer<
+  typeof predictedDockWriteRowSchema
 >;
 
 /**
- * Batch projection input: vessel/day scope, authoritative key set, replacement
- * rows. Top-level `VesselAbbrev` / `SailingDay` identify the slice; each
- * element of `Rows` repeats them per row for self-contained payloads.
+ * Batch write input: vessel/day scope, authoritative key set, replacement rows.
  */
-export const predictedBoundaryProjectionEffectSchema = v.object({
+export const predictedDockWriteBatchSchema = v.object({
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   TargetKeys: v.array(v.string()),
-  Rows: v.array(predictedBoundaryProjectionRowSchema),
+  Rows: v.array(predictedDockWriteRowSchema),
 });
 
-export type ConvexPredictedBoundaryProjectionEffect = Infer<
-  typeof predictedBoundaryProjectionEffectSchema
+export type ConvexPredictedDockWriteBatch = Infer<
+  typeof predictedDockWriteBatchSchema
 >;
 
 /**
  * Map key / dedupe id for one `eventsPredicted` row: `Key`, prediction type,
- * and source. Keep in sync with `projectPredictedBoundaryEffects` and timeline
+ * and source. Keep in sync with `projectPredictedDockWriteBatches` and timeline
  * dedupe (`normalizedEvents`).
  *
  * @param row - Row identity fields only
  * @returns Single string for `Map` lookups
  */
-export const predictedBoundaryCompositeKey = (row: {
+export const predictedDockCompositeKey = (row: {
   Key: string;
   PredictionType: string;
   PredictionSource: string;
 }): string => `${row.Key}|${row.PredictionType}|${row.PredictionSource}`;
-
-/**
- * Converts a predicted boundary event into the domain shape with `Date`
- * instances.
- *
- * @param event - Predicted boundary event using epoch milliseconds
- * @returns Predicted boundary event with `Date` instances
- */
-export const toDomainPredictedBoundaryEvent = (
-  event: ConvexPredictedBoundaryEvent
-) => ({
-  ...event,
-  UpdatedAt: epochMsToDate(event.UpdatedAt),
-  ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  EventPredictedTime: epochMsToDate(event.EventPredictedTime),
-});
-
-export type PredictedBoundaryEvent = ReturnType<
-  typeof toDomainPredictedBoundaryEvent
->;

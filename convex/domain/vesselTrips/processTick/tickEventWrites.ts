@@ -3,17 +3,17 @@
  * after lifecycle persistence. Peers apply these via orchestrator mutations.
  */
 
-import type { ConvexActualBoundaryPatchPersistable } from "functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryProjectionEffect } from "functions/eventsPredicted/schemas";
+import type { ConvexActualDockWritePersistable } from "functions/eventsActual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "functions/eventsPredicted/schemas";
 
 /**
  * Sparse timeline table updates for one orchestrator tick.
  *
- * Matches `projectActualBoundaryPatches` / `projectPredictedBoundaryEffects` args.
+ * Matches `projectActualDockWrites` / `projectPredictedDockWriteBatches` args.
  */
 export type TickEventWrites = {
-  actualPatches: ConvexActualBoundaryPatchPersistable[];
-  predictedEffects: ConvexPredictedBoundaryProjectionEffect[];
+  actualDockWrites: ConvexActualDockWritePersistable[];
+  predictedDockWriteBatches: ConvexPredictedDockWriteBatch[];
 };
 
 /**
@@ -27,9 +27,12 @@ export const mergeTickEventWrites = (
   completed: TickEventWrites,
   current: TickEventWrites
 ): TickEventWrites => ({
-  actualPatches: [...completed.actualPatches, ...current.actualPatches],
-  predictedEffects: [
-    ...completed.predictedEffects,
-    ...current.predictedEffects,
+  actualDockWrites: [
+    ...completed.actualDockWrites,
+    ...current.actualDockWrites,
+  ],
+  predictedDockWriteBatches: [
+    ...completed.predictedDockWriteBatches,
+    ...current.predictedDockWriteBatches,
   ],
 });

@@ -5,7 +5,7 @@ import type { ConvexVesselLocation } from "../../../functions/vesselLocation/sch
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { normalizeScheduledDockSeams } from "../normalizeEventRecords";
-import { buildActualBoundaryPatchesFromLocation } from "../reconcileLiveLocations";
+import { buildActualDockWritesFromLocation } from "../reconcileLiveLocations";
 import { buildSeedVesselTripEventsFromRawSegments } from "../seedScheduledEvents";
 
 const at = (hours: number, minutes: number) =>
@@ -125,9 +125,9 @@ describe("normalizeScheduledDockSeams", () => {
   });
 });
 
-describe("buildActualBoundaryPatchesFromLocation", () => {
+describe("buildActualDockWritesFromLocation", () => {
   it("emits a departure patch when telemetry proves departure", () => {
-    const patches = buildActualBoundaryPatchesFromLocation(
+    const patches = buildActualDockWritesFromLocation(
       [
         makeEvent({
           SegmentKey: "TOK--2026-03-13--08:35--P52-BBI",
@@ -171,7 +171,7 @@ describe("buildActualBoundaryPatchesFromLocation", () => {
   });
 
   it("emits an arrival patch when telemetry proves arrival", () => {
-    const patches = buildActualBoundaryPatchesFromLocation(
+    const patches = buildActualDockWritesFromLocation(
       [
         makeEvent({
           SegmentKey: "seg-1",

@@ -58,9 +58,7 @@ const makeTrip = (): ConvexVesselTrip => ({
 describe("enrichTripsWithPredictions", () => {
   it("preserves canonical timestamp fields when enriching query trips", async () => {
     const trip = makeTrip();
-    const [enriched] = await enrichTripsWithPredictions(makeCtx(), [
-      trip,
-    ]);
+    const [enriched] = await enrichTripsWithPredictions(makeCtx(), [trip]);
 
     expect(enriched.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
     expect(enriched.ArrivedNextActual).toBe(trip.ArrivedNextActual);

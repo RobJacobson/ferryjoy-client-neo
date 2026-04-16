@@ -10,11 +10,11 @@ import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import { generateTripKey } from "../../../shared/physicalTripIdentity";
 import {
   type ActiveTripForPhysicalActualReconcile,
-  buildActualBoundaryEvents,
-  buildScheduledBoundaryEvents,
+  buildActualDockEvents,
+  buildScheduledDockEvents,
   type TripContextForActualRow,
 } from "../../timelineRows";
-import { buildActualBoundaryPatchesForSailingDay } from "../reconcileLiveLocations";
+import { buildActualDockWritesForSailingDay } from "../reconcileLiveLocations";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
@@ -24,7 +24,7 @@ const at = (hours: number, minutes: number) =>
  * segment) so PR3 patches and hydrated actuals resolve `TripKey`.
  *
  * @param events - Seed boundary events
- * @returns Map for `buildActualBoundaryEvents` / `tripBySegmentKey`
+ * @returns Map for `buildActualDockEvents` / `tripBySegmentKey`
  */
 const tripIndexFromSeedEvents = (
   events: { SegmentKey: string }[]
@@ -42,7 +42,7 @@ const tripIndexFromSeedEvents = (
   return map;
 };
 
-describe("buildActualBoundaryPatchesForSailingDay", () => {
+describe("buildActualDockWritesForSailingDay", () => {
   it("emits a departure actual-boundary patch when underway location proves departure", () => {
     const events = makeSeedEvents([
       {
@@ -55,10 +55,10 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
-    const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
+    const scheduledEvents = buildScheduledDockEvents(events, updatedAt);
+    const actualEvents = buildActualDockEvents(events, updatedAt, tripIdx);
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents,
       actualEvents,
@@ -84,7 +84,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
 
     expect(effects).toEqual([
       {
-        TripKey: ctx0!.TripKey,
+        TripKey: ctx0?.TripKey,
         ScheduleKey: seg0,
         SegmentKey: seg0,
         VesselAbbrev: "TOK",
@@ -117,10 +117,10 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
-    const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
+    const scheduledEvents = buildScheduledDockEvents(events, updatedAt);
+    const actualEvents = buildActualDockEvents(events, updatedAt, tripIdx);
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents,
       actualEvents,
@@ -145,7 +145,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
 
     expect(effects).toEqual([
       {
-        TripKey: ctx1!.TripKey,
+        TripKey: ctx1?.TripKey,
         ScheduleKey: seg1,
         SegmentKey: seg1,
         VesselAbbrev: "TOK",
@@ -171,10 +171,10 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
-    const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
+    const scheduledEvents = buildScheduledDockEvents(events, updatedAt);
+    const actualEvents = buildActualDockEvents(events, updatedAt, tripIdx);
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents,
       actualEvents,
@@ -205,7 +205,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       SailingDay: "2026-03-13",
     });
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents: [],
       actualEvents: [],
@@ -248,7 +248,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       SailingDay: "2026-03-13",
     });
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents: [],
       actualEvents: [],
@@ -281,7 +281,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       SailingDay: "2026-03-13",
     });
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents: [],
       actualEvents: [],
@@ -323,7 +323,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       SailingDay: "2026-03-13",
     });
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents: [],
       actualEvents: [],
@@ -355,7 +355,7 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
       SailingDay: "2026-03-13",
     });
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents: [],
       actualEvents: [
@@ -405,10 +405,10 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     ]);
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
-    const scheduledEvents = buildScheduledBoundaryEvents(events, updatedAt);
-    const actualEvents = buildActualBoundaryEvents(events, updatedAt, tripIdx);
+    const scheduledEvents = buildScheduledDockEvents(events, updatedAt);
+    const actualEvents = buildActualDockEvents(events, updatedAt, tripIdx);
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents,
       actualEvents,
@@ -464,17 +464,14 @@ describe("buildActualBoundaryPatchesForSailingDay", () => {
     );
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(withOccurred);
-    const scheduledEvents = buildScheduledBoundaryEvents(
-      withOccurred,
-      updatedAt
-    );
-    const actualEvents = buildActualBoundaryEvents(
+    const scheduledEvents = buildScheduledDockEvents(withOccurred, updatedAt);
+    const actualEvents = buildActualDockEvents(
       withOccurred,
       updatedAt,
       tripIdx
     );
 
-    const effects = buildActualBoundaryPatchesForSailingDay({
+    const effects = buildActualDockWritesForSailingDay({
       sailingDay: "2026-03-13",
       scheduledEvents,
       actualEvents,

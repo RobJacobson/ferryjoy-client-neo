@@ -9,8 +9,8 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";

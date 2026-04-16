@@ -33,8 +33,5 @@
     "noEmit": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": [
-    "./_generated",
-    "./**/__tests__/**"
-  ]
+  "exclude": ["./_generated", "./**/__tests__/**"]
 }

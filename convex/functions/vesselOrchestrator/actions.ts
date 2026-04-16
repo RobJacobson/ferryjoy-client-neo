@@ -164,21 +164,20 @@ export const applyTickEventWrites = async (
   writes: TickEventWrites
 ): Promise<void> => {
   await Promise.all([
-    writes.actualPatches.length > 0
+    writes.actualDockWrites.length > 0
       ? ctx.runMutation(
-          internal.functions.eventsActual.mutations
-            .projectActualBoundaryPatches,
+          internal.functions.eventsActual.mutations.projectActualDockWrites,
           {
-            Patches: writes.actualPatches,
+            Writes: writes.actualDockWrites,
           }
         )
       : Promise.resolve(),
-    writes.predictedEffects.length > 0
+    writes.predictedDockWriteBatches.length > 0
       ? ctx.runMutation(
           internal.functions.eventsPredicted.mutations
-            .projectPredictedBoundaryEffects,
+            .projectPredictedDockWriteBatches,
           {
-            Effects: writes.predictedEffects,
+            Batches: writes.predictedDockWriteBatches,
           }
         )
       : Promise.resolve(),

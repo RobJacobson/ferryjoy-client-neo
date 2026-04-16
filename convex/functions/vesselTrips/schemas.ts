@@ -259,7 +259,9 @@ const mapPredictionField = (
  * @returns Domain vessel trip with Date objects and optional domain ScheduledTrip
  */
 export const toDomainVesselTripWithScheduledTrip = (
-  trip: ConvexVesselTripWithPredictions & { ScheduledTrip?: ConvexScheduledTrip }
+  trip: ConvexVesselTripWithPredictions & {
+    ScheduledTrip?: ConvexScheduledTrip;
+  }
 ): VesselTripWithScheduledTrip => {
   const domainTrip = toDomainVesselTrip(trip);
   const ScheduledTrip = trip.ScheduledTrip

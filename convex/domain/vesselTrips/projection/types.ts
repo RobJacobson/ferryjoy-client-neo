@@ -6,8 +6,8 @@
  */
 
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 

@@ -9,7 +9,7 @@
 
 import type {
   ConvexInferredScheduledSegment,
-  ConvexScheduledBoundaryEvent,
+  ConvexScheduledDockEvent,
 } from "../../functions/eventsScheduled/schemas";
 import {
   type AdjacentDockInterval,
@@ -24,8 +24,8 @@ import {
  * @returns Portable schedule segment lookup result
  */
 export const buildInferredScheduledSegment = (
-  departureEvent: ConvexScheduledBoundaryEvent,
-  nextDepartureEvent: ConvexScheduledBoundaryEvent | null
+  departureEvent: ConvexScheduledDockEvent,
+  nextDepartureEvent: ConvexScheduledDockEvent | null
 ): ConvexInferredScheduledSegment => ({
   Key: getSegmentKeyFromBoundaryKey(departureEvent.Key),
   SailingDay: departureEvent.SailingDay,
@@ -52,8 +52,8 @@ export const buildInferredScheduledSegment = (
  * @returns Earliest departure after that boundary, or `null`
  */
 export const findNextDepartureAfterBoundaryEvent = (
-  events: ConvexScheduledBoundaryEvent[],
-  boundaryEvent: Pick<ConvexScheduledBoundaryEvent, "Key">
+  events: ConvexScheduledDockEvent[],
+  boundaryEvent: Pick<ConvexScheduledDockEvent, "Key">
 ) => {
   const { eventByKey, intervals } = buildScheduledIntervalContext(events);
   const interval = intervals.find(
@@ -76,7 +76,7 @@ export const findNextDepartureAfterBoundaryEvent = (
  * @returns Earliest matching departure boundary, or `null`
  */
 export const findNextDepartureEvent = (
-  events: ConvexScheduledBoundaryEvent[],
+  events: ConvexScheduledDockEvent[],
   args: {
     terminalAbbrev?: string;
     afterTime: number;
@@ -90,7 +90,7 @@ export const findNextDepartureEvent = (
           event.TerminalAbbrev === args.terminalAbbrev) &&
         event.ScheduledDeparture > args.afterTime
     )
-    .sort(sortScheduledBoundaryEvents)[0] ?? null;
+    .sort(sortScheduledDockEvents)[0] ?? null;
 
 /**
  * Picks the timestamp used to order or compare scheduled boundaries.
@@ -100,7 +100,7 @@ export const findNextDepartureEvent = (
  */
 export const getBoundaryTime = (
   event: Pick<
-    ConvexScheduledBoundaryEvent,
+    ConvexScheduledDockEvent,
     "EventScheduledTime" | "ScheduledDeparture"
   >
 ) => event.EventScheduledTime ?? event.ScheduledDeparture;
@@ -112,9 +112,9 @@ export const getBoundaryTime = (
  * @param right - Right scheduled boundary event
  * @returns Stable comparison result for sorting
  */
-export const sortScheduledBoundaryEvents = (
-  left: ConvexScheduledBoundaryEvent,
-  right: ConvexScheduledBoundaryEvent
+export const sortScheduledDockEvents = (
+  left: ConvexScheduledDockEvent,
+  right: ConvexScheduledDockEvent
 ) =>
   getBoundaryTime(left) - getBoundaryTime(right) ||
   getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
@@ -135,7 +135,7 @@ export const getSegmentKeyFromBoundaryKey = (boundaryKey: string) =>
  * @param event - Scheduled boundary event
  * @returns Generic interval input event
  */
-const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
+const toAdjacentBoundaryEvent = (event: ConvexScheduledDockEvent) => ({
   Key: event.Key,
   SegmentKey: getSegmentKeyFromBoundaryKey(event.Key),
   TerminalAbbrev: event.TerminalAbbrev,
@@ -149,10 +149,8 @@ const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
  * @param events - Scheduled boundary events for one vessel/day scope
  * @returns Sorted event map plus adjacent dock intervals
  */
-const buildScheduledIntervalContext = (
-  events: ConvexScheduledBoundaryEvent[]
-) => {
-  const sortedEvents = [...events].sort(sortScheduledBoundaryEvents);
+const buildScheduledIntervalContext = (events: ConvexScheduledDockEvent[]) => {
+  const sortedEvents = [...events].sort(sortScheduledDockEvents);
 
   return {
     eventByKey: new Map(sortedEvents.map((event) => [event.Key, event])),
@@ -166,8 +164,7 @@ const buildScheduledIntervalContext = (
  * Maps event types to their stable sort rank.
  *
  * @param eventType - Boundary event type
- * @returns Sort rank used by `sortScheduledBoundaryEvents`
+ * @returns Sort rank used by `sortScheduledDockEvents`
  */
-const getEventTypeOrder = (
-  eventType: ConvexScheduledBoundaryEvent["EventType"]
-) => (eventType === "arv-dock" ? 0 : 1);
+const getEventTypeOrder = (eventType: ConvexScheduledDockEvent["EventType"]) =>
+  eventType === "arv-dock" ? 0 : 1;

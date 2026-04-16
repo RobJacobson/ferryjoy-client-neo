@@ -4,8 +4,8 @@
 // ============================================================================
 
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 // import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 

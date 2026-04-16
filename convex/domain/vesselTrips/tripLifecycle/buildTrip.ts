@@ -5,8 +5,8 @@ import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 import {

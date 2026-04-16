@@ -3,7 +3,7 @@
  */
 
 import type { Doc } from "_generated/dataModel";
-import type { ConvexActualBoundaryEvent } from "../functions/eventsActual/schemas";
+import type { ConvexActualDockEvent } from "../functions/eventsActual/schemas";
 
 /**
  * Returns whether a stored row matches the candidate for all user-visible
@@ -13,9 +13,9 @@ import type { ConvexActualBoundaryEvent } from "../functions/eventsActual/schema
  * @param right - Candidate insert/replace payload including `UpdatedAt`
  * @returns True when no replace is needed
  */
-export const actualBoundaryRowsEqual = (
+export const actualDockRowsEqual = (
   left: Doc<"eventsActual">,
-  right: ConvexActualBoundaryEvent
+  right: ConvexActualDockEvent
 ): boolean =>
   left.EventKey === right.EventKey &&
   left.TripKey === right.TripKey &&

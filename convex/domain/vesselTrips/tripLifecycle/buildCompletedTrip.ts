@@ -5,8 +5,8 @@
 import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 

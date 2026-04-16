@@ -3,12 +3,12 @@
  */
 
 import type {
-  ConvexPredictedBoundaryEvent,
-  ConvexPredictedBoundaryProjectionEffect,
-  ConvexPredictedBoundaryProjectionRow,
+  ConvexPredictedDockEvent,
+  ConvexPredictedDockWriteBatch,
+  ConvexPredictedDockWriteRow,
   ConvexPredictionSource,
 } from "../../functions/eventsPredicted/schemas";
-import { predictedBoundaryCompositeKey } from "../../functions/eventsPredicted/schemas";
+import { predictedDockCompositeKey } from "../../functions/eventsPredicted/schemas";
 import type { PredictionType } from "../../functions/predictions/schemas";
 import type { ConvexVesselTripWithML } from "../../functions/vesselTrips/schemas";
 import {
@@ -25,9 +25,9 @@ import {
  * @param trip - Active trip whose current prediction state should be projected
  * @returns Projection effect, or `null` when the trip cannot be scoped
  */
-export const buildPredictedBoundaryProjectionEffect = (
+export const buildPredictedDockWriteBatch = (
   trip: ConvexVesselTripWithML
-): ConvexPredictedBoundaryProjectionEffect | null => {
+): ConvexPredictedDockWriteBatch | null => {
   if (!trip.SailingDay) {
     return null;
   }
@@ -54,9 +54,9 @@ export const buildPredictedBoundaryProjectionEffect = (
  * @param trip - Trip whose prediction scope should be cleared
  * @returns Clear effect, or `null` when the trip cannot be scoped
  */
-export const buildPredictedBoundaryClearEffect = (
+export const buildPredictedDockClearBatch = (
   trip: ConvexVesselTripWithML
-): ConvexPredictedBoundaryProjectionEffect | null => {
+): ConvexPredictedDockWriteBatch | null => {
   if (!trip.SailingDay) {
     return null;
   }
@@ -76,7 +76,7 @@ export const buildPredictedBoundaryClearEffect = (
 
 const buildPredictedBoundaryEventsFromTrip = (trip: ConvexVesselTripWithML) => {
   const updatedAt = trip.TimeStamp;
-  const rows: ConvexPredictedBoundaryEvent[] = [];
+  const rows: ConvexPredictedDockEvent[] = [];
 
   const currentDeparture = getCurrentDeparturePrediction(trip, updatedAt);
   if (currentDeparture) {
@@ -143,7 +143,7 @@ const getCurrentDeparturePrediction = (
 const getCurrentArrivalPredictions = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
-): ConvexPredictedBoundaryEvent[] => {
+): ConvexPredictedDockEvent[] => {
   if (
     !trip.ScheduleKey ||
     trip.ScheduledDeparture === undefined ||
@@ -162,7 +162,7 @@ const getCurrentArrivalPredictions = (
     TerminalAbbrev: trip.ArrivingTerminalAbbrev,
   };
 
-  const rows: ConvexPredictedBoundaryEvent[] = [];
+  const rows: ConvexPredictedDockEvent[] = [];
 
   if (trip.Eta !== undefined) {
     rows.push(
@@ -252,12 +252,12 @@ const getNextDeparturePrediction = (
 };
 
 const buildPredictedBoundaryEvent = (
-  row: ConvexPredictedBoundaryEvent
-): ConvexPredictedBoundaryEvent => row;
+  row: ConvexPredictedDockEvent
+): ConvexPredictedDockEvent => row;
 
 const stripPredictedUpdatedAt = (
-  row: ConvexPredictedBoundaryEvent
-): ConvexPredictedBoundaryProjectionRow => ({
+  row: ConvexPredictedDockEvent
+): ConvexPredictedDockWriteRow => ({
   Key: row.Key,
   VesselAbbrev: row.VesselAbbrev,
   SailingDay: row.SailingDay,
@@ -271,10 +271,8 @@ const stripPredictedUpdatedAt = (
 });
 
 const dedupePredictedBoundaryEvents = (
-  rows: ConvexPredictedBoundaryEvent[]
-): ConvexPredictedBoundaryEvent[] =>
+  rows: ConvexPredictedDockEvent[]
+): ConvexPredictedDockEvent[] =>
   Array.from(
-    new Map(
-      rows.map((row) => [predictedBoundaryCompositeKey(row), row])
-    ).values()
+    new Map(rows.map((row) => [predictedDockCompositeKey(row), row])).values()
   );

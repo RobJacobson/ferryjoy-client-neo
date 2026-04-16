@@ -20,20 +20,23 @@ import type { TripEvents } from "../tripLifecycle/tripEventTypes";
  * `runMutation` so sequencing assertions stay domain-local.
  *
  * @param ctx - Test fake action context
- * @param writes - Patches and predicted effects from the tick
+ * @param writes - Actual and predicted dock writes from the tick
  */
 const applyTickEventWritesLikeOrchestrator = async (
   ctx: ActionCtx,
   writes: TickEventWrites
 ): Promise<void> => {
   await Promise.all([
-    writes.actualPatches.length > 0
-      ? ctx.runMutation({} as never, { Patches: writes.actualPatches } as never)
-      : Promise.resolve(),
-    writes.predictedEffects.length > 0
+    writes.actualDockWrites.length > 0
       ? ctx.runMutation(
           {} as never,
-          { Effects: writes.predictedEffects } as never
+          { Writes: writes.actualDockWrites } as never
+        )
+      : Promise.resolve(),
+    writes.predictedDockWriteBatches.length > 0
+      ? ctx.runMutation(
+          {} as never,
+          { Batches: writes.predictedDockWriteBatches } as never
         )
       : Promise.resolve(),
   ]);
@@ -150,8 +153,8 @@ describe("processVesselTripsWithDeps", () => {
       [enrichedExisting]
     );
 
-    const effectsStorage = getPredictedProjectionArgs(ctxStorage)?.Effects;
-    const effectsEnriched = getPredictedProjectionArgs(ctxEnriched)?.Effects;
+    const effectsStorage = getPredictedProjectionArgs(ctxStorage)?.Batches;
+    const effectsEnriched = getPredictedProjectionArgs(ctxEnriched)?.Batches;
     expect(effectsStorage?.length).toBe(effectsEnriched?.length);
     expect(getUpsertMutationArgs(ctxStorage)).toBeUndefined();
     expect(getUpsertMutationArgs(ctxEnriched)).toBeUndefined();
@@ -258,7 +261,7 @@ describe("processVesselTripsWithDeps", () => {
     );
 
     expect(getUpsertMutationArgs(ctx)?.activeUpserts).toHaveLength(1);
-    expect(getPredictedProjectionArgs(ctx)?.Effects).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)?.Batches).toHaveLength(1);
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
@@ -283,7 +286,7 @@ describe("processVesselTripsWithDeps", () => {
     );
 
     expect(getUpsertMutationArgs(ctx)).toBeUndefined();
-    expect(getPredictedProjectionArgs(ctx)?.Effects).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)?.Batches).toHaveLength(1);
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
@@ -317,12 +320,12 @@ describe("processVesselTripsWithDeps", () => {
 
     const predictedArgs = getPredictedProjectionArgs(ctx);
 
-    expect(predictedArgs?.Effects).toHaveLength(2);
+    expect(predictedArgs?.Batches).toHaveLength(2);
     expect(
-      predictedArgs?.Effects.some((effect) => effect.Rows.length === 0)
+      predictedArgs?.Batches.some((effect) => effect.Rows.length === 0)
     ).toBe(true);
     expect(
-      predictedArgs?.Effects.some((effect) => effect.Rows.length > 0)
+      predictedArgs?.Batches.some((effect) => effect.Rows.length > 0)
     ).toBe(true);
   });
 
@@ -365,9 +368,7 @@ describe("processVesselTripsWithDeps", () => {
       })
     );
 
-    expect(getActualProjectionArgs(ctx)?.Patches[0]?.EventType).toBe(
-      "arv-dock"
-    );
+    expect(getActualProjectionArgs(ctx)?.Writes[0]?.EventType).toBe("arv-dock");
   });
 
   it("runs leave-dock post-persist work only after a successful upsert", async () => {
@@ -474,8 +475,8 @@ describe("processVesselTripsWithDeps", () => {
       })
     );
 
-    expect(getPredictedProjectionArgs(ctx)?.Effects).toHaveLength(1);
-    expect(getPredictedProjectionArgs(ctx)?.Effects[0]?.VesselAbbrev).toBe(
+    expect(getPredictedProjectionArgs(ctx)?.Batches).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)?.Batches[0]?.VesselAbbrev).toBe(
       "CHE"
     );
     expect(getDepartNextBackfillCalls(ctx)).toHaveLength(0);
@@ -585,12 +586,12 @@ const createTestActionCtx = (options: {
         options.callSequence?.push("mutation:upsert");
         return (
           options.upsertResult ?? {
-            perVessel: (args.activeUpserts as ConvexVesselTripWithPredictions[]).map(
-              (trip) => ({
-                vesselAbbrev: trip.VesselAbbrev,
-                ok: true,
-              })
-            ),
+            perVessel: (
+              args.activeUpserts as ConvexVesselTripWithPredictions[]
+            ).map((trip) => ({
+              vesselAbbrev: trip.VesselAbbrev,
+              ok: true,
+            })),
           }
         );
       }
@@ -610,17 +611,17 @@ const createTestActionCtx = (options: {
 
       if (
         args &&
-        "Effects" in args &&
-        Array.isArray(args.Effects) &&
-        args.Effects.some(
-          (effect) => "Rows" in (effect as Record<string, unknown>)
+        "Batches" in args &&
+        Array.isArray(args.Batches) &&
+        args.Batches.some(
+          (batch) => "Rows" in (batch as Record<string, unknown>)
         )
       ) {
         options.callSequence?.push("mutation:projectPredicted");
         return null;
       }
 
-      if (args && "Patches" in args) {
+      if (args && "Writes" in args) {
         options.callSequence?.push("mutation:projectActual");
         return null;
       }
@@ -637,7 +638,8 @@ const createTestActionCtx = (options: {
  * @returns Dependency bag for `processVesselTripsWithDeps`
  */
 const createDeps = (input: TestDepsInput) => ({
-  buildCompletedTrip: (existingTrip: ConvexVesselTripWithPredictions) => existingTrip,
+  buildCompletedTrip: (existingTrip: ConvexVesselTripWithPredictions) =>
+    existingTrip,
   buildTrip: async (
     _ctx: unknown,
     currLocation: ConvexVesselLocation,
@@ -665,8 +667,10 @@ const createDeps = (input: TestDepsInput) => ({
       _ctx: unknown,
       location: ConvexVesselLocation
     ) => location,
-    appendFinalSchedule: async (_ctx: unknown, baseTrip: ConvexVesselTripWithPredictions) =>
-      baseTrip,
+    appendFinalSchedule: async (
+      _ctx: unknown,
+      baseTrip: ConvexVesselTripWithPredictions
+    ) => baseTrip,
   },
   detectTripEvents: (
     _existingTrip: ConvexVesselTripWithPredictions | undefined,
@@ -854,10 +858,10 @@ const getUpsertMutationArgs = (ctx: TestActionCtx) =>
 const getActualProjectionArgs = (ctx: TestActionCtx) =>
   ctx.mutationCalls.find(
     (call) =>
-      call.args && "Patches" in call.args && Array.isArray(call.args.Patches)
+      call.args && "Writes" in call.args && Array.isArray(call.args.Writes)
   )?.args as
     | {
-        Patches: Array<{
+        Writes: Array<{
           EventType: string;
         }>;
       }
@@ -873,14 +877,14 @@ const getPredictedProjectionArgs = (ctx: TestActionCtx) =>
   ctx.mutationCalls.find(
     (call) =>
       call.args &&
-      "Effects" in call.args &&
-      Array.isArray(call.args.Effects) &&
-      call.args.Effects.some(
-        (effect) => "Rows" in (effect as Record<string, unknown>)
+      "Batches" in call.args &&
+      Array.isArray(call.args.Batches) &&
+      call.args.Batches.some(
+        (batch) => "Rows" in (batch as Record<string, unknown>)
       )
   )?.args as
     | {
-        Effects: Array<{
+        Batches: Array<{
           VesselAbbrev: string;
           Rows: unknown[];
         }>;

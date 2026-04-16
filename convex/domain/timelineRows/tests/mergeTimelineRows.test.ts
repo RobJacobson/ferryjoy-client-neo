@@ -5,9 +5,9 @@
 
 import { describe, expect, it } from "bun:test";
 import { mergeTimelineRows } from "domain/timelineRows";
-import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../../functions/eventsActual/schemas";
+import type { ConvexPredictedDockEvent } from "../../../functions/eventsPredicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../../functions/eventsScheduled/schemas";
 import { resolveActiveTimelineInterval } from "../../../shared/activeTimelineInterval";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { getSegmentKeyFromBoundaryKey } from "../scheduledSegmentResolvers";
@@ -755,8 +755,8 @@ describe("resolveActiveTimelineInterval", () => {
 });
 
 const makeScheduledEvent = (
-  overrides: Partial<ConvexScheduledBoundaryEvent> & { SegmentKey?: never }
-): ConvexScheduledBoundaryEvent => ({
+  overrides: Partial<ConvexScheduledDockEvent> & { SegmentKey?: never }
+): ConvexScheduledDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",
@@ -771,8 +771,8 @@ const makeScheduledEvent = (
 });
 
 const makeActualEvent = (
-  overrides: Partial<ConvexActualBoundaryEvent> & { Key?: string }
-): ConvexActualBoundaryEvent => {
+  overrides: Partial<ConvexActualDockEvent> & { Key?: string }
+): ConvexActualDockEvent => {
   const legacyBoundary = overrides.Key ?? "trip-1--dep-dock";
   const merged = {
     VesselAbbrev: "WEN" as const,
@@ -806,8 +806,8 @@ const makeActualEvent = (
 };
 
 const makePredictedEvent = (
-  overrides: Partial<ConvexPredictedBoundaryEvent>
-): ConvexPredictedBoundaryEvent => ({
+  overrides: Partial<ConvexPredictedDockEvent>
+): ConvexPredictedDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",

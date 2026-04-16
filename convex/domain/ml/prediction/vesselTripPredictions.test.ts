@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "../../../functions/vesselTrips/schemas";
 import {
   actualizePredictionsOnLeaveDock,
@@ -72,7 +72,9 @@ describe("isPredictionReadyTrip", () => {
       AtDockActual: ms("2026-03-13T09:55:00-07:00"),
     } as ConvexVesselTripWithPredictions;
 
-    expect(isPredictionReadyTrip(readyTrip as ConvexVesselTripWithPredictions)).toBe(true);
+    expect(
+      isPredictionReadyTrip(readyTrip as ConvexVesselTripWithPredictions)
+    ).toBe(true);
     expect(isPredictionReadyTrip(legacyOnlyTrip)).toBe(false);
   });
 });

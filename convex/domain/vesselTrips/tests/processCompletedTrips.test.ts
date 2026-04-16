@@ -78,13 +78,13 @@ describe("processCompletedTrips", () => {
     expect(getBoundaryMutationArgs(ctx)?.newTrip.ScheduleKey).toBe(
       newTrip.ScheduleKey
     );
-    expect(result.actualPatches).toHaveLength(2);
-    expect(result.actualPatches[0]?.EventType).toBe("dep-dock");
-    expect(result.actualPatches[0]?.EventActualTime).toBe(
+    expect(result.actualDockWrites).toHaveLength(2);
+    expect(result.actualDockWrites[0]?.EventType).toBe("dep-dock");
+    expect(result.actualDockWrites[0]?.EventActualTime).toBe(
       existingTrip.LeftDock
     );
-    expect(result.actualPatches[1]?.EventType).toBe("arv-dock");
-    expect(result.predictedEffects).toHaveLength(2);
+    expect(result.actualDockWrites[1]?.EventType).toBe("arv-dock");
+    expect(result.predictedDockWriteBatches).toHaveLength(2);
   });
 
   it("logs failures and continues processing other completed trips", async () => {
@@ -164,7 +164,7 @@ describe("processCompletedTrips", () => {
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"
     );
-    expect(result.predictedEffects).toHaveLength(2);
+    expect(result.predictedDockWriteBatches).toHaveLength(2);
     expect(loggedErrors).toEqual([
       {
         vesselAbbrev: "TAC",

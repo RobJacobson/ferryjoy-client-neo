@@ -10,7 +10,7 @@ import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import type { CompletedTripBoundaryFact } from "../projection/lifecycleEventTypes";
+import type { CompletedTripBoundaryFact } from "../projection/types";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
 import type { buildTrip } from "./buildTrip";

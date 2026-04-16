@@ -7,14 +7,11 @@ import type { ActionCtx } from "_generated/server";
 import type {
   ConvexJoinedTripPrediction,
   ConvexPrediction,
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
-import {
-  floorToSecond,
-  getRoundedMinutesDelta,
-} from "../../../shared/time";
+import { floorToSecond, getRoundedMinutesDelta } from "../../../shared/time";
 import type { ModelType } from "../shared/types";
 import { predictTripValue } from "./predictTrip";
 
@@ -326,4 +323,3 @@ const calculateDeltaRange = (
     return Math.round(((actual - max) / MS_PER_MINUTE) * 10) / 10; // Late
   return 0; // Within prediction range
 };
-

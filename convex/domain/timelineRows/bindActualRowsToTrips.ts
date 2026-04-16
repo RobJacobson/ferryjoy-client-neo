@@ -1,15 +1,17 @@
 /**
- * Shared helpers that bind actual boundary rows and patches to physical trip
+ * Shared helpers that bind actual dock rows and writes to physical trip
  * context.
  */
 
-import {
-  type ConvexActualBoundaryPatch,
-  type ConvexActualBoundaryPatchPersistable,
-  type ConvexActualBoundaryPatchWithTripKey,
-  hasTripKey,
-  isPersistableActualBoundaryPatch,
+import type {
+  ConvexActualDockWrite,
+  ConvexActualDockWritePersistable,
+  ConvexActualDockWriteWithTripKey,
 } from "../../functions/eventsActual/schemas";
+import {
+  hasTripKeyOnActualDockWrite,
+  isPersistableActualDockWrite,
+} from "./actualDockWriteHelpers";
 
 /**
  * Resolved physical context stored on each `eventsActual` row.
@@ -20,7 +22,7 @@ export type TripContextForActualRow = {
 };
 
 /**
- * Minimal trip fields used to attach physical identity to actual boundary rows.
+ * Minimal trip fields used to attach physical identity to actual dock rows.
  */
 export type TripRowForActualContext = {
   TripKey?: string;
@@ -104,24 +106,24 @@ export const indexActiveTripsByVesselAbbrev = (
 };
 
 /**
- * Fills `TripKey` (and optional `ScheduleKey`) on sparse patches using the
- * segment-key index. Drops patches that still lack `TripKey` after enrichment.
+ * Fills `TripKey` (and optional `ScheduleKey`) on sparse writes using the
+ * segment-key index. Drops writes that still lack `TripKey` after enrichment.
  *
- * @param patches - Patches from live-location reconciliation
+ * @param writes - Writes from live-location reconciliation
  * @param tripBySegmentKey - Segment key to trip context
- * @returns Patches with `TripKey` and at least one anchor timestamp
+ * @returns Writes with `TripKey` and at least one anchor timestamp
  */
-export const enrichActualBoundaryPatchesWithTripContext = (
-  patches: ConvexActualBoundaryPatch[],
+export const enrichActualDockWritesWithTripContext = (
+  writes: ConvexActualDockWrite[],
   tripBySegmentKey: Map<string, TripContextForActualRow>
-): ConvexActualBoundaryPatchPersistable[] =>
-  patches
-    .flatMap((patch): ConvexActualBoundaryPatchWithTripKey[] => {
-      if (hasTripKey(patch)) {
-        return [patch];
+): ConvexActualDockWritePersistable[] =>
+  writes
+    .flatMap((write): ConvexActualDockWriteWithTripKey[] => {
+      if (hasTripKeyOnActualDockWrite(write)) {
+        return [write];
       }
 
-      const segmentKey = patch.SegmentKey;
+      const segmentKey = write.SegmentKey;
       if (!segmentKey) {
         return [];
       }
@@ -133,10 +135,10 @@ export const enrichActualBoundaryPatchesWithTripContext = (
 
       return [
         {
-          ...patch,
+          ...write,
           TripKey: trip.TripKey,
-          ScheduleKey: patch.ScheduleKey ?? trip.ScheduleKey,
+          ScheduleKey: write.ScheduleKey ?? trip.ScheduleKey,
         },
       ];
     })
-    .filter(isPersistableActualBoundaryPatch);
+    .filter(isPersistableActualDockWrite);

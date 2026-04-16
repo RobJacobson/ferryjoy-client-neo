@@ -9,13 +9,13 @@ import type { DataModel, Doc } from "_generated/dataModel";
 import type { GenericQueryCtx } from "convex/server";
 import {
   type ConvexPredictionSource,
-  predictedBoundaryCompositeKey,
+  predictedDockCompositeKey,
 } from "functions/eventsPredicted/schemas";
 import type { PredictionType } from "functions/predictions/schemas";
 import type {
   ConvexJoinedTripPrediction,
-  ConvexVesselTripWithPredictions,
   ConvexVesselTrip,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import {
   buildTripPredictionBoundaryKeys,
@@ -83,7 +83,7 @@ export const enrichTripsWithPredictions = async (
 
     const map = new Map<string, Doc<"eventsPredicted">>();
     for (const row of rows) {
-      map.set(predictedBoundaryCompositeKey(row), row);
+      map.set(predictedDockCompositeKey(row), row);
     }
     predictedByGroup.set(g, map);
   }
@@ -114,7 +114,7 @@ const mergeTripPredictions = (
       return undefined;
     }
     const row = predMap.get(
-      predictedBoundaryCompositeKey({
+      predictedDockCompositeKey({
         Key: boundaryKey,
         PredictionType: predictionType,
         PredictionSource: source,

@@ -1,11 +1,9 @@
 export {
-  type ActualBoundaryEvent,
-  toDomainActualBoundaryEvent,
-} from "convex/functions/eventsActual/schemas";
-export {
-  type ScheduledBoundaryEvent,
-  toDomainScheduledBoundaryEvent,
-} from "convex/functions/eventsScheduled/schemas";
+  type ActualDockEvent,
+  type ScheduledDockEvent,
+  toDomainActualDockEvent,
+  toDomainScheduledDockEvent,
+} from "convex/domain/timelineRows/dockEventToDomain";
 export {
   type ScheduledTrip,
   toDomainScheduledTrip,

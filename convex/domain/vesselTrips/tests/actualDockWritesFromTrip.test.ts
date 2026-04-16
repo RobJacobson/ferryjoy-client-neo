@@ -1,20 +1,20 @@
 /**
- * Trip-driven sparse actual boundary patch tests.
+ * Trip-driven sparse actual dock write tests.
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
+import { buildActualDockEventFromWrite } from "domain/timelineRows";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import {
-  buildArrivalActualPatchForTrip,
-  buildDepartureActualPatchForTrip,
-} from "../projection/actualBoundaryPatchesFromTrip";
+  buildArrivalActualDockWriteForTrip,
+  buildDepartureActualDockWriteForTrip,
+} from "../projection/actualDockWritesFromTrip";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
 
-describe("buildDepartureActualPatchForTrip", () => {
-  it("returns a patch from LeftDockActual when SailingDay and ScheduledDeparture are omitted", () => {
+describe("buildDepartureActualDockWriteForTrip", () => {
+  it("returns a write from LeftDockActual when SailingDay and ScheduledDeparture are omitted", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
@@ -24,16 +24,16 @@ describe("buildDepartureActualPatchForTrip", () => {
       LeftDock: at(12, 24),
     } as ConvexVesselTripWithPredictions;
 
-    const patch = buildDepartureActualPatchForTrip(trip);
+    const write = buildDepartureActualDockWriteForTrip(trip);
 
-    expect(patch).not.toBeNull();
-    if (!patch) {
-      throw new Error("expected patch");
+    expect(write).not.toBeNull();
+    if (!write) {
+      throw new Error("expected write");
     }
-    expect(patch.SailingDay).toBeUndefined();
-    expect(patch.ScheduledDeparture).toBeUndefined();
+    expect(write.SailingDay).toBeUndefined();
+    expect(write.ScheduledDeparture).toBeUndefined();
 
-    const row = buildActualBoundaryEventFromPatch(patch, at(15, 0));
+    const row = buildActualDockEventFromWrite(write, at(15, 0));
     expect(row.SailingDay).toBe("2026-03-25");
     expect(row.ScheduledDeparture).toBe(at(12, 23));
   });
@@ -47,14 +47,14 @@ describe("buildDepartureActualPatchForTrip", () => {
       LeftDock: at(12, 24),
     } as ConvexVesselTripWithPredictions;
 
-    const patch = buildDepartureActualPatchForTrip(trip);
+    const write = buildDepartureActualDockWriteForTrip(trip);
 
-    expect(patch).toBeNull();
+    expect(write).toBeNull();
   });
 });
 
-describe("buildArrivalActualPatchForTrip", () => {
-  it("returns a patch from ArrivedNextActual when completion has backfilled the physical arrival terminal", () => {
+describe("buildArrivalActualDockWriteForTrip", () => {
+  it("returns a write from ArrivedNextActual when completion has backfilled the physical arrival terminal", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
@@ -64,16 +64,16 @@ describe("buildArrivalActualPatchForTrip", () => {
       ArriveDest: at(12, 58),
     } as ConvexVesselTripWithPredictions;
 
-    const patch = buildArrivalActualPatchForTrip(trip);
+    const write = buildArrivalActualDockWriteForTrip(trip);
 
-    expect(patch).not.toBeNull();
-    if (!patch) {
-      throw new Error("expected patch");
+    expect(write).not.toBeNull();
+    if (!write) {
+      throw new Error("expected write");
     }
-    expect(patch.TerminalAbbrev).toBe("P52");
-    expect(patch.EventType).toBe("arv-dock");
+    expect(write.TerminalAbbrev).toBe("P52");
+    expect(write.EventType).toBe("arv-dock");
 
-    const row = buildActualBoundaryEventFromPatch(patch, at(15, 0));
+    const row = buildActualDockEventFromWrite(write, at(15, 0));
     expect(row.TerminalAbbrev).toBe("P52");
     expect(row.ScheduleKey).toBeUndefined();
     expect(row.ScheduledDeparture).toBe(at(12, 59));
@@ -89,6 +89,6 @@ describe("buildArrivalActualPatchForTrip", () => {
       ArriveDest: at(12, 58),
     } as ConvexVesselTripWithPredictions;
 
-    expect(buildArrivalActualPatchForTrip(trip)).toBeNull();
+    expect(buildArrivalActualDockWriteForTrip(trip)).toBeNull();
   });
 });

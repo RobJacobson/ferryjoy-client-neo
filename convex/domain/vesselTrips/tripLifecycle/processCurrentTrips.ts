@@ -26,14 +26,14 @@ import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import type {
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-} from "../projection/lifecycleEventTypes";
+} from "../projection/types";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
 import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 import { tripsEqualForOverlay, tripsEqualForStorage } from "./tripEquality";

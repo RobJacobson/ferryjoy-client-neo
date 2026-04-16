@@ -7,8 +7,8 @@ import { runVesselOrchestratorTick } from "../runVesselOrchestratorTick";
 import type { VesselOrchestratorTickDeps } from "../types";
 
 const emptyTickEventWrites = {
-  actualPatches: [] as never[],
-  predictedEffects: [] as never[],
+  actualDockWrites: [] as never[],
+  predictedDockWriteBatches: [] as never[],
 };
 
 const baseTripResult = {

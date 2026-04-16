@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexActualBoundaryEvent } from "../../../functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../../functions/eventsActual/schemas";
+import type { ConvexPredictedDockEvent } from "../../../functions/eventsPredicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../../functions/eventsScheduled/schemas";
 import { buildTimelineBackbone } from "..";
 
 const at = (hours: number, minutes: number, day = 25) =>
@@ -61,8 +61,8 @@ describe("buildTimelineBackbone", () => {
 });
 
 const makeScheduledEvent = (
-  overrides: Partial<ConvexScheduledBoundaryEvent> & { SegmentKey?: never }
-): ConvexScheduledBoundaryEvent => ({
+  overrides: Partial<ConvexScheduledDockEvent> & { SegmentKey?: never }
+): ConvexScheduledDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",
@@ -77,8 +77,8 @@ const makeScheduledEvent = (
 });
 
 const makeActualEvent = (
-  overrides: Partial<ConvexActualBoundaryEvent>
-): ConvexActualBoundaryEvent => ({
+  overrides: Partial<ConvexActualDockEvent>
+): ConvexActualDockEvent => ({
   EventKey: "WEN trip-1 dep-dock",
   TripKey: "WEN trip-1",
   ScheduleKey: "trip-1",
@@ -94,8 +94,8 @@ const makeActualEvent = (
 });
 
 const makePredictedEvent = (
-  overrides: Partial<ConvexPredictedBoundaryEvent>
-): ConvexPredictedBoundaryEvent => ({
+  overrides: Partial<ConvexPredictedDockEvent>
+): ConvexPredictedDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",

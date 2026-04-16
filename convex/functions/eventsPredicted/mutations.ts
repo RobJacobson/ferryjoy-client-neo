@@ -7,71 +7,71 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { buildVesselSailingDayScopeKey } from "../../shared/keys";
 import {
-  type ConvexPredictedBoundaryEvent,
-  type ConvexPredictedBoundaryProjectionRow,
-  predictedBoundaryCompositeKey,
-  predictedBoundaryProjectionEffectSchema,
+  type ConvexPredictedDockEvent,
+  type ConvexPredictedDockWriteRow,
+  predictedDockCompositeKey,
+  predictedDockWriteBatchSchema,
 } from "./schemas";
 
 /**
- * Applies sparse predicted-time boundary effects emitted by `vesselTrips`.
+ * Applies sparse predicted-time dock write batches emitted by `vesselTrips`.
  *
  * Rows are identified by `(Key, PredictionType, PredictionSource)`. Stale rows
- * in the effect's target key set are deleted when not present in `Rows`.
+ * in the batch's target key set are deleted when not present in `Rows`.
  *
  * @param ctx - Convex internal mutation context
- * @param args - Mutation arguments containing grouped prediction effects
+ * @param args - Mutation arguments containing grouped prediction batches
  * @returns `null`
  */
-export const projectPredictedBoundaryEffects = internalMutation({
+export const projectPredictedDockWriteBatches = internalMutation({
   args: {
-    Effects: v.array(predictedBoundaryProjectionEffectSchema),
+    Batches: v.array(predictedDockWriteBatchSchema),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const updatedAt = Date.now();
-    const effectsByScope = new Map<
+    const batchesByScope = new Map<
       string,
       {
         VesselAbbrev: string;
         SailingDay: string;
         TargetKeys: Set<string>;
-        RowsByComposite: Map<string, ConvexPredictedBoundaryProjectionRow>;
+        RowsByComposite: Map<string, ConvexPredictedDockWriteRow>;
       }
     >();
 
-    for (const effect of args.Effects) {
+    for (const batch of args.Batches) {
       const scopeKey = buildVesselSailingDayScopeKey(
-        effect.VesselAbbrev,
-        effect.SailingDay
+        batch.VesselAbbrev,
+        batch.SailingDay
       );
-      const existingScope = effectsByScope.get(scopeKey);
+      const existingScope = batchesByScope.get(scopeKey);
 
       if (existingScope) {
-        for (const targetKey of effect.TargetKeys) {
+        for (const targetKey of batch.TargetKeys) {
           existingScope.TargetKeys.add(targetKey);
         }
-        for (const row of effect.Rows) {
+        for (const row of batch.Rows) {
           existingScope.RowsByComposite.set(
-            predictedBoundaryCompositeKey(row),
+            predictedDockCompositeKey(row),
             row
           );
         }
         continue;
       }
 
-      effectsByScope.set(scopeKey, {
-        VesselAbbrev: effect.VesselAbbrev,
-        SailingDay: effect.SailingDay,
-        TargetKeys: new Set(effect.TargetKeys),
+      batchesByScope.set(scopeKey, {
+        VesselAbbrev: batch.VesselAbbrev,
+        SailingDay: batch.SailingDay,
+        TargetKeys: new Set(batch.TargetKeys),
         RowsByComposite: new Map(
-          effect.Rows.map((row) => [predictedBoundaryCompositeKey(row), row])
+          batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
         ),
       });
     }
 
-    for (const effect of effectsByScope.values()) {
-      if (effect.TargetKeys.size === 0) {
+    for (const batch of batchesByScope.values()) {
+      if (batch.TargetKeys.size === 0) {
         continue;
       }
 
@@ -79,42 +79,40 @@ export const projectPredictedBoundaryEffects = internalMutation({
         .query("eventsPredicted")
         .withIndex("by_vessel_and_sailing_day", (q) =>
           q
-            .eq("VesselAbbrev", effect.VesselAbbrev)
-            .eq("SailingDay", effect.SailingDay)
+            .eq("VesselAbbrev", batch.VesselAbbrev)
+            .eq("SailingDay", batch.SailingDay)
         )
         .collect();
 
-      const incomingIds = new Set(effect.RowsByComposite.keys());
+      const existingByComposite = new Map(
+        existingRows.map((row) => [predictedDockCompositeKey(row), row])
+      );
+
+      const incomingIds = new Set(batch.RowsByComposite.keys());
 
       for (const existing of existingRows) {
-        if (!effect.TargetKeys.has(existing.Key)) {
+        if (!batch.TargetKeys.has(existing.Key)) {
           continue;
         }
-        const id = predictedBoundaryCompositeKey(existing);
+        const id = predictedDockCompositeKey(existing);
         if (!incomingIds.has(id)) {
           await ctx.db.delete(existing._id);
+          existingByComposite.delete(id);
         }
       }
 
-      for (const row of effect.RowsByComposite.values()) {
-        if (!effect.TargetKeys.has(row.Key)) {
+      for (const row of batch.RowsByComposite.values()) {
+        if (!batch.TargetKeys.has(row.Key)) {
           continue;
         }
 
-        const nextRow: ConvexPredictedBoundaryEvent = {
+        const nextRow: ConvexPredictedDockEvent = {
           ...row,
           UpdatedAt: updatedAt,
         };
 
-        const existing = await ctx.db
-          .query("eventsPredicted")
-          .withIndex("by_key_type_and_source", (q) =>
-            q
-              .eq("Key", row.Key)
-              .eq("PredictionType", row.PredictionType)
-              .eq("PredictionSource", row.PredictionSource)
-          )
-          .unique();
+        const id = predictedDockCompositeKey(row);
+        const existing = existingByComposite.get(id);
 
         if (!existing) {
           await ctx.db.insert("eventsPredicted", nextRow);
@@ -143,7 +141,7 @@ export const projectPredictedBoundaryEffects = internalMutation({
  */
 const predictedRowsEqual = (
   left: Doc<"eventsPredicted">,
-  right: ConvexPredictedBoundaryEvent
+  right: ConvexPredictedDockEvent
 ) =>
   left.Key === right.Key &&
   left.VesselAbbrev === right.VesselAbbrev &&

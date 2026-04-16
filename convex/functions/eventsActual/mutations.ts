@@ -5,85 +5,84 @@
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { buildActualBoundaryEventFromPatch } from "domain/timelineRows";
-import { actualBoundaryRowsEqual } from "shared/actualBoundaryRowsEqual";
+import {
+  hasTripKeyOnActualDockWrite,
+  isPersistableActualDockWrite,
+  mergeActualDockWriteWithExistingRow,
+} from "domain/timelineRows/actualDockWriteHelpers";
+import { buildActualDockEventFromWrite } from "domain/timelineRows/buildActualRows";
+import { actualDockRowsEqual } from "shared/actualDockRowsEqual";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import {
-  actualBoundaryPatchSchema,
-  type ConvexActualBoundaryPatchWithTripKey,
-  hasTripKey,
-  isPersistableActualBoundaryPatch,
-  mergeActualBoundaryPatchWithExistingRow,
+  actualDockWriteSchema,
+  type ConvexActualDockWriteWithTripKey,
 } from "./schemas";
 
 /**
- * Applies sparse actual-time boundary patches emitted by `vesselTrips`.
+ * Applies sparse actual-time dock writes emitted by `vesselTrips`.
  *
  * These are incremental overlays, not full-day replacements, so the mutation
  * upserts only the affected `EventKey` values and skips no-op rewrites.
  *
  * @param ctx - Convex internal mutation context
- * @param args - Mutation arguments containing departure and arrival patches
+ * @param args - Mutation arguments containing departure and arrival writes
  * @returns `null`
  */
-export const projectActualBoundaryPatches = internalMutation({
+export const projectActualDockWrites = internalMutation({
   args: {
-    Patches: v.array(actualBoundaryPatchSchema),
+    Writes: v.array(actualDockWriteSchema),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await upsertActualBoundaryPatches(ctx, args.Patches.filter(hasTripKey));
+    await upsertActualDockWrites(
+      ctx,
+      args.Writes.filter(hasTripKeyOnActualDockWrite)
+    );
 
     return null;
   },
 });
 
 /**
- * Upserts patches by physical `EventKey` (clean-slate: no legacy boundary Key).
+ * Upserts writes by physical `EventKey` (clean-slate: no legacy boundary Key).
  *
  * @param ctx - Convex mutation context
- * @param patches - Patches with resolved `TripKey` (caller filters inbound args)
+ * @param writes - Writes with resolved `TripKey` (caller filters inbound args)
  * @returns `undefined` after the upsert pass completes
  */
-const upsertActualBoundaryPatches = async (
+const upsertActualDockWrites = async (
   ctx: MutationCtx,
-  patches: ConvexActualBoundaryPatchWithTripKey[]
+  writes: ConvexActualDockWriteWithTripKey[]
 ) => {
   const updatedAt = Date.now();
-  const dedupedByEventKey = new Map<
-    string,
-    ConvexActualBoundaryPatchWithTripKey
-  >();
+  const dedupedByEventKey = new Map<string, ConvexActualDockWriteWithTripKey>();
 
-  for (const patch of patches) {
+  for (const write of writes) {
     const eventKey =
-      patch.EventKey ??
-      buildPhysicalActualEventKey(patch.TripKey, patch.EventType);
-    dedupedByEventKey.set(eventKey, patch);
+      write.EventKey ??
+      buildPhysicalActualEventKey(write.TripKey, write.EventType);
+    dedupedByEventKey.set(eventKey, write);
   }
 
-  for (const patch of dedupedByEventKey.values()) {
+  for (const write of dedupedByEventKey.values()) {
     const eventKey =
-      patch.EventKey ??
-      buildPhysicalActualEventKey(patch.TripKey, patch.EventType);
+      write.EventKey ??
+      buildPhysicalActualEventKey(write.TripKey, write.EventType);
     const existing = await ctx.db
       .query("eventsActual")
       .withIndex("by_event_key", (q) => q.eq("EventKey", eventKey))
       .unique();
 
-    const mergedPatch = mergeActualBoundaryPatchWithExistingRow(
-      patch,
+    const mergedWrite = mergeActualDockWriteWithExistingRow(
+      write,
       existing ?? undefined
     );
 
-    if (!isPersistableActualBoundaryPatch(mergedPatch)) {
+    if (!isPersistableActualDockWrite(mergedWrite)) {
       continue;
     }
 
-    const candidateRow = buildActualBoundaryEventFromPatch(
-      mergedPatch,
-      updatedAt
-    );
+    const candidateRow = buildActualDockEventFromWrite(mergedWrite, updatedAt);
     const nextRow = mergeWithExistingActualRow(existing, candidateRow);
 
     if (!existing) {
@@ -91,7 +90,7 @@ const upsertActualBoundaryPatches = async (
       continue;
     }
 
-    if (actualBoundaryRowsEqual(existing, nextRow)) {
+    if (actualDockRowsEqual(existing, nextRow)) {
       continue;
     }
 
@@ -100,17 +99,17 @@ const upsertActualBoundaryPatches = async (
 };
 
 /**
- * Merges optional fields from an existing row when the patch omits them.
+ * Merges optional fields from an existing row when the write omits them.
  *
  * @param existing - Current document or null
- * @param nextRow - Candidate row from the patch
+ * @param nextRow - Candidate row from the write
  * @returns Row to write
  */
 const mergeWithExistingActualRow = (
   existing: {
     EventActualTime?: number;
   } | null,
-  nextRow: ReturnType<typeof buildActualBoundaryEventFromPatch>
+  nextRow: ReturnType<typeof buildActualDockEventFromWrite>
 ) => ({
   ...nextRow,
   EventOccurred: true as const,

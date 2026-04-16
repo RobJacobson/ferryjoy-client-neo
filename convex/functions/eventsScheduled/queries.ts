@@ -1,5 +1,5 @@
 /**
- * Internal schedule-backed lookup queries for normalized boundary events.
+ * Internal schedule-backed lookup queries for normalized dock events.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -11,7 +11,7 @@ import {
   buildInferredScheduledSegment,
   findNextDepartureEvent,
 } from "../../domain/timelineRows/scheduledSegmentResolvers";
-import type { ConvexScheduledBoundaryEvent } from "./schemas";
+import type { ConvexScheduledDockEvent } from "./schemas";
 import { inferredScheduledSegmentSchema } from "./schemas";
 
 /**
@@ -56,17 +56,15 @@ export const getNextDepartureSegmentAfterDeparture = internalQuery({
   },
   returns: v.union(inferredScheduledSegmentSchema, v.null()),
   handler: async (ctx, args) => {
-    const event = findNextDepartureEvent(
-      await loadSameDayScheduledBoundaryEventsAfterTime(
-        ctx,
-        args.vesselAbbrev,
-        args.previousScheduledDeparture
-      ),
-      {
-        terminalAbbrev: args.departingTerminalAbbrev,
-        afterTime: args.previousScheduledDeparture,
-      }
+    const sameDayEvents = await loadScheduledDockEventsForSailingDay(
+      ctx,
+      args.vesselAbbrev,
+      getSailingDay(new Date(args.previousScheduledDeparture))
     );
+    const event = findNextDepartureEvent(sameDayEvents, {
+      terminalAbbrev: args.departingTerminalAbbrev,
+      afterTime: args.previousScheduledDeparture,
+    });
 
     return event ? inferScheduledSegment(ctx, event) : null;
   },
@@ -76,33 +74,31 @@ export const getNextDepartureSegmentAfterDeparture = internalQuery({
  * Builds the portable segment shape returned to callers from a departure event.
  *
  * @param ctx - Convex query context
- * @param departureEvent - Scheduled departure boundary that owns the segment
+ * @param departureEvent - Scheduled departure dock event that owns the segment
  * @returns The inferred segment plus optional next-segment metadata
  */
 const inferScheduledSegment = async (
   ctx: QueryCtx,
-  departureEvent: ConvexScheduledBoundaryEvent
+  departureEvent: ConvexScheduledDockEvent
 ) => {
-  const nextDepartureEvent = findNextDepartureEvent(
-    await loadSameDayScheduledBoundaryEventsAfterTime(
-      ctx,
-      departureEvent.VesselAbbrev,
-      departureEvent.ScheduledDeparture
-    ),
-    {
-      afterTime: departureEvent.ScheduledDeparture,
-    }
+  const sameDayEvents = await loadScheduledDockEventsForSailingDay(
+    ctx,
+    departureEvent.VesselAbbrev,
+    getSailingDay(new Date(departureEvent.ScheduledDeparture))
   );
+  const nextDepartureEvent = findNextDepartureEvent(sameDayEvents, {
+    afterTime: departureEvent.ScheduledDeparture,
+  });
 
   return buildInferredScheduledSegment(departureEvent, nextDepartureEvent);
 };
 
 /**
- * Loads the scheduled departure boundary for a stable segment key.
+ * Loads the scheduled departure dock event for a stable segment key.
  *
  * @param ctx - Convex query context
  * @param segmentKey - Stable trip/segment key
- * @returns Matching departure boundary, or `null`
+ * @returns Matching departure event, or `null`
  */
 const loadScheduledDepartureEventBySegmentKey = async (
   ctx: QueryCtx,
@@ -116,14 +112,14 @@ const loadScheduledDepartureEventBySegmentKey = async (
     .unique();
 
 /**
- * Loads scheduled boundary events for one vessel and sailing day.
+ * Loads scheduled dock events for one vessel and sailing day.
  *
  * @param ctx - Convex query context
  * @param vesselAbbrev - Vessel abbreviation
  * @param sailingDay - Sailing day in YYYY-MM-DD format
- * @returns Matching same-day scheduled boundary events
+ * @returns Same-day scheduled dock events for that vessel
  */
-const loadScheduledBoundaryEventsForSailingDay = async (
+const loadScheduledDockEventsForSailingDay = async (
   ctx: QueryCtx,
   vesselAbbrev: string,
   sailingDay: string
@@ -134,22 +130,3 @@ const loadScheduledBoundaryEventsForSailingDay = async (
       q.eq("VesselAbbrev", vesselAbbrev).eq("SailingDay", sailingDay)
     )
     .collect();
-
-/**
- * Loads same-day scheduled events at or after a reference time.
- *
- * @param ctx - Convex query context
- * @param vesselAbbrev - Vessel abbreviation
- * @param afterTime - Lower bound timestamp in epoch ms
- * @returns Same-day candidate scheduled boundary events
- */
-const loadSameDayScheduledBoundaryEventsAfterTime = async (
-  ctx: QueryCtx,
-  vesselAbbrev: string,
-  afterTime: number
-) =>
-  loadScheduledBoundaryEventsForSailingDay(
-    ctx,
-    vesselAbbrev,
-    getSailingDay(new Date(afterTime))
-  );

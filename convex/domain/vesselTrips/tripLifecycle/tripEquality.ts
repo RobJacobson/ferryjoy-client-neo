@@ -9,8 +9,8 @@
  */
 
 import type {
-  ConvexVesselTripWithPredictions,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 
