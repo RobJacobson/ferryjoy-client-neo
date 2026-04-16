@@ -9,6 +9,7 @@
  */
 
 import type * as adapters_wsf_fetchVesselLocations from "../adapters/wsf/fetchVesselLocations.js";
+import type * as adapters_wsf_index from "../adapters/wsf/index.js";
 import type * as adapters_wsf_resolveScheduleSegment from "../adapters/wsf/resolveScheduleSegment.js";
 import type * as adapters_wsf_resolveTerminal from "../adapters/wsf/resolveTerminal.js";
 import type * as adapters_wsf_resolveVessel from "../adapters/wsf/resolveVessel.js";
@@ -18,6 +19,7 @@ import type * as adapters_wsf_scheduledTrips_downloadRawWsfScheduleData from "..
 import type * as adapters_wsf_scheduledTrips_fetchActiveRoutes from "../adapters/wsf/scheduledTrips/fetchActiveRoutes.js";
 import type * as adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips from "../adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.js";
 import type * as adapters_wsf_scheduledTrips_fetchRouteSchedule from "../adapters/wsf/scheduledTrips/fetchRouteSchedule.js";
+import type * as adapters_wsf_scheduledTrips_index from "../adapters/wsf/scheduledTrips/index.js";
 import type * as adapters_wsf_scheduledTrips_retryOnce from "../adapters/wsf/scheduledTrips/retryOnce.js";
 import type * as adapters_wsf_scheduledTrips_types from "../adapters/wsf/scheduledTrips/types.js";
 import type * as crons from "../crons.js";
@@ -121,14 +123,12 @@ import type * as functions_predictions_mutations from "../functions/predictions/
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
+import type * as functions_scheduledTrips_constants from "../functions/scheduledTrips/constants.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
 import type * as functions_scheduledTrips_mutations from "../functions/scheduledTrips/mutations.js";
 import type * as functions_scheduledTrips_queries from "../functions/scheduledTrips/queries.js";
 import type * as functions_scheduledTrips_schemas from "../functions/scheduledTrips/schemas.js";
-import type * as functions_scheduledTrips_sync_index from "../functions/scheduledTrips/sync/index.js";
-import type * as functions_scheduledTrips_sync_persistence from "../functions/scheduledTrips/sync/persistence.js";
-import type * as functions_scheduledTrips_sync_sync from "../functions/scheduledTrips/sync/sync.js";
-import type * as functions_scheduledTrips_sync_types from "../functions/scheduledTrips/sync/types.js";
+import type * as functions_scheduledTrips_sync from "../functions/scheduledTrips/sync.js";
 import type * as functions_terminals_actions from "../functions/terminals/actions.js";
 import type * as functions_terminals_mutations from "../functions/terminals/mutations.js";
 import type * as functions_terminals_queries from "../functions/terminals/queries.js";
@@ -193,6 +193,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "adapters/wsf/fetchVesselLocations": typeof adapters_wsf_fetchVesselLocations;
+  "adapters/wsf/index": typeof adapters_wsf_index;
   "adapters/wsf/resolveScheduleSegment": typeof adapters_wsf_resolveScheduleSegment;
   "adapters/wsf/resolveTerminal": typeof adapters_wsf_resolveTerminal;
   "adapters/wsf/resolveVessel": typeof adapters_wsf_resolveVessel;
@@ -202,6 +203,7 @@ declare const fullApi: ApiFromModules<{
   "adapters/wsf/scheduledTrips/fetchActiveRoutes": typeof adapters_wsf_scheduledTrips_fetchActiveRoutes;
   "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips": typeof adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips;
   "adapters/wsf/scheduledTrips/fetchRouteSchedule": typeof adapters_wsf_scheduledTrips_fetchRouteSchedule;
+  "adapters/wsf/scheduledTrips/index": typeof adapters_wsf_scheduledTrips_index;
   "adapters/wsf/scheduledTrips/retryOnce": typeof adapters_wsf_scheduledTrips_retryOnce;
   "adapters/wsf/scheduledTrips/types": typeof adapters_wsf_scheduledTrips_types;
   crons: typeof crons;
@@ -305,14 +307,12 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
+  "functions/scheduledTrips/constants": typeof functions_scheduledTrips_constants;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
   "functions/scheduledTrips/mutations": typeof functions_scheduledTrips_mutations;
   "functions/scheduledTrips/queries": typeof functions_scheduledTrips_queries;
   "functions/scheduledTrips/schemas": typeof functions_scheduledTrips_schemas;
-  "functions/scheduledTrips/sync/index": typeof functions_scheduledTrips_sync_index;
-  "functions/scheduledTrips/sync/persistence": typeof functions_scheduledTrips_sync_persistence;
-  "functions/scheduledTrips/sync/sync": typeof functions_scheduledTrips_sync_sync;
-  "functions/scheduledTrips/sync/types": typeof functions_scheduledTrips_sync_types;
+  "functions/scheduledTrips/sync": typeof functions_scheduledTrips_sync;
   "functions/terminals/actions": typeof functions_terminals_actions;
   "functions/terminals/mutations": typeof functions_terminals_mutations;
   "functions/terminals/queries": typeof functions_terminals_queries;

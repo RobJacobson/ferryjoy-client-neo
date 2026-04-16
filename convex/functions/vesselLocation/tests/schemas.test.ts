@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { TerminalIdentity } from "../../../adapters/wsf/resolveTerminal";
+import type { TerminalIdentity } from "../../../adapters/wsf";
 import { toConvexVesselLocation } from "../schemas";
 
 describe("toConvexVesselLocation", () => {

@@ -3,7 +3,7 @@
  * snapshots.
  */
 
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
 import {
   resolveTerminalByName,
   type TerminalIdentity,

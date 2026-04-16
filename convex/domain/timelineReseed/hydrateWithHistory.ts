@@ -2,10 +2,13 @@
  * History-backed enrichment for schedule-seeded boundary events.
  */
 
-import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
-import { resolveVessel, type VesselIdentity } from "adapters/wsf/resolveVessel";
-import { resolveVesselHistory } from "adapters/wsf/resolveVesselHistory";
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
+import {
+  resolveVessel,
+  resolveVesselHistory,
+  type TerminalIdentity,
+  type VesselIdentity,
+} from "adapters/wsf";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";

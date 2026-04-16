@@ -3,9 +3,8 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { TerminalIdentity } from "../../../adapters/wsf/resolveTerminal";
-import type { VesselIdentity } from "../../../adapters/wsf/resolveVessel";
-import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips/types";
+import type { TerminalIdentity, VesselIdentity } from "../../../adapters/wsf";
+import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { hydrateSeededEventsWithHistory } from "../hydrateWithHistory";
 import { createSeededScheduleSegmentResolver } from "../scheduleDepartureLookup";

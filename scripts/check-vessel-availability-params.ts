@@ -3,9 +3,11 @@
 // Fetches and counts scheduled trips by vessel for specified number of sailing days
 // ============================================================================
 
-import { fetchActiveRoutes } from "../convex/adapters/wsf/scheduledTrips/fetchActiveRoutes";
-import { fetchRouteSchedule } from "../convex/adapters/wsf/scheduledTrips/fetchRouteSchedule";
-import type { VesselSailing } from "../convex/adapters/wsf/scheduledTrips/types";
+import {
+  fetchActiveRoutes,
+  fetchRouteSchedule,
+  type VesselSailing,
+} from "../convex/adapters/wsf/scheduledTrips";
 import { getSailingDay } from "../convex/shared/time";
 
 /**

@@ -2,10 +2,12 @@
  * Builds schedule-derived boundary-event records for VesselTimeline reseed.
  */
 
-import { resolveScheduleSegment } from "adapters/wsf/resolveScheduleSegment";
-import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
-import type { VesselIdentity } from "adapters/wsf/resolveVessel";
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips/types";
+import {
+  resolveScheduleSegment,
+  type TerminalIdentity,
+  type VesselIdentity,
+} from "adapters/wsf";
+import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
 import {

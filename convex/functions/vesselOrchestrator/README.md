@@ -340,7 +340,7 @@ those internal actions live in `convex/crons.ts`.
 ## Related Documentation
 
 - `convex/functions/vesselTrips/README.md`
-- `convex/functions/scheduledTrips/sync/README.md`
+- `convex/functions/scheduledTrips/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 

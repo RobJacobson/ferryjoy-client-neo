@@ -464,8 +464,9 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
   (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
 - **Display / API**: Public vessel-trip queries may still **hydrate** a full
-  `ScheduledTrip` via `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
-  for subscribers; inference uses the schedule fields merged on the trip during build.
+  `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
+  `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
+  inference uses the schedule fields merged on the trip during build.
 
 Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
 `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every

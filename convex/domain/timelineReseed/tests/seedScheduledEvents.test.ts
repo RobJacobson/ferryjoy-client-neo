@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { TerminalIdentity } from "../../../adapters/wsf/resolveTerminal";
-import type { VesselIdentity } from "../../../adapters/wsf/resolveVessel";
-import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips/types";
+import type { TerminalIdentity, VesselIdentity } from "../../../adapters/wsf";
+import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips";
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";

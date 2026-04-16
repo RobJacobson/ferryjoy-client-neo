@@ -152,8 +152,8 @@ bun run ml:switch-prod               # Switch production model
 ### Schedule Sync
 
 ```bash
-bun run sync:scheduled-trips         # Sync all scheduled trips
-bun run sync:scheduled-trips:date    # Sync specific date
+bun run sync:scheduled-trips         # Sync current sailing day (Convex CLI → internal action)
+bun run sync:scheduled-trips:date -- '{"targetDate":"YYYY-MM-DD"}'  # Sync one sailing day
 ```
 
 ## Architecture Overview

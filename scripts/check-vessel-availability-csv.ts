@@ -4,9 +4,11 @@
 // ============================================================================
 
 import { writeFileSync } from "node:fs";
-import { fetchActiveRoutes } from "../convex/adapters/wsf/scheduledTrips/fetchActiveRoutes";
-import { fetchRouteSchedule } from "../convex/adapters/wsf/scheduledTrips/fetchRouteSchedule";
-import type { VesselSailing } from "../convex/adapters/wsf/scheduledTrips/types";
+import {
+  fetchActiveRoutes,
+  fetchRouteSchedule,
+  type VesselSailing,
+} from "../convex/adapters/wsf/scheduledTrips";
 import { getSailingDay } from "../convex/shared/time";
 
 /**

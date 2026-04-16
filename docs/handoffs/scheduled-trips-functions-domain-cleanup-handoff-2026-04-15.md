@@ -29,8 +29,8 @@ Use the post-refactor layout as the pattern:
 
 - Module overview: [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
 - Top-level: `actions.ts`, `mutations.ts`, `queries.ts`, `schemas.ts`, `index.ts`
-- Sync pipeline: [`sync/`](../../convex/functions/scheduledTrips/sync/) — `fetchAndTransform.ts`, `persistence.ts`, `sync.ts`, `fetching/*`
-- Architecture note for this folder: [`convex/functions/scheduledTrips/sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md)
+- Sync orchestration: [`sync.ts`](../../convex/functions/scheduledTrips/sync.ts); WSF ingress lives in [`convex/adapters/wsf/scheduledTrips/`](../../convex/adapters/wsf/scheduledTrips/); day replace via `replaceScheduledTripsForSailingDay` in [`mutations.ts`](../../convex/functions/scheduledTrips/mutations.ts)
+- Architecture note for this folder: [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
 
 **Quality review context (scheduled trips coverage gap called out):**
 
@@ -40,7 +40,7 @@ Use the post-refactor layout as the pattern:
 
 ## Suggested direction for the next agent
 
-1. **Inventory** what in `functions/scheduledTrips` is still “substantive logic” vs thin wrappers (compare to [`sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md) claims).
+1. **Inventory** what in `functions/scheduledTrips` is still “substantive logic” vs thin wrappers (compare to [`README.md`](../../convex/functions/scheduledTrips/README.md) claims).
 2. **Move or consolidate** pure transforms/tests into `convex/domain/scheduledTrips/` (and `convex/domain/scheduledTrips/tests/`) per [`convex/domain/README.md`](../../convex/domain/README.md) import rules.
 3. **Keep** WSF download, raw segment mapping, and atomic DB replace in the functions layer unless you deliberately introduce domain “ports” — the sync README already frames that split.
 4. **Normalize the public surface**: decide whether `index.ts` / deep `sync/*` paths remain for Convex registration only, or whether the folder should mirror the VesselTrips “four top-level files + README” story (may require moving/renaming while preserving Convex module paths — run `bun run convex:codegen` after edits).
@@ -58,7 +58,7 @@ Use the post-refactor layout as the pattern:
 ### Convex backend — scheduled trips (functions)
 
 - [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
-- [`convex/functions/scheduledTrips/sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md)
+- [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md)
 
 ### Convex backend — related modules
 
@@ -96,7 +96,7 @@ Use the post-refactor layout as the pattern:
 If the next agent needs code anchors beyond Markdown:
 
 - [`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts`](../../convex/domain/scheduledTrips/runScheduleTransformPipeline.ts)
-- [`convex/functions/scheduledTrips/sync/fetchAndTransform.ts`](../../convex/functions/scheduledTrips/sync/fetchAndTransform.ts)
+- [`convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts`](../../convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts)
 - [`convex/functions/scheduledTrips/schemas.ts`](../../convex/functions/scheduledTrips/schemas.ts)
 
 ---
@@ -105,4 +105,4 @@ If the next agent needs code anchors beyond Markdown:
 
 - [x] Domain vs functions boundary matches [`convex/domain/README.md`](../../convex/domain/README.md).
 - [x] Tests: substantive logic under `convex/domain/**/tests/`; functions tests limited to validators/wiring where appropriate (same convention as domain README).
-- [x] Docs updated if paths or ownership changed (at minimum `sync/README.md` and this handoff’s “relevant md” list if new READMEs appear).
+- [x] Docs updated if paths or ownership changed (at minimum `scheduledTrips/README.md` and this handoff’s “relevant md” list if new READMEs appear).

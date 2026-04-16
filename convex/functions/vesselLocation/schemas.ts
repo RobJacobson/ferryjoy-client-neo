@@ -4,9 +4,10 @@
 
 import {
   resolveTerminalByAbbrev,
+  resolveVessel,
   type TerminalIdentity,
-} from "adapters/wsf/resolveTerminal";
-import { resolveVessel, type VesselIdentity } from "adapters/wsf/resolveVessel";
+  type VesselIdentity,
+} from "adapters/wsf";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";

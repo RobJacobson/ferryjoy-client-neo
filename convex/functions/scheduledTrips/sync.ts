@@ -1,12 +1,26 @@
+/**
+ * Orchestration for scheduled-trips sync: date-range loops, adapter ingress, and
+ * persistence via `replaceScheduledTripsForSailingDay`. Convex actions in
+ * `actions.ts` call into this module.
+ */
+
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips";
-import { getSailingDay } from "../../../shared/time";
-import { loadBackendTerminals } from "../../terminals/actions";
-import { loadBackendVessels } from "../../vessels/actions";
-import { saveFinalTrips } from "./persistence";
-import type { DaySyncResult } from "./types";
+import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips";
+import { getSailingDay } from "../../shared/time";
+import { loadBackendTerminals } from "../terminals/actions";
+import { loadBackendVessels } from "../vessels/actions";
 
 const logPrefix = "[SYNC TRIPS]";
+
+/**
+ * Per-day status for a windowed scheduled-trips sync run.
+ */
+type DaySyncResult = {
+  sailingDay: string;
+  action: "synced" | "failed";
+  error?: string;
+};
 
 /**
  * Syncs scheduled trips for a range of consecutive days.
@@ -129,11 +143,14 @@ export const syncScheduledTripsForDate = async (
       `${logPrefix} Trip estimates calculated for ${finalTrips.length} trips`
     );
 
-    // Phase 4: Only now that we have all data, perform safe replacement
-    const { deleted, inserted } = await saveFinalTrips(
-      ctx,
-      targetDate,
-      finalTrips
+    // Phase 4: Replace persisted rows for this sailing day in one mutation.
+    console.log(
+      `${logPrefix} Replacing DB rows for ${targetDate} (${finalTrips.length} trips)`
+    );
+    const { deleted, inserted } = await ctx.runMutation(
+      internal.functions.scheduledTrips.mutations
+        .replaceScheduledTripsForSailingDay,
+      { sailingDay: targetDate, trips: finalTrips }
     );
 
     console.log(
