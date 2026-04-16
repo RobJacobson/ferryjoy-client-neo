@@ -1,3 +1,7 @@
+/**
+ * Query handlers for backend and frontend terminal identity snapshots.
+ */
+
 import { internalQuery, query } from "_generated/server";
 import { v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";

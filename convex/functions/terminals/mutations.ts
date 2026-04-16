@@ -1,3 +1,7 @@
+/**
+ * Mutation handlers for refreshing backend terminal snapshot rows.
+ */
+
 import type { Doc } from "_generated/dataModel";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
@@ -10,7 +14,8 @@ import { type Terminal, terminalSchema } from "./schemas";
  * rows are inserted, and rows missing from the incoming snapshot are preserved.
  *
  * @param ctx - Convex internal mutation context
- * @param args.terminals - Backend terminal snapshot rows from WSF locations
+ * @param args - Mutation arguments containing backend terminal rows
+ * @returns `undefined` after the backend terminal snapshot is replaced in place
  */
 export const replaceBackendTerminals = internalMutation({
   args: {

@@ -1,3 +1,7 @@
+/**
+ * Query handlers for current vessel location and backend vessel snapshots.
+ */
+
 import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
@@ -7,7 +11,7 @@ import { vesselLocationValidationSchema } from "./schemas";
 /**
  * Get all vessel locations from the database
  *
- * @param ctx - Convex context
+ * @param ctx - Convex query context
  * @returns Array of all vessel location records without metadata
  */
 export const getAll = query({
@@ -31,8 +35,8 @@ export const getAll = query({
 /**
  * Get the current vessel location for a specific vessel.
  *
- * @param ctx - Convex context
- * @param args.vesselAbbrev - Vessel abbreviation to fetch
+ * @param ctx - Convex query context
+ * @param args - Query arguments containing the vessel abbreviation
  * @returns Vessel location record without metadata, or null if unavailable
  */
 export const getByVesselAbbrev = query({

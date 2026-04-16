@@ -17,6 +17,7 @@ import { inferredScheduledSegmentSchema } from "./schemas";
 /**
  * Resolves one scheduled departure segment by its stable segment key.
  *
+ * @param ctx - Convex internal query context
  * @param args.segmentKey - Canonical segment key shared with `vesselTrips`
  * @returns The departure segment plus its next scheduled successor, or `null`
  */
@@ -43,6 +44,7 @@ export const getScheduledDepartureSegmentBySegmentKey = internalQuery({
  * Resolves the next same-day departure at the same terminal after a known
  * prior trip.
  *
+ * @param ctx - Convex internal query context
  * @param args - Vessel, terminal, and prior scheduled departure context
  * @returns The next scheduled segment after the prior departure, or `null`
  */

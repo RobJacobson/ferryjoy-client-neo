@@ -22,7 +22,8 @@ import {
  * These are incremental overlays, not full-day replacements, so the mutation
  * upserts only the affected `EventKey` values and skips no-op rewrites.
  *
- * @param args.Patches - Departure and arrival patches with `TripKey`
+ * @param ctx - Convex internal mutation context
+ * @param args - Mutation arguments containing departure and arrival patches
  * @returns `null`
  */
 export const projectActualBoundaryPatches = internalMutation({
@@ -42,6 +43,7 @@ export const projectActualBoundaryPatches = internalMutation({
  *
  * @param ctx - Convex mutation context
  * @param patches - Patches with resolved `TripKey` (caller filters inbound args)
+ * @returns `undefined` after the upsert pass completes
  */
 const upsertActualBoundaryPatches = async (
   ctx: MutationCtx,

@@ -35,6 +35,7 @@ import type {
   CurrentTripPredictedEventMessage,
 } from "../projection/lifecycleEventTypes";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
+import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 import { tripsEqualForOverlay, tripsEqualForStorage } from "./tripEquality";
 import type { TripEvents } from "./tripEventTypes";
 
@@ -137,7 +138,11 @@ export const processCurrentTrips = async (
       ? getSuccessfulVessels(
           await ctx.runMutation(
             api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
-            { activeUpserts: collectedArtifacts.activeUpserts }
+            {
+              activeUpserts: collectedArtifacts.activeUpserts.map(
+                stripTripPredictionsForStorage
+              ),
+            }
           )
         )
       : new Set<string>();

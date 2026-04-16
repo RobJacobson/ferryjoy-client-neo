@@ -1,3 +1,7 @@
+/**
+ * Mutation handlers for model parameter storage and version-tag lifecycle.
+ */
+
 import type { MutationCtx } from "_generated/server";
 import { mutation } from "_generated/server";
 import { v } from "convex/values";
@@ -13,8 +17,8 @@ import { modelParametersSchema } from "functions/predictions/schemas";
  * For "dev-temp" versions, deletes existing "dev-temp" for the same bucket+type.
  * Other versions are preserved (versioning system handles multiple versions).
  *
- * @param ctx - Convex context
- * @param args.model - The model parameters to store
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing the model parameters to store
  * @returns The ID of the inserted model parameters document
  */
 export const storeModelParametersMutation = mutation({
@@ -24,8 +28,7 @@ export const storeModelParametersMutation = mutation({
   handler: async (ctx, args) => {
     const { bucketType, pairKey, modelType, versionTag } = args.model;
 
-    // For dev-temp, delete any existing dev-temp for the same pair+type
-    // This ensures only one dev-temp exists at a time
+    // Keep only one ephemeral training snapshot per pair and model type.
     if (bucketType === "pair" && pairKey && versionTag === "dev-temp") {
       const existing = await ctx.db
         .query("modelParameters")
@@ -48,8 +51,8 @@ export const storeModelParametersMutation = mutation({
 /**
  * Delete a specific model parameters record from the database
  *
- * @param ctx - Convex context
- * @param args.modelId - The ID of the model parameters record to delete
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing the model document id
  * @returns Success confirmation object
  */
 export const deleteModelParametersMutation = mutation({
@@ -63,7 +66,7 @@ export const deleteModelParametersMutation = mutation({
 /**
  * Delete all model parameters records from the database
  *
- * @param ctx - Convex context
+ * @param ctx - Convex mutation context
  * @returns Object with the number of records deleted
  */
 export const deleteAllModelParametersMutation = mutation({
@@ -81,10 +84,8 @@ export const deleteAllModelParametersMutation = mutation({
  * Copy all models from one version tag to another.
  * Optionally deletes the source models (useful for dev-temp promotion).
  *
- * @param ctx - Convex context
- * @param args.fromTag - The source version tag (e.g., "dev-temp", "dev-1")
- * @param args.toTag - The destination version tag (e.g., "dev-1", "prod-1")
- * @param args.deleteSource - Whether to delete source models after copying (default: false)
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing source and destination version tags
  * @returns Object with count of models copied
  */
 export const copyVersionTag = mutation({
@@ -96,7 +97,6 @@ export const copyVersionTag = mutation({
   handler: async (ctx, args) => {
     const deleteSource = args.deleteSource ?? false;
 
-    // Find all models with the source tag
     const sourceModels = await ctx.db
       .query("modelParameters")
       .withIndex("by_version_tag", (q) => q.eq("versionTag", args.fromTag))
@@ -106,7 +106,7 @@ export const copyVersionTag = mutation({
       throw new Error(`No models found with version tag "${args.fromTag}"`);
     }
 
-    // Copy each model to the new tag
+    // Reinsert under the destination tag so model history stays append-only.
     const copiedIds: string[] = [];
     for (const model of sourceModels) {
       const { _id, _creationTime, ...modelData } = model;
@@ -117,7 +117,6 @@ export const copyVersionTag = mutation({
       const newId = await ctx.db.insert("modelParameters", newModel);
       copiedIds.push(newId);
 
-      // Delete source if requested
       if (deleteSource) {
         await ctx.db.delete(_id);
       }
@@ -130,9 +129,8 @@ export const copyVersionTag = mutation({
 /**
  * Rename a version tag by copying all models to a new tag and deleting the old tag.
  *
- * @param ctx - Convex context
- * @param args.fromTag - The source version tag to rename from
- * @param args.toTag - The destination version tag to rename to
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing source and destination version tags
  * @returns Object with count of models renamed
  */
 export const renameVersionTag = mutation({
@@ -141,7 +139,7 @@ export const renameVersionTag = mutation({
     toTag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Prevent renaming the currently active production version
+    // Guard the active production tag so reads never point at a missing version.
     const config = await getModelConfig(ctx);
     if (config?.productionVersionTag === args.fromTag) {
       throw new Error(
@@ -149,7 +147,6 @@ export const renameVersionTag = mutation({
       );
     }
 
-    // Find all models with the source tag
     const sourceModels = await ctx.db
       .query("modelParameters")
       .withIndex("by_version_tag", (q) => q.eq("versionTag", args.fromTag))
@@ -159,7 +156,6 @@ export const renameVersionTag = mutation({
       throw new Error(`No models found with version tag "${args.fromTag}"`);
     }
 
-    // Copy each model to the new tag and delete the old one
     const renamedIds: string[] = [];
     for (const model of sourceModels) {
       const { _id, _creationTime, ...modelData } = model;
@@ -169,7 +165,6 @@ export const renameVersionTag = mutation({
       };
       const newId = await ctx.db.insert("modelParameters", newModel);
       renamedIds.push(newId);
-      // Delete the old model
       await ctx.db.delete(_id);
     }
 
@@ -180,8 +175,8 @@ export const renameVersionTag = mutation({
 /**
  * Delete all models for a specific version tag.
  *
- * @param ctx - Convex context
- * @param args.versionTag - The version tag to delete (e.g., "dev-1", "prod-1")
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing the version tag to delete
  * @returns Object with count of models deleted
  */
 export const deleteVersion = mutation({
@@ -189,7 +184,7 @@ export const deleteVersion = mutation({
     versionTag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Prevent deletion of currently active production version
+    // Guard the active production tag so prediction reads remain valid.
     const config = await getModelConfig(ctx);
     if (config?.productionVersionTag === args.versionTag) {
       throw new Error(
@@ -197,13 +192,11 @@ export const deleteVersion = mutation({
       );
     }
 
-    // Find all models for this version tag
     const models = await ctx.db
       .query("modelParameters")
       .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
       .collect();
 
-    // Delete all models
     for (const model of models) {
       await ctx.db.delete(model._id);
     }
@@ -215,8 +208,8 @@ export const deleteVersion = mutation({
 /**
  * Set the active production version tag for predictions.
  *
- * @param ctx - Convex context
- * @param args.versionTag - The production version tag to activate (e.g., "prod-1")
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing the production version tag
  * @returns Success confirmation
  */
 export const setProductionVersionTag = mutation({
@@ -224,7 +217,7 @@ export const setProductionVersionTag = mutation({
     versionTag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Validate that the version tag exists
+    // Activate only version tags that already have stored model rows.
     const models = await ctx.db
       .query("modelParameters")
       .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))

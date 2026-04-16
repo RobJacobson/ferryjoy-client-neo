@@ -80,6 +80,7 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  *
  * @param dvl - Dottie vessel location with Date objects
  * @param vessels - Backend vessel rows used to resolve the vessel abbreviation
+ * @param terminals - Backend terminal rows used to normalize terminal identity
  * @returns Convex vessel location with numeric timestamps
  */
 export function toConvexVesselLocation(
@@ -197,6 +198,16 @@ export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
  */
 export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;
 
+/**
+ * Measure the vessel's distance from a known terminal when that terminal can be
+ * resolved from backend identity data.
+ *
+ * @param latitude - Vessel latitude in decimal degrees
+ * @param longitude - Vessel longitude in decimal degrees
+ * @param terminalAbbrev - Terminal abbreviation from the live feed
+ * @param terminals - Backend terminal rows used for coordinate lookup
+ * @returns Distance in miles, or `undefined` when the terminal cannot be resolved
+ */
 const getDistanceToTerminal = (
   latitude: number,
   longitude: number,
@@ -219,6 +230,14 @@ const getDistanceToTerminal = (
 
 const warnedUnknownMarineLocations = new Set<string>();
 
+/**
+ * Warn once per role/terminal pair when the live feed references a marine
+ * location missing from backend terminal identity data.
+ *
+ * @param role - Whether the unresolved terminal is departing or arriving
+ * @param terminalAbbrev - Unknown terminal abbreviation from the live feed
+ * @returns `undefined` after the one-time warning check completes
+ */
 const warnAboutUnknownMarineLocation = (
   role: "departing" | "arriving",
   terminalAbbrev: string

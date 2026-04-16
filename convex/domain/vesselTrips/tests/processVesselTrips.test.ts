@@ -43,7 +43,7 @@ const applyTickEventWritesLikeOrchestrator = async (
  * @param locations - Locations for this tick
  * @param tickStartedAt - Tick time (ms)
  * @param deps - Injected builder/detector deps
- * @param activeTrips - Optional preloaded active trips
+ * @param activeTrips - Preloaded active trips for the tick
  */
 const runVesselTripsTick = async (
   ctx: TestActionCtx,
@@ -57,7 +57,7 @@ const runVesselTripsTick = async (
     locations,
     tickStartedAt,
     deps,
-    activeTrips
+    activeTrips ?? ctx.preloadedActiveTrips ?? []
   );
   await applyTickEventWritesLikeOrchestrator(
     ctx as unknown as ActionCtx,
@@ -76,7 +76,7 @@ const defaultEvents: TripEvents = {
 };
 
 describe("processVesselTripsWithDeps", () => {
-  it("does not call getActiveTrips when preloaded active trips are provided", async () => {
+  it("uses preloaded active trips without extra reads", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
     const ctx = createTestActionCtx({});
@@ -95,12 +95,10 @@ describe("processVesselTripsWithDeps", () => {
     expect(ctx.queryCalls).toHaveLength(0);
   });
 
-  it("calls getActiveTrips once when active trips are not preloaded", async () => {
-    const fromQuery = makeTrip();
+  it("treats omitted active trips as an empty snapshot", async () => {
+    const builtTrip = makeTrip();
     const currLocation = makeLocation();
-    const ctx = createTestActionCtx({
-      tripsReturnedByQuery: [fromQuery],
-    });
+    const ctx = createTestActionCtx({});
 
     await runVesselTripsTick(
       ctx,
@@ -108,12 +106,12 @@ describe("processVesselTripsWithDeps", () => {
       tickMs(),
       createDeps({
         eventsByVessel: new Map([["CHE", defaultEvents]]),
-        builtTripsByVessel: new Map([["CHE", fromQuery]]),
+        builtTripsByVessel: new Map([["CHE", builtTrip]]),
       }),
       undefined
     );
 
-    expect(ctx.queryCalls).toHaveLength(1);
+    expect(ctx.queryCalls).toHaveLength(0);
   });
 
   it("matches prediction-only projection for storage-native vs hydrated preloaded existing trips", async () => {
@@ -161,7 +159,7 @@ describe("processVesselTripsWithDeps", () => {
     expect(firstS?.Rows?.length).toBe(firstH?.Rows?.length);
   });
 
-  it("treats an empty preloaded activeTrips array as a snapshot (no getActiveTrips call)", async () => {
+  it("treats an empty preloaded activeTrips array as a snapshot", async () => {
     const currLocation = makeLocation();
     const ctx = createTestActionCtx({});
 
@@ -539,6 +537,7 @@ type TestActionCtx = {
   ) => Promise<unknown>;
   queryCalls: Array<{ ref: unknown; args?: Record<string, unknown> }>;
   mutationCalls: Array<{ ref: unknown; args?: Record<string, unknown> }>;
+  preloadedActiveTrips?: ReadonlyArray<TickActiveTrip>;
 };
 
 type TestDepsInput = {
@@ -555,9 +554,9 @@ type TestDepsInput = {
  * @returns Minimal action context plus recorded calls
  */
 const createTestActionCtx = (options: {
-  /** When `processVesselTrips` runs without preloads, this is returned from `getActiveTrips` */
+  /** Generic query payload for tests that still invoke `runQuery` */
   tripsReturnedByQuery?: ConvexVesselTrip[];
-  /** Legacy default payload if `tripsReturnedByQuery` is unset and runQuery runs */
+  /** Fallback query payload when `tripsReturnedByQuery` is unset */
   activeTrips?: ConvexVesselTrip[];
   upsertResult?: Record<string, unknown>;
   callSequence?: string[];
@@ -570,6 +569,7 @@ const createTestActionCtx = (options: {
   return {
     queryCalls,
     mutationCalls,
+    preloadedActiveTrips: options.activeTrips,
     runQuery: async (ref, args) => {
       queryCalls.push({ ref, args });
       options.callSequence?.push("query:activeTrips");
@@ -634,8 +634,6 @@ const createTestActionCtx = (options: {
  * @returns Dependency bag for `processVesselTripsWithDeps`
  */
 const createDeps = (input: TestDepsInput) => ({
-  loadActiveTrips: async (ctx: ActionCtx) =>
-    (await ctx.runQuery({} as never, {})) as ConvexVesselTrip[],
   buildCompletedTrip: (existingTrip: ConvexVesselTrip) => existingTrip,
   buildTrip: async (
     _ctx: unknown,

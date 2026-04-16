@@ -28,6 +28,7 @@ export const fetchEntryByKey = async (
  * @param key - Document key
  * @param value - Stored value (string, number, boolean, or null)
  * @param updatedAtMs - Epoch ms for updatedAt (defaults to now)
+ * @returns `undefined` after the matching row is inserted or replaced
  */
 export const upsertByKey = async (
   ctx: MutationCtx,

@@ -20,6 +20,9 @@ type VesselBasicWithIdentity = VesselBasic & {
 /**
  * Internal cron entry: fetch WSF vessel basics and replace the backend
  * `vessels` snapshot.
+ *
+ * @param ctx - Convex internal action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const syncBackendVessels = internalAction({
   args: {},
@@ -33,6 +36,9 @@ export const syncBackendVessels = internalAction({
 /**
  * Public entry for `bunx convex run`, `convex:repopulate-vessels`, and
  * `convex:dev:with-repopulate`. Internal actions are not runnable from the CLI.
+ *
+ * @param ctx - Convex public action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const runSyncBackendVessels = action({
   args: {},
@@ -85,6 +91,7 @@ export async function loadBackendVessels(
  * {@link loadBackendVessels}, and orchestrator bootstrap.
  *
  * @param ctx - Convex action context
+ * @returns `undefined` after the backend snapshot is fully replaced
  */
 export async function syncBackendVesselTable(ctx: ActionCtx): Promise<void> {
   const fetchedVessels = await fetchVesselBasics();

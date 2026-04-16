@@ -12,6 +12,10 @@ import { historicVesselLocationValidationSchema } from "./schemas";
  *
  * Rows are sorted by ascending `TimeStamp` so downstream scripts can replay
  * the vessel's day as a simple chronology.
+ *
+ * @param ctx - Convex query context
+ * @param args - Query arguments containing the vessel abbreviation and sailing day
+ * @returns Historic vessel-location rows sorted by ascending timestamp
  */
 export const getByVesselAndSailingDay = query({
   args: {

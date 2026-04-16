@@ -99,6 +99,15 @@ const loadTripIndexesForSailingDay = async (
   };
 };
 
+/**
+ * Replace the scheduled-event backbone rows for one sailing day using the
+ * supplied slice as the complete source of truth.
+ *
+ * @param ctx - Convex mutation context
+ * @param SailingDay - Service day being fully replaced
+ * @param nextRows - Replacement scheduled boundary rows for the sailing day
+ * @returns `undefined` after inserts, replaces, and deletes complete
+ */
 const replaceScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
@@ -142,6 +151,7 @@ const replaceScheduledRowsForSailingDay = async (
  * @param ctx - Convex mutation context
  * @param SailingDay - Service day
  * @param finalRows - Candidate rows from schedule hydration + live patches
+ * @returns `undefined` after inserts, replaces, and deletes complete
  */
 const replaceActualRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -188,6 +198,13 @@ const replaceActualRowsForSailingDay = async (
   }
 };
 
+/**
+ * Compare scheduled backbone rows while ignoring Convex metadata fields.
+ *
+ * @param left - Currently stored scheduled boundary row
+ * @param right - Candidate scheduled boundary row
+ * @returns True when no replacement write is needed
+ */
 const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,
   right: ReturnType<typeof buildScheduledBoundaryEvents>[number]

@@ -1,4 +1,7 @@
-// Export only function endpoints (no schemas/types)
+/**
+ * Public barrel for vessel ping collection function endpoints only.
+ */
+
 export * from "./actions";
 export * from "./mutations";
 export * from "./queries";

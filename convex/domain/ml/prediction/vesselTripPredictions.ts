@@ -11,6 +11,10 @@ import type {
   ConvexVesselTripWithML,
   PredictionReadyTrip,
 } from "../../../functions/vesselTrips/schemas";
+import {
+  floorToSecond,
+  getRoundedMinutesDelta,
+} from "../../../shared/time";
 import type { ModelType } from "../shared/types";
 import { predictTripValue } from "./predictTrip";
 
@@ -130,13 +134,13 @@ export const createPredictionResult = (
   mae: number,
   stdDev: number
 ): ConvexPrediction => {
-  const predTime = Math.floor(predictedTime / 1000) * 1000;
+  const predTime = floorToSecond(predictedTime);
   const stdDevMs = stdDev * 60 * 1000;
 
   return {
     PredTime: predTime,
-    MinTime: Math.floor((predictedTime - stdDevMs) / 1000) * 1000,
-    MaxTime: Math.floor((predictedTime + stdDevMs) / 1000) * 1000,
+    MinTime: floorToSecond(predictedTime - stdDevMs),
+    MaxTime: floorToSecond(predictedTime + stdDevMs),
     MAE: mae,
     StdDev: stdDev,
     Actual: undefined,
@@ -157,8 +161,8 @@ export const applyActualToPrediction = (
   prediction: ConvexPrediction | ConvexJoinedTripPrediction,
   actualMs: number
 ): ConvexPrediction | ConvexJoinedTripPrediction => {
-  const actual = Math.floor(actualMs / 1000) * 1000;
-  const deltaTotal = calculateDeltaTotal(actual, prediction.PredTime);
+  const actual = floorToSecond(actualMs);
+  const deltaTotal = getRoundedMinutesDelta(prediction.PredTime, actual);
 
   const isFullMl = "MinTime" in prediction && prediction.MinTime !== undefined;
 
@@ -323,17 +327,3 @@ const calculateDeltaRange = (
   return 0; // Within prediction range
 };
 
-/**
- * Delta in minutes between actual and predicted instants (rounded to 0.1).
- *
- * @param actual - Actual time in milliseconds
- * @param predicted - Predicted time in milliseconds
- * @returns Delta in minutes
- */
-export const calculateDeltaTotal = (
-  actual: number,
-  predicted: number
-): number => {
-  const MS_PER_MINUTE = 60 * 1000;
-  return Math.round(((actual - predicted) / MS_PER_MINUTE) * 10) / 10;
-};

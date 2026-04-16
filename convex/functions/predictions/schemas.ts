@@ -1,3 +1,7 @@
+/**
+ * Shared validators and inferred types for stored ML model parameter rows.
+ */
+
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { MODEL_KEYS, type ModelType } from "domain/ml/shared/types";
@@ -13,7 +17,7 @@ export const modelTypeValidator = v.union(
   v.literal(MODEL_KEYS[4])
 );
 
-// Re-export ModelType for convenience
+// Re-export the domain type so function callers can stay aligned with validators.
 export type { ModelType };
 
 /**
@@ -43,7 +47,7 @@ export const predictionTypeValidator = v.union(
  */
 export const modelParametersSchema = v.object({
   bucketType: v.union(v.literal("pair")),
-  pairKey: v.optional(v.string()), // present when bucketType === "pair"
+  pairKey: v.optional(v.string()), // Present when bucketType === "pair".
 
   modelType: modelTypeValidator,
 
@@ -65,7 +69,7 @@ export const modelParametersSchema = v.object({
     sampledRecords: v.number(),
   }),
 
-  // Versioning field - arbitrary string tag (e.g., "dev-temp", "dev-1", "prod-1")
+  // Arbitrary version tag such as "dev-temp", "dev-1", or "prod-1".
   versionTag: v.string(),
 });
 

@@ -3,21 +3,13 @@
  */
 
 import { buildBoundaryKey } from "shared/keys";
+import { floorToSecond } from "shared/time";
 
 /** ML prediction types updated on leave-dock for the next leg departure boundary. */
 export const DEPART_NEXT_ML_PREDICTION_TYPES = [
   "AtDockDepartNext",
   "AtSeaDepartNext",
 ] as const;
-
-/**
- * Round actual depart time to whole seconds for prediction row consistency.
- *
- * @param epochMs - Wall-clock ms from the feed
- * @returns Epoch ms floored to seconds
- */
-export const normalizeDepartActualMs = (epochMs: number): number =>
-  Math.floor(epochMs / 1000) * 1000;
 
 /**
  * Boundary key for the next leg's dep-dock prediction rows.
@@ -53,6 +45,6 @@ export const resolveDepartNextLegContext = (
   return {
     ok: true,
     depKey: buildDepartNextDepDockBoundaryKey(nextLegKey),
-    actualMs: normalizeDepartActualMs(actualDepartMs),
+    actualMs: floorToSecond(actualDepartMs),
   };
 };

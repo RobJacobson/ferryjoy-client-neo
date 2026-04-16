@@ -240,6 +240,7 @@ export const buildTerminalTopologyRows = (
  * Create the empty topology entry for one departing terminal.
  *
  * @param terminalAbbrev - Canonical departing terminal abbreviation
+ * @param updatedAt - Shared topology refresh timestamp
  * @returns Empty topology entry
  */
 const createEmptyTopologyEntry = (

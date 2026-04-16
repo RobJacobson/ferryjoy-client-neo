@@ -14,6 +14,7 @@ import type { CompletedTripBoundaryFact } from "../projection/lifecycleEventType
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
 import type { buildTrip } from "./buildTrip";
+import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
@@ -101,8 +102,8 @@ const processCompletedTripTransition = async (
   await ctx.runMutation(
     api.functions.vesselTrips.mutations.completeAndStartNewTrip,
     {
-      completedTrip: tripToComplete,
-      newTrip,
+      completedTrip: stripTripPredictionsForStorage(tripToComplete),
+      newTrip: stripTripPredictionsForStorage(newTrip),
     }
   );
 

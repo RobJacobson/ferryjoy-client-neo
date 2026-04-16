@@ -1,3 +1,7 @@
+/**
+ * Query handlers for recent vessel ping collection snapshots.
+ */
+
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
@@ -6,7 +10,7 @@ import { vesselPingListValidationSchema } from "./schemas";
 /**
  * Get the latest 20 vessel pings from the database
  *
- * @param ctx - Convex context
+ * @param ctx - Convex query context
  * @returns Array of the latest 20 vessel ping collections without metadata
  */
 export const getLatest = query({

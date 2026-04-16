@@ -1,9 +1,9 @@
 /**
- * Tests for the functions-layer `appendFinalSchedule` adapter (schedule lookup wiring).
+ * Tests for the boundary-layer `appendFinalSchedule` adapter (schedule lookup wiring).
  */
 
 import { describe, expect, it } from "bun:test";
-import { appendFinalSchedule } from "functions/vesselTrips/actions";
+import { appendFinalSchedule } from "adapters/vesselTrips/processTick";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
