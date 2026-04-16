@@ -1035,7 +1035,7 @@ Likely file areas:
 
 - [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
 - [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
-- [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
+- [convex/functions/events/eventsActual/mutations.ts](../../convex/functions/events/eventsActual/mutations.ts)
 
 ### Stage 2 new behavior
 
@@ -1241,8 +1241,8 @@ Important constraints:
 
 ### Files a clean-slate PR 3 was expected to touch
 
-- [convex/functions/eventsActual/schemas.ts](../../convex/functions/eventsActual/schemas.ts)
-- [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
+- [convex/functions/events/eventsActual/schemas.ts](../../convex/functions/events/eventsActual/schemas.ts)
+- [convex/functions/events/eventsActual/mutations.ts](../../convex/functions/events/eventsActual/mutations.ts)
 - [convex/domain/timelineRows/buildActualRows.ts](../../convex/domain/timelineRows/buildActualRows.ts)
 - [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
 - [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
@@ -1550,7 +1550,7 @@ Goal:
 
 ### Files to update
 
-- schema file for `eventsActual` under `convex/functions/eventsActual/`
+- schema file for `eventsActual` under `convex/functions/events/eventsActual/`
 - [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
 - [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
 - any tests covering actual projection
@@ -1584,7 +1584,7 @@ Goal:
 
 - [convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts](../../convex/functions/vesselTrips/updates/projection/actualBoundaryPatchesFromTrip.ts)
 - [convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts](../../convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts)
-- [convex/functions/eventsActual/mutations.ts](../../convex/functions/eventsActual/mutations.ts)
+- [convex/functions/events/eventsActual/mutations.ts](../../convex/functions/events/eventsActual/mutations.ts)
 - tests under `convex/functions/vesselTrips/updates/tests/`
 
 ### Suggested implementation note
@@ -1704,7 +1704,7 @@ Goal:
 - [convex/shared/tripIdentity.ts](../../convex/shared/tripIdentity.ts)
 - [convex/shared/effectiveTripIdentity.ts](../../convex/shared/effectiveTripIdentity.ts)
 - [convex/domain/vesselTrips/continuity/resolveDockedScheduledSegment.ts](../../convex/domain/vesselTrips/continuity/resolveDockedScheduledSegment.ts)
-- [convex/functions/eventsScheduled/queries.ts](../../convex/functions/eventsScheduled/queries.ts)
+- [convex/functions/events/eventsScheduled/queries.ts](../../convex/functions/events/eventsScheduled/queries.ts)
 - [convex/functions/vesselTrips/updates/README.md](../../convex/functions/vesselTrips/updates/README.md)
 - [convex/domain/README.md](../../convex/domain/README.md)
 
@@ -1826,7 +1826,7 @@ Add to actual-event schemas:
 
 Suggested files:
 
-- the schema module under `convex/functions/eventsActual/`
+- the schema module under `convex/functions/events/eventsActual/`
 - any shared actual-patch types referenced by projection code
 
 Implementation guidance:
@@ -1903,7 +1903,7 @@ This is the most likely minimal file set for the first PR.
 ### Schema and types
 
 - [convex/functions/vesselTrips/schemas.ts](../../convex/functions/vesselTrips/schemas.ts)
-- `convex/functions/eventsActual/*`
+- `convex/functions/events/eventsActual/*`
 
 ### Optional helpers
 

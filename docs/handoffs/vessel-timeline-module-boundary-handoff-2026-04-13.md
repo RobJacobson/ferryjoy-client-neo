@@ -208,7 +208,7 @@ timelineReseed   -> timelineRows
 
 functions/vesselTimeline/backbone/* -> timelineBackbone
 functions/vesselTimeline/mutations.ts -> timelineReseed + timelineRows
-functions/eventsActual/mutations.ts -> timelineRows
+functions/events/eventsActual/mutations.ts -> timelineRows
 functions/vesselTrips/updates/projection/* -> timelineRows
 ```
 
@@ -264,9 +264,9 @@ Forbidden:
   - any necessary shared row helper from `timelineRows` only if the mutation
     still owns persistence-specific merge/replace behavior
 
-### `functions/eventsActual`
+### `functions/events/eventsActual`
 
-- [convex/functions/eventsActual/mutations.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/eventsActual/mutations.ts)
+- [convex/functions/events/eventsActual/mutations.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/events/eventsActual/mutations.ts)
   should import only row normalization helpers from `timelineRows`
 
 ### `functions/vesselTrips`
@@ -323,7 +323,7 @@ Goal:
 2. Move the current row-builder and projection-effect functions out of
    `normalizedEvents.ts`
 3. Update imports in:
-   - `convex/functions/eventsActual/mutations.ts`
+   - `convex/functions/events/eventsActual/mutations.ts`
    - `convex/functions/vesselTimeline/mutations.ts`
    - `convex/functions/vesselTrips/updates/projection/timelineEventAssembler.ts`
 4. Remove the old mixed file once all consumers are updated.
@@ -446,7 +446,7 @@ bun test convex/domain/timelineBackbone
 bun test convex/domain/timelineReseed
 bun test convex/domain/timelineRows
 bun test convex/functions/vesselTimeline
-bun test convex/functions/eventsActual
+bun test convex/functions/events/eventsActual
 bun test convex/functions/vesselTrips/updates/projection
 bun run type-check
 bun run convex:typecheck
