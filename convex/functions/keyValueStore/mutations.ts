@@ -14,6 +14,7 @@ import { keyValueStoreValueValidator } from "./schemas";
  * @param args.key - Document key
  * @param args.value - Stored value
  * @param args.updatedAt - Optional epoch ms for updatedAt (defaults to now)
+ * @returns `null` after the upsert completes
  */
 export const upsert = internalMutation({
   args: {

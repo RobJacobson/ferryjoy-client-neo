@@ -20,6 +20,9 @@ type VesselBasicWithIdentity = VesselBasic & {
 /**
  * Internal cron entry: fetch WSF vessel basics and replace the backend
  * `vessels` snapshot.
+ *
+ * @param ctx - Convex internal action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const syncBackendVessels = internalAction({
   args: {},
@@ -33,6 +36,9 @@ export const syncBackendVessels = internalAction({
 /**
  * Public entry for `bunx convex run`, `convex:repopulate-vessels`, and
  * `convex:dev:with-repopulate`. Internal actions are not runnable from the CLI.
+ *
+ * @param ctx - Convex public action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const runSyncBackendVessels = action({
   args: {},
@@ -85,18 +91,14 @@ export async function loadBackendVessels(
  * {@link loadBackendVessels}, and orchestrator bootstrap.
  *
  * @param ctx - Convex action context
+ * @returns `undefined` after the backend snapshot is fully replaced
  */
 export async function syncBackendVesselTable(ctx: ActionCtx): Promise<void> {
   const fetchedVessels = await fetchVesselBasics();
   const updatedAt = Date.now();
   const vessels: Array<Vessel> = fetchedVessels
     .filter(hasVesselIdentity)
-    .map((vessel) => ({
-      VesselID: vessel.VesselID,
-      VesselName: vessel.VesselName.trim(),
-      VesselAbbrev: vessel.VesselAbbrev.trim(),
-      UpdatedAt: updatedAt,
-    }));
+    .map((vessel) => toBackendVessel(vessel, updatedAt));
 
   await ctx.runMutation(
     internal.functions.vesselLocation.mutations.replaceBackendVessels,
@@ -117,3 +119,20 @@ const hasVesselIdentity = (
   vessel: VesselBasic
 ): vessel is VesselBasicWithIdentity =>
   Boolean(vessel.VesselName && vessel.VesselAbbrev);
+
+/**
+ * Maps one WSF vessel basics row into the backend vessel snapshot shape.
+ *
+ * @param vessel - WSF vessel basics row with required identity fields
+ * @param updatedAt - Shared snapshot refresh timestamp
+ * @returns Backend vessel snapshot row ready for persistence
+ */
+const toBackendVessel = (
+  vessel: VesselBasicWithIdentity,
+  updatedAt: number
+): Vessel => ({
+  VesselID: vessel.VesselID,
+  VesselName: vessel.VesselName.trim(),
+  VesselAbbrev: vessel.VesselAbbrev.trim(),
+  UpdatedAt: updatedAt,
+});

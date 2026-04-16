@@ -1,3 +1,7 @@
+/**
+ * Mutation handlers for vessel location snapshots and backend vessel mirrors.
+ */
+
 import type { Doc } from "_generated/dataModel";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
@@ -14,8 +18,9 @@ import {
  * Only writes locations that are fresh (TimeStamp changed) or new vessels.
  * Skips stale locations where vessel + timestamp are unchanged.
  *
- * @param ctx - Convex context
- * @param args.locations - Array of vessel location records to upsert
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing the location snapshot payload
+ * @returns `undefined` after all required location upserts complete
  */
 export const bulkUpsert = mutation({
   args: { locations: v.array(vesselLocationValidationSchema) },
@@ -49,7 +54,8 @@ export const bulkUpsert = mutation({
  * are inserted, and rows missing from the incoming snapshot are preserved.
  *
  * @param ctx - Convex internal mutation context
- * @param args.vessels - Backend vessel snapshot rows from WSF basics
+ * @param args - Mutation arguments containing backend vessel rows
+ * @returns `undefined` after the backend vessel snapshot is replaced in place
  */
 export const replaceBackendVessels = internalMutation({
   args: {

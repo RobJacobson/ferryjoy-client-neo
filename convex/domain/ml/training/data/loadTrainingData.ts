@@ -1,8 +1,8 @@
-// ============================================================================
+/**
+ * Loads raw WSF vessel-history records for ML training.
+ */
+
 /** biome-ignore-all lint/style/noNonNullAssertion: Checking for null values is done in the code */
-// STEP 1: LOAD TRAINING DATA FROM WSF API
-// Fetches vessel histories from WSF backend and returns raw WSF records
-// ============================================================================
 
 import {
   fetchVesselBasics,
@@ -83,8 +83,14 @@ const formatUnknownError = (error: unknown) => {
 };
 
 /**
- * Load all vessel history records from WSF API
- * Fails immediately if any vessel data fetch fails (data integrity requirement)
+ * Loads vessel-history records for all vessels in the configured training
+ * window.
+ *
+ * Fails immediately if any per-vessel fetch fails so the training run does not
+ * proceed on partial source data.
+ *
+ * @param options - Optional loader flags for sampling large datasets
+ * @returns Flattened vessel-history records across the fetched fleet
  */
 export const loadWsfTrainingData = async (options?: {
   sampleRecords?: boolean;
@@ -178,6 +184,7 @@ const fetchVesselFleet = async (): Promise<
  * Fetch vessel history data for a single vessel within the training date range.
  *
  * @param vesselName - Name of the vessel to fetch data for
+ * @param options - Optional loader flags for record sampling
  * @returns Array of vessel history records for the specified vessel
  */
 const fetchVesselData = async (

@@ -45,7 +45,7 @@ const ConvexVesselTripsContext = createContext<
  * Provider component that manages active vessel trips data from Convex.
  *
  * Fetches active vessel trips and provides them to child components.
- * Historical completed trips are loaded by consumers via getCompletedTripsForSailingDayAndTerminals where needed.
+ * Historical completed trips are loaded by focused queries where needed.
  *
  * @param props - Component props
  * @param props.children - Child components that will have access to the vessel trips data

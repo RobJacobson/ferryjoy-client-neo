@@ -51,6 +51,10 @@ export type BuildActualBoundaryPatchesForSailingDayArgs = {
 /**
  * Builds sparse patches from one live location tick against an ordered
  * vessel/day event list.
+ *
+ * @param events - Timeline events already merged for the vessel/day slice
+ * @param location - Live vessel-location tick to reconcile against the slice
+ * @returns Sparse actual-boundary patches inferred from that live tick
  */
 export const buildActualBoundaryPatchesFromLocation = (
   events: ConvexVesselTimelineEventRecord[],
@@ -72,6 +76,11 @@ export const buildActualBoundaryPatchesFromLocation = (
 /**
  * Collects sparse actual-boundary patches for one sailing day from live
  * locations and the candidate scheduled/actual tables.
+ *
+ * @param args - Scheduled, actual, live-location, and trip-context inputs for
+ * one sailing day
+ * @returns Persistable actual-boundary patches for schedule-aligned and
+ * physical-only reconciliation
  */
 export const buildActualBoundaryPatchesForSailingDay = ({
   sailingDay,
@@ -118,6 +127,12 @@ export const buildActualBoundaryPatchesForSailingDay = ({
   return [...scheduleAlignedWithTripContext, ...scheduleless];
 };
 
+/**
+ * Attaches the scheduled events for a vessel to one live location row.
+ *
+ * @param scheduledByVessel - Scheduled boundary events grouped by vessel
+ * @returns Mapper that pairs a location with its candidate scheduled events
+ */
 const attachScheduledEventsByVessel =
   (scheduledByVessel: VesselEventsByAbbrev<ConvexScheduledBoundaryEvent>) =>
   (location: ConvexVesselLocation): VesselLocationScheduledEventsBundle => ({
@@ -125,21 +140,45 @@ const attachScheduledEventsByVessel =
     vesselScheduledEvents: scheduledByVessel.get(location.VesselAbbrev) ?? [],
   });
 
+/**
+ * Narrows a location-and-events bundle to the requested sailing day.
+ *
+ * @param sailingDay - Sailing day being reconciled
+ * @returns Predicate for bundle-level sailing-day filtering
+ */
 const locationBundleMatchesSailingDay =
   (sailingDay: string) =>
   ({ location }: VesselLocationScheduledEventsBundle) =>
     locationMatchesSailingDay(sailingDay)(location);
 
+/**
+ * Checks whether a live location belongs to the requested sailing day.
+ *
+ * @param sailingDay - Sailing day being reconciled
+ * @returns Predicate for location-level sailing-day filtering
+ */
 const locationMatchesSailingDay =
   (sailingDay: string) => (location: ConvexVesselLocation) =>
     getSailingDay(
       new Date(location.ScheduledDeparture ?? location.TimeStamp)
     ) === sailingDay;
 
+/**
+ * Checks whether a location bundle has any scheduled events to reconcile.
+ *
+ * @param bundle - Location plus attached scheduled events
+ * @returns `true` when the bundle has at least one scheduled event
+ */
 const hasScheduledEvents = ({
   vesselScheduledEvents,
 }: VesselLocationScheduledEventsBundle) => vesselScheduledEvents.length > 0;
 
+/**
+ * Reconciles one location bundle against scheduled and actual timeline rows.
+ *
+ * @param actualByVessel - Actual boundary events grouped by vessel
+ * @returns Mapper that produces sparse patches for one location bundle
+ */
 const actualBoundaryPatchesFromLocationBundle =
   (actualByVessel: VesselEventsByAbbrev<ConvexActualBoundaryEvent>) =>
   ({ location, vesselScheduledEvents }: VesselLocationScheduledEventsBundle) =>
@@ -396,6 +435,13 @@ const findAnchoredArrivalEvent = (
     )[0];
 };
 
+/**
+ * Computes the earliest timestamp when a scheduled arrival may be treated as
+ * eligible for live confirmation.
+ *
+ * @param event - Candidate arrival event from the vessel timeline
+ * @returns Earliest safe timestamp for confirming that arrival
+ */
 const arrivalEligibilityTime = (event: ConvexVesselTimelineEventRecord) => {
   return Math.min(
     event.ScheduledDeparture,

@@ -1,6 +1,13 @@
 /**
  * Defines shared Convex vessel-location validators and conversions.
  */
+
+import {
+  resolveTerminalByAbbrev,
+  resolveVessel,
+  type TerminalIdentity,
+  type VesselIdentity,
+} from "adapters/wsf";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
@@ -12,8 +19,6 @@ import {
 } from "../../shared/convertDates";
 import { calculateDistanceInMiles } from "../../shared/distanceUtils";
 import { deriveTripIdentity } from "../../shared/tripIdentity";
-import { resolveVesselName, type VesselIdentity } from "../../shared/vessels";
-import { resolveTerminal, type TerminalIdentity } from "../terminals/resolver";
 
 /**
  * Shared field validators for vessel-location storage.
@@ -75,6 +80,7 @@ export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
  *
  * @param dvl - Dottie vessel location with Date objects
  * @param vessels - Backend vessel rows used to resolve the vessel abbreviation
+ * @param terminals - Backend terminal rows used to normalize terminal identity
  * @returns Convex vessel location with numeric timestamps
  */
 export function toConvexVesselLocation(
@@ -88,15 +94,15 @@ export function toConvexVesselLocation(
   const rawArrivingTerminalAbbrev =
     dvl.ArrivingTerminalAbbrev?.trim() ?? undefined;
   const rawArrivingTerminalName = dvl.ArrivingTerminalName?.trim() ?? undefined;
-  const resolvedAbbrev = resolveVesselName(VesselName, vessels);
+  const resolvedVessel = resolveVessel(VesselName, vessels);
   const resolvedDepartingTerminal = rawDepartingTerminalAbbrev
-    ? resolveTerminal({ TerminalAbbrev: rawDepartingTerminalAbbrev }, terminals)
+    ? resolveTerminalByAbbrev(rawDepartingTerminalAbbrev, terminals)
     : null;
   const resolvedArrivingTerminal = rawArrivingTerminalAbbrev
-    ? resolveTerminal({ TerminalAbbrev: rawArrivingTerminalAbbrev }, terminals)
+    ? resolveTerminalByAbbrev(rawArrivingTerminalAbbrev, terminals)
     : null;
 
-  if (!resolvedAbbrev) {
+  if (!resolvedVessel) {
     throw new Error(`Unknown vessel in backend vessel lookup: ${VesselName}`);
   }
 
@@ -127,7 +133,7 @@ export function toConvexVesselLocation(
     rawArrivingTerminalName ??
     rawArrivingTerminalAbbrev;
   const tripIdentity = deriveTripIdentity({
-    vesselAbbrev: resolvedAbbrev,
+    vesselAbbrev: resolvedVessel.VesselAbbrev,
     departingTerminalAbbrev: DepartingTerminalAbbrev,
     arrivingTerminalAbbrev: ArrivingTerminalAbbrev,
     scheduledDepartureMs: optionalDateToEpochMs(dvl.ScheduledDeparture),
@@ -137,7 +143,7 @@ export function toConvexVesselLocation(
   return {
     VesselID: dvl.VesselID,
     VesselName,
-    VesselAbbrev: resolvedAbbrev,
+    VesselAbbrev: resolvedVessel.VesselAbbrev,
     DepartingTerminalID: dvl.DepartingTerminalID,
     DepartingTerminalName,
     DepartingTerminalAbbrev,
@@ -192,6 +198,16 @@ export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
  */
 export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;
 
+/**
+ * Measure the vessel's distance from a known terminal when that terminal can be
+ * resolved from backend identity data.
+ *
+ * @param latitude - Vessel latitude in decimal degrees
+ * @param longitude - Vessel longitude in decimal degrees
+ * @param terminalAbbrev - Terminal abbreviation from the live feed
+ * @param terminals - Backend terminal rows used for coordinate lookup
+ * @returns Distance in miles, or `undefined` when the terminal cannot be resolved
+ */
 const getDistanceToTerminal = (
   latitude: number,
   longitude: number,
@@ -202,8 +218,7 @@ const getDistanceToTerminal = (
     return undefined;
   }
 
-  const terminal =
-    resolveTerminal({ TerminalAbbrev: terminalAbbrev }, terminals) ?? null;
+  const terminal = resolveTerminalByAbbrev(terminalAbbrev, terminals) ?? null;
 
   return calculateDistanceInMiles(
     latitude,
@@ -215,6 +230,14 @@ const getDistanceToTerminal = (
 
 const warnedUnknownMarineLocations = new Set<string>();
 
+/**
+ * Warn once per role/terminal pair when the live feed references a marine
+ * location missing from backend terminal identity data.
+ *
+ * @param role - Whether the unresolved terminal is departing or arriving
+ * @param terminalAbbrev - Unknown terminal abbreviation from the live feed
+ * @returns `undefined` after the one-time warning check completes
+ */
 const warnAboutUnknownMarineLocation = (
   role: "departing" | "arriving",
   terminalAbbrev: string

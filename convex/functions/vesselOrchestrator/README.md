@@ -5,6 +5,17 @@ vessel processing. It fetches vessel locations from WSF once, converts that
 payload into the Convex location shape, and then fans the same location batch
 out to multiple backend consumers.
 
+The orchestrator follows the backend layering rule:
+
+```text
+convex/functions -> convex/adapters -> convex/domain -> convex/functions/persistence
+```
+
+In this module, `actions.ts` stays as the Convex-facing shell. Raw vessel
+locations are fetched through `convex/adapters/wsf/fetchVesselLocations.ts`,
+translated into `ConvexVesselLocation`, and then passed into domain
+orchestration plus persistence adapters.
+
 ## System Overview
 
 The orchestrator runs periodically, roughly every 5 seconds, and coordinates
@@ -20,9 +31,10 @@ allowing each downstream subsystem to evolve independently.
 
 ```text
 WSF VesselLocations API
-  -> VesselOrchestrator fetch + conversion
-  -> vesselLocations table
-  -> vesselTrips/actions (processVesselTrips)
+  -> adapters/wsf/fetchVesselLocations
+  -> functions/vesselOrchestrator/actions.ts
+  -> domain/vesselOrchestration/runVesselOrchestratorTick
+  -> vesselLocations table / vesselTrips persistence
 ```
 
 ## Why The Timeline Event Tables Exist
@@ -57,6 +69,7 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
+- do that external fetch through `convex/adapters/wsf/fetchVesselLocations.ts`
 - load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips`
   in **one** internal query per tick (`getOrchestratorTickReadModelInternal` in
   `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still hydrates
@@ -86,6 +99,8 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
+  -> adapters/wsf/fetchVesselLocations()
+  -> actions.ts
   -> toConvexVesselLocation(raw, vessels, terminals)
   -> ConvexVesselLocation[]
 ```
@@ -215,8 +230,8 @@ That document covers:
 
 ```text
 WSF API
-  -> fetch vessel locations once
-  -> convert locations
+  -> fetch vessel locations once via adapters
+  -> convert locations in functions
   -> fan out in parallel:
        branch 1: vesselLocations bulkUpsert
        branch 2: processVesselTrips -> applyTickEventWrites(tickEventWrites)
@@ -325,7 +340,7 @@ those internal actions live in `convex/crons.ts`.
 ## Related Documentation
 
 - `convex/functions/vesselTrips/README.md`
-- `convex/functions/scheduledTrips/sync/README.md`
+- `convex/functions/scheduledTrips/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`
 - `src/features/VesselTimeline/docs/ARCHITECTURE.md`
 

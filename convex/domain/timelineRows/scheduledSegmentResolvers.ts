@@ -142,6 +142,13 @@ const toAdjacentBoundaryEvent = (event: ConvexScheduledBoundaryEvent) => ({
   EventType: event.EventType,
 });
 
+/**
+ * Precomputes sorted-event lookups used for interval-based schedule
+ * resolution.
+ *
+ * @param events - Scheduled boundary events for one vessel/day scope
+ * @returns Sorted event map plus adjacent dock intervals
+ */
 const buildScheduledIntervalContext = (
   events: ConvexScheduledBoundaryEvent[]
 ) => {

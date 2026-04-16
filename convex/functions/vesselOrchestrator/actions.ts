@@ -9,22 +9,21 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
+import { DEFAULT_PROCESS_VESSEL_TRIPS_DEPS } from "adapters/vesselTrips/processTick";
+import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
 import {
   getPassengerTerminalAbbrevs,
   runVesselOrchestratorTick,
 } from "domain/vesselOrchestration";
+import { processVesselTripsWithDeps } from "domain/vesselTrips/processTick/processVesselTrips";
+import type { TickEventWrites } from "domain/vesselTrips/processTick/tickEventWrites";
 import { syncBackendTerminalTable } from "functions/terminals/actions";
 import type { Terminal } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { Vessel } from "functions/vessels/schemas";
-import {
-  processVesselTrips,
-  type TickEventWrites,
-} from "functions/vesselTrips/actions";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
-import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
@@ -116,11 +115,12 @@ export const updateVesselOrchestrator = internalAction({
       {
         persistLocations: (locations) => updateVesselLocations(ctx, locations),
         processVesselTrips: (locations, tick, activeTrips, options) =>
-          processVesselTrips(
+          processVesselTripsWithDeps(
             ctx,
-            [...locations],
+            locations,
             tick,
-            [...activeTrips],
+            DEFAULT_PROCESS_VESSEL_TRIPS_DEPS,
+            activeTrips,
             options
           ),
         applyTickEventWrites: (writes) => applyTickEventWrites(ctx, writes),
@@ -137,6 +137,7 @@ export const updateVesselOrchestrator = internalAction({
  *
  * @param ctx - Convex action context for database operations
  * @param locations - Array of vessel locations to store
+ * @returns `undefined` after the location snapshot upsert completes
  */
 async function updateVesselLocations(
   ctx: ActionCtx,
@@ -156,6 +157,7 @@ async function updateVesselLocations(
  *
  * @param ctx - Convex action context
  * @param writes - Combined actual and predicted timeline writes for one tick
+ * @returns `undefined` after all per-tick writes settle
  */
 export const applyTickEventWrites = async (
   ctx: ActionCtx,

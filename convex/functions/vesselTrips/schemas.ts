@@ -103,28 +103,6 @@ export const toDomainJoinedPrediction = (
   DeltaTotal: prediction.DeltaTotal,
 });
 
-/**
- * Convert optional Convex prediction to optional domain prediction.
- *
- * @param prediction - Optional Convex prediction record with numeric timestamps
- * @returns Optional domain prediction with Date objects, or undefined if input is undefined
- */
-export const optionalToDomainPrediction = (
-  prediction?: ConvexPrediction
-): Prediction | undefined =>
-  prediction ? toDomainPrediction(prediction) : undefined;
-
-/**
- * Convert optional joined prediction to optional domain joined prediction.
- *
- * @param prediction - Optional minimal prediction from queries
- * @returns Optional domain shape
- */
-export const optionalToDomainJoinedPrediction = (
-  prediction?: ConvexJoinedTripPrediction
-): JoinedPrediction | undefined =>
-  prediction ? toDomainJoinedPrediction(prediction) : undefined;
-
 const tripIdentityFields = {
   VesselAbbrev: v.string(),
   DepartingTerminalAbbrev: v.string(),
@@ -196,23 +174,6 @@ export const vesselTripSchema = v.object({
   AtSeaDepartNext: v.optional(joinedTripPredictionSchema),
 });
 
-/** In-memory trip may carry full ML output or query-joined minimal rows. */
-const tripPredictionPayloadSchema = v.union(
-  predictionSchema,
-  joinedTripPredictionSchema
-);
-
-/**
- * Action/mutation payloads from `buildTrip` before persistence: full ML blobs.
- */
-export const vesselTripMlPayloadSchema = vesselTripStoredSchema.extend({
-  AtDockDepartCurr: v.optional(tripPredictionPayloadSchema),
-  AtDockArriveNext: v.optional(tripPredictionPayloadSchema),
-  AtDockDepartNext: v.optional(tripPredictionPayloadSchema),
-  AtSeaArriveNext: v.optional(tripPredictionPayloadSchema),
-  AtSeaDepartNext: v.optional(tripPredictionPayloadSchema),
-});
-
 /**
  * Hydrated vessel trip: public queries and subscriber read paths after joining
  * `eventsPredicted` (not the orchestrator tick bundle, which uses storage-native
@@ -268,6 +229,13 @@ export const toDomainVesselTrip = (
   return domainTrip;
 };
 
+/**
+ * Convert an optional stored prediction payload into the appropriate domain
+ * prediction shape.
+ *
+ * @param value - Joined or full prediction payload from a trip field
+ * @returns Domain prediction shape, or `undefined` when the field is missing
+ */
 const mapPredictionField = (
   value: unknown
 ): Prediction | JoinedPrediction | undefined => {
@@ -307,26 +275,7 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
 /**
  * Domain-layer vessel trip shape with `Date` instances.
  */
-type CanonicalTimestampFieldName =
-  | "ArrivedCurrActual"
-  | "ArrivedNextActual"
-  | "LeftDockActual"
-  | "StartTime"
-  | "EndTime";
-
-type CanonicalTimestampFields = {
-  ArrivedCurrActual?: Date;
-  ArrivedNextActual?: Date;
-  LeftDockActual?: Date;
-  StartTime?: Date;
-  EndTime?: Date;
-};
-
-export type VesselTrip = Omit<
-  ReturnType<typeof toDomainVesselTrip>,
-  CanonicalTimestampFieldName
-> &
-  CanonicalTimestampFields;
+export type VesselTrip = ReturnType<typeof toDomainVesselTrip>;
 
 /**
  * Vessel trip with optional joined ScheduledTrip (from getActiveTripsWithScheduled).

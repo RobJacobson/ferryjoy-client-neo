@@ -4,12 +4,12 @@
 
 import { describe, expect, it } from "bun:test";
 import type { QueryCtx } from "_generated/server";
-import { getSegmentKeyFromBoundaryKey } from "../../../../domain/timelineRows/scheduledSegmentResolvers";
-import { buildPhysicalActualEventKey } from "../../../../shared/physicalTripIdentity";
-import type { ConvexActualBoundaryEvent } from "../../../eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../../eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../../eventsScheduled/schemas";
-import { loadVesselTimelineBackbone } from "../../queries";
+import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ConvexActualBoundaryEvent } from "functions/eventsActual/schemas";
+import type { ConvexPredictedBoundaryEvent } from "functions/eventsPredicted/schemas";
+import type { ConvexScheduledBoundaryEvent } from "functions/eventsScheduled/schemas";
+import { loadVesselTimelineBackbone } from "functions/vesselTimeline/queries";
+import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
@@ -150,7 +150,8 @@ const makeQueryCtx = (data: MockQueryData): QueryCtx =>
 
           const rows = getRowsForTable(data, tableName).filter((row) =>
             range.filters.every(
-              ({ fieldName, value }) => String(row[fieldName]) === value
+              ({ fieldName, value }) =>
+                String((row as Record<string, unknown>)[fieldName]) === value
             )
           );
 

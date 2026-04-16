@@ -19,7 +19,8 @@ import {
  * Rows are identified by `(Key, PredictionType, PredictionSource)`. Stale rows
  * in the effect's target key set are deleted when not present in `Rows`.
  *
- * @param args.Effects - Prediction projection effects grouped by vessel/day scope
+ * @param ctx - Convex internal mutation context
+ * @param args - Mutation arguments containing grouped prediction effects
  * @returns `null`
  */
 export const projectPredictedBoundaryEffects = internalMutation({

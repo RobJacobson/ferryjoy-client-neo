@@ -3,21 +3,12 @@
 // Fetches and counts scheduled trips by vessel for specified number of sailing days
 // ============================================================================
 
-import { fetchActiveRoutes } from "../convex/functions/scheduledTrips/sync/fetching";
-import { fetchRouteSchedule } from "../convex/functions/scheduledTrips/sync/fetching/wsfApi";
+import {
+  fetchActiveRoutes,
+  fetchRouteSchedule,
+  type VesselSailing,
+} from "../convex/adapters/wsf/scheduledTrips";
 import { getSailingDay } from "../convex/shared/time";
-
-type VesselSailing = {
-  DepartingTime: Date;
-  ArrivingTime: Date | null;
-  LoadingRule: 1 | 2 | 3;
-  VesselID: number;
-  VesselName: string;
-  VesselHandicapAccessible: boolean;
-  VesselPositionNum: number;
-  Routes: number[];
-  AnnotationIndexes: number[] | null;
-};
 
 /**
  * Helper function to add days to a date string.

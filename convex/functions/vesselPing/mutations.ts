@@ -1,15 +1,19 @@
+/**
+ * Mutation handlers for storing and pruning legacy individual vessel ping rows.
+ */
+
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
 
-import type { ConvexVesselPing } from "functions/vesselPing/schemas";
-import { vesselPingValidationSchema } from "functions/vesselPing/schemas";
+import type { ConvexVesselPing } from "functions/vesselPings/schemas";
+import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 
 /**
  * Store individual vessel pings to the vesselPing table
  * Takes an array of vessel pings and saves each as a separate document
  *
- * @param ctx - Convex context
- * @param args.pings - Array of vessel ping records to store
+ * @param ctx - Convex mutation context
+ * @param args - Mutation arguments containing vessel ping rows
  * @returns Array of inserted document IDs
  */
 export const storeVesselPings = mutation({
@@ -27,9 +31,8 @@ export const storeVesselPings = mutation({
 });
 
 /**
- * Internal mutation for cleaning up old vessel ping records
- * Uses deleteMany for efficient bulk deletion
- * Used by the cleanup cron job for better performance and data consistency
+ * Internal mutation for deleting stale legacy vessel ping rows.
+ *
  * @param ctx - Convex context
  * @returns Number of records deleted
  */
@@ -40,26 +43,23 @@ export const cleanupOldPingsMutation = internalMutation({
     const cutoffTime = Date.now() - CONFIG.CLEANUP_HOURS * 60 * 60 * 1000;
     let totalDeleted = 0;
 
-    // Process in batches to reduce write conflicts
+    // Batch deletes to keep write contention low during cleanup.
     while (true) {
-      // Use the index for more efficient querying
       const oldPings = await ctx.db
         .query("vesselPing")
         .withIndex("by_timestamp", (q) => q.lt("TimeStamp", cutoffTime))
         .take(CONFIG.BATCH_SIZE);
 
       if (oldPings.length === 0) {
-        break; // No more old records to delete
+        break;
       }
 
-      // Delete all records in this batch
       for (const ping of oldPings) {
         await ctx.db.delete(ping._id);
       }
 
       totalDeleted += oldPings.length;
 
-      // If we got fewer records than the batch size, we're done
       if (oldPings.length < CONFIG.BATCH_SIZE) {
         break;
       }

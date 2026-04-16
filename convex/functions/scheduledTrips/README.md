@@ -1,29 +1,66 @@
 # ScheduledTrips (Convex functions)
 
-Thin Convex entrypoints and WSF I/O for the `scheduledTrips` table. Schedule
-**business rules** (classification, estimates, linking, prefetch policies) live
-under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
+Thin Convex entrypoints and persistence wiring for the `scheduledTrips` table.
+Schedule **business rules** (classification, estimates, linking, prefetch
+policies) live under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/),
+while WSF fetch and mapping live under
+[`convex/adapters/wsf/scheduledTrips/`](/convex/adapters/wsf/scheduledTrips/).
 
 ## Public surface (intended)
 
-- **`actions.ts`** — Manual/windowed sync and purge jobs (`syncScheduledTrips*`,
-  `purgeScheduledTripsOutOfDate`).
-- **`mutations.ts`** — Day-scoped delete/insert and batched purge by departure
-  time.
-- **`queries.ts`** — Indexed reads for routes, terminals, vessels, and internal
-  schedule lookups used by trip lifecycle.
+- **`queries.ts`** — One public query: `getDirectScheduledTripsByRoutesAndTripDate`
+  (used by UnifiedTrips). Other schedule reads use `ctx.db` in feature modules
+  (e.g. vessel trip joins by `Key`).
 - **`schemas.ts`** — `scheduledTripSchema`, `ConvexScheduledTrip`, and
   `toDomainScheduledTrip`.
+- **`constants.ts`** — `scheduledTripsConfig` (rolling sync day counts, purge batch sizes).
+- **`actions.ts`** — **Internal** actions only: operator/manual sync
+  (`runManualScheduledTripsSync`, `runManualScheduledTripsSyncForDate`), cron
+  windowed sync (`syncScheduledTripsWindowed`), and purge
+  (`purgeScheduledTripsOutOfDate`). Run manual sync from the repo with
+  `bun run sync:scheduled-trips` or `bun run sync:scheduled-trips:date -- '{"targetDate":"YYYY-MM-DD"}'`
+  (uses `bunx convex run` — not callable from the app client).
+- **`mutations.ts`** — **Internal** mutations only: `replaceScheduledTripsForSailingDay`
+  (atomic day replace for sync) and `deleteScheduledTripsBeforeBatch` (purge batches).
+- **`sync.ts`** — Non-registered orchestration helpers used by `actions.ts`
+  (`syncScheduledTripsForDate`, `syncScheduledTripsForDateRange`).
 
-## Internal adapters
+## Schedule sync orchestration (`sync.ts`)
 
-The **`sync/`** subtree is the fetch → map → domain pipeline → persist adapter
-(WSF download, raw-segment mapping, `runScheduleTransformPipeline`, atomic day
-replace). Other modules may import from `sync/` paths; prefer the files above
-for new Convex-facing code.
+[`sync.ts`](./sync.ts) is the thin shell for when sync runs: it loads backend
+vessel and terminal identity rows, calls the WSF adapter pipeline
+(`fetchAndTransformScheduledTrips`), and persists via
+[`mutations.ts`](./mutations.ts) `replaceScheduledTripsForSailingDay`.
 
-For the pipeline narrative, see
-[`sync/README.md`](./sync/README.md).
+WSF download, raw schedule types, and raw-segment mapping live in
+`convex/adapters/wsf/scheduledTrips/`. **Schedule transformation rules**
+(direct/indirect classification, estimates, official crossing-time policy,
+`PrevKey`/`NextKey` linking) live in
+[`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
+
+`vesselTimeline` and timeline reseed reuse the adapter ingress modules or
+domain helpers without duplicating business rules.
+
+### WSF data model vs. physical reality
+
+The raw WSF API is passenger-oriented. It often models one physical vessel
+movement as multiple logical trips (e.g. on Route 9, one Anacortes departure can
+appear as ANA→LOP, ANA→SHI, ANA→FRH). The domain pipeline deduplicates,
+classifies direct vs indirect, links `PrevKey`/`NextKey`, backfills estimates, and
+normalizes onto the WSF sailing day.
+
+### Adapter ingress (reference)
+
+`convex/adapters/wsf/scheduledTrips/` owns WSF API fetch wrappers, raw types,
+route-download normalization, raw-segment-to-`ConvexScheduledTrip` mapping, and
+`fetchAndTransformScheduledTrips` (used by sync and timeline reseed).
+
+### Architecture rule
+
+Domain modules under `convex/domain/` own reusable business logic. This
+`functions/scheduledTrips` layer owns Convex registration and persistence.
+`convex/adapters/wsf/scheduledTrips/` owns WSF-boundary translation into backend
+rows.
 
 ## Tests
 

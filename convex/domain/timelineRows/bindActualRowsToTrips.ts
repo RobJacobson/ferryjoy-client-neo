@@ -77,6 +77,9 @@ export const indexTripsBySegmentKey = (
 /**
  * Builds a map from vessel abbreviation to the current active trip used for
  * scheduleless physical-only reconciliation.
+ *
+ * @param trips - Active trips keyed by vessel for the current reconciliation scope
+ * @returns Map from vessel abbreviation to active trip rows that have `TripKey`
  */
 export const indexActiveTripsByVesselAbbrev = (
   trips: ActiveTripForPhysicalActualReconcile[]

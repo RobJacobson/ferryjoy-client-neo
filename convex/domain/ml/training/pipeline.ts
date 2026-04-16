@@ -14,7 +14,7 @@
  * 3. **Feature Extraction**: Transform windows into ML-ready feature records
  * 4. **Bucketing**: Group records by route for specialized model training
  * 5. **Model Training**: Train linear regression models for each route+model-type combination
- * 6. **Model Storage**: Save trained models to database for prediction service
+ * 6. **Model Storage**: Save a versioned model set for prediction service
  *
  * ## Pipeline Architecture
  *
@@ -75,13 +75,12 @@ const trainAllModels = async (
  *
  * ## Pipeline Steps
  *
- * 1. **Clean Slate**: Delete existing models to prevent stale data
- * 2. **Data Loading**: Fetch the configured historical WSF trip window
- * 3. **Window Creation**: Build training windows from consecutive trips per vessel
- * 4. **Feature Extraction**: Transform windows into ML-ready feature vectors
- * 5. **Bucketing**: Group by route (terminal pairs) for specialized models
- * 6. **Model Training**: Train linear regression models for each route+type combination
- * 7. **Model Storage**: Persist trained models to database
+ * 1. **Data Loading**: Fetch the configured historical WSF trip window
+ * 2. **Window Creation**: Build training windows from consecutive trips per vessel
+ * 3. **Feature Extraction**: Transform windows into ML-ready feature vectors
+ * 4. **Bucketing**: Group by route (terminal pairs) for specialized models
+ * 5. **Model Training**: Train linear regression models for each route+type combination
+ * 6. **Model Storage**: Persist a new versioned model set to the database
  *
  * ## Memory Management
  *
@@ -94,6 +93,7 @@ const trainAllModels = async (
  * - Individual model training failures don't stop the pipeline
  * - Data validation filters out invalid records
  * - Pipeline returns statistics even if some models fail to train
+ * - Existing model versions remain intact until a newer version is promoted
  *
  * @param ctx - Convex action context for database operations
  * @returns Training results with statistics and trained models

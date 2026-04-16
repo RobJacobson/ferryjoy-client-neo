@@ -3,10 +3,9 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { TerminalIdentity } from "../../../functions/terminals/resolver";
+import type { TerminalIdentity, VesselIdentity } from "../../../adapters/wsf";
+import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
-import type { RawWsfScheduleSegment } from "../../../shared/fetchWsfScheduleData";
-import type { VesselIdentity } from "../../../shared/vessels";
 import { hydrateSeededEventsWithHistory } from "../hydrateWithHistory";
 import { createSeededScheduleSegmentResolver } from "../scheduleDepartureLookup";
 import { buildSeedVesselTripEventsFromRawSegments } from "../seedScheduledEvents";
@@ -453,6 +452,7 @@ const makeHistory = (overrides: Partial<VesselHistory>): VesselHistory =>
 const makeEvent = (
   overrides: Partial<ConvexVesselTimelineEventRecord>
 ): ConvexVesselTimelineEventRecord => ({
+  SegmentKey: "segment",
   Key: "event",
   VesselAbbrev: "CAT",
   SailingDay: "2026-03-18",

@@ -22,6 +22,11 @@ clear boundary:
 - `convex/functions/` is the Convex-facing data-access and entrypoint layer
 - `convex/domain/` is the business-logic and workflow layer
 
+**Current layout note (2026):** vessel-trip Convex entrypoints live in the flat
+`convex/functions/vesselTrips/` tree (`actions.ts`, `queries.ts`, etc.). Older
+docs refer to a removed `vesselTrips/updates/` subtree; treat those paths as
+historical unless the repo still contains them.
+
 This memo is intentionally organizational, not semantic. It does **not**
 propose major changes to trip identity, timeline event semantics, or scheduled
 event semantics. Those semantics are already covered elsewhere and should be
@@ -62,19 +67,17 @@ Current status as of 2026-04-14:
     functions layer
 - Phase 2 is complete:
   - `convex/domain/vesselTrips/` owns the vessel-trip lifecycle pipeline and
-    projection assembly; `convex/functions/vesselTrips/updates/` is a thin
-    compatibility layer (default `buildTripAdapters` wiring + re-exports)
+    projection assembly; `convex/functions/vesselTrips/actions.ts` wires default
+    `buildTripAdapters` and `processVesselTrips`
   - handoff checklist:
     `docs/handoffs/phase-2-vesseltrips-domain-migration-checklist-2026-04-14.md`
 - Phase 3 is complete:
   - `convex/domain/vesselTrips/continuity/` owns `resolveDockedScheduledSegment`
     and `resolveEffectiveDockedLocation`; `DockedScheduledSegmentSource` lives in
     `continuity/types.ts` for `shared/effectiveTripIdentity`
-  - `convex/functions/vesselTrips/updates/tripLifecycle/resolveEffectiveLocation.ts`
-    is a thin adapter (`ctx.runQuery` + preserved `[VesselTrips][DockedIdentity]`
-    logging)
-  - `convex/functions/vesselTrips/updates/tripLifecycle/appendSchedule.ts`
-    remains a narrow query-backed enrichment adapter documented as such
+  - `resolveEffectiveLocation` and `appendFinalSchedule` live in
+    `convex/functions/vesselTrips/actions.ts` (thin `ctx.runQuery` adapters +
+    docked-identity logging)
   - handoff checklist:
     `docs/handoffs/phase-3-docked-continuity-domain-boundary-checklist-2026-04-14.md`
 - Phase 4 is complete:
@@ -116,7 +119,7 @@ Any implementation agent should read these documents before making changes:
 - `docs/convex_rules.mdc`
 - `convex/domain/README.md`
 - `convex/functions/vesselOrchestrator/README.md`
-- `convex/functions/vesselTrips/updates/README.md`
+- `convex/functions/vesselTrips/README.md`
 - `docs/handoffs/vessel-trip-and-timeline-redesign-spec-2026-04-12.md`
 - `docs/handoffs/vessel-timeline-module-boundary-handoff-2026-04-13.md`
 - `docs/handoffs/vesseltimeline-reconciliation-memo-2026-04-14.md`
@@ -440,7 +443,7 @@ Expected outputs:
 
 Suggested focus files:
 
-- `convex/functions/vesselTrips/updates/README.md`
+- `convex/functions/vesselTrips/README.md`
 - `convex/functions/vesselOrchestrator/README.md`
 - `convex/domain/README.md`
 - `docs/handoffs/vessel-timeline-module-boundary-handoff-2026-04-13.md`
@@ -621,7 +624,7 @@ Tasks (done):
 - trivial wrapper-only tests pruned or consolidated; adapter tests trimmed where
   domain coverage duplicated behavior
 - README-level docs and import conventions updated (`convex/domain/README.md`,
-  `convex/functions/vesselTrips/updates/README.md`, orchestrator README)
+  `convex/functions/vesselTrips/README.md`, orchestrator README)
 - lightweight import guidance added in `convex/domain/README.md` (docs-first;
   no new lint rules)
 

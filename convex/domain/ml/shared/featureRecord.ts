@@ -154,6 +154,9 @@ const getCurrSeaActuals = (window: TrainingWindow) => {
  * Type guard for windows that include next-terminal departure context.
  *
  * Used to safely access depart-next features that require multi-leg journey data.
+ *
+ * @param window - Training window that may include next-leg departure context
+ * @returns `true` when the window includes an eligible next-leg departure
  */
 const requireDepartNextWindow = (
   window: TrainingWindow

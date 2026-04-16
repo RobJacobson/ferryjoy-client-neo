@@ -48,7 +48,7 @@ convex/adapters/
   README.md                 # boundary definition + import rules
   wsf/                      # Washington State Ferries integration
     fetchVesselLocations.ts # move from shared/fetchWsfVesselLocations.ts
-    scheduledTrips/         # optional: migrate from functions/scheduledTrips/sync/*
+    scheduledTrips/         # optional: migrate from functions/scheduledTrips/sync.ts
     index.ts                # optional barrel; avoid mega-barrels per project rules
 ```
 
@@ -77,7 +77,7 @@ convex/adapters/
 
 ### Phase 2 — Scheduled trips ingress
 
-1. Migrate **WSF download + raw mapping** currently under [`convex/functions/scheduledTrips/sync/`](../../convex/functions/scheduledTrips/sync/) into **`convex/adapters/wsf/scheduledTrips/`** (or keep a thin **`functions/scheduledTrips/ingest/`** shell that only calls adapters—see existing restructuring ideas in [`docs/handoffs/scheduled-trips-functions-domain-cleanup-handoff-2026-04-15.md`](scheduled-trips-functions-domain-cleanup-handoff-2026-04-15.md)).
+1. Migrate **WSF download + raw mapping** previously colocated with sync (now see [`convex/adapters/wsf/scheduledTrips/`](../../convex/adapters/wsf/scheduledTrips/) and [`convex/functions/scheduledTrips/sync.ts`](../../convex/functions/scheduledTrips/sync.ts))) — or keep a thin **`functions/scheduledTrips/ingest/`** shell that only calls adapters—see [`docs/handoffs/scheduled-trips-functions-domain-cleanup-handoff-2026-04-15.md`](scheduled-trips-functions-domain-cleanup-handoff-2026-04-15.md).
 2. Leave **`runScheduleTransformPipeline`** and related rules in **`convex/domain/scheduledTrips/`**.
 3. Optionally rename **`sync/`** → **`ingest/`** under functions for clarity (separate PR).
 
@@ -109,7 +109,7 @@ convex/adapters/
 - [`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md) — fetch vs `runVesselOrchestratorTick`.
 - [`convex/functions/vesselTrips/README.md`](../../convex/functions/vesselTrips/README.md) — thin surface + domain pointers.
 - [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md) — scheduled trips public surface.
-- [`convex/functions/scheduledTrips/sync/README.md`](../../convex/functions/scheduledTrips/sync/README.md) — current **sync adapter** narrative (may move/rename during adapters work).
+- [`convex/functions/scheduledTrips/README.md`](../../convex/functions/scheduledTrips/README.md) — scheduled trips module + sync orchestration narrative.
 
 ### Repository root
 
@@ -142,7 +142,7 @@ convex/adapters/
 
 ## First files to grep when starting
 
-- `fetchWsfVesselLocations` / `fetchWsfScheduleData` / `scheduledTrips/sync`
+- `fetchWsfVesselLocations` / `fetchWsfScheduleData` / `scheduledTrips/sync.ts`
 - `from "shared/` imports that touch WSF or raw schedule types
 
 Good luck—keep PRs small and documented.

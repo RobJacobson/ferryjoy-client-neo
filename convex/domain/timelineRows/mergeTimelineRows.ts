@@ -20,6 +20,7 @@ import {
  *
  * @param scheduleSegment - Canonical segment key (without `--dep-dock` / `--arv-dock`)
  * @param eventType - Boundary type on the scheduled row
+ * @returns Stable composite map key for schedule attachment lookups
  */
 const scheduleAttachmentKey = (
   scheduleSegment: string,

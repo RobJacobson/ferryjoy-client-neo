@@ -1,3 +1,7 @@
+/**
+ * Query handlers for stored ML model parameters and active version tags.
+ */
+
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getProductionVersionTagValue } from "functions/keyValueStore/helpers";
@@ -36,9 +40,8 @@ export const getAllModelParameters = query({
  * Get model parameters for production predictions.
  * Uses the active production version tag from config.
  *
- * @param ctx - Convex context
- * @param args.pairKey - The terminal pair key (e.g., "TerminalA-TerminalB")
- * @param args.modelType - The model type to retrieve
+ * @param ctx - Convex query context
+ * @param args - Query arguments containing the pair key and model type
  * @returns The model parameters record or null if not found
  */
 export const getModelParametersForProduction = query({
@@ -54,7 +57,6 @@ export const getModelParametersForProduction = query({
         return null;
       }
 
-      // Query with production version tag
       const doc = await ctx.db
         .query("modelParameters")
         .withIndex("by_pair_type_tag", (q) =>
@@ -86,9 +88,8 @@ export const getModelParametersForProduction = query({
  * Uses the active production version tag from config.
  * Reduces Convex function calls when computing multiple predictions for a vessel.
  *
- * @param ctx - Convex context
- * @param args.pairKey - The terminal pair key (e.g., "BBI->P52")
- * @param args.modelTypes - Array of model types to retrieve
+ * @param ctx - Convex query context
+ * @param args - Query arguments containing the pair key and requested model types
  * @returns Record mapping ModelType to model parameters.
  *          Each value is either a ModelDoc without Convex metadata (_id, _creationTime)
  *          or null if not found for that model type.
@@ -148,8 +149,8 @@ export const getModelParametersForProductionBatch = query({
 /**
  * Get all models for a specific version tag.
  *
- * @param ctx - Convex context
- * @param args.versionTag - The version tag (e.g., "dev-temp", "dev-1", "prod-1")
+ * @param ctx - Convex query context
+ * @param args - Query arguments containing the version tag
  * @returns Array of model parameters for the specified version tag without metadata
  */
 export const getModelParametersByTag = query({

@@ -372,8 +372,14 @@ Instead, we apply strict eligibility rules during window creation:
 
 ### ScheduledTrips enrichment used by inference
 
-Real-time inference depends on **schedule-chain fields** computed during ScheduledTrips
-sync and then **snapshotted onto active VesselTrips**.
+Real-time inference depends on **schedule-chain fields** computed during
+ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
+
+Current layering:
+
+- WSF schedule ingress: `convex/adapters/wsf/scheduledTrips/`
+- schedule business rules: `convex/domain/scheduledTrips/`
+- Convex sync/persistence shell: `convex/functions/scheduledTrips/`
 
 #### Composite trip key format
 
@@ -412,12 +418,15 @@ During sync, we compute (per ScheduledTrip):
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
   - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
-Sync applies the full transform pipeline after downloads: `runScheduleTransformPipeline` in
-`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs `classifyDirectSegments`
-then `calculateTripEstimates`. Classification resolves overlapping/ambiguous route options
-before linking and estimates run. The classification process marks trips as direct or
-indirect instead of filtering them out, allowing both types to be stored while maintaining
-clear distinction for filtering purposes.
+Sync applies the full transform pipeline after adapter ingress:
+`convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts`
+downloads and maps the raw WSF data, then
+`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs
+`classifyDirectSegments` followed by `calculateTripEstimates`.
+Classification resolves overlapping or ambiguous route options before linking
+and estimates run. The classification process marks trips as direct or indirect
+instead of filtering them out, allowing both types to be stored while
+maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
@@ -438,7 +447,7 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
-implemented in `convex/domain/vesselTrips/processTick/processVesselTrips.ts` (default wiring: `convex/functions/vesselTrips/actions.ts`).
+implemented in `convex/domain/vesselTrips/processTick/processVesselTrips.ts` (default wiring: `convex/adapters/vesselTrips/processTick.ts`).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -449,14 +458,15 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
 - `buildTrip` (`convex/domain/vesselTrips/tripLifecycle/buildTrip.ts`) calls
   `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Functions adapter: `convex/functions/vesselTrips/actions.ts` (`appendFinalSchedule`)
+  - Boundary adapter: `convex/adapters/vesselTrips/processTick.ts` (`appendFinalSchedule`)
   - Lookup: `internal.functions.eventsScheduled.queries.getScheduledDepartureSegmentBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
   (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
 - **Display / API**: Public vessel-trip queries may still **hydrate** a full
-  `ScheduledTrip` via `convex/functions/scheduledTrips/queries.ts` (`getScheduledTripByKey`)
-  for subscribers; inference uses the schedule fields merged on the trip during build.
+  `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
+  `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
+  inference uses the schedule fields merged on the trip during build.
 
 Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
 `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every

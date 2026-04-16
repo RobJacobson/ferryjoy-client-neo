@@ -1,11 +1,14 @@
+/**
+ * Validators and conversion helpers for stored vessel ping collection rows.
+ */
+
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { dateToEpochMs, epochMsToDate } from "shared/convertDates";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
- * Convex validator for individual vessel pings (numbers)
- * This is used in defineTable and function argument validation
+ * Convex validator for individual vessel pings stored with numeric timestamps.
  */
 export const vesselPingValidationSchema = v.object({
   VesselID: v.number(),
@@ -18,8 +21,7 @@ export const vesselPingValidationSchema = v.object({
 });
 
 /**
- * Convex validator for a collection of vessel pings with timestamp
- * Each document in the vesselPings table will have this structure
+ * Convex validator for one vessel ping collection snapshot row.
  */
 export const vesselPingListValidationSchema = v.object({
   timestamp: v.number(),
@@ -27,22 +29,21 @@ export const vesselPingListValidationSchema = v.object({
 });
 
 /**
- * Type for vessel ping in Convex storage (with numbers)
- * Inferred from the Convex validator
+ * Type for a vessel ping row stored in Convex with numeric timestamps.
  */
 export type ConvexVesselPing = Infer<typeof vesselPingValidationSchema>;
 
 /**
- * Type for a collection of vessel pings in Convex storage
- * Inferred from the Convex validator
+ * Type for a vessel ping collection row stored in Convex.
  */
 export type ConvexVesselPingCollection = Infer<
   typeof vesselPingListValidationSchema
 >;
 
 /**
- * Convert a Dottie vessel location to a convex vessel ping.
+ * Convert a Dottie vessel location to a Convex vessel ping.
  * Manual conversion from Date objects to epoch milliseconds.
+ *
  * @param dvl - Dottie vessel location with Date objects
  * @returns Convex vessel ping with numeric timestamp
  */
@@ -59,8 +60,9 @@ export const toConvexVesselPing = (
 });
 
 /**
- * Convert Convex vessel ping (numbers) to domain vessel ping (Dates).
+ * Convert a Convex vessel ping to the domain-layer Date-based shape.
  * Manual conversion from epoch milliseconds to Date objects.
+ *
  * @param ping - Convex vessel ping with numeric timestamp
  * @returns Domain vessel ping with Date object
  */
@@ -70,7 +72,6 @@ export const toDomainVesselPing = (ping: ConvexVesselPing) => ({
 });
 
 /**
- * Type for vessel ping in domain layer (with Date objects)
- * Inferred from the return type of our conversion function
+ * Type for a domain vessel ping with `Date` timestamps.
  */
 export type VesselPing = ReturnType<typeof toDomainVesselPing>;

@@ -1,5 +1,6 @@
 import { internal } from "_generated/api";
 import { cronJobs } from "convex/server";
+import { scheduledTripsConfig } from "./functions/scheduledTrips/constants";
 
 const crons = cronJobs();
 
@@ -39,7 +40,9 @@ crons.cron(
   "daily scheduled trips sync",
   "1 11 * * *", // 11:01 AM UTC daily (covers ~4:01 AM Pacific in both DST and standard time)
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-  { daysToSync: 7 } // Maintain a 14-day rolling window
+  {
+    daysToSync: scheduledTripsConfig.dailySyncDays,
+  }
 );
 
 // Conservative same-day refresh for operational schedule changes such as
@@ -49,7 +52,7 @@ crons.interval(
   "refresh current sailing day scheduled trips",
   { minutes: 15 },
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
-  { daysToSync: 1 }
+  { daysToSync: scheduledTripsConfig.intervalRefreshSyncDays }
 );
 
 // Daily VesselTimeline boundary-event sync at the sailing-day boundary (~3:00 AM Pacific).

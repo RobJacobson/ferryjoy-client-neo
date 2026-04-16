@@ -49,6 +49,9 @@ const KNOWN_MARINE_LOCATIONS: ReadonlyArray<ManualMarineLocation> = [
 /**
  * Internal cron entry: fetch WSF terminal basics and replace the backend
  * `terminals` snapshot.
+ *
+ * @param ctx - Convex internal action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const syncBackendTerminals = internalAction({
   args: {},
@@ -62,6 +65,9 @@ export const syncBackendTerminals = internalAction({
 /**
  * Public entry for `bunx convex run`, `convex:repopulate-terminals`, and dev
  * bootstrap. Internal actions are not runnable from the CLI.
+ *
+ * @param ctx - Convex public action context
+ * @returns `null` after the backend snapshot refresh completes
  */
 export const runSyncBackendTerminals = action({
   args: {},
@@ -114,6 +120,7 @@ export async function loadBackendTerminals(
  * {@link loadBackendTerminals}, and orchestrator bootstrap.
  *
  * @param ctx - Convex action context
+ * @returns `undefined` after the backend snapshot is fully replaced
  */
 export async function syncBackendTerminalTable(ctx: ActionCtx): Promise<void> {
   const fetchedTerminals = await fetchTerminalLocations();

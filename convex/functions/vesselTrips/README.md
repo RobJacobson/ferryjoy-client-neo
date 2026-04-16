@@ -1,15 +1,26 @@
 # VesselTrips (Convex functions)
 
-Thin Convex entrypoints for vessel trips:
+Thin Convex entrypoints for vessel trips (`queries`, `mutations`, `schemas`;
+lifecycle logic lives in `convex/domain/vesselTrips/`, and boundary adapters
+live in `convex/adapters/vesselTrips/`).
 
-- **`queries.ts`** — Indexed reads; delegates hydration to `domain/vesselTrips/read/`.
-- **`mutations.ts`** — Persistence and depart-next backfill; policy helpers in `domain/vesselTrips/mutations/`.
+- **`queries.ts`** — Indexed reads for active/completed trips used by the app
+  (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,
+  `getActiveTripsWithScheduledTrip`) plus `getActiveTrips` for subscriber reads.
+  Delegates prediction hydration to
+  `domain/vesselTrips/read/`.
+- **`mutations.ts`** — Persistence (`upsertVesselTripsBatch`, `completeAndStartNewTrip`)
+  and depart-next backfill on `eventsPredicted`; policy helpers in
+  `domain/vesselTrips/mutations/`.
 - **`schemas.ts`** — Validators and API/domain conversion helpers.
-- **`actions.ts`** — Per-tick processing (`processVesselTrips`), schedule adapters (`appendFinalSchedule`, `resolveEffectiveLocation`), and default `loadActiveTrips` wiring.
+- **`../adapters/vesselTrips/processTick.ts`** — Default `processVesselTripsWithDeps`
+  dependency wiring plus schedule lookup adapters (`appendFinalSchedule`,
+  `resolveEffectiveLocation`).
 
-Lifecycle rules, projection assembly, and tick orchestration live under **`convex/domain/vesselTrips/`**.
-
-For the full pipeline narrative (debounce, boundaries, projection ordering), see the archived design notes in repo history or `docs/handoffs` PRDs.
+**Schedule sources:** tick-time enrichment uses `eventsScheduled`-backed internal
+queries (`appendFinalSchedule`). Subscriber reads that attach display schedule
+rows use the `scheduledTrips` table (`getActiveTripsWithScheduledTrip`). Keep
+behavior aligned when changing either path.
 
 ## Tests
 

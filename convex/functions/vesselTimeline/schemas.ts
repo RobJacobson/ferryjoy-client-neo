@@ -54,6 +54,13 @@ export type ConvexVesselTimelineBackbone = Infer<
   typeof vesselTimelineBackboneSchema
 >;
 
+/**
+ * Convert one stored timeline event from epoch millisecond fields to domain
+ * `Date` fields.
+ *
+ * @param event - Stored Convex vessel timeline event
+ * @returns Domain timeline event with `Date`-typed timestamps
+ */
 const toDomainVesselTimelineEvent = (event: ConvexVesselTimelineEvent) => ({
   ...event,
   ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
@@ -65,6 +72,12 @@ const toDomainVesselTimelineEvent = (event: ConvexVesselTimelineEvent) => ({
   EventActualTime: optionalEpochMsToDate(event.EventActualTime),
 });
 
+/**
+ * Convert a stored timeline backbone into the domain-layer `Date`-based shape.
+ *
+ * @param backbone - Stored Convex vessel timeline backbone
+ * @returns Domain vessel timeline backbone with converted event timestamps
+ */
 export const toDomainVesselTimelineBackbone = (
   backbone: ConvexVesselTimelineBackbone
 ) => ({

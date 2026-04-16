@@ -1,14 +1,15 @@
 /**
  * Defines scheduled actions for historic vessel-location snapshots and cleanup.
  */
+
 import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
+import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
 import { v } from "convex/values";
 import { loadBackendTerminals } from "functions/terminals/actions";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import { loadBackendVessels } from "functions/vessels/actions";
-import { fetchWsfVesselLocations } from "shared/fetchWsfVesselLocations";
 import { getSailingDay } from "shared/time";
 import { toConvexVesselLocation } from "../vesselLocation/schemas";
 

@@ -1,3 +1,7 @@
+/**
+ * Builds canonical trip-completion rows from the final trusted live location.
+ */
+
 import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {

@@ -13,7 +13,6 @@ const emptyTickEventWrites = {
 
 const baseTripResult = {
   tickStartedAt: 0,
-  activeTripsSource: "preloaded" as const,
   tickEventWrites: emptyTickEventWrites,
 };
 

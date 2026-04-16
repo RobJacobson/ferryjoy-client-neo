@@ -5,15 +5,17 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
+import {
+  fetchAndTransformScheduledTrips,
+  type RawWsfScheduleSegment,
+} from "adapters/wsf/scheduledTrips";
 import { v } from "convex/values";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   hydrateSeededEventsWithHistory,
 } from "domain/timelineReseed";
-import { fetchAndTransformScheduledTrips } from "functions/scheduledTrips/sync/fetchAndTransform";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { RawWsfScheduleSegment } from "../../shared/fetchWsfScheduleData";
 import { getPacificTimeComponents, getSailingDay } from "../../shared/time";
 import { loadBackendTerminals } from "../terminals/actions";
 import { loadBackendVessels } from "../vessels/actions";
@@ -31,6 +33,12 @@ type WindowSyncDayResult = {
   actualCount: number;
 };
 
+/**
+ * Manually reseed the current sailing day's vessel timeline rows.
+ *
+ * @param ctx - Convex public action context
+ * @returns Scheduled and actual row counts written for today
+ */
 export const syncVesselTimelineManual = action({
   args: {},
   handler: async (ctx): Promise<TimelineSyncResult> => {
@@ -39,6 +47,13 @@ export const syncVesselTimelineManual = action({
   },
 });
 
+/**
+ * Manually reseed vessel timeline rows for a specific sailing day.
+ *
+ * @param ctx - Convex public action context
+ * @param args - Action arguments containing the target sailing day
+ * @returns Scheduled and actual row counts written for the requested date
+ */
 export const syncVesselTimelineForDateManual = action({
   args: {
     targetDate: v.string(),
@@ -47,12 +62,26 @@ export const syncVesselTimelineForDateManual = action({
     await reseedVesselTimelineForDate(ctx, args.targetDate),
 });
 
+/**
+ * Reseed a sliding window of sailing days for timeline recovery or backfill.
+ *
+ * @param ctx - Convex internal action context
+ * @param args - Action arguments containing an optional day-count override
+ * @returns Aggregate scheduled and actual row counts for the processed window
+ */
 export const syncVesselTimelineWindowed = internalAction({
   args: { daysToSync: v.optional(v.number()) },
   handler: async (ctx, args) =>
     await syncWindowedVesselTimeline(ctx, args.daysToSync),
 });
 
+/**
+ * Run the windowed reseed only during the Pacific 3am sailing-day boundary.
+ *
+ * @param ctx - Convex internal action context
+ * @param args - Action arguments containing an optional day-count override
+ * @returns Skip metadata or aggregate counts for the processed window
+ */
 export const syncVesselTimelineAtSailingDayBoundary = internalAction({
   args: { daysToSync: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -75,6 +104,13 @@ export const syncVesselTimelineAtSailingDayBoundary = internalAction({
   },
 });
 
+/**
+ * Rebuild scheduled and actual vessel timeline rows for one sailing day.
+ *
+ * @param ctx - Convex action context
+ * @param targetDate - Sailing day in YYYY-MM-DD format
+ * @returns Scheduled and actual row counts written for the date
+ */
 const reseedVesselTimelineForDate = async (
   ctx: ActionCtx,
   targetDate: string
@@ -127,6 +163,13 @@ const reseedVesselTimelineForDate = async (
   return result;
 };
 
+/**
+ * Reseed today and the following N-1 sailing days as one recovery window.
+ *
+ * @param ctx - Convex action context
+ * @param daysToSyncOverride - Optional number of sailing days to reseed
+ * @returns Aggregate counts plus per-day reseed summaries
+ */
 const syncWindowedVesselTimeline = async (
   ctx: ActionCtx,
   daysToSyncOverride?: number
@@ -157,6 +200,14 @@ const syncWindowedVesselTimeline = async (
   };
 };
 
+/**
+ * Fetch historical vessel movement rows for the vessels referenced by the
+ * scheduled segments on a sailing day.
+ *
+ * @param scheduleSegments - Scheduled segments used to derive vessel names
+ * @param targetDate - Sailing day in YYYY-MM-DD format
+ * @returns Flattened vessel history rows for the requested day
+ */
 const fetchHistoryRecordsForDate = async (
   scheduleSegments: RawWsfScheduleSegment[],
   targetDate: string
@@ -184,6 +235,14 @@ const fetchHistoryRecordsForDate = async (
   return historyBatches.flat();
 };
 
+/**
+ * Add whole sailing days to a YYYY-MM-DD string using a noon-UTC anchor to
+ * avoid timezone rollovers.
+ *
+ * @param dateString - Base sailing day in YYYY-MM-DD format
+ * @param days - Number of days to offset, positive or negative
+ * @returns Shifted sailing day string in YYYY-MM-DD format
+ */
 const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));

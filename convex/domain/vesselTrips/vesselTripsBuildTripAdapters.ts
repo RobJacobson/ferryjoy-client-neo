@@ -1,5 +1,5 @@
 /**
- * Injected function-layer behaviors for {@link buildTrip}.
+ * Injected boundary adapters for {@link buildTrip}.
  *
  * Schedule continuity decisions live in `domain/vesselTrips/continuity/`; these
  * hooks remain narrow Convex adapters (`ctx.runQuery` / internal queries) wired
@@ -11,7 +11,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Function-layer hooks required to assemble one enriched trip proposal.
+ * Boundary hooks required to assemble one enriched trip proposal.
  */
 export type VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: (

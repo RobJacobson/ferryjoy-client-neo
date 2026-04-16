@@ -35,6 +35,7 @@ import type {
   CurrentTripPredictedEventMessage,
 } from "../projection/lifecycleEventTypes";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
+import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 import { tripsEqualForOverlay, tripsEqualForStorage } from "./tripEquality";
 import type { TripEvents } from "./tripEventTypes";
 
@@ -137,7 +138,11 @@ export const processCurrentTrips = async (
       ? getSuccessfulVessels(
           await ctx.runMutation(
             api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
-            { activeUpserts: collectedArtifacts.activeUpserts }
+            {
+              activeUpserts: collectedArtifacts.activeUpserts.map(
+                stripTripPredictionsForStorage
+              ),
+            }
           )
         )
       : new Set<string>();
@@ -372,6 +377,13 @@ const emptyCurrentTripBranchResult = (): CurrentTripLifecycleBranchResult => ({
   pendingPredictedMessages: [],
 });
 
+/**
+ * Logs schedule-key transitions that may indicate a trip handoff or schedule
+ * re-anchoring within the active-trip path.
+ *
+ * @param buildResult - Fulfilled current-trip build result for one vessel
+ * @returns Nothing; emits a warning only when key timing changed
+ */
 const logTripTickDiagnostics = ({
   existingTrip,
   currLocation,
@@ -399,6 +411,15 @@ const logTripTickDiagnostics = ({
   );
 };
 
+/**
+ * Logs actual-boundary projection decisions for ticks that crossed a dock
+ * boundary.
+ *
+ * @param buildResult - Fulfilled current-trip build result for one vessel
+ * @param persist - Whether the trip row will be upserted
+ * @param refresh - Whether overlay rows will be refreshed
+ * @returns Nothing; emits a warning only for boundary-crossing ticks
+ */
 const logActualProjectionTick = (
   { existingTrip, currLocation, events, finalProposed }: CurrentTripBuildResult,
   persist: boolean,
@@ -437,6 +458,12 @@ const logActualProjectionTick = (
   );
 };
 
+/**
+ * Reduces a live location row to the fields used in diagnostic logging.
+ *
+ * @param location - Live vessel-location subset relevant to trip debugging
+ * @returns Compact log-friendly snapshot of the current live tick
+ */
 const summarizeLocationTick = (
   location: Pick<
     ConvexVesselLocation,
@@ -464,6 +491,12 @@ const summarizeLocationTick = (
   arrivingDistance: location.ArrivingDistance,
 });
 
+/**
+ * Reduces a trip row to the fields used in diagnostic logging.
+ *
+ * @param trip - Existing or proposed trip subset relevant to trip debugging
+ * @returns Compact log-friendly trip snapshot, or `null` when absent
+ */
 const summarizeTripTick = (
   trip:
     | Pick<

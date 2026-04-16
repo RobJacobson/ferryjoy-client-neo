@@ -46,13 +46,6 @@ type CompletedTripTransition = TripTransition & {
 
 export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
   detectTripEvents: typeof detectTripEvents;
-  /**
-   * Loads hydrated active trips when `activeTrips` is not preloaded (e.g.
-   * `ctx.runQuery(api.functions.vesselTrips.queries.getActiveTrips)`).
-   */
-  loadActiveTrips: (
-    ctx: ActionCtx
-  ) => Promise<ReadonlyArray<ConvexVesselTrip | TickActiveTrip>>;
 };
 
 /**
@@ -62,25 +55,22 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param locations - Array of vessel locations to process after orchestrator conversion
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
  * @param deps - Internal dependency bag used for testability (includes `buildTripAdapters`)
- * @param activeTrips - When **defined** (including `[]`), used instead of
- *   `deps.loadActiveTrips` (see `processVesselTrips` in `functions/vesselTrips/actions.ts`). Prefer {@link TickActiveTrip}
- *   rows; hydrated trips optional.
+ * @param activeTrips - Preloaded active trips for this tick. Prefer
+ *   {@link TickActiveTrip} rows; hydrated trips remain accepted for tests.
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
  * @returns Lifecycle result plus tick event writes for orchestrator peers
  */
 export const processVesselTripsWithDeps = async (
   ctx: ActionCtx,
-  locations: ConvexVesselLocation[],
+  locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips?: ReadonlyArray<TickActiveTrip>,
+  activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTrip>,
   options?: ProcessVesselTripsOptions
 ): Promise<VesselTripsTickResult> => {
-  const existingTripsList = activeTrips ?? (await deps.loadActiveTrips(ctx));
-
   // Values are storage-native and/or query-hydrated rows; lifecycle strips ML for persist checks.
   const existingTripsDict = Object.fromEntries(
-    (existingTripsList ?? []).map((trip) => [trip.VesselAbbrev, trip] as const)
+    activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;
 
   const shouldRunPredictionFallback =
@@ -130,7 +120,6 @@ export const processVesselTripsWithDeps = async (
 
   return {
     tickStartedAt,
-    activeTripsSource: activeTrips !== undefined ? "preloaded" : "query",
     tickEventWrites,
   };
 };
@@ -144,7 +133,7 @@ export const processVesselTripsWithDeps = async (
  * @returns Array of vessel transitions with precomputed events
  */
 const buildTripTransitions = (
-  locations: ConvexVesselLocation[],
+  locations: ReadonlyArray<ConvexVesselLocation>,
   existingTripsDict: Record<string, ExistingTripForTick>,
   detectTripEventsFn: typeof detectTripEvents
 ): TripTransition[] =>

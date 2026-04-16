@@ -1,93 +1,127 @@
+/**
+ * Scheduled-trips sync and purge: internal actions for crons, operators (CLI), and
+ * backend-only manual runs. Public Convex clients cannot call these entrypoints.
+ */
+
 import { internal } from "_generated/api";
-import { action, internalAction } from "_generated/server";
+import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import { getSailingDay } from "../../shared/time";
+import { scheduledTripsConfig } from "./constants";
 import {
   syncScheduledTripsForDate,
   syncScheduledTripsForDateRange,
 } from "./sync";
 
+/** Single-day sync summary returned by adapter + replace mutation. */
+const scheduledTripsSyncDayResult = v.object({
+  deleted: v.number(),
+  inserted: v.number(),
+  routesProcessed: v.number(),
+  totalIndirect: v.number(),
+});
+
+/** One row in the windowed sync rollup. */
+const scheduledTripsDayProcessed = v.object({
+  sailingDay: v.string(),
+  action: v.union(v.literal("synced"), v.literal("failed")),
+  error: v.optional(v.string()),
+});
+
+const scheduledTripsWindowedSyncResult = v.object({
+  totalDeleted: v.number(),
+  totalInserted: v.number(),
+  totalIndirect: v.number(),
+  daysProcessed: v.array(scheduledTripsDayProcessed),
+});
+
+const purgeScheduledTripsResult = v.object({
+  cutoffMs: v.number(),
+  deleted: v.number(),
+});
+
 /**
- * Simplified manual sync that deletes all data for the current sailing day and downloads fresh data.
- * Much simpler and more reliable than the complex diffing logic.
+ * Operator/manual sync for the current WSF sailing day (replaces that day in DB).
+ * Run via `bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSync '{}'`.
  *
  * @param ctx - Convex action context
- * @returns Sync result with deletion and insertion counts
+ * @returns Per-day sync counts for the sailing day
  */
-export const syncScheduledTripsManual = action({
+export const runManualScheduledTripsSync = internalAction({
   args: {},
+  returns: scheduledTripsSyncDayResult,
   handler: async (ctx) => {
-    // Important: WSF "sailing day" runs 3:00 AM → 2:59 AM Pacific.
-    // Using UTC calendar day here will often select the wrong day in the evening.
     const sailingDay = getSailingDay(new Date());
     return await syncScheduledTripsForDate(ctx, sailingDay);
   },
 });
 
 /**
- * Simplified sync for a specific date that deletes all data and downloads fresh data.
+ * Operator/manual sync for a specific sailing day (YYYY-MM-DD).
+ * Run via `bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSyncForDate '{"targetDate":"YYYY-MM-DD"}'`.
  *
  * @param ctx - Convex action context
  * @param args.targetDate - Target sailing day in YYYY-MM-DD format
- * @returns Sync result with deletion and insertion counts
+ * @returns Per-day sync counts
  */
-export const syncScheduledTripsForDateManual = action({
+export const runManualScheduledTripsSyncForDate = internalAction({
   args: {
     targetDate: v.string(),
   },
+  returns: scheduledTripsSyncDayResult,
   handler: async (ctx, args) => {
     return await syncScheduledTripsForDate(ctx, args.targetDate);
   },
 });
 
 /**
- * Internal action for automated windowed scheduled trips sync.
- * Called daily by cron job to maintain accurate schedule data for the rolling N-day window.
- * Runs at 4:00 AM Pacific time to sync between WSF trip date boundaries.
+ * Windowed scheduled-trips sync for consecutive sailing days starting at today’s
+ * sailing day. Crons pass `scheduledTripsConfig.dailySyncDays` (daily) or
+ * `scheduledTripsConfig.intervalRefreshSyncDays` (15-minute refresh); see
+ * `constants.ts`.
  *
  * @param ctx - Convex internal action context
- * @param args.daysToSync - Number of days to sync (defaults to 2)
- * @returns Sync result with deletion and insertion counts for all processed days
+ * @param args.daysToSync - Number of consecutive days to sync (defaults to
+ *   `scheduledTripsConfig.windowedDefaultDays` if omitted)
+ * @returns Rollup of deletes, inserts, and per-day status
  */
 export const syncScheduledTripsWindowed = internalAction({
   args: { daysToSync: v.optional(v.number()) },
+  returns: scheduledTripsWindowedSyncResult,
   handler: async (ctx, args) => {
-    // Start from the current sailing day, not the UTC date.
     const startDate = getSailingDay(new Date());
-    const daysToSync = args.daysToSync || 2;
+    const daysToSync =
+      args.daysToSync ?? scheduledTripsConfig.windowedDefaultDays;
 
     return await syncScheduledTripsForDateRange(ctx, startDate, daysToSync);
   },
 });
 
 /**
- * Internal action that purges ScheduledTrips that are out of date by more than 24 hours.
- * Intended to run once daily at 11:00 AM UTC.
- *
- * Definition: when run at time T, delete any scheduledTrips with DepartingTime < (T - 24h).
- * Example: 11:00 AM UTC Jan 20 purges trips before 11:00 AM UTC Jan 19.
+ * Purges scheduledTrips with DepartingTime older than the cutoff (default: now − 24h).
+ * Intended for the daily cron at 11:00 UTC.
  *
  * @param ctx - Convex internal action context
- * @param args.cutoffMs - Optional explicit cutoff for testing (epoch ms). If omitted, uses now - 24h.
- * @returns Summary of purge operation
+ * @param args.cutoffMs - Optional explicit cutoff for testing (epoch ms)
+ * @returns Cutoff used and total rows deleted
  */
 export const purgeScheduledTripsOutOfDate = internalAction({
   args: { cutoffMs: v.optional(v.number()) },
+  returns: purgeScheduledTripsResult,
   handler: async (ctx, args) => {
     const nowMs = Date.now();
-    const cutoffMs = args.cutoffMs ?? nowMs - 24 * 60 * 60 * 1000;
+    const cutoffMs =
+      args.cutoffMs ?? nowMs - scheduledTripsConfig.purgeLookbackMs;
 
     let totalDeleted = 0;
-    const batchSize = 500;
 
-    // Delete in batches to keep each mutation small and predictable.
     while (true) {
       const result = await ctx.runMutation(
         internal.functions.scheduledTrips.mutations
           .deleteScheduledTripsBeforeBatch,
         {
           cutoffMs,
-          limit: batchSize,
+          limit: scheduledTripsConfig.purgeBatchSize,
         }
       );
 

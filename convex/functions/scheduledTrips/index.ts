@@ -1,11 +1,11 @@
 /**
- * ScheduledTrips Convex module — re-exports entrypoints and the internal `sync/`
- * adapter. Prefer importing `actions`, `mutations`, `queries`, or `schemas`
- * directly for new code; see `README.md`.
+ * ScheduledTrips Convex module — re-exports registered Convex entrypoints.
+ * Import `sync/sync` helpers from `./sync` only where orchestration is needed
+ * (e.g. `actions.ts`); see `README.md`.
  */
 
 export * from "./actions";
+export * from "./constants";
 export * from "./mutations";
 export * from "./queries";
 export * from "./schemas";
-export * from "./sync";

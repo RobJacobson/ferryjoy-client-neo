@@ -18,6 +18,9 @@ const PACIFIC_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
 });
 
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * 1000;
+
 /**
  * Extract Pacific time components from a UTC date using Intl API
  * This properly handles DST transitions for any year without manual calculations
@@ -108,6 +111,28 @@ export const getPacificDayOfWeek = (utcDate: Date): number => {
  */
 export const getMinutesDelta = (startTime: Date, endTime: Date): number =>
   (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+
+/**
+ * Round an epoch-ms timestamp down to the nearest second.
+ *
+ * @param epochMs - Epoch timestamp in milliseconds
+ * @returns Timestamp floored to whole seconds
+ */
+export const floorToSecond = (epochMs: number): number =>
+  Math.floor(epochMs / MS_PER_SECOND) * MS_PER_SECOND;
+
+/**
+ * Calculate the difference between two epoch-ms timestamps in minutes rounded
+ * to one decimal place.
+ *
+ * @param startMs - Start timestamp in milliseconds
+ * @param endMs - End timestamp in milliseconds
+ * @returns Difference in minutes rounded to 0.1
+ */
+export const getRoundedMinutesDelta = (
+  startMs: number,
+  endMs: number
+): number => Math.round(((endMs - startMs) / MS_PER_MINUTE) * 10) / 10;
 
 /**
  * Get the sailing day date for a UTC timestamp in Pacific timezone
