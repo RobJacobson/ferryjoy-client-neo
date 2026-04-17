@@ -87,7 +87,7 @@ ferryjoy-client-neo/
 ## Key Features
 
 ### Real-Time Vessel Tracking
-- Live vessel position updates every 5 seconds
+- Live vessel position updates every 15 seconds
 - Automatic trip detection and boundary management
 - At-sea and at-dock status tracking
 
@@ -173,7 +173,7 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 
 ### Vessel Update Pipeline
 
-The vessel orchestrator runs every 5 seconds to process location updates:
+The vessel orchestrator runs every 15 seconds to process location updates:
 
 1. **Fetch** vessel locations from WSF through `convex/adapters/` (e.g. `fetch/fetchWsfVesselLocations.ts`)
 2. **Translate** raw payloads into backend-owned location inputs

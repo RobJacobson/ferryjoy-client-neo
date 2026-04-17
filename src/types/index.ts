@@ -23,6 +23,6 @@ export {
   type VesselTrip,
   type VesselTripWithScheduledTrip,
 } from "convex/functions/vesselTrips/schemas";
-export type { TerminalIdentity as Terminal } from "functions/terminalIdentities/schemas";
+export type { TerminalIdentity as Terminal } from "functions/terminals/schemas";
 export type { TerminalTopology } from "functions/terminalsTopology/schemas";
-export type { VesselIdentity as Vessel } from "functions/vesselIdentities/schemas";
+export type { VesselIdentity as Vessel } from "functions/vessels/schemas";
