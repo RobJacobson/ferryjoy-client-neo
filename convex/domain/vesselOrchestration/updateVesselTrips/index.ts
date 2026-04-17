@@ -8,8 +8,9 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers pair `processVesselTripsWithDeps` with function-owned
- * runtime wiring from `functions/vesselOrchestrator/runtimeAdapters`.
+ * Production callers pair `processVesselTripsWithDeps` with
+ * `createDefaultProcessVesselTripsDeps` (domain) and `createScheduledSegmentLookup`
+ * (`createScheduledSegmentLookup` in `functions/vesselOrchestrator/actions.ts`).
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for discoverability; the same symbols are re-exported from
  * `domain/vesselOrchestration/updateTimeline` and

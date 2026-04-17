@@ -4,7 +4,10 @@
 
 Thin Convex entrypoints for vessel trips (`queries`, `mutations`, `schemas`;
 lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/`, and boundary adapters
-are wired in `convex/functions/vesselOrchestrator/runtimeAdapters.ts`).
+are wired via `createDefaultProcessVesselTripsDeps`
+(`domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts`)
+and `createScheduledSegmentLookup` (local helper in
+`functions/vesselOrchestrator/actions.ts`).
 
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app
   (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,
@@ -15,9 +18,6 @@ are wired in `convex/functions/vesselOrchestrator/runtimeAdapters.ts`).
   and depart-next backfill on `eventsPredicted`; policy helpers in
   `domain/vesselOrchestration/updateVesselTrips/mutations/`.
 - **`schemas.ts`** — Validators and API/domain conversion helpers.
-- **`../vesselOrchestrator/runtimeAdapters.ts`** — Default
-  `processVesselTripsWithDeps` dependency wiring plus schedule lookup adapter
-  closures for `buildTrip` runtime adapters.
 
 **Schedule sources:** tick-time enrichment uses `eventsScheduled`-backed internal
 queries (`appendFinalSchedule`). Subscriber reads that attach display schedule

@@ -340,9 +340,10 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `actions.ts` — `updateVesselOrchestrator`; delegates tick orchestration to
-  `domain/vesselOrchestration/runVesselOrchestratorTick` and defines
-  `applyTickEventWrites(...)` (timeline mutations for the trip branch). There is
-  **no** separate `applyTickEventWrites.ts` file in this folder.
+  `domain/vesselOrchestration/runVesselOrchestratorTick`; defines
+  `applyTickEventWrites(...)` (timeline mutations for the trip branch); and
+  `createScheduledSegmentLookup` (`eventsScheduled` internal queries for trip deps).
+  There is **no** separate `applyTickEventWrites.ts` file in this folder.
 - `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
 
 ## Tests

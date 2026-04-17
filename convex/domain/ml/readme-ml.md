@@ -449,7 +449,7 @@ Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
 implemented in `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
-(default runtime wiring: `convex/functions/vesselOrchestrator/runtimeAdapters.ts`).
+(default runtime wiring: `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` in `convex/functions/vesselOrchestrator/actions.ts`).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -463,7 +463,7 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
   - Runtime adapter builder:
     `convex/domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
     (`buildAppendFinalSchedule`, wired in
-    `convex/functions/vesselOrchestrator/runtimeAdapters.ts`)
+    `createScheduledSegmentLookup` in `convex/functions/vesselOrchestrator/actions.ts`)
   - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state

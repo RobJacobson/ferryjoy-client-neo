@@ -15,8 +15,15 @@ import {
   runVesselOrchestratorTick,
   type UpdateVesselOrchestratorResult,
 } from "domain/vesselOrchestration";
-import { bulkUpsertArgsFromConvexLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import {
+  assertOrchestratorIdentityReady,
+  terminalsIdentityNeedsBootstrap,
+  vesselsIdentityNeedsBootstrap,
+} from "domain/vesselOrchestration/orchestratorTickReadModelBootstrap";
+import { runUpdateVesselLocationsTick } from "domain/vesselOrchestration/updateVesselLocations/runUpdateVesselLocationsTick";
 import type { TimelineTickProjectionInput } from "domain/vesselOrchestration/updateVesselTrips";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment";
+import { createDefaultProcessVesselTripsDeps } from "domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps";
 import { processVesselTripsWithDeps } from "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips";
 import { syncBackendTerminalTable } from "functions/terminals/actions";
 import type { TerminalIdentity } from "functions/terminals/schemas";
@@ -24,7 +31,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { syncBackendVesselTable } from "functions/vessels/actions";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
-import { createDefaultProcessVesselTripsDeps } from "./runtimeAdapters";
 
 /**
  * Orchestrator action that fetches vessel locations once and fans out to domain
@@ -35,9 +41,10 @@ import { createDefaultProcessVesselTripsDeps } from "./runtimeAdapters";
  * in one function do not prevent the other from executing.
  *
  * Four concerns (`architecture.md` §10), wired into `runVesselOrchestratorTick`:
- * - **updateVesselLocations** — `updateVesselLocations` → `bulkUpsert`
+ * - **updateVesselLocations** — `runUpdateVesselLocationsTick` → `bulkUpsert`
  * - **updateVesselTrips** — `processVesselTripsWithDeps` with
- *   `createDefaultProcessVesselTripsDeps` (**updateVesselPredictions** is
+ *   `createDefaultProcessVesselTripsDeps(createScheduledSegmentLookup(ctx))`
+ *   (**updateVesselPredictions** is
  *   `applyVesselPredictions` after `buildTripCore` inside the trip pipeline, not a
  *   separate orchestrator hop)
  * - **updateTimeline** — `applyTickEventWrites` with `tripResult.tickEventWrites`
@@ -95,13 +102,21 @@ export const updateVesselOrchestrator = internalAction({
         activeTrips: activeTripsForTick,
       },
       {
-        persistLocations: (locations) => updateVesselLocations(ctx, locations),
+        persistLocations: (locations) =>
+          runUpdateVesselLocationsTick(locations, (args) =>
+            ctx.runMutation(
+              api.functions.vesselLocation.mutations.bulkUpsert,
+              args
+            )
+          ),
         processVesselTrips: (locations, tick, activeTrips, options) =>
           processVesselTripsWithDeps(
             ctx,
             locations,
             tick,
-            createDefaultProcessVesselTripsDeps(ctx),
+            createDefaultProcessVesselTripsDeps(
+              createScheduledSegmentLookup(ctx)
+            ),
             activeTrips,
             options
           ),
@@ -110,26 +125,6 @@ export const updateVesselOrchestrator = internalAction({
     );
   },
 });
-
-/**
- * Subroutine function for updating vessel locations in the database.
- *
- * Stores vessel locations to the database using bulk upsert mutation.
- * This is called as a subroutine within the orchestrator action.
- *
- * @param ctx - Convex action context for database operations
- * @param locations - Array of vessel locations to store
- * @returns `undefined` after the location snapshot upsert completes
- */
-async function updateVesselLocations(
-  ctx: ActionCtx,
-  locations: ReadonlyArray<ConvexVesselLocation>
-): Promise<void> {
-  await ctx.runMutation(
-    api.functions.vesselLocation.mutations.bulkUpsert,
-    bulkUpsertArgsFromConvexLocations(locations)
-  );
-}
 
 /**
  * **updateTimeline** — applies per-tick `eventsActual` / `eventsPredicted` writes
@@ -171,6 +166,33 @@ export const applyTickEventWrites = async (
 };
 
 /**
+ * Schedule lookup callbacks backed by internal `eventsScheduled` queries.
+ * Feeds {@link createDefaultProcessVesselTripsDeps} for trip ticks.
+ *
+ * @param ctx - Convex action context for query execution
+ * @returns Lookup callbacks for docked continuity and schedule enrichment
+ */
+const createScheduledSegmentLookup = (
+  ctx: ActionCtx
+): ScheduledSegmentLookup => ({
+  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
+    ctx.runQuery(
+      internal.functions.events.eventsScheduled.queries
+        .getScheduledDepartureEventBySegmentKey,
+      { segmentKey }
+    ),
+  getScheduledDockEventsForSailingDay: (args: {
+    vesselAbbrev: string;
+    sailingDay: string;
+  }) =>
+    ctx.runQuery(
+      internal.functions.events.eventsScheduled.queries
+        .getScheduledDockEventsForSailingDay,
+      args
+    ),
+});
+
+/**
  * Load orchestrator DB snapshots in one query, refreshing identity tables when
  * they are empty (same behavior as the former split loaders).
  *
@@ -189,12 +211,12 @@ async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
   let snapshot = await ctx.runQuery(readModelRef);
   let refreshedIdentity = false;
 
-  if (snapshot.vessels.length === 0) {
+  if (vesselsIdentityNeedsBootstrap(snapshot)) {
     await syncBackendVesselTable(ctx);
     refreshedIdentity = true;
   }
 
-  if (snapshot.terminals.length === 0) {
+  if (terminalsIdentityNeedsBootstrap(snapshot)) {
     await syncBackendTerminalTable(ctx);
     refreshedIdentity = true;
   }
@@ -203,17 +225,7 @@ async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
     snapshot = await ctx.runQuery(readModelRef);
   }
 
-  if (snapshot.vessels.length === 0) {
-    throw new Error(
-      "Backend vesselsIdentity table is still empty after bootstrap refresh."
-    );
-  }
-
-  if (snapshot.terminals.length === 0) {
-    throw new Error(
-      "Backend terminalsIdentity table is still empty after bootstrap refresh."
-    );
-  }
+  assertOrchestratorIdentityReady(snapshot);
 
   return snapshot;
 }

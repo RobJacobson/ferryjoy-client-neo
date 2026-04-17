@@ -5,3 +5,4 @@
  */
 
 export { bulkUpsertArgsFromConvexLocations } from "./bulkUpsertArgsFromLocations";
+export { runUpdateVesselLocationsTick } from "./runUpdateVesselLocationsTick";

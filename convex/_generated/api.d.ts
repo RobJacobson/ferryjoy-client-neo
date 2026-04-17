@@ -84,6 +84,7 @@ import type * as domain_timelineRows_index from "../domain/timelineRows/index.js
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
 import type * as domain_timelineRows_scheduledSegmentResolvers from "../domain/timelineRows/scheduledSegmentResolvers.js";
 import type * as domain_vesselOrchestration_index from "../domain/vesselOrchestration/index.js";
+import type * as domain_vesselOrchestration_orchestratorTickReadModelBootstrap from "../domain/vesselOrchestration/orchestratorTickReadModelBootstrap.js";
 import type * as domain_vesselOrchestration_runVesselOrchestratorTick from "../domain/vesselOrchestration/runVesselOrchestratorTick.js";
 import type * as domain_vesselOrchestration_types from "../domain/vesselOrchestration/types.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
@@ -94,6 +95,7 @@ import type * as domain_vesselOrchestration_updateTimeline_timelineEventAssemble
 import type * as domain_vesselOrchestration_updateTimeline_types from "../domain/vesselOrchestration/updateTimeline/types.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_bulkUpsertArgsFromLocations from "../domain/vesselOrchestration/updateVesselLocations/bulkUpsertArgsFromLocations.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_index from "../domain/vesselOrchestration/updateVesselLocations/index.js";
+import type * as domain_vesselOrchestration_updateVesselLocations_runUpdateVesselLocationsTick from "../domain/vesselOrchestration/updateVesselLocations/runUpdateVesselLocationsTick.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_appendPredictions from "../domain/vesselOrchestration/updateVesselPredictions/appendPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions from "../domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_index from "../domain/vesselOrchestration/updateVesselPredictions/index.js";
@@ -105,6 +107,7 @@ import type * as domain_vesselOrchestration_updateVesselTrips_index from "../dom
 import type * as domain_vesselOrchestration_updateVesselTrips_mutations_departNextActualization from "../domain/vesselOrchestration/updateVesselTrips/mutations/departNextActualization.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_passengerTerminalEligibility from "../domain/vesselOrchestration/updateVesselTrips/passengerTerminalEligibility.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters from "../domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.js";
+import type * as domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps from "../domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope from "../domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_tickPredictionPolicy from "../domain/vesselOrchestration/updateVesselTrips/processTick/tickPredictionPolicy.js";
@@ -175,7 +178,6 @@ import type * as functions_vesselLocationsHistoric_schemas from "../functions/ve
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
-import type * as functions_vesselOrchestrator_runtimeAdapters from "../functions/vesselOrchestrator/runtimeAdapters.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
 import type * as functions_vesselPings_index from "../functions/vesselPings/index.js";
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
@@ -298,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
   "domain/timelineRows/scheduledSegmentResolvers": typeof domain_timelineRows_scheduledSegmentResolvers;
   "domain/vesselOrchestration/index": typeof domain_vesselOrchestration_index;
+  "domain/vesselOrchestration/orchestratorTickReadModelBootstrap": typeof domain_vesselOrchestration_orchestratorTickReadModelBootstrap;
   "domain/vesselOrchestration/runVesselOrchestratorTick": typeof domain_vesselOrchestration_runVesselOrchestratorTick;
   "domain/vesselOrchestration/types": typeof domain_vesselOrchestration_types;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
@@ -308,6 +311,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateTimeline/types": typeof domain_vesselOrchestration_updateTimeline_types;
   "domain/vesselOrchestration/updateVesselLocations/bulkUpsertArgsFromLocations": typeof domain_vesselOrchestration_updateVesselLocations_bulkUpsertArgsFromLocations;
   "domain/vesselOrchestration/updateVesselLocations/index": typeof domain_vesselOrchestration_updateVesselLocations_index;
+  "domain/vesselOrchestration/updateVesselLocations/runUpdateVesselLocationsTick": typeof domain_vesselOrchestration_updateVesselLocations_runUpdateVesselLocationsTick;
   "domain/vesselOrchestration/updateVesselPredictions/appendPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_appendPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/index": typeof domain_vesselOrchestration_updateVesselPredictions_index;
@@ -319,6 +323,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/mutations/departNextActualization": typeof domain_vesselOrchestration_updateVesselTrips_mutations_departNextActualization;
   "domain/vesselOrchestration/updateVesselTrips/passengerTerminalEligibility": typeof domain_vesselOrchestration_updateVesselTrips_passengerTerminalEligibility;
   "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters": typeof domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters;
+  "domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps": typeof domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps;
   "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips;
   "domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope": typeof domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope;
   "domain/vesselOrchestration/updateVesselTrips/processTick/tickPredictionPolicy": typeof domain_vesselOrchestration_updateVesselTrips_processTick_tickPredictionPolicy;
@@ -389,7 +394,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
-  "functions/vesselOrchestrator/runtimeAdapters": typeof functions_vesselOrchestrator_runtimeAdapters;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
   "functions/vesselPings/index": typeof functions_vesselPings_index;
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
