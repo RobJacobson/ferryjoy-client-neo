@@ -15,8 +15,8 @@ import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { resolveTerminalByAbbrev } from "./resolveTerminal";
-import { resolveVessel } from "./resolveVessel";
+import { resolveTerminalByAbbrev } from "../resolve/resolveWsfTerminal";
+import { resolveVessel } from "../resolve/resolveWsfVessel";
 
 /**
  * Fetches WSF vessel locations and maps each feed row to Convex storage shape.

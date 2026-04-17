@@ -7,10 +7,12 @@ import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import type { Route } from "ws-dottie/wsf-schedule";
-import { createScheduledTripFromRawSegment } from "./createScheduledTripFromRawSegment";
-import { downloadRawWsfScheduleData } from "./downloadRawWsfScheduleData";
-import { fetchActiveRoutes } from "./fetchActiveRoutes";
-import type { RawWsfRouteScheduleData } from "./types";
+import {
+  downloadRawWsfScheduleData,
+  fetchActiveRoutes,
+} from "../fetch/fetchWsfScheduledTripsData";
+import type { RawWsfRouteScheduleData } from "../fetch/fetchWsfScheduledTripsTypes";
+import { createScheduledTripFromRawSegment } from "./createWsfScheduledTripFromRawSegment";
 
 type FetchAndTransformScheduledTripsResult = {
   routes: Route[];

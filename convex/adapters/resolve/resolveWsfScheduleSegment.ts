@@ -3,11 +3,11 @@
  * snapshots.
  */
 
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 import type { VesselIdentity } from "functions/vesselIdentities/schemas";
-import { resolveTerminalByName } from "./resolveTerminal";
-import { tryResolveVessel } from "./resolveVessel";
+import { resolveTerminalByName } from "./resolveWsfTerminal";
+import { tryResolveVessel } from "./resolveWsfVessel";
 
 type ResolvedScheduleSegment = {
   vessel: VesselIdentity;

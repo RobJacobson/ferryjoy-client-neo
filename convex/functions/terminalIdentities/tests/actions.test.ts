@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { mergeKnownMarineLocations } from "adapters/wsf";
+import { mergeKnownMarineLocations } from "adapters";
 import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 
 describe("mergeKnownMarineLocations", () => {

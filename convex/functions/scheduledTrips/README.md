@@ -4,7 +4,9 @@ Thin Convex entrypoints and persistence wiring for the `scheduledTrips` table.
 Schedule **business rules** (classification, estimates, linking, prefetch
 policies) live under [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/),
 while WSF fetch and mapping live under
-[`convex/adapters/wsf/scheduledTrips/`](/convex/adapters/wsf/scheduledTrips/).
+[`convex/adapters/fetch/`](../../adapters/fetch/) and
+[`convex/adapters/pipelines/`](../../adapters/pipelines/) (e.g.
+`fetchWsfScheduledTripsData.ts`, `fetchWsfScheduledTrips.ts`).
 
 ## Public surface (intended)
 
@@ -33,7 +35,7 @@ vessel and terminal identity rows, calls the WSF adapter pipeline
 [`mutations.ts`](./mutations.ts) `replaceScheduledTripsForSailingDay`.
 
 WSF download, raw schedule types, and raw-segment mapping live in
-`convex/adapters/wsf/scheduledTrips/`. **Schedule transformation rules**
+`convex/adapters/fetch/` and `convex/adapters/pipelines/`. **Schedule transformation rules**
 (direct/indirect classification, estimates, official crossing-time policy,
 `PrevKey`/`NextKey` linking) live in
 [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
@@ -51,15 +53,16 @@ normalizes onto the WSF sailing day.
 
 ### Adapter ingress (reference)
 
-`convex/adapters/wsf/scheduledTrips/` owns WSF API fetch wrappers, raw types,
-route-download normalization, raw-segment-to-`ConvexScheduledTrip` mapping, and
-`fetchAndTransformScheduledTrips` (used by sync and timeline reseed).
+`convex/adapters/fetch/` and `convex/adapters/pipelines/` own WSF API fetch
+wrappers, raw types, route-download normalization,
+raw-segment-to-`ConvexScheduledTrip` mapping, and `fetchAndTransformScheduledTrips`
+(used by sync and timeline reseed).
 
 ### Architecture rule
 
 Domain modules under `convex/domain/` own reusable business logic. This
 `functions/scheduledTrips` layer owns Convex registration and persistence.
-`convex/adapters/wsf/scheduledTrips/` owns WSF-boundary translation into backend
+Adapter modules under `convex/adapters/` own WSF-boundary translation into backend
 rows.
 
 ## Tests

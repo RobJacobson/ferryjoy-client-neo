@@ -9,8 +9,8 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
+import { fetchWsfVesselLocations } from "adapters";
 import { DEFAULT_PROCESS_VESSEL_TRIPS_DEPS } from "adapters/vesselTrips/processTick";
-import { fetchWsfVesselLocations } from "adapters/wsf";
 import {
   getPassengerTerminalAbbrevs,
   runVesselOrchestratorTick,

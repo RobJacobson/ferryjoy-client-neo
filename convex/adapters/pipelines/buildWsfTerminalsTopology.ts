@@ -15,7 +15,7 @@ import {
 import {
   fetchWsfTerminalsAndMates,
   type WsfTerminalMatePair,
-} from "./fetchTerminalsAndMates";
+} from "../fetch/fetchWsfTerminalsAndMates";
 
 /**
  * Loads schedule data and derives per-departing-terminal topology rows.

@@ -4,7 +4,7 @@
 
 import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
-import { fetchInServiceWsfVesselPings } from "adapters/wsf";
+import { fetchInServiceWsfVesselPings } from "adapters";
 import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 
 /**

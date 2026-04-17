@@ -5,7 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
-import { fetchWsfVesselIdentities } from "adapters/wsf";
+import { fetchWsfVesselIdentities } from "adapters";
 import { v } from "convex/values";
 import type { VesselIdentity } from "./schemas";
 

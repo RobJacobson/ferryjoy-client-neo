@@ -8,21 +8,23 @@
  * @module
  */
 
+import type * as adapters_fetch_fetchWsfScheduledTripsData from "../adapters/fetch/fetchWsfScheduledTripsData.js";
+import type * as adapters_fetch_fetchWsfScheduledTripsTypes from "../adapters/fetch/fetchWsfScheduledTripsTypes.js";
+import type * as adapters_fetch_fetchWsfTerminalIdentities from "../adapters/fetch/fetchWsfTerminalIdentities.js";
+import type * as adapters_fetch_fetchWsfTerminalsAndMates from "../adapters/fetch/fetchWsfTerminalsAndMates.js";
+import type * as adapters_fetch_fetchWsfVesselIdentities from "../adapters/fetch/fetchWsfVesselIdentities.js";
+import type * as adapters_fetch_fetchWsfVesselLocations from "../adapters/fetch/fetchWsfVesselLocations.js";
+import type * as adapters_fetch_fetchWsfVesselPings from "../adapters/fetch/fetchWsfVesselPings.js";
+import type * as adapters_index from "../adapters/index.js";
+import type * as adapters_pipelines_buildWsfTerminalsTopology from "../adapters/pipelines/buildWsfTerminalsTopology.js";
+import type * as adapters_pipelines_createWsfScheduledTripFromRawSegment from "../adapters/pipelines/createWsfScheduledTripFromRawSegment.js";
+import type * as adapters_pipelines_fetchWsfScheduledTrips from "../adapters/pipelines/fetchWsfScheduledTrips.js";
+import type * as adapters_resolve_resolveWsfScheduleSegment from "../adapters/resolve/resolveWsfScheduleSegment.js";
+import type * as adapters_resolve_resolveWsfTerminal from "../adapters/resolve/resolveWsfTerminal.js";
+import type * as adapters_resolve_resolveWsfVessel from "../adapters/resolve/resolveWsfVessel.js";
+import type * as adapters_resolve_resolveWsfVesselHistory from "../adapters/resolve/resolveWsfVesselHistory.js";
+import type * as adapters_utils_retryOnce from "../adapters/utils/retryOnce.js";
 import type * as adapters_vesselTrips_processTick from "../adapters/vesselTrips/processTick.js";
-import type * as adapters_wsf_fetchVesselLocations from "../adapters/wsf/fetchVesselLocations.js";
-import type * as adapters_wsf_index from "../adapters/wsf/index.js";
-import type * as adapters_wsf_resolveScheduleSegment from "../adapters/wsf/resolveScheduleSegment.js";
-import type * as adapters_wsf_resolveTerminal from "../adapters/wsf/resolveTerminal.js";
-import type * as adapters_wsf_resolveVessel from "../adapters/wsf/resolveVessel.js";
-import type * as adapters_wsf_resolveVesselHistory from "../adapters/wsf/resolveVesselHistory.js";
-import type * as adapters_wsf_scheduledTrips_createScheduledTripFromRawSegment from "../adapters/wsf/scheduledTrips/createScheduledTripFromRawSegment.js";
-import type * as adapters_wsf_scheduledTrips_downloadRawWsfScheduleData from "../adapters/wsf/scheduledTrips/downloadRawWsfScheduleData.js";
-import type * as adapters_wsf_scheduledTrips_fetchActiveRoutes from "../adapters/wsf/scheduledTrips/fetchActiveRoutes.js";
-import type * as adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips from "../adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.js";
-import type * as adapters_wsf_scheduledTrips_fetchRouteSchedule from "../adapters/wsf/scheduledTrips/fetchRouteSchedule.js";
-import type * as adapters_wsf_scheduledTrips_index from "../adapters/wsf/scheduledTrips/index.js";
-import type * as adapters_wsf_scheduledTrips_retryOnce from "../adapters/wsf/scheduledTrips/retryOnce.js";
-import type * as adapters_wsf_scheduledTrips_types from "../adapters/wsf/scheduledTrips/types.js";
 import type * as crons from "../crons.js";
 import type * as domain_events_actual from "../domain/events/actual.js";
 import type * as domain_events_actual_schemas from "../domain/events/actual/schemas.js";
@@ -213,21 +215,23 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "adapters/fetch/fetchWsfScheduledTripsData": typeof adapters_fetch_fetchWsfScheduledTripsData;
+  "adapters/fetch/fetchWsfScheduledTripsTypes": typeof adapters_fetch_fetchWsfScheduledTripsTypes;
+  "adapters/fetch/fetchWsfTerminalIdentities": typeof adapters_fetch_fetchWsfTerminalIdentities;
+  "adapters/fetch/fetchWsfTerminalsAndMates": typeof adapters_fetch_fetchWsfTerminalsAndMates;
+  "adapters/fetch/fetchWsfVesselIdentities": typeof adapters_fetch_fetchWsfVesselIdentities;
+  "adapters/fetch/fetchWsfVesselLocations": typeof adapters_fetch_fetchWsfVesselLocations;
+  "adapters/fetch/fetchWsfVesselPings": typeof adapters_fetch_fetchWsfVesselPings;
+  "adapters/index": typeof adapters_index;
+  "adapters/pipelines/buildWsfTerminalsTopology": typeof adapters_pipelines_buildWsfTerminalsTopology;
+  "adapters/pipelines/createWsfScheduledTripFromRawSegment": typeof adapters_pipelines_createWsfScheduledTripFromRawSegment;
+  "adapters/pipelines/fetchWsfScheduledTrips": typeof adapters_pipelines_fetchWsfScheduledTrips;
+  "adapters/resolve/resolveWsfScheduleSegment": typeof adapters_resolve_resolveWsfScheduleSegment;
+  "adapters/resolve/resolveWsfTerminal": typeof adapters_resolve_resolveWsfTerminal;
+  "adapters/resolve/resolveWsfVessel": typeof adapters_resolve_resolveWsfVessel;
+  "adapters/resolve/resolveWsfVesselHistory": typeof adapters_resolve_resolveWsfVesselHistory;
+  "adapters/utils/retryOnce": typeof adapters_utils_retryOnce;
   "adapters/vesselTrips/processTick": typeof adapters_vesselTrips_processTick;
-  "adapters/wsf/fetchVesselLocations": typeof adapters_wsf_fetchVesselLocations;
-  "adapters/wsf/index": typeof adapters_wsf_index;
-  "adapters/wsf/resolveScheduleSegment": typeof adapters_wsf_resolveScheduleSegment;
-  "adapters/wsf/resolveTerminal": typeof adapters_wsf_resolveTerminal;
-  "adapters/wsf/resolveVessel": typeof adapters_wsf_resolveVessel;
-  "adapters/wsf/resolveVesselHistory": typeof adapters_wsf_resolveVesselHistory;
-  "adapters/wsf/scheduledTrips/createScheduledTripFromRawSegment": typeof adapters_wsf_scheduledTrips_createScheduledTripFromRawSegment;
-  "adapters/wsf/scheduledTrips/downloadRawWsfScheduleData": typeof adapters_wsf_scheduledTrips_downloadRawWsfScheduleData;
-  "adapters/wsf/scheduledTrips/fetchActiveRoutes": typeof adapters_wsf_scheduledTrips_fetchActiveRoutes;
-  "adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips": typeof adapters_wsf_scheduledTrips_fetchAndTransformScheduledTrips;
-  "adapters/wsf/scheduledTrips/fetchRouteSchedule": typeof adapters_wsf_scheduledTrips_fetchRouteSchedule;
-  "adapters/wsf/scheduledTrips/index": typeof adapters_wsf_scheduledTrips_index;
-  "adapters/wsf/scheduledTrips/retryOnce": typeof adapters_wsf_scheduledTrips_retryOnce;
-  "adapters/wsf/scheduledTrips/types": typeof adapters_wsf_scheduledTrips_types;
   crons: typeof crons;
   "domain/events/actual": typeof domain_events_actual;
   "domain/events/actual/schemas": typeof domain_events_actual_schemas;

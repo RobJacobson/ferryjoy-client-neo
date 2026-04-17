@@ -16,6 +16,7 @@
     "types": ["bun"],
     "paths": {
       "_generated/*": ["./_generated/*"],
+      "adapters": ["./adapters/index.ts"],
       "adapters/*": ["./adapters/*"],
       "domain/*": ["./domain/*"],
       "functions/*": ["./functions/*"],

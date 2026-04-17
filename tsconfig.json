@@ -10,6 +10,7 @@
       "@domain/*": ["src/domain/*"],
 
       "_generated/*": ["convex/_generated/*"],
+      "adapters": ["convex/adapters/index.ts"],
       "adapters/*": ["convex/adapters/*"],
       "functions/*": ["convex/functions/*"],
       "domain/*": ["convex/domain/*"],

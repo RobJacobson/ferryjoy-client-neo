@@ -12,7 +12,7 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 ```
 
 In this module, `actions.ts` stays as the Convex-facing shell. Raw vessel
-locations are fetched through `convex/adapters/wsf/fetchVesselLocations.ts`,
+locations are fetched through `convex/adapters/fetch/fetchWsfVesselLocations.ts`,
 translated into `ConvexVesselLocation`, and then passed into domain
 orchestration plus persistence adapters.
 
@@ -31,7 +31,7 @@ allowing each downstream subsystem to evolve independently.
 
 ```text
 WSF VesselLocations API
-  -> adapters/wsf/fetchVesselLocations
+  -> adapters/fetch/fetchWsfVesselLocations
   -> functions/vesselOrchestrator/actions.ts
   -> domain/vesselOrchestration/runVesselOrchestratorTick
   -> vesselLocations table / vesselTrips persistence
@@ -69,7 +69,7 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- do that external fetch through `convex/adapters/wsf/fetchVesselLocations.ts`
+- do that external fetch through `convex/adapters/fetch/fetchWsfVesselLocations.ts`
 - load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips`
   in **one** internal query per tick (`getOrchestratorTickReadModelInternal` in
   `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches
@@ -99,7 +99,7 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
-  -> adapters/wsf/fetchVesselLocations()
+  -> adapters/fetch/fetchWsfVesselLocations()
   -> actions.ts
   -> toConvexVesselLocation(raw, vessels, terminals)
   -> ConvexVesselLocation[]

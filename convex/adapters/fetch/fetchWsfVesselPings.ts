@@ -16,7 +16,7 @@ import type { ConvexVesselPing } from "functions/vesselPings/schemas";
 import { dateToEpochMs } from "shared/convertDates";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
-import { resolveVessel } from "./resolveVessel";
+import { resolveVessel } from "../resolve/resolveWsfVessel";
 
 /**
  * Fetches live WSF positions and returns Convex vessel ping rows for in-service

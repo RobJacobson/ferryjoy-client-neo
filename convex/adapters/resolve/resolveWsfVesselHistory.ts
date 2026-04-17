@@ -9,8 +9,8 @@ import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import {
   resolveTerminalByAbbrev,
   resolveTerminalByName,
-} from "./resolveTerminal";
-import { tryResolveVessel } from "./resolveVessel";
+} from "./resolveWsfTerminal";
+import { tryResolveVessel } from "./resolveWsfVessel";
 
 type ResolvedVesselHistory = {
   vessel: VesselIdentity;

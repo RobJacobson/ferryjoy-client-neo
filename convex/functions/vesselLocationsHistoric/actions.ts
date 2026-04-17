@@ -4,7 +4,7 @@
 
 import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
-import { fetchWsfVesselLocations } from "adapters/wsf";
+import { fetchWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
 import { loadTerminalIdentities } from "functions/terminalIdentities/actions";
 import { loadVesselIdentities } from "functions/vesselIdentities/actions";

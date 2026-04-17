@@ -2,7 +2,7 @@
  * Fetches external vessel history rows for sync pipeline segments.
  */
 
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 

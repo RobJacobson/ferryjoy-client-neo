@@ -35,7 +35,7 @@ Older handoff documents may describe historical refactors; **treat them as conte
 
 Today **WSF is the only integration**. We **do not** use a `convex/adapters/wsf/` directory—paths stay short, and when a second vendor appears we can introduce `adapters/<vendor>/` in a focused move.
 
-**Naming:** Filenames include **`Wsf`** (e.g. `WsfFetchVesselLocations.ts`, `WsfResolveVessel.ts`) so a flat tree under `adapters/` remains easy to grep and avoids ambiguous names like `fetchRoutes.ts` if another system appears later.
+**Naming:** Use **role prefix + `Wsf` + rest** in camelCase (e.g. `fetchWsfVesselLocations.ts`, `resolveWsfVessel.ts`, `buildWsfTerminalsTopology.ts`). Utils without a vendor story stay short (e.g. `retryOnce.ts`). This keeps a flat tree under `adapters/` easy to grep and avoids ambiguous names like `fetchRoutes.ts` if another system appears later.
 
 **Subfolders by role** (avoid an explosion of tiny files; longer modules with private helpers are fine):
 

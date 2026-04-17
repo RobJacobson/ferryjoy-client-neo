@@ -5,7 +5,7 @@
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips";
+import { fetchAndTransformScheduledTrips } from "adapters";
 import {
   buildSeedVesselTripEventsFromRawSegments,
   hydrateSeededEventsWithHistory,

@@ -1,5 +1,5 @@
 /**
- * Retries external WSF schedule API calls once after a fixed delay.
+ * Shared retry helper for WSF upstream API calls from adapter fetch modules.
  */
 
 const RETRY_DELAY_MS = 15_000;

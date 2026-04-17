@@ -377,7 +377,7 @@ ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
 
 Current layering:
 
-- WSF schedule ingress: `convex/adapters/wsf/scheduledTrips/`
+- WSF schedule ingress: `convex/adapters/fetch/` and `convex/adapters/pipelines/` (e.g. `fetchWsfScheduledTrips.ts`)
 - schedule business rules: `convex/domain/scheduledTrips/`
 - Convex sync/persistence shell: `convex/functions/scheduledTrips/`
 
@@ -419,7 +419,7 @@ During sync, we compute (per ScheduledTrip):
   - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
 Sync applies the full transform pipeline after adapter ingress:
-`convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts`
+`convex/adapters/pipelines/fetchWsfScheduledTrips.ts`
 downloads and maps the raw WSF data, then
 `convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs
 `classifyDirectSegments` followed by `calculateTripEstimates`.

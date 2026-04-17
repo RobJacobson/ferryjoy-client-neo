@@ -7,7 +7,7 @@ import { describe, expect, it } from "bun:test";
 import {
   type TerminalIdentity,
   toConvexVesselLocation,
-} from "../../../adapters/wsf";
+} from "../../../adapters";
 
 describe("toConvexVesselLocation", () => {
   it("stamps the canonical key when arriving terminal and scheduled departure are present", () => {

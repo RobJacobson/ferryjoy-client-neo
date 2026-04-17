@@ -7,8 +7,8 @@ import {
   type TerminalIdentity,
   tryResolveVessel,
   type VesselIdentity,
-} from "adapters/wsf";
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
+} from "adapters";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";

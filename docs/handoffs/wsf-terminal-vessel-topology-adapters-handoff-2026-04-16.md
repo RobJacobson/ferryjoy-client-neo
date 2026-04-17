@@ -2,6 +2,8 @@
 
 **Date:** 2026-04-16  
 **Audience:** implementation agent  
+**Superseded layout:** WSF adapters now live under `convex/adapters/fetch/`, `resolve/`, `pipelines/`, and `utils/` with names like `fetchWsfVesselLocations.ts` — see **`docs/handoffs/backend-layering-actions-and-domain-memo-2026-04-16.md`**. The paths below are historical.
+
 **Goal:** Move remaining **WSF `ws-dottie` fetch + map-to-Convex** pipelines out of `convex/functions/**/actions.ts` into **`convex/adapters/wsf/`**, matching the pattern already used for vessel locations and pings.
 
 ---

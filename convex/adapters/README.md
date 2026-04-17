@@ -2,7 +2,7 @@
 
 `convex/adapters/` holds **integration** code: vendor APIs, mapping into backend-owned types, and pure **resolve** helpers that match feed fields to identity rows.
 
-See **`docs/handoffs/backend-layering-actions-and-domain-memo-2026-04-16.md`** for the agreed **folder layout** (`fetch/`, `resolve/`, `pipelines/`, `utils/`), **`Wsf`** filename convention, and **remaining work**.
+See **`docs/handoffs/backend-layering-actions-and-domain-memo-2026-04-16.md`** for the agreed **folder layout** (`fetch/`, `resolve/`, `pipelines/`, `utils/`), **`fetchWsf` / `resolveWsf`** filename convention (role prefix, then `Wsf`, then the rest in camelCase), and **remaining work**.
 
 ## What belongs here
 

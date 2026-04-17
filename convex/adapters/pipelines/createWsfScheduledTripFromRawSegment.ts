@@ -2,13 +2,13 @@
  * Maps a raw WSF schedule segment into a persistence-ready scheduled trip row.
  */
 
-import { resolveScheduleSegment } from "adapters/wsf/resolveScheduleSegment";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
+import { resolveScheduleSegment } from "adapters/resolve/resolveWsfScheduleSegment";
 import { buildInitialScheduledTripRow } from "domain/scheduledTrips/buildInitialScheduledTripRow";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import { buildScheduleSegmentKey } from "shared/keys";
-import type { RawWsfScheduleSegment } from "./types";
 
 /**
  * Creates a scheduled-trip row from a raw WSF schedule segment.

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildTerminalTopologyRows } from "adapters/wsf";
+import { buildTerminalTopologyRows } from "adapters";
 import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 
 describe("buildTerminalTopologyRows", () => {

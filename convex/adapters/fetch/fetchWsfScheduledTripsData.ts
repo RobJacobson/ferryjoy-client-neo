@@ -1,14 +1,50 @@
 /**
- * Downloads raw WSF route schedules and normalizes them into raw segment rows.
+ * WSF schedule upstream fetch: active routes, per-route schedules, and raw
+ * segment download for one sailing day.
  */
 
-import type { Route, TerminalCombo } from "ws-dottie/wsf-schedule";
-import { fetchRouteSchedule } from "./fetchRouteSchedule";
+import type { Route, Schedule, TerminalCombo } from "ws-dottie/wsf-schedule";
+import {
+  fetchRoutesByTripDate,
+  fetchScheduleByTripDateAndRouteId,
+} from "ws-dottie/wsf-schedule";
+import { retryOnce } from "../utils/retryOnce";
 import type {
   RawWsfRouteScheduleData,
   RawWsfScheduleSegment,
   VesselSailing,
-} from "./types";
+} from "./fetchWsfScheduledTripsTypes";
+
+/**
+ * Fetches all active WSF routes for a specific trip date.
+ *
+ * @param tripDate - Sailing day in `YYYY-MM-DD` format
+ * @returns Active WSF routes for that day
+ */
+export const fetchActiveRoutes = async (tripDate: string): Promise<Route[]> =>
+  await retryOnce(() =>
+    fetchRoutesByTripDate({ params: { TripDate: tripDate } })
+  );
+
+/**
+ * Fetches detailed WSF schedule data for one route on one sailing day.
+ *
+ * @param routeId - WSF route identifier
+ * @param tripDate - Sailing day in `YYYY-MM-DD` format
+ * @returns Full WSF schedule payload for the requested route and day
+ */
+export const fetchRouteSchedule = async (
+  routeId: number,
+  tripDate: string
+): Promise<Schedule> =>
+  await retryOnce(() =>
+    fetchScheduleByTripDateAndRouteId({
+      params: {
+        TripDate: tripDate,
+        RouteID: routeId,
+      },
+    })
+  );
 
 /**
  * Downloads raw schedule segments for all routes on one sailing day.

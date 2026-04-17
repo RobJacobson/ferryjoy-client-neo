@@ -5,7 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
-import { buildWsfTerminalsTopology } from "adapters/wsf";
+import { buildWsfTerminalsTopology } from "adapters";
 import { v } from "convex/values";
 import { getSailingDay } from "../../shared/time";
 import {
