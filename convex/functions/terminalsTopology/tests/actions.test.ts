@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { buildTerminalTopologyRows } from "adapters";
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 
 describe("buildTerminalTopologyRows", () => {
   it("merges mates, aggregate routes, and triangle normalization by terminal", () => {

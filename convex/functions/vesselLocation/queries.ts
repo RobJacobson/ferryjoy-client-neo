@@ -5,7 +5,7 @@
 import { internalQuery, query } from "_generated/server";
 import { v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { vesselIdentitySchema } from "../vesselIdentities/schemas";
+import { vesselIdentitySchema } from "../vessels/schemas";
 import { vesselLocationValidationSchema } from "./schemas";
 
 /**

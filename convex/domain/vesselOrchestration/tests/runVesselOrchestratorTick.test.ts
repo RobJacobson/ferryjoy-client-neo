@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ProcessVesselTripsOptions } from "domain/vesselTrips";
-import { computeShouldRunPredictionFallback } from "domain/vesselTrips";
+import type { ProcessVesselTripsOptions } from "domain/vesselOrchestration/updateVesselTrips";
+import { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 import { runVesselOrchestratorTick } from "../runVesselOrchestratorTick";
@@ -209,5 +209,62 @@ describe("runVesselOrchestratorTick", () => {
     expect(result.locationsSuccess).toBe(true);
     expect(result.tripsSuccess).toBe(true);
     expect(result.errors).toBeUndefined();
+    expect(result.tickMetrics?.persistLocationsMs).toBeGreaterThanOrEqual(0);
+    expect(result.tickMetrics?.processVesselTripsMs).toBeGreaterThanOrEqual(0);
+    expect(result.tickMetrics?.applyTickEventWritesMs).toBeGreaterThanOrEqual(
+      0
+    );
+  });
+
+  it("records persistLocationsMs when the location branch fails", async () => {
+    const deps: VesselOrchestratorTickDeps = {
+      persistLocations: async () => {
+        throw new Error("bulk upsert failed");
+      },
+      processVesselTrips: async () => ({
+        ...baseTripResult,
+        tickStartedAt,
+      }),
+      applyTickEventWrites: async () => {},
+    };
+
+    const result = await runVesselOrchestratorTick(
+      {
+        convexLocations: [makeLocation()],
+        passengerTerminalAbbrevs: passengerAbbrevs,
+        tickStartedAt,
+        activeTrips: [],
+      },
+      deps
+    );
+
+    expect(result.tickMetrics?.persistLocationsMs).toBeGreaterThanOrEqual(0);
+    expect(result.tickMetrics?.processVesselTripsMs).toBeGreaterThanOrEqual(0);
+    expect(result.tickMetrics?.applyTickEventWritesMs).toBeGreaterThanOrEqual(
+      0
+    );
+  });
+
+  it("records processVesselTripsMs when the trip branch fails before timeline", async () => {
+    const deps: VesselOrchestratorTickDeps = {
+      persistLocations: async () => {},
+      processVesselTrips: async () => {
+        throw new Error("trip pipeline failed");
+      },
+      applyTickEventWrites: async () => {},
+    };
+
+    const result = await runVesselOrchestratorTick(
+      {
+        convexLocations: [makeLocation()],
+        passengerTerminalAbbrevs: passengerAbbrevs,
+        tickStartedAt,
+        activeTrips: [],
+      },
+      deps
+    );
+
+    expect(result.tickMetrics?.processVesselTripsMs).toBeGreaterThanOrEqual(0);
+    expect(result.tickMetrics?.applyTickEventWritesMs).toBeUndefined();
   });
 });

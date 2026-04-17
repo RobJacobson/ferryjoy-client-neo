@@ -4,8 +4,8 @@
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import { resolveTerminalByName } from "./resolveWsfTerminal";
 import { tryResolveVessel } from "./resolveWsfVessel";
 

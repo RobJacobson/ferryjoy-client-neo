@@ -5,7 +5,7 @@
  * for the backend snapshot.
  */
 
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import {
   fetchVesselBasics,
   type VesselBasic,

@@ -5,14 +5,16 @@
  * call {@link runVesselOrchestratorTick}.
  */
 
+export { runVesselOrchestratorTick } from "./runVesselOrchestratorTick";
+export type {
+  UpdateVesselOrchestratorResult,
+  VesselOrchestratorTickDeps,
+  VesselOrchestratorTickInput,
+  VesselOrchestratorTickMetrics,
+  VesselOrchestratorTickResult,
+} from "./types";
 export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
-} from "./passengerTerminalEligibility";
-export { runVesselOrchestratorTick } from "./runVesselOrchestratorTick";
-export type {
-  VesselOrchestratorTickDeps,
-  VesselOrchestratorTickInput,
-  VesselOrchestratorTickResult,
-} from "./types";
+} from "./updateVesselTrips";

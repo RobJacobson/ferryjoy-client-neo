@@ -18,16 +18,36 @@ orchestration plus persistence adapters.
 
 ## System Overview
 
-The orchestrator runs periodically, roughly every 5 seconds, and coordinates
+The orchestrator runs periodically, roughly every 15 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
 2. update trip lifecycle state via `vesselTrips/actions` (`processVesselTrips`;
-   domain implementation in `convex/domain/vesselTrips/`), then apply timeline overlay writes
+   domain implementation in `convex/domain/vesselOrchestration/updateVesselTrips/`), then apply timeline overlay writes
    (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.
+
+### Four operational concerns (Phase 1)
+
+Naming matches [`architecture.md` §10](../../domain/vesselOrchestration/architecture.md):
+
+- **updateVesselLocations** — persist live `vesselLocations` (`persistLocations` / bulk upsert).
+- **updateVesselTrips** — active/completed trips, events, `buildTrip` (`processVesselTrips`).
+- **updateVesselPredictions** — `applyVesselPredictions` after `buildTripCore` (same tick / same `processVesselTrips` hop; not a separate orchestrator branch).
+- **updateTimeline** — `eventsActual` / `eventsPredicted` writes (`applyTickEventWrites`).
+
+On each tick, **updateVesselLocations** runs in parallel with a branch that runs
+**updateVesselTrips** then **updateTimeline** (`runVesselOrchestratorTick`).
+
+**Observability (Phase 5A):** `runVesselOrchestratorTick` returns `tickMetrics`
+(`persistLocationsMs`, `processVesselTripsMs`, `applyTickEventWritesMs`, rounded
+whole milliseconds). `updateVesselOrchestrator` is typed as
+`UpdateVesselOrchestratorResult` (`VesselOrchestratorTickResult` after fetch, or
+fetch failure without `tickMetrics`). Each tick emits one `[VesselOrchestratorTick]`
+JSON log line with the same fields for dashboards and alerts. Structural split of
+internal actions is optional; see Phase 5 handoff.
 
 ```text
 WSF VesselLocations API
@@ -88,7 +108,7 @@ Domain pipeline (same tick semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
 - parallel branches with branch-level error isolation
-- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselTrips`)
+- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselOrchestration/updateVesselTrips`)
   applied inside the domain orchestrator when building `processVesselTrips` options
 - trip branch runs `processVesselTrips` then `applyTickEventWrites` with
   `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
@@ -339,6 +359,7 @@ those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 
+- `convex/domain/vesselOrchestration/architecture.md` — orchestrator tick, four concerns, glossary
 - `convex/functions/vesselTrips/README.md`
 - `convex/functions/scheduledTrips/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`

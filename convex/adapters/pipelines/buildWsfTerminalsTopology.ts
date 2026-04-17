@@ -6,7 +6,7 @@
  * assembly is {@link buildTerminalTopologyRows}.
  */
 
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { TerminalTopology } from "functions/terminalsTopology/schemas";
 import {
   fetchRoutesByTripDateAndTerminals,

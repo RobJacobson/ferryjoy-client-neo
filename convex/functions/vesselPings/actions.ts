@@ -4,8 +4,8 @@
 
 import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
-import { fetchInServiceWsfVesselPings } from "adapters";
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import { fetchWsfVesselPings } from "adapters";
+import type { VesselIdentity } from "functions/vessels/schemas";
 
 /**
  * Internal action for fetching and storing vessel pings from the WSF API.
@@ -21,7 +21,7 @@ export const fetchAndStoreVesselPings = internalAction({
         internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
       )) satisfies ReadonlyArray<VesselIdentity>;
 
-      const vesselPings = await fetchInServiceWsfVesselPings(vessels);
+      const vesselPings = await fetchWsfVesselPings(vessels);
 
       // Store the vessel pings through mutation.
       await ctx.runMutation(

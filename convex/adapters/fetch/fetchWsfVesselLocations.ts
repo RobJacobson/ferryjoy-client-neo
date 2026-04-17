@@ -7,9 +7,9 @@
  * the Convex deployment environment (read by `ws-dottie` at package init).
  */
 
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";

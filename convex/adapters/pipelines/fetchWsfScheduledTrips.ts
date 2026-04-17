@@ -4,8 +4,8 @@
 
 import { runScheduleTransformPipeline } from "domain/scheduledTrips";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import type { Route } from "ws-dottie/wsf-schedule";
 import {
   downloadRawWsfScheduleData,

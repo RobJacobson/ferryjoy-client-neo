@@ -9,8 +9,8 @@ import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { dedupeTripDocBatchesByTripKey } from "domain/vesselTrips/read/dedupeTripDocsByTripKey";
-import { mergeTripsWithPredictions } from "domain/vesselTrips/read/mergeTripsWithPredictions";
+import { dedupeTripDocBatchesByTripKey } from "domain/vesselOrchestration/updateVesselTrips/read/dedupeTripDocsByTripKey";
+import { mergeTripsWithPredictions } from "domain/vesselOrchestration/updateVesselTrips/read/mergeTripsWithPredictions";
 import { loadPredictedRowsGroupedForTrips } from "functions/events/eventsPredicted/queries";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
@@ -74,8 +74,9 @@ export const getActiveTrips = query({
  * Fetch active vessel trips with joined `scheduledTrips` rows for display.
  *
  * Tick-time enrichment uses `eventsScheduled` via `appendFinalSchedule` in
- * `adapters/vesselTrips/processTick.ts` (next-leg fields for lifecycle). This query
- * joins the persisted schedule catalog for UI only.
+ * `domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts` (wired by
+ * `functions/vesselOrchestrator/runtimeAdapters.ts`) for next-leg lifecycle
+ * fields. This query joins the persisted schedule catalog for UI only.
  *
  * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
  *

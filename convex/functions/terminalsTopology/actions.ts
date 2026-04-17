@@ -11,8 +11,8 @@ import { getSailingDay } from "../../shared/time";
 import {
   loadTerminalIdentities,
   syncBackendTerminalTable,
-} from "../terminalIdentities/actions";
-import type { TerminalIdentity } from "../terminalIdentities/schemas";
+} from "../terminals/actions";
+import type { TerminalIdentity } from "../terminals/schemas";
 import type { TerminalTopology } from "./schemas";
 
 /**

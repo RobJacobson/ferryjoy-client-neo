@@ -10,8 +10,8 @@ import {
   buildSeedVesselTripEventsFromRawSegments,
   hydrateSeededEventsWithHistory,
 } from "domain/timelineReseed";
-import { loadTerminalIdentities } from "functions/terminalIdentities/actions";
-import { loadVesselIdentities } from "functions/vesselIdentities/actions";
+import { loadTerminalIdentities } from "functions/terminals/actions";
+import { loadVesselIdentities } from "functions/vessels/actions";
 import { fetchHistoryRecordsForDate } from "./fetchHistoryRecordsForDate";
 import type { TimelineSyncResult } from "./types";
 

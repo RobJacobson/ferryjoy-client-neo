@@ -8,12 +8,12 @@ import {
   modelParametersSchema,
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
-import { terminalIdentitySchema } from "functions/terminalIdentities/schemas";
+import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
-import { vesselIdentitySchema } from "functions/vesselIdentities/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
 import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
+import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({

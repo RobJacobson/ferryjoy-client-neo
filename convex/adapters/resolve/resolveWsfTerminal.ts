@@ -2,7 +2,7 @@
  * WSF-facing terminal lookup helpers against backend terminal snapshots.
  */
 
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 
 /**
  * Resolves a terminal by its backend abbreviation.

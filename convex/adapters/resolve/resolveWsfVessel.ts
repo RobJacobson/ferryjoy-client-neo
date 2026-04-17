@@ -2,7 +2,7 @@
  * WSF-facing vessel lookup helpers against backend vessel snapshots.
  */
 
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 
 /**
  * Looks up backend vessel identity by exact `VesselName` (e.g. to read canonical

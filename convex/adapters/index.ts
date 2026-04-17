@@ -2,8 +2,8 @@
  * Public adapter surface for WSF integration: fetch, resolve, and pipelines.
  */
 
-export type { TerminalIdentity } from "functions/terminalIdentities/schemas";
-export type { VesselIdentity } from "functions/vesselIdentities/schemas";
+export type { TerminalIdentity } from "functions/terminals/schemas";
+export type { VesselIdentity } from "functions/vessels/schemas";
 export {
   downloadRawWsfScheduleData,
   fetchActiveRoutes,
@@ -27,7 +27,7 @@ export {
   fetchWsfVesselLocations,
   toConvexVesselLocation,
 } from "./fetch/fetchWsfVesselLocations";
-export { fetchInServiceWsfVesselPings } from "./fetch/fetchWsfVesselPings";
+export { fetchWsfVesselPings } from "./fetch/fetchWsfVesselPings";
 export {
   buildTerminalTopologyRows,
   buildWsfTerminalsTopology,

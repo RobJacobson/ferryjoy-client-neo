@@ -4,7 +4,7 @@
 
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
-import { vesselIdentitySchema } from "../vesselIdentities/schemas";
+import { vesselIdentitySchema } from "../vessels/schemas";
 import { vesselLocationValidationSchema } from "./schemas";
 
 /**

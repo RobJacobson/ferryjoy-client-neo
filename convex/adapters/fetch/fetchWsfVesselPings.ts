@@ -1,7 +1,7 @@
 /**
  * WSF vessel-ping boundary adapter.
  *
- * Entry point: {@link fetchInServiceWsfVesselPings}. It loads live positions via
+ * Entry point: {@link fetchWsfVesselPings}. It loads live positions via
  * {@link fetchVesselLocations}, keeps only rows with `InService`, resolves each
  * feed `VesselName` to a canonical `VesselAbbrev` with {@link resolveVessel}, and
  * maps matches into {@link ConvexVesselPing} rows (rounded coordinates, epoch
@@ -11,8 +11,8 @@
  * environment (read by `ws-dottie` at package init).
  */
 
-import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import type { ConvexVesselPing } from "functions/vesselPings/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import { dateToEpochMs } from "shared/convertDates";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { fetchVesselLocations } from "ws-dottie/wsf-vessels/core";
@@ -28,7 +28,7 @@ import { resolveVessel } from "../resolve/resolveWsfVessel";
  * @throws Error when the WSF API returns an empty location list, or when a feed
  *   vessel name does not match any backend identity
  */
-export const fetchInServiceWsfVesselPings = async (
+export const fetchWsfVesselPings = async (
   vesselIdentities: ReadonlyArray<VesselIdentity>
 ): Promise<ConvexVesselPing[]> => {
   const dottieVesselLocations = await fetchVesselLocations();

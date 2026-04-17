@@ -10,8 +10,8 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { terminalIdentitySchema } from "functions/terminalIdentities/schemas";
-import { vesselIdentitySchema } from "functions/vesselIdentities/schemas";
+import { terminalIdentitySchema } from "functions/terminals/schemas";
+import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 

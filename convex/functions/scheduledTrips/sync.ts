@@ -8,8 +8,8 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { fetchAndTransformScheduledTrips } from "adapters";
 import { getSailingDay } from "../../shared/time";
-import { loadTerminalIdentities } from "../terminalIdentities/actions";
-import { loadVesselIdentities } from "../vesselIdentities/actions";
+import { loadTerminalIdentities } from "../terminals/actions";
+import { loadVesselIdentities } from "../vessels/actions";
 
 const logPrefix = "[SYNC TRIPS]";
 

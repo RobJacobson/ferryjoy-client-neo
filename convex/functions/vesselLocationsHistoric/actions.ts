@@ -6,10 +6,10 @@ import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
-import { loadTerminalIdentities } from "functions/terminalIdentities/actions";
-import { loadVesselIdentities } from "functions/vesselIdentities/actions";
+import { loadTerminalIdentities } from "functions/terminals/actions";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
+import { loadVesselIdentities } from "functions/vessels/actions";
 import { getSailingDay } from "shared/time";
 
 const HISTORIC_RETENTION_SAILING_DAYS = 2;

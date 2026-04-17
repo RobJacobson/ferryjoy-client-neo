@@ -5,7 +5,7 @@
  * facilities missing from the upstream feed, and maps to {@link TerminalIdentity}.
  */
 
-import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import {
   fetchTerminalLocations,
   type TerminalLocation,
