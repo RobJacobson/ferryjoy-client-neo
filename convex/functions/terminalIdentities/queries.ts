@@ -5,7 +5,7 @@
 import { internalQuery, query } from "_generated/server";
 import { v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { terminalSchema } from "./schemas";
+import { terminalIdentitySchema } from "./schemas";
 
 /**
  * Fetch all backend terminal rows.
@@ -15,9 +15,9 @@ import { terminalSchema } from "./schemas";
  */
 export const getAllBackendTerminalsInternal = internalQuery({
   args: {},
-  returns: v.array(terminalSchema),
+  returns: v.array(terminalIdentitySchema),
   handler: async (ctx) => {
-    const terminals = await ctx.db.query("terminals").collect();
+    const terminals = await ctx.db.query("terminalsIdentity").collect();
     return terminals.map(stripConvexMeta);
   },
 });
@@ -30,9 +30,9 @@ export const getAllBackendTerminalsInternal = internalQuery({
  */
 export const getFrontendTerminalsSnapshot = query({
   args: {},
-  returns: v.union(v.array(terminalSchema), v.null()),
+  returns: v.union(v.array(terminalIdentitySchema), v.null()),
   handler: async (ctx) => {
-    const terminals = await ctx.db.query("terminals").collect();
+    const terminals = await ctx.db.query("terminalsIdentity").collect();
 
     if (terminals.length === 0) {
       return null;

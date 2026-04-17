@@ -1,26 +1,24 @@
 # Convex adapters
 
-`convex/adapters/` contains translation and integration code that sits at the
-boundary between external systems and FerryJoy's backend-owned types.
+`convex/adapters/` holds **integration** code: vendor APIs, mapping into backend-owned types, and pure **resolve** helpers that match feed fields to identity rows.
+
+See **`docs/handoffs/backend-layering-actions-and-domain-memo-2026-04-16.md`** for the agreed **folder layout** (`fetch/`, `resolve/`, `pipelines/`, `utils/`), **`Wsf`** filename convention, and **remaining work**.
 
 ## What belongs here
 
-- WSF fetch wrappers
-- raw vendor types
-- mapping from vendor payloads into backend inputs
-- identity resolution tied to vendor payload semantics
+- WSF (and future vendor) **fetch + map** toward Convex DTOs
+- **Resolve** helpers (no `ctx`, no network)
+- **Pipelines**: multi-step integration workflows (prefer one file per pipeline under `pipelines/`)
+- Small **utils** shared by adapter modules (e.g. retry), not domain policy
 
 ## What does not belong here
 
-- Convex `query`, `mutation`, `action`, or `internalAction` registration
-- business rules or lifecycle decisions owned by `convex/domain/`
-- generic utilities with no vendor or boundary story
+- Convex `query` / `mutation` / `action` registration (use `convex/functions/`)
+- Business rules owned by `convex/domain/`
+- Generic utilities with no boundary story (use `convex/shared/`)
 
 ## Import guidance
 
-- `convex/functions/` may call adapters to fetch or translate boundary data
-  before delegating to `convex/domain/`
-- `convex/domain/` may consume adapter-owned types when needed, but should not
-  depend on Convex function implementation modules
-- prefer small functional modules with one public export per file when practical
-- avoid broad barrels; add an `index.ts` only for a narrow, intentional surface
+- `convex/functions/` may call adapters for fetch/translate before domain or mutations.
+- `convex/domain/` should not call `ws-dottie` or other HTTP clients—receive **already-fetched** data or depend on types only.
+- Prefer imports from **`adapters`** or **`adapters/fetch/...`** per `convex/tsconfig.json` paths.

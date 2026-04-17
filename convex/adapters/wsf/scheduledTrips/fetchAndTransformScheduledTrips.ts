@@ -2,10 +2,10 @@
  * Shared WSF schedule ingress pipeline for schedule-backed backend consumers.
  */
 
-import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
-import type { VesselIdentity } from "adapters/wsf/resolveVessel";
 import { runScheduleTransformPipeline } from "domain/scheduledTrips";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import type { Route } from "ws-dottie/wsf-schedule";
 import { createScheduledTripFromRawSegment } from "./createScheduledTripFromRawSegment";
 import { downloadRawWsfScheduleData } from "./downloadRawWsfScheduleData";

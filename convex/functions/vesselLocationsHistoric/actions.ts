@@ -4,14 +4,13 @@
 
 import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
-import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
+import { fetchWsfVesselLocations } from "adapters/wsf";
 import { v } from "convex/values";
-import { loadBackendTerminals } from "functions/terminals/actions";
+import { loadTerminalIdentities } from "functions/terminalIdentities/actions";
+import { loadVesselIdentities } from "functions/vesselIdentities/actions";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
-import { loadBackendVessels } from "functions/vessels/actions";
 import { getSailingDay } from "shared/time";
-import { toConvexVesselLocation } from "../vesselLocation/schemas";
 
 const HISTORIC_RETENTION_SAILING_DAYS = 2;
 const DELETE_BATCH_SIZE = 500;
@@ -37,33 +36,15 @@ export const captureHistoricVesselLocations = internalAction({
     inserted: v.number(),
   }),
   handler: async (ctx): Promise<HistoricSnapshotResult> => {
-    const vessels = await loadBackendVessels(ctx);
-    const terminals = await loadBackendTerminals(ctx);
-    const rawLocations = await fetchWsfVesselLocations();
-    const convexLocations: Array<ConvexVesselLocation> = [];
-
-    for (const rawLocation of rawLocations) {
-      try {
-        convexLocations.push(
-          toConvexVesselLocation(rawLocation, vessels, terminals)
-        );
-      } catch (error) {
-        const normalized =
-          error instanceof Error ? error : new Error(String(error));
-        console.error("Skipping historic vessel location:", {
-          VesselID: rawLocation.VesselID,
-          VesselName: rawLocation.VesselName,
-          error: normalized.message,
-        });
-      }
-    }
-
-    const locations: ConvexHistoricVesselLocation[] = convexLocations.map(
-      (location) => ({
-        ...location,
-        SailingDay: getSailingDay(new Date(location.TimeStamp)),
-      })
+    const vesselIdentities = await loadVesselIdentities(ctx);
+    const terminalIdentities = await loadTerminalIdentities(ctx);
+    const convexLocations = await fetchWsfVesselLocations(
+      vesselIdentities,
+      terminalIdentities
     );
+
+    const locations: ConvexHistoricVesselLocation[] =
+      convexLocations.map(addSailingDay);
 
     const result: HistoricSnapshotResult = await ctx.runMutation(
       internal.functions.vesselLocationsHistoric.mutations.insertSnapshotBatch,
@@ -123,6 +104,19 @@ export const cleanupHistoricVesselLocations = internalAction({
       deleted: totalDeleted,
     };
   },
+});
+
+/**
+ * Attaches Pacific sailing-day string from a live location epoch timestamp.
+ *
+ * @param location - Convex vessel location row (numeric `TimeStamp`)
+ * @returns Historic snapshot row including `SailingDay`
+ */
+const addSailingDay = (
+  location: ConvexVesselLocation
+): ConvexHistoricVesselLocation => ({
+  ...location,
+  SailingDay: getSailingDay(new Date(location.TimeStamp)),
 });
 
 /**

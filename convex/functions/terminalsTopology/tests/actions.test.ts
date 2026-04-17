@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { Terminal } from "functions/terminals/schemas";
-import { buildTerminalTopologyRows } from "../actions";
+import { buildTerminalTopologyRows } from "adapters/wsf";
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 
 describe("buildTerminalTopologyRows", () => {
   it("merges mates, aggregate routes, and triangle normalization by terminal", () => {
@@ -77,7 +77,9 @@ describe("buildTerminalTopologyRows", () => {
  * @param overrides - Terminal field overrides
  * @returns Concrete terminal row
  */
-const makeTerminal = (overrides: Partial<Terminal>): Terminal => ({
+const makeTerminal = (
+  overrides: Partial<TerminalIdentity>
+): TerminalIdentity => ({
   TerminalID: 1,
   TerminalName: "Anacortes",
   TerminalAbbrev: "ANA",

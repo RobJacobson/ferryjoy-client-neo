@@ -10,14 +10,14 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { terminalSchema } from "functions/terminals/schemas";
-import { vesselSchema } from "functions/vessels/schemas";
+import { terminalIdentitySchema } from "functions/terminalIdentities/schemas";
+import { vesselIdentitySchema } from "functions/vesselIdentities/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 const orchestratorTickReadModelSchema = v.object({
-  vessels: v.array(vesselSchema),
-  terminals: v.array(terminalSchema),
+  vessels: v.array(vesselIdentitySchema),
+  terminals: v.array(terminalIdentitySchema),
   activeTrips: v.array(vesselTripStoredSchema),
 });
 
@@ -36,8 +36,8 @@ export const getOrchestratorTickReadModelInternal = internalQuery({
   returns: orchestratorTickReadModelSchema,
   handler: async (ctx) => {
     const [vessels, terminals, trips] = await Promise.all([
-      ctx.db.query("vessels").collect(),
-      ctx.db.query("terminals").collect(),
+      ctx.db.query("vesselsIdentity").collect(),
+      ctx.db.query("terminalsIdentity").collect(),
       ctx.db.query("activeVesselTrips").collect(),
     ]);
 

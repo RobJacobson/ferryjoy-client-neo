@@ -13,13 +13,13 @@ feature state, but the client API is intentionally plain React data contexts.
 
 Backend ownership is unchanged:
 
-- `vessels` contains canonical WSF vessel identity rows
-- `terminals` contains canonical passenger terminals plus a small set of known
+- `vesselsIdentity` contains canonical WSF vessel identity rows
+- `terminalsIdentity` contains canonical passenger terminals plus a small set of known
   marine locations needed by live vessel ingestion
 - `terminalsTopology` contains derived route topology keyed by departing
   terminal abbreviation
 
-`vessels` and `terminals` are canonical identity tables. `terminalsTopology` is
+`vesselsIdentity` and `terminalsIdentity` are canonical identity tables. `terminalsTopology` is
 derived operational data built from schedule APIs.
 
 The frontend still consumes the same public Convex snapshot queries:

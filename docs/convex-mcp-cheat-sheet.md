@@ -190,7 +190,7 @@ Call:
   "name": "data",
   "arguments": {
     "deploymentSelector": "ownDev:...",
-    "tableName": "terminals",
+    "tableName": "terminalsIdentity",
     "order": "desc",
     "limit": 3
   }
@@ -208,17 +208,17 @@ Call:
 - `modelConfig`
 - `modelParameters`
 - `scheduledTrips`
-- `terminals`
+- `terminalsIdentity`
 - `terminalsTopology`
 - `vesselLocations`
 - `vesselLocationsHistoric`
 - `vesselPing`
 - `vesselPings`
-- `vessels`
+- `vesselsIdentity`
 
 ## Sample data observed during testing
 
-### `terminals`
+### `terminalsIdentity`
 
 ```json
 [
@@ -241,7 +241,7 @@ Call:
 ]
 ```
 
-### `vessels`
+### `vesselsIdentity`
 
 ```json
 [

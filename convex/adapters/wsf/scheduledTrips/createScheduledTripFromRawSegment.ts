@@ -3,10 +3,10 @@
  */
 
 import { resolveScheduleSegment } from "adapters/wsf/resolveScheduleSegment";
-import type { TerminalIdentity } from "adapters/wsf/resolveTerminal";
-import type { VesselIdentity } from "adapters/wsf/resolveVessel";
 import { buildInitialScheduledTripRow } from "domain/scheduledTrips/buildInitialScheduledTripRow";
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import { buildScheduleSegmentKey } from "shared/keys";
 import type { RawWsfScheduleSegment } from "./types";
 

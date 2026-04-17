@@ -5,11 +5,10 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 
-export const vesselSchema = v.object({
+export const vesselIdentitySchema = v.object({
   VesselID: v.number(),
   VesselName: v.string(),
   VesselAbbrev: v.string(),
-  UpdatedAt: v.optional(v.number()),
 });
 
-export type Vessel = Infer<typeof vesselSchema>;
+export type VesselIdentity = Infer<typeof vesselIdentitySchema>;

@@ -1,40 +1,43 @@
 /**
- * Mutation handlers for storing and pruning vessel ping collections.
+ * Mutation handlers for storing and pruning individual vessel ping rows.
  */
 
 import { internalMutation, mutation } from "_generated/server";
+import { v } from "convex/values";
 
-import type { ConvexVesselPingCollection } from "functions/vesselPings/schemas";
-import { vesselPingListValidationSchema } from "functions/vesselPings/schemas";
+import type { ConvexVesselPing } from "functions/vesselPings/schemas";
+import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 
 /**
- * Number of hours old that VesselPings records must be before they are deleted.
- * Records older than this threshold will be removed by the cleanup cron job.
+ * Number of hours old that vessel ping rows must be before they are deleted.
  */
 const VESSEL_PINGS_CLEANUP_HOURS = 1;
 
 /**
- * Store a collection of vessel pings as a single document
- * Used by actions to store vessel location data
+ * Inserts each ping as its own document in `vesselPings`.
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing the vessel ping collection
- * @returns The ID of the inserted document
+ * @param args - Batch of pings from ingestion
+ * @returns Inserted document IDs
  */
-export const storeVesselPingCollection = mutation({
+export const storeVesselPings = mutation({
   args: {
-    collection: vesselPingListValidationSchema,
+    pings: v.array(vesselPingValidationSchema),
   },
-  handler: async (ctx, args: { collection: ConvexVesselPingCollection }) => {
-    return await ctx.db.insert("vesselPings", args.collection);
+  handler: async (ctx, args: { pings: ConvexVesselPing[] }) => {
+    const ids = [];
+    for (const ping of args.pings) {
+      ids.push(await ctx.db.insert("vesselPings", ping));
+    }
+    return ids;
   },
 });
 
 /**
- * Internal mutation for deleting stale vessel ping collection rows.
+ * Deletes vessel ping rows older than the retention window.
  *
  * @param ctx - Convex internal mutation context
- * @returns Number of records deleted
+ * @returns Number of rows deleted
  */
 export const cleanupOldPingsMutation = internalMutation({
   args: {},
@@ -43,24 +46,23 @@ export const cleanupOldPingsMutation = internalMutation({
     const cutoffTime = Date.now() - VESSEL_PINGS_CLEANUP_HOURS * 60 * 60 * 1000;
     let totalDeleted = 0;
 
-    // Batch deletes to keep write contention low during cleanup.
     while (true) {
-      const oldPingCollections = await ctx.db
+      const oldPings = await ctx.db
         .query("vesselPings")
-        .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoffTime))
+        .withIndex("by_timestamp", (q) => q.lt("TimeStamp", cutoffTime))
         .take(BATCH_SIZE);
 
-      if (oldPingCollections.length === 0) {
+      if (oldPings.length === 0) {
         break;
       }
 
-      for (const collection of oldPingCollections) {
-        await ctx.db.delete(collection._id);
+      for (const ping of oldPings) {
+        await ctx.db.delete(ping._id);
       }
 
-      totalDeleted += oldPingCollections.length;
+      totalDeleted += oldPings.length;
 
-      if (oldPingCollections.length < BATCH_SIZE) {
+      if (oldPings.length < BATCH_SIZE) {
         break;
       }
     }

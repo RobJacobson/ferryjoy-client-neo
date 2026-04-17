@@ -3,9 +3,9 @@
  */
 
 import { internalQuery, query } from "_generated/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { vesselSchema } from "../vessels/schemas";
+import { vesselIdentitySchema } from "../vesselIdentities/schemas";
 import { vesselLocationValidationSchema } from "./schemas";
 
 /**
@@ -18,22 +18,17 @@ export const getAll = query({
   args: {},
   returns: v.array(vesselLocationValidationSchema),
   handler: async (ctx) => {
-    try {
-      const vesselLocations = await ctx.db.query("vesselLocations").collect();
-      return vesselLocations.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: "Failed to fetch all vessel locations",
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { error: String(error) },
-      });
-    }
+    const vesselLocations = await ctx.db.query("vesselLocations").collect();
+    return vesselLocations.map(stripConvexMeta);
   },
 });
 
 /**
  * Get the current vessel location for a specific vessel.
+ *
+ * Returns `null` when no row exists for the abbreviation. If more than one row
+ * matches (unexpected for this index), Convex `unique()` throws so the bug
+ * surfaces instead of being swallowed.
  *
  * @param ctx - Convex query context
  * @param args - Query arguments containing the vessel abbreviation
@@ -45,26 +40,14 @@ export const getByVesselAbbrev = query({
   },
   returns: v.union(vesselLocationValidationSchema, v.null()),
   handler: async (ctx, args) => {
-    try {
-      const vesselLocation = await ctx.db
-        .query("vesselLocations")
-        .withIndex("by_vessel_abbrev", (q) =>
-          q.eq("VesselAbbrev", args.vesselAbbrev)
-        )
-        .unique();
+    const vesselLocation = await ctx.db
+      .query("vesselLocations")
+      .withIndex("by_vessel_abbrev", (q) =>
+        q.eq("VesselAbbrev", args.vesselAbbrev)
+      )
+      .unique();
 
-      return vesselLocation ? stripConvexMeta(vesselLocation) : null;
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch vessel location for ${args.vesselAbbrev}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: {
-          vesselAbbrev: args.vesselAbbrev,
-          error: String(error),
-        },
-      });
-    }
+    return vesselLocation ? stripConvexMeta(vesselLocation) : null;
   },
 });
 
@@ -76,9 +59,9 @@ export const getByVesselAbbrev = query({
  */
 export const getAllBackendVesselsInternal = internalQuery({
   args: {},
-  returns: v.array(vesselSchema),
+  returns: v.array(vesselIdentitySchema),
   handler: async (ctx) => {
-    const vessels = await ctx.db.query("vessels").collect();
+    const vessels = await ctx.db.query("vesselsIdentity").collect();
     return vessels.map(stripConvexMeta);
   },
 });
@@ -91,9 +74,9 @@ export const getAllBackendVesselsInternal = internalQuery({
  */
 export const getFrontendVesselsSnapshot = query({
   args: {},
-  returns: v.union(v.array(vesselSchema), v.null()),
+  returns: v.union(v.array(vesselIdentitySchema), v.null()),
   handler: async (ctx) => {
-    const vessels = await ctx.db.query("vessels").collect();
+    const vessels = await ctx.db.query("vesselsIdentity").collect();
 
     if (vessels.length === 0) {
       return null;

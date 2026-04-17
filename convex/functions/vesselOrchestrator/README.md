@@ -77,7 +77,7 @@ Responsibilities:
   `syncBackendTerminalTable` when either snapshot is empty
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
-  terminal-or-marine-location fields derived from the backend `terminals`
+  terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
 - capture one tick timestamp shared by downstream consumers
 - invoke `runVesselOrchestratorTick` from `convex/domain/vesselOrchestration/` with
@@ -107,7 +107,7 @@ WSF VesselLocation
 
 Notes:
 
-- the backend `terminals` table remains the canonical lookup for passenger
+- the backend `terminalsIdentity` table remains the canonical lookup for passenger
   terminals
 - it also contains a small number of known non-passenger marine locations used
   by the WSF vessel feed, such as `EAH` and `VIG`

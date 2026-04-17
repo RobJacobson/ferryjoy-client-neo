@@ -4,12 +4,11 @@
 
 import { api, internal } from "_generated/api";
 import { internalAction } from "_generated/server";
-import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
-import type { ConvexVesselPingCollection } from "functions/vesselPings/schemas";
-import { toConvexVesselPing } from "functions/vesselPings/schemas";
+import { fetchInServiceWsfVesselPings } from "adapters/wsf";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 
 /**
- * Internal action for fetching and storing vessel locations from the WSF API.
+ * Internal action for fetching and storing vessel pings from the WSF API.
  *
  * @param ctx - Convex internal action context
  * @returns Failure details when ingestion fails; otherwise `undefined`
@@ -18,26 +17,17 @@ export const fetchAndStoreVesselPings = internalAction({
   args: {},
   handler: async (ctx) => {
     try {
-      // Retain the long-standing fetch shape until the downstream parser changes.
-      const rawLocations = await fetchWsfVesselLocations();
+      const vessels = (await ctx.runQuery(
+        internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
+      )) satisfies ReadonlyArray<VesselIdentity>;
 
-      const vesselPings = rawLocations
-        .filter((vl) => vl.InService)
-        .map(toConvexVesselPing);
+      const vesselPings = await fetchInServiceWsfVesselPings(vessels);
 
-      if (vesselPings.length === 0) {
-        throw new Error("No vessel locations received from WSF API");
-      }
-
-      const pingCollection: ConvexVesselPingCollection = {
-        timestamp: Date.now(),
-        pings: vesselPings,
-      };
-
+      // Store the vessel pings through mutation.
       await ctx.runMutation(
-        api.functions.vesselPings.mutations.storeVesselPingCollection,
+        api.functions.vesselPings.mutations.storeVesselPings,
         {
-          collection: pingCollection,
+          pings: vesselPings,
         }
       );
     } catch (error) {

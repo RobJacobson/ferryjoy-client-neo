@@ -38,7 +38,6 @@ export const VESSELS_STORAGE_SCHEMA = z.array(
     VesselID: z.number(),
     VesselName: z.string(),
     VesselAbbrev: z.string(),
-    UpdatedAt: z.number().optional(),
   })
 );
 

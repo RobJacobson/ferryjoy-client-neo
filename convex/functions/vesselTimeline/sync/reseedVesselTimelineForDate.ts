@@ -10,8 +10,8 @@ import {
   buildSeedVesselTripEventsFromRawSegments,
   hydrateSeededEventsWithHistory,
 } from "domain/timelineReseed";
-import { loadBackendTerminals } from "functions/terminals/actions";
-import { loadBackendVessels } from "functions/vessels/actions";
+import { loadTerminalIdentities } from "functions/terminalIdentities/actions";
+import { loadVesselIdentities } from "functions/vesselIdentities/actions";
 import { fetchHistoryRecordsForDate } from "./fetchHistoryRecordsForDate";
 import type { TimelineSyncResult } from "./types";
 
@@ -32,10 +32,10 @@ export const reseedVesselTimelineForDate = async (
   console.log(`${LOG_PREFIX} Starting reseed for ${targetDate}`);
 
   // Load vessels
-  const vessels = await loadBackendVessels(ctx);
+  const vessels = await loadVesselIdentities(ctx);
 
   // Load terminals
-  const terminals = await loadBackendTerminals(ctx);
+  const terminals = await loadTerminalIdentities(ctx);
 
   // Fetch and transform scheduled trips
   const { routeData } = await fetchAndTransformScheduledTrips(

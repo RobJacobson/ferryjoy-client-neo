@@ -3,13 +3,14 @@
  * snapshots.
  */
 
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import {
   resolveTerminalByAbbrev,
   resolveTerminalByName,
-  type TerminalIdentity,
 } from "./resolveTerminal";
-import { resolveVessel, type VesselIdentity } from "./resolveVessel";
+import { tryResolveVessel } from "./resolveVessel";
 
 type ResolvedVesselHistory = {
   vessel: VesselIdentity;
@@ -36,7 +37,7 @@ export const resolveVesselHistory = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): ResolvedVesselHistory | null => {
-  const vessel = resolveVessel(
+  const vessel = tryResolveVessel(
     record.Vessel ? String(record.Vessel) : "",
     vessels
   );

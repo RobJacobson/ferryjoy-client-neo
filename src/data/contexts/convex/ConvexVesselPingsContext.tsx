@@ -1,14 +1,14 @@
 import { api } from "convex/_generated/api";
 import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
-  type ConvexVesselPingCollection,
+  type ConvexVesselPing,
   toDomainVesselPing,
   type VesselPing,
 } from "@/types";
 
-type VesselPingsByVesselId = Record<number, VesselPing[]>;
+type VesselPingsByVesselAbbrev = Record<string, VesselPing[]>;
 
 /**
  * Type definition for the Convex Vessel Pings context value
@@ -16,8 +16,8 @@ type VesselPingsByVesselId = Record<number, VesselPing[]>;
  * Provides access to vessel pings data with loading and error states
  */
 type ConvexVesselPingsContextType = {
-  /** Object mapping VesselID to an array of VesselPings sorted by timestamp (most recent first) */
-  vesselPingsByVesselId: VesselPingsByVesselId;
+  /** Map of `VesselAbbrev` → pings sorted by time (most recent first) */
+  vesselPingsByVesselAbbrev: VesselPingsByVesselAbbrev;
   /** Loading state for vessel pings data */
   isLoading: boolean;
   /** Error state for vessel pings data */
@@ -28,63 +28,65 @@ type ConvexVesselPingsContextType = {
  * React context for sharing vessel pings data across the app.
  *
  * This context provides access to vessel pings data with loading and error states.
- * It fetches the latest 20 VesselPingCollections from Convex and transforms them into domain values.
+ * It loads recent pings from Convex and groups them by `VesselAbbrev`.
  * Components can consume this context using the useConvexVesselPings hook.
  */
 const ConvexVesselPingsContext = createContext<
   ConvexVesselPingsContextType | undefined
 >(undefined);
 
+/** Refreshes the time window used by the pings query (client clock; avoids `Date.now()` in queries). */
+const QUERY_NOW_REFRESH_MS = 30_000;
+
 /**
  * Provider component that manages vessel pings data from Convex.
- *
- * This component fetches the latest vessel ping collections from Convex,
- * transforms them into domain values,
- * and provides this data to child components through the context.
  *
  * @param props - Component props
  * @param props.children - Child components that will have access to the vessel pings data
  * @returns A context provider component
  */
 export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
-  // Fetch the latest 20 VesselPingCollections from Convex
   const connectionState = useConvexConnectionState();
-  const rawPingCollections = useQuery(
-    api.functions.vesselPings.queries.getLatest
-  );
+  const [queryNowMs, setQueryNowMs] = useState(() => Date.now());
 
-  // Flatten all pings from all collections and group by vessel ID
-  const vesselPingsByVesselId: VesselPingsByVesselId = (
-    rawPingCollections ?? []
-  ).reduce(
-    (acc: VesselPingsByVesselId, collection: ConvexVesselPingCollection) => {
-      collection.pings.forEach((ping) => {
-        const domainPing = toDomainVesselPing(ping);
-        if (!acc[ping.VesselID]) {
-          acc[ping.VesselID] = [];
-        }
-        acc[ping.VesselID].push(domainPing);
-      });
-      return acc;
-    },
-    {} as VesselPingsByVesselId
-  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQueryNowMs(Date.now());
+    }, QUERY_NOW_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
 
-  // Sort each vessel's pings by timestamp (most recent first)
-  Object.values(vesselPingsByVesselId).forEach((pings) => {
+  const rawPings = useQuery(api.functions.vesselPings.queries.getLatest, {
+    nowMs: queryNowMs,
+  });
+
+  const vesselPingsByVesselAbbrev: VesselPingsByVesselAbbrev = (
+    rawPings ?? []
+  ).reduce((acc: VesselPingsByVesselAbbrev, ping: ConvexVesselPing) => {
+    const domainPing = toDomainVesselPing(ping);
+    const key = ping.VesselAbbrev;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(domainPing);
+    return acc;
+  }, {} as VesselPingsByVesselAbbrev);
+
+  Object.values(vesselPingsByVesselAbbrev).forEach((pings) => {
     pings.sort((a, b) => b.TimeStamp.getTime() - a.TimeStamp.getTime());
   });
+
   const hasConnectionIssue =
-    rawPingCollections === undefined &&
+    rawPings === undefined &&
     !connectionState.isWebSocketConnected &&
     connectionState.connectionRetries > 0;
-  const isLoading = rawPingCollections === undefined && !hasConnectionIssue;
+  const isLoading = rawPings === undefined && !hasConnectionIssue;
   const error = hasConnectionIssue
     ? "Unable to connect to live vessel pings."
     : null;
 
   const contextValue: ConvexVesselPingsContextType = {
-    vesselPingsByVesselId,
+    vesselPingsByVesselAbbrev,
     isLoading,
     error,
   };

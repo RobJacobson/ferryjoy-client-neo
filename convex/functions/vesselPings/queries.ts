@@ -1,34 +1,46 @@
 /**
- * Query handlers for recent vessel ping collection snapshots.
+ * Query handlers for recent vessel ping rows.
  */
 
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
-import { vesselPingListValidationSchema } from "./schemas";
+import { vesselPingValidationSchema } from "./schemas";
+
+/** Default lookback when loading pings for the map (10 minutes). */
+const DEFAULT_LOOKBACK_MS = 10 * 60 * 1000;
 
 /**
- * Get the latest 20 vessel pings from the database
+ * Returns pings with `TimeStamp` at or after `nowMs - lookbackMs`.
  *
  * @param ctx - Convex query context
- * @returns Array of the latest 20 vessel ping collections without metadata
+ * @param args - Client wall clock and optional lookback window
+ * @returns Pings in the window, without system fields
  */
 export const getLatest = query({
-  args: {},
-  returns: v.array(vesselPingListValidationSchema),
-  handler: async (ctx) => {
+  args: {
+    nowMs: v.number(),
+    lookbackMs: v.optional(v.number()),
+  },
+  returns: v.array(vesselPingValidationSchema),
+  handler: async (ctx, args) => {
     try {
+      const lookbackMs = args.lookbackMs ?? DEFAULT_LOOKBACK_MS;
+      const since = args.nowMs - lookbackMs;
+
       const latestPings = await ctx.db
         .query("vesselPings")
-        .order("desc")
-        .take(20);
+        .withIndex("by_timestamp", (q) => q.gte("TimeStamp", since))
+        .collect();
+
       return latestPings.map(stripConvexMeta);
     } catch (error) {
       throw new ConvexError({
-        message: "Failed to fetch latest 20 vessel ping collections",
+        message: "Failed to fetch recent vessel pings",
         code: "QUERY_FAILED",
         severity: "error",
-        details: { error: String(error), limit: 20 },
+        details: { error: String(error) },
       });
     }
   },

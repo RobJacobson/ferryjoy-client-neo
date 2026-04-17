@@ -132,8 +132,8 @@ bun run convex:logs:prod              # View production logs
 Optional identity repopulate (runs public Convex actions: `runSyncBackendVessels`, `runSyncBackendTerminals`, topology refresh):
 
 ```bash
-bun run convex:repopulate-vessels           # Replace `vessels` from WSF basics
-bun run convex:repopulate-terminals         # Replace `terminals` from WSF basics
+bun run convex:repopulate-vessels           # Replace `vesselsIdentity` from WSF basics
+bun run convex:repopulate-terminals         # Replace `terminalsIdentity` from WSF basics
 bun run convex:repopulate-terminals-topology
 bun run convex:repopulate-identity          # All of the above in sequence
 ```

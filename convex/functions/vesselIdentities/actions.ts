@@ -5,17 +5,9 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
+import { fetchWsfVesselIdentities } from "adapters/wsf";
 import { v } from "convex/values";
-import {
-  fetchVesselBasics,
-  type VesselBasic,
-} from "ws-dottie/wsf-vessels/core";
-import type { Vessel } from "./schemas";
-
-type VesselBasicWithIdentity = VesselBasic & {
-  VesselName: string;
-  VesselAbbrev: string;
-};
+import type { VesselIdentity } from "./schemas";
 
 /**
  * Internal cron entry: fetch WSF vessel basics and replace the backend
@@ -58,10 +50,10 @@ export const runSyncBackendVessels = action({
  * @param ctx - Convex action context for database operations
  * @returns Backend vessels for the current action
  */
-export async function loadBackendVessels(
+export async function loadVesselIdentities(
   ctx: ActionCtx
-): Promise<Array<Vessel>> {
-  let vessels: Array<Vessel> = await ctx.runQuery(
+): Promise<Array<VesselIdentity>> {
+  let vessels: Array<VesselIdentity> = await ctx.runQuery(
     internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
   );
 
@@ -77,7 +69,7 @@ export async function loadBackendVessels(
 
   if (vessels.length === 0) {
     throw new Error(
-      "Backend vessels table is still empty after bootstrap refresh."
+      "Backend vesselsIdentity table is still empty after bootstrap refresh."
     );
   }
 
@@ -85,20 +77,16 @@ export async function loadBackendVessels(
 }
 
 /**
- * Fetch WSF vessel basics and replace the backend `vessels` snapshot.
+ * Fetch WSF vessel basics and replace the backend `vesselsIdentity` snapshot.
  *
  * Shared by {@link syncBackendVessels}, {@link runSyncBackendVessels},
- * {@link loadBackendVessels}, and orchestrator bootstrap.
+ * {@link loadVesselIdentities}, and orchestrator bootstrap.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced
  */
 export async function syncBackendVesselTable(ctx: ActionCtx): Promise<void> {
-  const fetchedVessels = await fetchVesselBasics();
-  const updatedAt = Date.now();
-  const vessels: Array<Vessel> = fetchedVessels
-    .filter(hasVesselIdentity)
-    .map((vessel) => toBackendVessel(vessel, updatedAt));
+  const vessels = await fetchWsfVesselIdentities();
 
   await ctx.runMutation(
     internal.functions.vesselLocation.mutations.replaceBackendVessels,
@@ -107,32 +95,3 @@ export async function syncBackendVesselTable(ctx: ActionCtx): Promise<void> {
     }
   );
 }
-
-/**
- * Narrow raw WSF vessel basics to rows that contain the identity fields
- * required for the backend vessel table.
- *
- * @param vessel - Raw WSF vessel basics row
- * @returns True when the row contains both vessel name and abbreviation
- */
-const hasVesselIdentity = (
-  vessel: VesselBasic
-): vessel is VesselBasicWithIdentity =>
-  Boolean(vessel.VesselName && vessel.VesselAbbrev);
-
-/**
- * Maps one WSF vessel basics row into the backend vessel snapshot shape.
- *
- * @param vessel - WSF vessel basics row with required identity fields
- * @param updatedAt - Shared snapshot refresh timestamp
- * @returns Backend vessel snapshot row ready for persistence
- */
-const toBackendVessel = (
-  vessel: VesselBasicWithIdentity,
-  updatedAt: number
-): Vessel => ({
-  VesselID: vessel.VesselID,
-  VesselName: vessel.VesselName.trim(),
-  VesselAbbrev: vessel.VesselAbbrev.trim(),
-  UpdatedAt: updatedAt,
-});

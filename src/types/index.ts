@@ -13,7 +13,7 @@ export {
   type VesselLocation,
 } from "convex/functions/vesselLocation/schemas";
 export {
-  type ConvexVesselPingCollection,
+  type ConvexVesselPing,
   toDomainVesselPing,
   type VesselPing,
 } from "convex/functions/vesselPings/schemas";
@@ -23,6 +23,6 @@ export {
   type VesselTrip,
   type VesselTripWithScheduledTrip,
 } from "convex/functions/vesselTrips/schemas";
-export type { Terminal } from "functions/terminals/schemas";
+export type { TerminalIdentity as Terminal } from "functions/terminalIdentities/schemas";
 export type { TerminalTopology } from "functions/terminalsTopology/schemas";
-export type { Vessel } from "functions/vessels/schemas";
+export type { VesselIdentity as Vessel } from "functions/vesselIdentities/schemas";

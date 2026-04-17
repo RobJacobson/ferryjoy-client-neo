@@ -2,14 +2,7 @@
  * WSF-facing terminal lookup helpers against backend terminal snapshots.
  */
 
-export type TerminalIdentity = {
-  TerminalID: number;
-  TerminalName: string;
-  TerminalAbbrev: string;
-  IsPassengerTerminal?: boolean;
-  Latitude?: number;
-  Longitude?: number;
-};
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
 
 /**
  * Resolves a terminal by its backend abbreviation.

@@ -8,11 +8,11 @@ import { createLineGradient } from "./utils/shared";
 import { createSmoothedLine } from "./utils/smoothing";
 
 export const VesselLine = ({
-  vesselId,
+  vesselAbbrev,
   pings,
   currentPosition,
 }: {
-  vesselId: string;
+  vesselAbbrev: string;
   pings: VesselPing[];
   currentPosition?: VesselLocation;
 }) => {
@@ -46,15 +46,15 @@ export const VesselLine = ({
   );
 
   // Generate IDs and styling properties
-  const sourceId = `vessel-line-source-${vesselId}`;
-  const layerId = `vessel-line-layer-${vesselId}`;
+  const sourceId = `vessel-line-source-${vesselAbbrev}`;
+  const layerId = `vessel-line-layer-${vesselAbbrev}`;
   const innerLineWidth = VESSEL_LINE_CONFIG.styling.innerLineWidth * mapScale;
   const outerLineWidth = VESSEL_LINE_CONFIG.styling.outerLineWidth * mapScale;
 
   // Render platform-specific VesselLine component with all props
   return (
     <LineLayer
-      id={`vessel-${vesselId}`}
+      id={`vessel-${vesselAbbrev}`}
       line={line || undefined}
       inService={inService}
       rgbaColor={rgbaColor}

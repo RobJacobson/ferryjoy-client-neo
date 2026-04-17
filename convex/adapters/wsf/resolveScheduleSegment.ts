@@ -4,11 +4,10 @@
  */
 
 import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
-import {
-  resolveTerminalByName,
-  type TerminalIdentity,
-} from "./resolveTerminal";
-import { resolveVessel, type VesselIdentity } from "./resolveVessel";
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
+import { resolveTerminalByName } from "./resolveTerminal";
+import { tryResolveVessel } from "./resolveVessel";
 
 type ResolvedScheduleSegment = {
   vessel: VesselIdentity;
@@ -29,7 +28,7 @@ export const resolveScheduleSegment = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): ResolvedScheduleSegment | null => {
-  const vessel = resolveVessel(segment.VesselName, vessels);
+  const vessel = tryResolveVessel(segment.VesselName, vessels);
   const departingTerminal = resolveTerminalByName(
     segment.DepartingTerminalName,
     terminals

@@ -10,21 +10,19 @@ import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { DEFAULT_PROCESS_VESSEL_TRIPS_DEPS } from "adapters/vesselTrips/processTick";
-import { fetchWsfVesselLocations } from "adapters/wsf/fetchVesselLocations";
+import { fetchWsfVesselLocations } from "adapters/wsf";
 import {
   getPassengerTerminalAbbrevs,
   runVesselOrchestratorTick,
 } from "domain/vesselOrchestration";
 import { processVesselTripsWithDeps } from "domain/vesselTrips/processTick/processVesselTrips";
 import type { TickEventWrites } from "domain/vesselTrips/processTick/tickEventWrites";
-import { syncBackendTerminalTable } from "functions/terminals/actions";
-import type { Terminal } from "functions/terminals/schemas";
+import { syncBackendTerminalTable } from "functions/terminalIdentities/actions";
+import type { TerminalIdentity } from "functions/terminalIdentities/schemas";
+import { syncBackendVesselTable } from "functions/vesselIdentities/actions";
+import type { VesselIdentity } from "functions/vesselIdentities/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { toConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { syncBackendVesselTable } from "functions/vessels/actions";
-import type { Vessel } from "functions/vessels/schemas";
 import type { TickActiveTrip } from "functions/vesselTrips/schemas";
-import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 /**
  * Orchestrator action that fetches vessel locations once and delegates to both
@@ -38,7 +36,7 @@ import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vesse
  * 1. Fetch vessel locations via fetchVesselLocations()
  * 2. Load vessels, terminals, and active trips in one internal query (with
  *    bootstrap refreshes when identity tables are empty)
- * 3. Convert each WSF payload to `ConvexVesselLocation`
+ * 3. Obtain `ConvexVesselLocation` rows from the WSF adapter (fetch + identity map)
  * 4. Capture one tick timestamp for downstream consumers
  * 5. Run domain tick pipeline with injected adapters (locations branch vs trip
  *    branch with lifecycle then timeline writes)
@@ -74,23 +72,9 @@ export const updateVesselOrchestrator = internalAction({
         await loadOrchestratorTickReadModelOrThrow(ctx);
       activeTripsForTick = activeTrips;
       passengerTerminalAbbrevs = getPassengerTerminalAbbrevs(terminals);
-      const rawLocations =
-        (await fetchWsfVesselLocations()) as unknown as DottieVesselLocation[];
-
-      convexLocations = rawLocations.flatMap((rawLocation) => {
-        try {
-          return [toConvexVesselLocation(rawLocation, vessels, terminals)];
-        } catch (error) {
-          const err = toError(error);
-          console.error("Skipping vessel location due to unresolved vessel:", {
-            VesselID: rawLocation.VesselID,
-            VesselName: rawLocation.VesselName,
-            error: err.message,
-          });
-
-          return [];
-        }
-      });
+      // TODO: Optionally isolate per-row conversion failures so one bad feed row
+      // does not fail the entire tick; today the adapter throws on first error.
+      convexLocations = await fetchWsfVesselLocations(vessels, terminals);
     } catch (error) {
       const err = toError(error);
       errors.fetch = { message: err.message, stack: err.stack };
@@ -193,8 +177,8 @@ export const applyTickEventWrites = async (
  * @returns Vessels, terminals, and active trips for this tick
  */
 async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
-  vessels: Vessel[];
-  terminals: Terminal[];
+  vessels: VesselIdentity[];
+  terminals: TerminalIdentity[];
   activeTrips: TickActiveTrip[];
 }> {
   const readModelRef =
@@ -220,13 +204,13 @@ async function loadOrchestratorTickReadModelOrThrow(ctx: ActionCtx): Promise<{
 
   if (snapshot.vessels.length === 0) {
     throw new Error(
-      "Backend vessels table is still empty after bootstrap refresh."
+      "Backend vesselsIdentity table is still empty after bootstrap refresh."
     );
   }
 
   if (snapshot.terminals.length === 0) {
     throw new Error(
-      "Backend terminals table is still empty after bootstrap refresh."
+      "Backend terminalsIdentity table is still empty after bootstrap refresh."
     );
   }
 

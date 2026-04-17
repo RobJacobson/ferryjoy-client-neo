@@ -3,9 +3,9 @@
  */
 
 import {
-  resolveVessel,
   resolveVesselHistory,
   type TerminalIdentity,
+  tryResolveVessel,
   type VesselIdentity,
 } from "adapters/wsf";
 import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
@@ -106,7 +106,7 @@ const getHistoryActualsByEventKey = ({
   return historyRecords.reduce((actualsByEventKey, record) => {
     const actualDeparture = record.ActualDepart?.getTime();
     const arrivalProxy = record.EstArrival?.getTime();
-    const vessel = resolveVessel(
+    const vessel = tryResolveVessel(
       record.Vessel ? String(record.Vessel) : "",
       vessels
     );

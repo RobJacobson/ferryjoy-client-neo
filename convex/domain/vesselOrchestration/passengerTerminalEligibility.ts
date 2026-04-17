@@ -31,7 +31,7 @@ export const getPassengerTerminalAbbrevs = (
  * Test whether a terminal abbreviation participates in passenger trip logic.
  *
  * @param terminalAbbrev - Candidate terminal abbreviation
- * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
+ * @param passengerTerminalAbbrevs - Allow-list derived from the terminalsIdentity table
  * @returns True when the abbreviation is trip-eligible
  */
 export const isPassengerTerminalAbbrev = (
@@ -47,7 +47,7 @@ export const isPassengerTerminalAbbrev = (
  * keeps trip derivation constrained to passenger-terminal movements only.
  *
  * @param location - Converted vessel location for the current tick
- * @param passengerTerminalAbbrevs - Allow-list derived from the terminals table
+ * @param passengerTerminalAbbrevs - Allow-list derived from the terminalsIdentity table
  * @returns True when the location should be processed by `vesselTrips`
  */
 export const isTripEligibleLocation = (
