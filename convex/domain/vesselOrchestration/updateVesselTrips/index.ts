@@ -1,6 +1,6 @@
 /**
- * Orchestrator concern **updateVesselTrips**: passenger-terminal gates,
- * **`tripLifecycle/`**, tick plan (`processTick/` / `computeVesselTripTickWritePlan`), continuity, read helpers,
+ * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick plan
+ * (`processTick/` / `computeVesselTripTickWritePlan`), continuity, read helpers,
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
@@ -42,12 +42,6 @@ export {
   type VesselTripCoreProposal,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
-export {
-  getPassengerTerminalAbbrevs,
-  isPassengerTerminalAbbrev,
-  isTripEligibleLocation,
-  selectTripEligibleLocations,
-} from "./passengerTerminalEligibility";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
   computeVesselTripTickWritePlan,

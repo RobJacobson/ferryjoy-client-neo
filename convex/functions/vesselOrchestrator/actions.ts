@@ -115,11 +115,10 @@ export const updateVesselOrchestrator = internalAction({
         createVesselTripPredictionModelAccess(ctx)
       );
 
-      // Compute gated trip writes + tick anchor before any lifecycle mutations run.
+      // Compute trip writes + tick anchor before any lifecycle mutations run.
       const { tripWrites, tickStartedAt } = await computeOrchestratorTripWrites(
         {
           convexLocations,
-          terminalsIdentity,
           activeTrips,
         },
         tripDeps

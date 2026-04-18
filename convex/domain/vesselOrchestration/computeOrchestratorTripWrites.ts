@@ -1,10 +1,8 @@
 /**
- * Trip-branch writable bundle for one vessel-orchestrator tick: passenger-terminal
- * gating, tick clock, prediction fallback policy, and
- * {@link computeVesselTripTickWritePlan}.
+ * Trip-branch writable bundle for one vessel-orchestrator tick: tick clock,
+ * prediction fallback policy, and {@link computeVesselTripTickWritePlan}.
  */
 
-import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTripWithPredictions,
@@ -14,7 +12,6 @@ import {
   computeVesselTripTickWritePlan,
   PREDICTION_FALLBACK_WINDOW_SECONDS,
   type ProcessVesselTripsDeps,
-  selectTripEligibleLocations,
 } from "./updateVesselTrips";
 import type { VesselTripTickWritePlan } from "./updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
 
@@ -39,10 +36,10 @@ export type OrchestratorTripWritesOptions = {
 };
 
 /**
- * Computes trip lifecycle writes for one tick: filters to trip-eligible locations,
- * anchors wall-clock policy, and builds {@link VesselTripTickWritePlan}.
+ * Computes trip lifecycle writes for one tick: anchors wall-clock policy and
+ * builds {@link VesselTripTickWritePlan}.
  *
- * @param input - Converted locations, terminal snapshot, and preloaded active trips
+ * @param input - Converted locations and preloaded active trips
  * @param deps - Trip builders and schedule-backed adapters (from
  *   {@link createDefaultProcessVesselTripsDeps} in production)
  * @param options - Optional tick clock override for tests
@@ -51,7 +48,6 @@ export type OrchestratorTripWritesOptions = {
 export const computeOrchestratorTripWrites = async (
   input: {
     convexLocations: ReadonlyArray<ConvexVesselLocation>;
-    terminalsIdentity: ReadonlyArray<TerminalIdentity>;
     activeTrips: ReadonlyArray<
       TickActiveTrip | ConvexVesselTripWithPredictions
     >;
@@ -61,18 +57,13 @@ export const computeOrchestratorTripWrites = async (
 ): Promise<OrchestratorTripWrites> => {
   const tickStartedAt = options?.tickStartedAt ?? Date.now();
 
-  const tripEligibleLocations = selectTripEligibleLocations(
-    input.convexLocations,
-    input.terminalsIdentity
-  );
-
   const processOptions = {
     shouldRunPredictionFallback:
       new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS,
   };
 
   const { plan } = await computeVesselTripTickWritePlan(
-    tripEligibleLocations,
+    input.convexLocations,
     tickStartedAt,
     deps,
     input.activeTrips,

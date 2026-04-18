@@ -21,7 +21,6 @@ import type {
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { orchestratorTickTestTerminalIdentities } from "./orchestratorTickTestFixtures";
 
 const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,
@@ -81,7 +80,6 @@ const runVesselTripsTick = async (
     await computeOrchestratorTripWrites(
       {
         convexLocations: locations,
-        terminalsIdentity: orchestratorTickTestTerminalIdentities,
         activeTrips: activeTrips ?? ctx.preloadedActiveTrips ?? [],
       },
       deps,

@@ -363,8 +363,7 @@ The timeline overlay path is designed to stay lightweight:
 ## Tests
 
 Orchestrator tick: `tests/executeVesselOrchestratorTick.integration.test.ts`,
-`tests/executeVesselOrchestratorTick.behavior.test.ts`, shared sample locations in
-`tests/orchestratorTickTestFixtures.ts`. Trip sequencing (plan → apply → timeline)
+`tests/executeVesselOrchestratorTick.behavior.test.ts`. Trip sequencing (plan → apply → timeline)
 is covered in `tests/processVesselTrips.tick.test.ts`.
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in

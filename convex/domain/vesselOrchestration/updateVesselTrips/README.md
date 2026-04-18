@@ -1,13 +1,12 @@
 # updateVesselTrips (orchestrator concern)
 
-**Trip branch** logic (invoked from `executeVesselOrchestratorTick` in `functions/vesselOrchestrator`): eligibility gates plus the full
+**Trip branch** logic (invoked from `executeVesselOrchestratorTick` in `functions/vesselOrchestrator`): the full
 **lifecycle** implementation used on each cron tick.
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| [`passengerTerminalEligibility.ts`](./passengerTerminalEligibility.ts) | Which locations run through trip processing |
 | [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTrip`, `processCompletedTrips`, `processCurrentTrips`, predictions, equality, strip-for-storage |
 | [`processTick/`](./processTick/) | `computeVesselTripTickWritePlan`, adapters, envelope, prediction policy |
 | [`continuity/`](./continuity/) | Docked identity continuity |

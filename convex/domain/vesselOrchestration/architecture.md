@@ -31,12 +31,11 @@ See [Target reorganization: four orchestrator concerns](#target-reorganization-f
 | **updateVesselPredictions** | Trip-shaped ML fields (`applyVesselPredictions`; `appendPredictions` helpers) | `updateVesselPredictions/applyVesselPredictions.ts`, `appendArriveDockPredictions` / `appendLeaveDockPredictions` in `appendPredictions.ts` |
 | **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `TickEventWrites` / `TimelineTickProjectionInput`; orchestrator `applyTickEventWrites` applies them |
 
-**Per tick, in one sentence:** For each passenger-terminal–eligible location, detect events → build/update trips (schedule enrichment → **updateVesselPredictions**) → strip predictions for DB where needed → batch upsert → assemble timeline writes → orchestrator persists timeline writes—**updateVesselTrips** → **updateVesselPredictions** → **updateTimeline**.
+**Per tick, in one sentence:** For each converted vessel location, detect events → build/update trips (schedule enrichment → **updateVesselPredictions**) → strip predictions for DB where needed → batch upsert → assemble timeline writes → orchestrator persists timeline writes—**updateVesselTrips** → **updateVesselPredictions** → **updateTimeline**.
 
 **Core files to remember:**
 
 ```text
-updateVesselTrips/passengerTerminalEligibility.ts   trip-branch gating (terminal allow-list)
 updateVesselTrips/processTick/processVesselTrips.ts   `computeVesselTripTickWritePlan` (domain plan); `runProcessVesselTripsTick` applies + timeline
 updateVesselTrips/tripLifecycle/buildTrip.ts   buildTripCore + applyVesselPredictions (ML)
 updateVesselPredictions/applyVesselPredictions.ts   ML tail (calls appendPredictions)
@@ -286,7 +285,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly. *
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports **updateTimeline** / **updateVesselPredictions** symbols, eligibility helpers, `computeVesselTripTickWritePlan`, and tick-related types.
+The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports **updateTimeline** / **updateVesselPredictions** symbols, `computeVesselTripTickWritePlan`, and tick-related types.
 
 ## `updateVesselTrips/read/` (query-time enrichment)
 
@@ -302,13 +301,12 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Passenger-terminal eligibility helpers re-exported from **updateVesselTrips** (`getPassengerTerminalAbbrevs`, `isPassengerTerminalAbbrev`, `isTripEligibleLocation`). Tick orchestration types and `executeVesselOrchestratorTick` live under **`convex/functions/vesselOrchestrator/`** (Step D).
+- `index.ts` — Re-exports `computeOrchestratorTripWrites` (`computeOrchestratorTripWrites.ts`). Tick orchestration types and `executeVesselOrchestratorTick` live under **`convex/functions/vesselOrchestrator/`** (Step D).
 
 ## Root files: `updateVesselTrips/`
 
-- `passengerTerminalEligibility.ts` — Trip-branch gating: `isTripEligibleLocation`, `getPassengerTerminalAbbrevs`, `isPassengerTerminalAbbrev`; used by **`executeVesselOrchestratorTick`** when filtering `tripEligibleLocations`.
 - `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup, predictionModelAccess)` bundles default `buildTrip` / `buildTripAdapters` / `predictionModelAccess` for the orchestrator (`lookup` from `createScheduledSegmentLookup`, `predictionModelAccess` from `createVesselTripPredictionModelAccess`).
-- `index.ts` — Re-exports timeline/prediction types, eligibility, `computeVesselTripTickWritePlan`, and tick adapter types (see file); production wiring pairs `runProcessVesselTripsTick` with `createDefaultProcessVesselTripsDeps` (domain), `createScheduledSegmentLookup`, and `createVesselTripPredictionModelAccess` as composed by **`executeVesselOrchestratorTick`**.
+- `index.ts` — Re-exports timeline/prediction types, `computeVesselTripTickWritePlan`, and tick adapter types (see file); production wiring pairs `runProcessVesselTripsTick` with `createDefaultProcessVesselTripsDeps` (domain), `createScheduledSegmentLookup`, and `createVesselTripPredictionModelAccess` as composed by **`executeVesselOrchestratorTick`**.
 
 ## Functions layer tied directly to the trip domain
 
@@ -329,7 +327,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 ## Tests
 
 - `convex/domain/vesselOrchestration/tests/`
-  - Cross-cutting tests (e.g. `buildTimelineTickProjectionInput`, `passengerTerminalEligibility`).
+  - Cross-cutting tests (e.g. `buildTimelineTickProjectionInput`, `computeOrchestratorTripWrites`).
 - `convex/functions/vesselOrchestrator/tests/executeVesselOrchestratorTick.*.test.ts`
   - Orchestrator tick integration and branch-isolation tests against `executeVesselOrchestratorTick`.
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`
@@ -468,8 +466,6 @@ Mirror **thin** runtime wrappers under `convex/functions/vesselOrchestrator/` (i
 
 ## 7) Key alternative-path behaviors
 
-- **Trip eligibility filter**
-  - Non-passenger marine locations are stored in the location branch and excluded from the trip branch (`isTripEligibleLocation` and related helpers in `updateVesselTrips/passengerTerminalEligibility.ts`).
 - **Debounce guard**
   - Contradictory raw signal suppresses boundary events for that tick.
 - **Upsert-gated projection**

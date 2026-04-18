@@ -104,7 +104,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolve
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_types from "../domain/vesselOrchestration/updateVesselTrips/continuity/types.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_index from "../domain/vesselOrchestration/updateVesselTrips/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_mutations_departNextActualization from "../domain/vesselOrchestration/updateVesselTrips/mutations/departNextActualization.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_passengerTerminalEligibility from "../domain/vesselOrchestration/updateVesselTrips/passengerTerminalEligibility.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters from "../domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps from "../domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.js";
@@ -179,7 +178,6 @@ import type * as functions_vesselLocationsHistoric_schemas from "../functions/ve
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_schemas from "../functions/vesselOrchestrator/schemas.js";
-import type * as functions_vesselOrchestrator_tests_orchestratorTickTestFixtures from "../functions/vesselOrchestrator/tests/orchestratorTickTestFixtures.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
 import type * as functions_vesselPings_index from "../functions/vesselPings/index.js";
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
@@ -323,7 +321,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/continuity/types": typeof domain_vesselOrchestration_updateVesselTrips_continuity_types;
   "domain/vesselOrchestration/updateVesselTrips/index": typeof domain_vesselOrchestration_updateVesselTrips_index;
   "domain/vesselOrchestration/updateVesselTrips/mutations/departNextActualization": typeof domain_vesselOrchestration_updateVesselTrips_mutations_departNextActualization;
-  "domain/vesselOrchestration/updateVesselTrips/passengerTerminalEligibility": typeof domain_vesselOrchestration_updateVesselTrips_passengerTerminalEligibility;
   "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters": typeof domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters;
   "domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps": typeof domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps;
   "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips;
@@ -398,7 +395,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/schemas": typeof functions_vesselOrchestrator_schemas;
-  "functions/vesselOrchestrator/tests/orchestratorTickTestFixtures": typeof functions_vesselOrchestrator_tests_orchestratorTickTestFixtures;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
   "functions/vesselPings/index": typeof functions_vesselPings_index;
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;
