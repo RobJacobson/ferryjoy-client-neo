@@ -1,14 +1,39 @@
 /**
- * Shared sample `ConvexVesselLocation` rows for orchestrator tick tests
- * (`executeVesselOrchestratorTick.integration.test.ts`,
- * `executeVesselOrchestratorTick.behavior.test.ts`).
+ * Shared sample `ConvexVesselLocation` rows for orchestrator-related tests
+ * (e.g. `processVesselTrips.tick.test.ts`).
  *
  * Trip-eligible filtering and prediction-fallback policy are covered in domain
  * tests (`isTripEligibleLocation`, `computeShouldRunPredictionFallback`), not
  * duplicated here.
  */
 
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+
+/**
+ * Minimal `terminalsIdentity` rows so default fixtures (ANA → ORI) and golden-path
+ * legs involving LOP stay trip-eligible under passenger-terminal gating.
+ */
+export const orchestratorTickTestTerminalIdentities: TerminalIdentity[] = [
+  {
+    TerminalID: 1,
+    TerminalName: "Anacortes",
+    TerminalAbbrev: "ANA",
+    IsPassengerTerminal: true,
+  },
+  {
+    TerminalID: 15,
+    TerminalName: "Orcas Island",
+    TerminalAbbrev: "ORI",
+    IsPassengerTerminal: true,
+  },
+  {
+    TerminalID: 22,
+    TerminalName: "Lopez Island",
+    TerminalAbbrev: "LOP",
+    IsPassengerTerminal: true,
+  },
+];
 
 /**
  * Default CHE / ANA–ORI passenger-terminal fixture; optional overrides for

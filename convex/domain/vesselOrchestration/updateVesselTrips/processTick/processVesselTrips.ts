@@ -3,7 +3,7 @@
  *
  * Builds a {@link VesselTripTickWritePlan} for the functions-layer applier;
  * persistence and {@link buildTimelineTickProjectionInput} run outside this module
- * (see `runProcessVesselTripsTick` in `functions/vesselOrchestrator`). ML
+ * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML
  * attachment for trips is **updateVesselPredictions** (`applyVesselPredictions`,
  * invoked from `buildTrip` after schedule enrichment; see `architecture.md` §10).
  */

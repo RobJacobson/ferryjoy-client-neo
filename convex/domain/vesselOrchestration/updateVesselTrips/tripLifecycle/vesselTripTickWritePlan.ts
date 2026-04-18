@@ -1,7 +1,8 @@
 /**
  * Explicit write plan for one vessel-orchestrator tick: completed handoffs and
  * current-branch artifacts. The functions-layer applier runs Convex mutations
- * from this plan; {@link buildTimelineTickProjectionInput} runs only after apply.
+ * from this plan; {@link buildTimelineTickProjectionInput} runs only after apply
+ * (orchestrator trip branch).
  */
 
 import type {

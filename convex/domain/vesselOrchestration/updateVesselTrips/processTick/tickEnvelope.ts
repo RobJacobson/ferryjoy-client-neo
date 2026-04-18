@@ -6,8 +6,9 @@ import type { TimelineTickProjectionInput } from "domain/vesselOrchestration/upd
 
 /**
  * Full output of lifecycle processing for one tick. `tickEventWrites` is the
- * **updateTimeline** handoff: input to `applyTickEventWrites` after **updateVesselTrips**
- * (and embedded predictions) for this tick. See {@link TimelineTickProjectionInput}.
+ * **updateTimeline** handoff: input to timeline projection mutations after
+ * **updateVesselTrips** (and embedded predictions) for this tick. See
+ * {@link TimelineTickProjectionInput}.
  */
 export type VesselTripsTickResult = {
   tickStartedAt: number;

@@ -8,10 +8,10 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers use `runProcessVesselTripsTick` (`functions/vesselOrchestrator/runProcessVesselTripsTick.ts`)
- * with `computeVesselTripTickWritePlan`, `createDefaultProcessVesselTripsDeps` (domain),
- * and schedule lookup from `createScheduledSegmentLookup` as wired by
- * `executeVesselOrchestratorTick`.
+ * Production callers use `computeVesselOrchestratorTripTickWrites`
+ * (`domain/vesselOrchestration`) with `computeVesselTripTickWritePlan`,
+ * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
+ * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`).
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
  * trip branch composes with); canonical imports for those peers remain their own
@@ -46,6 +46,7 @@ export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
+  selectTripEligibleLocations,
 } from "./passengerTerminalEligibility";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {

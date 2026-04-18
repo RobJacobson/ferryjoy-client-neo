@@ -17,9 +17,10 @@ export type TickEventWrites = {
 };
 
 /**
- * Input to **updateTimeline** (`applyTickEventWrites` in the orchestrator).
- * Produced after **updateVesselTrips** (including **updateVesselPredictions** in
- * `buildTrip`) for this tick. Structurally identical to {@link TickEventWrites}.
+ * Input to **updateTimeline** (timeline projection step in
+ * `updateVesselOrchestrator`). Produced after **updateVesselTrips** (including
+ * **updateVesselPredictions** in `buildTrip`) for this tick. Structurally identical
+ * to {@link TickEventWrites}.
  */
 export type TimelineTickProjectionInput = TickEventWrites;
 

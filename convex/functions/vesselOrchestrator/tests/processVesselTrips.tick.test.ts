@@ -1,20 +1,27 @@
 /**
- * Sequencing tests for {@link runProcessVesselTripsTick} (plan → apply → timeline).
+ * Sequencing tests for domain `computeVesselOrchestratorTripTickWrites` →
+ * `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput` (same ordering
+ * as `updateVesselOrchestrator`).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { TickEventWrites } from "domain/vesselOrchestration/updateTimeline";
+import { computeVesselOrchestratorTripTickWrites } from "domain/vesselOrchestration";
+import {
+  buildTimelineTickProjectionInput,
+  type TickEventWrites,
+} from "domain/vesselOrchestration/updateTimeline";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { runProcessVesselTripsTick } from "../runProcessVesselTripsTick";
+import { orchestratorTickTestTerminalIdentities } from "./orchestratorTickTestFixtures";
 
 const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,
@@ -28,9 +35,8 @@ const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
 
 /**
  * Applies timeline writes after lifecycle (same branching as
- * `functions/vesselOrchestrator/applyTickEventWrites.ts`) using the test fake’s
- * `runMutation` so sequencing assertions inspect recorded mutations here (functions
- * test module; same ordering as production `executeVesselOrchestratorTick`).
+ * `updateVesselOrchestrator` → `applyTimelineTickProjectionWrites`) using the test
+ * fake’s `runMutation` so sequencing assertions inspect recorded mutations here.
  *
  * @param ctx - Test fake action context
  * @param writes - Actual and predicted dock writes from the tick
@@ -71,16 +77,28 @@ const runVesselTripsTick = async (
   deps: ReturnType<typeof createDeps>,
   activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
-  const result = await runProcessVesselTripsTick(
+  const { tripWrites, tickStartedAt: tickAt } =
+    await computeVesselOrchestratorTripTickWrites(
+      {
+        convexLocations: locations,
+        terminalsIdentity: orchestratorTickTestTerminalIdentities,
+        activeTrips: activeTrips ?? ctx.preloadedActiveTrips ?? [],
+      },
+      deps,
+      { tickStartedAt }
+    );
+  const { completedFacts, currentBranch } = await applyVesselTripTickWritePlan(
     ctx as unknown as ActionCtx,
-    locations,
-    tickStartedAt,
-    deps,
-    activeTrips ?? ctx.preloadedActiveTrips ?? []
+    tripWrites
   );
+  const tickEventWrites = buildTimelineTickProjectionInput({
+    completedFacts,
+    currentBranch,
+    tickStartedAt: tickAt,
+  });
   await applyTickEventWritesLikeOrchestrator(
     ctx as unknown as ActionCtx,
-    result.tickEventWrites
+    tickEventWrites
   );
 };
 
@@ -94,7 +112,7 @@ const defaultEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-describe("runProcessVesselTripsTick", () => {
+describe("vessel orchestrator trip tick sequencing", () => {
   it("uses preloaded active trips without extra reads", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
@@ -663,7 +681,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `runProcessVesselTripsTick`
+ * @returns Dependency bag for `computeVesselOrchestratorTripTickWrites`
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =

@@ -1,11 +1,12 @@
 /**
  * Pure **updateTimeline** step: turns authoritative lifecycle outputs into
- * `TimelineTickProjectionInput` for `applyTickEventWrites`.
+ * `TimelineTickProjectionInput` for timeline projection mutations in
+ * `updateVesselOrchestrator`.
  *
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
- * `runProcessVesselTripsTick` (`functions/vesselOrchestrator`) imports from the
- * `updateTimeline` façade so timeline assembly stays in the **updateTimeline**
- * concern without a `vesselTrips` → `vesselOrchestration` barrel cycle.
+ * `functions/vesselOrchestrator/actions.ts` imports from the `updateTimeline`
+ * façade so timeline assembly stays in the **updateTimeline** concern without a
+ * `vesselTrips` → `vesselOrchestration` barrel cycle.
  */
 
 import {
@@ -37,7 +38,7 @@ export type BuildTimelineTickProjectionInputArgs = {
  * upsert-gated messages intact).
  *
  * @param args - Boundary facts, current-branch artifacts, and tick time
- * @returns Sparse timeline payload for `applyTickEventWrites`
+ * @returns Sparse timeline payload for orchestrator timeline mutations
  */
 export const buildTimelineTickProjectionInput = (
   args: BuildTimelineTickProjectionInputArgs

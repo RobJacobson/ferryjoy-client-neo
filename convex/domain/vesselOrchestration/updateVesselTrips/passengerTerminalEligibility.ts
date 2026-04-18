@@ -3,6 +3,7 @@
  * ticks.
  */
 
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 
 /**
@@ -66,3 +67,23 @@ export const isTripEligibleLocation = (
       location.ArrivingTerminalAbbrev,
       passengerTerminalAbbrevs
     ));
+
+/**
+ * Filters converted vessel locations to those eligible for the trip pipeline for
+ * this tick, using the same terminal identity snapshot as the orchestrator read
+ * model.
+ *
+ * @param convexLocations - Converted WSF locations for the current tick
+ * @param terminalsIdentity - Terminal rows from the orchestrator snapshot
+ * @returns Locations that pass passenger-terminal gating
+ */
+export const selectTripEligibleLocations = (
+  convexLocations: ReadonlyArray<ConvexVesselLocation>,
+  terminalsIdentity: ReadonlyArray<TerminalIdentity>
+): ConvexVesselLocation[] => {
+  const passengerTerminalAbbrevs =
+    getPassengerTerminalAbbrevs(terminalsIdentity);
+  return convexLocations.filter((location) =>
+    isTripEligibleLocation(location, passengerTerminalAbbrevs)
+  );
+};

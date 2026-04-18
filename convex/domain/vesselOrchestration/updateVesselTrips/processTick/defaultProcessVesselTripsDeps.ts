@@ -1,7 +1,7 @@
 /**
  * Default production dependency bag for {@link computeVesselTripTickWritePlan}
- * (**updateVesselTrips**). Consumed by `runProcessVesselTripsTick` in
- * `functions/vesselOrchestrator`.
+ * (**updateVesselTrips**). Consumed by `computeVesselOrchestratorTripTickWrites`
+ * (`domain/vesselOrchestration`) as wired from `updateVesselOrchestrator`.
  *
  * Composes lifecycle builders and schedule-backed trip adapters from a
  * {@link ScheduledSegmentLookup} supplied by the functions layer (Convex

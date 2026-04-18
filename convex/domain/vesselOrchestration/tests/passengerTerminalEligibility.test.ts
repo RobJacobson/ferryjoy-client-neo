@@ -4,6 +4,7 @@ import {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
+  selectTripEligibleLocations,
 } from "../updateVesselTrips";
 
 describe("vesselOrchestration passenger terminal helpers", () => {
@@ -34,6 +35,19 @@ describe("vesselOrchestration passenger terminal helpers", () => {
         passengerTerminalAbbrevs
       )
     ).toBe(true);
+  });
+
+  it("selectTripEligibleLocations matches allow-list plus isTripEligibleLocation", () => {
+    const terminals = [
+      { TerminalID: 1, TerminalName: "A", TerminalAbbrev: "ANA" },
+      { TerminalID: 2, TerminalName: "B", TerminalAbbrev: "ORI" },
+    ];
+    const eligible = selectTripEligibleLocations(
+      [makeLocation(), makeLocation({ DepartingTerminalAbbrev: "EAH" })],
+      terminals
+    );
+    expect(eligible).toHaveLength(1);
+    expect(eligible[0]?.DepartingTerminalAbbrev).toBe("ANA");
   });
 
   it("rejects trip processing when either terminal is not a passenger terminal", () => {
