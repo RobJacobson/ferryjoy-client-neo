@@ -15,9 +15,10 @@ import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
-const orchestratorTickReadModelSchema = v.object({
-  vessels: v.array(vesselIdentitySchema),
-  terminals: v.array(terminalIdentitySchema),
+/** Return validator for {@link getOrchestratorModelData}. */
+const orchestratorModelDataSchema = v.object({
+  vesselsIdentity: v.array(vesselIdentitySchema),
+  terminalsIdentity: v.array(terminalIdentitySchema),
   activeTrips: v.array(vesselTripStoredSchema),
 });
 
@@ -31,19 +32,21 @@ const orchestratorTickReadModelSchema = v.object({
  * @param ctx - Convex query context
  * @returns Stripped vessel rows, terminal rows, and storage-native active trips
  */
-export const getOrchestratorTickReadModelInternal = internalQuery({
+export const getOrchestratorModelData = internalQuery({
   args: {},
-  returns: orchestratorTickReadModelSchema,
+  returns: orchestratorModelDataSchema,
   handler: async (ctx) => {
+    // Run three queries for vessel identities, terminal identities, and active trips
     const [vessels, terminals, trips] = await Promise.all([
       ctx.db.query("vesselsIdentity").collect(),
       ctx.db.query("terminalsIdentity").collect(),
       ctx.db.query("activeVesselTrips").collect(),
     ]);
 
+    // Return the results as an object with the correct shapes
     return {
-      vessels: vessels.map(stripConvexMeta),
-      terminals: terminals.map(stripConvexMeta),
+      vesselsIdentity: vessels.map(stripConvexMeta),
+      terminalsIdentity: terminals.map(stripConvexMeta),
       activeTrips: trips.map(stripConvexMeta),
     };
   },

@@ -82,16 +82,7 @@ export type VesselOrchestratorTickResult = {
 };
 
 /**
- * Return type for the `updateVesselOrchestrator` internal action. Reuses
- * {@link VesselOrchestratorTickResult} after a successful fetch; fetch failures
- * omit `tickMetrics` because the domain tick never runs.
+ * Return type for `updateVesselOrchestrator` when the tick completes. Read-model
+ * or WSF failures **throw** (same as other actions).
  */
-export type UpdateVesselOrchestratorResult =
-  | VesselOrchestratorTickResult
-  | {
-      locationsSuccess: false;
-      tripsSuccess: false;
-      errors: {
-        fetch: { message: string; stack?: string };
-      };
-    };
+export type UpdateVesselOrchestratorResult = VesselOrchestratorTickResult;

@@ -24,11 +24,7 @@ describe("appendFinalSchedule", () => {
     });
 
     const appendFinalSchedule = buildAppendFinalSchedule(createTestLookup({}));
-    const enriched = await appendFinalSchedule(
-      undefined,
-      baseTrip,
-      existingTrip
-    );
+    const enriched = await appendFinalSchedule(baseTrip, existingTrip);
 
     expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
@@ -66,7 +62,6 @@ describe("appendFinalSchedule", () => {
       })
     );
     const enriched = await appendFinalSchedule(
-      undefined,
       baseTrip,
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );

@@ -75,10 +75,10 @@ It does **not** directly fetch WSF; that happens in adapters/functions layers.
 - `convex/functions/vesselOrchestrator/actions.ts`
   - Fetches WSF locations once.
   - Loads read model (vessels, terminals, active trips).
-  - Calls `runVesselOrchestratorTick(...)`.
+  - Calls `runVesselOrchestratorTick(..., createVesselOrchestratorTickDeps(ctx))` (`createVesselOrchestratorTickDeps.ts`).
 - `convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts`
   - Filters trip-eligible locations (`isTripEligibleLocation` from `passengerTerminalEligibility`).
-  - Calls injected `deps.processVesselTrips` (wired in `actions.ts` via `createDefaultProcessVesselTripsDeps` + `createScheduledSegmentLookup` to `processVesselTripsWithDeps`).
+  - Calls injected `deps.processVesselTrips` (wired in `createVesselOrchestratorTickDeps.ts` via `createDefaultProcessVesselTripsDeps(createScheduledSegmentLookup(ctx), createVesselTripPredictionModelAccess(ctx))` → `processVesselTripsWithDeps`).
   - Calls `deps.applyTickEventWrites` with `tripResult.tickEventWrites` from the trip step.
 - `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
   - Main domain orchestrator for trip lifecycle.
@@ -119,7 +119,7 @@ Cron (15s)
                  -> processCompletedTrips(...)
                  -> processCurrentTrips(...)
                  -> assemble TickEventWrites
-               deps.applyTickEventWrites(...) [applyTickEventWrites in actions]
+               deps.applyTickEventWrites(...) [applyTickEventWrites.ts via createVesselOrchestratorTickDeps]
                     -> eventsActual mutation
                     -> eventsPredicted mutation
 ```
@@ -249,7 +249,7 @@ What it means:
 
 Cron-driven trip lifecycle for one tick: detection, `buildTrip`, completed vs current
 branches, equality, ML appenders, and strip-for-storage. Wired by
-`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `createScheduledSegmentLookup` in `functions/vesselOrchestrator/actions.ts`.
+`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts` (`createScheduledSegmentLookup` plus `createVesselTripPredictionModelAccess` from `functions/predictions/createVesselTripPredictionModelAccess.ts`).
 
 - `detectTripEvents.ts` — Per-vessel event flags from existing trip + location.
 - `tripEventTypes.ts` — Shared event bundle type.
@@ -278,7 +278,7 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `vesselOrchestration/updateTimeline/` (**updateTimeline** — trip output → timeline writes)
 
-Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly. **Apply** is separate: the exported helper `applyTickEventWrites` in `functions/vesselOrchestrator/actions.ts` runs the internal timeline mutations after lifecycle writes (single apply owner; see `updateTimeline/README.md`).
+Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly. **Apply** is separate: the exported helper `applyTickEventWrites` in `functions/vesselOrchestrator/applyTickEventWrites.ts` runs the internal timeline mutations after lifecycle writes (single apply owner; wired into deps by `createVesselOrchestratorTickDeps`; see `updateTimeline/README.md`).
 
 - `tickEventWrites.ts` — `TickEventWrites` / `TimelineTickProjectionInput`, `mergeTickEventWrites`.
 - `timelineEventAssembler.ts` — Converts lifecycle branch outputs into tick write payloads.
@@ -309,12 +309,16 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 ## Root files: `updateVesselTrips/`
 
 - `passengerTerminalEligibility.ts` — Trip-branch gating: `isTripEligibleLocation`, `getPassengerTerminalAbbrevs`, `isPassengerTerminalAbbrev`; used by `runVesselOrchestratorTick` when filtering `tripEligibleLocations`.
-- `index.ts` — Re-exports timeline/prediction types, eligibility, and tick adapter types (see file); production wiring pairs `processVesselTripsWithDeps` with `createDefaultProcessVesselTripsDeps` (domain) and `createScheduledSegmentLookup` in `functions/vesselOrchestrator/actions.ts`.
+- `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup, predictionModelAccess)` bundles default `buildTrip` / `buildTripAdapters` / `predictionModelAccess` for the orchestrator (`lookup` from `createScheduledSegmentLookup`, `predictionModelAccess` from `createVesselTripPredictionModelAccess`).
+- `index.ts` — Re-exports timeline/prediction types, eligibility, and tick adapter types (see file); production wiring pairs `processVesselTripsWithDeps` with `createDefaultProcessVesselTripsDeps` (domain), `createScheduledSegmentLookup`, and `createVesselTripPredictionModelAccess` via `createVesselOrchestratorTickDeps` in `functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`.
 
 ## Functions layer tied directly to the trip domain
 
-- `convex/functions/vesselOrchestrator/actions.ts`
-  - `createScheduledSegmentLookup` builds `ScheduledSegmentLookup` from Convex internal `eventsScheduled` queries (for default trip deps).
+- `convex/functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`
+  - `createVesselOrchestratorTickDeps(ctx)` returns `VesselOrchestratorTickDeps` for `runVesselOrchestratorTick` (bulk locations, `processVesselTripsWithDeps`, `applyTickEventWrites`).
+  - Internal `createScheduledSegmentLookup` builds `ScheduledSegmentLookup` from Convex internal `eventsScheduled` queries (for default trip deps).
+- `convex/functions/predictions/createVesselTripPredictionModelAccess.ts`
+  - `createVesselTripPredictionModelAccess` builds `VesselTripPredictionModelAccess` from `ctx.runQuery` to production model-parameter queries (for `buildTrip` / **updateVesselPredictions**).
 - `convex/functions/vesselTrips/queries.ts`
   - Public trip queries and enrichment.
 - `convex/functions/vesselTrips/mutations.ts`

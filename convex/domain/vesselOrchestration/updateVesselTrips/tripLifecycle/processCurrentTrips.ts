@@ -11,25 +11,18 @@
  *    timeline messages when overlay-relevant fields differ (can run
  *    without an upsert for prediction-only ticks). Writes are assembled in
  *    `timelineEventAssembler` after this branch returns.
- * 4. **Early exit** — If nothing to upsert and no overlay work, return empty.
- * 5. **Batch upsert** — When needed, `upsertVesselTripsBatch` persists queued
- *    active trips in one mutation.
- * 6. **Success set** — Remember which vessels’ upserts succeeded.
- * 7. **Post-persist hooks** — Leave-dock depart-next backfill runs only after a
- *    successful upsert and uses the canonical departure boundary when present
- *    (never for projection-only ticks).
- * 8. **Return messages** — For the event assembler; items tied to an upsert
- *    carry `requiresSuccessfulUpsert` for filtering after step 5.
+ * 4. **Early exit** — If nothing to upsert and no overlay work, return empty
+ *    fragment (no Convex mutations here).
+ * 5. **Apply phase** (functions applier) — Batch upsert when needed, then
+ *    leave-dock hooks for successful upserts only.
+ * 6. **Return messages** — For the event assembler; items tied to an upsert
+ *    carry `requiresSuccessfulUpsert` for filtering after persistence.
  */
 
-import { api } from "_generated/api";
-import type { ActionCtx } from "_generated/server";
 import type {
   CurrentTripActualEventMessage,
-  CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/updateTimeline/types";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTripWithML,
@@ -42,6 +35,10 @@ import {
 } from "./processCurrentTripsTickLogging";
 import { tripWriteSuppressionFlags } from "./tripEquality";
 import type { TripEvents } from "./tripEventTypes";
+import type {
+  CurrentTripTickWriteFragment,
+  PendingLeaveDockEffect,
+} from "./vesselTripTickWritePlan";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
@@ -53,11 +50,6 @@ type CurrentTripBuildResult = CurrentTripTransition & {
   finalProposed: ConvexVesselTripWithML;
 };
 
-type PendingLeaveDockEffect = {
-  vesselAbbrev: string;
-  trip: ConvexVesselTripWithML;
-};
-
 type CurrentTripArtifacts = {
   activeUpserts: ConvexVesselTripWithML[];
   pendingActualMessages: CurrentTripActualEventMessage[];
@@ -65,44 +57,35 @@ type CurrentTripArtifacts = {
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
 };
 
-type UpsertBatchResult = {
-  perVessel: Array<{
-    vesselAbbrev: string;
-    ok: boolean;
-    reason?: string;
-  }>;
-};
-
 /**
- * Runs the active-trip pipeline for one orchestrator tick.
+ * Runs the active-trip build and artifact collection for one orchestrator tick.
+ * Convex mutations run in the functions-layer applier.
  *
- * Step-by-step flow is documented inline below; see the module header for
- * end-to-end context and invariants.
- *
- * @param ctx - Convex action context
  * @param currentTrips - Current-trip transitions for this tick
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Trip builder and injected function-layer adapters
- * @returns Upsert outcomes and messages for `timelineEventAssembler`
+ * @returns Pre-mutation fragment for the tick write applier
  */
 export const processCurrentTrips = async (
-  ctx: ActionCtx,
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
-  deps: Pick<ProcessCompletedTripsDeps, "buildTrip" | "buildTripAdapters">
-): Promise<CurrentTripLifecycleBranchResult> => {
+  deps: Pick<
+    ProcessCompletedTripsDeps,
+    "buildTrip" | "buildTripAdapters" | "predictionModelAccess"
+  >
+): Promise<CurrentTripTickWriteFragment> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map(async (transition) => {
       const buildResult = {
         ...transition,
         finalProposed: await deps.buildTrip(
-          ctx,
           transition.currLocation,
           transition.existingTrip,
           false,
           transition.events,
           shouldRunPredictionFallback,
-          deps.buildTripAdapters
+          deps.buildTripAdapters,
+          deps.predictionModelAccess
         ),
       };
       logTripTickDiagnostics(buildResult);
@@ -134,44 +117,19 @@ export const processCurrentTrips = async (
     collectedArtifacts.activeUpserts.length === 0 &&
     !hasTimelineMessageWork
   ) {
-    return emptyCurrentTripBranchResult();
+    return emptyCurrentTripTickWriteFragment();
   }
 
-  const successfulVessels =
-    collectedArtifacts.activeUpserts.length > 0
-      ? getSuccessfulVessels(
-          await ctx.runMutation(
-            api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
-            {
-              activeUpserts: collectedArtifacts.activeUpserts.map(
-                stripTripPredictionsForStorage
-              ),
-            }
-          )
-        )
-      : new Set<string>();
-
-  await runLeaveDockPostPersistEffects(
-    ctx,
-    successfulVessels,
-    collectedArtifacts.pendingLeaveDockEffects
-  );
-
   return {
-    successfulVessels,
+    activeUpserts: collectedArtifacts.activeUpserts,
     pendingActualMessages: collectedArtifacts.pendingActualMessages,
     pendingPredictedMessages: collectedArtifacts.pendingPredictedMessages,
+    pendingLeaveDockEffects: collectedArtifacts.pendingLeaveDockEffects,
   };
 };
 
 /**
  * Queues leave-dock work that must run only after the active trip upsert.
- *
- * When the tick confirms leave-dock (`didJustLeaveDock` and canonical
- * departure),
- * returns `{ vesselAbbrev, trip }` for `runLeaveDockPostPersistEffects`. The
- * prediction pipeline expects the trip row to exist in Convex first, so this is
- * never invoked inline during the build phase.
  *
  * @param events - Detected events for the current tick
  * @param finalProposed - Newly built trip state for this tick
@@ -192,10 +150,6 @@ const buildLeaveDockPostPersistEffect = (
 
 /**
  * Turns one fulfilled build into batch upsert and side-effect queues.
- *
- * When neither lifecycle persistence nor timeline refresh applies, returns empty
- * lists. Otherwise queues upserts only when the strip-shaped row differs;
- * messages when overlay-relevant fields differ (independent of upsert).
  *
  * @param buildResult - Successful current-trip build result
  * @returns Array-backed artifacts suitable for reducer-based accumulation
@@ -251,85 +205,7 @@ const collectCurrentTripArtifacts = (
 };
 
 /**
- * Builds the set of vessels whose batch upsert row succeeded.
- *
- * Failed rows log to `console.error` and are omitted from the set so downstream
- * timeline assembly and leave-dock hooks never run for a trip that did not persist.
- *
- * @param upsertResult - Per-vessel batch upsert result from the mutation
- * @returns Set of vessel abbreviations with successful upserts
- */
-const getSuccessfulVessels = (upsertResult: UpsertBatchResult): Set<string> =>
-  new Set(
-    upsertResult.perVessel
-      .filter((result) => {
-        if (result.ok) {
-          return true;
-        }
-
-        console.error(
-          `[VesselTrips] Failed active-trip upsert for ${result.vesselAbbrev}: ${
-            result.reason ?? "unknown error"
-          }`
-        );
-        return false;
-      })
-      .map((result) => result.vesselAbbrev)
-  );
-
-/**
- * Backfills depart-next prediction actuals on the most recent completed trip
- * after a successful active-trip upsert when the vessel just left dock.
- *
- * Uses `setDepartNextActualsForMostRecentCompletedTrip` with the new trip's
- * `LeftDock` timestamp. Errors are logged per vessel; one failure does not
- * block others (`Promise.allSettled`).
- *
- * @param ctx - Convex action context
- * @param successfulVessels - Set of vessels with successful upserts
- * @param pendingLeaveDockEffects - Leave-dock effects gathered during build processing
- * @returns Promise that resolves once all side effects settle
- */
-const runLeaveDockPostPersistEffects = async (
-  ctx: ActionCtx,
-  successfulVessels: Set<string>,
-  pendingLeaveDockEffects: PendingLeaveDockEffect[]
-): Promise<void> => {
-  await Promise.allSettled(
-    pendingLeaveDockEffects
-      .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
-      .map(async (effect) => {
-        try {
-          const leftDockMs = effect.trip.LeftDockActual ?? effect.trip.LeftDock;
-          if (leftDockMs === undefined) {
-            return;
-          }
-
-          await ctx.runMutation(
-            api.functions.vesselTrips.mutations
-              .setDepartNextActualsForMostRecentCompletedTrip,
-            {
-              vesselAbbrev: effect.vesselAbbrev,
-              actualDepartMs: leftDockMs,
-            }
-          );
-        } catch (error) {
-          console.error("[VesselTrips] leave-dock post-persist failed", {
-            vesselAbbrev: effect.vesselAbbrev,
-            trip: effect.trip,
-            error,
-          });
-        }
-      })
-  );
-};
-
-/**
  * Reducer step: appends one vessel’s artifacts to the running batch.
- *
- * `collectCurrentTripArtifacts` may return all empty arrays when that vessel
- * needs no lifecycle upsert and no timeline projection work; those are
- * concatenated as no-ops.
  *
  * @param accumulated - Running accumulator for all successful build results
  * @param buildResult - Successful current-trip build result
@@ -371,12 +247,14 @@ const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
 });
 
 /**
- * Branch result when no upsert and no overlay work was queued.
+ * Empty pre-mutation fragment when no upsert and no overlay work was queued.
  *
- * @returns Empty intents and no successful upserts
+ * @returns Empty arrays (matches prior `emptyCurrentTripBranchResult` minus
+ *   `successfulVessels`, which the applier fills)
  */
-const emptyCurrentTripBranchResult = (): CurrentTripLifecycleBranchResult => ({
-  successfulVessels: new Set(),
+const emptyCurrentTripTickWriteFragment = (): CurrentTripTickWriteFragment => ({
+  activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],
+  pendingLeaveDockEffects: [],
 });

@@ -1,15 +1,13 @@
 /**
  * Completed-trip processing for vessel trip updates.
  *
- * Handles trip-boundary transitions outside the top-level orchestrator while
- * preserving atomic persistence. Timeline writes are assembled in
- * `timelineEventAssembler` from returned facts.
+ * Produces **plan rows** for trip-boundary handoffs (successful builds only).
+ * Convex mutations run in the functions-layer applier; timeline writes are
+ * assembled after apply from persisted outcomes.
  */
 
-import { api } from "_generated/api";
-import type { ActionCtx } from "_generated/server";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline/types";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
@@ -27,20 +25,20 @@ export type ProcessCompletedTripsDeps = {
   buildCompletedTrip: typeof buildCompletedTrip;
   buildTrip: typeof buildTrip;
   buildTripAdapters: VesselTripsBuildTripAdapters;
+  predictionModelAccess: VesselTripPredictionModelAccess;
 };
 
 /**
- * Process trip-boundary transitions that complete the active trip and start a replacement.
+ * Builds trip-boundary handoff plan rows (successful builds only). Mutations
+ * are applied later by the functions-layer trip tick write applier.
  *
- * @param ctx - Convex action context
  * @param completedTrips - Trip-boundary transitions for this tick
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param logVesselProcessingError - Error logger owned by the top-level updater
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Boundary facts for successful transitions (empty for failures)
+ * @returns Plan rows in input order for vessels whose build succeeded
  */
 export const processCompletedTrips = async (
-  ctx: ActionCtx,
   completedTrips: CompletedTripTransition[],
   shouldRunPredictionFallback: boolean,
   logVesselProcessingError: (
@@ -49,11 +47,10 @@ export const processCompletedTrips = async (
     error: unknown
   ) => void,
   deps: ProcessCompletedTripsDeps
-): Promise<CompletedTripBoundaryFact[]> => {
+): Promise<ReadonlyArray<CompletedTripBoundaryFact>> => {
   const settledResults = await Promise.allSettled(
     completedTrips.map((transition) =>
       processCompletedTripTransition(
-        ctx,
         transition,
         shouldRunPredictionFallback,
         deps
@@ -61,7 +58,7 @@ export const processCompletedTrips = async (
     )
   );
 
-  return normalizeCompletedTripResults(
+  return normalizeCompletedTripBuildResults(
     completedTrips,
     settledResults,
     logVesselProcessingError
@@ -69,16 +66,14 @@ export const processCompletedTrips = async (
 };
 
 /**
- * Process one completed-trip transition end-to-end.
+ * Builds one completed-trip handoff row (no persistence).
  *
- * @param ctx - Convex action context
  * @param transition - Trip-boundary transition for one vessel
  * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Injectable helpers for completed-trip processing
- * @returns Single fact for timeline assembly after persistence
+ * @returns Boundary fact payload for the applier and timeline (after mutation success)
  */
 const processCompletedTripTransition = async (
-  ctx: ActionCtx,
   transition: CompletedTripTransition,
   shouldRunPredictionFallback: boolean,
   deps: ProcessCompletedTripsDeps
@@ -90,21 +85,13 @@ const processCompletedTripTransition = async (
     events.didJustArriveAtDock
   );
   const newTrip = await deps.buildTrip(
-    ctx,
     currLocation,
     tripToComplete,
     true,
     events,
     shouldRunPredictionFallback,
-    deps.buildTripAdapters
-  );
-
-  await ctx.runMutation(
-    api.functions.vesselTrips.mutations.completeAndStartNewTrip,
-    {
-      completedTrip: stripTripPredictionsForStorage(tripToComplete),
-      newTrip: stripTripPredictionsForStorage(newTrip),
-    }
+    deps.buildTripAdapters,
+    deps.predictionModelAccess
   );
 
   return {
@@ -115,14 +102,14 @@ const processCompletedTripTransition = async (
 };
 
 /**
- * Convert settled per-vessel results into successful boundary facts.
+ * Keeps fulfilled build rows in input order; logs rejected builds.
  *
  * @param completedTrips - Original transition list
  * @param settledResults - Settled results in input order
  * @param logVesselProcessingError - Error logger owned by the top-level updater
- * @returns Successful facts only
+ * @returns Plan rows for successful builds only
  */
-const normalizeCompletedTripResults = (
+const normalizeCompletedTripBuildResults = (
   completedTrips: CompletedTripTransition[],
   settledResults: PromiseSettledResult<CompletedTripBoundaryFact>[],
   logVesselProcessingError: (

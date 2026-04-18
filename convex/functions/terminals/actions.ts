@@ -79,8 +79,8 @@ export async function loadTerminalIdentities(
 /**
  * Fetch WSF terminal basics and replace the backend `terminalsIdentity` snapshot.
  *
- * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals},
- * {@link loadTerminalIdentities}, and orchestrator bootstrap.
+ * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals}, and
+ * {@link loadTerminalIdentities}.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced

@@ -6,8 +6,8 @@
  * at-dock → at-sea → leave-dock actualization only.
  */
 
-import type { ActionCtx } from "_generated/server";
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
@@ -43,21 +43,21 @@ export type VesselPredictionGates = {
  * Order is fixed: at-dock attempts → at-sea attempts → leave-dock
  * actualization. Matches the former inline tail of `buildTrip`.
  *
- * @param ctx - Convex action context
+ * @param modelAccess - Production ML model reads for this tick
  * @param coreTrip - Schedule-enriched proposal (see {@link VesselTripCoreProposal})
  * @param gates - Precomputed flags from the lifecycle half of the tick
  * @returns Trip with ML fields applied for this tick
  */
 export const applyVesselPredictions = async (
-  ctx: ActionCtx,
+  modelAccess: VesselTripPredictionModelAccess,
   coreTrip: VesselTripCoreProposal,
   gates: VesselPredictionGates
 ): Promise<ConvexVesselTripWithML> => {
   const withAtDockPredictions = gates.shouldAttemptAtDockPredictions
-    ? await appendArriveDockPredictions(ctx, coreTrip)
+    ? await appendArriveDockPredictions(modelAccess, coreTrip)
     : coreTrip;
   const withAtSeaPredictions = gates.shouldAttemptAtSeaPredictions
-    ? await appendLeaveDockPredictions(ctx, withAtDockPredictions)
+    ? await appendLeaveDockPredictions(modelAccess, withAtDockPredictions)
     : withAtDockPredictions;
 
   return gates.didJustLeaveDock

@@ -1,7 +1,7 @@
 /**
  * Build complete vessel-trip state for one live location tick.
  */
-import type { ActionCtx } from "_generated/server";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {
   applyVesselPredictions,
   type VesselPredictionGates,
@@ -32,7 +32,6 @@ type BuildTripCoreResult = {
  * - Runs schedule lookups and prediction attempts (event-driven + time-based fallback) via the split above
  * - Returns fully enriched trip ready for persistence
  *
- * @param ctx - Convex action context
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
@@ -40,19 +39,19 @@ type BuildTripCoreResult = {
  * @param shouldRunPredictionFallback - True when this tick should attempt
  * any missing fallback predictions
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
+ * @param predictionModelAccess - Production ML model reads (functions-layer `runQuery`)
  * @returns Fully enriched vessel trip
  */
 export const buildTrip = async (
-  ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean,
-  adapters: VesselTripsBuildTripAdapters
+  adapters: VesselTripsBuildTripAdapters,
+  predictionModelAccess: VesselTripPredictionModelAccess
 ): Promise<ConvexVesselTripWithML> => {
   const core = await buildTripCore(
-    ctx,
     currLocation,
     existingTrip,
     tripStart,
@@ -60,14 +59,17 @@ export const buildTrip = async (
     shouldRunPredictionFallback,
     adapters
   );
-  return applyVesselPredictions(ctx, core.withFinalSchedule, core.gates);
+  return applyVesselPredictions(
+    predictionModelAccess,
+    core.withFinalSchedule,
+    core.gates
+  );
 };
 
 /**
  * Schedule enrichment and prediction gates only — no ML attachment. Used by
  * {@link buildTrip} before {@link applyVesselPredictions}.
  *
- * @param ctx - Convex action context
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
@@ -78,7 +80,6 @@ export const buildTrip = async (
  * @returns Final schedule-shaped trip and gates for the prediction phase
  */
 const buildTripCore = async (
-  ctx: ActionCtx,
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripStart: boolean,
@@ -88,7 +89,6 @@ const buildTripCore = async (
 ): Promise<BuildTripCoreResult> => {
   const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
   const effectiveLocation = await resolveEffectiveLocation(
-    ctx,
     currLocation,
     existingTrip
   );
@@ -166,7 +166,6 @@ const buildTripCore = async (
 
   const withFinalSchedule = shouldAppendFinalSchedule
     ? await appendFinalSchedule(
-        ctx,
         withScheduleKeyChangeClearedDerivedState,
         existingTrip
       )

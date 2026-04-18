@@ -3,7 +3,6 @@
 // Core ML prediction logic for vessel trip predictions
 // ============================================================================
 
-import type { ActionCtx } from "_generated/server";
 import type {
   ConvexJoinedTripPrediction,
   ConvexPrediction,
@@ -14,6 +13,7 @@ import type {
 import { floorToSecond, getRoundedMinutesDelta } from "../../../shared/time";
 import type { ModelType } from "../shared/types";
 import { predictTripValue } from "./predictTrip";
+import type { VesselTripPredictionModelAccess } from "./vesselTripPredictionModelAccess";
 
 const MINUTES_TO_MS = 60 * 1000;
 
@@ -239,14 +239,14 @@ export const actualizePredictionsOnTripComplete = (
  * model needs them, computes anchor time, and runs ML model. Returns null if
  * prediction cannot be computed.
  *
- * @param ctx - Convex action context for running ML predictions
+ * @param modelAccess - Production model reads (`runQuery` in orchestrator)
  * @param trip - Vessel trip data
  * @param spec - Prediction specification
  * @param preloadedModel - Optional preloaded model document for batch loading
  * @returns Prediction result or null if not ready / cannot be computed
  */
 export const predictFromSpec = async (
-  ctx: ActionCtx,
+  modelAccess: VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML,
   spec: PredictionSpec,
   preloadedModel?: {
@@ -282,7 +282,12 @@ export const predictFromSpec = async (
       predictedValue: predictedMinutes,
       mae,
       stdDev,
-    } = await predictTripValue(ctx, trip, spec.modelType, preloadedModel);
+    } = await predictTripValue(
+      modelAccess,
+      trip,
+      spec.modelType,
+      preloadedModel
+    );
 
     const predictedMs = anchorMs + predictedMinutes * MINUTES_TO_MS;
 

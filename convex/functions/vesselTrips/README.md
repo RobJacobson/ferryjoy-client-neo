@@ -6,8 +6,8 @@ Thin Convex entrypoints for vessel trips (`queries`, `mutations`, `schemas`;
 lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/`, and boundary adapters
 are wired via `createDefaultProcessVesselTripsDeps`
 (`domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts`)
-and `createScheduledSegmentLookup` (local helper in
-`functions/vesselOrchestrator/actions.ts`).
+with `createScheduledSegmentLookup` and `createVesselTripPredictionModelAccess`
+(`createVesselOrchestratorTickDeps` in `functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`).
 
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app
   (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,

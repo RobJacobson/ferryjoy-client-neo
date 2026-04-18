@@ -442,14 +442,14 @@ from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
 `PredictionSource: "wsf_eta"` when projected.
 
 The orchestrator fetches vessel locations once, loads vessels, terminals, and
-**storage-native** active trips in one internal query (`getOrchestratorTickReadModelInternal` in
+**storage-native** active trips in one internal query (`getOrchestratorModelData` in
 `convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
 `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
 implemented in `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
-(default runtime wiring: `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` in `convex/functions/vesselOrchestrator/actions.ts`).
+(default runtime wiring: `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and `createVesselTripPredictionModelAccess` in `convex/functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -462,8 +462,9 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
   - Runtime adapter builder:
     `convex/domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
-    (`buildAppendFinalSchedule`, wired in
-    `createScheduledSegmentLookup` in `convex/functions/vesselOrchestrator/actions.ts`)
+    (`buildAppendFinalSchedule`, wired via `createScheduledSegmentLookup` in
+    `convex/functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`; trip ML uses
+    `createVesselTripPredictionModelAccess` there as well)
   - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state

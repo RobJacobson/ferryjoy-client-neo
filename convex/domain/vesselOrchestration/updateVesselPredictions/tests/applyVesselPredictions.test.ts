@@ -1,11 +1,12 @@
 /**
  * Focused tests for {@link applyVesselPredictions} orchestration (ML tail).
- * When at-dock / at-sea gates are false, `ctx` is unused — table cases pin
+ * When at-dock / at-sea gates are false, model access is unused — table cases pin
  * identity and leave-dock actualize branches without stubbing appenders.
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ActionCtx } from "_generated/server";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ModelType } from "domain/ml/shared/types";
 import { applyVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -61,8 +62,16 @@ const minimalTrip = (
   ...overrides,
 });
 
-/** `ctx` is only passed to appenders; these cases skip them. */
-const noopCtx = {} as ActionCtx;
+/** Unused when ML gates are false; appenders are not invoked. */
+const noopModelAccess: VesselTripPredictionModelAccess = {
+  loadModelForProductionPair: async () => null,
+  loadModelsForProductionPairBatch: async () =>
+    ({}) as Record<
+      ModelType,
+      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
+      | null
+    >,
+};
 
 describe("applyVesselPredictions", () => {
   const table: Array<{
@@ -99,7 +108,11 @@ describe("applyVesselPredictions", () => {
 
   for (const row of table) {
     it(row.name, async () => {
-      const out = await applyVesselPredictions(noopCtx, row.trip, row.gates);
+      const out = await applyVesselPredictions(
+        noopModelAccess,
+        row.trip,
+        row.gates
+      );
       if (row.expectSameRef) {
         expect(out).toBe(row.trip);
       }
@@ -111,7 +124,7 @@ describe("applyVesselPredictions", () => {
     const trip = minimalTrip({
       AtDockDepartCurr: departPred,
     });
-    const out = await applyVesselPredictions(noopCtx, trip, {
+    const out = await applyVesselPredictions(noopModelAccess, trip, {
       shouldAttemptAtDockPredictions: false,
       shouldAttemptAtSeaPredictions: false,
       didJustLeaveDock: true,

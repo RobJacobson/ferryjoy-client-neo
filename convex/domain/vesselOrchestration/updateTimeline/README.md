@@ -1,6 +1,6 @@
 # updateTimeline (orchestrator concern)
 
-Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`. **Apply** is **not** in this folder: the single entry is the exported helper **`applyTickEventWrites`** in [`../../../functions/vesselOrchestrator/actions.ts`](../../../functions/vesselOrchestrator/actions.ts), which runs the internal timeline projection mutations after lifecycle writes for the tick.
+Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`. **Apply** is **not** in this folder: the single entry is **`applyTickEventWrites`** in [`../../../functions/vesselOrchestrator/applyTickEventWrites.ts`](../../../functions/vesselOrchestrator/applyTickEventWrites.ts), which runs the internal timeline projection mutations after lifecycle writes for the tick. The orchestrator wires it through [`createVesselOrchestratorTickDeps`](../../../functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts) (invoked from [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts)).
 
 ## Canonical files (this folder)
 

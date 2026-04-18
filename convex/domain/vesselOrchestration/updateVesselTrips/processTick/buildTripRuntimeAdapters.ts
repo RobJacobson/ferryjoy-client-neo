@@ -35,7 +35,6 @@ export const createBuildTripRuntimeAdapters = (
 export const buildAppendFinalSchedule =
   (lookup: ScheduledSegmentLookup) =>
   async (
-    _ctx: unknown,
     baseTrip: ConvexVesselTripWithPredictions,
     existingTrip: ConvexVesselTripWithPredictions | undefined
   ): Promise<ConvexVesselTripWithPredictions> => {
@@ -100,7 +99,6 @@ export const buildAppendFinalSchedule =
 export const buildResolveEffectiveLocation =
   (lookup: ScheduledSegmentLookup) =>
   async (
-    _ctx: unknown,
     location: ConvexVesselLocation,
     existingTrip: ConvexVesselTripWithPredictions | undefined
   ): Promise<ConvexVesselLocation> => {

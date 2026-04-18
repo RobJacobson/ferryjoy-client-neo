@@ -17,7 +17,7 @@ For each concern, **production implementation code** (and **tests that are prima
 | **updateVesselLocations** | `convex/domain/vesselOrchestration/updateVesselLocations/` | `bulkUpsertArgsFromLocations.ts` shapes `bulkUpsert` args; orchestrator runs mutation. |
 | **updateVesselTrips** | `convex/domain/vesselOrchestration/updateVesselTrips/` | Trip/tick/lifecycle code; `tripLifecycle` is state machine + `buildTrip` (ML calls into `updateVesselPredictions`). |
 | **updateVesselPredictions** | `convex/domain/vesselOrchestration/updateVesselPredictions/` | `applyVesselPredictions`, `appendPredictions`, `stripTripPredictionsForStorage`, tests under this folder. |
-| **updateTimeline** | `convex/domain/vesselOrchestration/updateTimeline/` | Domain assembly here; **apply** = `applyTickEventWrites` in `functions/vesselOrchestrator/actions.ts` only (documented). |
+| **updateTimeline** | `convex/domain/vesselOrchestration/updateTimeline/` | Domain assembly here; **apply** = `applyTickEventWrites` in `functions/vesselOrchestrator/applyTickEventWrites.ts` (single owner; wired by `createVesselOrchestratorTickDeps`; documented). |
 
 **Barrels are fine** (`index.ts`) **after** the implementation files live in the right place — not **instead** of moving implementation.
 
@@ -28,7 +28,7 @@ For each concern, **production implementation code** (and **tests that are prima
 ### updateVesselLocations
 
 - **Folder:** [`updateVesselLocations/`](../../convex/domain/vesselOrchestration/updateVesselLocations/) — [`bulkUpsertArgsFromLocations.ts`](../../convex/domain/vesselOrchestration/updateVesselLocations/bulkUpsertArgsFromLocations.ts), [`index.ts`](../../convex/domain/vesselOrchestration/updateVesselLocations/index.ts), [`README.md`](../../convex/domain/vesselOrchestration/updateVesselLocations/README.md).
-- **Wiring:** `persistLocations` in [`vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts) uses `bulkUpsertArgsFromConvexLocations` then `bulkUpsert`.
+- **Wiring:** [`createVesselOrchestratorTickDeps`](../../convex/functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts) (from [`actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts)) supplies `persistLocations` using `bulkUpsertArgsFromConvexLocations` then `bulkUpsert`.
 
 ### updateVesselPredictions
 
@@ -37,7 +37,7 @@ For each concern, **production implementation code** (and **tests that are prima
 ### updateTimeline
 
 - **Domain:** [`updateTimeline/`](../../convex/domain/vesselOrchestration/updateTimeline/) — assembly as before.
-- **Apply (single owner):** [`applyTickEventWrites`](../../convex/functions/vesselOrchestrator/actions.ts) in [`vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts). Documented in [`updateTimeline/README.md`](../../convex/domain/vesselOrchestration/updateTimeline/README.md) and [`architecture.md`](../../convex/domain/vesselOrchestration/architecture.md).
+- **Apply (single owner):** [`applyTickEventWrites`](../../convex/functions/vesselOrchestrator/applyTickEventWrites.ts) (canonical module; no re-exports). Documented in [`updateTimeline/README.md`](../../convex/domain/vesselOrchestration/updateTimeline/README.md) and [`architecture.md`](../../convex/domain/vesselOrchestration/architecture.md).
 
 ### updateVesselTrips
 
@@ -59,8 +59,8 @@ For each concern, **production implementation code** (and **tests that are prima
    - Update [`updateVesselLocations/README.md`](../../convex/domain/vesselOrchestration/updateVesselLocations/README.md) to list the real files.
 
 3. **updateTimeline — align documentation with code**
-   - If `applyTickEventWrites` stays in `vesselOrchestrator/actions.ts`, state that explicitly in [`updateTimeline/README.md`](../../convex/domain/vesselOrchestration/updateTimeline/README.md) and in [`architecture.md`](../../convex/domain/vesselOrchestration/architecture.md) so “timeline concern” = domain assembly **+** one documented apply site.
-   - If you move the apply helper, update all call sites and tests; avoid two competing “apply timeline” entrypoints.
+   - Canonical apply implementation: [`applyTickEventWrites.ts`](../../convex/functions/vesselOrchestrator/applyTickEventWrites.ts) only; state that in [`updateTimeline/README.md`](../../convex/domain/vesselOrchestration/updateTimeline/README.md) and [`architecture.md`](../../convex/domain/vesselOrchestration/architecture.md) so “timeline concern” = domain assembly **+** one documented apply site.
+   - If you move the apply helper again, update all call sites and tests; avoid two competing “apply timeline” entrypoints.
 
 4. **Repo hygiene**
    - Run `bun run convex:codegen`, `bun run convex:typecheck`, `bun run check:fix`, `bun run type-check`.
@@ -81,7 +81,7 @@ For each concern, **production implementation code** (and **tests that are prima
 
 - Canonical narrative and folder map: [`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md) (especially *Target reorganization* and §5 folder map).
 - Domain layer rules: [`convex/domain/README.md`](../../convex/domain/README.md).
-- Orchestrator wiring: [`convex/functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts), [`convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts`](../../convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts).
+- Orchestrator wiring: [`convex/functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts), [`createVesselOrchestratorTickDeps.ts`](../../convex/functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts), [`convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts`](../../convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts).
 
 ---
 

@@ -4,11 +4,15 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ActionCtx } from "_generated/server";
 import type {
   ConvexInferredScheduledSegment,
   ConvexScheduledDockEvent,
 } from "domain/events/scheduled/schemas";
+import type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ModelType } from "domain/ml/shared/types";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import { buildTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
@@ -18,13 +22,88 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
+type TestActionCtx = {
+  runQuery: (ref: unknown, args?: Record<string, unknown>) => Promise<unknown>;
+};
+
+const makeModelDoc = () => ({
+  featureKeys: [] as string[],
+  coefficients: [] as number[],
+  intercept: 0,
+  testMetrics: {
+    mae: 1,
+    stdDev: 1,
+  },
+});
+
+const createTestActionCtx = (options: {
+  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
+  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
+}): TestActionCtx => ({
+  runQuery: async (_ref, args) => {
+    if (args && "segmentKey" in args) {
+      return args.segmentKey && options.scheduledEventByKey
+        ? (options.scheduledEventByKey.get(String(args.segmentKey)) ?? null)
+        : null;
+    }
+
+    if (args && "vesselAbbrev" in args && "sailingDay" in args) {
+      return (
+        options.scheduledEventsByScope?.get(
+          `${String(args.vesselAbbrev)}|${String(args.sailingDay)}`
+        ) ?? []
+      );
+    }
+
+    if (args && "pairKey" in args && "modelTypes" in args) {
+      return Object.fromEntries(
+        (Array.isArray(args.modelTypes) ? args.modelTypes : []).map(
+          (modelType) => [String(modelType), makeModelDoc()]
+        )
+      );
+    }
+
+    if (args && "pairKey" in args && "modelType" in args) {
+      return makeModelDoc();
+    }
+
+    return null;
+  },
+});
+
+/**
+ * Mirrors production {@link createVesselTripPredictionModelAccess} using the
+ * same stub `runQuery` as schedule tests.
+ *
+ * @param ctx - Test action context
+ * @returns Model access for `buildTrip` / `applyVesselPredictions`
+ */
+const createTestPredictionAccess = (
+  ctx: TestActionCtx
+): VesselTripPredictionModelAccess => ({
+  loadModelForProductionPair: async (pairKey, modelType) =>
+    (await ctx.runQuery({} as never, {
+      pairKey,
+      modelType,
+    })) as ProductionModelParameters | null,
+  loadModelsForProductionPairBatch: async (pairKey, modelTypes) =>
+    (await ctx.runQuery({} as never, {
+      pairKey,
+      modelTypes,
+    })) as Record<ModelType, ProductionModelParameters | null>,
+});
+
+/**
+ * Shared stub context for schedule `runQuery` calls; tests assign per case.
+ */
+let scheduleTestCtx: TestActionCtx = createTestActionCtx({});
+
 /**
  * Test adapters: docked identity via {@link resolveEffectiveDockedLocation};
  * schedule enrichment mirrors `appendFinalSchedule` query merge semantics.
  */
 const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: async (
-    ctx: ActionCtx,
     location: ConvexVesselLocation,
     existingTrip: ConvexVesselTripWithPredictions | undefined
   ): Promise<ConvexVesselLocation> => {
@@ -34,14 +113,14 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
       {
         getScheduledDepartureEventBySegmentKey: (segmentKey) =>
-          ctx.runQuery(
+          scheduleTestCtx.runQuery(
             {} as never,
             {
               segmentKey,
             } as never
           ) as Promise<ConvexScheduledDockEvent | null>,
         getScheduledDockEventsForSailingDay: (args) =>
-          ctx.runQuery({} as never, args as never) as Promise<
+          scheduleTestCtx.runQuery({} as never, args as never) as Promise<
             ConvexScheduledDockEvent[]
           >,
       },
@@ -51,7 +130,6 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
     return effectiveLocation;
   },
   appendFinalSchedule: async (
-    ctx: ActionCtx,
     baseTrip: ConvexVesselTripWithPredictions,
     existingTrip: ConvexVesselTripWithPredictions | undefined
   ): Promise<ConvexVesselTripWithPredictions> => {
@@ -70,7 +148,7 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
           existingTrip.NextScheduledDeparture,
       };
     }
-    const scheduledEvent = (await ctx.runQuery(
+    const scheduledEvent = (await scheduleTestCtx.runQuery(
       {} as never,
       {
         segmentKey,
@@ -79,7 +157,7 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
     if (!scheduledEvent) {
       return baseTrip;
     }
-    const sameDayEvents = (await ctx.runQuery(
+    const sameDayEvents = (await scheduleTestCtx.runQuery(
       {} as never,
       {
         vesselAbbrev: scheduledEvent.VesselAbbrev,
@@ -162,19 +240,20 @@ describe("buildTrip", () => {
         nextScheduledSegment,
       ]);
 
+    scheduleTestCtx = createTestActionCtx({
+      scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+      scheduledEventsByScope: new Map([
+        ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
+      ]),
+    });
     const built = await buildTrip(
-      createTestActionCtx({
-        scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
-        scheduledEventsByScope: new Map([
-          ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
-        ]),
-      }) as never,
       currLocation,
       existingTrip,
       false,
       makeEvents({ scheduleKeyChanged: true }),
       false,
-      testBuildTripAdapters
+      testBuildTripAdapters,
+      createTestPredictionAccess(scheduleTestCtx)
     );
 
     expect(built.TripKey).toBe(stableTripKey);
@@ -219,14 +298,15 @@ describe("buildTrip", () => {
       TimeStamp: ms("2026-04-12T16:53:15-07:00"),
     });
 
+    scheduleTestCtx = createTestActionCtx({});
     const built = await buildTrip(
-      createTestActionCtx({}) as never,
       currLocation,
       existingTrip,
       false,
       makeEvents({ didJustLeaveDock: true, scheduleKeyChanged: false }),
       false,
-      testBuildTripAdapters
+      testBuildTripAdapters,
+      createTestPredictionAccess(scheduleTestCtx)
     );
 
     expect(built.ScheduleKey).toBe(existingTrip.ScheduleKey);
@@ -277,14 +357,15 @@ describe("buildTrip", () => {
       TimeStamp: ms("2026-04-12T17:31:30-07:00"),
     });
 
+    scheduleTestCtx = createTestActionCtx({});
     const built = await buildTrip(
-      createTestActionCtx({}) as never,
       currLocation,
       existingTrip,
       false,
       makeEvents({ scheduleKeyChanged: true }),
       false,
-      testBuildTripAdapters
+      testBuildTripAdapters,
+      createTestPredictionAccess(scheduleTestCtx)
     );
 
     expect(built.TripKey).toBe(stableTripKey);
@@ -296,45 +377,6 @@ describe("buildTrip", () => {
     expect(built.AtSeaArriveNext).toBeUndefined();
     expect(built.AtSeaDepartNext).toBeUndefined();
   });
-});
-
-type TestActionCtx = {
-  runQuery: (ref: unknown, args?: Record<string, unknown>) => Promise<unknown>;
-};
-
-const createTestActionCtx = (options: {
-  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
-  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
-}): TestActionCtx => ({
-  runQuery: async (_ref, args) => {
-    if (args && "segmentKey" in args) {
-      return args.segmentKey && options.scheduledEventByKey
-        ? (options.scheduledEventByKey.get(String(args.segmentKey)) ?? null)
-        : null;
-    }
-
-    if (args && "vesselAbbrev" in args && "sailingDay" in args) {
-      return (
-        options.scheduledEventsByScope?.get(
-          `${String(args.vesselAbbrev)}|${String(args.sailingDay)}`
-        ) ?? []
-      );
-    }
-
-    if (args && "pairKey" in args && "modelTypes" in args) {
-      return Object.fromEntries(
-        (Array.isArray(args.modelTypes) ? args.modelTypes : []).map(
-          (modelType) => [String(modelType), makeModelDoc()]
-        )
-      );
-    }
-
-    if (args && "pairKey" in args && "modelType" in args) {
-      return makeModelDoc();
-    }
-
-    return null;
-  },
 });
 
 const makeEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
@@ -359,16 +401,6 @@ const makePrediction = (PredTime: number) => ({
   Actual: undefined,
   DeltaTotal: undefined,
   DeltaRange: undefined,
-});
-
-const makeModelDoc = () => ({
-  featureKeys: [] as string[],
-  coefficients: [] as number[],
-  intercept: 0,
-  testMetrics: {
-    mae: 1,
-    stdDev: 1,
-  },
 });
 
 const makeLocation = (

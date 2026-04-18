@@ -42,7 +42,8 @@ export type CurrentTripPredictedEventMessage = {
 };
 
 /**
- * Outcome from `processCurrentTrips` before timeline mutations run.
+ * Current-trip branch after lifecycle mutations (`successfulVessels` from batch
+ * upsert). Used by timeline assembly; must reflect persisted state.
  */
 export type CurrentTripLifecycleBranchResult = {
   successfulVessels: Set<string>;

@@ -5,8 +5,8 @@
  * supports both event-driven runs and the once-per-minute fallback window.
  */
 
-import type { ActionCtx } from "_generated/server";
 import { loadModelsForPairBatch } from "domain/ml/prediction/predictTrip";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {
   isPredictionReadyTrip,
   PREDICTION_SPECS,
@@ -33,13 +33,13 @@ type ModelDoc = {
  * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
  * - Batches model loading when multiple predictions needed for efficiency
  *
- * @param ctx - Convex action context for running ML predictions
+ * @param modelAccess - Production model parameters (orchestrator `runQuery`)
  * @param trip - Current vessel trip state
  * @param specs - Prediction specs to attempt (e.g., at-dock or leave-dock)
  * @returns Trip with prediction fields applied
  */
 const computePredictions = async (
-  ctx: ActionCtx,
+  modelAccess: VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML,
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTripWithML> => {
@@ -78,7 +78,7 @@ const computePredictions = async (
       );
       const modelTypes = specsToAttempt.map((s) => s.modelType);
       modelsMap =
-        (await loadModelsForPairBatch(ctx, pairKey, modelTypes)) ??
+        (await loadModelsForPairBatch(modelAccess, pairKey, modelTypes)) ??
         ({} as Record<ModelType, ModelDoc | null>);
     }
 
@@ -86,7 +86,7 @@ const computePredictions = async (
       specsToAttempt.map(async (spec) => ({
         spec,
         prediction: await predictFromSpec(
-          ctx,
+          modelAccess,
           trip,
           spec,
           specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
@@ -122,15 +122,15 @@ const computePredictions = async (
  * (isPredictionReadyTrip).
  * Runs on event-driven (arrive at dock) and time-based fallback (once per minute).
  *
- * @param ctx - Convex action context for running ML predictions
+ * @param modelAccess - Production model parameters (orchestrator `runQuery`)
  * @param trip - Current vessel trip state
  * @returns Trip enriched with at-dock prediction fields
  */
 export const appendArriveDockPredictions = async (
-  ctx: ActionCtx,
+  modelAccess: VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<ConvexVesselTripWithML> => {
-  return computePredictions(ctx, trip, [
+  return computePredictions(modelAccess, trip, [
     PREDICTION_SPECS.AtDockDepartCurr,
     PREDICTION_SPECS.AtDockArriveNext,
     PREDICTION_SPECS.AtDockDepartNext,
@@ -145,15 +145,15 @@ export const appendArriveDockPredictions = async (
  * (isPredictionReadyTrip).
  * Runs on event-driven (leave dock) and time-based fallback (once per minute).
  *
- * @param ctx - Convex action context for running ML predictions
+ * @param modelAccess - Production model parameters (orchestrator `runQuery`)
  * @param trip - Current vessel trip state
  * @returns Trip enriched with at-sea prediction fields
  */
 export const appendLeaveDockPredictions = async (
-  ctx: ActionCtx,
+  modelAccess: VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<ConvexVesselTripWithML> => {
-  return computePredictions(ctx, trip, [
+  return computePredictions(modelAccess, trip, [
     PREDICTION_SPECS.AtSeaArriveNext,
     PREDICTION_SPECS.AtSeaDepartNext,
   ]);

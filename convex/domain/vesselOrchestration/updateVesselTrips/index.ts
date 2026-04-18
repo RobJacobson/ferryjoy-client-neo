@@ -9,8 +9,8 @@
  * `domain/vesselOrchestration/updateTimeline/`.
  *
  * Production callers pair `processVesselTripsWithDeps` with
- * `createDefaultProcessVesselTripsDeps` (domain) and `createScheduledSegmentLookup`
- * (`createScheduledSegmentLookup` in `functions/vesselOrchestrator/actions.ts`).
+ * `createDefaultProcessVesselTripsDeps` (domain; schedule lookup + prediction model access) and schedule lookup from
+ * `createVesselOrchestratorTickDeps` (`functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`).
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for discoverability; the same symbols are re-exported from
  * `domain/vesselOrchestration/updateTimeline` and

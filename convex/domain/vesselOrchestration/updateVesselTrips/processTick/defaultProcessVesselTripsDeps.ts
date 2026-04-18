@@ -6,6 +6,7 @@
  * `runQuery` wiring).
  */
 
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment";
 import { createBuildTripRuntimeAdapters } from "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters";
 import type { ProcessVesselTripsDeps } from "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips";
@@ -17,13 +18,16 @@ import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/t
  * Builds the production `ProcessVesselTripsDeps` for one tick from schedule lookups.
  *
  * @param lookup - Segment and sailing-day schedule queries (from Convex internal queries)
+ * @param predictionModelAccess - Production ML model reads for this action tick
  * @returns Lifecycle dependencies including `buildTripAdapters` for dock continuity
  */
 export const createDefaultProcessVesselTripsDeps = (
-  lookup: ScheduledSegmentLookup
+  lookup: ScheduledSegmentLookup,
+  predictionModelAccess: VesselTripPredictionModelAccess
 ): ProcessVesselTripsDeps => ({
   buildCompletedTrip,
   buildTrip,
   detectTripEvents,
   buildTripAdapters: createBuildTripRuntimeAdapters(lookup),
+  predictionModelAccess,
 });

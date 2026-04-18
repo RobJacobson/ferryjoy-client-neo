@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ModelType } from "domain/ml/shared/types";
 import type { TickEventWrites } from "domain/vesselOrchestration/updateTimeline/tickEventWrites";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -14,9 +16,19 @@ import type {
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
 
+const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
+  loadModelForProductionPair: async () => null,
+  loadModelsForProductionPairBatch: async () =>
+    ({}) as Record<
+      ModelType,
+      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
+      | null
+    >,
+};
+
 /**
  * Applies timeline writes after lifecycle (same branching as
- * `functions/vesselOrchestrator/applyTickEventWrites`) using the test fake’s
+ * `functions/vesselOrchestrator/applyTickEventWrites.ts`) using the test fake’s
  * `runMutation` so sequencing assertions stay domain-local.
  *
  * @param ctx - Test fake action context
@@ -679,13 +691,13 @@ const createDeps = (input: TestDepsInput) => {
       return existingTrip;
     },
     buildTrip: async (
-      _ctx: unknown,
       currLocation: ConvexVesselLocation,
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
       _events: TripEvents,
       _shouldRunPredictionFallback: boolean,
-      _adapters: unknown
+      _adapters: unknown,
+      _predictionModelAccess: unknown
     ): Promise<ConvexVesselTripWithPredictions> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
       const failure = input.buildFailuresByVessel?.get(
@@ -718,15 +730,14 @@ const createDeps = (input: TestDepsInput) => {
       return builtTrip;
     },
     buildTripAdapters: {
-      resolveEffectiveLocation: async (
-        _ctx: unknown,
-        location: ConvexVesselLocation
-      ) => location,
+      resolveEffectiveLocation: async (location: ConvexVesselLocation) =>
+        location,
       appendFinalSchedule: async (
-        _ctx: unknown,
-        baseTrip: ConvexVesselTripWithPredictions
+        baseTrip: ConvexVesselTripWithPredictions,
+        _existingTrip: ConvexVesselTripWithPredictions | undefined
       ) => baseTrip,
     },
+    predictionModelAccess: noopPredictionModelAccess,
     detectTripEvents: (
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       currLocation: ConvexVesselLocation

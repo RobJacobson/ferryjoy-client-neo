@@ -1,14 +1,30 @@
 import { describe, expect, it } from "bun:test";
-import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
+import type { ModelType } from "../shared/types";
 import { predictArriveEta, predictEtaOnDeparture } from "./predictTrip";
+import type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "./vesselTripPredictionModelAccess";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const makeCtx = (modelDoc: Record<string, unknown>) =>
-  ({
-    runQuery: async () => modelDoc,
-  }) as unknown as ActionCtx;
+/**
+ * Test double for orchestrator model access (returns a fixed doc for all loads).
+ *
+ * @param modelDoc - Parameters returned for production pair loads
+ * @returns Port wired for {@link predictEtaOnDeparture} / {@link predictArriveEta} tests
+ */
+const makeModelAccess = (
+  modelDoc: ProductionModelParameters
+): VesselTripPredictionModelAccess => ({
+  loadModelForProductionPair: async () => modelDoc,
+  loadModelsForProductionPairBatch: async (_pairKey, modelTypes) =>
+    Object.fromEntries(modelTypes.map((t) => [t, modelDoc])) as Record<
+      ModelType,
+      ProductionModelParameters | null
+    >,
+});
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTripWithML> = {}
@@ -59,14 +75,14 @@ describe("predictEtaOnDeparture", () => {
       TripStart: ms("2026-03-13T09:50:00-07:00"),
       LeftDock: ms("2026-03-13T09:55:00-07:00"),
     });
-    const ctx = makeCtx({
+    const access = makeModelAccess({
       featureKeys: ["slackBeforeCurrScheduledDepartMinutes"],
       coefficients: [1],
       intercept: 0,
       testMetrics: { mae: 0, stdDev: 0 },
     });
 
-    const result = await predictEtaOnDeparture(ctx, trip);
+    const result = await predictEtaOnDeparture(access, trip);
 
     expect(result.predictedTime).toBe(ms("2026-03-13T10:30:00-07:00"));
   });
@@ -81,14 +97,14 @@ describe("predictArriveEta", () => {
       LeftDock: ms("2026-03-13T05:50:00-07:00"),
       TripStart: ms("2026-03-13T05:55:00-07:00"),
     });
-    const ctx = makeCtx({
+    const access = makeModelAccess({
       featureKeys: ["currTripDelayMinutes"],
       coefficients: [1],
       intercept: 0,
       testMetrics: { mae: 0, stdDev: 0 },
     });
 
-    const result = await predictArriveEta(ctx, trip);
+    const result = await predictArriveEta(access, trip);
 
     expect(result.predictedTime).toBe(ms("2026-03-13T05:50:00-07:00"));
   });

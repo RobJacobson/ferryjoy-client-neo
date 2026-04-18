@@ -37,8 +37,7 @@
  * - **Performance Bounds**: Includes model uncertainty metrics (MAE)
  */
 
-import { api } from "_generated/api";
-import type { ActionCtx, MutationCtx } from "_generated/server";
+import type { MutationCtx } from "_generated/server";
 import { roundToPrecision } from "shared";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { getProductionVersionTagValue } from "../../../functions/keyValueStore/helpers";
@@ -52,51 +51,48 @@ import type {
   TrainingWindow,
 } from "../shared/types";
 import { predictWithModel } from "./applyModel";
+import type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "./vesselTripPredictionModelAccess";
 
-type ModelDoc = {
-  featureKeys: string[];
-  coefficients: number[];
-  intercept: number;
-  testMetrics: {
-    mae: number;
-    stdDev: number;
-  };
-};
+type ModelDoc = ProductionModelParameters;
 
 /**
- * Type guard to check if context is a mutation context.
+ * Type guard: mutation context has direct database access.
  *
- * @param ctx - Convex execution context to check
- * @returns True if context has direct database access (mutation context)
+ * @param source - Mutation context or vessel-trip prediction model access port
+ * @returns True when `source` is a Convex mutation context
+ * @remarks
+ * Distinguishes `MutationCtx` from {@link VesselTripPredictionModelAccess} via
+ * `"db" in source`. Keep {@link VesselTripPredictionModelAccess} free of a `db`
+ * property so this guard stays sound.
  */
-const isMutationCtx = (ctx: ActionCtx | MutationCtx): ctx is MutationCtx =>
-  // Mutations have direct DB access; actions do not.
-  "db" in ctx;
+const isMutationModelSource = (
+  source: MutationCtx | VesselTripPredictionModelAccess
+): source is MutationCtx => "db" in source;
 
 /**
  * Load trained ML model for specific route and prediction type.
  * Uses the active production version from config for predictions.
  *
- * Handles different Convex contexts (actions vs mutations) which have
- * different APIs for database access. Actions must use queries while
- * mutations can access database directly.
+ * Mutations read the database directly; the orchestrator path uses
+ * {@link VesselTripPredictionModelAccess} (functions-layer `runQuery`).
  *
- * @param ctx - Convex execution context (action or mutation)
+ * @param source - Mutation context or injected model-access port
  * @param pairKey - Terminal pair identifier (e.g., "BBI->P52")
  * @param modelType - Type of prediction model needed
  * @returns Trained model parameters or null if not found
  */
 const loadModelForPair = async (
-  ctx: ActionCtx | MutationCtx,
+  source: MutationCtx | VesselTripPredictionModelAccess,
   pairKey: string,
   modelType: ModelType
 ): Promise<ModelDoc | null> => {
-  if (isMutationCtx(ctx)) {
-    // Mutations have direct database access
-    const prodVersionTag = await getProductionVersionTagValue(ctx);
+  if (isMutationModelSource(source)) {
+    const prodVersionTag = await getProductionVersionTagValue(source);
     if (!prodVersionTag) {
-      // Fallback: try to find any model (for backward compatibility)
-      const doc = await ctx.db
+      const doc = await source.db
         .query("modelParameters")
         .withIndex("by_pair_and_type", (q) =>
           q.eq("pairKey", pairKey).eq("modelType", modelType)
@@ -105,8 +101,7 @@ const loadModelForPair = async (
       return doc as ModelDoc | null;
     }
 
-    // Query with production version tag
-    const doc = await ctx.db
+    const doc = await source.db
       .query("modelParameters")
       .withIndex("by_pair_type_tag", (q) =>
         q
@@ -118,39 +113,24 @@ const loadModelForPair = async (
     return doc as ModelDoc | null;
   }
 
-  // Actions don't have direct DB access - use production query
-  const doc = await ctx.runQuery(
-    api.functions.predictions.queries.getModelParametersForProduction,
-    { pairKey, modelType }
-  );
-  return doc as ModelDoc | null;
+  return source.loadModelForProductionPair(pairKey, modelType);
 };
 
 /**
  * Load multiple ML models for a terminal pair in one query.
  * Used when computing multiple predictions for a vessel to reduce Convex function calls.
  *
- * @param ctx - Convex action context (mutations use direct DB, not this)
+ * @param access - Injected production model access (orchestrator path)
  * @param pairKey - Terminal pair identifier
  * @param modelTypes - Array of model types to load
  * @returns Record mapping model type to model doc (null if not found)
  */
 export const loadModelsForPairBatch = async (
-  ctx: ActionCtx,
+  access: VesselTripPredictionModelAccess,
   pairKey: string,
   modelTypes: ModelType[]
-): Promise<Record<ModelType, ModelDoc | null>> => {
-  if (modelTypes.length === 0) {
-    return {} as Record<ModelType, ModelDoc | null>;
-  }
-
-  const batch = await ctx.runQuery(
-    api.functions.predictions.queries.getModelParametersForProductionBatch,
-    { pairKey, modelTypes }
-  );
-
-  return batch as Record<ModelType, ModelDoc | null>;
-};
+): Promise<Record<ModelType, ModelDoc | null>> =>
+  access.loadModelsForProductionPairBatch(pairKey, modelTypes);
 
 /**
  * Asserts that a required trip field is present before feature extraction.
@@ -276,7 +256,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
  * of querying the database—reduces Convex function calls when computing
  * multiple predictions for the same vessel.
  *
- * @param ctx - Convex action/mutation context
+ * @param source - Mutation context (DB) or vessel-trip model access port (`runQuery`)
  * @param trip - Vessel trip data
  * @param modelType - Type of ML model to use for prediction
  * @param preloadedModel - Optional pre-loaded model (avoids query when batch loading)
@@ -284,7 +264,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
  * @throws Error if required trip data is missing or model not found
  */
 export const predictTripValue = async (
-  ctx: ActionCtx | MutationCtx,
+  source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML,
   modelType: ModelType,
   preloadedModel?: ModelDoc | null
@@ -304,7 +284,7 @@ export const predictTripValue = async (
   const model =
     preloadedModel !== undefined
       ? preloadedModel
-      : await loadModelForPair(ctx, pairKey, modelType);
+      : await loadModelForPair(source, pairKey, modelType);
   if (!model) {
     throw new Error(`No trained model found for ${pairKey} ${modelType}`);
   }
@@ -340,13 +320,13 @@ export const predictTripValue = async (
  * at the current terminal to arrival at the next terminal, then converts that
  * duration into an absolute arrival timestamp.
  *
- * @param ctx - Convex action/mutation context
+ * @param source - Mutation context or vessel-trip model access port
  * @param trip - Vessel trip data (must have LeftDockActual set)
  * @returns Object containing predicted arrival time and model MAE
  * @throws Error if LeftDockActual is missing or prediction fails
  */
 export const predictArriveEta = async (
-  ctx: ActionCtx | MutationCtx,
+  source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
@@ -364,7 +344,7 @@ export const predictArriveEta = async (
     predictedValue: predictedDuration,
     mae,
     stdDev,
-  } = await predictTripValue(ctx, trip, "at-sea-arrive-next");
+  } = await predictTripValue(source, trip, "at-sea-arrive-next");
 
   // Calculate predicted arrival time (departure time + predicted duration)
   const predictedArrivalTime = trip.LeftDockActual + predictedDuration * 60000; // Convert minutes to milliseconds
@@ -382,13 +362,13 @@ export const predictArriveEta = async (
  * Uses the `at-dock-depart-curr` model to predict how much delay there will be
  * before the vessel departs from the current terminal.
  *
- * @param ctx - Convex action/mutation context
+ * @param source - Mutation context or vessel-trip model access port
  * @param trip - Vessel trip data
  * @returns Object containing predicted delay duration and model MAE
  * @throws Error if prediction fails
  */
 export const predictDelayOnArrival = async (
-  ctx: ActionCtx | MutationCtx,
+  source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
@@ -400,7 +380,7 @@ export const predictDelayOnArrival = async (
     predictedValue: predictedDelay,
     mae,
     stdDev,
-  } = await predictTripValue(ctx, trip, "at-dock-depart-curr");
+  } = await predictTripValue(source, trip, "at-dock-depart-curr");
 
   return {
     predictedTime: predictedDelay,
@@ -415,13 +395,13 @@ export const predictDelayOnArrival = async (
  * Uses the `at-dock-depart-curr` model to predict delay, then calculates the
  * predicted departure time as scheduled departure plus predicted delay.
  *
- * @param ctx - Convex action/mutation context
+ * @param source - Mutation context or vessel-trip model access port
  * @param trip - Vessel trip data (must have ScheduledDeparture set)
  * @returns Object containing predicted departure time and model MAE
  * @throws Error if ScheduledDeparture is missing or prediction fails
  */
 export const predictEtaOnDeparture = async (
-  ctx: ActionCtx | MutationCtx,
+  source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<{
   predictedTime: number;
@@ -439,7 +419,7 @@ export const predictEtaOnDeparture = async (
     predictedValue: predictedDelay,
     mae,
     stdDev,
-  } = await predictTripValue(ctx, trip, "at-dock-depart-curr");
+  } = await predictTripValue(source, trip, "at-dock-depart-curr");
 
   // Calculate predicted departure time (scheduled departure + predicted delay)
   const predictedDepartureTime =

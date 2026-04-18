@@ -33,7 +33,8 @@ export type BuildTimelineTickProjectionInputArgs = {
 /**
  * Merges completed-branch then current-branch tick writes for one orchestrator
  * tick. Call only **after** lifecycle mutations; `currentBranch` must be the
- * post-mutation result from `processCurrentTrips` (upsert-gated messages intact).
+ * post-mutation result from the trip tick write applier (`successfulVessels` and
+ * upsert-gated messages intact).
  *
  * @param args - Boundary facts, current-branch artifacts, and tick time
  * @returns Sparse timeline payload for `applyTickEventWrites`

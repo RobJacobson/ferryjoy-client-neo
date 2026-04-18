@@ -79,8 +79,8 @@ export async function loadVesselIdentities(
 /**
  * Fetch WSF vessel basics and replace the backend `vesselsIdentity` snapshot.
  *
- * Shared by {@link syncBackendVessels}, {@link runSyncBackendVessels},
- * {@link loadVesselIdentities}, and orchestrator bootstrap.
+ * Shared by {@link syncBackendVessels}, {@link runSyncBackendVessels}, and
+ * {@link loadVesselIdentities}.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced

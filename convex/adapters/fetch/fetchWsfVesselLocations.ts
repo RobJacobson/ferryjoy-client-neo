@@ -3,8 +3,10 @@
  *
  * Fetches raw vessel locations from the WSDOT-backed WSF API, resolves each row
  * against backend vessel and terminal identity, and maps to
- * {@link ConvexVesselLocation}. Authentication uses `WSDOT_ACCESS_TOKEN` from
- * the Convex deployment environment (read by `ws-dottie` at package init).
+ * {@link ConvexVesselLocation}. Rows that fail conversion are skipped with a
+ * warning; if every row fails, the fetch throws after logging. Authentication
+ * uses `WSDOT_ACCESS_TOKEN` from the Convex deployment environment (read by
+ * `ws-dottie` at package init).
  */
 
 import type { TerminalIdentity } from "functions/terminals/schemas";
@@ -19,12 +21,63 @@ import { resolveTerminalByAbbrev } from "../resolve/resolveWsfTerminal";
 import { resolveVessel } from "../resolve/resolveWsfVessel";
 
 /**
+ * Maps Dottie API rows to Convex locations, skipping rows that throw during
+ * conversion and emitting one `console.warn` per skipped row.
+ *
+ * @param rows - Raw vessel locations from {@link fetchVesselLocations}
+ * @param vessels - Backend vessel rows for name → abbreviation lookup
+ * @param terminals - Backend terminal rows for terminal normalization and distances
+ * @returns Successfully converted locations only (failed rows are omitted)
+ */
+export const mapDottieVesselLocationsToConvex = (
+  rows: ReadonlyArray<DottieVesselLocation>,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+): ConvexVesselLocation[] => {
+  const locations: ConvexVesselLocation[] = [];
+
+  for (const dvl of rows) {
+    try {
+      locations.push(toConvexVesselLocation(dvl, vessels, terminals));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[vesselLocation] Skipping feed row (VesselID=${dvl.VesselID}, VesselName=${JSON.stringify(dvl.VesselName ?? "")}): ${detail}`
+      );
+    }
+  }
+
+  return locations;
+};
+
+/**
+ * Ensures at least one row converted when the API returned rows (all skipped =
+ * unusable batch).
+ *
+ * @param rawRowCount - Number of rows returned by the WSF API
+ * @param locations - Successfully converted locations
+ * @returns Nothing when the batch is usable or empty API batch
+ * @throws Error when `rawRowCount > 0` and `locations` is empty
+ */
+export const assertAtLeastOneVesselLocationConverted = (
+  rawRowCount: number,
+  locations: ReadonlyArray<ConvexVesselLocation>
+): void => {
+  if (rawRowCount > 0 && locations.length === 0) {
+    throw new Error(
+      `All ${rawRowCount} vessel location rows failed conversion; see warnings above.`
+    );
+  }
+};
+
+/**
  * Fetches WSF vessel locations and maps each feed row to Convex storage shape.
  *
  * @param vessels - Backend vessel rows for name → abbreviation lookup
  * @param terminals - Backend terminal rows for terminal normalization and distances
- * @returns Convex vessel locations for every feed row
- * @throws Error when the WSF API returns no locations, or when vessel resolution fails
+ * @returns Convex vessel locations for successfully converted feed rows
+ * @throws Error when the WSF API returns no locations, when every row fails
+ *   conversion, or on unexpected fetch failure
  */
 export const fetchWsfVesselLocations = async (
   vessels: ReadonlyArray<VesselIdentity>,
@@ -36,9 +89,18 @@ export const fetchWsfVesselLocations = async (
     throw new Error("No vessel locations received from WSF API");
   }
 
-  return dottieVesselLocations.map((dvl) =>
-    toConvexVesselLocation(dvl, vessels, terminals)
+  const locations = mapDottieVesselLocationsToConvex(
+    dottieVesselLocations,
+    vessels,
+    terminals
   );
+
+  assertAtLeastOneVesselLocationConverted(
+    dottieVesselLocations.length,
+    locations
+  );
+
+  return [...locations];
 };
 
 /**

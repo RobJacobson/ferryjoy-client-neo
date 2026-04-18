@@ -1,8 +1,8 @@
 /**
  * Vessel-trip processing entrypoint (**updateVesselTrips**).
  *
- * Owns lifecycle state transitions and persistence, then runs **updateTimeline**
- * assembly via {@link buildTimelineTickProjectionInput} and returns
+ * Owns lifecycle state transitions (write plan + functions applier), then runs
+ * **updateTimeline** assembly via {@link buildTimelineTickProjectionInput} and returns
  * `tickEventWrites` / `TimelineTickProjectionInput` for
  * `applyTickEventWrites`. ML attachment for trips is **updateVesselPredictions**
  * (`applyVesselPredictions`, invoked from `buildTrip` after schedule enrichment;
@@ -19,6 +19,10 @@ import {
 import { processCurrentTrips } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+// Persistence for this tick is applied in `applyVesselTripTickWritePlan` (functions
+// layer). Importing it here keeps a single orchestration entry; the applier depends
+// only on domain plan types, so there is no circular import with `functions/`.
+import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
@@ -51,10 +55,14 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
 /**
  * Process vessel trips with injectable dependencies.
  *
- * @param ctx - Convex action context for database operations
+ * @param ctx - Convex action context used here for
+ *   {@link applyVesselTripTickWritePlan} (trip tick write applier). Completed- and
+ *   current-trip builders no longer take `ctx`; schedule and ML reads use injected
+ *   deps (`buildTripAdapters`, `predictionModelAccess`).
  * @param locations - Array of vessel locations to process after orchestrator conversion
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
- * @param deps - Internal dependency bag used for testability (includes `buildTripAdapters`)
+ * @param deps - Internal dependency bag used for testability (includes
+ *   `buildTripAdapters`, `predictionModelAccess`)
  * @param activeTrips - Preloaded active trips for this tick. Prefer
  *   {@link TickActiveTrip} rows; trips enriched with predictions remain
  *   accepted for tests.
@@ -70,8 +78,8 @@ export const processVesselTripsWithDeps = async (
   activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTripWithPredictions>,
   options?: ProcessVesselTripsOptions
 ): Promise<VesselTripsTickResult> => {
-  // Values are storage-native and/or query-enriched rows; lifecycle strips ML
-  // for persist checks.
+  // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
+  // event detection and `buildTrip`; stripping ML for DB writes happens in the applier.
   const existingTripsDict = Object.fromEntries(
     activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;
@@ -91,9 +99,8 @@ export const processVesselTripsWithDeps = async (
     (transition) => !transition.events.isCompletedTrip
   );
 
-  // Completed-trip boundaries must run before current-trip updates.
-  const completedFacts = await processCompletedTrips(
-    ctx,
+  // Build plan: completed handoffs before current-trip artifacts (apply order).
+  const completedHandoffs = await processCompletedTrips(
     completedTrips,
     shouldRunPredictionFallback,
     logVesselProcessingError,
@@ -101,15 +108,23 @@ export const processVesselTripsWithDeps = async (
       buildCompletedTrip: deps.buildCompletedTrip,
       buildTrip: deps.buildTrip,
       buildTripAdapters: deps.buildTripAdapters,
+      predictionModelAccess: deps.predictionModelAccess,
     }
   );
-  const currentBranch = await processCurrentTrips(
-    ctx,
+  const currentFragment = await processCurrentTrips(
     currentTrips,
     shouldRunPredictionFallback,
     {
       buildTrip: deps.buildTrip,
       buildTripAdapters: deps.buildTripAdapters,
+      predictionModelAccess: deps.predictionModelAccess,
+    }
+  );
+  const { completedFacts, currentBranch } = await applyVesselTripTickWritePlan(
+    ctx,
+    {
+      completedHandoffs,
+      current: currentFragment,
     }
   );
   const tickEventWrites = buildTimelineTickProjectionInput({
