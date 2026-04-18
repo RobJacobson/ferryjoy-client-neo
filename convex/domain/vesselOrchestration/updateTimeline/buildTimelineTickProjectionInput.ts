@@ -3,9 +3,9 @@
  * `TimelineTickProjectionInput` for `applyTickEventWrites`.
  *
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
- * `processVesselTrips` imports from here so timeline assembly stays in the
- * **updateTimeline** concern without a `vesselTrips` → `vesselOrchestration`
- * barrel cycle.
+ * `runProcessVesselTripsTick` (`functions/vesselOrchestrator`) imports from the
+ * `updateTimeline` façade so timeline assembly stays in the **updateTimeline**
+ * concern without a `vesselTrips` → `vesselOrchestration` barrel cycle.
  */
 
 import {

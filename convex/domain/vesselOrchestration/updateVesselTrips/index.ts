@@ -1,6 +1,6 @@
 /**
  * Orchestrator concern **updateVesselTrips**: passenger-terminal gates,
- * **`tripLifecycle/`**, tick entry (`processTick/`), continuity, read helpers,
+ * **`tripLifecycle/`**, tick plan (`processTick/` / `computeVesselTripTickWritePlan`), continuity, read helpers,
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
@@ -8,36 +8,49 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers pair `processVesselTripsWithDeps` with
- * `createDefaultProcessVesselTripsDeps` (domain; schedule lookup + prediction model access) and schedule lookup from
- * `createVesselOrchestratorTickDeps` (`functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`).
+ * Production callers use `runProcessVesselTripsTick` (`functions/vesselOrchestrator/runProcessVesselTripsTick.ts`)
+ * with `computeVesselTripTickWritePlan`, `createDefaultProcessVesselTripsDeps` (domain),
+ * and schedule lookup from `createScheduledSegmentLookup` as wired by
+ * `executeVesselOrchestratorTick`.
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
- * for discoverability; the same symbols are re-exported from
- * `domain/vesselOrchestration/updateTimeline` and
- * `domain/vesselOrchestration/updateVesselPredictions`.
+ * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
+ * trip branch composes with); canonical imports for those peers remain their own
+ * `index.ts` files—this is not a barrel to re-export “everything.”
  * Tests can inject their own dependencies directly.
+ *
+ * **Imports:** Callers should take **only the symbols they need** from this entry;
+ * do not treat it as “import the whole module” if a narrower peer import suffices.
+ *
+ * **Peer façade for `functions/vesselOrchestrator`:** `createDefaultProcessVesselTripsDeps`,
+ * `ScheduledSegmentLookup`, `TripEvents` (types), and tick symbols below—import this
+ * `index`, not deep leaf paths.
  */
 
 export {
   type BuildTimelineTickProjectionInputArgs,
   buildTimelineTickProjectionInput,
-} from "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput";
-export type {
-  TickEventWrites,
-  TimelineTickProjectionInput,
-} from "domain/vesselOrchestration/updateTimeline/tickEventWrites";
+  type TickEventWrites,
+  type TimelineTickProjectionInput,
+} from "domain/vesselOrchestration/updateTimeline";
 export {
   applyVesselPredictions,
   stripTripPredictionsForStorage,
   type VesselPredictionGates,
   type VesselTripCoreProposal,
 } from "domain/vesselOrchestration/updateVesselPredictions";
+export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
 export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
 } from "./passengerTerminalEligibility";
-export type { ProcessVesselTripsOptions } from "./processTick/processVesselTrips";
+export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
+export {
+  computeVesselTripTickWritePlan,
+  type ProcessVesselTripsDeps,
+  type ProcessVesselTripsOptions,
+} from "./processTick/processVesselTrips";
 export type { VesselTripsTickResult } from "./processTick/tickEnvelope";
 export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
+export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

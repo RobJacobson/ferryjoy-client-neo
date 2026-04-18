@@ -1,6 +1,6 @@
 # updateTimeline (orchestrator concern)
 
-Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`. **Apply** is **not** in this folder: the single entry is **`applyTickEventWrites`** in [`../../../functions/vesselOrchestrator/applyTickEventWrites.ts`](../../../functions/vesselOrchestrator/applyTickEventWrites.ts), which runs the internal timeline projection mutations after lifecycle writes for the tick. The orchestrator wires it through [`createVesselOrchestratorTickDeps`](../../../functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts) (invoked from [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts)).
+Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`. **Apply** is **not** in this folder: the single entry is **`applyTickEventWrites`** in [`../../../functions/vesselOrchestrator/applyTickEventWrites.ts`](../../../functions/vesselOrchestrator/applyTickEventWrites.ts), which runs the internal timeline projection mutations after lifecycle writes for the tick. Production calls it from [`executeVesselOrchestratorTick`](../../../functions/vesselOrchestrator/executeVesselOrchestratorTick.ts) (invoked from [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts)).
 
 ## Canonical files (this folder)
 
@@ -15,7 +15,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 
 ## Imports
 
-- **`processVesselTrips`** imports `buildTimelineTickProjectionInput` from **`domain/vesselOrchestration/updateTimeline/...`** (direct path; avoids relying only on the barrel for the tick hot path).
+- **`runProcessVesselTripsTick`** (`functions/vesselOrchestrator`) imports `buildTimelineTickProjectionInput` from **`domain/vesselOrchestration/updateTimeline`** (folder entry).
 - Lifecycle code imports boundary types from **`domain/vesselOrchestration/updateTimeline/types`**.
 - **`domain/vesselOrchestration/updateVesselTrips/index.ts`** re-exports key symbols for queries and shared callers.
 

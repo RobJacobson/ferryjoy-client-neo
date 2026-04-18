@@ -15,6 +15,7 @@ Backend engineers working on `convex/functions/vesselOrchestrator`,
 
 ## Related docs
 
+- **Final-shape / functions-owned orchestration:** [`docs/engineering/vessel-orchestrator-functions-owned-orchestration-memo.md`](engineering/vessel-orchestrator-functions-owned-orchestration-memo.md)
 - [`convex/functions/vesselOrchestrator/README.md`](../convex/functions/vesselOrchestrator/README.md)
 - [`convex/domain/vesselOrchestration/architecture.md`](../convex/domain/vesselOrchestration/architecture.md)
 - [`docs/handoffs/vessel-orchestration-concern-colocation-handoff-2026-04-17.md`](handoffs/vessel-orchestration-concern-colocation-handoff-2026-04-17.md)
@@ -129,6 +130,14 @@ work.
 
 So “domain” today is **not** a pure function of preloaded inputs; it performs
 **live reads** (and mutations) through Convex’s action context.
+
+### 1.8 Current snapshot (post–Stage 5; final-shape follow-up)
+
+The **staged migration narrative** in §§1–3 below is largely **historical**. For
+**current** layering—functions-owned tick orchestration, where domain symbols are
+imported, and remaining optional work—see
+[`docs/engineering/vessel-orchestrator-functions-owned-orchestration-memo.md`](engineering/vessel-orchestrator-functions-owned-orchestration-memo.md).
+
 
 ---
 

@@ -2,9 +2,8 @@
  * Timeline overlay mutations for one orchestrator tick (updateTimeline).
  *
  * Canonical implementation for **updateTimeline** apply; import this module
- * directly when referencing the function. {@link createVesselOrchestratorTickDeps}
- * wires it into `VesselOrchestratorTickDeps.applyTickEventWrites` for the
- * orchestrator action.
+ * directly when referencing the function. Production calls it from
+ * {@link executeVesselOrchestratorTick} after `runProcessVesselTripsTick`.
  */
 
 import { internal } from "_generated/api";
@@ -15,8 +14,7 @@ import type { TimelineTickProjectionInput } from "domain/vesselOrchestration/upd
  * **updateTimeline** — applies per-tick `eventsActual` / `eventsPredicted` writes
  * after lifecycle persistence.
  *
- * Used by {@link createVesselOrchestratorTickDeps} for the orchestrator trip
- * branch.
+ * Used by the orchestrator trip branch in {@link executeVesselOrchestratorTick}.
  *
  * @param ctx - Convex action context
  * @param writes - **updateTimeline** input (`TimelineTickProjectionInput` /

@@ -1,18 +1,10 @@
 /**
- * Vessel orchestrator tick pipeline: coordination and passenger-terminal gating.
+ * Vessel orchestration domain: trip/timeline helpers and passenger-terminal gating.
  *
- * Convex actions in `functions/vesselOrchestrator` load data, inject adapters, and
- * call {@link runVesselOrchestratorTick}.
+ * Post-fetch orchestration for one tick lives in Convex
+ * `functions/vesselOrchestrator` (`executeVesselOrchestratorTick`).
  */
 
-export { runVesselOrchestratorTick } from "./runVesselOrchestratorTick";
-export type {
-  UpdateVesselOrchestratorResult,
-  VesselOrchestratorTickDeps,
-  VesselOrchestratorTickInput,
-  VesselOrchestratorTickMetrics,
-  VesselOrchestratorTickResult,
-} from "./types";
 export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,

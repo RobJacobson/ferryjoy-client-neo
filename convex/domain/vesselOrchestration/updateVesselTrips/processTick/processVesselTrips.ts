@@ -1,16 +1,13 @@
 /**
- * Vessel-trip processing entrypoint (**updateVesselTrips**).
+ * Vessel-trip **plan** computation (**updateVesselTrips** tick branch).
  *
- * Owns lifecycle state transitions (write plan + functions applier), then runs
- * **updateTimeline** assembly via {@link buildTimelineTickProjectionInput} and returns
- * `tickEventWrites` / `TimelineTickProjectionInput` for
- * `applyTickEventWrites`. ML attachment for trips is **updateVesselPredictions**
- * (`applyVesselPredictions`, invoked from `buildTrip` after schedule enrichment;
- * see `architecture.md` §10).
+ * Builds a {@link VesselTripTickWritePlan} for the functions-layer applier;
+ * persistence and {@link buildTimelineTickProjectionInput} run outside this module
+ * (see `runProcessVesselTripsTick` in `functions/vesselOrchestrator`). ML
+ * attachment for trips is **updateVesselPredictions** (`applyVesselPredictions`,
+ * invoked from `buildTrip` after schedule enrichment; see `architecture.md` §10).
  */
 
-import type { ActionCtx } from "_generated/server";
-import { buildTimelineTickProjectionInput } from "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput";
 import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import {
   type ProcessCompletedTripsDeps,
@@ -18,16 +15,12 @@ import {
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import { processCurrentTrips } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type { VesselTripTickWritePlan } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-// Persistence for this tick is applied in `applyVesselTripTickWritePlan` (functions
-// layer). Importing it here keeps a single orchestration entry; the applier depends
-// only on domain plan types, so there is no circular import with `functions/`.
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
-import type { VesselTripsTickResult } from "./tickEnvelope";
 import { computeShouldRunPredictionFallback } from "./tickPredictionPolicy";
 
 /** Optional tick inputs; prediction fallback may be supplied by orchestrator. */
@@ -53,31 +46,29 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
 };
 
 /**
- * Process vessel trips with injectable dependencies.
+ * Computes the domain write plan for one vessel-orchestrator tick (completed
+ * handoffs then current-trip fragment). Does not run Convex mutations or timeline
+ * assembly; the functions runner applies the plan then calls
+ * `buildTimelineTickProjectionInput`.
  *
- * @param ctx - Convex action context used here for
- *   {@link applyVesselTripTickWritePlan} (trip tick write applier). Completed- and
- *   current-trip builders no longer take `ctx`; schedule and ML reads use injected
- *   deps (`buildTripAdapters`, `predictionModelAccess`).
  * @param locations - Array of vessel locations to process after orchestrator conversion
- * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator
+ * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator (unused in plan
+ *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
- *   `buildTripAdapters`, `predictionModelAccess`)
+ *   `buildTripAdapters`, `predictionModelAccess`, `detectTripEvents`)
  * @param activeTrips - Preloaded active trips for this tick. Prefer
  *   {@link TickActiveTrip} rows; trips enriched with predictions remain
  *   accepted for tests.
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
- * @returns Lifecycle result plus tick event writes (**updateTimeline** payload)
- *   for orchestrator peers
+ * @returns Write plan for `applyVesselTripTickWritePlan`
  */
-export const processVesselTripsWithDeps = async (
-  ctx: ActionCtx,
+export const computeVesselTripTickWritePlan = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
   activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTripWithPredictions>,
   options?: ProcessVesselTripsOptions
-): Promise<VesselTripsTickResult> => {
+): Promise<{ plan: VesselTripTickWritePlan }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
   // event detection and `buildTrip`; stripping ML for DB writes happens in the applier.
   const existingTripsDict = Object.fromEntries(
@@ -120,22 +111,12 @@ export const processVesselTripsWithDeps = async (
       predictionModelAccess: deps.predictionModelAccess,
     }
   );
-  const { completedFacts, currentBranch } = await applyVesselTripTickWritePlan(
-    ctx,
-    {
-      completedHandoffs,
-      current: currentFragment,
-    }
-  );
-  const tickEventWrites = buildTimelineTickProjectionInput({
-    completedFacts,
-    currentBranch,
-    tickStartedAt,
-  });
 
   return {
-    tickStartedAt,
-    tickEventWrites,
+    plan: {
+      completedHandoffs,
+      current: currentFragment,
+    },
   };
 };
 

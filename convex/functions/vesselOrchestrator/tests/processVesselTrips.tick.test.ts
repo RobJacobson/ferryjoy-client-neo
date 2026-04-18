@@ -1,20 +1,20 @@
 /**
- * Sequencing tests for the top-level vessel trip processor.
+ * Sequencing tests for {@link runProcessVesselTripsTick} (plan → apply → timeline).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { TickEventWrites } from "domain/vesselOrchestration/updateTimeline/tickEventWrites";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type { TickEventWrites } from "domain/vesselOrchestration/updateTimeline";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { processVesselTripsWithDeps } from "../processTick/processVesselTrips";
+import { runProcessVesselTripsTick } from "../runProcessVesselTripsTick";
 
 const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,
@@ -29,7 +29,8 @@ const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
 /**
  * Applies timeline writes after lifecycle (same branching as
  * `functions/vesselOrchestrator/applyTickEventWrites.ts`) using the test fake’s
- * `runMutation` so sequencing assertions stay domain-local.
+ * `runMutation` so sequencing assertions inspect recorded mutations here (functions
+ * test module; same ordering as production `executeVesselOrchestratorTick`).
  *
  * @param ctx - Test fake action context
  * @param writes - Actual and predicted dock writes from the tick
@@ -70,7 +71,7 @@ const runVesselTripsTick = async (
   deps: ReturnType<typeof createDeps>,
   activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
-  const result = await processVesselTripsWithDeps(
+  const result = await runProcessVesselTripsTick(
     ctx as unknown as ActionCtx,
     locations,
     tickStartedAt,
@@ -93,7 +94,7 @@ const defaultEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-describe("processVesselTripsWithDeps", () => {
+describe("runProcessVesselTripsTick", () => {
   it("uses preloaded active trips without extra reads", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
@@ -662,7 +663,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `processVesselTripsWithDeps`
+ * @returns Dependency bag for `runProcessVesselTripsTick`
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =

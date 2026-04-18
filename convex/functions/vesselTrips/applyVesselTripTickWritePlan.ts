@@ -117,7 +117,7 @@ const applyCompletedHandoffs = async (
       result.reason instanceof Error
         ? result.reason
         : new Error(String(result.reason));
-    // Same format as `logVesselProcessingError` in `processVesselTripsWithDeps`
+    // Same format as `logVesselProcessingError` in `processVesselTrips.ts`
     // (phase matches completed-branch build failures for ops consistency).
     const phase = "completed-trip processing";
     console.error(

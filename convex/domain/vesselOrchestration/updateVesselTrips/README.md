@@ -9,7 +9,7 @@
 | --- | --- |
 | [`passengerTerminalEligibility.ts`](./passengerTerminalEligibility.ts) | Which locations run through trip processing |
 | [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTrip`, `processCompletedTrips`, `processCurrentTrips`, predictions, equality, strip-for-storage |
-| [`processTick/`](./processTick/) | Tick entry (`processVesselTripsWithDeps`), adapters, envelope, prediction policy |
+| [`processTick/`](./processTick/) | `computeVesselTripTickWritePlan`, adapters, envelope, prediction policy |
 | [`continuity/`](./continuity/) | Docked identity continuity |
 | [`read/`](./read/) | Query-time merge/dedupe helpers |
 | [`mutations/`](./mutations/) | Domain mutation policy helpers (e.g. depart-next) |

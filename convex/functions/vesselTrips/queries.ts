@@ -74,8 +74,8 @@ export const getActiveTrips = query({
  * Fetch active vessel trips with joined `scheduledTrips` rows for display.
  *
  * Tick-time enrichment uses `eventsScheduled` via `appendFinalSchedule` in
- * `domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts` (wired by
- * `createVesselOrchestratorTickDeps` in `functions/vesselOrchestrator/createVesselOrchestratorTickDeps.ts`) for next-leg lifecycle
+ * `domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts` (same wiring as
+ * `executeVesselOrchestratorTick` / `runProcessVesselTripsTick` with `createScheduledSegmentLookup`) for next-leg lifecycle
  * fields. This query joins the persisted schedule catalog for UI only.
  *
  * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
