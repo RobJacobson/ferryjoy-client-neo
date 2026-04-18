@@ -24,19 +24,20 @@ import { VesselLine } from "./VesselLine";
  * ```
  */
 export const VesselLines = () => {
-  const { vesselPingsByVesselId: vesselPings } = useConvexVesselPings();
+  const { vesselPingsByVesselAbbrev: vesselPings } = useConvexVesselPings();
   const { smoothedVessels } = useSmoothedVesselLocations();
 
   // Create VesselLineWrapper components
   const vesselLineComponents = Object.entries(vesselPings)
-    .map(([vesselId, pings]) => {
-      const id = parseInt(vesselId, 10);
-      const smoothedVessel = smoothedVessels.find((v) => v.VesselID === id);
+    .map(([vesselAbbrev, pings]) => {
+      const smoothedVessel = smoothedVessels.find(
+        (v) => v.VesselAbbrev === vesselAbbrev
+      );
       // Create and return VesselLine component
       return (
         <VesselLine
-          key={`vessel-line-${vesselId}`}
-          vesselId={vesselId}
+          key={`vessel-line-${vesselAbbrev}`}
+          vesselAbbrev={vesselAbbrev}
           pings={pings}
           currentPosition={smoothedVessel}
         />

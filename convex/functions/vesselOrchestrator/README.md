@@ -11,29 +11,54 @@ The orchestrator follows the backend layering rule:
 convex/functions -> convex/adapters -> convex/domain -> convex/functions/persistence
 ```
 
-In this module, `actions.ts` stays as the Convex-facing shell. Raw vessel
-locations are fetched through `convex/adapters/wsf/fetchVesselLocations.ts`,
-translated into `ConvexVesselLocation`, and then passed into domain
-orchestration plus persistence adapters.
+In this module, `actions.ts` stays as the Convex-facing shell (`updateVesselOrchestrator`).
+Production runs **`executeVesselOrchestratorTick`**, which inlines Convex I/O for
+locations, `runProcessVesselTripsTick` (trip deps + predictions), and
+**`applyTickEventWrites`** from `applyTickEventWrites.ts` (single canonical
+implementation for **updateTimeline** apply). Tick input/result types live in
+`types.ts`. Raw vessel locations are fetched through
+`convex/adapters/fetch/fetchWsfVesselLocations.ts`, translated into
+`ConvexVesselLocation`, and then passed into domain orchestration plus
+persistence adapters.
 
 ## System Overview
 
-The orchestrator runs periodically, roughly every 5 seconds, and coordinates
+The orchestrator runs periodically, roughly every 15 seconds, and coordinates
 two separate downstream branches:
 
 1. store the latest vessel locations
 2. update trip lifecycle state via `vesselTrips/actions` (`processVesselTrips`;
-   domain implementation in `convex/domain/vesselTrips/`), then apply timeline overlay writes
+   domain implementation in `convex/domain/vesselOrchestration/updateVesselTrips/`), then apply timeline overlay writes
    (`applyTickEventWrites`) for `VesselTimeline`
 
 This keeps the expensive external vessel-location fetch centralized while
 allowing each downstream subsystem to evolve independently.
 
+### Four operational concerns (Phase 1)
+
+Naming matches [`architecture.md` §10](../../domain/vesselOrchestration/architecture.md):
+
+- **updateVesselLocations** — persist live `vesselLocations` (`persistLocations` / bulk upsert).
+- **updateVesselTrips** — active/completed trips, events, `buildTrip` (`processVesselTrips`).
+- **updateVesselPredictions** — `applyVesselPredictions` after `buildTripCore` (same tick / same `processVesselTrips` hop; not a separate orchestrator branch).
+- **updateTimeline** — `eventsActual` / `eventsPredicted` writes (`applyTickEventWrites`).
+
+On each tick, **updateVesselLocations** runs in parallel with a branch that runs
+**updateVesselTrips** then **updateTimeline** (`executeVesselOrchestratorTick`).
+
+**Observability (Phase 5A):** `executeVesselOrchestratorTick` returns `tickMetrics`
+(`persistLocationsMs`, `processVesselTripsMs`, `applyTickEventWritesMs`, rounded
+whole milliseconds). `updateVesselOrchestrator` is typed as
+`VesselOrchestratorTickResult` on success; read-model / WSF / domain failures
+**throw** like other actions. Each tick emits one `[VesselOrchestratorTick]`
+JSON log line with the same fields for dashboards and alerts. Structural split of
+internal actions is optional; see Phase 5 handoff.
+
 ```text
 WSF VesselLocations API
-  -> adapters/wsf/fetchVesselLocations
+  -> adapters/fetch/fetchWsfVesselLocations
   -> functions/vesselOrchestrator/actions.ts
-  -> domain/vesselOrchestration/runVesselOrchestratorTick
+  -> executeVesselOrchestratorTick (Convex I/O + trip/timeline wiring)
   -> vesselLocations table / vesselTrips persistence
 ```
 
@@ -69,26 +94,30 @@ Main entrypoint:
 Responsibilities:
 
 - fetch vessel locations from WSF
-- do that external fetch through `convex/adapters/wsf/fetchVesselLocations.ts`
+- do that external fetch through `convex/adapters/fetch/fetchWsfVesselLocations.ts`
 - load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips`
-  in **one** internal query per tick (`getOrchestratorTickReadModelInternal` in
-  `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still hydrates
-  for API subscribers), with identity-table bootstrap via `syncBackendVesselTable` /
-  `syncBackendTerminalTable` when either snapshot is empty
+  in **one** internal query per tick (`getOrchestratorModelData` in
+  `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches
+  for API subscribers); soft-fail when identity tables are empty (seed / hourly
+  identity crons)
+- **fetch:** `fetchWsfVesselLocations` skips individual bad feed rows (`console.warn`
+  per skip) and continues with the rest; if **every** row fails conversion, the fetch
+  throws and the tick reports a fetch error
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
-  terminal-or-marine-location fields derived from the backend `terminals`
+  terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
 - capture one tick timestamp shared by downstream consumers
-- invoke `runVesselOrchestratorTick` from `convex/domain/vesselOrchestration/` with
-  injected adapters: location bulk upsert, `processVesselTrips`, and the local
-  `applyTickEventWrites(...)` helper in `actions.ts`
+- invoke **`executeVesselOrchestratorTick`**, which performs location bulk upsert,
+  `runProcessVesselTripsTick` (with `createDefaultProcessVesselTripsDeps`,
+  `createScheduledSegmentLookup`, `createVesselTripPredictionModelAccess`), then
+  `applyTickEventWrites` from `applyTickEventWrites.ts` on the trip branch
 
 Domain pipeline (same tick semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
 - parallel branches with branch-level error isolation
-- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselTrips`)
+- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselOrchestration/updateVesselTrips`)
   applied inside the domain orchestrator when building `processVesselTrips` options
 - trip branch runs `processVesselTrips` then `applyTickEventWrites` with
   `tripResult.tickEventWrites` (lifecycle mutations always precede timeline mutations)
@@ -99,7 +128,7 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
-  -> adapters/wsf/fetchVesselLocations()
+  -> adapters/fetch/fetchWsfVesselLocations()
   -> actions.ts
   -> toConvexVesselLocation(raw, vessels, terminals)
   -> ConvexVesselLocation[]
@@ -107,7 +136,7 @@ WSF VesselLocation
 
 Notes:
 
-- the backend `terminals` table remains the canonical lookup for passenger
+- the backend `terminalsIdentity` table remains the canonical lookup for passenger
   terminals
 - it also contains a small number of known non-passenger marine locations used
   by the WSF vessel feed, such as `EAH` and `VIG`
@@ -158,7 +187,7 @@ Purpose:
   **storage-native** active trips into `processVesselTrips` (joined predictions are
   not required for lifecycle strip/compare; overlay assembly uses normalized
   prediction fields from the built trip vs existing when present). Public queries
-  still **hydrate** trips for API parity. Post-upsert depart-next backfill writes
+  still **enrich** trips with predictions for API parity. Post-upsert depart-next backfill writes
   **actuals** onto the prior leg’s `eventsPredicted` rows, not onto stored trip
   rows. Timeline table mutations run in `applyTickEventWrites` after lifecycle
   completes for the tick.
@@ -207,7 +236,7 @@ Those normalized rows are not the public query contract anymore. The backend
 now builds one ordered same-day event list for the timeline backbone. When more
 than one `eventsPredicted` row shares the same boundary `Key` (e.g. WSF ETA vs ML),
 `mergeTimelineRows` picks a single backbone `EventPredictedTime` (WSF ETA row
-first). Trip-shaped queries still expose `Eta` plus ML-hydrated fields separately.
+first). Trip-shaped queries still expose `Eta` plus prediction-enriched fields separately.
 The client derives `activeInterval` from that backbone and combines it with its
 existing real-time `VesselLocation` subscription for indicator placement.
 
@@ -320,15 +349,23 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `actions.ts` — `updateVesselOrchestrator`; delegates tick orchestration to
-  `domain/vesselOrchestration/runVesselOrchestratorTick` and defines
-  `applyTickEventWrites(...)` (timeline mutations for the trip branch). There is
-  **no** separate `applyTickEventWrites.ts` file in this folder.
-- `queries.ts` — `getOrchestratorTickReadModelInternal` (bundled DB read for one tick)
+  **`executeVesselOrchestratorTick`** after fetch and read-model load.
+- `types.ts` — `VesselOrchestratorTickInput`, `VesselOrchestratorTickResult`, metrics
+  aliases for the orchestrator action.
+- `executeVesselOrchestratorTick.ts` — functions-owned tick: parallel locations vs
+  trip branch (`runProcessVesselTripsTick` + `applyTickEventWrites`).
+- `applyTickEventWrites.ts` — **updateTimeline** mutations for the trip branch
+  (`eventsActual` / `eventsPredicted` projection writes).
+- `runProcessVesselTripsTick.ts` — trip tick runner: `computeVesselTripTickWritePlan` →
+  `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput`.
+- `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick)
 
 ## Tests
 
-Orchestrator tick flow and branch coordination are covered in
-`convex/domain/vesselOrchestration/tests/`.
+Orchestrator tick: `tests/executeVesselOrchestratorTick.integration.test.ts`,
+`tests/executeVesselOrchestratorTick.behavior.test.ts`, shared sample locations in
+`tests/orchestratorTickTestFixtures.ts`. Trip sequencing (plan → apply → timeline)
+is covered in `tests/processVesselTrips.tick.test.ts`.
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in
 `convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action,
@@ -339,6 +376,7 @@ those internal actions live in `convex/crons.ts`.
 
 ## Related Documentation
 
+- `convex/domain/vesselOrchestration/architecture.md` — orchestrator tick, four concerns, glossary
 - `convex/functions/vesselTrips/README.md`
 - `convex/functions/scheduledTrips/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`

@@ -1,18 +1,19 @@
 /**
- * Vessel orchestrator tick pipeline: coordination and passenger-terminal gating.
+ * Vessel orchestration domain: trip/timeline helpers and passenger-terminal gating.
  *
- * Convex actions in `functions/vesselOrchestrator` load data, inject adapters, and
- * call {@link runVesselOrchestratorTick}.
+ * Post-fetch DB writes for one tick are sequenced in Convex
+ * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
+ * `computeOrchestratorTripWrites` for the trip branch.
  */
 
+export {
+  computeOrchestratorTripWrites,
+  type OrchestratorTripWrites,
+  type OrchestratorTripWritesOptions,
+} from "./computeOrchestratorTripWrites";
 export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
-} from "./passengerTerminalEligibility";
-export { runVesselOrchestratorTick } from "./runVesselOrchestratorTick";
-export type {
-  VesselOrchestratorTickDeps,
-  VesselOrchestratorTickInput,
-  VesselOrchestratorTickResult,
-} from "./types";
+  selectTripEligibleLocations,
+} from "./updateVesselTrips";

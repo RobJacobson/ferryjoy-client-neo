@@ -5,50 +5,13 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
+import { fetchWsfTerminalIdentities } from "adapters";
 import { v } from "convex/values";
-import {
-  fetchTerminalLocations,
-  type TerminalLocation,
-} from "ws-dottie/wsf-terminals/core";
-import type { Terminal } from "./schemas";
-
-type TerminalLocationWithIdentity = TerminalLocation & {
-  TerminalName: string;
-  TerminalAbbrev: string;
-};
-
-type ManualMarineLocation = Pick<
-  Terminal,
-  | "TerminalID"
-  | "TerminalName"
-  | "TerminalAbbrev"
-  | "Latitude"
-  | "Longitude"
-  | "IsPassengerTerminal"
->;
-
-const KNOWN_MARINE_LOCATIONS: ReadonlyArray<ManualMarineLocation> = [
-  {
-    TerminalID: -1001,
-    TerminalName: "Eagle Harbor Maintenance Facility",
-    TerminalAbbrev: "EAH",
-    IsPassengerTerminal: false,
-    Latitude: 47.62,
-    Longitude: -122.5153,
-  },
-  {
-    TerminalID: -1002,
-    TerminalName: "Vigor Shipyard",
-    TerminalAbbrev: "VIG",
-    IsPassengerTerminal: false,
-    Latitude: 47.5845,
-    Longitude: -122.3579,
-  },
-];
+import type { TerminalIdentity } from "./schemas";
 
 /**
  * Internal cron entry: fetch WSF terminal basics and replace the backend
- * `terminals` snapshot.
+ * `terminalsIdentity` snapshot.
  *
  * @param ctx - Convex internal action context
  * @returns `null` after the backend snapshot refresh completes
@@ -87,10 +50,10 @@ export const runSyncBackendTerminals = action({
  * @param ctx - Convex action context for database operations
  * @returns Backend terminals for the current action
  */
-export async function loadBackendTerminals(
+export async function loadTerminalIdentities(
   ctx: ActionCtx
-): Promise<Array<Terminal>> {
-  let terminals: Array<Terminal> = await ctx.runQuery(
+): Promise<Array<TerminalIdentity>> {
+  let terminals: Array<TerminalIdentity> = await ctx.runQuery(
     internal.functions.terminals.queries.getAllBackendTerminalsInternal
   );
 
@@ -106,7 +69,7 @@ export async function loadBackendTerminals(
 
   if (terminals.length === 0) {
     throw new Error(
-      "Backend terminals table is still empty after bootstrap refresh."
+      "Backend terminalsIdentity table is still empty after bootstrap refresh."
     );
   }
 
@@ -114,29 +77,17 @@ export async function loadBackendTerminals(
 }
 
 /**
- * Fetch WSF terminal basics and replace the backend `terminals` snapshot.
+ * Fetch WSF terminal basics and replace the backend `terminalsIdentity` snapshot.
  *
- * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals},
- * {@link loadBackendTerminals}, and orchestrator bootstrap.
+ * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals}, and
+ * {@link loadTerminalIdentities}.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced
  */
 export async function syncBackendTerminalTable(ctx: ActionCtx): Promise<void> {
-  const fetchedTerminals = await fetchTerminalLocations();
   const updatedAt = Date.now();
-  const terminals = mergeKnownMarineLocations(
-    fetchedTerminals.filter(hasTerminalIdentity).map((terminal) => ({
-      TerminalID: terminal.TerminalID,
-      TerminalName: terminal.TerminalName.trim(),
-      TerminalAbbrev: terminal.TerminalAbbrev.trim(),
-      IsPassengerTerminal: true,
-      Latitude: roundCoordinate(terminal.Latitude),
-      Longitude: roundCoordinate(terminal.Longitude),
-      UpdatedAt: updatedAt,
-    })),
-    updatedAt
-  );
+  const terminals = await fetchWsfTerminalIdentities(updatedAt);
 
   await ctx.runMutation(
     internal.functions.terminals.mutations.replaceBackendTerminals,
@@ -145,59 +96,3 @@ export async function syncBackendTerminalTable(ctx: ActionCtx): Promise<void> {
     }
   );
 }
-
-/**
- * Append known WSF-referenced marine locations that are omitted from the
- * upstream terminals basics feed.
- *
- * Upstream terminal rows win if WSF ever starts publishing one of these
- * abbreviations directly.
- *
- * @param fetchedTerminals - Canonical terminal rows from WSF basics
- * @param updatedAt - Shared refresh timestamp
- * @returns Merged marine-location snapshot
- */
-export const mergeKnownMarineLocations = (
-  fetchedTerminals: Array<Terminal>,
-  updatedAt: number
-): Array<Terminal> => {
-  const terminalsByAbbrev = new Map<string, Terminal>(
-    fetchedTerminals.map((terminal) => [terminal.TerminalAbbrev, terminal])
-  );
-
-  for (const location of KNOWN_MARINE_LOCATIONS) {
-    if (terminalsByAbbrev.has(location.TerminalAbbrev)) {
-      continue;
-    }
-
-    terminalsByAbbrev.set(location.TerminalAbbrev, {
-      ...location,
-      UpdatedAt: updatedAt,
-    });
-  }
-
-  return [...terminalsByAbbrev.values()];
-};
-
-/**
- * Narrow raw WSF terminal basics to rows that contain the identity fields
- * required by the backend terminal table.
- *
- * @param terminal - Raw WSF terminal basics row
- * @returns True when the row contains both terminal name and abbreviation
- */
-const hasTerminalIdentity = (
-  terminal: TerminalLocation
-): terminal is TerminalLocationWithIdentity =>
-  Boolean(terminal.TerminalName && terminal.TerminalAbbrev);
-
-/**
- * Round terminal coordinates to the stored backend precision.
- *
- * @param value - Raw WSF coordinate
- * @returns Coordinate rounded to four decimals, or `undefined` when absent
- */
-const roundCoordinate = (value: number | null | undefined) =>
-  value === null || value === undefined
-    ? undefined
-    : Math.round(value * 10000) / 10000;

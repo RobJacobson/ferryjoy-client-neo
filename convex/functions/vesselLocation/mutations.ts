@@ -2,14 +2,10 @@
  * Mutation handlers for vessel location snapshots and backend vessel mirrors.
  */
 
-import type { Doc } from "_generated/dataModel";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
-import { type Vessel, vesselSchema } from "../vessels/schemas";
-import {
-  type ConvexVesselLocation,
-  vesselLocationValidationSchema,
-} from "./schemas";
+import { vesselIdentitySchema } from "../vessels/schemas";
+import { vesselLocationValidationSchema } from "./schemas";
 
 /**
  * Bulk upsert vessel locations into the database
@@ -20,23 +16,27 @@ import {
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the location snapshot payload
- * @returns `undefined` after all required location upserts complete
+ * @returns `null` after all required location upserts complete
  */
 export const bulkUpsert = mutation({
   args: { locations: v.array(vesselLocationValidationSchema) },
-  handler: async (ctx, args: { locations: ConvexVesselLocation[] }) => {
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get all existing vessel locations.
     const existingLocations = await ctx.db.query("vesselLocations").collect();
 
+    // Build a map of existing vessel locations by vessel ID.
     const existingByVesselId = new Map(
-      existingLocations.map((loc) => [loc.VesselID, loc])
+      existingLocations.map((loc) => [loc.VesselID, loc] as const)
     );
 
-    const locationsNeedingWrite = args.locations.filter((location) =>
-      shouldWriteLocation(location, existingByVesselId)
-    );
-
-    for (const location of locationsNeedingWrite) {
+    // Upsert each location that needs to be written.
+    for (const location of args.locations) {
       const existing = existingByVesselId.get(location.VesselID);
+      // Skip when this vessel already has the same snapshot (no DB change).
+      if (existing?.TimeStamp === location.TimeStamp) {
+        continue;
+      }
 
       if (existing) {
         await ctx.db.replace(existing._id, location);
@@ -44,6 +44,8 @@ export const bulkUpsert = mutation({
         await ctx.db.insert("vesselLocations", location);
       }
     }
+
+    return null;
   },
 });
 
@@ -55,75 +57,32 @@ export const bulkUpsert = mutation({
  *
  * @param ctx - Convex internal mutation context
  * @param args - Mutation arguments containing backend vessel rows
- * @returns `undefined` after the backend vessel snapshot is replaced in place
+ * @returns `null` after the backend vessel snapshot is updated
  */
 export const replaceBackendVessels = internalMutation({
   args: {
-    vessels: v.array(vesselSchema),
+    vessels: v.array(vesselIdentitySchema),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("vessels").collect();
-    const { toInsert, toReplace } = buildBackendVesselUpsertOperations(
-      existing,
-      args.vessels
+    // Get all existing vessel identities.
+    const existingRows = await ctx.db.query("vesselsIdentity").collect();
+
+    // Build a map of existing vessel identities by abbreviation.
+    const byAbbrev = new Map(
+      existingRows.map((row) => [row.VesselAbbrev, row] as const)
     );
 
-    for (const { existing: existingVessel, incoming: vessel } of toReplace) {
-      await ctx.db.replace(existingVessel._id, vessel);
+    // Upsert each vessel identity.
+    for (const vessel of args.vessels) {
+      const previous = byAbbrev.get(vessel.VesselAbbrev);
+      if (previous) {
+        await ctx.db.replace(previous._id, vessel);
+      } else {
+        await ctx.db.insert("vesselsIdentity", vessel);
+      }
     }
 
-    for (const vessel of toInsert) {
-      await ctx.db.insert("vessels", vessel);
-    }
+    return null;
   },
 });
-
-/**
- * Build the abbreviation-keyed vessel upsert operations for one incoming snapshot.
- *
- * @param existing - Existing backend vessels
- * @param incoming - Incoming backend vessel snapshot
- * @returns Insert and replace operations without any delete step
- */
-export const buildBackendVesselUpsertOperations = (
-  existing: Array<Doc<"vessels">>,
-  incoming: Array<Vessel>
-) => {
-  const existingByVesselAbbrev = new Map<string, Doc<"vessels">>(
-    existing.map((vessel) => [vessel.VesselAbbrev, vessel])
-  );
-  const toInsert: Array<Vessel> = [];
-  const toReplace: Array<{ existing: Doc<"vessels">; incoming: Vessel }> = [];
-
-  for (const vessel of incoming) {
-    const existingVessel = existingByVesselAbbrev.get(vessel.VesselAbbrev);
-
-    if (existingVessel) {
-      toReplace.push({ existing: existingVessel, incoming: vessel });
-      continue;
-    }
-
-    toInsert.push(vessel);
-  }
-
-  return {
-    toInsert,
-    toReplace,
-  };
-};
-
-/**
- * Returns true if location needs a database write.
- * New vessels always need insert; existing vessels need replace only when TimeStamp changed.
- *
- * @param location - Incoming vessel location from API
- * @param existingByVesselId - Map of existing locations by VesselID
- * @returns true if write is needed
- */
-const shouldWriteLocation = (
-  location: ConvexVesselLocation,
-  existingByVesselId: Map<number, Doc<"vesselLocations">>
-): boolean => {
-  const existing = existingByVesselId.get(location.VesselID);
-  return existing === undefined || existing.TimeStamp !== location.TimeStamp;
-};

@@ -24,6 +24,10 @@ export {
 /**
  * Vessel trip prediction core utilities
  */
+export type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "./vesselTripPredictionModelAccess";
 export {
   actualizePredictionsOnLeaveDock,
   actualizePredictionsOnTripComplete,

@@ -6,17 +6,17 @@ import type { ConvexVesselLocation } from "../../functions/vesselLocation/schema
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import {
   type ActiveTripForPhysicalActualReconcile,
-  buildActualBoundaryEventFromPatch,
-  buildActualBoundaryEvents,
-  buildScheduledBoundaryEvents,
+  buildActualDockEventFromWrite,
+  buildActualDockEvents,
+  buildScheduledDockEvents,
   type TripContextForActualRow,
 } from "../timelineRows";
-import { mergeActualBoundaryPatchesIntoRows } from "./mergeActualBoundaryPatchesIntoRows";
+import { mergeActualDockWritesIntoRows } from "./mergeActualDockWritesIntoRows";
 import {
   normalizeScheduledDockSeams,
   sortVesselTripEvents,
 } from "./normalizeEventRecords";
-import { buildActualBoundaryPatchesForSailingDay } from "./reconcileLiveLocations";
+import { buildActualDockWritesForSailingDay } from "./reconcileLiveLocations";
 
 type BuildReseedTimelineSliceArgs = {
   sailingDay: string;
@@ -46,15 +46,12 @@ export const buildReseedTimelineSlice = ({
 }: BuildReseedTimelineSliceArgs) => {
   const normalizedEvents =
     normalizeScheduledDockSeams(events).sort(sortVesselTripEvents);
-  const scheduledRows = buildScheduledBoundaryEvents(
-    normalizedEvents,
-    updatedAt
-  );
+  const scheduledRows = buildScheduledDockEvents(normalizedEvents, updatedAt);
   const baseActualRows = dedupeActualRowsByEventKey([
-    ...buildActualBoundaryEvents(normalizedEvents, updatedAt, tripBySegmentKey),
+    ...buildActualDockEvents(normalizedEvents, updatedAt, tripBySegmentKey),
     ...buildPhysicalOnlyActualRowsFromTrips(physicalOnlyTrips, updatedAt),
   ]);
-  const liveLocationActualPatches = buildActualBoundaryPatchesForSailingDay({
+  const liveLocationActualPatches = buildActualDockWritesForSailingDay({
     sailingDay,
     scheduledEvents: scheduledRows,
     actualEvents: baseActualRows,
@@ -62,7 +59,7 @@ export const buildReseedTimelineSlice = ({
     tripBySegmentKey,
     activeTripsByVesselAbbrev,
   });
-  const actualRows = mergeActualBoundaryPatchesIntoRows(
+  const actualRows = mergeActualDockWritesIntoRows(
     baseActualRows,
     liveLocationActualPatches,
     updatedAt
@@ -90,7 +87,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
 
       if (departureActualTime !== undefined) {
         rows.push(
-          buildActualBoundaryEventFromPatch(
+          buildActualDockEventFromWrite(
             {
               TripKey: trip.TripKey as string,
               ScheduleKey: undefined,
@@ -116,7 +113,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
         trip.ArrivingTerminalAbbrev !== undefined
       ) {
         rows.push(
-          buildActualBoundaryEventFromPatch(
+          buildActualDockEventFromWrite(
             {
               TripKey: trip.TripKey as string,
               ScheduleKey: undefined,

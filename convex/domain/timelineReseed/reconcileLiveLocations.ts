@@ -3,11 +3,11 @@
  */
 
 import type {
-  ConvexActualBoundaryEvent,
-  ConvexActualBoundaryPatch,
-  ConvexActualBoundaryPatchPersistable,
-} from "../../functions/eventsActual/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
+  ConvexActualDockEvent,
+  ConvexActualDockWrite,
+  ConvexActualDockWritePersistable,
+} from "../../domain/events/actual/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "../../functions/vesselLocation/schemas";
 import type {
   ConvexVesselTimelineEventRecord,
@@ -18,7 +18,7 @@ import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
 import { getSailingDay } from "../../shared/time";
 import {
   type ActiveTripForPhysicalActualReconcile,
-  enrichActualBoundaryPatchesWithTripContext,
+  enrichActualDockWritesWithTripContext,
   type TripContextForActualRow,
 } from "../timelineRows";
 import { mergeTimelineRows } from "../timelineRows/mergeTimelineRows";
@@ -33,13 +33,13 @@ type VesselEventsByAbbrev<T extends { VesselAbbrev: string }> = Map<
 
 type VesselLocationScheduledEventsBundle = {
   location: ConvexVesselLocation;
-  vesselScheduledEvents: ConvexScheduledBoundaryEvent[];
+  vesselScheduledEvents: ConvexScheduledDockEvent[];
 };
 
-export type BuildActualBoundaryPatchesForSailingDayArgs = {
+export type BuildActualDockWritesForSailingDayArgs = {
   sailingDay: string;
-  scheduledEvents: ConvexScheduledBoundaryEvent[];
-  actualEvents: ConvexActualBoundaryEvent[];
+  scheduledEvents: ConvexScheduledDockEvent[];
+  actualEvents: ConvexActualDockEvent[];
   vesselLocations: ConvexVesselLocation[];
   tripBySegmentKey?: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev?: Map<
@@ -56,10 +56,10 @@ export type BuildActualBoundaryPatchesForSailingDayArgs = {
  * @param location - Live vessel-location tick to reconcile against the slice
  * @returns Sparse actual-boundary patches inferred from that live tick
  */
-export const buildActualBoundaryPatchesFromLocation = (
+export const buildActualDockWritesFromLocation = (
   events: ConvexVesselTimelineEventRecord[],
   location: ConvexVesselLocation
-): ConvexActualBoundaryPatch[] => {
+): ConvexActualDockWrite[] => {
   if (events.length === 0 || location.InService !== true) {
     return [];
   }
@@ -70,7 +70,7 @@ export const buildActualBoundaryPatchesFromLocation = (
   return [
     buildDepartureActualPatchFromLocation(location, departureEvent),
     buildArrivalActualPatchFromLocation(location, resolvedArrivalEvent),
-  ].filter((patch): patch is ConvexActualBoundaryPatch => patch !== undefined);
+  ].filter((patch): patch is ConvexActualDockWrite => patch !== undefined);
 };
 
 /**
@@ -82,14 +82,14 @@ export const buildActualBoundaryPatchesFromLocation = (
  * @returns Persistable actual-boundary patches for schedule-aligned and
  * physical-only reconciliation
  */
-export const buildActualBoundaryPatchesForSailingDay = ({
+export const buildActualDockWritesForSailingDay = ({
   sailingDay,
   scheduledEvents,
   actualEvents,
   vesselLocations,
   tripBySegmentKey = new Map(),
   activeTripsByVesselAbbrev = new Map(),
-}: BuildActualBoundaryPatchesForSailingDayArgs): ConvexActualBoundaryPatchPersistable[] => {
+}: BuildActualDockWritesForSailingDayArgs): ConvexActualDockWritePersistable[] => {
   const scheduledByVessel = groupBy(scheduledEvents, (e) => e.VesselAbbrev);
   const actualByVessel = groupBy(actualEvents, (e) => e.VesselAbbrev);
 
@@ -97,13 +97,12 @@ export const buildActualBoundaryPatchesForSailingDay = ({
     .map(attachScheduledEventsByVessel(scheduledByVessel))
     .filter(locationBundleMatchesSailingDay(sailingDay))
     .filter(hasScheduledEvents)
-    .flatMap(actualBoundaryPatchesFromLocationBundle(actualByVessel));
+    .flatMap(actualDockWritesFromLocationBundle(actualByVessel));
 
-  const scheduleAlignedWithTripContext =
-    enrichActualBoundaryPatchesWithTripContext(
-      scheduleAligned,
-      tripBySegmentKey
-    );
+  const scheduleAlignedWithTripContext = enrichActualDockWritesWithTripContext(
+    scheduleAligned,
+    tripBySegmentKey
+  );
   const representedTripBoundaryKeys = new Set(
     [
       ...actualEvents,
@@ -134,7 +133,7 @@ export const buildActualBoundaryPatchesForSailingDay = ({
  * @returns Mapper that pairs a location with its candidate scheduled events
  */
 const attachScheduledEventsByVessel =
-  (scheduledByVessel: VesselEventsByAbbrev<ConvexScheduledBoundaryEvent>) =>
+  (scheduledByVessel: VesselEventsByAbbrev<ConvexScheduledDockEvent>) =>
   (location: ConvexVesselLocation): VesselLocationScheduledEventsBundle => ({
     location,
     vesselScheduledEvents: scheduledByVessel.get(location.VesselAbbrev) ?? [],
@@ -179,10 +178,10 @@ const hasScheduledEvents = ({
  * @param actualByVessel - Actual boundary events grouped by vessel
  * @returns Mapper that produces sparse patches for one location bundle
  */
-const actualBoundaryPatchesFromLocationBundle =
-  (actualByVessel: VesselEventsByAbbrev<ConvexActualBoundaryEvent>) =>
+const actualDockWritesFromLocationBundle =
+  (actualByVessel: VesselEventsByAbbrev<ConvexActualDockEvent>) =>
   ({ location, vesselScheduledEvents }: VesselLocationScheduledEventsBundle) =>
-    buildActualBoundaryPatchesFromLocation(
+    buildActualDockWritesFromLocation(
       mergeTimelineRows({
         scheduledEvents: vesselScheduledEvents,
         actualEvents: actualByVessel.get(location.VesselAbbrev) ?? [],
@@ -219,7 +218,7 @@ const buildDepartureActualPatchFromLocation = (
   event: ConvexVesselTimelineEventRecord | undefined
 ) =>
   event && canConfirmDepartureFromLocation(location, event)
-    ? sparseActualBoundaryPatchFromEvent(event, location.LeftDock)
+    ? sparseActualDockWriteFromEvent(event, location.LeftDock)
     : undefined;
 
 const buildArrivalActualPatchFromLocation = (
@@ -227,13 +226,13 @@ const buildArrivalActualPatchFromLocation = (
   event: ConvexVesselTimelineEventRecord | undefined
 ) =>
   event && canConfirmArrivalFromLocation(location, event)
-    ? sparseActualBoundaryPatchFromEvent(event, undefined)
+    ? sparseActualDockWriteFromEvent(event, undefined)
     : undefined;
 
-const sparseActualBoundaryPatchFromEvent = (
+const sparseActualDockWriteFromEvent = (
   event: ConvexVesselTimelineEventRecord,
   EventActualTime: number | undefined
-): ConvexActualBoundaryPatch => ({
+): ConvexActualDockWrite => ({
   SegmentKey: event.SegmentKey,
   VesselAbbrev: event.VesselAbbrev,
   SailingDay: event.SailingDay,
@@ -318,7 +317,7 @@ const buildPhysicalOnlyPatchesFromLocation = (
     ActiveTripForPhysicalActualReconcile & { TripKey: string }
   >,
   representedTripBoundaryKeys: Set<string>
-): ConvexActualBoundaryPatchPersistable[] => {
+): ConvexActualDockWritePersistable[] => {
   if (location.InService !== true) {
     return [];
   }
@@ -328,7 +327,7 @@ const buildPhysicalOnlyPatchesFromLocation = (
     return [];
   }
 
-  const patches: ConvexActualBoundaryPatchPersistable[] = [];
+  const patches: ConvexActualDockWritePersistable[] = [];
 
   if (
     !representedTripBoundaryKeys.has(`${trip.TripKey}|dep-dock`) &&

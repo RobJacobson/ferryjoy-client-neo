@@ -9,13 +9,10 @@ import type { Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { mutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import {
-  DEPART_NEXT_ML_PREDICTION_TYPES,
-  resolveDepartNextLegContext,
-} from "domain/vesselTrips/mutations/departNextActualization";
-import type { ConvexVesselTripStored } from "functions/vesselTrips/schemas";
+import { resolveDepartNextLegContext } from "domain/vesselOrchestration/updateVesselTrips/mutations/departNextActualization";
+import { actualizeDepartNextMlPredictions } from "functions/events/eventsPredicted/mutations";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
-import { getRoundedMinutesDelta } from "shared/time";
 
 /**
  * Complete an active trip and start a new one.
@@ -158,7 +155,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     }
 
     const { depKey, actualMs } = leg;
-    const anyUpdated = await patchDepartNextPredictionActuals(
+    const anyUpdated = await actualizeDepartNextMlPredictions(
       ctx,
       depKey,
       actualMs
@@ -187,7 +184,7 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
  */
 const replaceOrInsertActiveTripForVessel = async (
   ctx: MutationCtx,
-  stored: ConvexVesselTripStored,
+  stored: ConvexVesselTrip,
   vesselAbbrev: string,
   activeByVessel: Map<string, { _id: Id<"activeVesselTrips"> }>
 ): Promise<void> => {
@@ -207,7 +204,7 @@ const replaceOrInsertActiveTripForVessel = async (
  * @returns Nothing; throws when `EndTime` is missing
  */
 const assertCompletedTripHasEndTime = (
-  completedTrip: ConvexVesselTripStored
+  completedTrip: ConvexVesselTrip
 ): void => {
   if (completedTrip.EndTime) {
     return;
@@ -263,43 +260,3 @@ const getMostRecentCompletedTrip = (ctx: MutationCtx, vesselAbbrev: string) =>
     )
     .order("desc")
     .first();
-
-/**
- * Patch depart-next ML predictions for one departure boundary when rows exist.
- *
- * @param ctx - Mutation context
- * @param depKey - Departure boundary key
- * @param actualMs - Observed departure timestamp
- * @returns True when at least one prediction row was updated
- */
-const patchDepartNextPredictionActuals = async (
-  ctx: MutationCtx,
-  depKey: string,
-  actualMs: number
-): Promise<boolean> => {
-  let anyUpdated = false;
-
-  for (const predictionType of DEPART_NEXT_ML_PREDICTION_TYPES) {
-    const existing = await ctx.db
-      .query("eventsPredicted")
-      .withIndex("by_key_type_and_source", (q) =>
-        q
-          .eq("Key", depKey)
-          .eq("PredictionType", predictionType)
-          .eq("PredictionSource", "ml")
-      )
-      .first();
-
-    if (!existing || existing.Actual !== undefined) {
-      continue;
-    }
-
-    await ctx.db.patch(existing._id, {
-      Actual: actualMs,
-      DeltaTotal: getRoundedMinutesDelta(existing.EventPredictedTime, actualMs),
-    });
-    anyUpdated = true;
-  }
-
-  return anyUpdated;
-};

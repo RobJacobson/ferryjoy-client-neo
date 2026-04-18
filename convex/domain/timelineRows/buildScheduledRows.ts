@@ -2,7 +2,7 @@
  * Pure helpers for deriving normalized VesselTimeline scheduled boundary rows.
  */
 
-import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey } from "../../shared/keys";
 
@@ -14,10 +14,10 @@ import { buildBoundaryKey } from "../../shared/keys";
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
  * @returns Scheduled boundary rows keyed by the stable event key
  */
-export const buildScheduledBoundaryEvents = (
+export const buildScheduledDockEvents = (
   events: ConvexVesselTimelineEventRecord[],
   updatedAt: number
-): ConvexScheduledBoundaryEvent[] => {
+): ConvexScheduledDockEvent[] => {
   const eventByKey = new Map(events.map((event) => [event.Key, event]));
   const lastArrivalKey = getLastArrivalKey(events);
 

@@ -9,10 +9,11 @@ import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { dedupeTripDocBatchesByTripKey } from "domain/vesselTrips/read/dedupeTripDocsByTripKey";
-import { hydrateStoredTripsWithPredictions } from "domain/vesselTrips/read/hydrateStoredTripsWithPredictions";
+import { dedupeTripDocBatchesByTripKey } from "domain/vesselOrchestration/updateVesselTrips/read/dedupeTripDocsByTripKey";
+import { mergeTripsWithPredictions } from "domain/vesselOrchestration/updateVesselTrips/read/mergeTripsWithPredictions";
+import { loadPredictedRowsGroupedForTrips } from "functions/events/eventsPredicted/queries";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
@@ -24,18 +25,21 @@ const vesselTripWithScheduledSchema = vesselTripSchema.extend({
 });
 
 /**
- * Hydrates stored trips for API reads, then strips Convex metadata.
+ * Enriches stored trips for API reads, then strips Convex metadata.
  *
- * @param ctx - Query context with database access for prediction hydration
+ * @param ctx - Query context with database access for prediction enrichment
  * @param docs - Active or completed trip documents read from storage
- * @returns Hydrated trip rows without Convex metadata
+ * @returns Enriched trip rows without Convex metadata
  */
-const hydrateTripsForApi = async (
+const enrichTripsForApi = async (
   ctx: Pick<QueryCtx, "db">,
   docs: Doc<"activeVesselTrips">[] | Doc<"completedVesselTrips">[]
-): Promise<ConvexVesselTrip[]> => {
-  const hydrated = await hydrateStoredTripsWithPredictions(ctx, docs);
-  return hydrated.map((h) => stripConvexMeta(h) as ConvexVesselTrip);
+): Promise<ConvexVesselTripWithPredictions[]> => {
+  const predictedByGroup = await loadPredictedRowsGroupedForTrips(ctx, docs);
+  const enriched = mergeTripsWithPredictions(docs, predictedByGroup);
+  return enriched.map(
+    (trip) => stripConvexMeta(trip) as ConvexVesselTripWithPredictions
+  );
 };
 
 /**
@@ -43,8 +47,7 @@ const hydrateTripsForApi = async (
  * Small dataset, frequently updated, perfect for real-time subscriptions
  * Optimized with proper indexing for performance
  *
- * Returns **hydrated** trips (`hydrateStoredTripsWithPredictions`) for API
- * parity with joined `eventsPredicted` fields.
+ * Returns trips enriched with joined `eventsPredicted` fields for API parity.
  *
  * @param ctx - Convex context
  * @returns Array of active vessel trips (schema shape, no _id/_creationTime)
@@ -55,7 +58,7 @@ export const getActiveTrips = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      return hydrateTripsForApi(ctx, trips);
+      return enrichTripsForApi(ctx, trips);
     } catch (error) {
       throw new ConvexError({
         message: "Failed to fetch active vessel trips",
@@ -71,8 +74,9 @@ export const getActiveTrips = query({
  * Fetch active vessel trips with joined `scheduledTrips` rows for display.
  *
  * Tick-time enrichment uses `eventsScheduled` via `appendFinalSchedule` in
- * `adapters/vesselTrips/processTick.ts` (next-leg fields for lifecycle). This query
- * joins the persisted schedule catalog for UI only.
+ * `domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
+ * (same wiring as `updateVesselOrchestrator` schedule lookup) for next-leg
+ * lifecycle fields. This query joins the persisted schedule catalog for UI only.
  *
  * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
  *
@@ -85,9 +89,9 @@ export const getActiveTripsWithScheduledTrip = query({
   handler: async (ctx) => {
     try {
       const trips = await ctx.db.query("activeVesselTrips").collect();
-      const hydrated = await hydrateTripsForApi(ctx, trips);
+      const enriched = await enrichTripsForApi(ctx, trips);
       const result = await Promise.all(
-        hydrated.map(async (trip) => {
+        enriched.map(async (trip) => {
           const scheduleKey = trip.ScheduleKey;
           if (!scheduleKey) {
             return trip;
@@ -139,7 +143,7 @@ export const getActiveTripsByRoutes = query({
             .collect()
         )
       );
-      return hydrateTripsForApi(ctx, batches.flat());
+      return enrichTripsForApi(ctx, batches.flat());
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch active trips for routes`,
@@ -182,7 +186,7 @@ export const getCompletedTripsByRoutesAndTripDate = query({
             .collect()
         )
       );
-      return hydrateTripsForApi(ctx, dedupeTripDocBatchesByTripKey(batches));
+      return enrichTripsForApi(ctx, dedupeTripDocBatchesByTripKey(batches));
     } catch (error) {
       throw new ConvexError({
         message: `Failed to fetch completed trips for routes on ${args.tripDate}`,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { ActionCtx } from "_generated/server";
 import type {
-  ConvexVesselTrip,
   ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
 } from "../../../functions/vesselTrips/schemas";
+import type { VesselTripPredictionModelAccess } from "./vesselTripPredictionModelAccess";
 import {
   actualizePredictionsOnLeaveDock,
   actualizePredictionsOnTripComplete,
@@ -14,6 +14,15 @@ import {
 } from "./vesselTripPredictions";
 
 const ms = (iso: string) => new Date(iso).getTime();
+
+const forbidModelAccess: VesselTripPredictionModelAccess = {
+  loadModelForProductionPair: async () => {
+    throw new Error("should not load model when prediction is skipped");
+  },
+  loadModelsForProductionPairBatch: async () => {
+    throw new Error("should not load model when prediction is skipped");
+  },
+};
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTripWithML> = {}
@@ -70,9 +79,11 @@ describe("isPredictionReadyTrip", () => {
       ArrivedCurrActual: undefined,
       TripStart: ms("2026-03-13T09:55:00-07:00"),
       AtDockActual: ms("2026-03-13T09:55:00-07:00"),
-    } as ConvexVesselTrip;
+    } as ConvexVesselTripWithPredictions;
 
-    expect(isPredictionReadyTrip(readyTrip as ConvexVesselTrip)).toBe(true);
+    expect(
+      isPredictionReadyTrip(readyTrip as ConvexVesselTripWithPredictions)
+    ).toBe(true);
     expect(isPredictionReadyTrip(legacyOnlyTrip)).toBe(false);
   });
 });
@@ -98,7 +109,7 @@ describe("prediction actualization", () => {
 
   it("does not backfill leave-dock actuals from legacy mirrors alone", () => {
     const trip = makeTrip({
-      LeftDockActual: ms("2026-03-13T10:15:00-07:00"),
+      LeftDockActual: undefined,
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
       AtDockDepartCurr: createPredictionResult(
         ms("2026-03-13T10:10:00-07:00"),
@@ -156,14 +167,8 @@ describe("predictFromSpec", () => {
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
     });
 
-    const ctx = {
-      runQuery: async () => {
-        throw new Error("should not query when departure actual is missing");
-      },
-    } as unknown as ActionCtx;
-
     const result = await predictFromSpec(
-      ctx,
+      forbidModelAccess,
       trip,
       PREDICTION_SPECS.AtSeaArriveNext
     );

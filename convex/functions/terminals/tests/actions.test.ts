@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { Terminal } from "functions/terminals/schemas";
-import { mergeKnownMarineLocations } from "../actions";
+import { mergeKnownMarineLocations } from "adapters";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 
 describe("mergeKnownMarineLocations", () => {
   it("appends known marine facilities without overriding fetched passenger terminals", () => {
@@ -56,7 +56,9 @@ describe("mergeKnownMarineLocations", () => {
   });
 });
 
-const makeTerminal = (overrides: Partial<Terminal>): Terminal => ({
+const makeTerminal = (
+  overrides: Partial<TerminalIdentity>
+): TerminalIdentity => ({
   TerminalID: 1,
   TerminalName: "Anacortes",
   TerminalAbbrev: "ANA",

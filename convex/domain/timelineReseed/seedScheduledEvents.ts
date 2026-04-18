@@ -6,8 +6,8 @@ import {
   resolveScheduleSegment,
   type TerminalIdentity,
   type VesselIdentity,
-} from "adapters/wsf";
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
+} from "adapters";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
 import {

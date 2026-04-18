@@ -87,7 +87,7 @@ ferryjoy-client-neo/
 ## Key Features
 
 ### Real-Time Vessel Tracking
-- Live vessel position updates every 5 seconds
+- Live vessel position updates every 15 seconds
 - Automatic trip detection and boundary management
 - At-sea and at-dock status tracking
 
@@ -132,8 +132,8 @@ bun run convex:logs:prod              # View production logs
 Optional identity repopulate (runs public Convex actions: `runSyncBackendVessels`, `runSyncBackendTerminals`, topology refresh):
 
 ```bash
-bun run convex:repopulate-vessels           # Replace `vessels` from WSF basics
-bun run convex:repopulate-terminals         # Replace `terminals` from WSF basics
+bun run convex:repopulate-vessels           # Replace `vesselsIdentity` from WSF basics
+bun run convex:repopulate-terminals         # Replace `terminalsIdentity` from WSF basics
 bun run convex:repopulate-terminals-topology
 bun run convex:repopulate-identity          # All of the above in sequence
 ```
@@ -173,9 +173,9 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 
 ### Vessel Update Pipeline
 
-The vessel orchestrator runs every 5 seconds to process location updates:
+The vessel orchestrator runs every 15 seconds to process location updates:
 
-1. **Fetch** vessel locations from WSF through `convex/adapters/wsf/`
+1. **Fetch** vessel locations from WSF through `convex/adapters/` (e.g. `fetch/fetchWsfVesselLocations.ts`)
 2. **Translate** raw payloads into backend-owned location inputs
 3. **Categorize** vessels into completed trips and current trips
 4. **Build** complete trip state with enrichments

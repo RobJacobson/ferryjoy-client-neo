@@ -16,6 +16,7 @@
     "types": ["bun"],
     "paths": {
       "_generated/*": ["./_generated/*"],
+      "adapters": ["./adapters/index.ts"],
       "adapters/*": ["./adapters/*"],
       "domain/*": ["./domain/*"],
       "functions/*": ["./functions/*"],
@@ -33,8 +34,5 @@
     "noEmit": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": [
-    "./_generated",
-    "./**/__tests__/**"
-  ]
+  "exclude": ["./_generated", "./**/__tests__/**"]
 }

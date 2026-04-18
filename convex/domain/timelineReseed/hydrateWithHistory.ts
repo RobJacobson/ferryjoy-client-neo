@@ -3,12 +3,12 @@
  */
 
 import {
-  resolveVessel,
   resolveVesselHistory,
   type TerminalIdentity,
+  tryResolveVessel,
   type VesselIdentity,
-} from "adapters/wsf";
-import type { RawWsfScheduleSegment } from "adapters/wsf/scheduledTrips";
+} from "adapters";
+import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { ConvexVesselTimelineEventRecord } from "../../functions/vesselTimeline/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../shared/keys";
@@ -106,7 +106,7 @@ const getHistoryActualsByEventKey = ({
   return historyRecords.reduce((actualsByEventKey, record) => {
     const actualDeparture = record.ActualDepart?.getTime();
     const arrivalProxy = record.EstArrival?.getTime();
-    const vessel = resolveVessel(
+    const vessel = tryResolveVessel(
       record.Vessel ? String(record.Vessel) : "",
       vessels
     );

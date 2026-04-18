@@ -1,31 +1,28 @@
 import { defineSchema, defineTable } from "convex/server";
-import { eventsActualSchema } from "functions/eventsActual/schemas";
-import { eventsPredictedSchema } from "functions/eventsPredicted/schemas";
-import { eventsScheduledSchema } from "functions/eventsScheduled/schemas";
+import { eventsActualSchema } from "functions/events/eventsActual/schemas";
+import { eventsPredictedSchema } from "functions/events/eventsPredicted/schemas";
+import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
   modelConfigSchema,
   modelParametersSchema,
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
-import { terminalSchema } from "functions/terminals/schemas";
+import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
-import {
-  vesselPingListValidationSchema,
-  vesselPingValidationSchema,
-} from "functions/vesselPings/schemas";
-import { vesselSchema } from "functions/vessels/schemas";
+import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
+import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
-  vessels: defineTable(vesselSchema)
+  vesselsIdentity: defineTable(vesselIdentitySchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_vessel_id", ["VesselID"])
     .index("by_vessel_name", ["VesselName"]),
 
-  terminals: defineTable(terminalSchema)
+  terminalsIdentity: defineTable(terminalIdentitySchema)
     .index("by_terminal_abbrev", ["TerminalAbbrev"])
     .index("by_terminal_id", ["TerminalID"])
     .index("by_terminal_name", ["TerminalName"]),
@@ -38,7 +35,8 @@ export default defineSchema({
   // Active vessel trips - currently in progress, one per vessel
   activeVesselTrips: defineTable(vesselTripStoredSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
-    .index("by_route_abbrev", ["RouteAbbrev"]),
+    .index("by_route_abbrev", ["RouteAbbrev"])
+    .index("by_sailing_day", ["SailingDay"]),
 
   // Completed vessel trips - finished trips with full trip data
   completedVesselTrips: defineTable(vesselTripStoredSchema)
@@ -73,16 +71,10 @@ export default defineSchema({
     ])
     .index("by_route_abbrev_and_sailing_day", ["RouteAbbrev", "SailingDay"]),
 
-  // Vessel ping collections - stores arrays of vessel pings with timestamps
-  vesselPings: defineTable(vesselPingListValidationSchema).index(
-    "by_timestamp",
-    ["timestamp"]
-  ),
-
-  // Individual vessel pings - stores single vessel ping per document
-  vesselPing: defineTable(vesselPingValidationSchema).index("by_timestamp", [
-    "TimeStamp",
-  ]),
+  // Vessel pings — one document per ping; `VesselAbbrev` is the vessel key
+  vesselPings: defineTable(vesselPingValidationSchema)
+    .index("by_timestamp", ["TimeStamp"])
+    .index("by_vessel_abbrev", ["VesselAbbrev"]),
 
   // Vessel locations combining vessel location data
   vesselLocations: defineTable(vesselLocationValidationSchema)

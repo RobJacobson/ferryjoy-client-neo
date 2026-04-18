@@ -1,9 +1,10 @@
 /**
  * Convex schemas and domain conversion helpers for vessel trips.
  *
- * Persisted trips omit ML blobs; predictions are joined from `eventsPredicted`
- * for API responses. In-memory builders still attach full ML shapes from
- * `predictionSchema` until persistence strips them.
+ * `ConvexVesselTrip` is the canonical stored trip row. Query/API reads can
+ * enrich that row with minimal prediction fields from `eventsPredicted`, while
+ * in-memory builders may still attach full ML shapes from `predictionSchema`
+ * until persistence strips them.
  */
 
 import type { Infer } from "convex/values";
@@ -16,7 +17,8 @@ import {
 } from "../../shared/convertDates";
 
 /**
- * Convex validator for full ML prediction payloads (in-memory / model output).
+ * Convex validator for full ML prediction payloads used only in memory during
+ * trip building and actualization.
  */
 export const predictionSchema = v.object({
   PredTime: v.number(),
@@ -30,7 +32,8 @@ export const predictionSchema = v.object({
 });
 
 /**
- * Stored prediction shape in Convex (full ML blob).
+ * Full in-memory ML prediction shape. These blobs are never stored on
+ * `activeVesselTrips` / `completedVesselTrips`.
  */
 export type ConvexPrediction = Infer<typeof predictionSchema>;
 
@@ -149,18 +152,18 @@ export const vesselTripStoredSchema = v.object({
   ...tripIdentityFields,
 });
 
-export type ConvexVesselTripStored = Infer<typeof vesselTripStoredSchema>;
+export type ConvexVesselTrip = Infer<typeof vesselTripStoredSchema>;
 
 /**
  * Active trip rows as persisted on `activeVesselTrips` (no joined ML columns).
  *
  * Canonical minimum shape for preloaded `activeTrips` passed into
  * `processVesselTrips` (e.g. orchestrator bundled read). Callers may still pass
- * {@link ConvexVesselTrip} (hydrated) for transitional compatibility; lifecycle
- * compares strip predictions; projection uses normalized prediction fields when
- * present.
+ * {@link ConvexVesselTripWithPredictions} (enriched with predictions) for
+ * transitional compatibility; lifecycle compares strip predictions; projection
+ * uses normalized prediction fields when present.
  */
-export type TickActiveTrip = ConvexVesselTripStored;
+export type TickActiveTrip = ConvexVesselTrip;
 
 /**
  * Full API / action shape: stored trip fields plus optional joined predictions.
@@ -175,17 +178,17 @@ export const vesselTripSchema = v.object({
 });
 
 /**
- * Hydrated vessel trip: public queries and subscriber read paths after joining
- * `eventsPredicted` (not the orchestrator tick bundle, which uses storage-native
- * {@link TickActiveTrip} rows).
+ * Public query/API vessel trip: stored fields plus minimal prediction fields
+ * enriched from `eventsPredicted` (not the orchestrator tick bundle, which uses
+ * storage-native {@link TickActiveTrip} rows).
  */
-export type ConvexVesselTrip = Infer<typeof vesselTripSchema>;
+export type ConvexVesselTripWithPredictions = Infer<typeof vesselTripSchema>;
 
 /**
  * In-memory vessel trip during ML build: stored fields plus optional predictions
  * (full ML output and/or query-joined minimal rows).
  */
-export type ConvexVesselTripWithML = ConvexVesselTripStored & {
+export type ConvexVesselTripWithML = ConvexVesselTrip & {
   AtDockDepartCurr?: ConvexPrediction | ConvexJoinedTripPrediction;
   AtDockArriveNext?: ConvexPrediction | ConvexJoinedTripPrediction;
   AtDockDepartNext?: ConvexPrediction | ConvexJoinedTripPrediction;
@@ -201,7 +204,9 @@ export type ConvexVesselTripWithML = ConvexVesselTripStored & {
  * @returns Domain vessel trip with Date objects and resolved predictions
  */
 export const toDomainVesselTrip = (
-  trip: ConvexVesselTrip | (ConvexVesselTripStored & Record<string, unknown>)
+  trip:
+    | ConvexVesselTripWithPredictions
+    | (ConvexVesselTrip & Record<string, unknown>)
 ) => {
   const domainTrip = {
     ...trip,
@@ -254,7 +259,9 @@ const mapPredictionField = (
  * @returns Domain vessel trip with Date objects and optional domain ScheduledTrip
  */
 export const toDomainVesselTripWithScheduledTrip = (
-  trip: ConvexVesselTrip & { ScheduledTrip?: ConvexScheduledTrip }
+  trip: ConvexVesselTripWithPredictions & {
+    ScheduledTrip?: ConvexScheduledTrip;
+  }
 ): VesselTripWithScheduledTrip => {
   const domainTrip = toDomainVesselTrip(trip);
   const ScheduledTrip = trip.ScheduledTrip

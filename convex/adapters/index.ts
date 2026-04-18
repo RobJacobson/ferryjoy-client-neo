@@ -1,0 +1,45 @@
+/**
+ * Public adapter surface for WSF integration: fetch, resolve, and pipelines.
+ */
+
+export type { TerminalIdentity } from "functions/terminals/schemas";
+export type { VesselIdentity } from "functions/vessels/schemas";
+export {
+  downloadRawWsfScheduleData,
+  fetchActiveRoutes,
+  fetchRouteSchedule,
+} from "./fetch/fetchWsfScheduledTripsData";
+export type {
+  RawWsfRouteScheduleData,
+  RawWsfScheduleSegment,
+  VesselSailing,
+} from "./fetch/fetchWsfScheduledTripsTypes";
+export {
+  fetchWsfTerminalIdentities,
+  mergeKnownMarineLocations,
+} from "./fetch/fetchWsfTerminalIdentities";
+export {
+  fetchWsfTerminalsAndMates,
+  type WsfTerminalMatePair,
+} from "./fetch/fetchWsfTerminalsAndMates";
+export { fetchWsfVesselIdentities } from "./fetch/fetchWsfVesselIdentities";
+export {
+  assertAtLeastOneVesselLocationConverted,
+  fetchWsfVesselLocations,
+  mapDottieVesselLocationsToConvex,
+  toConvexVesselLocation,
+} from "./fetch/fetchWsfVesselLocations";
+export { fetchWsfVesselPings } from "./fetch/fetchWsfVesselPings";
+export {
+  buildTerminalTopologyRows,
+  buildWsfTerminalsTopology,
+} from "./pipelines/buildWsfTerminalsTopology";
+export { fetchAndTransformScheduledTrips } from "./pipelines/fetchWsfScheduledTrips";
+export { resolveScheduleSegment } from "./resolve/resolveWsfScheduleSegment";
+export {
+  resolveTerminalByAbbrev,
+  resolveTerminalById,
+  resolveTerminalByName,
+} from "./resolve/resolveWsfTerminal";
+export { resolveVessel, tryResolveVessel } from "./resolve/resolveWsfVessel";
+export { resolveVesselHistory } from "./resolve/resolveWsfVesselHistory";

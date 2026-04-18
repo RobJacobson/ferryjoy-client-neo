@@ -4,14 +4,14 @@
  * reseed live-location reconciliation.
  */
 
-import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../domain/events/actual/schemas";
+import type { ConvexPredictedDockEvent } from "../../domain/events/predicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 import {
   getBoundaryTime,
   getSegmentKeyFromBoundaryKey,
-  sortScheduledBoundaryEvents,
+  sortScheduledDockEvents,
 } from "./scheduledSegmentResolvers";
 
 /**
@@ -24,7 +24,7 @@ import {
  */
 const scheduleAttachmentKey = (
   scheduleSegment: string,
-  eventType: ConvexScheduledBoundaryEvent["EventType"]
+  eventType: ConvexScheduledDockEvent["EventType"]
 ) => `${scheduleSegment}|${eventType}`;
 
 /**
@@ -39,14 +39,11 @@ export const mergeTimelineRows = ({
   actualEvents,
   predictedEvents,
 }: {
-  scheduledEvents: ConvexScheduledBoundaryEvent[];
-  actualEvents: ConvexActualBoundaryEvent[];
-  predictedEvents: ConvexPredictedBoundaryEvent[];
+  scheduledEvents: ConvexScheduledDockEvent[];
+  actualEvents: ConvexActualDockEvent[];
+  predictedEvents: ConvexPredictedDockEvent[];
 }): ConvexVesselTimelineEvent[] => {
-  const actualByScheduleKeyAndType = new Map<
-    string,
-    ConvexActualBoundaryEvent
-  >();
+  const actualByScheduleKeyAndType = new Map<string, ConvexActualDockEvent>();
 
   for (const actual of actualEvents) {
     if (!actual.ScheduleKey) {
@@ -60,16 +57,14 @@ export const mergeTimelineRows = ({
   }
 
   const sortedScheduledEvents = [...scheduledEvents].sort(
-    sortScheduledBoundaryEvents
+    sortScheduledDockEvents
   );
 
   // Heuristic arrival attachment (fallback passes) is only for schedule-aligned
   // actuals (`ScheduleKey` set). Physical-only arrivals stay off the backbone.
   const scheduleKeyedArrivalActuals = actualEvents
     .filter(
-      (
-        event
-      ): event is ConvexActualBoundaryEvent & { EventActualTime: number } =>
+      (event): event is ConvexActualDockEvent & { EventActualTime: number } =>
         event.EventType === "arv-dock" &&
         event.EventActualTime !== undefined &&
         event.ScheduleKey !== undefined
@@ -83,7 +78,7 @@ export const mergeTimelineRows = ({
 
   const assignedArrivalActualByScheduledKey = new Map<
     string,
-    ConvexActualBoundaryEvent
+    ConvexActualDockEvent
   >();
   const usedActualArrivalEventKeys = new Set<string>();
 
@@ -137,7 +132,7 @@ export const mergeTimelineRows = ({
 
   const scheduledArrivalEventsByTerminal = new Map<
     string,
-    ConvexScheduledBoundaryEvent[]
+    ConvexScheduledDockEvent[]
   >();
 
   for (const event of sortedScheduledEvents) {
@@ -200,9 +195,7 @@ export const mergeTimelineRows = ({
    * @param event - Scheduled boundary row
    * @returns Matching actual row when found
    */
-  const resolveActualForScheduledEvent = (
-    event: ConvexScheduledBoundaryEvent
-  ) => {
+  const resolveActualForScheduledEvent = (event: ConvexScheduledDockEvent) => {
     const segment = getSegmentKeyFromBoundaryKey(event.Key);
     const exact = actualByScheduleKeyAndType.get(
       scheduleAttachmentKey(segment, event.EventType)

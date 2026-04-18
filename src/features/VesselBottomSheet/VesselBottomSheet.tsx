@@ -15,7 +15,8 @@ export const VesselBottomSheet = forwardRef<
 >(({ selectedVessel }, ref) => {
   // variables
   const snapPoints = ["25%", "50%", "75%"];
-  const { vesselPingsByVesselId, isLoading, error } = useConvexVesselPings();
+  const { vesselPingsByVesselAbbrev, isLoading, error } =
+    useConvexVesselPings();
 
   // callbacks
   const handleSheetChanges = (index: number) => {
@@ -23,7 +24,7 @@ export const VesselBottomSheet = forwardRef<
   };
 
   const vesselPings = selectedVessel
-    ? vesselPingsByVesselId[selectedVessel.VesselID] || []
+    ? vesselPingsByVesselAbbrev[selectedVessel.VesselAbbrev] || []
     : [];
 
   return (

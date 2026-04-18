@@ -57,5 +57,32 @@
         }
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["convex/functions/vesselOrchestrator/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "domain/vesselOrchestration/updateVesselTrips/**",
+                      "domain/vesselOrchestration/updateVesselLocations/**",
+                      "domain/vesselOrchestration/updateTimeline/**",
+                      "domain/vesselOrchestration/updateVesselPredictions/**"
+                    ],
+                    "message": "Import vesselOrchestration peers via their folder entry (index.ts), not deep leaf paths."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

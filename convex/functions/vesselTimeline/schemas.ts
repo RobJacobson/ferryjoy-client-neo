@@ -9,9 +9,9 @@ import {
   epochMsToDate,
   optionalEpochMsToDate,
 } from "../../shared/convertDates";
-import { boundaryEventTypeSchema } from "../eventsScheduled/schemas";
+import { dockEventTypeSchema } from "../events/eventsScheduled/schemas";
 
-export type VesselTimelineEventType = Infer<typeof boundaryEventTypeSchema>;
+export type VesselTimelineEventType = Infer<typeof dockEventTypeSchema>;
 
 export const vesselTimelineEventRecordSchema = v.object({
   SegmentKey: v.string(),
@@ -20,7 +20,7 @@ export const vesselTimelineEventRecordSchema = v.object({
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
   TerminalAbbrev: v.string(),
-  EventType: boundaryEventTypeSchema,
+  EventType: dockEventTypeSchema,
   EventScheduledTime: v.optional(v.number()),
   EventPredictedTime: v.optional(v.number()),
   EventOccurred: v.optional(v.literal(true)),

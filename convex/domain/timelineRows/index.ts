@@ -8,17 +8,17 @@ export type {
   TripContextForActualRow,
 } from "./bindActualRowsToTrips";
 export {
-  enrichActualBoundaryPatchesWithTripContext,
+  enrichActualDockWritesWithTripContext,
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "./bindActualRowsToTrips";
 export {
-  buildActualBoundaryEventFromPatch,
-  buildActualBoundaryEvents,
+  buildActualDockEventFromWrite,
+  buildActualDockEvents,
 } from "./buildActualRows";
 export {
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
+  buildPredictedDockClearBatch,
+  buildPredictedDockWriteBatch,
 } from "./buildPredictedProjectionEffects";
-export { buildScheduledBoundaryEvents } from "./buildScheduledRows";
+export { buildScheduledDockEvents } from "./buildScheduledRows";
 export { mergeTimelineRows } from "./mergeTimelineRows";

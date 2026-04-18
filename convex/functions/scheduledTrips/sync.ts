@@ -6,10 +6,10 @@
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { fetchAndTransformScheduledTrips } from "adapters/wsf/scheduledTrips";
+import { fetchAndTransformScheduledTrips } from "adapters";
 import { getSailingDay } from "../../shared/time";
-import { loadBackendTerminals } from "../terminals/actions";
-import { loadBackendVessels } from "../vessels/actions";
+import { loadTerminalIdentities } from "../terminals/actions";
+import { loadVesselIdentities } from "../vessels/actions";
 
 const logPrefix = "[SYNC TRIPS]";
 
@@ -113,8 +113,8 @@ export const syncScheduledTripsForDate = async (
 
     // Phase 1: Fetch all active routes
     console.log(`${logPrefix}Fetching routes for ${targetDate}`);
-    const vessels = await loadBackendVessels(ctx);
-    const terminals = await loadBackendTerminals(ctx);
+    const vessels = await loadVesselIdentities(ctx);
+    const terminals = await loadTerminalIdentities(ctx);
     const { routes, routeData, rawTrips, finalTrips, totalIndirect } =
       await fetchAndTransformScheduledTrips(targetDate, vessels, terminals);
     console.log(

@@ -6,8 +6,8 @@
 import {
   fetchActiveRoutes,
   fetchRouteSchedule,
-  type VesselSailing,
-} from "../convex/adapters/wsf/scheduledTrips";
+} from "../convex/adapters/fetch/fetchWsfScheduledTripsData";
+import type { VesselSailing } from "../convex/adapters/fetch/fetchWsfScheduledTripsTypes";
 import { getSailingDay } from "../convex/shared/time";
 
 /**

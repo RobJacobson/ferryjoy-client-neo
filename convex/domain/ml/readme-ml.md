@@ -377,7 +377,7 @@ ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
 
 Current layering:
 
-- WSF schedule ingress: `convex/adapters/wsf/scheduledTrips/`
+- WSF schedule ingress: `convex/adapters/fetch/` and `convex/adapters/pipelines/` (e.g. `fetchWsfScheduledTrips.ts`)
 - schedule business rules: `convex/domain/scheduledTrips/`
 - Convex sync/persistence shell: `convex/functions/scheduledTrips/`
 
@@ -419,7 +419,7 @@ During sync, we compute (per ScheduledTrip):
   - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
 Sync applies the full transform pipeline after adapter ingress:
-`convex/adapters/wsf/scheduledTrips/fetchAndTransformScheduledTrips.ts`
+`convex/adapters/pipelines/fetchWsfScheduledTrips.ts`
 downloads and maps the raw WSF data, then
 `convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs
 `classifyDirectSegments` followed by `calculateTripEstimates`.
@@ -435,19 +435,21 @@ Predictions are computed in the vessel orchestrator action
 then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
 + `PredictionSource`), not as the five optional prediction fields on
 `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped
-before write; public `vesselTrips` queries **hydrate** joins from `eventsPredicted`
-so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA
+before write; public `vesselTrips` queries **enrich** stored rows with joins
+from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal
+prediction objects. WSF ETA
 from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
 `PredictionSource: "wsf_eta"` when projected.
 
 The orchestrator fetches vessel locations once, loads vessels, terminals, and
-**storage-native** active trips in one internal query (`getOrchestratorTickReadModelInternal` in
+**storage-native** active trips in one internal query (`getOrchestratorModelData` in
 `convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
 `updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. The trip update logic is
-implemented in `convex/domain/vesselTrips/processTick/processVesselTrips.ts` (default wiring: `convex/adapters/vesselTrips/processTick.ts`).
+implemented via `computeVesselTripTickWritePlan` in `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts` and `runProcessVesselTripsTick` in `convex/functions/vesselOrchestrator/runProcessVesselTripsTick.ts`
+(default runtime wiring: `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and `createVesselTripPredictionModelAccess` as composed by `executeVesselOrchestratorTick` in `convex/functions/vesselOrchestrator/executeVesselOrchestratorTick.ts`).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -455,15 +457,18 @@ On each orchestrator tick, trip build attaches schedule-backed fields using **se
 keys** and the normalized `eventsScheduled` read model (not the old lazy
 `scheduledTrips`-row snapshot helper):
 
-- `buildTrip` (`convex/domain/vesselTrips/tripLifecycle/buildTrip.ts`) calls
+- `buildTrip` (`convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip.ts`) calls
   `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Boundary adapter: `convex/adapters/vesselTrips/processTick.ts` (`appendFinalSchedule`)
-  - Lookup: `internal.functions.eventsScheduled.queries.getScheduledDepartureSegmentBySegmentKey`
+  - Runtime adapter builder:
+    `convex/domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
+    (`buildAppendFinalSchedule`, wired via `createScheduledSegmentLookup` in
+    `executeVesselOrchestratorTick`; trip ML uses `createVesselTripPredictionModelAccess` there as well)
+  - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
   (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
-- **Display / API**: Public vessel-trip queries may still **hydrate** a full
+- **Display / API**: Public vessel-trip queries may still **enrich** a full
   `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
   `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
   inference uses the schedule fields merged on the trip during build.
@@ -472,7 +477,7 @@ Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
 `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every
 tick write.
 
-- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for hydrated queries)
+- Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for prediction-enriched queries)
 
 #### 2) Prediction generation (once per trip, per timing context)
 
@@ -518,7 +523,7 @@ on trip documents:
 - Depart-next actualization when the _next_ trip leaves dock (previous leg’s
   next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip`
   patching the prior leg’s `eventsPredicted` rows.
-  - Trigger: `convex/domain/vesselTrips/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
+  - Trigger: `convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 

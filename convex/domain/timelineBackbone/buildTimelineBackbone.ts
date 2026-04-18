@@ -2,18 +2,18 @@
  * Builds the backend-owned event-first VesselTimeline backbone.
  */
 
-import type { ConvexActualBoundaryEvent } from "../../functions/eventsActual/schemas";
-import type { ConvexPredictedBoundaryEvent } from "../../functions/eventsPredicted/schemas";
-import type { ConvexScheduledBoundaryEvent } from "../../functions/eventsScheduled/schemas";
+import type { ConvexActualDockEvent } from "../../domain/events/actual/schemas";
+import type { ConvexPredictedDockEvent } from "../../domain/events/predicted/schemas";
+import type { ConvexScheduledDockEvent } from "../../domain/events/scheduled/schemas";
 import type { ConvexVesselTimelineBackbone } from "../../functions/vesselTimeline/schemas";
 import { mergeTimelineRows } from "../timelineRows/mergeTimelineRows";
 
 type BuildTimelineBackboneArgs = {
   VesselAbbrev: string;
   SailingDay: string;
-  scheduledEvents: ConvexScheduledBoundaryEvent[];
-  actualEvents: ConvexActualBoundaryEvent[];
-  predictedEvents: ConvexPredictedBoundaryEvent[];
+  scheduledEvents: ConvexScheduledDockEvent[];
+  actualEvents: ConvexActualDockEvent[];
+  predictedEvents: ConvexPredictedDockEvent[];
 };
 
 /**

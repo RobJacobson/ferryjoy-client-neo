@@ -4,23 +4,23 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
-import type { ConvexVesselTrip } from "../../../functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "../../../functions/vesselTrips/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import {
-  buildActualBoundaryEventFromPatch,
-  buildActualBoundaryEvents,
-  buildPredictedBoundaryClearEffect,
-  buildPredictedBoundaryProjectionEffect,
-  buildScheduledBoundaryEvents,
+  buildActualDockEventFromWrite,
+  buildActualDockEvents,
+  buildPredictedDockClearBatch,
+  buildPredictedDockWriteBatch,
+  buildScheduledDockEvents,
   type TripContextForActualRow,
 } from "..";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
 
-describe("buildScheduledBoundaryEvents", () => {
+describe("buildScheduledDockEvents", () => {
   it("marks only the final arrival of the sailing day", () => {
-    const rows = buildScheduledBoundaryEvents(
+    const rows = buildScheduledDockEvents(
       [
         makeBoundaryEventRecord({
           SegmentKey: "trip-1",
@@ -67,7 +67,7 @@ describe("buildScheduledBoundaryEvents", () => {
   });
 });
 
-describe("buildActualBoundaryEvents", () => {
+describe("buildActualDockEvents", () => {
   const tripMap = (): Map<string, TripContextForActualRow> => {
     const tripKey = "WEN 2026-03-25 19:20:00Z";
     return new Map([["trip-1", { TripKey: tripKey, ScheduleKey: "trip-1" }]]);
@@ -75,7 +75,7 @@ describe("buildActualBoundaryEvents", () => {
 
   it("keeps occurrence-only rows without inventing an actual time", () => {
     const tk = "WEN 2026-03-25 19:20:00Z";
-    const rows = buildActualBoundaryEvents(
+    const rows = buildActualDockEvents(
       [
         makeBoundaryEventRecord({
           SegmentKey: "trip-1",
@@ -104,7 +104,7 @@ describe("buildActualBoundaryEvents", () => {
 
   it("normalizes exact actual times as confirmed occurrence", () => {
     const tk = "WEN 2026-03-25 19:20:00Z";
-    const [row] = buildActualBoundaryEvents(
+    const [row] = buildActualDockEvents(
       [
         makeBoundaryEventRecord({
           SegmentKey: "trip-1",
@@ -127,9 +127,9 @@ describe("buildActualBoundaryEvents", () => {
   });
 });
 
-describe("buildActualBoundaryEventFromPatch", () => {
+describe("buildActualDockEventFromWrite", () => {
   it("derives SailingDay and ScheduledDeparture from EventActualTime when omitted", () => {
-    const row = buildActualBoundaryEventFromPatch(
+    const row = buildActualDockEventFromWrite(
       {
         TripKey: "WEN 2026-03-25 19:20:00Z",
         VesselAbbrev: "WEN",
@@ -146,9 +146,9 @@ describe("buildActualBoundaryEventFromPatch", () => {
   });
 });
 
-describe("buildPredictedBoundaryProjectionEffect", () => {
+describe("buildPredictedDockWriteBatch", () => {
   it("carries the full prediction key scope even when only one row is emitted", () => {
-    const effect = buildPredictedBoundaryProjectionEffect(
+    const effect = buildPredictedDockWriteBatch(
       makeTrip({
         AtDockDepartCurr: makePrediction(at(12, 24)),
       })
@@ -163,7 +163,7 @@ describe("buildPredictedBoundaryProjectionEffect", () => {
   });
 
   it("emits WSF ETA and ML arrival rows together on the current arrival boundary", () => {
-    const effect = buildPredictedBoundaryProjectionEffect(
+    const effect = buildPredictedDockWriteBatch(
       makeTrip({
         ScheduledDeparture: at(12, 20),
         DepartingTerminalAbbrev: "BBI",
@@ -189,7 +189,7 @@ describe("buildPredictedBoundaryProjectionEffect", () => {
   });
 
   it("emits an empty row set when a trip still owns prediction keys but has no predictions", () => {
-    const effect = buildPredictedBoundaryProjectionEffect(makeTrip({}));
+    const effect = buildPredictedDockWriteBatch(makeTrip({}));
 
     expect(effect?.TargetKeys).toEqual([
       "trip-key--dep-dock",
@@ -200,9 +200,9 @@ describe("buildPredictedBoundaryProjectionEffect", () => {
   });
 });
 
-describe("buildPredictedBoundaryClearEffect", () => {
+describe("buildPredictedDockClearBatch", () => {
   it("builds a clear-only effect for the trip's full prediction scope", () => {
-    const effect = buildPredictedBoundaryClearEffect(makeTrip({}));
+    const effect = buildPredictedDockClearBatch(makeTrip({}));
 
     expect(effect).toEqual({
       VesselAbbrev: "WEN",
@@ -245,7 +245,9 @@ const makeBoundaryEventRecord = (
   ...overrides,
 });
 
-const makeTrip = (overrides: Partial<ConvexVesselTrip>): ConvexVesselTrip => ({
+const makeTrip = (
+  overrides: Partial<ConvexVesselTripWithPredictions>
+): ConvexVesselTripWithPredictions => ({
   VesselAbbrev: "WEN",
   DepartingTerminalAbbrev: "BBI",
   ArrivingTerminalAbbrev: "P52",

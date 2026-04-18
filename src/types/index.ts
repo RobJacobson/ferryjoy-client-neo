@@ -1,11 +1,9 @@
 export {
-  type ActualBoundaryEvent,
-  toDomainActualBoundaryEvent,
-} from "convex/functions/eventsActual/schemas";
-export {
-  type ScheduledBoundaryEvent,
-  toDomainScheduledBoundaryEvent,
-} from "convex/functions/eventsScheduled/schemas";
+  type ActualDockEvent,
+  type ScheduledDockEvent,
+  toDomainActualDockEvent,
+  toDomainScheduledDockEvent,
+} from "convex/domain/timelineRows/dockEventToDomain";
 export {
   type ScheduledTrip,
   toDomainScheduledTrip,
@@ -15,7 +13,7 @@ export {
   type VesselLocation,
 } from "convex/functions/vesselLocation/schemas";
 export {
-  type ConvexVesselPingCollection,
+  type ConvexVesselPing,
   toDomainVesselPing,
   type VesselPing,
 } from "convex/functions/vesselPings/schemas";
@@ -25,6 +23,6 @@ export {
   type VesselTrip,
   type VesselTripWithScheduledTrip,
 } from "convex/functions/vesselTrips/schemas";
-export type { Terminal } from "functions/terminals/schemas";
+export type { TerminalIdentity as Terminal } from "functions/terminals/schemas";
 export type { TerminalTopology } from "functions/terminalsTopology/schemas";
-export type { Vessel } from "functions/vessels/schemas";
+export type { VesselIdentity as Vessel } from "functions/vessels/schemas";

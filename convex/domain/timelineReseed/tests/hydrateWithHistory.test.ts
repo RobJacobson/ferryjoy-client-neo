@@ -3,8 +3,8 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { TerminalIdentity, VesselIdentity } from "../../../adapters/wsf";
-import type { RawWsfScheduleSegment } from "../../../adapters/wsf/scheduledTrips";
+import type { TerminalIdentity, VesselIdentity } from "../../../adapters";
+import type { RawWsfScheduleSegment } from "../../../adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { ConvexVesselTimelineEventRecord } from "../../../functions/vesselTimeline/schemas";
 import { hydrateSeededEventsWithHistory } from "../hydrateWithHistory";
 import { createSeededScheduleSegmentResolver } from "../scheduleDepartureLookup";
