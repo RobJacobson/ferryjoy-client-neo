@@ -1,10 +1,10 @@
 /**
- * Internal mutations for `vesselTripPredictions` (compare-then-write upserts).
+ * Internal mutations for `vesselTripPredictions` (compare-then upserts).
  */
 
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { planVesselTripPredictionWrite } from "domain/vesselOrchestration/updateVesselPredictions";
+import { decideVesselTripPredictionUpsert } from "domain/vesselOrchestration/updateVesselPredictions";
 import { vesselTripPredictionProposalSchema } from "./schemas";
 
 /**
@@ -41,20 +41,24 @@ export const batchUpsertProposals = internalMutation({
         )
         .unique();
 
-      const plan = planVesselTripPredictionWrite(existing, proposal, updatedAt);
+      const decision = decideVesselTripPredictionUpsert(
+        existing,
+        proposal,
+        updatedAt
+      );
 
-      if (plan.type === "skip") {
+      if (decision.type === "skip") {
         skipped++;
         continue;
       }
 
-      if (plan.type === "insert") {
-        await ctx.db.insert("vesselTripPredictions", plan.row);
+      if (decision.type === "insert") {
+        await ctx.db.insert("vesselTripPredictions", decision.row);
         inserted++;
         continue;
       }
 
-      await ctx.db.replace(plan.existingId, plan.row);
+      await ctx.db.replace(decision.existingId, decision.row);
       replaced++;
     }
 

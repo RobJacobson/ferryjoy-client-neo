@@ -1,6 +1,6 @@
 /**
  * Orchestrator concern **updateVesselPredictions**: ML attachment,
- * compare-then-write planning for **`vesselTripPredictions`**, and strip helpers
+ * upsert decisions for **`vesselTripPredictions`**, and strip helpers
  * for one proposed trip per tick. Implementation modules live in this folder;
  * import from here for a stable concern boundary.
  */
@@ -17,8 +17,8 @@ export {
 } from "./predictionCompare";
 export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {
-  planVesselTripPredictionWrite,
-  type VesselTripPredictionWritePlan,
+  decideVesselTripPredictionUpsert,
+  type VesselTripPredictionUpsertDecision,
   vesselTripPredictionUnchangedForPersist,
 } from "./vesselTripPredictionPersistPlan";
 export { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";

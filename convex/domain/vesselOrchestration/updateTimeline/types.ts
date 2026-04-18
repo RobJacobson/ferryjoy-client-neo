@@ -68,3 +68,12 @@ export type CurrentTripLifecycleBranchResult = {
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
 };
+
+/**
+ * Result of applying a vessel-trip tick (lifecycle mutations), before optional ML
+ * overlay for `vesselTripPredictions` / timeline projection.
+ */
+export type TripLifecycleApplyOutcome = {
+  completedFacts: CompletedTripBoundaryFact[];
+  currentBranch: CurrentTripLifecycleBranchResult;
+};

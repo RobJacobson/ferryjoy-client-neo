@@ -7,8 +7,8 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 ## Production call chain
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` loads the tick snapshot and delegates to the pipelines module.
-2. [`orchestratorPipelines.ts`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts) — sequentially: **`updateVesselTrips`** → **`updateVesselPredictions`** (`enrichTripApplyResultWithPredictions`, then `vesselTripPredictions` upserts) → **`updateVesselTimeline`**.
-3. `updateVesselTimeline` passes **ML-enriched** `ApplyVesselTripTickWritePlanResult` slices into `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
+2. [`orchestratorPipelines.ts`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts) — `runVesselOrchestratorPhases`: **`updateVesselTrips`** → **`updateVesselPredictions`** (`enrichTripApplyResultWithPredictions`, then `vesselTripPredictions` upserts) → **`updateVesselTimeline`**.
+3. `updateVesselTimeline` passes **ML-enriched** `TripLifecycleApplyOutcome` slices into `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
 
 ## Canonical files (this folder)
 

@@ -1,8 +1,8 @@
 /**
- * Trip-branch writable bundle for one vessel-orchestrator tick: tick clock,
+ * Trip-branch bundle for one vessel-orchestrator tick: tick clock,
  * prediction-fallback policy (via {@link computeShouldRunPredictionFallback}, same
- * as {@link computeVesselTripTickWritePlan} / `processVesselTrips`), and
- * {@link computeVesselTripTickWritePlan}.
+ * as {@link computeVesselTripTick} / `processVesselTrips`), and
+ * {@link computeVesselTripTick}.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -12,24 +12,24 @@ import type {
 } from "functions/vesselTrips/schemas";
 import {
   computeShouldRunPredictionFallback,
-  computeVesselTripTickWritePlan,
+  computeVesselTripTick,
   type ProcessVesselTripsDeps,
 } from "./updateVesselTrips";
-import type { VesselTripTickWritePlan } from "./updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
+import type { VesselTripTick } from "./updateVesselTrips/tripLifecycle/vesselTripTick";
 
 /**
- * Trip write payload and tick clock for sequential persistence in
+ * Tick clock and trip payload for sequential persistence in
  * `updateVesselOrchestrator`.
  */
-export type OrchestratorTripWrites = {
+export type OrchestratorTripTick = {
   tickStartedAt: number;
-  tripWrites: VesselTripTickWritePlan;
+  vesselTripTick: VesselTripTick;
 };
 
 /**
  * Optional overrides for tests or replays.
  */
-export type OrchestratorTripWritesOptions = {
+export type OrchestratorTripTickOptions = {
   /**
    * Fixed tick time (epoch ms). Production omits this; wall-clock `Date.now()`
    * anchors calendar-based policy (e.g. prediction-fallback by seconds-of-minute).
@@ -38,16 +38,16 @@ export type OrchestratorTripWritesOptions = {
 };
 
 /**
- * Computes trip lifecycle writes for one tick: anchors wall-clock policy and
- * builds {@link VesselTripTickWritePlan}.
+ * Computes trip lifecycle data for one tick: anchors wall-clock policy and
+ * builds {@link VesselTripTick}.
  *
  * @param input - Converted locations and preloaded active trips
  * @param deps - Trip builders and schedule-backed adapters (from
  *   {@link createDefaultProcessVesselTripsDeps} in production)
  * @param options - Optional tick clock override for tests
- * @returns Tick time and trip writes for `applyVesselTripTickWritePlan`
+ * @returns Tick time and trip payload for `updateVesselTrips` / `applyTripTickMutations`
  */
-export const computeOrchestratorTripWrites = async (
+export const computeOrchestratorTripTick = async (
   input: {
     convexLocations: ReadonlyArray<ConvexVesselLocation>;
     activeTrips: ReadonlyArray<
@@ -55,8 +55,8 @@ export const computeOrchestratorTripWrites = async (
     >;
   },
   deps: ProcessVesselTripsDeps,
-  options?: OrchestratorTripWritesOptions
-): Promise<OrchestratorTripWrites> => {
+  options?: OrchestratorTripTickOptions
+): Promise<OrchestratorTripTick> => {
   const tickStartedAt = options?.tickStartedAt ?? Date.now();
 
   const processOptions = {
@@ -64,7 +64,7 @@ export const computeOrchestratorTripWrites = async (
       computeShouldRunPredictionFallback(tickStartedAt),
   };
 
-  const { plan } = await computeVesselTripTickWritePlan(
+  const { tick } = await computeVesselTripTick(
     input.convexLocations,
     tickStartedAt,
     deps,
@@ -74,6 +74,6 @@ export const computeOrchestratorTripWrites = async (
 
   return {
     tickStartedAt,
-    tripWrites: plan,
+    vesselTripTick: tick,
   };
 };

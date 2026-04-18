@@ -1,6 +1,6 @@
 /**
- * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick plan
- * (`processTick/` / `computeVesselTripTickWritePlan`), continuity, read helpers,
+ * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick
+ * (`processTick/` / `computeVesselTripTick`), continuity, read helpers,
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
@@ -9,8 +9,8 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers use `computeOrchestratorTripWrites`
- * (`domain/vesselOrchestration`) with `computeVesselTripTickWritePlan`,
+ * Production callers use `computeOrchestratorTripTick`
+ * (`domain/vesselOrchestration`) with `computeVesselTripTick`,
  * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
  * `functions/vesselOrchestrator/orchestratorPipelines.ts` (`createScheduledSegmentLookup`).
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
@@ -45,7 +45,7 @@ export {
 export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
-  computeVesselTripTickWritePlan,
+  computeVesselTripTick,
   type ProcessVesselTripsDeps,
   type ProcessVesselTripsOptions,
 } from "./processTick/processVesselTrips";
@@ -61,7 +61,8 @@ export {
 } from "./tripLifecycle/processCompletedTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
-  CurrentTripTickWriteFragment,
-  VesselTripTickWritePlan,
-} from "./tripLifecycle/vesselTripTickWritePlan";
+  CurrentTripTickFragment,
+  PendingLeaveDockEffect,
+  VesselTripTick,
+} from "./tripLifecycle/vesselTripTick";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

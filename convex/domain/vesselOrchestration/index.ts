@@ -3,11 +3,12 @@
  *
  * Post-fetch DB writes for one tick are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * `computeOrchestratorTripWrites` for the trip branch.
+ * `computeOrchestratorTripTick` for the trip branch.
  */
 
 export {
-  computeOrchestratorTripWrites,
-  type OrchestratorTripWrites,
-  type OrchestratorTripWritesOptions,
-} from "./computeOrchestratorTripWrites";
+  computeOrchestratorTripTick,
+  type OrchestratorTripTick,
+  type OrchestratorTripTickOptions,
+} from "./computeOrchestratorTripTick";
+export * as orchestratorTick from "./orchestratorTick";

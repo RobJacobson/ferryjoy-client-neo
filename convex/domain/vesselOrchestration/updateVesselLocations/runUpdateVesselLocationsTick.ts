@@ -5,8 +5,6 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 
-import { bulkUpsertArgsFromConvexLocations } from "./bulkUpsertArgsFromLocations";
-
 /**
  * Persists one tick’s vessel location snapshot via the injected bulk upsert.
  *
@@ -20,5 +18,7 @@ export const runUpdateVesselLocationsTick = async (
     locations: ConvexVesselLocation[];
   }) => Promise<undefined | null>
 ): Promise<void> => {
-  await persistBulkUpsert(bulkUpsertArgsFromConvexLocations(locations));
+  await persistBulkUpsert({
+    locations: locations as ConvexVesselLocation[],
+  });
 };

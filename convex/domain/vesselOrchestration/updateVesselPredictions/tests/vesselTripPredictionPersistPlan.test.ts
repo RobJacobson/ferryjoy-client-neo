@@ -1,10 +1,10 @@
 /**
- * Unit tests for `planVesselTripPredictionWrite` compare-then-write planning.
+ * Unit tests for `decideVesselTripPredictionUpsert`.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { Doc, Id } from "_generated/dataModel";
-import { planVesselTripPredictionWrite } from "domain/vesselOrchestration/updateVesselPredictions";
+import { decideVesselTripPredictionUpsert } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 
 const fakeId = "jd7abc123" as Id<"vesselTripPredictions">;
@@ -48,39 +48,39 @@ const makeExistingDoc = (
   };
 };
 
-describe("planVesselTripPredictionWrite", () => {
+describe("decideVesselTripPredictionUpsert", () => {
   it("inserts when no existing row", () => {
     const proposal = makeProposal();
-    const plan = planVesselTripPredictionWrite(null, proposal, 500);
-    expect(plan.type).toBe("insert");
-    if (plan.type === "insert") {
-      expect(plan.row.UpdatedAt).toBe(500);
-      expect(plan.row.PredTime).toBe(proposal.prediction.PredTime);
+    const decision = decideVesselTripPredictionUpsert(null, proposal, 500);
+    expect(decision.type).toBe("insert");
+    if (decision.type === "insert") {
+      expect(decision.row.UpdatedAt).toBe(500);
+      expect(decision.row.PredTime).toBe(proposal.prediction.PredTime);
     }
   });
 
   it("skips when overlay projection matches", () => {
     const proposal = makeProposal();
     const existing = makeExistingDoc(proposal);
-    const plan = planVesselTripPredictionWrite(existing, proposal, 500);
-    expect(plan.type).toBe("skip");
+    const decision = decideVesselTripPredictionUpsert(existing, proposal, 500);
+    expect(decision.type).toBe("skip");
   });
 
   it("skips when only MAE differs", () => {
     const proposal = makeProposal();
     const existing = makeExistingDoc(proposal, { MAE: 999 });
-    const plan = planVesselTripPredictionWrite(existing, proposal, 500);
-    expect(plan.type).toBe("skip");
+    const decision = decideVesselTripPredictionUpsert(existing, proposal, 500);
+    expect(decision.type).toBe("skip");
   });
 
   it("replaces when PredTime differs", () => {
     const proposal = makeProposal();
     const existing = makeExistingDoc(proposal, { PredTime: 9_999 });
-    const plan = planVesselTripPredictionWrite(existing, proposal, 500);
-    expect(plan.type).toBe("replace");
-    if (plan.type === "replace") {
-      expect(plan.existingId).toBe(fakeId);
-      expect(plan.row.PredTime).toBe(proposal.prediction.PredTime);
+    const decision = decideVesselTripPredictionUpsert(existing, proposal, 500);
+    expect(decision.type).toBe("replace");
+    if (decision.type === "replace") {
+      expect(decision.existingId).toBe(fakeId);
+      expect(decision.row.PredTime).toBe(proposal.prediction.PredTime);
     }
   });
 });

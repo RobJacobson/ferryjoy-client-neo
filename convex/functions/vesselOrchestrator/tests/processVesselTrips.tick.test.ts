@@ -1,15 +1,14 @@
 /**
- * Sequencing tests for domain `computeOrchestratorTripWrites` →
- * `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput` (same ordering
- * as `updateVesselOrchestrator` → `orchestratorPipelines.ts`:
- * `updateVesselTrips` → `updateVesselTimeline`).
+ * Sequencing tests for `updateVesselTrips` → `buildTimelineTickProjectionInput` (same ordering
+ * as `updateVesselOrchestrator` in `actions.ts` (`updateVesselTrips` → `updateVesselPredictions` →
+ * `updateVesselTimeline`; locations upsert runs inside the trips step).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
+import { updateVesselTrips } from "functions/vesselOrchestrator/actions";
 import {
   buildTimelineTickProjectionInput,
   type TickEventWrites,
@@ -19,8 +18,9 @@ import type {
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { enrichTripApplyResultWithPredictions } from "functions/vesselOrchestrator/enrichTripApplyResultWithPredictions";
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
+import {
+  applyPredictionsToTripApplyResult,
+} from "functions/vesselOrchestrator/orchestratorPipelines";
 import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
@@ -82,20 +82,14 @@ const runVesselTripsTick = async (
   deps: ReturnType<typeof createDeps>,
   activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
-  const { tripWrites, tickStartedAt: tickAt } =
-    await computeOrchestratorTripWrites(
-      {
-        convexLocations: locations,
-        activeTrips: activeTrips ?? ctx.preloadedActiveTrips ?? [],
-      },
-      deps,
-      { tickStartedAt }
-    );
-  const applyTripResult = await applyVesselTripTickWritePlan(
-    ctx as unknown as ActionCtx,
-    tripWrites
-  );
-  const enriched = await enrichTripApplyResultWithPredictions(
+  const { tripApplyResult: applyTripResult, tickStartedAt: tickAt } =
+    await updateVesselTrips(ctx as unknown as ActionCtx, {
+      convexLocations: locations,
+      activeTrips: activeTrips ?? ctx.preloadedActiveTrips ?? [],
+      tripDeps: deps,
+      computeOptions: { tickStartedAt },
+    });
+  const enriched = await applyPredictionsToTripApplyResult(
     ctx as unknown as ActionCtx,
     applyTripResult,
     noopPredictionModelAccess
@@ -695,7 +689,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `computeOrchestratorTripWrites`
+ * @returns Dependency bag for `updateVesselTrips`
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =

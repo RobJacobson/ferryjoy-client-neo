@@ -1,11 +1,11 @@
 /**
- * Exercises batch upsert stats by delegating to the same persist plan the
+ * Exercises batch upsert stats by delegating to the same upsert decision the
  * mutation uses (no Convex runtime).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { Doc, Id } from "_generated/dataModel";
-import { planVesselTripPredictionWrite } from "domain/vesselOrchestration/updateVesselPredictions";
+import { decideVesselTripPredictionUpsert } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 
 const proposal = (): VesselTripPredictionProposal => ({
@@ -40,10 +40,10 @@ const simulateBatchStats = (
   for (const p of proposals) {
     const key = `${p.VesselAbbrev}|${p.TripKey}|${p.PredictionType}`;
     const existing = existingByKey.get(key) ?? null;
-    const plan = planVesselTripPredictionWrite(existing, p, now);
-    if (plan.type === "skip") {
+    const decision = decideVesselTripPredictionUpsert(existing, p, now);
+    if (decision.type === "skip") {
       skipped++;
-    } else if (plan.type === "insert") {
+    } else if (decision.type === "insert") {
       inserted++;
     } else {
       replaced++;

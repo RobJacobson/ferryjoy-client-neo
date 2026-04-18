@@ -1,15 +1,15 @@
 /**
- * Unit tests for `applyVesselTripTickWritePlan`.
+ * Unit tests for `applyTripTickMutations`.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
 import type {
   BuildTripCoreResult,
-  CurrentTripTickWriteFragment,
+  CurrentTripTickFragment,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
+import { applyTripTickMutations } from "functions/vesselOrchestrator/actions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -75,7 +75,7 @@ const coreFromTrip = (
  * upsert results.
  *
  * @param options - Optional upsert result and complete-handoff failure flag
- * @returns Context compatible with {@link applyVesselTripTickWritePlan}
+ * @returns Context compatible with {@link applyTripTickMutations}
  */
 const createCtx = (options?: {
   upsertResult?: {
@@ -122,7 +122,7 @@ const createCtx = (options?: {
   };
 };
 
-const emptyCurrent = (): CurrentTripTickWriteFragment => ({
+const emptyCurrent = (): CurrentTripTickFragment => ({
   activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],
@@ -139,7 +139,7 @@ const minimalTripEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-describe("applyVesselTripTickWritePlan", () => {
+describe("applyTripTickMutations", () => {
   it("returns completed fact when handoff mutation succeeds", async () => {
     const existing = makeTrip();
     const tripToComplete = makeTrip({
@@ -155,13 +155,10 @@ describe("applyVesselTripTickWritePlan", () => {
       newTripCore: coreFromTrip(newTrip),
     };
     const ctx = createCtx();
-    const { completedFacts } = await applyVesselTripTickWritePlan(
-      ctx as never,
-      {
-        completedHandoffs: [fact],
-        current: emptyCurrent(),
-      }
-    );
+    const { completedFacts } = await applyTripTickMutations(ctx as never, {
+      completedHandoffs: [fact],
+      current: emptyCurrent(),
+    });
     expect(completedFacts).toHaveLength(1);
     expect(completedFacts[0]?.newTripCore.withFinalSchedule.ScheduleKey).toBe(
       "CHE--next"
@@ -184,19 +181,16 @@ describe("applyVesselTripTickWritePlan", () => {
       newTripCore: coreFromTrip(makeTrip()),
     };
     const ctx = createCtx({ failCompleteHandoff: true });
-    const { completedFacts } = await applyVesselTripTickWritePlan(
-      ctx as never,
-      {
-        completedHandoffs: [fact],
-        current: emptyCurrent(),
-      }
-    );
+    const { completedFacts } = await applyTripTickMutations(ctx as never, {
+      completedHandoffs: [fact],
+      current: emptyCurrent(),
+    });
     expect(completedFacts).toHaveLength(0);
   });
 
   it("does not call upsertVesselTripsBatch when activeUpserts is empty", async () => {
     const ctx = createCtx();
-    await applyVesselTripTickWritePlan(ctx as never, {
+    await applyTripTickMutations(ctx as never, {
       completedHandoffs: [],
       current: emptyCurrent(),
     });
@@ -216,7 +210,7 @@ describe("applyVesselTripTickWritePlan", () => {
       },
     ];
     const ctx = createCtx();
-    const { currentBranch } = await applyVesselTripTickWritePlan(ctx as never, {
+    const { currentBranch } = await applyTripTickMutations(ctx as never, {
       completedHandoffs: [],
       current: {
         activeUpserts: [],
@@ -241,7 +235,7 @@ describe("applyVesselTripTickWritePlan", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: false, reason: "db" }],
       },
     });
-    await applyVesselTripTickWritePlan(ctx as never, {
+    await applyTripTickMutations(ctx as never, {
       completedHandoffs: [],
       current: {
         activeUpserts: [trip],
@@ -262,7 +256,7 @@ describe("applyVesselTripTickWritePlan", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
     });
-    await applyVesselTripTickWritePlan(ctxOk as never, {
+    await applyTripTickMutations(ctxOk as never, {
       completedHandoffs: [],
       current: {
         activeUpserts: [trip],

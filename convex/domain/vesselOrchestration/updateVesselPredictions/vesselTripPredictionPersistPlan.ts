@@ -1,5 +1,5 @@
 /**
- * Pure compare-then-write planning for `vesselTripPredictions` upserts.
+ * Insert / replace / skip for `vesselTripPredictions` upserts (overlay equality).
  */
 
 import type { Doc, Id } from "_generated/dataModel";
@@ -32,7 +32,7 @@ export const vesselTripPredictionUnchangedForPersist = (
   );
 };
 
-export type VesselTripPredictionWritePlan =
+export type VesselTripPredictionUpsertDecision =
   | { type: "skip" }
   | { type: "insert"; row: VesselTripPredictionStored }
   | {
@@ -42,17 +42,17 @@ export type VesselTripPredictionWritePlan =
     };
 
 /**
- * Decides insert / replace / skip for one proposal using overlay-aligned equality.
+ * Insert / replace / skip for one proposal using overlay-aligned equality.
  *
  * @param existing - Loaded row for this natural key, if any
  * @param proposal - Vessel, trip, field, and ML blob
  * @param updatedAt - Epoch ms for `UpdatedAt` (mutation clock)
  */
-export const planVesselTripPredictionWrite = (
+export const decideVesselTripPredictionUpsert = (
   existing: Doc<"vesselTripPredictions"> | null,
   proposal: VesselTripPredictionProposal,
   updatedAt: number
-): VesselTripPredictionWritePlan => {
+): VesselTripPredictionUpsertDecision => {
   if (vesselTripPredictionUnchangedForPersist(existing, proposal.prediction)) {
     return { type: "skip" };
   }

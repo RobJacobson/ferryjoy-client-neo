@@ -8,14 +8,14 @@ import type { ModelType } from "domain/ml/shared/types";
 import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
 import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
 import {
-  type CurrentTripTickWriteFragment,
+  type CurrentTripTickFragment,
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
   type TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { enrichTripApplyResultWithPredictions } from "functions/vesselOrchestrator/enrichTripApplyResultWithPredictions";
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
+import { applyTripTickMutations } from "functions/vesselOrchestrator/actions";
+import { applyPredictionsToTripApplyResult } from "functions/vesselOrchestrator/orchestratorPipelines";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -62,7 +62,7 @@ describe("processCompletedTrips", () => {
     const loggedErrors: Array<{ vesselAbbrev: string; phase: string }> = [];
     const ctx = createTestActionCtx();
 
-    const handoffPlan = await processCompletedTrips(
+    const completedHandoffs = await processCompletedTrips(
       [
         {
           currLocation: makeLocation({
@@ -84,12 +84,12 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const applyTripResult = await applyVesselTripTickWritePlan(ctx as never, {
-      completedHandoffs: handoffPlan,
-      current: emptyCurrentTripTickWriteFragment(),
+    const applyTripResult = await applyTripTickMutations(ctx as never, {
+      completedHandoffs,
+      current: emptyCurrentTripTickFragment(),
     });
 
-    const enriched = await enrichTripApplyResultWithPredictions(
+    const enriched = await applyPredictionsToTripApplyResult(
       ctx as never,
       applyTripResult,
       noopPredictionModelAccess
@@ -128,7 +128,7 @@ describe("processCompletedTrips", () => {
     const ctx = createTestActionCtx();
     const loggedErrors: Array<{ vesselAbbrev: string; phase: string }> = [];
 
-    const handoffPlan = await processCompletedTrips(
+    const completedHandoffs = await processCompletedTrips(
       [
         {
           currLocation: makeLocation({
@@ -187,12 +187,12 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const applyTripResult = await applyVesselTripTickWritePlan(ctx as never, {
-      completedHandoffs: handoffPlan,
-      current: emptyCurrentTripTickWriteFragment(),
+    const applyTripResult = await applyTripTickMutations(ctx as never, {
+      completedHandoffs,
+      current: emptyCurrentTripTickFragment(),
     });
 
-    const enriched = await enrichTripApplyResultWithPredictions(
+    const enriched = await applyPredictionsToTripApplyResult(
       ctx as never,
       applyTripResult,
       noopPredictionModelAccess
@@ -222,7 +222,7 @@ describe("processCompletedTrips", () => {
  *
  * @returns Empty arrays (no active-trip mutations)
  */
-const emptyCurrentTripTickWriteFragment = (): CurrentTripTickWriteFragment => ({
+const emptyCurrentTripTickFragment = (): CurrentTripTickFragment => ({
   activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],

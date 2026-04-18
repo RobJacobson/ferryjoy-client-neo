@@ -15,8 +15,8 @@ processing uses it.
 ## Production wiring
 
 In production, [`orchestratorPipelines.updateVesselLocations`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts)
-runs inside `updateVesselTrips` (after `computeOrchestratorTripWrites`, before
-`applyVesselTripTickWritePlan`), called from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts),
-using `bulkUpsertArgsFromConvexLocations`. [`runUpdateVesselLocationsTick`](./runUpdateVesselLocationsTick.ts)
+runs inside `updateVesselTrips` (after `computeOrchestratorTripTick`, before
+`updateVesselTrips` / `applyTripTickMutations`), called from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts),
+[`runUpdateVesselLocationsTick`](./runUpdateVesselLocationsTick.ts) passes `{ locations }` into the injected `bulkUpsert` effect (read-only snapshots are asserted to the mutation arg type at the boundary).
 remains the test/replay helper with an injected `bulkUpsert` effect.
 See [`../architecture.md`](../architecture.md) §10.

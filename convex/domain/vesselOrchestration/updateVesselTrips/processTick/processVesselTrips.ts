@@ -1,8 +1,8 @@
 /**
- * Vessel-trip **plan** computation (**updateVesselTrips** tick branch).
+ * Vessel-trip tick computation (**updateVesselTrips** tick branch).
  *
- * Builds a {@link VesselTripTickWritePlan} for the functions-layer applier;
- * persistence and {@link buildTimelineTickProjectionInput} run outside this module
+ * Builds a {@link VesselTripTick} for the functions layer; persistence and
+ * {@link buildTimelineTickProjectionInput} run outside this module
  * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML
  * attachment runs in **updateVesselPredictions** after trip mutations (`applyVesselPredictions`;
  * see `architecture.md` §10).
@@ -15,7 +15,7 @@ import {
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import { processCurrentTrips } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
-import type { VesselTripTickWritePlan } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
+import type { VesselTripTick } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTick";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   ConvexVesselTripWithPredictions,
@@ -46,13 +46,12 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
 };
 
 /**
- * Computes the domain write plan for one vessel-orchestrator tick (completed
- * handoffs then current-trip fragment). Does not run Convex mutations or timeline
- * assembly; the functions runner applies the plan then calls
- * `buildTimelineTickProjectionInput`.
+ * Computes trip work for one vessel-orchestrator tick (completed handoffs then
+ * current-trip fragment). Does not run Convex mutations or timeline assembly; the
+ * functions runner applies the tick then calls `buildTimelineTickProjectionInput`.
  *
  * @param locations - Array of vessel locations to process after orchestrator conversion
- * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator (unused in plan
+ * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator (unused in tick
  *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
  *   `buildTripCore`, `buildTripAdapters`, `detectTripEvents`)
@@ -60,15 +59,15 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  *   {@link TickActiveTrip} rows; trips enriched with predictions remain
  *   accepted for tests.
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
- * @returns Write plan for `applyVesselTripTickWritePlan`
+ * @returns Tick payload for `updateVesselTrips` / `applyTripTickMutations`
  */
-export const computeVesselTripTickWritePlan = async (
+export const computeVesselTripTick = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
   activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTripWithPredictions>,
   options?: ProcessVesselTripsOptions
-): Promise<{ plan: VesselTripTickWritePlan }> => {
+): Promise<{ tick: VesselTripTick }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
   // event detection and `buildTripCore`; stripping ML for DB writes happens in the applier.
   const existingTripsDict = Object.fromEntries(
@@ -90,7 +89,7 @@ export const computeVesselTripTickWritePlan = async (
     (transition) => !transition.events.isCompletedTrip
   );
 
-  // Build plan: completed handoffs before current-trip artifacts (apply order).
+  // Completed handoffs before current-trip artifacts (apply order).
   const completedHandoffs = await processCompletedTrips(
     completedTrips,
     shouldRunPredictionFallback,
@@ -111,7 +110,7 @@ export const computeVesselTripTickWritePlan = async (
   );
 
   return {
-    plan: {
+    tick: {
       completedHandoffs,
       current: currentFragment,
     },

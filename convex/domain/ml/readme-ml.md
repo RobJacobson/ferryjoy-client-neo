@@ -449,7 +449,7 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 and `updateVesselTimeline` in [`orchestratorPipelines.ts`](../../functions/vesselOrchestrator/orchestratorPipelines.ts).
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
-predicates. Trip planning is implemented via `computeVesselTripTickWritePlan` in
+predicates. Per-tick trip lifecycle logic lives in `computeVesselTripTick` in
 `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
 (default runtime wiring: `defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and
 `createVesselTripPredictionModelAccess` composed in `actions.ts`, not a separate `runProcessVesselTripsTick` entry).
