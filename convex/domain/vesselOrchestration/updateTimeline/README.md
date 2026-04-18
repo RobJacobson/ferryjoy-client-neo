@@ -1,6 +1,14 @@
-# updateTimeline (orchestrator concern)
+# updateTimeline (domain assembly)
 
-Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`. **Apply** is **not** in this folder: the single entry is **`applyTickEventWrites`** in [`../../../functions/vesselOrchestrator/applyTickEventWrites.ts`](../../../functions/vesselOrchestrator/applyTickEventWrites.ts), which runs the internal timeline projection mutations after lifecycle writes for the tick. Production calls it from [`executeVesselOrchestratorTick`](../../../functions/vesselOrchestrator/executeVesselOrchestratorTick.ts) (invoked from [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts)).
+Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
+
+**Apply** (Convex mutations) lives in **`functions/vesselOrchestrator/orchestratorPipelines.ts`**: `updateVesselTimeline` builds projection input via `buildTimelineTickProjectionInput`, then runs internal `eventsActual` / `eventsPredicted` projection mutations (same module, not exported as a separate file).
+
+## Production call chain
+
+1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` loads the tick snapshot and delegates to the pipelines module.
+2. [`orchestratorPipelines.ts`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts) — sequentially: **`updateVesselTrips`** → **`updateVesselPredictions`** (`enrichTripApplyResultWithPredictions`, then `vesselTripPredictions` upserts) → **`updateVesselTimeline`**.
+3. `updateVesselTimeline` passes **ML-enriched** `ApplyVesselTripTickWritePlanResult` slices into `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
 
 ## Canonical files (this folder)
 
@@ -15,7 +23,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 
 ## Imports
 
-- **`runProcessVesselTripsTick`** (`functions/vesselOrchestrator`) imports `buildTimelineTickProjectionInput` from **`domain/vesselOrchestration/updateTimeline`** (folder entry).
+- **`orchestratorPipelines`** / **`actions`** — production callers of `buildTimelineTickProjectionInput` (after predictions merge).
 - Lifecycle code imports boundary types from **`domain/vesselOrchestration/updateTimeline/types`**.
 - **`domain/vesselOrchestration/updateVesselTrips/index.ts`** re-exports key symbols for queries and shared callers.
 

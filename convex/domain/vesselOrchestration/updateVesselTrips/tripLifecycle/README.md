@@ -1,8 +1,11 @@
 # tripLifecycle (updateVesselTrips)
 
 Per-tick vessel trip **state machine**: event detection, proposed trip build
-(including **updateVesselPredictions**), completed vs active branches, and
-write-suppression helpers. Consumed only from the orchestrator tick path
-(`computeVesselTripTickWritePlan` / `runProcessVesselTripsTick` → `defaultProcessVesselTripsDeps` + `createScheduledSegmentLookup` + `createVesselTripPredictionModelAccess` as wired by `executeVesselOrchestratorTick` in `functions/vesselOrchestrator/executeVesselOrchestratorTick.ts`).
+(`buildTripCore` / `buildTrip`), completed vs active branches, and write-suppression
+helpers. Consumed from the orchestrator tick through `computeVesselTripTickWritePlan`
+inside [`orchestratorPipelines.updateVesselTrips`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts),
+with `defaultProcessVesselTripsDeps`, `createScheduledSegmentLookup`, and
+`createVesselTripPredictionModelAccess` wired from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts).
+ML merge and `vesselTripPredictions` upserts run in **`updateVesselPredictions`** after trip apply, not inside the core trip plan builder on the production path.
 
 See [`../README.md`](../README.md) and [`../../architecture.md`](../../architecture.md) §5.

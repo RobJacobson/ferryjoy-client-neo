@@ -29,6 +29,7 @@ predictions, and timeline projection.
 - **O2 handoff (`buildTripCore` vs predictions):** [`docs/handoffs/vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md)
 - **O3 handoff (predictions storage + writer):** [`docs/handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md)
 - **O4 handoff (wire orchestrator):** [`docs/handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md)
+- **O5 handoff (timeline + cleanup):** [`docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md)
 
 ---
 
@@ -128,14 +129,15 @@ Recommended tick order (same process, single action):
 3. **Predictions** — Read **post-trip** trip state (and any other inputs),
    recompute candidate predictions, **compare** to stored prediction rows,
    **upsert** only when changed.
-4. **Timeline** — Build projection input from trip apply results **and**
-   prediction state as designed (may consume predictions table / queries rather
-   than in-memory ML on trip docs).
+4. **Timeline** — Build projection input from the **in-memory** post–`updateVesselPredictions`
+   merge (`ApplyVesselTripTickWritePlanResult` slices fed to
+   `buildTimelineTickProjectionInput`). Same-tick assembly does **not** reload
+   `vesselTripPredictions` from the DB for projection; the table is for persistence
+   and other readers.
 
-**Dependency note:** Timeline currently merges success-sensitive trip apply
-results. After split, confirm whether timeline reads **only** trip outcomes,
-**only** predictions, or **both**; update `buildTimelineTickProjectionInput`
-callers accordingly.
+**Dependency note:** Timeline merges success-sensitive trip apply results after ML
+is merged in memory (`enrichTripApplyResultWithPredictions`); callers are
+`orchestratorPipelines.updateVesselTimeline` after `updateVesselPredictions`.
 
 ### 3.2 Predictions persistence
 
@@ -189,7 +191,9 @@ and **not** chosen; we prefer smaller checkpoints and clearer agent handoffs.
 **O3**
 [`vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md),
 **O4**
-[`vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md).
+[`vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md),
+**O5**
+[`vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ### 4.3 O1 ordering note (current invariant)
 
@@ -237,16 +241,18 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 
 ## 6. Definition of done (end state)
 
-- [ ] `updateVesselOrchestrator` (or `executeVesselOrchestratorTick` if extracted)
-  invokes **four** clearly named phases matching folders.
-- [ ] Vessel trip computation **does not** call `applyVesselPredictions` inside
-  `buildTrip`.
-- [ ] Predictions are **read** and **written** via the predictions table (or
-  agreed equivalent), with **refresh-on-input-change** semantics (not only
-  `undefined` slots).
-- [ ] Timeline and downstream readers use the agreed contract (trip facts +
-  prediction rows).
-- [ ] `bun run check:fix`, `bun run type-check`, and Convex typecheck pass;
+- [x] `updateVesselOrchestrator` invokes **four** clearly named phases
+  (`orchestratorPipelines`: locations inside trips step, trips, predictions,
+  timeline) matching folders.
+- [x] Vessel trip computation on the orchestrator path **does not** call
+  `applyVesselPredictions` inside `buildTrip` (composed `buildTrip` remains for
+  other callers).
+- [x] Predictions are **read** and **written** via `vesselTripPredictions`, with
+  **refresh-on-input-change** semantics (not only `undefined` slots).
+- [x] Timeline projection for each tick uses the **in-memory** enriched apply
+  result after `updateVesselPredictions`; `vesselTripPredictions` persists proposals
+  for other consumers.
+- [x] `bun run check:fix`, `bun run type-check`, and Convex typecheck pass;
   tests updated or added for new behavior.
 
 ---
@@ -272,7 +278,7 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 | O2 — `buildTripCore` vs `applyVesselPredictions` | **Done** |
 | O3 — Predictions storage + writer | **Done** (`vesselTripPredictions` + internal writer) |
 | O4 — Wire orchestrator (`buildTripCore` trip phase; `updateVesselPredictions` real) | **Done** |
-| O5 | Pending |
+| O5 — Timeline + cleanup | **Done** |
 
 ---
 
@@ -289,3 +295,7 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 - **O3 shipped:** `vesselTripPredictions` table, `functions/vesselTripPredictions` internal API, overlay-aligned compare-then-write + tests; §7.1 item 1 closed; §8 updated.
 - **O4 shipped:** Orchestrator uses `buildTripCore` for trip planning; `updateVesselPredictions` runs `applyVesselPredictions`, merges ML for timeline, `batchUpsertProposals`; §8 updated.
 - **O4 handoff linked:** Related docs § and §4.2 handoffs list include [`vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md).
+- **O5 shipped:** [`vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md) —
+  timeline TSDoc + `computeShouldRunPredictionFallback` dedupe; `newTrip` guard test;
+  `updateTimeline`/architecture memo alignment; §3.1 dependency note and §6 checklist
+  updated; §8 marked Done.

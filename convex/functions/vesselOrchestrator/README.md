@@ -38,6 +38,14 @@ mutation order:
 The handler in `actions.ts` runs: `updateVesselTrips` → `updateVesselPredictions` →
 `updateVesselTimeline`.
 
+### O5 — Timeline consumer contract (cleanup)
+
+Phase **O5** ([handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md))
+documents that `buildTimelineTickProjectionInput` must receive
+`ApplyVesselTripTickWritePlanResult` **after** `updateVesselPredictions` (ML merged in
+memory for the same tick; timeline does not assemble from `vesselTripPredictions` DB
+reads). Implementation plan: [`.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md`](../../../.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md).
+
 ## System Overview
 
 The orchestrator runs periodically, roughly every 15 seconds. **`updateVesselOrchestrator`**

@@ -1,12 +1,19 @@
 /**
- * Pure **updateTimeline** step: turns authoritative lifecycle outputs into
- * `TimelineTickProjectionInput` for timeline projection mutations in
- * `updateVesselOrchestrator`.
+ * Pure **updateTimeline** step: merges lifecycle branch outputs into
+ * `TimelineTickProjectionInput` for one tick.
  *
- * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
- * `functions/vesselOrchestrator/actions.ts` imports from the `updateTimeline`
- * façade so timeline assembly stays in the **updateTimeline** concern without a
- * `vesselTrips` → `vesselOrchestration` barrel cycle.
+ * **Production contract:** `completedFacts` and `currentBranch` are the slices of
+ * `ApplyVesselTripTickWritePlanResult` that `updateVesselTimeline` passes after
+ * `updateVesselPredictions`, with ML-enriched trips where projection needs them.
+ * Same-tick assembly must not reload `vesselTripPredictions` from the DB; see
+ * `enrichTripApplyResultWithPredictions` for ordering and in-memory merge.
+ *
+ * @see `functions/vesselOrchestrator/enrichTripApplyResultWithPredictions` — merge ordering
+ * @see `functions/vesselOrchestrator/orchestratorPipelines` — `updateVesselTimeline` caller
+ *
+ * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file). Imported
+ * via the `updateTimeline` façade from `orchestratorPipelines` (not through the
+ * `vesselTrips` barrel) to avoid cycles.
  */
 
 import {
@@ -23,7 +30,8 @@ import type {
 } from "./types";
 
 /**
- * Arguments for {@link buildTimelineTickProjectionInput}.
+ * Arguments for {@link buildTimelineTickProjectionInput}. In production these
+ * fields mirror `ApplyVesselTripTickWritePlanResult` after predictions merge.
  */
 export type BuildTimelineTickProjectionInputArgs = {
   completedFacts: CompletedTripBoundaryFact[];
@@ -33,9 +41,10 @@ export type BuildTimelineTickProjectionInputArgs = {
 
 /**
  * Merges completed-branch then current-branch tick writes for one orchestrator
- * tick. Call only **after** lifecycle mutations; `currentBranch` must be the
- * post-mutation result from the trip tick write applier (`successfulVessels` and
- * upsert-gated messages intact).
+ * tick. For timeline rows that need ML (e.g. predicted dock batches), call only
+ * after `enrichTripApplyResultWithPredictions` has merged onto the apply result;
+ * `currentBranch` must still reflect post-mutation upsert gating
+ * (`successfulVessels`, pending messages).
  *
  * @param args - Boundary facts, current-branch artifacts, and tick time
  * @returns Sparse timeline payload for orchestrator timeline mutations

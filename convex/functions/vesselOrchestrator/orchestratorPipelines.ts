@@ -161,6 +161,7 @@ export const updateVesselPredictions = async (
  * @param ctx - Convex action context
  * @param input - Trip apply facts (typically ML-enriched by
  *   {@link updateVesselPredictions}) and tick time
+ * @see {@link buildTimelineTickProjectionInput} — domain merge of apply result slices
  */
 export const updateVesselTimeline = async (
   ctx: ActionCtx,

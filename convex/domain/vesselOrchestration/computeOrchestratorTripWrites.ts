@@ -1,6 +1,8 @@
 /**
  * Trip-branch writable bundle for one vessel-orchestrator tick: tick clock,
- * prediction fallback policy, and {@link computeVesselTripTickWritePlan}.
+ * prediction-fallback policy (via {@link computeShouldRunPredictionFallback}, same
+ * as {@link computeVesselTripTickWritePlan} / `processVesselTrips`), and
+ * {@link computeVesselTripTickWritePlan}.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -9,8 +11,8 @@ import type {
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import {
+  computeShouldRunPredictionFallback,
   computeVesselTripTickWritePlan,
-  PREDICTION_FALLBACK_WINDOW_SECONDS,
   type ProcessVesselTripsDeps,
 } from "./updateVesselTrips";
 import type { VesselTripTickWritePlan } from "./updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
@@ -59,7 +61,7 @@ export const computeOrchestratorTripWrites = async (
 
   const processOptions = {
     shouldRunPredictionFallback:
-      new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS,
+      computeShouldRunPredictionFallback(tickStartedAt),
   };
 
   const { plan } = await computeVesselTripTickWritePlan(

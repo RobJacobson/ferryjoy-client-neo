@@ -1,6 +1,6 @@
 # updateVesselTrips (orchestrator concern)
 
-**Trip branch** logic (invoked from `executeVesselOrchestratorTick` in `functions/vesselOrchestrator`): the full
+**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via `orchestratorPipelines.updateVesselTrips`): the full
 **lifecycle** implementation used on each cron tick.
 
 ## Layout

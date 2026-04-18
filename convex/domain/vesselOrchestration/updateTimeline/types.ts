@@ -24,8 +24,9 @@ export type CompletedTripBoundaryFact = {
   tripToComplete: ConvexVesselTripWithML;
   newTripCore: BuildTripCoreResult;
   /**
-   * ML-enriched replacement row for `buildPredictedDockWriteBatch`; set before
-   * timeline projection.
+   * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on
+   * the wire until `updateVesselPredictions` merge; **required** before timeline
+   * projection (assembler throws if missing).
    */
   newTrip?: ConvexVesselTripWithML;
 };

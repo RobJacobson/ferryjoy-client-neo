@@ -156,6 +156,20 @@ describe("buildTimelineTickProjectionInput", () => {
     );
   });
 
+  it("throws when a completed boundary fact lacks newTrip before timeline merge", () => {
+    const tickStartedAt = 1_703_000_000_000;
+    const completedFacts = [
+      { ...oneCompletedBoundaryFact(), newTrip: undefined },
+    ];
+    expect(() =>
+      buildTimelineTickProjectionInput({
+        completedFacts,
+        currentBranch: emptyCurrentBranch(),
+        tickStartedAt,
+      })
+    ).toThrow("updateVesselPredictions merge");
+  });
+
   it("matches explicit merge when completed facts produce non-empty writes", () => {
     const tickStartedAt = 1_702_000_000_000;
     const completedFacts = [oneCompletedBoundaryFact()];

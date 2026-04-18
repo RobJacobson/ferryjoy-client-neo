@@ -7,7 +7,7 @@ lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/`,
 are wired via `createDefaultProcessVesselTripsDeps`
 (`domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts`)
 with `createScheduledSegmentLookup` and `createVesselTripPredictionModelAccess`
-(wired by `executeVesselOrchestratorTick` in `functions/vesselOrchestrator/executeVesselOrchestratorTick.ts`).
+(wired from [`updateVesselOrchestrator`](../vesselOrchestrator/actions.ts) via `orchestratorPipelines` and the deps factories above).
 
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app
   (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,

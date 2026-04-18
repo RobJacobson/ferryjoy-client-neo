@@ -14,8 +14,9 @@ processing uses it.
 
 ## Production wiring
 
-Convex `ctx.runMutation` is injected into
-[`runUpdateVesselLocationsTick`](./runUpdateVesselLocationsTick.ts) from
-[`convex/functions/vesselOrchestrator/actions.ts`](../../../functions/vesselOrchestrator/actions.ts)
-(`deps.persistLocations` / `updateVesselOrchestrator` → `executeVesselOrchestratorTick`).
+In production, [`orchestratorPipelines.updateVesselLocations`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts)
+runs inside `updateVesselTrips` (after `computeOrchestratorTripWrites`, before
+`applyVesselTripTickWritePlan`), called from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts),
+using `bulkUpsertArgsFromConvexLocations`. [`runUpdateVesselLocationsTick`](./runUpdateVesselLocationsTick.ts)
+remains the test/replay helper with an injected `bulkUpsert` effect.
 See [`../architecture.md`](../architecture.md) §10.
