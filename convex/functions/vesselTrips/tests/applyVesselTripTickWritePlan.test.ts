@@ -5,6 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
 import type {
+  BuildTripCoreResult,
   CurrentTripTickWriteFragment,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
@@ -56,6 +57,17 @@ const makeTrip = (
   AtSeaArriveNext: undefined,
   AtSeaDepartNext: undefined,
   ...overrides,
+});
+
+const coreFromTrip = (
+  trip: ConvexVesselTripWithPredictions
+): BuildTripCoreResult => ({
+  withFinalSchedule: trip,
+  gates: {
+    shouldAttemptAtDockPredictions: false,
+    shouldAttemptAtSeaPredictions: false,
+    didJustLeaveDock: false,
+  },
 });
 
 /**
@@ -140,7 +152,7 @@ describe("applyVesselTripTickWritePlan", () => {
     const fact: CompletedTripBoundaryFact = {
       existingTrip: existing,
       tripToComplete,
-      newTrip,
+      newTripCore: coreFromTrip(newTrip),
     };
     const ctx = createCtx();
     const { completedFacts } = await applyVesselTripTickWritePlan(
@@ -151,7 +163,9 @@ describe("applyVesselTripTickWritePlan", () => {
       }
     );
     expect(completedFacts).toHaveLength(1);
-    expect(completedFacts[0]?.newTrip.ScheduleKey).toBe("CHE--next");
+    expect(completedFacts[0]?.newTripCore.withFinalSchedule.ScheduleKey).toBe(
+      "CHE--next"
+    );
     expect(
       ctx.mutationCalls.some(
         (c) =>
@@ -167,7 +181,7 @@ describe("applyVesselTripTickWritePlan", () => {
     const fact: CompletedTripBoundaryFact = {
       existingTrip: makeTrip(),
       tripToComplete: makeTrip(),
-      newTrip: makeTrip(),
+      newTripCore: coreFromTrip(makeTrip()),
     };
     const ctx = createCtx({ failCompleteHandoff: true });
     const { completedFacts } = await applyVesselTripTickWritePlan(
@@ -196,7 +210,7 @@ describe("applyVesselTripTickWritePlan", () => {
     const pendingActualMessages = [
       {
         events: minimalTripEvents,
-        finalProposed: trip,
+        tripCore: coreFromTrip(trip),
         vesselAbbrev: "CHE",
         requiresSuccessfulUpsert: false,
       },

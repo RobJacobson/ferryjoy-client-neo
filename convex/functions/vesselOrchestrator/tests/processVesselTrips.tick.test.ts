@@ -14,8 +14,12 @@ import {
   buildTimelineTickProjectionInput,
   type TickEventWrites,
 } from "domain/vesselOrchestration/updateTimeline";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
+import type {
+  BuildTripCoreResult,
+  TripEvents,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { enrichTripApplyResultWithPredictions } from "functions/vesselOrchestrator/enrichTripApplyResultWithPredictions";
 import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type {
   ConvexVesselTripWithPredictions,
@@ -87,13 +91,18 @@ const runVesselTripsTick = async (
       deps,
       { tickStartedAt }
     );
-  const { completedFacts, currentBranch } = await applyVesselTripTickWritePlan(
+  const applyTripResult = await applyVesselTripTickWritePlan(
     ctx as unknown as ActionCtx,
     tripWrites
   );
+  const enriched = await enrichTripApplyResultWithPredictions(
+    ctx as unknown as ActionCtx,
+    applyTripResult,
+    noopPredictionModelAccess
+  );
   const tickEventWrites = buildTimelineTickProjectionInput({
-    completedFacts,
-    currentBranch,
+    completedFacts: enriched.completedFacts,
+    currentBranch: enriched.currentBranch,
     tickStartedAt: tickAt,
   });
   await applyTickEventWritesLikeOrchestrator(
@@ -580,7 +589,7 @@ type TestDepsInput = {
   builtTripsByVessel: Map<string, ConvexVesselTripWithPredictions>;
   /** When set with {@link newTripsByVessel}, enables Path 3 completion fakes. */
   completedTripsByVessel?: Map<string, ConvexVesselTripWithPredictions>;
-  /** When set with {@link completedTripsByVessel}, `buildTrip` uses this row when `tripStart` is true. */
+  /** When set with {@link completedTripsByVessel}, `buildTripCore` uses this row when `tripStart` is true. */
   newTripsByVessel?: Map<string, ConvexVesselTripWithPredictions>;
   buildFailuresByVessel?: Map<string, Error>;
   callSequence?: string[];
@@ -629,6 +638,11 @@ const createTestActionCtx = (options: {
             })),
           }
         );
+      }
+
+      if (args && typeof args === "object" && "proposals" in args) {
+        options.callSequence?.push("mutation:batchUpsertProposals");
+        return { skipped: 0, inserted: 0, replaced: 0 };
       }
 
       if (
@@ -709,15 +723,14 @@ const createDeps = (input: TestDepsInput) => {
 
       return existingTrip;
     },
-    buildTrip: async (
+    buildTripCore: async (
       currLocation: ConvexVesselLocation,
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
       _events: TripEvents,
       _shouldRunPredictionFallback: boolean,
-      _adapters: unknown,
-      _predictionModelAccess: unknown
-    ): Promise<ConvexVesselTripWithPredictions> => {
+      _adapters: unknown
+    ): Promise<BuildTripCoreResult> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
       const failure = input.buildFailuresByVessel?.get(
         currLocation.VesselAbbrev
@@ -726,8 +739,9 @@ const createDeps = (input: TestDepsInput) => {
         throw failure;
       }
 
-      // Path 3: `processCompletedTrips` calls `buildTrip` with `tripStart: true` for
+      // Path 3: `processCompletedTrips` calls `buildTripCore` with `tripStart: true` for
       // the replacement active row — resolve from `newTripsByVessel`, not `builtTripsByVessel`.
+      let withFinalSchedule: ConvexVesselTripWithPredictions;
       if (useCompletionMaps && tripStart) {
         const replacement = input.newTripsByVessel?.get(
           currLocation.VesselAbbrev
@@ -738,15 +752,27 @@ const createDeps = (input: TestDepsInput) => {
           );
         }
 
-        return replacement;
+        withFinalSchedule = replacement;
+      } else {
+        const builtTrip = input.builtTripsByVessel.get(
+          currLocation.VesselAbbrev
+        );
+        if (!builtTrip) {
+          throw new Error(
+            `Missing built trip for ${currLocation.VesselAbbrev}`
+          );
+        }
+        withFinalSchedule = builtTrip;
       }
 
-      const builtTrip = input.builtTripsByVessel.get(currLocation.VesselAbbrev);
-      if (!builtTrip) {
-        throw new Error(`Missing built trip for ${currLocation.VesselAbbrev}`);
-      }
-
-      return builtTrip;
+      return {
+        withFinalSchedule,
+        gates: {
+          shouldAttemptAtDockPredictions: false,
+          shouldAttemptAtSeaPredictions: false,
+          didJustLeaveDock: false,
+        },
+      };
     },
     buildTripAdapters: {
       resolveEffectiveLocation: async (location: ConvexVesselLocation) =>
@@ -756,7 +782,6 @@ const createDeps = (input: TestDepsInput) => {
         _existingTrip: ConvexVesselTripWithPredictions | undefined
       ) => baseTrip,
     },
-    predictionModelAccess: noopPredictionModelAccess,
     detectTripEvents: (
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       currLocation: ConvexVesselLocation

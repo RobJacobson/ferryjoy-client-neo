@@ -21,3 +21,4 @@ export {
   type VesselTripPredictionWritePlan,
   vesselTripPredictionUnchangedForPersist,
 } from "./vesselTripPredictionPersistPlan";
+export { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";

@@ -10,7 +10,7 @@ import type {
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/updateTimeline/types";
-import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 /**
  * Leave-dock backfill queued during current-trip processing; runs only after a
@@ -18,7 +18,7 @@ import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
  */
 export type PendingLeaveDockEffect = {
   vesselAbbrev: string;
-  trip: ConvexVesselTripWithML;
+  trip: ConvexVesselTripWithPredictions;
 };
 
 /**
@@ -26,7 +26,8 @@ export type PendingLeaveDockEffect = {
  * timeline messages, and leave-dock intents.
  */
 export type CurrentTripTickWriteFragment = {
-  activeUpserts: ConvexVesselTripWithML[];
+  /** Schedule-shaped rows from {@link buildTripCore} (ML stripped at upsert). */
+  activeUpserts: ConvexVesselTripWithPredictions[];
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
@@ -37,7 +38,7 @@ export type CurrentTripTickWriteFragment = {
  * artifacts. Mutation payloads are derived at apply time (strip once in applier).
  */
 export type VesselTripTickWritePlan = {
-  /** Successful `buildTrip` results only, stable tick input order. */
+  /** Successful boundary handoffs only, stable tick input order. */
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
   current: CurrentTripTickWriteFragment;
 };

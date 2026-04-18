@@ -6,6 +6,7 @@
  * merged in `tickEventWrites.ts`.
  */
 
+import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
   ConvexVesselTripWithML,
@@ -14,11 +15,19 @@ import type {
 
 /**
  * One successful trip-boundary transition: trips ready for timeline writes.
+ *
+ * `newTripCore` is schedule + gates from {@link buildTripCore}; ML is attached
+ * in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTripWithPredictions;
   tripToComplete: ConvexVesselTripWithML;
-  newTrip: ConvexVesselTripWithML;
+  newTripCore: BuildTripCoreResult;
+  /**
+   * ML-enriched replacement row for `buildPredictedDockWriteBatch`; set before
+   * timeline projection.
+   */
+  newTrip?: ConvexVesselTripWithML;
 };
 
 /**
@@ -26,9 +35,13 @@ export type CompletedTripBoundaryFact = {
  */
 export type CurrentTripActualEventMessage = {
   events: TripEvents;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
+  /**
+   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
+   */
+  finalProposed?: ConvexVesselTripWithML;
 };
 
 /**
@@ -36,9 +49,13 @@ export type CurrentTripActualEventMessage = {
  */
 export type CurrentTripPredictedEventMessage = {
   existingTrip: ConvexVesselTripWithPredictions | undefined;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
+  /**
+   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
+   */
+  finalProposed?: ConvexVesselTripWithML;
 };
 
 /**

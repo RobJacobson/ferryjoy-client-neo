@@ -6,6 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
+import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
 import {
   type CurrentTripTickWriteFragment,
   type ProcessCompletedTripsDeps,
@@ -13,6 +14,7 @@ import {
   type TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { enrichTripApplyResultWithPredictions } from "functions/vesselOrchestrator/enrichTripApplyResultWithPredictions";
 import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -82,15 +84,21 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const { completedFacts } = await applyVesselTripTickWritePlan(
+    const applyTripResult = await applyVesselTripTickWritePlan(ctx as never, {
+      completedHandoffs: handoffPlan,
+      current: emptyCurrentTripTickWriteFragment(),
+    });
+
+    const enriched = await enrichTripApplyResultWithPredictions(
       ctx as never,
-      {
-        completedHandoffs: handoffPlan,
-        current: emptyCurrentTripTickWriteFragment(),
-      }
+      applyTripResult,
+      noopPredictionModelAccess
     );
 
-    const result = buildTickEventWritesFromCompletedFacts(completedFacts, 0);
+    const result = buildTickEventWritesFromCompletedFacts(
+      enriched.completedFacts,
+      0
+    );
 
     expect(loggedErrors).toHaveLength(0);
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
@@ -179,15 +187,21 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const { completedFacts } = await applyVesselTripTickWritePlan(
+    const applyTripResult = await applyVesselTripTickWritePlan(ctx as never, {
+      completedHandoffs: handoffPlan,
+      current: emptyCurrentTripTickWriteFragment(),
+    });
+
+    const enriched = await enrichTripApplyResultWithPredictions(
       ctx as never,
-      {
-        completedHandoffs: handoffPlan,
-        current: emptyCurrentTripTickWriteFragment(),
-      }
+      applyTripResult,
+      noopPredictionModelAccess
     );
 
-    const result = buildTickEventWritesFromCompletedFacts(completedFacts, 0);
+    const result = buildTickEventWritesFromCompletedFacts(
+      enriched.completedFacts,
+      0
+    );
 
     expect(getBoundaryMutationArgs(ctx)?.completedTrip.VesselAbbrev).toBe(
       "CHE"
@@ -244,6 +258,9 @@ const createTestActionCtx = (): TestActionCtx => {
     runQuery: async () => null,
     runMutation: async (ref, args) => {
       mutationCalls.push({ ref, args });
+      if (args && typeof args === "object" && "proposals" in args) {
+        return { skipped: 0, inserted: 0, replaced: 0 };
+      }
       return null;
     },
   };
@@ -268,15 +285,14 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
 
     return completedTrip;
   },
-  buildTrip: async (
+  buildTripCore: async (
     currLocation,
     _existingTrip,
     _tripStart,
     _events,
     _shouldRunPredictionFallback,
-    _adapters,
-    _predictionModelAccess
-  ): Promise<ConvexVesselTripWithPredictions> => {
+    _adapters
+  ): Promise<BuildTripCoreResult> => {
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
       throw failure;
@@ -287,13 +303,19 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
       throw new Error(`Missing new trip for ${currLocation.VesselAbbrev}`);
     }
 
-    return newTrip;
+    return {
+      withFinalSchedule: newTrip,
+      gates: {
+        shouldAttemptAtDockPredictions: false,
+        shouldAttemptAtSeaPredictions: false,
+        didJustLeaveDock: false,
+      },
+    };
   },
   buildTripAdapters: {
     resolveEffectiveLocation: async (location) => location,
     appendFinalSchedule: async (baseTrip, _existingTrip) => baseTrip,
   },
-  predictionModelAccess: noopPredictionModelAccess,
 });
 
 /**

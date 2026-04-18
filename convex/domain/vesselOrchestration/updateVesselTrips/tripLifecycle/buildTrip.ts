@@ -1,10 +1,10 @@
 /**
  * Build complete vessel-trip state for one live location tick.
  *
- * **O2:** {@link buildTripCore} is exported separately from the ML tail
- * (`applyVesselPredictions`) for tests and future orchestrator work. Production
- * still injects {@link buildTrip} via `ProcessVesselTripsDeps` /
- * `defaultProcessVesselTripsDeps`; do not switch deps to `buildTripCore` alone.
+ * **O2 / O4:** {@link buildTripCore} is exported separately from the ML tail
+ * (`applyVesselPredictions`). The orchestrator injects {@link buildTripCore} via
+ * `ProcessVesselTripsDeps` / `createDefaultProcessVesselTripsDeps`; {@link buildTrip}
+ * remains the composer for tests and non-orchestrator callers.
  */
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {

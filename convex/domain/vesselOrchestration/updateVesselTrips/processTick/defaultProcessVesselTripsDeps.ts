@@ -5,31 +5,28 @@
  *
  * Composes lifecycle builders and schedule-backed trip adapters from a
  * {@link ScheduledSegmentLookup} supplied by the functions layer (Convex
- * `runQuery` wiring).
+ * `runQuery` wiring). ML reads are **not** included here; the orchestrator passes
+ * model access only to **updateVesselPredictions**.
  */
 
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment";
 import { createBuildTripRuntimeAdapters } from "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters";
 import type { ProcessVesselTripsDeps } from "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
-import { buildTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
+import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 
 /**
  * Builds the production `ProcessVesselTripsDeps` for one tick from schedule lookups.
  *
  * @param lookup - Segment and sailing-day schedule queries (from Convex internal queries)
- * @param predictionModelAccess - Production ML model reads for this action tick
- * @returns Lifecycle dependencies including `buildTripAdapters` for dock continuity
+ * @returns Lifecycle dependencies including `buildTripCore` and `buildTripAdapters`
  */
 export const createDefaultProcessVesselTripsDeps = (
-  lookup: ScheduledSegmentLookup,
-  predictionModelAccess: VesselTripPredictionModelAccess
+  lookup: ScheduledSegmentLookup
 ): ProcessVesselTripsDeps => ({
   buildCompletedTrip,
-  buildTrip,
+  buildTripCore,
   detectTripEvents,
   buildTripAdapters: createBuildTripRuntimeAdapters(lookup),
-  predictionModelAccess,
 });

@@ -95,7 +95,9 @@ const applyCompletedHandoffs = async (
         api.functions.vesselTrips.mutations.completeAndStartNewTrip,
         {
           completedTrip: stripTripPredictionsForStorage(fact.tripToComplete),
-          newTrip: stripTripPredictionsForStorage(fact.newTrip),
+          newTrip: stripTripPredictionsForStorage(
+            fact.newTripCore.withFinalSchedule
+          ),
         }
       )
     )

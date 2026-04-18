@@ -28,6 +28,7 @@ predictions, and timeline projection.
 - **O1 handoff (orchestrator extract):** [`docs/handoffs/vessel-orchestrator-o1-orchestrator-extract-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o1-orchestrator-extract-handoff-2026-04-18.md)
 - **O2 handoff (`buildTripCore` vs predictions):** [`docs/handoffs/vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md)
 - **O3 handoff (predictions storage + writer):** [`docs/handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md)
+- **O4 handoff (wire orchestrator):** [`docs/handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md)
 
 ---
 
@@ -176,7 +177,7 @@ and **not** chosen; we prefer smaller checkpoints and clearer agent handoffs.
 | Phase | Scope | Definition of done |
 |-------|--------|-------------------|
 | **O1** | Orchestrator extract (**no** prediction semantics change) | Named pipeline functions; thin `actions.ts`; `updateVesselPredictions` stub/no-op; **behavior parity** with pre-refactor tick |
-| **O2** | Trip builders: `buildTripCore` vs `applyVesselPredictions` | Both paths exist with parity tests; still composed in one place until O4 |
+| **O2** | Trip builders: `buildTripCore` vs `applyVesselPredictions` | **Done** — parity tests; orchestrator uses split (`buildTrip` composer remains for other callers) |
 | **O3** | Predictions table + writer | Schema/mutations; read → recompute → diff → write in functions layer |
 | **O4** | Wire orchestrator | Trips without ML attachment; predictions phase after trips; simplify strip path |
 | **O5** | Timeline + cleanup | `buildTimelineTickProjectionInput` contract; remove dead ML-only gates if any; docs |
@@ -186,7 +187,9 @@ and **not** chosen; we prefer smaller checkpoints and clearer agent handoffs.
 **O2**
 [`vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o2-build-trip-core-vs-predictions-handoff-2026-04-18.md),
 **O3**
-[`vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md).
+[`vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o3-predictions-storage-and-writer-handoff-2026-04-18.md),
+**O4**
+[`vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md).
 
 ### 4.3 O1 ordering note (current invariant)
 
@@ -267,8 +270,9 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 | Document | **Active** — Option B (O1–O5) is the implementation plan |
 | O1 — Orchestrator extract | **Done** |
 | O2 — `buildTripCore` vs `applyVesselPredictions` | **Done** |
-| O3 — Predictions storage + writer | **Done** (`vesselTripPredictions` + internal writer; orchestrator stub until O4) |
-| O4–O5 | Pending |
+| O3 — Predictions storage + writer | **Done** (`vesselTripPredictions` + internal writer) |
+| O4 — Wire orchestrator (`buildTripCore` trip phase; `updateVesselPredictions` real) | **Done** |
+| O5 | Pending |
 
 ---
 
@@ -283,3 +287,5 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 - **O2 shipped:** `buildTripCore` / `BuildTripCoreResult` exported; `buildTrip.test.ts` parity coverage; §8 updated.
 - **O3 handoff added:** predictions storage + compare-then-write writer (`docs/handoffs/…o3…`).
 - **O3 shipped:** `vesselTripPredictions` table, `functions/vesselTripPredictions` internal API, overlay-aligned compare-then-write + tests; §7.1 item 1 closed; §8 updated.
+- **O4 shipped:** Orchestrator uses `buildTripCore` for trip planning; `updateVesselPredictions` runs `applyVesselPredictions`, merges ML for timeline, `batchUpsertProposals`; §8 updated.
+- **O4 handoff linked:** Related docs § and §4.2 handoffs list include [`vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md`](../handoffs/vessel-orchestrator-o4-wire-orchestrator-handoff-2026-04-18.md).

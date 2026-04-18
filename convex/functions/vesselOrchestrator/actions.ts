@@ -48,10 +48,10 @@ export const updateVesselOrchestrator = internalAction({
         terminalsIdentity
       );
 
-      // Wire schedule lookups + prediction reads on this ctx for `buildTrip` paths.
+      const predictionModelAccess = createVesselTripPredictionModelAccess(ctx);
+
       const tripDeps = createDefaultProcessVesselTripsDeps(
-        createScheduledSegmentLookup(ctx),
-        createVesselTripPredictionModelAccess(ctx)
+        createScheduledSegmentLookup(ctx)
       );
 
       const { applyTripResult, tickStartedAt } = await updateVesselTrips(ctx, {
@@ -60,10 +60,13 @@ export const updateVesselOrchestrator = internalAction({
         tripDeps,
       });
 
-      await updateVesselPredictions(ctx);
+      const applyTripResultForTimeline = await updateVesselPredictions(ctx, {
+        applyTripResult,
+        predictionModelAccess,
+      });
 
       await updateVesselTimeline(ctx, {
-        applyTripResult,
+        applyTripResult: applyTripResultForTimeline,
         tickStartedAt,
       });
     } catch (error) {

@@ -28,10 +28,10 @@ mutation order:
 1. **`updateVesselTrips`** — `computeOrchestratorTripWrites` → **`updateVesselLocations`**
    (bulk upsert) → `applyVesselTripTickWritePlan`. Locations run **between** trip
    plan and trip apply (current invariant).
-2. **`updateVesselPredictions`** — **no-op** at the orchestrator layer through **O3**
-   (the `vesselTripPredictions` table and internal batch writer exist, but the tick
-   does not invoke them yet—**O4** wires a single recompute path after trips). ML
-   still runs inside `buildTrip` today.
+2. **`updateVesselPredictions`** — runs `applyVesselPredictions` on each tick’s
+   carried `BuildTripCoreResult`, merges ML onto lifecycle outputs for
+   timeline assembly, then `batchUpsertProposals` into `vesselTripPredictions`.
+   Trip planning uses **`buildTripCore` only** (no ML in `buildTrip` on this path).
 3. **`updateVesselTimeline`** — `buildTimelineTickProjectionInput` then internal
    projection mutations for `eventsActual` / `eventsPredicted`.
 
@@ -53,7 +53,7 @@ Naming matches [`architecture.md` §10](../../domain/vesselOrchestration/archite
 
 - **updateVesselLocations** — persist live `vesselLocations` (bulk upsert; invoked from **`updateVesselTrips`** in this tick ordering).
 - **updateVesselTrips** — `computeOrchestratorTripWrites` / `applyVesselTripTickWritePlan` (`processVesselTrips` domain path).
-- **updateVesselPredictions** — orchestrator **stub** (O3 added persistence elsewhere; not called from this step until O4); real work remains `applyVesselPredictions` inside `buildTrip` for this tick.
+- **updateVesselPredictions** — `applyVesselPredictions` + `vesselTripPredictions` upserts (`enrichTripApplyResultWithPredictions.ts`), after trips and before timeline.
 - **updateTimeline** — `buildTimelineTickProjectionInput` plus `eventsActual` / `eventsPredicted` writes (implemented in `orchestratorPipelines.ts`).
 
 ```text
@@ -110,8 +110,8 @@ Responsibilities:
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
 - delegate sequential writes to **`orchestratorPipelines`**: `createScheduledSegmentLookup` +
-  `createDefaultProcessVesselTripsDeps` + `createVesselTripPredictionModelAccess` for
-  trip deps, then `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
+  `createDefaultProcessVesselTripsDeps` for trip deps, `createVesselTripPredictionModelAccess`
+  for the predictions phase only, then `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
 
 Domain pipeline (same tick semantics as before):
 
@@ -248,7 +248,7 @@ WSF API
   -> fetch vessel locations once via adapters
   -> convert locations in functions
   -> updateVesselTrips (plan -> bulkUpsert locations -> apply trip write plan)
-  -> updateVesselPredictions (O1 no-op)
+  -> updateVesselPredictions (ML merge + prediction table upserts)
   -> updateVesselTimeline (build projection input -> eventsActual / eventsPredicted)
 ```
 
@@ -329,8 +329,9 @@ The timeline overlay path is designed to stay lightweight:
 - `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, trip deps, then
   pipeline calls.
 - `orchestratorPipelines.ts` — `updateVesselLocations`, `updateVesselTrips`,
-  `updateVesselPredictions` (O1 no-op), `updateVesselTimeline`, plus
+  `updateVesselPredictions`, `updateVesselTimeline`, plus
   `createScheduledSegmentLookup` for `createDefaultProcessVesselTripsDeps`.
+- `enrichTripApplyResultWithPredictions.ts` — ML merge + `batchUpsertProposals` helper.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick).
 - `schemas.ts` — orchestrator-related schemas.
 
@@ -358,5 +359,5 @@ those internal actions live in `convex/crons.ts`.
 
 `updateVesselOrchestrator` uses one WSF batch per tick, then runs **named pipeline
 steps** in `orchestratorPipelines.ts`: trip plan and apply (with location upsert
-between plan and apply), an orchestrator-level **predictions no-op** in O1, and
-timeline projection onto `eventsActual` / `eventsPredicted`.
+between plan and apply), **updateVesselPredictions** (ML + `vesselTripPredictions`),
+and timeline projection onto `eventsActual` / `eventsPredicted`.

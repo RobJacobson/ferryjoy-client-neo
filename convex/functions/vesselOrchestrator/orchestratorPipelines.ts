@@ -1,11 +1,12 @@
 /**
  * Named pipeline steps for one `updateVesselOrchestrator` tick: vessel locations
  * bulk upsert, trip plan/apply (with compute → locations → apply ordering),
- * predictions placeholder (O1 no-op), and timeline projection writes.
+ * ML merge + `vesselTripPredictions` upserts, and timeline projection writes.
  */
 
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
+import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
 import { buildTimelineTickProjectionInput } from "domain/vesselOrchestration/updateTimeline";
 import { bulkUpsertArgsFromConvexLocations } from "domain/vesselOrchestration/updateVesselLocations";
@@ -13,6 +14,7 @@ import type {
   ProcessVesselTripsDeps,
   ScheduledSegmentLookup,
   TimelineTickProjectionInput,
+  VesselTripTickWritePlan,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
@@ -23,6 +25,8 @@ import type {
   ConvexVesselTripWithPredictions,
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
+
+import { enrichTripApplyResultWithPredictions } from "./enrichTripApplyResultWithPredictions";
 
 /**
  * Inputs for {@link updateVesselTrips}: same locations and trips as
@@ -35,16 +39,19 @@ export type UpdateVesselTripsInput = {
 };
 
 /**
- * Result of {@link updateVesselTrips}: trip apply outcome and tick anchor for
+ * Result of {@link updateVesselTrips}: trip apply outcome, original write plan
+ * (for diagnostics), and tick anchor for {@link updateVesselPredictions} /
  * {@link updateVesselTimeline}.
  */
 export type UpdateVesselTripsResult = {
   applyTripResult: ApplyVesselTripTickWritePlanResult;
+  tripWrites: VesselTripTickWritePlan;
   tickStartedAt: number;
 };
 
 /**
- * Inputs for {@link updateVesselTimeline} after {@link updateVesselTrips}.
+ * Inputs for {@link updateVesselTimeline} after {@link updateVesselPredictions}
+ * (ML-enriched {@link ApplyVesselTripTickWritePlanResult}).
  */
 export type UpdateVesselTimelineInput = {
   applyTripResult: ApplyVesselTripTickWritePlanResult;
@@ -102,7 +109,8 @@ export const updateVesselLocations = async (
  *
  * @param ctx - Convex action context
  * @param input - Locations, active trips, and `ProcessVesselTripsDeps`
- * @returns Trip apply outcome and tick anchor for timeline assembly
+ * @returns Trip apply outcome, the tick write plan (for diagnostics), and tick
+ *   anchor for {@link updateVesselPredictions} / {@link updateVesselTimeline}
  */
 export const updateVesselTrips = async (
   ctx: ActionCtx,
@@ -115,27 +123,44 @@ export const updateVesselTrips = async (
   );
   await updateVesselLocations(ctx, convexLocations);
   const applyTripResult = await applyVesselTripTickWritePlan(ctx, tripWrites);
-  return { applyTripResult, tickStartedAt };
+  return { applyTripResult, tripWrites, tickStartedAt };
 };
 
 /**
- * Orchestrator hook for **updateVesselPredictions**. O1 is a no-op: ML still runs
- * inside `buildTrip` via `applyVesselPredictions` until O3–O4 extraction.
+ * Inputs for {@link updateVesselPredictions} after {@link updateVesselTrips}.
+ */
+export type UpdateVesselPredictionsInput = {
+  applyTripResult: ApplyVesselTripTickWritePlanResult;
+  predictionModelAccess: VesselTripPredictionModelAccess;
+};
+
+/**
+ * Runs `applyVesselPredictions`, merges ML onto lifecycle outputs for timeline,
+ * then persists `vesselTripPredictions` rows. **Ordering:** in-memory ML merge
+ * completes before return (timeline must not read DB predictions from this tick);
+ * `batchUpsertProposals` runs after merge.
  *
- * @param _ctx - Reserved for future prediction I/O on this tick
+ * @param ctx - Convex action context
+ * @param input - Post-apply lifecycle state and ML model access
+ * @returns ML-enriched apply result for {@link updateVesselTimeline}
  */
 export const updateVesselPredictions = async (
-  _ctx: ActionCtx
-): Promise<void> => {
-  // O3–O4: predictions table + orchestrator phase; `_ctx` reserved for future I/O.
-};
+  ctx: ActionCtx,
+  input: UpdateVesselPredictionsInput
+): Promise<ApplyVesselTripTickWritePlanResult> =>
+  enrichTripApplyResultWithPredictions(
+    ctx,
+    input.applyTripResult,
+    input.predictionModelAccess
+  );
 
 /**
  * Timeline projection for one tick: domain merge then `eventsActual` /
  * `eventsPredicted` mutations.
  *
  * @param ctx - Convex action context
- * @param input - Trip apply facts and tick time from {@link updateVesselTrips}
+ * @param input - Trip apply facts (typically ML-enriched by
+ *   {@link updateVesselPredictions}) and tick time
  */
 export const updateVesselTimeline = async (
   ctx: ActionCtx,

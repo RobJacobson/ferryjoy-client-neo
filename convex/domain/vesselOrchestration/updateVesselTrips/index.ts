@@ -4,7 +4,8 @@
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
- * **updateVesselPredictions** is `applyVesselPredictions` inside `buildTrip`.
+ * **updateVesselPredictions** runs `applyVesselPredictions` after trip mutations
+ * (orchestrator `functions/vesselOrchestrator`).
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
@@ -53,10 +54,14 @@ export {
   computeShouldRunPredictionFallback,
   PREDICTION_FALLBACK_WINDOW_SECONDS,
 } from "./processTick/tickPredictionPolicy";
+export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
 } from "./tripLifecycle/processCompletedTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
-export type { CurrentTripTickWriteFragment } from "./tripLifecycle/vesselTripTickWritePlan";
+export type {
+  CurrentTripTickWriteFragment,
+  VesselTripTickWritePlan,
+} from "./tripLifecycle/vesselTripTickWritePlan";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

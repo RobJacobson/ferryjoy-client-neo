@@ -4,17 +4,15 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { BuildTripCoreResult } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripBuildResult = {
   currLocation: ConvexVesselLocation;
   existingTrip?: ConvexVesselTripWithPredictions;
   events: TripEvents;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
 };
 
 /**
@@ -28,12 +26,12 @@ export const logTripTickDiagnostics = ({
   existingTrip,
   currLocation,
   events,
-  finalProposed,
+  tripCore,
 }: CurrentTripBuildResult) => {
-  const scheduleKeyChanged =
-    existingTrip?.ScheduleKey !== finalProposed.ScheduleKey;
+  const proposed = tripCore.withFinalSchedule;
+  const scheduleKeyChanged = existingTrip?.ScheduleKey !== proposed.ScheduleKey;
   const scheduledDepartureChanged =
-    existingTrip?.ScheduledDeparture !== finalProposed.ScheduledDeparture;
+    existingTrip?.ScheduledDeparture !== proposed.ScheduledDeparture;
 
   if (!scheduleKeyChanged && !scheduledDepartureChanged) {
     return;
@@ -46,7 +44,7 @@ export const logTripTickDiagnostics = ({
       events,
       liveTick: summarizeLocationTick(currLocation),
       existingTrip: summarizeTripTick(existingTrip),
-      finalProposed: summarizeTripTick(finalProposed),
+      finalProposed: summarizeTripTick(proposed),
     })}`
   );
 };
@@ -61,10 +59,11 @@ export const logTripTickDiagnostics = ({
  * @returns Nothing; emits a warning only for boundary-crossing ticks
  */
 export const logActualProjectionTick = (
-  { existingTrip, currLocation, events, finalProposed }: CurrentTripBuildResult,
+  { existingTrip, currLocation, events, tripCore }: CurrentTripBuildResult,
   persist: boolean,
   refresh: boolean
 ) => {
+  const finalProposed = tripCore.withFinalSchedule;
   if (!events.didJustLeaveDock && !events.didJustArriveAtDock) {
     return;
   }

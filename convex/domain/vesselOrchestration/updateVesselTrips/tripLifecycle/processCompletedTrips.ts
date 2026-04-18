@@ -6,13 +6,12 @@
  * assembled after apply from persisted outcomes.
  */
 
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline/types";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
-import type { buildTrip } from "./buildTrip";
+import type { buildTripCore } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
@@ -23,9 +22,8 @@ type CompletedTripTransition = {
 
 export type ProcessCompletedTripsDeps = {
   buildCompletedTrip: typeof buildCompletedTrip;
-  buildTrip: typeof buildTrip;
+  buildTripCore: typeof buildTripCore;
   buildTripAdapters: VesselTripsBuildTripAdapters;
-  predictionModelAccess: VesselTripPredictionModelAccess;
 };
 
 /**
@@ -84,20 +82,19 @@ const processCompletedTripTransition = async (
     currLocation,
     events.didJustArriveAtDock
   );
-  const newTrip = await deps.buildTrip(
+  const newTripCore = await deps.buildTripCore(
     currLocation,
     tripToComplete,
     true,
     events,
     shouldRunPredictionFallback,
-    deps.buildTripAdapters,
-    deps.predictionModelAccess
+    deps.buildTripAdapters
   );
 
   return {
     existingTrip,
     tripToComplete,
-    newTrip,
+    newTripCore,
   };
 };
 

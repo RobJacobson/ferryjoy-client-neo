@@ -4,8 +4,8 @@
  * Builds a {@link VesselTripTickWritePlan} for the functions-layer applier;
  * persistence and {@link buildTimelineTickProjectionInput} run outside this module
  * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML
- * attachment for trips is **updateVesselPredictions** (`applyVesselPredictions`,
- * invoked from `buildTrip` after schedule enrichment; see `architecture.md` §10).
+ * attachment runs in **updateVesselPredictions** after trip mutations (`applyVesselPredictions`;
+ * see `architecture.md` §10).
  */
 
 import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
@@ -55,7 +55,7 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator (unused in plan
  *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
- *   `buildTripAdapters`, `predictionModelAccess`, `detectTripEvents`)
+ *   `buildTripCore`, `buildTripAdapters`, `detectTripEvents`)
  * @param activeTrips - Preloaded active trips for this tick. Prefer
  *   {@link TickActiveTrip} rows; trips enriched with predictions remain
  *   accepted for tests.
@@ -70,7 +70,7 @@ export const computeVesselTripTickWritePlan = async (
   options?: ProcessVesselTripsOptions
 ): Promise<{ plan: VesselTripTickWritePlan }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
-  // event detection and `buildTrip`; stripping ML for DB writes happens in the applier.
+  // event detection and `buildTripCore`; stripping ML for DB writes happens in the applier.
   const existingTripsDict = Object.fromEntries(
     activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;
@@ -97,18 +97,16 @@ export const computeVesselTripTickWritePlan = async (
     logVesselProcessingError,
     {
       buildCompletedTrip: deps.buildCompletedTrip,
-      buildTrip: deps.buildTrip,
+      buildTripCore: deps.buildTripCore,
       buildTripAdapters: deps.buildTripAdapters,
-      predictionModelAccess: deps.predictionModelAccess,
     }
   );
   const currentFragment = await processCurrentTrips(
     currentTrips,
     shouldRunPredictionFallback,
     {
-      buildTrip: deps.buildTrip,
+      buildTripCore: deps.buildTripCore,
       buildTripAdapters: deps.buildTripAdapters,
-      predictionModelAccess: deps.predictionModelAccess,
     }
   );
 

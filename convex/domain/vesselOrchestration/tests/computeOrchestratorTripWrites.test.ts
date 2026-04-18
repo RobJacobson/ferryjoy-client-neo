@@ -4,21 +4,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
 import { computeOrchestratorTripWrites } from "../computeOrchestratorTripWrites";
 import type { ScheduledSegmentLookup } from "../updateVesselTrips/continuity/resolveDockedScheduledSegment";
 import { createDefaultProcessVesselTripsDeps } from "../updateVesselTrips/processTick/defaultProcessVesselTripsDeps";
-
-const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
-  loadModelForProductionPair: async () => null,
-  loadModelsForProductionPairBatch: async () =>
-    ({}) as Record<
-      ModelType,
-      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
-      | null
-    >,
-};
 
 const stubLookup: ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: async () => null,
@@ -28,10 +16,7 @@ const stubLookup: ScheduledSegmentLookup = {
 describe("computeOrchestratorTripWrites", () => {
   it("returns stubbed tick time and empty trip writes for an empty batch", async () => {
     const tickStartedAt = 1_718_000_000_000;
-    const deps = createDefaultProcessVesselTripsDeps(
-      stubLookup,
-      noopPredictionModelAccess
-    );
+    const deps = createDefaultProcessVesselTripsDeps(stubLookup);
 
     const result = await computeOrchestratorTripWrites(
       {
