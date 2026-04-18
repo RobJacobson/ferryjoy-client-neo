@@ -1,6 +1,6 @@
 # updateVesselTrips (orchestrator concern)
 
-**Trip branch** logic for `runVesselOrchestratorTick`: eligibility gates plus the full
+**Trip branch** logic (invoked from `executeVesselOrchestratorTick` in `functions/vesselOrchestrator`): eligibility gates plus the full
 **lifecycle** implementation used on each cron tick.
 
 ## Layout

@@ -5,13 +5,13 @@
 import { describe, expect, it } from "bun:test";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline/timelineEventAssembler";
+import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
 import {
+  type CurrentTripTickWriteFragment,
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
-} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
-import type { CurrentTripTickWriteFragment } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
+  type TripEvents,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";

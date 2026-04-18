@@ -23,7 +23,10 @@
  *
  * **Peer façade for `functions/vesselOrchestrator`:** `createDefaultProcessVesselTripsDeps`,
  * `ScheduledSegmentLookup`, `TripEvents` (types), and tick symbols below—import this
- * `index`, not deep leaf paths.
+ * `index`, not deep leaf paths. Some symbols are also re-exported for
+ * `functions/vesselTrips` tests so they share the same peer contract as production
+ * callers; if this surface grows unwieldy, revisit Step H (engineering memo) with a
+ * submodule façade rather than deep imports.
  */
 
 export {
@@ -52,5 +55,10 @@ export {
 } from "./processTick/processVesselTrips";
 export type { VesselTripsTickResult } from "./processTick/tickEnvelope";
 export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
+export {
+  type ProcessCompletedTripsDeps,
+  processCompletedTrips,
+} from "./tripLifecycle/processCompletedTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
+export type { CurrentTripTickWriteFragment } from "./tripLifecycle/vesselTripTickWritePlan";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

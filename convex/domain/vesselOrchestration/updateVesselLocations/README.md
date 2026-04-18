@@ -17,5 +17,5 @@ processing uses it.
 Convex `ctx.runMutation` is injected into
 [`runUpdateVesselLocationsTick`](./runUpdateVesselLocationsTick.ts) from
 [`convex/functions/vesselOrchestrator/actions.ts`](../../../functions/vesselOrchestrator/actions.ts)
-(`deps.persistLocations` / `updateVesselOrchestrator` → `runVesselOrchestratorTick`).
+(`deps.persistLocations` / `updateVesselOrchestrator` → `executeVesselOrchestratorTick`).
 See [`../architecture.md`](../architecture.md) §10.

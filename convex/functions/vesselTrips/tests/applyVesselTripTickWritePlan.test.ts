@@ -3,9 +3,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline/types";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
-import type { CurrentTripTickWriteFragment } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import type {
+  CurrentTripTickWriteFragment,
+  TripEvents,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";

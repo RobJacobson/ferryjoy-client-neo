@@ -40,6 +40,7 @@ Backend engineers touching `convex/functions/vesselOrchestrator`,
 - Step C handoff (remove `createVesselOrchestratorTickDeps`): [`docs/handoffs/vessel-orchestrator-step-c-createVesselOrchestratorTickDeps-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-step-c-createVesselOrchestratorTickDeps-handoff-2026-04-17.md)
 - Step D + E handoff (remove domain runner; relocate tick types; test rewrites): [`docs/handoffs/vessel-orchestrator-step-d-remove-domain-tick-runner-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-step-d-remove-domain-tick-runner-handoff-2026-04-17.md)
 - Step G handoff (import boundaries; `executeVesselOrchestratorTick` → peer `index.ts`): [`docs/handoffs/vessel-orchestrator-step-g-import-boundaries-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-step-g-import-boundaries-handoff-2026-04-17.md)
+- Post–Step G closeout (Step F audit, optional Step H, lint Stage D): [`docs/handoffs/vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md)
 - Domain map: [`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md)
 - Orchestrator README: [`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md)
 - Module boundaries: [`docs/engineering/imports-and-module-boundaries-memo.md`](imports-and-module-boundaries-memo.md)
@@ -112,7 +113,7 @@ must deep-import to avoid a barrel.
 
 ---
 
-## 2. Current state (after Steps A–D)
+## 2. Current state (after Steps A–G)
 
 ### 2.1 Production path (matches “functions own orchestration”)
 
@@ -147,9 +148,12 @@ must deep-import to avoid a barrel.
   Tests: [`executeVesselOrchestratorTick.integration.test.ts`](../../convex/functions/vesselOrchestrator/tests/executeVesselOrchestratorTick.integration.test.ts),
   [`executeVesselOrchestratorTick.behavior.test.ts`](../../convex/functions/vesselOrchestrator/tests/executeVesselOrchestratorTick.behavior.test.ts).
 
-**Net:** **Production** control flow is in **functions**; **Step F** is a broader
-documentation sweep; **Steps G–H** align imports and module shape with the
-boundaries memo without changing tick semantics.
+**Net:** **Production** control flow is in **functions**. **Step F**
+(documentation reconciliation against domain README, `architecture.md`,
+orchestrator README, persistence memo §1.8) is **complete** (2026-04-17;
+[post–G closeout handoff](../handoffs/vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md)).
+**Step G** (peer `index.ts` imports) is shipped. **Step H** is **N/A** unless the
+team later chooses a deliberate façade split—see §3 Step H.
 
 ---
 
@@ -218,21 +222,15 @@ the production path.
    the area documents it; prefer **peer entries** where they carry the same
    contract as production (aligns with boundaries memo §4).
 
-### Step F — Documentation sweep
+### Step F — Documentation sweep (**done**, 2026-04-17)
 
-Update at minimum:
-
-- [`convex/domain/README.md`](../../convex/domain/README.md) — vesselOrchestration
-  bullet: no longer “`runVesselOrchestratorTick`”.
-- [`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md)
-  — §2 entry points, diagrams, and “primary backend entry” to describe
-  **functions** as owning tick orchestration.
-- [`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md)
-  — flow diagram and file list.
-- [`docs/vessel-orchestrator-domain-persistence-refactor-memo.md`](../vessel-orchestrator-domain-persistence-refactor-memo.md)
-  — add a short **§1.8 Current snapshot** or **Post–Stage 5** note pointing to
-  this memo as the **final-shape** follow-up (do not rewrite the whole legacy
-  memo unless desired).
+Reconciled in post–G closeout: [`convex/domain/README.md`](../../convex/domain/README.md),
+[`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md),
+[`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md),
+[`docs/vessel-orchestrator-domain-persistence-refactor-memo.md`](../vessel-orchestrator-domain-persistence-refactor-memo.md) §1.8,
+and peer READMEs under `updateVesselLocations` / `updateVesselTrips` describe
+**functions-owned** tick orchestration (`executeVesselOrchestratorTick`), not the
+removed domain runner.
 
 ### Step G — Import boundaries (`functions` → `domain`) (**shipped**)
 
@@ -256,18 +254,25 @@ Maps to **Stage B/C** in
   where peer entries already export the symbol; align tests the same way when
   practical.
 
-### Step H — Module shape review (optional; when Step G surfaces smell) (**pending**)
+### Step H — Module shape review (optional; when Step G surfaces smell) (**N/A**, 2026-04-17)
 
-- **Trigger:** Step G would require **many** unrelated exports on one `index.ts`,
-  or the “one sentence” description of a folder no longer fits.
-- **Action:** Prefer **folder splits** and **new entries** with a clear primary
-  behavior over expanding a barrel. Examples of directions (not prescriptions —
-  decide in review): separate **trip tick** vs **eligibility** façades; move
-  **schedule lookup types** next to the continuity story; keep
+- **Decision:** No submodule split in this pass. The extended
+  [`updateVesselTrips/index.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/index.ts)
+  façade remains **intentional** for orchestrator/tick-pipeline discoverability; a
+  mechanical split would not improve the module story yet. Extra exports for tests
+  (e.g. `processCompletedTrips`) follow the same contract story; if the façade
+  later feels overloaded, **revisit** this decision with a deliberate split (e.g.
+  `tripLifecycle/index.ts` façade)—without undoing import-boundary policy.
+- **If** a future review objects to façade size, prefer **folder splits** and
+  **new entries** with a clear primary behavior over expanding a barrel.
+  Examples (not prescriptions): separate **trip tick** vs **eligibility** façades;
+  move **schedule lookup types** next to the continuity story; keep
   `vesselOrchestration` root `index.ts` **small** and delegate to peer modules.
-- **Relationship to lint (boundaries memo Stage D):** after shape stabilizes,
-  consider `no-restricted-imports` from `functions/vesselOrchestrator` into
-  `domain/**/internal/**` patterns.
+- **Relationship to lint (boundaries memo Stage D):** Biome `noRestrictedImports`
+  for `functions/vesselOrchestrator` is **enabled**—see
+  [`imports-and-module-boundaries-memo.md`](imports-and-module-boundaries-memo.md) §6
+  and [`biome.json`](../../biome.json) `overrides`; optional widening (e.g.
+  `functions/vesselTrips`) remains a follow-up.
 
 ---
 
@@ -282,10 +287,10 @@ Maps to **Stage B/C** in
 | `domain/vesselOrchestration/runVesselOrchestratorTick.ts` | **Removed** (Step D) |
 | `domain/vesselOrchestration/types.ts` | **Removed** (Step D); contracts → `functions/vesselOrchestrator/types.ts` |
 | `domain/vesselOrchestration/index.ts` | **Done** (Step D); unchanged in G |
-| `domain/vesselOrchestration/updateVesselTrips/index.ts` (and peers) | **Done** Step G (orchestrator façade exports); **Pending** Step H only if shape review |
+| `domain/vesselOrchestration/updateVesselTrips/index.ts` (and peers) | **Done** Step G (orchestrator façade exports); **N/A** Step H (façade accepted for discoverability; see §3 Step H) |
 | `functions/vesselOrchestrator/types.ts` | **Done** (Step D) |
 | `functions/vesselOrchestrator/tests/executeVesselOrchestratorTick.*.test.ts` | **Done** (Step E) |
-| READMEs under `domain/vesselOrchestration/**`, `functions/vesselOrchestrator/**` | **Pending** Step F |
+| READMEs under `domain/vesselOrchestration/**`, `functions/vesselOrchestrator/**` | **Done** (Step F reconciliation, 2026-04-17; [post–G closeout handoff](../handoffs/vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md)) |
 
 ---
 
@@ -319,9 +324,10 @@ After each PR:
 **When Steps G–H are complete:**
 
 - **`functions/vesselOrchestrator` → `domain`:** imports follow **entry files**
-  (and agreed roots); no casual deep paths into leaf files.
-- **Facades:** each touched `index.ts` matches **one** coherent story; no
-  unrelated grab-bags without an H-style split.
+  (and agreed roots); no casual deep paths into leaf files (**Step G shipped**).
+- **Facades:** Step H submodule split **deferred / N/A** unless a later review
+  demands it; optional lint Stage D may still tighten boundaries (see imports memo
+  §6 and post–G closeout handoff).
 
 ---
 
@@ -337,3 +343,11 @@ After each PR:
 - **2026-04-17:** **Related documents** — link to Step G handoff
   [`vessel-orchestrator-step-g-import-boundaries-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-step-g-import-boundaries-handoff-2026-04-17.md).
 - **2026-04-17:** **Step G shipped** — `functions/vesselOrchestrator` imports domain via peer `index.ts`; `updateVesselTrips` façade extended (`createDefaultProcessVesselTripsDeps`, `ScheduledSegmentLookup`, `TripEvents`).
+- **2026-04-17:** **Related documents** — post–G closeout handoff
+  [`vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md`](../handoffs/vessel-orchestrator-post-g-closeout-handoff-2026-04-17.md); **§4 checklist** README row points at that audit.
+- **2026-04-17:** **Step F complete** — README / architecture / persistence §1.8
+  reconciled; **Step H** marked **N/A** (large `updateVesselTrips` façade accepted);
+  §4 checklist README row **Done**; Stage D lint optional follow-up noted in
+  [imports-and-module-boundaries-memo.md](imports-and-module-boundaries-memo.md) §6.
+- **2026-04-17:** Post-review — Step H notes façade revisit + Stage D **enabled** in
+  `biome.json` (imports memo §6).

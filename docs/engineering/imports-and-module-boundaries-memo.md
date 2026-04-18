@@ -82,6 +82,28 @@ Work is **incremental**. Order below minimizes risk and keeps typecheck green.
 
 - Add **lint rules** (e.g. `no-restricted-imports` or path-based rules) for the worst regressions: e.g. forbid `functions/**` from importing known internal glob patterns under `domain/**`.
 - Tighten rules as coverage improves; prefer **allowlists** of entry paths where ambiguity is high.
+- **Partial (2026-04-17):** Biome `style/noRestrictedImports` is enabled for
+  `convex/functions/vesselOrchestrator/**/*.ts` in [`biome.json`](../../biome.json)
+  (`overrides`): that glob **includes tests** under `functions/vesselOrchestrator`.
+  Deep imports under
+  `domain/vesselOrchestration/updateVesselTrips/**`,
+  `domain/vesselOrchestration/updateVesselLocations/**`,
+  `domain/vesselOrchestration/updateTimeline/**`, and
+  `domain/vesselOrchestration/updateVesselPredictions/**` are errors; peer entry
+  imports (no extra path segment) remain valid. If a test **must** deep-import
+  with a documented reason, use a targeted `biome-ignore` on that import (and
+  explain why) or narrow the override—same escape hatch as other exceptions
+  above.
+- **Optional follow-up:** Mirror the same `noRestrictedImports` pattern for other
+  heavy domain consumers (e.g. `convex/functions/vesselTrips/**/*.ts`) so
+  `functions/vesselTrips` tests cannot regress to deep `domain/...` paths—not
+  required for the vessel-orchestrator milestone; `vesselTrips` tests were aligned
+  to peer entries separately.
+- **Local `bun run check`:** Warnings about **dereferenced symlinks** under
+  `ios/Pods` are an environment / CocoaPods layout issue on some machines; CI that
+  scopes Biome to app and Convex paths may not hit them. If check fails only on
+  those entries, confirm whether your job includes `ios/Pods` and exclude or fix
+  Pods symlinks as appropriate for that pipeline.
 
 ### Stage E — Ongoing
 
@@ -100,3 +122,7 @@ Work is **incremental**. Order below minimizes risk and keeps typecheck green.
 ## 8. Document history
 
 - **2026-04-17:** Initial memo (imports, exports, staged adoption).
+- **2026-04-17:** Stage D — document Biome `noRestrictedImports` override for
+  `functions/vesselOrchestrator` (post–Step G closeout).
+- **2026-04-17:** Stage D — clarify test scope, `biome-ignore` escape hatch,
+  optional `vesselTrips` mirror, and local `check` vs `ios/Pods` symlinks.
