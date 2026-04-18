@@ -26,7 +26,7 @@ import {
 export type VesselTripCoreProposal = ConvexVesselTripWithPredictions;
 
 /**
- * Boolean guards for ML phases, computed in {@link ../updateVesselTrips/tripLifecycle/buildTrip}
+ * Boolean guards for ML phases, computed in {@link ../updateVesselTrips/tripLifecycle/buildTrip!buildTripCore}
  * before this
  * step. `didJustLeaveDock` is threaded from `TripEvents.didJustLeaveDock` and
  * must not be recomputed here.

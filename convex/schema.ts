@@ -14,6 +14,7 @@ import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
 import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
+import { vesselTripPredictionStoredSchema } from "functions/vesselTripPredictions/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 export default defineSchema({
@@ -112,6 +113,17 @@ export default defineSchema({
     ])
     .index("by_sailing_day", ["SailingDay"])
     .index("by_vessel_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
+
+  // Per-trip ML prediction blobs (compare-then-write); keyed by vessel + TripKey +
+  // prediction field. Rows for past TripKeys may linger until a future GC pass;
+  // see domain vesselOrchestration architecture.md.
+  vesselTripPredictions: defineTable(vesselTripPredictionStoredSchema)
+    .index("by_vessel_and_trip", ["VesselAbbrev", "TripKey"])
+    .index("by_vessel_trip_and_field", [
+      "VesselAbbrev",
+      "TripKey",
+      "PredictionType",
+    ]),
 
   // Prediction model parameters (pair buckets)
   modelParameters: defineTable(modelParametersSchema)

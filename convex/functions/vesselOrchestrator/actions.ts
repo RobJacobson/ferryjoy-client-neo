@@ -2,81 +2,20 @@
  * Internal action: orchestrate one real-time vessel tick.
  *
  * Loads identity and active trips, fetches one WSF location batch via the adapter,
- * then applies DB writes in order: locations, trip lifecycle, timeline projection.
+ * then delegates sequential writes to `orchestratorPipelines.ts`.
  */
 
-import { api, internal } from "_generated/api";
-import { type ActionCtx, internalAction } from "_generated/server";
+import { internal } from "_generated/api";
+import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
-import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
-import { buildTimelineTickProjectionInput } from "domain/vesselOrchestration/updateTimeline";
-import { bulkUpsertArgsFromConvexLocations } from "domain/vesselOrchestration/updateVesselLocations";
-import {
-  createDefaultProcessVesselTripsDeps,
-  type ScheduledSegmentLookup,
-  type TimelineTickProjectionInput,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import { createDefaultProcessVesselTripsDeps } from "domain/vesselOrchestration/updateVesselTrips";
 import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
-
-/**
- * Schedule lookup backed by internal `eventsScheduled` queries for vessel trip
- * ticks (`createDefaultProcessVesselTripsDeps`).
- *
- * @param ctx - Convex action context for query execution
- * @returns Lookup callbacks for scheduled departure and dock events
- */
-const createScheduledSegmentLookup = (
-  ctx: ActionCtx
-): ScheduledSegmentLookup => ({
-  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
-    ctx.runQuery(
-      internal.functions.events.eventsScheduled.queries
-        .getScheduledDepartureEventBySegmentKey,
-      { segmentKey }
-    ),
-  getScheduledDockEventsForSailingDay: (args: {
-    vesselAbbrev: string;
-    sailingDay: string;
-  }) =>
-    ctx.runQuery(
-      internal.functions.events.eventsScheduled.queries
-        .getScheduledDockEventsForSailingDay,
-      args
-    ),
-});
-
-/**
- * Applies sparse `eventsActual` / `eventsPredicted` writes for one tick.
- *
- * @param ctx - Convex action context
- * @param writes - Timeline projection payload from domain assembly
- */
-const applyTimelineTickProjectionWrites = async (
-  ctx: ActionCtx,
-  writes: TimelineTickProjectionInput
-): Promise<void> => {
-  await Promise.all([
-    writes.actualDockWrites.length > 0
-      ? ctx.runMutation(
-          internal.functions.events.eventsActual.mutations
-            .projectActualDockWrites,
-          {
-            Writes: writes.actualDockWrites,
-          }
-        )
-      : Promise.resolve(),
-    writes.predictedDockWriteBatches.length > 0
-      ? ctx.runMutation(
-          internal.functions.events.eventsPredicted.mutations
-            .projectPredictedDockWriteBatches,
-          {
-            Batches: writes.predictedDockWriteBatches,
-          }
-        )
-      : Promise.resolve(),
-  ]);
-};
+import {
+  createScheduledSegmentLookup,
+  updateVesselPredictions,
+  updateVesselTimeline,
+  updateVesselTrips,
+} from "./orchestratorPipelines";
 
 /**
  * Query read model, fetch WSF locations, run sequential tick writes.
@@ -115,36 +54,18 @@ export const updateVesselOrchestrator = internalAction({
         createVesselTripPredictionModelAccess(ctx)
       );
 
-      // Compute trip writes + tick anchor before any lifecycle mutations run.
-      const { tripWrites, tickStartedAt } = await computeOrchestratorTripWrites(
-        {
-          convexLocations,
-          activeTrips,
-        },
-        tripDeps
-      );
-
-      // Upsert live positions; may run before/after trips without breaking invariants.
-      await ctx.runMutation(
-        api.functions.vesselLocation.mutations.bulkUpsert,
-        bulkUpsertArgsFromConvexLocations(convexLocations)
-      );
-
-      // Apply lifecycle mutations; surface boundary facts the timeline merge needs.
-      const applyTripResult = await applyVesselTripTickWritePlan(
-        ctx,
-        tripWrites
-      );
-
-      // Merge apply results into sparse actual/predicted payloads (success-sensitive).
-      const timelineWrites = buildTimelineTickProjectionInput({
-        completedFacts: applyTripResult.completedFacts,
-        currentBranch: applyTripResult.currentBranch,
-        tickStartedAt,
+      const { applyTripResult, tickStartedAt } = await updateVesselTrips(ctx, {
+        convexLocations,
+        activeTrips,
+        tripDeps,
       });
 
-      // Project merged rows onto `eventsActual` / `eventsPredicted`.
-      await applyTimelineTickProjectionWrites(ctx, timelineWrites);
+      await updateVesselPredictions(ctx);
+
+      await updateVesselTimeline(ctx, {
+        applyTripResult,
+        tickStartedAt,
+      });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error("[updateVesselOrchestrator]", err);

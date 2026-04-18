@@ -98,7 +98,9 @@ import type * as domain_vesselOrchestration_updateVesselLocations_runUpdateVesse
 import type * as domain_vesselOrchestration_updateVesselPredictions_appendPredictions from "../domain/vesselOrchestration/updateVesselPredictions/appendPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions from "../domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_index from "../domain/vesselOrchestration/updateVesselPredictions/index.js";
+import type * as domain_vesselOrchestration_updateVesselPredictions_predictionCompare from "../domain/vesselOrchestration/updateVesselPredictions/predictionCompare.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_stripTripPredictionsForStorage from "../domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage.js";
+import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionPersistPlan from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionPersistPlan.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_types from "../domain/vesselOrchestration/updateVesselTrips/continuity/types.js";
@@ -176,6 +178,7 @@ import type * as functions_vesselLocationsHistoric_mutations from "../functions/
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
+import type * as functions_vesselOrchestrator_orchestratorPipelines from "../functions/vesselOrchestrator/orchestratorPipelines.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_schemas from "../functions/vesselOrchestrator/schemas.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
@@ -198,6 +201,10 @@ import type * as functions_vesselTimeline_sync_index from "../functions/vesselTi
 import type * as functions_vesselTimeline_sync_reseedVesselTimelineForDate from "../functions/vesselTimeline/sync/reseedVesselTimelineForDate.js";
 import type * as functions_vesselTimeline_sync_syncWindowedVesselTimeline from "../functions/vesselTimeline/sync/syncWindowedVesselTimeline.js";
 import type * as functions_vesselTimeline_sync_types from "../functions/vesselTimeline/sync/types.js";
+import type * as functions_vesselTripPredictions_index from "../functions/vesselTripPredictions/index.js";
+import type * as functions_vesselTripPredictions_mutations from "../functions/vesselTripPredictions/mutations.js";
+import type * as functions_vesselTripPredictions_queries from "../functions/vesselTripPredictions/queries.js";
+import type * as functions_vesselTripPredictions_schemas from "../functions/vesselTripPredictions/schemas.js";
 import type * as functions_vesselTrips_applyVesselTripTickWritePlan from "../functions/vesselTrips/applyVesselTripTickWritePlan.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
@@ -315,7 +322,9 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/appendPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_appendPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/index": typeof domain_vesselOrchestration_updateVesselPredictions_index;
+  "domain/vesselOrchestration/updateVesselPredictions/predictionCompare": typeof domain_vesselOrchestration_updateVesselPredictions_predictionCompare;
   "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage": typeof domain_vesselOrchestration_updateVesselPredictions_stripTripPredictionsForStorage;
+  "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionPersistPlan": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionPersistPlan;
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment;
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation;
   "domain/vesselOrchestration/updateVesselTrips/continuity/types": typeof domain_vesselOrchestration_updateVesselTrips_continuity_types;
@@ -393,6 +402,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
+  "functions/vesselOrchestrator/orchestratorPipelines": typeof functions_vesselOrchestrator_orchestratorPipelines;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/schemas": typeof functions_vesselOrchestrator_schemas;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
@@ -415,6 +425,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTimeline/sync/reseedVesselTimelineForDate": typeof functions_vesselTimeline_sync_reseedVesselTimelineForDate;
   "functions/vesselTimeline/sync/syncWindowedVesselTimeline": typeof functions_vesselTimeline_sync_syncWindowedVesselTimeline;
   "functions/vesselTimeline/sync/types": typeof functions_vesselTimeline_sync_types;
+  "functions/vesselTripPredictions/index": typeof functions_vesselTripPredictions_index;
+  "functions/vesselTripPredictions/mutations": typeof functions_vesselTripPredictions_mutations;
+  "functions/vesselTripPredictions/queries": typeof functions_vesselTripPredictions_queries;
+  "functions/vesselTripPredictions/schemas": typeof functions_vesselTripPredictions_schemas;
   "functions/vesselTrips/applyVesselTripTickWritePlan": typeof functions_vesselTrips_applyVesselTripTickWritePlan;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;

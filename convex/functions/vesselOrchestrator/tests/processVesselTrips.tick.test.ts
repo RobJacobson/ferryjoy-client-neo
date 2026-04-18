@@ -1,7 +1,8 @@
 /**
  * Sequencing tests for domain `computeOrchestratorTripWrites` →
  * `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput` (same ordering
- * as `updateVesselOrchestrator`).
+ * as `updateVesselOrchestrator` → `orchestratorPipelines.ts`:
+ * `updateVesselTrips` → `updateVesselTimeline`).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -34,8 +35,9 @@ const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
 
 /**
  * Applies timeline writes after lifecycle (same branching as
- * `updateVesselOrchestrator` → `applyTimelineTickProjectionWrites`) using the test
- * fake’s `runMutation` so sequencing assertions inspect recorded mutations here.
+ * `orchestratorPipelines.ts` → private `applyTimelineTickProjectionWrites`) using
+ * the test fake’s `runMutation` so sequencing assertions inspect recorded mutations
+ * here.
  *
  * @param ctx - Test fake action context
  * @param writes - Actual and predicted dock writes from the tick

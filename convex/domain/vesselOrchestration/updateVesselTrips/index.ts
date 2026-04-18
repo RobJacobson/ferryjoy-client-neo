@@ -11,7 +11,7 @@
  * Production callers use `computeOrchestratorTripWrites`
  * (`domain/vesselOrchestration`) with `computeVesselTripTickWritePlan`,
  * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
- * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`).
+ * `functions/vesselOrchestrator/orchestratorPipelines.ts` (`createScheduledSegmentLookup`).
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
  * trip branch composes with); canonical imports for those peers remain their own
