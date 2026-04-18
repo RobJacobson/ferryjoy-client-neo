@@ -8,7 +8,7 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers use `computeVesselOrchestratorTripTickWrites`
+ * Production callers use `computeOrchestratorTripWrites`
  * (`domain/vesselOrchestration`) with `computeVesselTripTickWritePlan`,
  * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`).
@@ -55,7 +55,10 @@ export {
   type ProcessVesselTripsOptions,
 } from "./processTick/processVesselTrips";
 export type { VesselTripsTickResult } from "./processTick/tickEnvelope";
-export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
+export {
+  computeShouldRunPredictionFallback,
+  PREDICTION_FALLBACK_WINDOW_SECONDS,
+} from "./processTick/tickPredictionPolicy";
 export {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,

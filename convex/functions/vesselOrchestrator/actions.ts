@@ -8,7 +8,7 @@
 import { api, internal } from "_generated/api";
 import { type ActionCtx, internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
-import { computeVesselOrchestratorTripTickWrites } from "domain/vesselOrchestration";
+import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
 import { buildTimelineTickProjectionInput } from "domain/vesselOrchestration/updateTimeline";
 import { bulkUpsertArgsFromConvexLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import {
@@ -116,15 +116,14 @@ export const updateVesselOrchestrator = internalAction({
       );
 
       // Compute gated trip writes + tick anchor before any lifecycle mutations run.
-      const { tripWrites, tickStartedAt } =
-        await computeVesselOrchestratorTripTickWrites(
-          {
-            convexLocations,
-            terminalsIdentity,
-            activeTrips,
-          },
-          tripDeps
-        );
+      const { tripWrites, tickStartedAt } = await computeOrchestratorTripWrites(
+        {
+          convexLocations,
+          terminalsIdentity,
+          activeTrips,
+        },
+        tripDeps
+      );
 
       // Upsert live positions; may run before/after trips without breaking invariants.
       await ctx.runMutation(

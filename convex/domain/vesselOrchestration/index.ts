@@ -3,18 +3,17 @@
  *
  * Post-fetch DB writes for one tick are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * `computeVesselOrchestratorTripTickWrites` for the trip branch.
+ * `computeOrchestratorTripWrites` for the trip branch.
  */
 
 export {
-  type ComputeVesselOrchestratorTripTickWritesOptions,
-  computeVesselOrchestratorTripTickWrites,
-  type VesselOrchestratorTripTickWrites,
-} from "./computeVesselOrchestratorTripTickWrites";
+  computeOrchestratorTripWrites,
+  type OrchestratorTripWrites,
+  type OrchestratorTripWritesOptions,
+} from "./computeOrchestratorTripWrites";
 export {
   getPassengerTerminalAbbrevs,
   isPassengerTerminalAbbrev,
   isTripEligibleLocation,
   selectTripEligibleLocations,
 } from "./updateVesselTrips";
-export { nowMsForVesselOrchestratorTick } from "./vesselOrchestratorTickClock";

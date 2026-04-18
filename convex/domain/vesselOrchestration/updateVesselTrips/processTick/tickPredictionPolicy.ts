@@ -3,8 +3,8 @@
  * of each minute). Passed into trip builders; computed once per tick.
  */
 
-// Restrict time-based retries to the first few seconds of each minute.
-const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
+/** Restrict time-based retries to the first few seconds of each minute. */
+export const PREDICTION_FALLBACK_WINDOW_SECONDS = 5;
 
 /**
  * Whether this tick should attempt missing ML predictions via time-based fallback.

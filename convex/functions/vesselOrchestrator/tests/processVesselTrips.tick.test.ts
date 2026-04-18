@@ -1,5 +1,5 @@
 /**
- * Sequencing tests for domain `computeVesselOrchestratorTripTickWrites` →
+ * Sequencing tests for domain `computeOrchestratorTripWrites` →
  * `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput` (same ordering
  * as `updateVesselOrchestrator`).
  */
@@ -8,7 +8,7 @@ import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import { computeVesselOrchestratorTripTickWrites } from "domain/vesselOrchestration";
+import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
 import {
   buildTimelineTickProjectionInput,
   type TickEventWrites,
@@ -78,7 +78,7 @@ const runVesselTripsTick = async (
   activeTrips?: ReadonlyArray<TickActiveTrip>
 ): Promise<void> => {
   const { tripWrites, tickStartedAt: tickAt } =
-    await computeVesselOrchestratorTripTickWrites(
+    await computeOrchestratorTripWrites(
       {
         convexLocations: locations,
         terminalsIdentity: orchestratorTickTestTerminalIdentities,
@@ -681,7 +681,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `computeVesselOrchestratorTripTickWrites`
+ * @returns Dependency bag for `computeOrchestratorTripWrites`
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =

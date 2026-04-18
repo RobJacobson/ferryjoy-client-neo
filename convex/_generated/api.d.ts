@@ -84,7 +84,7 @@ import type * as domain_timelineRows_dockEventToDomain from "../domain/timelineR
 import type * as domain_timelineRows_index from "../domain/timelineRows/index.js";
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
 import type * as domain_timelineRows_scheduledSegmentResolvers from "../domain/timelineRows/scheduledSegmentResolvers.js";
-import type * as domain_vesselOrchestration_computeVesselOrchestratorTripTickWrites from "../domain/vesselOrchestration/computeVesselOrchestratorTripTickWrites.js";
+import type * as domain_vesselOrchestration_computeOrchestratorTripWrites from "../domain/vesselOrchestration/computeOrchestratorTripWrites.js";
 import type * as domain_vesselOrchestration_index from "../domain/vesselOrchestration/index.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput.js";
@@ -125,7 +125,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_trip
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_tripEventTypes from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_vesselTripTickWritePlan from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_vesselTripsBuildTripAdapters from "../domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters.js";
-import type * as domain_vesselOrchestration_vesselOrchestratorTickClock from "../domain/vesselOrchestration/vesselOrchestratorTickClock.js";
 import type * as functions_events_eventsActual_index from "../functions/events/eventsActual/index.js";
 import type * as functions_events_eventsActual_mutations from "../functions/events/eventsActual/mutations.js";
 import type * as functions_events_eventsActual_queries from "../functions/events/eventsActual/queries.js";
@@ -304,7 +303,7 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/index": typeof domain_timelineRows_index;
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
   "domain/timelineRows/scheduledSegmentResolvers": typeof domain_timelineRows_scheduledSegmentResolvers;
-  "domain/vesselOrchestration/computeVesselOrchestratorTripTickWrites": typeof domain_vesselOrchestration_computeVesselOrchestratorTripTickWrites;
+  "domain/vesselOrchestration/computeOrchestratorTripWrites": typeof domain_vesselOrchestration_computeOrchestratorTripWrites;
   "domain/vesselOrchestration/index": typeof domain_vesselOrchestration_index;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
   "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput;
@@ -345,7 +344,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_tripEventTypes;
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTickWritePlan": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_vesselTripTickWritePlan;
   "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters": typeof domain_vesselOrchestration_updateVesselTrips_vesselTripsBuildTripAdapters;
-  "domain/vesselOrchestration/vesselOrchestratorTickClock": typeof domain_vesselOrchestration_vesselOrchestratorTickClock;
   "functions/events/eventsActual/index": typeof functions_events_eventsActual_index;
   "functions/events/eventsActual/mutations": typeof functions_events_eventsActual_mutations;
   "functions/events/eventsActual/queries": typeof functions_events_eventsActual_queries;

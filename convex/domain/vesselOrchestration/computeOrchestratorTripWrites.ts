@@ -11,19 +11,18 @@ import type {
   TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import {
-  computeShouldRunPredictionFallback,
   computeVesselTripTickWritePlan,
+  PREDICTION_FALLBACK_WINDOW_SECONDS,
   type ProcessVesselTripsDeps,
   selectTripEligibleLocations,
 } from "./updateVesselTrips";
 import type { VesselTripTickWritePlan } from "./updateVesselTrips/tripLifecycle/vesselTripTickWritePlan";
-import { nowMsForVesselOrchestratorTick } from "./vesselOrchestratorTickClock";
 
 /**
  * Trip write payload and tick clock for sequential persistence in
  * `updateVesselOrchestrator`.
  */
-export type VesselOrchestratorTripTickWrites = {
+export type OrchestratorTripWrites = {
   tickStartedAt: number;
   tripWrites: VesselTripTickWritePlan;
 };
@@ -31,10 +30,10 @@ export type VesselOrchestratorTripTickWrites = {
 /**
  * Optional overrides for tests or replays.
  */
-export type ComputeVesselOrchestratorTripTickWritesOptions = {
+export type OrchestratorTripWritesOptions = {
   /**
-   * Fixed tick time (epoch ms). Production omits this and uses
-   * {@link nowMsForVesselOrchestratorTick}.
+   * Fixed tick time (epoch ms). Production omits this; wall-clock `Date.now()`
+   * anchors calendar-based policy (e.g. prediction-fallback by seconds-of-minute).
    */
   tickStartedAt?: number;
 };
@@ -49,7 +48,7 @@ export type ComputeVesselOrchestratorTripTickWritesOptions = {
  * @param options - Optional tick clock override for tests
  * @returns Tick time and trip writes for `applyVesselTripTickWritePlan`
  */
-export const computeVesselOrchestratorTripTickWrites = async (
+export const computeOrchestratorTripWrites = async (
   input: {
     convexLocations: ReadonlyArray<ConvexVesselLocation>;
     terminalsIdentity: ReadonlyArray<TerminalIdentity>;
@@ -58,10 +57,9 @@ export const computeVesselOrchestratorTripTickWrites = async (
     >;
   },
   deps: ProcessVesselTripsDeps,
-  options?: ComputeVesselOrchestratorTripTickWritesOptions
-): Promise<VesselOrchestratorTripTickWrites> => {
-  const tickStartedAt =
-    options?.tickStartedAt ?? nowMsForVesselOrchestratorTick();
+  options?: OrchestratorTripWritesOptions
+): Promise<OrchestratorTripWrites> => {
+  const tickStartedAt = options?.tickStartedAt ?? Date.now();
 
   const tripEligibleLocations = selectTripEligibleLocations(
     input.convexLocations,
@@ -70,7 +68,7 @@ export const computeVesselOrchestratorTripTickWrites = async (
 
   const processOptions = {
     shouldRunPredictionFallback:
-      computeShouldRunPredictionFallback(tickStartedAt),
+      new Date(tickStartedAt).getSeconds() < PREDICTION_FALLBACK_WINDOW_SECONDS,
   };
 
   const { plan } = await computeVesselTripTickWritePlan(
