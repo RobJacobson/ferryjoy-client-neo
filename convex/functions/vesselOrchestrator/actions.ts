@@ -11,7 +11,6 @@ import { fetchWsfVesselLocations } from "adapters";
 import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
-  persistVesselTripWriteSet,
   type TripLifecycleApplyOutcome,
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
@@ -29,6 +28,7 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
+import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**

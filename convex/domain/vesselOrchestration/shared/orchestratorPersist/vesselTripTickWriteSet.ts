@@ -17,8 +17,8 @@
  * **Leave-dock** - Intents for `setDepartNextActualsForMostRecentCompletedTrip`.
  * The static write set lists every pending effect with a defined
  * `LeftDockActual ?? LeftDock`. **Production** additionally filters intents by
- * `successfulVessels` after the active upsert batch (see `persistVesselTripWriteSet`
- * in `persistVesselTripsCompute.ts`); this type does not encode that gate.
+ * `successfulVessels` after the active upsert batch (see function-layer
+ * `persistVesselTripWriteSet`); this type does not encode that gate.
  */
 
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";

@@ -1,6 +1,6 @@
 # updateVesselTrips (orchestrator concern)
 
-**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via the local **`updateVesselTrips`** step — `computeVesselTripsWithClock` → `persistVesselTripWriteSet`): the full
+**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via the local **`updateVesselTrips`** step — `computeVesselTripsWithClock` → storage-shaped write set → function-layer `persistVesselTripWriteSet`): the full
 **lifecycle** implementation used on each cron tick.
 
 ## Layout

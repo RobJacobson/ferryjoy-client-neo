@@ -8,11 +8,6 @@ import { api, internal } from "_generated/api";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import {
-  persistVesselTripWriteSet,
-  type VesselTripTableMutations,
-  type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/shared";
-import {
   buildTickEventWritesFromCompletedFacts,
   mergeTripApplyWithMlForTimeline,
 } from "domain/vesselOrchestration/updateTimeline";
@@ -28,6 +23,11 @@ import {
   processCompletedTrips,
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import {
+  persistVesselTripWriteSet,
+  type VesselTripTableMutations,
+  type VesselTripUpsertBatchResult,
+} from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 

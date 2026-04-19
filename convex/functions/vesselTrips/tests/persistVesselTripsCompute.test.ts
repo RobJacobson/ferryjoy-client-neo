@@ -6,17 +6,17 @@
 import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
-import {
-  persistVesselTripsCompute,
-  persistVesselTripWriteSet,
-  type VesselTripTableMutations,
-  type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
+  type VesselTripTableMutations,
+  type VesselTripUpsertBatchResult,
+} from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
