@@ -105,6 +105,7 @@ describe("runUpdateVesselTrips", () => {
         {
           existingTrip: completedExisting,
           tripToComplete: completedTrip,
+          events: defaultEvents,
           newTripCore: {
             withFinalSchedule: replacementTrip,
             gates: {

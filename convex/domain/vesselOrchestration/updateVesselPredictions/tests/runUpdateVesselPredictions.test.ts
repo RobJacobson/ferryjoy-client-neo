@@ -112,27 +112,28 @@ describe("runUpdateVesselPredictions", () => {
     ).toBe(ms("2026-03-13T09:33:00-07:00"));
   });
 
-  it("throws when a prediction-capable computation is missing gates", async () => {
+  it("derives gates from tripCore when tripCore.gates is omitted", async () => {
     const trip = makeTrip();
 
-    await expect(
-      runUpdateVesselPredictions({
-        tickStartedAt: trip.TimeStamp,
-        tripComputations: [
-          {
-            vesselAbbrev: trip.VesselAbbrev,
-            branch: "current",
-            events: defaultEvents,
-            existingTrip: undefined,
-            activeTrip: trip,
-            tripCore: {
-              withFinalSchedule: trip,
-            },
+    const output = await runUpdateVesselPredictions({
+      tickStartedAt: trip.TimeStamp,
+      tripComputations: [
+        {
+          vesselAbbrev: trip.VesselAbbrev,
+          branch: "current",
+          events: defaultEvents,
+          existingTrip: undefined,
+          activeTrip: trip,
+          tripCore: {
+            withFinalSchedule: trip,
           },
-        ],
-        predictionContext: {},
-      })
-    ).rejects.toThrow("Missing prediction gates");
+        },
+      ],
+      predictionContext: {},
+    });
+
+    expect(output.predictedTripComputations).toHaveLength(1);
+    expect(output.predictedTripComputations[0]?.finalPredictedTrip).toBeDefined();
   });
 
   it("gracefully returns no predictions when the preload has no models", async () => {

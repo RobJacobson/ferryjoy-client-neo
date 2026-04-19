@@ -113,6 +113,15 @@ const oneCompletedBoundaryFact = (): CompletedTripBoundaryFact => {
   return {
     existingTrip,
     tripToComplete,
+    events: {
+      isFirstTrip: false,
+      isTripStartReady: false,
+      shouldStartTrip: false,
+      isCompletedTrip: false,
+      didJustArriveAtDock: false,
+      didJustLeaveDock: false,
+      scheduleKeyChanged: false,
+    },
     newTripCore,
     newTrip: newTrip as ConvexVesselTripWithML,
   };

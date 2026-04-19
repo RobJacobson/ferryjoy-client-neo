@@ -11,8 +11,8 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { VesselTripsComputeBundle } from "../tripLifecycle/vesselTripsComputeBundle";
+import { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import {
-  computeShouldRunPredictionFallback,
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processVesselTrips";

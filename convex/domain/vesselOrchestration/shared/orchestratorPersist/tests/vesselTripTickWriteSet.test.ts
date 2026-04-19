@@ -142,6 +142,15 @@ describe("buildVesselTripTickWriteSetFromBundle", () => {
   it("structural parity for every fixture bundle", () => {
     const completed: CompletedTripBoundaryFact = {
       existingTrip: makeTrip(),
+      events: {
+        isFirstTrip: false,
+        isTripStartReady: false,
+        shouldStartTrip: false,
+        isCompletedTrip: false,
+        didJustArriveAtDock: false,
+        didJustLeaveDock: false,
+        scheduleKeyChanged: false,
+      },
       tripToComplete: makeTrip({
         TripEnd: ms("2026-03-13T06:29:56-07:00"),
         EndTime: ms("2026-03-13T06:29:56-07:00"),

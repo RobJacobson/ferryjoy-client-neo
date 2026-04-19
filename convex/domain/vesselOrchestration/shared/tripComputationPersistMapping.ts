@@ -51,7 +51,8 @@ export const completedFactFromComputationOrThrow = (
   if (
     computation.existingTrip === undefined ||
     computation.completedTrip === undefined ||
-    computation.tripCore.gates === undefined
+    computation.tripCore.gates === undefined ||
+    computation.events === undefined
   ) {
     throw new Error(
       `[VesselTrips] completed trip computation for ${computation.vesselAbbrev} is missing required persistence fields`
@@ -61,6 +62,7 @@ export const completedFactFromComputationOrThrow = (
   return {
     existingTrip: computation.existingTrip,
     tripToComplete: computation.completedTrip,
+    events: computation.events,
     newTripCore: {
       withFinalSchedule: computation.tripCore.withFinalSchedule,
       gates: computation.tripCore.gates,

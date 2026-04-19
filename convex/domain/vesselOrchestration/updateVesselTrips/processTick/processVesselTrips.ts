@@ -7,6 +7,7 @@
  * in **updateVesselPredictions** (see `architecture.md` §10).
  */
 
+import { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import {
   type ProcessCompletedTripsDeps,
@@ -17,19 +18,6 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-
-/**
- * True in the first 10 seconds of each UTC minute (epoch-second mod 60).
- * Drives optional schedule/prediction fallback with {@link buildTripCore} gates.
- *
- * @param tickStartedAt - Orchestrator tick anchor (epoch ms)
- */
-export const computeShouldRunPredictionFallback = (
-  tickStartedAt: number
-): boolean => {
-  const secondWithinMinute = Math.floor(tickStartedAt / 1000) % 60;
-  return secondWithinMinute < 10;
-};
 
 /** Optional tick inputs; prediction fallback may be supplied by orchestrator. */
 export type ProcessVesselTripsOptions = {

@@ -17,32 +17,8 @@ import type {
   TripPredictionSet,
   VesselPredictionContext,
 } from "./contracts";
+import { derivePredictionGatesForComputation } from "./predictionPolicy";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
-
-const noPredictionGates = {
-  shouldAttemptAtDockPredictions: false,
-  shouldAttemptAtSeaPredictions: false,
-  didJustLeaveDock: false,
-} as const;
-
-/**
- * Stage C currently emits some active-upsert-only computations without gates.
- * Those rows are not prediction-capable, so Stage D treats them as an explicit
- * no-op compatibility case rather than inventing new prediction behavior.
- */
-const predictionGatesForComputation = (
-  computation: RunUpdateVesselPredictionsInput["tripComputations"][number]
-) => {
-  if (computation.tripCore.gates !== undefined) {
-    return computation.tripCore.gates;
-  }
-  if (computation.branch === "current" && computation.events === undefined) {
-    return noPredictionGates;
-  }
-  throw new Error(
-    `Missing prediction gates for trip computation ${computation.vesselAbbrev}:${computation.branch}`
-  );
-};
 
 const predictionModelAccessFromContext = (
   context: VesselPredictionContext
@@ -97,12 +73,13 @@ const tripPredictionSetFromTrip = (
 
 const buildPredictedTripComputation = async (
   computation: RunUpdateVesselPredictionsInput["tripComputations"][number],
-  modelAccess: VesselTripPredictionModelAccess
+  modelAccess: VesselTripPredictionModelAccess,
+  tickStartedAt: number
 ): Promise<PredictedTripComputation> => {
   const finalPredictedTrip = await applyVesselPredictions(
     modelAccess,
     computation.tripCore.withFinalSchedule,
-    predictionGatesForComputation(computation)
+    derivePredictionGatesForComputation(computation, tickStartedAt)
   );
 
   return {
@@ -118,7 +95,11 @@ export const runUpdateVesselPredictions = async (
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
   const predictedTripComputations = await Promise.all(
     input.tripComputations.map((computation) =>
-      buildPredictedTripComputation(computation, modelAccess)
+      buildPredictedTripComputation(
+        computation,
+        modelAccess,
+        input.tickStartedAt
+      )
     )
   );
 

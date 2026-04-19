@@ -161,6 +161,7 @@ const buildTripsOutput = (input: {
     existingTrip: ConvexVesselTripWithPredictions;
     tripToComplete: ConvexVesselTripWithPredictions;
     newTrip: ConvexVesselTripWithPredictions;
+    events?: TripEvents;
   }>;
   currentTrips?: Array<{
     trip: ConvexVesselTripWithPredictions;
@@ -186,6 +187,7 @@ const buildTripsOutput = (input: {
     ...(input.completedFacts ?? []).map((fact) => ({
       vesselAbbrev: fact.tripToComplete.VesselAbbrev,
       branch: "completed" as const,
+      events: fact.events ?? minimalTripEvents,
       existingTrip: fact.existingTrip,
       completedTrip: fact.tripToComplete,
       activeTrip: fact.newTrip,

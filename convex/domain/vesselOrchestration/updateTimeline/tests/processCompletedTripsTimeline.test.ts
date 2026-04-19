@@ -287,6 +287,7 @@ const emptyTripsOutput = (
   tripComputations: completedHandoffs.map((handoff) => ({
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed" as const,
+    events: handoff.events,
     existingTrip: handoff.existingTrip,
     completedTrip: handoff.tripToComplete,
     activeTrip: handoff.newTripCore.withFinalSchedule,

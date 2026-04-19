@@ -15,6 +15,11 @@ export {
   type VesselPredictionGates,
   type VesselTripCoreProposal,
 } from "./applyVesselPredictions";
+export {
+  computeShouldRunPredictionFallback,
+  computeVesselPredictionGates,
+  derivePredictionGatesForComputation,
+} from "./predictionPolicy";
 export type {
   PredictedTripComputation,
   RunUpdateVesselPredictionsInput,

@@ -7,7 +7,7 @@ import { describe, expect, it } from "bun:test";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { computeVesselTripsWithClock } from "../processTick/computeVesselTripsWithClock";
 import { createDefaultProcessVesselTripsDeps } from "../processTick/defaultProcessVesselTripsDeps";
-import { computeShouldRunPredictionFallback } from "../processTick/processVesselTrips";
+import { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 
 const stubLookup: ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: () => null,

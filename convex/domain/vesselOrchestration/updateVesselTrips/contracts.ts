@@ -17,7 +17,8 @@ export type TripComputation = {
   branch: "completed" | "current";
   /**
    * Present when current internals carry the event set through to the public
-   * wrapper. Completed-trip handoffs do not retain events in the current bundle.
+   * wrapper. Completed-branch rows include the boundary tick events (same as
+   * `CompletedTripBoundaryFact.events`) for prediction gate derivation.
    */
   events?: TripEvents;
   existingTrip?: ConvexVesselTrip;

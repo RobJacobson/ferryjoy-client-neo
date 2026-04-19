@@ -9,6 +9,7 @@
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {
   applyVesselPredictions,
+  computeVesselPredictionGates,
   type VesselPredictionGates,
   type VesselTripCoreProposal,
 } from "domain/vesselOrchestration/updateVesselPredictions";
@@ -157,30 +158,12 @@ export const buildTripCore = async (
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
-  const canonicalStartAndOriginReady =
-    Boolean(gateTrip.StartTime ?? gateTrip.TripStart) &&
-    Boolean(gateTrip.ArrivedCurrActual ?? gateTrip.AtDockActual);
-  // At-dock predictions belong only to real dock occupancy for a started trip.
-  // This avoids generating model output for first-seen placeholder rows that
-  // have not yet observed a trustworthy origin-arrival boundary.
-  const shouldAttemptAtDockPredictions =
-    gateTrip.AtDock &&
-    !gateTrip.LeftDock &&
-    canonicalStartAndOriginReady &&
-    (tripStart || events.scheduleKeyChanged || shouldRunPredictionFallback) &&
-    (!gateTrip.AtDockDepartCurr ||
-      !gateTrip.AtDockArriveNext ||
-      !gateTrip.AtDockDepartNext);
-  // At-sea predictions are allowed once a real departure exists. Event ticks
-  // trigger them immediately, and the short fallback window gives the system a
-  // bounded retry path if that first prediction attempt fails.
-  const shouldAttemptAtSeaPredictions =
-    !gateTrip.AtDock &&
-    Boolean(gateTrip.LeftDockActual ?? gateTrip.LeftDock) &&
-    (events.didJustLeaveDock ||
-      events.scheduleKeyChanged ||
-      shouldRunPredictionFallback) &&
-    (!gateTrip.AtSeaArriveNext || !gateTrip.AtSeaDepartNext);
+  const gates = computeVesselPredictionGates(
+    gateTrip,
+    events,
+    tripStart,
+    shouldRunPredictionFallback
+  );
 
   const withFinalSchedule = shouldAppendFinalSchedule
     ? await appendFinalSchedule(gateTrip, existingTrip)
@@ -188,11 +171,7 @@ export const buildTripCore = async (
 
   return {
     withFinalSchedule,
-    gates: {
-      shouldAttemptAtDockPredictions,
-      shouldAttemptAtSeaPredictions,
-      didJustLeaveDock: events.didJustLeaveDock,
-    },
+    gates,
   };
 };
 

@@ -13,6 +13,7 @@ import {
   type TripEvents,
   type VesselTripsWithClock,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import { computeVesselPredictionGates } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   updateVesselPredictions,
@@ -91,6 +92,7 @@ const buildTripsOutputFromTripsCompute = (
     ...input.tripsCompute.completedHandoffs.map((handoff) => ({
       vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
       branch: "completed" as const,
+      events: handoff.events,
       existingTrip: handoff.existingTrip,
       completedTrip: handoff.tripToComplete,
       activeTrip: handoff.newTripCore.withFinalSchedule,
@@ -304,7 +306,7 @@ describe("vessel orchestrator trip tick sequencing", () => {
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
-  it("projects predicted effects without an active upsert when only predictions change", async () => {
+  it("skips trip overlay and timeline predicted writes when only ML blobs differ (storage-equal)", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
     const changedTrip = makeTrip({
@@ -325,7 +327,7 @@ describe("vessel orchestrator trip tick sequencing", () => {
     );
 
     expect(getUpsertMutationArgs(ctx)).toBeUndefined();
-    expect(getPredictedProjectionArgs(ctx)?.Batches).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)).toBeUndefined();
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
@@ -730,8 +732,8 @@ const createDeps = (input: TestDepsInput) => {
       currLocation: ConvexVesselLocation,
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
-      _events: TripEvents,
-      _shouldRunPredictionFallback: boolean,
+      events: TripEvents,
+      shouldRunPredictionFallback: boolean,
       _adapters: unknown
     ): Promise<BuildTripCoreResult> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
@@ -770,11 +772,12 @@ const createDeps = (input: TestDepsInput) => {
 
       return {
         withFinalSchedule,
-        gates: {
-          shouldAttemptAtDockPredictions: false,
-          shouldAttemptAtSeaPredictions: false,
-          didJustLeaveDock: false,
-        },
+        gates: computeVesselPredictionGates(
+          withFinalSchedule,
+          events,
+          tripStart,
+          shouldRunPredictionFallback
+        ),
       };
     },
     buildTripAdapters: {

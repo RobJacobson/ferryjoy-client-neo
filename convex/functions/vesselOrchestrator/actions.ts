@@ -21,6 +21,7 @@ import {
 } from "domain/vesselOrchestration/updateTimeline";
 import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import {
+  derivePredictionGatesForComputation,
   type PredictedTripComputation,
   runUpdateVesselPredictions,
   type VesselPredictionContext,
@@ -228,7 +229,11 @@ export const updateVesselPredictions = async (
   >;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 }> => {
-  const predictionContext = await loadPredictionContext(ctx, tripComputations);
+  const predictionContext = await loadPredictionContext(
+    ctx,
+    tripComputations,
+    tickStartedAt
+  );
   const predictions = await runUpdateVesselPredictions({
     tickStartedAt,
     tripComputations,
@@ -255,13 +260,20 @@ const atSeaModelTypes = [
 ] as const satisfies readonly ModelType[];
 
 const buildPredictionContextRequests = (
-  tripComputations: ReadonlyArray<TripComputation>
+  tripComputations: ReadonlyArray<TripComputation>,
+  tickStartedAt: number
 ): Array<{ pairKey: string; modelTypes: ModelType[] }> => {
   const requestMap = new Map<string, Set<ModelType>>();
 
   for (const computation of tripComputations) {
-    const gates = computation.tripCore.gates;
-    if (gates === undefined) {
+    const gates = derivePredictionGatesForComputation(
+      computation,
+      tickStartedAt
+    );
+    if (
+      !gates.shouldAttemptAtDockPredictions &&
+      !gates.shouldAttemptAtSeaPredictions
+    ) {
       continue;
     }
 
@@ -300,9 +312,13 @@ const buildPredictionContextRequests = (
 
 const loadPredictionContext = async (
   ctx: ActionCtx,
-  tripComputations: ReadonlyArray<TripComputation>
+  tripComputations: ReadonlyArray<TripComputation>,
+  tickStartedAt: number
 ): Promise<VesselPredictionContext> => {
-  const requests = buildPredictionContextRequests(tripComputations);
+  const requests = buildPredictionContextRequests(
+    tripComputations,
+    tickStartedAt
+  );
   if (requests.length === 0) {
     return {};
   }

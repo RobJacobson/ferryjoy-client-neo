@@ -12,10 +12,12 @@ import type {
 } from "./contracts";
 import { computeVesselTripsWithClock } from "./processTick/computeVesselTripsWithClock";
 import { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
+import type { TripEvents } from "./tripLifecycle/tripEventTypes";
 
 type CompletedTripComputationSource = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: NonNullable<TripComputation["completedTrip"]>;
+  events: TripEvents;
   newTripCore: TripComputation["tripCore"];
 };
 
@@ -41,6 +43,7 @@ const completedTripComputationsFromBundle = (
   completedHandoffs.map((handoff) => ({
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed",
+    events: handoff.events,
     existingTrip: handoff.existingTrip,
     completedTrip: handoff.tripToComplete,
     activeTrip: handoff.newTripCore.withFinalSchedule,

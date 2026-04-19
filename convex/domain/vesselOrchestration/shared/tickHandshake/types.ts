@@ -24,6 +24,11 @@ import type {
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: ConvexVesselTrip;
+  /**
+   * Trip events for the boundary tick (same bundle passed to {@link buildTripCore}).
+   * Required for prediction gate derivation and timeline parity.
+   */
+  events: TripEvents;
   newTripCore: BuildTripCoreResult;
   /**
    * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on

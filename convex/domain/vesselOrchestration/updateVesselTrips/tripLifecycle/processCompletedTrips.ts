@@ -94,6 +94,7 @@ const processCompletedTripTransition = async (
   return {
     existingTrip,
     tripToComplete,
+    events,
     newTripCore,
   };
 };

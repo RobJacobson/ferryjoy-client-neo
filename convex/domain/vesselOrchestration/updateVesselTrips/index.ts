@@ -10,6 +10,7 @@
  * See `README.md` and `../architecture.md` §10.
  */
 
+export { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
@@ -23,7 +24,6 @@ export {
 } from "./processTick/computeVesselTripsWithClock";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
-  computeShouldRunPredictionFallback,
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
