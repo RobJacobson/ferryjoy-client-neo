@@ -16,7 +16,7 @@ import {
   type VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
-  buildVesselTripPredictionWrites,
+  runUpdateVesselPredictions,
   mergeTripApplyWithMlForTimeline,
 } from "domain/vesselOrchestration/orchestratorTick";
 import {
@@ -102,7 +102,7 @@ describe("processCompletedTrips", () => {
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await buildVesselTripPredictionWrites(
+    const { proposals, mlFull } = await runUpdateVesselPredictions(
       tripsCompute,
       noopPredictionModelAccess
     );
@@ -215,7 +215,7 @@ describe("processCompletedTrips", () => {
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await buildVesselTripPredictionWrites(
+    const { proposals, mlFull } = await runUpdateVesselPredictions(
       tripsCompute,
       noopPredictionModelAccess
     );

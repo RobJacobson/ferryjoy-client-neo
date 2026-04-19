@@ -7,7 +7,7 @@
  * `updateVesselPredictions`, with ML-enriched trips where projection needs them.
  * Same-tick assembly must not reload `vesselTripPredictions` from the DB; merge
  * ordering uses `mergeTripApplyWithMlForTimeline` in domain (`orchestratorTick`)
- * after `buildVesselTripPredictionWrites`.
+ * after `runUpdateVesselPredictions`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *

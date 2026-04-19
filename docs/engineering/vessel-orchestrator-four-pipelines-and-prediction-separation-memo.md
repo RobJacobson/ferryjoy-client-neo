@@ -20,6 +20,7 @@ predictions, and timeline projection.
 
 ## Related documents
 
+- **Agent briefing (current decoupling goals + loose ends):** [`vessel-orchestrator-decoupling-agents-memo.md`](vessel-orchestrator-decoupling-agents-memo.md)
 - Domain map: [`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md)
 - Orchestrator README: [`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md)
 - Module boundaries: [`imports-and-module-boundaries-memo.md`](imports-and-module-boundaries-memo.md)
@@ -237,8 +238,8 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 ## 6. Definition of done (end state)
 
 - [x] `updateVesselOrchestrator` invokes **four** clearly named phases
-  (`orchestratorPipelines`: locations inside trips step, trips, predictions,
-  timeline) matching folders.
+  (locations → trips → predictions → timeline; see `actions.ts` and
+  [`vessel-orchestrator-decoupling-agents-memo.md`](vessel-orchestrator-decoupling-agents-memo.md)).
 - [x] Vessel trip computation on the orchestrator path **does not** call
   `applyVesselPredictions` inside `buildTrip` (composed `buildTrip` remains for
   other callers).
@@ -298,5 +299,7 @@ materializers and/or `ctx.runMutation` with the payloads for that phase.
   timeline TSDoc + `computeShouldRunPredictionFallback` dedupe; `newTrip` guard test;
   `updateTimeline`/architecture memo alignment; §3.1 dependency note and §6 checklist
   updated; §8 marked Done.
-- **Orchestrator:** `actions.ts` sequences persistence; trip writes use
-  `persistTripTickMutations` / `applyVesselTripTick` (not a separate `runVesselOrchestratorPhases`).
+- **Orchestrator:** `actions.ts` sequences the four steps; trip writes use domain
+  `persistVesselTripsCompute` (see agent briefing for current module names).
+- **Naming:** Older handoffs may say `orchestratorPipelines` / `persistTripTickMutations`;
+  prefer code and [`vessel-orchestrator-decoupling-agents-memo.md`](vessel-orchestrator-decoupling-agents-memo.md) for current symbols.

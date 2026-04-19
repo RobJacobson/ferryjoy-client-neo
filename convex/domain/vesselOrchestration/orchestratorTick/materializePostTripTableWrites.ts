@@ -117,7 +117,7 @@ export type VesselTripPredictionWrites = {
  * Full ML overlay plus flattened prediction rows for one {@link VesselTripsComputeBundle}.
  * Domain owns how proposals are derived from the merged apply outcome.
  */
-export const buildVesselTripPredictionWrites = async (
+export const runUpdateVesselPredictions = async (
   tripsCompute: VesselTripsComputeBundle,
   predictionModelAccess: VesselTripPredictionModelAccess
 ): Promise<VesselTripPredictionWrites> => {
@@ -136,7 +136,7 @@ export const buildVesselTripPredictionProposals = async (
   tripsCompute: VesselTripsComputeBundle,
   predictionModelAccess: VesselTripPredictionModelAccess
 ): Promise<VesselTripPredictionsMutationArgs> => {
-  const { proposals } = await buildVesselTripPredictionWrites(
+  const { proposals } = await runUpdateVesselPredictions(
     tripsCompute,
     predictionModelAccess
   );
@@ -154,6 +154,32 @@ export const buildOrchestratorTimelineProjectionInput = (
     currentBranch: merged.currentBranch,
     tickStartedAt,
   });
+};
+
+/**
+ * Pure prelude to the **`updateVesselTimeline`** action in `functions/vesselOrchestrator/actions.ts`:
+ * merged lifecycle → timeline projection → `eventsActual` / `eventsPredicted` dock-write
+ * mutation argument shapes. The action runs `ctx.runMutation` with these payloads.
+ */
+export const runUpdateVesselTimeline = (
+  tripApplyResult: TripLifecycleApplyOutcome,
+  mlFull: TripLifecycleApplyOutcome,
+  tickStartedAt: number
+): {
+  actual: { Writes: TimelineTickProjectionInput["actualDockWrites"] };
+  predicted: {
+    Batches: TimelineTickProjectionInput["predictedDockWriteBatches"];
+  };
+} => {
+  const tl = buildOrchestratorTimelineProjectionInput(
+    tripApplyResult,
+    mlFull,
+    tickStartedAt
+  );
+  return {
+    actual: { Writes: tl.actualDockWrites },
+    predicted: { Batches: tl.predictedDockWriteBatches },
+  };
 };
 
 const overlayMlOnTripLifecycleApply = async (

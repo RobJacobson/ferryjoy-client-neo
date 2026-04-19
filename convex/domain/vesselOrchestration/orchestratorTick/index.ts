@@ -5,9 +5,10 @@
 
 export {
   buildMlOverlayFromTripsCompute,
+  runUpdateVesselTimeline,
   buildOrchestratorTimelineProjectionInput,
   buildVesselTripPredictionProposals,
-  buildVesselTripPredictionWrites,
+  runUpdateVesselPredictions,
   mergeTripApplyWithMlForTimeline,
   type VesselTripPredictionsMutationArgs,
   type VesselTripPredictionWrites,

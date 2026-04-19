@@ -8,17 +8,17 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  buildVesselTripPredictionWrites,
+  runUpdateVesselPredictions,
   persistVesselTripsCompute,
 } from "domain/vesselOrchestration/orchestratorTick";
-import { updateVesselTimeline } from "functions/vesselOrchestrator/actions";
-import { createVesselTripTableMutations } from "functions/vesselOrchestrator/vesselOrchestratorConvexBindings";
-import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type {
   BuildTripCoreResult,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { updateVesselTimeline } from "functions/vesselOrchestrator/actions";
+import { createVesselTripTableMutations } from "functions/vesselOrchestrator/utils";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
@@ -60,7 +60,7 @@ const runVesselTripsTick = async (
     deps,
     { tickStartedAt: tickAt }
   );
-  const { mlFull, proposals } = await buildVesselTripPredictionWrites(
+  const { mlFull, proposals } = await runUpdateVesselPredictions(
     tripsForMl,
     createVesselTripPredictionModelAccess(actionCtx)
   );

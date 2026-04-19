@@ -30,7 +30,7 @@ named these sequential steps in **`actions.ts`** without changing mutation order
    snapshot for this tick).
 2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripsCompute`
    (trip compute uses **`buildTripCore` only**).
-3. **`updateVesselPredictions`** — `buildVesselTripPredictionWrites`
+3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (domain), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`updateVesselTimeline`** — `buildOrchestratorTimelineProjectionInput` then
    projection mutations for `eventsActual` / `eventsPredicted`.
@@ -61,7 +61,7 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
 - **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripsCompute` (`processVesselTrips` domain path).
-- **updateVesselPredictions** — `buildVesselTripPredictionWrites` + `batchUpsertProposals` when needed, after trips and before timeline.
+- **updateVesselPredictions** — `runUpdateVesselPredictions` + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `buildOrchestratorTimelineProjectionInput` plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
 ```text
@@ -337,7 +337,7 @@ The timeline overlay path is designed to stay lightweight:
   `updateVesselTrips` / `updateVesselPredictions` / `updateVesselTimeline`.
 - `vesselOrchestratorConvexBindings.ts` — `createScheduledSegmentLookup`, `createVesselTripTableMutations`,
   plus wiring helpers—not a phase runner.
-- `buildVesselTripPredictionWrites` (domain `orchestratorTick`) — prediction proposals + ML overlay; **`updateVesselPredictions`** persists proposals then returns `mlFull` for timeline.
+- `runUpdateVesselPredictions` (domain `orchestratorTick`) — prediction proposals + ML overlay; **`updateVesselPredictions`** persists proposals then returns `mlFull` for timeline.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick).
 - `schemas.ts` — orchestrator-related schemas.
 
