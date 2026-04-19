@@ -33,19 +33,21 @@ named these sequential steps in **`actions.ts`** without changing mutation order
    (trip truth is owned by the domain DTOs; persistence is a private translator).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
-4. **`updateVesselTimeline`** — `buildOrchestratorTimelineProjectionInput` then
-   projection mutations for `eventsActual` / `eventsPredicted`.
+4. **`updateVesselTimeline`** — `runUpdateVesselTimeline` (input built with
+   `buildTimelineTripComputationsForRun` after persist), then projection mutations
+   for `eventsActual` / `eventsPredicted`.
 
 The handler in `actions.ts` chains these steps; each step either calls domain
 helpers and/or `ctx.runMutation` with the payloads produced for that phase.
 
 ### O5 — Timeline consumer contract (cleanup)
 
-Phase **O5** ([handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md))
-documents that `buildOrchestratorTimelineProjectionInput` must receive
-`TripLifecycleApplyOutcome` **after** `updateVesselPredictions` (ML merged in
-memory for the same tick; timeline does not assemble from `vesselTripPredictions` DB
-reads). Implementation plan: [`.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md`](../../../.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md).
+Primary path: **`runUpdateVesselTimeline`** consumes **`RunUpdateVesselTimelineInput`**
+(handoffs + optional **`timelinePersist`** gates). ML merges in memory from
+**`predictedTripComputations`**; timeline does not assemble from `vesselTripPredictions`
+DB reads. Deprecated: **`buildOrchestratorTimelineProjectionInput`** with
+**`TripLifecycleApplyOutcome`** for legacy call sites. Older O5 handoff:
+[handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ## System Overview
 
@@ -63,7 +65,8 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
 - **updateVesselTrips** — `runUpdateVesselTrips`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
 - **updateVesselPredictions** — `runUpdateVesselPredictions` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
-- **updateTimeline** — `buildOrchestratorTimelineProjectionInput` / `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
+- **updateTimeline** — `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`**
+  plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
 ```text
 WSF VesselLocations API

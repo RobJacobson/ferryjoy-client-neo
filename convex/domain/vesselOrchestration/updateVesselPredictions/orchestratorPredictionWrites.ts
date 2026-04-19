@@ -5,7 +5,10 @@
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ConvexPrediction, ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type {
+  ConvexPrediction,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
 import type {
   PredictedTripComputation,
@@ -53,7 +56,9 @@ const predictionModelAccessFromContext = (
         context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
       ])
     ) as Awaited<
-      ReturnType<VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]>
+      ReturnType<
+        VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]
+      >
     >,
 });
 
@@ -121,7 +126,9 @@ export const runUpdateVesselPredictions = async (
     vesselTripPredictions: predictedTripComputations.flatMap((computation) =>
       computation.finalPredictedTrip === undefined
         ? []
-        : vesselTripPredictionProposalsFromMlTrip(computation.finalPredictedTrip)
+        : vesselTripPredictionProposalsFromMlTrip(
+            computation.finalPredictedTrip
+          )
     ),
     predictedTripComputations,
   };

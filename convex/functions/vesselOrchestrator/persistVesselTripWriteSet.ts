@@ -13,11 +13,18 @@ import type {
   CurrentTripPredictedEventMessage,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
+import {
+  completedFactFromComputationOrThrow,
+  currentActualMessageFromComputation,
+  currentPredictedMessageFromComputation,
+  isCompletedTripBranchComputation,
+  isCurrentTripBranchComputation,
+  isPersistedCurrentTripComputation,
+  persistedActiveTripKey,
+  shouldPersistLeaveDockIntent,
+} from "domain/vesselOrchestration/shared/tripComputationPersistMapping";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
-import type {
-  RunUpdateVesselTripsOutput,
-  TripComputation,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type VesselTripUpsertBatchResult = {
@@ -211,117 +218,6 @@ const successfulCompletedFacts = (
   }
   return completedFacts;
 };
-
-const isCompletedTripBranchComputation = (
-  computation: TripComputation
-): computation is TripComputation & {
-  branch: "completed";
-} =>
-  computation.branch === "completed";
-
-const completedFactFromComputationOrThrow = (
-  computation: TripComputation & { branch: "completed" }
-): CompletedTripBoundaryFact => {
-  if (
-    computation.existingTrip === undefined ||
-    computation.completedTrip === undefined ||
-    computation.tripCore.gates === undefined
-  ) {
-    throw new Error(
-      `[VesselTrips] completed trip computation for ${computation.vesselAbbrev} is missing required persistence fields`
-    );
-  }
-
-  return {
-    existingTrip: computation.existingTrip,
-    tripToComplete: computation.completedTrip,
-    newTripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
-    },
-  };
-};
-
-const isCurrentTripBranchComputation = (
-  computation: TripComputation
-): computation is TripComputation & {
-  branch: "current";
-} =>
-  computation.branch === "current";
-
-const currentActualMessageFromComputation = (
-  computation: TripComputation & { branch: "current" }
-): Omit<CurrentTripActualEventMessage, "requiresSuccessfulUpsert"> | null => {
-  if (computation.events === undefined) {
-    return null;
-  }
-  if (computation.tripCore.gates === undefined) {
-    throw new Error(
-      `[VesselTrips] current actual trip computation for ${computation.vesselAbbrev} is missing tripCore.gates`
-    );
-  }
-
-  return {
-    events: computation.events,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
-    },
-    vesselAbbrev: computation.vesselAbbrev,
-  };
-};
-
-const currentPredictedMessageFromComputation = (
-  computation: TripComputation & { branch: "current" }
-): Omit<CurrentTripPredictedEventMessage, "requiresSuccessfulUpsert"> | null => {
-  if (computation.tripCore.gates === undefined) {
-    return null;
-  }
-
-  return {
-    existingTrip: computation.existingTrip,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
-    },
-    vesselAbbrev: computation.vesselAbbrev,
-  };
-};
-
-const persistedActiveTripKey = (
-  trip: Pick<ConvexVesselTrip, "VesselAbbrev" | "TripKey">
-): string => `${trip.VesselAbbrev}::${trip.TripKey ?? "no-trip-key"}`;
-
-const isPersistedCurrentTripComputation = (
-  computation: TripComputation & {
-    activeTrip?: NonNullable<TripComputation["activeTrip"]>;
-  },
-  activeTripKeys: Set<string>
-): computation is TripComputation & {
-  activeTrip: NonNullable<TripComputation["activeTrip"]>;
-} =>
-  computation.activeTrip !== undefined &&
-  activeTripKeys.has(
-    persistedActiveTripKey(
-      stripTripPredictionsForStorage(computation.activeTrip)
-    )
-  );
-
-const shouldPersistLeaveDockIntent = (
-  computation: TripComputation & {
-    activeTrip?: NonNullable<TripComputation["activeTrip"]>;
-    events?: NonNullable<TripComputation["events"]>;
-  },
-  activeTripKeys: Set<string>
-): computation is TripComputation & {
-  activeTrip: NonNullable<TripComputation["activeTrip"]> & {
-    LeftDockActual: number;
-  };
-  events: NonNullable<TripComputation["events"]>;
-} =>
-  computation.events?.didJustLeaveDock === true &&
-  computation.activeTrip?.LeftDockActual !== undefined &&
-  isPersistedCurrentTripComputation(computation, activeTripKeys);
 
 const successfulVesselAbbrevsFromUpsert = (
   upsertResult: VesselTripUpsertBatchResult

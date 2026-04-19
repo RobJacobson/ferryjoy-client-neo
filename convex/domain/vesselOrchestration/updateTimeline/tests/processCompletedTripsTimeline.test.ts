@@ -87,7 +87,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const tripsCompute: VesselTripsComputeBundle = {
+    const _tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
       current: {
         activeUpserts: [],
@@ -209,7 +209,7 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const tripsCompute: VesselTripsComputeBundle = {
+    const _tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
       current: {
         activeUpserts: [],

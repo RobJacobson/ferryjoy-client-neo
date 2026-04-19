@@ -2,12 +2,12 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
 
-**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** from this folder to build dock-write mutation args from `buildOrchestratorTimelineProjectionInput`, then runs `eventsActual` / `eventsPredicted` mutations. There is no separate timeline runner module; the sequence is inline in **`actions.ts`**.
+**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** with **`RunUpdateVesselTimelineInput`** (orchestrator builds **`TimelineTripComputation`** rows after persist via **`buildTimelineTripComputationsForRun`**), then runs `eventsActual` / `eventsPredicted` mutations. There is no separate timeline runner module; the sequence is inline in **`actions.ts`**.
 
 ## Production call chain
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator`: bulk upsert locations → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
-2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which feeds **ML-enriched** `TripLifecycleApplyOutcome` slices into `buildOrchestratorTimelineProjectionInput` / `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
+2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which merges ML from **`predictedTripComputations`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads). Deprecated: **`buildOrchestratorTimelineProjectionInput(tripApplyResult, …)`** for legacy callers.
 
 ## Canonical files (this folder)
 

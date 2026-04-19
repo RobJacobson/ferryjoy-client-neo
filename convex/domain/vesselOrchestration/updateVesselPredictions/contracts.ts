@@ -2,9 +2,9 @@
  * Canonical Stage A public contracts for the predictions concern.
  */
 
-import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
+import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type {
   ConvexPrediction,
@@ -33,10 +33,7 @@ export type VesselPredictionContext = {
     UpdatedAt?: number;
   }>;
   productionModelsByPair?: Readonly<
-    Record<
-      string,
-      Partial<Record<ModelType, ProductionModelParameters | null>>
-    >
+    Record<string, Partial<Record<ModelType, ProductionModelParameters | null>>>
   >;
 };
 

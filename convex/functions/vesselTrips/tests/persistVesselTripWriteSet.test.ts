@@ -319,22 +319,20 @@ describe("persistVesselTripWriteSet", () => {
     );
 
     expect(
-      ctx.mutationCalls.some(
-        (c) => {
-          if (
-            c.args === undefined ||
-            typeof c.args !== "object" ||
-            !("activeUpserts" in c.args)
-          ) {
-            return false;
-          }
-
-          const { activeUpserts } = c.args as {
-            activeUpserts: Array<{ VesselAbbrev: string }>;
-          };
-          return activeUpserts[0]?.VesselAbbrev === "TAC";
+      ctx.mutationCalls.some((c) => {
+        if (
+          c.args === undefined ||
+          typeof c.args !== "object" ||
+          !("activeUpserts" in c.args)
+        ) {
+          return false;
         }
-      )
+
+        const { activeUpserts } = c.args as {
+          activeUpserts: Array<{ VesselAbbrev: string }>;
+        };
+        return activeUpserts[0]?.VesselAbbrev === "TAC";
+      })
     ).toBe(true);
     expect(currentBranch.successfulVessels.has("TAC")).toBe(true);
     expect(currentBranch.pendingActualMessages).toEqual([]);

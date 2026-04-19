@@ -3,9 +3,10 @@
  * `eventsPredicted` writes for one tick. Canonical implementation lives in this
  * folder (`tickEventWrites`, assembler, `buildTimelineTickProjectionInput`).
  *
- * Stage A canonical contracts live in `contracts.ts`. The current
- * `runUpdateVesselTimeline` runner remains transitional because the functions
- * layer still hands it lifecycle outcomes rather than the final PRD handoff.
+ * Stage A contracts: `contracts.ts`. Canonical domain entry is
+ * {@link runUpdateVesselTimeline} (`RunUpdateVesselTimelineInput` → output).
+ * {@link buildOrchestratorTimelineProjectionInput} remains for legacy call sites;
+ * prefer handoff-driven `runUpdateVesselTimeline`.
  */
 
 export {
@@ -17,6 +18,8 @@ export type {
   PredictedDockEventRow,
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
+  TimelineTripComputation,
+  TimelineTripComputationPersist,
 } from "./contracts";
 export {
   buildOrchestratorTimelineProjectionInput,

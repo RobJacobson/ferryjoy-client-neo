@@ -6,8 +6,8 @@
 import type { PredictionType } from "functions/predictions/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type {
-  ConvexPrediction,
   ConvexJoinedTripPrediction,
+  ConvexPrediction,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 

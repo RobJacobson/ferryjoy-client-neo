@@ -23,9 +23,7 @@ export type {
   VesselPredictionContext,
   VesselTripPredictionRow,
 } from "./contracts";
-export {
-  runUpdateVesselPredictions,
-} from "./orchestratorPredictionWrites";
+export { runUpdateVesselPredictions } from "./orchestratorPredictionWrites";
 export {
   convexPredictionFromVesselTripPredictionRow,
   normalizeConvexPredictionForOverlayEquality,

@@ -4,11 +4,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  stripTripPredictionsForStorage,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   type BuildTripCoreResult,
   computeVesselTripsWithClock,
@@ -21,6 +18,7 @@ import {
   updateVesselPredictions,
   updateVesselTimeline,
 } from "functions/vesselOrchestrator/actions";
+import { buildTimelineTripComputationsForRun } from "functions/vesselOrchestrator/buildTimelineTripComputationsForRun";
 import { persistVesselTripWriteSet } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { createVesselTripTableMutations } from "functions/vesselOrchestrator/utils";
 import type {
@@ -65,13 +63,14 @@ const runVesselTripsTick = async (
     tripsOutput.tripComputations
   );
 
-  await updateVesselTimeline(
-    actionCtx,
-    tripApplyResult,
-    tripsOutput.tripComputations,
+  await updateVesselTimeline(actionCtx, {
+    tickStartedAt,
+    tripComputations: buildTimelineTripComputationsForRun(
+      tripsOutput,
+      tripApplyResult
+    ),
     predictedTripComputations,
-    tickStartedAt
-  );
+  });
 };
 
 const buildTripsOutputFromTripsCompute = (

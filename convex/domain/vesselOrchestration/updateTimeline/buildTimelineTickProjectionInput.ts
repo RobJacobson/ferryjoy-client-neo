@@ -2,12 +2,12 @@
  * Pure **updateTimeline** step: merges lifecycle branch outputs into
  * `TimelineTickProjectionInput` for one tick.
  *
- * **Production contract:** `completedFacts` and `currentBranch` are the slices of
- * `TripLifecycleApplyOutcome` that `updateVesselTimeline` passes after
- * `updateVesselPredictions`, with ML-enriched trips where projection needs them.
- * Same-tick assembly must not reload `vesselTripPredictions` from the DB; merge
- * ordering uses `mergeTripApplyWithMlForTimeline` in `updateTimeline`
- * after `runUpdateVesselPredictions`.
+ * **Production contract:** `completedFacts` and `currentBranch` match the
+ * lifecycle-shaped rows built from Stage C/D handoffs (see
+ * `orchestratorTimelineProjection`), with ML-enriched trips where projection
+ * needs them. Same-tick assembly must not reload `vesselTripPredictions` from the
+ * DB; merge ordering uses `mergeTripApplyWithMlForTimeline` after
+ * `runUpdateVesselPredictions`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *
