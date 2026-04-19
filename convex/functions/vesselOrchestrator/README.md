@@ -12,11 +12,12 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 ```
 
 In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrator`):
-it loads the read model, runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
-(live snapshot), then **`updateVesselTrips`**, **`updateVesselPredictions`**, and
-**`updateVesselTimeline`** in sequence. [`vesselOrchestratorConvexBindings.ts`](./vesselOrchestratorConvexBindings.ts)
-supplies schedule lookups, trip mutation ports, and test helpers—not a separate
-“phases” runner. Raw vessel locations are fetched through
+it loads the read model, records one **`tickStartedAt`** (shared by trips, predictions,
+and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
+(live snapshot), **`getScheduleSnapshotForTick`** (bounded schedule snapshot), then
+**`updateVesselTrips`**, **`updateVesselPredictions`**, and **`updateVesselTimeline`**
+in sequence. [`utils.ts`](./utils.ts) supplies trip mutation ports and prediction
+model access—**not** a separate “phases” runner. Raw vessel locations are fetched through
 `convex/adapters/fetch/fetchWsfVesselLocations.ts`, translated into
 `ConvexVesselLocation`, and then passed into domain orchestration plus Convex
 mutations.
@@ -28,7 +29,7 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
-2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripsCompute`
+2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripWriteSet`
    (trip compute uses **`buildTripCore` only**).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (domain), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
@@ -60,7 +61,7 @@ timeline assembly stay explicit.
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
-- **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripsCompute` (`processVesselTrips` domain path).
+- **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripWriteSet` (`processVesselTrips` domain path).
 - **updateVesselPredictions** — `runUpdateVesselPredictions` + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `buildOrchestratorTimelineProjectionInput` plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
@@ -116,9 +117,8 @@ Responsibilities:
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
-- delegate sequential writes to **`orchestratorPipelines`**: `createScheduledSegmentLookup` +
-  `createDefaultProcessVesselTripsDeps` for trip deps, `createVesselTripPredictionModelAccess`
-  for the predictions phase only, then `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
+- after locations: **`buildScheduleSnapshotQueryArgs`** + **`getScheduleSnapshotForTick`**, then **`createDefaultProcessVesselTripsDeps(createScheduledSegmentLookupFromSnapshot(snapshot))`** once, shared by trips and predictions; **`createVesselTripPredictionModelAccess`**
+  for the predictions phase only; then `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
 
 Domain pipeline (same tick semantics as before):
 
@@ -333,12 +333,10 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location bulk upsert,
-  `updateVesselTrips` / `updateVesselPredictions` / `updateVesselTimeline`.
-- `vesselOrchestratorConvexBindings.ts` — `createScheduledSegmentLookup`, `createVesselTripTableMutations`,
-  plus wiring helpers—not a phase runner.
+- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location bulk upsert, schedule snapshot query, shared trip deps, then `updateVesselTrips` / `updateVesselPredictions` / `updateVesselTimeline`.
+- `utils.ts` — `createVesselOrchestratorConvexBindings` (**`createVesselTripTableMutations`**, **`createVesselTripPredictionModelAccess`**); schedule data comes from **`getScheduleSnapshotForTick`** in `queries.ts`, not from this module.
 - `runUpdateVesselPredictions` (domain `orchestratorTick`) — prediction proposals + ML overlay; **`updateVesselPredictions`** persists proposals then returns `mlFull` for timeline.
-- `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick).
+- `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick); **`getScheduleSnapshotForTick`** (bounded `eventsScheduled` snapshot for trip deps).
 - `schemas.ts` — orchestrator-related schemas.
 
 ## Tests

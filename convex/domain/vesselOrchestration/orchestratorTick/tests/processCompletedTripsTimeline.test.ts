@@ -1,29 +1,34 @@
 /**
- * Focused behavioral tests for completed-trip processing.
+ * Integration tests: completed-trip processing through persist, ML merge, and
+ * timeline tick writes (`buildTickEventWritesFromCompletedFacts`). Lives under
+ * orchestratorTick so `updateVesselTrips/tests` stays free of `updateTimeline`
+ * imports.
  */
 
-import { api, internal } from "_generated/api";
 import { describe, expect, it } from "bun:test";
+import { api, internal } from "_generated/api";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
-import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
 import {
-  type ActiveTripsBranch,
-  type ProcessCompletedTripsDeps,
-  processCompletedTrips,
-  type TripEvents,
-  type VesselTripsComputeBundle,
-} from "domain/vesselOrchestration/updateVesselTrips";
-import {
-  runUpdateVesselPredictions,
   mergeTripApplyWithMlForTimeline,
+  runUpdateVesselPredictions,
 } from "domain/vesselOrchestration/orchestratorTick";
 import {
-  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
+import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
+import type {
+  ActiveTripsBranch,
+  BuildTripCoreResult,
+  TripEvents,
+  VesselTripsComputeBundle,
+} from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  type ProcessCompletedTripsDeps,
+  processCompletedTrips,
+} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -97,7 +102,7 @@ describe("processCompletedTrips", () => {
       completedHandoffs,
       current: emptyActiveTripsBranch(),
     };
-    const applyTripResult = await persistVesselTripsCompute(
+    const applyTripResult = await persistVesselTripWriteSet(
       tripsCompute,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
@@ -210,7 +215,7 @@ describe("processCompletedTrips", () => {
       completedHandoffs,
       current: emptyActiveTripsBranch(),
     };
-    const applyTripResult = await persistVesselTripsCompute(
+    const applyTripResult = await persistVesselTripWriteSet(
       tripsCompute,
       vesselTripTableMutationsFromTestCtx(ctx)
     );

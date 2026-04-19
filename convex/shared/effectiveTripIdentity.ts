@@ -3,7 +3,7 @@
  */
 
 import type { ConvexInferredScheduledSegment } from "../domain/events/scheduled/schemas";
-import type { DockedScheduledSegmentSource } from "../domain/vesselOrchestration/updateVesselTrips/continuity/types";
+import type { DockedScheduledSegmentSource } from "../domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "../functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "../functions/vesselTrips/schemas";
 

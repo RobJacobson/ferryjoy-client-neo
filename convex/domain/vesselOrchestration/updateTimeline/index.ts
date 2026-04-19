@@ -20,4 +20,6 @@ export type {
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
   TripLifecycleApplyOutcome,
+  TripTickLifecycleOutcome,
+  VesselTripPersistResult,
 } from "./types";

@@ -12,6 +12,8 @@ We treat each **folder** as a **single logical module**: a small **public surfac
 
 This is **not** “barrels for shorter paths.” A good entry file is a **designed API** (often one primary operation plus the types and helpers that belong to its contract). A bad entry file re-exports everything in the tree for convenience—that is a **barrel dump** and we avoid it.
 
+**Vessel trip tick (canonical imports):** Prefer [`convex/domain/vesselOrchestration/updateVesselTrips/index.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/index.ts) for trip pipeline types and `computeVesselTripsBundle` / deps; orchestrator persistence (`persistVesselTripWriteSet`, `runUpdateVesselTimeline`, …) from [`orchestratorTick`](../../convex/domain/vesselOrchestration/orchestratorTick/index.ts). Shipped orchestration lives in [`functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts)—older writeups may say `orchestratorPipelines`; that module is not present in the current layout.
+
 ---
 
 ## 2. Preferences
@@ -120,6 +122,7 @@ Work is **incremental**. Order below minimizes risk and keeps typecheck green.
 
 ## 8. Document history
 
+- **2026-04-18:** Trip tick pointer — canonical `updateVesselTrips` / `orchestratorTick` imports vs legacy `orchestratorPipelines` naming in older docs.
 - **2026-04-17:** Initial memo (imports, exports, staged adoption).
 - **2026-04-17:** Stage D — document Biome `noRestrictedImports` override for
   `functions/vesselOrchestrator` (post–Step G closeout).

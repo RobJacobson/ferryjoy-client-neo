@@ -36,11 +36,11 @@ describe("resolveEffectiveDockedLocation", () => {
     });
 
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureEventBySegmentKey: async () => {
+      getScheduledDepartureEventBySegmentKey: () => {
         lookupCount += 1;
         return null;
       },
-      getScheduledDockEventsForSailingDay: async () => [],
+      getScheduledDockEventsForSailingDay: () => [],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
@@ -69,11 +69,11 @@ describe("resolveEffectiveDockedLocation", () => {
     );
     const lookupArgs: Array<Record<string, unknown> | undefined> = [];
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureEventBySegmentKey: async (segmentKey) => {
+      getScheduledDepartureEventBySegmentKey: (segmentKey) => {
         lookupArgs.push({ segmentKey });
         return nextScheduledEvent;
       },
-      getScheduledDockEventsForSailingDay: async () => [nextScheduledEvent],
+      getScheduledDockEventsForSailingDay: () => [nextScheduledEvent],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
@@ -103,11 +103,11 @@ describe("resolveEffectiveDockedLocation", () => {
   it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", async () => {
     let lookupCount = 0;
     const lookup: ScheduledSegmentLookup = {
-      getScheduledDepartureEventBySegmentKey: async () => {
+      getScheduledDepartureEventBySegmentKey: () => {
         lookupCount += 1;
         return null;
       },
-      getScheduledDockEventsForSailingDay: async () => [],
+      getScheduledDockEventsForSailingDay: () => [],
     };
 
     const { effectiveLocation } = await resolveEffectiveDockedLocation(

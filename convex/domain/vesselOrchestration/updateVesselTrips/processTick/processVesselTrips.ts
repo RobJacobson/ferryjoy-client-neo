@@ -58,13 +58,15 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param activeTrips - Preloaded active trips for this tick (storage-native
  *   {@link ConvexVesselTrip} and/or {@link ConvexVesselTripWithPredictions}).
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
- * @returns Bundle for `updateVesselTrips` / `persistVesselTripsCompute`
+ * @returns Bundle for `updateVesselTrips` / `persistVesselTripWriteSet`
  */
 export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<ConvexVesselTrip | ConvexVesselTripWithPredictions>,
+  activeTrips: ReadonlyArray<
+    ConvexVesselTrip | ConvexVesselTripWithPredictions
+  >,
   options?: ProcessVesselTripsOptions
 ): Promise<{ bundle: VesselTripsComputeBundle }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for

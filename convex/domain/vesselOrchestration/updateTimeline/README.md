@@ -2,7 +2,7 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
 
-**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** (`orchestratorTick`) to build dock-write mutation args from `buildOrchestratorTimelineProjectionInput`, then runs `eventsActual` / `eventsPredicted` mutations. `orchestratorPipelines.ts` holds test helpers and wiring, not a separate timeline runner.
+**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** (`orchestratorTick`) to build dock-write mutation args from `buildOrchestratorTimelineProjectionInput`, then runs `eventsActual` / `eventsPredicted` mutations. There is no separate timeline runner module—the sequence is inline in **`actions.ts`**.
 
 ## Production call chain
 
@@ -22,7 +22,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 
 ## Imports
 
-- **`orchestratorPipelines`** / **`actions`** — production callers of `buildTimelineTickProjectionInput` (after predictions merge).
+- **`actions.updateVesselTimeline`** — production caller path for projection input (after predictions merge).
 - Lifecycle code imports boundary types from **`domain/vesselOrchestration/updateTimeline/types`**.
 - **`domain/vesselOrchestration/updateVesselTrips/index.ts`** re-exports key symbols for queries and shared callers.
 

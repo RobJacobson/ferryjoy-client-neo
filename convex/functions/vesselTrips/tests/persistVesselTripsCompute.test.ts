@@ -1,15 +1,17 @@
 /**
- * Unit tests for `persistVesselTripsCompute`.
+ * Unit tests for {@link persistVesselTripWriteSet} (and legacy
+ * `persistVesselTripsCompute` alias).
  */
 
-import { api } from "_generated/api";
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import { api } from "_generated/api";
 import {
   persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
@@ -80,7 +82,7 @@ const coreFromTrip = (
  * upsert results.
  *
  * @param options - Optional upsert result and complete-handoff failure flag
- * @returns Context compatible with {@link persistVesselTripsCompute} mutations
+ * @returns Context compatible with {@link persistVesselTripWriteSet} mutations
  */
 const createCtx = (options?: {
   upsertResult?: {
@@ -165,7 +167,11 @@ const minimalTripEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-describe("persistVesselTripsCompute", () => {
+describe("persistVesselTripWriteSet", () => {
+  it("aliases persistVesselTripsCompute to the same function", () => {
+    expect(persistVesselTripsCompute).toBe(persistVesselTripWriteSet);
+  });
+
   it("returns completed fact when handoff mutation succeeds", async () => {
     const existing = makeTrip();
     const tripToComplete = makeTrip({
@@ -181,7 +187,7 @@ describe("persistVesselTripsCompute", () => {
       newTripCore: coreFromTrip(newTrip),
     };
     const ctx = createCtx();
-    const { completedFacts } = await persistVesselTripsCompute(
+    const { completedFacts } = await persistVesselTripWriteSet(
       {
         completedHandoffs: [fact],
         current: emptyCurrent(),
@@ -210,7 +216,7 @@ describe("persistVesselTripsCompute", () => {
       newTripCore: coreFromTrip(makeTrip()),
     };
     const ctx = createCtx({ failCompleteHandoff: true });
-    const { completedFacts } = await persistVesselTripsCompute(
+    const { completedFacts } = await persistVesselTripWriteSet(
       {
         completedHandoffs: [fact],
         current: emptyCurrent(),
@@ -222,7 +228,7 @@ describe("persistVesselTripsCompute", () => {
 
   it("does not call upsertVesselTripsBatch when activeUpserts is empty", async () => {
     const ctx = createCtx();
-    await persistVesselTripsCompute(
+    await persistVesselTripWriteSet(
       {
         completedHandoffs: [],
         current: emptyCurrent(),
@@ -245,7 +251,7 @@ describe("persistVesselTripsCompute", () => {
       },
     ];
     const ctx = createCtx();
-    const { currentBranch } = await persistVesselTripsCompute(
+    const { currentBranch } = await persistVesselTripWriteSet(
       {
         completedHandoffs: [],
         current: {
@@ -273,7 +279,7 @@ describe("persistVesselTripsCompute", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: false, reason: "db" }],
       },
     });
-    await persistVesselTripsCompute(
+    await persistVesselTripWriteSet(
       {
         completedHandoffs: [],
         current: {
@@ -297,7 +303,7 @@ describe("persistVesselTripsCompute", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
     });
-    await persistVesselTripsCompute(
+    await persistVesselTripWriteSet(
       {
         completedHandoffs: [],
         current: {
@@ -309,11 +315,13 @@ describe("persistVesselTripsCompute", () => {
       },
       vesselTripTableMutationsFromCtx(ctxOk)
     );
+    const leaveDockCall = ctxOk.mutationCalls.find(
+      (c) =>
+        c.args && "actualDepartMs" in c.args && c.args.vesselAbbrev === "CHE"
+    );
+    expect(leaveDockCall).toBeDefined();
     expect(
-      ctxOk.mutationCalls.some(
-        (c) =>
-          c.args && "actualDepartMs" in c.args && c.args.vesselAbbrev === "CHE"
-      )
-    ).toBe(true);
+      (leaveDockCall?.args as { actualDepartMs: number }).actualDepartMs
+    ).toBe(ms("2026-03-13T05:29:38-07:00"));
   });
 });

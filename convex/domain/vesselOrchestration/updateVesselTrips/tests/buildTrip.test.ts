@@ -27,6 +27,7 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
@@ -79,6 +80,22 @@ const createTestActionCtx = (options: {
   },
 });
 
+type TestScheduleStubOptions = {
+  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
+  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
+};
+
+const createTestScheduleLookup = (
+  options: TestScheduleStubOptions
+): ScheduledSegmentLookup => ({
+  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
+    options.scheduledEventByKey?.get(segmentKey) ?? null,
+  getScheduledDockEventsForSailingDay: (args) =>
+    options.scheduledEventsByScope?.get(
+      `${args.vesselAbbrev}|${args.sailingDay}`
+    ) ?? [],
+});
+
 /**
  * Mirrors production {@link createVesselTripPredictionModelAccess} using the
  * same stub `runQuery` as schedule tests.
@@ -102,9 +119,12 @@ const createTestPredictionAccess = (
 });
 
 /**
- * Shared stub context for schedule `runQuery` calls; tests assign per case.
+ * Shared stub context for schedule lookups and model `runQuery` calls; tests assign per case.
  */
-let scheduleTestCtx: TestActionCtx = createTestActionCtx({});
+let scheduleTestScheduleOptions: TestScheduleStubOptions = {};
+let scheduleTestCtx: TestActionCtx = createTestActionCtx(
+  scheduleTestScheduleOptions
+);
 
 /**
  * Test adapters: docked identity via {@link resolveEffectiveDockedLocation};
@@ -119,19 +139,7 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
       return location;
     }
     const { effectiveLocation } = await resolveEffectiveDockedLocation(
-      {
-        getScheduledDepartureEventBySegmentKey: (segmentKey) =>
-          scheduleTestCtx.runQuery(
-            {} as never,
-            {
-              segmentKey,
-            } as never
-          ) as Promise<ConvexScheduledDockEvent | null>,
-        getScheduledDockEventsForSailingDay: (args) =>
-          scheduleTestCtx.runQuery({} as never, args as never) as Promise<
-            ConvexScheduledDockEvent[]
-          >,
-      },
+      createTestScheduleLookup(scheduleTestScheduleOptions),
       location,
       existingTrip
     );
@@ -156,22 +164,16 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
           existingTrip.NextScheduledDeparture,
       };
     }
-    const scheduledEvent = (await scheduleTestCtx.runQuery(
-      {} as never,
-      {
-        segmentKey,
-      } as never
-    )) as ConvexScheduledDockEvent | null;
+    const lookup = createTestScheduleLookup(scheduleTestScheduleOptions);
+    const scheduledEvent =
+      lookup.getScheduledDepartureEventBySegmentKey(segmentKey);
     if (!scheduledEvent) {
       return baseTrip;
     }
-    const sameDayEvents = (await scheduleTestCtx.runQuery(
-      {} as never,
-      {
-        vesselAbbrev: scheduledEvent.VesselAbbrev,
-        sailingDay: scheduledEvent.SailingDay,
-      } as never
-    )) as ConvexScheduledDockEvent[];
+    const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
+      vesselAbbrev: scheduledEvent.VesselAbbrev,
+      sailingDay: scheduledEvent.SailingDay,
+    });
     const scheduledSegment = inferScheduledSegmentFromDepartureEvent(
       scheduledEvent,
       sameDayEvents
@@ -296,12 +298,13 @@ describe("buildTrip", () => {
         nextScheduledSegment,
       ]);
 
-    scheduleTestCtx = createTestActionCtx({
+    scheduleTestScheduleOptions = {
       scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
       scheduledEventsByScope: new Map([
         ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
       ]),
-    });
+    };
+    scheduleTestCtx = createTestActionCtx(scheduleTestScheduleOptions);
     const built = await buildTrip(
       currLocation,
       existingTrip,
@@ -354,7 +357,8 @@ describe("buildTrip", () => {
       TimeStamp: ms("2026-04-12T16:53:15-07:00"),
     });
 
-    scheduleTestCtx = createTestActionCtx({});
+    scheduleTestScheduleOptions = {};
+    scheduleTestCtx = createTestActionCtx(scheduleTestScheduleOptions);
     const built = await buildTrip(
       currLocation,
       existingTrip,
@@ -413,7 +417,8 @@ describe("buildTrip", () => {
       TimeStamp: ms("2026-04-12T17:31:30-07:00"),
     });
 
-    scheduleTestCtx = createTestActionCtx({});
+    scheduleTestScheduleOptions = {};
+    scheduleTestCtx = createTestActionCtx(scheduleTestScheduleOptions);
     const built = await buildTrip(
       currLocation,
       existingTrip,
@@ -492,12 +497,13 @@ describe("buildTrip O2 parity (core + predictions)", () => {
       IsLastArrivalOfSailingDay: false,
     };
 
-    scheduleTestCtx = createTestActionCtx({
+    scheduleTestScheduleOptions = {
       scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
       scheduledEventsByScope: new Map([
         ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
       ]),
-    });
+    };
+    scheduleTestCtx = createTestActionCtx(scheduleTestScheduleOptions);
     const predictionAccess = createTestPredictionAccess(scheduleTestCtx);
     await expectBuildTripParity(
       currLocation,
@@ -538,7 +544,8 @@ describe("buildTrip O2 parity (core + predictions)", () => {
       TimeStamp: ms("2026-04-12T16:53:15-07:00"),
     });
 
-    scheduleTestCtx = createTestActionCtx({});
+    scheduleTestScheduleOptions = {};
+    scheduleTestCtx = createTestActionCtx(scheduleTestScheduleOptions);
     const predictionAccess = createTestPredictionAccess(scheduleTestCtx);
     await expectBuildTripParity(
       currLocation,

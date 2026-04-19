@@ -78,9 +78,9 @@ const createTestLookup = (options: {
   scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
   scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
 }): ScheduledSegmentLookup => ({
-  getScheduledDepartureEventBySegmentKey: async (segmentKey: string) =>
+  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
     options.scheduledEventByKey?.get(segmentKey) ?? null,
-  getScheduledDockEventsForSailingDay: async (args) =>
+  getScheduledDockEventsForSailingDay: (args) =>
     options.scheduledEventsByScope?.get(
       `${args.vesselAbbrev}|${args.sailingDay}`
     ) ?? [],

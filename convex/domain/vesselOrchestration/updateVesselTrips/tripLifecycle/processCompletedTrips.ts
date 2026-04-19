@@ -6,7 +6,7 @@
  * assembled after apply from persisted outcomes.
  */
 
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline/types";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";

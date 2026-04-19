@@ -19,9 +19,7 @@ import {
 export type ResolveEffectiveDockedLocationResult = {
   effectiveLocation: ConvexVesselLocation;
   stableDockedIdentity: boolean;
-  scheduledResolution: Awaited<
-    ReturnType<typeof resolveDockedScheduledSegment>
-  > | null;
+  scheduledResolution: ReturnType<typeof resolveDockedScheduledSegment>;
   effectiveIdentity: EffectiveTripIdentity;
 };
 
@@ -31,7 +29,7 @@ export type ResolveEffectiveDockedLocationResult = {
  *
  * Matches the legacy `resolveEffectiveLocation` path after its early return.
  *
- * @param lookup - Async schedule segment lookups (typically `ctx.runQuery`)
+ * @param lookup - Schedule segment lookups (snapshot-backed in production)
  * @param location - Latest vessel location (docked-at-terminal branch only)
  * @param existingTrip - Active persisted trip for this vessel, if any
  * @returns Effective location plus fields needed for observability
@@ -47,7 +45,7 @@ export const resolveEffectiveDockedLocation = async (
   );
   const scheduledResolution = stableDockedIdentity
     ? null
-    : await resolveDockedScheduledSegment(lookup, {
+    : resolveDockedScheduledSegment(lookup, {
         vesselAbbrev: location.VesselAbbrev,
         departingTerminalAbbrev: location.DepartingTerminalAbbrev,
         existingTrip,
