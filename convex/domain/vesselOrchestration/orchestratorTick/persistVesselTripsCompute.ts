@@ -8,6 +8,7 @@ import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
 import {
   buildVesselTripsExecutionPayloads,
   completedFactsForSuccessfulHandoffs,
@@ -128,14 +129,14 @@ const runLeaveDockPostPersistEffects = async (
       .filter((effect) => successfulVessels.has(effect.vesselAbbrev))
       .map(async (effect) => {
         try {
-          const leftDockMs = effect.trip.LeftDockActual ?? effect.trip.LeftDock;
-          if (leftDockMs === undefined) {
+          const actualDepartMs = actualDepartMsForLeaveDockEffect(effect);
+          if (actualDepartMs === undefined) {
             return;
           }
 
           await mutations.setDepartNextActualsForMostRecentCompletedTrip({
             vesselAbbrev: effect.vesselAbbrev,
-            actualDepartMs: leftDockMs,
+            actualDepartMs,
           });
         } catch (error) {
           console.error("[VesselTrips] leave-dock post-persist failed", {

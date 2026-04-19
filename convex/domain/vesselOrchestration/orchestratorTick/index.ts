@@ -20,7 +20,14 @@ export {
   type VesselTripUpsertBatchResult,
 } from "./persistVesselTripsCompute";
 export {
+  actualDepartMsForLeaveDockEffect,
+} from "./leaveDockActualization";
+export {
   buildVesselTripsExecutionPayloads,
   completedFactsForSuccessfulHandoffs,
   type VesselTripsExecutionPayload,
 } from "./vesselTripsExecutionPayloads";
+export {
+  buildVesselTripTickWriteSetFromBundle,
+  type VesselTripTickWriteSet,
+} from "./vesselTripTickWriteSet";

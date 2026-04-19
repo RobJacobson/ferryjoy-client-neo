@@ -11,6 +11,8 @@ Introduce a **serializable “write set” type** for the vessel-trips tick that
 
 This step establishes the **data contract** for the later “pure domain → idempotent functions persistence” split (Step 3). It deliberately **does not** delete `VesselTripsComputeBundle`, `persistVesselTripsCompute`, or `buildVesselTripsExecutionPayloads`.
 
+**Status (2026-04-18):** Implemented — `vesselTripTickWriteSet.ts`, `leaveDockActualization.ts`, `orchestratorTick/tests/vesselTripTickWriteSet.test.ts`; exports on `orchestratorTick` (domain root unchanged).
+
 ## Goal
 
 - Define a type (working name **`VesselTripTickWriteSet`**, TBD) with at least:
@@ -34,6 +36,8 @@ This step establishes the **data contract** for the later “pure domain → ide
 |------|----------|
 | Bundle shape | `convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle.ts` — `VesselTripsComputeBundle`: `completedHandoffs` + `current` (`activeUpserts`, messages, `pendingLeaveDockEffects`). |
 | Execution payloads | `convex/domain/vesselOrchestration/orchestratorTick/vesselTripsExecutionPayloads.ts` — maps bundle → mutation-oriented payloads (`buildVesselTripsExecutionPayloads`); anti-pattern name per memo; **target for retirement in Step 3**. |
+| Write set (Step 2) | `convex/domain/vesselOrchestration/orchestratorTick/vesselTripTickWriteSet.ts` — `VesselTripTickWriteSet` + `buildVesselTripTickWriteSetFromBundle` (parallel to persist; uses same payload builder). |
+| Leave-dock timestamp | `convex/domain/vesselOrchestration/orchestratorTick/leaveDockActualization.ts` — `actualDepartMsForLeaveDockEffect` shared with `persistVesselTripsCompute`. |
 | Persist | `convex/domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute.ts` — drives Convex mutations from execution payloads; returns `TripLifecycleApplyOutcome`. |
 | Strip for storage | `convex/domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage.ts` — ML fields stripped before persistence; write set should match **stored** trip shapes. |
 | Schemas | `convex/functions/vesselTrips/schemas.ts` — `ConvexVesselTrip`, `vesselTripStoredSchema`, enriched query shapes. |
@@ -64,3 +68,5 @@ bun run test
 
 - [`vessel-trips-pure-pipeline-refactor-outline-memo.md`](../engineering/vessel-trips-pure-pipeline-refactor-outline-memo.md) — Step 2–3 boundaries and “no write plans as domain output”
 - [`imports-and-module-boundaries-memo.md`](../engineering/imports-and-module-boundaries-memo.md) — if new modules need export boundaries
+
+**Consumers:** import from `domain/vesselOrchestration` as `orchestratorTick.buildVesselTripTickWriteSetFromBundle` / types (same namespace pattern as other orchestrator tick symbols).
