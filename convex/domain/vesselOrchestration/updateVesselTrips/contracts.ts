@@ -9,6 +9,7 @@ import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
+import type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 import type { TripEvents } from "./tripLifecycle/tripEventTypes";
 
 /**
@@ -44,7 +45,8 @@ export type TripComputation = {
   completedTrip?: ConvexVesselTripWithML;
   activeTrip?: ConvexVesselTripWithPredictions;
   tripCore: {
-    withFinalSchedule: ConvexVesselTripWithPredictions;
+    withFinalSchedule: BuildTripCoreResult["withFinalSchedule"];
+    gates?: BuildTripCoreResult["gates"];
   };
 };
 

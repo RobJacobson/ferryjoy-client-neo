@@ -29,8 +29,8 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
-2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → function-layer `persistVesselTripWriteSet`
-   (trip compute uses **`buildTripCore` only**).
+2. **`updateVesselTrips`** — `runUpdateVesselTrips` → function-layer `persistVesselTripWriteSet`
+   (trip truth is owned by the domain DTOs; persistence is a private translator).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`updateVesselTimeline`** — `buildOrchestratorTimelineProjectionInput` then
@@ -61,7 +61,7 @@ timeline assembly stay explicit.
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
-- **updateVesselTrips** — `computeVesselTripsWithClock`, then function-layer `persistVesselTripWriteSet` applies the trip write set.
+- **updateVesselTrips** — `runUpdateVesselTrips`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
 - **updateVesselPredictions** — `runUpdateVesselPredictions` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `buildOrchestratorTimelineProjectionInput` / `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 

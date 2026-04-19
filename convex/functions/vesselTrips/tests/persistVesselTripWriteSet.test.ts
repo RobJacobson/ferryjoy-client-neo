@@ -2,10 +2,10 @@
 
 import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  ActiveTripsBranch,
   BuildTripCoreResult,
+  RunUpdateVesselTripsOutput,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
@@ -146,13 +146,6 @@ const vesselTripTableMutationsFromCtx = (
     ),
 });
 
-const emptyCurrent = (): ActiveTripsBranch => ({
-  activeUpserts: [],
-  pendingActualMessages: [],
-  pendingPredictedMessages: [],
-  pendingLeaveDockEffects: [],
-});
-
 const minimalTripEvents: TripEvents = {
   isFirstTrip: false,
   isTripStartReady: false,
@@ -162,6 +155,52 @@ const minimalTripEvents: TripEvents = {
   didJustLeaveDock: false,
   scheduleKeyChanged: false,
 };
+
+const buildTripsOutput = (input: {
+  completedFacts?: Array<{
+    existingTrip: ConvexVesselTripWithPredictions;
+    tripToComplete: ConvexVesselTripWithPredictions;
+    newTrip: ConvexVesselTripWithPredictions;
+  }>;
+  currentTrips?: Array<{
+    trip: ConvexVesselTripWithPredictions;
+    existingTrip?: ConvexVesselTripWithPredictions;
+    events?: TripEvents;
+    persisted?: boolean;
+  }>;
+}): RunUpdateVesselTripsOutput => ({
+  activeTrips: [
+    ...(input.completedFacts ?? []).map((fact) =>
+      stripTripPredictionsForStorage(fact.newTrip)
+    ),
+    ...(input.currentTrips ?? []).flatMap((currentTrip) =>
+      currentTrip.persisted === false
+        ? []
+        : [stripTripPredictionsForStorage(currentTrip.trip)]
+    ),
+  ],
+  completedTrips: (input.completedFacts ?? []).map((fact) =>
+    stripTripPredictionsForStorage(fact.tripToComplete)
+  ),
+  tripComputations: [
+    ...(input.completedFacts ?? []).map((fact) => ({
+      vesselAbbrev: fact.tripToComplete.VesselAbbrev,
+      branch: "completed" as const,
+      existingTrip: fact.existingTrip,
+      completedTrip: fact.tripToComplete,
+      activeTrip: fact.newTrip,
+      tripCore: coreFromTrip(fact.newTrip),
+    })),
+    ...(input.currentTrips ?? []).map((currentTrip) => ({
+      vesselAbbrev: currentTrip.trip.VesselAbbrev,
+      branch: "current" as const,
+      events: currentTrip.events ?? minimalTripEvents,
+      existingTrip: currentTrip.existingTrip,
+      activeTrip: currentTrip.trip,
+      tripCore: coreFromTrip(currentTrip.trip),
+    })),
+  ],
+});
 
 describe("persistVesselTripWriteSet", () => {
   it("returns completed fact when handoff mutation succeeds", async () => {
@@ -173,17 +212,11 @@ describe("persistVesselTripWriteSet", () => {
       ScheduleKey: "CHE--next",
       DepartingTerminalAbbrev: "ORI",
     });
-    const fact: CompletedTripBoundaryFact = {
-      existingTrip: existing,
-      tripToComplete,
-      newTripCore: coreFromTrip(newTrip),
-    };
     const ctx = createCtx();
     const { completedFacts } = await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [fact],
-        current: emptyCurrent(),
-      },
+      buildTripsOutput({
+        completedFacts: [{ existingTrip: existing, tripToComplete, newTrip }],
+      }),
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(completedFacts).toHaveLength(1);
@@ -202,17 +235,17 @@ describe("persistVesselTripWriteSet", () => {
   });
 
   it("drops completed fact when handoff mutation throws", async () => {
-    const fact: CompletedTripBoundaryFact = {
-      existingTrip: makeTrip(),
-      tripToComplete: makeTrip(),
-      newTripCore: coreFromTrip(makeTrip()),
-    };
     const ctx = createCtx({ failCompleteHandoff: true });
     const { completedFacts } = await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [fact],
-        current: emptyCurrent(),
-      },
+      buildTripsOutput({
+        completedFacts: [
+          {
+            existingTrip: makeTrip(),
+            tripToComplete: makeTrip(),
+            newTrip: makeTrip(),
+          },
+        ],
+      }),
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(completedFacts).toHaveLength(0);
@@ -221,10 +254,7 @@ describe("persistVesselTripWriteSet", () => {
   it("does not call upsertVesselTripsBatch when activeUpserts is empty", async () => {
     const ctx = createCtx();
     await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [],
-        current: emptyCurrent(),
-      },
+      buildTripsOutput({}),
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -244,15 +274,15 @@ describe("persistVesselTripWriteSet", () => {
     ];
     const ctx = createCtx();
     const { currentBranch } = await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [],
-        current: {
-          activeUpserts: [],
-          pendingActualMessages,
-          pendingPredictedMessages: [],
-          pendingLeaveDockEffects: [],
-        },
-      },
+      buildTripsOutput({
+        currentTrips: [
+          {
+            trip,
+            events: minimalTripEvents,
+            persisted: false,
+          },
+        ],
+      }),
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -260,6 +290,55 @@ describe("persistVesselTripWriteSet", () => {
     ).toBe(false);
     expect(currentBranch.successfulVessels.size).toBe(0);
     expect(currentBranch.pendingActualMessages).toEqual(pendingActualMessages);
+  });
+
+  it("persists quiet current active upserts even when no timeline messages are emitted", async () => {
+    const trip = makeTrip({
+      VesselAbbrev: "TAC",
+      TripKey: generateTripKey("TAC", ms("2026-03-13T05:00:00-07:00")),
+      ScheduleKey: "TAC--2026-03-13--05:15--P52-BBI",
+    });
+    const ctx = createCtx();
+
+    const { currentBranch } = await persistVesselTripWriteSet(
+      {
+        activeTrips: [stripTripPredictionsForStorage(trip)],
+        completedTrips: [],
+        tripComputations: [
+          {
+            vesselAbbrev: trip.VesselAbbrev,
+            branch: "current",
+            activeTrip: trip,
+            tripCore: {
+              withFinalSchedule: trip,
+            },
+          },
+        ],
+      },
+      vesselTripTableMutationsFromCtx(ctx)
+    );
+
+    expect(
+      ctx.mutationCalls.some(
+        (c) => {
+          if (
+            c.args === undefined ||
+            typeof c.args !== "object" ||
+            !("activeUpserts" in c.args)
+          ) {
+            return false;
+          }
+
+          const { activeUpserts } = c.args as {
+            activeUpserts: Array<{ VesselAbbrev: string }>;
+          };
+          return activeUpserts[0]?.VesselAbbrev === "TAC";
+        }
+      )
+    ).toBe(true);
+    expect(currentBranch.successfulVessels.has("TAC")).toBe(true);
+    expect(currentBranch.pendingActualMessages).toEqual([]);
+    expect(currentBranch.pendingPredictedMessages).toEqual([]);
   });
 
   it("runs leave-dock only for vessels that upserted successfully", async () => {
@@ -272,15 +351,17 @@ describe("persistVesselTripWriteSet", () => {
       },
     });
     await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [],
-        current: {
-          activeUpserts: [trip],
-          pendingActualMessages: [],
-          pendingPredictedMessages: [],
-          pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
-        },
-      },
+      buildTripsOutput({
+        currentTrips: [
+          {
+            trip,
+            events: {
+              ...minimalTripEvents,
+              didJustLeaveDock: true,
+            },
+          },
+        ],
+      }),
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -296,15 +377,17 @@ describe("persistVesselTripWriteSet", () => {
       },
     });
     await persistVesselTripWriteSet(
-      {
-        completedHandoffs: [],
-        current: {
-          activeUpserts: [trip],
-          pendingActualMessages: [],
-          pendingPredictedMessages: [],
-          pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
-        },
-      },
+      buildTripsOutput({
+        currentTrips: [
+          {
+            trip,
+            events: {
+              ...minimalTripEvents,
+              didJustLeaveDock: true,
+            },
+          },
+        ],
+      }),
       vesselTripTableMutationsFromCtx(ctxOk)
     );
     const leaveDockCall = ctxOk.mutationCalls.find(

@@ -6,11 +6,16 @@
 import { describe, expect, it } from "bun:test";
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  runUpdateVesselPredictions,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   type BuildTripCoreResult,
   computeVesselTripsWithClock,
+  type RunUpdateVesselTripsOutput,
   type TripEvents,
+  type VesselTripsWithClock,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -48,7 +53,7 @@ const runVesselTripsTick = async (
     { tickStartedAt }
   );
   const tripApplyResult = await persistVesselTripWriteSet(
-    tripsCompute,
+    buildTripsOutputFromTripsCompute({ tripsCompute }),
     createVesselTripTableMutations(actionCtx)
   );
 
@@ -70,6 +75,43 @@ const runVesselTripsTick = async (
 
   await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickStartedAt);
 };
+
+const buildTripsOutputFromTripsCompute = (
+  input: Pick<VesselTripsWithClock, "tripsCompute">
+): RunUpdateVesselTripsOutput => ({
+  activeTrips: [
+    ...input.tripsCompute.completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+    ),
+    ...input.tripsCompute.current.activeUpserts.map(
+      stripTripPredictionsForStorage
+    ),
+  ],
+  completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.tripToComplete)
+  ),
+  tripComputations: [
+    ...input.tripsCompute.completedHandoffs.map((handoff) => ({
+      vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
+      branch: "completed" as const,
+      existingTrip: handoff.existingTrip,
+      completedTrip: handoff.tripToComplete,
+      activeTrip: handoff.newTripCore.withFinalSchedule,
+      tripCore: handoff.newTripCore,
+    })),
+    ...input.tripsCompute.current.pendingPredictedMessages.map((message) => ({
+      vesselAbbrev: message.vesselAbbrev,
+      branch: "current" as const,
+      events:
+        input.tripsCompute.current.pendingActualMessages.find(
+          (actualMessage) => actualMessage.vesselAbbrev === message.vesselAbbrev
+        )?.events ?? defaultEvents,
+      existingTrip: message.existingTrip,
+      activeTrip: message.tripCore.withFinalSchedule,
+      tripCore: message.tripCore,
+    })),
+  ],
+});
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,

@@ -11,6 +11,7 @@ import { fetchRawWsfVesselLocations } from "adapters";
 import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
+  type ScheduleSnapshot,
   type TripLifecycleApplyOutcome,
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
@@ -21,6 +22,8 @@ import {
   computeVesselTripsWithClock,
   createDefaultProcessVesselTripsDeps,
   type ProcessVesselTripsDeps,
+  runUpdateVesselTrips,
+  type TripComputation,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -96,18 +99,17 @@ export const updateVesselOrchestrator = internalAction({
         );
       }
 
-      const tripProcessDeps: ProcessVesselTripsDeps =
-        createDefaultProcessVesselTripsDeps(
-          createScheduledSegmentLookupFromSnapshot(scheduleSnapshot)
-        );
-
       // Step 2: Trip compute + persist active/completed vessel trip rows.
       const { tripApplyResult } = await updateVesselTrips(
         ctx,
         convexLocations,
         activeTrips,
         tickStartedAt,
-        tripProcessDeps
+        scheduleSnapshot
+      );
+
+      const tripProcessDeps = createDefaultProcessVesselTripsDeps(
+        createScheduledSegmentLookupFromSnapshot(scheduleSnapshot)
       );
 
       // Step 3: Trip recompute for ML, prediction proposals upsert, ML overlay.
@@ -167,7 +169,7 @@ export const updateVesselLocations = async (
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
  * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
- * @param tripDeps - Shared trip compute deps (same snapshot-backed schedule lookup as predictions)
+ * @param scheduleContext - Plain-data schedule snapshot for this tick
  * @returns Persist-scoped trip tick outcome (alias-compatible with timeline types)
  */
 export const updateVesselTrips = async (
@@ -175,21 +177,26 @@ export const updateVesselTrips = async (
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
   tickStartedAt: number,
-  tripDeps: ProcessVesselTripsDeps
+  scheduleContext: ScheduleSnapshot
 ): Promise<{
   tripApplyResult: VesselTripPersistResult;
+  tripComputations: ReadonlyArray<TripComputation>;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    { convexLocations, activeTrips },
-    tripDeps,
-    { tickStartedAt }
-  );
+  const trips = await runUpdateVesselTrips({
+    tickStartedAt,
+    vesselLocations: convexLocations,
+    existingActiveTrips: activeTrips,
+    scheduleContext,
+  });
   const tripApplyResult = await persistVesselTripWriteSet(
-    tripsCompute,
+    trips,
     bindings.vesselTripMutations
   );
-  return { tripApplyResult };
+  return {
+    tripApplyResult,
+    tripComputations: trips.tripComputations,
+  };
 };
 
 /**

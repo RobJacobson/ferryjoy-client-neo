@@ -11,10 +11,13 @@ import {
   buildTickEventWritesFromCompletedFacts,
   mergeTripApplyWithMlForTimeline,
 } from "domain/vesselOrchestration/updateTimeline";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  runUpdateVesselPredictions,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  ActiveTripsBranch,
   BuildTripCoreResult,
+  RunUpdateVesselTripsOutput,
   TripEvents,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
@@ -98,10 +101,15 @@ describe("processCompletedTrips", () => {
 
     const tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
-      current: emptyActiveTripsBranch(),
+      current: {
+        activeUpserts: [],
+        pendingActualMessages: [],
+        pendingPredictedMessages: [],
+        pendingLeaveDockEffects: [],
+      },
     };
     const applyTripResult = await persistVesselTripWriteSet(
-      tripsCompute,
+      emptyTripsOutput(completedHandoffs),
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
@@ -211,10 +219,15 @@ describe("processCompletedTrips", () => {
 
     const tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
-      current: emptyActiveTripsBranch(),
+      current: {
+        activeUpserts: [],
+        pendingActualMessages: [],
+        pendingPredictedMessages: [],
+        pendingLeaveDockEffects: [],
+      },
     };
     const applyTripResult = await persistVesselTripWriteSet(
-      tripsCompute,
+      emptyTripsOutput(completedHandoffs),
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
@@ -254,11 +267,23 @@ describe("processCompletedTrips", () => {
  *
  * @returns Empty arrays (no active-trip mutations)
  */
-const emptyActiveTripsBranch = (): ActiveTripsBranch => ({
-  activeUpserts: [],
-  pendingActualMessages: [],
-  pendingPredictedMessages: [],
-  pendingLeaveDockEffects: [],
+const emptyTripsOutput = (
+  completedHandoffs: VesselTripsComputeBundle["completedHandoffs"]
+): RunUpdateVesselTripsOutput => ({
+  activeTrips: completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+  ),
+  completedTrips: completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.tripToComplete)
+  ),
+  tripComputations: completedHandoffs.map((handoff) => ({
+    vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
+    branch: "completed" as const,
+    existingTrip: handoff.existingTrip,
+    completedTrip: handoff.tripToComplete,
+    activeTrip: handoff.newTripCore.withFinalSchedule,
+    tripCore: handoff.newTripCore,
+  })),
 });
 
 type TestActionCtx = {

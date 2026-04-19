@@ -1,28 +1,23 @@
 /**
- * Stage A trips runner: adapt the legacy trip bundle into the canonical public
- * trips contract without changing lifecycle behavior.
+ * Canonical trips runner: adapt the internal trip compute into the concern-owned
+ * public trips contract without routing the public story through persistence helpers.
  */
 
-import {
-  buildVesselTripTickWriteSetFromBundle,
-  createScheduledSegmentLookupFromSnapshot,
-} from "domain/vesselOrchestration/shared";
+import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   ExistingActiveTripRow,
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
   TripComputation,
-  VesselTripRow,
 } from "./contracts";
 import { computeVesselTripsWithClock } from "./processTick/computeVesselTripsWithClock";
 import { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 
 type CompletedTripComputationSource = {
   existingTrip: ExistingActiveTripRow;
-  tripToComplete: VesselTripRow;
-  newTripCore: {
-    withFinalSchedule: NonNullable<TripComputation["activeTrip"]>;
-  };
+  tripToComplete: NonNullable<TripComputation["completedTrip"]>;
+  newTripCore: TripComputation["tripCore"];
 };
 
 type CurrentTripComputationSource = {
@@ -31,20 +26,12 @@ type CurrentTripComputationSource = {
   >;
   pendingActualMessages: ReadonlyArray<{
     events: NonNullable<TripComputation["events"]>;
-    tripCore: {
-      withFinalSchedule: NonNullable<
-        TripComputation["tripCore"]["withFinalSchedule"]
-      >;
-    };
+    tripCore: TripComputation["tripCore"];
     vesselAbbrev: string;
   }>;
   pendingPredictedMessages: ReadonlyArray<{
     existingTrip?: ExistingActiveTripRow;
-    tripCore: {
-      withFinalSchedule: NonNullable<
-        TripComputation["tripCore"]["withFinalSchedule"]
-      >;
-    };
+    tripCore: TripComputation["tripCore"];
     vesselAbbrev: string;
   }>;
 };
@@ -58,9 +45,7 @@ const completedTripComputationsFromBundle = (
     existingTrip: handoff.existingTrip,
     completedTrip: handoff.tripToComplete,
     activeTrip: handoff.newTripCore.withFinalSchedule,
-    tripCore: {
-      withFinalSchedule: handoff.newTripCore.withFinalSchedule,
-    },
+    tripCore: handoff.newTripCore,
   }));
 
 const currentTripComputationsFromBundle = (
@@ -105,9 +90,10 @@ const currentTripComputationsFromBundle = (
         events: actualMessage?.events,
         existingTrip: predictedMessage?.existingTrip,
         activeTrip,
-        tripCore: {
-          withFinalSchedule: activeTrip,
-        },
+        tripCore: actualMessage?.tripCore ??
+          predictedMessage?.tripCore ?? {
+            withFinalSchedule: activeTrip,
+          },
       },
     ];
   });
@@ -142,16 +128,20 @@ export const runUpdateVesselTrips = async (
     tripDeps,
     { tickStartedAt: input.tickStartedAt }
   );
-  const writeSet = buildVesselTripTickWriteSetFromBundle(tripsCompute);
+  const activeTrips = [
+    ...tripsCompute.completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+    ),
+    ...tripsCompute.current.activeUpserts.map(stripTripPredictionsForStorage),
+  ];
+  const completedTrips = tripsCompute.completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.tripToComplete)
+  );
+  const tripComputations = tripComputationsFromBundle(tripsCompute);
 
   return {
-    activeTrips: [
-      ...writeSet.attemptedHandoffs.map((handoff) => handoff.newTrip),
-      ...writeSet.activeTripRows,
-    ],
-    completedTrips: writeSet.attemptedHandoffs.map(
-      (handoff) => handoff.completedTrip
-    ),
-    tripComputations: tripComputationsFromBundle(tripsCompute),
+    activeTrips,
+    completedTrips,
+    tripComputations,
   };
 };
