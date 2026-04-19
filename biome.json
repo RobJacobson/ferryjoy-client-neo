@@ -120,7 +120,7 @@
                 "patterns": [
                   {
                     "group": ["domain/vesselOrchestration/updateTimeline/**"],
-                    "message": "Handshake types live in domain/vesselOrchestration/tickLifecycle; do not import updateTimeline from updateVesselTrips."
+                    "message": "Handshake types live in domain/vesselOrchestration/shared/tickHandshake; do not import updateTimeline from updateVesselTrips."
                   }
                 ]
               }
