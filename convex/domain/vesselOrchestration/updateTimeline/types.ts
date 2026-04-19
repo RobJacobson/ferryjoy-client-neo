@@ -6,6 +6,7 @@
  * merged in `tickEventWrites.ts`.
  */
 
+import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
   ConvexVesselTripWithML,
@@ -14,11 +15,20 @@ import type {
 
 /**
  * One successful trip-boundary transition: trips ready for timeline writes.
+ *
+ * `newTripCore` is schedule + gates from {@link buildTripCore}; ML is attached
+ * in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTripWithPredictions;
   tripToComplete: ConvexVesselTripWithML;
-  newTrip: ConvexVesselTripWithML;
+  newTripCore: BuildTripCoreResult;
+  /**
+   * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on
+   * the wire until `updateVesselPredictions` merge; **required** before timeline
+   * projection (assembler throws if missing).
+   */
+  newTrip?: ConvexVesselTripWithML;
 };
 
 /**
@@ -26,9 +36,13 @@ export type CompletedTripBoundaryFact = {
  */
 export type CurrentTripActualEventMessage = {
   events: TripEvents;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
+  /**
+   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
+   */
+  finalProposed?: ConvexVesselTripWithML;
 };
 
 /**
@@ -36,9 +50,13 @@ export type CurrentTripActualEventMessage = {
  */
 export type CurrentTripPredictedEventMessage = {
   existingTrip: ConvexVesselTripWithPredictions | undefined;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
+  /**
+   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
+   */
+  finalProposed?: ConvexVesselTripWithML;
 };
 
 /**
@@ -49,4 +67,13 @@ export type CurrentTripLifecycleBranchResult = {
   successfulVessels: Set<string>;
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
+};
+
+/**
+ * Result of applying a vessel-trip tick (lifecycle mutations), before optional ML
+ * overlay for `vesselTripPredictions` / timeline projection.
+ */
+export type TripLifecycleApplyOutcome = {
+  completedFacts: CompletedTripBoundaryFact[];
+  currentBranch: CurrentTripLifecycleBranchResult;
 };

@@ -4,7 +4,7 @@
  *
  * ## Pipeline (one orchestrator tick)
  *
- * 1. **Parallel build** — Each vessel runs `buildTrip` under
+ * 1. **Parallel build** — Each vessel runs {@link buildTripCore} under
  *    `Promise.allSettled` so one failure does not block the rest.
  * 2. **Keep successes** — Rejected builds are logged and discarded.
  * 3. **Collect artifacts** — Lifecycle upsert when strip-shaped row differs;
@@ -24,21 +24,19 @@ import type {
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/updateTimeline/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { BuildTripCoreResult } from "./buildTrip";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
 import {
   logActualProjectionTick,
-  logTripTickDiagnostics,
+  logTripsComputeDiagnostics,
 } from "./processCurrentTripsTickLogging";
 import { tripWriteSuppressionFlags } from "./tripEquality";
 import type { TripEvents } from "./tripEventTypes";
 import type {
-  CurrentTripTickWriteFragment,
+  ActiveTripsBranch,
   PendingLeaveDockEffect,
-} from "./vesselTripTickWritePlan";
+} from "./vesselTripsComputeBundle";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
@@ -47,11 +45,11 @@ type CurrentTripTransition = {
 };
 
 type CurrentTripBuildResult = CurrentTripTransition & {
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
 };
 
 type CurrentTripArtifacts = {
-  activeUpserts: ConvexVesselTripWithML[];
+  activeUpserts: ConvexVesselTripWithPredictions[];
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
@@ -69,26 +67,22 @@ type CurrentTripArtifacts = {
 export const processCurrentTrips = async (
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
-  deps: Pick<
-    ProcessCompletedTripsDeps,
-    "buildTrip" | "buildTripAdapters" | "predictionModelAccess"
-  >
-): Promise<CurrentTripTickWriteFragment> => {
+  deps: Pick<ProcessCompletedTripsDeps, "buildTripCore" | "buildTripAdapters">
+): Promise<ActiveTripsBranch> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map(async (transition) => {
       const buildResult = {
         ...transition,
-        finalProposed: await deps.buildTrip(
+        tripCore: await deps.buildTripCore(
           transition.currLocation,
           transition.existingTrip,
           false,
           transition.events,
           shouldRunPredictionFallback,
-          deps.buildTripAdapters,
-          deps.predictionModelAccess
+          deps.buildTripAdapters
         ),
       };
-      logTripTickDiagnostics(buildResult);
+      logTripsComputeDiagnostics(buildResult);
       return buildResult;
     })
   );
@@ -98,7 +92,7 @@ export const processCurrentTrips = async (
       return [result.value];
     }
     console.error(
-      "[VesselTrips] buildTrip failed for current-trip batch entry",
+      "[VesselTrips] buildTripCore failed for current-trip batch entry",
       { index, transition: currentTrips[index], reason: result.reason }
     );
     return [];
@@ -117,7 +111,7 @@ export const processCurrentTrips = async (
     collectedArtifacts.activeUpserts.length === 0 &&
     !hasTimelineMessageWork
   ) {
-    return emptyCurrentTripTickWriteFragment();
+    return emptyActiveTripsBranch();
   }
 
   return {
@@ -138,13 +132,13 @@ export const processCurrentTrips = async (
  */
 const buildLeaveDockPostPersistEffect = (
   events: TripEvents,
-  finalProposed: ConvexVesselTripWithML,
+  proposedCore: ConvexVesselTripWithPredictions,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
-  events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined
+  events.didJustLeaveDock && proposedCore.LeftDockActual !== undefined
     ? {
         vesselAbbrev,
-        trip: finalProposed,
+        trip: proposedCore,
       }
     : null;
 
@@ -157,10 +151,11 @@ const buildLeaveDockPostPersistEffect = (
 const collectCurrentTripArtifacts = (
   buildResult: CurrentTripBuildResult
 ): CurrentTripArtifacts => {
-  const { existingTrip, currLocation, events, finalProposed } = buildResult;
+  const { existingTrip, currLocation, events, tripCore } = buildResult;
+  const proposedCore = tripCore.withFinalSchedule;
 
   const { needsStorageUpsert: persist, needsOverlayRefresh: refresh } =
-    tripWriteSuppressionFlags(existingTrip, finalProposed);
+    tripWriteSuppressionFlags(existingTrip, proposedCore);
 
   if (!persist && !refresh) {
     return createEmptyCurrentTripArtifacts();
@@ -171,7 +166,7 @@ const collectCurrentTripArtifacts = (
   const leaveDockEffect = persist
     ? buildLeaveDockPostPersistEffect(
         events,
-        finalProposed,
+        proposedCore,
         currLocation.VesselAbbrev
       )
     : null;
@@ -179,12 +174,12 @@ const collectCurrentTripArtifacts = (
   const upsertGate = persist;
 
   return {
-    activeUpserts: persist ? [finalProposed] : [],
+    activeUpserts: persist ? [proposedCore] : [],
     pendingActualMessages: refresh
       ? [
           {
             events,
-            finalProposed,
+            tripCore,
             vesselAbbrev: currLocation.VesselAbbrev,
             requiresSuccessfulUpsert: upsertGate,
           },
@@ -194,7 +189,7 @@ const collectCurrentTripArtifacts = (
       ? [
           {
             existingTrip,
-            finalProposed,
+            tripCore,
             vesselAbbrev: currLocation.VesselAbbrev,
             requiresSuccessfulUpsert: upsertGate,
           },
@@ -252,7 +247,7 @@ const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
  * @returns Empty arrays (matches prior `emptyCurrentTripBranchResult` minus
  *   `successfulVessels`, which the applier fills)
  */
-const emptyCurrentTripTickWriteFragment = (): CurrentTripTickWriteFragment => ({
+const emptyActiveTripsBranch = (): ActiveTripsBranch => ({
   activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],

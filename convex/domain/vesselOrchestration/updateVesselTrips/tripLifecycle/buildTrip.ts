@@ -1,12 +1,17 @@
 /**
  * Build complete vessel-trip state for one live location tick.
+ *
+ * **O2 / O4:** {@link buildTripCore} is exported separately from the ML tail
+ * (`applyVesselPredictions`). The orchestrator injects {@link buildTripCore} via
+ * `ProcessVesselTripsDeps` / `createDefaultProcessVesselTripsDeps`; {@link buildTrip}
+ * remains the composer for tests and non-orchestrator callers.
  */
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {
   applyVesselPredictions,
   type VesselPredictionGates,
   type VesselTripCoreProposal,
-} from "domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions";
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -16,7 +21,7 @@ import type {
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
-type BuildTripCoreResult = {
+export type BuildTripCoreResult = {
   readonly withFinalSchedule: VesselTripCoreProposal;
   readonly gates: VesselPredictionGates;
 };
@@ -41,6 +46,10 @@ type BuildTripCoreResult = {
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
  * @param predictionModelAccess - Production ML model reads (functions-layer `runQuery`)
  * @returns Fully enriched vessel trip
+ *
+ * **Production entry:** ticks wire this function through `ProcessVesselTripsDeps`;
+ * use {@link buildTripCore} only when testing or composing the schedule half
+ * without ML.
  */
 export const buildTrip = async (
   currLocation: ConvexVesselLocation,
@@ -70,6 +79,9 @@ export const buildTrip = async (
  * Schedule enrichment and prediction gates only — no ML attachment. Used by
  * {@link buildTrip} before {@link applyVesselPredictions}.
  *
+ * Exported for tests and explicit composition; production callers inject
+ * {@link buildTrip} (see `ProcessVesselTripsDeps`).
+ *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
@@ -79,7 +91,7 @@ export const buildTrip = async (
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
  * @returns Final schedule-shaped trip and gates for the prediction phase
  */
-const buildTripCore = async (
+export const buildTripCore = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTripWithPredictions | undefined,
   tripStart: boolean,

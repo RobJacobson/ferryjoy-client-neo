@@ -443,13 +443,17 @@ from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
 
 The orchestrator fetches vessel locations once, loads vessels, terminals, and
 **storage-native** active trips in one internal query (`getOrchestratorModelData` in
-`convex/functions/vesselOrchestrator/queries.ts`), and delegates to both
-`updateVesselLocations` and `processVesselTrips` subroutines with error isolation.
+`convex/functions/vesselOrchestrator/queries.ts`), then runs
+[`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): sequential
+`vesselLocation` bulk upsert, then `updateVesselTrips`, `updateVesselPredictions`,
+and `updateVesselTimeline` (helpers such as `createScheduledSegmentLookup` live in
+[`orchestratorPipelines.ts`](../../functions/vesselOrchestrator/orchestratorPipelines.ts)).
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
-predicates. The trip update logic is
-implemented via `computeVesselTripTickWritePlan` in `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts` and `runProcessVesselTripsTick` in `convex/functions/vesselOrchestrator/runProcessVesselTripsTick.ts`
-(default runtime wiring: `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and `createVesselTripPredictionModelAccess` as composed by `executeVesselOrchestratorTick` in `convex/functions/vesselOrchestrator/executeVesselOrchestratorTick.ts`).
+predicates. Per-tick trip lifecycle logic lives in `computeVesselTripTick` in
+`convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
+(default runtime wiring: `defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and
+`createVesselTripPredictionModelAccess` composed in `actions.ts`, not a separate `runProcessVesselTripsTick` entry).
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -463,7 +467,7 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
   - Runtime adapter builder:
     `convex/domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
     (`buildAppendFinalSchedule`, wired via `createScheduledSegmentLookup` in
-    `executeVesselOrchestratorTick`; trip ML uses `createVesselTripPredictionModelAccess` there as well)
+    `updateVesselOrchestrator`; trip ML uses `createVesselTripPredictionModelAccess` there as well)
   - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state

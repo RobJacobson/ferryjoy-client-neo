@@ -12,7 +12,11 @@ import type {
   CompletedTripBoundaryFact,
   CurrentTripLifecycleBranchResult,
 } from "domain/vesselOrchestration/updateTimeline/types";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
+import type {
+  ConvexVesselTripWithML,
+  ConvexVesselTripWithPredictions,
+} from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildTimelineTickProjectionInput } from "../updateTimeline";
 
@@ -97,7 +101,21 @@ const oneCompletedBoundaryFact = (): CompletedTripBoundaryFact => {
     ScheduledDeparture: ms("2026-03-13T06:50:00-07:00"),
   });
 
-  return { existingTrip, tripToComplete, newTrip };
+  const newTripCore: BuildTripCoreResult = {
+    withFinalSchedule: newTrip,
+    gates: {
+      shouldAttemptAtDockPredictions: false,
+      shouldAttemptAtSeaPredictions: false,
+      didJustLeaveDock: false,
+    },
+  };
+
+  return {
+    existingTrip,
+    tripToComplete,
+    newTripCore,
+    newTrip: newTrip as ConvexVesselTripWithML,
+  };
 };
 
 describe("buildTimelineTickProjectionInput", () => {
@@ -136,6 +154,20 @@ describe("buildTimelineTickProjectionInput", () => {
         )
       )
     );
+  });
+
+  it("throws when a completed boundary fact lacks newTrip before timeline merge", () => {
+    const tickStartedAt = 1_703_000_000_000;
+    const completedFacts = [
+      { ...oneCompletedBoundaryFact(), newTrip: undefined },
+    ];
+    expect(() =>
+      buildTimelineTickProjectionInput({
+        completedFacts,
+        currentBranch: emptyCurrentBranch(),
+        tickStartedAt,
+      })
+    ).toThrow("updateVesselPredictions merge");
   });
 
   it("matches explicit merge when completed facts produce non-empty writes", () => {

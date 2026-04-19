@@ -28,6 +28,47 @@ import type {
   CurrentTripPredictedEventMessage,
 } from "./types";
 
+/**
+ * Replacement row for predicted timeline writes after **updateVesselPredictions**.
+ *
+ * @param fact - Boundary fact from the trip applier (must be ML-merged first)
+ * @returns ML-shaped new trip for `buildPredictedDockWriteBatch`
+ */
+const completedBoundaryNewTripForTimeline = (
+  fact: CompletedTripBoundaryFact
+): ConvexVesselTripWithML => {
+  if (fact.newTrip === undefined) {
+    throw new Error(
+      "CompletedTripBoundaryFact.newTrip is required before timeline projection; run updateVesselPredictions merge first."
+    );
+  }
+  return fact.newTrip;
+};
+
+/**
+ * Trip shape for current-branch actual dock writes (schedule actuals suffice).
+ *
+ * @param message - Current-trip actual message from lifecycle
+ * @returns Proposed trip row (ML optional for these writes)
+ */
+const currentTripProposedForActuals = (
+  message: CurrentTripActualEventMessage
+): ConvexVesselTripWithML =>
+  message.finalProposed ??
+  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+
+/**
+ * Trip shape for current-branch predicted batches (needs ML when present).
+ *
+ * @param message - Current-trip predicted message from lifecycle
+ * @returns Proposed trip for predicted dock projection
+ */
+const currentTripProposedForPredicted = (
+  message: CurrentTripPredictedEventMessage
+): ConvexVesselTripWithML =>
+  message.finalProposed ??
+  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+
 type TaggedActualDockRow = {
   vesselAbbrev: string;
   row: ConvexActualDockEvent;
@@ -113,7 +154,7 @@ const tickEventWritesFromCompletedFact = (
     .map((write) => buildActualDockEventFromWrite(write, updatedAt)),
   predictedDockWriteBatches: [
     buildPredictedDockClearBatch(fact.existingTrip),
-    buildPredictedDockWriteBatch(fact.newTrip),
+    buildPredictedDockWriteBatch(completedBoundaryNewTripForTimeline(fact)),
   ].filter((batch): batch is ConvexPredictedDockWriteBatch => Boolean(batch)),
 });
 
@@ -156,20 +197,17 @@ const buildTaggedActualDockRowsFromMessage = (
   updatedAt: number
 ): TaggedActualDockRow[] => {
   const rows: ConvexActualDockEvent[] = [];
-  const { events, finalProposed, vesselAbbrev, requiresSuccessfulUpsert } =
-    message;
+  const proposed = currentTripProposedForActuals(message);
+  const { events, vesselAbbrev, requiresSuccessfulUpsert } = message;
 
-  if (events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined) {
-    const departure = buildDepartureActualDockWriteForTrip(finalProposed);
+  if (events.didJustLeaveDock && proposed.LeftDockActual !== undefined) {
+    const departure = buildDepartureActualDockWriteForTrip(proposed);
     if (departure !== null) {
       rows.push(buildActualDockEventFromWrite(departure, updatedAt));
     }
   }
-  if (
-    events.didJustArriveAtDock &&
-    finalProposed.ArrivedNextActual !== undefined
-  ) {
-    const arrival = buildArrivalActualDockWriteForTrip(finalProposed);
+  if (events.didJustArriveAtDock && proposed.ArrivedNextActual !== undefined) {
+    const arrival = buildArrivalActualDockWriteForTrip(proposed);
     if (arrival !== null) {
       rows.push(buildActualDockEventFromWrite(arrival, updatedAt));
     }
@@ -192,12 +230,8 @@ const buildTaggedPredictedBatchesFromMessage = (
   message: CurrentTripPredictedEventMessage
 ): TaggedPredictedDockBatch[] => {
   const batches: ConvexPredictedDockWriteBatch[] = [];
-  const {
-    existingTrip,
-    finalProposed,
-    vesselAbbrev,
-    requiresSuccessfulUpsert,
-  } = message;
+  const { existingTrip, vesselAbbrev, requiresSuccessfulUpsert } = message;
+  const finalProposed = currentTripProposedForPredicted(message);
 
   const projection = buildPredictedDockWriteBatch(finalProposed);
   if (projection !== null) {

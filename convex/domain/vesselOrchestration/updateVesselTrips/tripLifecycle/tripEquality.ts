@@ -15,7 +15,10 @@
  * `!tripsEqualForOverlay`, or `tripWriteSuppressionFlags`.
  */
 
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
+import {
+  overlayPredictionProjectionsEqual,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
@@ -28,31 +31,6 @@ const PREDICTION_FIELD_NAMES = [
   "AtSeaArriveNext",
   "AtSeaDepartNext",
 ] as const;
-
-/**
- * Compares only persisted/joined semantics: PredTime, Actual, DeltaTotal.
- * Ignores ML-only fields (MAE, intervals) on in-memory proposals.
- */
-const normalizePredictionForEquality = (value: unknown): unknown => {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (typeof value !== "object" || value === null) {
-    return value;
-  }
-  const o = value as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-  if (o.PredTime !== undefined) {
-    out.PredTime = o.PredTime;
-  }
-  if (o.Actual !== undefined) {
-    out.Actual = o.Actual;
-  }
-  if (o.DeltaTotal !== undefined) {
-    out.DeltaTotal = o.DeltaTotal;
-  }
-  return Object.keys(out).length === 0 ? undefined : out;
-};
 
 const isPredictionFieldName = (key: string): boolean =>
   (PREDICTION_FIELD_NAMES as readonly string[]).includes(key);
@@ -129,12 +107,7 @@ const overlayTripsEqual = (
     const ev = e[key];
     const pv = p[key];
     if (isPredictionFieldName(key)) {
-      if (
-        !deepEqual(
-          normalizePredictionForEquality(ev),
-          normalizePredictionForEquality(pv)
-        )
-      ) {
+      if (!overlayPredictionProjectionsEqual(ev, pv)) {
         return false;
       }
       continue;

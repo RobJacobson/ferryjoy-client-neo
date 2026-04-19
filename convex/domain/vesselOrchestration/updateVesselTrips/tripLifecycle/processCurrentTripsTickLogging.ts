@@ -4,17 +4,15 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { BuildTripCoreResult } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripBuildResult = {
   currLocation: ConvexVesselLocation;
   existingTrip?: ConvexVesselTripWithPredictions;
   events: TripEvents;
-  finalProposed: ConvexVesselTripWithML;
+  tripCore: BuildTripCoreResult;
 };
 
 /**
@@ -24,16 +22,16 @@ type CurrentTripBuildResult = {
  * @param buildResult - Fulfilled current-trip build result for one vessel
  * @returns Nothing; emits a warning only when key timing changed
  */
-export const logTripTickDiagnostics = ({
+export const logTripsComputeDiagnostics = ({
   existingTrip,
   currLocation,
   events,
-  finalProposed,
+  tripCore,
 }: CurrentTripBuildResult) => {
-  const scheduleKeyChanged =
-    existingTrip?.ScheduleKey !== finalProposed.ScheduleKey;
+  const proposed = tripCore.withFinalSchedule;
+  const scheduleKeyChanged = existingTrip?.ScheduleKey !== proposed.ScheduleKey;
   const scheduledDepartureChanged =
-    existingTrip?.ScheduledDeparture !== finalProposed.ScheduledDeparture;
+    existingTrip?.ScheduledDeparture !== proposed.ScheduledDeparture;
 
   if (!scheduleKeyChanged && !scheduledDepartureChanged) {
     return;
@@ -45,8 +43,8 @@ export const logTripTickDiagnostics = ({
       timestamp: new Date(currLocation.TimeStamp).toISOString(),
       events,
       liveTick: summarizeLocationTick(currLocation),
-      existingTrip: summarizeTripTick(existingTrip),
-      finalProposed: summarizeTripTick(finalProposed),
+      existingTrip: summarizeTripsCompute(existingTrip),
+      finalProposed: summarizeTripsCompute(proposed),
     })}`
   );
 };
@@ -61,10 +59,11 @@ export const logTripTickDiagnostics = ({
  * @returns Nothing; emits a warning only for boundary-crossing ticks
  */
 export const logActualProjectionTick = (
-  { existingTrip, currLocation, events, finalProposed }: CurrentTripBuildResult,
+  { existingTrip, currLocation, events, tripCore }: CurrentTripBuildResult,
   persist: boolean,
   refresh: boolean
 ) => {
+  const finalProposed = tripCore.withFinalSchedule;
   if (!events.didJustLeaveDock && !events.didJustArriveAtDock) {
     return;
   }
@@ -77,8 +76,8 @@ export const logActualProjectionTick = (
       refresh,
       events,
       liveTick: summarizeLocationTick(currLocation),
-      existingTrip: summarizeTripTick(existingTrip),
-      finalProposed: summarizeTripTick(finalProposed),
+      existingTrip: summarizeTripsCompute(existingTrip),
+      finalProposed: summarizeTripsCompute(finalProposed),
       projectedDeparture:
         events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined
           ? {
@@ -137,7 +136,7 @@ const summarizeLocationTick = (
  * @param trip - Existing or proposed trip subset relevant to trip debugging
  * @returns Compact log-friendly trip snapshot, or `null` when absent
  */
-const summarizeTripTick = (
+const summarizeTripsCompute = (
   trip:
     | Pick<
         ConvexVesselTripWithPredictions,

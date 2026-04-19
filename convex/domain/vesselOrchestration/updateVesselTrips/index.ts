@@ -1,17 +1,18 @@
 /**
- * Orchestrator concern **updateVesselTrips**: passenger-terminal gates,
- * **`tripLifecycle/`**, tick plan (`processTick/` / `computeVesselTripTickWritePlan`), continuity, read helpers,
+ * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick
+ * (`processTick/` / `computeVesselTripsBundle`), continuity, read helpers,
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
- * **updateVesselPredictions** is `applyVesselPredictions` inside `buildTrip`.
+ * **updateVesselPredictions** runs `applyVesselPredictions` after trip mutations
+ * (orchestrator `functions/vesselOrchestrator`).
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers use `computeOrchestratorTripWrites`
- * (`domain/vesselOrchestration`) with `computeVesselTripTickWritePlan`,
+ * Production callers use `computeVesselTripsWithClock`
+ * (`domain/vesselOrchestration`) with `computeVesselTripsBundle`,
  * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
- * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`).
+ * `functions/vesselOrchestrator/vesselOrchestratorConvexBindings.ts`.
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
  * trip branch composes with); canonical imports for those peers remain their own
@@ -42,15 +43,9 @@ export {
   type VesselTripCoreProposal,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
-export {
-  getPassengerTerminalAbbrevs,
-  isPassengerTerminalAbbrev,
-  isTripEligibleLocation,
-  selectTripEligibleLocations,
-} from "./passengerTerminalEligibility";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
-  computeVesselTripTickWritePlan,
+  computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
   type ProcessVesselTripsOptions,
 } from "./processTick/processVesselTrips";
@@ -59,10 +54,15 @@ export {
   computeShouldRunPredictionFallback,
   PREDICTION_FALLBACK_WINDOW_SECONDS,
 } from "./processTick/tickPredictionPolicy";
+export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
 } from "./tripLifecycle/processCompletedTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
-export type { CurrentTripTickWriteFragment } from "./tripLifecycle/vesselTripTickWritePlan";
+export type {
+  ActiveTripsBranch,
+  PendingLeaveDockEffect,
+  VesselTripsComputeBundle,
+} from "./tripLifecycle/vesselTripsComputeBundle";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

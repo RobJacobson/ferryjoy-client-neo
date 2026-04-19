@@ -1,19 +1,14 @@
 /**
- * Vessel orchestration domain: trip/timeline helpers and passenger-terminal gating.
+ * Vessel orchestration domain: trip/timeline helpers.
  *
- * Post-fetch DB writes for one tick are sequenced in Convex
+ * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * `computeOrchestratorTripWrites` for the trip branch.
+ * `computeVesselTripsWithClock` for the trip branch.
  */
 
 export {
-  computeOrchestratorTripWrites,
-  type OrchestratorTripWrites,
-  type OrchestratorTripWritesOptions,
-} from "./computeOrchestratorTripWrites";
-export {
-  getPassengerTerminalAbbrevs,
-  isPassengerTerminalAbbrev,
-  isTripEligibleLocation,
-  selectTripEligibleLocations,
-} from "./updateVesselTrips";
+  computeVesselTripsWithClock,
+  type VesselTripsWithClock,
+  type VesselTripsWithClockOptions,
+} from "./computeVesselTripsWithClock";
+export * as orchestratorTick from "./orchestratorTick";

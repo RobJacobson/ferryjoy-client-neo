@@ -1,6 +1,10 @@
 /**
  * Domain-owned `buildTrip` tests using the same adapter contracts as production
  * (`VesselTripsBuildTripAdapters`) without importing functions-layer modules.
+ *
+ * **O2:** `buildTrip O2 parity` asserts `buildTrip` matches
+ * `buildTripCore` → `applyVesselPredictions` for fixed stubs (full-trip
+ * `toEqual` unless a field proves non-deterministic—then document normalization).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -14,7 +18,11 @@ import type {
 } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import { buildTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
+import { applyVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  buildTrip,
+  buildTripCore,
+} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
@@ -176,6 +184,54 @@ const testBuildTripAdapters: VesselTripsBuildTripAdapters = {
         scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
     };
   },
+};
+
+/**
+ * Asserts {@link buildTrip} equals one {@link buildTripCore} call plus
+ * {@link applyVesselPredictions} with the same adapters and model access (O2
+ * parity). Uses a single core result to avoid duplicate async work.
+ *
+ * @remarks Uses module-scope {@link testBuildTripAdapters} for both paths (same
+ * as the surrounding `buildTrip` tests).
+ *
+ * @param currLocation - Same as `buildTrip`
+ * @param existingTrip - Same as `buildTrip`
+ * @param tripStart - Same as `buildTrip`
+ * @param events - Same as `buildTrip`
+ * @param shouldRunPredictionFallback - Same as `buildTrip`
+ * @param predictionModelAccess - Same as `buildTrip`
+ */
+const expectBuildTripParity = async (
+  currLocation: ConvexVesselLocation,
+  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  tripStart: boolean,
+  events: TripEvents,
+  shouldRunPredictionFallback: boolean,
+  predictionModelAccess: VesselTripPredictionModelAccess
+) => {
+  const core = await buildTripCore(
+    currLocation,
+    existingTrip,
+    tripStart,
+    events,
+    shouldRunPredictionFallback,
+    testBuildTripAdapters
+  );
+  const manual = await applyVesselPredictions(
+    predictionModelAccess,
+    core.withFinalSchedule,
+    core.gates
+  );
+  const composed = await buildTrip(
+    currLocation,
+    existingTrip,
+    tripStart,
+    events,
+    shouldRunPredictionFallback,
+    testBuildTripAdapters,
+    predictionModelAccess
+  );
+  expect(manual).toEqual(composed);
 };
 
 describe("buildTrip", () => {
@@ -376,6 +432,122 @@ describe("buildTrip", () => {
     expect(built.AtDockDepartNext).toBeUndefined();
     expect(built.AtSeaArriveNext).toBeUndefined();
     expect(built.AtSeaDepartNext).toBeUndefined();
+  });
+});
+
+describe("buildTrip O2 parity (core + predictions)", () => {
+  it("O2 parity — preserves carried prediction state when schedule segment changes but TripKey is stable", async () => {
+    const tripStartMs = ms("2026-03-13T09:00:00-07:00");
+    const stableTripKey = generateTripKey("CHE", tripStartMs);
+    const existingTrip = makeTrip({
+      ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
+      TripKey: stableTripKey,
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+      TripStart: tripStartMs,
+      NextScheduleKey: "CHE--2026-03-13--10:15--LOP-ANA",
+      NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
+      LeftDock: ms("2026-03-13T09:34:00-07:00"),
+      AtDock: false,
+      AtDockDepartCurr: makePrediction(ms("2026-03-13T09:36:00-07:00")),
+      AtDockArriveNext: makePrediction(ms("2026-03-13T10:05:00-07:00")),
+      AtDockDepartNext: makePrediction(ms("2026-03-13T10:22:00-07:00")),
+      AtSeaArriveNext: makePrediction(ms("2026-03-13T10:04:00-07:00")),
+      AtSeaDepartNext: makePrediction(ms("2026-03-13T10:20:00-07:00")),
+    });
+    const segmentKey = "CHE--2026-03-13--09:45--ORI-ANA";
+    const segmentScheduledDeparture = ms("2026-03-13T09:45:00-07:00");
+    const currLocation = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "ANA",
+      ScheduledDeparture: segmentScheduledDeparture,
+      LeftDock: existingTrip.LeftDock,
+      ScheduleKey: segmentKey,
+      TimeStamp: ms("2026-03-13T09:40:00-07:00"),
+    });
+    const scheduledEvent: ConvexScheduledDockEvent = {
+      Key: segmentKey,
+      SailingDay: "2026-03-13",
+      VesselAbbrev: "CHE",
+      UpdatedAt: ms("2026-03-13T09:40:00-07:00"),
+      ScheduledDeparture: segmentScheduledDeparture,
+      TerminalAbbrev: "ORI",
+      NextTerminalAbbrev: "ANA",
+      EventType: "dep-dock" as const,
+      EventScheduledTime: segmentScheduledDeparture,
+      IsLastArrivalOfSailingDay: false,
+    };
+    const nextScheduledSegment: ConvexScheduledDockEvent = {
+      Key: "CHE--2026-03-13--11:00--ANA-SHI",
+      SailingDay: "2026-03-13",
+      VesselAbbrev: "CHE",
+      UpdatedAt: ms("2026-03-13T09:40:00-07:00"),
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      TerminalAbbrev: "ANA",
+      NextTerminalAbbrev: "SHI",
+      EventType: "dep-dock",
+      EventScheduledTime: ms("2026-03-13T11:00:00-07:00"),
+      IsLastArrivalOfSailingDay: false,
+    };
+
+    scheduleTestCtx = createTestActionCtx({
+      scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+      scheduledEventsByScope: new Map([
+        ["CHE|2026-03-13", [scheduledEvent, nextScheduledSegment]],
+      ]),
+    });
+    const predictionAccess = createTestPredictionAccess(scheduleTestCtx);
+    await expectBuildTripParity(
+      currLocation,
+      existingTrip,
+      false,
+      makeEvents({ scheduleKeyChanged: true }),
+      false,
+      predictionAccess
+    );
+  });
+
+  it("O2 parity — CAT continuity preserves the dock-owned identity through the leave-dock tick", async () => {
+    const dockStart = ms("2026-04-12T16:32:00-07:00");
+    const catTripKey = generateTripKey("CAT", dockStart);
+    const existingTrip = makeTrip({
+      VesselAbbrev: "CAT",
+      ScheduleKey: "CAT--2026-04-12--16:50--SOU-VAI",
+      TripKey: catTripKey,
+      TripStart: dockStart,
+      SailingDay: "2026-03-13",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T16:50:00-07:00"),
+      LeftDock: undefined,
+      LeftDockActual: undefined,
+      AtDockActual: dockStart,
+      AtDock: true,
+      TimeStamp: ms("2026-04-12T16:47:08-07:00"),
+    });
+    const currLocation = makeLocation({
+      VesselAbbrev: "CAT",
+      DepartingTerminalAbbrev: "SOU",
+      ArrivingTerminalAbbrev: "VAI",
+      ScheduledDeparture: ms("2026-04-12T18:45:00-07:00"),
+      LeftDock: ms("2026-04-12T16:53:14-07:00"),
+      AtDock: false,
+      ScheduleKey: "CAT--2026-04-12--18:45--SOU-VAI",
+      TimeStamp: ms("2026-04-12T16:53:15-07:00"),
+    });
+
+    scheduleTestCtx = createTestActionCtx({});
+    const predictionAccess = createTestPredictionAccess(scheduleTestCtx);
+    await expectBuildTripParity(
+      currLocation,
+      existingTrip,
+      false,
+      makeEvents({ didJustLeaveDock: true, scheduleKeyChanged: false }),
+      false,
+      predictionAccess
+    );
   });
 });
 

@@ -2,7 +2,7 @@
 
 **Related documentation:** [Convex domain README](../README.md) · [Vessel trips functions](../../functions/vesselTrips/README.md) · [Vessel orchestrator](../../functions/vesselOrchestrator/README.md)
 
-**Where this file lives:** `convex/domain/vesselOrchestration/architecture.md` — next to the four concern folders (`updateTimeline/`, `updateVesselPredictions/`, …). Post–Step D, tick **orchestration** (parallel branches, metrics) lives in `convex/functions/vesselOrchestrator` (`executeVesselOrchestratorTick`).
+**Where this file lives:** `convex/domain/vesselOrchestration/architecture.md` — next to domain concern folders (`updateVesselTrips/`, `updateTimeline/`, `updateVesselPredictions/`, …). Live **`vesselLocations`** bulk upsert runs in **`functions/vesselOrchestrator/actions.ts`** (not a domain subfolder). Tick wiring also uses `orchestratorPipelines.ts` for schedule lookups, mutation ports, and test helpers.
 
 This document explains how the orchestrator tick and **`updateVesselTrips`** domain code work: what runs each cycle, what depends on what, and where the main modules live.
 
@@ -12,33 +12,28 @@ It is intentionally plain-English and execution-path focused.
 
 **When it runs:** A cron fires every ~15s → `updateVesselOrchestrator` fetches WSF once, then fans out work.
 
-**Operational reality (target mental model):** **four semi-independent concerns** composed by `vesselOrchestrator`, with **one parallel split** and **one sequential chain**:
+**Operational reality (shipped orchestrator):** **`updateVesselOrchestrator`** in **`actions.ts`** runs **sequentially**: **`vesselLocation.mutations.bulkUpsert`** (live snapshot) → **`updateVesselTrips`** (`computeOrchestratorTripTick` → `persistTripTickMutations` / `applyVesselTripTick`) → **`updateVesselPredictions`** (`materializeOrchestratorPredictionWritesFromVesselTripTick` + `batchUpsertProposals` when needed) → **`updateVesselTimeline`** (`buildOrchestratorTimelineProjectionInput` → dock projection mutations). Trip **compute** uses **`buildTripCore` only** in the trip phase; ML attaches in the predictions phase—not `Promise.all` between phases.
 
-- **Parallel:** **update vessel locations** runs beside the trip stack (same tick, same fetch).
-- **Sequential chain:** **update vessel trips** → **update vessel predictions** → **update timeline**  
-  Predictions are *not* parallel with trips; they depend on trip context. Timeline depends on lifecycle (and often on upsert success for projection gating).
+**Domain layering:** **updateVesselPredictions** on the orchestrator path runs **after** trip mutations: `applyVesselPredictions` consumes each tick’s carried **`BuildTripCoreResult`** (no second `buildTripCore`). The composed **`buildTrip`** (`buildTripCore` + `applyVesselPredictions`) remains for tests and non-orchestrator callers. **updateTimeline** (`buildTimelineTickProjectionInput`, assembler, `tickEventWrites`) lives under **`domain/vesselOrchestration/updateTimeline/`**. Trip persistence runs in **`functions/`** (`computeVesselTripTick` → `applyVesselTripTick` → predictions merge → timeline projection), behind injected `deps`.
 
-See [Target reorganization: four orchestrator concerns](#target-reorganization-four-orchestrator-concerns).
+See [Target reorganization: orchestrator concerns](#target-reorganization-orchestrator-concerns).
 
-**Shipped layout:** The four concern folders under `domain/vesselOrchestration/` are in place. The orchestrator runs the location branch in parallel with one **trip stack** branch. **updateVesselPredictions** is `applyVesselPredictions` after `buildTripCore`; **updateTimeline** (`buildTimelineTickProjectionInput`, assembler, `tickEventWrites`) lives under **`domain/vesselOrchestration/updateTimeline/`**. Trip persistence runs in **`functions/`** (`runProcessVesselTripsTick`: `computeVesselTripTickWritePlan` → `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput`), behind injected `deps.processVesselTrips`. Further refactors aim at **narrower modules and explicit handoffs** between concerns—not more network hops.
-
-**Four concerns at a glance:**
+**Concerns at a glance:**
 
 | Concern | What it owns | Main code today (illustrative) |
 | --- | --- | --- |
-| **updateVesselLocations** | Live snapshot: `vesselLocations` bulk upsert | `updateVesselLocations/bulkUpsertArgsFromLocations.ts` → orchestrator `persistLocations` |
-| **updateVesselTrips** | Authoritative lifecycle: `activeVesselTrips` / `completedVesselTrips` | `computeVesselTripTickWritePlan` → `processCompletedTrips` / `processCurrentTrips` → (functions) `applyVesselTripTickWritePlan` |
-| **updateVesselPredictions** | Trip-shaped ML fields (`applyVesselPredictions`; `appendPredictions` helpers) | `updateVesselPredictions/applyVesselPredictions.ts`, `appendArriveDockPredictions` / `appendLeaveDockPredictions` in `appendPredictions.ts` |
-| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `TickEventWrites` / `TimelineTickProjectionInput`; orchestrator `applyTickEventWrites` applies them |
+| **Live `vesselLocations`** | Snapshot bulk upsert each tick | `functions/vesselOrchestrator/actions.ts` (`bulkUpsert` mutation; first step in the action) |
+| **updateVesselTrips** | Authoritative lifecycle: `activeVesselTrips` / `completedVesselTrips` | `computeVesselTripTick` → `processCompletedTrips` / `processCurrentTrips` → (functions) `applyVesselTripTick` via `persistTripTickMutations` |
+| **updateVesselPredictions** | Trip-shaped ML fields (`applyVesselPredictions`; `appendPredictions` helpers) | `updateVesselPredictions/applyVesselPredictions.ts`, `appendArriveDockPredictions` / `appendLeaveDockPredictions` in `appendPredictions.ts`; orchestrator uses `orchestratorTick` materialization |
+| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `TickEventWrites` / `TimelineTickProjectionInput`; **`updateVesselTimeline`** in `actions.ts` applies them |
 
-**Per tick, in one sentence:** For each passenger-terminal–eligible location, detect events → build/update trips (schedule enrichment → **updateVesselPredictions**) → strip predictions for DB where needed → batch upsert → assemble timeline writes → orchestrator persists timeline writes—**updateVesselTrips** → **updateVesselPredictions** → **updateTimeline**.
+**Per tick, in one sentence:** Persist the location snapshot → for each vessel, detect events → **`buildTripCore`** (schedule enrichment; no ML in trip compute on orchestrator path) → strip predictions for DB where needed → trip mutations → **updateVesselPredictions** (`applyVesselPredictions` + proposal upserts) → assemble timeline writes → **`updateVesselTimeline`** persists `eventsActual` / `eventsPredicted`.
 
 **Core files to remember:**
 
 ```text
-updateVesselTrips/passengerTerminalEligibility.ts   trip-branch gating (terminal allow-list)
-updateVesselTrips/processTick/processVesselTrips.ts   `computeVesselTripTickWritePlan` (domain plan); `runProcessVesselTripsTick` applies + timeline
-updateVesselTrips/tripLifecycle/buildTrip.ts   buildTripCore + applyVesselPredictions (ML)
+updateVesselTrips/processTick/processVesselTrips.ts   `computeVesselTripTick` (domain); `orchestratorPipelines` applies trips, then predictions, then timeline
+updateVesselTrips/tripLifecycle/buildTrip.ts   buildTripCore; buildTrip = core + applyVesselPredictions (orchestrator uses core + separate predictions phase)
 updateVesselPredictions/applyVesselPredictions.ts   ML tail (calls appendPredictions)
 updateVesselTrips/tripLifecycle/detectTripEvents.ts  flags (completed? leave? arrive?)
 vesselOrchestration/updateTimeline/             tickEventWrites, assembler, buildTimelineTickProjectionInput
@@ -75,12 +70,11 @@ It does **not** directly fetch WSF; that happens in adapters/functions layers.
 - `convex/functions/vesselOrchestrator/actions.ts`
   - Fetches WSF locations once.
   - Loads read model (vessels, terminals, active trips).
-  - Calls **`executeVesselOrchestratorTick(ctx, input)`** (inlined Convex I/O: trip-eligible
-    filter, `runProcessVesselTripsTick`, `applyTickEventWrites`).
+  - Runs **`vesselLocation` bulk upsert** → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (sequential; trip deps and mutation ports from `orchestratorPipelines.ts`).
 - `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
-  - `computeVesselTripTickWritePlan` — domain plan for one tick (completed + current branches).
-- `convex/functions/vesselOrchestrator/runProcessVesselTripsTick.ts`
-  - Functions runner: plan → `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput`.
+  - `computeVesselTripTick` — domain output for one tick (completed + current branches).
+- `convex/functions/vesselOrchestrator/orchestratorPipelines.ts`
+  - Named pipeline steps: trip compute → apply, predictions merge + `vesselTripPredictions` upserts, timeline projection mutations.
 
 ## Public read consumers (frontend/app)
 
@@ -110,35 +104,30 @@ Cron (15s)
   -> functions/vesselOrchestrator/actions.updateVesselOrchestrator
       -> load read model (vessels, terminals, activeTrips)
       -> fetchWsfVesselLocations(...)
-      -> executeVesselOrchestratorTick(...)
-          -> persistLocations branch (vesselLocations bulkUpsert)
-          -> trip branch:
-               deps.processVesselTrips(...) [runProcessVesselTripsTick]
-                 -> detect events per vessel
-                 -> processCompletedTrips(...)
-                 -> processCurrentTrips(...)
-                 -> applyVesselTripTickWritePlan (functions)
-                 -> assemble TickEventWrites (buildTimelineTickProjectionInput)
-               deps.applyTickEventWrites(...) [applyTickEventWrites.ts; production via executeVesselOrchestratorTick]
-                    -> eventsActual mutation
-                    -> eventsPredicted mutation
+      -> vesselLocation.mutations.bulkUpsert (live snapshot)
+      -> updateVesselTrips
+            -> computeOrchestratorTripTick / computeVesselTripTick
+            -> persistTripTickMutations / applyVesselTripTick (functions)
+      -> updateVesselPredictions
+            -> materializeOrchestratorPredictionWritesFromVesselTripTick (domain)
+            -> batchUpsertProposals (vesselTripPredictions) when non-empty
+      -> updateVesselTimeline
+            -> buildOrchestratorTimelineProjectionInput (domain)
+            -> eventsActual / eventsPredicted mutations (actions.ts)
 ```
 
 ## B. High-level branch model
 
 ```text
-One tick
-  ├─ updateVesselLocations: vesselLocations snapshot persistence
-  └─ Trip stack (sequential chain):
-        updateVesselTrips (lifecycle mutations)
-        -> updateVesselPredictions (applyVesselPredictions after buildTripCore)
-        -> updateTimeline (TickEventWrites -> eventsActual / eventsPredicted)
+One tick (sequential in actions.updateVesselOrchestrator)
+  ├─ vesselLocations bulk upsert (actions)
+  ├─ updateVesselTrips: trip compute -> trip mutations
+  ├─ updateVesselPredictions: ML overlay + vesselTripPredictions upserts
+  └─ updateTimeline: buildOrchestratorTimelineProjectionInput -> eventsActual / eventsPredicted
 
-Conceptually: locations ∥ trip stack; within the stack, timeline after trips
-(and after predictions attach), with upsert-gated projection where required.
-
-Branches run in parallel with Promise.allSettled for (locations) vs (trip stack).
-Branch failures are isolated in orchestrator result envelope.
+Same-tick timeline consumes in-memory ML-shaped trips after merge; it does not
+reload vesselTripPredictions from the DB for assembly. Upsert-gated projection
+still applies where the branch results encode success flags.
 ```
 
 ## C. Per-vessel lifecycle decision model
@@ -247,16 +236,16 @@ What it means:
 
 ## `vesselOrchestration/updateVesselTrips/tripLifecycle/` (**updateVesselTrips** — core state machine)
 
-Cron-driven trip lifecycle for one tick: detection, `buildTrip`, completed vs current
-branches, equality, ML appenders, and strip-for-storage. Wired by
-`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `executeVesselOrchestratorTick` (`createScheduledSegmentLookup` plus `createVesselTripPredictionModelAccess` from `functions/predictions/createVesselTripPredictionModelAccess.ts`).
+Cron-driven trip lifecycle for one tick: detection, **`buildTripCore`** (orchestrator) or `buildTrip` (composer), completed vs current
+branches, equality, ML appenders (predictions phase on orchestrator path), and strip-for-storage. Wired by
+`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`createScheduledSegmentLookup`; `createVesselTripPredictionModelAccess` only for **updateVesselPredictions**).
 
 - `detectTripEvents.ts` — Per-vessel event flags from existing trip + location.
 - `tripEventTypes.ts` — Shared event bundle type.
 - `processCompletedTrips.ts` — Completion transitions and atomic rollover mutation.
 - `processCurrentTrips.ts` — Continuing trips, write suppression, upsert batching, hooks.
 - `processCurrentTripsTickLogging.ts` — Schedule/boundary diagnostics.
-- `buildTrip.ts` — Full proposed trip (`buildTripCore` + `applyVesselPredictions`).
+- `buildTrip.ts` — **`buildTripCore`** (schedule + gates) and **`buildTrip`** (composer: core + `applyVesselPredictions`). Orchestrator ticks inject **`buildTripCore` only**; ML runs in **updateVesselPredictions**.
 - `buildCompletedTrip.ts` — Canonical completed trip row.
 - `baseTripFromLocation.ts` — Start/continue base trip shapes.
 - `tripDerivation.ts` — Shared derived inputs for detection and base trip build.
@@ -278,7 +267,7 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `vesselOrchestration/updateTimeline/` (**updateTimeline** — trip output → timeline writes)
 
-Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly. **Apply** is separate: the exported helper `applyTickEventWrites` in `functions/vesselOrchestrator/applyTickEventWrites.ts` runs the internal timeline mutations after lifecycle writes (single apply owner; production calls it from `executeVesselOrchestratorTick`; see `updateTimeline/README.md`).
+Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs in **`orchestratorPipelines.updateVesselTimeline`** (internal projection mutations after `buildTimelineTickProjectionInput`; see `updateTimeline/README.md`).
 
 - `tickEventWrites.ts` — `TickEventWrites` / `TimelineTickProjectionInput`, `mergeTickEventWrites`.
 - `timelineEventAssembler.ts` — Converts lifecycle branch outputs into tick write payloads.
@@ -286,7 +275,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly. *
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports **updateTimeline** / **updateVesselPredictions** symbols, eligibility helpers, `computeVesselTripTickWritePlan`, and tick-related types.
+The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports **updateTimeline** / **updateVesselPredictions** symbols, `computeVesselTripTick`, and tick-related types.
 
 ## `updateVesselTrips/read/` (query-time enrichment)
 
@@ -302,36 +291,36 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Passenger-terminal eligibility helpers re-exported from **updateVesselTrips** (`getPassengerTerminalAbbrevs`, `isPassengerTerminalAbbrev`, `isTripEligibleLocation`). Tick orchestration types and `executeVesselOrchestratorTick` live under **`convex/functions/vesselOrchestrator/`** (Step D).
+- `index.ts` — Re-exports `computeOrchestratorTripTick` (`computeOrchestratorTripTick.ts`). Tick orchestration (`actions.ts`, `orchestratorPipelines.ts`) lives under **`convex/functions/vesselOrchestrator/`** (Step D).
 
 ## Root files: `updateVesselTrips/`
 
-- `passengerTerminalEligibility.ts` — Trip-branch gating: `isTripEligibleLocation`, `getPassengerTerminalAbbrevs`, `isPassengerTerminalAbbrev`; used by **`executeVesselOrchestratorTick`** when filtering `tripEligibleLocations`.
-- `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup, predictionModelAccess)` bundles default `buildTrip` / `buildTripAdapters` / `predictionModelAccess` for the orchestrator (`lookup` from `createScheduledSegmentLookup`, `predictionModelAccess` from `createVesselTripPredictionModelAccess`).
-- `index.ts` — Re-exports timeline/prediction types, eligibility, `computeVesselTripTickWritePlan`, and tick adapter types (see file); production wiring pairs `runProcessVesselTripsTick` with `createDefaultProcessVesselTripsDeps` (domain), `createScheduledSegmentLookup`, and `createVesselTripPredictionModelAccess` as composed by **`executeVesselOrchestratorTick`**.
+- `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup)` bundles default **`buildTripCore`** / `buildTripAdapters` for the orchestrator (`lookup` from `createScheduledSegmentLookup`). **`createVesselTripPredictionModelAccess`** is passed only to **updateVesselPredictions** in `actions.ts`.
+- `index.ts` — Re-exports timeline/prediction types, `computeVesselTripTick`, and tick adapter types (see file).
 
 ## Functions layer tied directly to the trip domain
 
-- `convex/functions/vesselOrchestrator/executeVesselOrchestratorTick.ts`
-  - Production tick: parallel locations vs trip branch (`runProcessVesselTripsTick` + `applyTickEventWrites`).
-- `convex/functions/vesselOrchestrator/runProcessVesselTripsTick.ts`
-  - Trip tick runner (plan compute + apply + timeline projection input).
-  - Internal `createScheduledSegmentLookup` builds `ScheduledSegmentLookup` from Convex internal `eventsScheduled` queries (for default trip deps).
+- `convex/functions/vesselOrchestrator/actions.ts`
+  - `updateVesselOrchestrator` — WSF fetch, read model, sequential `orchestratorPipelines` phases.
+- `convex/functions/vesselOrchestrator/orchestratorPipelines.ts`
+  - `updateVesselTrips`, `updateVesselPredictions`, `updateVesselTimeline`; `createScheduledSegmentLookup` builds `ScheduledSegmentLookup` from internal `eventsScheduled` queries (default trip deps).
 - `convex/functions/predictions/createVesselTripPredictionModelAccess.ts`
-  - `createVesselTripPredictionModelAccess` builds `VesselTripPredictionModelAccess` from `ctx.runQuery` to production model-parameter queries (for `buildTrip` / **updateVesselPredictions**).
+  - `createVesselTripPredictionModelAccess` builds `VesselTripPredictionModelAccess` from `ctx.runQuery` to production model-parameter queries (for **updateVesselPredictions** on the orchestrator path).
 - `convex/functions/vesselTrips/queries.ts`
   - Public trip queries and enrichment.
 - `convex/functions/vesselTrips/mutations.ts`
   - Public/internal trip lifecycle write handlers and backfill actions.
 - `convex/functions/vesselTrips/schemas.ts`
   - Canonical validators/types/conversions for stored and joined trip shapes.
+- `convex/functions/vesselTripPredictions/`
+  - Internal mutations/queries for the `vesselTripPredictions` table (batch compare-then-write upserts; optional scope reads).
 
 ## Tests
 
 - `convex/domain/vesselOrchestration/tests/`
-  - Cross-cutting tests (e.g. `buildTimelineTickProjectionInput`, `passengerTerminalEligibility`).
-- `convex/functions/vesselOrchestrator/tests/executeVesselOrchestratorTick.*.test.ts`
-  - Orchestrator tick integration and branch-isolation tests against `executeVesselOrchestratorTick`.
+  - Cross-cutting tests (e.g. `buildTimelineTickProjectionInput`, `computeOrchestratorTripTick`).
+- `convex/functions/vesselOrchestrator/tests/`
+  - Orchestrator tick tests (e.g. `processVesselTrips.tick.test.ts`).
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`
   - Unit coverage for trip lifecycle, continuity, projections, and adapters.
 
@@ -348,51 +337,52 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 - `eventsActual`
   - Actual dep/arv boundary events derived from trip lifecycle.
 - `eventsPredicted`
-  - Prediction projections and actualization updates.
+  - Prediction projections and actualization updates for **dock events** (timeline read model).
+- `vesselTripPredictions`
+  - Full **trip-field** ML payloads (`ConvexPrediction`), one document per `(VesselAbbrev, TripKey, PredictionType)`. Internal upserts live in `functions/vesselTripPredictions/` with **compare-then-write** (overlay-aligned: PredTime / Actual / DeltaTotal) so ML-only fields do not force writes. **Stale rows:** a new physical trip gets a new `TripKey`; rows for old trip keys **can linger** until a future GC or product cleanup—O3 does not delete them. Callers that only load keys for **current** active trips naturally ignore orphans.
 
 Important design detail:
 - Predictions are not persisted as full blobs on trip tables; projection/read
-  layers own prediction table writes/joins.
+  layers own prediction table writes/joins. `eventsPredicted` and `vesselTripPredictions`
+  serve different shapes (dock events vs trip slots); avoid treating them as interchangeable
+  sources of truth in the UI without an explicit join contract.
 
 ---
 
-## Target reorganization: four orchestrator concerns
+## Target reorganization: orchestrator concerns
 
-This section records a **target architecture** for a broad reorganization: **four semi-independent concerns** under the vessel orchestrator’s umbrella, with **explicit handoffs** between them. The **domain layer** should own the business logic, grouped into modules that mirror these names; **`convex/functions/vesselOrchestrator`** stays the parent that wires Convex runtime (`ctx`, mutations, internal queries) and passes outputs forward—same role as today, but clearer.
+This section records a **target architecture** for a broad reorganization: **semi-independent concerns** under the vessel orchestrator’s umbrella, with **explicit handoffs** between them. The **domain layer** owns trip, prediction, and timeline logic in named folders; **`convex/functions/vesselOrchestrator`** wires Convex runtime (`ctx`, mutations, internal queries), performs the **`vesselLocations`** bulk upsert each tick, and passes outputs forward.
 
 **Folder shape (current repo — domain):**
 
 ```text
 convex/domain/vesselOrchestration/
-  updateVesselLocations/
   updateVesselTrips/
   updateVesselPredictions/
   updateTimeline/
 ```
 
-Mirror **thin** runtime wrappers under `convex/functions/vesselOrchestrator/` (imports domain, applies `ctx`). The point is **one folder per concern** so review and onboarding match the mental model.
+Live location persistence is **not** a domain subfolder; it is a **`functions/vesselOrchestrator/actions.ts`** call to `vesselLocation.mutations.bulkUpsert`.
 
 ### Dependency graph (operational truth)
 
 ```text
-  updateVesselLocations
-        (parallel with the stack below)
-
-  updateVesselTrips
-        → updateVesselPredictions
-        → updateTimeline
+  vesselLocations bulk upsert (actions.ts)
+        → updateVesselTrips   (compute → apply)
+        → updateVesselPredictions   (applyVesselPredictions + vesselTripPredictions upserts)
+        → updateVesselTimeline
 ```
 
-- **Locations** do not depend on trips; **trips / predictions / timeline** are ordered within the same tick.
-- **Predictions** are *not* a second parallel branch like locations: they need trip context (`buildTripCore` then `applyVesselPredictions` within `buildTrip`).
+- **Locations** bulk upsert runs **first** in the action, before trip compute; **trips / predictions / timeline** follow in order.
+- **Predictions** are *not* a second parallel branch like locations: they need trip context (`buildTripCore` then `applyVesselPredictions` in **updateVesselPredictions** on the orchestrator path; or composed **`buildTrip`** elsewhere).
 - **Timeline** depends on lifecycle outcomes (and often on upsert success for upsert-gated projection).
 
 ### What each concern should own (contracts)
 
-**updateVesselLocations**
+**Live `vesselLocations` (functions layer)**
 
 - **Input:** Converted `ConvexVesselLocation[]` (full feed fidelity).
-- **Output:** Successful or failed snapshot write to `vesselLocations`.
+- **Output:** Successful or failed snapshot write to `vesselLocations` via **`actions.ts`**.
 - **Non-goals:** Trip keys, schedule continuity, ML, timeline rows.
 
 **updateVesselTrips**
@@ -411,31 +401,31 @@ Mirror **thin** runtime wrappers under `convex/functions/vesselOrchestrator/` (i
 
 - **Input:** Facts / projection intents after lifecycle (and prediction attachment when relevant): e.g. boundary facts, current-branch messages, upsert success flags (as encoded in branch results).
 - **Output (domain):** `TickEventWrites` / `TimelineTickProjectionInput` — assembled by `timelineEventAssembler` + merge; **not** direct DB writes in this step.
-- **Output (apply):** `eventsActual` / `eventsPredicted` persistence via **`applyTickEventWrites`** in the orchestrator / functions layer, **after** lifecycle mutations for the tick.
+- **Output (apply):** `eventsActual` / `eventsPredicted` persistence via **`updateVesselTimeline`** in `orchestratorPipelines`, **after** lifecycle mutations and predictions merge for the tick.
 - **Non-goals:** Re-deriving full trip state from raw locations; consume **authoritative** trip + tick outputs.
 
 ### Where today’s code maps (migration guide)
 
 | Rough area today | Natural home |
 | --- | --- |
-| Orchestrator location branch (`executeVesselOrchestratorTick` → bulk upsert) | **updateVesselLocations** |
+| Orchestrator location bulk upsert (first step in `actions.updateVesselOrchestrator`) | **functions** (`vesselLocation.mutations.bulkUpsert`), not a domain folder |
 | `processCompletedTrips`, `processCurrentTrips`, `buildTripCore` / lifecycle half of `buildTrip`, `detectTripEvents`, continuity, storage equality | **updateVesselTrips** |
-| `appendPredictions` / `applyVesselPredictions` (called from `buildTrip`) | **updateVesselPredictions** (`vesselOrchestration/updateVesselPredictions` barrel) |
+| `appendPredictions` / `applyVesselPredictions` (orchestrator **updateVesselPredictions** phase, or composed `buildTrip`) | **updateVesselPredictions** (`vesselOrchestration/updateVesselPredictions` barrel) |
 | `timelineEventAssembler`, merge → `TickEventWrites` / `TimelineTickProjectionInput` | **updateTimeline** (domain assembly; e.g. `vesselOrchestration/updateTimeline`) |
-| `applyTickEventWrites` | **updateTimeline** apply path (orchestrator / functions; runs after lifecycle) |
+| `orchestratorPipelines.updateVesselTimeline` | **updateTimeline** apply path (runs after lifecycle + predictions merge) |
 
 **Gray zone (unchanged fact):** predictions produce **trip-shaped fields** and **inputs to timeline projection**; explicit DTOs between **updateVesselPredictions** and **updateTimeline** reduce coupling.
 
 ### Phased cleanup / reorg (recommended order)
 
 **Phase 1 — Document and compose (no behavior change)**  
-- Name the four concerns in orchestrator and domain docs; optional thin wrappers with stable names (`runUpdateVesselLocations`, etc.) that delegate to existing implementations.
+- Name the orchestrator concerns in docs; optional thin wrappers with stable names that delegate to existing implementations.
 
 **Phase 2 — Folder scaffolding** (**shipped**)  
-- The four concern folders exist under `domain/vesselOrchestration/`; remaining work is incremental import cleanup and boundary tightening, not greenfield scaffolding.
+- Domain concern folders exist under `domain/vesselOrchestration/` (`updateVesselTrips`, `updateVesselPredictions`, `updateTimeline`); live locations stay in **functions**. Remaining work is incremental import cleanup and boundary tightening, not greenfield scaffolding.
 
 **Phase 3 — Extract updateTimeline**  
-- Split “lifecycle result → `TickEventWrites` / `TimelineTickProjectionInput` **assembly**” from “run mutations” so **updateVesselTrips** yields authoritative trip outcomes and **updateTimeline** (domain) builds the projection payload; **apply** stays in **`applyTickEventWrites`** (orchestrator) after mutations settle. Keeps ordering: mutations settle before timeline apply when required.  
+- Split “lifecycle result → `TickEventWrites` / `TimelineTickProjectionInput` **assembly**” from “run mutations” so **updateVesselTrips** yields authoritative trip outcomes and **updateTimeline** (domain) builds the projection payload; **apply** runs in **`updateVesselTimeline`** after mutations and predictions merge settle. Keeps ordering: mutations settle before timeline apply when required.  
 - **Shipped layout:** `buildTimelineTickProjectionInput` and related projection code live in **`domain/vesselOrchestration/updateTimeline/`** (canonical). `processVesselTrips` imports the builder from that path; the barrel `updateTimeline/index.ts` re-exports for tests and named-concern imports.
 
 **Phase 4 — Extract updateVesselPredictions** (**shipped**)  
@@ -468,8 +458,6 @@ Mirror **thin** runtime wrappers under `convex/functions/vesselOrchestrator/` (i
 
 ## 7) Key alternative-path behaviors
 
-- **Trip eligibility filter**
-  - Non-passenger marine locations are stored in the location branch and excluded from the trip branch (`isTripEligibleLocation` and related helpers in `updateVesselTrips/passengerTerminalEligibility.ts`).
 - **Debounce guard**
   - Contradictory raw signal suppresses boundary events for that tick.
 - **Upsert-gated projection**
@@ -508,7 +496,7 @@ Mirror **thin** runtime wrappers under `convex/functions/vesselOrchestrator/` (i
 
 ## 9) Complexity hotspots and simplification suggestions
 
-Work in two tiers: **(A) broad compartmentalization** (four orchestrator concerns), then **(B) narrow refactors** inside each. See [Target reorganization: four orchestrator concerns](#target-reorganization-four-orchestrator-concerns) for the framing.
+Work in two tiers: **(A) broad compartmentalization** (orchestrator concerns), then **(B) narrow refactors** inside each. See [Target reorganization: orchestrator concerns](#target-reorganization-orchestrator-concerns) for the framing.
 
 ## A) Broad: align code with four operational concerns
 
@@ -575,7 +563,7 @@ Work in two tiers: **(A) broad compartmentalization** (four orchestrator concern
 
 ## 10) Suggested refactor sequence (safe order)
 
-This aligns with **Phased cleanup / reorg** under [Target reorganization: four orchestrator concerns](#target-reorganization-four-orchestrator-concerns); kept here as a short checklist.
+This aligns with **Phased cleanup / reorg** under [Target reorganization: orchestrator concerns](#target-reorganization-orchestrator-concerns); kept here as a short checklist.
 
 **Phase 0 — Documentation and safety net**
 
@@ -584,16 +572,16 @@ This aligns with **Phased cleanup / reorg** under [Target reorganization: four o
 
 **Phase 1 — Four-concern composition without changing behavior**
 
-3. Name the four concerns in code comments or thin wrappers (`updateVesselLocations`, `updateVesselTrips`, `updateVesselPredictions`, `updateTimeline`).
+3. Name the orchestrator concerns in code comments or thin wrappers (live location upsert in **`actions.ts`**, then `updateVesselTrips`, `updateVesselPredictions`, `updateVesselTimeline`).
 4. Introduce explicit types: structured trip-tick result → `TickEventWrites` (or equivalent) for **updateTimeline**.
 
 **Phase 2 — Folder scaffolding (domain)** (**shipped**)
 
-5. Four concern folders exist under `domain/vesselOrchestration/`; finish any remaining import moves and re-export cleanup as needed.
+5. Domain concern folders exist under `domain/vesselOrchestration/`; finish any remaining import moves and re-export cleanup as needed.
 
 **Phase 3 — Extract updateTimeline**
 
-6. Lifecycle returns facts; **updateTimeline** (domain) **builds** `TickEventWrites` / `TimelineTickProjectionInput` (assembler + merge) only after required mutations settle; orchestrator **`applyTickEventWrites`** **applies** them to `eventsActual` / `eventsPredicted`.
+6. Lifecycle returns facts; **updateTimeline** (domain) **builds** `TickEventWrites` / `TimelineTickProjectionInput` (assembler + merge) only after required mutations and predictions merge settle; **`updateVesselTimeline`** **applies** them to `eventsActual` / `eventsPredicted`.
 
 **Phase 4 — Extract updateVesselPredictions** (**done**)
 

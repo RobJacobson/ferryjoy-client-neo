@@ -1,65 +1,29 @@
 /**
- * Sequencing tests for domain `computeOrchestratorTripWrites` →
- * `applyVesselTripTickWritePlan` → `buildTimelineTickProjectionInput` (same ordering
- * as `updateVesselOrchestrator`).
+ * Sequencing tests for the same step order as `updateVesselOrchestrator` in `actions.ts`
+ * (`updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`).
  */
 
 import { describe, expect, it } from "bun:test";
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
-import { computeOrchestratorTripWrites } from "domain/vesselOrchestration";
+import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  buildTimelineTickProjectionInput,
-  type TickEventWrites,
-} from "domain/vesselOrchestration/updateTimeline";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { applyVesselTripTickWritePlan } from "functions/vesselTrips/applyVesselTripTickWritePlan";
+  runUpdateVesselPredictions,
+  persistVesselTripsCompute,
+} from "domain/vesselOrchestration/orchestratorTick";
 import type {
+  BuildTripCoreResult,
+  TripEvents,
+} from "domain/vesselOrchestration/updateVesselTrips";
+import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { updateVesselTimeline } from "functions/vesselOrchestrator/actions";
+import { createVesselTripTableMutations } from "functions/vesselOrchestrator/utils";
+import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
-  TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { orchestratorTickTestTerminalIdentities } from "./orchestratorTickTestFixtures";
-
-const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
-  loadModelForProductionPair: async () => null,
-  loadModelsForProductionPairBatch: async () =>
-    ({}) as Record<
-      ModelType,
-      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
-      | null
-    >,
-};
-
-/**
- * Applies timeline writes after lifecycle (same branching as
- * `updateVesselOrchestrator` → `applyTimelineTickProjectionWrites`) using the test
- * fake’s `runMutation` so sequencing assertions inspect recorded mutations here.
- *
- * @param ctx - Test fake action context
- * @param writes - Actual and predicted dock writes from the tick
- */
-const applyTickEventWritesLikeOrchestrator = async (
-  ctx: ActionCtx,
-  writes: TickEventWrites
-): Promise<void> => {
-  await Promise.all([
-    writes.actualDockWrites.length > 0
-      ? ctx.runMutation(
-          {} as never,
-          { Writes: writes.actualDockWrites } as never
-        )
-      : Promise.resolve(),
-    writes.predictedDockWriteBatches.length > 0
-      ? ctx.runMutation(
-          {} as never,
-          { Batches: writes.predictedDockWriteBatches } as never
-        )
-      : Promise.resolve(),
-  ]);
-};
 
 /**
  * Runs lifecycle tick then applies timeline writes (matches orchestrator ordering).
@@ -75,31 +39,39 @@ const runVesselTripsTick = async (
   locations: ConvexVesselLocation[],
   tickStartedAt: number,
   deps: ReturnType<typeof createDeps>,
-  activeTrips?: ReadonlyArray<TickActiveTrip>
+  activeTrips?: ReadonlyArray<ConvexVesselTrip>
 ): Promise<void> => {
-  const { tripWrites, tickStartedAt: tickAt } =
-    await computeOrchestratorTripWrites(
-      {
-        convexLocations: locations,
-        terminalsIdentity: orchestratorTickTestTerminalIdentities,
-        activeTrips: activeTrips ?? ctx.preloadedActiveTrips ?? [],
-      },
+  const trips = activeTrips ?? ctx.preloadedActiveTrips ?? [];
+  const actionCtx = ctx as unknown as ActionCtx;
+
+  const { tripsCompute, tickStartedAt: tickAt } =
+    await computeVesselTripsWithClock(
+      { convexLocations: locations, activeTrips: trips },
       deps,
       { tickStartedAt }
     );
-  const { completedFacts, currentBranch } = await applyVesselTripTickWritePlan(
-    ctx as unknown as ActionCtx,
-    tripWrites
+  const tripApplyResult = await persistVesselTripsCompute(
+    tripsCompute,
+    createVesselTripTableMutations(actionCtx)
   );
-  const tickEventWrites = buildTimelineTickProjectionInput({
-    completedFacts,
-    currentBranch,
-    tickStartedAt: tickAt,
-  });
-  await applyTickEventWritesLikeOrchestrator(
-    ctx as unknown as ActionCtx,
-    tickEventWrites
+
+  const { tripsCompute: tripsForMl } = await computeVesselTripsWithClock(
+    { convexLocations: locations, activeTrips: trips },
+    deps,
+    { tickStartedAt: tickAt }
   );
+  const { mlFull, proposals } = await runUpdateVesselPredictions(
+    tripsForMl,
+    createVesselTripPredictionModelAccess(actionCtx)
+  );
+  if (proposals.length > 0) {
+    await actionCtx.runMutation(
+      internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
+      { proposals }
+    );
+  }
+
+  await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickAt);
 };
 
 const defaultEvents: TripEvents = {
@@ -572,7 +544,7 @@ type TestActionCtx = {
   ) => Promise<unknown>;
   queryCalls: Array<{ ref: unknown; args?: Record<string, unknown> }>;
   mutationCalls: Array<{ ref: unknown; args?: Record<string, unknown> }>;
-  preloadedActiveTrips?: ReadonlyArray<TickActiveTrip>;
+  preloadedActiveTrips?: ReadonlyArray<ConvexVesselTrip>;
 };
 
 type TestDepsInput = {
@@ -580,7 +552,7 @@ type TestDepsInput = {
   builtTripsByVessel: Map<string, ConvexVesselTripWithPredictions>;
   /** When set with {@link newTripsByVessel}, enables Path 3 completion fakes. */
   completedTripsByVessel?: Map<string, ConvexVesselTripWithPredictions>;
-  /** When set with {@link completedTripsByVessel}, `buildTrip` uses this row when `tripStart` is true. */
+  /** When set with {@link completedTripsByVessel}, `buildTripCore` uses this row when `tripStart` is true. */
   newTripsByVessel?: Map<string, ConvexVesselTripWithPredictions>;
   buildFailuresByVessel?: Map<string, Error>;
   callSequence?: string[];
@@ -629,6 +601,11 @@ const createTestActionCtx = (options: {
             })),
           }
         );
+      }
+
+      if (args && typeof args === "object" && "proposals" in args) {
+        options.callSequence?.push("mutation:batchUpsertProposals");
+        return { skipped: 0, inserted: 0, replaced: 0 };
       }
 
       if (
@@ -681,7 +658,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `computeOrchestratorTripWrites`
+ * @returns Dependency bag for `computeVesselTripsWithClock` in sequencing tests
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =
@@ -709,15 +686,14 @@ const createDeps = (input: TestDepsInput) => {
 
       return existingTrip;
     },
-    buildTrip: async (
+    buildTripCore: async (
       currLocation: ConvexVesselLocation,
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
       _events: TripEvents,
       _shouldRunPredictionFallback: boolean,
-      _adapters: unknown,
-      _predictionModelAccess: unknown
-    ): Promise<ConvexVesselTripWithPredictions> => {
+      _adapters: unknown
+    ): Promise<BuildTripCoreResult> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
       const failure = input.buildFailuresByVessel?.get(
         currLocation.VesselAbbrev
@@ -726,8 +702,9 @@ const createDeps = (input: TestDepsInput) => {
         throw failure;
       }
 
-      // Path 3: `processCompletedTrips` calls `buildTrip` with `tripStart: true` for
+      // Path 3: `processCompletedTrips` calls `buildTripCore` with `tripStart: true` for
       // the replacement active row — resolve from `newTripsByVessel`, not `builtTripsByVessel`.
+      let withFinalSchedule: ConvexVesselTripWithPredictions;
       if (useCompletionMaps && tripStart) {
         const replacement = input.newTripsByVessel?.get(
           currLocation.VesselAbbrev
@@ -738,15 +715,27 @@ const createDeps = (input: TestDepsInput) => {
           );
         }
 
-        return replacement;
+        withFinalSchedule = replacement;
+      } else {
+        const builtTrip = input.builtTripsByVessel.get(
+          currLocation.VesselAbbrev
+        );
+        if (!builtTrip) {
+          throw new Error(
+            `Missing built trip for ${currLocation.VesselAbbrev}`
+          );
+        }
+        withFinalSchedule = builtTrip;
       }
 
-      const builtTrip = input.builtTripsByVessel.get(currLocation.VesselAbbrev);
-      if (!builtTrip) {
-        throw new Error(`Missing built trip for ${currLocation.VesselAbbrev}`);
-      }
-
-      return builtTrip;
+      return {
+        withFinalSchedule,
+        gates: {
+          shouldAttemptAtDockPredictions: false,
+          shouldAttemptAtSeaPredictions: false,
+          didJustLeaveDock: false,
+        },
+      };
     },
     buildTripAdapters: {
       resolveEffectiveLocation: async (location: ConvexVesselLocation) =>
@@ -756,7 +745,6 @@ const createDeps = (input: TestDepsInput) => {
         _existingTrip: ConvexVesselTripWithPredictions | undefined
       ) => baseTrip,
     },
-    predictionModelAccess: noopPredictionModelAccess,
     detectTripEvents: (
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       currLocation: ConvexVesselLocation
@@ -844,20 +832,14 @@ const makeLocation = (
 });
 
 /**
- * Build a test vessel trip with sensible defaults.
- *
- * @param overrides - Scenario-specific field overrides
- * @returns Concrete trip payload for tests
- */
-/**
  * Storage-native active trip (no joined ML fields) for tick contract tests.
  *
  * @param overrides - Stored-column overrides only
- * @returns {@link TickActiveTrip} row shape
+ * @returns {@link ConvexVesselTrip} row shape
  */
 const makeStorageTrip = (
-  overrides: Partial<TickActiveTrip> = {}
-): TickActiveTrip =>
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip =>
   ({
     ...makeTrip({
       AtDockDepartCurr: undefined,
@@ -867,8 +849,14 @@ const makeStorageTrip = (
       AtSeaDepartNext: undefined,
       ...overrides,
     }),
-  }) as TickActiveTrip;
+  }) as ConvexVesselTrip;
 
+/**
+ * Build a test vessel trip with sensible defaults.
+ *
+ * @param overrides - Scenario-specific field overrides
+ * @returns Concrete trip payload for tests
+ */
 const makeTrip = (
   overrides: Partial<ConvexVesselTripWithPredictions> = {}
 ): ConvexVesselTripWithPredictions => ({
