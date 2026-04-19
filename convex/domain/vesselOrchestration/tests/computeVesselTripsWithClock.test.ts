@@ -10,8 +10,8 @@ import type { ScheduledSegmentLookup } from "../updateVesselTrips/continuity/res
 import { createDefaultProcessVesselTripsDeps } from "../updateVesselTrips/processTick/defaultProcessVesselTripsDeps";
 
 const stubLookup: ScheduledSegmentLookup = {
-  getScheduledDepartureEventBySegmentKey: async () => null,
-  getScheduledDockEventsForSailingDay: async () => [],
+  getScheduledDepartureEventBySegmentKey: () => null,
+  getScheduledDockEventsForSailingDay: () => [],
 };
 
 describe("computeVesselTripsWithClock", () => {

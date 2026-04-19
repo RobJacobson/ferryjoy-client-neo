@@ -168,3 +168,27 @@ export const getSailingDay = (utcDate: Date): string => {
 
   return pacificDateStr;
 };
+
+/**
+ * Shift a Pacific sailing calendar day string (`YYYY-MM-DD`) by a whole number
+ * of calendar days. Uses noon UTC anchors so DST boundaries do not flip the
+ * formatted Pacific date unexpectedly.
+ *
+ * @param ymd - Date string in `YYYY-MM-DD` form (e.g. from {@link getSailingDay})
+ * @param deltaDays - Whole days to add (negative to subtract)
+ */
+export const addDaysToYyyyMmDd = (ymd: string, deltaDays: number): string => {
+  const parts = ymd.split("-").map(Number);
+  const y = parts[0] ?? 0;
+  const m = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const anchor = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  anchor.setUTCDate(anchor.getUTCDate() + deltaDays);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(anchor);
+};

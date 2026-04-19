@@ -62,7 +62,7 @@ export const buildAppendFinalSchedule =
     }
 
     const scheduledEvent =
-      await lookup.getScheduledDepartureEventBySegmentKey(segmentKey);
+      lookup.getScheduledDepartureEventBySegmentKey(segmentKey);
     if (!scheduledEvent) {
       return {
         ...baseTrip,
@@ -72,7 +72,7 @@ export const buildAppendFinalSchedule =
       };
     }
 
-    const sameDayEvents = await lookup.getScheduledDockEventsForSailingDay({
+    const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
       vesselAbbrev: scheduledEvent.VesselAbbrev,
       sailingDay: scheduledEvent.SailingDay,
     });

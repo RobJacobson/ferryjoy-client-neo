@@ -22,11 +22,11 @@ import type { DockedScheduledSegmentSource } from "./types";
 export type ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: (
     segmentKey: string
-  ) => Promise<ConvexScheduledDockEvent | null>;
+  ) => ConvexScheduledDockEvent | null;
   getScheduledDockEventsForSailingDay: (args: {
     vesselAbbrev: string;
     sailingDay: string;
-  }) => Promise<ConvexScheduledDockEvent[]>;
+  }) => ConvexScheduledDockEvent[];
 };
 
 type ExistingTripContinuity = {
@@ -53,21 +53,21 @@ export type DockedScheduledSegmentResolution = {
  * after a known departure; otherwise returns null so callers use raw feed
  * fields.
  *
- * @param lookup - Internal schedule query adapters
+ * @param lookup - Schedule rows (in-memory snapshot or test double)
  * @param args - Vessel, terminal, and optional prior-trip hints
  * @returns Segment plus provenance, or null when no continuity match exists
  */
-export const resolveDockedScheduledSegment = async (
+export const resolveDockedScheduledSegment = (
   lookup: ScheduledSegmentLookup,
   args: ResolveDockedScheduledSegmentArgs
-): Promise<DockedScheduledSegmentResolution | null> => {
+): DockedScheduledSegmentResolution | null => {
   if (args.existingTrip?.NextScheduleKey) {
-    const exactNextEvent = await lookup.getScheduledDepartureEventBySegmentKey(
+    const exactNextEvent = lookup.getScheduledDepartureEventBySegmentKey(
       args.existingTrip.NextScheduleKey
     );
 
     if (exactNextEvent) {
-      const sameDayEvents = await lookup.getScheduledDockEventsForSailingDay({
+      const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
         vesselAbbrev: exactNextEvent.VesselAbbrev,
         sailingDay: exactNextEvent.SailingDay,
       });
@@ -92,7 +92,7 @@ export const resolveDockedScheduledSegment = async (
     const sailingDay = getSailingDay(
       new Date(args.existingTrip.ScheduledDeparture)
     );
-    const sameDayEvents = await lookup.getScheduledDockEventsForSailingDay({
+    const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
       vesselAbbrev: args.vesselAbbrev,
       sailingDay,
     });

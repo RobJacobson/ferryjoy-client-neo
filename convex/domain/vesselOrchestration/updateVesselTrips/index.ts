@@ -1,59 +1,30 @@
 /**
- * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick
- * (`processTick/` / `computeVesselTripsBundle`), continuity, read helpers,
- * and re-exports for orchestrator concerns. See `README.md` and
- * `../architecture.md` §10.
+ * Public entry for **updateVesselTrips** symbols consumed by the orchestrator,
+ * `computeVesselTripsWithClock`, and tests.
  *
- * **updateVesselPredictions** runs `applyVesselPredictions` after trip mutations
- * (orchestrator `functions/vesselOrchestrator`).
- * **updateTimeline** is `buildTimelineTickProjectionInput` under
- * `domain/vesselOrchestration/updateTimeline/`.
+ * **Imports:** Prefer this module for the exports below; import peer concerns from
+ * their own roots (`updateTimeline`, `updateVesselPredictions`) or leaf paths under
+ * this folder when you need something not listed here.
  *
- * Production callers use `computeVesselTripsWithClock`
- * (`domain/vesselOrchestration`) with `computeVesselTripsBundle`,
- * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
- * `functions/vesselOrchestrator/vesselOrchestratorConvexBindings.ts`.
- * **updateTimeline** and **updateVesselPredictions** symbols are exported here
- * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
- * trip branch composes with); canonical imports for those peers remain their own
- * `index.ts` files—this is not a barrel to re-export “everything.”
- * Tests can inject their own dependencies directly.
- *
- * **Imports:** Callers should take **only the symbols they need** from this entry;
- * do not treat it as “import the whole module” if a narrower peer import suffices.
- *
- * **Peer façade for `functions/vesselOrchestrator`:** `createDefaultProcessVesselTripsDeps`,
- * `ScheduledSegmentLookup`, `TripEvents` (types), and tick symbols below—import this
- * `index`, not deep leaf paths. Some symbols are also re-exported for
- * `functions/vesselTrips` tests so they share the same peer contract as production
- * callers; if this surface grows unwieldy, revisit Step H (engineering memo) with a
- * submodule façade rather than deep imports.
+ * See `README.md` and `../architecture.md` §10.
  */
 
-export {
-  type BuildTimelineTickProjectionInputArgs,
-  buildTimelineTickProjectionInput,
-  type TickEventWrites,
-  type TimelineTickProjectionInput,
-} from "domain/vesselOrchestration/updateTimeline";
-export {
-  applyVesselPredictions,
-  stripTripPredictionsForStorage,
-  type VesselPredictionGates,
-  type VesselTripCoreProposal,
-} from "domain/vesselOrchestration/updateVesselPredictions";
-export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
-  type ProcessVesselTripsOptions,
 } from "./processTick/processVesselTrips";
-export type { VesselTripsTickResult } from "./processTick/tickEnvelope";
+export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
+export { buildScheduleSnapshotQueryArgs } from "./snapshot/buildScheduleSnapshotQueryArgs";
+export { createScheduledSegmentLookupFromSnapshot } from "./snapshot/createScheduledSegmentLookupFromSnapshot";
+export { scheduleSnapshotCompositeKey } from "./snapshot/scheduleSnapshotCompositeKey";
+export type { ScheduleSnapshot } from "./snapshot/scheduleSnapshotTypes";
 export {
-  computeShouldRunPredictionFallback,
-  PREDICTION_FALLBACK_WINDOW_SECONDS,
-} from "./processTick/tickPredictionPolicy";
+  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
+  MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS,
+  MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
+  MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
+} from "./snapshot/scheduleSnapshotLimits";
 export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export {
   type ProcessCompletedTripsDeps,
@@ -62,7 +33,5 @@ export {
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
   ActiveTripsBranch,
-  PendingLeaveDockEffect,
   VesselTripsComputeBundle,
 } from "./tripLifecycle/vesselTripsComputeBundle";
-export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";

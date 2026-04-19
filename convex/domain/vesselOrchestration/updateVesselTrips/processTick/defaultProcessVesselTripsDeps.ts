@@ -4,8 +4,8 @@
  * (`domain/vesselOrchestration`) as wired from `updateVesselOrchestrator`.
  *
  * Composes lifecycle builders and schedule-backed trip adapters from a
- * {@link ScheduledSegmentLookup} supplied by the functions layer (Convex
- * `runQuery` wiring). ML reads are **not** included here; the orchestrator passes
+ * {@link ScheduledSegmentLookup} supplied by the functions layer (prefetched
+ * schedule snapshot for production). ML reads are **not** included here; the orchestrator passes
  * model access only to **updateVesselPredictions**.
  */
 

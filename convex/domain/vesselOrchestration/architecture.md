@@ -238,7 +238,7 @@ What it means:
 
 Cron-driven trip lifecycle for one tick: detection, **`buildTripCore`** (orchestrator) or `buildTrip` (composer), completed vs current
 branches, equality, ML appenders (predictions phase on orchestrator path), and strip-for-storage. Wired by
-`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`createScheduledSegmentLookup`; `createVesselTripPredictionModelAccess` only for **updateVesselPredictions**).
+`updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`getScheduleSnapshotForTick` + `createScheduledSegmentLookupFromSnapshot` for **ScheduledSegmentLookup**; `createVesselTripPredictionModelAccess` only for **updateVesselPredictions**).
 
 - `detectTripEvents.ts` — Per-vessel event flags from existing trip + location.
 - `tripEventTypes.ts` — Shared event bundle type.
@@ -256,12 +256,17 @@ branches, equality, ML appenders (predictions phase on orchestrator path), and s
 
 Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters.ts`**.
 
+## `updateVesselTrips/snapshot/` (bulk schedule snapshot for orchestrator ticks)
+
+- `buildScheduleSnapshotQueryArgs.ts`, `scheduleSnapshotLimits.ts`, `scheduleSnapshotTypes.ts`, `scheduleSnapshotCompositeKey.ts` — bounded args for **`getScheduleSnapshotForTick`**.
+- `createScheduledSegmentLookupFromSnapshot.ts` — pure **sync** **`ScheduledSegmentLookup`** from snapshot POJOs.
+
 ## `updateVesselTrips/continuity/` (docked identity continuity logic)
 
 - `resolveEffectiveDockedLocation.ts`
   - Orchestrates docked effective identity decision.
 - `resolveDockedScheduledSegment.ts`
-  - Schedule-backed continuity fallback resolution.
+  - Schedule-backed continuity fallback resolution (**sync** lookup).
 - `types.ts`
   - Continuity source/provenance type.
 
@@ -275,7 +280,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports **updateTimeline** / **updateVesselPredictions** symbols, `computeVesselTripTick`, and tick-related types.
+The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports tick pipeline symbols, schedule snapshot helpers (`buildScheduleSnapshotQueryArgs`, `createScheduledSegmentLookupFromSnapshot`, caps), and related types—see that file for the current list.
 
 ## `updateVesselTrips/read/` (query-time enrichment)
 
@@ -295,15 +300,13 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `updateVesselTrips/`
 
-- `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup)` bundles default **`buildTripCore`** / `buildTripAdapters` for the orchestrator (`lookup` from `createScheduledSegmentLookup`). **`createVesselTripPredictionModelAccess`** is passed only to **updateVesselPredictions** in `actions.ts`.
-- `index.ts` — Re-exports timeline/prediction types, `computeVesselTripTick`, and tick adapter types (see file).
+- `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup)` bundles default **`buildTripCore`** / `buildTripAdapters` for the orchestrator (`lookup` from **`createScheduledSegmentLookupFromSnapshot`** after **`getScheduleSnapshotForTick`**). **`createVesselTripPredictionModelAccess`** is passed only to **updateVesselPredictions** in `actions.ts`.
+- `index.ts` — Re-exports tick pipeline and schedule snapshot symbols (see file).
 
 ## Functions layer tied directly to the trip domain
 
 - `convex/functions/vesselOrchestrator/actions.ts`
-  - `updateVesselOrchestrator` — WSF fetch, read model, sequential `orchestratorPipelines` phases.
-- `convex/functions/vesselOrchestrator/orchestratorPipelines.ts`
-  - `updateVesselTrips`, `updateVesselPredictions`, `updateVesselTimeline`; `createScheduledSegmentLookup` builds `ScheduledSegmentLookup` from internal `eventsScheduled` queries (default trip deps).
+  - `updateVesselOrchestrator` — WSF fetch, read model (`getOrchestratorModelData`), location bulk upsert, **`getScheduleSnapshotForTick`** + shared **`ProcessVesselTripsDeps`**, then **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (no separate `orchestratorPipelines.ts` in this layout).
 - `convex/functions/predictions/createVesselTripPredictionModelAccess.ts`
   - `createVesselTripPredictionModelAccess` builds `VesselTripPredictionModelAccess` from `ctx.runQuery` to production model-parameter queries (for **updateVesselPredictions** on the orchestrator path).
 - `convex/functions/vesselTrips/queries.ts`

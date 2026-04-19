@@ -78,12 +78,12 @@ Topics from design review that should survive as **intent**, not only as impleme
 3. **`updateVesselTrips`** — Calls **`computeVesselTripsWithClock`** (domain), which wraps **`computeVesselTripsBundle`**. That path:
    - pairs each location with an active trip row,
    - **`detectTripEvents`**, splits completed vs current transitions,
-   - **`processCompletedTrips`** / **`processCurrentTrips`** using injected **`buildTripCore`**, **`buildCompletedTrip`**, **`buildTripAdapters`** from **`createDefaultProcessVesselTripsDeps`**, where adapters are backed by **`ScheduledSegmentLookup`** — **Convex `runQuery` per sailing-day / segment** (`createScheduledSegmentLookup` in `utils.ts`).
+   - **`processCompletedTrips`** / **`processCurrentTrips`** using injected **`buildTripCore`**, **`buildCompletedTrip`**, **`buildTripAdapters`** from **`createDefaultProcessVesselTripsDeps`**, where adapters are backed by **`ScheduledSegmentLookup`** — **snapshot-backed** in production: one internal **`getScheduleSnapshotForTick`** query per tick, then **`createScheduledSegmentLookupFromSnapshot`** (sync in-memory lookups; no per-segment `runQuery` from the action).
    - Produces a **`VesselTripsComputeBundle`** (handoffs + active branch + pending timeline messages).
 
-   Then **`persistVesselTripsCompute`** (domain `orchestratorTick/`) builds **`buildVesselTripsExecutionPayloads`**, strips predictions for storage, and drives **mutation-shaped** APIs: **`completeAndStartNewTrip`**, **`upsertVesselTripsBatch`**, **`setDepartNextActualsForMostRecentCompletedTrip`**.
+   Then **`persistVesselTripWriteSet`** (domain `orchestratorTick/`) uses **`buildVesselTripTickWriteSetFromBundle`**, strips predictions for storage, and drives trip-table mutations: **`completeAndStartNewTrip`**, **`upsertVesselTripsBatch`**, **`setDepartNextActualsForMostRecentCompletedTrip`**.
 
-   Returns **`tripApplyResult: TripLifecycleApplyOutcome`** (timeline-oriented) and **`tickStartedAt`** from the compute wrapper.
+   Returns **`tripApplyResult: TripLifecycleApplyOutcome`** (timeline-oriented); **`tickStartedAt`** is owned by **`updateVesselOrchestrator`** (Step 1).
 
 4. **`updateVesselPredictions`** — **Recomputes** the same trip bundle via **`computeVesselTripsWithClock`** (isolation), then ML overlay + proposal upserts. Still **coupled conceptually** to the same bundle shape and trip-domain types.
 

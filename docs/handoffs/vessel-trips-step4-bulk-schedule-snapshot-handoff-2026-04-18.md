@@ -7,41 +7,41 @@
 
 ## Purpose
 
-Replace **per-call `runQuery` schedule lookups** in the trip tick hot path with **one (or few) bounded internal queries** that load a **schedule snapshot** for the tick, then **pure in-memory resolution** (slicing / indexing) inside domain—so `computeVesselTripsBundle` / `createDefaultProcessVesselTripsDeps` no longer depend on **`ScheduledSegmentLookup`** as a bag of async Convex callbacks for every segment.
+Replace **per-segment `runQuery` schedule calls from the action** with **one bounded internal query** (`getScheduleSnapshotForTick`) that loads a **schedule snapshot**, then a **sync** **`ScheduledSegmentLookup`** from **`createScheduledSegmentLookupFromSnapshot`** (in-memory maps; no Convex I/O in domain).
 
 This matches memo **Plan A**; document **Plan B** (narrow `ScheduleReadPort`) if production size or freshness forces a rollback-style adapter.
 
+**Status (2026-04-18):** Implemented — `updateVesselTrips/snapshot/` (`ScheduleSnapshot`, `buildScheduleSnapshotQueryArgs`, `createScheduledSegmentLookupFromSnapshot`, caps), **`getScheduleSnapshotForTick`** in `vesselOrchestrator/queries.ts`, **sync** `ScheduledSegmentLookup`, shared **`tripProcessDeps`** for **`updateVesselTrips`** and **`updateVesselPredictions`**, snapshot size/duration logging (omit byte length when payload &gt; 400k).
+
 ## Goal
 
-- Add **`internal` query(s)** (or reuse existing queries with a clear contract) that return a **size-bounded** snapshot for the relevant **sailing day / window** and vessel/route scope used by trip processing.
-- In **`updateVesselOrchestrator`** / **`actions.ts`**, **`ctx.runQuery` the snapshot once per tick** (after `tickStartedAt`, alongside or after locations as the team agrees), and pass **plain data** into the trip compute path (e.g. new field on deps, or a dedicated argument threaded into **`createDefaultProcessVesselTripsDeps`** / adapters).
-- Replace **`createScheduledSegmentLookup`** usage for the **default orchestrator trip deps** with a **snapshot-backed implementation** of the same **logical** operations (segment key → departure event, sailing-day dock events, etc.) via **in-memory structures** built from the snapshot.
-- **Observability:** log or metric **snapshot payload size** and query duration in dev/staging (per memo mitigation).
+- **`getScheduleSnapshotForTick`** internal query returns bounded **`departuresBySegmentKey`** + **`sameDayEventsByCompositeKey`** (see query JSDoc for Plan B and internal read cost).
+- **`updateVesselOrchestrator`** runs **`buildScheduleSnapshotQueryArgs`**, **`runQuery` once** after **`updateVesselLocations`**, builds **`tripProcessDeps`** once, passes **`tripDeps`** into trips and predictions.
+- **`ScheduledSegmentLookup`** is **sync** (no Promises); domain continuity uses **`createScheduledSegmentLookupFromSnapshot`** only.
 
 ## Non-goals (this step)
 
 - **No** `runUpdateVesselTrips` rename or **`updateVesselTrips/`** barrel collapse (Step 5).
 - **No** removal of **`TripLifecycleApplyOutcome`** / timeline coupling (Step 6).
 - **No** full redesign of **`updateVesselPredictions`** beyond what naturally shares the same schedule data.
-- **No** requirement to delete **`createScheduledSegmentLookup`** on day one if tests still need it—prefer **feature parity first**, then delete dead code once snapshot path is default and green.
 
 ## Current landmarks (read first)
 
 | Area | Location |
 |------|----------|
-| Orchestrator wiring | `convex/functions/vesselOrchestrator/actions.ts` — `tripDepsForOrchestrator` uses **`createDefaultProcessVesselTripsDeps(createScheduledSegmentLookup(ctx))`**. |
-| Lookup factory | `convex/functions/vesselOrchestrator/utils.ts` — **`createScheduledSegmentLookup`** wraps `internal.functions.events.eventsScheduled.queries` (`getScheduledDepartureEventBySegmentKey`, `getScheduledDockEventsForSailingDay`). |
-| Domain interface | `convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts` — **`ScheduledSegmentLookup`** type. |
+| Snapshot domain | `convex/domain/vesselOrchestration/updateVesselTrips/snapshot/` — query args builder, limits, **`createScheduledSegmentLookupFromSnapshot`**. |
+| Internal query | `convex/functions/vesselOrchestrator/queries.ts` — **`getScheduleSnapshotForTick`**. |
+| Orchestrator | `convex/functions/vesselOrchestrator/actions.ts` — snapshot after locations; **`tripProcessDeps`** into **`updateVesselTrips`** / **`updateVesselPredictions`**. |
+| Bindings | `convex/functions/vesselOrchestrator/utils.ts` — **`createVesselOrchestratorConvexBindings`** (mutations + prediction access only; schedule lookup removed). |
+| Domain interface | `convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts` — **sync** **`ScheduledSegmentLookup`**. |
 | Deps | `convex/domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.ts` — **`createDefaultProcessVesselTripsDeps(lookup)`**. |
-| Predictions path | Same bundle recompute uses the same deps pattern; ensure **one snapshot** can serve **both** trip and predictions passes if they share schedule reads, or document intentional duplication. |
+| Barrel | `convex/domain/vesselOrchestration/updateVesselTrips/index.ts` — re-exports snapshot symbols for `functions` façade. |
 
-## Suggested implementation outline
+## Implementation notes (shipped)
 
-1. **Define snapshot shape** — Serializable POJO(s) that cover what **`ScheduledSegmentLookup`** methods return today, indexed for O(1) or cheap lookup by segment key and `(vesselAbbrev, sailingDay)`.
-2. **Internal query** — Implement **`getScheduleSnapshotForTick`** (name TBD): args = bounded window + identities from orchestrator snapshot; validate read limits in code review.
-3. **Snapshot lookup adapter** — Implement **`createScheduledSegmentLookupFromSnapshot(snapshot)`** (pure) returning **`ScheduledSegmentLookup`** with **sync** methods that read arrays/maps (no `runQuery` inside domain). Wire **`actions.ts`** to fetch snapshot once and pass into this factory when building **`ProcessVesselTripsDeps`**.
-4. **Tests** — Domain unit tests for pure slicing; orchestrator/tick tests with **stub snapshot**; optional parity: same fixture through old callback lookup vs snapshot lookup (golden or diff).
-5. **Plan B** — Short markdown note in-repo (or comment on query) describing the **minimal adapter interface** if bulk fetch is reverted.
+1. **Caps** — `scheduleSnapshotLimits.ts`; args validated in **`getScheduleSnapshotForTick`** handler.
+2. **Tests** — `snapshot/tests/createScheduledSegmentLookupFromSnapshot.test.ts`, `buildScheduleSnapshotQueryArgs.test.ts`; continuity/trip tests use sync lookup stubs.
+3. **Removed** — **`createScheduledSegmentLookup`** from **`utils.ts`** (no longer on the orchestrator hot path).
 
 ## Acceptance criteria
 

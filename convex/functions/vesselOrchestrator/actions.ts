@@ -15,7 +15,12 @@ import {
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/orchestratorTick";
 import type { TripLifecycleApplyOutcome } from "domain/vesselOrchestration/updateTimeline";
-import { createDefaultProcessVesselTripsDeps } from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  buildScheduleSnapshotQueryArgs,
+  createDefaultProcessVesselTripsDeps,
+  createScheduledSegmentLookupFromSnapshot,
+  type ProcessVesselTripsDeps,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -23,20 +28,7 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
-import {
-  createScheduledSegmentLookup,
-  createVesselOrchestratorConvexBindings,
-} from "./utils";
-
-/**
- * Builds trip-processing deps for the orchestrator: schedule lookups from Convex
- * queries plus default lifecycle builders.
- *
- * @param ctx - Action context used only to wire `runQuery` for scheduled events
- * @returns Dependency bag for {@link computeVesselTripsWithClock}
- */
-const tripDepsForOrchestrator = (ctx: ActionCtx) =>
-  createDefaultProcessVesselTripsDeps(createScheduledSegmentLookup(ctx));
+import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, then run
@@ -75,12 +67,44 @@ export const updateVesselOrchestrator = internalAction({
         terminalsIdentity
       );
 
+      const scheduleSnapshotQueryStartedAt = Date.now();
+      const scheduleQueryArgs = buildScheduleSnapshotQueryArgs(
+        vesselsIdentity,
+        activeTrips,
+        convexLocations,
+        tickStartedAt
+      );
+      const scheduleSnapshot = await ctx.runQuery(
+        internal.functions.vesselOrchestrator.queries
+          .getScheduleSnapshotForTick,
+        scheduleQueryArgs
+      );
+      const scheduleSnapshotQueryMs =
+        Date.now() - scheduleSnapshotQueryStartedAt;
+      const snapshotJsonSize = JSON.stringify(scheduleSnapshot).length;
+      const SNAPSHOT_LOG_MAX_BYTES = 400_000;
+      if (snapshotJsonSize <= SNAPSHOT_LOG_MAX_BYTES) {
+        console.log(
+          `[updateVesselOrchestrator] scheduleSnapshot bytes=${snapshotJsonSize} durationMs=${scheduleSnapshotQueryMs}`
+        );
+      } else {
+        console.log(
+          `[updateVesselOrchestrator] scheduleSnapshot bytes=(omitted,>${SNAPSHOT_LOG_MAX_BYTES}) durationMs=${scheduleSnapshotQueryMs}`
+        );
+      }
+
+      const tripProcessDeps: ProcessVesselTripsDeps =
+        createDefaultProcessVesselTripsDeps(
+          createScheduledSegmentLookupFromSnapshot(scheduleSnapshot)
+        );
+
       // Step 2: Trip compute + persist active/completed vessel trip rows.
       const { tripApplyResult } = await updateVesselTrips(
         ctx,
         convexLocations,
         activeTrips,
-        tickStartedAt
+        tickStartedAt,
+        tripProcessDeps
       );
 
       // Step 3: Trip recompute for ML, prediction proposals upsert, ML overlay.
@@ -88,7 +112,8 @@ export const updateVesselOrchestrator = internalAction({
         ctx,
         convexLocations,
         activeTrips,
-        tickStartedAt
+        tickStartedAt,
+        tripProcessDeps
       );
 
       // Step 4: Timeline dock writes → `eventsActual` / `eventsPredicted`.
@@ -134,20 +159,22 @@ export const updateVesselLocations = async (
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
  * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
+ * @param tripDeps - Shared trip compute deps (same snapshot-backed schedule lookup as predictions)
  * @returns Lifecycle apply outcome for timeline projection
  */
 export const updateVesselTrips = async (
   ctx: ActionCtx,
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  tickStartedAt: number
+  tickStartedAt: number,
+  tripDeps: ProcessVesselTripsDeps
 ): Promise<{
   tripApplyResult: TripLifecycleApplyOutcome;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
   const { tripsCompute } = await computeVesselTripsWithClock(
     { convexLocations, activeTrips },
-    tripDepsForOrchestrator(ctx),
+    tripDeps,
     { tickStartedAt }
   );
   const tripApplyResult = await persistVesselTripWriteSet(
@@ -167,6 +194,7 @@ export const updateVesselTrips = async (
  * @param convexLocations - Same snapshot as the trips step
  * @param activeTrips - Same preloaded rows as the trips step
  * @param tickStartedAt - Clock anchor shared with the trips compute
+ * @param tripDeps - Same {@link ProcessVesselTripsDeps} as {@link updateVesselTrips}
  * @returns Full ML overlay (`TripLifecycleApplyOutcome`) for
  *   {@link updateVesselTimeline}
  */
@@ -176,12 +204,13 @@ export const updateVesselPredictions = async (
   activeTrips: ReadonlyArray<
     ConvexVesselTrip | ConvexVesselTripWithPredictions
   >,
-  tickStartedAt: number
+  tickStartedAt: number,
+  tripDeps: ProcessVesselTripsDeps
 ): Promise<TripLifecycleApplyOutcome> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
   const { tripsCompute } = await computeVesselTripsWithClock(
     { convexLocations, activeTrips },
-    tripDepsForOrchestrator(ctx),
+    tripDeps,
     { tickStartedAt }
   );
   const { proposals, mlFull } = await runUpdateVesselPredictions(
