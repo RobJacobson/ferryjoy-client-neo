@@ -7,6 +7,7 @@ import type { PredictionType } from "functions/predictions/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type {
   ConvexPrediction,
+  ConvexJoinedTripPrediction,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 
@@ -32,16 +33,25 @@ export const vesselTripPredictionProposalsFromMlTrip = (
 
   for (const field of PREDICTION_FIELD_NAMES) {
     const raw = trip[field];
-    if (raw === undefined) {
+    if (!isFullPrediction(raw)) {
       continue;
     }
     proposals.push({
       VesselAbbrev: trip.VesselAbbrev,
       TripKey: trip.TripKey,
       PredictionType: field,
-      prediction: raw as ConvexPrediction,
+      prediction: raw,
     });
   }
 
   return proposals;
 };
+
+const isFullPrediction = (
+  value: ConvexPrediction | ConvexJoinedTripPrediction | undefined
+): value is ConvexPrediction =>
+  value !== undefined &&
+  "MinTime" in value &&
+  "MaxTime" in value &&
+  "MAE" in value &&
+  "StdDev" in value;

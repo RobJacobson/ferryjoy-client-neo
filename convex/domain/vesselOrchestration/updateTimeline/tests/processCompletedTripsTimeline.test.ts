@@ -5,8 +5,6 @@
 
 import { describe, expect, it } from "bun:test";
 import { api, internal } from "_generated/api";
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
 import {
   buildTickEventWritesFromCompletedFacts,
   mergeTripApplyWithMlForTimeline,
@@ -33,16 +31,6 @@ import {
 } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-
-const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
-  loadModelForProductionPair: async () => null,
-  loadModelsForProductionPairBatch: async () =>
-    ({}) as Record<
-      ModelType,
-      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
-      | null
-    >,
-};
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -113,17 +101,21 @@ describe("processCompletedTrips", () => {
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await runUpdateVesselPredictions(
-      tripsCompute,
-      noopPredictionModelAccess
-    );
-    if (proposals.length > 0) {
+    const predictionOutput = await runUpdateVesselPredictions({
+      tickStartedAt: 0,
+      tripComputations: emptyTripsOutput(completedHandoffs).tripComputations,
+      predictionContext: {},
+    });
+    if (predictionOutput.vesselTripPredictions.length > 0) {
       await ctx.runMutation(
         internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-        { proposals }
+        { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(applyTripResult, mlFull);
+    const enriched = mergeTripApplyWithMlForTimeline(
+      applyTripResult,
+      predictionOutput.predictedTripComputations
+    );
 
     const result = buildTickEventWritesFromCompletedFacts(
       enriched.completedFacts,
@@ -231,17 +223,21 @@ describe("processCompletedTrips", () => {
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await runUpdateVesselPredictions(
-      tripsCompute,
-      noopPredictionModelAccess
-    );
-    if (proposals.length > 0) {
+    const predictionOutput = await runUpdateVesselPredictions({
+      tickStartedAt: 0,
+      tripComputations: emptyTripsOutput(completedHandoffs).tripComputations,
+      predictionContext: {},
+    });
+    if (predictionOutput.vesselTripPredictions.length > 0) {
       await ctx.runMutation(
         internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-        { proposals }
+        { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(applyTripResult, mlFull);
+    const enriched = mergeTripApplyWithMlForTimeline(
+      applyTripResult,
+      predictionOutput.predictedTripComputations
+    );
 
     const result = buildTickEventWritesFromCompletedFacts(
       enriched.completedFacts,

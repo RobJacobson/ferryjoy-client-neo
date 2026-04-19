@@ -1,193 +1,128 @@
 /**
- * Trip tick -> ML overlay (`applyVesselPredictions` on `buildTripCore` outputs only).
- *
- * - **Proposals:** derived from the computed {@link VesselTripsComputeBundle} each time (idempotent upserts).
- * - **Timeline:** merged later by `updateTimeline` using vessel/schedule keys, so the
- *   predictions pass may recompute the tick independently of the persist pass.
+ * Canonical Stage D prediction runner: consumes `tripComputations` plus a
+ * plain-data prediction context and emits proposal rows plus predicted trip
+ * handoff data.
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripPredictedEventMessage,
-  TripLifecycleApplyOutcome,
-} from "domain/vesselOrchestration/updateTimeline";
-import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
-import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type { ConvexPrediction, ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
+import type {
+  PredictedTripComputation,
+  RunUpdateVesselPredictionsInput,
+  RunUpdateVesselPredictionsOutput,
+  TripPredictionSet,
+  VesselPredictionContext,
+} from "./contracts";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
-export type VesselTripPredictionsMutationArgs = {
-  proposals: VesselTripPredictionProposal[];
-};
-
-const tripLifecycleOutcomeFromTripsCompute = (
-  tripsCompute: VesselTripsComputeBundle
-): TripLifecycleApplyOutcome => ({
-  completedFacts: [...tripsCompute.completedHandoffs],
-  currentBranch: {
-    successfulVessels: new Set(),
-    pendingActualMessages: tripsCompute.current.pendingActualMessages,
-    pendingPredictedMessages: tripsCompute.current.pendingPredictedMessages,
-  },
-});
-
-/** ML overlay for one {@link VesselTripsComputeBundle} (full compute, not persist-filtered). */
-export const buildMlOverlayFromTripsCompute = async (
-  tripsCompute: VesselTripsComputeBundle,
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<TripLifecycleApplyOutcome> =>
-  overlayMlOnTripLifecycleApply(
-    tripLifecycleOutcomeFromTripsCompute(tripsCompute),
-    predictionModelAccess
-  );
-
-export const vesselTripPredictionProposalsFromMlOverlay = (
-  mlFull: TripLifecycleApplyOutcome
-): VesselTripPredictionProposal[] => predictionRowsFromMergedApply(mlFull);
-
-export type VesselTripPredictionWrites = {
-  proposals: VesselTripPredictionProposal[];
-  mlFull: TripLifecycleApplyOutcome;
-};
+const noPredictionGates = {
+  shouldAttemptAtDockPredictions: false,
+  shouldAttemptAtSeaPredictions: false,
+  didJustLeaveDock: false,
+} as const;
 
 /**
- * Full ML overlay plus flattened prediction rows for one {@link VesselTripsComputeBundle}.
- * Domain owns how proposals are derived from the merged apply outcome.
+ * Stage C currently emits some active-upsert-only computations without gates.
+ * Those rows are not prediction-capable, so Stage D treats them as an explicit
+ * no-op compatibility case rather than inventing new prediction behavior.
  */
+const predictionGatesForComputation = (
+  computation: RunUpdateVesselPredictionsInput["tripComputations"][number]
+) => {
+  if (computation.tripCore.gates !== undefined) {
+    return computation.tripCore.gates;
+  }
+  if (computation.branch === "current" && computation.events === undefined) {
+    return noPredictionGates;
+  }
+  throw new Error(
+    `Missing prediction gates for trip computation ${computation.vesselAbbrev}:${computation.branch}`
+  );
+};
+
+const predictionModelAccessFromContext = (
+  context: VesselPredictionContext
+): VesselTripPredictionModelAccess => ({
+  loadModelForProductionPair: async (pairKey, modelType) =>
+    context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
+  loadModelsForProductionPairBatch: async (pairKey, modelTypes) =>
+    Object.fromEntries(
+      modelTypes.map((modelType) => [
+        modelType,
+        context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
+      ])
+    ) as Awaited<
+      ReturnType<VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]>
+    >,
+});
+
+const isFullPrediction = (
+  value: ConvexVesselTripWithML[keyof TripPredictionSet]
+): value is ConvexPrediction =>
+  value !== undefined &&
+  "MinTime" in value &&
+  "MaxTime" in value &&
+  "MAE" in value &&
+  "StdDev" in value;
+
+const tripPredictionSetFromTrip = (
+  trip: ConvexVesselTripWithML
+): TripPredictionSet => {
+  const predictions: TripPredictionSet = {};
+
+  if (isFullPrediction(trip.AtDockDepartCurr)) {
+    predictions.AtDockDepartCurr = trip.AtDockDepartCurr;
+  }
+  if (isFullPrediction(trip.AtDockArriveNext)) {
+    predictions.AtDockArriveNext = trip.AtDockArriveNext;
+  }
+  if (isFullPrediction(trip.AtDockDepartNext)) {
+    predictions.AtDockDepartNext = trip.AtDockDepartNext;
+  }
+  if (isFullPrediction(trip.AtSeaArriveNext)) {
+    predictions.AtSeaArriveNext = trip.AtSeaArriveNext;
+  }
+  if (isFullPrediction(trip.AtSeaDepartNext)) {
+    predictions.AtSeaDepartNext = trip.AtSeaDepartNext;
+  }
+
+  return predictions;
+};
+
+const buildPredictedTripComputation = async (
+  computation: RunUpdateVesselPredictionsInput["tripComputations"][number],
+  modelAccess: VesselTripPredictionModelAccess
+): Promise<PredictedTripComputation> => {
+  const finalPredictedTrip = await applyVesselPredictions(
+    modelAccess,
+    computation.tripCore.withFinalSchedule,
+    predictionGatesForComputation(computation)
+  );
+
+  return {
+    ...computation,
+    predictions: tripPredictionSetFromTrip(finalPredictedTrip),
+    finalPredictedTrip,
+  };
+};
+
 export const runUpdateVesselPredictions = async (
-  tripsCompute: VesselTripsComputeBundle,
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<VesselTripPredictionWrites> => {
-  const mlFull = await buildMlOverlayFromTripsCompute(
-    tripsCompute,
-    predictionModelAccess
-  );
-  return {
-    proposals: vesselTripPredictionProposalsFromMlOverlay(mlFull),
-    mlFull,
-  };
-};
-
-/** `vesselTripPredictions` batch args from a full trips compute (idempotent upsert rows). */
-export const buildVesselTripPredictionProposals = async (
-  tripsCompute: VesselTripsComputeBundle,
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<VesselTripPredictionsMutationArgs> => {
-  const { proposals } = await runUpdateVesselPredictions(
-    tripsCompute,
-    predictionModelAccess
-  );
-  return { proposals };
-};
-
-const overlayMlOnTripLifecycleApply = async (
-  applyTripResult: TripLifecycleApplyOutcome,
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<TripLifecycleApplyOutcome> => {
-  const completedFacts = await attachMlToCompletedFacts(
-    applyTripResult.completedFacts,
-    predictionModelAccess
-  );
-
-  const { actual, predicted } = await attachMlToCurrentBranchMessages(
-    applyTripResult.currentBranch.pendingActualMessages,
-    applyTripResult.currentBranch.pendingPredictedMessages,
-    predictionModelAccess
-  );
-
-  return {
-    completedFacts,
-    currentBranch: {
-      successfulVessels: applyTripResult.currentBranch.successfulVessels,
-      pendingActualMessages: actual,
-      pendingPredictedMessages: predicted,
-    },
-  };
-};
-
-const attachMlToCompletedFacts = async (
-  facts: CompletedTripBoundaryFact[],
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<CompletedTripBoundaryFact[]> =>
-  Promise.all(
-    facts.map(async (fact) => ({
-      ...fact,
-      newTrip: await applyVesselPredictions(
-        predictionModelAccess,
-        fact.newTripCore.withFinalSchedule,
-        fact.newTripCore.gates
-      ),
-    }))
-  );
-
-const attachMlToCurrentBranchMessages = async (
-  pendingActualMessages: CurrentTripActualEventMessage[],
-  pendingPredictedMessages: CurrentTripPredictedEventMessage[],
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<{
-  actual: CurrentTripActualEventMessage[];
-  predicted: CurrentTripPredictedEventMessage[];
-}> => {
-  const coreByVessel = new Map(
-    [...pendingActualMessages, ...pendingPredictedMessages].map(
-      (m) => [m.vesselAbbrev, m.tripCore] as const
+  input: RunUpdateVesselPredictionsInput
+): Promise<RunUpdateVesselPredictionsOutput> => {
+  const modelAccess = predictionModelAccessFromContext(input.predictionContext);
+  const predictedTripComputations = await Promise.all(
+    input.tripComputations.map((computation) =>
+      buildPredictedTripComputation(computation, modelAccess)
     )
   );
 
-  const mlByVessel = new Map<string, ConvexVesselTripWithML>();
-
-  await Promise.all(
-    [...coreByVessel.entries()].map(async ([vesselAbbrev, tripCore]) => {
-      const ml = await applyVesselPredictions(
-        predictionModelAccess,
-        tripCore.withFinalSchedule,
-        tripCore.gates
-      );
-      mlByVessel.set(vesselAbbrev, ml);
-    })
-  );
-
-  const requireMl = (finalProposed: ConvexVesselTripWithML | undefined) => {
-    if (finalProposed === undefined) {
-      throw new Error("Missing predicted trip for current-trip message");
-    }
-    return finalProposed;
-  };
-
   return {
-    actual: pendingActualMessages.map((m) => ({
-      ...m,
-      finalProposed: requireMl(mlByVessel.get(m.vesselAbbrev)),
-    })),
-    predicted: pendingPredictedMessages.map((m) => ({
-      ...m,
-      finalProposed: requireMl(mlByVessel.get(m.vesselAbbrev)),
-    })),
+    vesselTripPredictions: predictedTripComputations.flatMap((computation) =>
+      computation.finalPredictedTrip === undefined
+        ? []
+        : vesselTripPredictionProposalsFromMlTrip(computation.finalPredictedTrip)
+    ),
+    predictedTripComputations,
   };
-};
-
-const predictionRowsFromMergedApply = (
-  merged: TripLifecycleApplyOutcome
-): VesselTripPredictionProposal[] => {
-  const fromCompleted = merged.completedFacts.flatMap((f) =>
-    f.newTrip !== undefined
-      ? vesselTripPredictionProposalsFromMlTrip(f.newTrip)
-      : []
-  );
-  const byVessel = new Map<string, ConvexVesselTripWithML>();
-  for (const m of [
-    ...merged.currentBranch.pendingActualMessages,
-    ...merged.currentBranch.pendingPredictedMessages,
-  ]) {
-    if (m.finalProposed !== undefined) {
-      byVessel.set(m.vesselAbbrev, m.finalProposed);
-    }
-  }
-  const fromCurrent = [...byVessel.values()].flatMap((t) =>
-    vesselTripPredictionProposalsFromMlTrip(t)
-  );
-  return [...fromCompleted, ...fromCurrent];
 };

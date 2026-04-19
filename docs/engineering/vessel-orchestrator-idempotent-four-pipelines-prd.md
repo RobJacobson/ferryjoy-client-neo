@@ -1,6 +1,8 @@
 # Vessel orchestrator idempotent four-pipeline PRD
 
 **Status:** Canonical target implementation memo for the current refactor  
+**Implementation progress:** Stages A–D are implemented in tree; Stage E (timeline)
+and Stage F (cleanup) remain.  
 **Audience:** Engineers and coding agents working in
 `convex/functions/vesselOrchestrator`,
 `convex/domain/vesselOrchestration`, and adjacent Convex modules  
@@ -50,9 +52,11 @@ contracts and implementation rules.
    - It does not decide whether the tick is "worth processing."
    - Event boundaries may still affect how trips are computed.
    - Event boundaries should not decide whether the pipeline runs.
-6. `updateVesselPredictions` must stop querying Convex through domain-facing
-ports. The functions layer will preload a large prediction context blob and pass
-it in as plain data.
+6. `updateVesselPredictions` does not query Convex from domain code. The functions
+layer preloads a prediction context blob (production model parameters and related
+plain data) and passes it in as **`VesselPredictionContext`**. On the orchestrator
+path this uses a bulk internal query (e.g. **`getProductionModelParametersForTick`**)
+keyed by terminal pairs needed for the current **`tripComputations`**.
 7. Temporary internal mess is acceptable during the refactor.
    - Leaky public interfaces are not acceptable.
    - Stable public contracts are more important than elegant internal helpers.
@@ -75,9 +79,10 @@ previously monolithic orchestrator. The old code mixed:
 - "what changed?" write suppression logic
 
 The result is hard to reason about because the layers are not cleanly separated.
-The most visible symptom is that some domain functions still depend on
-function-layer query or mutation adapters, and some pipeline boundaries are
-still shaped by legacy internal bundles rather than by stable public contracts.
+Residual symptoms to burn down include timeline’s transitional merge with
+**`TripLifecycleApplyOutcome`** (Stage E) and any legacy helpers still used only
+for tests or non-orchestrator call sites (Stage F). The predictions concern on the
+orchestrator path now matches this memo: plain data in, plain data out.
 
 The desired direction is simpler:
 
@@ -376,12 +381,15 @@ export type RunUpdateVesselPredictionsOutput = {
 
 #### Notes
 
-- The prediction stage consumes trip outputs. It does not consume raw locations
-or existing trip rows directly.
-- The functions layer will preload `predictionContext` as a large blob of plain
-data. This is the preferred architecture.
-- Query-backed objects like `VesselTripPredictionModelAccess` are transitional
-and should be removed from the public boundary.
+- The prediction stage consumes **`tripComputations`** from Stage C. It does not
+consume raw locations or re-run **`runUpdateVesselTrips`**.
+- The functions layer preloads **`predictionContext`** (at minimum production
+model parameters per terminal pair) before calling domain.
+- **`VesselTripPredictionModelAccess`** is not part of the public contract. An
+internal adapter may map **`VesselPredictionContext`** onto the existing
+**`applyVesselPredictions`** API; that stays private to **`updateVesselPredictions`**.
+- Proposal rows for **`vesselTripPredictions`** are derived from full ML payloads
+only (joined/minimal shapes are skipped for persistence).
 
 ### 8.4 `runUpdateVesselTimeline`
 
@@ -413,6 +421,15 @@ export type RunUpdateVesselTimelineOutput = {
   predictedEvents: PredictedDockEventRow[];
 };
 ```
+
+#### Notes
+
+- **`RunUpdateVesselTimelineInput`** is the PRD handoff: **`tripComputations`**
+and **`predictedTripComputations`** (Stage D output), plus **`tickStartedAt`**.
+- **Current production:** **`runUpdateVesselTimeline`** also takes
+**`TripLifecycleApplyOutcome`** so the domain can merge ML onto lifecycle facts
+via **`predictedTripComputations`** (e.g. **`mergeTripApplyWithPredictedComputationsForTimeline`**).
+Stage E should collapse this to the black-box input above where possible.
 
 ---
 
@@ -510,6 +527,8 @@ This is the recommended order of work for parallel agents.
 
 ### Stage A: contract freeze
 
+**Status:** Complete.
+
 1. Add canonical public types for all four pipelines.
 2. Ensure the entry files expose only the intended public API.
 3. Update docs and references to point at these contracts.
@@ -520,6 +539,8 @@ This is the recommended order of work for parallel agents.
 - Other agents can implement to the contract without inferring architecture.
 
 ### Stage B: locations
+
+**Status:** Complete.
 
 1. Split raw WSF fetch from domain normalization.
 2. Implement `runUpdateVesselLocations(input) -> output`.
@@ -532,6 +553,8 @@ concern.
 - External fetch and domain mapping are clearly separated.
 
 ### Stage C: trips
+
+**Status:** Complete.
 
 1. Make `runUpdateVesselTrips` expose the final contract from this memo.
 2. Internally adapt legacy bundle-based code if needed.
@@ -546,6 +569,8 @@ concern.
 
 ### Stage D: predictions
 
+**Status:** Complete.
+
 1. Replace query-backed prediction access with preloaded `predictionContext`.
 2. Make predictions consume `tripComputations`.
 3. Make predictions emit only prediction rows and predicted handoff data.
@@ -557,6 +582,9 @@ concern.
 
 ### Stage E: timeline
 
+**Status:** Not complete (transitional merge with **`TripLifecycleApplyOutcome`**
+remains; see §8.4 Notes).
+
 1. Make timeline consume the emitted trip and prediction handoff data.
 2. Remove same-tick recomputation or DB re-read requirements where possible.
 
@@ -565,6 +593,8 @@ concern.
 - Timeline is a pure consumer of prior stage outputs.
 
 ### Stage F: cleanup
+
+**Status:** Not complete.
 
 1. Delete obsolete public transitional shapes.
 2. Narrow entry files.
@@ -618,10 +648,17 @@ same-tick state from scratch.
 7. Dedupe and write suppression live in the functions layer.
 8. Public imports follow folder entry boundaries.
 
+**As of Stage D:** items 1–5 and 7–8 are satisfied for the orchestrator path
+described in this memo; item 6 remains open until Stage E lands.
+
 ---
 
 ## 16. Revision history
 
+- **2026-04-19 (update):** Record Stage A–D as implemented; clarify predictions
+preload and internal ML adapter; document timeline’s transitional
+**`TripLifecycleApplyOutcome`** parameter for Stage E; add acceptance interim
+note.
 - **2026-04-19:** Initial PRD for the idempotent four-pipeline refactor. Locks
 down public interfaces, layer ownership, migration order, and coding rules for
 parallel implementation.

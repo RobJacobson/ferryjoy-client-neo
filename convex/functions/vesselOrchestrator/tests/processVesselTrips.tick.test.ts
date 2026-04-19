@@ -7,7 +7,6 @@ import { describe, expect, it } from "bun:test";
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import {
-  runUpdateVesselPredictions,
   stripTripPredictionsForStorage,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -17,9 +16,11 @@ import {
   type TripEvents,
   type VesselTripsWithClock,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { updateVesselTimeline } from "functions/vesselOrchestrator/actions";
+import {
+  updateVesselPredictions,
+  updateVesselTimeline,
+} from "functions/vesselOrchestrator/actions";
 import { persistVesselTripWriteSet } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { createVesselTripTableMutations } from "functions/vesselOrchestrator/utils";
 import type {
@@ -52,28 +53,25 @@ const runVesselTripsTick = async (
     deps,
     { tickStartedAt }
   );
+  const tripsOutput = buildTripsOutputFromTripsCompute({ tripsCompute });
   const tripApplyResult = await persistVesselTripWriteSet(
-    buildTripsOutputFromTripsCompute({ tripsCompute }),
+    tripsOutput,
     createVesselTripTableMutations(actionCtx)
   );
 
-  const { tripsCompute: tripsForMl } = await computeVesselTripsWithClock(
-    { convexLocations: locations, activeTrips: trips },
-    deps,
-    { tickStartedAt }
+  const { predictedTripComputations } = await updateVesselPredictions(
+    actionCtx,
+    tickStartedAt,
+    tripsOutput.tripComputations
   );
-  const { mlFull, proposals } = await runUpdateVesselPredictions(
-    tripsForMl,
-    createVesselTripPredictionModelAccess(actionCtx)
-  );
-  if (proposals.length > 0) {
-    await actionCtx.runMutation(
-      internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-      { proposals }
-    );
-  }
 
-  await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickStartedAt);
+  await updateVesselTimeline(
+    actionCtx,
+    tripApplyResult,
+    tripsOutput.tripComputations,
+    predictedTripComputations,
+    tickStartedAt
+  );
 };
 
 const buildTripsOutputFromTripsCompute = (
@@ -622,6 +620,10 @@ const createTestActionCtx = (options: {
     preloadedActiveTrips: options.activeTrips,
     runQuery: async (ref, args) => {
       queryCalls.push({ ref, args });
+      if (args && typeof args === "object" && "requests" in args) {
+        options.callSequence?.push("query:predictionModels");
+        return {};
+      }
       options.callSequence?.push("query:activeTrips");
       return options.tripsReturnedByQuery ?? options.activeTrips ?? [];
     },

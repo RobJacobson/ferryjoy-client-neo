@@ -5,8 +5,9 @@
  *
  * Composes lifecycle builders and schedule-backed trip adapters from a
  * {@link ScheduledSegmentLookup} supplied by the functions layer (prefetched
- * schedule snapshot for production). ML reads are **not** included here; the orchestrator passes
- * model access only to **updateVesselPredictions**.
+ * schedule snapshot for production). ML model parameters are **not** included here;
+ * **`functions/vesselOrchestrator/actions`** preloads them into **`VesselPredictionContext`**
+ * for **updateVesselPredictions**.
  */
 
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";

@@ -3,6 +3,8 @@
  */
 
 import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips";
+import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ModelType } from "domain/ml/shared/types";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type {
   ConvexPrediction,
@@ -12,8 +14,8 @@ import type {
 /**
  * Plain-data prediction preload blob expected by the Stage A public contract.
  *
- * The implementation still uses query-backed access internally today, so this
- * type freezes the target boundary without forcing Stage D behavior work here.
+ * The functions layer fills this (e.g. production model parameters keyed by
+ * terminal pair); domain receives only this POJO, not Convex query ports.
  */
 export type VesselPredictionContext = {
   vesselTripPredictions?: ReadonlyArray<{
@@ -30,6 +32,12 @@ export type VesselPredictionContext = {
     DeltaRange?: number;
     UpdatedAt?: number;
   }>;
+  productionModelsByPair?: Readonly<
+    Record<
+      string,
+      Partial<Record<ModelType, ProductionModelParameters | null>>
+    >
+  >;
 };
 
 /**

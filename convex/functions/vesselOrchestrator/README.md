@@ -16,8 +16,8 @@ it loads the read model, records one **`tickStartedAt`** (shared by trips, predi
 and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
 (live snapshot), **`getScheduleSnapshotForTick`** (bounded schedule snapshot), then
 **`updateVesselTrips`**, **`updateVesselPredictions`**, and **`updateVesselTimeline`**
-in sequence. [`utils.ts`](./utils.ts) supplies trip mutation ports and prediction
-model access—**not** a separate “phases” runner. Raw vessel locations are fetched through
+in sequence. [`utils.ts`](./utils.ts) supplies trip mutation bindings for **`persistVesselTripWriteSet`**
+(prediction model blobs are preloaded in **`actions.ts`** via **`getProductionModelParametersForTick`**). Raw vessel locations are fetched through
 `convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by
 `domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation`
 before Convex mutations run.
