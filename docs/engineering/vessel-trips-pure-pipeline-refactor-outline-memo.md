@@ -1,6 +1,6 @@
 # Vessel trips pure pipeline — refactor outline
 
-**Status:** Proposed roadmap (implementation TBD).  
+**Status:** Steps 1–7 **shipped** (2026-04-18); roadmap text below retains design intent and history. **Canonical API names** in code: `computeVesselTripsWithClock`, `computeVesselTripsBundle`, `buildTripsComputeStorageRows` → `buildVesselTripTickWriteSetFromBundle`, `persistVesselTripWriteSet`, and `functions/vesselOrchestrator/actions.ts` helpers (`updateVesselTrips`, etc.)—not the illustrative `runUpdateVesselTrips` name in §(b).  
 **Audience:** Engineers and agents refactoring `updateVesselTrips`, orchestrator actions, and related domain folders.  
 **Scope:** Trip tick semantics, persistence shape, schedule inputs, and decoupling from predictions/timeline handoff types. **Not** a full `updateVesselPredictions` redesign—that work is tracked separately; this memo’s “end state” is “trips-only purity” plus a sketch of how the orchestrator stays coherent until predictions is refactored.
 
@@ -48,7 +48,7 @@ Topics from design review that should survive as **intent**, not only as impleme
 
 ### Anti-patterns called out explicitly
 
-- **`buildVesselTripsExecutionPayloads`** — Ambiguous name; encodes **transport + strip + grouping**. Replace with **storage-shaped rows** derived from the two buckets, with strip/for-storage rules in **one** obvious place (typically the functions persistence layer).
+- **`buildTripsComputeStorageRows`** (formerly `buildVesselTripsExecutionPayloads`) — Strip + grouping into storage-shaped rows; lives in `orchestratorTick/tripsComputeStorageRows.ts` and feeds **`buildVesselTripTickWriteSetFromBundle`**.
 - **Wide `updateVesselTrips/index.ts`** — Re-exporting **`updateTimeline`** / **`updateVesselPredictions`** for “discoverability” blurs ownership; **collapse** to **`runUpdateVesselTrips`** (+ narrow type exports).
 - **Mutation-shaped domain APIs** — End state is **pure data out**; transitional mutation-oriented persistence is acceptable only until **Step 3** retires it.
 
@@ -105,7 +105,7 @@ convex/domain/vesselOrchestration/
   index.ts                   # re-exports computeVesselTripsWithClock, orchestratorTick namespace
   orchestratorTick/
     persistVesselTripsCompute.ts
-    vesselTripsExecutionPayloads.ts
+    tripsComputeStorageRows.ts          # strip + group bundle rows for write set
     materializePostTripTableWrites.ts   # predictions + timeline bridge
     ...
   updateVesselTrips/
@@ -175,7 +175,7 @@ convex/domain/vesselOrchestration/
     snapshot/                      # pure helpers to slice bulk schedule (if not inlined)
   orchestratorTick/
     persistVesselTripRows.ts       # thin: maps pure output → mutations (or lives under functions/)
-    # vesselTripsExecutionPayloads.ts — REMOVED once obsolete
+    # tripsComputeStorageRows.ts — strip/group for persist (shipped)
   computeVesselTripsWithClock.ts   # replaced or slimmed: clock owned by action
   ...
 ```
@@ -211,7 +211,7 @@ Each step should be **mergeable** and **test-backed** (parity tests, orchestrato
 ### Step 3 — Replace mutation-oriented persistence for trips
 
 - Implement **`persistVesselTripWriteSet`** (functions or thin `orchestratorTick` helper) that performs **idempotent** writes from **`VesselTripTickWriteSet`**.
-- Gradually **retire** **`buildVesselTripsExecutionPayloads`** and handoff-specific mutation sequencing once parity is proven.
+- **Done (Step 7):** Renamed strip/group helper to **`buildTripsComputeStorageRows`**; physical merge into `vesselTripTickWriteSet.ts` remains an optional follow-up.
 - **Acceptance:** Orchestrator tick tests match current behavior; **`persistVesselTripsCompute`** deleted or reduced to a shim.
 
 ### Step 4 — Bulk schedule snapshot (Plan A)
@@ -235,9 +235,9 @@ Each step should be **mergeable** and **test-backed** (parity tests, orchestrato
 
 ### Step 7 — Cleanup and documentation
 
-- Delete dead code (`vesselTripsExecutionPayloads`, obsolete bundle fields, unused “messages” on trip path).
-- Update **`architecture.md`**, orchestrator README, and **this memo** status.
-- **Acceptance:** CI green; memos point to **`runUpdateVesselTrips`** as the canonical trip tick API.
+- Rename / consolidate trip-path helpers where parity allows (e.g. **`tripsComputeStorageRows`**); do **not** remove bundle message fields until timeline contract changes.
+- Update **`architecture.md`**, orchestrator README, **this memo**, and [`imports-and-module-boundaries-memo.md`](imports-and-module-boundaries-memo.md) pointer as needed.
+- **Acceptance:** CI green; docs describe the **shipped** symbols: **`computeVesselTripsWithClock`**, **`computeVesselTripsBundle`**, **`persistVesselTripWriteSet`**, **`buildTripsComputeStorageRows`**, and **`updateVesselTrips`** in `actions.ts` (the **`runUpdateVesselTrips`** name in §(b) remains illustrative only until/if aliased in code).
 
 ---
 
@@ -250,5 +250,6 @@ Each step should be **mergeable** and **test-backed** (parity tests, orchestrato
 
 ## Revision history
 
+- **2026-04-18 (Step 7):** Status set to Steps 1–7 shipped; `vesselTripsExecutionPayloads` renamed to **`tripsComputeStorageRows`** / **`buildTripsComputeStorageRows`**; Step 7 acceptance aligned with **shipped** API names; architecture and imports memo updated.
 - **Initial:** Outline for multi-step vessel-trips pure pipeline refactor; current vs target file layout; bulk snapshot preference with Plan B; incremental steps for agents.
 - **Discussion archive:** Added §Design principles & discussion archive (layering contract, minimal inputs, tick semantics, derived sailing day, builders vs two buckets, legacy types, anti-patterns, messages/cron/timeline implication, read-model placement, cost vs semantics for snapshots).

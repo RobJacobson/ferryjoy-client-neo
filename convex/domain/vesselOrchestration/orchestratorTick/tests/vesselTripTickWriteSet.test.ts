@@ -14,9 +14,9 @@ import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/sche
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { actualDepartMsForLeaveDockEffect } from "../leaveDockActualization";
 import {
-  buildVesselTripsExecutionPayloads,
-  type VesselTripsExecutionPayload,
-} from "../vesselTripsExecutionPayloads";
+  buildTripsComputeStorageRows,
+  type TripsComputeStorageRows,
+} from "../tripsComputeStorageRows";
 import {
   buildVesselTripTickWriteSetFromBundle,
   type VesselTripTickWriteSet,
@@ -91,7 +91,7 @@ const emptyCurrent = (): ActiveTripsBranch => ({
  * payloads — must stay aligned with {@link buildVesselTripTickWriteSetFromBundle}.
  */
 const projectWriteSetFromExecutionPayload = (
-  p: VesselTripsExecutionPayload
+  p: TripsComputeStorageRows
 ): VesselTripTickWriteSet => {
   const leaveDockIntents: Array<{
     vesselAbbrev: string;
@@ -137,7 +137,7 @@ describe("buildVesselTripTickWriteSetFromBundle", () => {
       completedHandoffs: [],
       current: emptyCurrent(),
     };
-    const payload = buildVesselTripsExecutionPayloads(bundle);
+    const payload = buildTripsComputeStorageRows(bundle);
     expect(buildVesselTripTickWriteSetFromBundle(bundle)).toEqual(
       projectWriteSetFromExecutionPayload(payload)
     );
@@ -205,7 +205,7 @@ describe("buildVesselTripTickWriteSetFromBundle", () => {
     ];
 
     for (const bundle of fixtures) {
-      const payload = buildVesselTripsExecutionPayloads(bundle);
+      const payload = buildTripsComputeStorageRows(bundle);
       const writeSet = buildVesselTripTickWriteSetFromBundle(bundle);
       expect(writeSet.attemptedHandoffs.length).toBe(
         bundle.completedHandoffs.length

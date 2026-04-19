@@ -1,6 +1,7 @@
 /**
- * Pure payloads for one vessel-trips persistence pass (strip + structural grouping).
- * Convex I/O is performed via `persistVesselTripWriteSet` and {@link VesselTripTableMutations}.
+ * Strip predictions and group {@link VesselTripsComputeBundle} into storage-shaped
+ * rows for handoffs, active batch, and leave-dock effects. Convex I/O is performed
+ * via `persistVesselTripWriteSet` and {@link VesselTripTableMutations}.
  */
 
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
@@ -10,7 +11,7 @@ import type {
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 
-export type VesselTripsExecutionPayload = {
+export type TripsComputeStorageRows = {
   handoffMutations: Array<{
     completedTrip: ReturnType<typeof stripTripPredictionsForStorage>;
     newTrip: ReturnType<typeof stripTripPredictionsForStorage>;
@@ -19,9 +20,9 @@ export type VesselTripsExecutionPayload = {
   leaveDockEffects: PendingLeaveDockEffect[];
 };
 
-export const buildVesselTripsExecutionPayloads = (
+export const buildTripsComputeStorageRows = (
   tripsCompute: VesselTripsComputeBundle
-): VesselTripsExecutionPayload => ({
+): TripsComputeStorageRows => ({
   handoffMutations: tripsCompute.completedHandoffs.map((f) => ({
     completedTrip: stripTripPredictionsForStorage(f.tripToComplete),
     newTrip: stripTripPredictionsForStorage(f.newTripCore.withFinalSchedule),

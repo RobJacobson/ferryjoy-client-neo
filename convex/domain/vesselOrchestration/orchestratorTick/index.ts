@@ -22,10 +22,10 @@ export {
   type VesselTripUpsertBatchResult,
 } from "./persistVesselTripsCompute";
 export {
-  buildVesselTripsExecutionPayloads,
+  buildTripsComputeStorageRows,
   completedFactsForSuccessfulHandoffs,
-  type VesselTripsExecutionPayload,
-} from "./vesselTripsExecutionPayloads";
+  type TripsComputeStorageRows,
+} from "./tripsComputeStorageRows";
 export {
   buildVesselTripTickWriteSetFromBundle,
   type VesselTripTickWriteSet,

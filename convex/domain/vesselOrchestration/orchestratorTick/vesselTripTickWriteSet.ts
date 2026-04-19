@@ -7,7 +7,7 @@
  * POJOs.
  *
  * **Completed handoffs** — One entry per `completedHandoffs` bundle row (**attempted**
- * writes), same cardinality as `buildVesselTripsExecutionPayloads`’s
+ * writes), same cardinality as `buildTripsComputeStorageRows`’s
  * `handoffMutations`. Success is decided later in `persistVesselTripWriteSet`
  * (`Promise.allSettled`), not here.
  *
@@ -24,7 +24,7 @@
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
-import { buildVesselTripsExecutionPayloads } from "./vesselTripsExecutionPayloads";
+import { buildTripsComputeStorageRows } from "./tripsComputeStorageRows";
 
 /**
  * Storage-oriented trip writes for one orchestrator tick (two buckets + leave-dock intents).
@@ -54,12 +54,12 @@ export type VesselTripTickWriteSet = {
 
 /**
  * Builds a {@link VesselTripTickWriteSet} from the same strip/group rules as
- * {@link buildVesselTripsExecutionPayloads} (single source of truth until Step 3).
+ * {@link buildTripsComputeStorageRows}.
  */
 export const buildVesselTripTickWriteSetFromBundle = (
   tripsCompute: VesselTripsComputeBundle
 ): VesselTripTickWriteSet => {
-  const payload = buildVesselTripsExecutionPayloads(tripsCompute);
+  const payload = buildTripsComputeStorageRows(tripsCompute);
   const leaveDockIntents: Array<{
     vesselAbbrev: string;
     actualDepartMs: number;

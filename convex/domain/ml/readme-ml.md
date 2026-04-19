@@ -446,11 +446,12 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 `convex/functions/vesselOrchestrator/queries.ts`), then runs
 [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): sequential
 `vesselLocation` bulk upsert, then `updateVesselTrips`, `updateVesselPredictions`,
-and `updateVesselTimeline` (helpers such as `createScheduledSegmentLookup` live in
-[`orchestratorPipelines.ts`](../../functions/vesselOrchestrator/orchestratorPipelines.ts)).
+and `updateVesselTimeline`. Schedule snapshot + `ProcessVesselTripsDeps` are wired in
+[`actions.ts`](../../functions/vesselOrchestrator/actions.ts); Convex mutation bindings live in
+[`utils.ts`](../../functions/vesselOrchestrator/utils.ts).
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
-predicates. Per-tick trip lifecycle logic lives in `computeVesselTripTick` in
+predicates. Per-tick trip lifecycle logic lives in `computeVesselTripsBundle` in
 `convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
 (default runtime wiring: `defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and
 `createVesselTripPredictionModelAccess` composed in `actions.ts`, not a separate `runProcessVesselTripsTick` entry).

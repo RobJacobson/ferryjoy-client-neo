@@ -10,7 +10,7 @@
 import type { VesselTripPersistResult } from "domain/vesselOrchestration/tickLifecycle";
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { completedFactsForSuccessfulHandoffs } from "./vesselTripsExecutionPayloads";
+import { completedFactsForSuccessfulHandoffs } from "./tripsComputeStorageRows";
 import {
   buildVesselTripTickWriteSetFromBundle,
   type VesselTripTickWriteSet,
