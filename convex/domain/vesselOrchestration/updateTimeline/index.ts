@@ -5,13 +5,15 @@
  *
  * Stage A contracts: `contracts.ts`. Canonical domain entry is
  * {@link runUpdateVesselTimeline} (`RunUpdateVesselTimelineInput` → output).
- * {@link buildOrchestratorTimelineProjectionInput} remains for legacy call sites;
- * prefer handoff-driven `runUpdateVesselTimeline`.
+ * For `mergeTickEventWrites` / tick assemblers, use `domain/vesselOrchestration/shared`
+ * or import from `timelineEventAssembler` / `tickEventWrites` within this folder.
+ * Tests may import `orchestratorTimelineProjection` internals directly.
  */
 
 export {
   type BuildTimelineTickProjectionInputArgs,
   buildTimelineTickProjectionInput,
+  type TimelineProjectionAssembly,
 } from "./buildTimelineTickProjectionInput";
 export type {
   ActualDockEventRow,
@@ -21,23 +23,16 @@ export type {
   TimelineTripComputation,
   TimelineTripComputationPersist,
 } from "./contracts";
-export {
-  buildOrchestratorTimelineProjectionInput,
-  mergeTripApplyWithMlForTimeline,
-  runUpdateVesselTimeline,
-} from "./orchestratorTimelineProjection";
-export {
-  mergeTickEventWrites,
-  type TickEventWrites,
-  type TimelineTickProjectionInput,
+export { runUpdateVesselTimeline } from "./orchestratorTimelineProjection";
+export type {
+  TickEventWrites,
+  TimelineTickProjectionInput,
 } from "./tickEventWrites";
-export { buildTickEventWritesFromCompletedFacts } from "./timelineEventAssembler";
 export type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-  TripLifecycleApplyOutcome,
   TripTickLifecycleOutcome,
   VesselTripPersistResult,
 } from "./types";

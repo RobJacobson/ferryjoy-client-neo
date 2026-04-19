@@ -1,8 +1,8 @@
 # Vessel orchestrator idempotent four-pipeline PRD
 
 **Status:** Canonical target implementation memo for the current refactor  
-**Implementation progress:** Stages A–E are implemented in tree; Stage F (cleanup)
-remains.  
+**Implementation progress:** Stages A–F are implemented in tree (Stage F cleanup
+landed).  
 **Audience:** Engineers and coding agents working in
 `convex/functions/vesselOrchestrator`,
 `convex/domain/vesselOrchestration`, and adjacent Convex modules  
@@ -79,10 +79,11 @@ previously monolithic orchestrator. The old code mixed:
 - "what changed?" write suppression logic
 
 The result is hard to reason about because the layers are not cleanly separated.
-Residual symptoms to burn down include deprecated **`buildOrchestratorTimelineProjectionInput`**
-/ **`TripLifecycleApplyOutcome`** entry points and legacy helpers still used only
-for tests or non-orchestrator call sites (Stage F). The predictions and timeline
-concerns on the orchestrator path match this memo: plain data in, plain data out.
+The predictions and timeline concerns on the orchestrator path match this memo:
+plain data in, plain data out. Stage F removed the transitional timeline merge
+surface that was centered on **`TripLifecycleApplyOutcome`** in favor of
+handoff-driven **`mergePredictedComputationsIntoTimelineProjectionAssembly`** (see
+`updateTimeline` implementation).
 
 The desired direction is simpler:
 
@@ -597,18 +598,16 @@ only).
 
 ### Stage F: cleanup
 
-**Status:** Not complete.
+**Status:** Complete.
 
 1. Delete obsolete public transitional shapes.
 2. Narrow entry files.
 3. Remove old ports, adapters, and bundle names that no longer serve the new
 architecture.
-4. **Timeline internals (follow-up deferred from Stage E):** Collapse the
-internal lifecycle merge so **`mergeTripApplyWithPredictedComputationsForTimeline`**
-is not shaped around **`TripLifecycleApplyOutcome`** at all—Stage E intentionally
-left that bridge in place while the public **`runUpdateVesselTimeline`** contract
-was finalized; refactoring the merge to operate directly on handoff-derived
-structures is in scope for Stage F.
+4. **Timeline internals:** The ML merge is **`mergePredictedComputationsIntoTimelineProjectionAssembly`**
+on **`TimelineProjectionAssembly`** built from **`TimelineTripComputation`** handoffs,
+not **`TripLifecycleApplyOutcome`**. Deprecated **`buildOrchestratorTimelineProjectionInput`**
+was removed.
 
 ---
 
@@ -657,16 +656,17 @@ same-tick state from scratch.
 7. Dedupe and write suppression live in the functions layer.
 8. Public imports follow folder entry boundaries.
 
-**As of Stage E:** items 1–8 are satisfied for the orchestrator path described in
-this memo, aside from Stage F cleanup of deprecated timeline helpers and legacy
-names.
+Items 1–8 are satisfied for the orchestrator path described in this memo,
+including Stage F cleanup (narrower barrels, handoff-driven timeline merge).
 
 ---
 
 ## 16. Revision history
 
-- **2026-04-19:** Add Stage F item: internal timeline ML merge should eventually
-drop **`TripLifecycleApplyOutcome`** as its intermediate shape (deferred from Stage E).
+- **2026-04-19 (Stage F):** Timeline merge operates on **`TimelineProjectionAssembly`**
+from **`TimelineTripComputation`** + predictions; remove **`buildOrchestratorTimelineProjectionInput`**;
+narrow **`updateTimeline`** / root **`vesselOrchestration`** exports; **`TripLifecycleApplyOutcome`**
+remains a persist handshake type only.
 - **2026-04-19 (Stage E):** Record Stage E timeline as implemented; **`RunUpdateVesselTimelineInput`**
 may carry **`TimelineTripComputation`** rows; deprecate **`buildOrchestratorTimelineProjectionInput`**
 with **`TripLifecycleApplyOutcome`** except for legacy callers; update acceptance

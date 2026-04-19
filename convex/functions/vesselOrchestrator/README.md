@@ -44,9 +44,9 @@ helpers and/or `ctx.runMutation` with the payloads produced for that phase.
 
 Primary path: **`runUpdateVesselTimeline`** consumes **`RunUpdateVesselTimelineInput`**
 (handoffs + optional **`timelinePersist`** gates). ML merges in memory from
-**`predictedTripComputations`**; timeline does not assemble from `vesselTripPredictions`
-DB reads. Deprecated: **`buildOrchestratorTimelineProjectionInput`** with
-**`TripLifecycleApplyOutcome`** for legacy call sites. Older O5 handoff:
+**`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**
+on **`TimelineProjectionAssembly`**; timeline does not assemble from `vesselTripPredictions`
+DB reads. Older O5 handoff:
 [handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ## System Overview

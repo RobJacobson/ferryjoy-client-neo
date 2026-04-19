@@ -7,7 +7,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 ## Production call chain
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator`: bulk upsert locations → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
-2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which merges ML from **`predictedTripComputations`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads). Deprecated: **`buildOrchestratorTimelineProjectionInput(tripApplyResult, …)`** for legacy callers.
+2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which builds **`TimelineProjectionAssembly`** from **`TimelineTripComputation`** rows, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
 
 ## Canonical files (this folder)
 
@@ -18,7 +18,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 | `actualDockWritesFromTrip.ts` | Dep/arv actual dock writes from trip rows |
 | `buildTimelineTickProjectionInput.ts` | Completed + current branch merge per tick |
 | `types.ts` | DTOs shared with `processCompletedTrips` / `processCurrentTrips` |
-| `index.ts` | Barrel re-exports |
+| `index.ts` | Public barrel (`runUpdateVesselTimeline`, contracts, projection input types) |
 
 ## Imports
 

@@ -80,8 +80,13 @@ export type TripTickLifecycleOutcome = {
   currentBranch: CurrentTripLifecycleBranchResult;
 };
 
-/** Timeline / predictions consumer label (same struct as {@link VesselTripPersistResult}). */
+/**
+ * Persist / handshake label for the result of applying trip-table mutations in one
+ * tick. Timeline projection consumes orchestrator `TimelineTripComputation`
+ * handoffs; do not use this alias as the primary type for timeline ML merge (see
+ * `updateTimeline` / `TimelineProjectionAssembly`).
+ */
 export type TripLifecycleApplyOutcome = TripTickLifecycleOutcome;
 
-/** Persist / orchestrator label (same struct as {@link TripLifecycleApplyOutcome}). */
+/** Same struct as {@link TripLifecycleApplyOutcome} (functions-layer naming). */
 export type VesselTripPersistResult = TripTickLifecycleOutcome;

@@ -37,11 +37,13 @@ This is the source of truth for the target architecture:
 
 ### 2. Latest stage handoff
 
-At the time of this note, the latest handoff is:
+Use the latest stage handoff for the work under review (as of 2026-04-19,
+**Stage F** is the final cleanup stage):
 
-- [`vessel-orchestrator-stage-c-trips-handoff-2026-04-19.md`](./vessel-orchestrator-stage-c-trips-handoff-2026-04-19.md)
+- [`vessel-orchestrator-stage-f-cleanup-handoff-2026-04-19.md`](./vessel-orchestrator-stage-f-cleanup-handoff-2026-04-19.md)
 
-If a later stage handoff exists when you read this, use the latest one instead.
+Earlier stages remain useful for pipeline-specific context (e.g. Stage C trips,
+Stage E timeline).
 
 ### 3. Supporting constraints
 
@@ -50,7 +52,7 @@ If a later stage handoff exists when you read this, use the latest one instead.
 
 ## Current refactor state
 
-The refactor is being done in stages:
+The refactor was done in stages:
 
 - Stage A: contract freeze
 - Stage B: locations concern ownership
@@ -59,14 +61,9 @@ The refactor is being done in stages:
 - Stage E: timeline concern ownership
 - Stage F: cleanup
 
-What has already landed:
-
-- Stage A public contracts for all four pipelines
-- Stage B locations concern ownership move
-- Stage C handoff note prepared for the next implementation pass
-
-The main public contracts now exist and should be treated as intentionally
-frozen unless there is a strong reason to revise them.
+**As of 2026-04-19,** Stages A–F are implemented in tree (see the PRD progress
+line and **Stage F** handoff). The main public contracts should still be
+treated as intentionally frozen unless there is a strong reason to revise them.
 
 ## What you should look for in the implementation agent's plan
 
@@ -168,10 +165,7 @@ The main thing to protect is the architecture, not aesthetic perfection.
 - [convex/domain/vesselOrchestration/index.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/domain/vesselOrchestration/index.ts)
 - [convex/functions/vesselOrchestrator/actions.ts](/Users/rob/code/ferryjoy/ferryjoy-client-neo/convex/functions/vesselOrchestrator/actions.ts)
 - [docs/engineering/vessel-orchestrator-idempotent-four-pipelines-prd.md](/Users/rob/code/ferryjoy/ferryjoy-client-neo/docs/engineering/vessel-orchestrator-idempotent-four-pipelines-prd.md)
-- [docs/handoffs/vessel-orchestrator-stage-c-trips-handoff-2026-04-19.md](/Users/rob/code/ferryjoy/ferryjoy-client-neo/docs/handoffs/vessel-orchestrator-stage-c-trips-handoff-2026-04-19.md)
-
-If Stage D or later is underway when you read this, swap in the latest stage
-handoff note.
+- [docs/handoffs/vessel-orchestrator-stage-f-cleanup-handoff-2026-04-19.md](/Users/rob/code/ferryjoy/ferryjoy-client-neo/docs/handoffs/vessel-orchestrator-stage-f-cleanup-handoff-2026-04-19.md)
 
 ## Recommended response pattern to the implementation agent
 
@@ -190,5 +184,7 @@ discipline.
 
 ## Revision history
 
+- **2026-04-19:** Point latest-stage handoff to Stage F (complete); update refactor
+  state and useful-files list.
 - **2026-04-19:** Initial supervising-agent review handoff created to support
   plan review and code review against the PRD and latest stage handoff.

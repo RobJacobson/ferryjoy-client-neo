@@ -6,10 +6,6 @@
 import { describe, expect, it } from "bun:test";
 import { api, internal } from "_generated/api";
 import {
-  buildTickEventWritesFromCompletedFacts,
-  mergeTripApplyWithMlForTimeline,
-} from "domain/vesselOrchestration/updateTimeline";
-import {
   runUpdateVesselPredictions,
   stripTripPredictionsForStorage,
 } from "domain/vesselOrchestration/updateVesselPredictions";
@@ -24,6 +20,7 @@ import {
   processCompletedTrips,
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { buildTimelineTripComputationsForRun } from "functions/vesselOrchestrator/buildTimelineTripComputationsForRun";
 import {
   persistVesselTripWriteSet,
   type VesselTripTableMutations,
@@ -31,6 +28,11 @@ import {
 } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import {
+  buildTimelineProjectionAssemblyFromTripComputations,
+  mergePredictedComputationsIntoTimelineProjectionAssembly,
+} from "../orchestratorTimelineProjection";
+import { buildTickEventWritesFromCompletedFacts } from "../timelineEventAssembler";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -96,14 +98,15 @@ describe("processCompletedTrips", () => {
         pendingLeaveDockEffects: [],
       },
     };
+    const tripsOutput = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
-      emptyTripsOutput(completedHandoffs),
+      tripsOutput,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
     const predictionOutput = await runUpdateVesselPredictions({
       tickStartedAt: 0,
-      tripComputations: emptyTripsOutput(completedHandoffs).tripComputations,
+      tripComputations: tripsOutput.tripComputations,
       predictionContext: {},
     });
     if (predictionOutput.vesselTripPredictions.length > 0) {
@@ -112,8 +115,12 @@ describe("processCompletedTrips", () => {
         { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(
-      applyTripResult,
+    const timelineComputations = buildTimelineTripComputationsForRun(
+      tripsOutput,
+      applyTripResult
+    );
+    const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
+      buildTimelineProjectionAssemblyFromTripComputations(timelineComputations),
       predictionOutput.predictedTripComputations
     );
 
@@ -218,14 +225,15 @@ describe("processCompletedTrips", () => {
         pendingLeaveDockEffects: [],
       },
     };
+    const tripsOutput = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
-      emptyTripsOutput(completedHandoffs),
+      tripsOutput,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
     const predictionOutput = await runUpdateVesselPredictions({
       tickStartedAt: 0,
-      tripComputations: emptyTripsOutput(completedHandoffs).tripComputations,
+      tripComputations: tripsOutput.tripComputations,
       predictionContext: {},
     });
     if (predictionOutput.vesselTripPredictions.length > 0) {
@@ -234,8 +242,12 @@ describe("processCompletedTrips", () => {
         { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(
-      applyTripResult,
+    const timelineComputations = buildTimelineTripComputationsForRun(
+      tripsOutput,
+      applyTripResult
+    );
+    const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
+      buildTimelineProjectionAssemblyFromTripComputations(timelineComputations),
       predictionOutput.predictedTripComputations
     );
 

@@ -125,7 +125,7 @@ Cron (15s)
             -> runUpdateVesselPredictions (domain)
             -> batchUpsertProposals (vesselTripPredictions) when non-empty
       -> updateVesselTimeline
-            -> buildOrchestratorTimelineProjectionInput (domain)
+            -> runUpdateVesselTimeline (domain)
             -> eventsActual / eventsPredicted mutations (actions.ts)
 ```
 
@@ -136,7 +136,7 @@ One tick (sequential in actions.updateVesselOrchestrator)
   ├─ vesselLocations bulk upsert (actions)
   ├─ updateVesselTrips: trip compute -> trip mutations
   ├─ updateVesselPredictions: ML overlay + vesselTripPredictions upserts
-  └─ updateTimeline: buildOrchestratorTimelineProjectionInput -> eventsActual / eventsPredicted
+  └─ updateTimeline: runUpdateVesselTimeline -> eventsActual / eventsPredicted
 
 Same-tick timeline consumes in-memory ML-shaped trips after merge; it does not
 reload vesselTripPredictions from the DB for assembly. Upsert-gated projection
@@ -285,7 +285,7 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `vesselOrchestration/updateTimeline/` (**updateTimeline** — trip output → timeline writes)
 
-Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs from **`updateVesselTimeline`** in **`functions/vesselOrchestrator/actions.ts`** (internal projection mutations after `buildOrchestratorTimelineProjectionInput` / `runUpdateVesselTimeline`; see `updateTimeline/README.md`).
+Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs from **`updateVesselTimeline`** in **`functions/vesselOrchestrator/actions.ts`** (internal projection mutations after **`runUpdateVesselTimeline`**; see `updateTimeline/README.md`).
 
 - `tickEventWrites.ts` — `TickEventWrites` / `TimelineTickProjectionInput`, `mergeTickEventWrites`.
 - `timelineEventAssembler.ts` — Converts lifecycle branch outputs into tick write payloads.
@@ -293,7 +293,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared depart-next / continuity contracts live under `domain/vesselOrchestration/shared`.
+The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelineTickProjectionInput`); tick merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared depart-next / continuity contracts live under `domain/vesselOrchestration/shared`.
 
 ## `functions/vesselTrips/read/` (query-time enrichment)
 
