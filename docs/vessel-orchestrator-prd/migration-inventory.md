@@ -41,7 +41,7 @@ This inventory is the required input to the first move PR per [§6 S0 in `vessel
 
 | Path | Exports (summary) | Importing modules | Classification | Target | Notes |
 |------|-------------------|-------------------|----------------|--------|-------|
-| `convex/domain/vesselOrchestration/computeVesselTripsWithClock.ts` | `computeVesselTripsWithClock`, `VesselTripsWithClock`, `VesselTripsWithClockOptions` | `domain/vesselOrchestration/index.ts`; `functions/vesselOrchestrator/actions.ts`; `functions/vesselOrchestrator/tests/processVesselTrips.tick.test.ts`; `domain/vesselOrchestration/tests/computeVesselTripsWithClock.test.ts`; docs | `trip-only public entry` | `updateVesselTrips/processTick/computeVesselTripsWithClock.ts` | Root file should survive only as a re-export path through `updateVesselTrips/index.ts`, not as a loose top-level module. |
+| `convex/domain/vesselOrchestration/computeVesselTripsWithClock.ts` | `computeVesselTripsWithClock`, `VesselTripsWithClock`, `VesselTripsWithClockOptions` | `domain/vesselOrchestration/index.ts`; `functions/vesselOrchestrator/actions.ts`; `functions/vesselOrchestrator/tests/processVesselTrips.tick.test.ts`; `domain/vesselOrchestration/tests/computeVesselTripsWithClock.test.ts`; docs | `trip-only public entry` | `updateVesselTrips/processTick/computeVesselTripsWithClock.ts` | Completed in S5: the live implementation now lives under `updateVesselTrips/processTick/`, the root domain package re-exports via `updateVesselTrips/index.ts`, and the colocated test moved under `updateVesselTrips/tests/`. |
 
 ---
 

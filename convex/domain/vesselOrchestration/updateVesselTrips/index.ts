@@ -20,6 +20,11 @@ export {
   DEPART_NEXT_ML_PREDICTION_TYPES,
   resolveDepartNextLegContext,
 } from "./mutations/departNextActualization";
+export {
+  computeVesselTripsWithClock,
+  type VesselTripsWithClock,
+  type VesselTripsWithClockOptions,
+} from "./processTick/computeVesselTripsWithClock";
 // --- Tick pipeline ---
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {

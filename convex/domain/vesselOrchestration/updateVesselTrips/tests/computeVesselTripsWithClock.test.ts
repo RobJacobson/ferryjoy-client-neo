@@ -4,12 +4,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { computeVesselTripsWithClock } from "../computeVesselTripsWithClock";
 import {
   computeShouldRunPredictionFallback,
+  computeVesselTripsWithClock,
   createDefaultProcessVesselTripsDeps,
   type ScheduledSegmentLookup,
-} from "../updateVesselTrips";
+} from "..";
 
 const stubLookup: ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: () => null,

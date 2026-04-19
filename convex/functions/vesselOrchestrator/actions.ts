@@ -8,7 +8,6 @@ import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
-import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
@@ -19,6 +18,7 @@ import {
 import { runUpdateVesselTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
+  computeVesselTripsWithClock,
   createDefaultProcessVesselTripsDeps,
   type ProcessVesselTripsDeps,
 } from "domain/vesselOrchestration/updateVesselTrips";

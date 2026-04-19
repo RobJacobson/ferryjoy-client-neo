@@ -13,4 +13,4 @@ export {
   computeVesselTripsWithClock,
   type VesselTripsWithClock,
   type VesselTripsWithClockOptions,
-} from "./computeVesselTripsWithClock";
+} from "./updateVesselTrips";

@@ -32,8 +32,8 @@ See [Target reorganization: orchestrator concerns](#target-reorganization-orches
 **Core files to remember:**
 
 ```text
-computeVesselTripsWithClock.ts                           domain tick clock + `computeVesselTripsBundle`
-updateVesselTrips/processTick/processVesselTrips.ts      `computeVesselTripsBundle` (domain)
+updateVesselTrips/processTick/computeVesselTripsWithClock.ts domain tick clock + `computeVesselTripsBundle`
+updateVesselTrips/processTick/processVesselTrips.ts          `computeVesselTripsBundle` (domain)
 shared/orchestratorPersist/vesselTripTickWriteSet.ts    `buildVesselTripTickWriteSetFromBundle` → table-shaped rows
 shared/orchestratorPersist/persistVesselTripsCompute.ts `persistVesselTripWriteSet` (trip mutations)
 updateVesselTrips/tripLifecycle/buildTrip.ts            buildTripCore; buildTrip = core + applyVesselPredictions (orchestrator uses core + separate predictions phase)
@@ -309,7 +309,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Re-exports `computeVesselTripsWithClock` plus the remaining top-level domain namespaces. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
+- `index.ts` — Re-exports `computeVesselTripsWithClock` via **`updateVesselTrips/index.ts`** plus the remaining top-level domain namespaces. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
 
 ## Root files: `updateVesselTrips/`
 
@@ -334,7 +334,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 ## Tests
 
 - `convex/domain/vesselOrchestration/tests/`
-  - Cross-cutting tests (e.g. `buildTimelineTickProjectionInput`, `computeVesselTripsWithClock`).
+  - Cross-cutting tests that still remain at root (for example `buildTimelineTickProjectionInput`).
 - `convex/functions/vesselOrchestrator/tests/`
   - Orchestrator tick tests (e.g. `processVesselTrips.tick.test.ts`).
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`

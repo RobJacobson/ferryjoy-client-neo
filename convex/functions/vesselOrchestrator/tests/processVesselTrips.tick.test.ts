@@ -6,12 +6,12 @@
 import { describe, expect, it } from "bun:test";
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import { persistVesselTripWriteSet } from "domain/vesselOrchestration/shared";
 import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
-import type {
-  BuildTripCoreResult,
-  TripEvents,
+import {
+  type BuildTripCoreResult,
+  computeVesselTripsWithClock,
+  type TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
