@@ -3,7 +3,9 @@
  *
  * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * `computeVesselTripsWithClock` for the trip branch.
+ * `computeVesselTripsWithClock` for the trip branch. The orchestrator creates
+ * `tickStartedAt` once per run; {@link computeVesselTripsWithClock} requires it
+ * (no `Date.now()` default in domain).
  */
 
 export {

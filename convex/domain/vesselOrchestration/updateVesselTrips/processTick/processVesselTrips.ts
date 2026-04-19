@@ -64,7 +64,9 @@ export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<ConvexVesselTrip | ConvexVesselTripWithPredictions>,
+  activeTrips: ReadonlyArray<
+    ConvexVesselTrip | ConvexVesselTripWithPredictions
+  >,
   options?: ProcessVesselTripsOptions
 ): Promise<{ bundle: VesselTripsComputeBundle }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for

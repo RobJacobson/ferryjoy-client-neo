@@ -3,6 +3,9 @@
  * (via {@link computeShouldRunPredictionFallback}, same as
  * {@link computeVesselTripsBundle} / `processVesselTrips`), and
  * {@link computeVesselTripsBundle}.
+ *
+ * Callers must pass {@link VesselTripsWithClockOptions.tickStartedAt}; this module
+ * does not default `Date.now()` (the orchestrator owns tick creation).
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -20,21 +23,26 @@ import type { VesselTripsComputeBundle } from "./updateVesselTrips/tripLifecycle
 /**
  * Tick clock and trips compute bundle for sequential persistence in
  * `updateVesselOrchestrator`.
+ *
+ * **`tickStartedAt`** — Echo of the value passed into {@link computeVesselTripsWithClock};
+ * use the orchestrator-supplied anchor as the source of truth, not this field alone.
  */
 export type VesselTripsWithClock = {
+  /** Echo of the `tickStartedAt` passed in via {@link VesselTripsWithClockOptions}. */
   tickStartedAt: number;
   tripsCompute: VesselTripsComputeBundle;
 };
 
 /**
- * Optional overrides for tests or replays.
+ * Required tick clock for every {@link computeVesselTripsWithClock} call (tests pass
+ * fixed instants; production passes the anchor from `updateVesselOrchestrator`).
  */
 export type VesselTripsWithClockOptions = {
   /**
-   * Fixed tick time (epoch ms). Production omits this; wall-clock `Date.now()`
-   * anchors calendar-based policy (e.g. prediction-fallback by seconds-of-minute).
+   * Orchestrator tick time (epoch ms). Drives sub-minute policy such as
+   * {@link computeShouldRunPredictionFallback} (seconds-of-minute), not “trip-only” time.
    */
-  tickStartedAt?: number;
+  tickStartedAt: number;
 };
 
 /**
@@ -44,8 +52,9 @@ export type VesselTripsWithClockOptions = {
  * @param input - Converted locations and preloaded active trips
  * @param deps - Trip builders and schedule-backed adapters (from
  *   {@link createDefaultProcessVesselTripsDeps} in production)
- * @param options - Optional tick clock override for tests
- * @returns Tick time and bundle for `updateVesselTrips` / `persistVesselTripsCompute`
+ * @param options - **Required** tick anchor (see {@link VesselTripsWithClockOptions})
+ * @returns **`tickStartedAt`** is an echo of `options.tickStartedAt` for convenience;
+ *   authoritative orchestrator time is the value passed in, not invented here.
  */
 export const computeVesselTripsWithClock = async (
   input: {
@@ -55,9 +64,9 @@ export const computeVesselTripsWithClock = async (
     >;
   },
   deps: ProcessVesselTripsDeps,
-  options?: VesselTripsWithClockOptions
+  options: VesselTripsWithClockOptions
 ): Promise<VesselTripsWithClock> => {
-  const tickStartedAt = options?.tickStartedAt ?? Date.now();
+  const { tickStartedAt } = options;
 
   const processOptions = {
     shouldRunPredictionFallback:

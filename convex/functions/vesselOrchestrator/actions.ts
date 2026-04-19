@@ -63,6 +63,11 @@ export const updateVesselOrchestrator = internalAction({
 
       const { vesselsIdentity, terminalsIdentity, activeTrips } = snapshot;
 
+      // One wall-clock anchor for this entire orchestrator run (locations → trips →
+      // predictions → timeline). Sub-minute policy (e.g. prediction fallback) keys off
+      // this instant—not "start of trip compute after WSF fetch."
+      const tickStartedAt = Date.now();
+
       // Step 1: WSF fetch → Convex `vesselLocations` bulk upsert.
       const convexLocations = await updateVesselLocations(
         ctx,
@@ -71,10 +76,11 @@ export const updateVesselOrchestrator = internalAction({
       );
 
       // Step 2: Trip compute + persist active/completed vessel trip rows.
-      const { tripApplyResult, tickStartedAt } = await updateVesselTrips(
+      const { tripApplyResult } = await updateVesselTrips(
         ctx,
         convexLocations,
-        activeTrips
+        activeTrips,
+        tickStartedAt
       );
 
       // Step 3: Trip recompute for ML, prediction proposals upsert, ML overlay.
@@ -127,28 +133,28 @@ export const updateVesselLocations = async (
  * @param ctx - Action context for Convex bindings
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
- * @returns Lifecycle apply outcome for timeline and wall-clock anchor for later
- *   steps
+ * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
+ * @returns Lifecycle apply outcome for timeline projection
  */
 export const updateVesselTrips = async (
   ctx: ActionCtx,
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
-  activeTrips: ReadonlyArray<ConvexVesselTrip>
+  activeTrips: ReadonlyArray<ConvexVesselTrip>,
+  tickStartedAt: number
 ): Promise<{
   tripApplyResult: TripLifecycleApplyOutcome;
-  tickStartedAt: number;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
-  const { tripsCompute, tickStartedAt } = await computeVesselTripsWithClock(
+  const { tripsCompute } = await computeVesselTripsWithClock(
     { convexLocations, activeTrips },
     tripDepsForOrchestrator(ctx),
-    undefined
+    { tickStartedAt }
   );
   const tripApplyResult = await persistVesselTripsCompute(
     tripsCompute,
     bindings.vesselTripMutations
   );
-  return { tripApplyResult, tickStartedAt };
+  return { tripApplyResult };
 };
 
 /**

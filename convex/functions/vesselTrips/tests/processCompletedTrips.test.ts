@@ -2,10 +2,19 @@
  * Focused behavioral tests for completed-trip processing.
  */
 
-import { api, internal } from "_generated/api";
 import { describe, expect, it } from "bun:test";
+import { api, internal } from "_generated/api";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
+import {
+  mergeTripApplyWithMlForTimeline,
+  runUpdateVesselPredictions,
+} from "domain/vesselOrchestration/orchestratorTick";
+import {
+  persistVesselTripsCompute,
+  type VesselTripTableMutations,
+  type VesselTripUpsertBatchResult,
+} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
 import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
 import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
 import {
@@ -15,15 +24,6 @@ import {
   type TripEvents,
   type VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import {
-  runUpdateVesselPredictions,
-  mergeTripApplyWithMlForTimeline,
-} from "domain/vesselOrchestration/orchestratorTick";
-import {
-  persistVesselTripsCompute,
-  type VesselTripTableMutations,
-  type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";

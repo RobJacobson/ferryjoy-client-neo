@@ -8,8 +8,8 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  runUpdateVesselPredictions,
   persistVesselTripsCompute,
+  runUpdateVesselPredictions,
 } from "domain/vesselOrchestration/orchestratorTick";
 import type {
   BuildTripCoreResult,
@@ -44,12 +44,11 @@ const runVesselTripsTick = async (
   const trips = activeTrips ?? ctx.preloadedActiveTrips ?? [];
   const actionCtx = ctx as unknown as ActionCtx;
 
-  const { tripsCompute, tickStartedAt: tickAt } =
-    await computeVesselTripsWithClock(
-      { convexLocations: locations, activeTrips: trips },
-      deps,
-      { tickStartedAt }
-    );
+  const { tripsCompute } = await computeVesselTripsWithClock(
+    { convexLocations: locations, activeTrips: trips },
+    deps,
+    { tickStartedAt }
+  );
   const tripApplyResult = await persistVesselTripsCompute(
     tripsCompute,
     createVesselTripTableMutations(actionCtx)
@@ -58,7 +57,7 @@ const runVesselTripsTick = async (
   const { tripsCompute: tripsForMl } = await computeVesselTripsWithClock(
     { convexLocations: locations, activeTrips: trips },
     deps,
-    { tickStartedAt: tickAt }
+    { tickStartedAt }
   );
   const { mlFull, proposals } = await runUpdateVesselPredictions(
     tripsForMl,
@@ -71,7 +70,7 @@ const runVesselTripsTick = async (
     );
   }
 
-  await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickAt);
+  await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickStartedAt);
 };
 
 const defaultEvents: TripEvents = {

@@ -12,7 +12,8 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 ```
 
 In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrator`):
-it loads the read model, runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
+it loads the read model, records one **`tickStartedAt`** (shared by trips, predictions,
+and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
 (live snapshot), then **`updateVesselTrips`**, **`updateVesselPredictions`**, and
 **`updateVesselTimeline`** in sequence. [`vesselOrchestratorConvexBindings.ts`](./vesselOrchestratorConvexBindings.ts)
 supplies schedule lookups, trip mutation ports, and test helpers—not a separate

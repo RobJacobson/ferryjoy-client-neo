@@ -2,14 +2,14 @@
  * Unit tests for `persistVesselTripsCompute`.
  */
 
-import { api } from "_generated/api";
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import { api } from "_generated/api";
 import {
   persistVesselTripsCompute,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
