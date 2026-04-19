@@ -155,10 +155,9 @@ export const vesselTripStoredSchema = v.object({
 /**
  * Rows stored on `activeVesselTrips` / `completedVesselTrips` (no joined ML columns).
  *
- * Canonical minimum shape for preloaded `activeTrips` in `processVesselTrips` and
- * the orchestrator read bundle. Callers may still pass
- * {@link ConvexVesselTripWithPredictions} (enriched with predictions); lifecycle
- * compares strip predictions; projection uses normalized prediction fields when present.
+ * Canonical minimum shape for preloaded `activeTrips` in **updateVesselTrips** and the
+ * orchestrator snapshot. Client queries may return {@link ConvexVesselTripWithPredictions}
+ * (joined minimal predictions); the trips pipeline and persistence use this type only.
  */
 export type ConvexVesselTrip = Infer<typeof vesselTripStoredSchema>;
 

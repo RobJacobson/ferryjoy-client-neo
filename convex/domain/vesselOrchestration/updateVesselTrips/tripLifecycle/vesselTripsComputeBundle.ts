@@ -9,7 +9,7 @@ import type {
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/shared";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Leave-dock backfill queued during active-trip processing; runs only after a
@@ -17,7 +17,7 @@ import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/sche
  */
 export type PendingLeaveDockEffect = {
   vesselAbbrev: string;
-  trip: ConvexVesselTripWithPredictions;
+  trip: ConvexVesselTrip;
 };
 
 /**
@@ -25,8 +25,8 @@ export type PendingLeaveDockEffect = {
  * timeline messages, and leave-dock intents.
  */
 export type ActiveTripsBranch = {
-  /** Schedule-shaped rows from {@link buildTripCore} (ML stripped at upsert). */
-  activeUpserts: ConvexVesselTripWithPredictions[];
+  /** Schedule-shaped rows from {@link buildTripCore} (storage-native). */
+  activeUpserts: ConvexVesselTrip[];
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];

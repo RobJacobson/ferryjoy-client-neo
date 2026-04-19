@@ -5,11 +5,9 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
-import {
-  computeShouldRunPredictionFallback,
-  computeVesselTripsWithClock,
-  createDefaultProcessVesselTripsDeps,
-} from "..";
+import { computeVesselTripsWithClock } from "../processTick/computeVesselTripsWithClock";
+import { createDefaultProcessVesselTripsDeps } from "../processTick/defaultProcessVesselTripsDeps";
+import { computeShouldRunPredictionFallback } from "../processTick/processVesselTrips";
 
 const stubLookup: ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: () => null,

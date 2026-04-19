@@ -11,8 +11,8 @@
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import {
   appendArriveDockPredictions,
@@ -21,11 +21,10 @@ import {
 
 /**
  * Trip state immediately before this tick’s `appendArriveDockPredictions` /
- * `appendLeaveDockPredictions` (and leave-dock actualize). Schedule and
- * derived lifecycle rules are applied; the row may still carry **prior** ML or
- * joined minimal prediction fields from storage — this is not a “stripped” row.
+ * `appendLeaveDockPredictions` (and leave-dock actualize): schedule + lifecycle
+ * fields from **updateVesselTrips** (`buildTripCore`), storage-shaped only.
  */
-export type VesselTripCoreProposal = ConvexVesselTripWithPredictions;
+export type VesselTripCoreProposal = ConvexVesselTrip;
 
 /**
  * Boolean guards for ML phases, computed in `buildTripCore` (see

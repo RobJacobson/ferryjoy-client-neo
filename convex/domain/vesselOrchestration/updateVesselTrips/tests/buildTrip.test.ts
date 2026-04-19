@@ -321,11 +321,6 @@ describe("buildTrip", () => {
     expect(built.NextScheduledDeparture).toBe(
       scheduledSegment.NextDepartingTime
     );
-    expect(built.AtDockDepartCurr).toEqual(existingTrip.AtDockDepartCurr);
-    expect(built.AtDockArriveNext).toEqual(existingTrip.AtDockArriveNext);
-    expect(built.AtDockDepartNext).toEqual(existingTrip.AtDockDepartNext);
-    expect(built.AtSeaArriveNext).toBeDefined();
-    expect(built.AtSeaDepartNext).toBeDefined();
   });
 
   it("CAT continuity preserves the dock-owned identity through the leave-dock tick", async () => {

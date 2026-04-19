@@ -11,8 +11,8 @@
 import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 
 /**
@@ -22,8 +22,8 @@ import type {
  * in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
  */
 export type CompletedTripBoundaryFact = {
-  existingTrip: ConvexVesselTripWithPredictions;
-  tripToComplete: ConvexVesselTripWithML;
+  existingTrip: ConvexVesselTrip;
+  tripToComplete: ConvexVesselTrip;
   newTripCore: BuildTripCoreResult;
   /**
    * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on
@@ -51,7 +51,7 @@ export type CurrentTripActualEventMessage = {
  * Per-vessel message to build `eventsPredicted` effects on the current path.
  */
 export type CurrentTripPredictedEventMessage = {
-  existingTrip: ConvexVesselTripWithPredictions | undefined;
+  existingTrip: ConvexVesselTrip | undefined;
   tripCore: BuildTripCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;

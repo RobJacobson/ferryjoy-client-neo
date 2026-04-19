@@ -9,14 +9,14 @@
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
 import type { buildTripCore } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTripWithPredictions;
+  existingTrip: ConvexVesselTrip;
   events: TripEvents;
 };
 

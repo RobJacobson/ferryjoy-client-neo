@@ -13,8 +13,8 @@ that persistence shape is not the concern's public contract.
 
 | Path | Role |
 | --- | --- |
-| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTrip`, `processCompletedTrips`, `processCurrentTrips`, predictions, equality, strip-for-storage. `buildTrip` composes `buildTripCore` (schedule + gates) with `applyVesselPredictions` (ML); **`buildTripCore` is exported** for explicit testing (O2) while production injects `buildTrip` via deps. |
-| [`processTick/`](./processTick/) | `computeVesselTripsWithClock`, `computeVesselTripsBundle`, adapters, envelope, prediction policy |
+| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `buildTrip` (test-only composer: core + `applyVesselPredictions`), `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**; ML attaches in **updateVesselPredictions**. |
+| [`processTick/`](./processTick/) | `computeVesselTripsWithClock`, `computeVesselTripsBundle`, adapters, sub-minute fallback policy (shared with prediction gates) |
 | [`continuity/`](./continuity/) | Docked identity continuity |
 | [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTrip` |
 

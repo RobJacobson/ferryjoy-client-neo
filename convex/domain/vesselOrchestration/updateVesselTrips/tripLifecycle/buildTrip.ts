@@ -15,11 +15,25 @@ import {
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
+
+/**
+ * Schedule/lifecycle trips never persist prediction columns; optional keys here
+ * are in-memory hints only for {@link buildTripCore} gate math (fed to
+ * `updateVesselPredictions`).
+ */
+/** TODO: remove this type */
+type TripGateState = ConvexVesselTrip & {
+  readonly AtDockDepartCurr?: unknown;
+  readonly AtDockArriveNext?: unknown;
+  readonly AtDockDepartNext?: unknown;
+  readonly AtSeaArriveNext?: unknown;
+  readonly AtSeaDepartNext?: unknown;
+};
 
 export type BuildTripCoreResult = {
   readonly withFinalSchedule: VesselTripCoreProposal;
@@ -53,7 +67,7 @@ export type BuildTripCoreResult = {
  */
 export const buildTrip = async (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean,
@@ -93,7 +107,7 @@ export const buildTrip = async (
  */
 export const buildTripCore = async (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
   shouldRunPredictionFallback: boolean,
@@ -138,50 +152,39 @@ export const buildTripCore = async (
       ? clearDerivedStateOnScheduleKeyChange(withArriveDest)
       : withArriveDest;
 
+  const gateTrip = withScheduleKeyChangeClearedDerivedState as TripGateState;
+
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
   const canonicalStartAndOriginReady =
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.StartTime ??
-        withScheduleKeyChangeClearedDerivedState.TripStart
-    ) &&
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.ArrivedCurrActual ??
-        withScheduleKeyChangeClearedDerivedState.AtDockActual
-    );
+    Boolean(gateTrip.StartTime ?? gateTrip.TripStart) &&
+    Boolean(gateTrip.ArrivedCurrActual ?? gateTrip.AtDockActual);
   // At-dock predictions belong only to real dock occupancy for a started trip.
   // This avoids generating model output for first-seen placeholder rows that
   // have not yet observed a trustworthy origin-arrival boundary.
   const shouldAttemptAtDockPredictions =
-    withScheduleKeyChangeClearedDerivedState.AtDock &&
-    !withScheduleKeyChangeClearedDerivedState.LeftDock &&
+    gateTrip.AtDock &&
+    !gateTrip.LeftDock &&
     canonicalStartAndOriginReady &&
     (tripStart || events.scheduleKeyChanged || shouldRunPredictionFallback) &&
-    (!withScheduleKeyChangeClearedDerivedState.AtDockDepartCurr ||
-      !withScheduleKeyChangeClearedDerivedState.AtDockArriveNext ||
-      !withScheduleKeyChangeClearedDerivedState.AtDockDepartNext);
+    (!gateTrip.AtDockDepartCurr ||
+      !gateTrip.AtDockArriveNext ||
+      !gateTrip.AtDockDepartNext);
   // At-sea predictions are allowed once a real departure exists. Event ticks
   // trigger them immediately, and the short fallback window gives the system a
   // bounded retry path if that first prediction attempt fails.
   const shouldAttemptAtSeaPredictions =
-    !withScheduleKeyChangeClearedDerivedState.AtDock &&
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.LeftDockActual ??
-        withScheduleKeyChangeClearedDerivedState.LeftDock
-    ) &&
+    !gateTrip.AtDock &&
+    Boolean(gateTrip.LeftDockActual ?? gateTrip.LeftDock) &&
     (events.didJustLeaveDock ||
       events.scheduleKeyChanged ||
       shouldRunPredictionFallback) &&
-    (!withScheduleKeyChangeClearedDerivedState.AtSeaArriveNext ||
-      !withScheduleKeyChangeClearedDerivedState.AtSeaDepartNext);
+    (!gateTrip.AtSeaArriveNext || !gateTrip.AtSeaDepartNext);
 
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(
-        withScheduleKeyChangeClearedDerivedState,
-        existingTrip
-      )
-    : withScheduleKeyChangeClearedDerivedState;
+    ? await appendFinalSchedule(gateTrip, existingTrip)
+    : gateTrip;
 
   return {
     withFinalSchedule,
@@ -206,8 +209,8 @@ export const buildTripCore = async (
  * @returns True when schedule attachment was present and is now absent
  */
 const didLoseScheduleAttachment = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
-  nextTrip: ConvexVesselTripWithPredictions
+  existingTrip: ConvexVesselTrip | undefined,
+  nextTrip: ConvexVesselTrip
 ): boolean =>
   existingTrip?.ScheduleKey !== undefined && nextTrip.ScheduleKey === undefined;
 
@@ -248,16 +251,10 @@ const shouldClearDerivedStateOnScheduleTransition = (
  * @returns Trip with carried schedule-derived fields removed
  */
 const clearDerivedStateOnScheduleKeyChange = (
-  trip: ConvexVesselTripWithPredictions
-): ConvexVesselTripWithPredictions => ({
+  trip: ConvexVesselTrip
+): ConvexVesselTrip => ({
   ...trip,
-  // Any carried next-leg snapshot or schedule-bound prediction state belongs
-  // to the previous schedule attachment and must not survive detachment.
+  // Next-leg schedule snapshot belongs to the previous attachment only.
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
 });

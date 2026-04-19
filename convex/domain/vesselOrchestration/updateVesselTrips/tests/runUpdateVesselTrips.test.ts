@@ -2,9 +2,16 @@
  * Tests for the canonical public trips runner.
  */
 
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 afterEach(() => {
@@ -14,8 +21,8 @@ afterEach(() => {
 const ms = (iso: string) => new Date(iso).getTime();
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -41,11 +48,6 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
   NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });
 
@@ -71,9 +73,6 @@ describe("runUpdateVesselTrips", () => {
       ArrivingTerminalAbbrev: "LOP",
       ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
       TripKey: generateTripKey("CHE", ms("2026-03-13T06:31:00-07:00")),
-      AtDockDepartCurr: {
-        PredTime: ms("2026-03-13T06:52:00-07:00"),
-      },
     });
     const currentPersistedTrip = makeTrip({
       VesselAbbrev: "TAC",
@@ -99,121 +98,127 @@ describe("runUpdateVesselTrips", () => {
     mock.module("../processTick/defaultProcessVesselTripsDeps", () => ({
       createDefaultProcessVesselTripsDeps: () => ({ mocked: true }),
     }));
-    mock.module("../processTick/computeVesselTripsWithClock", () => ({
-      computeVesselTripsWithClock: async () => ({
-        tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
-        tripsCompute: {
-          completedHandoffs: [
-            {
-              existingTrip: completedExisting,
-              tripToComplete: completedTrip,
-              newTripCore: {
-                withFinalSchedule: replacementTrip,
-                gates: {
-                  shouldAttemptAtDockPredictions: true,
-                  shouldAttemptAtSeaPredictions: false,
-                  didJustLeaveDock: false,
-                },
-              },
+
+    const clockMod = await import("../processTick/computeVesselTripsWithClock");
+    const tripsComputeStub = {
+      completedHandoffs: [
+        {
+          existingTrip: completedExisting,
+          tripToComplete: completedTrip,
+          newTripCore: {
+            withFinalSchedule: replacementTrip,
+            gates: {
+              shouldAttemptAtDockPredictions: true,
+              shouldAttemptAtSeaPredictions: false,
+              didJustLeaveDock: false,
             },
-          ],
-          current: {
-            activeUpserts: [currentPersistedTrip],
-            pendingActualMessages: [
-              {
-                events: defaultEvents,
-                tripCore: {
-                  withFinalSchedule: currentPersistedTrip,
-                  gates: {
-                    shouldAttemptAtDockPredictions: false,
-                    shouldAttemptAtSeaPredictions: true,
-                    didJustLeaveDock: false,
-                  },
-                },
-                vesselAbbrev: "TAC",
-                requiresSuccessfulUpsert: true,
-              },
-              {
-                events: currentOverlayEvents,
-                tripCore: {
-                  withFinalSchedule: currentOverlayTrip,
-                  gates: {
-                    shouldAttemptAtDockPredictions: false,
-                    shouldAttemptAtSeaPredictions: false,
-                    didJustLeaveDock: true,
-                  },
-                },
-                vesselAbbrev: "KIT",
-                requiresSuccessfulUpsert: false,
-              },
-            ],
-            pendingPredictedMessages: [
-              {
-                existingTrip: undefined,
-                tripCore: {
-                  withFinalSchedule: currentPersistedTrip,
-                  gates: {
-                    shouldAttemptAtDockPredictions: false,
-                    shouldAttemptAtSeaPredictions: true,
-                    didJustLeaveDock: false,
-                  },
-                },
-                vesselAbbrev: "TAC",
-                requiresSuccessfulUpsert: true,
-              },
-              {
-                existingTrip: undefined,
-                tripCore: {
-                  withFinalSchedule: currentOverlayTrip,
-                  gates: {
-                    shouldAttemptAtDockPredictions: false,
-                    shouldAttemptAtSeaPredictions: false,
-                    didJustLeaveDock: true,
-                  },
-                },
-                vesselAbbrev: "KIT",
-                requiresSuccessfulUpsert: false,
-              },
-            ],
-            pendingLeaveDockEffects: [],
           },
         },
-      }),
+      ],
+      current: {
+        activeUpserts: [currentPersistedTrip],
+        pendingActualMessages: [
+          {
+            events: defaultEvents,
+            tripCore: {
+              withFinalSchedule: currentPersistedTrip,
+              gates: {
+                shouldAttemptAtDockPredictions: false,
+                shouldAttemptAtSeaPredictions: true,
+                didJustLeaveDock: false,
+              },
+            },
+            vesselAbbrev: "TAC",
+            requiresSuccessfulUpsert: true,
+          },
+          {
+            events: currentOverlayEvents,
+            tripCore: {
+              withFinalSchedule: currentOverlayTrip,
+              gates: {
+                shouldAttemptAtDockPredictions: false,
+                shouldAttemptAtSeaPredictions: false,
+                didJustLeaveDock: true,
+              },
+            },
+            vesselAbbrev: "KIT",
+            requiresSuccessfulUpsert: false,
+          },
+        ],
+        pendingPredictedMessages: [
+          {
+            existingTrip: undefined,
+            tripCore: {
+              withFinalSchedule: currentPersistedTrip,
+              gates: {
+                shouldAttemptAtDockPredictions: false,
+                shouldAttemptAtSeaPredictions: true,
+                didJustLeaveDock: false,
+              },
+            },
+            vesselAbbrev: "TAC",
+            requiresSuccessfulUpsert: true,
+          },
+          {
+            existingTrip: undefined,
+            tripCore: {
+              withFinalSchedule: currentOverlayTrip,
+              gates: {
+                shouldAttemptAtDockPredictions: false,
+                shouldAttemptAtSeaPredictions: false,
+                didJustLeaveDock: true,
+              },
+            },
+            vesselAbbrev: "KIT",
+            requiresSuccessfulUpsert: false,
+          },
+        ],
+        pendingLeaveDockEffects: [],
+      },
+    };
+    const clockSpy = spyOn(clockMod, "computeVesselTripsWithClock");
+    clockSpy.mockImplementation(async () => ({
+      tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
+      tripsCompute: tripsComputeStub,
     }));
 
-    const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
-    const result = await runUpdateVesselTrips({
-      tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
-      vesselLocations: [],
-      existingActiveTrips: [],
-      scheduleContext: {
-        records: [],
-      } as never,
-    });
+    try {
+      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
+      const result = await runUpdateVesselTrips({
+        tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
+        vesselLocations: [],
+        existingActiveTrips: [],
+        scheduleContext: {
+          records: [],
+        } as never,
+      });
 
-    expect(result.completedTrips).toHaveLength(1);
-    expect(result.activeTrips).toHaveLength(2);
-    expect(result.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
-      "CHE",
-      "TAC",
-    ]);
-    expect("AtDockDepartCurr" in (result.activeTrips[0] ?? {})).toBe(false);
-    expect(result.tripComputations).toHaveLength(3);
+      expect(result.completedTrips).toHaveLength(1);
+      expect(result.activeTrips).toHaveLength(2);
+      expect(result.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
+        "CHE",
+        "TAC",
+      ]);
+      expect("AtDockDepartCurr" in (result.activeTrips[0] ?? {})).toBe(false);
+      expect(result.tripComputations).toHaveLength(3);
 
-    const completedComputation = result.tripComputations.find(
-      (computation) => computation.branch === "completed"
-    );
-    expect(completedComputation?.tripCore.gates).toBeDefined();
-    expect(
-      completedComputation?.tripCore.gates?.shouldAttemptAtDockPredictions
-    ).toBe(true);
+      const completedComputation = result.tripComputations.find(
+        (computation) => computation.branch === "completed"
+      );
+      expect(completedComputation?.tripCore.gates).toBeDefined();
+      expect(
+        completedComputation?.tripCore.gates?.shouldAttemptAtDockPredictions
+      ).toBe(true);
 
-    const overlayComputation = result.tripComputations.find(
-      (computation) => computation.vesselAbbrev === "KIT"
-    );
-    expect(overlayComputation?.branch).toBe("current");
-    expect(overlayComputation?.activeTrip?.VesselAbbrev).toBe("KIT");
-    expect(overlayComputation?.tripCore.gates).toBeDefined();
-    expect(overlayComputation?.tripCore.gates?.didJustLeaveDock).toBe(true);
+      const overlayComputation = result.tripComputations.find(
+        (computation) => computation.vesselAbbrev === "KIT"
+      );
+      expect(overlayComputation?.branch).toBe("current");
+      expect(overlayComputation?.activeTrip?.VesselAbbrev).toBe("KIT");
+      expect(overlayComputation?.tripCore.gates).toBeDefined();
+      expect(overlayComputation?.tripCore.gates?.didJustLeaveDock).toBe(true);
+    } finally {
+      clockSpy.mockRestore();
+    }
   });
 });

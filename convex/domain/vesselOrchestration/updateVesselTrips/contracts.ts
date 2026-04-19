@@ -4,30 +4,9 @@
 
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 import type { TripEvents } from "./tripLifecycle/tripEventTypes";
-
-/**
- * Canonical normalized location row consumed by the trips pipeline.
- */
-export type VesselLocationRow = ConvexVesselLocation;
-
-/**
- * Persistable trip row emitted by the trips pipeline.
- */
-export type VesselTripRow = ConvexVesselTrip;
-
-/**
- * Current preloaded active-trip rows accepted during the Stage A transition.
- */
-export type ExistingActiveTripRow =
-  | ConvexVesselTrip
-  | ConvexVesselTripWithPredictions;
 
 /**
  * Stage A keeps this shape intentionally small so later stages can preserve the
@@ -41,9 +20,9 @@ export type TripComputation = {
    * wrapper. Completed-trip handoffs do not retain events in the current bundle.
    */
   events?: TripEvents;
-  existingTrip?: ExistingActiveTripRow;
-  completedTrip?: ConvexVesselTripWithML;
-  activeTrip?: ConvexVesselTripWithPredictions;
+  existingTrip?: ConvexVesselTrip;
+  completedTrip?: ConvexVesselTrip;
+  activeTrip?: ConvexVesselTrip;
   tripCore: {
     withFinalSchedule: BuildTripCoreResult["withFinalSchedule"];
     gates?: BuildTripCoreResult["gates"];
@@ -58,13 +37,13 @@ export type VesselTripScheduleContext = ScheduleSnapshot;
 
 export type RunUpdateVesselTripsInput = {
   tickStartedAt: number;
-  vesselLocations: ReadonlyArray<VesselLocationRow>;
-  existingActiveTrips: ReadonlyArray<ExistingActiveTripRow>;
+  vesselLocations: ReadonlyArray<ConvexVesselLocation>;
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   scheduleContext: VesselTripScheduleContext;
 };
 
 export type RunUpdateVesselTripsOutput = {
-  activeTrips: VesselTripRow[];
-  completedTrips: VesselTripRow[];
+  activeTrips: ConvexVesselTrip[];
+  completedTrips: ConvexVesselTrip[];
   tripComputations: TripComputation[];
 };

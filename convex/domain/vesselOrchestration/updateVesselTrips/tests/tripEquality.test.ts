@@ -1,5 +1,5 @@
 /**
- * Unit tests for lifecycle vs projection trip equality predicates.
+ * Unit tests for lifecycle trip equality predicates.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -8,10 +8,7 @@ import {
   tripsEqualForStorage,
   tripWriteSuppressionFlags,
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEquality";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -19,44 +16,40 @@ const ms = (iso: string) => new Date(iso).getTime();
 /**
  * Builds a minimal stored-shaped trip for equality tests.
  *
- * @param overrides - Field overrides
+ * @param overrides - Field overrides (prediction-shaped keys allowed for strip tests)
  * @returns Trip fixture
  */
 const makeBaseTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
-  VesselAbbrev: "CHE",
-  DepartingTerminalAbbrev: "ANA",
-  ArrivingTerminalAbbrev: "ORI",
-  RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
-  ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
-  SailingDay: "2026-03-13",
-  PrevTerminalAbbrev: "ORI",
-  ArriveDest: undefined,
-  TripStart: ms("2026-03-13T04:33:00-07:00"),
-  AtDock: true,
-  AtDockDuration: undefined,
-  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
-  LeftDock: undefined,
-  TripDelay: undefined,
-  Eta: undefined,
-  TripEnd: undefined,
-  AtSeaDuration: undefined,
-  TotalDuration: undefined,
-  InService: true,
-  TimeStamp: ms("2026-03-13T04:33:00-07:00"),
-  PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
-  PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
-  NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
-  NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
-  ...overrides,
-});
+  overrides: Partial<ConvexVesselTrip & Record<string, unknown>> = {}
+): ConvexVesselTrip =>
+  ({
+    VesselAbbrev: "CHE",
+    DepartingTerminalAbbrev: "ANA",
+    ArrivingTerminalAbbrev: "ORI",
+    RouteAbbrev: "ana-sj",
+    TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+    ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
+    SailingDay: "2026-03-13",
+    PrevTerminalAbbrev: "ORI",
+    ArriveDest: undefined,
+    TripStart: ms("2026-03-13T04:33:00-07:00"),
+    AtDock: true,
+    AtDockDuration: undefined,
+    ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+    LeftDock: undefined,
+    TripDelay: undefined,
+    Eta: undefined,
+    TripEnd: undefined,
+    AtSeaDuration: undefined,
+    TotalDuration: undefined,
+    InService: true,
+    TimeStamp: ms("2026-03-13T04:33:00-07:00"),
+    PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
+    PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
+    NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
+    NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
+    ...overrides,
+  }) as ConvexVesselTrip;
 
 /**
  * Builds a prediction blob with optional PredTime override.
@@ -100,30 +93,28 @@ describe("tripsEqualForStorage", () => {
 });
 
 describe("tripsEqualForOverlay", () => {
-  it("is false when normalized PredTime differs on a prediction field", () => {
+  it("matches storage equality: prediction-only deltas are ignored in trip lifecycle", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
-    expect(tripsEqualForOverlay(existing, proposed)).toBe(false);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(true);
   });
 
   it("is true when only ML interval noise differs but PredTime matches", () => {
     const pred = makePrediction("2026-03-13T05:31:00-07:00");
-    const existing = {
-      ...makeBaseTrip(),
+    const existing = makeBaseTrip({
       AtDockDepartCurr: { ...pred, MAE: 1 },
-    } as ConvexVesselTripWithML;
-    const proposed = {
-      ...makeBaseTrip(),
+    });
+    const proposed = makeBaseTrip({
       AtDockDepartCurr: { ...pred, MAE: 99, MinTime: pred.MinTime + 1 },
-    } as ConvexVesselTripWithML;
+    });
     expect(tripsEqualForOverlay(existing, proposed)).toBe(true);
   });
 });
 
 describe("tripWriteSuppressionFlags", () => {
-  it("matches negated storage and overlay equalities", () => {
+  it("matches negated storage equality for both flags", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
@@ -139,13 +130,13 @@ describe("tripWriteSuppressionFlags", () => {
 });
 
 describe("storage vs overlay", () => {
-  it("storage-equal but overlay-differing when only prediction semantics change", () => {
+  it("both equal when only prediction semantics change (ignored for trip rows)", () => {
     const existing = makeBaseTrip();
     const proposed = makeBaseTrip({
       AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
     });
     expect(tripsEqualForStorage(existing, proposed)).toBe(true);
-    expect(tripsEqualForOverlay(existing, proposed)).toBe(false);
+    expect(tripsEqualForOverlay(existing, proposed)).toBe(true);
   });
 
   it("both false when a stored column changes", () => {

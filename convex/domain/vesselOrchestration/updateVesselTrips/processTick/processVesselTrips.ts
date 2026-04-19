@@ -3,9 +3,8 @@
  *
  * Builds a {@link VesselTripsComputeBundle} for the functions layer; persistence and
  * {@link buildTimelineTickProjectionInput} run outside this module
- * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML
- * attachment runs in **updateVesselPredictions** after trip mutations (`applyVesselPredictions`;
- * see `architecture.md` §10).
+ * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML runs only
+ * in **updateVesselPredictions** (see `architecture.md` §10).
  */
 
 import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
@@ -17,19 +16,28 @@ import { processCurrentTrips } from "domain/vesselOrchestration/updateVesselTrip
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
-import { computeShouldRunPredictionFallback } from "./tickPredictionPolicy";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+
+/**
+ * True in the first 10 seconds of each UTC minute (epoch-second mod 60).
+ * Drives optional schedule/prediction fallback with {@link buildTripCore} gates.
+ *
+ * @param tickStartedAt - Orchestrator tick anchor (epoch ms)
+ */
+export const computeShouldRunPredictionFallback = (
+  tickStartedAt: number
+): boolean => {
+  const secondWithinMinute = Math.floor(tickStartedAt / 1000) % 60;
+  return secondWithinMinute < 10;
+};
 
 /** Optional tick inputs; prediction fallback may be supplied by orchestrator. */
 export type ProcessVesselTripsOptions = {
   shouldRunPredictionFallback?: boolean;
 };
 
-/** Existing active trip row for one vessel: stored columns and/or enriched prediction fields. */
-type ExistingTripForTick = ConvexVesselTripWithPredictions | ConvexVesselTrip;
+/** Existing active trip row for one vessel (storage-native). */
+type ExistingTripForTick = ConvexVesselTrip;
 
 type TripTransition = {
   currLocation: ConvexVesselLocation;
@@ -55,8 +63,7 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
  *   `buildTripCore`, `buildTripAdapters`, `detectTripEvents`)
- * @param activeTrips - Preloaded active trips for this tick (storage-native
- *   {@link ConvexVesselTrip} and/or {@link ConvexVesselTripWithPredictions}).
+ * @param activeTrips - Preloaded active trips for this tick ({@link ConvexVesselTrip}).
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
  * @returns Bundle for `updateVesselTrips` / `persistVesselTripWriteSet`
  */
@@ -64,13 +71,10 @@ export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<
-    ConvexVesselTrip | ConvexVesselTripWithPredictions
-  >,
+  activeTrips: ReadonlyArray<ConvexVesselTrip>,
   options?: ProcessVesselTripsOptions
 ): Promise<{ bundle: VesselTripsComputeBundle }> => {
-  // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
-  // event detection and `buildTripCore`; stripping ML for DB writes happens in the applier.
+  // Preloaded snapshot rows keyed for event detection and `buildTripCore`.
   const existingTripsDict = Object.fromEntries(
     activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;

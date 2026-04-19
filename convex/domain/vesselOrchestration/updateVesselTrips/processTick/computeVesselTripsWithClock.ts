@@ -9,16 +9,13 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { VesselTripsComputeBundle } from "../tripLifecycle/vesselTripsComputeBundle";
 import {
+  computeShouldRunPredictionFallback,
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processVesselTrips";
-import { computeShouldRunPredictionFallback } from "./tickPredictionPolicy";
 
 /**
  * Tick clock and trips compute bundle for sequential persistence in
@@ -59,9 +56,7 @@ export type VesselTripsWithClockOptions = {
 export const computeVesselTripsWithClock = async (
   input: {
     convexLocations: ReadonlyArray<ConvexVesselLocation>;
-    activeTrips: ReadonlyArray<
-      ConvexVesselTrip | ConvexVesselTripWithPredictions
-    >;
+    activeTrips: ReadonlyArray<ConvexVesselTrip>;
   },
   deps: ProcessVesselTripsDeps,
   options: VesselTripsWithClockOptions

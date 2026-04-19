@@ -24,7 +24,7 @@ import type {
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { BuildTripCoreResult } from "./buildTrip";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
 import {
@@ -40,7 +40,7 @@ import type {
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip?: ConvexVesselTripWithPredictions;
+  existingTrip?: ConvexVesselTrip;
   events: TripEvents;
 };
 
@@ -49,7 +49,7 @@ type CurrentTripBuildResult = CurrentTripTransition & {
 };
 
 type CurrentTripArtifacts = {
-  activeUpserts: ConvexVesselTripWithPredictions[];
+  activeUpserts: ConvexVesselTrip[];
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
@@ -132,7 +132,7 @@ export const processCurrentTrips = async (
  */
 const buildLeaveDockPostPersistEffect = (
   events: TripEvents,
-  proposedCore: ConvexVesselTripWithPredictions,
+  proposedCore: ConvexVesselTrip,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
   events.didJustLeaveDock && proposedCore.LeftDockActual !== undefined

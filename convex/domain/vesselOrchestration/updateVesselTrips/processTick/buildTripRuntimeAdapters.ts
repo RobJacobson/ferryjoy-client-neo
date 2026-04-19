@@ -9,7 +9,7 @@ import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/sch
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
@@ -35,9 +35,9 @@ export const createBuildTripRuntimeAdapters = (
 export const buildAppendFinalSchedule =
   (lookup: ScheduledSegmentLookup) =>
   async (
-    baseTrip: ConvexVesselTripWithPredictions,
-    existingTrip: ConvexVesselTripWithPredictions | undefined
-  ): Promise<ConvexVesselTripWithPredictions> => {
+    baseTrip: ConvexVesselTrip,
+    existingTrip: ConvexVesselTrip | undefined
+  ): Promise<ConvexVesselTrip> => {
     const segmentKey = baseTrip.ScheduleKey;
     if (!segmentKey) {
       return baseTrip;
@@ -100,7 +100,7 @@ export const buildResolveEffectiveLocation =
   (lookup: ScheduledSegmentLookup) =>
   async (
     location: ConvexVesselLocation,
-    existingTrip: ConvexVesselTripWithPredictions | undefined
+    existingTrip: ConvexVesselTrip | undefined
   ): Promise<ConvexVesselLocation> => {
     if (!location.AtDock || location.LeftDock !== undefined) {
       return location;
@@ -139,7 +139,7 @@ const logDockedIdentityResolution = ({
   effectiveLocation,
 }: {
   location: ConvexVesselLocation;
-  existingTrip: ConvexVesselTripWithPredictions | undefined;
+  existingTrip: ConvexVesselTrip | undefined;
   stableDockedIdentity: boolean;
   scheduledSegmentKey: string | undefined;
   effectiveIdentity: EffectiveTripIdentity;

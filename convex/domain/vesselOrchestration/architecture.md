@@ -244,7 +244,7 @@ What it means:
 - `tickEnvelope.ts`
   - Return type of one trip tick; references `TimelineTickProjectionInput` from
     **`vesselOrchestration/updateTimeline/tickEventWrites`**.
-- `tickPredictionPolicy.ts`
+- `computeShouldRunPredictionFallback` in `processTick/processVesselTrips.ts`
   - Time-window policy for fallback prediction attempts.
 
 ## `vesselOrchestration/updateVesselTrips/tripLifecycle/` (**updateVesselTrips** — core state machine)

@@ -4,9 +4,8 @@
  */
 
 import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type {
-  ExistingActiveTripRow,
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
   TripComputation,
@@ -15,7 +14,7 @@ import { computeVesselTripsWithClock } from "./processTick/computeVesselTripsWit
 import { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 
 type CompletedTripComputationSource = {
-  existingTrip: ExistingActiveTripRow;
+  existingTrip: ConvexVesselTrip;
   tripToComplete: NonNullable<TripComputation["completedTrip"]>;
   newTripCore: TripComputation["tripCore"];
 };
@@ -30,7 +29,7 @@ type CurrentTripComputationSource = {
     vesselAbbrev: string;
   }>;
   pendingPredictedMessages: ReadonlyArray<{
-    existingTrip?: ExistingActiveTripRow;
+    existingTrip?: ConvexVesselTrip;
     tripCore: TripComputation["tripCore"];
     vesselAbbrev: string;
   }>;
@@ -129,13 +128,13 @@ export const runUpdateVesselTrips = async (
     { tickStartedAt: input.tickStartedAt }
   );
   const activeTrips = [
-    ...tripsCompute.completedHandoffs.map((handoff) =>
-      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+    ...tripsCompute.completedHandoffs.map(
+      (handoff) => handoff.newTripCore.withFinalSchedule
     ),
-    ...tripsCompute.current.activeUpserts.map(stripTripPredictionsForStorage),
+    ...tripsCompute.current.activeUpserts,
   ];
-  const completedTrips = tripsCompute.completedHandoffs.map((handoff) =>
-    stripTripPredictionsForStorage(handoff.tripToComplete)
+  const completedTrips = tripsCompute.completedHandoffs.map(
+    (handoff) => handoff.tripToComplete
   );
   const tripComputations = tripComputationsFromBundle(tripsCompute);
 

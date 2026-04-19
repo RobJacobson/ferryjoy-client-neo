@@ -7,17 +7,17 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Returns the persisted departure timestamp for lifecycle, preferring
- * {@link ConvexVesselTripWithPredictions.LeftDockActual} over legacy departure mirrors.
+ * {@link ConvexVesselTrip.LeftDockActual} over legacy departure mirrors.
  *
  * @param trip - Active trip row, if any
  * @returns Epoch ms when the vessel has physically departed, else undefined
  */
 export const getPhysicalDepartureStamp = (
-  trip: ConvexVesselTripWithPredictions | undefined
+  trip: ConvexVesselTrip | undefined
 ): number | undefined => trip?.LeftDockActual ?? trip?.LeftDock;
 
 /**
@@ -39,7 +39,7 @@ export const rawTickSuggestsDocked = (
  * @returns True when departure should not commit yet
  */
 export const rawDepartureIsContradictory = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean =>
   Boolean(
@@ -67,7 +67,7 @@ export const rawArrivalIsContradictory = (
  * @returns True when the feed introduces a departure timestamp
  */
 export const rawDidJustLeaveDock = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean =>
   Boolean(
@@ -84,7 +84,7 @@ export const rawDidJustLeaveDock = (
  * @returns True when a completion boundary is credibly observed
  */
 export const rawDidJustArriveAtDock = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean => {
   if (!existingTrip) {
@@ -130,7 +130,7 @@ export type DebouncedPhysicalBoundaryResult = {
  * @returns Debounced boundary flags for this tick
  */
 export const resolveDebouncedPhysicalBoundaries = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DebouncedPhysicalBoundaryResult => {
   let didJustLeaveDock =
