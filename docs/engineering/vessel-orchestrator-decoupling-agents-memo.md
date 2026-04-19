@@ -94,8 +94,8 @@ These are **not** blockers for the four-pipeline model; they are polish and futu
 
 ## Related documents
 
+- **[`docs/vessel-orchestrator-prd/`](../vessel-orchestrator-prd/README.md)** — **Canonical PRD home:** [`vessel-orchestration-next-work-prd.md`](../vessel-orchestrator-prd/vessel-orchestration-next-work-prd.md) (forward-only instructions: `shared/`, tree dissolve, imports inlined, **S0–S10** sequence); [`migration-inventory.md`](../vessel-orchestrator-prd/migration-inventory.md) (S0 audit template).
 - [`vessel-orchestrator-four-pipelines-and-prediction-separation-memo.md`](vessel-orchestrator-four-pipelines-and-prediction-separation-memo.md) — Full goals, O1–O5 status, definition of done, open decisions.
-- [`vessel-trips-pure-pipeline-refactor-outline-memo.md`](vessel-trips-pure-pipeline-refactor-outline-memo.md) — Multi-step plan: pure `updateVesselTrips`, bulk schedule snapshots, tick anchor ownership, target file layout.
 - [`imports-and-module-boundaries-memo.md`](imports-and-module-boundaries-memo.md) — Import/export rules.
 - [`convex/domain/vesselOrchestration/architecture.md`](../convex/domain/vesselOrchestration/architecture.md) — Domain map.
 - [`convex/functions/vesselOrchestrator/README.md`](../convex/functions/vesselOrchestrator/README.md) — Operational overview.
@@ -106,4 +106,4 @@ These are **not** blockers for the four-pipeline model; they are polish and futu
 
 - **Initial:** Post–O1–O5 snapshot; summarizes decoupling goals and agent checklist while refactor cleanup continues.
 - **Separation of concerns:** Documented `actions.ts` as call-domain → receive payloads (POJOs in theory) → persist; business layer owns all other logic.
-- **Cross-link:** Added pointer to [`vessel-trips-pure-pipeline-refactor-outline-memo.md`](vessel-trips-pure-pipeline-refactor-outline-memo.md).
+- **Forward-only PRD:** Lives under [`docs/vessel-orchestrator-prd/`](../vessel-orchestrator-prd/README.md); stub at [`vessel-orchestration-next-work-prd.md`](vessel-orchestration-next-work-prd.md) redirects.
