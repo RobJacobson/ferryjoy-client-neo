@@ -1,8 +1,8 @@
 /**
  * Public entry for **updateVesselTrips**: tick pipeline, schedule snapshot wiring,
  * continuity adapters, read-model helpers, and depart-next policy symbols used by
- * the orchestrator, Convex queries/mutations, and peer domain (`updateTimeline`,
- * `orchestratorTick`, `shared/`).
+ * the orchestrator, Convex queries/mutations, and peer domain (`tickLifecycle`
+ * for handshake DTOs with predictions/timeline, `orchestratorTick`, `shared/`).
  *
  * **Imports:** Supported symbols live here only. Do not import other
  * `updateVesselTrips/...` leaf paths from outside this folder (see
@@ -44,7 +44,7 @@ export {
   MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
 } from "./snapshot/scheduleSnapshotLimits";
 export type { ScheduleSnapshot } from "./snapshot/scheduleSnapshotTypes";
-// --- Types shared with timeline / persistence ---
+// --- Types shared with tickLifecycle / persistence (not updateTimeline imports) ---
 export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {

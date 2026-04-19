@@ -14,7 +14,10 @@ import {
   runUpdateVesselPredictions,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/orchestratorTick";
-import type { TripLifecycleApplyOutcome } from "domain/vesselOrchestration/updateTimeline";
+import type {
+  TripLifecycleApplyOutcome,
+  VesselTripPersistResult,
+} from "domain/vesselOrchestration/tickLifecycle";
 import {
   buildScheduleSnapshotQueryArgs,
   createDefaultProcessVesselTripsDeps,
@@ -160,7 +163,7 @@ export const updateVesselLocations = async (
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
  * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
  * @param tripDeps - Shared trip compute deps (same snapshot-backed schedule lookup as predictions)
- * @returns Lifecycle apply outcome for timeline projection
+ * @returns Persist-scoped trip tick outcome (alias-compatible with timeline types)
  */
 export const updateVesselTrips = async (
   ctx: ActionCtx,
@@ -169,7 +172,7 @@ export const updateVesselTrips = async (
   tickStartedAt: number,
   tripDeps: ProcessVesselTripsDeps
 ): Promise<{
-  tripApplyResult: TripLifecycleApplyOutcome;
+  tripApplyResult: VesselTripPersistResult;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
   const { tripsCompute } = await computeVesselTripsWithClock(

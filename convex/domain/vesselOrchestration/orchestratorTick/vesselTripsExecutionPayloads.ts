@@ -3,7 +3,7 @@
  * Convex I/O is performed via `persistVesselTripWriteSet` and {@link VesselTripTableMutations}.
  */
 
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
 import type {
   PendingLeaveDockEffect,

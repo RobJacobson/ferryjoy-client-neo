@@ -7,7 +7,7 @@
  * export {@link persistVesselTripsCompute}.
  */
 
-import type { TripLifecycleApplyOutcome } from "domain/vesselOrchestration/updateTimeline";
+import type { VesselTripPersistResult } from "domain/vesselOrchestration/tickLifecycle";
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { completedFactsForSuccessfulHandoffs } from "./vesselTripsExecutionPayloads";
@@ -47,12 +47,12 @@ export type VesselTripTableMutations = {
  *
  * @param tripsCompute - Bundle for outcome fields and completed-handoff facts indexing
  * @param mutations - Convex trip table mutation bindings
- * @returns Lifecycle outcome for timeline and predictions
+ * @returns Trip-native persist outcome; alias-compatible with timeline merge types
  */
 export const persistVesselTripWriteSet = async (
   tripsCompute: VesselTripsComputeBundle,
   mutations: VesselTripTableMutations
-): Promise<TripLifecycleApplyOutcome> => {
+): Promise<VesselTripPersistResult> => {
   const writeSet = buildVesselTripTickWriteSetFromBundle(tripsCompute);
   // attemptedHandoffs and completedHandoffs share indices (same bundle mapping).
   if (

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,

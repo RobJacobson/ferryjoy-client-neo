@@ -1,5 +1,8 @@
 /**
- * Focused behavioral tests for completed-trip processing.
+ * Integration tests: completed-trip processing through persist, ML merge, and
+ * timeline tick writes (`buildTickEventWritesFromCompletedFacts`). Lives under
+ * orchestratorTick so `updateVesselTrips/tests` stays free of `updateTimeline`
+ * imports.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -22,13 +25,13 @@ import type {
   TripEvents,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   type ProcessCompletedTripsDeps,
   processCompletedTrips,
-} from "../tripLifecycle/processCompletedTrips";
+} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 
 const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,

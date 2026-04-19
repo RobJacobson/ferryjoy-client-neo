@@ -106,6 +106,28 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "convex/domain/vesselOrchestration/updateVesselTrips/**/*.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["domain/vesselOrchestration/updateTimeline/**"],
+                    "message": "Handshake types live in domain/vesselOrchestration/tickLifecycle; do not import updateTimeline from updateVesselTrips."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }
