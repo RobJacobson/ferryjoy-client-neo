@@ -16,11 +16,11 @@ it loads the read model, records one **`tickStartedAt`** (shared by trips, predi
 and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
 (live snapshot), **`getScheduleSnapshotForTick`** (bounded schedule snapshot), then
 **`updateVesselTrips`**, **`updateVesselPredictions`**, and **`updateVesselTimeline`**
-in sequence. [`utils.ts`](./utils.ts) supplies trip mutation ports and prediction
-model access—**not** a separate “phases” runner. Raw vessel locations are fetched through
-`convex/adapters/fetch/fetchWsfVesselLocations.ts`, translated into
-`ConvexVesselLocation`, and then passed into domain orchestration plus Convex
-mutations.
+in sequence. [`utils.ts`](./utils.ts) supplies trip mutation bindings for **`persistVesselTripWriteSet`**
+(prediction model blobs are preloaded in **`actions.ts`** via **`getProductionModelParametersForTick`**). Raw vessel locations are fetched through
+`convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by
+`domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation`
+before Convex mutations run.
 
 ### O1 pipeline structure (named steps)
 
@@ -29,23 +29,25 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
-2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → function-layer `persistVesselTripWriteSet`
-   (trip compute uses **`buildTripCore` only**).
+2. **`updateVesselTrips`** — `runUpdateVesselTrips` → function-layer `persistVesselTripWriteSet`
+   (trip truth is owned by the domain DTOs; persistence is a private translator).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
-4. **`updateVesselTimeline`** — `buildOrchestratorTimelineProjectionInput` then
-   projection mutations for `eventsActual` / `eventsPredicted`.
+4. **`updateVesselTimeline`** — `runUpdateVesselTimeline` (input built with
+   `buildTimelineTripComputationsForRun` after persist), then projection mutations
+   for `eventsActual` / `eventsPredicted`.
 
 The handler in `actions.ts` chains these steps; each step either calls domain
 helpers and/or `ctx.runMutation` with the payloads produced for that phase.
 
 ### O5 — Timeline consumer contract (cleanup)
 
-Phase **O5** ([handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md))
-documents that `buildOrchestratorTimelineProjectionInput` must receive
-`TripLifecycleApplyOutcome` **after** `updateVesselPredictions` (ML merged in
-memory for the same tick; timeline does not assemble from `vesselTripPredictions` DB
-reads). Implementation plan: [`.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md`](../../../.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md).
+Primary path: **`runUpdateVesselTimeline`** consumes **`RunUpdateVesselTimelineInput`**
+(handoffs + optional **`timelinePersist`** gates). ML merges in memory from
+**`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**
+on **`TimelineProjectionAssembly`**; timeline does not assemble from `vesselTripPredictions`
+DB reads. Older O5 handoff:
+[handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ## System Overview
 
@@ -61,13 +63,14 @@ timeline assembly stay explicit.
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
-- **updateVesselTrips** — `computeVesselTripsWithClock`, then function-layer `persistVesselTripWriteSet` applies the trip write set.
+- **updateVesselTrips** — `runUpdateVesselTrips`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
 - **updateVesselPredictions** — `runUpdateVesselPredictions` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
-- **updateTimeline** — `buildOrchestratorTimelineProjectionInput` / `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
+- **updateTimeline** — `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`**
+  plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
 ```text
 WSF VesselLocations API
-  -> adapters/fetch/fetchWsfVesselLocations
+  -> adapters/fetch/fetchRawWsfVesselLocations
   -> functions/vesselOrchestrator/actions.ts (bulkUpsert -> trips -> predictions -> timeline)
   -> vesselLocations / vesselTrips / vesselTripPredictions / eventsActual / eventsPredicted
 ```
@@ -110,9 +113,10 @@ Responsibilities:
   `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches
   for API subscribers); soft-fail when identity tables are empty (seed / hourly
   identity crons)
-- **fetch:** `fetchWsfVesselLocations` skips individual bad feed rows (`console.warn`
-  per skip) and continues with the rest; if **every** row fails conversion, the fetch
-  throws and the tick reports a fetch error
+- **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
+- normalize raw WSF payloads through `runUpdateVesselLocations`, which skips
+  individual bad feed rows (`console.warn` per skip) and throws when every row
+  fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
@@ -133,9 +137,8 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
-  -> adapters/fetch/fetchWsfVesselLocations()
-  -> actions.ts
-  -> toConvexVesselLocation(raw, vessels, terminals)
+  -> adapters/fetch/fetchRawWsfVesselLocations()
+  -> domain/vesselOrchestration/updateVesselLocations
   -> ConvexVesselLocation[]
 ```
 
@@ -253,7 +256,7 @@ That document covers:
 ```text
 WSF API
   -> fetch vessel locations once via adapters
-  -> convert locations in functions
+  -> normalize locations in domain/updateVesselLocations
   -> updateVesselTrips (compute -> bulkUpsert locations -> apply trips)
   -> updateVesselPredictions (ML merge + prediction table upserts)
   -> updateVesselTimeline (build projection input -> eventsActual / eventsPredicted)

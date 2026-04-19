@@ -52,4 +52,17 @@ describe("vesselTripPredictionProposalsFromMlTrip", () => {
   it("returns empty when no ML fields are present", () => {
     expect(vesselTripPredictionProposalsFromMlTrip(baseTrip())).toEqual([]);
   });
+
+  it("skips joined minimal predictions that are not full ML payloads", () => {
+    const trip: ConvexVesselTripWithML = {
+      ...baseTrip(),
+      AtDockDepartCurr: {
+        PredTime: 1,
+        Actual: undefined,
+        DeltaTotal: undefined,
+      },
+    };
+
+    expect(vesselTripPredictionProposalsFromMlTrip(trip)).toEqual([]);
+  });
 });

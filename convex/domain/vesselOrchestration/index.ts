@@ -11,18 +11,17 @@
 
 export * as shared from "./shared";
 export * as updateTimeline from "./updateTimeline";
+export * as updateVesselLocations from "./updateVesselLocations";
 export * as updateVesselPredictions from "./updateVesselPredictions";
 export {
   type ActiveTripsBranch,
   type BuildTripCoreResult,
   computeShouldRunPredictionFallback,
-  computeVesselTripsBundle,
   computeVesselTripsWithClock,
   createDefaultProcessVesselTripsDeps,
   type PendingLeaveDockEffect,
   type ProcessVesselTripsDeps,
   type TripEvents,
-  type VesselTripsComputeBundle,
   type VesselTripsWithClock,
   type VesselTripsWithClockOptions,
 } from "./updateVesselTrips";
@@ -30,6 +29,7 @@ export {
 /**
  * Top-level export style:
  * - import trip-tick entry points as named exports from `domain/vesselOrchestration`
+ *   or from the owning concern barrel (`updateVesselTrips`, etc.)
  * - import cross-pipeline helpers via the `shared`, `updateVesselPredictions`,
  *   and `updateTimeline` namespaces exposed here
  * - when working entirely inside one concern, prefer that concern's local barrel

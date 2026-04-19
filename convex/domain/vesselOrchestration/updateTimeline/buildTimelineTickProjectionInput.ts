@@ -2,12 +2,12 @@
  * Pure **updateTimeline** step: merges lifecycle branch outputs into
  * `TimelineTickProjectionInput` for one tick.
  *
- * **Production contract:** `completedFacts` and `currentBranch` are the slices of
- * `TripLifecycleApplyOutcome` that `updateVesselTimeline` passes after
- * `updateVesselPredictions`, with ML-enriched trips where projection needs them.
- * Same-tick assembly must not reload `vesselTripPredictions` from the DB; merge
- * ordering uses `mergeTripApplyWithMlForTimeline` in `updateTimeline`
- * after `runUpdateVesselPredictions`.
+ * **Production contract:** `completedFacts` and `currentBranch` match the
+ * lifecycle-shaped rows built from Stage C/D handoffs (see
+ * `orchestratorTimelineProjection`), with ML-enriched trips where projection
+ * needs them. Same-tick assembly must not reload `vesselTripPredictions` from the
+ * DB; ML overlay uses {@link mergePredictedComputationsIntoTimelineProjectionAssembly}
+ * in `orchestratorTimelineProjection` after `runUpdateVesselPredictions`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *
@@ -28,20 +28,29 @@ import type {
 } from "./types";
 
 /**
- * Arguments for {@link buildTimelineTickProjectionInput}. In production these
- * fields mirror `TripLifecycleApplyOutcome` after predictions merge.
+ * Facts and current-branch state for one tick after ML overlay from prediction
+ * handoffs (same shapes as {@link BuildTimelineTickProjectionInputArgs} minus tick
+ * time).
  */
-export type BuildTimelineTickProjectionInputArgs = {
+export type TimelineProjectionAssembly = {
   completedFacts: CompletedTripBoundaryFact[];
   currentBranch: CurrentTripLifecycleBranchResult;
-  tickStartedAt: number;
 };
+
+/**
+ * Arguments for {@link buildTimelineTickProjectionInput}.
+ */
+export type BuildTimelineTickProjectionInputArgs =
+  TimelineProjectionAssembly & {
+    tickStartedAt: number;
+  };
 
 /**
  * Merges completed-branch then current-branch tick writes for one orchestrator
  * tick. For timeline rows that need ML (e.g. predicted dock batches), call only
- * after `mergeTripApplyWithMlForTimeline` has merged ML onto the apply result;
- * `currentBranch` must still reflect post-mutation upsert gating
+ * after {@link mergePredictedComputationsIntoTimelineProjectionAssembly} in
+ * `orchestratorTimelineProjection`; `currentBranch` must still reflect
+ * post-mutation upsert gating
  * (`successfulVessels`, pending messages).
  *
  * @param args - Boundary facts, current-branch artifacts, and tick time

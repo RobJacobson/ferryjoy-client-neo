@@ -5,16 +5,13 @@
 
 import { describe, expect, it } from "bun:test";
 import { api, internal } from "_generated/api";
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
 import {
-  buildTickEventWritesFromCompletedFacts,
-  mergeTripApplyWithMlForTimeline,
-} from "domain/vesselOrchestration/updateTimeline";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+  runUpdateVesselPredictions,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  ActiveTripsBranch,
   BuildTripCoreResult,
+  RunUpdateVesselTripsOutput,
   TripEvents,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
@@ -23,6 +20,7 @@ import {
   processCompletedTrips,
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { buildTimelineTripComputationsForRun } from "functions/vesselOrchestrator/buildTimelineTripComputationsForRun";
 import {
   persistVesselTripWriteSet,
   type VesselTripTableMutations,
@@ -30,16 +28,11 @@ import {
 } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-
-const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
-  loadModelForProductionPair: async () => null,
-  loadModelsForProductionPairBatch: async () =>
-    ({}) as Record<
-      ModelType,
-      | import("domain/ml/prediction/vesselTripPredictionModelAccess").ProductionModelParameters
-      | null
-    >,
-};
+import {
+  buildTimelineProjectionAssemblyFromTripComputations,
+  mergePredictedComputationsIntoTimelineProjectionAssembly,
+} from "../orchestratorTimelineProjection";
+import { buildTickEventWritesFromCompletedFacts } from "../timelineEventAssembler";
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -96,26 +89,40 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const tripsCompute: VesselTripsComputeBundle = {
+    const _tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
-      current: emptyActiveTripsBranch(),
+      current: {
+        activeUpserts: [],
+        pendingActualMessages: [],
+        pendingPredictedMessages: [],
+        pendingLeaveDockEffects: [],
+      },
     };
+    const tripsOutput = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
-      tripsCompute,
+      tripsOutput,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await runUpdateVesselPredictions(
-      tripsCompute,
-      noopPredictionModelAccess
-    );
-    if (proposals.length > 0) {
+    const predictionOutput = await runUpdateVesselPredictions({
+      tickStartedAt: 0,
+      tripComputations: tripsOutput.tripComputations,
+      predictionContext: {},
+    });
+    if (predictionOutput.vesselTripPredictions.length > 0) {
       await ctx.runMutation(
         internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-        { proposals }
+        { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(applyTripResult, mlFull);
+    const timelineComputations = buildTimelineTripComputationsForRun(
+      tripsOutput,
+      applyTripResult
+    );
+    const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
+      buildTimelineProjectionAssemblyFromTripComputations(timelineComputations),
+      predictionOutput.predictedTripComputations
+    );
 
     const result = buildTickEventWritesFromCompletedFacts(
       enriched.completedFacts,
@@ -209,26 +216,40 @@ describe("processCompletedTrips", () => {
       })
     );
 
-    const tripsCompute: VesselTripsComputeBundle = {
+    const _tripsCompute: VesselTripsComputeBundle = {
       completedHandoffs,
-      current: emptyActiveTripsBranch(),
+      current: {
+        activeUpserts: [],
+        pendingActualMessages: [],
+        pendingPredictedMessages: [],
+        pendingLeaveDockEffects: [],
+      },
     };
+    const tripsOutput = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
-      tripsCompute,
+      tripsOutput,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
-    const { proposals, mlFull } = await runUpdateVesselPredictions(
-      tripsCompute,
-      noopPredictionModelAccess
-    );
-    if (proposals.length > 0) {
+    const predictionOutput = await runUpdateVesselPredictions({
+      tickStartedAt: 0,
+      tripComputations: tripsOutput.tripComputations,
+      predictionContext: {},
+    });
+    if (predictionOutput.vesselTripPredictions.length > 0) {
       await ctx.runMutation(
         internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-        { proposals }
+        { proposals: predictionOutput.vesselTripPredictions }
       );
     }
-    const enriched = mergeTripApplyWithMlForTimeline(applyTripResult, mlFull);
+    const timelineComputations = buildTimelineTripComputationsForRun(
+      tripsOutput,
+      applyTripResult
+    );
+    const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
+      buildTimelineProjectionAssemblyFromTripComputations(timelineComputations),
+      predictionOutput.predictedTripComputations
+    );
 
     const result = buildTickEventWritesFromCompletedFacts(
       enriched.completedFacts,
@@ -254,11 +275,23 @@ describe("processCompletedTrips", () => {
  *
  * @returns Empty arrays (no active-trip mutations)
  */
-const emptyActiveTripsBranch = (): ActiveTripsBranch => ({
-  activeUpserts: [],
-  pendingActualMessages: [],
-  pendingPredictedMessages: [],
-  pendingLeaveDockEffects: [],
+const emptyTripsOutput = (
+  completedHandoffs: VesselTripsComputeBundle["completedHandoffs"]
+): RunUpdateVesselTripsOutput => ({
+  activeTrips: completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+  ),
+  completedTrips: completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.tripToComplete)
+  ),
+  tripComputations: completedHandoffs.map((handoff) => ({
+    vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
+    branch: "completed" as const,
+    existingTrip: handoff.existingTrip,
+    completedTrip: handoff.tripToComplete,
+    activeTrip: handoff.newTripCore.withFinalSchedule,
+    tripCore: handoff.newTripCore,
+  })),
 });
 
 type TestActionCtx = {

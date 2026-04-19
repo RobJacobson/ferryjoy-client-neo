@@ -1,7 +1,13 @@
 # updateVesselTrips (orchestrator concern)
 
-**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via the local **`updateVesselTrips`** step — `computeVesselTripsWithClock` → storage-shaped write set → function-layer `persistVesselTripWriteSet`): the full
-**lifecycle** implementation used on each cron tick.
+**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via the canonical **`runUpdateVesselTrips`** boundary): the full **lifecycle** implementation used on each cron tick.
+
+The public story for this concern is:
+
+- `runUpdateVesselTrips(input) -> { activeTrips, completedTrips, tripComputations }`
+
+Functions-layer persistence may translate those DTOs into Convex mutations, but
+that persistence shape is not the concern's public contract.
 
 ## Layout
 

@@ -23,12 +23,7 @@ export {
   type WsfTerminalMatePair,
 } from "./fetch/fetchWsfTerminalsAndMates";
 export { fetchWsfVesselIdentities } from "./fetch/fetchWsfVesselIdentities";
-export {
-  assertAtLeastOneVesselLocationConverted,
-  fetchWsfVesselLocations,
-  mapDottieVesselLocationsToConvex,
-  toConvexVesselLocation,
-} from "./fetch/fetchWsfVesselLocations";
+export { fetchRawWsfVesselLocations } from "./fetch/fetchWsfVesselLocations";
 export { fetchWsfVesselPings } from "./fetch/fetchWsfVesselPings";
 export {
   buildTerminalTopologyRows,

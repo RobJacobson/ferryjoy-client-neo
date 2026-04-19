@@ -128,9 +128,11 @@ Recommended tick order (same process, single action):
 3. **Predictions** — Read **post-trip** trip state (and any other inputs),
    recompute candidate predictions, **compare** to stored prediction rows,
    **upsert** only when changed.
-4. **Timeline** — Build projection input from the **in-memory** post–`updateVesselPredictions`
-   merge (`TripLifecycleApplyOutcome` slices fed to
-   `buildOrchestratorTimelineProjectionInput`). Same-tick assembly does **not** reload
+4. **Timeline** — **`runUpdateVesselTimeline`** consumes in-memory **`tripComputations`**
+   (**`TimelineTripComputation`**) and **`predictedTripComputations`**, builds
+   **`TimelineProjectionAssembly`**, merges ML via
+   **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, then
+   **`buildTimelineTickProjectionInput`**. Same-tick assembly does **not** reload
    `vesselTripPredictions` from the DB for projection; the table is for persistence
    and other readers.
 

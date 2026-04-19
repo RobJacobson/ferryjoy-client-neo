@@ -4,17 +4,21 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   type BuildTripCoreResult,
   computeVesselTripsWithClock,
+  type RunUpdateVesselTripsOutput,
   type TripEvents,
+  type VesselTripsWithClock,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { updateVesselTimeline } from "functions/vesselOrchestrator/actions";
+import {
+  updateVesselPredictions,
+  updateVesselTimeline,
+} from "functions/vesselOrchestrator/actions";
+import { buildTimelineTripComputationsForRun } from "functions/vesselOrchestrator/buildTimelineTripComputationsForRun";
 import { persistVesselTripWriteSet } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { createVesselTripTableMutations } from "functions/vesselOrchestrator/utils";
 import type {
@@ -47,29 +51,64 @@ const runVesselTripsTick = async (
     deps,
     { tickStartedAt }
   );
+  const tripsOutput = buildTripsOutputFromTripsCompute({ tripsCompute });
   const tripApplyResult = await persistVesselTripWriteSet(
-    tripsCompute,
+    tripsOutput,
     createVesselTripTableMutations(actionCtx)
   );
 
-  const { tripsCompute: tripsForMl } = await computeVesselTripsWithClock(
-    { convexLocations: locations, activeTrips: trips },
-    deps,
-    { tickStartedAt }
+  const { predictedTripComputations } = await updateVesselPredictions(
+    actionCtx,
+    tickStartedAt,
+    tripsOutput.tripComputations
   );
-  const { mlFull, proposals } = await runUpdateVesselPredictions(
-    tripsForMl,
-    createVesselTripPredictionModelAccess(actionCtx)
-  );
-  if (proposals.length > 0) {
-    await actionCtx.runMutation(
-      internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-      { proposals }
-    );
-  }
 
-  await updateVesselTimeline(actionCtx, tripApplyResult, mlFull, tickStartedAt);
+  await updateVesselTimeline(actionCtx, {
+    tickStartedAt,
+    tripComputations: buildTimelineTripComputationsForRun(
+      tripsOutput,
+      tripApplyResult
+    ),
+    predictedTripComputations,
+  });
 };
+
+const buildTripsOutputFromTripsCompute = (
+  input: Pick<VesselTripsWithClock, "tripsCompute">
+): RunUpdateVesselTripsOutput => ({
+  activeTrips: [
+    ...input.tripsCompute.completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+    ),
+    ...input.tripsCompute.current.activeUpserts.map(
+      stripTripPredictionsForStorage
+    ),
+  ],
+  completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
+    stripTripPredictionsForStorage(handoff.tripToComplete)
+  ),
+  tripComputations: [
+    ...input.tripsCompute.completedHandoffs.map((handoff) => ({
+      vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
+      branch: "completed" as const,
+      existingTrip: handoff.existingTrip,
+      completedTrip: handoff.tripToComplete,
+      activeTrip: handoff.newTripCore.withFinalSchedule,
+      tripCore: handoff.newTripCore,
+    })),
+    ...input.tripsCompute.current.pendingPredictedMessages.map((message) => ({
+      vesselAbbrev: message.vesselAbbrev,
+      branch: "current" as const,
+      events:
+        input.tripsCompute.current.pendingActualMessages.find(
+          (actualMessage) => actualMessage.vesselAbbrev === message.vesselAbbrev
+        )?.events ?? defaultEvents,
+      existingTrip: message.existingTrip,
+      activeTrip: message.tripCore.withFinalSchedule,
+      tripCore: message.tripCore,
+    })),
+  ],
+});
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -580,6 +619,10 @@ const createTestActionCtx = (options: {
     preloadedActiveTrips: options.activeTrips,
     runQuery: async (ref, args) => {
       queryCalls.push({ ref, args });
+      if (args && typeof args === "object" && "requests" in args) {
+        options.callSequence?.push("query:predictionModels");
+        return {};
+      }
       options.callSequence?.push("query:activeTrips");
       return options.tripsReturnedByQuery ?? options.activeTrips ?? [];
     },

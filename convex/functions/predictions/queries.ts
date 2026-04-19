@@ -2,7 +2,7 @@
  * Query handlers for stored ML model parameters and active version tags.
  */
 
-import { query } from "_generated/server";
+import { internalQuery, query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getProductionVersionTagValue } from "functions/keyValueStore/helpers";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
@@ -143,6 +143,85 @@ export const getModelParametersForProductionBatch = query({
         },
       });
     }
+  },
+});
+
+const productionModelParametersSchema = v.object({
+  featureKeys: v.array(v.string()),
+  coefficients: v.array(v.number()),
+  intercept: v.number(),
+  testMetrics: v.object({
+    mae: v.number(),
+    stdDev: v.number(),
+  }),
+});
+
+/**
+ * Bulk preload for one orchestrator tick: loads only the requested production
+ * model docs and returns them as a plain-data lookup by pair and model type.
+ */
+export const getProductionModelParametersForTick = internalQuery({
+  args: {
+    requests: v.array(
+      v.object({
+        pairKey: v.string(),
+        modelTypes: v.array(modelTypeValidator),
+      })
+    ),
+  },
+  returns: v.record(
+    v.string(),
+    v.record(v.string(), v.union(productionModelParametersSchema, v.null()))
+  ),
+  handler: async (ctx, args) => {
+    const prodVersionTag = await getProductionVersionTagValue(ctx);
+    if (!prodVersionTag || args.requests.length === 0) {
+      return {};
+    }
+
+    const requestMap = new Map(
+      args.requests.map((request) => [
+        request.pairKey,
+        [...new Set(request.modelTypes)],
+      ])
+    );
+
+    const entries = await Promise.all(
+      [...requestMap.entries()].map(async ([pairKey, modelTypes]) => {
+        const models = await Promise.all(
+          modelTypes.map(async (modelType) => {
+            const doc = await ctx.db
+              .query("modelParameters")
+              .withIndex("by_pair_type_tag", (q) =>
+                q
+                  .eq("pairKey", pairKey)
+                  .eq("modelType", modelType)
+                  .eq("versionTag", prodVersionTag)
+              )
+              .first();
+
+            return [
+              modelType,
+              doc === null
+                ? null
+                : {
+                    featureKeys: doc.featureKeys,
+                    coefficients: doc.coefficients,
+                    intercept: doc.intercept,
+                    testMetrics: {
+                      mae: doc.testMetrics.mae,
+                      stdDev: doc.testMetrics.stdDev,
+                    },
+                  },
+            ] as const;
+          })
+        );
+
+        return [pairKey, Object.fromEntries(models)] as const;
+      })
+    );
+
+    return Object.fromEntries(entries);
   },
 });
 

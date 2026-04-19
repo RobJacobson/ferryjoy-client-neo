@@ -7,27 +7,34 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
-import { fetchWsfVesselLocations } from "adapters";
+import { fetchRawWsfVesselLocations } from "adapters";
+import { formatTerminalPairKey } from "domain/ml/shared/config";
+import type { ModelType } from "domain/ml/shared/types";
 import {
   buildScheduleSnapshotQueryArgs,
-  createScheduledSegmentLookupFromSnapshot,
-  type TripLifecycleApplyOutcome,
+  type ScheduleSnapshot,
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
-import { runUpdateVesselTimeline } from "domain/vesselOrchestration/updateTimeline";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
-  computeVesselTripsWithClock,
-  createDefaultProcessVesselTripsDeps,
-  type ProcessVesselTripsDeps,
+  type RunUpdateVesselTimelineInput,
+  runUpdateVesselTimeline,
+} from "domain/vesselOrchestration/updateTimeline";
+import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import {
+  type PredictedTripComputation,
+  runUpdateVesselPredictions,
+  type VesselPredictionContext,
+} from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  type RunUpdateVesselTripsOutput,
+  runUpdateVesselTrips,
+  type TripComputation,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { buildTimelineTripComputationsForRun } from "./buildTimelineTripComputationsForRun";
 import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
@@ -64,6 +71,7 @@ export const updateVesselOrchestrator = internalAction({
       // Step 1: WSF fetch → Convex `vesselLocations` bulk upsert.
       const convexLocations = await updateVesselLocations(
         ctx,
+        tickStartedAt,
         vesselsIdentity,
         terminalsIdentity
       );
@@ -94,31 +102,32 @@ export const updateVesselOrchestrator = internalAction({
         );
       }
 
-      const tripProcessDeps: ProcessVesselTripsDeps =
-        createDefaultProcessVesselTripsDeps(
-          createScheduledSegmentLookupFromSnapshot(scheduleSnapshot)
+      // Step 2: Trip compute + persist active/completed vessel trip rows.
+      const { trips, tripApplyResult, tripComputations } =
+        await updateVesselTrips(
+          ctx,
+          convexLocations,
+          activeTrips,
+          tickStartedAt,
+          scheduleSnapshot
         );
 
-      // Step 2: Trip compute + persist active/completed vessel trip rows.
-      const { tripApplyResult } = await updateVesselTrips(
+      // Step 3: Canonical prediction compute over trip handoff data.
+      const { predictedTripComputations } = await updateVesselPredictions(
         ctx,
-        convexLocations,
-        activeTrips,
         tickStartedAt,
-        tripProcessDeps
-      );
-
-      // Step 3: Trip recompute for ML, prediction proposals upsert, ML overlay.
-      const mlFull = await updateVesselPredictions(
-        ctx,
-        convexLocations,
-        activeTrips,
-        tickStartedAt,
-        tripProcessDeps
+        tripComputations
       );
 
       // Step 4: Timeline dock writes → `eventsActual` / `eventsPredicted`.
-      await updateVesselTimeline(ctx, tripApplyResult, mlFull, tickStartedAt);
+      await updateVesselTimeline(ctx, {
+        tickStartedAt,
+        tripComputations: buildTimelineTripComputationsForRun(
+          trips,
+          tripApplyResult
+        ),
+        predictedTripComputations,
+      });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error("[updateVesselOrchestrator]", err);
@@ -131,20 +140,25 @@ export const updateVesselOrchestrator = internalAction({
  * Fetches live vessel locations from WSF and persists them via `bulkUpsert`.
  *
  * @param ctx - Convex action context for the location mutation
+ * @param tickStartedAt - Orchestrator-owned tick anchor shared with the domain runner
  * @param vesselsIdentity - Backend vessel rows for feed resolution
  * @param terminalsIdentity - Backend terminal rows for normalization
  * @returns Location rows written (or skipped as stale) by the mutation path
  */
 export const updateVesselLocations = async (
   ctx: ActionCtx,
+  tickStartedAt: number,
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
-  // Fetch latest vessel locations from WSF.
-  const convexLocations = await fetchWsfVesselLocations(
+  const rawFeedLocations = await fetchRawWsfVesselLocations();
+  const { vesselLocations: convexLocations } = await runUpdateVesselLocations({
+    tickStartedAt,
+    rawFeedLocations,
     vesselsIdentity,
-    terminalsIdentity
-  );
+    terminalsIdentity,
+  });
+
   // Persist vessel locations to Convex.
   await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
     locations: convexLocations,
@@ -160,7 +174,7 @@ export const updateVesselLocations = async (
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
  * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
- * @param tripDeps - Shared trip compute deps (same snapshot-backed schedule lookup as predictions)
+ * @param scheduleContext - Plain-data schedule snapshot for this tick
  * @returns Persist-scoped trip tick outcome (alias-compatible with timeline types)
  */
 export const updateVesselTrips = async (
@@ -168,98 +182,163 @@ export const updateVesselTrips = async (
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
   tickStartedAt: number,
-  tripDeps: ProcessVesselTripsDeps
+  scheduleContext: ScheduleSnapshot
 ): Promise<{
+  trips: RunUpdateVesselTripsOutput;
   tripApplyResult: VesselTripPersistResult;
+  tripComputations: ReadonlyArray<TripComputation>;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    { convexLocations, activeTrips },
-    tripDeps,
-    { tickStartedAt }
-  );
+  const trips = await runUpdateVesselTrips({
+    tickStartedAt,
+    vesselLocations: convexLocations,
+    existingActiveTrips: activeTrips,
+    scheduleContext,
+  });
   const tripApplyResult = await persistVesselTripWriteSet(
-    tripsCompute,
+    trips,
     bindings.vesselTripMutations
   );
-  return { tripApplyResult };
+  return {
+    trips,
+    tripApplyResult,
+    tripComputations: trips.tripComputations,
+  };
 };
 
 /**
- * Recomputes the trip branch with the same inputs as {@link updateVesselTrips},
- * builds ML overlay and prediction row proposals, and upserts proposals when
- * non-empty. Intentionally does not reuse trip-step outputs so this phase stays
- * isolated.
+ * Preloads the minimal model context required for this tick, computes
+ * predictions from canonical trip handoff data, and persists proposals when
+ * non-empty.
  *
- * @param ctx - Action context for bindings and proposal mutation
- * @param convexLocations - Same snapshot as the trips step
- * @param activeTrips - Same preloaded rows as the trips step
+ * @param ctx - Action context for preload and proposal mutation
  * @param tickStartedAt - Clock anchor shared with the trips compute
- * @param tripDeps - Same {@link ProcessVesselTripsDeps} as {@link updateVesselTrips}
- * @returns Full ML overlay (`TripLifecycleApplyOutcome`) for
- *   {@link updateVesselTimeline}
+ * @param tripComputations - Canonical Stage C handoff
+ * @returns Canonical Stage D prediction outputs
  */
 export const updateVesselPredictions = async (
   ctx: ActionCtx,
-  convexLocations: ReadonlyArray<ConvexVesselLocation>,
-  activeTrips: ReadonlyArray<
-    ConvexVesselTrip | ConvexVesselTripWithPredictions
-  >,
   tickStartedAt: number,
-  tripDeps: ProcessVesselTripsDeps
-): Promise<TripLifecycleApplyOutcome> => {
-  const bindings = createVesselOrchestratorConvexBindings(ctx);
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    { convexLocations, activeTrips },
-    tripDeps,
-    { tickStartedAt }
-  );
-  const { proposals, mlFull } = await runUpdateVesselPredictions(
-    tripsCompute,
-    bindings.predictionModelQueries
-  );
-  if (proposals.length > 0) {
+  tripComputations: ReadonlyArray<TripComputation>
+): Promise<{
+  vesselTripPredictions: ReadonlyArray<
+    Awaited<
+      ReturnType<typeof runUpdateVesselPredictions>
+    >["vesselTripPredictions"][number]
+  >;
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+}> => {
+  const predictionContext = await loadPredictionContext(ctx, tripComputations);
+  const predictions = await runUpdateVesselPredictions({
+    tickStartedAt,
+    tripComputations,
+    predictionContext,
+  });
+  if (predictions.vesselTripPredictions.length > 0) {
     await ctx.runMutation(
       internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-      { proposals }
+      { proposals: [...predictions.vesselTripPredictions] }
     );
   }
-  return mlFull;
+  return predictions;
+};
+
+const atDockModelTypes = [
+  "at-dock-depart-curr",
+  "at-dock-arrive-next",
+  "at-dock-depart-next",
+] as const satisfies readonly ModelType[];
+
+const atSeaModelTypes = [
+  "at-sea-arrive-next",
+  "at-sea-depart-next",
+] as const satisfies readonly ModelType[];
+
+const buildPredictionContextRequests = (
+  tripComputations: ReadonlyArray<TripComputation>
+): Array<{ pairKey: string; modelTypes: ModelType[] }> => {
+  const requestMap = new Map<string, Set<ModelType>>();
+
+  for (const computation of tripComputations) {
+    const gates = computation.tripCore.gates;
+    if (gates === undefined) {
+      continue;
+    }
+
+    const departing =
+      computation.tripCore.withFinalSchedule.DepartingTerminalAbbrev;
+    const arriving =
+      computation.tripCore.withFinalSchedule.ArrivingTerminalAbbrev;
+    if (departing === undefined || arriving === undefined) {
+      continue;
+    }
+
+    const pairKey = formatTerminalPairKey(departing, arriving);
+    const modelTypes = requestMap.get(pairKey) ?? new Set<ModelType>();
+
+    if (gates.shouldAttemptAtDockPredictions) {
+      for (const modelType of atDockModelTypes) {
+        modelTypes.add(modelType);
+      }
+    }
+    if (gates.shouldAttemptAtSeaPredictions) {
+      for (const modelType of atSeaModelTypes) {
+        modelTypes.add(modelType);
+      }
+    }
+
+    if (modelTypes.size > 0) {
+      requestMap.set(pairKey, modelTypes);
+    }
+  }
+
+  return [...requestMap.entries()].map(([pairKey, modelTypes]) => ({
+    pairKey,
+    modelTypes: [...modelTypes],
+  }));
+};
+
+const loadPredictionContext = async (
+  ctx: ActionCtx,
+  tripComputations: ReadonlyArray<TripComputation>
+): Promise<VesselPredictionContext> => {
+  const requests = buildPredictionContextRequests(tripComputations);
+  if (requests.length === 0) {
+    return {};
+  }
+
+  const productionModelsByPair = await ctx.runQuery(
+    internal.functions.predictions.queries.getProductionModelParametersForTick,
+    { requests }
+  );
+  return { productionModelsByPair };
 };
 
 /**
- * Dock projection for this tick: delegates to domain {@link runUpdateVesselTimeline}
- * for merged lifecycle → mutation payloads, then runs `eventsActual` / `eventsPredicted`
- * when non-empty.
+ * Dock projection for this tick: calls domain {@link runUpdateVesselTimeline} with
+ * the same {@link RunUpdateVesselTimelineInput} shape the PRD specifies (orchestrator
+ * builds {@link TimelineTripComputation} rows via
+ * {@link buildTimelineTripComputationsForRun} after persist).
  *
  * @param ctx - Action context for timeline mutations
- * @param tripApplyResult - Outcome from {@link persistVesselTripWriteSet}
- * @param mlFull - ML overlay from {@link updateVesselPredictions}
- * @param tickStartedAt - Wall-clock anchor for projection assembly
- * @returns Nothing
+ * @param input - Canonical timeline handoff (`tickStartedAt`, annotated trip rows, predictions)
  */
 export const updateVesselTimeline = async (
   ctx: ActionCtx,
-  tripApplyResult: TripLifecycleApplyOutcome,
-  mlFull: TripLifecycleApplyOutcome,
-  tickStartedAt: number
+  input: RunUpdateVesselTimelineInput
 ): Promise<void> => {
-  const { actual, predicted } = runUpdateVesselTimeline(
-    tripApplyResult,
-    mlFull,
-    tickStartedAt
-  );
-  if (actual.Writes.length > 0) {
+  const { actualEvents, predictedEvents } = runUpdateVesselTimeline(input);
+  if (actualEvents.length > 0) {
     await ctx.runMutation(
       internal.functions.events.eventsActual.mutations.projectActualDockWrites,
-      actual
+      { Writes: actualEvents }
     );
   }
-  if (predicted.Batches.length > 0) {
+  if (predictedEvents.length > 0) {
     await ctx.runMutation(
       internal.functions.events.eventsPredicted.mutations
         .projectPredictedDockWriteBatches,
-      predicted
+      { Batches: predictedEvents }
     );
   }
 };
