@@ -8,7 +8,7 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   runUpdateVesselPredictions,
 } from "domain/vesselOrchestration/orchestratorTick";
 import type {
@@ -49,7 +49,7 @@ const runVesselTripsTick = async (
     deps,
     { tickStartedAt }
   );
-  const tripApplyResult = await persistVesselTripsCompute(
+  const tripApplyResult = await persistVesselTripWriteSet(
     tripsCompute,
     createVesselTripTableMutations(actionCtx)
   );

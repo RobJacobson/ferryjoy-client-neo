@@ -11,12 +11,13 @@ Route orchestrator trip persistence through **`VesselTripTickWriteSet`**: implem
 
 This step **still returns `TripLifecycleApplyOutcome`** for predictions and timeline until Step 6; the focus is **trip-table writes + leave-dock sequencing**, not removing timeline types yet.
 
+**Status (2026-04-18):** Implemented — `persistVesselTripWriteSet` in `persistVesselTripsCompute.ts`, `persistVesselTripsCompute` same-reference alias, leave-dock via write-set intents, invariant on handoff lengths, tests and docs updated.
+
 ## Goal
 
-- Add **`persistVesselTripWriteSet(tripsCompute | writeSet, mutations)`** (exact signature TBD) that:
-  - Derives or accepts a **`VesselTripTickWriteSet`** and runs **`completeAndStartNewTrip`**, **`upsertVesselTripsBatch`**, and **`setDepartNextActualsForMostRecentCompletedTrip`** with **identical ordering and gating** as `persistVesselTripsCompute` today (`successfulVessels` filter for leave-dock, `Promise.allSettled` for handoffs, `completedFactsForSuccessfulHandoffs` for outcome).
-- Wire **`updateVesselTrips`** in `actions.ts` to use the new persist entry **once parity is proven** (or feature-flag the switch with both paths tested).
-- **Retire or narrow** **`buildVesselTripsExecutionPayloads`** as the orchestrator’s source of truth for trip mutations—either delete duplicated logic or keep it only as an implementation detail inside the write-set builder until callers are gone.
+- **`persistVesselTripWriteSet(tripsCompute, mutations)`** — builds **`VesselTripTickWriteSet`** once via **`buildVesselTripTickWriteSetFromBundle`**, runs mutations with the same ordering and gating as before (`successfulVessels` for leave-dock, `Promise.allSettled` for handoffs, **`completedFactsForSuccessfulHandoffs`** for outcome).
+- **`updateVesselTrips`** in `actions.ts` calls **`persistVesselTripWriteSet`**.
+- **`buildVesselTripsExecutionPayloads`** is no longer imported by the persist module; it remains an implementation detail of **`buildVesselTripTickWriteSetFromBundle`** until a later inline/refactor.
 
 ## Non-goals (this step)
 
@@ -30,18 +31,17 @@ This step **still returns `TripLifecycleApplyOutcome`** for predictions and time
 | Area | Location |
 |------|----------|
 | Write set | `convex/domain/vesselOrchestration/orchestratorTick/vesselTripTickWriteSet.ts` — `VesselTripTickWriteSet`, `buildVesselTripTickWriteSetFromBundle`. |
-| Leave-dock helper | `convex/domain/vesselOrchestration/orchestratorTick/leaveDockActualization.ts` — `actualDepartMsForLeaveDockEffect`. |
-| Current persist | `convex/domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute.ts` — `buildVesselTripsExecutionPayloads` → mutations → `TripLifecycleApplyOutcome`. |
-| Execution payloads | `convex/domain/vesselOrchestration/orchestratorTick/vesselTripsExecutionPayloads.ts` — strip + grouping; **candidate to inline or delete** once write set is sole driver. |
-| Orchestrator | `convex/functions/vesselOrchestrator/actions.ts` — `updateVesselTrips` calls `computeVesselTripsWithClock` + `persistVesselTripsCompute`. |
-| Tick tests | `convex/functions/vesselOrchestrator/tests/processVesselTrips.tick.test.ts` — sequencing; extend or duplicate assertions for write-set persist path. |
+| Leave-dock helper | `convex/domain/vesselOrchestration/orchestratorTick/leaveDockActualization.ts` — `actualDepartMsForLeaveDockEffect` (used when building intents from effects). |
+| Persist | `convex/domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute.ts` — **`persistVesselTripWriteSet`** (canonical); **`persistVesselTripsCompute`** = same reference (legacy name). |
+| Execution payloads | `convex/domain/vesselOrchestration/orchestratorTick/vesselTripsExecutionPayloads.ts` — strip + grouping; used only inside **`buildVesselTripTickWriteSetFromBundle`**, not by persist directly. |
+| Orchestrator | `convex/functions/vesselOrchestrator/actions.ts` — `updateVesselTrips` calls `computeVesselTripsWithClock` + **`persistVesselTripWriteSet`**. |
+| Tick tests | `convex/functions/vesselOrchestrator/tests/processVesselTrips.tick.test.ts` — uses **`persistVesselTripWriteSet`**. |
 
-## Suggested implementation outline
+## Implementation notes (shipped)
 
-1. **Implement `persistVesselTripWriteSet`** — Prefer taking **`VesselTripTickWriteSet`** plus **`VesselTripTableMutations`** (reuse existing type). Reuse the **body** of `persistVesselTripsCompute` by mapping write-set fields to the same mutation calls; **extract shared helpers** if both paths exist during migration (e.g. handoff settle loop, upsert result → `successfulVessels`, leave-dock runner).
-2. **Single builder internally** — Either `persistVesselTripWriteSet` calls `buildVesselTripTickWriteSetFromBundle(tripsCompute)` once, or `updateVesselTrips` builds the write set and passes it in—avoid double `buildVesselTripsExecutionPayloads` if possible.
-3. **Parity verification** — Run existing orchestrator tick tests; add tests that **`persistVesselTripWriteSet`** and legacy **`persistVesselTripsCompute`** produce the **same mutation ordering and arguments** for fixed fixtures (or replace legacy with golden assertions on the new path only once flipped).
-4. **Delete or shim `persistVesselTripsCompute`** — When green, reduce to a thin wrapper or remove; update **`orchestratorTick/index.ts`** exports.
+- **`persistVesselTripWriteSet`** calls **`buildVesselTripTickWriteSetFromBundle` once**; throws if `attemptedHandoffs.length !== completedHandoffs.length`; active upserts use **`Array.from(writeSet.activeTripRows)`** for mutable mutation args; leave-dock uses **`runLeaveDockFromWriteSetIntents`** (filters **`leaveDockIntents`** by **`successfulVessels`**).
+- **`persistVesselTripsCompute`** is a **same-reference** alias for backward imports; both exported from **`orchestratorTick/index.ts`**.
+- Tests: **`persistVesselTripsCompute.test.ts`** (alias + leave-dock), tick and **`processCompletedTrips`** suites updated; **`convex:typecheck`** included in verification.
 
 ## Acceptance criteria
 
@@ -52,8 +52,10 @@ This step **still returns `TripLifecycleApplyOutcome`** for predictions and time
 ## Verification
 
 ```bash
+bun run check:fix
 bun run type-check
 bun run test
+bun run convex:typecheck
 ```
 
 ## Related docs

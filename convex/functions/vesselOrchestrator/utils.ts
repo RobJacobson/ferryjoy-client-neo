@@ -53,7 +53,7 @@ export const createScheduledSegmentLookup = (
     ),
 });
 
-/** Convex `runMutation` bindings for {@link persistVesselTripsCompute}. */
+/** Convex `runMutation` bindings for {@link persistVesselTripWriteSet}. */
 export const createVesselTripTableMutations = (
   ctx: ActionCtx
 ): VesselTripTableMutations => ({

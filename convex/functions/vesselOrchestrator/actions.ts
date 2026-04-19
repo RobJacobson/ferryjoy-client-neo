@@ -10,7 +10,7 @@ import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   runUpdateVesselPredictions,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/orchestratorTick";
@@ -128,7 +128,7 @@ export const updateVesselLocations = async (
 
 /**
  * Computes vessel trips for this tick and applies trip-table mutations
- * (handoffs, batch upsert, leave-dock follow-ups).
+ * (handoffs, batch upsert, leave-dock follow-ups) via {@link persistVesselTripWriteSet}.
  *
  * @param ctx - Action context for Convex bindings
  * @param convexLocations - Live locations from {@link updateVesselLocations}
@@ -150,7 +150,7 @@ export const updateVesselTrips = async (
     tripDepsForOrchestrator(ctx),
     { tickStartedAt }
   );
-  const tripApplyResult = await persistVesselTripsCompute(
+  const tripApplyResult = await persistVesselTripWriteSet(
     tripsCompute,
     bindings.vesselTripMutations
   );
@@ -203,7 +203,7 @@ export const updateVesselPredictions = async (
  * when non-empty.
  *
  * @param ctx - Action context for timeline mutations
- * @param tripApplyResult - Outcome from {@link persistVesselTripsCompute}
+ * @param tripApplyResult - Outcome from {@link persistVesselTripWriteSet}
  * @param mlFull - ML overlay from {@link updateVesselPredictions}
  * @param tickStartedAt - Wall-clock anchor for projection assembly
  * @returns Nothing

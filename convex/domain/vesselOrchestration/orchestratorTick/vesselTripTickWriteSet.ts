@@ -8,7 +8,7 @@
  *
  * **Completed handoffs** — One entry per `completedHandoffs` bundle row (**attempted**
  * writes), same cardinality as `buildVesselTripsExecutionPayloads`’s
- * `handoffMutations`. Success is decided later in `persistVesselTripsCompute`
+ * `handoffMutations`. Success is decided later in `persistVesselTripWriteSet`
  * (`Promise.allSettled`), not here.
  *
  * **Active trips** — Normalized to a **readonly array** (never `null`). Use `[]`
@@ -16,9 +16,9 @@
  *
  * **Leave-dock** — Intents for `setDepartNextActualsForMostRecentCompletedTrip`.
  * The static write set lists every pending effect with a defined
- * `LeftDockActual ?? LeftDock`. **Production** additionally filters by
- * `successfulVessels` after the active upsert batch (`runLeaveDockPostPersistEffects`);
- * this type does not encode that gate.
+ * `LeftDockActual ?? LeftDock`. **Production** additionally filters intents by
+ * `successfulVessels` after the active upsert batch (see `persistVesselTripWriteSet`
+ * in `persistVesselTripsCompute.ts`); this type does not encode that gate.
  */
 
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
@@ -69,7 +69,10 @@ export const buildVesselTripTickWriteSetFromBundle = (
     if (actualDepartMs === undefined) {
       continue;
     }
-    leaveDockIntents.push({ vesselAbbrev: effect.vesselAbbrev, actualDepartMs });
+    leaveDockIntents.push({
+      vesselAbbrev: effect.vesselAbbrev,
+      actualDepartMs,
+    });
   }
   return {
     attemptedHandoffs: payload.handoffMutations,

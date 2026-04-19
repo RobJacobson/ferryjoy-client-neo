@@ -1,6 +1,6 @@
 /**
  * Pure payloads for one vessel-trips persistence pass (strip + structural grouping).
- * Convex I/O is performed via `persistVesselTripsCompute` and {@link VesselTripTableMutations}.
+ * Convex I/O is performed via `persistVesselTripWriteSet` and {@link VesselTripTableMutations}.
  */
 
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";

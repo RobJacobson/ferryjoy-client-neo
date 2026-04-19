@@ -1,7 +1,7 @@
 /**
  * Pure helpers for leave-dock depart-next actualization (orchestrator tick).
  *
- * @see persistVesselTripsCompute — production path filters by `successfulVessels`
+ * @see persistVesselTripWriteSet — production path filters by `successfulVessels`
  * before calling mutations; this helper only extracts the timestamp.
  */
 

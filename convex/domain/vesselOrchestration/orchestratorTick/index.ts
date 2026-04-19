@@ -3,6 +3,7 @@
  * `functions/vesselOrchestrator` calls these and runs Convex mutations.
  */
 
+export { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
 export {
   buildMlOverlayFromTripsCompute,
   buildOrchestratorTimelineProjectionInput,
@@ -16,12 +17,10 @@ export {
 } from "./materializePostTripTableWrites";
 export {
   persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "./persistVesselTripsCompute";
-export {
-  actualDepartMsForLeaveDockEffect,
-} from "./leaveDockActualization";
 export {
   buildVesselTripsExecutionPayloads,
   completedFactsForSuccessfulHandoffs,

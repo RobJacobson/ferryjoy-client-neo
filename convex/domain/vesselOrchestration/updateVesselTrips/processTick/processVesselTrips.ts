@@ -58,7 +58,7 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * @param activeTrips - Preloaded active trips for this tick (storage-native
  *   {@link ConvexVesselTrip} and/or {@link ConvexVesselTripWithPredictions}).
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
- * @returns Bundle for `updateVesselTrips` / `persistVesselTripsCompute`
+ * @returns Bundle for `updateVesselTrips` / `persistVesselTripWriteSet`
  */
 export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,

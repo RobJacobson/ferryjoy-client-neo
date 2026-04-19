@@ -151,10 +151,8 @@ describe("buildVesselTripTickWriteSetFromBundle", () => {
         EndTime: ms("2026-03-13T06:29:56-07:00"),
         AtDockDepartCurr: {
           PredTime: 1,
-          MinTime: 2,
-          MaxTime: 3,
-          MAE: 0,
-          StdDev: 0,
+          Actual: 2,
+          DeltaTotal: 0,
         },
       }),
       newTripCore: coreFromTrip(
@@ -209,6 +207,9 @@ describe("buildVesselTripTickWriteSetFromBundle", () => {
     for (const bundle of fixtures) {
       const payload = buildVesselTripsExecutionPayloads(bundle);
       const writeSet = buildVesselTripTickWriteSetFromBundle(bundle);
+      expect(writeSet.attemptedHandoffs.length).toBe(
+        bundle.completedHandoffs.length
+      );
       expect(writeSet).toEqual(projectWriteSetFromExecutionPayload(payload));
       assertNoJoinedPredictionKeysOnStoredTrips(writeSet);
     }

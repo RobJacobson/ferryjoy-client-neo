@@ -29,7 +29,7 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
-2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripsCompute`
+2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripWriteSet`
    (trip compute uses **`buildTripCore` only**).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (domain), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
@@ -61,7 +61,7 @@ timeline assembly stay explicit.
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
-- **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripsCompute` (`processVesselTrips` domain path).
+- **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripWriteSet` (`processVesselTrips` domain path).
 - **updateVesselPredictions** — `runUpdateVesselPredictions` + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `buildOrchestratorTimelineProjectionInput` plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 

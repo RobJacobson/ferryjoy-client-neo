@@ -11,7 +11,7 @@ import {
   runUpdateVesselPredictions,
 } from "domain/vesselOrchestration/orchestratorTick";
 import {
-  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
@@ -97,7 +97,7 @@ describe("processCompletedTrips", () => {
       completedHandoffs,
       current: emptyActiveTripsBranch(),
     };
-    const applyTripResult = await persistVesselTripsCompute(
+    const applyTripResult = await persistVesselTripWriteSet(
       tripsCompute,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
@@ -210,7 +210,7 @@ describe("processCompletedTrips", () => {
       completedHandoffs,
       current: emptyActiveTripsBranch(),
     };
-    const applyTripResult = await persistVesselTripsCompute(
+    const applyTripResult = await persistVesselTripWriteSet(
       tripsCompute,
       vesselTripTableMutationsFromTestCtx(ctx)
     );
