@@ -1,5 +1,5 @@
 /**
- * Public entry for **updateVesselTrips**: tick pipeline, schedule snapshot wiring,
+ * Public entry for **updateVesselTrips**: tick pipeline,
  * continuity adapters, read-model helpers, and depart-next policy symbols used by
  * the orchestrator, Convex queries/mutations, and peer domain (`tickLifecycle`
  * for handshake DTOs with predictions/timeline, `orchestratorTick`, `shared/`).
@@ -33,17 +33,6 @@ export {
   dedupeTripDocsByTripKey,
 } from "./read/dedupeTripDocsByTripKey";
 export { mergeTripsWithPredictions } from "./read/mergeTripsWithPredictions";
-// --- Bulk schedule snapshot ---
-export { buildScheduleSnapshotQueryArgs } from "./snapshot/buildScheduleSnapshotQueryArgs";
-export { createScheduledSegmentLookupFromSnapshot } from "./snapshot/createScheduledSegmentLookupFromSnapshot";
-export { scheduleSnapshotCompositeKey } from "./snapshot/scheduleSnapshotCompositeKey";
-export {
-  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-  MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
-} from "./snapshot/scheduleSnapshotLimits";
-export type { ScheduleSnapshot } from "./snapshot/scheduleSnapshotTypes";
 // --- Types shared with tickLifecycle / persistence (not updateTimeline imports) ---
 export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";

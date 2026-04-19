@@ -14,14 +14,16 @@ import {
   runUpdateVesselPredictions,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/orchestratorTick";
+import {
+  buildScheduleSnapshotQueryArgs,
+  createScheduledSegmentLookupFromSnapshot,
+} from "domain/vesselOrchestration/shared";
 import type {
   TripLifecycleApplyOutcome,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/tickLifecycle";
 import {
-  buildScheduleSnapshotQueryArgs,
   createDefaultProcessVesselTripsDeps,
-  createScheduledSegmentLookupFromSnapshot,
   type ProcessVesselTripsDeps,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";

@@ -269,7 +269,7 @@ branches, equality, ML appenders (predictions phase on orchestrator path), and s
 
 Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters.ts`**.
 
-## `updateVesselTrips/snapshot/` (bulk schedule snapshot for orchestrator ticks)
+## `shared/scheduleSnapshot/` (bulk schedule snapshot for orchestrator ticks)
 
 - `buildScheduleSnapshotQueryArgs.ts`, `scheduleSnapshotLimits.ts`, `scheduleSnapshotTypes.ts`, `scheduleSnapshotCompositeKey.ts` — bounded args for **`getScheduleSnapshotForTick`**.
 - `createScheduledSegmentLookupFromSnapshot.ts` — pure **sync** **`ScheduledSegmentLookup`** from snapshot POJOs.

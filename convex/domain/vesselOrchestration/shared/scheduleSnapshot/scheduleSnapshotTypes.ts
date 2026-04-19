@@ -13,3 +13,9 @@ export type ScheduleSnapshot = {
    */
   sameDayEventsByCompositeKey: Record<string, ConvexScheduledDockEvent[]>;
 };
+
+export type ScheduleSnapshotQueryArgs = {
+  vesselAbbrevs: string[];
+  sailingDays: string[];
+  segmentKeys: string[];
+};
