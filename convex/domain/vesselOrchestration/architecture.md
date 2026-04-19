@@ -333,12 +333,12 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Tests
 
-- `convex/domain/vesselOrchestration/tests/`
-  - Cross-cutting tests that still remain at root (for example `buildTimelineTickProjectionInput`).
 - `convex/functions/vesselOrchestrator/tests/`
   - Orchestrator tick tests (e.g. `processVesselTrips.tick.test.ts`).
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`
   - Unit coverage for trip lifecycle, continuity, projections, and adapters.
+- `convex/domain/vesselOrchestration/updateTimeline/tests/`
+  - Timeline assembly and merge coverage (for example `buildTimelineTickProjectionInput`, completed-trip timeline projection).
 
 ---
 
