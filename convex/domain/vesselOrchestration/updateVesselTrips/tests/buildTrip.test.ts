@@ -18,6 +18,7 @@ import type {
 } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { applyVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   buildTrip,
@@ -27,7 +28,6 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 

@@ -293,19 +293,14 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder: tick pipeline, schedule snapshot, continuity types, read-model helpers (`mergeTripsWithPredictions`, dedupe), depart-next policy symbols, and shared bundle/timeline types—see that file for the authoritative list.
+The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared depart-next / continuity contracts live under `domain/vesselOrchestration/shared`.
 
-## `updateVesselTrips/read/` (query-time enrichment)
+## `functions/vesselTrips/read/` (query-time enrichment)
 
 - `mergeTripsWithPredictions.ts`
   - Pure join of `eventsPredicted` rows onto trip docs for API reads.
 - `dedupeTripDocsByTripKey.ts`
   - Dedupes overlapped query batches by physical `TripKey`.
-
-## `updateVesselTrips/mutations/` (domain mutation policy helpers)
-
-- `departNextActualization.ts`
-  - Policy/helper logic for leave-dock depart-next actualization context.
 
 ## Root files: `vesselOrchestration/`
 
@@ -314,7 +309,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 ## Root files: `updateVesselTrips/`
 
 - `processTick/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup)` bundles default **`buildTripCore`** / `buildTripAdapters` for the orchestrator (`lookup` from **`createScheduledSegmentLookupFromSnapshot`** after **`getScheduleSnapshotForTick`**). **`createVesselTripPredictionModelAccess`** is passed only to **updateVesselPredictions** in `actions.ts`.
-- `index.ts` — Re-exports tick pipeline and schedule snapshot symbols (see file).
+- `index.ts` — Re-exports the trip-tick contract only (see file).
 
 ## Functions layer tied directly to the trip domain
 

@@ -7,27 +7,16 @@
  * `eventsScheduled`.
  */
 
-import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-} from "domain/events/scheduled/schemas";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import {
   findNextDepartureEvent,
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/timelineRows/scheduledSegmentResolvers";
+import type {
+  DockedScheduledSegmentSource,
+  ScheduledSegmentLookup,
+} from "domain/vesselOrchestration/shared";
 import { getSailingDay } from "shared/time";
-
-import type { DockedScheduledSegmentSource } from "./types";
-
-export type ScheduledSegmentLookup = {
-  getScheduledDepartureEventBySegmentKey: (
-    segmentKey: string
-  ) => ConvexScheduledDockEvent | null;
-  getScheduledDockEventsForSailingDay: (args: {
-    vesselAbbrev: string;
-    sailingDay: string;
-  }) => ConvexScheduledDockEvent[];
-};
 
 type ExistingTripContinuity = {
   NextScheduleKey?: string;

@@ -1,5 +1,5 @@
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/updateVesselTrips";
+import type { ScheduledSegmentLookup } from "../continuity";
 
 import { scheduleSnapshotCompositeKey } from "./scheduleSnapshotCompositeKey";
 import type { ScheduleSnapshot } from "./scheduleSnapshotTypes";

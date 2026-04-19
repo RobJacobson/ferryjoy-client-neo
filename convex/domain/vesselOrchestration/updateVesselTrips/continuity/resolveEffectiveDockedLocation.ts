@@ -2,6 +2,7 @@
  * Domain orchestration for effective docked location identity during vessel-trip writes.
  */
 
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import {
@@ -10,11 +11,7 @@ import {
   hasStableDockedTripIdentity,
   resolveEffectiveDockedTripIdentity,
 } from "shared/effectiveTripIdentity";
-
-import {
-  resolveDockedScheduledSegment,
-  type ScheduledSegmentLookup,
-} from "./resolveDockedScheduledSegment";
+import { resolveDockedScheduledSegment } from "./resolveDockedScheduledSegment";
 
 export type ResolveEffectiveDockedLocationResult = {
   effectiveLocation: ConvexVesselLocation;

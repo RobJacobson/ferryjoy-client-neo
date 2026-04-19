@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import {
   computeShouldRunPredictionFallback,
   computeVesselTripsWithClock,
   createDefaultProcessVesselTripsDeps,
-  type ScheduledSegmentLookup,
 } from "..";
 
 const stubLookup: ScheduledSegmentLookup = {

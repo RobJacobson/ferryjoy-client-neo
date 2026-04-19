@@ -1,3 +1,12 @@
+export type {
+  DockedScheduledSegmentSource,
+  ScheduledSegmentLookup,
+} from "./continuity";
+export {
+  DEPART_NEXT_ML_PREDICTION_TYPES,
+  type DepartNextLegContext,
+  resolveDepartNextLegContext,
+} from "./departNextActualization";
 export {
   actualDepartMsForLeaveDockEffect,
   buildTripsComputeStorageRows,

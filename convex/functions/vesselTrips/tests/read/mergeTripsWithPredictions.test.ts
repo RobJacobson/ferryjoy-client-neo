@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { mergeTripsWithPredictions } from "domain/vesselOrchestration/updateVesselTrips/read/mergeTripsWithPredictions";
+import { mergeTripsWithPredictions } from "functions/vesselTrips/read";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 const ms = (iso: string) => new Date(iso).getTime();
