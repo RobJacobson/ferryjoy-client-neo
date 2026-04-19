@@ -1,35 +1,35 @@
 /**
- * Trip-branch bundle for one vessel-orchestrator tick: tick clock,
- * prediction-fallback policy (via {@link computeShouldRunPredictionFallback}, same
- * as {@link computeVesselTripTick} / `processVesselTrips`), and
- * {@link computeVesselTripTick}.
+ * Vessel trips compute with wall-clock anchor: prediction-fallback policy
+ * (via {@link computeShouldRunPredictionFallback}, same as
+ * {@link computeVesselTripsBundle} / `processVesselTrips`), and
+ * {@link computeVesselTripsBundle}.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
-  TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import {
   computeShouldRunPredictionFallback,
-  computeVesselTripTick,
+  computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./updateVesselTrips";
-import type { VesselTripTick } from "./updateVesselTrips/tripLifecycle/vesselTripTick";
+import type { VesselTripsComputeBundle } from "./updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 
 /**
- * Tick clock and trip payload for sequential persistence in
+ * Tick clock and trips compute bundle for sequential persistence in
  * `updateVesselOrchestrator`.
  */
-export type OrchestratorTripTick = {
+export type VesselTripsWithClock = {
   tickStartedAt: number;
-  vesselTripTick: VesselTripTick;
+  tripsCompute: VesselTripsComputeBundle;
 };
 
 /**
  * Optional overrides for tests or replays.
  */
-export type OrchestratorTripTickOptions = {
+export type VesselTripsWithClockOptions = {
   /**
    * Fixed tick time (epoch ms). Production omits this; wall-clock `Date.now()`
    * anchors calendar-based policy (e.g. prediction-fallback by seconds-of-minute).
@@ -38,25 +38,25 @@ export type OrchestratorTripTickOptions = {
 };
 
 /**
- * Computes trip lifecycle data for one tick: anchors wall-clock policy and
- * builds {@link VesselTripTick}.
+ * Computes trip lifecycle data for one pass: anchors wall-clock policy and
+ * builds {@link VesselTripsComputeBundle}.
  *
  * @param input - Converted locations and preloaded active trips
  * @param deps - Trip builders and schedule-backed adapters (from
  *   {@link createDefaultProcessVesselTripsDeps} in production)
  * @param options - Optional tick clock override for tests
- * @returns Tick time and trip payload for `updateVesselTrips` / `applyTripTickMutations`
+ * @returns Tick time and bundle for `updateVesselTrips` / `persistVesselTripsCompute`
  */
-export const computeOrchestratorTripTick = async (
+export const computeVesselTripsWithClock = async (
   input: {
     convexLocations: ReadonlyArray<ConvexVesselLocation>;
     activeTrips: ReadonlyArray<
-      TickActiveTrip | ConvexVesselTripWithPredictions
+      ConvexVesselTrip | ConvexVesselTripWithPredictions
     >;
   },
   deps: ProcessVesselTripsDeps,
-  options?: OrchestratorTripTickOptions
-): Promise<OrchestratorTripTick> => {
+  options?: VesselTripsWithClockOptions
+): Promise<VesselTripsWithClock> => {
   const tickStartedAt = options?.tickStartedAt ?? Date.now();
 
   const processOptions = {
@@ -64,7 +64,7 @@ export const computeOrchestratorTripTick = async (
       computeShouldRunPredictionFallback(tickStartedAt),
   };
 
-  const { tick } = await computeVesselTripTick(
+  const { bundle } = await computeVesselTripsBundle(
     input.convexLocations,
     tickStartedAt,
     deps,
@@ -74,6 +74,6 @@ export const computeOrchestratorTripTick = async (
 
   return {
     tickStartedAt,
-    vesselTripTick: tick,
+    tripsCompute: bundle,
   };
 };

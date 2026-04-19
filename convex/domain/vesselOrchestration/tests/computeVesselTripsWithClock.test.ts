@@ -1,10 +1,10 @@
 /**
- * Tests for `computeOrchestratorTripTick`: empty tick shape with stub schedule and
+ * Tests for `computeVesselTripsWithClock`: empty compute shape with stub schedule and
  * prediction deps.
  */
 
 import { describe, expect, it } from "bun:test";
-import { computeOrchestratorTripTick } from "../computeOrchestratorTripTick";
+import { computeVesselTripsWithClock } from "../computeVesselTripsWithClock";
 import type { ScheduledSegmentLookup } from "../updateVesselTrips/continuity/resolveDockedScheduledSegment";
 import { createDefaultProcessVesselTripsDeps } from "../updateVesselTrips/processTick/defaultProcessVesselTripsDeps";
 
@@ -13,12 +13,12 @@ const stubLookup: ScheduledSegmentLookup = {
   getScheduledDockEventsForSailingDay: async () => [],
 };
 
-describe("computeOrchestratorTripTick", () => {
-  it("returns stubbed tick time and empty trip tick for an empty batch", async () => {
+describe("computeVesselTripsWithClock", () => {
+  it("returns stubbed tick time and empty trips compute for an empty batch", async () => {
     const tickStartedAt = 1_718_000_000_000;
     const deps = createDefaultProcessVesselTripsDeps(stubLookup);
 
-    const result = await computeOrchestratorTripTick(
+    const result = await computeVesselTripsWithClock(
       {
         convexLocations: [],
         activeTrips: [],
@@ -28,10 +28,10 @@ describe("computeOrchestratorTripTick", () => {
     );
 
     expect(result.tickStartedAt).toBe(tickStartedAt);
-    expect(result.vesselTripTick.completedHandoffs).toEqual([]);
-    expect(result.vesselTripTick.current.activeUpserts).toEqual([]);
-    expect(result.vesselTripTick.current.pendingActualMessages).toEqual([]);
-    expect(result.vesselTripTick.current.pendingPredictedMessages).toEqual([]);
-    expect(result.vesselTripTick.current.pendingLeaveDockEffects).toEqual([]);
+    expect(result.tripsCompute.completedHandoffs).toEqual([]);
+    expect(result.tripsCompute.current.activeUpserts).toEqual([]);
+    expect(result.tripsCompute.current.pendingActualMessages).toEqual([]);
+    expect(result.tripsCompute.current.pendingPredictedMessages).toEqual([]);
+    expect(result.tripsCompute.current.pendingLeaveDockEffects).toEqual([]);
   });
 });

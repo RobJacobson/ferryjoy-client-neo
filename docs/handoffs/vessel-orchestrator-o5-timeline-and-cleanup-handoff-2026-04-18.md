@@ -103,4 +103,4 @@ Read this handoff and [`.cursor/plans/o5_timeline_cleanup_11ff7b1c.plan.md`](../
 
 - **2026-04-18:** Initial O5 supervisor handoff (memo §4.2 O5 row, O4 handoff pattern, plan path, current code landmarks).
 - **2026-04-18:** Shipped — canonical plan `o5_timeline_cleanup_11ff7b1c`; handoff links + Worker prompt updated; TSDoc, fallback dedupe, regression test, docs/memo closeout.
-- **2026-04-18:** Review follow-up — PR checklist marked complete; domain README + `updateVesselTrips` / `tripLifecycle` / `updateVesselLocations` READMEs + `vesselTrips` README + `domain/ml/readme-ml.md` synced to `updateVesselOrchestrator` / `orchestratorPipelines` (removed stale `executeVesselOrchestratorTick` / `runProcessVesselTripsTick` references).
+- **2026-04-18:** Review follow-up — PR checklist marked complete; domain README + `updateVesselTrips` / `tripLifecycle` READMEs + `vesselTrips` README + `domain/ml/readme-ml.md` synced to `updateVesselOrchestrator` / `orchestratorPipelines` (removed stale `executeVesselOrchestratorTick` / `runProcessVesselTripsTick` references). *(Later: `updateVesselLocations` domain folder removed; locations upsert lives in `actions.ts`.)*

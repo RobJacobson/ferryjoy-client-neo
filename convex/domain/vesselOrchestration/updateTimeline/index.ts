@@ -13,6 +13,7 @@ export {
   type TickEventWrites,
   type TimelineTickProjectionInput,
 } from "./tickEventWrites";
+export { timelineDockWriteMutationArgs } from "./timelineDockWriteMutationArgs";
 export { buildTickEventWritesFromCompletedFacts } from "./timelineEventAssembler";
 export type {
   CompletedTripBoundaryFact,

@@ -29,14 +29,14 @@ import type { BuildTripCoreResult } from "./buildTrip";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
 import {
   logActualProjectionTick,
-  logTripTickDiagnostics,
+  logTripsComputeDiagnostics,
 } from "./processCurrentTripsTickLogging";
 import { tripWriteSuppressionFlags } from "./tripEquality";
 import type { TripEvents } from "./tripEventTypes";
 import type {
-  CurrentTripTickFragment,
+  ActiveTripsBranch,
   PendingLeaveDockEffect,
-} from "./vesselTripTick";
+} from "./vesselTripsComputeBundle";
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
@@ -68,7 +68,7 @@ export const processCurrentTrips = async (
   currentTrips: CurrentTripTransition[],
   shouldRunPredictionFallback: boolean,
   deps: Pick<ProcessCompletedTripsDeps, "buildTripCore" | "buildTripAdapters">
-): Promise<CurrentTripTickFragment> => {
+): Promise<ActiveTripsBranch> => {
   const buildResults = await Promise.allSettled(
     currentTrips.map(async (transition) => {
       const buildResult = {
@@ -82,7 +82,7 @@ export const processCurrentTrips = async (
           deps.buildTripAdapters
         ),
       };
-      logTripTickDiagnostics(buildResult);
+      logTripsComputeDiagnostics(buildResult);
       return buildResult;
     })
   );
@@ -111,7 +111,7 @@ export const processCurrentTrips = async (
     collectedArtifacts.activeUpserts.length === 0 &&
     !hasTimelineMessageWork
   ) {
-    return emptyCurrentTripTickFragment();
+    return emptyActiveTripsBranch();
   }
 
   return {
@@ -247,7 +247,7 @@ const createEmptyCurrentTripArtifacts = (): CurrentTripArtifacts => ({
  * @returns Empty arrays (matches prior `emptyCurrentTripBranchResult` minus
  *   `successfulVessels`, which the applier fills)
  */
-const emptyCurrentTripTickFragment = (): CurrentTripTickFragment => ({
+const emptyActiveTripsBranch = (): ActiveTripsBranch => ({
   activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],

@@ -1,7 +1,7 @@
 /**
  * Vessel-trip tick computation (**updateVesselTrips** tick branch).
  *
- * Builds a {@link VesselTripTick} for the functions layer; persistence and
+ * Builds a {@link VesselTripsComputeBundle} for the functions layer; persistence and
  * {@link buildTimelineTickProjectionInput} run outside this module
  * (see `updateVesselOrchestrator` in `functions/vesselOrchestrator`). ML
  * attachment runs in **updateVesselPredictions** after trip mutations (`applyVesselPredictions`;
@@ -15,11 +15,11 @@ import {
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCompletedTrips";
 import { processCurrentTrips } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
-import type { VesselTripTick } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripTick";
+import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
-  TickActiveTrip,
 } from "functions/vesselTrips/schemas";
 import { computeShouldRunPredictionFallback } from "./tickPredictionPolicy";
 
@@ -29,7 +29,7 @@ export type ProcessVesselTripsOptions = {
 };
 
 /** Existing active trip row for one vessel: stored columns and/or enriched prediction fields. */
-type ExistingTripForTick = ConvexVesselTripWithPredictions | TickActiveTrip;
+type ExistingTripForTick = ConvexVesselTripWithPredictions | ConvexVesselTrip;
 
 type TripTransition = {
   currLocation: ConvexVesselLocation;
@@ -55,19 +55,18 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
  *   `buildTripCore`, `buildTripAdapters`, `detectTripEvents`)
- * @param activeTrips - Preloaded active trips for this tick. Prefer
- *   {@link TickActiveTrip} rows; trips enriched with predictions remain
- *   accepted for tests.
+ * @param activeTrips - Preloaded active trips for this tick (storage-native
+ *   {@link ConvexVesselTrip} and/or {@link ConvexVesselTripWithPredictions}).
  * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
- * @returns Tick payload for `updateVesselTrips` / `applyTripTickMutations`
+ * @returns Bundle for `updateVesselTrips` / `persistVesselTripsCompute`
  */
-export const computeVesselTripTick = async (
+export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<TickActiveTrip | ConvexVesselTripWithPredictions>,
+  activeTrips: ReadonlyArray<ConvexVesselTrip | ConvexVesselTripWithPredictions>,
   options?: ProcessVesselTripsOptions
-): Promise<{ tick: VesselTripTick }> => {
+): Promise<{ bundle: VesselTripsComputeBundle }> => {
   // Preloaded snapshot rows (storage-native and/or prediction-enriched) keyed for
   // event detection and `buildTripCore`; stripping ML for DB writes happens in the applier.
   const existingTripsDict = Object.fromEntries(
@@ -110,7 +109,7 @@ export const computeVesselTripTick = async (
   );
 
   return {
-    tick: {
+    bundle: {
       completedHandoffs,
       current: currentFragment,
     },

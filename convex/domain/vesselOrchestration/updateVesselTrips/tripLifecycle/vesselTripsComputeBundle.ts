@@ -1,8 +1,7 @@
 /**
- * One vessel-orchestrator tick of trip work: completed handoffs and
- * current-branch artifacts. The functions layer runs Convex mutations from this
- * value; {@link buildTimelineTickProjectionInput} runs only after apply
- * (orchestrator trip branch).
+ * Trip compute output for one orchestrator pass: completed handoffs and
+ * active-branch artifacts. `convex/functions` runs mutations from this bundle;
+ * {@link buildTimelineTickProjectionInput} runs after apply.
  */
 
 import type {
@@ -13,7 +12,7 @@ import type {
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 /**
- * Leave-dock backfill queued during current-trip processing; runs only after a
+ * Leave-dock backfill queued during active-trip processing; runs only after a
  * successful active-trip upsert for that vessel.
  */
 export type PendingLeaveDockEffect = {
@@ -25,7 +24,7 @@ export type PendingLeaveDockEffect = {
  * Pre-mutation state for the active-trip branch: batch upsert candidates,
  * timeline messages, and leave-dock intents.
  */
-export type CurrentTripTickFragment = {
+export type ActiveTripsBranch = {
   /** Schedule-shaped rows from {@link buildTripCore} (ML stripped at upsert). */
   activeUpserts: ConvexVesselTripWithPredictions[];
   pendingActualMessages: CurrentTripActualEventMessage[];
@@ -34,11 +33,11 @@ export type CurrentTripTickFragment = {
 };
 
 /**
- * Full tick: completed-boundary builds (successful only) plus current
- * artifacts. Mutation payloads are derived at apply time (strip once in applier).
+ * Completed-boundary builds (successful only) plus active-branch artifacts.
+ * Mutation payloads are derived at apply time (strip once in applier).
  */
-export type VesselTripTick = {
-  /** Successful boundary handoffs only, stable tick input order. */
+export type VesselTripsComputeBundle = {
+  /** Successful boundary handoffs only, stable input order. */
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
-  current: CurrentTripTickFragment;
+  current: ActiveTripsBranch;
 };

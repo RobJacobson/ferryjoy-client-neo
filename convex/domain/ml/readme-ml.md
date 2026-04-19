@@ -445,8 +445,9 @@ The orchestrator fetches vessel locations once, loads vessels, terminals, and
 **storage-native** active trips in one internal query (`getOrchestratorModelData` in
 `convex/functions/vesselOrchestrator/queries.ts`), then runs
 [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): sequential
-`updateVesselTrips` (plan → `updateVesselLocations` → apply), `updateVesselPredictions`,
-and `updateVesselTimeline` in [`orchestratorPipelines.ts`](../../functions/vesselOrchestrator/orchestratorPipelines.ts).
+`vesselLocation` bulk upsert, then `updateVesselTrips`, `updateVesselPredictions`,
+and `updateVesselTimeline` (helpers such as `createScheduledSegmentLookup` live in
+[`orchestratorPipelines.ts`](../../functions/vesselOrchestrator/orchestratorPipelines.ts)).
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
 predicates. Per-tick trip lifecycle logic lives in `computeVesselTripTick` in

@@ -1,5 +1,10 @@
 # Handoff: O1 — Vessel orchestrator pipeline extract
 
+> **Current code note:** Orchestrator ordering and symbol names have evolved since this handoff.
+> Live **`vesselLocations`** upsert runs **first** in [`actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts);
+> there is no `domain/vesselOrchestration/updateVesselLocations/` folder. See
+> [`architecture.md`](../../convex/domain/vesselOrchestration/architecture.md) for the shipped path.
+
 ## Context
 
 **Roadmap:** [`docs/engineering/vessel-orchestrator-four-pipelines-and-prediction-separation-memo.md`](../engineering/vessel-orchestrator-four-pipelines-and-prediction-separation-memo.md)

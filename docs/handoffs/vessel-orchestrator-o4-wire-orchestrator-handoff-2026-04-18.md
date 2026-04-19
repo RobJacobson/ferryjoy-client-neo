@@ -14,8 +14,8 @@ the strip path where ML no longer rides on trip upsert payloads.
 
 **Depends on:**
 
-- **O1** — `orchestratorPipelines.ts`, thin `actions.ts`, ordering preserved
-  (plan → `updateVesselLocations` → apply).
+- **O1** — `orchestratorPipelines.ts`, thin `actions.ts` (ordering at the time:
+  plan → location upsert → apply; **current:** location upsert **before** trip compute — see `architecture.md`).
 - **O2** — Exported `buildTripCore` / `BuildTripCoreResult`; `buildTrip` remains
   the composer for tests; production orchestrator deps use `buildTripCore` only.
 - **O3** — `vesselTripPredictions` table, `internal.functions.vesselTripPredictions.*`

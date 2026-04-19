@@ -66,8 +66,8 @@ The orchestrator returns
 [`convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts`](../convex/domain/vesselOrchestration/runVesselOrchestratorTick.ts):
 
 - Filters **trip-eligible** locations.
-- Runs **in parallel**:
-  - **updateVesselLocations:** `deps.persistLocations(convexLocations)`.
+- Runs **in parallel** (historical; **superseded** by sequential `actions.updateVesselOrchestrator`):
+  - **Locations:** `deps.persistLocations(convexLocations)` (today: `vesselLocation.bulkUpsert` in **`actions.ts`** first).
   - A **sequential** trip stack:
     1. **updateVesselTrips:** `deps.processVesselTrips(...)`.
     2. **updateTimeline:** `deps.applyTickEventWrites(tripResult.tickEventWrites)`.

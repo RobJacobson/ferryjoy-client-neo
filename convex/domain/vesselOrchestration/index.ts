@@ -1,14 +1,14 @@
 /**
  * Vessel orchestration domain: trip/timeline helpers.
  *
- * Post-fetch DB writes for one tick are sequenced in Convex
+ * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * `computeOrchestratorTripTick` for the trip branch.
+ * `computeVesselTripsWithClock` for the trip branch.
  */
 
 export {
-  computeOrchestratorTripTick,
-  type OrchestratorTripTick,
-  type OrchestratorTripTickOptions,
-} from "./computeOrchestratorTripTick";
+  computeVesselTripsWithClock,
+  type VesselTripsWithClock,
+  type VesselTripsWithClockOptions,
+} from "./computeVesselTripsWithClock";
 export * as orchestratorTick from "./orchestratorTick";

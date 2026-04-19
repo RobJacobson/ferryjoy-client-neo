@@ -123,7 +123,7 @@ must deep-import to avoid a barrel.
 
 - [`executeVesselOrchestratorTick`](../../convex/functions/vesselOrchestrator/executeVesselOrchestratorTick.ts)
   owns **`Promise.allSettled`**, branch metrics, `[VesselOrchestratorTick]` logging,
-  and inlined effects (locations via `runUpdateVesselLocationsTick` + bulk upsert;
+  and inlined effects (locations via **`actions.ts`** bulk upsert;
   trips via [`runProcessVesselTripsTick`](../../convex/functions/vesselOrchestrator/runProcessVesselTripsTick.ts);
   timeline via [`applyTickEventWrites`](../../convex/functions/vesselOrchestrator/applyTickEventWrites.ts)).
   Shared telemetry helpers live in
@@ -228,7 +228,7 @@ Reconciled in post–G closeout: [`convex/domain/README.md`](../../convex/domain
 [`convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md),
 [`convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md),
 [`docs/vessel-orchestrator-domain-persistence-refactor-memo.md`](../vessel-orchestrator-domain-persistence-refactor-memo.md) §1.8,
-and peer READMEs under `updateVesselLocations` / `updateVesselTrips` describe
+and peer READMEs under `updateVesselTrips` describe
 **functions-owned** tick orchestration (`executeVesselOrchestratorTick`), not the
 removed domain runner.
 
@@ -242,7 +242,7 @@ Maps to **Stage B/C** in
   set of **documented** roots, e.g. `functions/vesselOrchestrator/types.ts` for
   tick contracts).
 - **Peer folders** under `domain/vesselOrchestration/` (e.g. `updateVesselTrips/`,
-  `updateVesselLocations/`, `updateTimeline/`): callers in **functions** use
+  `updateTimeline/`): callers in **functions** use
   **`PeerFolder/index.ts`**, not `PeerFolder/.../internalFile`.
 - **Extend a peer entry only on purpose:** e.g. if
   `createDefaultProcessVesselTripsDeps` is part of the **stable** orchestrator

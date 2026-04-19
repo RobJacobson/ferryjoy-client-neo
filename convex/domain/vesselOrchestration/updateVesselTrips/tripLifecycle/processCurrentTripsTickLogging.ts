@@ -22,7 +22,7 @@ type CurrentTripBuildResult = {
  * @param buildResult - Fulfilled current-trip build result for one vessel
  * @returns Nothing; emits a warning only when key timing changed
  */
-export const logTripTickDiagnostics = ({
+export const logTripsComputeDiagnostics = ({
   existingTrip,
   currLocation,
   events,
@@ -43,8 +43,8 @@ export const logTripTickDiagnostics = ({
       timestamp: new Date(currLocation.TimeStamp).toISOString(),
       events,
       liveTick: summarizeLocationTick(currLocation),
-      existingTrip: summarizeTripTick(existingTrip),
-      finalProposed: summarizeTripTick(proposed),
+      existingTrip: summarizeTripsCompute(existingTrip),
+      finalProposed: summarizeTripsCompute(proposed),
     })}`
   );
 };
@@ -76,8 +76,8 @@ export const logActualProjectionTick = (
       refresh,
       events,
       liveTick: summarizeLocationTick(currLocation),
-      existingTrip: summarizeTripTick(existingTrip),
-      finalProposed: summarizeTripTick(finalProposed),
+      existingTrip: summarizeTripsCompute(existingTrip),
+      finalProposed: summarizeTripsCompute(finalProposed),
       projectedDeparture:
         events.didJustLeaveDock && finalProposed.LeftDockActual !== undefined
           ? {
@@ -136,7 +136,7 @@ const summarizeLocationTick = (
  * @param trip - Existing or proposed trip subset relevant to trip debugging
  * @returns Compact log-friendly trip snapshot, or `null` when absent
  */
-const summarizeTripTick = (
+const summarizeTripsCompute = (
   trip:
     | Pick<
         ConvexVesselTripWithPredictions,

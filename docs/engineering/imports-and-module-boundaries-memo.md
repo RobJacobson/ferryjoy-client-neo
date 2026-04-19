@@ -87,7 +87,6 @@ Work is **incremental**. Order below minimizes risk and keeps typecheck green.
   (`overrides`): that glob **includes tests** under `functions/vesselOrchestrator`.
   Deep imports under
   `domain/vesselOrchestration/updateVesselTrips/**`,
-  `domain/vesselOrchestration/updateVesselLocations/**`,
   `domain/vesselOrchestration/updateTimeline/**`, and
   `domain/vesselOrchestration/updateVesselPredictions/**` are errors; peer entry
   imports (no extra path segment) remain valid. If a test **must** deep-import

@@ -1,9 +1,11 @@
 /**
  * **updateVesselPredictions** (domain): ML attachment for one vessel-trip tick.
  *
- * Runs after schedule enrichment (`appendFinalSchedule` when gated). Canonical
- * prediction logic lives in {@link ./appendPredictions}; this module sequences
- * at-dock → at-sea → leave-dock actualization only.
+ * Callers should invoke this only with **`buildTripCore` outputs** (schedule +
+ * gates): same inputs on every tick yield the same ML attachment (persist / other
+ * phases must not feed alternate trip shapes into this). Canonical prediction logic
+ * lives in {@link ./appendPredictions}; this module sequences at-dock → at-sea →
+ * leave-dock actualization only.
  */
 
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";

@@ -2,13 +2,12 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
 
-**Apply** (Convex mutations) lives in **`functions/vesselOrchestrator/orchestratorPipelines.ts`**: `updateVesselTimeline` builds projection input via `buildTimelineTickProjectionInput`, then runs internal `eventsActual` / `eventsPredicted` projection mutations (same module, not exported as a separate file).
+**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls `buildOrchestratorTimelineProjectionInput` (domain), then `eventsActual` / `eventsPredicted` mutations. `orchestratorPipelines.ts` holds test helpers and wiring, not a separate timeline runner.
 
 ## Production call chain
 
-1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` loads the tick snapshot and delegates to the pipelines module.
-2. [`orchestratorPipelines.ts`](../../../functions/vesselOrchestrator/orchestratorPipelines.ts) — `runVesselOrchestratorPhases`: **`updateVesselTrips`** → **`updateVesselPredictions`** (`enrichTripApplyResultWithPredictions`, then `vesselTripPredictions` upserts) → **`updateVesselTimeline`**.
-3. `updateVesselTimeline` passes **ML-enriched** `TripLifecycleApplyOutcome` slices into `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
+1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator`: bulk upsert locations → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
+2. **`updateVesselTimeline`** passes **ML-enriched** `TripLifecycleApplyOutcome` slices into `buildOrchestratorTimelineProjectionInput` / `buildTimelineTickProjectionInput` (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
 
 ## Canonical files (this folder)
 

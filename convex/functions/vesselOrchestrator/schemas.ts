@@ -6,7 +6,7 @@
 
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { TickActiveTrip } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * One WSF batch plus identity rows after adapter conversion, before sequential
@@ -15,5 +15,5 @@ import type { TickActiveTrip } from "functions/vesselTrips/schemas";
 export type VesselOrchestratorTickSnapshot = {
   convexLocations: ReadonlyArray<ConvexVesselLocation>;
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ReadonlyArray<TickActiveTrip>;
+  activeTrips: ReadonlyArray<ConvexVesselTrip>;
 };

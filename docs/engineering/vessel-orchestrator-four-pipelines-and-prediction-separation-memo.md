@@ -85,8 +85,8 @@ normalized equality.
      (and related) inputs, stored in the **predictions** surface (see §3.2), with
      explicit recompute-and-diff persistence.
 
-2. **Four orchestrator phases aligned to folder names**
-   - `updateVesselLocations` — live positions.
+2. **Orchestrator phases (functions + domain folders)**
+   - Live **`vesselLocations`** — bulk upsert in **`actions.ts`** (first each tick).
    - `updateVesselTrips` — trip lifecycle writes from domain plans + applier.
    - `updateVesselPredictions` — prediction recompute + upsert changed rows.
    - `updateTimeline` — sparse `eventsActual` / `eventsPredicted` projection.
@@ -119,10 +119,8 @@ normalized equality.
 
 Recommended tick order (same process, single action):
 
-1. **Locations** — Upsert live positions from the fetched batch (can remain
-   after trip **plan** computation if invariants allow, or move if a future
-   invariant requires locations persisted before trip reads; document the
-   chosen rule).
+1. **Locations** — Upsert live positions from the fetched batch (**shipped:** first
+   in `actions.updateVesselOrchestrator` before trip compute).
 2. **Trips** — Compute `VesselTripTick` without attaching ML
    predictions; apply lifecycle mutations; produce outputs needed by later
    phases (e.g. boundary facts for timeline).
@@ -131,13 +129,13 @@ Recommended tick order (same process, single action):
    **upsert** only when changed.
 4. **Timeline** — Build projection input from the **in-memory** post–`updateVesselPredictions`
    merge (`TripLifecycleApplyOutcome` slices fed to
-   `buildTimelineTickProjectionInput`). Same-tick assembly does **not** reload
+   `buildOrchestratorTimelineProjectionInput`). Same-tick assembly does **not** reload
    `vesselTripPredictions` from the DB for projection; the table is for persistence
    and other readers.
 
 **Dependency note:** Timeline merges success-sensitive trip apply results after ML
-is merged in memory (`enrichTripApplyResultWithPredictions`); callers are
-`orchestratorPipelines.updateVesselTimeline` after `updateVesselPredictions`.
+is merged in memory; **`updateVesselTimeline`** in **`actions.ts`** runs after
+`updateVesselPredictions`.
 
 ### 3.2 Predictions persistence
 
@@ -197,13 +195,10 @@ and **not** chosen; we prefer smaller checkpoints and clearer agent handoffs.
 
 ### 4.3 O1 ordering note (current invariant)
 
-Today’s tick **computes** trip work **before** location bulk upsert,
-then **applies** trip mutations (see §1.1). Until a later phase explicitly
-changes that ordering, **O1** should preserve it. The practical pattern is:
-**`updateVesselTrips`** orchestrates **compute → `updateVesselLocations` →
-apply** so the handler can still read as four logical steps (`updateVesselTrips`
-includes the location upsert **between** plan and apply). Export
-**`updateVesselLocations`** separately for tests and clarity.
+The shipped orchestrator persists **locations first** (`vesselLocation.mutations.bulkUpsert`
+in **`actions.ts`**), then **`updateVesselTrips`** (compute → apply), then predictions,
+then timeline. Older notes that placed the bulk upsert between trip compute and apply
+are obsolete.
 
 ---
 
@@ -255,19 +250,17 @@ After each phase: `convex/domain/vesselOrchestration/architecture.md`,
 - [x] `bun run check:fix`, `bun run type-check`, and Convex typecheck pass;
   tests updated or added for new behavior.
 
-**Cron surface:** `updateVesselOrchestrator` only invokes
-`runVesselOrchestratorPhases` (no return value). Each step builds **arrays of
-plain POJOs** (location rows, trip tick rows, prediction proposal rows, timeline
-rows) and passes them to small persist helpers; there is no shared scratch
-object. A future refactor may drive some steps from DB re-reads only.
+**Cron surface:** `updateVesselOrchestrator` chains bulk upsert, trips, predictions,
+and timeline in **`actions.ts`** (no separate phase runner). Each step calls domain
+materializers and/or `ctx.runMutation` with the payloads for that phase.
 
 ---
 
 ## 7. Open decisions (resolve in handoffs)
 
 1. ~~Exact **prediction row keying** and schema~~ **(resolved, O3):** one `vesselTripPredictions` document per `(VesselAbbrev, TripKey, PredictionType)` with full `ConvexPrediction` payload + `UpdatedAt`; indexes `by_vessel_and_trip` and `by_vessel_trip_and_field`.
-2. Whether **location upsert** must occur before trip **plan** computation in
-   the final ordering (current code computes plan before location upsert).
+2. ~~Whether **location upsert** must occur before trip **plan** computation~~ **(resolved):**
+   shipped code upserts locations **before** trip compute.
 3. Whether to keep any **throttle** (e.g. fallback window) after moving to
    per-tick recompute, or remove entirely and profile.
 4. Parallelism: today’s action is largely sequential; confirm no regression if
@@ -305,6 +298,5 @@ object. A future refactor may drive some steps from DB re-reads only.
   timeline TSDoc + `computeShouldRunPredictionFallback` dedupe; `newTrip` guard test;
   `updateTimeline`/architecture memo alignment; §3.1 dependency note and §6 checklist
   updated; §8 marked Done.
-- **Orchestrator phases:** `runVesselOrchestratorPhases` builds POJO row arrays per
-  step then persists; trip rows live in `applyVesselTripTick.ts`
-  (`buildTripTickRows` / `persistTripTickDbRows`).
+- **Orchestrator:** `actions.ts` sequences persistence; trip writes use
+  `persistTripTickMutations` / `applyVesselTripTick` (not a separate `runVesselOrchestratorPhases`).

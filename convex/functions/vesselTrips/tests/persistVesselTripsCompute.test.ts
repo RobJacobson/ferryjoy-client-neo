@@ -1,15 +1,20 @@
 /**
- * Unit tests for `applyTripTickMutations`.
+ * Unit tests for `persistVesselTripsCompute`.
  */
 
+import { api } from "_generated/api";
 import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updateTimeline";
+import {
+  persistVesselTripsCompute,
+  type VesselTripTableMutations,
+  type VesselTripUpsertBatchResult,
+} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
 import type {
+  ActiveTripsBranch,
   BuildTripCoreResult,
-  CurrentTripTickFragment,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { applyTripTickMutations } from "functions/vesselOrchestrator/actions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -75,7 +80,7 @@ const coreFromTrip = (
  * upsert results.
  *
  * @param options - Optional upsert result and complete-handoff failure flag
- * @returns Context compatible with {@link applyTripTickMutations}
+ * @returns Context compatible with {@link persistVesselTripsCompute} mutations
  */
 const createCtx = (options?: {
   upsertResult?: {
@@ -122,7 +127,28 @@ const createCtx = (options?: {
   };
 };
 
-const emptyCurrent = (): CurrentTripTickFragment => ({
+const vesselTripTableMutationsFromCtx = (
+  ctx: TestCtx
+): VesselTripTableMutations => ({
+  completeAndStartNewTrip: (args) =>
+    ctx.runMutation(
+      api.functions.vesselTrips.mutations.completeAndStartNewTrip,
+      args
+    ),
+  upsertVesselTripsBatch: (args) =>
+    ctx.runMutation(
+      api.functions.vesselTrips.mutations.upsertVesselTripsBatch,
+      args
+    ) as Promise<VesselTripUpsertBatchResult>,
+  setDepartNextActualsForMostRecentCompletedTrip: (args) =>
+    ctx.runMutation(
+      api.functions.vesselTrips.mutations
+        .setDepartNextActualsForMostRecentCompletedTrip,
+      args
+    ),
+});
+
+const emptyCurrent = (): ActiveTripsBranch => ({
   activeUpserts: [],
   pendingActualMessages: [],
   pendingPredictedMessages: [],
@@ -139,7 +165,7 @@ const minimalTripEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-describe("applyTripTickMutations", () => {
+describe("persistVesselTripsCompute", () => {
   it("returns completed fact when handoff mutation succeeds", async () => {
     const existing = makeTrip();
     const tripToComplete = makeTrip({
@@ -155,10 +181,13 @@ describe("applyTripTickMutations", () => {
       newTripCore: coreFromTrip(newTrip),
     };
     const ctx = createCtx();
-    const { completedFacts } = await applyTripTickMutations(ctx as never, {
-      completedHandoffs: [fact],
-      current: emptyCurrent(),
-    });
+    const { completedFacts } = await persistVesselTripsCompute(
+      {
+        completedHandoffs: [fact],
+        current: emptyCurrent(),
+      },
+      vesselTripTableMutationsFromCtx(ctx)
+    );
     expect(completedFacts).toHaveLength(1);
     expect(completedFacts[0]?.newTripCore.withFinalSchedule.ScheduleKey).toBe(
       "CHE--next"
@@ -181,19 +210,25 @@ describe("applyTripTickMutations", () => {
       newTripCore: coreFromTrip(makeTrip()),
     };
     const ctx = createCtx({ failCompleteHandoff: true });
-    const { completedFacts } = await applyTripTickMutations(ctx as never, {
-      completedHandoffs: [fact],
-      current: emptyCurrent(),
-    });
+    const { completedFacts } = await persistVesselTripsCompute(
+      {
+        completedHandoffs: [fact],
+        current: emptyCurrent(),
+      },
+      vesselTripTableMutationsFromCtx(ctx)
+    );
     expect(completedFacts).toHaveLength(0);
   });
 
   it("does not call upsertVesselTripsBatch when activeUpserts is empty", async () => {
     const ctx = createCtx();
-    await applyTripTickMutations(ctx as never, {
-      completedHandoffs: [],
-      current: emptyCurrent(),
-    });
+    await persistVesselTripsCompute(
+      {
+        completedHandoffs: [],
+        current: emptyCurrent(),
+      },
+      vesselTripTableMutationsFromCtx(ctx)
+    );
     expect(
       ctx.mutationCalls.some((c) => c.args && "activeUpserts" in c.args)
     ).toBe(false);
@@ -210,15 +245,18 @@ describe("applyTripTickMutations", () => {
       },
     ];
     const ctx = createCtx();
-    const { currentBranch } = await applyTripTickMutations(ctx as never, {
-      completedHandoffs: [],
-      current: {
-        activeUpserts: [],
-        pendingActualMessages,
-        pendingPredictedMessages: [],
-        pendingLeaveDockEffects: [],
+    const { currentBranch } = await persistVesselTripsCompute(
+      {
+        completedHandoffs: [],
+        current: {
+          activeUpserts: [],
+          pendingActualMessages,
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [],
+        },
       },
-    });
+      vesselTripTableMutationsFromCtx(ctx)
+    );
     expect(
       ctx.mutationCalls.some((c) => c.args && "activeUpserts" in c.args)
     ).toBe(false);
@@ -235,15 +273,18 @@ describe("applyTripTickMutations", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: false, reason: "db" }],
       },
     });
-    await applyTripTickMutations(ctx as never, {
-      completedHandoffs: [],
-      current: {
-        activeUpserts: [trip],
-        pendingActualMessages: [],
-        pendingPredictedMessages: [],
-        pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
+    await persistVesselTripsCompute(
+      {
+        completedHandoffs: [],
+        current: {
+          activeUpserts: [trip],
+          pendingActualMessages: [],
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
+        },
       },
-    });
+      vesselTripTableMutationsFromCtx(ctx)
+    );
     expect(
       ctx.mutationCalls.some(
         (c) =>
@@ -256,15 +297,18 @@ describe("applyTripTickMutations", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
     });
-    await applyTripTickMutations(ctxOk as never, {
-      completedHandoffs: [],
-      current: {
-        activeUpserts: [trip],
-        pendingActualMessages: [],
-        pendingPredictedMessages: [],
-        pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
+    await persistVesselTripsCompute(
+      {
+        completedHandoffs: [],
+        current: {
+          activeUpserts: [trip],
+          pendingActualMessages: [],
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [{ vesselAbbrev: "CHE", trip }],
+        },
       },
-    });
+      vesselTripTableMutationsFromCtx(ctxOk)
+    );
     expect(
       ctxOk.mutationCalls.some(
         (c) =>

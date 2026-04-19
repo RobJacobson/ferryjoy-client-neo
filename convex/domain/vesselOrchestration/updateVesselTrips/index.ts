@@ -1,6 +1,6 @@
 /**
  * Orchestrator concern **updateVesselTrips**: **`tripLifecycle/`**, tick
- * (`processTick/` / `computeVesselTripTick`), continuity, read helpers,
+ * (`processTick/` / `computeVesselTripsBundle`), continuity, read helpers,
  * and re-exports for orchestrator concerns. See `README.md` and
  * `../architecture.md` §10.
  *
@@ -9,10 +9,10 @@
  * **updateTimeline** is `buildTimelineTickProjectionInput` under
  * `domain/vesselOrchestration/updateTimeline/`.
  *
- * Production callers use `computeOrchestratorTripTick`
- * (`domain/vesselOrchestration`) with `computeVesselTripTick`,
+ * Production callers use `computeVesselTripsWithClock`
+ * (`domain/vesselOrchestration`) with `computeVesselTripsBundle`,
  * `createDefaultProcessVesselTripsDeps` (domain), and schedule lookup from
- * `functions/vesselOrchestrator/orchestratorPipelines.ts` (`createScheduledSegmentLookup`).
+ * `functions/vesselOrchestrator/vesselOrchestratorConvexBindings.ts`.
  * **updateTimeline** and **updateVesselPredictions** symbols are exported here
  * for **orchestrator/tick-pipeline discoverability** (one place to see symbols the
  * trip branch composes with); canonical imports for those peers remain their own
@@ -45,7 +45,7 @@ export {
 export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
-  computeVesselTripTick,
+  computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
   type ProcessVesselTripsOptions,
 } from "./processTick/processVesselTrips";
@@ -61,8 +61,8 @@ export {
 } from "./tripLifecycle/processCompletedTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
-  CurrentTripTickFragment,
+  ActiveTripsBranch,
   PendingLeaveDockEffect,
-  VesselTripTick,
-} from "./tripLifecycle/vesselTripTick";
+  VesselTripsComputeBundle,
+} from "./tripLifecycle/vesselTripsComputeBundle";
 export type { VesselTripsBuildTripAdapters } from "./vesselTripsBuildTripAdapters";
