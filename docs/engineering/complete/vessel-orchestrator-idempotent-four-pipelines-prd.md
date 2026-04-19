@@ -68,8 +68,8 @@ keyed by terminal pairs needed for the current **`tripComputations`**.
 
 ## 3. Why this refactor exists
 
-The current codebase is part-way through a multi-step decomposition of a
-previously monolithic orchestrator. The old code mixed:
+The vessel orchestrator was decomposed **through stages A–F** (see **§12**; all
+complete) from a previously monolithic design. That design mixed:
 
 - external fetches
 - Convex reads and writes
@@ -78,12 +78,12 @@ previously monolithic orchestrator. The old code mixed:
 - timeline assembly
 - "what changed?" write suppression logic
 
-The result is hard to reason about because the layers are not cleanly separated.
-The predictions and timeline concerns on the orchestrator path match this memo:
-plain data in, plain data out. Stage F removed the transitional timeline merge
-surface that was centered on **`TripLifecycleApplyOutcome`** in favor of
-handoff-driven **`mergePredictedComputationsIntoTimelineProjectionAssembly`** (see
-`updateTimeline` implementation).
+Interleaving those responsibilities made behavior difficult to reason about and
+to evolve independently. **On the orchestrator path today,** predictions and
+timeline match this memo: plain data in, plain data out. Stage F removed the
+transitional timeline merge surface that was centered on **`TripLifecycleApplyOutcome`**
+in favor of handoff-driven **`mergePredictedComputationsIntoTimelineProjectionAssembly`**
+(see `updateTimeline` implementation).
 
 The desired direction is simpler:
 
@@ -663,6 +663,8 @@ including Stage F cleanup (narrower barrels, handoff-driven timeline merge).
 
 ## 16. Revision history
 
+- **2026-04-19:** §3 — past-tense framing now that stages A–F are complete; orchestrator
+path described as matching the memo today.
 - **2026-04-19 (Stage F):** Timeline merge operates on **`TimelineProjectionAssembly`**
 from **`TimelineTripComputation`** + predictions; remove **`buildOrchestratorTimelineProjectionInput`**;
 narrow **`updateTimeline`** / root **`vesselOrchestration`** exports; **`TripLifecycleApplyOutcome`**
