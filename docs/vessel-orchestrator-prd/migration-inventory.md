@@ -1,6 +1,7 @@
 # Vessel orchestration migration — S0 inventory
 
-**Status:** Working document — fill **before** the first move PR per [§6 S0 in `vessel-orchestration-next-work-prd.md`](vessel-orchestration-next-work-prd.md).
+**Status:** Initial audit captured from the current codebase on **2026-04-19**.
+This inventory is the required input to the first move PR per [§6 S0 in `vessel-orchestration-next-work-prd.md`](vessel-orchestration-next-work-prd.md).
 
 **How to use**
 
@@ -15,8 +16,9 @@
 
 | Path (under `convex/domain/vesselOrchestration/tickLifecycle/`) | Exports (summary) | Importing modules (grouped) | Classification: trip-only \| single-pipeline \| cross-pipeline | Target: `shared/` \| `updateVesselTrips/` \| `updateTimeline/` \| `updateVesselPredictions/` \| `functions/` | Notes |
 |----------------------------------------------------------------|---------------------|-----------------------------|---------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|-------|
-| _example: `types.ts`_ | _…_ | _…_ | _cross-pipeline_ | _`shared/tickHandshake/types.ts`_ | _…_ |
-| | | | | | |
+| `index.ts` | Public façade for handshake DTOs + projection-wire exports | `functions/vesselOrchestrator/actions.ts`; `domain/vesselOrchestration/index.ts`; tests/docs via package path | `cross-pipeline` | `shared/index.ts` | Transitional façade only; should disappear with `tickLifecycle/`. |
+| `projectionWire.ts` | `TickEventWrites`, `TimelineTickProjectionInput`, `mergeTickEventWrites` | `tickLifecycle/index.ts`; consumed externally through that façade | `cross-pipeline` | `shared/projectionWire.ts` | Pure cross-cutting projection wire; not trip-owned. |
+| `types.ts` | `CompletedTripBoundaryFact`, current-branch message DTOs, `TripLifecycleApplyOutcome` / `VesselTripPersistResult` | `functions/vesselOrchestrator/actions.ts`; `updateTimeline/types.ts`; `updateTimeline/tickEventWrites.ts`; `updateVesselTrips/processTick/tickEnvelope.ts`; `updateVesselTrips/tripLifecycle/processCompletedTrips.ts`; `updateVesselTrips/tripLifecycle/processCurrentTrips.ts`; `updateVesselTrips/tripLifecycle/vesselTripsComputeBundle.ts`; `orchestratorTick/persistVesselTripsCompute.ts`; `orchestratorTick/tripsComputeStorageRows.ts`; tests | `cross-pipeline` | `shared/tickHandshake/types.ts` | Currently deep-imports trip internals (`BuildTripCoreResult`, `TripEvents`), so it should move only after those dependencies are accepted or narrowed. |
 
 ---
 
@@ -24,7 +26,14 @@
 
 | Path (under `convex/domain/vesselOrchestration/orchestratorTick/`) | Exports (summary) | Importing modules (grouped) | Classification | Target | Notes |
 |--------------------------------------------------------------------|-------------------|-----------------------------|----------------|--------|-------|
-| | | | | | |
+| `index.ts` | Public façade for persist glue, prediction materialization, timeline apply prep, write-set helpers | `functions/vesselOrchestrator/actions.ts`; `domain/vesselOrchestration/index.ts`; orchestrator tests; docs | `cross-pipeline` | Split across `shared/index.ts`, `updateVesselPredictions/index.ts`, and `updateTimeline/index.ts` | Transitional mixed-concern façade; should disappear with `orchestratorTick/`. |
+| `materializePostTripTableWrites.ts` | ML overlay, proposal building, timeline merge/apply prep (`runUpdateVesselPredictions`, `runUpdateVesselTimeline`, etc.) | `orchestratorTick/index.ts`; `functions/vesselOrchestrator/actions.ts` via index; tests/docs | `cross-pipeline` | Split between `updateVesselPredictions/` and `updateTimeline/` (shared merge helper only if needed) | Mixed concern file: predictions + timeline in one module. |
+| `persistVesselTripsCompute.ts` | `VesselTripTableMutations`, `persistVesselTripWriteSet`, alias `persistVesselTripsCompute` | `orchestratorTick/index.ts`; `functions/vesselOrchestrator/actions.ts` via index; `functions/vesselOrchestrator/utils.ts` direct leaf import; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/` now; candidate for `functions/vesselOrchestrator/` in S10 | Strong P1 candidate to move into functions once the trip contract narrows. |
+| `tripsComputeStorageRows.ts` | `buildTripsComputeStorageRows`, `completedFactsForSuccessfulHandoffs` | `persistVesselTripsCompute.ts`; `vesselTripTickWriteSet.ts`; `orchestratorTick/index.ts`; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/tripsComputeStorageRows.ts` | Persist/write-set glue, not trip-lifecycle core. |
+| `vesselTripTickWriteSet.ts` | `VesselTripTickWriteSet`, `buildVesselTripTickWriteSetFromBundle` | `persistVesselTripsCompute.ts`; `orchestratorTick/index.ts`; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/vesselTripTickWriteSet.ts` | Pure POJO write-set; clean candidate for shared persist glue. |
+| `leaveDockActualization.ts` | `actualDepartMsForLeaveDockEffect` | `vesselTripTickWriteSet.ts`; `orchestratorTick/index.ts`; docs | `single-pipeline` | `shared/orchestratorPersist/leaveDockActualization.ts` | Persist helper owned by the write-set story, not by trip lifecycle proper. |
+| `tests/processCompletedTripsTimeline.test.ts` | Test coverage for persist + predictions + timeline merge sequencing | Local test imports; docs by path only | `cross-pipeline test` | Colocate with resulting owners after split | Likely split between `updateVesselPredictions/tests/` and `updateTimeline/tests/` or rewritten as orchestrator integration coverage. |
+| `tests/vesselTripTickWriteSet.test.ts` | Test coverage for storage rows + write-set shaping | Local test imports; docs by path only | `cross-pipeline test` | `shared/orchestratorPersist/tests/` | Should follow `buildTripsComputeStorageRows` / `buildVesselTripTickWriteSetFromBundle`. |
 
 ---
 
@@ -32,7 +41,7 @@
 
 | Path | Exports (summary) | Importing modules | Classification | Target | Notes |
 |------|-------------------|-------------------|----------------|--------|-------|
-| `convex/domain/vesselOrchestration/computeVesselTripsWithClock.ts` | | | | `updateVesselTrips/...` (per PRD S5) | |
+| `convex/domain/vesselOrchestration/computeVesselTripsWithClock.ts` | `computeVesselTripsWithClock`, `VesselTripsWithClock`, `VesselTripsWithClockOptions` | `domain/vesselOrchestration/index.ts`; `functions/vesselOrchestrator/actions.ts`; `functions/vesselOrchestrator/tests/processVesselTrips.tick.test.ts`; `domain/vesselOrchestration/tests/computeVesselTripsWithClock.test.ts`; docs | `trip-only public entry` | `updateVesselTrips/processTick/computeVesselTripsWithClock.ts` | Root file should survive only as a re-export path through `updateVesselTrips/index.ts`, not as a loose top-level module. |
 
 ---
 
@@ -42,13 +51,21 @@ List files that are **not** T0 (trip-internal only). T0 files do not need a row 
 
 | Path | T1/T2 rationale | Importing modules | Target | Notes |
 |------|-------------------|-------------------|--------|-------|
-| _example: `snapshot/buildScheduleSnapshotQueryArgs.ts`_ | _T2 — orchestrator + trip_ | _actions, …_ | _`shared/scheduleSnapshot/`_ | |
+| `snapshot/buildScheduleSnapshotQueryArgs.ts` | `T2` — one-per-tick orchestrator query args; not trip-internal | `functions/vesselOrchestrator/actions.ts`; snapshot tests/docs; re-exported via `updateVesselTrips/index.ts` | `shared/scheduleSnapshot/` | First clean move after S0/S1. |
+| `snapshot/createScheduledSegmentLookupFromSnapshot.ts` | `T2` — orchestrator loads snapshot once, trip deps consume lookup | `functions/vesselOrchestrator/actions.ts`; `updateVesselTrips` internals/tests; re-exported via `updateVesselTrips/index.ts` | `shared/scheduleSnapshot/` | Keep return type stable or move `ScheduledSegmentLookup` with related continuity types if needed. |
+| `snapshot/scheduleSnapshotCompositeKey.ts` | `T2` — used by orchestrator query and snapshot helpers | `functions/vesselOrchestrator/queries.ts`; snapshot helpers/tests; re-exported via `updateVesselTrips/index.ts` | `shared/scheduleSnapshot/` | Cross-cutting utility, not trip lifecycle logic. |
+| `snapshot/scheduleSnapshotLimits.ts` | `T2` — used by orchestrator query validators and snapshot arg builder | `functions/vesselOrchestrator/queries.ts`; snapshot builder; re-exported via `updateVesselTrips/index.ts` | `shared/scheduleSnapshot/` | Belongs with the snapshot contract. |
+| `snapshot/scheduleSnapshotTypes.ts` | `T2` — return shape for the shared snapshot query + lookup builder | Snapshot helpers/tests; docs; re-exported via `updateVesselTrips/index.ts` | `shared/scheduleSnapshot/` | Should move with the rest of snapshot. |
+| `read/mergeTripsWithPredictions.ts` | `T2` — query-time API enrichment, not trip tick compute | `functions/vesselTrips/queries.ts`; read tests/docs; re-exported via `updateVesselTrips/index.ts` | `functions/vesselTrips/` or dedicated read module | Keep out of the trip-tick public story. |
+| `read/dedupeTripDocsByTripKey.ts` | `T2` — query-time read helper only | `functions/vesselTrips/queries.ts`; read tests/docs; re-exported via `updateVesselTrips/index.ts` | `functions/vesselTrips/` or dedicated read module | Same ownership as `mergeTripsWithPredictions`. |
+| `mutations/departNextActualization.ts` | `T2` — shared policy for `functions/vesselTrips` and `functions/eventsPredicted` | `functions/vesselTrips/mutations.ts`; `functions/events/eventsPredicted/mutations.ts`; docs; re-exported via `updateVesselTrips/index.ts` | `shared/` (or `functions/vesselTrips/` if ownership is narrowed) | Multiple functions modules consume it today, so it is not trip-internal. |
+| `continuity/types.ts` | `T2` — generic shared helper depends on `DockedScheduledSegmentSource` | `convex/shared/effectiveTripIdentity.ts`; continuity internals/docs; re-exported via `updateVesselTrips/index.ts` | `shared/continuity/` | Current dependency direction is wrong: generic shared code imports a trip barrel type. |
 
 ---
 
 ## E. Sign-off
 
-- [ ] Inventory complete for **A** and **B** (every file accounted for).
-- [ ] **C** filled after `rg computeVesselTripsWithClock`.
-- [ ] **D** lists every T1/T2 file from S0 step 5.
+- [x] Inventory complete for **A** and **B** (every file accounted for).
+- [x] **C** filled after `rg computeVesselTripsWithClock`.
+- [x] **D** lists the T1/T2 files identified in this audit from S0 step 5.
 - [ ] Reviewer initials / date: _______________
