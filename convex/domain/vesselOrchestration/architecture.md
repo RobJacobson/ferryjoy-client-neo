@@ -304,7 +304,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Re-exports `computeVesselTripsWithClock` via **`updateVesselTrips/index.ts`** plus the remaining top-level domain namespaces. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
+- `index.ts` — Top-level package surface: named trip-tick exports from **`updateVesselTrips/index.ts`** and namespace exports for **`shared`**, **`updateVesselPredictions`**, and **`updateTimeline`**. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
 
 ## Root files: `updateVesselTrips/`
 
