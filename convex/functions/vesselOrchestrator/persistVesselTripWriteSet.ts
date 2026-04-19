@@ -109,9 +109,6 @@ export const persistVesselTripWriteSet = async (
   };
 };
 
-/** Legacy alias retained for tests and transitional callers. */
-export const persistVesselTripsCompute = persistVesselTripWriteSet;
-
 const successfulVesselAbbrevsFromUpsert = (
   upsertResult: VesselTripUpsertBatchResult
 ): Set<string> =>

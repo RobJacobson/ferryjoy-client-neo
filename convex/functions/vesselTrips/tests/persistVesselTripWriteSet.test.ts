@@ -1,7 +1,4 @@
-/**
- * Unit tests for {@link persistVesselTripWriteSet} (and legacy
- * `persistVesselTripsCompute` alias).
- */
+/** Unit tests for {@link persistVesselTripWriteSet}. */
 
 import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
@@ -12,7 +9,6 @@ import type {
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
-  persistVesselTripsCompute,
   persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
@@ -168,10 +164,6 @@ const minimalTripEvents: TripEvents = {
 };
 
 describe("persistVesselTripWriteSet", () => {
-  it("aliases persistVesselTripsCompute to the same function", () => {
-    expect(persistVesselTripsCompute).toBe(persistVesselTripWriteSet);
-  });
-
   it("returns completed fact when handoff mutation succeeds", async () => {
     const existing = makeTrip();
     const tripToComplete = makeTrip({

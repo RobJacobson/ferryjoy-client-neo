@@ -1,6 +1,6 @@
 # Vessel orchestration migration — S0 inventory
 
-**Status:** Initial audit captured from the current codebase on **2026-04-19**; section **B** reflects the completed S4 ownership move targets.
+**Status:** Initial audit captured from the current codebase on **2026-04-19**; section **B** reflects the completed S4 ownership move targets, and S10 is complete with trip persistence owned by `functions/vesselOrchestrator`.
 This inventory is the required input to the first move PR per [§6 S0 in `vessel-orchestration-next-work-prd.md`](vessel-orchestration-next-work-prd.md).
 
 **How to use**
@@ -28,7 +28,7 @@ This inventory is the required input to the first move PR per [§6 S0 in `vessel
 |--------------------------------------------------------------------|-------------------|-----------------------------|----------------|--------|-------|
 | `index.ts` | Public façade for persist glue, prediction materialization, timeline apply prep, write-set helpers | `functions/vesselOrchestrator/actions.ts`; `domain/vesselOrchestration/index.ts`; orchestrator tests; docs | `cross-pipeline` | Split across `shared/index.ts`, `updateVesselPredictions/index.ts`, and `updateTimeline/index.ts` | Completed in S4; façade removed with `orchestratorTick/`. |
 | `materializePostTripTableWrites.ts` | ML overlay, proposal building, timeline merge/apply prep (`runUpdateVesselPredictions`, `runUpdateVesselTimeline`, etc.) | `orchestratorTick/index.ts`; `functions/vesselOrchestrator/actions.ts` via index; tests/docs | `cross-pipeline` | Split between `updateVesselPredictions/orchestratorPredictionWrites.ts` and `updateTimeline/orchestratorTimelineProjection.ts` | Completed in S4. |
-| `persistVesselTripsCompute.ts` | `VesselTripTableMutations`, `persistVesselTripWriteSet`, alias `persistVesselTripsCompute` | `orchestratorTick/index.ts`; `functions/vesselOrchestrator/actions.ts` via index; `functions/vesselOrchestrator/utils.ts` direct leaf import; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/persistVesselTripsCompute.ts` | Completed in S4; still a candidate for `functions/vesselOrchestrator/` in S10. |
+| `persistVesselTripsCompute.ts` | `VesselTripTableMutations`, `persistVesselTripWriteSet`, alias `persistVesselTripsCompute` | `orchestratorTick/index.ts`; `functions/vesselOrchestrator/actions.ts` via index; `functions/vesselOrchestrator/utils.ts` direct leaf import; tests/docs | `cross-pipeline` | `functions/vesselOrchestrator/persistVesselTripWriteSet.ts` | Completed in S10: function ownership is canonical; no compatibility file retained under `shared/orchestratorPersist/`. |
 | `tripsComputeStorageRows.ts` | `buildTripsComputeStorageRows`, `completedFactsForSuccessfulHandoffs` | `persistVesselTripsCompute.ts`; `vesselTripTickWriteSet.ts`; `orchestratorTick/index.ts`; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/tripsComputeStorageRows.ts` | Completed in S4. |
 | `vesselTripTickWriteSet.ts` | `VesselTripTickWriteSet`, `buildVesselTripTickWriteSetFromBundle` | `persistVesselTripsCompute.ts`; `orchestratorTick/index.ts`; tests/docs | `cross-pipeline` | `shared/orchestratorPersist/vesselTripTickWriteSet.ts` | Completed in S4. |
 | `leaveDockActualization.ts` | `actualDepartMsForLeaveDockEffect` | `vesselTripTickWriteSet.ts`; `orchestratorTick/index.ts`; docs | `single-pipeline` | `shared/orchestratorPersist/leaveDockActualization.ts` | Completed in S4. |
@@ -68,4 +68,5 @@ List files that are **not** T0 (trip-internal only). T0 files do not need a row 
 - [x] Inventory complete for **A** and **B** (every file accounted for).
 - [x] **C** filled after `rg computeVesselTripsWithClock`.
 - [x] **D** lists the T1/T2 files identified in this audit from S0 step 5.
+- [x] S10 complete: function-owned trip persistence is live with no compatibility shim retained.
 - [ ] Reviewer initials / date: _______________

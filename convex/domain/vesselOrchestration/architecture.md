@@ -52,7 +52,7 @@ Roadmap memos may use aspirational names (e.g. `runUpdateVesselTrips`); **produc
 - **`functions/vesselOrchestrator/actions.ts`** — `updateVesselOrchestrator`: owns **`tickStartedAt`**, WSF fetch, **`getScheduleSnapshotForTick`**, then **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
 - **`computeVesselTripsWithClock`** — domain entry that wraps **`computeVesselTripsBundle`** with tick policy (`processTick/processVesselTrips.ts`).
 - **`buildTripsComputeStorageRows`** — strip predictions and group bundle rows (`shared/orchestratorPersist/tripsComputeStorageRows.ts`); consumed by **`buildVesselTripTickWriteSetFromBundle`**.
-- **`persistVesselTripWriteSet`** — function-layer trip-table mutation apply entry (alias **`persistVesselTripsCompute`** for transitional callers).
+- **`persistVesselTripWriteSet`** — function-layer trip-table mutation apply entry.
 - **`shared/tickHandshake/`** — persist / handshake DTOs shared with predictions and timeline (`VesselTripPersistResult`, `TripLifecycleApplyOutcome`, …).
 
 Read on for full paths, alternatives, glossary, and refactor ideas.
