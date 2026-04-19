@@ -280,7 +280,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` re-exports tick pipeline symbols, schedule snapshot helpers (`buildScheduleSnapshotQueryArgs`, `createScheduledSegmentLookupFromSnapshot`, caps), and related types—see that file for the current list.
+The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder: tick pipeline, schedule snapshot, continuity types, read-model helpers (`mergeTripsWithPredictions`, dedupe), depart-next policy symbols, and shared bundle/timeline types—see that file for the authoritative list.
 
 ## `updateVesselTrips/read/` (query-time enrichment)
 

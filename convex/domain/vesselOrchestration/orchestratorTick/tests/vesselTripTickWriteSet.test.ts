@@ -7,9 +7,9 @@ import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/updat
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
+  PendingLeaveDockEffect,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import type { PendingLeaveDockEffect } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { actualDepartMsForLeaveDockEffect } from "../leaveDockActualization";

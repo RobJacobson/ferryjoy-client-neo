@@ -16,17 +16,19 @@ import {
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
 import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
-import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
-import {
-  type ActiveTripsBranch,
-  type ProcessCompletedTripsDeps,
-  processCompletedTrips,
-  type TripEvents,
-  type VesselTripsComputeBundle,
+import type {
+  ActiveTripsBranch,
+  BuildTripCoreResult,
+  TripEvents,
+  VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import {
+  type ProcessCompletedTripsDeps,
+  processCompletedTrips,
+} from "../tripLifecycle/processCompletedTrips";
 
 const noopPredictionModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,

@@ -6,8 +6,10 @@
  * merged in `tickEventWrites.ts`.
  */
 
-import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type {
+  BuildTripCoreResult,
+  TripEvents,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,

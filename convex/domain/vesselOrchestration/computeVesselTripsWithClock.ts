@@ -13,12 +13,12 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
+import type { VesselTripsComputeBundle } from "./updateVesselTrips";
 import {
   computeShouldRunPredictionFallback,
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./updateVesselTrips";
-import type { VesselTripsComputeBundle } from "./updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 
 /**
  * Tick clock and trips compute bundle for sequential persistence in

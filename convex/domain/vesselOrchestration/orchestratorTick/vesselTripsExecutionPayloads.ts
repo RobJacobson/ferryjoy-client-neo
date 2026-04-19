@@ -8,7 +8,7 @@ import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updat
 import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,
-} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
+} from "domain/vesselOrchestration/updateVesselTrips";
 
 export type VesselTripsExecutionPayload = {
   handoffMutations: Array<{
