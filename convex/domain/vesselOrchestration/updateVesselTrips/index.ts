@@ -10,11 +10,22 @@
  * See `README.md` and `../architecture.md` §10.
  */
 
+export type {
+  ExistingActiveTripRow,
+  RunUpdateVesselTripsInput,
+  RunUpdateVesselTripsOutput,
+  TripComputation,
+  VesselLocationRow,
+  VesselTripRow,
+  VesselTripScheduleContext,
+} from "./contracts";
 export {
   computeVesselTripsWithClock,
   type VesselTripsWithClock,
   type VesselTripsWithClockOptions,
 } from "./processTick/computeVesselTripsWithClock";
+// Transitional Stage A exports: retained to keep existing callers coherent while
+// later stages migrate onto `runUpdateVesselTrips`.
 // --- Tick pipeline ---
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
@@ -22,6 +33,7 @@ export {
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
 export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
+export { runUpdateVesselTrips } from "./runUpdateVesselTrips";
 // --- Types shared with handshake/persistence consumers (not updateTimeline imports) ---
 export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";

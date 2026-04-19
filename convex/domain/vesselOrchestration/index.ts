@@ -11,6 +11,7 @@
 
 export * as shared from "./shared";
 export * as updateTimeline from "./updateTimeline";
+export * as updateVesselLocations from "./updateVesselLocations";
 export * as updateVesselPredictions from "./updateVesselPredictions";
 export {
   type ActiveTripsBranch,
@@ -33,4 +34,11 @@ export {
  * - import cross-pipeline helpers via the `shared`, `updateVesselPredictions`,
  *   and `updateTimeline` namespaces exposed here
  * - when working entirely inside one concern, prefer that concern's local barrel
+ *
+ * Transitional note:
+ * - the named exports above still include legacy trip compute surfaces so the
+ *   repo stays coherent during Stage A
+ * - the canonical public contract story now lives in the concern barrels,
+ *   especially `updateVesselLocations`, `updateVesselTrips`,
+ *   `updateVesselPredictions`, and `updateTimeline`
  */

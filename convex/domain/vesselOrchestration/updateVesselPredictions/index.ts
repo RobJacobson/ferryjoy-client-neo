@@ -3,6 +3,10 @@
  * upsert decisions for **`vesselTripPredictions`**, and strip helpers
  * for one proposed trip per tick. Implementation modules live in this folder;
  * import from here for a stable concern boundary.
+ *
+ * Stage A canonical contracts live in `contracts.ts`. The current
+ * `runUpdateVesselPredictions` implementation remains a transitional legacy
+ * runner until the plain-data prediction context migration lands.
  */
 
 export {
@@ -10,6 +14,14 @@ export {
   type VesselPredictionGates,
   type VesselTripCoreProposal,
 } from "./applyVesselPredictions";
+export type {
+  PredictedTripComputation,
+  RunUpdateVesselPredictionsInput,
+  RunUpdateVesselPredictionsOutput,
+  TripPredictionSet,
+  VesselPredictionContext,
+  VesselTripPredictionRow,
+} from "./contracts";
 export {
   buildMlOverlayFromTripsCompute,
   buildVesselTripPredictionProposals,
