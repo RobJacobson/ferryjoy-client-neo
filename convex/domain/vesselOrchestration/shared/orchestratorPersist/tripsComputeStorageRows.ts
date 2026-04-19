@@ -5,7 +5,7 @@
  */
 
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,

@@ -10,16 +10,14 @@ import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
 import {
-  persistVesselTripWriteSet,
-  runUpdateVesselPredictions,
-  runUpdateVesselTimeline,
-} from "domain/vesselOrchestration/orchestratorTick";
-import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
+  persistVesselTripWriteSet,
   type TripLifecycleApplyOutcome,
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
+import { runUpdateVesselTimeline } from "domain/vesselOrchestration/updateTimeline";
+import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   createDefaultProcessVesselTripsDeps,
   type ProcessVesselTripsDeps,

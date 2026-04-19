@@ -86,10 +86,6 @@ const emptyCurrent = (): ActiveTripsBranch => ({
   pendingLeaveDockEffects: [],
 });
 
-/**
- * Deterministic projection of {@link VesselTripTickWriteSet} from execution
- * payloads — must stay aligned with {@link buildVesselTripTickWriteSetFromBundle}.
- */
 const projectWriteSetFromExecutionPayload = (
   p: TripsComputeStorageRows
 ): VesselTripTickWriteSet => {

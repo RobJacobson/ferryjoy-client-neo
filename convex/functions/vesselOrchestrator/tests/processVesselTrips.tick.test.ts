@@ -7,10 +7,8 @@ import { describe, expect, it } from "bun:test";
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
-import {
-  persistVesselTripWriteSet,
-  runUpdateVesselPredictions,
-} from "domain/vesselOrchestration/orchestratorTick";
+import { persistVesselTripWriteSet } from "domain/vesselOrchestration/shared";
+import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   BuildTripCoreResult,
   TripEvents,

@@ -5,13 +5,13 @@
 
 import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import {
   persistVesselTripsCompute,
   persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
+} from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,

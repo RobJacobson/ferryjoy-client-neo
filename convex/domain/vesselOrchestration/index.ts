@@ -14,4 +14,3 @@ export {
   type VesselTripsWithClock,
   type VesselTripsWithClockOptions,
 } from "./computeVesselTripsWithClock";
-export * as orchestratorTick from "./orchestratorTick";

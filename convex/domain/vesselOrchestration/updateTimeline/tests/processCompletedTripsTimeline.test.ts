@@ -1,8 +1,6 @@
 /**
  * Integration tests: completed-trip processing through persist, ML merge, and
- * timeline tick writes (`buildTickEventWritesFromCompletedFacts`). Lives under
- * orchestratorTick so `updateVesselTrips/tests` stays free of `updateTimeline`
- * imports.
+ * timeline tick writes (`buildTickEventWritesFromCompletedFacts`).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -10,15 +8,15 @@ import { api, internal } from "_generated/api";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import {
-  mergeTripApplyWithMlForTimeline,
-  runUpdateVesselPredictions,
-} from "domain/vesselOrchestration/orchestratorTick";
-import {
   persistVesselTripWriteSet,
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
-import { buildTickEventWritesFromCompletedFacts } from "domain/vesselOrchestration/updateTimeline";
+} from "domain/vesselOrchestration/shared";
+import {
+  buildTickEventWritesFromCompletedFacts,
+  mergeTripApplyWithMlForTimeline,
+} from "domain/vesselOrchestration/updateTimeline";
+import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,

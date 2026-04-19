@@ -54,7 +54,6 @@ export const persistVesselTripWriteSet = async (
   mutations: VesselTripTableMutations
 ): Promise<VesselTripPersistResult> => {
   const writeSet = buildVesselTripTickWriteSetFromBundle(tripsCompute);
-  // attemptedHandoffs and completedHandoffs share indices (same bundle mapping).
   if (
     writeSet.attemptedHandoffs.length !== tripsCompute.completedHandoffs.length
   ) {
@@ -118,12 +117,6 @@ export const persistVesselTripWriteSet = async (
 /** Same implementation as {@link persistVesselTripWriteSet} (legacy export name). */
 export const persistVesselTripsCompute = persistVesselTripWriteSet;
 
-/**
- * Collects successful vessel abbrevs from an upsert batch result (logs failures).
- *
- * @param upsertResult - Per-vessel outcomes from `upsertVesselTripsBatch`
- * @returns Set of vessels whose active upsert succeeded
- */
 const successfulVesselAbbrevsFromUpsert = (
   upsertResult: VesselTripUpsertBatchResult
 ): Set<string> =>
@@ -147,11 +140,6 @@ const successfulVesselAbbrevsFromUpsert = (
 /**
  * Runs depart-next actualization for leave-dock intents whose vessel had a
  * successful active upsert (`successfulVessels` gate).
- *
- * @param mutations - Convex bindings
- * @param successfulVessels - Vessels that succeeded in the active batch upsert
- * @param leaveDockIntents - Precomputed `{ vesselAbbrev, actualDepartMs }` rows
- * @returns Promise that settles when all leave-dock calls finish
  */
 const runLeaveDockFromWriteSetIntents = async (
   mutations: VesselTripTableMutations,

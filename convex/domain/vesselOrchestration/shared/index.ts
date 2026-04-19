@@ -1,3 +1,15 @@
+export {
+  actualDepartMsForLeaveDockEffect,
+  buildTripsComputeStorageRows,
+  buildVesselTripTickWriteSetFromBundle,
+  completedFactsForSuccessfulHandoffs,
+  persistVesselTripsCompute,
+  persistVesselTripWriteSet,
+  type TripsComputeStorageRows,
+  type VesselTripTableMutations,
+  type VesselTripTickWriteSet,
+  type VesselTripUpsertBatchResult,
+} from "./orchestratorPersist";
 export { buildScheduleSnapshotQueryArgs } from "./scheduleSnapshot/buildScheduleSnapshotQueryArgs";
 export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
 export { scheduleSnapshotCompositeKey } from "./scheduleSnapshot/scheduleSnapshotCompositeKey";

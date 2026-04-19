@@ -2,7 +2,7 @@
  * Public entry for **updateVesselTrips**: tick pipeline,
  * continuity adapters, read-model helpers, and depart-next policy symbols used by
  * the orchestrator, Convex queries/mutations, and peer domain (`shared/`
- * for handshake DTOs with predictions/timeline, `orchestratorTick`).
+ * for handshake DTOs and persist glue).
  *
  * **Imports:** Supported symbols live here only. Do not import other
  * `updateVesselTrips/...` leaf paths from outside this folder (see

@@ -11,6 +11,14 @@ export {
   type VesselTripCoreProposal,
 } from "./applyVesselPredictions";
 export {
+  buildMlOverlayFromTripsCompute,
+  buildVesselTripPredictionProposals,
+  runUpdateVesselPredictions,
+  type VesselTripPredictionsMutationArgs,
+  type VesselTripPredictionWrites,
+  vesselTripPredictionProposalsFromMlOverlay,
+} from "./orchestratorPredictionWrites";
+export {
   convexPredictionFromVesselTripPredictionRow,
   normalizeConvexPredictionForOverlayEquality,
   overlayPredictionProjectionsEqual,
