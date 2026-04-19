@@ -11,3 +11,17 @@ export type {
   ScheduleSnapshot,
   ScheduleSnapshotQueryArgs,
 } from "./scheduleSnapshot/scheduleSnapshotTypes";
+export {
+  mergeTickEventWrites,
+  type TickEventWrites,
+  type TimelineTickProjectionInput,
+} from "./tickHandshake/projectionWire";
+export type {
+  CompletedTripBoundaryFact,
+  CurrentTripActualEventMessage,
+  CurrentTripLifecycleBranchResult,
+  CurrentTripPredictedEventMessage,
+  TripLifecycleApplyOutcome,
+  TripTickLifecycleOutcome,
+  VesselTripPersistResult,
+} from "./tickHandshake/types";

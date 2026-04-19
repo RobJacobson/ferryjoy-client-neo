@@ -4,7 +4,7 @@
  * via `persistVesselTripWriteSet` and {@link VesselTripTableMutations}.
  */
 
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage";
 import type {
   PendingLeaveDockEffect,

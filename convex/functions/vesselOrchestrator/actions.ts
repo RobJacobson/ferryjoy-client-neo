@@ -17,11 +17,9 @@ import {
 import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
+  type TripLifecycleApplyOutcome,
+  type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
-import type {
-  TripLifecycleApplyOutcome,
-  VesselTripPersistResult,
-} from "domain/vesselOrchestration/tickLifecycle";
 import {
   createDefaultProcessVesselTripsDeps,
   type ProcessVesselTripsDeps,

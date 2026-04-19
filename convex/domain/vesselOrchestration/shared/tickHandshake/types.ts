@@ -1,7 +1,7 @@
 /**
  * Handshake DTOs for the vessel orchestrator tick: trip lifecycle outputs that
- * feed predictions and timeline projection. Owned here so `updateVesselTrips` does
- * not depend on `updateTimeline` for primary typing.
+ * feed predictions and timeline projection. Owned in `shared/` so
+ * `updateVesselTrips` does not depend on `updateTimeline` for primary typing.
  *
  * Branch processors emit facts and per-vessel messages; assembly into
  * `TickEventWrites` happens in `updateTimeline` (`timelineEventAssembler`,

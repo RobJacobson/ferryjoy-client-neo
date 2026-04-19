@@ -7,7 +7,7 @@
  * export {@link persistVesselTripsCompute}.
  */
 
-import type { VesselTripPersistResult } from "domain/vesselOrchestration/tickLifecycle";
+import type { VesselTripPersistResult } from "domain/vesselOrchestration/shared";
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { completedFactsForSuccessfulHandoffs } from "./tripsComputeStorageRows";

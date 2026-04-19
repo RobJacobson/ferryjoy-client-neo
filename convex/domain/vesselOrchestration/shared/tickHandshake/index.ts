@@ -1,6 +1,6 @@
 /**
- * Public entry for orchestrator tick handshake types: lifecycle facts/messages,
- * persist vs timeline labels, and projection wire shapes (`TickEventWrites`).
+ * Shared handshake DTOs and projection-wire shapes used across orchestrator
+ * phases after trip persistence and ML overlay.
  */
 
 export {

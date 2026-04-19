@@ -11,7 +11,7 @@ import {
   type VesselTripTableMutations,
   type VesselTripUpsertBatchResult,
 } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,

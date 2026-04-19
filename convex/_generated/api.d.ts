@@ -98,9 +98,9 @@ import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createSchedu
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotCompositeKey from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotCompositeKey.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotLimits from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotLimits.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.js";
-import type * as domain_vesselOrchestration_tickLifecycle_index from "../domain/vesselOrchestration/tickLifecycle/index.js";
-import type * as domain_vesselOrchestration_tickLifecycle_projectionWire from "../domain/vesselOrchestration/tickLifecycle/projectionWire.js";
-import type * as domain_vesselOrchestration_tickLifecycle_types from "../domain/vesselOrchestration/tickLifecycle/types.js";
+import type * as domain_vesselOrchestration_shared_tickHandshake_index from "../domain/vesselOrchestration/shared/tickHandshake/index.js";
+import type * as domain_vesselOrchestration_shared_tickHandshake_projectionWire from "../domain/vesselOrchestration/shared/tickHandshake/projectionWire.js";
+import type * as domain_vesselOrchestration_shared_tickHandshake_types from "../domain/vesselOrchestration/shared/tickHandshake/types.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput.js";
 import type * as domain_vesselOrchestration_updateTimeline_index from "../domain/vesselOrchestration/updateTimeline/index.js";
@@ -334,9 +334,9 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotCompositeKey": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotCompositeKey;
   "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotLimits": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotLimits;
   "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes;
-  "domain/vesselOrchestration/tickLifecycle/index": typeof domain_vesselOrchestration_tickLifecycle_index;
-  "domain/vesselOrchestration/tickLifecycle/projectionWire": typeof domain_vesselOrchestration_tickLifecycle_projectionWire;
-  "domain/vesselOrchestration/tickLifecycle/types": typeof domain_vesselOrchestration_tickLifecycle_types;
+  "domain/vesselOrchestration/shared/tickHandshake/index": typeof domain_vesselOrchestration_shared_tickHandshake_index;
+  "domain/vesselOrchestration/shared/tickHandshake/projectionWire": typeof domain_vesselOrchestration_shared_tickHandshake_projectionWire;
+  "domain/vesselOrchestration/shared/tickHandshake/types": typeof domain_vesselOrchestration_shared_tickHandshake_types;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
   "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput;
   "domain/vesselOrchestration/updateTimeline/index": typeof domain_vesselOrchestration_updateTimeline_index;

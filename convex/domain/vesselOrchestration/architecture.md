@@ -14,7 +14,7 @@ It is intentionally plain-English and execution-path focused.
 
 **Operational reality (shipped orchestrator):** **`updateVesselOrchestrator`** in **`actions.ts`** runs **sequentially**: **`vesselLocation.mutations.bulkUpsert`** (live snapshot) → **`getScheduleSnapshotForTick`** + shared **`ProcessVesselTripsDeps`** → **`updateVesselTrips`** (`computeVesselTripsWithClock` → `persistVesselTripWriteSet`) → **`updateVesselPredictions`** (`runUpdateVesselPredictions` + `batchUpsertProposals` when needed) → **`updateVesselTimeline`** (`runUpdateVesselTimeline` → dock projection mutations). Trip **compute** uses **`buildTripCore` only** in the trip phase; ML attaches in the predictions phase—not `Promise.all` between phases.
 
-**Domain layering:** **updateVesselPredictions** on the orchestrator path runs **after** trip mutations: `applyVesselPredictions` consumes each tick’s carried **`BuildTripCoreResult`** (no second `buildTripCore`). The composed **`buildTrip`** (`buildTripCore` + `applyVesselPredictions`) remains for tests and non-orchestrator callers. **Handshake types** (`CompletedTripBoundaryFact`, `TripLifecycleApplyOutcome` / `VesselTripPersistResult` as aliases over one struct, projection wire shapes) live in **`domain/vesselOrchestration/tickLifecycle/`** so **`updateVesselTrips` does not import `updateTimeline`** for primary typing. **updateTimeline** (`buildTimelineTickProjectionInput`, assembler, `tickEventWrites`) re-exports those types and owns assembly. Trip table writes run from **`persistVesselTripWriteSet`** (after `computeVesselTripsWithClock`); timeline apply runs in **`updateVesselTimeline`** in **`actions.ts`** after predictions merge.
+**Domain layering:** **updateVesselPredictions** on the orchestrator path runs **after** trip mutations: `applyVesselPredictions` consumes each tick’s carried **`BuildTripCoreResult`** (no second `buildTripCore`). The composed **`buildTrip`** (`buildTripCore` + `applyVesselPredictions`) remains for tests and non-orchestrator callers. **Handshake types** (`CompletedTripBoundaryFact`, `TripLifecycleApplyOutcome` / `VesselTripPersistResult` as aliases over one struct, projection wire shapes) live in **`domain/vesselOrchestration/shared/tickHandshake/`** so **`updateVesselTrips` does not import `updateTimeline`** for primary typing. **updateTimeline** (`buildTimelineTickProjectionInput`, assembler, `tickEventWrites`) re-exports those types and owns assembly. Trip table writes run from **`persistVesselTripWriteSet`** (after `computeVesselTripsWithClock`); timeline apply runs in **`updateVesselTimeline`** in **`actions.ts`** after predictions merge.
 
 See [Target reorganization: orchestrator concerns](#target-reorganization-orchestrator-concerns).
 
@@ -53,7 +53,7 @@ Roadmap memos may use aspirational names (e.g. `runUpdateVesselTrips`); **produc
 - **`computeVesselTripsWithClock`** — domain entry that wraps **`computeVesselTripsBundle`** with tick policy (`processTick/processVesselTrips.ts`).
 - **`buildTripsComputeStorageRows`** — strip predictions and group bundle rows (`orchestratorTick/tripsComputeStorageRows.ts`); consumed by **`buildVesselTripTickWriteSetFromBundle`**.
 - **`persistVesselTripWriteSet`** — drives trip-table mutations (alias **`persistVesselTripsCompute`**).
-- **`tickLifecycle/`** — persist / handshake DTOs shared with predictions and timeline (`VesselTripPersistResult`, `TripLifecycleApplyOutcome`, …).
+- **`shared/tickHandshake/`** — persist / handshake DTOs shared with predictions and timeline (`VesselTripPersistResult`, `TripLifecycleApplyOutcome`, …).
 
 Read on for full paths, alternatives, glossary, and refactor ideas.
 
@@ -309,7 +309,7 @@ The barrel `updateTimeline/index.ts` re-exports the public surface. `domain/vess
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Re-exports `computeVesselTripsWithClock` and `orchestratorTick` / `tickLifecycle` namespaces. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
+- `index.ts` — Re-exports `computeVesselTripsWithClock` plus the remaining top-level domain namespaces. Tick orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
 
 ## Root files: `updateVesselTrips/`
 

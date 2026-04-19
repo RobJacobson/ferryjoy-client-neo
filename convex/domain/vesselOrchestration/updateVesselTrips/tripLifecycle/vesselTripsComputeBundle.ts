@@ -8,7 +8,7 @@ import type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
-} from "domain/vesselOrchestration/tickLifecycle";
+} from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 /**

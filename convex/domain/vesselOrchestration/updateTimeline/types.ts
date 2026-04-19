@@ -1,7 +1,7 @@
 /**
- * Re-exports handshake types from `tickLifecycle` for timeline callers.
+ * Re-exports shared handshake types for timeline callers.
  *
- * Canonical definitions live in `domain/vesselOrchestration/tickLifecycle`.
+ * Canonical definitions live in `domain/vesselOrchestration/shared`.
  */
 
 export type {
@@ -12,4 +12,4 @@ export type {
   TripLifecycleApplyOutcome,
   TripTickLifecycleOutcome,
   VesselTripPersistResult,
-} from "domain/vesselOrchestration/tickLifecycle";
+} from "domain/vesselOrchestration/shared";
