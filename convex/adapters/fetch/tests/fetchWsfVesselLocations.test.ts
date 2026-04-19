@@ -1,112 +1,69 @@
 /**
- * Tests for Dottie → Convex vessel location mapping and batch guards.
+ * Tests for the raw WSF vessel-location transport adapter.
  */
 
-import { describe, expect, it } from "bun:test";
-import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselIdentity } from "functions/vessels/schemas";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import type { VesselLocation as DottieVesselLocation } from "ws-dottie/wsf-vessels/core";
-import {
-  assertAtLeastOneVesselLocationConverted,
-  mapDottieVesselLocationsToConvex,
-} from "../fetchWsfVesselLocations";
+import * as wsfCore from "ws-dottie/wsf-vessels/core";
 
-const vesselsFixture: VesselIdentity[] = [
-  { VesselID: 101, VesselName: "Kittitas", VesselAbbrev: "KIT" },
-];
+afterEach(() => {
+  mock.restore();
+});
 
-const terminalsFixture: TerminalIdentity[] = [
-  {
-    TerminalID: 1,
-    TerminalName: "Seattle",
-    TerminalAbbrev: "SEA",
-    Latitude: 47.6,
-    Longitude: -122.3,
-  },
-  {
-    TerminalID: 2,
-    TerminalName: "Bremerton",
-    TerminalAbbrev: "BME",
-    Latitude: 47.55,
-    Longitude: -122.62,
-  },
-];
+describe("fetchRawWsfVesselLocations", () => {
+  it("returns the raw rows from the WSF transport unchanged", async () => {
+    const rows = [makeRawLocation({ VesselID: 101 })];
+    mock.module("ws-dottie/wsf-vessels/core", () => ({
+      ...wsfCore,
+      fetchVesselLocations: async () => rows,
+    }));
 
-/**
- * Minimal WSF row that converts with {@link vesselsFixture} /
- * {@link terminalsFixture}.
- */
-const validDottieRow = (): DottieVesselLocation =>
+    const { fetchRawWsfVesselLocations } = await import(
+      "../fetchWsfVesselLocations"
+    );
+    const result = await fetchRawWsfVesselLocations();
+
+    expect(result).toEqual(rows);
+  });
+
+  it("throws when the WSF transport returns no rows", async () => {
+    mock.module("ws-dottie/wsf-vessels/core", () => ({
+      ...wsfCore,
+      fetchVesselLocations: async () => [],
+    }));
+
+    const { fetchRawWsfVesselLocations } = await import(
+      "../fetchWsfVesselLocations"
+    );
+    await expect(fetchRawWsfVesselLocations()).rejects.toThrow(
+      /No vessel locations received from WSF API/
+    );
+  });
+});
+
+const makeRawLocation = (
+  overrides: Partial<DottieVesselLocation>
+): DottieVesselLocation =>
   ({
-    VesselID: 101,
-    VesselName: "Kittitas",
-    DepartingTerminalAbbrev: "SEA",
-    DepartingTerminalName: "Seattle",
-    ArrivingTerminalAbbrev: "BME",
-    ArrivingTerminalName: "Bremerton",
+    VesselID: 2,
+    VesselName: "Chelan",
     DepartingTerminalID: 1,
-    ArrivingTerminalID: 2,
-    Latitude: 47.6,
-    Longitude: -122.3,
-    Speed: 10,
-    Heading: 90,
+    DepartingTerminalName: "Anacortes",
+    DepartingTerminalAbbrev: "ANA",
+    ArrivingTerminalID: 15,
+    ArrivingTerminalName: "Orcas Island",
+    ArrivingTerminalAbbrev: "ORI",
+    Latitude: 48.5,
+    Longitude: -122.6,
+    Speed: 12,
+    Heading: 180,
     InService: true,
     AtDock: false,
-    LeftDock: null,
-    Eta: null,
-    ScheduledDeparture: null,
-    OpRouteAbbrev: ["SR"],
+    LeftDock: undefined,
+    Eta: undefined,
+    ScheduledDeparture: undefined,
+    OpRouteAbbrev: ["ana-sj"],
     VesselPositionNum: 1,
-    TimeStamp: new Date("2025-01-01T12:00:00.000Z"),
+    TimeStamp: new Date("2026-03-31T12:00:00-07:00"),
+    ...overrides,
   }) as DottieVesselLocation;
-
-const unknownVesselRow = (): DottieVesselLocation =>
-  ({
-    ...validDottieRow(),
-    VesselName: "Not In Snapshot",
-    VesselID: 999,
-  }) as DottieVesselLocation;
-
-describe("mapDottieVesselLocationsToConvex", () => {
-  it("returns one location and skips rows that fail conversion", () => {
-    const locations = mapDottieVesselLocationsToConvex(
-      [validDottieRow(), unknownVesselRow()],
-      vesselsFixture,
-      terminalsFixture
-    );
-
-    expect(locations).toHaveLength(1);
-    expect(locations[0]?.VesselAbbrev).toBe("KIT");
-  });
-
-  it("returns empty locations when every row fails", () => {
-    const locations = mapDottieVesselLocationsToConvex(
-      [unknownVesselRow(), unknownVesselRow()],
-      vesselsFixture,
-      terminalsFixture
-    );
-
-    expect(locations).toHaveLength(0);
-  });
-});
-
-describe("assertAtLeastOneVesselLocationConverted", () => {
-  it("throws when the API had rows but none converted", () => {
-    expect(() => assertAtLeastOneVesselLocationConverted(2, [])).toThrow(
-      /All 2 vessel location rows failed conversion/
-    );
-  });
-
-  it("does not throw when at least one row converted", () => {
-    expect(() =>
-      assertAtLeastOneVesselLocationConverted(2, [
-        { VesselAbbrev: "KIT" } as ConvexVesselLocation,
-      ])
-    ).not.toThrow();
-  });
-
-  it("does not throw when raw count is zero", () => {
-    expect(() => assertAtLeastOneVesselLocationConverted(0, [])).not.toThrow();
-  });
-});

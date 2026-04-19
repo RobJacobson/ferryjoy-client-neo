@@ -18,9 +18,9 @@ and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
 **`updateVesselTrips`**, **`updateVesselPredictions`**, and **`updateVesselTimeline`**
 in sequence. [`utils.ts`](./utils.ts) supplies trip mutation ports and prediction
 model access—**not** a separate “phases” runner. Raw vessel locations are fetched through
-`convex/adapters/fetch/fetchWsfVesselLocations.ts`, translated into
-`ConvexVesselLocation`, and then passed into domain orchestration plus Convex
-mutations.
+`convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by
+`domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation`
+before Convex mutations run.
 
 ### O1 pipeline structure (named steps)
 
@@ -67,7 +67,7 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 
 ```text
 WSF VesselLocations API
-  -> adapters/fetch/fetchWsfVesselLocations
+  -> adapters/fetch/fetchRawWsfVesselLocations
   -> functions/vesselOrchestrator/actions.ts (bulkUpsert -> trips -> predictions -> timeline)
   -> vesselLocations / vesselTrips / vesselTripPredictions / eventsActual / eventsPredicted
 ```
@@ -110,9 +110,10 @@ Responsibilities:
   `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches
   for API subscribers); soft-fail when identity tables are empty (seed / hourly
   identity crons)
-- **fetch:** `fetchWsfVesselLocations` skips individual bad feed rows (`console.warn`
-  per skip) and continues with the rest; if **every** row fails conversion, the fetch
-  throws and the tick reports a fetch error
+- **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
+- normalize raw WSF payloads through `runUpdateVesselLocations`, which skips
+  individual bad feed rows (`console.warn` per skip) and throws when every row
+  fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
@@ -133,9 +134,8 @@ Transformation pipeline:
 
 ```text
 WSF VesselLocation
-  -> adapters/fetch/fetchWsfVesselLocations()
-  -> actions.ts
-  -> toConvexVesselLocation(raw, vessels, terminals)
+  -> adapters/fetch/fetchRawWsfVesselLocations()
+  -> domain/vesselOrchestration/updateVesselLocations
   -> ConvexVesselLocation[]
 ```
 
@@ -253,7 +253,7 @@ That document covers:
 ```text
 WSF API
   -> fetch vessel locations once via adapters
-  -> convert locations in functions
+  -> normalize locations in domain/updateVesselLocations
   -> updateVesselTrips (compute -> bulkUpsert locations -> apply trips)
   -> updateVesselPredictions (ML merge + prediction table upserts)
   -> updateVesselTimeline (build projection input -> eventsActual / eventsPredicted)

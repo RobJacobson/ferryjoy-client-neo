@@ -7,7 +7,7 @@
 import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
-import { fetchWsfVesselLocations } from "adapters";
+import { fetchRawWsfVesselLocations } from "adapters";
 import {
   buildScheduleSnapshotQueryArgs,
   createScheduledSegmentLookupFromSnapshot,
@@ -15,6 +15,7 @@ import {
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import { runUpdateVesselTimeline } from "domain/vesselOrchestration/updateTimeline";
+import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   computeVesselTripsWithClock,
@@ -64,6 +65,7 @@ export const updateVesselOrchestrator = internalAction({
       // Step 1: WSF fetch → Convex `vesselLocations` bulk upsert.
       const convexLocations = await updateVesselLocations(
         ctx,
+        tickStartedAt,
         vesselsIdentity,
         terminalsIdentity
       );
@@ -131,20 +133,25 @@ export const updateVesselOrchestrator = internalAction({
  * Fetches live vessel locations from WSF and persists them via `bulkUpsert`.
  *
  * @param ctx - Convex action context for the location mutation
+ * @param tickStartedAt - Orchestrator-owned tick anchor shared with the domain runner
  * @param vesselsIdentity - Backend vessel rows for feed resolution
  * @param terminalsIdentity - Backend terminal rows for normalization
  * @returns Location rows written (or skipped as stale) by the mutation path
  */
 export const updateVesselLocations = async (
   ctx: ActionCtx,
+  tickStartedAt: number,
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
-  // Fetch latest vessel locations from WSF.
-  const convexLocations = await fetchWsfVesselLocations(
+  const rawFeedLocations = await fetchRawWsfVesselLocations();
+  const { vesselLocations: convexLocations } = await runUpdateVesselLocations({
+    tickStartedAt,
+    rawFeedLocations,
     vesselsIdentity,
-    terminalsIdentity
-  );
+    terminalsIdentity,
+  });
+
   // Persist vessel locations to Convex.
   await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
     locations: convexLocations,

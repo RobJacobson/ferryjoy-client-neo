@@ -1,33 +1,33 @@
 /**
- * Stage A vessel-location runner: normalize already-fetched WSF rows into the
+ * Stage B vessel-location runner: normalize already-fetched WSF rows into the
  * canonical vessel-location rows for the orchestrator.
  */
 
-import {
-  assertAtLeastOneVesselLocationConverted,
-  mapDottieVesselLocationsToConvex,
-} from "adapters";
 import type {
   RunUpdateVesselLocationsInput,
   RunUpdateVesselLocationsOutput,
 } from "./contracts";
+import {
+  assertUsableVesselLocationBatch,
+  mapWsfVesselLocations,
+} from "./mapWsfVesselLocations";
 
 /**
- * Stage A canonical runner for vessel-location normalization.
+ * Canonical runner for vessel-location normalization.
  *
- * The functions layer still owns the external WSF fetch and persistence. This
- * concern freezes the domain-facing normalization contract only.
+ * The functions layer owns the external WSF fetch and persistence. This concern
+ * owns normalization, enrichment, and batch validation for raw feed rows.
  */
 export const runUpdateVesselLocations = async (
   input: RunUpdateVesselLocationsInput
 ): Promise<RunUpdateVesselLocationsOutput> => {
-  const vesselLocations = mapDottieVesselLocationsToConvex(
+  const vesselLocations = mapWsfVesselLocations(
     input.rawFeedLocations,
     input.vesselsIdentity,
     input.terminalsIdentity
   );
 
-  assertAtLeastOneVesselLocationConverted(
+  assertUsableVesselLocationBatch(
     input.rawFeedLocations.length,
     vesselLocations
   );

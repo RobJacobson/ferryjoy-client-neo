@@ -4,24 +4,16 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  type TerminalIdentity,
-  toConvexVesselLocation,
-} from "../../../adapters";
+import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
-describe("toConvexVesselLocation", () => {
-  it("stamps the canonical key when arriving terminal and scheduled departure are present", () => {
-    const location = toConvexVesselLocation(
+describe("runUpdateVesselLocations ScheduleKey behavior", () => {
+  it("stamps the canonical key when arriving terminal and scheduled departure are present", async () => {
+    const location = await convertOne(
       makeRawLocation({
         ScheduledDeparture: new Date("2026-03-13T05:30:00-07:00"),
       }),
-      [
-        {
-          VesselID: 2,
-          VesselName: "Chelan",
-          VesselAbbrev: "CHE",
-        },
-      ],
       [
         makeTerminal({
           TerminalID: 1,
@@ -39,39 +31,25 @@ describe("toConvexVesselLocation", () => {
     expect(location.ScheduleKey).toBe("CHE--2026-03-13--05:30--ANA-ORI");
   });
 
-  it("omits key when arriving terminal is missing", () => {
-    const location = toConvexVesselLocation(
+  it("omits key when arriving terminal is missing", async () => {
+    const location = await convertOne(
       makeRawLocation({
         ArrivingTerminalID: undefined,
         ArrivingTerminalAbbrev: undefined,
         ArrivingTerminalName: undefined,
         ScheduledDeparture: new Date("2026-03-13T05:30:00-07:00"),
       }),
-      [
-        {
-          VesselID: 2,
-          VesselName: "Chelan",
-          VesselAbbrev: "CHE",
-        },
-      ],
       [makeTerminal({ TerminalID: 1, TerminalAbbrev: "ANA" })]
     );
 
     expect(location.ScheduleKey).toBeUndefined();
   });
 
-  it("omits key when scheduled departure is missing", () => {
-    const location = toConvexVesselLocation(
+  it("omits key when scheduled departure is missing", async () => {
+    const location = await convertOne(
       makeRawLocation({
         ScheduledDeparture: undefined,
       }),
-      [
-        {
-          VesselID: 2,
-          VesselName: "Chelan",
-          VesselAbbrev: "CHE",
-        },
-      ],
       [
         makeTerminal({
           TerminalID: 1,
@@ -89,21 +67,14 @@ describe("toConvexVesselLocation", () => {
     expect(location.ScheduleKey).toBeUndefined();
   });
 
-  it("falls back to raw marine-location values when the terminal abbrev is unknown", () => {
-    const location = toConvexVesselLocation(
+  it("falls back to raw marine-location values when the terminal abbrev is unknown", async () => {
+    const location = await convertOne(
       makeRawLocation({
         DepartingTerminalAbbrev: "ZZZ",
         DepartingTerminalName: "Mystery Yard",
         ArrivingTerminalAbbrev: "ORI",
         ArrivingTerminalName: "Orcas Island",
       }),
-      [
-        {
-          VesselID: 2,
-          VesselName: "Chelan",
-          VesselAbbrev: "CHE",
-        },
-      ],
       [
         makeTerminal({
           TerminalID: 1,
@@ -127,6 +98,43 @@ describe("toConvexVesselLocation", () => {
   });
 });
 
+/**
+ * Converts one raw WSF row through the canonical locations concern and returns
+ * the single normalized result.
+ *
+ * @param rawFeedLocation - Raw WSF vessel-location row
+ * @param terminalsIdentity - Terminal identity rows used during normalization
+ * @returns The single normalized vessel-location row
+ */
+const convertOne = async (
+  rawFeedLocation: WsfVesselLocation,
+  terminalsIdentity: ReadonlyArray<TerminalIdentity>
+) => {
+  const result = await runUpdateVesselLocations({
+    tickStartedAt: Date.now(),
+    rawFeedLocations: [rawFeedLocation],
+    vesselsIdentity: [
+      {
+        VesselID: 2,
+        VesselName: "Chelan",
+        VesselAbbrev: "CHE",
+      },
+    ],
+    terminalsIdentity,
+  });
+
+  const location = result.vesselLocations[0];
+
+  if (!location) {
+    throw new Error("Expected one vessel location to convert.");
+  }
+
+  return location;
+};
+
+/**
+ * Builds a terminal identity fixture with sane defaults for ScheduleKey tests.
+ */
 const makeTerminal = (
   overrides: Partial<TerminalIdentity>
 ): TerminalIdentity => ({
@@ -139,7 +147,12 @@ const makeTerminal = (
   ...overrides,
 });
 
-const makeRawLocation = (overrides: Record<string, unknown>) =>
+/**
+ * Builds a raw WSF vessel-location fixture with sane defaults for conversion tests.
+ */
+const makeRawLocation = (
+  overrides: Partial<WsfVesselLocation>
+): WsfVesselLocation =>
   ({
     VesselID: 2,
     VesselName: "Chelan",
@@ -162,4 +175,4 @@ const makeRawLocation = (overrides: Record<string, unknown>) =>
     VesselPositionNum: 1,
     TimeStamp: new Date("2026-03-31T12:00:00-07:00"),
     ...overrides,
-  }) as unknown as Parameters<typeof toConvexVesselLocation>[0];
+  }) as WsfVesselLocation;
