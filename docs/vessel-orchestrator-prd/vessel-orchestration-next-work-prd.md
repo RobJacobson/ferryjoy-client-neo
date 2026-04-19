@@ -13,6 +13,31 @@ When instructions conflict, **this PRD wins** for structure and purity goals; **
 
 ---
 
+## 0. Working rules for this migration
+
+These rules exist to keep the implementation context small and to stop agents from
+re-deriving the same decisions from stale background docs.
+
+1. **Use only this file + `migration-inventory.md` + the live code as primary inputs.**
+2. **Code is the source of truth for current behavior.** Background docs may drift.
+3. **This PRD is the source of truth for target structure and execution order.**
+4. **Do not move files before S0 is written down and reviewed.**
+5. **Default scope is P0 (`S0–S9`).** Do not silently pull P1 (`S10`) into the same change unless explicitly requested.
+
+### 0.1 Current code-backed facts that matter
+
+- **`actions.ts` currently recomputes `computeVesselTripsWithClock` twice**: once in `updateVesselTrips`, again in `updateVesselPredictions`. Do **not** assume carried `BuildTripCoreResult` reuse unless the code is changed.
+- **Schedule snapshot is already orchestrator-wide input in practice** even though the files still live under `updateVesselTrips/snapshot/`.
+- **`tickLifecycle/`, `orchestratorTick/`, root `computeVesselTripsWithClock.ts`, and root `tests/` are transitional layout**, not target layout. Do not add new consumers unless that work is part of dissolving them.
+- **`updateVesselTrips/index.ts` is intentionally too wide today.** Narrow it only after ownership moves land; do not “tidy” the barrel early and create churn twice.
+
+### 0.2 Suggested first PR
+
+If you are deciding how to start, prefer one of these:
+
+1. **Audit-only PR:** complete **S0** and commit the inventory.
+2. **Low-risk migration PR:** complete **S0**, create **`shared/`** (**S1**), and move **schedule snapshot** (**S2**).
+
 ## 1. Summary
 
 Shipped work already improved **tick anchor ownership** and **bulk schedule snapshots**. **Remaining work** is **not** “general cleanup”: it is a **deterministic migration** to a **fixed folder layout** (§2), a **mandatory audit** of every file’s consumers (§6 **S0**), and **sequenced moves** so that **`updateVesselTrips`** contains **only** trip-tick concerns while **cross-cutting** code lives in **`shared/`** or in the **correct peer pipeline**.
@@ -82,6 +107,8 @@ The following **must not** exist as **sibling** top-level modules under `vesselO
 
 - **P0** — Complete **§6 S0–S9** (audit → dissolve loose folders → fix `index.ts` → Biome).
 - **P1** — **§6 S10** (purity / persist location).
+
+**Implementation note:** Unless a reviewer explicitly widens scope, treat **P0** as the active milestone for this migration.
 
 ---
 

@@ -8,20 +8,17 @@ import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { fetchWsfVesselLocations } from "adapters";
-import { computeVesselTripsWithClock } from "domain/vesselOrchestration";
-import {
-  persistVesselTripWriteSet,
-  runUpdateVesselPredictions,
-  runUpdateVesselTimeline,
-} from "domain/vesselOrchestration/orchestratorTick";
-import type {
-  TripLifecycleApplyOutcome,
-  VesselTripPersistResult,
-} from "domain/vesselOrchestration/tickLifecycle";
 import {
   buildScheduleSnapshotQueryArgs,
-  createDefaultProcessVesselTripsDeps,
   createScheduledSegmentLookupFromSnapshot,
+  type TripLifecycleApplyOutcome,
+  type VesselTripPersistResult,
+} from "domain/vesselOrchestration/shared";
+import { runUpdateVesselTimeline } from "domain/vesselOrchestration/updateTimeline";
+import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  computeVesselTripsWithClock,
+  createDefaultProcessVesselTripsDeps,
   type ProcessVesselTripsDeps,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
@@ -31,6 +28,7 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
+import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**

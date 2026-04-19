@@ -5,9 +5,9 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
 describe("resolveEffectiveDockedLocation", () => {

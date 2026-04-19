@@ -1,28 +1,23 @@
 /**
- * Trip tick → ML overlay (`applyVesselPredictions` on `buildTripCore` outputs only).
+ * Trip tick -> ML overlay (`applyVesselPredictions` on `buildTripCore` outputs only).
  *
  * - **Proposals:** derived from the computed {@link VesselTripsComputeBundle} each time (idempotent upserts).
- * - **Timeline:** merge {@link TripLifecycleApplyOutcome} from trip **persist** with ML overlay
- *   by vessel/schedule keys (not object identity), so the predictions pass may recompute the tick
- *   independently of the persist pass.
+ * - **Timeline:** merged later by `updateTimeline` using vessel/schedule keys, so the
+ *   predictions pass may recompute the tick independently of the persist pass.
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import {
-  buildTimelineTickProjectionInput,
-  type CompletedTripBoundaryFact,
-  type CurrentTripActualEventMessage,
-  type CurrentTripPredictedEventMessage,
-  type TimelineTickProjectionInput,
-  type TripLifecycleApplyOutcome,
+import type {
+  CompletedTripBoundaryFact,
+  CurrentTripActualEventMessage,
+  CurrentTripPredictedEventMessage,
+  TripLifecycleApplyOutcome,
 } from "domain/vesselOrchestration/updateTimeline";
-import {
-  applyVesselPredictions,
-  vesselTripPredictionProposalsFromMlTrip,
-} from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import { applyVesselPredictions } from "./applyVesselPredictions";
+import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 export type VesselTripPredictionsMutationArgs = {
   proposals: VesselTripPredictionProposal[];
@@ -38,61 +33,6 @@ const tripLifecycleOutcomeFromTripsCompute = (
     pendingPredictedMessages: tripsCompute.current.pendingPredictedMessages,
   },
 });
-
-const completedBoundaryMatchKey = (fact: CompletedTripBoundaryFact) =>
-  `${fact.tripToComplete.VesselAbbrev}::${fact.tripToComplete.ScheduleKey}`;
-
-const finalProposedByVesselFromMlBranch = (
-  ml: TripLifecycleApplyOutcome
-): Map<string, ConvexVesselTripWithML> => {
-  const map = new Map<string, ConvexVesselTripWithML>();
-  for (const m of [
-    ...ml.currentBranch.pendingActualMessages,
-    ...ml.currentBranch.pendingPredictedMessages,
-  ]) {
-    if (m.finalProposed !== undefined) {
-      map.set(m.vesselAbbrev, m.finalProposed);
-    }
-  }
-  return map;
-};
-
-/**
- * Persist-gated lifecycle outcome + ML overlay from a (possibly recomputed) full tick.
- * Matching uses vessel + completed-trip schedule key, not object identity between ticks.
- */
-export const mergeTripApplyWithMlForTimeline = (
-  tripApplyResult: TripLifecycleApplyOutcome,
-  mlFull: TripLifecycleApplyOutcome
-): TripLifecycleApplyOutcome => {
-  const mlFactsByKey = new Map(
-    mlFull.completedFacts.map((f) => [completedBoundaryMatchKey(f), f] as const)
-  );
-  const mlByVessel = finalProposedByVesselFromMlBranch(mlFull);
-
-  return {
-    completedFacts: tripApplyResult.completedFacts.map((fact) => {
-      const mlFact = mlFactsByKey.get(completedBoundaryMatchKey(fact));
-      return {
-        ...fact,
-        newTrip: mlFact?.newTrip,
-      };
-    }),
-    currentBranch: {
-      successfulVessels: tripApplyResult.currentBranch.successfulVessels,
-      pendingActualMessages:
-        tripApplyResult.currentBranch.pendingActualMessages.map((m) => ({
-          ...m,
-          finalProposed: mlByVessel.get(m.vesselAbbrev),
-        })),
-      pendingPredictedMessages:
-        tripApplyResult.currentBranch.pendingPredictedMessages.map((m) => ({
-          ...m,
-          finalProposed: mlByVessel.get(m.vesselAbbrev),
-        })),
-    },
-  };
-};
 
 /** ML overlay for one {@link VesselTripsComputeBundle} (full compute, not persist-filtered). */
 export const buildMlOverlayFromTripsCompute = async (
@@ -141,45 +81,6 @@ export const buildVesselTripPredictionProposals = async (
     predictionModelAccess
   );
   return { proposals };
-};
-
-export const buildOrchestratorTimelineProjectionInput = (
-  tripApplyResult: TripLifecycleApplyOutcome,
-  mlFull: TripLifecycleApplyOutcome,
-  tickStartedAt: number
-): TimelineTickProjectionInput => {
-  const merged = mergeTripApplyWithMlForTimeline(tripApplyResult, mlFull);
-  return buildTimelineTickProjectionInput({
-    completedFacts: merged.completedFacts,
-    currentBranch: merged.currentBranch,
-    tickStartedAt,
-  });
-};
-
-/**
- * Pure prelude to the **`updateVesselTimeline`** action in `functions/vesselOrchestrator/actions.ts`:
- * merged lifecycle → timeline projection → `eventsActual` / `eventsPredicted` dock-write
- * mutation argument shapes. The action runs `ctx.runMutation` with these payloads.
- */
-export const runUpdateVesselTimeline = (
-  tripApplyResult: TripLifecycleApplyOutcome,
-  mlFull: TripLifecycleApplyOutcome,
-  tickStartedAt: number
-): {
-  actual: { Writes: TimelineTickProjectionInput["actualDockWrites"] };
-  predicted: {
-    Batches: TimelineTickProjectionInput["predictedDockWriteBatches"];
-  };
-} => {
-  const tl = buildOrchestratorTimelineProjectionInput(
-    tripApplyResult,
-    mlFull,
-    tickStartedAt
-  );
-  return {
-    actual: { Writes: tl.actualDockWrites },
-    predicted: { Batches: tl.predictedDockWriteBatches },
-  };
 };
 
 const overlayMlOnTripLifecycleApply = async (

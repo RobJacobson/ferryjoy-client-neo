@@ -2,7 +2,7 @@
  * Typed result of one `processVesselTrips` run for orchestrator peers.
  */
 
-import type { TimelineTickProjectionInput } from "domain/vesselOrchestration/tickLifecycle";
+import type { TimelineTickProjectionInput } from "domain/vesselOrchestration/shared";
 
 /**
  * Full output of lifecycle processing for one tick. `tickEventWrites` is the

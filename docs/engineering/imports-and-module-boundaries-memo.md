@@ -12,7 +12,7 @@ We treat each **folder** as a **single logical module**: a small **public surfac
 
 This is **not** “barrels for shorter paths.” A good entry file is a **designed API** (often one primary operation plus the types and helpers that belong to its contract). A bad entry file re-exports everything in the tree for convenience—that is a **barrel dump** and we avoid it.
 
-**Vessel trip tick (canonical imports):** Prefer [`convex/domain/vesselOrchestration/updateVesselTrips/index.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/index.ts) for trip pipeline types and `computeVesselTripsBundle` / deps; orchestrator persistence (`persistVesselTripWriteSet`, `runUpdateVesselTimeline`, …) from [`orchestratorTick`](../../convex/domain/vesselOrchestration/orchestratorTick/index.ts). Shipped orchestration lives in [`functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts)—older writeups may say `orchestratorPipelines`; that module is not present in the current layout.
+**Vessel trip tick (current code):** Trip pipeline types and `computeVesselTripsBundle` live behind [`convex/domain/vesselOrchestration/updateVesselTrips/index.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/index.ts); shared handshake and persist glue now live behind [`convex/domain/vesselOrchestration/shared/index.ts`](../../convex/domain/vesselOrchestration/shared/index.ts), and prediction/timeline orchestration helpers live behind their owning `update*/index.ts` surfaces. For the active tree migration, follow [`docs/vessel-orchestrator-prd/vessel-orchestration-next-work-prd.md`](../vessel-orchestrator-prd/vessel-orchestration-next-work-prd.md): do **not** add new long-lived consumers of transitional folders; route imports through `shared/` + `update*/index.ts` surfaces instead.
 
 ---
 
@@ -122,6 +122,7 @@ Work is **incremental**. Order below minimizes risk and keeps typecheck green.
 
 ## 8. Document history
 
+- **2026-04-19:** Trip tick pointer — `orchestratorTick/` dissolved; canonical imports are now `shared/`, `updateVesselPredictions`, and `updateTimeline`.
 - **2026-04-18:** Trip tick pointer — canonical `updateVesselTrips` / `orchestratorTick` imports vs legacy `orchestratorPipelines` naming in older docs.
 - **2026-04-17:** Initial memo (imports, exports, staged adoption).
 - **2026-04-17:** Stage D — document Biome `noRestrictedImports` override for

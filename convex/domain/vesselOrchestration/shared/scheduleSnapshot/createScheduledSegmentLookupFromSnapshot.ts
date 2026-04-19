@@ -1,6 +1,6 @@
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
+import type { ScheduledSegmentLookup } from "../continuity";
 
-import type { ScheduledSegmentLookup } from "../continuity/resolveDockedScheduledSegment";
 import { scheduleSnapshotCompositeKey } from "./scheduleSnapshotCompositeKey";
 import type { ScheduleSnapshot } from "./scheduleSnapshotTypes";
 

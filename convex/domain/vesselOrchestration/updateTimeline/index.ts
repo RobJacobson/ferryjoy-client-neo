@@ -9,6 +9,11 @@ export {
   buildTimelineTickProjectionInput,
 } from "./buildTimelineTickProjectionInput";
 export {
+  buildOrchestratorTimelineProjectionInput,
+  mergeTripApplyWithMlForTimeline,
+  runUpdateVesselTimeline,
+} from "./orchestratorTimelineProjection";
+export {
   mergeTickEventWrites,
   type TickEventWrites,
   type TimelineTickProjectionInput,

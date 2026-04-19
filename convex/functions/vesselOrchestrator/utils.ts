@@ -11,8 +11,8 @@
 import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { VesselTripTableMutations } from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
 import { createVesselTripPredictionModelAccess } from "functions/predictions/createVesselTripPredictionModelAccess";
+import type { VesselTripTableMutations } from "./persistVesselTripWriteSet";
 
 /**
  * Bundles Convex `runMutation` bindings used by `updateVesselOrchestrator` steps.

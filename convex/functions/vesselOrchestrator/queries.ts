@@ -16,7 +16,7 @@ import {
   MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
   MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
   scheduleSnapshotCompositeKey,
-} from "domain/vesselOrchestration/updateVesselTrips";
+} from "domain/vesselOrchestration/shared";
 import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";

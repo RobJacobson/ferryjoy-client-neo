@@ -9,12 +9,7 @@ import {
   MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
   MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
 } from "./scheduleSnapshotLimits";
-
-export type ScheduleSnapshotQueryArgs = {
-  vesselAbbrevs: string[];
-  sailingDays: string[];
-  segmentKeys: string[];
-};
+import type { ScheduleSnapshotQueryArgs } from "./scheduleSnapshotTypes";
 
 /**
  * Builds bounded args for {@link getScheduleSnapshotForTick} from orchestrator tick context.

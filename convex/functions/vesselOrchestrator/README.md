@@ -29,10 +29,10 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
-2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → `persistVesselTripWriteSet`
+2. **`updateVesselTrips`** — `computeVesselTripsWithClock` → function-layer `persistVesselTripWriteSet`
    (trip compute uses **`buildTripCore` only**).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
-   (domain), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
+   (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`updateVesselTimeline`** — `buildOrchestratorTimelineProjectionInput` then
    projection mutations for `eventsActual` / `eventsPredicted`.
 
@@ -61,9 +61,9 @@ timeline assembly stay explicit.
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
-- **updateVesselTrips** — `computeVesselTripsWithClock` / `persistVesselTripWriteSet` (`processVesselTrips` domain path).
-- **updateVesselPredictions** — `runUpdateVesselPredictions` + `batchUpsertProposals` when needed, after trips and before timeline.
-- **updateTimeline** — `buildOrchestratorTimelineProjectionInput` plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
+- **updateVesselTrips** — `computeVesselTripsWithClock`, then function-layer `persistVesselTripWriteSet` applies the trip write set.
+- **updateVesselPredictions** — `runUpdateVesselPredictions` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
+- **updateTimeline** — `buildOrchestratorTimelineProjectionInput` / `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
 ```text
 WSF VesselLocations API
@@ -334,8 +334,9 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location bulk upsert, schedule snapshot query, shared trip deps, then `updateVesselTrips` / `updateVesselPredictions` / `updateVesselTimeline`.
+- `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed handoffs, active upserts, and leave-dock follow-ups.
 - `utils.ts` — `createVesselOrchestratorConvexBindings` (**`createVesselTripTableMutations`**, **`createVesselTripPredictionModelAccess`**); schedule data comes from **`getScheduleSnapshotForTick`** in `queries.ts`, not from this module.
-- `runUpdateVesselPredictions` (domain `orchestratorTick`) — prediction proposals + ML overlay; **`updateVesselPredictions`** persists proposals then returns `mlFull` for timeline.
+- `runUpdateVesselPredictions` (domain `updateVesselPredictions`) — prediction proposals + ML overlay; **`updateVesselPredictions`** persists proposals then returns `mlFull` for timeline.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick); **`getScheduleSnapshotForTick`** (bounded `eventsScheduled` snapshot for trip deps).
 - `schemas.ts` — orchestrator-related schemas.
 

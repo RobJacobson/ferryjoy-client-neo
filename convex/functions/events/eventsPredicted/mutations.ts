@@ -6,7 +6,7 @@ import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/vesselOrchestration/updateVesselTrips";
+import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/vesselOrchestration/shared";
 import { buildVesselSailingDayScopeKey } from "shared/keys";
 import { getRoundedMinutesDelta } from "shared/time";
 import { predictedDockCompositeKey } from "./identity";

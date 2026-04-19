@@ -9,12 +9,12 @@ import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { ConvexError, v } from "convex/values";
+import { loadPredictedRowsGroupedForTrips } from "functions/events/eventsPredicted/queries";
+import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import {
   dedupeTripDocBatchesByTripKey,
   mergeTripsWithPredictions,
-} from "domain/vesselOrchestration/updateVesselTrips";
-import { loadPredictedRowsGroupedForTrips } from "functions/events/eventsPredicted/queries";
-import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
+} from "functions/vesselTrips/read";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { vesselTripSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";

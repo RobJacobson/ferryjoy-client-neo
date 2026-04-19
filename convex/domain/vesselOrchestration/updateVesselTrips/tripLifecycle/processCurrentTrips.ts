@@ -22,7 +22,7 @@
 import type {
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
-} from "domain/vesselOrchestration/tickLifecycle";
+} from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import type { BuildTripCoreResult } from "./buildTrip";

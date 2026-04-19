@@ -18,7 +18,7 @@ import type {
   ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { buildTimelineTickProjectionInput } from "../updateTimeline";
+import { buildTimelineTickProjectionInput } from "../buildTimelineTickProjectionInput";
 
 /**
  * Convert an ISO timestamp into epoch milliseconds.

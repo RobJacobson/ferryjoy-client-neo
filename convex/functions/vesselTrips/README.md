@@ -13,10 +13,10 @@ lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` 
   (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`,
   `getActiveTripsWithScheduledTrip`) plus `getActiveTrips` for subscriber reads.
   Delegates prediction enrichment to `mergeTripsWithPredictions` /
-  `dedupeTripDocBatchesByTripKey` from `domain/vesselOrchestration/updateVesselTrips`.
+  `dedupeTripDocBatchesByTripKey` from `functions/vesselTrips/read`.
 - **`mutations.ts`** — Persistence (`upsertVesselTripsBatch`, `completeAndStartNewTrip`)
   and depart-next backfill on `eventsPredicted`; policy helpers such as
-  `resolveDepartNextLegContext` from `domain/vesselOrchestration/updateVesselTrips`.
+  `resolveDepartNextLegContext` from `domain/vesselOrchestration/shared`.
 - **`schemas.ts`** — Validators and API/domain conversion helpers.
 
 **Schedule sources:** tick-time enrichment uses `eventsScheduled`-backed internal

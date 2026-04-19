@@ -1,22 +1,18 @@
-/**
- * Unit tests for {@link persistVesselTripWriteSet} (and legacy
- * `persistVesselTripsCompute` alias).
- */
+/** Unit tests for {@link persistVesselTripWriteSet}. */
 
 import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
-import {
-  persistVesselTripsCompute,
-  persistVesselTripWriteSet,
-  type VesselTripTableMutations,
-  type VesselTripUpsertBatchResult,
-} from "domain/vesselOrchestration/orchestratorTick/persistVesselTripsCompute";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
   TripEvents,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  persistVesselTripWriteSet,
+  type VesselTripTableMutations,
+  type VesselTripUpsertBatchResult,
+} from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -168,10 +164,6 @@ const minimalTripEvents: TripEvents = {
 };
 
 describe("persistVesselTripWriteSet", () => {
-  it("aliases persistVesselTripsCompute to the same function", () => {
-    expect(persistVesselTripsCompute).toBe(persistVesselTripWriteSet);
-  });
-
   it("returns completed fact when handoff mutation succeeds", async () => {
     const existing = makeTrip();
     const tripToComplete = makeTrip({

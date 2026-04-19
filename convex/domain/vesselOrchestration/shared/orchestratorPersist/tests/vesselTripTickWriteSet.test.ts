@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/tickLifecycle";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
   BuildTripCoreResult,
@@ -86,10 +86,6 @@ const emptyCurrent = (): ActiveTripsBranch => ({
   pendingLeaveDockEffects: [],
 });
 
-/**
- * Deterministic projection of {@link VesselTripTickWriteSet} from execution
- * payloads — must stay aligned with {@link buildVesselTripTickWriteSetFromBundle}.
- */
 const projectWriteSetFromExecutionPayload = (
   p: TripsComputeStorageRows
 ): VesselTripTickWriteSet => {

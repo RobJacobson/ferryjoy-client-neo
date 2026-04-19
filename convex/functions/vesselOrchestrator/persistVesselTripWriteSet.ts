@@ -1,20 +1,19 @@
 /**
- * Vessel trips compute persistence: handoffs, active batch upsert, leave-dock follow-ups.
- * Convex I/O is supplied via {@link VesselTripTableMutations}.
+ * Vessel-orchestrator trip persistence: apply one storage-shaped write set
+ * through Convex mutations after domain trip compute.
  *
- * The canonical entry is {@link persistVesselTripWriteSet} (drives mutations from
- * {@link buildVesselTripTickWriteSetFromBundle}); this file name matches the legacy
- * export {@link persistVesselTripsCompute}.
+ * Domain code owns serializable write-set builders; this module owns applying
+ * them through `ActionCtx`-backed mutation bindings.
  */
 
-import type { VesselTripPersistResult } from "domain/vesselOrchestration/tickLifecycle";
-import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { completedFactsForSuccessfulHandoffs } from "./tripsComputeStorageRows";
+import type { VesselTripPersistResult } from "domain/vesselOrchestration/shared";
 import {
   buildVesselTripTickWriteSetFromBundle,
+  completedFactsForSuccessfulHandoffs,
   type VesselTripTickWriteSet,
-} from "./vesselTripTickWriteSet";
+} from "domain/vesselOrchestration/shared";
+import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type VesselTripUpsertBatchResult = {
   perVessel: Array<{
@@ -25,8 +24,8 @@ export type VesselTripUpsertBatchResult = {
 };
 
 /**
- * Convex trip-table bindings for one persist pass. `activeUpserts` is a mutable
- * `ConvexVesselTrip[]` because generated mutation args are not `readonly`.
+ * Convex trip-table bindings for one persist pass. `activeUpserts` is mutable
+ * because generated mutation args are not `readonly`.
  */
 export type VesselTripTableMutations = {
   completeAndStartNewTrip: (
@@ -42,19 +41,14 @@ export type VesselTripTableMutations = {
 };
 
 /**
- * Persists one tick of vessel trip writes from {@link buildVesselTripTickWriteSetFromBundle}
- * (handoffs, active upsert batch, leave-dock intents gated by successful upserts).
- *
- * @param tripsCompute - Bundle for outcome fields and completed-handoff facts indexing
- * @param mutations - Convex trip table mutation bindings
- * @returns Trip-native persist outcome; alias-compatible with timeline merge types
+ * Persists one tick of trip-table writes from
+ * {@link buildVesselTripTickWriteSetFromBundle}.
  */
 export const persistVesselTripWriteSet = async (
   tripsCompute: VesselTripsComputeBundle,
   mutations: VesselTripTableMutations
 ): Promise<VesselTripPersistResult> => {
   const writeSet = buildVesselTripTickWriteSetFromBundle(tripsCompute);
-  // attemptedHandoffs and completedHandoffs share indices (same bundle mapping).
   if (
     writeSet.attemptedHandoffs.length !== tripsCompute.completedHandoffs.length
   ) {
@@ -115,15 +109,6 @@ export const persistVesselTripWriteSet = async (
   };
 };
 
-/** Same implementation as {@link persistVesselTripWriteSet} (legacy export name). */
-export const persistVesselTripsCompute = persistVesselTripWriteSet;
-
-/**
- * Collects successful vessel abbrevs from an upsert batch result (logs failures).
- *
- * @param upsertResult - Per-vessel outcomes from `upsertVesselTripsBatch`
- * @returns Set of vessels whose active upsert succeeded
- */
 const successfulVesselAbbrevsFromUpsert = (
   upsertResult: VesselTripUpsertBatchResult
 ): Set<string> =>
@@ -146,12 +131,7 @@ const successfulVesselAbbrevsFromUpsert = (
 
 /**
  * Runs depart-next actualization for leave-dock intents whose vessel had a
- * successful active upsert (`successfulVessels` gate).
- *
- * @param mutations - Convex bindings
- * @param successfulVessels - Vessels that succeeded in the active batch upsert
- * @param leaveDockIntents - Precomputed `{ vesselAbbrev, actualDepartMs }` rows
- * @returns Promise that settles when all leave-dock calls finish
+ * successful active upsert.
  */
 const runLeaveDockFromWriteSetIntents = async (
   mutations: VesselTripTableMutations,

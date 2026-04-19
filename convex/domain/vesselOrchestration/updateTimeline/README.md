@@ -2,7 +2,7 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
 
-**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** (`orchestratorTick`) to build dock-write mutation args from `buildOrchestratorTimelineProjectionInput`, then runs `eventsActual` / `eventsPredicted` mutations. There is no separate timeline runner module—the sequence is inline in **`actions.ts`**.
+**Apply** (Convex mutations) for timeline projection runs from **`functions/vesselOrchestrator/actions.ts`**: **`updateVesselTimeline`** calls domain **`runUpdateVesselTimeline`** from this folder to build dock-write mutation args from `buildOrchestratorTimelineProjectionInput`, then runs `eventsActual` / `eventsPredicted` mutations. There is no separate timeline runner module; the sequence is inline in **`actions.ts`**.
 
 ## Production call chain
 

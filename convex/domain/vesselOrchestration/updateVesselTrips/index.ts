@@ -1,8 +1,7 @@
 /**
- * Public entry for **updateVesselTrips**: tick pipeline, schedule snapshot wiring,
- * continuity adapters, read-model helpers, and depart-next policy symbols used by
- * the orchestrator, Convex queries/mutations, and peer domain (`tickLifecycle`
- * for handshake DTOs with predictions/timeline, `orchestratorTick`, `shared/`).
+ * Public entry for **updateVesselTrips**: trip-tick pipeline, lifecycle result
+ * types, and continuity-facing domain contracts needed to run one orchestrator
+ * trip pass.
  *
  * **Imports:** Supported symbols live here only. Do not import other
  * `updateVesselTrips/...` leaf paths from outside this folder (see
@@ -11,15 +10,11 @@
  * See `README.md` and `../architecture.md` §10.
  */
 
-// --- Continuity (docked identity) ---
-export type { ScheduledSegmentLookup } from "./continuity/resolveDockedScheduledSegment";
-export type { DockedScheduledSegmentSource } from "./continuity/types";
-// --- Depart-next policy (eventsPredicted / vesselTrips mutations) ---
-export type { DepartNextLegContext } from "./mutations/departNextActualization";
 export {
-  DEPART_NEXT_ML_PREDICTION_TYPES,
-  resolveDepartNextLegContext,
-} from "./mutations/departNextActualization";
+  computeVesselTripsWithClock,
+  type VesselTripsWithClock,
+  type VesselTripsWithClockOptions,
+} from "./processTick/computeVesselTripsWithClock";
 // --- Tick pipeline ---
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
@@ -27,24 +22,7 @@ export {
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
 export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
-// --- Read model (query-time) ---
-export {
-  dedupeTripDocBatchesByTripKey,
-  dedupeTripDocsByTripKey,
-} from "./read/dedupeTripDocsByTripKey";
-export { mergeTripsWithPredictions } from "./read/mergeTripsWithPredictions";
-// --- Bulk schedule snapshot ---
-export { buildScheduleSnapshotQueryArgs } from "./snapshot/buildScheduleSnapshotQueryArgs";
-export { createScheduledSegmentLookupFromSnapshot } from "./snapshot/createScheduledSegmentLookupFromSnapshot";
-export { scheduleSnapshotCompositeKey } from "./snapshot/scheduleSnapshotCompositeKey";
-export {
-  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-  MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
-} from "./snapshot/scheduleSnapshotLimits";
-export type { ScheduleSnapshot } from "./snapshot/scheduleSnapshotTypes";
-// --- Types shared with tickLifecycle / persistence (not updateTimeline imports) ---
+// --- Types shared with handshake/persistence consumers (not updateTimeline imports) ---
 export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
