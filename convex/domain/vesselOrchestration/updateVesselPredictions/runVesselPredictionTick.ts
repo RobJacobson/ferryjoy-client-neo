@@ -1,19 +1,22 @@
 /**
- * Canonical Stage D prediction runner: consumes tick trip rows plus a
- * plain-data prediction context and emits proposal rows plus predicted trip
- * handoff data.
+ * One-tick prediction pass: ML overlay per active trip and completed handoff,
+ * then derive table proposals. Orchestrator uses {@link runVesselPredictionTick};
+ * callers that only need upsert DTOs use {@link runUpdateVesselPredictions}.
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import { applyVesselPredictions } from "./applyVesselPredictions";
 import type {
-  PredictedTripComputation,
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,
   VesselPredictionContext,
 } from "./contracts";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
+
+export type RunVesselPredictionTickOutput = RunUpdateVesselPredictionsOutput & {
+  predictedTripComputations: PredictedTripComputation[];
+};
 
 const predictionModelAccessFromContext = (
   context: VesselPredictionContext
@@ -37,10 +40,7 @@ const buildPredictedCurrentTrip = async (
   trip: RunUpdateVesselPredictionsInput["activeTrips"][number],
   modelAccess: VesselTripPredictionModelAccess
 ): Promise<PredictedTripComputation> => {
-  const finalPredictedTrip = await applyVesselPredictions(
-    modelAccess,
-    trip
-  );
+  const finalPredictedTrip = await applyVesselPredictions(modelAccess, trip);
 
   return {
     vesselAbbrev: trip.VesselAbbrev,
@@ -68,9 +68,9 @@ const buildPredictedCompletedHandoff = async (
   };
 };
 
-export const runUpdateVesselPredictions = async (
+export const runVesselPredictionTick = async (
   input: RunUpdateVesselPredictionsInput
-): Promise<RunUpdateVesselPredictionsOutput> => {
+): Promise<RunVesselPredictionTickOutput> => {
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
   const predictedTripComputations = [
     ...(await Promise.all(
@@ -79,18 +79,27 @@ export const runUpdateVesselPredictions = async (
       )
     )),
     ...(await Promise.all(
-      input.activeTrips.map((trip) => buildPredictedCurrentTrip(trip, modelAccess))
+      input.activeTrips.map((trip) =>
+        buildPredictedCurrentTrip(trip, modelAccess)
+      )
     )),
   ];
 
+  const predictionRows = predictedTripComputations.flatMap((computation) =>
+    computation.finalPredictedTrip === undefined
+      ? []
+      : vesselTripPredictionProposalsFromMlTrip(computation.finalPredictedTrip)
+  );
+
   return {
-    vesselTripPredictions: predictedTripComputations.flatMap((computation) =>
-      computation.finalPredictedTrip === undefined
-        ? []
-        : vesselTripPredictionProposalsFromMlTrip(
-            computation.finalPredictedTrip
-          )
-    ),
+    predictionRows,
     predictedTripComputations,
   };
+};
+
+export const runUpdateVesselPredictions = async (
+  input: RunUpdateVesselPredictionsInput
+): Promise<RunUpdateVesselPredictionsOutput> => {
+  const { predictionRows } = await runVesselPredictionTick(input);
+  return { predictionRows };
 };

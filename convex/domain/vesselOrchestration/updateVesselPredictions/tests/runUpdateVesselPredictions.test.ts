@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  runUpdateVesselPredictions,
+  runVesselPredictionTick,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -44,41 +47,56 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("runUpdateVesselPredictions", () => {
-  it("computes predictions from active trips using plain-data model preload", async () => {
-    const trip = makeTrip();
+const richContext = {
+  productionModelsByPair: {
+    "ORI->LOP": {
+      "at-dock-depart-curr": {
+        featureKeys: [],
+        coefficients: [],
+        intercept: 3,
+        testMetrics: { mae: 1, stdDev: 1 },
+      },
+      "at-dock-arrive-next": {
+        featureKeys: [],
+        coefficients: [],
+        intercept: 20,
+        testMetrics: { mae: 1, stdDev: 1 },
+      },
+      "at-dock-depart-next": {
+        featureKeys: [],
+        coefficients: [],
+        intercept: 45,
+        testMetrics: { mae: 1, stdDev: 1 },
+      },
+    },
+  },
+};
 
+describe("runUpdateVesselPredictions", () => {
+  it("returns only predictionRows (no timeline handoff array)", async () => {
+    const trip = makeTrip();
     const output = await runUpdateVesselPredictions({
       activeTrips: [trip],
       completedHandoffs: [],
-      predictionContext: {
-        productionModelsByPair: {
-          "ORI->LOP": {
-            "at-dock-depart-curr": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 3,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-            "at-dock-arrive-next": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 20,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-            "at-dock-depart-next": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 45,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-          },
-        },
-      },
+      predictionContext: richContext,
+    });
+    expect(Object.keys(output)).toEqual(["predictionRows"]);
+    expect(output.predictionRows.length).toBeGreaterThan(0);
+  });
+});
+
+describe("runVesselPredictionTick", () => {
+  it("computes prediction rows and timeline ML handoffs from active trips", async () => {
+    const trip = makeTrip();
+
+    const output = await runVesselPredictionTick({
+      activeTrips: [trip],
+      completedHandoffs: [],
+      predictionContext: richContext,
     });
 
     expect(output.predictedTripComputations).toHaveLength(1);
-    expect(output.vesselTripPredictions).toHaveLength(3);
+    expect(output.predictionRows).toHaveLength(3);
     expect(
       output.predictedTripComputations[0]?.finalPredictedTrip?.AtDockDepartCurr
         ?.PredTime
@@ -93,14 +111,12 @@ describe("runUpdateVesselPredictions", () => {
       TripEnd: ms("2026-03-13T10:05:00-07:00"),
     });
 
-    const output = await runUpdateVesselPredictions({
+    const output = await runVesselPredictionTick({
       activeTrips: [],
       completedHandoffs: [
         {
           existingTrip: trip,
           tripToComplete: completedTrip,
-          // CompletedTripBoundaryFact still requires this legacy shape, but
-          // prediction runs now ignore it and operate on trip rows directly.
           events: {
             isFirstTrip: false,
             isTripStartReady: false,
@@ -115,30 +131,7 @@ describe("runUpdateVesselPredictions", () => {
           },
         },
       ],
-      predictionContext: {
-        productionModelsByPair: {
-          "ORI->LOP": {
-            "at-dock-depart-curr": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 3,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-            "at-dock-arrive-next": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 20,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-            "at-dock-depart-next": {
-              featureKeys: [],
-              coefficients: [],
-              intercept: 45,
-              testMetrics: { mae: 1, stdDev: 1 },
-            },
-          },
-        },
-      },
+      predictionContext: richContext,
     });
 
     expect(output.predictedTripComputations).toHaveLength(1);
@@ -146,19 +139,21 @@ describe("runUpdateVesselPredictions", () => {
     expect(output.predictedTripComputations[0]?.completedTrip?.TripKey).toBe(
       completedTrip.TripKey
     );
-    expect(output.predictedTripComputations[0]?.finalPredictedTrip).toBeDefined();
+    expect(
+      output.predictedTripComputations[0]?.finalPredictedTrip
+    ).toBeDefined();
   });
 
-  it("gracefully returns no predictions when the preload has no models", async () => {
+  it("returns no prediction rows when the preload has no models", async () => {
     const trip = makeTrip();
 
-    const output = await runUpdateVesselPredictions({
+    const output = await runVesselPredictionTick({
       activeTrips: [trip],
       completedHandoffs: [],
       predictionContext: {},
     });
 
-    expect(output.vesselTripPredictions).toEqual([]);
+    expect(output.predictionRows).toEqual([]);
     expect(output.predictedTripComputations[0]?.finalPredictedTrip).toEqual(
       trip
     );

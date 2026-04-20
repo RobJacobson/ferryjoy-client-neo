@@ -13,7 +13,7 @@ import type {
   CurrentTripPredictedEventMessage,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type {
   RunUpdateVesselTripsOutput,
   VesselTripsComputeBundle,

@@ -79,6 +79,21 @@ export type CurrentTripLifecycleBranchResult = {
 };
 
 /**
+ * ML overlay for one vessel’s prediction tick, used to merge `finalProposed` /
+ * replacement-trip ML into timeline projection (`buildTimelineTickProjectionInput`).
+ *
+ * Produced in the same pass as prediction table rows (`runVesselPredictionTick`
+ * in `updateVesselPredictions`); not a persistence DTO.
+ */
+export type PredictedTripComputation = {
+  vesselAbbrev: string;
+  branch: "completed" | "current";
+  completedTrip?: ConvexVesselTrip;
+  activeTrip?: ConvexVesselTrip;
+  finalPredictedTrip?: ConvexVesselTripWithML;
+};
+
+/**
  * Canonical merged shape for one trip tick after lifecycle mutations (before
  * optional ML overlay for `vesselTripPredictions` / timeline projection).
  */

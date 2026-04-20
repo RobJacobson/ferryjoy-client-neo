@@ -5,11 +5,11 @@
  */
 
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
+import { stripTripPredictionsForStorage } from "../stripTripPredictionsForStorage";
 
 export type TripsComputeStorageRows = {
   handoffMutations: Array<{

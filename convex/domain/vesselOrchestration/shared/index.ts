@@ -28,6 +28,7 @@ export type {
   ScheduleSnapshot,
   ScheduleSnapshotQueryArgs,
 } from "./scheduleSnapshot/scheduleSnapshotTypes";
+export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {
   mergeTickEventWrites,
   type TickEventWrites,
@@ -38,6 +39,7 @@ export type {
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
+  PredictedTripComputation,
   TripLifecycleApplyOutcome,
   TripTickLifecycleOutcome,
   VesselTripPersistResult,

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { vesselTripPredictionProposalsFromMlTrip } from "domain/vesselOrchestration/updateVesselPredictions";
+import { vesselTripPredictionProposalsFromMlTrip } from "../vesselTripPredictionProposalsFromMlTrip";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 

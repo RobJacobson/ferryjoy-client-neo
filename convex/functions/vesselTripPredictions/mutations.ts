@@ -4,8 +4,8 @@
 
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { decideVesselTripPredictionUpsert } from "domain/vesselOrchestration/updateVesselPredictions";
 import { vesselTripPredictionProposalSchema } from "./schemas";
+import { decideVesselTripPredictionUpsert } from "./vesselTripPredictionPersistPlan";
 
 /**
  * Applies a batch of ML prediction proposals: loads each natural key, skips when

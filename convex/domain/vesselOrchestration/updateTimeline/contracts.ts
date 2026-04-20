@@ -4,7 +4,7 @@
 
 import type { ConvexActualDockEvent } from "domain/events/actual";
 import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted";
-import type { PredictedTripComputation } from "domain/vesselOrchestration/updateVesselPredictions";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips";
 
 /**

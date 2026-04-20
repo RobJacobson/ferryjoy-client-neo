@@ -3,7 +3,7 @@
  * gates on {@link TimelineTripComputation}.
  */
 
-import type { PredictedTripComputation } from "domain/vesselOrchestration/updateVesselPredictions";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import {
   buildTimelineTickProjectionInput,

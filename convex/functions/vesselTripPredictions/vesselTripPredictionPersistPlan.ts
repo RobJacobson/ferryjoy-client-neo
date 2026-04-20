@@ -3,14 +3,14 @@
  */
 
 import type { Doc, Id } from "_generated/dataModel";
-import type {
-  VesselTripPredictionProposal,
-  VesselTripPredictionStored,
-} from "functions/vesselTripPredictions/schemas";
 import {
   convexPredictionFromVesselTripPredictionRow,
   overlayPredictionProjectionsEqual,
-} from "./predictionCompare";
+} from "./predictionOverlayCompare";
+import type {
+  VesselTripPredictionProposal,
+  VesselTripPredictionStored,
+} from "./schemas";
 
 /**
  * True when the stored row’s overlay projection matches the proposed prediction

@@ -19,7 +19,7 @@ export { runUpdateVesselTrips } from "./updateVesselTrips";
  * Top-level export style:
  * - import trip-tick entry points as named exports from `domain/vesselOrchestration`
  *   or from the owning concern barrel (`updateVesselTrips`, etc.)
- * - import cross-pipeline helpers via the `shared`, `updateVesselPredictions`,
- *   and `updateTimeline` namespaces exposed here
+ * - import cross-pipeline helpers via `shared` and `updateTimeline`; prediction
+ *   runners and types live on the `updateVesselPredictions` namespace
  * - when working entirely inside one concern, prefer that concern's local barrel
  */

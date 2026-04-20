@@ -12,7 +12,10 @@ import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
+import type {
+  CompletedTripBoundaryFact,
+  PredictedTripComputation,
+} from "domain/vesselOrchestration/shared";
 import {
   buildScheduleSnapshotQueryArgs,
   type ScheduleSnapshot,
@@ -23,9 +26,8 @@ import {
 } from "domain/vesselOrchestration/updateTimeline";
 import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import {
-  type PredictedTripComputation,
   predictionModelTypesForTrip,
-  runUpdateVesselPredictions,
+  runVesselPredictionTick,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -181,17 +183,17 @@ export const updateVesselTrips = async (
  * @param ctx - Action context for preload and proposal mutation
  * @param trips - Current tick trip rows
  * @param completedHandoffs - Completed-trip rollover pairings for replacement-trip predictions
- * @returns Canonical Stage D prediction outputs
+ * @returns Prediction rows plus timeline ML merge handoffs (shared type)
  */
 export const updateVesselPredictions = async (
   ctx: ActionCtx,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<{
-  vesselTripPredictions: ReadonlyArray<
+  predictionRows: ReadonlyArray<
     Awaited<
-      ReturnType<typeof runUpdateVesselPredictions>
-    >["vesselTripPredictions"][number]
+      ReturnType<typeof runVesselPredictionTick>
+    >["predictionRows"][number]
   >;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 }> => {
@@ -200,18 +202,21 @@ export const updateVesselPredictions = async (
     trips.activeVesselTrips,
     completedHandoffs
   );
-  const predictions = await runUpdateVesselPredictions({
+  const tick = await runVesselPredictionTick({
     activeTrips: trips.activeVesselTrips,
     completedHandoffs,
     predictionContext,
   });
-  if (predictions.vesselTripPredictions.length > 0) {
+  if (tick.predictionRows.length > 0) {
     await ctx.runMutation(
       internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-      { proposals: [...predictions.vesselTripPredictions] }
+      { proposals: [...tick.predictionRows] }
     );
   }
-  return predictions;
+  return {
+    predictionRows: tick.predictionRows,
+    predictedTripComputations: tick.predictedTripComputations,
+  };
 };
 
 const buildPredictionContextRequests = (

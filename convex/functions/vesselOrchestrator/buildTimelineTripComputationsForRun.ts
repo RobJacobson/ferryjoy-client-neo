@@ -10,7 +10,7 @@ import type {
   RunUpdateVesselTripsOutput,
   TripComputation,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 
 const completedTripBoundaryMatchKeyFromFact = (
   vesselAbbrev: string,

@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import {
   normalizeConvexPredictionForOverlayEquality,
   overlayPredictionProjectionsEqual,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+} from "functions/vesselTripPredictions";
 
 const base = {
   PredTime: 1_000,
