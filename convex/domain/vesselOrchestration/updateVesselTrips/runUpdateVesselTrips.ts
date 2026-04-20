@@ -2,13 +2,16 @@
  * Pure trip-update pipeline: prepare → complete → active → merge with carry-forward.
  */
 
+import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
+import { prepareTripUpdates } from "./prepareTripUpdates";
+import { createScheduleTripAdaptersFromSnapshot } from "./scheduleTripAdapters";
+import { buildCompletedTrip } from "./tripLifecycle/buildCompletedTrip";
+import { buildTripCore } from "./tripLifecycle/buildTrip";
+import { detectTripEvents } from "./tripLifecycle/detectTripEvents";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
-} from "./contracts";
-import { createTripPipelineDeps } from "./createTripPipelineDeps";
-import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
-import { prepareTripUpdates } from "./prepareTripUpdates";
+} from "./types";
 import { updateActiveTrips } from "./updateActiveTrips";
 
 /**
@@ -17,14 +20,22 @@ import { updateActiveTrips } from "./updateActiveTrips";
 export const runUpdateVesselTrips = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => {
-  const deps = createTripPipelineDeps(input);
-  const prepared = prepareTripUpdates(input, deps);
+  const buildTripAdapters = createScheduleTripAdaptersFromSnapshot(
+    input.scheduleContext
+  );
+  const prepared = prepareTripUpdates(input, detectTripEvents);
 
   const completionResolutions = finalizeCompletedTrips(
     prepared.completedTripUpdates,
-    deps
+    buildCompletedTrip,
+    buildTripCore,
+    buildTripAdapters
   );
-  const continuingActives = updateActiveTrips(prepared.activeTripUpdates, deps);
+  const continuingActives = updateActiveTrips(
+    prepared.activeTripUpdates,
+    buildTripCore,
+    buildTripAdapters
+  );
 
   const processedActiveTrips = [
     ...completionResolutions.flatMap((resolution) =>
@@ -43,52 +54,32 @@ export const runUpdateVesselTrips = (
     ),
     activeTrips: mergeActiveTripRows(
       input.existingActiveTrips,
-      prepared.seenRealtimeVessels,
       processedActiveTrips
     ),
   };
 };
 
 /**
- * Merges new/updated actives with prior rows for vessels missing from this batch.
+ * Builds a full active set: processed rows override existing rows by vessel.
+ *
+ * Existing rows are always carried unless replaced by a processed row, so the
+ * output remains one row per vessel and downstream upsert dedupe can decide
+ * whether a row materially changed (for example by `TimeStamp`).
  */
 const mergeActiveTripRows = (
   existingActiveTrips: ReadonlyArray<
     RunUpdateVesselTripsInput["existingActiveTrips"][number]
   >,
-  seenRealtimeVessels: ReadonlySet<string>,
   processedActiveTrips: ReadonlyArray<
     RunUpdateVesselTripsOutput["activeTrips"][number]
   >
 ): ReadonlyArray<RunUpdateVesselTripsOutput["activeTrips"][number]> => {
-  const processedTripsByVessel = new Map(
-    processedActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );
-  const mergedActiveTrips: RunUpdateVesselTripsOutput["activeTrips"][number][] =
-    [];
-  const includedVessels = new Set<string>();
-
-  for (const existingTrip of existingActiveTrips) {
-    const processedTrip = processedTripsByVessel.get(existingTrip.VesselAbbrev);
-    if (processedTrip !== undefined) {
-      mergedActiveTrips.push(processedTrip);
-      includedVessels.add(existingTrip.VesselAbbrev);
-      continue;
-    }
-
-    if (!seenRealtimeVessels.has(existingTrip.VesselAbbrev)) {
-      mergedActiveTrips.push(existingTrip);
-      includedVessels.add(existingTrip.VesselAbbrev);
-    }
-  }
-
-  for (const processedTrip of processedActiveTrips) {
-    if (includedVessels.has(processedTrip.VesselAbbrev)) {
-      continue;
-    }
-    mergedActiveTrips.push(processedTrip);
-    includedVessels.add(processedTrip.VesselAbbrev);
-  }
-
-  return mergedActiveTrips;
+  const mergedByVessel = new Map<
+    string,
+    RunUpdateVesselTripsOutput["activeTrips"][number]
+  >([
+    ...existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
+    ...processedActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
+  ]);
+  return [...mergedByVessel.values()];
 };

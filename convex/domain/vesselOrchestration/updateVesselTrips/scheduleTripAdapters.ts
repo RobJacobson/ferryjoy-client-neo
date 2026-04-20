@@ -1,14 +1,10 @@
 /**
- * Wires schedule snapshot lookups into trip builders and {@link VesselTripsBuildTripAdapters}.
+ * Schedule adapter wiring for one trip-update tick.
  */
 
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
-import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
-import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
-import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -19,31 +15,13 @@ export type ScheduleSegmentLookup = ReturnType<
   typeof createScheduledSegmentLookupFromSnapshot
 >;
 
-/** Per-tick builders and schedule hooks for {@link runUpdateVesselTrips}. */
-export type TripPipelineDeps = {
-  buildCompletedTrip: typeof buildCompletedTrip;
-  buildTripCore: typeof buildTripCore;
-  buildTripAdapters: VesselTripsBuildTripAdapters;
-  detectTripEvents: typeof detectTripEvents;
-};
-
-/**
- * Builds lookup tables and adapters from `scheduleContext` for one pipeline run.
- */
-export const createTripPipelineDeps = (
-  input: Pick<RunUpdateVesselTripsInput, "scheduleContext">
-): TripPipelineDeps => {
-  const lookup = createScheduledSegmentLookupFromSnapshot(
-    input.scheduleContext
+/** Build schedule adapters from one tick's schedule snapshot. */
+export const createScheduleTripAdaptersFromSnapshot = (
+  scheduleContext: Parameters<typeof createScheduledSegmentLookupFromSnapshot>[0]
+): VesselTripsBuildTripAdapters =>
+  createScheduleTripAdapters(
+    createScheduledSegmentLookupFromSnapshot(scheduleContext)
   );
-
-  return {
-    buildCompletedTrip,
-    buildTripCore,
-    buildTripAdapters: createScheduleTripAdapters(lookup),
-    detectTripEvents,
-  };
-};
 
 /**
  * Schedule continuity adapters for one snapshot lookup (plain object, not curried).

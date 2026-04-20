@@ -2,8 +2,9 @@
  * Projects active trip rows for vessels that are not completing this tick.
  */
 
-import type { TripPipelineDeps } from "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
+import type { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
+import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { PreparedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -12,17 +13,18 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  */
 export const updateActiveTrips = (
   activeTripUpdates: ReadonlyArray<PreparedTripUpdate>,
-  deps: Pick<TripPipelineDeps, "buildTripCore" | "buildTripAdapters">
+  buildTrip: typeof buildTripCore,
+  buildTripAdapters: VesselTripsBuildTripAdapters
 ): ReadonlyArray<ConvexVesselTrip> =>
   activeTripUpdates.flatMap((update, index) => {
     try {
       return [
-        deps.buildTripCore(
+        buildTrip(
           update.vesselLocation,
           update.existingActiveTrip,
           false,
           update.events,
-          deps.buildTripAdapters
+          buildTripAdapters
         ),
       ];
     } catch (error) {

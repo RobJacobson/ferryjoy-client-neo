@@ -3,7 +3,7 @@
  *
  * Schedule continuity helpers live in `continuity/`; the trip pipeline supplies
  * concrete `resolveEffectiveLocation` and `appendFinalSchedule` (see
- * `createTripPipelineDeps` for default wiring).
+ * `createScheduleTripAdaptersFromSnapshot` for default wiring).
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";

@@ -2,8 +2,10 @@
  * Completes in-flight trips and projects the next active row per completion update.
  */
 
-import type { TripPipelineDeps } from "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
+import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
+import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
+import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { CompletedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -18,24 +20,23 @@ type CompletedTripResolution = {
  */
 export const finalizeCompletedTrips = (
   completedTripUpdates: ReadonlyArray<CompletedTripUpdate>,
-  deps: Pick<
-    TripPipelineDeps,
-    "buildCompletedTrip" | "buildTripCore" | "buildTripAdapters"
-  >
+  buildCompleted: typeof buildCompletedTrip,
+  buildTrip: typeof buildTripCore,
+  buildTripAdapters: VesselTripsBuildTripAdapters
 ): ReadonlyArray<CompletedTripResolution> =>
   completedTripUpdates.map((update, index) => {
     try {
-      const completedVesselTrip = deps.buildCompletedTrip(
+      const completedVesselTrip = buildCompleted(
         update.existingActiveTrip,
         update.vesselLocation,
         update.events.didJustArriveAtDock
       );
-      const replacementActiveTrip = deps.buildTripCore(
+      const replacementActiveTrip = buildTrip(
         update.vesselLocation,
         completedVesselTrip,
         true,
         update.events,
-        deps.buildTripAdapters
+        buildTripAdapters
       );
 
       return {

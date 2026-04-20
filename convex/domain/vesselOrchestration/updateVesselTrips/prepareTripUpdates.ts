@@ -2,10 +2,10 @@
  * Maps each vessel location to detected events and partitions completing trips.
  */
 
-import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
-import type { TripPipelineDeps } from "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps";
+import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import type {
   PreparedTripUpdate,
+  RunUpdateVesselTripsInput,
   TripUpdatePartition,
 } from "domain/vesselOrchestration/updateVesselTrips/types";
 
@@ -14,14 +14,14 @@ import type {
  *
  * @param input - Live locations and existing active trips for overlap lookup
  * @param deps - Provides `detectTripEvents` for each prepared row
- * @returns Completing updates, continuing updates, and vessels seen this tick
+ * @returns Completing updates plus non-completing updates for active projection
  */
 export const prepareTripUpdates = (
   input: Pick<
     RunUpdateVesselTripsInput,
     "vesselLocations" | "existingActiveTrips"
   >,
-  deps: Pick<TripPipelineDeps, "detectTripEvents">
+  detectEvents: typeof detectTripEvents
 ): TripUpdatePartition => {
   const existingTripsByVessel = new Map(
     input.existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
@@ -37,7 +37,7 @@ export const prepareTripUpdates = (
       return {
         vesselLocation,
         existingActiveTrip,
-        events: deps.detectTripEvents(existingActiveTrip, vesselLocation),
+        events: detectEvents(existingActiveTrip, vesselLocation),
       };
     }
   );
@@ -55,9 +55,6 @@ export const prepareTripUpdates = (
     // Non-completing ticks stay on the active path (includes open sea legs).
     activeTripUpdates: preparedUpdates.filter(
       (update) => !update.events.isCompletedTrip
-    ),
-    seenRealtimeVessels: new Set(
-      input.vesselLocations.map((inputRow) => inputRow.VesselAbbrev)
     ),
   };
 };
