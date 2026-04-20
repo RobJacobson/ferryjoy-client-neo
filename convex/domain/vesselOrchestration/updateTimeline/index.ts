@@ -10,6 +10,7 @@
  * Tests may import `orchestratorTimelineProjection` internals directly.
  */
 
+export { assembleTripComputationsFromBundle } from "./assembleTripComputationsFromBundle";
 export {
   type BuildTimelineTickProjectionInputArgs,
   buildTimelineTickProjectionInput,

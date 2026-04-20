@@ -17,6 +17,7 @@ import {
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import {
+  assembleTripComputationsFromBundle,
   type RunUpdateVesselTimelineInput,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/updateTimeline";
@@ -209,7 +210,7 @@ export const updateVesselTrips = async (
     trips: tickArtifacts.trips,
     tripsCompute: tickArtifacts.bundle,
     tripApplyResult,
-    tripComputations: tickArtifacts.tripComputations,
+    tripComputations: assembleTripComputationsFromBundle(tickArtifacts.bundle),
   };
 };
 
