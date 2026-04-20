@@ -1,7 +1,11 @@
-import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
+/**
+ * Wires schedule snapshot lookups into trip builders and {@link VesselTripsBuildTripAdapters}.
+ */
+
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
+import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
+import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
@@ -10,6 +14,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 
+/** Per-tick deps: core builders, event detector, and schedule continuity adapters. */
 export type TripUpdateRuntime = {
   buildCompletedTrip: typeof buildCompletedTrip;
   buildTripCore: typeof buildTripCore;
@@ -17,10 +22,18 @@ export type TripUpdateRuntime = {
   detectTripEvents: typeof detectTripEvents;
 };
 
+/**
+ * Builds lookup tables and adapters from `scheduleContext` for one pipeline run.
+ *
+ * @param input - Must include `scheduleContext` for segment resolution
+ * @returns Runtime bundle passed into prepare/finalize/active stages
+ */
 export const createTripUpdateRuntime = (
   input: Pick<RunUpdateVesselTripsInput, "scheduleContext">
 ): TripUpdateRuntime => {
-  const lookup = createScheduledSegmentLookupFromSnapshot(input.scheduleContext);
+  const lookup = createScheduledSegmentLookupFromSnapshot(
+    input.scheduleContext
+  );
 
   return {
     buildCompletedTrip,
@@ -33,6 +46,12 @@ export const createTripUpdateRuntime = (
   };
 };
 
+/**
+ * Curried adapter: fills next-leg schedule fields from the snapshot when needed.
+ *
+ * @param lookup - Snapshot-backed scheduled departure/dock index
+ * @returns Function that merges continuity onto `baseTrip` (async for API shape)
+ */
 export const buildAppendFinalSchedule =
   (lookup: ReturnType<typeof createScheduledSegmentLookupFromSnapshot>) =>
   async (
@@ -44,6 +63,7 @@ export const buildAppendFinalSchedule =
       return baseTrip;
     }
 
+    // Reuse next-leg hints when the active segment id matches the prior row.
     const carriedSchedule =
       existingTrip?.ScheduleKey === segmentKey
         ? {
@@ -62,6 +82,7 @@ export const buildAppendFinalSchedule =
       };
     }
 
+    // Infer segment from the schedule backbone when the feed only has a segment key.
     const scheduledEvent =
       lookup.getScheduledDepartureEventBySegmentKey(segmentKey);
     if (!scheduledEvent) {
@@ -73,10 +94,12 @@ export const buildAppendFinalSchedule =
       };
     }
 
+    // Same-sailing-day dock stream so inference can resolve next-leg context.
     const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
       vesselAbbrev: scheduledEvent.VesselAbbrev,
       sailingDay: scheduledEvent.SailingDay,
     });
+    // Derive segment key + next departure fields from the backbone event list.
     const scheduledSegment = inferScheduledSegmentFromDepartureEvent(
       scheduledEvent,
       sameDayEvents
@@ -91,22 +114,31 @@ export const buildAppendFinalSchedule =
     };
   };
 
+/**
+ * Curried adapter: resolves docked-at-terminal identity using schedule continuity.
+ *
+ * @param lookup - Snapshot-backed scheduled segment index
+ * @returns Function that may rewrite location fields before base trip build
+ */
 export const buildResolveEffectiveLocation =
   (lookup: ReturnType<typeof createScheduledSegmentLookupFromSnapshot>) =>
   async (
     location: ConvexVesselLocation,
     existingTrip: ConvexVesselTrip | undefined
   ): Promise<ConvexVesselLocation> => {
+    // Underway or already departed: feed fields are authoritative.
     if (!location.AtDock || location.LeftDock !== undefined) {
       return location;
     }
 
+    // Docked: reconcile live feed vs persisted trip using schedule continuity rules.
     const result = await resolveEffectiveDockedLocation(
       lookup,
       location,
       existingTrip
     );
 
+    // Warn when effective identity differs from feed/trip or looks rollover-related.
     logDockedIdentityResolution({
       location,
       existingTrip,
@@ -119,6 +151,16 @@ export const buildResolveEffectiveLocation =
     return result.effectiveLocation;
   };
 
+/**
+ * Emits a warning when effective dock identity diverges from feed or prior trip.
+ *
+ * @param location - Raw location for this tick
+ * @param existingTrip - Prior active trip, if any
+ * @param stableDockedIdentity - Whether feed and trip already agreed without schedule fixup
+ * @param scheduledSegmentKey - Resolved segment key from continuity, if any
+ * @param effectiveIdentity - Chosen identity source and conflict flags
+ * @param effectiveLocation - Location after identity application
+ */
 const logDockedIdentityResolution = ({
   location,
   existingTrip,

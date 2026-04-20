@@ -16,12 +16,14 @@ export type TripScheduleCoreResult = {
   readonly withFinalSchedule: ConvexVesselTrip;
 };
 
+/** Arguments for {@link runUpdateVesselTrips}: one feed batch plus schedule snapshot. */
 export type RunUpdateVesselTripsInput = {
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   scheduleContext: ScheduleSnapshot;
 };
 
+/** Pure pipeline output: trips completed this tick and the merged active set. */
 export type RunUpdateVesselTripsOutput = {
   activeVesselTrips: ReadonlyArray<ConvexVesselTrip>;
   completedVesselTrips: ReadonlyArray<ConvexVesselTrip>;

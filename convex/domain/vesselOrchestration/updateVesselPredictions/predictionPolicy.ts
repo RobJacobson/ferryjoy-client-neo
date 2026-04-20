@@ -5,8 +5,8 @@
  * that model family. There is no event/timer gate on the orchestrator path.
  */
 
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ModelType } from "domain/ml/shared/types";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /** Trip shape needed to decide which prediction family can run this tick. */
 type PredictionPhaseTrip = ConvexVesselTrip & {
@@ -24,11 +24,7 @@ export const shouldRunAtDockPredictions = (
     Boolean(trip.StartTime ?? trip.TripStart) &&
     Boolean(trip.ArrivedCurrActual ?? trip.AtDockActual);
 
-  return (
-    Boolean(trip.AtDock) &&
-    !trip.LeftDock &&
-    canonicalStartAndOriginReady
-  );
+  return Boolean(trip.AtDock) && !trip.LeftDock && canonicalStartAndOriginReady;
 };
 
 export const shouldRunAtSeaPredictions = (trip: PredictionPhaseTrip): boolean =>

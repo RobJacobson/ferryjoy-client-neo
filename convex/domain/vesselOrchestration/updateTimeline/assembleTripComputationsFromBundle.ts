@@ -66,8 +66,7 @@ const currentTripComputationsFromBranch = (
         events: actualMessage?.events,
         existingTrip: predictedMessage?.existingTrip,
         activeTrip,
-        tripCore:
-          actualMessage?.tripCore ??
+        tripCore: actualMessage?.tripCore ??
           predictedMessage?.tripCore ?? {
             withFinalSchedule: activeTrip,
           },

@@ -49,11 +49,7 @@ const computePredictions = async (
 
     const departureMs = trip.LeftDockActual;
 
-    if (
-      specs.some(
-        (spec) => spec.requiresDepartureActual && !departureMs
-      )
-    ) {
+    if (specs.some((spec) => spec.requiresDepartureActual && !departureMs)) {
       return trip;
     }
 

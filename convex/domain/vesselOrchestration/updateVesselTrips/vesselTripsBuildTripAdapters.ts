@@ -1,9 +1,9 @@
 /**
  * Injected boundary adapters for {@link buildTripCore}.
  *
- * Schedule continuity decisions live in `domain/vesselOrchestration/updateVesselTrips/continuity/`; these
- * hooks use {@link ScheduledSegmentLookup} wired by the functions layer via
- * {@link ProcessVesselTripsDeps.buildTripAdapters}.
+ * Schedule continuity helpers live in `continuity/`; the trip pipeline supplies
+ * concrete `resolveEffectiveLocation` and `appendFinalSchedule` (see
+ * `createTripUpdateRuntime` for default wiring).
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";

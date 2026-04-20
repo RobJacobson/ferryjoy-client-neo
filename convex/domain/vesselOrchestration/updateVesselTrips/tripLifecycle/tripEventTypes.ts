@@ -1,8 +1,8 @@
 /**
- * Trip event bundle produced by {@link detectTripEvents} for one vessel tick.
+ * Trip event bundle for one vessel tick; produced by {@link detectTripEvents}.
  *
- * Kept in a dedicated module so lifecycle, projection DTOs, and the tick
- * entrypoint can share the shape without importing the detector implementation.
+ * Lives in its own module so lifecycle code and callers share one shape without
+ * depending on the detector implementation.
  */
 
 /**
@@ -14,7 +14,7 @@ export type TripEvents = {
   /**
    * Legacy surface: `detectTripEvents` currently sets this to `false` every
    * tick; trip start is driven by `isTripStartReady` and related flags. Kept
-   * for fixtures and gradual audit (see `architecture.md` §9).
+   * for fixtures and gradual audit (see `architecture.md` section 9).
    */
   shouldStartTrip: boolean;
   isCompletedTrip: boolean;

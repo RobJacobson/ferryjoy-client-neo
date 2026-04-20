@@ -5,12 +5,12 @@
  */
 
 import type { VesselTripPersistResult } from "domain/vesselOrchestration/shared";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type { TimelineTripComputation } from "domain/vesselOrchestration/updateTimeline";
 import type {
   RunUpdateVesselTripsOutput,
   TripComputation,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 
 const completedTripBoundaryMatchKeyFromFact = (
   vesselAbbrev: string,
