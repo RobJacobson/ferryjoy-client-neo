@@ -13,7 +13,7 @@ export type DockedScheduledSegmentSource =
   | "rollover_schedule";
 
 /**
- * Schedule lookup callbacks supplied by the functions layer for one tick.
+ * Schedule lookup callbacks supplied by the functions layer for one ping.
  */
 export type ScheduledSegmentLookup = {
   getScheduledDepartureEventBySegmentKey: (

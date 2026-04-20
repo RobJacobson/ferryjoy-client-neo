@@ -17,7 +17,7 @@ export { computeVesselTripsRows } from "./updateVesselTrips";
 
 /**
  * Top-level export style:
- * - import trip-tick entry points as named exports from `domain/vesselOrchestration`
+ * - import trip-ping entry points as named exports from `domain/vesselOrchestration`
  *   or from the owning concern barrel (`updateVesselTrips`, etc.)
  * - import cross-pipeline helpers via `shared` and `updateTimeline`; prediction
  *   runners and types live on the `updateVesselPredictions` namespace

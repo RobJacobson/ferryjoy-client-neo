@@ -1,7 +1,7 @@
 /**
  * Internal read models for the vessel orchestrator action.
  *
- * Bundles DB snapshots that the orchestrator needs each tick so one query
+ * Bundles DB snapshots that the orchestrator needs each ping so one query
  * replaces separate vessel, terminal, and active-trip round trips from actions.
  * Active trips are **storage-native** (no `eventsPredicted` join); public
  * queries load predicted rows via `eventsPredicted` queries and merge with
@@ -26,7 +26,7 @@ const orchestratorModelDataSchema = v.object({
 });
 
 /**
- * Load vessels, terminals, and active trips in one transaction for one tick.
+ * Load vessels, terminals, and active trips in one transaction for one ping.
  *
  * Matches vessel/terminal shapes used elsewhere; active trips match persisted
  * `activeVesselTrips` rows (not `getActiveTrips`, which enriches them with
@@ -55,21 +55,21 @@ export const getOrchestratorModelData = internalQuery({
   },
 });
 
-/** Return validator for {@link getScheduleSnapshotForTick}. */
+/** Return validator for {@link getScheduleSnapshotForPing}. */
 const scheduleSnapshotReturnSchema = v.object({
   eventsByVesselAbbrev: v.record(v.string(), v.array(eventsScheduledSchema)),
 });
 
 /**
- * Bulk `eventsScheduled` read for one vessel orchestrator tick.
+ * Bulk `eventsScheduled` read for one vessel orchestrator ping.
  *
- * Loads one sailing day (derived from `tickStartedAt`) for all vessels and
+ * Loads one sailing day (derived from `pingStartedAt`) for all vessels and
  * returns rows grouped by vessel abbreviation. Downstream lookup adapters
  * derive both same-day reads and departure-by-segment lookups from this map.
  */
-export const getScheduleSnapshotForTick = internalQuery({
+export const getScheduleSnapshotForPing = internalQuery({
   args: {
-    tickStartedAt: v.number(),
+    pingStartedAt: v.number(),
   },
   returns: scheduleSnapshotReturnSchema,
   handler: async (ctx, args) => {
@@ -80,7 +80,7 @@ export const getScheduleSnapshotForTick = internalQuery({
         )
       ),
     ];
-    const sailingDay = getSailingDay(new Date(args.tickStartedAt));
+    const sailingDay = getSailingDay(new Date(args.pingStartedAt));
     const eventsByVesselEntries = await Promise.all(
       vesselAbbrevs.map(async (vesselAbbrev) => [
         vesselAbbrev,

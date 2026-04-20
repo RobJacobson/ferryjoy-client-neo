@@ -38,7 +38,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, and run
- * the pure trip update for the tick.
+ * the pure trip update for the ping.
  *
  * @returns Nothing; logs and rethrows on failure
  * @throws When identity tables are empty, WSF fetch fails, or downstream
@@ -56,7 +56,7 @@ export const updateVesselOrchestrator = internalAction({
         snapshot.terminalsIdentity.length === 0
       ) {
         throw new Error(
-          "vesselsIdentity or terminalsIdentity empty; skipping tick."
+          "vesselsIdentity or terminalsIdentity empty; skipping ping."
         );
       }
 
@@ -65,20 +65,20 @@ export const updateVesselOrchestrator = internalAction({
       // One wall-clock anchor for this entire orchestrator run (locations → trips →
       // predictions → timeline). Sub-minute policy (e.g. prediction fallback) keys off
       // this instant—not "start of trip compute after WSF fetch."
-      const tickStartedAt = Date.now();
+      const pingStartedAt = Date.now();
 
       // Step 1: WSF fetch → Convex `vesselLocations` bulk upsert.
       const convexLocations = await updateVesselLocations(
         ctx,
-        tickStartedAt,
+        pingStartedAt,
         vesselsIdentity,
         terminalsIdentity
       );
 
       const scheduleSnapshot = await ctx.runQuery(
         internal.functions.vesselOrchestrator.queries
-          .getScheduleSnapshotForTick,
-        { tickStartedAt }
+          .getScheduleSnapshotForPing,
+        { pingStartedAt }
       );
 
       // Step 2: Pure trip update. Downstream persistence, predictions, and
@@ -90,7 +90,7 @@ export const updateVesselOrchestrator = internalAction({
         scheduleSnapshot
       );
       void trips;
-      void tickStartedAt;
+      void pingStartedAt;
       throw new Error(
         "updateVesselOrchestrator downstream persistence/predictions/timeline " +
           "has not been adapted yet to the pure computeVesselTripsRows output."
@@ -107,20 +107,20 @@ export const updateVesselOrchestrator = internalAction({
  * Fetches live vessel locations from WSF and persists them via `bulkUpsert`.
  *
  * @param ctx - Convex action context for the location mutation
- * @param tickStartedAt - Orchestrator-owned tick anchor shared with the domain runner
+ * @param pingStartedAt - Orchestrator-owned ping anchor shared with the domain runner
  * @param vesselsIdentity - Backend vessel rows for feed resolution
  * @param terminalsIdentity - Backend terminal rows for normalization
  * @returns Location rows written (or skipped as stale) by the mutation path
  */
 export const updateVesselLocations = async (
   ctx: ActionCtx,
-  tickStartedAt: number,
+  pingStartedAt: number,
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const { vesselLocations: convexLocations } = await computeVesselLocationRows({
-    pingStartedAt: tickStartedAt,
+    pingStartedAt,
     rawFeedLocations,
     vesselsIdentity,
     terminalsIdentity,
@@ -134,12 +134,12 @@ export const updateVesselLocations = async (
 };
 
 /**
- * Computes the authoritative trip rows for this tick as a pure domain step.
+ * Computes the authoritative trip rows for this ping as a pure domain step.
  *
  * @param vesselLocations - Live locations from {@link updateVesselLocations}
  * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param scheduleContext - Plain-data schedule snapshot for this tick
- * @returns The resulting completed and active trip rows for this tick
+ * @param scheduleContext - Plain-data schedule snapshot for this ping
+ * @returns The resulting completed and active trip rows for this ping
  */
 export const updateVesselTrips = (
   vesselLocations: ReadonlyArray<ConvexVesselLocation>,
@@ -153,12 +153,12 @@ export const updateVesselTrips = (
   });
 
 /**
- * Preloads the minimal model context required for this tick, computes
+ * Preloads the minimal model context required for this ping, computes
  * predictions from canonical trip handoff data, and persists proposals when
  * non-empty.
  *
  * @param ctx - Action context for preload and proposal mutation
- * @param trips - Current tick trip rows
+ * @param trips - Current ping trip rows
  * @param completedHandoffs - Completed-trip rollover pairings for replacement-trip predictions
  * @returns Prediction rows plus timeline ML merge handoffs (shared type)
  */
@@ -250,7 +250,7 @@ const loadPredictionContext = async (
   }
 
   const productionModelsByPair = await ctx.runQuery(
-    internal.functions.predictions.queries.getProductionModelParametersForTick,
+    internal.functions.predictions.queries.getProductionModelParametersForPing,
     { requests }
   );
   return { productionModelsByPair };

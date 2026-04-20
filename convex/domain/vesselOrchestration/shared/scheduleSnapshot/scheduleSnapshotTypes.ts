@@ -1,7 +1,7 @@
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
 
 /**
- * Serializable schedule read model for one orchestrator tick (prefetched in one
+ * Serializable schedule read model for one orchestrator ping (prefetched in one
  * internal query, consumed by {@link createScheduledSegmentLookupFromSnapshot}).
  */
 export type ScheduleSnapshot = {
