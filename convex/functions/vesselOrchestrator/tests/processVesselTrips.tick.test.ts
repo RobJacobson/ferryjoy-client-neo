@@ -305,6 +305,64 @@ describe("vessel orchestrator trip tick sequencing", () => {
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
+  it("runs one prediction-model preload query and one batchUpsertProposals mutation when ML proposals emit", async () => {
+    const callSequence: string[] = [];
+    const originMs = ms("2026-03-13T04:30:00-07:00");
+    const existingTrip = makeTrip({
+      ArrivedCurrActual: originMs,
+      AtDockActual: originMs,
+    });
+    const currLocation = makeLocation();
+    const changedTrip = makeTrip({
+      ArrivedCurrActual: originMs,
+      AtDockActual: originMs,
+      AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+      TripDelay: 42,
+    });
+    const stubProdModel = {
+      featureKeys: [] as string[],
+      coefficients: [] as number[],
+      intercept: 1,
+      testMetrics: { mae: 1, stdDev: 1 },
+    };
+    const ctx = createTestActionCtx({
+      activeTrips: [existingTrip],
+      upsertResult: {
+        perVessel: [{ vesselAbbrev: "CHE", ok: true }],
+      },
+      callSequence,
+      predictionModelsQueryResult: {
+        "ANA->ORI": {
+          "at-dock-depart-curr": stubProdModel,
+          "at-dock-arrive-next": stubProdModel,
+          "at-dock-depart-next": stubProdModel,
+        },
+      },
+    });
+
+    await runVesselTripsTick(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", changedTrip]]),
+        callSequence,
+      })
+    );
+
+    expect(
+      callSequence.filter((step) => step === "query:predictionModels")
+    ).toHaveLength(1);
+    expect(
+      callSequence.filter((step) => step === "mutation:batchUpsertProposals")
+    ).toHaveLength(1);
+    const batchArgs = getBatchUpsertProposalsArgs(ctx);
+    expect(
+      Array.isArray(batchArgs?.proposals) ? batchArgs.proposals.length : 0
+    ).toBeGreaterThan(0);
+  });
+
   it("skips trip overlay and timeline predicted writes when only ML blobs differ (storage-equal)", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
@@ -608,6 +666,14 @@ const createTestActionCtx = (options: {
   activeTrips?: ConvexVesselTripWithPredictions[];
   upsertResult?: Record<string, unknown>;
   callSequence?: string[];
+  /**
+   * Return value for `getProductionModelParametersForTick` when `runQuery` is
+   * invoked with `{ requests }` (prediction preload).
+   */
+  predictionModelsQueryResult?: Record<
+    string,
+    Record<string, Record<string, unknown> | null>
+  >;
 }): TestActionCtx => {
   const queryCalls: Array<{ ref: unknown; args?: Record<string, unknown> }> =
     [];
@@ -622,7 +688,7 @@ const createTestActionCtx = (options: {
       queryCalls.push({ ref, args });
       if (args && typeof args === "object" && "requests" in args) {
         options.callSequence?.push("query:predictionModels");
-        return {};
+        return options.predictionModelsQueryResult ?? {};
       }
       options.callSequence?.push("query:activeTrips");
       return options.tripsReturnedByQuery ?? options.activeTrips ?? [];
@@ -999,6 +1065,18 @@ const getPredictedProjectionArgs = (ctx: TestActionCtx) =>
         }>;
       }
     | undefined;
+
+/**
+ * Read `batchUpsertProposals` mutation arguments from the fake context.
+ *
+ * @param ctx - Fake action context
+ * @returns Proposals batch arguments, if present
+ */
+const getBatchUpsertProposalsArgs = (ctx: TestActionCtx) =>
+  ctx.mutationCalls.find(
+    (call) =>
+      call.args && typeof call.args === "object" && "proposals" in call.args
+  )?.args as { proposals: unknown[] } | undefined;
 
 /**
  * Read `completeAndStartNewTrip` mutation arguments from the fake context.

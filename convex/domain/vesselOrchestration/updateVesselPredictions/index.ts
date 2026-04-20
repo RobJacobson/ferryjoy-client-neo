@@ -33,6 +33,8 @@ export {
   computeShouldRunPredictionFallback,
   computeVesselPredictionGates,
   derivePredictionGatesForComputation,
+  PREDICTION_ATTEMPT_MODE,
+  type PredictionAttemptMode,
 } from "./predictionPolicy";
 export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {

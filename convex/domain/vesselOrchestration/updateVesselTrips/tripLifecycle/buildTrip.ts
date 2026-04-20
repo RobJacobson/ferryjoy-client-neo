@@ -42,7 +42,10 @@ type TripGateState = ConvexVesselTrip & {
  * leave-dock actualization).
  * - Calls `baseTripFromLocation` for base trip
  * - Uses provided events for enrichment decisions
- * - Runs schedule lookups and prediction attempts (event-driven + time-based fallback) via the split above
+ * - Runs schedule lookups then `computeVesselPredictionGates` (see
+ *   `PREDICTION_ATTEMPT_MODE` in `updateVesselPredictions` — default refill when
+ *   phase allows; `empty-slot-only` restores legacy gate math) and
+ *   `applyVesselPredictions`
  * - Returns fully enriched trip ready for persistence
  *
  * @param currLocation - Latest vessel location from REST/API

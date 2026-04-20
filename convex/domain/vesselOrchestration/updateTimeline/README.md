@@ -7,7 +7,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 ## Production call chain
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator`: bulk upsert locations → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
-2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which builds **`TimelineProjectionAssembly`** from **`TimelineTripComputation`** rows, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads).
+2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which builds **`TimelineProjectionAssembly`** from **`TimelineTripComputation`** rows, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads). **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged trip handoff, not the prediction table.
 
 ## Canonical files (this folder)
 

@@ -1,8 +1,11 @@
 /**
  * Prediction enrichment helpers for vessel-trip updates.
  *
- * Adds the ML predictions that are valid for the trip's current phase and
- * supports both event-driven runs and the once-per-minute fallback window.
+ * Adds the ML predictions that are valid for the trip's current phase.
+ * Slot selection follows {@link PREDICTION_ATTEMPT_MODE} from
+ * {@link ./predictionPolicy}: `empty-slot-only` skips defined fields; `refill-when-gates`
+ * re-runs models for all specs in the phase when gates allow (successful results
+ * overwrite in-memory fields; `predictFromSpec` null leaves the slot unchanged).
  */
 
 import { loadModelsForPairBatch } from "domain/ml/prediction/predictTrip";
@@ -16,6 +19,7 @@ import {
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import { PREDICTION_ATTEMPT_MODE } from "./predictionPolicy";
 
 type ModelDoc = {
   featureKeys: string[];
@@ -28,7 +32,7 @@ type ModelDoc = {
  * Compute predictions for a specific set of prediction specs.
  *
  * Core prediction logic that:
- * - Skips specs where predictions already exist (avoid redundant work)
+ * - Selects specs per {@link PREDICTION_ATTEMPT_MODE} (`empty-slot-only` vs refill)
  * - Validates trip readiness via isPredictionReadyTrip
  * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
  * - Batches model loading when multiple predictions needed for efficiency
@@ -44,9 +48,10 @@ const computePredictions = async (
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTripWithML> => {
   try {
-    const specsToAttempt = specs.filter(
-      (spec) => trip[spec.field] === undefined
-    );
+    const specsToAttempt =
+      PREDICTION_ATTEMPT_MODE === "refill-when-gates"
+        ? specs
+        : specs.filter((spec) => trip[spec.field] === undefined);
 
     if (specsToAttempt.length === 0) return trip;
 

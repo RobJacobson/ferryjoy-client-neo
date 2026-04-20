@@ -3,12 +3,34 @@
  * {@link computeVesselPredictionGates} shares inputs with the {@link buildTrip}
  * composer (after {@link buildTripCore}); Stage D derives gates from
  * {@link TripComputation} + `tickStartedAt` without reading ML fields on Stage C rows.
+ *
+ * **Phase C — attempt mode:** {@link PREDICTION_ATTEMPT_MODE} selects Option B
+ * (`refill-when-gates`): phase-shaped gates + refill in {@link ./appendPredictions}
+ * so ML can refresh every tick while `batchUpsertProposals` suppresses unchanged
+ * rows. Option A (`empty-slot-only`) keeps the legacy event/fallback + empty-slot
+ * gate math for cost-sensitive deployments.
  */
 
 import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { VesselPredictionGates } from "./applyVesselPredictions";
+
+/**
+ * Whether `computePredictions` may re-run models when slots already hold values,
+ * and how {@link computeVesselPredictionGates} narrows attempts.
+ *
+ * - **`empty-slot-only`** — Legacy: event / minute-window triggers and “missing
+ *   prediction” checks gate ML; `computePredictions` skips filled slots.
+ * - **`refill-when-gates`** — Phase C default: gates follow trip phase (at-dock vs
+ *   at-sea) only; `computePredictions` refills slots when gates allow (functions
+ *   layer dedupes persists).
+ */
+export type PredictionAttemptMode = "empty-slot-only" | "refill-when-gates";
+
+/** Product default: recompute when phase gates allow; rely on functions equality for writes. */
+export const PREDICTION_ATTEMPT_MODE: PredictionAttemptMode =
+  "refill-when-gates";
 
 /** Same optional prediction slots as schedule proposals passed to gate math (storage row + hints). */
 type GateTripShape = ConvexVesselTrip & {
@@ -43,16 +65,37 @@ const noPredictionGates: VesselPredictionGates = {
  * {@link buildTrip} uses after {@link buildTripCore} (`withFinalSchedule`);
  * `appendFinalSchedule` only adjusts schedule keys, so pre/post rows match for
  * fields read here.
+ *
+ * @param attemptMode - Defaults to {@link PREDICTION_ATTEMPT_MODE}. Pass
+ * `empty-slot-only` in tests or for Option A parity.
  */
 export const computeVesselPredictionGates = (
   gateTrip: GateTripShape,
   events: TripEvents,
   tripStart: boolean,
-  shouldRunPredictionFallback: boolean
+  shouldRunPredictionFallback: boolean,
+  attemptMode: PredictionAttemptMode = PREDICTION_ATTEMPT_MODE
 ): VesselPredictionGates => {
   const canonicalStartAndOriginReady =
     Boolean(gateTrip.StartTime ?? gateTrip.TripStart) &&
     Boolean(gateTrip.ArrivedCurrActual ?? gateTrip.AtDockActual);
+
+  if (attemptMode === "refill-when-gates") {
+    const shouldAttemptAtDockPredictions =
+      Boolean(gateTrip.AtDock) &&
+      !gateTrip.LeftDock &&
+      canonicalStartAndOriginReady;
+
+    const shouldAttemptAtSeaPredictions =
+      !gateTrip.AtDock && Boolean(gateTrip.LeftDockActual ?? gateTrip.LeftDock);
+
+    return {
+      shouldAttemptAtDockPredictions,
+      shouldAttemptAtSeaPredictions,
+      didJustLeaveDock: events.didJustLeaveDock,
+    };
+  }
+
   const shouldAttemptAtDockPredictions =
     Boolean(gateTrip.AtDock) &&
     !gateTrip.LeftDock &&
@@ -112,6 +155,7 @@ export const derivePredictionGatesForComputation = (
     gateTrip,
     events,
     tripStart,
-    shouldRunPredictionFallback
+    shouldRunPredictionFallback,
+    PREDICTION_ATTEMPT_MODE
   );
 };

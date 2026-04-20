@@ -406,8 +406,9 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 
 **updateVesselPredictions**
 
-- **Input:** Schedule-enriched trip proposal (`VesselTripCoreProposal`) plus precomputed gates from the same tick (`VesselPredictionGates`); see `applyVesselPredictions`.
-- **Output:** Trip rows with ML fields filled (or no-op when gates skip work), feeding persistence and/or timeline.
+- **Input:** Stage C **`tripComputations`** plus functions-preloaded **`VesselPredictionContext`**. **`VesselPredictionGates`** are derived in **`predictionPolicy.ts`** (`derivePredictionGatesForComputation`) from schedule/lifecycle rows and `tickStartedAt`, then passed to **`applyVesselPredictions`** — not from `buildTripCore` on the orchestrator path.
+- **Attempt policy (Phase C):** **`PREDICTION_ATTEMPT_MODE`** defaults to **`refill-when-gates`**: phase-shaped gates (at-dock vs at-sea) plus **`appendPredictions`** refill of ML slots when gates allow; redundant **`vesselTripPredictions`** rows are suppressed in **`functions`** via compare-then-write (`decideVesselTripPredictionUpsert`). Legacy **`empty-slot-only`** remains available on **`computeVesselPredictionGates`** for parity tests.
+- **Output:** Trip rows with ML fields filled (or no-op when gates skip work), proposal rows for **`batchUpsertProposals`**, and **`predictedTripComputations`** for timeline merge.
 - **Non-goals:** Timeline DTO assembly; owning `appendPredictions` spec lists — those stay in `updateVesselPredictions/appendPredictions.ts`.
 
 **updateTimeline**

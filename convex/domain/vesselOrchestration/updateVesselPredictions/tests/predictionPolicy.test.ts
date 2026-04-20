@@ -7,6 +7,7 @@ import {
   computeShouldRunPredictionFallback,
   computeVesselPredictionGates,
   derivePredictionGatesForComputation,
+  PREDICTION_ATTEMPT_MODE,
 } from "../predictionPolicy";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -57,6 +58,34 @@ const makeTrip = (
   }) as ConvexVesselTrip;
 
 describe("predictionPolicy", () => {
+  it("PREDICTION_ATTEMPT_MODE is refill-when-gates (Phase C default)", () => {
+    expect(PREDICTION_ATTEMPT_MODE).toBe("refill-when-gates");
+  });
+
+  it("refill-when-gates attempts at-dock when legacy gates would skip (no events, outside fallback window)", () => {
+    const trip = makeTrip();
+    const tickLate = new Date("2026-04-19T12:00:15.000Z").getTime();
+    expect(computeShouldRunPredictionFallback(tickLate)).toBe(false);
+
+    const refill = computeVesselPredictionGates(
+      trip,
+      defaultEvents,
+      false,
+      false,
+      "refill-when-gates"
+    );
+    const legacy = computeVesselPredictionGates(
+      trip,
+      defaultEvents,
+      false,
+      false,
+      "empty-slot-only"
+    );
+
+    expect(refill.shouldAttemptAtDockPredictions).toBe(true);
+    expect(legacy.shouldAttemptAtDockPredictions).toBe(false);
+  });
+
   it("computeShouldRunPredictionFallback matches first 10s of UTC minute", () => {
     const early = new Date("2026-04-19T12:00:05.000Z").getTime();
     const late = new Date("2026-04-19T12:00:15.000Z").getTime();

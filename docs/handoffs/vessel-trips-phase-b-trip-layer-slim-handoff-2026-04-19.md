@@ -1,6 +1,8 @@
 # Handoff: Phase B — slim `updateVesselTrips` (no ML gates or clock-only policy)
 
-**Status:** Ready to implement (depends on Phase A — [`vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md`](./vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md))
+**Status:** Implemented (2026-04-19) — see north-star §9 and `TripScheduleCoreResult` / `computeVesselTripsBundle` changes.
+
+**Prerequisite:** Phase A — [`vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md`](./vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md) (complete)
 
 **Parent spec:** [`docs/engineering/vessel-trips-prediction-policy-north-star-memo.md`](../engineering/vessel-trips-prediction-policy-north-star-memo.md) (§5.2 Phase B, §6 table)
 

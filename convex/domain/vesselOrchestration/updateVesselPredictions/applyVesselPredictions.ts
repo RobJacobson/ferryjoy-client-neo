@@ -1,10 +1,11 @@
 /**
  * **updateVesselPredictions** (domain): ML attachment for one vessel-trip tick.
  *
- * Callers should invoke this only with **`buildTripCore` outputs** (schedule +
- * gates): same inputs on every tick yield the same ML attachment (persist / other
- * phases must not feed alternate trip shapes into this). Canonical prediction logic
- * lives in {@link ./appendPredictions}; this module sequences at-dock → at-sea →
+ * Callers should invoke this with schedule/lifecycle trip rows from
+ * **`buildTripCore`** (`withFinalSchedule`). **`VesselPredictionGates`** come from
+ * {@link ./predictionPolicy.derivePredictionGatesForComputation} on the orchestrator
+ * path (not from `buildTripCore`). Canonical prediction logic lives in
+ * {@link ./appendPredictions}; this module sequences at-dock → at-sea →
  * leave-dock actualization only.
  */
 
@@ -27,10 +28,9 @@ import {
 export type VesselTripCoreProposal = ConvexVesselTrip;
 
 /**
- * Boolean guards for ML phases, computed in `buildTripCore` (see
- * `domain/vesselOrchestration/updateVesselTrips`) before this
- * step. `didJustLeaveDock` is threaded from `TripEvents.didJustLeaveDock` and
- * must not be recomputed here.
+ * Boolean guards for ML phases from {@link ./predictionPolicy.derivePredictionGatesForComputation}
+ * (or {@link ./predictionPolicy.computeVesselPredictionGates} in the `buildTrip` composer).
+ * `didJustLeaveDock` is threaded from `TripEvents.didJustLeaveDock` and must not be recomputed here.
  */
 export type VesselPredictionGates = {
   readonly shouldAttemptAtDockPredictions: boolean;
@@ -46,7 +46,7 @@ export type VesselPredictionGates = {
  *
  * @param modelAccess - Production ML model reads for this tick
  * @param coreTrip - Schedule-enriched proposal (see {@link VesselTripCoreProposal})
- * @param gates - Precomputed flags from the lifecycle half of the tick
+ * @param gates - Precomputed flags from prediction policy (phase + attempt mode)
  * @returns Trip with ML fields applied for this tick
  */
 export const applyVesselPredictions = async (

@@ -1,6 +1,6 @@
 # Engineering memo: decouple trip lifecycle from prediction policy (north star)
 
-**Status:** North-star specification — implementation in progress  
+**Status:** North-star specification — Phases A–C complete (Phase C: predictions refill mode + functions dedupe — see §5.3, §9)  
 **Audience:** Engineers and coding agents working on `updateVesselTrips`, `updateVesselPredictions`, `convex/functions/vesselOrchestrator`, and shared orchestrator handoff types  
 **Scope:** Where prediction *policy* lives, how `tickStartedAt` is used, and how we simplify **`updateVesselTrips`** without blocking a later full rewrite of **`updateVesselPredictions`**.
 
@@ -15,52 +15,52 @@
 
 - Phase A (policy in `updateVesselPredictions`): [`docs/handoffs/vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md`](../handoffs/vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md)
 - Phase B (slim `updateVesselTrips`): [`docs/handoffs/vessel-trips-phase-b-trip-layer-slim-handoff-2026-04-19.md`](../handoffs/vessel-trips-phase-b-trip-layer-slim-handoff-2026-04-19.md)
+- Phase C (predictions refill + functions diffing): [`docs/handoffs/vessel-trips-phase-c-predictions-simplification-handoff-2026-04-19.md`](../handoffs/vessel-trips-phase-c-predictions-simplification-handoff-2026-04-19.md) — **implemented**
 
 ---
 
 ## 1. Summary
 
-Today, **`updateVesselTrips`** still computes **prediction-oriented policy** (ML gate booleans and a sub-minute “fallback” window derived from **`tickStartedAt`**). That policy belongs to the **predictions** concern, not to trip lifecycle.
+**Trips vs predictions (Phases A–B done):** ML attempt policy and clock-derived fallback live under **`updateVesselPredictions`** (`predictionPolicy.ts`); **`updateVesselTrips`** exposes **`TripScheduleCoreResult`** / **`TripComputation`** without **`tripCore.gates`**, and **`runUpdateVesselTrips`** does not take orchestrator **`tickStartedAt`**.
 
-**Primary goal:** **`updateVesselTrips`** should produce **schedule- and lifecycle-shaped trip DTOs** and the **`TripComputation`** handoff needed for persistence and downstream stages, **without** owning *when* or *whether* ML work is attempted from a product-policy perspective.
+**Primary goal (achieved for Phases A–B):** **`updateVesselTrips`** produces **schedule- and lifecycle-shaped trip DTOs** and the **`TripComputation`** handoff for persistence and downstream stages, **without** owning *when* or *whether* ML work is attempted from a product-policy perspective.
 
-**Secondary goal (later):** **`updateVesselPredictions`** will move toward **recompute every tick** and **`convex/functions`** will **suppress unchanged rows** (compare-then-write / equality), per the four-pipeline PRD. That is a **larger simplification** and may be phased **after** trip-layer decoupling.
+**Secondary goal (later — Phase C landed 2026-04-19):** **`updateVesselPredictions`** uses **`PREDICTION_ATTEMPT_MODE: refill-when-gates`** by default: phase-shaped gates plus **`appendPredictions`** refill when gates allow; **`convex/functions`** **`batchUpsertProposals`** suppresses unchanged **`vesselTripPredictions`** rows via overlay equality (`decideVesselTripPredictionUpsert`), per PRD §10.
 
 **Explicit tradeoff:** It is acceptable to **temporarily** leave transitional helpers, duplicated logic, or inelegant structure **inside `updateVesselPredictions`** while we clean **`updateVesselTrips`**. Do not let perfect predictions-module design block trip simplification.
 
 ---
 
-## 2. Current shape of the code (baseline)
+## 2. Snapshot after Phases A–C (canonical)
 
 ### 2.1 `updateVesselTrips` (domain)
 
-- **Public runner:** `runUpdateVesselTrips` (`runUpdateVesselTrips.ts`) calls **`computeVesselTripsWithClock`**, which threads **`tickStartedAt`** into **`computeVesselTripsBundle`**.
-- **`computeShouldRunPredictionFallback(tickStartedAt)`** (`processTick/processVesselTrips.ts`) maps wall time to a boolean (first ~10 seconds of each UTC minute). That boolean is passed as **`shouldRunPredictionFallback`** into **`processCompletedTrips`** / **`processCurrentTrips`** and then into **`buildTripCore`**.
-- **`buildTripCore`** (`tripLifecycle/buildTrip.ts`) returns **`BuildTripCoreResult`**: `{ withFinalSchedule, gates }`, where **`gates`** is **`VesselPredictionGates`** imported from **`updateVesselPredictions`**. Gate math combines **trip/events** with **`shouldRunPredictionFallback`** (time window).
-- **`RunUpdateVesselTripsInput`** includes **`tickStartedAt`**, largely to support that fallback path.
-- **`TripComputation`** (`contracts.ts`) carries **`tripCore.withFinalSchedule`** and optional **`tripCore.gates`** (typed from **`BuildTripCoreResult`**).
+- **`runUpdateVesselTrips`** calls **`computeVesselTripsBundle(locations, deps, activeTrips)`** — no **`tickStartedAt`** on **`RunUpdateVesselTripsInput`**.
+- **`buildTripCore`** returns **`TripScheduleCoreResult`** (`{ withFinalSchedule }` only). The **`buildTrip`** composer (tests / non-orchestrator) calls **`computeVesselPredictionGates`** then **`applyVesselPredictions`**.
+- **`TripComputation.tripCore`** is **`TripScheduleCoreResult`** (no ML gates on Stage C rows).
+- **`computeVesselTripsWithClock`** removed; orchestrator clock is not threaded into the trips domain input.
 
 ### 2.2 Shared handshake and persist mapping
 
-- **`CompletedTripBoundaryFact`**, **`CurrentTripActualEventMessage`**, **`CurrentTripPredictedEventMessage`** (`shared/tickHandshake/types.ts`) embed **`BuildTripCoreResult`** (including **`gates`**) in **`newTripCore` / `tripCore`**.
-- **`tripComputationPersistMapping.ts`** requires **`tripCore.gates`** for several mappings used when translating **`RunUpdateVesselTripsOutput`** into persist/timeline-oriented shapes.
+- **`CompletedTripBoundaryFact`**, current-trip messages (`shared/tickHandshake/types.ts`) use **`TripScheduleCoreResult`** from the trips contracts / barrel.
+- **`tripComputationPersistMapping.ts`** is **gate-free**; predicted-message suppression uses **trip-semantic** rules (e.g. missing **`events`** and **`existingTrip`**).
 
 ### 2.3 `updateVesselPredictions` (domain)
 
-- **`runUpdateVesselPredictions`** (`orchestratorPredictionWrites.ts`) reads **`computation.tripCore.gates`** when calling **`applyVesselPredictions`**, with small compatibility branches when gates are missing.
-- **`RunUpdateVesselPredictionsInput`** already includes **`tickStartedAt`** (used for contracts and orchestration; gate derivation may move here).
+- **`derivePredictionGatesForComputation(computation, tickStartedAt)`** drives **`applyVesselPredictions`** and orchestrator preload (**`buildPredictionContextRequests`**) — same policy module.
+- **Phase C:** **`PREDICTION_ATTEMPT_MODE`** (`refill-when-gates` default) coordinates **`computeVesselPredictionGates`** with **`appendPredictions`** refill; **`empty-slot-only`** preserves legacy behavior for tests/cost-sensitive use.
 
 ### 2.4 `convex/functions/vesselOrchestrator/actions.ts`
 
-- **`buildPredictionContextRequests`** inspects **`computation.tripCore.gates`** to decide which terminal-pair / model-type preloads to fetch for the tick.
+- **`updateVesselTrips`** may keep a **`tickStartedAt`** parameter for a **stable call signature**; it is **not** passed to **`runUpdateVesselTrips`**. Predictions and timeline still receive orchestrator **`tickStartedAt`**.
 
 ---
 
-## 3. Problem statement
+## 3. Problem statement (historical rationale)
 
-- **Separation of concerns:** Trip lifecycle is **mixed with prediction policy** (gates + clock-driven fallback). That violates the intent of the four-pipeline model: trips authoritatively describe **where the vessel is in the schedule/trip state machine**; predictions describe **how we attach or refresh ML-derived fields** and **what to persist** in prediction tables.
-- **Cognitive load:** Readers must understand **`tickStartedAt` semantics inside `updateVesselTrips`** even when the only consumer of that policy is effectively the **predictions** phase and preload.
-- **Future direction:** “Run predictions every tick; diff in `functions`” is **incompatible** with keeping fine-grained event/gate policy **inside trip builders** unless those gates are strictly **trip-semantic** (they are not — they are ML attempt flags).
+- **Separation of concerns:** Previously, trip lifecycle was **mixed with prediction policy** (gates + clock-driven fallback). Phases A–B move that policy to **`updateVesselPredictions`** and slim the trips public pipeline.
+- **Cognitive load:** **`tickStartedAt`** is no longer required to understand **`updateVesselTrips`** beyond schedule snapshot inputs.
+- **Phase C (done):** Default refill when phase gates allow; **`batchUpsertProposals`** suppresses unchanged rows (PRD §10).
 
 ---
 
@@ -90,10 +90,10 @@ Today, **`updateVesselTrips`** still computes **prediction-oriented policy** (ML
 - Revisit **`RunUpdateVesselTripsInput`**: drop **`tickStartedAt`** if nothing **trip-semantic** requires it after Phase B.
 - Update **`contracts`**, **`shared/tickHandshake`**, and **`tripComputationPersistMapping`** so handshake types **do not require trips to manufacture `gates`**. Where messages still need ML-related metadata for timeline merge, attach it from **predictions** or derive from **`TripEvents` + trip rows** — **prefer explicit types over reusing `BuildTripCoreResult`**.
 
-### 5.3 Phase C — Optional / later (not blocking Phases A–B)
+### 5.3 Phase C — Predictions simplification + functions diffing (**shipped 2026-04-19**)
 
-- **`updateVesselPredictions`:** every-tick recompute, thinner **`applyVesselPredictions`** surface, stronger **`functions`**-layer diffing.
-- **Cleanup** of transitional code paths inside **`updateVesselPredictions`** once trips and handshake types are stable.
+- **`updateVesselPredictions`:** **`PREDICTION_ATTEMPT_MODE`** (`refill-when-gates` vs `empty-slot-only`), refill semantics in **`appendPredictions`**, **`functions`** compare-then-write for **`vesselTripPredictions`**.
+- **Ongoing:** incremental cleanup inside **`updateVesselPredictions/`** as needed; optional profiling to tune gate vs CPU cost.
 
 ---
 
@@ -102,11 +102,11 @@ Today, **`updateVesselTrips`** still computes **prediction-oriented policy** (ML
 | Area | Intended end state |
 |------|---------------------|
 | **`updateVesselTrips`** | Pure **trip lifecycle + schedule enrichment**; **no** ML gate types from **`updateVesselPredictions`** in **`buildTripCore`**; **no** orchestrator **clock** used only for ML fallback. **`TripComputation`** describes **trips**, not ML policy. |
-| **`updateVesselPredictions`** | Owns **all** “should we run / which slots” policy that is not strictly **trip geometry**; may still be messy internally until Phase C. |
+| **`updateVesselPredictions`** | Owns **all** “should we run / which slots” policy that is not strictly **trip geometry**; **`PREDICTION_ATTEMPT_MODE`** + **`predictionPolicy`** gate **`appendPredictions`** refill; **`functions`** dedupes persists. |
 | **`actions.ts`** | Continues to **preload**, **call domain**, **persist**, **diff**; preload rules follow **prediction-side** policy helpers, not trips. |
 | **`shared` handshake** | **Trip-native** shapes for persist and timeline wiring; **no** requirement that trips emit **`VesselPredictionGates`**. |
 
-**Longer horizon (aligned with product architecture, not a prerequisite for Phase B):** predictions run **every tick**, outputs are **always** “current truth,” and **unchanged rows are filtered in `functions`** — reducing event-gated ML logic over time.
+**Longer horizon:** Default **`refill-when-gates`** runs ML when phase gates allow each tick; **`batchUpsertProposals`** skips rows that match overlay equality — see PRD §10.
 
 ---
 
@@ -114,7 +114,7 @@ Today, **`updateVesselTrips`** still computes **prediction-oriented policy** (ML
 
 - Perfect, minimal **`updateVesselPredictions`** internals in the same milestone as **`updateVesselTrips`** slimming — **allowed to lag** behind with deliberate tech debt.
 - Changing **WSF fetch cadence**, **cron** behavior, or **timeline semantics** unless required by type or handshake fixes (call out in stage handoffs if touched).
-- Rewriting **compare-then-write** for predictions in **`functions`** before **`updateVesselPredictions`** strategy is settled (may follow Phase C).
+- Rewriting **compare-then-write** for predictions in **`functions`** beyond overlay equality already used in **`batchUpsertProposals`**.
 
 ---
 
@@ -129,10 +129,19 @@ Today, **`updateVesselTrips`** still computes **prediction-oriented policy** (ML
 
 ## 9. Revision history
 
+- **2026-04-19 (Phase C landed):** `PREDICTION_ATTEMPT_MODE` / `refill-when-gates`
+  default; `computeVesselPredictionGates` phase-simplified when in refill mode;
+  `appendPredictions` refill vs empty-slot; tests + docs for functions dedupe and
+  orchestrator sequencing.
+- **2026-04-19 (Phase B landed):** `TripScheduleCoreResult` / gate-free `TripComputation`;
+  `computeVesselTripsBundle` without clock options; `runUpdateVesselTrips` input
+  without `tickStartedAt`; handshake + persist mapping updated; orchestrator
+  `updateVesselTrips` keeps unused tick param for API stability. §2 rewritten as
+  post–Phase B snapshot. Phase C handoff added.
 - **2026-04-19 (Phase A landed):** Central policy module
   [`convex/domain/vesselOrchestration/updateVesselPredictions/predictionPolicy.ts`](../../convex/domain/vesselOrchestration/updateVesselPredictions/predictionPolicy.ts)
   owns `computeShouldRunPredictionFallback`, `computeVesselPredictionGates`, and
   `derivePredictionGatesForComputation`; `buildTripCore`, Stage D, and orchestrator
   preload use one derivation path. Completed boundary handoffs carry `events` for
-  gate derivation. Phase B (strip gates / `tickStartedAt` from trips) remains.
+  gate derivation.
 - **2026-04-19:** Initial north-star memo (trip vs prediction policy decoupling; Phases A–C; explicit deferral of predictions-module beautification).

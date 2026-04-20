@@ -124,7 +124,30 @@ describe("runUpdateVesselPredictions", () => {
           },
         },
       ],
-      predictionContext: {},
+      predictionContext: {
+        productionModelsByPair: {
+          "ORI->LOP": {
+            "at-dock-depart-curr": {
+              featureKeys: [],
+              coefficients: [],
+              intercept: 3,
+              testMetrics: { mae: 1, stdDev: 1 },
+            },
+            "at-dock-arrive-next": {
+              featureKeys: [],
+              coefficients: [],
+              intercept: 20,
+              testMetrics: { mae: 1, stdDev: 1 },
+            },
+            "at-dock-depart-next": {
+              featureKeys: [],
+              coefficients: [],
+              intercept: 45,
+              testMetrics: { mae: 1, stdDev: 1 },
+            },
+          },
+        },
+      },
     });
 
     expect(output.predictedTripComputations).toHaveLength(1);

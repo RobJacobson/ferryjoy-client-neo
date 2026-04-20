@@ -6,6 +6,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildTimelineProjectionAssemblyFromTripComputations,
   mergePredictedComputationsIntoTimelineProjectionAssembly,
+  runUpdateVesselTimeline,
 } from "../orchestratorTimelineProjection";
 
 describe("orchestratorTimelineProjection parity", () => {
@@ -23,5 +24,16 @@ describe("orchestratorTimelineProjection parity", () => {
         pendingPredictedMessages: [],
       },
     });
+  });
+
+  it("runUpdateVesselTimeline emits no predicted rows when Stage C/D handoffs are empty", () => {
+    const tickStartedAt = 1_701_000_000_000;
+    const out = runUpdateVesselTimeline({
+      tickStartedAt,
+      tripComputations: [],
+      predictedTripComputations: [],
+    });
+    expect(out.actualEvents).toEqual([]);
+    expect(out.predictedEvents).toEqual([]);
   });
 });
