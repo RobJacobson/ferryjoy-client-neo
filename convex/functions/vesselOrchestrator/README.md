@@ -120,7 +120,7 @@ Responsibilities:
   resolved vessel identity, canonical optional `Key`, and
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
-- after locations: **`buildScheduleSnapshotQueryArgs`** + **`getScheduleSnapshotForTick`**, then **`createDefaultProcessVesselTripsDeps(createScheduledSegmentLookupFromSnapshot(snapshot))`** once, shared by trips and predictions; **`createVesselTripPredictionModelAccess`**
+- after locations: call **`getScheduleSnapshotForTick`** for the tick's sailing day, then **`createDefaultProcessVesselTripsDeps(createScheduledSegmentLookupFromSnapshot(snapshot))`** once, shared by trips and predictions; **`createVesselTripPredictionModelAccess`**
   for the predictions phase only; then `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
 
 Domain pipeline (same tick semantics as before):

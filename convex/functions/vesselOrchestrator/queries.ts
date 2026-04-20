@@ -10,18 +10,13 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import {
-  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-  scheduleSnapshotCompositeKey,
-} from "domain/vesselOrchestration/shared";
 import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
-import { buildBoundaryKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { getSailingDay } from "shared/time";
 
 /** Return validator for {@link getOrchestratorModelData}. */
 const orchestratorModelDataSchema = v.object({
@@ -62,40 +57,22 @@ export const getOrchestratorModelData = internalQuery({
 
 /** Return validator for {@link getScheduleSnapshotForTick}. */
 const scheduleSnapshotReturnSchema = v.object({
-  departuresBySegmentKey: v.record(v.string(), eventsScheduledSchema),
-  sameDayEventsByCompositeKey: v.record(
-    v.string(),
-    v.array(eventsScheduledSchema)
-  ),
+  eventsByVesselAbbrev: v.record(v.string(), v.array(eventsScheduledSchema)),
 });
 
 /**
  * Bulk `eventsScheduled` read for one vessel orchestrator tick.
  *
- * **Plan B (rollback):** If this query’s payload or internal read cost is too high
- * in production, swap the action back to a narrow adapter that performs only the
- * two underlying reads per logical need: departure by `by_key` (`buildBoundaryKey`
- * + `dep-dock`) and same-day bundle by `by_vessel_and_sailing_day`—without pulling
- * the full cartesian snapshot—while keeping `ScheduledSegmentLookup` as the
- * domain contract.
- *
- * **Cost note:** This is **one** `runQuery` from the action, but the handler issues
- * **N `ctx.db` reads**: one indexed collect per unique `(vesselAbbrev, sailingDay)`
- * pair plus one `by_key` lookup per unique segment key. Tune caps in
- * `scheduleSnapshotLimits` if Convex query limits are approached.
+ * Loads one sailing day (derived from `tickStartedAt`) for all vessels and
+ * returns rows grouped by vessel abbreviation. Downstream lookup adapters
+ * derive both same-day reads and departure-by-segment lookups from this map.
  */
 export const getScheduleSnapshotForTick = internalQuery({
   args: {
-    sailingDays: v.array(v.string()),
-    segmentKeys: v.array(v.string()),
+    tickStartedAt: v.number(),
   },
   returns: scheduleSnapshotReturnSchema,
   handler: async (ctx, args) => {
-    if (args.sailingDays.length > MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS) {
-      throw new Error(
-        `getScheduleSnapshotForTick: sailingDays length exceeds ${MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS}`
-      );
-    }
     const vesselAbbrevs = [
       ...new Set(
         (await ctx.db.query("vesselsIdentity").collect()).map(
@@ -103,55 +80,20 @@ export const getScheduleSnapshotForTick = internalQuery({
         )
       ),
     ];
-    const sailingDays = [...new Set(args.sailingDays)];
-    const segmentKeys = [...new Set(args.segmentKeys)];
-
-    const pairEntries = vesselAbbrevs.flatMap((vesselAbbrev) =>
-      sailingDays.map((sailingDay) => {
-        const composite = scheduleSnapshotCompositeKey(
+    const sailingDay = getSailingDay(new Date(args.tickStartedAt));
+    const eventsByVesselEntries = await Promise.all(
+      vesselAbbrevs.map(async (vesselAbbrev) => [
+        vesselAbbrev,
+        await loadScheduledDockEventsForVesselSailingDay(ctx, {
           vesselAbbrev,
-          sailingDay
-        );
-        return [composite, { vesselAbbrev, sailingDay }] as const;
-      })
+          sailingDay,
+        }),
+      ])
     );
-    const pairs = [...new Map(pairEntries).values()];
-
-    const sameDayEntries = await Promise.all(
-      pairs.map(async (pair) => {
-        const key = scheduleSnapshotCompositeKey(
-          pair.vesselAbbrev,
-          pair.sailingDay
-        );
-        const events = await loadScheduledDockEventsForVesselSailingDay(
-          ctx,
-          pair
-        );
-        return [key, events] as const;
-      })
-    );
-    const sameDayEventsByCompositeKey = Object.fromEntries(sameDayEntries);
-
-    const departurePairs = await Promise.all(
-      segmentKeys.map(async (segmentKey) => {
-        const row = await ctx.db
-          .query("eventsScheduled")
-          .withIndex("by_key", (q) =>
-            q.eq("Key", buildBoundaryKey(segmentKey, "dep-dock"))
-          )
-          .unique();
-        return [segmentKey, row] as const;
-      })
-    );
-    const departuresBySegmentKey = Object.fromEntries(
-      departurePairs.flatMap(([segmentKey, row]) =>
-        row === null ? [] : [[segmentKey, row]]
-      )
-    ) as Record<string, ConvexScheduledDockEvent>;
+    const eventsByVesselAbbrev = Object.fromEntries(eventsByVesselEntries);
 
     return {
-      departuresBySegmentKey,
-      sameDayEventsByCompositeKey,
+      eventsByVesselAbbrev,
     };
   },
 });

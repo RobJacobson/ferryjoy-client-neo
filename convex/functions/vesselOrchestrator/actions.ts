@@ -15,10 +15,7 @@ import type { ModelType } from "domain/ml/shared/types";
 import type {
   CompletedTripBoundaryFact,
   PredictedTripComputation,
-} from "domain/vesselOrchestration/shared";
-import {
-  buildScheduleSnapshotQueryArgs,
-  type ScheduleSnapshot,
+  ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
 import {
   type RunUpdateVesselTimelineInput,
@@ -78,15 +75,9 @@ export const updateVesselOrchestrator = internalAction({
         terminalsIdentity
       );
 
-      const scheduleQueryArgs = buildScheduleSnapshotQueryArgs(
-        activeTrips,
-        convexLocations,
-        tickStartedAt
-      );
       const scheduleSnapshot = await ctx.runQuery(
-        internal.functions.vesselOrchestrator.queries
-          .getScheduleSnapshotForTick,
-        scheduleQueryArgs
+        internal.functions.vesselOrchestrator.queries.getScheduleSnapshotForTick,
+        { tickStartedAt }
       );
 
       // Step 2: Pure trip update. Downstream persistence, predictions, and

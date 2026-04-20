@@ -5,16 +5,10 @@ import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
  * internal query, consumed by {@link createScheduledSegmentLookupFromSnapshot}).
  */
 export type ScheduleSnapshot = {
-  /** Departure `eventsScheduled` row keyed by trip segment key (`ScheduleKey`). */
-  departuresBySegmentKey: Record<string, ConvexScheduledDockEvent>;
   /**
-   * Same-day boundary events for a vessel + sailing day.
-   * Keyed by {@link scheduleSnapshotCompositeKey}.
+   * Today's scheduled boundary events grouped by vessel.
+   *
+   * Lookup adapters derive segment-key and same-day views from this source.
    */
-  sameDayEventsByCompositeKey: Record<string, ConvexScheduledDockEvent[]>;
-};
-
-export type ScheduleSnapshotQueryArgs = {
-  sailingDays: string[];
-  segmentKeys: string[];
+  eventsByVesselAbbrev: Record<string, ConvexScheduledDockEvent[]>;
 };

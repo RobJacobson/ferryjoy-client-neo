@@ -268,8 +268,8 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `shared/scheduleSnapshot/` (bulk schedule snapshot for orchestrator ticks)
 
-- `buildScheduleSnapshotQueryArgs.ts`, `scheduleSnapshotLimits.ts`, `scheduleSnapshotTypes.ts`, `scheduleSnapshotCompositeKey.ts` — bounded args for **`getScheduleSnapshotForTick`**.
-- `createScheduledSegmentLookupFromSnapshot.ts` — pure **sync** **`ScheduledSegmentLookup`** from snapshot POJOs.
+- `scheduleSnapshotTypes.ts` — today-only schedule snapshot shape (grouped by vessel) for **`getScheduleSnapshotForTick`**.
+- `createScheduledSegmentLookupFromSnapshot.ts` — derives same-day and departure-by-segment lookups from the grouped snapshot.
 
 ## `updateVesselTrips/continuity/` (docked identity continuity logic)
 

@@ -5,13 +5,12 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
 import { createScheduledSegmentLookupFromSnapshot } from "../createScheduledSegmentLookupFromSnapshot";
-import { scheduleSnapshotCompositeKey } from "../scheduleSnapshotCompositeKey";
 import type { ScheduleSnapshot } from "../scheduleSnapshotTypes";
 
 describe("createScheduledSegmentLookupFromSnapshot", () => {
-  it("matches direct map lookup semantics for departures and same-day bundles", () => {
+  it("derives departure and same-day lookups from vessel-grouped snapshot rows", () => {
     const dep: ConvexScheduledDockEvent = {
-      Key: "k1",
+      Key: "segA--dep-dock",
       VesselAbbrev: "CHE",
       SailingDay: "2026-03-13",
       UpdatedAt: 1,
@@ -20,25 +19,24 @@ describe("createScheduledSegmentLookupFromSnapshot", () => {
       NextTerminalAbbrev: "MUK",
       EventType: "dep-dock",
     };
-    const sameDay: ConvexScheduledDockEvent[] = [dep];
+    const arv: ConvexScheduledDockEvent = {
+      ...dep,
+      Key: "segA--arv-dock",
+      EventType: "arv-dock",
+    };
+    const nextDay: ConvexScheduledDockEvent = {
+      ...dep,
+      Key: "segB--dep-dock",
+      SailingDay: "2026-03-14",
+    };
+    const sameDay: ConvexScheduledDockEvent[] = [dep, arv];
     const snapshot: ScheduleSnapshot = {
-      departuresBySegmentKey: { segA: dep },
-      sameDayEventsByCompositeKey: {
-        [scheduleSnapshotCompositeKey("CHE", "2026-03-13")]: sameDay,
+      eventsByVesselAbbrev: {
+        CHE: [...sameDay, nextDay],
       },
     };
 
     const fromSnapshot = createScheduledSegmentLookupFromSnapshot(snapshot);
-    const fromMaps: ReturnType<
-      typeof createScheduledSegmentLookupFromSnapshot
-    > = {
-      getScheduledDepartureEventBySegmentKey: (sk) =>
-        snapshot.departuresBySegmentKey[sk] ?? null,
-      getScheduledDockEventsForSailingDay: (args) =>
-        snapshot.sameDayEventsByCompositeKey[
-          scheduleSnapshotCompositeKey(args.vesselAbbrev, args.sailingDay)
-        ] ?? [],
-    };
 
     expect(fromSnapshot.getScheduledDepartureEventBySegmentKey("segA")).toEqual(
       dep
@@ -54,24 +52,15 @@ describe("createScheduledSegmentLookupFromSnapshot", () => {
     ).toEqual(sameDay);
     expect(
       fromSnapshot.getScheduledDockEventsForSailingDay({
+        vesselAbbrev: "CHE",
+        sailingDay: "2026-03-14",
+      })
+    ).toEqual([nextDay]);
+    expect(
+      fromSnapshot.getScheduledDockEventsForSailingDay({
         vesselAbbrev: "ZZZ",
         sailingDay: "2026-03-13",
       })
     ).toEqual([]);
-
-    expect(fromSnapshot.getScheduledDepartureEventBySegmentKey("segA")).toEqual(
-      fromMaps.getScheduledDepartureEventBySegmentKey("segA")
-    );
-    expect(
-      fromSnapshot.getScheduledDockEventsForSailingDay({
-        vesselAbbrev: "CHE",
-        sailingDay: "2026-03-13",
-      })
-    ).toEqual(
-      fromMaps.getScheduledDockEventsForSailingDay({
-        vesselAbbrev: "CHE",
-        sailingDay: "2026-03-13",
-      })
-    );
   });
 });

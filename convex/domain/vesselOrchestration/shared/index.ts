@@ -11,15 +11,9 @@ export {
   buildTripsComputeStorageRows,
   buildVesselTripTickWriteSetFromBundle,
 } from "./orchestratorPersist";
-export { buildScheduleSnapshotQueryArgs } from "./scheduleSnapshot/buildScheduleSnapshotQueryArgs";
 export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
-export { scheduleSnapshotCompositeKey } from "./scheduleSnapshot/scheduleSnapshotCompositeKey";
-export {
-  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-} from "./scheduleSnapshot/scheduleSnapshotLimits";
 export type {
   ScheduleSnapshot,
-  ScheduleSnapshotQueryArgs,
 } from "./scheduleSnapshot/scheduleSnapshotTypes";
 export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {
