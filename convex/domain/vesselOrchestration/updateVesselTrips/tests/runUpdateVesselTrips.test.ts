@@ -3,7 +3,8 @@
  */
 
 import { describe, expect, it, spyOn } from "bun:test";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -50,8 +51,93 @@ const defaultEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
+const makeLocation = (
+  overrides: Partial<ConvexVesselLocation> = {}
+): ConvexVesselLocation => ({
+  VesselID: 1,
+  VesselAbbrev: "CHE",
+  VesselName: "Chelan",
+  DepartingTerminalID: 10,
+  Speed: 15,
+  Heading: 90,
+  Latitude: 47.0,
+  Longitude: -122.0,
+  DepartingTerminalName: "Anacortes",
+  DepartingTerminalAbbrev: "ANA",
+  ArrivingTerminalID: 20,
+  ArrivingTerminalName: "Orcas",
+  ArrivingTerminalAbbrev: "ORI",
+  AtDock: false,
+  LeftDock: ms("2026-03-13T05:29:38-07:00"),
+  Eta: undefined,
+  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+  OpRouteAbbrev: "ana-sj",
+  VesselPositionNum: 1,
+  InService: true,
+  TimeStamp: ms("2026-03-13T06:28:45-07:00"),
+  RouteAbbrev: "ana-sj",
+  ...overrides,
+});
+
 describe("runUpdateVesselTrips", () => {
-  it("derives only public active/completed trip rows from internal lifecycle output", async () => {
+  it("returns empty arrays when the tick has no realtime inputs or active trips", async () => {
+    const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
+
+    const result = await runUpdateVesselTrips({
+      vesselLocations: [],
+      existingActiveTrips: [],
+      scheduleContext: { records: [] } as never,
+    });
+
+    expect(result).toEqual({
+      completedVesselTrips: [],
+      activeVesselTrips: [],
+    });
+  });
+
+  it("keeps untouched active trips and returns the authoritative active set", async () => {
+    const updatedTrip = makeTrip({
+      TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+    });
+    const untouchedTrip = makeTrip({
+      VesselAbbrev: "TAC",
+      TripKey: generateTripKey("TAC", ms("2026-03-13T05:00:00-07:00")),
+      ScheduleKey: "TAC--2026-03-13--05:15--P52-BBI",
+    });
+    const detectTripEventsMod = await import(
+      "../tripLifecycle/detectTripEvents"
+    );
+    const buildTripMod = await import("../tripLifecycle/buildTrip");
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
+
+    detectSpy.mockImplementation(() => defaultEvents);
+    buildTripSpy.mockImplementation(async () => ({
+      withFinalSchedule: updatedTrip,
+    }));
+
+    try {
+      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
+      const result = await runUpdateVesselTrips({
+        vesselLocations: [makeLocation()],
+        existingActiveTrips: [makeTrip(), untouchedTrip],
+        scheduleContext: { records: [] } as never,
+      });
+
+      expect(result.completedVesselTrips).toEqual([]);
+      expect(result.activeVesselTrips.map((trip) => trip.VesselAbbrev)).toEqual(
+        ["CHE", "TAC"]
+      );
+      expect(result.activeVesselTrips[0]?.TimeStamp).toBe(
+        updatedTrip.TimeStamp
+      );
+    } finally {
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
+    }
+  });
+
+  it("moves ended trips to completedVesselTrips and starts replacement active trips", async () => {
     const completedExisting = makeTrip();
     const completedTrip = makeTrip({
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
@@ -63,99 +149,76 @@ describe("runUpdateVesselTrips", () => {
       ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
       TripKey: generateTripKey("CHE", ms("2026-03-13T06:31:00-07:00")),
     });
-    const currentPersistedTrip = makeTrip({
-      VesselAbbrev: "TAC",
-      TripKey: generateTripKey("TAC", ms("2026-03-13T05:00:00-07:00")),
-      ScheduleKey: "TAC--2026-03-13--05:15--P52-BBI",
-    });
-    const currentOverlayTrip = makeTrip({
-      VesselAbbrev: "KIT",
-      TripKey: generateTripKey("KIT", ms("2026-03-13T05:05:00-07:00")),
-      ScheduleKey: "KIT--2026-03-13--05:20--EDM-KIN",
-    });
-    const currentOverlayEvents: TripEvents = {
+    const completedEvents: TripEvents = {
       ...defaultEvents,
-      didJustLeaveDock: true,
+      isCompletedTrip: true,
+      didJustArriveAtDock: true,
     };
+    const detectTripEventsMod = await import(
+      "../tripLifecycle/detectTripEvents"
+    );
+    const buildTripMod = await import("../tripLifecycle/buildTrip");
+    const buildCompletedTripMod = await import(
+      "../tripLifecycle/buildCompletedTrip"
+    );
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
+    const buildCompletedSpy = spyOn(
+      buildCompletedTripMod,
+      "buildCompletedTrip"
+    );
 
-    const bundleMod = await import("../processTick/processVesselTrips");
-    const tripsComputeStub = {
-      completedHandoffs: [
-        {
-          existingTrip: completedExisting,
-          tripToComplete: completedTrip,
-          events: defaultEvents,
-          newTripCore: {
-            withFinalSchedule: replacementTrip,
-          },
-        },
-      ],
-      current: {
-        activeUpserts: [currentPersistedTrip],
-        pendingActualMessages: [
-          {
-            events: defaultEvents,
-            tripCore: {
-              withFinalSchedule: currentPersistedTrip,
-            },
-            vesselAbbrev: "TAC",
-            requiresSuccessfulUpsert: true,
-          },
-          {
-            events: currentOverlayEvents,
-            tripCore: {
-              withFinalSchedule: currentOverlayTrip,
-            },
-            vesselAbbrev: "KIT",
-            requiresSuccessfulUpsert: false,
-          },
-        ],
-        pendingPredictedMessages: [
-          {
-            existingTrip: undefined,
-            tripCore: {
-              withFinalSchedule: currentPersistedTrip,
-            },
-            vesselAbbrev: "TAC",
-            requiresSuccessfulUpsert: true,
-          },
-          {
-            existingTrip: undefined,
-            tripCore: {
-              withFinalSchedule: currentOverlayTrip,
-            },
-            vesselAbbrev: "KIT",
-            requiresSuccessfulUpsert: false,
-          },
-        ],
-        pendingLeaveDockEffects: [],
-      },
-    };
-    const bundleSpy = spyOn(bundleMod, "computeVesselTripsBundle");
-    bundleSpy.mockImplementation(async () => ({
-      bundle: tripsComputeStub,
+    detectSpy.mockImplementation(() => completedEvents);
+    buildCompletedSpy.mockImplementation(() => completedTrip);
+    buildTripSpy.mockImplementation(async () => ({
+      withFinalSchedule: replacementTrip,
     }));
 
     try {
       const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
       const result = await runUpdateVesselTrips({
-        vesselLocations: [],
-        existingActiveTrips: [],
-        scheduleContext: {
-          records: [],
-        } as never,
+        vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
+        existingActiveTrips: [completedExisting],
+        scheduleContext: { records: [] } as never,
       });
 
-      expect(result.completedTrips).toHaveLength(1);
-      expect(result.activeTrips).toHaveLength(2);
-      expect(result.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
-        "CHE",
-        "TAC",
-      ]);
-      expect("AtDockDepartCurr" in (result.activeTrips[0] ?? {})).toBe(false);
+      expect(result.completedVesselTrips).toEqual([completedTrip]);
+      expect(result.activeVesselTrips).toEqual([replacementTrip]);
       expect("tripComputations" in result).toBe(false);
     } finally {
-      bundleSpy.mockRestore();
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
+      buildCompletedSpy.mockRestore();
+    }
+  });
+
+  it("falls back to the existing active trip when a per-vessel update fails", async () => {
+    const existingTrip = makeTrip();
+    const detectTripEventsMod = await import(
+      "../tripLifecycle/detectTripEvents"
+    );
+    const buildTripMod = await import("../tripLifecycle/buildTrip");
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
+
+    detectSpy.mockImplementation(() => defaultEvents);
+    buildTripSpy.mockImplementation(async () => {
+      throw new Error("boom");
+    });
+
+    try {
+      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
+      const result = await runUpdateVesselTrips({
+        vesselLocations: [makeLocation()],
+        existingActiveTrips: [existingTrip],
+        scheduleContext: { records: [] } as never,
+      });
+
+      expect(result.completedVesselTrips).toEqual([]);
+      expect(result.activeVesselTrips).toEqual([existingTrip]);
+    } finally {
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
     }
   });
 });

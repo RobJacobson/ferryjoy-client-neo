@@ -1,24 +1,23 @@
-# updateVesselTrips (orchestrator concern)
+# updateVesselTrips
 
-**Trip branch** logic (invoked from [`updateVesselOrchestrator`](../../../functions/vesselOrchestrator/actions.ts) via the canonical **`runUpdateVesselTrips`** boundary): the full **lifecycle** implementation used on each cron tick.
+Pure trip-update pipeline for one orchestrator tick.
 
-The public story for this concern is:
+The public boundary is intentionally small:
 
-- `runUpdateVesselTrips(input) -> { activeTrips, completedTrips }`
+- `runUpdateVesselTrips(input) -> { completedVesselTrips, activeVesselTrips }`
 
-Function-layer persistence may consume the internal tick bundle that powers
-those arrays, but that write-shaping detail is not part of this concern's
-public contract.
+The concern owns only the work needed to return those arrays. Persistence,
+predictions, and timeline assembly must adapt downstream instead of reaching
+back into trip-internal artifacts.
 
-## Layout
+## Pipeline
 
 | Path | Role |
 | --- | --- |
-| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**. |
-| [`processTick/`](./processTick/) | `computeVesselTripsBundle`, adapters, and the internal bundle consumed by function-layer persistence |
-| [`continuity/`](./continuity/) | Docked identity continuity |
-| [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTripCore` |
-
-## See also
-
-- [`../architecture.md`](../architecture.md) — full folder map
+| [`prepareTripUpdates.ts`](./prepareTripUpdates.ts) | Normalize realtime inputs and existing active trips into per-vessel updates |
+| [`finalizeCompletedTrips.ts`](./finalizeCompletedTrips.ts) | Complete prior trips and build replacement active trips when needed |
+| [`updateActiveTrips.ts`](./updateActiveTrips.ts) | Build the authoritative active-trip rows for non-completed vessels |
+| [`runUpdateVesselTrips.ts`](./runUpdateVesselTrips.ts) | Compose the pipeline and return the two public arrays |
+| [`createTripUpdateRuntime.ts`](./createTripUpdateRuntime.ts) | Schedule-backed runtime helpers needed by trip building |
+| [`continuity/`](./continuity/) | Docked identity continuity helpers |
+| [`tripLifecycle/`](./tripLifecycle/) | Remaining low-level trip-building helpers that still directly support the pipeline |
