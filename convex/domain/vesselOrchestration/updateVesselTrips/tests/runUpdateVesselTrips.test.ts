@@ -2,14 +2,7 @@
  * Tests for the canonical public trips runner.
  */
 
-import {
-  afterEach,
-  describe,
-  expect,
-  it,
-  mock,
-  spyOn,
-} from "bun:test";
+import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -89,17 +82,11 @@ describe("runUpdateVesselTrips", () => {
       didJustLeaveDock: true,
     };
 
-    mock.module("domain/vesselOrchestration/shared", () => ({
-      createScheduledSegmentLookupFromSnapshot: () => ({
-        getScheduledDepartureEventBySegmentKey: () => null,
-        getScheduledDockEventsForSailingDay: () => [],
-      }),
-    }));
     mock.module("../processTick/defaultProcessVesselTripsDeps", () => ({
       createDefaultProcessVesselTripsDeps: () => ({ mocked: true }),
     }));
 
-    const clockMod = await import("../processTick/computeVesselTripsWithClock");
+    const bundleMod = await import("../processTick/processVesselTrips");
     const tripsComputeStub = {
       completedHandoffs: [
         {
@@ -108,11 +95,6 @@ describe("runUpdateVesselTrips", () => {
           events: defaultEvents,
           newTripCore: {
             withFinalSchedule: replacementTrip,
-            gates: {
-              shouldAttemptAtDockPredictions: true,
-              shouldAttemptAtSeaPredictions: false,
-              didJustLeaveDock: false,
-            },
           },
         },
       ],
@@ -123,11 +105,6 @@ describe("runUpdateVesselTrips", () => {
             events: defaultEvents,
             tripCore: {
               withFinalSchedule: currentPersistedTrip,
-              gates: {
-                shouldAttemptAtDockPredictions: false,
-                shouldAttemptAtSeaPredictions: true,
-                didJustLeaveDock: false,
-              },
             },
             vesselAbbrev: "TAC",
             requiresSuccessfulUpsert: true,
@@ -136,11 +113,6 @@ describe("runUpdateVesselTrips", () => {
             events: currentOverlayEvents,
             tripCore: {
               withFinalSchedule: currentOverlayTrip,
-              gates: {
-                shouldAttemptAtDockPredictions: false,
-                shouldAttemptAtSeaPredictions: false,
-                didJustLeaveDock: true,
-              },
             },
             vesselAbbrev: "KIT",
             requiresSuccessfulUpsert: false,
@@ -151,11 +123,6 @@ describe("runUpdateVesselTrips", () => {
             existingTrip: undefined,
             tripCore: {
               withFinalSchedule: currentPersistedTrip,
-              gates: {
-                shouldAttemptAtDockPredictions: false,
-                shouldAttemptAtSeaPredictions: true,
-                didJustLeaveDock: false,
-              },
             },
             vesselAbbrev: "TAC",
             requiresSuccessfulUpsert: true,
@@ -164,11 +131,6 @@ describe("runUpdateVesselTrips", () => {
             existingTrip: undefined,
             tripCore: {
               withFinalSchedule: currentOverlayTrip,
-              gates: {
-                shouldAttemptAtDockPredictions: false,
-                shouldAttemptAtSeaPredictions: false,
-                didJustLeaveDock: true,
-              },
             },
             vesselAbbrev: "KIT",
             requiresSuccessfulUpsert: false,
@@ -177,16 +139,14 @@ describe("runUpdateVesselTrips", () => {
         pendingLeaveDockEffects: [],
       },
     };
-    const clockSpy = spyOn(clockMod, "computeVesselTripsWithClock");
-    clockSpy.mockImplementation(async () => ({
-      tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
-      tripsCompute: tripsComputeStub,
+    const bundleSpy = spyOn(bundleMod, "computeVesselTripsBundle");
+    bundleSpy.mockImplementation(async () => ({
+      bundle: tripsComputeStub,
     }));
 
     try {
       const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
       const result = await runUpdateVesselTrips({
-        tickStartedAt: ms("2026-03-13T06:30:00-07:00"),
         vesselLocations: [],
         existingActiveTrips: [],
         scheduleContext: {
@@ -206,20 +166,16 @@ describe("runUpdateVesselTrips", () => {
       const completedComputation = result.tripComputations.find(
         (computation) => computation.branch === "completed"
       );
-      expect(completedComputation?.tripCore.gates).toBeDefined();
-      expect(
-        completedComputation?.tripCore.gates?.shouldAttemptAtDockPredictions
-      ).toBe(true);
+      expect(completedComputation?.tripCore.withFinalSchedule).toBeDefined();
 
       const overlayComputation = result.tripComputations.find(
         (computation) => computation.vesselAbbrev === "KIT"
       );
       expect(overlayComputation?.branch).toBe("current");
       expect(overlayComputation?.activeTrip?.VesselAbbrev).toBe("KIT");
-      expect(overlayComputation?.tripCore.gates).toBeDefined();
-      expect(overlayComputation?.tripCore.gates?.didJustLeaveDock).toBe(true);
+      expect(overlayComputation?.events?.didJustLeaveDock).toBe(true);
     } finally {
-      clockSpy.mockRestore();
+      bundleSpy.mockRestore();
     }
   });
 });

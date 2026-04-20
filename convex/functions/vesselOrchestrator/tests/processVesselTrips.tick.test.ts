@@ -7,13 +7,12 @@ import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
-  type BuildTripCoreResult,
-  computeVesselTripsWithClock,
+  computeVesselTripsBundle,
   type RunUpdateVesselTripsOutput,
   type TripEvents,
-  type VesselTripsWithClock,
+  type TripScheduleCoreResult,
+  type VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
-import { computeVesselPredictionGates } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   updateVesselPredictions,
@@ -47,10 +46,10 @@ const runVesselTripsTick = async (
   const trips = activeTrips ?? ctx.preloadedActiveTrips ?? [];
   const actionCtx = ctx as unknown as ActionCtx;
 
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    { convexLocations: locations, activeTrips: trips },
+  const { bundle: tripsCompute } = await computeVesselTripsBundle(
+    locations,
     deps,
-    { tickStartedAt }
+    trips
   );
   const tripsOutput = buildTripsOutputFromTripsCompute({ tripsCompute });
   const tripApplyResult = await persistVesselTripWriteSet(
@@ -74,9 +73,9 @@ const runVesselTripsTick = async (
   });
 };
 
-const buildTripsOutputFromTripsCompute = (
-  input: Pick<VesselTripsWithClock, "tripsCompute">
-): RunUpdateVesselTripsOutput => ({
+const buildTripsOutputFromTripsCompute = (input: {
+  tripsCompute: VesselTripsComputeBundle;
+}): RunUpdateVesselTripsOutput => ({
   activeTrips: [
     ...input.tripsCompute.completedHandoffs.map((handoff) =>
       stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
@@ -700,7 +699,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `computeVesselTripsWithClock` in sequencing tests
+ * @returns Dependency bag for `computeVesselTripsBundle` in sequencing tests
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =
@@ -732,10 +731,9 @@ const createDeps = (input: TestDepsInput) => {
       currLocation: ConvexVesselLocation,
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
-      events: TripEvents,
-      shouldRunPredictionFallback: boolean,
+      _events: TripEvents,
       _adapters: unknown
-    ): Promise<BuildTripCoreResult> => {
+    ): Promise<TripScheduleCoreResult> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
       const failure = input.buildFailuresByVessel?.get(
         currLocation.VesselAbbrev
@@ -772,12 +770,6 @@ const createDeps = (input: TestDepsInput) => {
 
       return {
         withFinalSchedule,
-        gates: computeVesselPredictionGates(
-          withFinalSchedule,
-          events,
-          tripStart,
-          shouldRunPredictionFallback
-        ),
       };
     },
     buildTripAdapters: {

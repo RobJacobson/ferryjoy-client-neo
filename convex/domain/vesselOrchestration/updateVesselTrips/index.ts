@@ -10,25 +10,19 @@
  * See `README.md` and `../architecture.md` §10.
  */
 
-export { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
   TripComputation,
+  TripScheduleCoreResult,
   VesselTripScheduleContext,
 } from "./contracts";
-export {
-  computeVesselTripsWithClock,
-  type VesselTripsWithClock,
-  type VesselTripsWithClockOptions,
-} from "./processTick/computeVesselTripsWithClock";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
 export { runUpdateVesselTrips } from "./runUpdateVesselTrips";
-export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
   ActiveTripsBranch,

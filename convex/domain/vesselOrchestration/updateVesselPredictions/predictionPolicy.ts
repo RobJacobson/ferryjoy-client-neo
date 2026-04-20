@@ -1,7 +1,8 @@
 /**
  * Prediction attempt policy for vessel-trip ticks: clock window + gate booleans.
- * Owns the same rules as {@link buildTripCore} gate math without importing
- * `updateVesselTrips` internals (cycle-safe).
+ * {@link computeVesselPredictionGates} shares inputs with the {@link buildTrip}
+ * composer (after {@link buildTripCore}); Stage D derives gates from
+ * {@link TripComputation} + `tickStartedAt` without reading ML fields on Stage C rows.
  */
 
 import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips/contracts";
@@ -9,7 +10,7 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { VesselPredictionGates } from "./applyVesselPredictions";
 
-/** Same optional prediction slots as {@link buildTripCore} `gateTrip` (storage row + hints). */
+/** Same optional prediction slots as schedule proposals passed to gate math (storage row + hints). */
 type GateTripShape = ConvexVesselTrip & {
   readonly AtDockDepartCurr?: unknown;
   readonly AtDockArriveNext?: unknown;
@@ -38,9 +39,10 @@ const noPredictionGates: VesselPredictionGates = {
 };
 
 /**
- * Pure gate booleans matching {@link buildTripCore} (pre-`appendFinalSchedule`
- * `gateTrip` semantics). `appendFinalSchedule` only adjusts schedule keys, so
- * `withFinalSchedule` matches `gateTrip` for all fields read here.
+ * Pure gate booleans for ML attempt policy. Call with the same trip row as
+ * {@link buildTrip} uses after {@link buildTripCore} (`withFinalSchedule`);
+ * `appendFinalSchedule` only adjusts schedule keys, so pre/post rows match for
+ * fields read here.
  */
 export const computeVesselPredictionGates = (
   gateTrip: GateTripShape,
@@ -75,16 +77,15 @@ export const computeVesselPredictionGates = (
 };
 
 /**
- * Single derive entry for Stage D and orchestrator preload: same inputs as
- * `buildTripCore` would use, without trusting `tripCore.gates` as authority.
+ * Single derive entry for Stage D and orchestrator preload: uses
+ * `tripCore.withFinalSchedule` + `events` + branch (as `tripStart`) + clock
+ * fallback — not ML gate fields on {@link TripComputation}.
  *
- * **`tripStart`:** In the orchestrator pipeline, completed-trip processing calls
- * `buildTripCore` with `tripStart: true` for the replacement row; the
- * current-trip path always passes `tripStart: false`. That matches
- * `branch === "completed"` vs `"current"` on `TripComputation`. If a future
- * caller passes a different `tripStart` into `buildTripCore`, thread an
- * explicit flag on the handoff (Phase B+) instead of inferring from `branch`
- * alone.
+ * **`tripStart`:** Completed-branch rows correspond to `buildTripCore` with
+ * `tripStart: true`; current-branch with `tripStart: false`. That matches
+ * `branch === "completed"` vs `"current"`. If a future caller needs a different
+ * `tripStart`, thread an explicit flag on the handoff instead of inferring from
+ * `branch` alone.
  */
 export const derivePredictionGatesForComputation = (
   computation: TripComputation,

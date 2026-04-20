@@ -4,9 +4,9 @@ import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  BuildTripCoreResult,
   RunUpdateVesselTripsOutput,
   TripEvents,
+  TripScheduleCoreResult,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
   persistVesselTripWriteSet,
@@ -64,13 +64,8 @@ const makeTrip = (
 
 const coreFromTrip = (
   trip: ConvexVesselTripWithPredictions
-): BuildTripCoreResult => ({
+): TripScheduleCoreResult => ({
   withFinalSchedule: trip,
-  gates: {
-    shouldAttemptAtDockPredictions: false,
-    shouldAttemptAtSeaPredictions: false,
-    didJustLeaveDock: false,
-  },
 });
 
 /**

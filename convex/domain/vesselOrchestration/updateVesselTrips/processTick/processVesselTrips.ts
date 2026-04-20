@@ -7,7 +7,6 @@
  * in **updateVesselPredictions** (see `architecture.md` §10).
  */
 
-import { computeShouldRunPredictionFallback } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import {
   type ProcessCompletedTripsDeps,
@@ -18,11 +17,6 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/vesselTripsComputeBundle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-
-/** Optional tick inputs; prediction fallback may be supplied by orchestrator. */
-export type ProcessVesselTripsOptions = {
-  shouldRunPredictionFallback?: boolean;
-};
 
 /** Existing active trip row for one vessel (storage-native). */
 type ExistingTripForTick = ConvexVesselTrip;
@@ -47,29 +41,20 @@ export type ProcessVesselTripsDeps = ProcessCompletedTripsDeps & {
  * functions runner applies the tick then calls `buildTimelineTickProjectionInput`.
  *
  * @param locations - Array of vessel locations to process after orchestrator conversion
- * @param tickStartedAt - Tick timestamp owned by VesselOrchestrator (unused in tick
- *   body; kept for signature parity with the orchestrator dep)
  * @param deps - Internal dependency bag used for testability (includes
  *   `buildTripCore`, `buildTripAdapters`, `detectTripEvents`)
  * @param activeTrips - Preloaded active trips for this tick ({@link ConvexVesselTrip}).
- * @param options - Optional tick policy; fallback window defaults from `tickStartedAt`
  * @returns Bundle for `updateVesselTrips` / `persistVesselTripWriteSet`
  */
 export const computeVesselTripsBundle = async (
   locations: ReadonlyArray<ConvexVesselLocation>,
-  tickStartedAt: number,
   deps: ProcessVesselTripsDeps,
-  activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  options?: ProcessVesselTripsOptions
+  activeTrips: ReadonlyArray<ConvexVesselTrip>
 ): Promise<{ bundle: VesselTripsComputeBundle }> => {
   // Preloaded snapshot rows keyed for event detection and `buildTripCore`.
   const existingTripsDict = Object.fromEntries(
     activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   ) as Record<string, ExistingTripForTick>;
-
-  const shouldRunPredictionFallback =
-    options?.shouldRunPredictionFallback ??
-    computeShouldRunPredictionFallback(tickStartedAt);
 
   const transitions = buildTripTransitions(
     locations,
@@ -85,7 +70,6 @@ export const computeVesselTripsBundle = async (
   // Completed handoffs before current-trip artifacts (apply order).
   const completedHandoffs = await processCompletedTrips(
     completedTrips,
-    shouldRunPredictionFallback,
     logVesselProcessingError,
     {
       buildCompletedTrip: deps.buildCompletedTrip,
@@ -93,14 +77,10 @@ export const computeVesselTripsBundle = async (
       buildTripAdapters: deps.buildTripAdapters,
     }
   );
-  const currentFragment = await processCurrentTrips(
-    currentTrips,
-    shouldRunPredictionFallback,
-    {
-      buildTripCore: deps.buildTripCore,
-      buildTripAdapters: deps.buildTripAdapters,
-    }
-  );
+  const currentFragment = await processCurrentTrips(currentTrips, {
+    buildTripCore: deps.buildTripCore,
+    buildTripAdapters: deps.buildTripAdapters,
+  });
 
   return {
     bundle: {

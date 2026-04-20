@@ -129,7 +129,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolve
 import type * as domain_vesselOrchestration_updateVesselTrips_contracts from "../domain/vesselOrchestration/updateVesselTrips/contracts.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_index from "../domain/vesselOrchestration/updateVesselTrips/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters from "../domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_processTick_computeVesselTripsWithClock from "../domain/vesselOrchestration/updateVesselTrips/processTick/computeVesselTripsWithClock.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps from "../domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope from "../domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope.js";
@@ -378,7 +377,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/contracts": typeof domain_vesselOrchestration_updateVesselTrips_contracts;
   "domain/vesselOrchestration/updateVesselTrips/index": typeof domain_vesselOrchestration_updateVesselTrips_index;
   "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters": typeof domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters;
-  "domain/vesselOrchestration/updateVesselTrips/processTick/computeVesselTripsWithClock": typeof domain_vesselOrchestration_updateVesselTrips_processTick_computeVesselTripsWithClock;
   "domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps": typeof domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps;
   "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips;
   "domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope": typeof domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope;

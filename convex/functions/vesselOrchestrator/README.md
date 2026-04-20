@@ -55,7 +55,7 @@ The orchestrator runs periodically, roughly every 15 seconds. **`updateVesselOrc
 runs **sequentially**: after one shared WSF batch and trip dependency wiring, it
 persists **locations first**, then applies trip lifecycle writes, then predictions,
 then timeline rows. This keeps the expensive external fetch centralized while the
-domain trip pipeline (`processVesselTrips` via `computeVesselTripsWithClock`) and
+domain trip pipeline (`processVesselTrips` via `runUpdateVesselTrips` / `computeVesselTripsBundle`) and
 timeline assembly stay explicit.
 
 ### Operational concerns (Phase 1)
@@ -127,10 +127,10 @@ Responsibilities:
 Domain pipeline (same tick semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
-- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselOrchestration/updateVesselTrips`)
-  applied inside the domain orchestrator when building `processVesselTrips` options
+- `computeShouldRunPredictionFallback(tickStartedAt)` (from `predictionPolicy`) for
+  Stage D preload and predictions — not threaded through the trips domain input
 - lifecycle mutations always precede timeline projection for the tick
-- pass the same tick’s active-trip list into `computeVesselTripsWithClock` so the trip
+- pass the same tick’s active-trip list into `runUpdateVesselTrips` so the trip
   branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:

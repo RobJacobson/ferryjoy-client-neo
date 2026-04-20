@@ -5,8 +5,15 @@
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
 import type { TripEvents } from "./tripLifecycle/tripEventTypes";
+
+/**
+ * Schedule- and lifecycle-shaped trip proposal from {@link buildTripCore} — no
+ * ML gate fields (prediction policy lives in `updateVesselPredictions`).
+ */
+export type TripScheduleCoreResult = {
+  readonly withFinalSchedule: ConvexVesselTrip;
+};
 
 /**
  * Stage A keeps this shape intentionally small so later stages can preserve the
@@ -24,10 +31,7 @@ export type TripComputation = {
   existingTrip?: ConvexVesselTrip;
   completedTrip?: ConvexVesselTrip;
   activeTrip?: ConvexVesselTrip;
-  tripCore: {
-    withFinalSchedule: BuildTripCoreResult["withFinalSchedule"];
-    gates?: BuildTripCoreResult["gates"];
-  };
+  tripCore: TripScheduleCoreResult;
 };
 
 /**
@@ -37,7 +41,6 @@ export type TripComputation = {
 export type VesselTripScheduleContext = ScheduleSnapshot;
 
 export type RunUpdateVesselTripsInput = {
-  tickStartedAt: number;
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   scheduleContext: VesselTripScheduleContext;

@@ -70,11 +70,6 @@ describe("runUpdateVesselPredictions", () => {
           activeTrip: trip,
           tripCore: {
             withFinalSchedule: trip,
-            gates: {
-              shouldAttemptAtDockPredictions: true,
-              shouldAttemptAtSeaPredictions: false,
-              didJustLeaveDock: false,
-            },
           },
         },
       ],
@@ -112,7 +107,7 @@ describe("runUpdateVesselPredictions", () => {
     ).toBe(ms("2026-03-13T09:33:00-07:00"));
   });
 
-  it("derives gates from tripCore when tripCore.gates is omitted", async () => {
+  it("derives gates from tripCore.withFinalSchedule when Stage C omits ML gate fields", async () => {
     const trip = makeTrip();
 
     const output = await runUpdateVesselPredictions({
@@ -133,7 +128,9 @@ describe("runUpdateVesselPredictions", () => {
     });
 
     expect(output.predictedTripComputations).toHaveLength(1);
-    expect(output.predictedTripComputations[0]?.finalPredictedTrip).toBeDefined();
+    expect(
+      output.predictedTripComputations[0]?.finalPredictedTrip
+    ).toBeDefined();
   });
 
   it("gracefully returns no predictions when the preload has no models", async () => {

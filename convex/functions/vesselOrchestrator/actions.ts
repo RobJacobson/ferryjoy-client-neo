@@ -174,7 +174,8 @@ export const updateVesselLocations = async (
  * @param ctx - Action context for Convex bindings
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
+ * @param _tickStartedAt - Orchestrator tick anchor (shared with predictions/timeline). Unused by
+ *   the trips domain runner after Phase B — retained for a stable orchestrator call signature.
  * @param scheduleContext - Plain-data schedule snapshot for this tick
  * @returns Persist-scoped trip tick outcome (alias-compatible with timeline types)
  */
@@ -182,7 +183,7 @@ export const updateVesselTrips = async (
   ctx: ActionCtx,
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  tickStartedAt: number,
+  _tickStartedAt: number,
   scheduleContext: ScheduleSnapshot
 ): Promise<{
   trips: RunUpdateVesselTripsOutput;
@@ -191,7 +192,6 @@ export const updateVesselTrips = async (
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
   const trips = await runUpdateVesselTrips({
-    tickStartedAt,
     vesselLocations: convexLocations,
     existingActiveTrips: activeTrips,
     scheduleContext,

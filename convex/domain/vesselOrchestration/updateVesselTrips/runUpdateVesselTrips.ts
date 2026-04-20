@@ -10,9 +10,10 @@ import type {
   RunUpdateVesselTripsOutput,
   TripComputation,
 } from "./contracts";
-import { computeVesselTripsWithClock } from "./processTick/computeVesselTripsWithClock";
 import { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
+import { computeVesselTripsBundle } from "./processTick/processVesselTrips";
 import type { TripEvents } from "./tripLifecycle/tripEventTypes";
+import type { VesselTripsComputeBundle } from "./tripLifecycle/vesselTripsComputeBundle";
 
 type CompletedTripComputationSource = {
   existingTrip: ConvexVesselTrip;
@@ -102,9 +103,7 @@ const currentTripComputationsFromBundle = (
 };
 
 const tripComputationsFromBundle = (
-  bundle: Awaited<
-    ReturnType<typeof computeVesselTripsWithClock>
-  >["tripsCompute"]
+  bundle: VesselTripsComputeBundle
 ): TripComputation[] => [
   ...completedTripComputationsFromBundle(bundle.completedHandoffs),
   ...currentTripComputationsFromBundle(bundle.current),
@@ -122,13 +121,10 @@ export const runUpdateVesselTrips = async (
   const tripDeps = createDefaultProcessVesselTripsDeps(
     createScheduledSegmentLookupFromSnapshot(input.scheduleContext)
   );
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    {
-      convexLocations: input.vesselLocations,
-      activeTrips: input.existingActiveTrips,
-    },
+  const { bundle: tripsCompute } = await computeVesselTripsBundle(
+    input.vesselLocations,
     tripDeps,
-    { tickStartedAt: input.tickStartedAt }
+    input.existingActiveTrips
   );
   const activeTrips = [
     ...tripsCompute.completedHandoffs.map(

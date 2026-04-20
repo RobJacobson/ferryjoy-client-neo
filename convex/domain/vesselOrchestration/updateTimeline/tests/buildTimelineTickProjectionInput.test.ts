@@ -12,7 +12,7 @@ import type {
   CompletedTripBoundaryFact,
   CurrentTripLifecycleBranchResult,
 } from "domain/vesselOrchestration/updateTimeline/types";
-import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
@@ -101,13 +101,8 @@ const oneCompletedBoundaryFact = (): CompletedTripBoundaryFact => {
     ScheduledDeparture: ms("2026-03-13T06:50:00-07:00"),
   });
 
-  const newTripCore: BuildTripCoreResult = {
+  const newTripCore: TripScheduleCoreResult = {
     withFinalSchedule: newTrip,
-    gates: {
-      shouldAttemptAtDockPredictions: false,
-      shouldAttemptAtSeaPredictions: false,
-      didJustLeaveDock: false,
-    },
   };
 
   return {

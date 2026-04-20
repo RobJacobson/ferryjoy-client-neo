@@ -1,7 +1,7 @@
 /**
  * Default production dependency bag for {@link computeVesselTripsBundle}
- * (**updateVesselTrips**). Consumed by `computeVesselTripsWithClock`
- * (`domain/vesselOrchestration`) as wired from `updateVesselOrchestrator`.
+ * (**updateVesselTrips**), wired from {@link runUpdateVesselTrips} in
+ * `updateVesselOrchestrator`.
  *
  * Composes lifecycle builders and schedule-backed trip adapters from a
  * {@link ScheduledSegmentLookup} supplied by the functions layer (prefetched

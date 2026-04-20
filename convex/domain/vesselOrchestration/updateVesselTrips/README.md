@@ -14,7 +14,7 @@ that persistence shape is not the concern's public contract.
 | Path | Role |
 | --- | --- |
 | [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `buildTrip` (test-only composer: core + `applyVesselPredictions`), `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**; ML attaches in **updateVesselPredictions**. |
-| [`processTick/`](./processTick/) | `computeVesselTripsWithClock`, `computeVesselTripsBundle`, adapters, sub-minute fallback policy (shared with prediction gates) |
+| [`processTick/`](./processTick/) | `computeVesselTripsBundle`, adapters; ML fallback clock policy lives in **updateVesselPredictions** (`predictionPolicy.ts`) |
 | [`continuity/`](./continuity/) | Docked identity continuity |
 | [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTrip` |
 

@@ -10,9 +10,8 @@ import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesse
 import {
   applyVesselPredictions,
   computeVesselPredictionGates,
-  type VesselPredictionGates,
-  type VesselTripCoreProposal,
 } from "domain/vesselOrchestration/updateVesselPredictions";
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
@@ -24,10 +23,8 @@ import type { TripEvents } from "./tripEventTypes";
 
 /**
  * Schedule/lifecycle trips never persist prediction columns; optional keys here
- * are in-memory hints only for {@link buildTripCore} gate math (fed to
- * `updateVesselPredictions`).
+ * are in-memory hints for schedule enrichment only.
  */
-/** TODO: remove this type */
 type TripGateState = ConvexVesselTrip & {
   readonly AtDockDepartCurr?: unknown;
   readonly AtDockArriveNext?: unknown;
@@ -36,17 +33,13 @@ type TripGateState = ConvexVesselTrip & {
   readonly AtSeaDepartNext?: unknown;
 };
 
-export type BuildTripCoreResult = {
-  readonly withFinalSchedule: VesselTripCoreProposal;
-  readonly gates: VesselPredictionGates;
-};
-
 /**
  * Build complete vessel trip from raw location data with all enrichments.
  *
  * Composes {@link buildTripCore} (effective location, base trip, schedule
- * enrichment, prediction **gates**) with {@link applyVesselPredictions} (ML
- * tail: at-dock / at-sea appenders and leave-dock actualization).
+ * enrichment) with {@link computeVesselPredictionGates} and
+ * {@link applyVesselPredictions} (ML tail: at-dock / at-sea appenders and
+ * leave-dock actualization).
  * - Calls `baseTripFromLocation` for base trip
  * - Uses provided events for enrichment decisions
  * - Runs schedule lookups and prediction attempts (event-driven + time-based fallback) via the split above
@@ -80,40 +73,40 @@ export const buildTrip = async (
     existingTrip,
     tripStart,
     events,
-    shouldRunPredictionFallback,
     adapters
+  );
+  const gates = computeVesselPredictionGates(
+    core.withFinalSchedule,
+    events,
+    tripStart,
+    shouldRunPredictionFallback
   );
   return applyVesselPredictions(
     predictionModelAccess,
     core.withFinalSchedule,
-    core.gates
+    gates
   );
 };
 
 /**
- * Schedule enrichment and prediction gates only — no ML attachment. Used by
- * {@link buildTrip} before {@link applyVesselPredictions}.
- *
- * Exported for tests and explicit composition; production callers inject
- * {@link buildTrip} (see `ProcessVesselTripsDeps`).
+ * Schedule enrichment only — no ML gates or ML attachment. Used by {@link buildTrip}
+ * before gates + {@link applyVesselPredictions}; production ticks inject this via
+ * `ProcessVesselTripsDeps`.
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
- * @param shouldRunPredictionFallback - True when this tick should attempt
- * any missing fallback predictions
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @returns Final schedule-shaped trip and gates for the prediction phase
+ * @returns Final schedule-shaped trip proposal for downstream stages
  */
 export const buildTripCore = async (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  shouldRunPredictionFallback: boolean,
   adapters: VesselTripsBuildTripAdapters
-): Promise<BuildTripCoreResult> => {
+): Promise<TripScheduleCoreResult> => {
   const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
   const effectiveLocation = await resolveEffectiveLocation(
     currLocation,
@@ -158,12 +151,6 @@ export const buildTripCore = async (
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
-  const gates = computeVesselPredictionGates(
-    gateTrip,
-    events,
-    tripStart,
-    shouldRunPredictionFallback
-  );
 
   const withFinalSchedule = shouldAppendFinalSchedule
     ? await appendFinalSchedule(gateTrip, existingTrip)
@@ -171,7 +158,6 @@ export const buildTripCore = async (
 
   return {
     withFinalSchedule,
-    gates,
   };
 };
 

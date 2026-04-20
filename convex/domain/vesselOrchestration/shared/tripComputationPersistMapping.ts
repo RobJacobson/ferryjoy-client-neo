@@ -3,8 +3,8 @@
  * boundary shapes. Shared by `persistVesselTripWriteSet` (functions) and
  * timeline projection assembly (domain) so the two cannot drift.
  *
- * Callers that run Convex mutations set gates using persist outcomes in
- * functions; this module stays free of `ActionCtx` and mutation names.
+ * Callers that run Convex mutations apply upsert outcomes in functions; this
+ * module stays free of `ActionCtx` and mutation names.
  */
 
 import type {
@@ -51,7 +51,6 @@ export const completedFactFromComputationOrThrow = (
   if (
     computation.existingTrip === undefined ||
     computation.completedTrip === undefined ||
-    computation.tripCore.gates === undefined ||
     computation.events === undefined
   ) {
     throw new Error(
@@ -65,7 +64,6 @@ export const completedFactFromComputationOrThrow = (
     events: computation.events,
     newTripCore: {
       withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
     },
   };
 };
@@ -76,17 +74,11 @@ export const currentActualMessageFromComputation = (
   if (computation.events === undefined) {
     return null;
   }
-  if (computation.tripCore.gates === undefined) {
-    throw new Error(
-      `[VesselTrips] current actual trip computation for ${computation.vesselAbbrev} is missing tripCore.gates`
-    );
-  }
 
   return {
     events: computation.events,
     tripCore: {
       withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
     },
     vesselAbbrev: computation.vesselAbbrev,
   };
@@ -98,7 +90,13 @@ export const currentPredictedMessageFromComputation = (
   CurrentTripPredictedEventMessage,
   "requiresSuccessfulUpsert"
 > | null => {
-  if (computation.tripCore.gates === undefined) {
+  // Suppress when the merged computation is only the active-trip fallback
+  // (`runUpdateVesselTrips`: no overlay messages), matching the old
+  // `tripCore.gates === undefined` guard without requiring ML gates on Stage C.
+  if (
+    computation.events === undefined &&
+    computation.existingTrip === undefined
+  ) {
     return null;
   }
 
@@ -106,7 +104,6 @@ export const currentPredictedMessageFromComputation = (
     existingTrip: computation.existingTrip,
     tripCore: {
       withFinalSchedule: computation.tripCore.withFinalSchedule,
-      gates: computation.tripCore.gates,
     },
     vesselAbbrev: computation.vesselAbbrev,
   };

@@ -10,9 +10,9 @@ import {
   stripTripPredictionsForStorage,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  BuildTripCoreResult,
   RunUpdateVesselTripsOutput,
   TripEvents,
+  TripScheduleCoreResult,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
@@ -79,7 +79,6 @@ describe("processCompletedTrips", () => {
           events: defaultEvents,
         },
       ],
-      false,
       (vesselAbbrev, phase) => {
         loggedErrors.push({ vesselAbbrev, phase });
       },
@@ -179,7 +178,6 @@ describe("processCompletedTrips", () => {
           events: defaultEvents,
         },
       ],
-      false,
       (vesselAbbrev, phase) => {
         loggedErrors.push({ vesselAbbrev, phase });
       },
@@ -377,9 +375,8 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
     _existingTrip,
     _tripStart,
     _events,
-    _shouldRunPredictionFallback,
     _adapters
-  ): Promise<BuildTripCoreResult> => {
+  ): Promise<TripScheduleCoreResult> => {
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
       throw failure;
@@ -392,11 +389,6 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
 
     return {
       withFinalSchedule: newTrip,
-      gates: {
-        shouldAttemptAtDockPredictions: false,
-        shouldAttemptAtSeaPredictions: false,
-        didJustLeaveDock: false,
-      },
     };
   },
   buildTripAdapters: {

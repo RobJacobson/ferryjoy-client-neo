@@ -11,6 +11,11 @@
 
 **Follow-on:** Per-stage handoff notes (checklists, files, tests) may be added separately; this document stays the **single directional anchor**.
 
+**Stage handoffs:**
+
+- Phase A (policy in `updateVesselPredictions`): [`docs/handoffs/vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md`](../handoffs/vessel-trips-phase-a-prediction-policy-handoff-2026-04-19.md)
+- Phase B (slim `updateVesselTrips`): [`docs/handoffs/vessel-trips-phase-b-trip-layer-slim-handoff-2026-04-19.md`](../handoffs/vessel-trips-phase-b-trip-layer-slim-handoff-2026-04-19.md)
+
 ---
 
 ## 1. Summary

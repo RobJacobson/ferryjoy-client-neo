@@ -5,6 +5,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   computeShouldRunPredictionFallback,
+  computeVesselPredictionGates,
   derivePredictionGatesForComputation,
 } from "../predictionPolicy";
 
@@ -20,7 +21,9 @@ const defaultEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-const makeTrip = (overrides: Partial<ConvexVesselTrip> = {}): ConvexVesselTrip =>
+const makeTrip = (
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip =>
   ({
     VesselAbbrev: "CHE",
     DepartingTerminalAbbrev: "ORI",
@@ -61,13 +64,15 @@ describe("predictionPolicy", () => {
     expect(computeShouldRunPredictionFallback(late)).toBe(false);
   });
 
-  it("derivePredictionGatesForComputation matches tripCore.gates when present", () => {
+  it("derivePredictionGatesForComputation matches computeVesselPredictionGates fixed vector", () => {
     const trip = makeTrip();
-    const gates = {
-      shouldAttemptAtDockPredictions: true,
-      shouldAttemptAtSeaPredictions: false,
-      didJustLeaveDock: false,
-    };
+    const tickStartedAt = new Date("2026-03-13T12:00:03.000Z").getTime();
+    const expected = computeVesselPredictionGates(
+      trip,
+      defaultEvents,
+      false,
+      computeShouldRunPredictionFallback(tickStartedAt)
+    );
     const computation: TripComputation = {
       vesselAbbrev: trip.VesselAbbrev,
       branch: "current",
@@ -75,15 +80,13 @@ describe("predictionPolicy", () => {
       activeTrip: trip,
       tripCore: {
         withFinalSchedule: trip,
-        gates,
       },
     };
-    const tickStartedAt = new Date("2026-03-13T12:00:03.000Z").getTime();
     const derived = derivePredictionGatesForComputation(
       computation,
       tickStartedAt
     );
-    expect(derived).toEqual(gates);
+    expect(derived).toEqual(expected);
   });
 
   it("returns no-op gates for current branch when events are undefined", () => {

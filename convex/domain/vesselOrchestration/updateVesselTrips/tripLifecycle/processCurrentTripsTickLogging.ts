@@ -3,16 +3,16 @@
  * Keeps the lifecycle file focused on control flow.
  */
 
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { BuildTripCoreResult } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripBuildResult = {
   currLocation: ConvexVesselLocation;
   existingTrip?: ConvexVesselTrip;
   events: TripEvents;
-  tripCore: BuildTripCoreResult;
+  tripCore: TripScheduleCoreResult;
 };
 
 /**

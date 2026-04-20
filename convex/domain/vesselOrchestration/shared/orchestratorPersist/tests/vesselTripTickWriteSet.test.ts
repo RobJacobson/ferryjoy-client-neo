@@ -6,8 +6,8 @@ import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
-  BuildTripCoreResult,
   PendingLeaveDockEffect,
+  TripScheduleCoreResult,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
@@ -70,13 +70,8 @@ const makeTrip = (
 
 const coreFromTrip = (
   trip: ConvexVesselTripWithPredictions
-): BuildTripCoreResult => ({
+): TripScheduleCoreResult => ({
   withFinalSchedule: trip,
-  gates: {
-    shouldAttemptAtDockPredictions: false,
-    shouldAttemptAtSeaPredictions: false,
-    didJustLeaveDock: false,
-  },
 });
 
 const emptyCurrent = (): ActiveTripsBranch => ({
