@@ -1,21 +1,21 @@
 export type {
   DockedScheduledSegmentSource,
   ScheduledSegmentLookup,
-} from "./continuity";
+} from "./scheduleContinuity";
 export {
   DEPART_NEXT_ML_PREDICTION_TYPES,
   resolveDepartNextLegContext,
-} from "./departNextActualization";
+} from "./eventsPredicted";
 export {
   actualDepartMsForLeaveDockEffect,
   buildTripsComputeStorageRows,
+  stripTripPredictionsForStorage,
   buildVesselTripTickWriteSetFromBundle,
 } from "./orchestratorPersist";
 export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
 export type {
   ScheduleSnapshot,
 } from "./scheduleSnapshot/scheduleSnapshotTypes";
-export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {
   mergeTickEventWrites,
   type TickEventWrites,

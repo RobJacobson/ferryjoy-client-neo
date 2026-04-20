@@ -261,7 +261,7 @@ branches, equality, and strip-for-storage. ML overlay for the orchestrator tick 
 - `tripDerivation.ts` — Shared derived inputs for detection and base trip build.
 - `physicalDockSeaDebounce.ts` — Leave/arrive debounce.
 - **`../updateVesselPredictions/appendPredictions.ts`** / **`../updateVesselPredictions/applyVesselPredictions.ts`** — **updateVesselPredictions** ML tail.
-- **`../updateVesselPredictions/stripTripPredictionsForStorage.ts`** — Strip blobs before DB writes.
+- **`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`** — Strip blobs before DB writes.
 - `tripEquality.ts` — Storage vs overlay equality; `tripWriteSuppressionFlags`.
 
 Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters.ts`**.
@@ -290,7 +290,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelineTickProjectionInput`); tick merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared depart-next / continuity contracts live under `domain/vesselOrchestration/shared`.
+The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelineTickProjectionInput`); tick merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
 
 ## `functions/vesselTrips/read/` (query-time enrichment)
 

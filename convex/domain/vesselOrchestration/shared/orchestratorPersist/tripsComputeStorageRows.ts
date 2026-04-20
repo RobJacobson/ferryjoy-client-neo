@@ -8,7 +8,7 @@ import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "../stripTripPredictionsForStorage";
+import { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 
 type TripsComputeStorageRows = {
   handoffMutations: Array<{

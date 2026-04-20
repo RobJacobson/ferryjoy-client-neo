@@ -5,3 +5,4 @@ export {
 export {
   buildVesselTripTickWriteSetFromBundle,
 } from "./vesselTripTickWriteSet";
+export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";

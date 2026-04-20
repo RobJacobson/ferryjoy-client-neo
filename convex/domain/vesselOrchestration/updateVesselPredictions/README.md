@@ -11,7 +11,7 @@ leave-dock actualization for one tick. On the **orchestrator** path this runs in
 - **Phase selection:** [`./predictionPolicy.ts`](./predictionPolicy.ts) — simple helpers that decide which prediction family applies to the current trip phase.
 - **Composer (tests / non-orchestrator):** [`../updateVesselTrips/tripLifecycle/buildTrip.ts`](../updateVesselTrips/tripLifecycle/buildTrip.ts) — `buildTrip` calls `buildTripCore` and then applies predictions using the same phase helpers as Stage D.
 - **Prediction specs / `computePredictions`:** [`./appendPredictions.ts`](./appendPredictions.ts) — do not duplicate.
-- **Strip for DB:** [`../shared/stripTripPredictionsForStorage.ts`](../shared/stripTripPredictionsForStorage.ts) — used from lifecycle mutations where persistence must omit ML blobs.
+- **Strip for DB:** [`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`](../shared/orchestratorPersist/stripTripPredictionsForStorage.ts) — used from lifecycle mutations where persistence must omit ML blobs.
 
 ## Handoff types
 
