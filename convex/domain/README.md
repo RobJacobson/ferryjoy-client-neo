@@ -25,7 +25,7 @@ Vessel sailing-day timeline logic is split by pipeline:
 - **`timelineReseed/`** — Same-day reseed: schedule seeding, history hydration, live reconciliation (`buildReseedTimelineSlice` and related helpers).
 - **`timelineRows/`** — Shared row builders and projection helpers used by backbone, reseed, and mutations.
 - **`scheduledTrips/`** — Schedule transformation for `ConvexScheduledTrip` rows: direct/indirect classification, estimates, official crossing-time policy, prefetch row policies (`applyPrefetchSchedulePolicies`, `buildInitialScheduledTripRow`), and the `runScheduleTransformPipeline` entrypoint (used by scheduled-trips sync, WSF adapter ingress, and timeline reseed).
-- **`vesselOrchestration/`** — **`updateVesselTrips/`** (tick `computeVesselTripsBundle`, **continuity**, read merges, `vesselTripsBuildTripAdapters`, **`tripLifecycle/`**); `updateTimeline/`; `updateVesselPredictions/`; eligibility; docs. Live location bulk upsert runs in `functions/vesselOrchestrator` (`actions.ts`). Post-fetch tick orchestration: `vesselOrchestratorConvexBindings`, invoked by `updateVesselOrchestrator`. Map: [`vesselOrchestration/architecture.md`](vesselOrchestration/architecture.md).
+- **`vesselOrchestration/`** — **`updateVesselTrips/`** (pure trip-update pipeline, **continuity**, `vesselTripsBuildTripAdapters`, **`tripLifecycle/`** helpers); `updateTimeline/`; `updateVesselPredictions/`; eligibility; docs. Live location bulk upsert runs in `functions/vesselOrchestrator` (`actions.ts`). Post-fetch tick orchestration is being untangled incrementally. Map: [`vesselOrchestration/architecture.md`](vesselOrchestration/architecture.md).
 
 Import these modules directly; there is no `vesselTimeline` domain barrel.
 

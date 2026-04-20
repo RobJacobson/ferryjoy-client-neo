@@ -1,34 +1,12 @@
 /**
- * Public entry for **updateVesselTrips**: trip-tick pipeline, lifecycle result
- * types, and continuity-facing domain contracts needed to run one orchestrator
- * trip pass.
+ * Public entry for **updateVesselTrips**.
  *
- * **Imports:** Supported symbols live here only. Do not import other
- * `updateVesselTrips/...` leaf paths from outside this folder (see
- * `docs/engineering/imports-and-module-boundaries-memo.md`).
- *
- * See `README.md` and `../architecture.md` §10.
+ * The supported public surface is intentionally small: one pure runner and its
+ * input/output contract.
  */
 
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
-  TripComputation,
-  TripScheduleCoreResult,
-  VesselTripScheduleContext,
 } from "./contracts";
-export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
-export {
-  computeVesselTripsBundle,
-  type ProcessVesselTripsDeps,
-} from "./processTick/processVesselTrips";
-export {
-  computeUpdateVesselTripsTickArtifacts,
-  runUpdateVesselTrips,
-} from "./runUpdateVesselTrips";
-export type { TripEvents } from "./tripLifecycle/tripEventTypes";
-export type {
-  ActiveTripsBranch,
-  PendingLeaveDockEffect,
-  VesselTripsComputeBundle,
-} from "./tripLifecycle/vesselTripsComputeBundle";
+export { runUpdateVesselTrips } from "./runUpdateVesselTrips";

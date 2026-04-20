@@ -1,39 +1,40 @@
-/**
- * Runtime-backed trip adapter builders for vessel tick processing.
- *
- * This module keeps lifecycle behavior in domain while allowing Convex runtime
- * ownership to stay in the functions layer via injected lookup callbacks.
- */
-
+import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
+import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
+import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
+import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
+import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
-import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
-/**
- * Build schedule and effective-location adapters for `buildTripCore`.
- *
- * @param lookup - Schedule segment lookup callbacks owned by functions-layer wiring
- * @returns Adapter bag consumed by vessel trip lifecycle helpers
- */
-export const createBuildTripRuntimeAdapters = (
-  lookup: ScheduledSegmentLookup
-): VesselTripsBuildTripAdapters => ({
-  resolveEffectiveLocation: buildResolveEffectiveLocation(lookup),
-  appendFinalSchedule: buildAppendFinalSchedule(lookup),
-});
+export type TripUpdateRuntime = {
+  buildCompletedTrip: typeof buildCompletedTrip;
+  buildTripCore: typeof buildTripCore;
+  buildTripAdapters: VesselTripsBuildTripAdapters;
+  detectTripEvents: typeof detectTripEvents;
+};
 
-/**
- * Build schedule enrichment for one trip proposal using injected lookups.
- *
- * @param lookup - Schedule segment lookup callbacks
- * @returns Schedule enricher used by lifecycle trip building
- */
+export const createTripUpdateRuntime = (
+  input: Pick<RunUpdateVesselTripsInput, "scheduleContext">
+): TripUpdateRuntime => {
+  const lookup = createScheduledSegmentLookupFromSnapshot(input.scheduleContext);
+
+  return {
+    buildCompletedTrip,
+    buildTripCore,
+    buildTripAdapters: {
+      resolveEffectiveLocation: buildResolveEffectiveLocation(lookup),
+      appendFinalSchedule: buildAppendFinalSchedule(lookup),
+    },
+    detectTripEvents,
+  };
+};
+
 export const buildAppendFinalSchedule =
-  (lookup: ScheduledSegmentLookup) =>
+  (lookup: ReturnType<typeof createScheduledSegmentLookupFromSnapshot>) =>
   async (
     baseTrip: ConvexVesselTrip,
     existingTrip: ConvexVesselTrip | undefined
@@ -90,14 +91,8 @@ export const buildAppendFinalSchedule =
     };
   };
 
-/**
- * Build effective-location resolution for docked locations.
- *
- * @param lookup - Schedule segment lookup callbacks
- * @returns Effective location resolver used by lifecycle trip building
- */
 export const buildResolveEffectiveLocation =
-  (lookup: ScheduledSegmentLookup) =>
+  (lookup: ReturnType<typeof createScheduledSegmentLookupFromSnapshot>) =>
   async (
     location: ConvexVesselLocation,
     existingTrip: ConvexVesselTrip | undefined
@@ -124,12 +119,6 @@ export const buildResolveEffectiveLocation =
     return result.effectiveLocation;
   };
 
-/**
- * Emit warnings when docked identity resolution overrides feed identity.
- *
- * @param args - Inputs and computed effective location context
- * @returns Nothing; writes warnings for observability
- */
 const logDockedIdentityResolution = ({
   location,
   existingTrip,

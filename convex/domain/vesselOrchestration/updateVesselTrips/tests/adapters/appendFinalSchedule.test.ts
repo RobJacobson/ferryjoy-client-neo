@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
-import { buildAppendFinalSchedule } from "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters";
+import { buildAppendFinalSchedule } from "domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
