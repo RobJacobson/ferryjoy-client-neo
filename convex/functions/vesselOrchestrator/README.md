@@ -12,8 +12,7 @@ convex/functions -> convex/adapters -> convex/domain -> convex/functions/persist
 ```
 
 In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrator`):
-it loads the read model, records one **`tickStartedAt`** (shared by trips, predictions,
-and timeline), runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
+it loads the read model, runs one WSF fetch, **`vesselLocation.mutations.bulkUpsert`**
 (live snapshot), **`getScheduleSnapshotForTick`** (bounded schedule snapshot), then
 **`updateVesselTrips`**, **`updateVesselPredictions`**, and **`updateVesselTimeline`**
 in sequence. [`utils.ts`](./utils.ts) supplies trip mutation bindings for **`persistVesselTripWriteSet`**
@@ -30,7 +29,7 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 1. **`vesselLocation` bulk upsert** — runs **first** in `actions.ts` (live `vesselLocations`
    snapshot for this tick).
 2. **`updateVesselTrips`** — `runUpdateVesselTrips` → function-layer `persistVesselTripWriteSet`
-   (trip truth is owned by the domain DTOs; persistence is a private translator).
+   (trip truth is the domain output `{ activeTrips, completedTrips }`; persistence consumes the internal bundle privately).
 3. **`updateVesselPredictions`** — `runUpdateVesselPredictions`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`updateVesselTimeline`** — `runUpdateVesselTimeline` (input built with
@@ -55,7 +54,7 @@ The orchestrator runs periodically, roughly every 15 seconds. **`updateVesselOrc
 runs **sequentially**: after one shared WSF batch and trip dependency wiring, it
 persists **locations first**, then applies trip lifecycle writes, then predictions,
 then timeline rows. This keeps the expensive external fetch centralized while the
-domain trip pipeline (`processVesselTrips` via `computeVesselTripsWithClock`) and
+domain trip pipeline (`processVesselTrips` via `runUpdateVesselTrips` / `computeVesselTripsBundle`) and
 timeline assembly stay explicit.
 
 ### Operational concerns (Phase 1)
@@ -127,10 +126,8 @@ Responsibilities:
 Domain pipeline (same tick semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
-- `computeShouldRunPredictionFallback(tickStartedAt)` (from `domain/vesselOrchestration/updateVesselTrips`)
-  applied inside the domain orchestrator when building `processVesselTrips` options
 - lifecycle mutations always precede timeline projection for the tick
-- pass the same tick’s active-trip list into `computeVesselTripsWithClock` so the trip
+- pass the same tick’s active-trip list into `runUpdateVesselTrips` so the trip
   branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:
@@ -178,21 +175,13 @@ This table can therefore contain both:
 
 Purpose:
 
-- maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state;
-  ML boundary predictions live in `eventsPredicted`. The orchestrator passes
-  **storage-native** active trips into `processVesselTrips` (joined predictions are
-  not required for lifecycle strip/compare; overlay assembly uses normalized
-  prediction fields from the built trip vs existing when present). Public queries
-  still **enrich** trips with predictions for API parity. Post-upsert depart-next backfill writes
-  **actuals** onto the prior leg’s `eventsPredicted` rows, not onto stored trip
-  rows. Timeline projection runs in **`updateVesselTimeline`** (`vesselOrchestratorConvexBindings.ts`)
-  after trip apply for the tick.
+- maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state
+- produce the authoritative per-tick trip arrays consumed by downstream phases
 
-This remains the richer state machine responsible for trip lifecycle tracking,
-ML inference (in memory, then projected), and event-driven trip transitions. Inside that module, event
-detection and base-trip construction now share one normalized derivation layer
-so carry-forward fields, `Key`, and `SailingDay` stay consistent across the
-pipeline.
+Trip lifecycle is now intentionally narrower than predictions and timeline. The
+trip phase owns lifecycle transitions and the resulting trip rows; predictions
+run afterward from those rows every tick, and timeline assembles its own writes
+from the persisted/apply results plus the prediction outputs.
 
 The active-trip lifecycle now follows the vessel's physical state more directly:
 

@@ -13,18 +13,11 @@ import type {
   CurrentTripPredictedEventMessage,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
-import {
-  completedFactFromComputationOrThrow,
-  currentActualMessageFromComputation,
-  currentPredictedMessageFromComputation,
-  isCompletedTripBranchComputation,
-  isCurrentTripBranchComputation,
-  isPersistedCurrentTripComputation,
-  persistedActiveTripKey,
-  shouldPersistLeaveDockIntent,
-} from "domain/vesselOrchestration/shared/tripComputationPersistMapping";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
-import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
+import type {
+  RunUpdateVesselTripsOutput,
+  VesselTripsComputeBundle,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type VesselTripUpsertBatchResult = {
@@ -71,9 +64,10 @@ type PersistableTripsBoundary = {
  */
 export const persistVesselTripWriteSet = async (
   trips: RunUpdateVesselTripsOutput,
+  tripsCompute: VesselTripsComputeBundle,
   mutations: VesselTripTableMutations
 ): Promise<VesselTripPersistResult> => {
-  const persistable = translateTripsForPersistence(trips);
+  const persistable = translateTripsForPersistence(trips, tripsCompute);
 
   const settled = await Promise.allSettled(
     persistable.completedFacts.map((fact) =>
@@ -131,74 +125,47 @@ export const persistVesselTripWriteSet = async (
 };
 
 const translateTripsForPersistence = (
-  trips: RunUpdateVesselTripsOutput
+  trips: RunUpdateVesselTripsOutput,
+  tripsCompute: VesselTripsComputeBundle
 ): PersistableTripsBoundary => {
-  const activeTripKeys = new Set(
-    trips.activeTrips.map((trip) => persistedActiveTripKey(trip))
-  );
-  const currentTripComputations = trips.tripComputations.filter(
-    isCurrentTripBranchComputation
-  );
-  const completedTripComputations = trips.tripComputations.filter(
-    isCompletedTripBranchComputation
+  const persistedVessels = new Set(
+    trips.activeTrips.map((trip) => trip.VesselAbbrev)
   );
 
-  if (completedTripComputations.length !== trips.completedTrips.length) {
+  if (tripsCompute.completedHandoffs.length !== trips.completedTrips.length) {
     throw new Error(
-      "[VesselTrips] completedTrips length mismatch with completed trip computations"
+      "[VesselTrips] completedTrips length mismatch with completed handoffs"
     );
   }
 
   return {
-    completedFacts: completedTripComputations.map(
-      completedFactFromComputationOrThrow
-    ),
+    completedFacts: [...tripsCompute.completedHandoffs],
     currentBranch: {
-      activeTripRows: currentTripComputations.flatMap((computation) =>
-        isPersistedCurrentTripComputation(computation, activeTripKeys)
-          ? [stripTripPredictionsForStorage(computation.activeTrip)]
-          : []
+      activeTripRows: tripsCompute.current.activeUpserts.map(
+        stripTripPredictionsForStorage
       ),
-      pendingActualMessages: currentTripComputations.flatMap((computation) => {
-        const actualMessage = currentActualMessageFromComputation(computation);
-        return actualMessage === null
-          ? []
-          : [
-              {
-                ...actualMessage,
-                requiresSuccessfulUpsert: isPersistedCurrentTripComputation(
-                  computation,
-                  activeTripKeys
-                ),
-              },
-            ];
-      }),
-      pendingPredictedMessages: currentTripComputations.flatMap(
-        (computation) => {
-          const predictedMessage =
-            currentPredictedMessageFromComputation(computation);
-          return predictedMessage === null
-            ? []
-            : [
+      pendingActualMessages: tripsCompute.current.pendingActualMessages.map(
+        (message) => ({
+          ...message,
+          requiresSuccessfulUpsert: persistedVessels.has(message.vesselAbbrev),
+        })
+      ),
+      pendingPredictedMessages:
+        tripsCompute.current.pendingPredictedMessages.map((message) => ({
+          ...message,
+          requiresSuccessfulUpsert: persistedVessels.has(message.vesselAbbrev),
+        })),
+      leaveDockIntents: tripsCompute.current.pendingLeaveDockEffects.flatMap(
+        (effect) =>
+          persistedVessels.has(effect.vesselAbbrev) &&
+          effect.trip.LeftDockActual !== undefined
+            ? [
                 {
-                  ...predictedMessage,
-                  requiresSuccessfulUpsert: isPersistedCurrentTripComputation(
-                    computation,
-                    activeTripKeys
-                  ),
+                  vesselAbbrev: effect.vesselAbbrev,
+                  actualDepartMs: effect.trip.LeftDockActual,
                 },
-              ];
-        }
-      ),
-      leaveDockIntents: currentTripComputations.flatMap((computation) =>
-        shouldPersistLeaveDockIntent(computation, activeTripKeys)
-          ? [
-              {
-                vesselAbbrev: computation.vesselAbbrev,
-                actualDepartMs: computation.activeTrip.LeftDockActual,
-              },
-            ]
-          : []
+              ]
+            : []
       ),
     },
   };

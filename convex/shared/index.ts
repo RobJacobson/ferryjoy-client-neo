@@ -3,6 +3,7 @@
  */
 
 export * from "./convertDates";
+export * from "./deepEqual";
 export * from "./durationUtils";
 export * from "./keys";
 export * from "./stripConvexMeta";

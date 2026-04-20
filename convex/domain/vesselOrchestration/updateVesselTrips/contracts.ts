@@ -4,30 +4,16 @@
 
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
-import type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "./tripLifecycle/tripEventTypes";
 
 /**
- * Canonical normalized location row consumed by the trips pipeline.
+ * Schedule- and lifecycle-shaped trip proposal from {@link buildTripCore} — no
+ * ML gate fields (prediction policy lives in `updateVesselPredictions`).
  */
-export type VesselLocationRow = ConvexVesselLocation;
-
-/**
- * Persistable trip row emitted by the trips pipeline.
- */
-export type VesselTripRow = ConvexVesselTrip;
-
-/**
- * Current preloaded active-trip rows accepted during the Stage A transition.
- */
-export type ExistingActiveTripRow =
-  | ConvexVesselTrip
-  | ConvexVesselTripWithPredictions;
+export type TripScheduleCoreResult = {
+  readonly withFinalSchedule: ConvexVesselTrip;
+};
 
 /**
  * Stage A keeps this shape intentionally small so later stages can preserve the
@@ -38,16 +24,14 @@ export type TripComputation = {
   branch: "completed" | "current";
   /**
    * Present when current internals carry the event set through to the public
-   * wrapper. Completed-trip handoffs do not retain events in the current bundle.
+   * wrapper. Completed-branch rows include the boundary tick events (same as
+   * `CompletedTripBoundaryFact.events`) for prediction gate derivation.
    */
   events?: TripEvents;
-  existingTrip?: ExistingActiveTripRow;
-  completedTrip?: ConvexVesselTripWithML;
-  activeTrip?: ConvexVesselTripWithPredictions;
-  tripCore: {
-    withFinalSchedule: BuildTripCoreResult["withFinalSchedule"];
-    gates?: BuildTripCoreResult["gates"];
-  };
+  existingTrip?: ConvexVesselTrip;
+  completedTrip?: ConvexVesselTrip;
+  activeTrip?: ConvexVesselTrip;
+  tripCore: TripScheduleCoreResult;
 };
 
 /**
@@ -57,14 +41,12 @@ export type TripComputation = {
 export type VesselTripScheduleContext = ScheduleSnapshot;
 
 export type RunUpdateVesselTripsInput = {
-  tickStartedAt: number;
-  vesselLocations: ReadonlyArray<VesselLocationRow>;
-  existingActiveTrips: ReadonlyArray<ExistingActiveTripRow>;
+  vesselLocations: ReadonlyArray<ConvexVesselLocation>;
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   scheduleContext: VesselTripScheduleContext;
 };
 
 export type RunUpdateVesselTripsOutput = {
-  activeTrips: VesselTripRow[];
-  completedTrips: VesselTripRow[];
-  tripComputations: TripComputation[];
+  activeTrips: ConvexVesselTrip[];
+  completedTrips: ConvexVesselTrip[];
 };

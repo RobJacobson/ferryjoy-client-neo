@@ -1,104 +1,33 @@
 /**
- * Build complete vessel-trip state for one live location tick.
- *
- * **O2 / O4:** {@link buildTripCore} is exported separately from the ML tail
- * (`applyVesselPredictions`). The orchestrator injects {@link buildTripCore} via
- * `ProcessVesselTripsDeps` / `createDefaultProcessVesselTripsDeps`; {@link buildTrip}
- * remains the composer for tests and non-orchestrator callers.
+ * Schedule-half trip build for one live location tick: effective location, base
+ * trip, schedule enrichment. ML runs in **updateVesselPredictions**; production
+ * injects {@link buildTripCore} via `ProcessVesselTripsDeps`.
  */
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import {
-  applyVesselPredictions,
-  type VesselPredictionGates,
-  type VesselTripCoreProposal,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
-export type BuildTripCoreResult = {
-  readonly withFinalSchedule: VesselTripCoreProposal;
-  readonly gates: VesselPredictionGates;
-};
-
 /**
- * Build complete vessel trip from raw location data with all enrichments.
- *
- * Composes {@link buildTripCore} (effective location, base trip, schedule
- * enrichment, prediction **gates**) with {@link applyVesselPredictions} (ML
- * tail: at-dock / at-sea appenders and leave-dock actualization).
- * - Calls `baseTripFromLocation` for base trip
- * - Uses provided events for enrichment decisions
- * - Runs schedule lookups and prediction attempts (event-driven + time-based fallback) via the split above
- * - Returns fully enriched trip ready for persistence
+ * Schedule enrichment only — no ML gates or ML attachment. Production ticks
+ * inject this via `ProcessVesselTripsDeps`.
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
- * @param shouldRunPredictionFallback - True when this tick should attempt
- * any missing fallback predictions
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @param predictionModelAccess - Production ML model reads (functions-layer `runQuery`)
- * @returns Fully enriched vessel trip
- *
- * **Production entry:** ticks wire this function through `ProcessVesselTripsDeps`;
- * use {@link buildTripCore} only when testing or composing the schedule half
- * without ML.
- */
-export const buildTrip = async (
-  currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
-  tripStart: boolean,
-  events: TripEvents,
-  shouldRunPredictionFallback: boolean,
-  adapters: VesselTripsBuildTripAdapters,
-  predictionModelAccess: VesselTripPredictionModelAccess
-): Promise<ConvexVesselTripWithML> => {
-  const core = await buildTripCore(
-    currLocation,
-    existingTrip,
-    tripStart,
-    events,
-    shouldRunPredictionFallback,
-    adapters
-  );
-  return applyVesselPredictions(
-    predictionModelAccess,
-    core.withFinalSchedule,
-    core.gates
-  );
-};
-
-/**
- * Schedule enrichment and prediction gates only — no ML attachment. Used by
- * {@link buildTrip} before {@link applyVesselPredictions}.
- *
- * Exported for tests and explicit composition; production callers inject
- * {@link buildTrip} (see `ProcessVesselTripsDeps`).
- *
- * @param currLocation - Latest vessel location from REST/API
- * @param existingTrip - Previous trip for event detection (undefined for new trips)
- * @param tripStart - True for new trip (boundary or first), false for continuing
- * @param events - Detected trip events from detectTripEvents
- * @param shouldRunPredictionFallback - True when this tick should attempt
- * any missing fallback predictions
- * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @returns Final schedule-shaped trip and gates for the prediction phase
+ * @returns Final schedule-shaped trip proposal for downstream stages
  */
 export const buildTripCore = async (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  shouldRunPredictionFallback: boolean,
   adapters: VesselTripsBuildTripAdapters
-): Promise<BuildTripCoreResult> => {
+): Promise<TripScheduleCoreResult> => {
   const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
   const effectiveLocation = await resolveEffectiveLocation(
     currLocation,
@@ -138,58 +67,18 @@ export const buildTripCore = async (
       ? clearDerivedStateOnScheduleKeyChange(withArriveDest)
       : withArriveDest;
 
+  const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
+
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
-  const canonicalStartAndOriginReady =
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.StartTime ??
-        withScheduleKeyChangeClearedDerivedState.TripStart
-    ) &&
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.ArrivedCurrActual ??
-        withScheduleKeyChangeClearedDerivedState.AtDockActual
-    );
-  // At-dock predictions belong only to real dock occupancy for a started trip.
-  // This avoids generating model output for first-seen placeholder rows that
-  // have not yet observed a trustworthy origin-arrival boundary.
-  const shouldAttemptAtDockPredictions =
-    withScheduleKeyChangeClearedDerivedState.AtDock &&
-    !withScheduleKeyChangeClearedDerivedState.LeftDock &&
-    canonicalStartAndOriginReady &&
-    (tripStart || events.scheduleKeyChanged || shouldRunPredictionFallback) &&
-    (!withScheduleKeyChangeClearedDerivedState.AtDockDepartCurr ||
-      !withScheduleKeyChangeClearedDerivedState.AtDockArriveNext ||
-      !withScheduleKeyChangeClearedDerivedState.AtDockDepartNext);
-  // At-sea predictions are allowed once a real departure exists. Event ticks
-  // trigger them immediately, and the short fallback window gives the system a
-  // bounded retry path if that first prediction attempt fails.
-  const shouldAttemptAtSeaPredictions =
-    !withScheduleKeyChangeClearedDerivedState.AtDock &&
-    Boolean(
-      withScheduleKeyChangeClearedDerivedState.LeftDockActual ??
-        withScheduleKeyChangeClearedDerivedState.LeftDock
-    ) &&
-    (events.didJustLeaveDock ||
-      events.scheduleKeyChanged ||
-      shouldRunPredictionFallback) &&
-    (!withScheduleKeyChangeClearedDerivedState.AtSeaArriveNext ||
-      !withScheduleKeyChangeClearedDerivedState.AtSeaDepartNext);
 
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(
-        withScheduleKeyChangeClearedDerivedState,
-        existingTrip
-      )
-    : withScheduleKeyChangeClearedDerivedState;
+    ? await appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
+    : tripForScheduleEnrichment;
 
   return {
     withFinalSchedule,
-    gates: {
-      shouldAttemptAtDockPredictions,
-      shouldAttemptAtSeaPredictions,
-      didJustLeaveDock: events.didJustLeaveDock,
-    },
   };
 };
 
@@ -206,8 +95,8 @@ export const buildTripCore = async (
  * @returns True when schedule attachment was present and is now absent
  */
 const didLoseScheduleAttachment = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
-  nextTrip: ConvexVesselTripWithPredictions
+  existingTrip: ConvexVesselTrip | undefined,
+  nextTrip: ConvexVesselTrip
 ): boolean =>
   existingTrip?.ScheduleKey !== undefined && nextTrip.ScheduleKey === undefined;
 
@@ -248,16 +137,10 @@ const shouldClearDerivedStateOnScheduleTransition = (
  * @returns Trip with carried schedule-derived fields removed
  */
 const clearDerivedStateOnScheduleKeyChange = (
-  trip: ConvexVesselTripWithPredictions
-): ConvexVesselTripWithPredictions => ({
+  trip: ConvexVesselTrip
+): ConvexVesselTrip => ({
   ...trip,
-  // Any carried next-leg snapshot or schedule-bound prediction state belongs
-  // to the previous schedule attachment and must not survive detachment.
+  // Next-leg schedule snapshot belongs to the previous attachment only.
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
 });

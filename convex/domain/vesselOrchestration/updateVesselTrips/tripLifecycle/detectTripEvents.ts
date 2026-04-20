@@ -3,7 +3,7 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveDebouncedPhysicalBoundaries } from "./physicalDockSeaDebounce";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 import type { TripEvents } from "./tripEventTypes";
@@ -19,7 +19,7 @@ import type { TripEvents } from "./tripEventTypes";
  * @returns Object with all event flags
  */
 export const detectTripEvents = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): TripEvents => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);

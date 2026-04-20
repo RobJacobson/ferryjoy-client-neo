@@ -1,25 +1,23 @@
 /**
  * Orchestrator concern **updateVesselPredictions**: ML attachment,
  * upsert decisions for **`vesselTripPredictions`**, and strip helpers
- * for one proposed trip per tick. Implementation modules live in this folder;
- * import from here for a stable concern boundary.
+ * for trip rows processed on each tick. Implementation modules live in this
+ * folder; import from here for a stable concern boundary.
  *
  * Stage A canonical contracts live in `contracts.ts`. **`runUpdateVesselPredictions`**
- * is the Stage D plain-data runner: it consumes **`tripComputations`** plus a
- * functions-preloaded **`predictionContext`** and returns **`predictedTripComputations`**
- * for timeline.
+ * is the Stage D plain-data runner: it consumes trip rows plus a
+ * functions-preloaded **`predictionContext`** and returns predicted trip
+ * handoffs for timeline/persistence assembly.
  */
 
 export {
   applyVesselPredictions,
-  type VesselPredictionGates,
   type VesselTripCoreProposal,
 } from "./applyVesselPredictions";
 export type {
   PredictedTripComputation,
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,
-  TripPredictionSet,
   VesselPredictionContext,
   VesselTripPredictionRow,
 } from "./contracts";
@@ -29,6 +27,11 @@ export {
   normalizeConvexPredictionForOverlayEquality,
   overlayPredictionProjectionsEqual,
 } from "./predictionCompare";
+export {
+  predictionModelTypesForTrip,
+  shouldRunAtDockPredictions,
+  shouldRunAtSeaPredictions,
+} from "./predictionPolicy";
 export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
 export {
   decideVesselTripPredictionUpsert,

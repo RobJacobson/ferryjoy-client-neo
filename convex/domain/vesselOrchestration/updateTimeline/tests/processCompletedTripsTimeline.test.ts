@@ -10,9 +10,9 @@ import {
   stripTripPredictionsForStorage,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  BuildTripCoreResult,
   RunUpdateVesselTripsOutput,
   TripEvents,
+  TripScheduleCoreResult,
   VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
@@ -79,7 +79,6 @@ describe("processCompletedTrips", () => {
           events: defaultEvents,
         },
       ],
-      false,
       (vesselAbbrev, phase) => {
         loggedErrors.push({ vesselAbbrev, phase });
       },
@@ -98,15 +97,24 @@ describe("processCompletedTrips", () => {
         pendingLeaveDockEffects: [],
       },
     };
-    const tripsOutput = emptyTripsOutput(completedHandoffs);
+    const { tripsOutput, tripComputations } = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
       tripsOutput,
+      {
+        completedHandoffs,
+        current: {
+          activeUpserts: [],
+          pendingActualMessages: [],
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [],
+        },
+      },
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
     const predictionOutput = await runUpdateVesselPredictions({
-      tickStartedAt: 0,
-      tripComputations: tripsOutput.tripComputations,
+      activeTrips: tripsOutput.activeTrips,
+      completedHandoffs,
       predictionContext: {},
     });
     if (predictionOutput.vesselTripPredictions.length > 0) {
@@ -117,6 +125,7 @@ describe("processCompletedTrips", () => {
     }
     const timelineComputations = buildTimelineTripComputationsForRun(
       tripsOutput,
+      tripComputations,
       applyTripResult
     );
     const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
@@ -179,7 +188,6 @@ describe("processCompletedTrips", () => {
           events: defaultEvents,
         },
       ],
-      false,
       (vesselAbbrev, phase) => {
         loggedErrors.push({ vesselAbbrev, phase });
       },
@@ -225,15 +233,24 @@ describe("processCompletedTrips", () => {
         pendingLeaveDockEffects: [],
       },
     };
-    const tripsOutput = emptyTripsOutput(completedHandoffs);
+    const { tripsOutput, tripComputations } = emptyTripsOutput(completedHandoffs);
     const applyTripResult = await persistVesselTripWriteSet(
       tripsOutput,
+      {
+        completedHandoffs,
+        current: {
+          activeUpserts: [],
+          pendingActualMessages: [],
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [],
+        },
+      },
       vesselTripTableMutationsFromTestCtx(ctx)
     );
 
     const predictionOutput = await runUpdateVesselPredictions({
-      tickStartedAt: 0,
-      tripComputations: tripsOutput.tripComputations,
+      activeTrips: tripsOutput.activeTrips,
+      completedHandoffs,
       predictionContext: {},
     });
     if (predictionOutput.vesselTripPredictions.length > 0) {
@@ -244,6 +261,7 @@ describe("processCompletedTrips", () => {
     }
     const timelineComputations = buildTimelineTripComputationsForRun(
       tripsOutput,
+      tripComputations,
       applyTripResult
     );
     const enriched = mergePredictedComputationsIntoTimelineProjectionAssembly(
@@ -277,16 +295,30 @@ describe("processCompletedTrips", () => {
  */
 const emptyTripsOutput = (
   completedHandoffs: VesselTripsComputeBundle["completedHandoffs"]
-): RunUpdateVesselTripsOutput => ({
-  activeTrips: completedHandoffs.map((handoff) =>
-    stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
-  ),
-  completedTrips: completedHandoffs.map((handoff) =>
-    stripTripPredictionsForStorage(handoff.tripToComplete)
-  ),
+): {
+  tripsOutput: RunUpdateVesselTripsOutput;
+  tripComputations: Array<{
+    vesselAbbrev: string;
+    branch: "completed";
+    events: TripEvents;
+    existingTrip: ConvexVesselTripWithPredictions;
+    completedTrip: ConvexVesselTripWithPredictions;
+    activeTrip: ConvexVesselTripWithPredictions;
+    tripCore: TripScheduleCoreResult;
+  }>;
+} => ({
+  tripsOutput: {
+    activeTrips: completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+    ),
+    completedTrips: completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.tripToComplete)
+    ),
+  },
   tripComputations: completedHandoffs.map((handoff) => ({
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed" as const,
+    events: handoff.events,
     existingTrip: handoff.existingTrip,
     completedTrip: handoff.tripToComplete,
     activeTrip: handoff.newTripCore.withFinalSchedule,
@@ -376,9 +408,8 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
     _existingTrip,
     _tripStart,
     _events,
-    _shouldRunPredictionFallback,
     _adapters
-  ): Promise<BuildTripCoreResult> => {
+  ): Promise<TripScheduleCoreResult> => {
     const failure = input.buildFailuresByVessel?.get(currLocation.VesselAbbrev);
     if (failure) {
       throw failure;
@@ -391,11 +422,6 @@ const createDeps = (input: TestDepsInput): ProcessCompletedTripsDeps => ({
 
     return {
       withFinalSchedule: newTrip,
-      gates: {
-        shouldAttemptAtDockPredictions: false,
-        shouldAttemptAtSeaPredictions: false,
-        didJustLeaveDock: false,
-      },
     };
   },
   buildTripAdapters: {

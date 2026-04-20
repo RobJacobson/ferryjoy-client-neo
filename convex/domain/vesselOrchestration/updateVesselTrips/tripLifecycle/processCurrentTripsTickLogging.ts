@@ -3,16 +3,16 @@
  * Keeps the lifecycle file focused on control flow.
  */
 
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import type { BuildTripCoreResult } from "./buildTrip";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "./tripEventTypes";
 
 type CurrentTripBuildResult = {
   currLocation: ConvexVesselLocation;
-  existingTrip?: ConvexVesselTripWithPredictions;
+  existingTrip?: ConvexVesselTrip;
   events: TripEvents;
-  tripCore: BuildTripCoreResult;
+  tripCore: TripScheduleCoreResult;
 };
 
 /**
@@ -139,7 +139,7 @@ const summarizeLocationTick = (
 const summarizeTripsCompute = (
   trip:
     | Pick<
-        ConvexVesselTripWithPredictions,
+        ConvexVesselTrip,
         | "AtDock"
         | "LeftDock"
         | "ArriveDest"

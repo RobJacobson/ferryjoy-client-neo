@@ -4,10 +4,10 @@
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type {
-  ConvexPrediction,
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 
@@ -38,21 +38,16 @@ export type VesselPredictionContext = {
 };
 
 /**
- * Minimal prediction payload carried between predictions and timeline in Stage A.
+ * Transitional predicted-trip handoff for downstream consumers.
+ *
+ * The name is legacy, but the shape is now just "which trip branch was
+ * predicted this tick, and what was the resulting ML-enriched trip row?"
  */
-export type TripPredictionSet = Partial<
-  Record<
-    | "AtDockDepartCurr"
-    | "AtDockArriveNext"
-    | "AtDockDepartNext"
-    | "AtSeaArriveNext"
-    | "AtSeaDepartNext",
-    ConvexPrediction
-  >
->;
-
-export type PredictedTripComputation = TripComputation & {
-  predictions: TripPredictionSet;
+export type PredictedTripComputation = {
+  vesselAbbrev: string;
+  branch: "completed" | "current";
+  completedTrip?: ConvexVesselTrip;
+  activeTrip?: ConvexVesselTrip;
   finalPredictedTrip?: ConvexVesselTripWithML;
 };
 
@@ -63,8 +58,8 @@ export type PredictedTripComputation = TripComputation & {
 export type VesselTripPredictionRow = VesselTripPredictionProposal;
 
 export type RunUpdateVesselPredictionsInput = {
-  tickStartedAt: number;
-  tripComputations: ReadonlyArray<TripComputation>;
+  activeTrips: ReadonlyArray<ConvexVesselTrip>;
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
   predictionContext: VesselPredictionContext;
 };
 

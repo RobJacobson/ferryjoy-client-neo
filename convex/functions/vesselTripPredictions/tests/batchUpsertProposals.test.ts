@@ -79,6 +79,26 @@ describe("batch upsert stats (simulated)", () => {
     expect(stats).toEqual({ skipped: 1, inserted: 0, replaced: 0 });
   });
 
+  it("counts all skips when many identical proposals repeat (recompute + diff)", () => {
+    const p = proposal();
+    const key = `${p.VesselAbbrev}|${p.TripKey}|${p.PredictionType}`;
+    const existing: Doc<"vesselTripPredictions"> = {
+      _id: "abc123" as Id<"vesselTripPredictions">,
+      _creationTime: 0,
+      VesselAbbrev: p.VesselAbbrev,
+      TripKey: p.TripKey,
+      PredictionType: p.PredictionType,
+      ...p.prediction,
+      UpdatedAt: 0,
+    };
+    const map = new Map<string, Doc<"vesselTripPredictions"> | null>([
+      [key, existing],
+    ]);
+    const proposals = Array.from({ length: 12 }, () => ({ ...p }));
+    const stats = simulateBatchStats(map, proposals, 2);
+    expect(stats).toEqual({ skipped: 12, inserted: 0, replaced: 0 });
+  });
+
   it("counts replace when overlay PredTime changes", () => {
     const p = proposal();
     const key = `${p.VesselAbbrev}|${p.TripKey}|${p.PredictionType}`;

@@ -3,14 +3,6 @@
  * gates on {@link TimelineTripComputation}.
  */
 
-import {
-  completedFactFromComputationOrThrow,
-  completedTripBoundaryMatchKeyFromFact,
-  currentActualMessageFromComputation,
-  currentPredictedMessageFromComputation,
-  isCompletedTripBranchComputation,
-  isCurrentTripBranchComputation,
-} from "domain/vesselOrchestration/shared/tripComputationPersistMapping";
 import type { PredictedTripComputation } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import {
@@ -23,6 +15,81 @@ import type {
   TimelineTripComputation,
 } from "./contracts";
 import type { CompletedTripBoundaryFact } from "./types";
+
+const completedTripBoundaryMatchKeyFromFact = (
+  fact: Pick<CompletedTripBoundaryFact, "tripToComplete">
+): string =>
+  `${fact.tripToComplete.VesselAbbrev}::${fact.tripToComplete.ScheduleKey}`;
+
+const isCompletedTripBranchComputation = (
+  computation: TimelineTripComputation
+): computation is TimelineTripComputation & {
+  branch: "completed";
+} => computation.branch === "completed";
+
+const isCurrentTripBranchComputation = (
+  computation: TimelineTripComputation
+): computation is TimelineTripComputation & {
+  branch: "current";
+} => computation.branch === "current";
+
+const completedFactFromComputationOrThrow = (
+  computation: TimelineTripComputation & { branch: "completed" }
+): CompletedTripBoundaryFact => {
+  if (
+    computation.existingTrip === undefined ||
+    computation.completedTrip === undefined ||
+    computation.events === undefined
+  ) {
+    throw new Error(
+      `[VesselTrips] completed trip computation for ${computation.vesselAbbrev} is missing required timeline fields`
+    );
+  }
+
+  return {
+    existingTrip: computation.existingTrip,
+    tripToComplete: computation.completedTrip,
+    events: computation.events,
+    newTripCore: {
+      withFinalSchedule: computation.tripCore.withFinalSchedule,
+    },
+  };
+};
+
+const currentActualMessageFromComputation = (
+  computation: TimelineTripComputation & { branch: "current" }
+) => {
+  if (computation.events === undefined) {
+    return null;
+  }
+
+  return {
+    events: computation.events,
+    tripCore: {
+      withFinalSchedule: computation.tripCore.withFinalSchedule,
+    },
+    vesselAbbrev: computation.vesselAbbrev,
+  };
+};
+
+const currentPredictedMessageFromComputation = (
+  computation: TimelineTripComputation & { branch: "current" }
+) => {
+  if (
+    computation.events === undefined &&
+    computation.existingTrip === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    existingTrip: computation.existingTrip,
+    tripCore: {
+      withFinalSchedule: computation.tripCore.withFinalSchedule,
+    },
+    vesselAbbrev: computation.vesselAbbrev,
+  };
+};
 
 const predictedTripComputationMatchKey = (
   computation: PredictedTripComputation

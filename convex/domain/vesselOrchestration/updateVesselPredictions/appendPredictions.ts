@@ -1,8 +1,9 @@
 /**
  * Prediction enrichment helpers for vessel-trip updates.
  *
- * Adds the ML predictions that are valid for the trip's current phase and
- * supports both event-driven runs and the once-per-minute fallback window.
+ * Adds the ML predictions that are valid for the trip's current phase.
+ * Predictions re-run on every tick for the active phase, and persistence dedupes
+ * unchanged proposal rows.
  */
 
 import { loadModelsForPairBatch } from "domain/ml/prediction/predictTrip";
@@ -28,7 +29,7 @@ type ModelDoc = {
  * Compute predictions for a specific set of prediction specs.
  *
  * Core prediction logic that:
- * - Skips specs where predictions already exist (avoid redundant work)
+ * - Re-runs every phase-valid spec on each tick
  * - Validates trip readiness via isPredictionReadyTrip
  * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
  * - Batches model loading when multiple predictions needed for efficiency
@@ -44,18 +45,12 @@ const computePredictions = async (
   specs: PredictionSpec[]
 ): Promise<ConvexVesselTripWithML> => {
   try {
-    const specsToAttempt = specs.filter(
-      (spec) => trip[spec.field] === undefined
-    );
-
-    if (specsToAttempt.length === 0) return trip;
-
     if (!isPredictionReadyTrip(trip)) return trip;
 
     const departureMs = trip.LeftDockActual;
 
     if (
-      specsToAttempt.some(
+      specs.some(
         (spec) => spec.requiresDepartureActual && !departureMs
       )
     ) {
@@ -68,7 +63,7 @@ const computePredictions = async (
       ModelDoc | null
     >;
     if (
-      specsToAttempt.length > 1 &&
+      specs.length > 1 &&
       trip.ArrivingTerminalAbbrev &&
       trip.DepartingTerminalAbbrev
     ) {
@@ -76,20 +71,20 @@ const computePredictions = async (
         trip.DepartingTerminalAbbrev,
         trip.ArrivingTerminalAbbrev
       );
-      const modelTypes = specsToAttempt.map((s) => s.modelType);
+      const modelTypes = specs.map((s) => s.modelType);
       modelsMap =
         (await loadModelsForPairBatch(modelAccess, pairKey, modelTypes)) ??
         ({} as Record<ModelType, ModelDoc | null>);
     }
 
     const results = await Promise.all(
-      specsToAttempt.map(async (spec) => ({
+      specs.map(async (spec) => ({
         spec,
         prediction: await predictFromSpec(
           modelAccess,
           trip,
           spec,
-          specsToAttempt.length > 1 ? modelsMap[spec.modelType] : undefined
+          specs.length > 1 ? modelsMap[spec.modelType] : undefined
         ),
       }))
     );
@@ -119,8 +114,8 @@ const computePredictions = async (
  *
  * Predicts AtDockDepartCurr, AtDockArriveNext, and AtDockDepartNext when
  * vessel is at dock and trip has required canonical origin-arrival context
- * (isPredictionReadyTrip).
- * Runs on event-driven (arrive at dock) and time-based fallback (once per minute).
+ * (isPredictionReadyTrip). The orchestrator re-runs these predictions on every
+ * tick while the trip stays in the at-dock phase.
  *
  * @param modelAccess - Production model parameters (orchestrator `runQuery`)
  * @param trip - Current vessel trip state
@@ -142,8 +137,8 @@ export const appendArriveDockPredictions = async (
  *
  * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
  * (has canonical departure state) and trip has required context
- * (isPredictionReadyTrip).
- * Runs on event-driven (leave dock) and time-based fallback (once per minute).
+ * (isPredictionReadyTrip). The orchestrator re-runs these predictions on every
+ * tick while the trip stays in the at-sea phase.
  *
  * @param modelAccess - Production model parameters (orchestrator `runQuery`)
  * @param trip - Current vessel trip state

@@ -2,12 +2,8 @@
  * Builds canonical trip-completion rows from the final trusted live location.
  */
 
-import { actualizePredictionsOnTripComplete } from "domain/ml/prediction";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 
 /**
@@ -24,10 +20,10 @@ import { calculateTimeDelta } from "shared/durationUtils";
  * @returns Completed trip with all completion fields set
  */
 export const buildCompletedTrip = (
-  existingTrip: ConvexVesselTripWithPredictions,
+  existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation,
   hasTrustedArrival: boolean
-): ConvexVesselTripWithML => {
+): ConvexVesselTrip => {
   const completionTime = currLocation.TimeStamp;
   const trustedArrivalTime = hasTrustedArrival ? completionTime : undefined;
   const withTripEnd = {
@@ -60,5 +56,5 @@ export const buildCompletedTrip = (
     LeftDockActual: withTripEnd.LeftDockActual ?? withTripEnd.LeftDock,
   };
 
-  return actualizePredictionsOnTripComplete(withDurations);
+  return withDurations;
 };

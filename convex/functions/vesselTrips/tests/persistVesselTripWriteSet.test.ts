@@ -4,9 +4,10 @@ import { describe, expect, it } from "bun:test";
 import { api } from "_generated/api";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
-  BuildTripCoreResult,
   RunUpdateVesselTripsOutput,
   TripEvents,
+  TripScheduleCoreResult,
+  VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import {
   persistVesselTripWriteSet,
@@ -64,13 +65,8 @@ const makeTrip = (
 
 const coreFromTrip = (
   trip: ConvexVesselTripWithPredictions
-): BuildTripCoreResult => ({
+): TripScheduleCoreResult => ({
   withFinalSchedule: trip,
-  gates: {
-    shouldAttemptAtDockPredictions: false,
-    shouldAttemptAtSeaPredictions: false,
-    didJustLeaveDock: false,
-  },
 });
 
 /**
@@ -156,11 +152,12 @@ const minimalTripEvents: TripEvents = {
   scheduleKeyChanged: false,
 };
 
-const buildTripsOutput = (input: {
+const buildTripsFixture = (input: {
   completedFacts?: Array<{
     existingTrip: ConvexVesselTripWithPredictions;
     tripToComplete: ConvexVesselTripWithPredictions;
     newTrip: ConvexVesselTripWithPredictions;
+    events?: TripEvents;
   }>;
   currentTrips?: Array<{
     trip: ConvexVesselTripWithPredictions;
@@ -168,38 +165,68 @@ const buildTripsOutput = (input: {
     events?: TripEvents;
     persisted?: boolean;
   }>;
-}): RunUpdateVesselTripsOutput => ({
-  activeTrips: [
-    ...(input.completedFacts ?? []).map((fact) =>
-      stripTripPredictionsForStorage(fact.newTrip)
+}): {
+  trips: RunUpdateVesselTripsOutput;
+  tripsCompute: VesselTripsComputeBundle;
+} => ({
+  trips: {
+    activeTrips: [
+      ...(input.completedFacts ?? []).map((fact) =>
+        stripTripPredictionsForStorage(fact.newTrip)
+      ),
+      ...(input.currentTrips ?? []).flatMap((currentTrip) =>
+        currentTrip.persisted === false
+          ? []
+          : [stripTripPredictionsForStorage(currentTrip.trip)]
+      ),
+    ],
+    completedTrips: (input.completedFacts ?? []).map((fact) =>
+      stripTripPredictionsForStorage(fact.tripToComplete)
     ),
-    ...(input.currentTrips ?? []).flatMap((currentTrip) =>
-      currentTrip.persisted === false
-        ? []
-        : [stripTripPredictionsForStorage(currentTrip.trip)]
-    ),
-  ],
-  completedTrips: (input.completedFacts ?? []).map((fact) =>
-    stripTripPredictionsForStorage(fact.tripToComplete)
-  ),
-  tripComputations: [
-    ...(input.completedFacts ?? []).map((fact) => ({
-      vesselAbbrev: fact.tripToComplete.VesselAbbrev,
-      branch: "completed" as const,
+  },
+  tripsCompute: {
+    completedHandoffs: (input.completedFacts ?? []).map((fact) => ({
       existingTrip: fact.existingTrip,
-      completedTrip: fact.tripToComplete,
-      activeTrip: fact.newTrip,
-      tripCore: coreFromTrip(fact.newTrip),
+      tripToComplete: fact.tripToComplete,
+      events: fact.events ?? minimalTripEvents,
+      newTripCore: coreFromTrip(fact.newTrip),
     })),
-    ...(input.currentTrips ?? []).map((currentTrip) => ({
-      vesselAbbrev: currentTrip.trip.VesselAbbrev,
-      branch: "current" as const,
-      events: currentTrip.events ?? minimalTripEvents,
-      existingTrip: currentTrip.existingTrip,
-      activeTrip: currentTrip.trip,
-      tripCore: coreFromTrip(currentTrip.trip),
-    })),
-  ],
+    current: {
+      activeUpserts: (input.currentTrips ?? []).flatMap((currentTrip) =>
+        currentTrip.persisted === false ? [] : [currentTrip.trip]
+      ),
+      pendingActualMessages: (input.currentTrips ?? []).flatMap((currentTrip) =>
+        currentTrip.events === undefined
+          ? []
+          : [
+              {
+                events: currentTrip.events,
+                tripCore: coreFromTrip(currentTrip.trip),
+                vesselAbbrev: currentTrip.trip.VesselAbbrev,
+                requiresSuccessfulUpsert: currentTrip.persisted !== false,
+              },
+            ]
+      ),
+      pendingPredictedMessages: (input.currentTrips ?? []).map((currentTrip) => ({
+        existingTrip: currentTrip.existingTrip,
+        tripCore: coreFromTrip(currentTrip.trip),
+        vesselAbbrev: currentTrip.trip.VesselAbbrev,
+        requiresSuccessfulUpsert: currentTrip.persisted !== false,
+      })),
+      pendingLeaveDockEffects: (input.currentTrips ?? []).flatMap((currentTrip) =>
+        currentTrip.events?.didJustLeaveDock === true &&
+        currentTrip.trip.LeftDockActual !== undefined &&
+        currentTrip.persisted !== false
+          ? [
+              {
+                vesselAbbrev: currentTrip.trip.VesselAbbrev,
+                trip: currentTrip.trip,
+              },
+            ]
+          : []
+      ),
+    },
+  },
 });
 
 describe("persistVesselTripWriteSet", () => {
@@ -213,10 +240,12 @@ describe("persistVesselTripWriteSet", () => {
       DepartingTerminalAbbrev: "ORI",
     });
     const ctx = createCtx();
+    const fixture = buildTripsFixture({
+      completedFacts: [{ existingTrip: existing, tripToComplete, newTrip }],
+    });
     const { completedFacts } = await persistVesselTripWriteSet(
-      buildTripsOutput({
-        completedFacts: [{ existingTrip: existing, tripToComplete, newTrip }],
-      }),
+      fixture.trips,
+      fixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(completedFacts).toHaveLength(1);
@@ -236,16 +265,18 @@ describe("persistVesselTripWriteSet", () => {
 
   it("drops completed fact when handoff mutation throws", async () => {
     const ctx = createCtx({ failCompleteHandoff: true });
+    const fixture = buildTripsFixture({
+      completedFacts: [
+        {
+          existingTrip: makeTrip(),
+          tripToComplete: makeTrip(),
+          newTrip: makeTrip(),
+        },
+      ],
+    });
     const { completedFacts } = await persistVesselTripWriteSet(
-      buildTripsOutput({
-        completedFacts: [
-          {
-            existingTrip: makeTrip(),
-            tripToComplete: makeTrip(),
-            newTrip: makeTrip(),
-          },
-        ],
-      }),
+      fixture.trips,
+      fixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(completedFacts).toHaveLength(0);
@@ -253,8 +284,10 @@ describe("persistVesselTripWriteSet", () => {
 
   it("does not call upsertVesselTripsBatch when activeUpserts is empty", async () => {
     const ctx = createCtx();
+    const fixture = buildTripsFixture({});
     await persistVesselTripWriteSet(
-      buildTripsOutput({}),
+      fixture.trips,
+      fixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -273,16 +306,18 @@ describe("persistVesselTripWriteSet", () => {
       },
     ];
     const ctx = createCtx();
+    const fixture = buildTripsFixture({
+      currentTrips: [
+        {
+          trip,
+          events: minimalTripEvents,
+          persisted: false,
+        },
+      ],
+    });
     const { currentBranch } = await persistVesselTripWriteSet(
-      buildTripsOutput({
-        currentTrips: [
-          {
-            trip,
-            events: minimalTripEvents,
-            persisted: false,
-          },
-        ],
-      }),
+      fixture.trips,
+      fixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -304,16 +339,15 @@ describe("persistVesselTripWriteSet", () => {
       {
         activeTrips: [stripTripPredictionsForStorage(trip)],
         completedTrips: [],
-        tripComputations: [
-          {
-            vesselAbbrev: trip.VesselAbbrev,
-            branch: "current",
-            activeTrip: trip,
-            tripCore: {
-              withFinalSchedule: trip,
-            },
-          },
-        ],
+      },
+      {
+        completedHandoffs: [],
+        current: {
+          activeUpserts: [trip],
+          pendingActualMessages: [],
+          pendingPredictedMessages: [],
+          pendingLeaveDockEffects: [],
+        },
       },
       vesselTripTableMutationsFromCtx(ctx)
     );
@@ -348,18 +382,20 @@ describe("persistVesselTripWriteSet", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: false, reason: "db" }],
       },
     });
-    await persistVesselTripWriteSet(
-      buildTripsOutput({
-        currentTrips: [
-          {
-            trip,
-            events: {
-              ...minimalTripEvents,
-              didJustLeaveDock: true,
-            },
+    const failedFixture = buildTripsFixture({
+      currentTrips: [
+        {
+          trip,
+          events: {
+            ...minimalTripEvents,
+            didJustLeaveDock: true,
           },
-        ],
-      }),
+        },
+      ],
+    });
+    await persistVesselTripWriteSet(
+      failedFixture.trips,
+      failedFixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctx)
     );
     expect(
@@ -374,18 +410,20 @@ describe("persistVesselTripWriteSet", () => {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
     });
-    await persistVesselTripWriteSet(
-      buildTripsOutput({
-        currentTrips: [
-          {
-            trip,
-            events: {
-              ...minimalTripEvents,
-              didJustLeaveDock: true,
-            },
+    const okFixture = buildTripsFixture({
+      currentTrips: [
+        {
+          trip,
+          events: {
+            ...minimalTripEvents,
+            didJustLeaveDock: true,
           },
-        ],
-      }),
+        },
+      ],
+    });
+    await persistVesselTripWriteSet(
+      okFixture.trips,
+      okFixture.tripsCompute,
       vesselTripTableMutationsFromCtx(ctxOk)
     );
     const leaveDockCall = ctxOk.mutationCalls.find(

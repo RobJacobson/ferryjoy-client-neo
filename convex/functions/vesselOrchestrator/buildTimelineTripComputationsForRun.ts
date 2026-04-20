@@ -5,15 +5,50 @@
  */
 
 import type { VesselTripPersistResult } from "domain/vesselOrchestration/shared";
-import {
-  completedTripBoundaryMatchKeyFromFact,
-  isCompletedTripBranchComputation,
-  isCurrentTripBranchComputation,
-  isPersistedCurrentTripComputation,
-  persistedActiveTripKey,
-} from "domain/vesselOrchestration/shared/tripComputationPersistMapping";
 import type { TimelineTripComputation } from "domain/vesselOrchestration/updateTimeline";
-import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
+import type {
+  RunUpdateVesselTripsOutput,
+  TripComputation,
+} from "domain/vesselOrchestration/updateVesselTrips";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
+
+const completedTripBoundaryMatchKeyFromFact = (
+  vesselAbbrev: string,
+  scheduleKey: string | undefined
+): string => `${vesselAbbrev}::${scheduleKey}`;
+
+const persistedActiveTripKey = (
+  vesselAbbrev: string,
+  tripKey: string | undefined
+): string => `${vesselAbbrev}::${tripKey ?? "no-trip-key"}`;
+
+const isCompletedTripBranchComputation = (
+  computation: TripComputation
+): computation is TripComputation & {
+  branch: "completed";
+} => computation.branch === "completed";
+
+const isCurrentTripBranchComputation = (
+  computation: TripComputation
+): computation is TripComputation & {
+  branch: "current";
+} => computation.branch === "current";
+
+const isPersistedCurrentTripComputation = (
+  computation: TripComputation & {
+    activeTrip?: NonNullable<TripComputation["activeTrip"]>;
+  },
+  activeTripKeys: Set<string>
+): computation is TripComputation & {
+  activeTrip: NonNullable<TripComputation["activeTrip"]>;
+} =>
+  computation.activeTrip !== undefined &&
+  activeTripKeys.has(
+    persistedActiveTripKey(
+      computation.activeTrip.VesselAbbrev,
+      stripTripPredictionsForStorage(computation.activeTrip).TripKey
+    )
+  );
 
 /**
  * Filters and annotates Stage C trip computations using the same persist outcome
@@ -21,26 +56,37 @@ import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/upda
  */
 export const buildTimelineTripComputationsForRun = (
   trips: RunUpdateVesselTripsOutput,
+  tripComputations: ReadonlyArray<TripComputation>,
   persist: VesselTripPersistResult
 ): TimelineTripComputation[] => {
   const activeTripKeys = new Set(
-    trips.activeTrips.map((trip) => persistedActiveTripKey(trip))
+    trips.activeTrips.map((trip) =>
+      persistedActiveTripKey(trip.VesselAbbrev, trip.TripKey)
+    )
   );
   const successfulVessels = persist.currentBranch.successfulVessels;
 
   const succeededCompletedKeys = new Set(
-    persist.completedFacts.map((f) => completedTripBoundaryMatchKeyFromFact(f))
+    persist.completedFacts.map((fact) =>
+      completedTripBoundaryMatchKeyFromFact(
+        fact.tripToComplete.VesselAbbrev,
+        fact.tripToComplete.ScheduleKey
+      )
+    )
   );
 
   const out: TimelineTripComputation[] = [];
 
-  for (const computation of trips.tripComputations) {
+  for (const computation of tripComputations) {
     if (isCompletedTripBranchComputation(computation)) {
       const { completedTrip } = computation;
       if (completedTrip === undefined) {
         continue;
       }
-      const key = `${completedTrip.VesselAbbrev}::${completedTrip.ScheduleKey}`;
+      const key = completedTripBoundaryMatchKeyFromFact(
+        completedTrip.VesselAbbrev,
+        completedTrip.ScheduleKey
+      );
       if (!succeededCompletedKeys.has(key)) {
         continue;
       }

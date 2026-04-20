@@ -23,9 +23,9 @@ import type {
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
 } from "domain/vesselOrchestration/shared";
+import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import type { BuildTripCoreResult } from "./buildTrip";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ProcessCompletedTripsDeps } from "./processCompletedTrips";
 import {
   logActualProjectionTick,
@@ -40,16 +40,16 @@ import type {
 
 type CurrentTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip?: ConvexVesselTripWithPredictions;
+  existingTrip?: ConvexVesselTrip;
   events: TripEvents;
 };
 
 type CurrentTripBuildResult = CurrentTripTransition & {
-  tripCore: BuildTripCoreResult;
+  tripCore: TripScheduleCoreResult;
 };
 
 type CurrentTripArtifacts = {
-  activeUpserts: ConvexVesselTripWithPredictions[];
+  activeUpserts: ConvexVesselTrip[];
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
   pendingLeaveDockEffects: PendingLeaveDockEffect[];
@@ -60,13 +60,11 @@ type CurrentTripArtifacts = {
  * Convex mutations run in the functions-layer applier.
  *
  * @param currentTrips - Current-trip transitions for this tick
- * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Trip builder and injected function-layer adapters
  * @returns Pre-mutation fragment for the tick write applier
  */
 export const processCurrentTrips = async (
   currentTrips: CurrentTripTransition[],
-  shouldRunPredictionFallback: boolean,
   deps: Pick<ProcessCompletedTripsDeps, "buildTripCore" | "buildTripAdapters">
 ): Promise<ActiveTripsBranch> => {
   const buildResults = await Promise.allSettled(
@@ -78,7 +76,6 @@ export const processCurrentTrips = async (
           transition.existingTrip,
           false,
           transition.events,
-          shouldRunPredictionFallback,
           deps.buildTripAdapters
         ),
       };
@@ -132,7 +129,7 @@ export const processCurrentTrips = async (
  */
 const buildLeaveDockPostPersistEffect = (
   events: TripEvents,
-  proposedCore: ConvexVesselTripWithPredictions,
+  proposedCore: ConvexVesselTrip,
   vesselAbbrev: string
 ): PendingLeaveDockEffect | null =>
   events.didJustLeaveDock && proposedCore.LeftDockActual !== undefined

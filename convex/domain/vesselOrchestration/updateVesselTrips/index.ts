@@ -11,27 +11,21 @@
  */
 
 export type {
-  ExistingActiveTripRow,
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
   TripComputation,
-  VesselLocationRow,
-  VesselTripRow,
+  TripScheduleCoreResult,
   VesselTripScheduleContext,
 } from "./contracts";
-export {
-  computeVesselTripsWithClock,
-  type VesselTripsWithClock,
-  type VesselTripsWithClockOptions,
-} from "./processTick/computeVesselTripsWithClock";
 export { createDefaultProcessVesselTripsDeps } from "./processTick/defaultProcessVesselTripsDeps";
 export {
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
-export { computeShouldRunPredictionFallback } from "./processTick/tickPredictionPolicy";
-export { runUpdateVesselTrips } from "./runUpdateVesselTrips";
-export type { BuildTripCoreResult } from "./tripLifecycle/buildTrip";
+export {
+  computeUpdateVesselTripsTickArtifacts,
+  runUpdateVesselTrips,
+} from "./runUpdateVesselTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
   ActiveTripsBranch,

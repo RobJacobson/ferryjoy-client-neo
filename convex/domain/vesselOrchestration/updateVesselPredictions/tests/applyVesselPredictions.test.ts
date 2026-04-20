@@ -1,7 +1,8 @@
 /**
  * Focused tests for {@link applyVesselPredictions} orchestration (ML tail).
- * When at-dock / at-sea gates are false, model access is unused — table cases pin
- * identity and leave-dock actualize branches without stubbing appenders.
+ * Model access is intentionally inert in these cases so we can pin the
+ * phase-selection and leave-dock actualization behavior without depending on
+ * ML internals.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -62,7 +63,7 @@ const minimalTrip = (
   ...overrides,
 });
 
-/** Unused when ML gates are false; appenders are not invoked. */
+/** Unused when the trip is not prediction-ready for the current phase. */
 const noopModelAccess: VesselTripPredictionModelAccess = {
   loadModelForProductionPair: async () => null,
   loadModelsForProductionPairBatch: async () =>
@@ -77,58 +78,35 @@ describe("applyVesselPredictions", () => {
   const table: Array<{
     name: string;
     trip: ConvexVesselTripWithPredictions;
-    gates: {
-      shouldAttemptAtDockPredictions: boolean;
-      shouldAttemptAtSeaPredictions: boolean;
-      didJustLeaveDock: boolean;
-    };
     expectSameRef: boolean;
   }> = [
     {
-      name: "all gates false returns the core trip unchanged (no appenders)",
+      name: "returns the original trip when no prediction phase applies",
       trip: minimalTrip(),
-      gates: {
-        shouldAttemptAtDockPredictions: false,
-        shouldAttemptAtSeaPredictions: false,
-        didJustLeaveDock: false,
-      },
       expectSameRef: true,
     },
     {
-      name: "leave-dock actualize no-op when AtDockDepartCurr is absent",
+      name: "leave-dock actualize is a no-op when no departure prediction exists",
       trip: minimalTrip(),
-      gates: {
-        shouldAttemptAtDockPredictions: false,
-        shouldAttemptAtSeaPredictions: false,
-        didJustLeaveDock: true,
-      },
       expectSameRef: true,
     },
   ];
 
   for (const row of table) {
     it(row.name, async () => {
-      const out = await applyVesselPredictions(
-        noopModelAccess,
-        row.trip,
-        row.gates
-      );
+      const out = await applyVesselPredictions(noopModelAccess, row.trip);
       if (row.expectSameRef) {
         expect(out).toBe(row.trip);
       }
     });
   }
 
-  it("leave-dock actualize applies departure actual to AtDockDepartCurr when gated", async () => {
+  it("leave-dock actualize applies departure actual after phase-based prediction work", async () => {
     const departPred = makePrediction(ms("2026-03-13T09:36:00-07:00"));
     const trip = minimalTrip({
       AtDockDepartCurr: departPred,
     });
-    const out = await applyVesselPredictions(noopModelAccess, trip, {
-      shouldAttemptAtDockPredictions: false,
-      shouldAttemptAtSeaPredictions: false,
-      didJustLeaveDock: true,
-    });
+    const out = await applyVesselPredictions(noopModelAccess, trip);
     expect(out).not.toBe(trip);
     expect(out.AtDockDepartCurr).toBeDefined();
     expect(out.AtDockDepartCurr?.Actual).toBe(trip.LeftDockActual);

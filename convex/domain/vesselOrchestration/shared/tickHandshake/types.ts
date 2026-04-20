@@ -8,23 +8,30 @@
  * `tickEventWrites`).
  */
 
-import type { BuildTripCoreResult } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
+  TripEvents,
+  TripScheduleCoreResult,
+} from "domain/vesselOrchestration/updateVesselTrips";
+import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 
 /**
  * One successful trip-boundary transition: trips ready for timeline writes.
  *
- * `newTripCore` is schedule + gates from {@link buildTripCore}; ML is attached
- * in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
+ * `newTripCore` is schedule/lifecycle output from {@link buildTripCore}; ML is
+ * attached in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
  */
 export type CompletedTripBoundaryFact = {
-  existingTrip: ConvexVesselTripWithPredictions;
-  tripToComplete: ConvexVesselTripWithML;
-  newTripCore: BuildTripCoreResult;
+  existingTrip: ConvexVesselTrip;
+  tripToComplete: ConvexVesselTrip;
+  /**
+   * Trip events for the boundary tick (same bundle passed to {@link buildTripCore}).
+   * Required for prediction gate derivation and timeline parity.
+   */
+  events: TripEvents;
+  newTripCore: TripScheduleCoreResult;
   /**
    * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on
    * the wire until `updateVesselPredictions` merge; **required** before timeline
@@ -38,7 +45,7 @@ export type CompletedTripBoundaryFact = {
  */
 export type CurrentTripActualEventMessage = {
   events: TripEvents;
-  tripCore: BuildTripCoreResult;
+  tripCore: TripScheduleCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
   /**
@@ -51,8 +58,8 @@ export type CurrentTripActualEventMessage = {
  * Per-vessel message to build `eventsPredicted` effects on the current path.
  */
 export type CurrentTripPredictedEventMessage = {
-  existingTrip: ConvexVesselTripWithPredictions | undefined;
-  tripCore: BuildTripCoreResult;
+  existingTrip: ConvexVesselTrip | undefined;
+  tripCore: TripScheduleCoreResult;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
   /**

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import { getDockDepartureState } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripDerivation";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("detectTripEvents", () => {
@@ -292,8 +292,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -320,10 +320,5 @@ const makeTrip = (
   PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });

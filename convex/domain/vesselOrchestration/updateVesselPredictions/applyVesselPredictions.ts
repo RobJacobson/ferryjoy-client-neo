@@ -1,68 +1,55 @@
 /**
  * **updateVesselPredictions** (domain): ML attachment for one vessel-trip tick.
  *
- * Callers should invoke this only with **`buildTripCore` outputs** (schedule +
- * gates): same inputs on every tick yield the same ML attachment (persist / other
- * phases must not feed alternate trip shapes into this). Canonical prediction logic
- * lives in {@link ./appendPredictions}; this module sequences at-dock → at-sea →
+ * Callers should invoke this with schedule/lifecycle trip rows from
+ * **`buildTripCore`** (`withFinalSchedule`). Canonical prediction logic lives in
+ * {@link ./appendPredictions}; this module sequences at-dock → at-sea →
  * leave-dock actualization only.
  */
 
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type {
+  ConvexVesselTrip,
   ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
 } from "functions/vesselTrips/schemas";
 import {
   appendArriveDockPredictions,
   appendLeaveDockPredictions,
 } from "./appendPredictions";
+import {
+  shouldRunAtDockPredictions,
+  shouldRunAtSeaPredictions,
+} from "./predictionPolicy";
 
 /**
  * Trip state immediately before this tick’s `appendArriveDockPredictions` /
- * `appendLeaveDockPredictions` (and leave-dock actualize). Schedule and
- * derived lifecycle rules are applied; the row may still carry **prior** ML or
- * joined minimal prediction fields from storage — this is not a “stripped” row.
+ * `appendLeaveDockPredictions` (and leave-dock actualize): schedule + lifecycle
+ * fields from **updateVesselTrips** (`buildTripCore`), storage-shaped only.
  */
-export type VesselTripCoreProposal = ConvexVesselTripWithPredictions;
+export type VesselTripCoreProposal = ConvexVesselTrip;
 
 /**
- * Boolean guards for ML phases, computed in `buildTripCore` (see
- * `domain/vesselOrchestration/updateVesselTrips`) before this
- * step. `didJustLeaveDock` is threaded from `TripEvents.didJustLeaveDock` and
- * must not be recomputed here.
- */
-export type VesselPredictionGates = {
-  readonly shouldAttemptAtDockPredictions: boolean;
-  readonly shouldAttemptAtSeaPredictions: boolean;
-  readonly didJustLeaveDock: boolean;
-};
-
-/**
- * Append at-dock / at-sea predictions and actualize on leave-dock when gated.
+ * Append at-dock / at-sea predictions and actualize on leave-dock.
  *
  * Order is fixed: at-dock attempts → at-sea attempts → leave-dock
- * actualization. Matches the former inline tail of `buildTrip`.
+ * actualization. Predictions re-run every tick whenever the trip is in the
+ * matching physical phase; unchanged results are deduped at persistence time.
  *
  * @param modelAccess - Production ML model reads for this tick
  * @param coreTrip - Schedule-enriched proposal (see {@link VesselTripCoreProposal})
- * @param gates - Precomputed flags from the lifecycle half of the tick
  * @returns Trip with ML fields applied for this tick
  */
 export const applyVesselPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,
-  coreTrip: VesselTripCoreProposal,
-  gates: VesselPredictionGates
+  coreTrip: VesselTripCoreProposal
 ): Promise<ConvexVesselTripWithML> => {
-  const withAtDockPredictions = gates.shouldAttemptAtDockPredictions
+  const withAtDockPredictions = shouldRunAtDockPredictions(coreTrip)
     ? await appendArriveDockPredictions(modelAccess, coreTrip)
     : coreTrip;
-  const withAtSeaPredictions = gates.shouldAttemptAtSeaPredictions
+  const withAtSeaPredictions = shouldRunAtSeaPredictions(withAtDockPredictions)
     ? await appendLeaveDockPredictions(modelAccess, withAtDockPredictions)
     : withAtDockPredictions;
 
-  return gates.didJustLeaveDock
-    ? actualizePredictionsOnLeaveDock(withAtSeaPredictions)
-    : withAtSeaPredictions;
+  return actualizePredictionsOnLeaveDock(withAtSeaPredictions);
 };

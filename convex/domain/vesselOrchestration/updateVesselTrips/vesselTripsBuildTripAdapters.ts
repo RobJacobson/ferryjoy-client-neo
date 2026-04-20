@@ -1,5 +1,5 @@
 /**
- * Injected boundary adapters for {@link buildTrip}.
+ * Injected boundary adapters for {@link buildTripCore}.
  *
  * Schedule continuity decisions live in `domain/vesselOrchestration/updateVesselTrips/continuity/`; these
  * hooks use {@link ScheduledSegmentLookup} wired by the functions layer via
@@ -7,7 +7,7 @@
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Boundary hooks required to assemble one enriched trip proposal.
@@ -15,10 +15,10 @@ import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/sche
 export type VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: (
     location: ConvexVesselLocation,
-    existingTrip: ConvexVesselTripWithPredictions | undefined
+    existingTrip: ConvexVesselTrip | undefined
   ) => Promise<ConvexVesselLocation>;
   appendFinalSchedule: (
-    baseTrip: ConvexVesselTripWithPredictions,
-    existingTrip: ConvexVesselTripWithPredictions | undefined
-  ) => Promise<ConvexVesselTripWithPredictions>;
+    baseTrip: ConvexVesselTrip,
+    existingTrip: ConvexVesselTrip | undefined
+  ) => Promise<ConvexVesselTrip>;
 };

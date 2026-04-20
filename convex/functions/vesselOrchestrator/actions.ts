@@ -10,25 +10,29 @@ import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import {
   buildScheduleSnapshotQueryArgs,
   type ScheduleSnapshot,
   type VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import {
+  assembleTripComputationsFromBundle,
   type RunUpdateVesselTimelineInput,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/updateTimeline";
 import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import {
   type PredictedTripComputation,
+  predictionModelTypesForTrip,
   runUpdateVesselPredictions,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
+  computeUpdateVesselTripsTickArtifacts,
   type RunUpdateVesselTripsOutput,
-  runUpdateVesselTrips,
   type TripComputation,
+  type VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -103,7 +107,7 @@ export const updateVesselOrchestrator = internalAction({
       }
 
       // Step 2: Trip compute + persist active/completed vessel trip rows.
-      const { trips, tripApplyResult, tripComputations } =
+      const { trips, tripsCompute, tripApplyResult, tripComputations } =
         await updateVesselTrips(
           ctx,
           convexLocations,
@@ -115,8 +119,8 @@ export const updateVesselOrchestrator = internalAction({
       // Step 3: Canonical prediction compute over trip handoff data.
       const { predictedTripComputations } = await updateVesselPredictions(
         ctx,
-        tickStartedAt,
-        tripComputations
+        trips,
+        tripsCompute.completedHandoffs
       );
 
       // Step 4: Timeline dock writes → `eventsActual` / `eventsPredicted`.
@@ -124,6 +128,7 @@ export const updateVesselOrchestrator = internalAction({
         tickStartedAt,
         tripComputations: buildTimelineTripComputationsForRun(
           trips,
+          tripComputations,
           tripApplyResult
         ),
         predictedTripComputations,
@@ -173,7 +178,8 @@ export const updateVesselLocations = async (
  * @param ctx - Action context for Convex bindings
  * @param convexLocations - Live locations from {@link updateVesselLocations}
  * @param activeTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param tickStartedAt - Orchestrator-owned tick anchor (same value as predictions/timeline)
+ * @param _tickStartedAt - Orchestrator tick anchor (shared with predictions/timeline). Unused by
+ *   the trips domain runner after Phase B — retained for a stable orchestrator call signature.
  * @param scheduleContext - Plain-data schedule snapshot for this tick
  * @returns Persist-scoped trip tick outcome (alias-compatible with timeline types)
  */
@@ -181,28 +187,30 @@ export const updateVesselTrips = async (
   ctx: ActionCtx,
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  tickStartedAt: number,
+  _tickStartedAt: number,
   scheduleContext: ScheduleSnapshot
 ): Promise<{
   trips: RunUpdateVesselTripsOutput;
+  tripsCompute: VesselTripsComputeBundle;
   tripApplyResult: VesselTripPersistResult;
   tripComputations: ReadonlyArray<TripComputation>;
 }> => {
   const bindings = createVesselOrchestratorConvexBindings(ctx);
-  const trips = await runUpdateVesselTrips({
-    tickStartedAt,
+  const tickArtifacts = await computeUpdateVesselTripsTickArtifacts({
     vesselLocations: convexLocations,
     existingActiveTrips: activeTrips,
     scheduleContext,
   });
   const tripApplyResult = await persistVesselTripWriteSet(
-    trips,
+    tickArtifacts.trips,
+    tickArtifacts.bundle,
     bindings.vesselTripMutations
   );
   return {
-    trips,
+    trips: tickArtifacts.trips,
+    tripsCompute: tickArtifacts.bundle,
     tripApplyResult,
-    tripComputations: trips.tripComputations,
+    tripComputations: assembleTripComputationsFromBundle(tickArtifacts.bundle),
   };
 };
 
@@ -212,14 +220,14 @@ export const updateVesselTrips = async (
  * non-empty.
  *
  * @param ctx - Action context for preload and proposal mutation
- * @param tickStartedAt - Clock anchor shared with the trips compute
- * @param tripComputations - Canonical Stage C handoff
+ * @param trips - Current tick trip rows
+ * @param completedHandoffs - Completed-trip rollover pairings for replacement-trip predictions
  * @returns Canonical Stage D prediction outputs
  */
 export const updateVesselPredictions = async (
   ctx: ActionCtx,
-  tickStartedAt: number,
-  tripComputations: ReadonlyArray<TripComputation>
+  trips: RunUpdateVesselTripsOutput,
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<{
   vesselTripPredictions: ReadonlyArray<
     Awaited<
@@ -228,10 +236,14 @@ export const updateVesselPredictions = async (
   >;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 }> => {
-  const predictionContext = await loadPredictionContext(ctx, tripComputations);
+  const predictionContext = await loadPredictionContext(
+    ctx,
+    trips.activeTrips,
+    completedHandoffs
+  );
   const predictions = await runUpdateVesselPredictions({
-    tickStartedAt,
-    tripComputations,
+    activeTrips: trips.activeTrips,
+    completedHandoffs,
     predictionContext,
   });
   if (predictions.vesselTripPredictions.length > 0) {
@@ -243,48 +255,33 @@ export const updateVesselPredictions = async (
   return predictions;
 };
 
-const atDockModelTypes = [
-  "at-dock-depart-curr",
-  "at-dock-arrive-next",
-  "at-dock-depart-next",
-] as const satisfies readonly ModelType[];
-
-const atSeaModelTypes = [
-  "at-sea-arrive-next",
-  "at-sea-depart-next",
-] as const satisfies readonly ModelType[];
-
 const buildPredictionContextRequests = (
-  tripComputations: ReadonlyArray<TripComputation>
+  activeTrips: ReadonlyArray<ConvexVesselTrip>,
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Array<{ pairKey: string; modelTypes: ModelType[] }> => {
   const requestMap = new Map<string, Set<ModelType>>();
 
-  for (const computation of tripComputations) {
-    const gates = computation.tripCore.gates;
-    if (gates === undefined) {
+  const tripsToPredict = [
+    ...completedHandoffs.map((handoff) => handoff.newTripCore.withFinalSchedule),
+    ...activeTrips,
+  ];
+
+  for (const trip of tripsToPredict) {
+    const modelTypesForTrip = predictionModelTypesForTrip(trip);
+    if (modelTypesForTrip.length === 0) {
       continue;
     }
 
-    const departing =
-      computation.tripCore.withFinalSchedule.DepartingTerminalAbbrev;
-    const arriving =
-      computation.tripCore.withFinalSchedule.ArrivingTerminalAbbrev;
+    const departing = trip.DepartingTerminalAbbrev;
+    const arriving = trip.ArrivingTerminalAbbrev;
     if (departing === undefined || arriving === undefined) {
       continue;
     }
 
     const pairKey = formatTerminalPairKey(departing, arriving);
     const modelTypes = requestMap.get(pairKey) ?? new Set<ModelType>();
-
-    if (gates.shouldAttemptAtDockPredictions) {
-      for (const modelType of atDockModelTypes) {
-        modelTypes.add(modelType);
-      }
-    }
-    if (gates.shouldAttemptAtSeaPredictions) {
-      for (const modelType of atSeaModelTypes) {
-        modelTypes.add(modelType);
-      }
+    for (const modelType of modelTypesForTrip) {
+      modelTypes.add(modelType);
     }
 
     if (modelTypes.size > 0) {
@@ -300,9 +297,10 @@ const buildPredictionContextRequests = (
 
 const loadPredictionContext = async (
   ctx: ActionCtx,
-  tripComputations: ReadonlyArray<TripComputation>
+  activeTrips: ReadonlyArray<ConvexVesselTrip>,
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<VesselPredictionContext> => {
-  const requests = buildPredictionContextRequests(tripComputations);
+  const requests = buildPredictionContextRequests(activeTrips, completedHandoffs);
   if (requests.length === 0) {
     return {};
   }

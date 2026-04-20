@@ -4,7 +4,7 @@
 
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   applyEffectiveTripIdentityToLocation,
   type EffectiveTripIdentity,
@@ -34,7 +34,7 @@ export type ResolveEffectiveDockedLocationResult = {
 export const resolveEffectiveDockedLocation = async (
   lookup: ScheduledSegmentLookup,
   location: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined
+  existingTrip: ConvexVesselTrip | undefined
 ): Promise<ResolveEffectiveDockedLocationResult> => {
   const stableDockedIdentity = hasStableDockedTripIdentity(
     location,

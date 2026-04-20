@@ -1,17 +1,14 @@
 /**
  * Base vessel trip from raw location data.
  *
- * Builds the location-derived base `ConvexVesselTripWithPredictions` for a single vessel tick.
+ * Builds the location-derived base {@link ConvexVesselTrip} for a single vessel tick.
  * The builder uses an explicit mode and shared derived inputs so the same
  * carry-forward rules apply consistently across newly created and continuing
  * updates.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  ConvexVesselTripWithML,
-  ConvexVesselTripWithPredictions,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
@@ -30,9 +27,9 @@ import {
  */
 export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTripWithPredictions,
+  existingTrip?: ConvexVesselTrip,
   isTripStart = false
-): ConvexVesselTripWithML => {
+): ConvexVesselTrip => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const tripMode = determineBaseTripMode(
     existingTrip,
@@ -58,9 +55,9 @@ export const baseTripFromLocation = (
  */
 const baseTripForStart = (
   currLocation: ConvexVesselLocation,
-  _existingTrip: ConvexVesselTripWithPredictions | undefined,
+  _existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
-): ConvexVesselTripWithML => {
+): ConvexVesselTrip => {
   const startTime = currLocation.TimeStamp;
   const tripKey = generateTripKey(
     currLocation.VesselAbbrev,
@@ -99,11 +96,6 @@ const baseTripForStart = (
     TotalDuration: undefined,
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
-    AtDockDepartCurr: undefined,
-    AtDockArriveNext: undefined,
-    AtDockDepartNext: undefined,
-    AtSeaArriveNext: undefined,
-    AtSeaDepartNext: undefined,
   };
 };
 
@@ -122,7 +114,7 @@ const baseTripForStart = (
  * @returns Physical trip key for this instance
  */
 const tripKeyForContinuing = (
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): string => {
   if (existingTrip === undefined) {
@@ -147,9 +139,9 @@ const tripKeyForContinuing = (
  */
 const baseTripForContinuing = (
   currLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTripWithPredictions | undefined,
+  existingTrip: ConvexVesselTrip | undefined,
   tripInputs: DerivedTripInputs
-): ConvexVesselTripWithML => {
+): ConvexVesselTrip => {
   const isBootstrapTrip = existingTrip === undefined;
   const startTime = isBootstrapTrip
     ? currLocation.TimeStamp
@@ -200,10 +192,5 @@ const baseTripForContinuing = (
     TotalDuration: existingTrip?.TotalDuration,
     InService: currLocation.InService,
     TimeStamp: currLocation.TimeStamp,
-    AtDockDepartCurr: existingTrip?.AtDockDepartCurr,
-    AtDockArriveNext: existingTrip?.AtDockArriveNext,
-    AtDockDepartNext: existingTrip?.AtDockDepartNext,
-    AtSeaArriveNext: existingTrip?.AtSeaArriveNext,
-    AtSeaDepartNext: existingTrip?.AtSeaDepartNext,
   };
 };

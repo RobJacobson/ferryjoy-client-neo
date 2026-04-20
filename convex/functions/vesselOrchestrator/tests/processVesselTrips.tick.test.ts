@@ -7,11 +7,11 @@ import { describe, expect, it } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
-  type BuildTripCoreResult,
-  computeVesselTripsWithClock,
+  computeVesselTripsBundle,
   type RunUpdateVesselTripsOutput,
   type TripEvents,
-  type VesselTripsWithClock,
+  type TripScheduleCoreResult,
+  type VesselTripsComputeBundle,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
@@ -46,51 +46,66 @@ const runVesselTripsTick = async (
   const trips = activeTrips ?? ctx.preloadedActiveTrips ?? [];
   const actionCtx = ctx as unknown as ActionCtx;
 
-  const { tripsCompute } = await computeVesselTripsWithClock(
-    { convexLocations: locations, activeTrips: trips },
+  const { bundle: tripsCompute } = await computeVesselTripsBundle(
+    locations,
     deps,
-    { tickStartedAt }
+    trips
   );
-  const tripsOutput = buildTripsOutputFromTripsCompute({ tripsCompute });
+  const { tripsOutput, tripComputations } = buildTripsArtifactsFromTripsCompute({
+    tripsCompute,
+  });
   const tripApplyResult = await persistVesselTripWriteSet(
     tripsOutput,
+    tripsCompute,
     createVesselTripTableMutations(actionCtx)
   );
 
   const { predictedTripComputations } = await updateVesselPredictions(
     actionCtx,
-    tickStartedAt,
-    tripsOutput.tripComputations
+    tripsOutput,
+    tripsCompute.completedHandoffs
   );
 
   await updateVesselTimeline(actionCtx, {
     tickStartedAt,
     tripComputations: buildTimelineTripComputationsForRun(
       tripsOutput,
+      tripComputations,
       tripApplyResult
     ),
     predictedTripComputations,
   });
 };
 
-const buildTripsOutputFromTripsCompute = (
-  input: Pick<VesselTripsWithClock, "tripsCompute">
-): RunUpdateVesselTripsOutput => ({
-  activeTrips: [
-    ...input.tripsCompute.completedHandoffs.map((handoff) =>
-      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+const buildTripsArtifactsFromTripsCompute = (input: {
+  tripsCompute: VesselTripsComputeBundle;
+}): {
+  tripsOutput: RunUpdateVesselTripsOutput;
+  tripComputations: Parameters<
+    typeof buildTimelineTripComputationsForRun
+  >[1];
+} => {
+  const tripsOutput: RunUpdateVesselTripsOutput = {
+    activeTrips: [
+      ...input.tripsCompute.completedHandoffs.map((handoff) =>
+        stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+      ),
+      ...input.tripsCompute.current.activeUpserts.map(
+        stripTripPredictionsForStorage
+      ),
+    ],
+    completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.tripToComplete)
     ),
-    ...input.tripsCompute.current.activeUpserts.map(
-      stripTripPredictionsForStorage
-    ),
-  ],
-  completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
-    stripTripPredictionsForStorage(handoff.tripToComplete)
-  ),
-  tripComputations: [
+  };
+
+  const tripComputations: Parameters<
+    typeof buildTimelineTripComputationsForRun
+  >[1] = [
     ...input.tripsCompute.completedHandoffs.map((handoff) => ({
       vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
       branch: "completed" as const,
+      events: handoff.events,
       existingTrip: handoff.existingTrip,
       completedTrip: handoff.tripToComplete,
       activeTrip: handoff.newTripCore.withFinalSchedule,
@@ -107,8 +122,10 @@ const buildTripsOutputFromTripsCompute = (
       activeTrip: message.tripCore.withFinalSchedule,
       tripCore: message.tripCore,
     })),
-  ],
-});
+  ];
+
+  return { tripsOutput, tripComputations };
+};
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -304,7 +321,65 @@ describe("vessel orchestrator trip tick sequencing", () => {
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
-  it("projects predicted effects without an active upsert when only predictions change", async () => {
+  it("runs one prediction-model preload query and one batchUpsertProposals mutation when ML proposals emit", async () => {
+    const callSequence: string[] = [];
+    const originMs = ms("2026-03-13T04:30:00-07:00");
+    const existingTrip = makeTrip({
+      ArrivedCurrActual: originMs,
+      AtDockActual: originMs,
+    });
+    const currLocation = makeLocation();
+    const changedTrip = makeTrip({
+      ArrivedCurrActual: originMs,
+      AtDockActual: originMs,
+      AtDockDepartCurr: makePrediction("2026-03-13T05:31:00-07:00"),
+      TripDelay: 42,
+    });
+    const stubProdModel = {
+      featureKeys: [] as string[],
+      coefficients: [] as number[],
+      intercept: 1,
+      testMetrics: { mae: 1, stdDev: 1 },
+    };
+    const ctx = createTestActionCtx({
+      activeTrips: [existingTrip],
+      upsertResult: {
+        perVessel: [{ vesselAbbrev: "CHE", ok: true }],
+      },
+      callSequence,
+      predictionModelsQueryResult: {
+        "ANA->ORI": {
+          "at-dock-depart-curr": stubProdModel,
+          "at-dock-arrive-next": stubProdModel,
+          "at-dock-depart-next": stubProdModel,
+        },
+      },
+    });
+
+    await runVesselTripsTick(
+      ctx,
+      [currLocation],
+      tickMs(),
+      createDeps({
+        eventsByVessel: new Map([["CHE", defaultEvents]]),
+        builtTripsByVessel: new Map([["CHE", changedTrip]]),
+        callSequence,
+      })
+    );
+
+    expect(
+      callSequence.filter((step) => step === "query:predictionModels")
+    ).toHaveLength(1);
+    expect(
+      callSequence.filter((step) => step === "mutation:batchUpsertProposals")
+    ).toHaveLength(1);
+    const batchArgs = getBatchUpsertProposalsArgs(ctx);
+    expect(
+      Array.isArray(batchArgs?.proposals) ? batchArgs.proposals.length : 0
+    ).toBeGreaterThan(0);
+  });
+
+  it("skips trip overlay and timeline predicted writes when only ML blobs differ (storage-equal)", async () => {
     const existingTrip = makeTrip();
     const currLocation = makeLocation();
     const changedTrip = makeTrip({
@@ -325,7 +400,7 @@ describe("vessel orchestrator trip tick sequencing", () => {
     );
 
     expect(getUpsertMutationArgs(ctx)).toBeUndefined();
-    expect(getPredictedProjectionArgs(ctx)?.Batches).toHaveLength(1);
+    expect(getPredictedProjectionArgs(ctx)).toBeUndefined();
     expect(getActualProjectionArgs(ctx)).toBeUndefined();
   });
 
@@ -345,6 +420,13 @@ describe("vessel orchestrator trip tick sequencing", () => {
       upsertResult: {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
+      predictionModelsQueryResult: {
+        "ANA->ORI": {
+          "at-dock-depart-curr": makeModelDoc(),
+          "at-dock-arrive-next": makeModelDoc(),
+          "at-dock-depart-next": makeModelDoc(),
+        },
+      },
     });
 
     await runVesselTripsTick(
@@ -362,9 +444,6 @@ describe("vessel orchestrator trip tick sequencing", () => {
     expect(predictedArgs?.Batches).toHaveLength(2);
     expect(
       predictedArgs?.Batches.some((effect) => effect.Rows.length === 0)
-    ).toBe(true);
-    expect(
-      predictedArgs?.Batches.some((effect) => effect.Rows.length > 0)
     ).toBe(true);
   });
 
@@ -607,6 +686,14 @@ const createTestActionCtx = (options: {
   activeTrips?: ConvexVesselTripWithPredictions[];
   upsertResult?: Record<string, unknown>;
   callSequence?: string[];
+  /**
+   * Return value for `getProductionModelParametersForTick` when `runQuery` is
+   * invoked with `{ requests }` (prediction preload).
+   */
+  predictionModelsQueryResult?: Record<
+    string,
+    Record<string, Record<string, unknown> | null>
+  >;
 }): TestActionCtx => {
   const queryCalls: Array<{ ref: unknown; args?: Record<string, unknown> }> =
     [];
@@ -621,7 +708,7 @@ const createTestActionCtx = (options: {
       queryCalls.push({ ref, args });
       if (args && typeof args === "object" && "requests" in args) {
         options.callSequence?.push("query:predictionModels");
-        return {};
+        return options.predictionModelsQueryResult ?? {};
       }
       options.callSequence?.push("query:activeTrips");
       return options.tripsReturnedByQuery ?? options.activeTrips ?? [];
@@ -698,7 +785,7 @@ const createTestActionCtx = (options: {
  * Build injectable updater dependencies for sequencing tests.
  *
  * @param input - Per-test dependency configuration
- * @returns Dependency bag for `computeVesselTripsWithClock` in sequencing tests
+ * @returns Dependency bag for `computeVesselTripsBundle` in sequencing tests
  */
 const createDeps = (input: TestDepsInput) => {
   const useCompletionMaps =
@@ -731,9 +818,8 @@ const createDeps = (input: TestDepsInput) => {
       _existingTrip: ConvexVesselTripWithPredictions | undefined,
       tripStart: boolean,
       _events: TripEvents,
-      _shouldRunPredictionFallback: boolean,
       _adapters: unknown
-    ): Promise<BuildTripCoreResult> => {
+    ): Promise<TripScheduleCoreResult> => {
       input.callSequence?.push(`build:${currLocation.VesselAbbrev}`);
       const failure = input.buildFailuresByVessel?.get(
         currLocation.VesselAbbrev
@@ -770,11 +856,6 @@ const createDeps = (input: TestDepsInput) => {
 
       return {
         withFinalSchedule,
-        gates: {
-          shouldAttemptAtDockPredictions: false,
-          shouldAttemptAtSeaPredictions: false,
-          didJustLeaveDock: false,
-        },
       };
     },
     buildTripAdapters: {
@@ -835,6 +916,13 @@ const makePrediction = (iso: string) => {
     StdDev: 1,
   };
 };
+
+const makeModelDoc = () => ({
+  featureKeys: [] as string[],
+  coefficients: [] as number[],
+  intercept: 1,
+  testMetrics: { mae: 1, stdDev: 1 },
+});
 
 /**
  * Build a test vessel location with sensible defaults.
@@ -1004,6 +1092,18 @@ const getPredictedProjectionArgs = (ctx: TestActionCtx) =>
         }>;
       }
     | undefined;
+
+/**
+ * Read `batchUpsertProposals` mutation arguments from the fake context.
+ *
+ * @param ctx - Fake action context
+ * @returns Proposals batch arguments, if present
+ */
+const getBatchUpsertProposalsArgs = (ctx: TestActionCtx) =>
+  ctx.mutationCalls.find(
+    (call) =>
+      call.args && typeof call.args === "object" && "proposals" in call.args
+  )?.args as { proposals: unknown[] } | undefined;
 
 /**
  * Read `completeAndStartNewTrip` mutation arguments from the fake context.

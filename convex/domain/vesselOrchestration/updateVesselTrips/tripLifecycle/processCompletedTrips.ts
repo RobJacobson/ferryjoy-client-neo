@@ -9,14 +9,14 @@
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { buildCompletedTrip } from "./buildCompletedTrip";
 import type { buildTripCore } from "./buildTrip";
 import type { TripEvents } from "./tripEventTypes";
 
 type CompletedTripTransition = {
   currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTripWithPredictions;
+  existingTrip: ConvexVesselTrip;
   events: TripEvents;
 };
 
@@ -31,14 +31,12 @@ export type ProcessCompletedTripsDeps = {
  * are applied later by the functions-layer trip tick write applier.
  *
  * @param completedTrips - Trip-boundary transitions for this tick
- * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param logVesselProcessingError - Error logger owned by the top-level updater
  * @param deps - Injectable helpers for completed-trip processing
  * @returns Plan rows in input order for vessels whose build succeeded
  */
 export const processCompletedTrips = async (
   completedTrips: CompletedTripTransition[],
-  shouldRunPredictionFallback: boolean,
   logVesselProcessingError: (
     vesselAbbrev: string,
     phase: string,
@@ -48,11 +46,7 @@ export const processCompletedTrips = async (
 ): Promise<ReadonlyArray<CompletedTripBoundaryFact>> => {
   const settledResults = await Promise.allSettled(
     completedTrips.map((transition) =>
-      processCompletedTripTransition(
-        transition,
-        shouldRunPredictionFallback,
-        deps
-      )
+      processCompletedTripTransition(transition, deps)
     )
   );
 
@@ -67,13 +61,11 @@ export const processCompletedTrips = async (
  * Builds one completed-trip handoff row (no persistence).
  *
  * @param transition - Trip-boundary transition for one vessel
- * @param shouldRunPredictionFallback - Whether the current tick is in the fallback window
  * @param deps - Injectable helpers for completed-trip processing
  * @returns Boundary fact payload for the applier and timeline (after mutation success)
  */
 const processCompletedTripTransition = async (
   transition: CompletedTripTransition,
-  shouldRunPredictionFallback: boolean,
   deps: ProcessCompletedTripsDeps
 ): Promise<CompletedTripBoundaryFact> => {
   const { existingTrip, currLocation, events } = transition;
@@ -87,13 +79,13 @@ const processCompletedTripTransition = async (
     tripToComplete,
     true,
     events,
-    shouldRunPredictionFallback,
     deps.buildTripAdapters
   );
 
   return {
     existingTrip,
     tripToComplete,
+    events,
     newTripCore,
   };
 };
